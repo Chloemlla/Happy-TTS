@@ -163,7 +163,7 @@ if __name__ == '__main__':
 
     try:
         # 启动Gradio界面
-        iface.launch(share=True)
+        iface.launch(share=False)
         
         # 创建一个无限循环，以保持脚本运行
         while True:
