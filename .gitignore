@@ -1,0 +1,8 @@
+.idea
+.env
+venv
+__pycache__
+docker-compose.yml
+finish/
+*.zip
+*.log
