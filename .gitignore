@@ -6,3 +6,4 @@ docker-compose.yml
 finish/
 *.zip
 *.log
+flagged/
