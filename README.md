@@ -13,11 +13,27 @@
 
 ## 安装
 
+### 使用 Docker
+
+1. 拉取 Docker 镜像：
+
+   ```bash
+   docker pull happyclo/tts:latest
+   ```
+
+2. 运行 Docker 容器：
+
+   ```bash
+   docker run -d -p 7860:7860 -e OPENAI_API_KEY=your_api_key_here happyclo/tts:latest
+   ```
+
+### 手动安装
+
 1. 克隆此仓库：
 
    ```bash
-   git clone https://github.com/your-repo/project-name.git
-   cd project-name
+   git clone https://github.com/Happy-clo/OpenAI-TTS-Gradio.git
+   cd OpenAI-TTS-Gradio
    ```
 
 2. 创建并激活虚拟环境：
@@ -33,13 +49,24 @@
    pip install -r requirements.txt
    ```
 
-4. 创建`.env`文件并添加你的 OpenAI API 密钥：
+4. 创建`.env`文件并添加你的 OpenAI API 相关设置：
 
    ```env
    OPENAI_API_KEY=your_api_key_here
+   OPENAI_BASE_URL=https://api.openai.com/v1
    ```
 
 ## 使用
+
+### 使用 Docker
+
+运行以下命令启动 Docker 容器：
+
+```bash
+docker run -d -p 7860:7860 -e OPENAI_API_KEY=your_api_key_here happyclo/tts:latest
+```
+
+### 手动运行
 
 运行以下命令启动应用程序：
 
