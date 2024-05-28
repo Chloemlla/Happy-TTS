@@ -8,18 +8,43 @@ import gradio as gr
 from typing import Union, Literal
 from openai import OpenAI
 from dotenv import load_dotenv
+from datetime import datetime
+from logging.handlers import TimedRotatingFileHandler
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
-# 设置日志
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+# 确保logs文件夹存在
+logs_dir = 'logs'
+if not os.path.exists(logs_dir):
+    os.makedirs(logs_dir)
 
+# 获取今日日期字符串
+today_str = datetime.now().strftime('%Y.%m.%d')
+
+# 计算今日已有的日志文件数量
+today_logs_count = len([name for name in os.listdir(logs_dir) if name.startswith(today_str)]) + 1
+
+# 设置日志文件名
+log_filename = os.path.join(logs_dir, f"{today_str}-{today_logs_count}.log")
+
+# 设置日志
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+
+# 文件处理器，每次启动创建新文件
+file_handler = logging.FileHandler(log_filename)
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+
+# 控制台处理器
 console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
-console_handler.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
+console_handler.setLevel(logging.WARNING)  # 控制台只显示WARNING及以上级别的日志
+console_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+
+logger.addHandler(file_handler)
 logger.addHandler(console_handler)
+
 load_dotenv()
 logging.info("环境变量已加载。")
 
@@ -58,45 +83,37 @@ def tts(
         voice: Literal["alloy", "echo", "fable", "onyx", "nova", "shimmer"],
         output_file_format: Literal["mp3", "opus", "aac", "flac"] = "mp3",
         speed: float = 1.0,
-        custom_file_name: str = None  # 添加自定义文件名参数
+        custom_file_name: str = None
 ):
-    # 检查限流器
     if not tts_rate_limiter.attempt():
         raise gr.Error("超出请求频率限制，请稍后再试。")
 
+    if len(text) == 0:
+        logging.info("无文本输入，返回默认静音文件。")
+        return "1-second-of-silence.mp3"
+
+    logging.info("接收到文本：{text}")
+    logging.info("正在请求OpenAI API进行文本转语音...")
+    client = OpenAI(api_key=openai_key, base_url=openai_base_url)
+    try:
+        response = client.audio.speech.create(
+            model=model,
+            voice=voice,
+            input=text,
+            response_format=output_file_format,
+            speed=speed
+        )
+        logging.info("语音合成请求成功！")
+    except Exception as error:
+        logging.error(str(error))
+        raise gr.Error("生成语音时出现错误，请检查API密钥并重试。")
+
     file_name = custom_file_name if custom_file_name else tempfile.mktemp(suffix=f".{output_file_format}")
-    # 确保文件保存到 /finish 文件夹
     file_name = os.path.join("finish", file_name)
     logging.info(f"正在写入语音文件到：{file_name}")
     with open(file_name, "wb") as file:
         file.write(response.content)
     return file_name
-    
-    logging.info(f"接收到文本：{text}")
-    if len(text) > 0:
-        try:
-            logging.info("正在请求OpenAI API进行文本转语音...")
-            client = OpenAI(api_key=openai_key, base_url=openai_base_url)
-            response = client.audio.speech.create(
-                model=model,
-                voice=voice,
-                input=text,
-                response_format=output_file_format,
-                speed=speed
-            )
-            logging.info("语音合成请求成功！")
-        except Exception as error:
-            logging.error(str(error))
-            raise gr.Error("生成语音时出现错误，请检查API密钥并重试。")
-
-        file_name = custom_file_name if custom_file_name else tempfile.mktemp(suffix=f".{output_file_format}")
-        logging.info(f"正在写入语音文件到：{file_name}")
-        with open(file_name, "wb") as file:
-            file.write(response.content)
-        return file_name
-    else:
-        logging.info("无文本输入，返回默认静音文件。")
-        return "1-second-of-silence.mp3"
 
 def wrap_tts(
     text: str, 
@@ -160,7 +177,7 @@ if __name__ == '__main__':
 
     try:
         # 启动Gradio界面
-        iface.launch(share=False)
+        iface.launch(share=True)
         
         # 创建一个无限循环，以保持脚本运行
         while True:
