@@ -55,7 +55,7 @@
 4. 创建`.env`文件并添加你的 OpenAI API 相关设置：
 
    ```env
-   OPENAI_API_KEY=your_api_key_here
+   OPENAI_KEY=your_api_key_here
    OPENAI_BASE_URL=https://api.openai.com/v1
    ```
 
