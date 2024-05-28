@@ -2,7 +2,7 @@
 .env
 venv
 __pycache__
-docker-compose.yml
+docker-compose..yml
 finish/
 *.zip
 *.log

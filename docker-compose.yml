@@ -1,0 +1,9 @@
+version: '3'
+services:
+  your_service_name:
+    image: happyclo/tts:latest
+    ports:
+      - "7860:7860"
+    volumes:
+      - /opt/tts-openai/logs:/usr/src/app/logs
+      - /opt/tts-openai/.env:/usr/src/app/.env

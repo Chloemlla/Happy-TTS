@@ -27,7 +27,7 @@
 2. 运行 Docker 容器：
 
    ```bash
-   docker run -d -p 7860:7860 -e OPENAI_API_KEY=your_api_key_here happyclo/tts:latest
+   docker run -d -p 7860:7860 -v /opt/tts-openai/logs:/usr/src/app/logs /opt/tts-openai/.env:/usr/src/app/.env -e OPENAI_KEY=your_api_key_here happyclo/tts:latest
    ```
 
 ### 手动安装

@@ -10,6 +10,9 @@ RUN mkdir -p /usr/src/app/matplotlib_config && chmod -R 777 /usr/src/app/matplot
 # Set environment variable for Matplotlib configuration directory
 ENV MPLCONFIGDIR=/usr/src/app/matplotlib_config
 
+# Create a directory for logs and ensure it is writable
+RUN mkdir -p /usr/src/app/logs && chmod -R 777 /usr/src/app/logs
+
 # Copy the current directory contents into the container at /usr/src/app
 COPY . .
 
