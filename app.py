@@ -3,6 +3,7 @@ import sys
 import time
 import tempfile
 import logging
+import hashlib
 import gradio as gr
 
 from typing import Union, Literal
@@ -77,6 +78,16 @@ class RateLimiter:
 
 tts_rate_limiter = RateLimiter(max_calls=5, period=30)
 
+# 全局集合，用于存储处理过的文本哈希
+processed_texts = set()
+
+def generate_text_hash(text: str) -> str:
+    # 使用md5生成文本的哈希值，为了确保md5能够处理中文，需要先将文本编码为utf-8
+    md5_hash = hashlib.md5(text.encode('utf-8')).hexdigest()
+    # 将md5的结果与内置hash函数的结果结合，进一步降低冲突概率
+    combined_hash = f"{hash(text)}-{md5_hash}"
+    return combined_hash
+
 def tts(
         text: str,
         model: Union[str, Literal["tts-1", "tts-1-hd"]],
@@ -85,6 +96,17 @@ def tts(
         speed: float = 1.0,
         custom_file_name: str = None
 ):
+    # 生成文本的唯一标识符
+    text_hash = generate_text_hash(text)
+    
+    # 检查文本哈希是否已经处理过
+    if text_hash in processed_texts:
+        logging.info("检测到重复的文本输入，跳过处理。")
+        raise gr.Error("重复的请求，不做处理。")
+        return "重复的请求，未处理。"
+    else:
+        processed_texts.add(text_hash)  # 将新文本的哈希值添加到集合中
+
     if not tts_rate_limiter.attempt():
         raise gr.Error("超出请求频率限制，请稍后再试。")
 
@@ -92,7 +114,7 @@ def tts(
         logging.info("无文本输入，返回默认静音文件。")
         return "1-second-of-silence.mp3"
 
-    logging.info("接收到文本：{text}")
+    logging.info(f"接收到文本：{text}")
     logging.info("正在请求OpenAI API进行文本转语音...")
     client = OpenAI(api_key=openai_key, base_url=openai_base_url)
     try:
