@@ -42,5 +42,3 @@ jobs:
           tags: |
             happyclo/tts:latest
             happyclo/tts:${{ github.sha }}
-          cache-from: type=local,src=/tmp/docker-cache
-          cache-to: type=local,dest=/tmp/docker-cache,mode=max
