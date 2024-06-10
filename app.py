@@ -347,7 +347,7 @@ iface = gr.Interface(
         gr.Button("报告错误", visible=False)
     ],
     title="Happy 文本转语音",
-    description="输入文本并选择选项以生成语音。你也可以指定一个自定义的文件名。",
+    description="输入文本并选择选项以生成语音。你也可以指定一个自定义的文件名。\n本项目开源地址： https://github.com/Happy-clo/OpenAI-TTS-Gradio/",
     css="""footer.svelte-1rjryqp { display: none !important; }""",
     allow_flagging="never"
 )
