@@ -1,3 +1,4 @@
+# 导入必要的库以支持应用程序的功能
 import os
 import sys
 import time
@@ -10,6 +11,7 @@ import gradio as gr
 import base64
 import json
 
+# 导入Flask和线程库，用于设置Web服务器和处理并发
 from flask import Flask, jsonify
 from threading import Thread
 from typing import Union, Literal
@@ -20,6 +22,7 @@ from logging.handlers import TimedRotatingFileHandler
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
+# 设置日志目录和文件，确保其存在，并初始化日志记录器
 # 确保logs文件夹存在
 logs_dir = 'logs'
 if not os.path.exists(logs_dir):
@@ -39,13 +42,13 @@ today_logs_count = len([name for name in os.listdir(logs_dir) if name.startswith
 # 设置日志文件名
 log_filename = os.path.join(logs_dir, f"{today_str}-{today_logs_count}.log")
 
-# 设置日志
+# 设置日志记录器
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 # 文件处理器，每次启动创建新文件
-file_handler = logging.FileHandler(log_filename)
+file_handler = logging.handlers.RotatingFileHandler(log_filename, maxBytes=1024*1024, backupCount=5)
 file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
 
@@ -57,22 +60,24 @@ console_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(me
 logger.addHandler(file_handler)
 logger.addHandler(console_handler)
 
+# 加载环境变量
 load_dotenv()
 logging.info("环境变量已加载。")
 
-# 读取环境变量
+# 从环境变量读取配置，用于OpenAI API调用
 server_name = os.getenv("SERVER_NAME", "tts.happys.icu")
 openai_key = os.getenv("OPENAI_KEY")
 openai_base_url = os.getenv("OPENAI_BASE_URL")
 logging.info("从环境变量中读取服务器名称和OpenAI密钥以及请求地址。")
 
+# 检查OpenAI API密钥是否有效，无效则退出程序
 if openai_key == "<YOUR_OPENAI_KEY>":
     openai_key = ""
 if openai_key == "":
     sys.exit("请提供您的OpenAI API密钥。")
 logging.info("OpenAI API密钥已设置。")
 
-# 定义一个简单的限流器
+# 定义一个简单的限流器类，用于限制调用频率
 class RateLimiter:
     def __init__(self, max_calls, period):
         self.calls = []
@@ -87,10 +92,10 @@ class RateLimiter:
             return True
         return False
 
+# 全局变量用于限制处理速度和存储已处理文本的哈希
 tts_rate_limiter = RateLimiter(max_calls=5, period=30)
-
-# 全局集合，用于存储处理过的文本哈希
 processed_texts = set()
+processed_texts_lock = threading.Lock()
 
 # 定义全局变量用于限制错误报告频率
 last_error_report_time = datetime.min
@@ -98,15 +103,17 @@ last_error_report_time = datetime.min
 # 全局变量用于存储当前正在处理的文本
 current_processing_text = ""
 
+# 检查是否可以报告错误
 def can_report_error() -> bool:
     """检查是否可以报告错误，一分钟内不可超过两次"""
-    # global last_error_report_time
-    # now = datetime.now()
-    # if (now - last_error_report_time).total_seconds() > 10:
-    #     last_error_report_time = now
-    #     return True
-    return True
+    global last_error_report_time
+    now = datetime.now()
+    if (now - last_error_report_time).total_seconds() > 10:
+        last_error_report_time = now
+        return True
+    return False
 
+# 报告错误信息到日志，并根据频率限制决定是否提示用户报告错误
 def report_error(error_message: str):
     """保存错误消息到日志文件并通过Gradio按钮报告错误"""
     error_file_path = os.path.join('error.txt')
@@ -124,6 +131,7 @@ def report_error(error_message: str):
     else:
         return f"生成语音时出现错误：{error_message}。请稍后再报告。"
 
+# 生成文本的唯一哈希标识
 def generate_text_hash(text: str) -> str:
     # 使用md5生成文本的哈希值，为了确保md5能够处理中文，需要先将文本编码为utf-8
     md5_hash = hashlib.md5(text.encode('utf-8')).hexdigest()
@@ -131,6 +139,7 @@ def generate_text_hash(text: str) -> str:
     combined_hash = f"{hash(text)}-{md5_hash}"
     return combined_hash
 
+# 保存已处理的文本内容
 def save_processed_text(text: str):
     """保存已处理的文本，并附上时间戳和详细信息"""
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -138,6 +147,7 @@ def save_processed_text(text: str):
     with open(processed_file_path, 'a', encoding='utf-8') as file:
         file.write(text_detail)
 
+# 检查新文本与已处理文本的相似度
 def check_similarity(new_text: str) -> bool:
     """检查新文本与已处理文本的相似度"""
     with open(processed_file_path, 'r', encoding='utf-8') as file:
@@ -150,7 +160,7 @@ def check_similarity(new_text: str) -> bool:
     similarity = difflib.SequenceMatcher(None, combined_old_text, new_text).ratio()
     return similarity > 0.9
 
-
+# 主函数：处理文本转语音的请求
 def tts(
         text: str,
         model: Union[str, Literal["tts-1", "tts-1-hd"]],
@@ -167,23 +177,26 @@ def tts(
     text_hash = generate_text_hash(text)
     
     # 检查文本哈希是否已经处理过
-    if text_hash in processed_texts:
-        logging.info("检测到重复的文本输入，跳过处理。")
-        raise gr.Error("重复的请求，不做处理。")
-        return report_error("重复的请求，不做处理。")
-        logging.info("重复的请求，未处理。")
-    else:
-        processed_texts.add(text_hash)  # 将新文本的哈希值添加到集合中
+    with processed_texts_lock:
+        if text_hash in processed_texts:
+            logging.info("检测到重复的文本输入，跳过处理。")
+            raise gr.Error("重复的请求，不做处理。")
+            return  # 这里不需要再次调用report_error或打印日志，因为已经在raise之前处理过了
+        else:
+            processed_texts.add(text_hash)
 
+    # 限制请求速率
     if not tts_rate_limiter.attempt():
         raise gr.Error("超出请求频率限制，请稍后再试。")
         return report_error("超出请求频率限制，请稍后再试。")
         logging.info("客户端超出请求频率限制，不做处理")
 
+    # 检查输入文本长度
     if len(text) == 0:
         logging.info("无文本输入，返回默认静音文件。")
         return "1-second-of-silence.mp3"
 
+    # 检查新文本与之前处理的文本相似度
     if check_similarity(text):
         raise gr.Error("此内容与之前处理的内容相似度超过90%，不进行处理。")
         return report_error("此内容与之前处理的内容相似度超过90%，不进行处理。")
@@ -207,6 +220,8 @@ def tts(
             raise gr.Error("生成语音时出现错误，请向站点管理员报告。")
             return report_error("生成语音时出现错误，请向站点管理员报告。")
             logging.info("生成语音时出现错误，请检查API密钥并重试。")
+        finally:
+            current_processing_text = ""  # 清空当前正在处理的文本，无论成功还是失败
 
         file_name = custom_file_name if custom_file_name else tempfile.mktemp(suffix=f".{output_file_format}")
         file_name = os.path.join("finish", file_name)
@@ -217,6 +232,7 @@ def tts(
     current_processing_text = ""  # 清空当前正在处理的文本
     return file_name
 
+# 封装tts函数以处理Gradio接口的调用
 def wrap_tts(
     text: str, 
     model: str = "tts-1", 
