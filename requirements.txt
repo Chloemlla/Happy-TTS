@@ -1,11 +1,5 @@
-time>=1.0.0
-logging>=0.4.9.6
-hashlib>=20081119
-gradio>=4.36.1
-Flask>=3.0.3
-Thread>=2.0.3
-OpenAI>=1.33.0
-dotenv>=0.0.5
-datetime>=5.5
-timedelta>=2020.12.3
-Observer>=0.1.0
+gradio~=4.12.0
+openai~=1.2.3
+python-dotenv~=1.0.0
+watchdog
+flask
