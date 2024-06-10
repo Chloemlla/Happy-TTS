@@ -49,7 +49,7 @@
 3. 安装依赖：
 
    ```bash
-   pip install -r requirements.txt
+   pip install --upgrade -r requirements.txt
    ```
 
 4. 创建`.env`文件并添加你的 OpenAI API 相关设置：
