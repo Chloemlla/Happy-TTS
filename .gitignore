@@ -7,4 +7,5 @@ finish/
 *.zip
 *.log
 flagged/
-*_requirements.txt
+tools/*_requirements.txt
+tools/packages_to_check.txt

@@ -26,13 +26,15 @@ def generate_random_filename(extension=".txt"):
     """生成随机文件名"""
     return ''.join(random.choices(string.ascii_letters + string.digits, k=8)) + extension
 
-# 需要查询的包列表，已移除标准库项
-packages_to_check = [
-    'gradio',
-    'OpenAI',
-    'dotenv',
-    'Flask',
-]
+# 从文本文件读取包列表
+def read_packages_from_txt(txt_file):
+    with open(txt_file, 'r') as file:
+        return [line.strip() for line in file.readlines()]
+
+# 文件路径
+txt_file_path = "packages_to_check.txt"
+
+packages_to_check = read_packages_from_txt(txt_file_path)
 
 latest_versions = get_latest_versions(packages_to_check)
 
