@@ -1,12 +1,12 @@
 import requests
 from packaging.version import parse
+import os
+import random
+import string
 
 def get_latest_versions(packages):
     """
     获取给定Python包列表的最新版本号。
-    
-    :param packages: 包名的列表
-    :return: 一个字典，键为包名，值为对应的最新版本号
     """
     base_url = "https://pypi.org/pypi/{}/json"
     latest_versions = {}
@@ -15,7 +15,6 @@ def get_latest_versions(packages):
         response = requests.get(base_url.format(package))
         if response.status_code == 200:
             releases = response.json()["releases"]
-            # 获取最高版本号，这里使用parse来确保版本号被正确排序
             latest_version = max(parse(version) for version in releases)
             latest_versions[package] = str(latest_version)
         else:
@@ -23,28 +22,26 @@ def get_latest_versions(packages):
     
     return latest_versions
 
-# 需要查询的包列表
+def generate_random_filename(extension=".txt"):
+    """生成随机文件名"""
+    return ''.join(random.choices(string.ascii_letters + string.digits, k=8)) + extension
+
+# 需要查询的包列表，已移除标准库项
 packages_to_check = [
-    'os',  # 注意：像'os', 'sys'这样的标准库不会在PyPI上列出
-    'time',
-    'difflib',
-    'tempfile',
-    'logging',
-    'shutil',
-    'hashlib',
     'gradio',
-    'base64',
-    'json',
-    'Flask',
-    'Thread',
     'OpenAI',
     'dotenv',
-    'datetime',
-    'timedelta',
-    'Observer',
+    'Flask',
 ]
 
-# 调用函数并打印结果
 latest_versions = get_latest_versions(packages_to_check)
-for package, version in latest_versions.items():
-    print(f"{package}: {version}")
+
+# 生成随机文件名
+filename = generate_random_filename("_requirements.txt")
+
+# 将结果写入文件
+with open(filename, "w") as file:
+    for package, version in latest_versions.items():
+        file.write(f"{package}=={version}\n")
+
+print(f"Requirements saved to {filename}")
