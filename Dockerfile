@@ -1,8 +1,10 @@
 # 第一阶段：更新依赖
 FROM python:3.8-slim AS update-stage
 WORKDIR /usr/src/update
+# 先安装upgrade_packages.py脚本运行所需的包
+RUN pip install packaging
 COPY tools/upgrade_packages.py .
-# 假设upgrade_packages.py脚本会更新当前目录下的requirements.txt
+# 现在应该可以成功运行脚本了
 RUN python upgrade_packages.py
 
 # 第二阶段：构建依赖环境
