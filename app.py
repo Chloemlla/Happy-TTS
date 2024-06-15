@@ -104,6 +104,14 @@ last_error_report_time = datetime.min
 # 全局变量用于存储当前正在处理的文本
 current_processing_text = ""
 
+# 生成文本的唯一哈希标识
+def generate_text_hash(text: str) -> str:
+    # 使用md5生成文本的哈希值，为了确保md5能够处理中文，需要先将文本编码为utf-8
+    md5_hash = hashlib.md5(text.encode('utf-8')).hexdigest()
+    # 将md5的结果与内置hash函数的结果结合，进一步降低冲突概率
+    combined_hash = f"{hash(text)}-{md5_hash}"
+    return combined_hash
+
 def load_processed_texts():
     """启动时加载已处理文本到内存"""
     global processed_texts
@@ -112,9 +120,6 @@ def load_processed_texts():
         texts = file.read().split('-'*40 + '\n')  # 新的分隔符匹配text_detail格式
         # 确保列表中不包含空字符串，并去除每段文本前后的空白后生成哈希
         processed_texts = {generate_text_hash(text.strip()) for text in texts if text.strip()}  
-
-# 在主函数开始或其他合适位置调用这个函数
-load_processed_texts()
 
 # 检查是否可以报告错误
 def can_report_error() -> bool:
@@ -153,14 +158,6 @@ def generate_text_hash_1(text):
     text_bytes = text.encode('utf-8')
     # 使用MD5算法生成哈希
     return hashlib.md5(text_bytes).hexdigest()
-
-# 生成文本的唯一哈希标识
-def generate_text_hash(text: str) -> str:
-    # 使用md5生成文本的哈希值，为了确保md5能够处理中文，需要先将文本编码为utf-8
-    md5_hash = hashlib.md5(text.encode('utf-8')).hexdigest()
-    # 将md5的结果与内置hash函数的结果结合，进一步降低冲突概率
-    combined_hash = f"{hash(text)}-{md5_hash}"
-    return combined_hash
 
 # 保存已处理的文本内容
 def save_processed_text(text: str):
@@ -281,7 +278,7 @@ def wrap_tts(
             speed=speed, 
             custom_file_name=custom_file_name if custom_file_name else None
         )
-        return file_name, "本次运行没有错误，无需报告", True # 如果没有错误，返回音频文件路径，成功信息和True
+        return file_name, "本次运行没有错误，谢谢使用！", True # 如果没有错误，返回音频文件路径，成功信息和True
     except Exception as e:
         error_message = str(e)
         logging.error(error_message)
@@ -371,7 +368,24 @@ iface = gr.Interface(
         gr.Button("报告错误", visible=False)
     ],
     title="Happy 文本转语音",
-    description="输入文本并选择选项以生成语音。你也可以指定一个自定义的文件名。\n本项目开源地址： https://github.com/Happy-clo/OpenAI-TTS-Gradio/",
+    description = """
+    转换文字为语音，操作便捷高效：\n
+
+    - **快速输入**：只需粘贴或键入期望转换的文字。\n
+    - **个性化设置**：自由选择声音特质、语速等，定制专属听觉体验。\n
+    - **高级定制**（可选）：指定输出文件名，为每次创作增添个性标签。\n
+
+    **核心声明**：\n
+    - 本服务基于OpenAI前沿的TTS技术，旨在促进公益与教育资源的普及。\n
+    - 敬请遵守使用规则，确保内容适宜，避免涉及商业用途，共同维护良好环境。\n
+    - 我们致力于提供服务，但不保证不间断运行或内容的绝对精确度。\n
+
+    **联系我们**：\n
+    - 邮箱：[admin@happys.icu](mailto:admin@happys.icu)\n
+
+    **相关链接**：\n
+    - [服务条款](https://tts-terms-of-use.happys.icu/) | [GitHub项目](https://github.com/Happy-clo/OpenAI-TTS-Gradio/)\n
+    """,
     css="""footer.svelte-1rjryqp { display: none !important; }""",
     allow_flagging="never"
 )
@@ -399,6 +413,8 @@ def run_flask():
 if __name__ == '__main__':
     if not os.path.exists("finish"):
         os.makedirs("finish")
+    # 在主函数开始或其他合适位置调用这个函数
+    load_processed_texts()    
     path = "."
     # 启动观察者线程
     observer = Observer()
