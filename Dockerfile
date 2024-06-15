@@ -5,6 +5,7 @@ WORKDIR /usr/src/update
 RUN pip install packaging
 RUN pip install httpx
 COPY tools/upgrade_packages.py .
+COPY requirements.txt .
 # 现在应该可以成功运行脚本了
 RUN python upgrade_packages.py
 
