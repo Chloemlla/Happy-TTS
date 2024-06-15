@@ -1,9 +1,6 @@
 # 第一阶段：更新依赖
 FROM python:3.8-slim AS update-stage
 WORKDIR /usr/src/update
-# 先安装upgrade_packages.py脚本运行所需的包
-RUN pip install packaging
-RUN pip install httpx
 COPY tools/upgrade_packages.py .
 COPY requirements.txt .
 
