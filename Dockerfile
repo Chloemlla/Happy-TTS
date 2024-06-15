@@ -6,14 +6,18 @@ RUN pip install packaging
 RUN pip install httpx
 COPY tools/upgrade_packages.py .
 COPY requirements.txt .
-# 现在应该可以成功运行脚本了
-RUN python upgrade_packages.py
 
 # 第二阶段：构建依赖环境
 FROM python:3.8-slim AS build-stage
 WORKDIR /usr/src/build
+# 先安装upgrade_packages.py脚本运行所需的包
+RUN pip install packaging
+RUN pip install httpx
 COPY --from=update-stage /usr/src/update/requirements.txt .
+COPY --from=update-stage /usr/src/update/upgrade_packages.py .
 RUN pip install --no-cache-dir -r requirements.txt --target /usr/src/app
+# 现在应该可以成功运行脚本了
+RUN python upgrade_packages.py
 
 # 第三阶段：准备运行环境
 FROM python:3.8-slim
