@@ -3,6 +3,7 @@ FROM python:3.8-slim AS update-stage
 WORKDIR /usr/src/update
 # 先安装upgrade_packages.py脚本运行所需的包
 RUN pip install packaging
+RUN pip install httpx
 COPY tools/upgrade_packages.py .
 # 现在应该可以成功运行脚本了
 RUN python upgrade_packages.py
