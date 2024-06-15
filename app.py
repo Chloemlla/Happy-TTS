@@ -4,6 +4,7 @@ import sys
 import time
 import difflib
 import tempfile
+import threading
 import logging
 import shutil
 import hashlib

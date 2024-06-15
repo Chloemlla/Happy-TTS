@@ -1,108 +1,89 @@
-# OpenAI-TTS-Gradio
+# OpenAI TTS Gradio 应用 README
 
-## 简介
+## 项目简介
 
-此项目是一个基于 Gradio 和 OpenAI 的应用程序，允许用户通过图形界面与 OpenAI 的 API 进行交互。项目使用了`watchdog`库来监控文件系统事件，并通过`dotenv`库加载环境变量。
+本应用程序集成了 OpenAI 的文本转语音服务，并借助 Gradio 构建了交互界面。用户仅需输入文本，即可选择不同模型、声音特质、输出格式和播放速率来生成个性化语音。本 README 旨在指导用户完成从安装到使用的全过程。
 
-## 功能
+## 安装指南
 
-- 通过 Gradio 提供用户友好的图形界面。
-- 使用 OpenAI API 进行文本生成。
-- 监控文件系统事件。
-- 通过环境变量配置 API 密钥等敏感信息。
+### Docker 快速部署
 
-## 安装
+#### 步骤
 
-> [!TIP]
-> 作者建议使用本地安装方式，以便于规避权限等未预料问题。
-
-### 使用 Docker
-
-1. 拉取 Docker 镜像：
+1. **镜像获取**
 
    ```bash
    docker pull happyclo/tts:latest
    ```
 
-2. 运行 Docker 容器：
-
+2. **容器启动**
    ```bash
-   docker run -d -p 7860:7860 -v /opt/tts-openai/logs:/usr/src/app/logs /opt/tts-openai/.env:/usr/src/app/.env -e OPENAI_KEY=your_api_key_here happyclo/tts:latest
+   docker run -d -p 7860:7860 \
+       -v /opt/tts-openai/logs:/usr/src/app/logs \
+       -v /opt/tts-openai/.env:/usr/src/app/.env \
+       -e OPENAI_KEY=your_api_key_here \
+       happyclo/tts:latest
    ```
 
-### 手动安装
+记得将`your_api_key_here`替换为你的 OpenAI API 密钥。
 
-1. 克隆此仓库：
+### 手动安装步骤
+
+1. **克隆项目**
 
    ```bash
    git clone https://github.com/Happy-clo/OpenAI-TTS-Gradio.git
    cd OpenAI-TTS-Gradio
    ```
 
-2. 创建并激活虚拟环境：
+2. **创建虚拟环境**
 
    ```bash
    python -m venv venv
-   source venv/bin/activate  # 对于Windows使用 `venv\Scripts\activate`
+   source venv/bin/activate  # Windows: `venv\Scripts\activate`
    ```
 
-3. 安装依赖：
+3. **安装依赖**
 
    ```bash
-   pip install --upgrade -r requirements.txt
+   pip install -r requirements.txt
    ```
 
-4. 创建`.env`文件并添加你的 OpenAI API 相关设置：
+4. **配置环境变量**
 
-   ```env
+   在项目根目录新建`.env`文件，填入：
+
+   ```
    OPENAI_KEY=your_api_key_here
    OPENAI_BASE_URL=https://api.openai.com/v1
    ```
 
-## 使用
+5. **运行应用**
+   ```bash
+   python app.py
+   ```
 
-### 使用 Docker
+然后访问[http://localhost:7860](http://localhost:7860)开始使用。
 
-运行以下命令启动 Docker 容器：
+## 功能亮点
 
-```bash
-docker run -d -p 7860:7860 -e OPENAI_API_KEY=your_api_key_here happyclo/tts:latest
-```
+- **Docker 一键部署**：简化部署流程，加速服务上线。
+- **本地安装选项**：适合本地开发调试或定制化环境配置。
+- **直观 Gradio UI**：文本输入、模型与声音风格自由切换。
+- **详细日志记录**：便于故障排查与系统监控。
+- **错误报告**：内置错误处理，记录日志中。
+- **文本去重**：减少重复处理，提升效率。
+- **请求节流**：控制 API 调用频次，防滥用。
+- **动态文件管理**：自定义文件命名，自动清理旧文件。
 
-### 手动运行
+## 注意事项
 
-运行以下命令启动应用程序：
+- 确保持有有效的 OpenAI API 密钥。
+- 手动安装时，遵循指引确保每步操作无误。
+- 根据实际情况调整 Docker 映射路径和环境变量。
 
-```bash
-python app.py
-```
+## 参与贡献
 
-## 日志配置
+欢迎提交代码、报告问题或提出建议。更多信息，请访问项目[GitHub 页面](https://github.com/Happy-clo/OpenAI-TTS-Gradio)。
 
-日志配置已调整为仅在控制台输出日志信息。以下是相关的代码片段：
-
-```python
-import logging
-
-# 设置日志
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
-console_handler.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
-logger.addHandler(console_handler)
-```
-
-## 贡献
-
-欢迎贡献！请提交拉取请求（Pull Request）或报告问题（Issues）。
-
-## 许可证
-
-此项目使用 MIT 许可证。有关详细信息，请参阅 LICENSE 文件。
-
-```
-
-这个README文件涵盖了项目的基本信息、安装步骤、使用方法以及日志配置的调整。你可以根据需要对其进行修改和扩展。
-```
+本项目意在使高质量的语音合成技术触手可及，无论通过 Docker 的便捷部署，还是手动配置的灵活性，皆能轻松体验。
