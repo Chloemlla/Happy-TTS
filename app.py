@@ -104,6 +104,18 @@ last_error_report_time = datetime.min
 # 全局变量用于存储当前正在处理的文本
 current_processing_text = ""
 
+def load_processed_texts():
+    """启动时加载已处理文本到内存"""
+    global processed_texts
+    with open(processed_file_path, 'r', encoding='utf-8') as file:
+        # 调整分隔符以匹配text_detail中使用的'-'*40
+        texts = file.read().split('-'*40 + '\n')  # 新的分隔符匹配text_detail格式
+        # 确保列表中不包含空字符串，并去除每段文本前后的空白后生成哈希
+        processed_texts = {generate_text_hash(text.strip()) for text in texts if text.strip()}  
+
+# 在主函数开始或其他合适位置调用这个函数
+load_processed_texts()
+
 # 检查是否可以报告错误
 def can_report_error() -> bool:
     """检查是否可以报告错误，一分钟内不可超过两次"""
@@ -131,6 +143,16 @@ def report_error(error_message: str):
         return f"生成语音时出现错误：{error_message}。请点击报告错误按钮。"
     else:
         return f"生成语音时出现错误：{error_message}。请稍后再报告。"
+
+def generate_text_hash_1(text):
+    """
+    生成给定文本的哈希值。
+    这里使用MD5作为一个简单示例，实际应用中可以根据需要选择不同的哈希算法。
+    """
+    # 确保文本是字节类型，因为hashlib需要字节输入
+    text_bytes = text.encode('utf-8')
+    # 使用MD5算法生成哈希
+    return hashlib.md5(text_bytes).hexdigest()
 
 # 生成文本的唯一哈希标识
 def generate_text_hash(text: str) -> str:
@@ -202,6 +224,7 @@ def tts(
         raise gr.Error("此内容与之前处理的内容相似度超过90%，不进行处理。")
         return report_error("此内容与之前处理的内容相似度超过90%，不进行处理。")
         logging.info("此内容与之前处理的内容相似度超过90%，不进行处理。")
+        return  # 直接返回，不再执行后续的处理逻辑
     else:
         save_processed_text(text)
         logging.info(f"接收到文本：{text}")
