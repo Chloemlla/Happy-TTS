@@ -1,5 +1,5 @@
 # 第一阶段：构建依赖环境
-FROM python:3.8-slim AS build-stage
+FROM python:3.10-slim AS build-stage
 WORKDIR /usr/src/app
 
 # 安装git，以便可以从Git仓库安装Python包
@@ -13,7 +13,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt --target /usr/src/app
 
 # 第二阶段：准备运行环境
-FROM python:3.8-slim
+FROM python:3.10-slim
 WORKDIR /usr/src/app
 COPY --from=build-stage /usr/src/app /usr/src/app
 
