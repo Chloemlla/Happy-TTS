@@ -2,6 +2,9 @@
 FROM python:3.8-slim AS build-stage
 WORKDIR /usr/src/app
 
+# 安装git，以便可以从Git仓库安装Python包
+RUN apt-get update && apt-get install -y git
+
 # 先安装upgrade_packages.py脚本运行所需的包，版本锁定提高安全性
 RUN pip install --upgrade --no-cache-dir packaging==21.0 httpx==0.18.2
 
