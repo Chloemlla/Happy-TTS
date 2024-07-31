@@ -9,3 +9,8 @@ finish/
 flagged/
 tools/*_requirements.txt
 tools/packages_to_check.txt
+build/
+dist/
+tools/build
+*.ico
+*.spec

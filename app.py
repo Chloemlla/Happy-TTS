@@ -13,7 +13,7 @@ import base64
 import json
 
 # 导入Flask和线程库，用于设置Web服务器和处理并发
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from threading import Thread
 from typing import Union, Literal
 from openai import OpenAI
@@ -412,6 +412,22 @@ def doing():
     # 将JSON数据编码为Base64
     base64_encoded_data = base64.b64encode(json_data.encode('utf-8')).decode('utf-8')
     return jsonify({"data": base64_encoded_data})
+
+@app.route('/collect_fingerprint', methods=['POST'])
+def collect_fingerprint():
+    # 获取前端发送的数据
+    fingerprint_data = request.json
+    print("收到的浏览器指纹数据:", fingerprint_data)
+    
+    # 指定文件路径，确保目录存在，这里简化处理，实际可能需要更细致的错误处理
+    file_path = "data/user.txt"
+    
+    # 写入数据前，清空文件内容（如果希望累积数据，则保留原有的"a"模式）
+    with open(file_path, "a") as f:
+        f.write(json.dumps(fingerprint_data) + "\n")  # 将字典转换为JSON字符串并写入
+    
+    # 返回成功响应
+    return jsonify({"status": "success", "message": "Fingerprint data received."})
 
 @app.route('/hello')
 def hello():
