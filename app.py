@@ -369,33 +369,22 @@ iface = gr.Interface(
     ],
     title="Happy 文本转语音",
     description = """
-    \u8f6c\u6362\u6587\u5b57\u4e3a\u8bed\u97f3\uff0c\u64cd\u4f5c\u4fbf\u6377\u9ad8\u6548\uff1a\n
+    转换文字为语音，操作便捷高效：\n
 
+    - **快速输入**：只需粘贴或键入期望转换的文字。\n
+    - **个性化设置**：自由选择声音特质、语速等，定制专属听觉体验。\n
+    - **高级定制**（可选）：指定输出文件名，为每次创作增添个性标签。\n
 
-    - \n**\u5feb\u901f\u8f93\u5165**\uff1a\u53ea\u9700\u7c98\u8d34\u6216\u952e\u5165\u671f\u671b\u8f6c\u6362\u7684\u6587\u5b57\u3002\n
+    **核心声明**：\n
+    - 本服务基于OpenAI前沿的TTS技术，旨在促进公益与教育资源的普及。\n
+    - 敬请遵守使用规则，确保内容适宜，避免涉及商业用途，共同维护良好环境。\n
+    - 我们致力于提供服务，但不保证不间断运行或内容的绝对精确度。\n
 
-    - \n**\u4e2a\u6027\u5316\u8bbe\u7f6e**\uff1a\u81ea\u7531\u9009\u62e9\u58f0\u97f3\u7279\u8d28\u3001\u8bed\u901f\u7b49\uff0c\u5b9a\u5236\u4e13\u5c5e\u542c\u89c9\u4f53\u9a8c\u3002\n
+    **联系我们**：\n
+    - 邮箱：[admin@happys.icu](mailto:admin@happys.icu)\n
 
-    - \n**\u9ad8\u7ea7\u5b9a\u5236**\uff08\u53ef\u9009\uff09\uff1a\u6307\u5b9a\u8f93\u51fa\u6587\u4ef6\u540d\uff0c\u4e3a\u6bcf\u6b21\u521b\u4f5c\u589e\u6dfb\u4e2a\u6027\u6807\u7b7e\u3002\n
-
-
-    **\u6838\u5fc3\u58f0\u660e**\uff1a\n
-
-    - \n\u672c\u670d\u52a1\u57fa\u4e8eOpenAI\u524d\u6cbf\u7684TTS\u6280\u672f\uff0c\u65e8\u5728\u4fc3\u8fdb\u516c\u76ca\u4e0e\u6559\u80b2\u8d44\u6e90\u7684\u666e\u53ca\u3002\n
-
-    - \n\u656c\u8bf7\u9075\u5b88\u4f7f\u7528\u89c4\u5219\uff0c\u786e\u4fdd\u5185\u5bb9\u9002\u5b9c\uff0c\u907f\u514d\u6d89\u53ca\u5546\u4e1a\u7528\u9014\uff0c\u5171\u540c\u7ef4\u62a4\u826f\u597d\u73af\u5883\u3002\n
-
-    - \n\u6211\u4eec\u81f4\u529b\u4e8e\u63d0\u4f9b\u670d\u52a1\uff0c\u4f46\u4e0d\u4fdd\u8bc1\u4e0d\u95f4\u65ad\u8fd0\u884c\u6216\u5185\u5bb9\u7684\u7edd\u5bf9\u7cbe\u786e\u5ea6\u3002\n
-
-
-    **\u8054\u7cfb\u6211\u4eec**\uff1a\n
-
-    - \n\u90ae\u7bb1\uff1a[admin@happys.icu](mailto:admin@happys.icu)\n
-
-
-    **\u76f8\u5173\u94fe\u63a5**\uff1a\n
-
-    - [\u670d\u52a1\u6761\u6b3e](https://tts-terms-of-use.happys.icu/) | [GitHub\u9879\u76ee](https://github.com/Happy-clo/OpenAI-TTS-Gradio/)\n
+    **相关链接**：\n
+    - [服务条款](https://tts-terms-of-use.happys.icu/) | [GitHub项目](https://github.com/Happy-clo/OpenAI-TTS-Gradio/)\n
     """,
     css="""footer.svelte-1rjryqp { display: none !important; }""",
     allow_flagging="never"
