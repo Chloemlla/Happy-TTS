@@ -1,5 +1,0 @@
-# requirements.in
-huggingface-hub
-gradio
-gradio-client
-open-interpreter

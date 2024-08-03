@@ -4,6 +4,7 @@ import sys
 import time
 import difflib
 import tempfile
+import psutil
 import threading
 import logging
 import shutil
@@ -18,6 +19,7 @@ from threading import Thread
 from typing import Union, Literal
 from openai import OpenAI
 from dotenv import load_dotenv
+from random import randint
 from datetime import datetime, timedelta
 from logging.handlers import TimedRotatingFileHandler
 from watchdog.observers import Observer
@@ -67,6 +69,7 @@ logging.info("环境变量已加载。")
 
 # 从环境变量读取配置，用于OpenAI API调用
 server_name = os.getenv("SERVER_NAME", "tts.happys.icu")
+correct_password = os.getenv('SERVER_PASSWORD')
 openai_key = os.getenv("OPENAI_KEY")
 openai_base_url = os.getenv("OPENAI_BASE_URL")
 logging.info("从环境变量中读取服务器名称和OpenAI密钥以及请求地址。")
@@ -169,15 +172,30 @@ def save_processed_text(text: str):
 
 # 检查新文本与已处理文本的相似度
 def check_similarity(new_text: str) -> bool:
-    """检查新文本与已处理文本的相似度"""
+    """
+    检查新文本与已处理文本的相似度
+    
+    该函数通过比较新文本与之前已处理并存储的文本内容，判断是否存在较高的相似度。
+    它首先从存储文件中读取已处理的文本内容，然后计算这些内容与新文本的相似度。
+    
+    参数:
+    new_text: 待检查的新文本字符串。
+    
+    返回:
+    如果新文本与已处理文本的相似度超过0.9，则返回True，否则返回False。
+    """
+    # 打开已处理文本文件，以读取模式打开，编码方式为utf-8
     with open(processed_file_path, 'r', encoding='utf-8') as file:
         old_texts = file.read()
         
     # 提取已处理文本的实际内容部分进行相似度计算
     old_text_contents = [line.split("内容: ")[1] for line in old_texts.split('时间: ') if '内容: ' in line]
+    # 将提取的内容合并为一个字符串，用换行符分隔
     combined_old_text = "\n".join(old_text_contents)
     
+    # 使用difflib库计算合并后的旧文本与新文本的相似度
     similarity = difflib.SequenceMatcher(None, combined_old_text, new_text).ratio()
+    # 返回相似度是否大于0.9的布尔值
     return similarity > 0.9
 
 # 主函数：处理文本转语音的请求
@@ -302,12 +320,19 @@ class MyHandler(FileSystemEventHandler):
 
 def get_folder_size(folder: str) -> int:
     """返回文件夹的大小（以字节为单位）。"""
+    # 初始化文件夹总大小为0
     total_size = 0
+    # 使用os.walk遍历文件夹及其子文件夹
     for dirpath, dirnames, filenames in os.walk(folder):
+        # 遍历当前目录下的所有文件
         for filename in filenames:
+            # 拼接得到文件的完整路径
             file_path = os.path.join(dirpath, filename)
+            # 检查文件是否存在
             if os.path.exists(file_path):
+                # 累加文件大小到总大小中
                 total_size += os.path.getsize(file_path)
+    # 返回文件夹的总大小
     return total_size
 
 def clear_logs_folder(folder: str):
@@ -323,10 +348,16 @@ def clear_logs_folder(folder: str):
             logging.error(f"Failed to delete {file_path}. Reason: {e}")
 
 def monitor_logs_folder():
+    """
+    监控日志文件夹的大小，并在超过40MB时进行清空。
+
+    此函数会持续监控指定的日志文件夹（默认路径为'logs'），如果文件夹大小超过40MB，
+    则会清空文件夹内的所有日志文件。监控间隔为60秒。
+    """
     logs_dir = 'logs'
     while True:
         folder_size = get_folder_size(logs_dir)
-        folder_size_mb = folder_size / (1024 * 1024)  # 转换为MB
+        folder_size_mb = folder_size / (1024 * 1024)  # 将文件夹大小转换为MB
         if folder_size_mb > 40:
             logging.info("日志文件夹大小超过40MB，正在清空文件夹...")
             clear_logs_folder(logs_dir)
@@ -392,37 +423,105 @@ iface = gr.Interface(
 
 app = Flask(__name__)
 
-@app.route('/doing')
+@app.route('/doing', methods=['GET'])
 def doing():
-    global current_processing_text
-    # 将当前正在处理的文本转换为JSON
-    data = {"text": current_processing_text}
-    json_data = json.dumps(data)
-    # 将JSON数据编码为Base64
-    base64_encoded_data = base64.b64encode(json_data.encode('utf-8')).decode('utf-8')
-    return jsonify({"data": base64_encoded_data})
+    # 获取请求中的密码
+    password = request.args.get("password")
 
-@app.route('/collect_fingerprint', methods=['POST'])
+    # 验证密码
+    if password == correct_password:
+        # 将当前正在处理的文本转换为JSON
+        data = {"text": current_processing_text}
+        json_data = json.dumps(data)
+        # 将JSON数据编码为Base64
+        base64_encoded_data = base64.b64encode(json_data.encode('utf-8')).decode('utf-8')
+        return jsonify({"data": base64_encoded_data})
+    else:
+        # 如果密码不正确，返回随机生成的数据
+        # 例如，这里简单地返回一个随机字符串
+        random_data = {"text": ''.join(random.choices('abcdefghijklmnopqrstuvwxyz', k=10))}
+        json_random_data = json.dumps(random_data)
+        base64_encoded_random_data = base64.b64encode(json_random_data.encode('utf-8')).decode('utf-8')
+        return jsonify({"data": base64_encoded_random_data})
+
+@app.route('/collect_fingerprint', methods=['POST', 'GET'])
 def collect_fingerprint():
-    # 获取前端发送的数据
-    fingerprint_data = request.json
-    print("收到的浏览器指纹数据:", fingerprint_data)
+    if request.method == 'POST':
+        # 获取前端发送的数据
+        fingerprint_data = request.json
+        print("收到的浏览器指纹数据:", fingerprint_data)
+        
+        # 指定文件路径，确保目录存在，这里简化处理，实际可能需要更细致的错误处理
+        file_path = "data/user.txt"
+        
+        # 写入数据前，清空文件内容（如果希望累积数据，则保留原有的"a"模式）
+        with open(file_path, "w") as f:  # 注意这里使用 "w" 模式来覆盖文件内容
+            f.write(json.dumps(fingerprint_data) + "\n")  # 将字典转换为JSON字符串并写入
+        # 返回成功响应
+        return jsonify({"status": "success", "message": "Fingerprint data received."})
+    else:
+        # 对于GET请求，可以返回一个简单的提示信息
+        return jsonify({"status": "info", "message": "This endpoint accepts POST requests to collect fingerprint data."})
+
+@app.route('/server_status', methods=['GET'])
+def server_status():
+    # 从请求参数中获取密码
+    password = request.args.get('password')
     
-    # 指定文件路径，确保目录存在，这里简化处理，实际可能需要更细致的错误处理
-    file_path = "data/user.txt"
-    
-    # 写入数据前，清空文件内容（如果希望累积数据，则保留原有的"a"模式）
-    with open(file_path, "a") as f:
-        f.write(json.dumps(fingerprint_data) + "\n")  # 将字典转换为JSON字符串并写入
-    
-    # 返回成功响应
-    return jsonify({"status": "success", "message": "Fingerprint data received."})
+    # 验证密码
+    if password == correct_password:
+        # 获取系统启动时间
+        boot_time = psutil.boot_time()
+        # 将启动时间转换为可读的日期格式
+        boot_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(boot_time))
+        
+        # 获取其他状态信息（例如 CPU 使用率、内存使用情况等）
+        cpu_percent = psutil.cpu_percent(interval=1)
+        memory_info = psutil.virtual_memory()
+        memory_used = memory_info.used
+        memory_total = memory_info.total
+        memory_percent = memory_info.percent
+        
+        # 构建状态信息字典
+        status_info = {
+            "boot_time": boot_time_str,
+            "uptime": time.time() - boot_time,
+            "cpu_usage_percent": cpu_percent,
+            "memory_usage": {
+                "used": memory_used,
+                "total": memory_total,
+                "percent": memory_percent
+            }
+        }
+    else:
+        # 如果密码不正确，返回一组随机生成的模拟数据
+        status_info = {
+            "boot_time": "2023-01-01 00:00:00",
+            "uptime": randint(1800, 36000),  # 随机生成 30分钟 到 10小时 的运行时间
+            "cpu_usage_percent": randint(5, 95),  # 随机生成 5% 到 95% 的 CPU 使用率
+            "memory_usage": {
+                "used": randint(500 * 1024 * 1024, 8 * 1024 * 1024 * 1024),  # 随机生成 500MB 到 8GB 的内存使用量
+                "total": randint(2 * 1024 * 1024 * 1024, 16 * 1024 * 1024 * 1024),  # 随机生成 2GB 到 16GB 的总内存
+                "percent": randint(5, 95)  # 随机生成 5% 到 95% 的内存使用百分比
+            }
+        }
+
+    return jsonify(status_info), 200
 
 @app.route('/hello')
 def hello():
-    # 返回一个简单的欢迎消息
-    return jsonify({"return_data": "Hello, this is my Gradio project!"})
+    # 获取请求中的密码参数
+    password = request.args.get('password')
 
+    # 检查密码是否正确
+    if password == correct_password:
+        # 如果密码正确，返回固定消息
+        return jsonify({"return_data": "Hello, this is my Gradio project!"})
+    else:
+        # 如果密码不正确，生成并返回一个随机复杂字符串
+        random_string = ''.join(random.choices(string.ascii_letters + string.digits + string.punctuation, k=50))
+        return jsonify({"return_data": random_string})
+        
 def run_flask():
     app.run(port=1002)
 
