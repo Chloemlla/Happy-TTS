@@ -437,12 +437,8 @@ def doing():
         base64_encoded_data = base64.b64encode(json_data.encode('utf-8')).decode('utf-8')
         return jsonify({"data": base64_encoded_data})
     else:
-        # 如果密码不正确，返回随机生成的数据
-        # 例如，这里简单地返回一个随机字符串
-        random_data = {"text": ''.join(random.choices('abcdefghijklmnopqrstuvwxyz', k=10))}
-        json_random_data = json.dumps(random_data)
-        base64_encoded_random_data = base64.b64encode(json_random_data.encode('utf-8')).decode('utf-8')
-        return jsonify({"data": base64_encoded_random_data})
+        # 如果密码不正确，返回错误信息而不是随机数据
+        return jsonify({"error": "Invalid password"}), 401  # 返回401 Unauthorized状态码
 
 @app.route('/collect_fingerprint', methods=['POST', 'GET'])
 def collect_fingerprint():
@@ -451,8 +447,12 @@ def collect_fingerprint():
         fingerprint_data = request.json
         print("收到的浏览器指纹数据:", fingerprint_data)
         
-        # 指定文件路径，确保目录存在，这里简化处理，实际可能需要更细致的错误处理
-        file_path = "data/user.txt"
+        file_dir = "data"
+        file_path = os.path.join(file_dir, "user.txt")
+        
+        # 如果目录不存在，则创建
+        if not os.path.exists(file_dir):
+            os.makedirs(file_dir)
         
         # 写入数据前，清空文件内容（如果希望累积数据，则保留原有的"a"模式）
         with open(file_path, "w") as f:  # 注意这里使用 "w" 模式来覆盖文件内容
