@@ -11,12 +11,16 @@ import shutil
 import hashlib
 import gradio as gr
 import base64
+import ssl
+import socket
 import json
 
 # 导入Flask和线程库，用于设置Web服务器和处理并发
 from flask import Flask, jsonify, request
+from scapy.all import *
 from threading import Thread
 from typing import Union, Literal
+from werkzeug.middleware.proxy_fix import ProxyFix
 from openai import OpenAI
 from dotenv import load_dotenv
 from random import randint
@@ -422,6 +426,59 @@ iface = gr.Interface(
 )
 
 app = Flask(__name__)
+context = ('server.crt', 'server.key')  # 证书文件路径
+# 使用ProxyFix来正确处理代理服务器的情况
+app.wsgi_app = ProxyFix(app.wsgi_app)
+
+# TLS指纹检查中间件
+class TLSFingerprintMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    def __call__(self, environ, start_response):
+        # 获取TLS握手信息
+        tls_info = self.get_tls_info(environ)
+        
+        # 检查TLS指纹是否符合预期
+        if not self.check_tls_fingerprint(tls_info):
+            abort(403)  # 阻止请求
+        
+        return self.app(environ, start_response)
+
+    def get_tls_info(self, environ):
+        # 获取TLS握手信息
+        # 注意: 这个示例假设使用了Werkzeug的WSGI中间件
+        # 实际环境中可能需要调整以适应不同的部署配置
+        tls_info = {}
+        if 'wsgi.socket' in environ:
+            sock = environ['wsgi.socket']
+            if isinstance(sock, ssl.SSLSocket):
+                tls_info['cipher'] = sock.cipher()
+                tls_info['compression'] = sock.compression()
+                tls_info['version'] = sock.version()
+                tls_info['extensions'] = self.get_extensions(sock)
+        return tls_info
+
+    def get_extensions(self, ssl_socket):
+        # 获取TLS扩展信息
+        # 注意: 这个示例仅用于演示目的
+        # 在实际环境中，可能需要使用专门的库来获取TLS扩展信息
+        extensions = []
+        for ext in ssl_socket.extensions:
+            extensions.append(ext)
+        return extensions
+
+    def check_tls_fingerprint(self, tls_info):
+        # 检查TLS指纹是否符合预期
+        # 这里仅做简单的示例检查
+        expected_cipher = ('ECDHE-RSA-AES128-GCM-SHA256', 'TLSv1.2', 128)
+        expected_version = 'TLSv1.2'
+        if tls_info['cipher'] != expected_cipher or tls_info['version'] != expected_version:
+            return False
+        return True
+
+# 将TLS指纹检查中间件应用于Flask应用
+app.wsgi_app = TLSFingerprintMiddleware(app.wsgi_app)
 
 @app.route('/doing', methods=['GET'])
 def doing():
@@ -523,7 +580,7 @@ def hello():
         return jsonify({"return_data": random_string})
         
 def run_flask():
-    app.run(port=1002)
+    app.run(port=1002, ssl_context=context)
 
 if __name__ == '__main__':
     if not os.path.exists("finish"):

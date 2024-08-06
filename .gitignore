@@ -14,3 +14,6 @@ dist/
 tools/build
 *.ico
 *.spec
+小说/
+*.pem
+*.key
