@@ -58,7 +58,6 @@ coverage/
 
 # 包管理器文件
 yarn.lock
-package-lock.json
 pnpm-lock.yaml
 yarn-error.log
 
