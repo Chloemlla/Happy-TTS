@@ -13,7 +13,7 @@ export const useTts = () => {
       setError(null);
       setAudioUrl(null);
 
-      const response = await axios.post<TtsResponse>('/api/tts/generate', request);
+      const response = await axios.post<TtsResponse>('/api/tts', request);
       setAudioUrl(response.data.audioUrl);
       return response.data;
     } catch (error) {
