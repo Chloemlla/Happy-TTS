@@ -1,9 +1,31 @@
-version: '3'
+version: "3.8"
+
 services:
-  your_service_name:
-    image: happyclo/tts:latest
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
-      - "7860:7860"
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL}
     volumes:
-      - /opt/tts-openai/logs:/usr/src/app/logs
-      - /opt/tts-openai/.env:/usr/src/app/.env
+      - ./static:/app/static
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  static:

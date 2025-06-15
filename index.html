@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synapse - 文本转语音服务</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/alpinejs" defer></script>
+</head>
+<body class="bg-gray-50 min-h-screen" x-data="ttsApp()">
+    <div class="container mx-auto px-4 py-8">
+        <!-- 顶部导航栏 -->
+        <nav class="bg-white shadow-lg rounded-lg mb-8">
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center">
+                        <span class="text-2xl font-bold text-indigo-600">Synapse</span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <a href="https://tts-terms-of-use.happys.icu/" class="text-gray-600 hover:text-indigo-600">服务条款</a>
+                        <a href="https://github.com/Happy-clo/OpenAI-TTS-Gradio/" class="text-gray-600 hover:text-indigo-600">GitHub</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- 主要内容区域 -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h1 class="text-3xl font-bold text-gray-900 mb-6">文本转语音</h1>
+            
+            <!-- 文本输入区域 -->
+            <div class="mb-6">
+                <label class="block text-gray-700 text-sm font-bold mb-2" for="text">
+                    输入文本
+                </label>
+                <textarea
+                    id="text"
+                    x-model="text"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    rows="4"
+                    placeholder="请输入要转换的文本..."
+                ></textarea>
+            </div>
+
+            <!-- 设置选项 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <!-- 模型选择 -->
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">
+                        模型
+                    </label>
+                    <select
+                        x-model="model"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                        <option value="tts-1">TTS-1</option>
+                        <option value="tts-1-hd">TTS-1-HD</option>
+                    </select>
+                </div>
+
+                <!-- 声音选择 -->
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">
+                        声音
+                    </label>
+                    <select
+                        x-model="voice"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                        <option value="alloy">Alloy</option>
+                        <option value="echo">Echo</option>
+                        <option value="fable">Fable</option>
+                        <option value="onyx">Onyx</option>
+                        <option value="nova">Nova</option>
+                        <option value="shimmer">Shimmer</option>
+                    </select>
+                </div>
+
+                <!-- 输出格式 -->
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">
+                        输出格式
+                    </label>
+                    <select
+                        x-model="outputFormat"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                        <option value="mp3">MP3</option>
+                        <option value="opus">Opus</option>
+                        <option value="aac">AAC</option>
+                        <option value="flac">FLAC</option>
+                    </select>
+                </div>
+
+                <!-- 语速调节 -->
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">
+                        语速
+                    </label>
+                    <input
+                        type="range"
+                        x-model="speed"
+                        min="0.5"
+                        max="2.0"
+                        step="0.1"
+                        class="w-full"
+                    >
+                    <div class="text-center text-gray-600" x-text="speed + 'x'"></div>
+                </div>
+            </div>
+
+            <!-- 自定义文件名 -->
+            <div class="mb-6">
+                <label class="block text-gray-700 text-sm font-bold mb-2" for="customFileName">
+                    自定义文件名（可选）
+                </label>
+                <input
+                    type="text"
+                    id="customFileName"
+                    x-model="customFileName"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="输入自定义文件名..."
+                >
+            </div>
+
+            <!-- 转换按钮 -->
+            <button
+                @click="convertText"
+                class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50 transition-colors"
+                :disabled="isConverting"
+            >
+                <span x-show="!isConverting">开始转换</span>
+                <span x-show="isConverting">转换中...</span>
+            </button>
+
+            <!-- 错误信息 -->
+            <div x-show="error" class="mt-4 p-4 bg-red-100 text-red-700 rounded-lg">
+                <span x-text="error"></span>
+            </div>
+
+            <!-- 音频播放器 -->
+            <div x-show="audioUrl" class="mt-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">预览</h2>
+                <audio controls class="w-full">
+                    <source :src="audioUrl" :type="'audio/' + outputFormat">
+                    您的浏览器不支持音频播放。
+                </audio>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function ttsApp() {
+            return {
+                text: '',
+                model: 'tts-1-hd',
+                voice: 'nova',
+                outputFormat: 'mp3',
+                speed: 1.0,
+                customFileName: '',
+                isConverting: false,
+                error: '',
+                audioUrl: '',
+
+                async convertText() {
+                    if (!this.text) {
+                        this.error = '请输入要转换的文本';
+                        return;
+                    }
+
+                    this.isConverting = true;
+                    this.error = '';
+                    this.audioUrl = '';
+
+                    try {
+                        const response = await fetch('/api/tts', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                text: this.text,
+                                model: this.model,
+                                voice: this.voice,
+                                output_format: this.outputFormat,
+                                speed: this.speed,
+                                custom_file_name: this.customFileName
+                            })
+                        });
+
+                        const data = await response.json();
+
+                        if (!response.ok) {
+                            throw new Error(data.error || '转换失败');
+                        }
+
+                        this.audioUrl = data.audio_url;
+                    } catch (error) {
+                        this.error = error.message;
+                    } finally {
+                        this.isConverting = false;
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html> 

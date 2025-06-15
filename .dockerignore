@@ -1,34 +1,37 @@
-# Ignore Python cache files
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
+# 依赖目录
+node_modules
+frontend/node_modules
 
-# Ignore Python virtual environment
-venv/
+# 构建输出
+dist
+frontend/dist
+build
 
-# Ignore pipenv files
-Pipfile
-Pipfile.lock
-
-# Ignore other Python specific files
-*.pyc
-*.pyo
-*.pyd
-*.egg-info/
-dist/
-build/
-
-# Ignore environment files
-*.env*
-
-# Ignore git files
-.git/
-
-# Ignore mp3 files
-finish/
-
+# 环境文件
 .env
-*.zip
+.env.local
+.env.*.local
+
+# 日志文件
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 编辑器配置
+.idea
+.vscode
+*.swp
+*.swo
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# 其他
 *.log
 *.md
+!README.md 

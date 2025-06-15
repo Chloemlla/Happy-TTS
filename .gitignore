@@ -1,19 +1,94 @@
-.idea
-.env
-venv
-__pycache__
-docker-compose..yml
-finish/
-*.zip
-*.log
-flagged/
-tools/*_requirements.txt
-tools/packages_to_check.txt
-build/
+# 依赖目录
+node_modules/
+frontend/node_modules/
+.pnp
+.pnp.js
+*.py
+
+# 构建输出
 dist/
-tools/build
-*.ico
-*.spec
-小说/
-*.pem
-*.key
+frontend/dist/
+build/
+out/
+.next/
+.nuxt/
+.cache/
+
+# 环境文件
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# 日志文件
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# 编辑器配置
+.idea/
+.vscode/
+*.swp
+*.swo
+*.swn
+*.bak
+*.sublime-workspace
+*.sublime-project
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 测试覆盖率
+coverage/
+.nyc_output/
+
+# 临时文件
+.temp/
+.tmp/
+.temp
+.tmp
+
+# 包管理器文件
+yarn.lock
+package-lock.json
+pnpm-lock.yaml
+yarn-error.log
+
+# 其他
+*.pid
+*.seed
+*.pid.lock
+logs/
+.eslintcache
+.stylelintcache
+.cache
+.parcel-cache
+
+# 静态文件目录（如果需要版本控制，请删除此行）
+static/
+frontend/static/
+
+# 本地开发配置
+*.local
+local.*
+local-*
+
+# 调试文件
+.debug/
+debug.log
+debug/
+
+# 备份文件
+*.bak
+*.backup
+*~
+*.swp
+*.swo 
