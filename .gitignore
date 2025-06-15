@@ -13,6 +13,8 @@ out/
 .next/
 .nuxt/
 .cache/
+finish/
+*.mp3
 
 # 环境文件
 .env

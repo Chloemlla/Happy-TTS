@@ -1,10 +1,16 @@
+'use server';
+
 import OpenAI from 'openai';
 import { config } from '../config/config';
 import logger from '../utils/logger';
 import fs from 'fs';
 import path from 'path';
+import dotenv from 'dotenv';
 
-// 从环境变量读取配置
+// 加载环境变量
+dotenv.config();
+
+// 创建 OpenAI 客户端实例
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
   baseURL: process.env.OPENAI_BASE_URL
@@ -20,14 +26,6 @@ export const generateSpeech = async (
   speed: number = 1.0
 ) => {
   try {
-    // 验证必要的环境变量
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error('OPENAI_API_KEY 环境变量未设置');
-    }
-    if (!process.env.OPENAI_BASE_URL) {
-      throw new Error('OPENAI_BASE_URL 环境变量未设置');
-    }
-
     const response = await openai.audio.speech.create({
       model,
       voice,

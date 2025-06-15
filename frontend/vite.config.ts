@@ -8,11 +8,11 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:3009',
+        target: 'http://localhost:3000',
         changeOrigin: true,
       },
       '/finish': {
-        target: 'http://localhost:3009',
+        target: 'http://localhost:3000',
         changeOrigin: true,
       }
     },
