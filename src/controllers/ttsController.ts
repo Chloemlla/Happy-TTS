@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { TtsService } from '../services/ttsService';
 import { StorageManager } from '../utils/storage';
+import { UserStorage } from '../utils/userStorage';
 import logger from '../utils/logger';
 
 export class TtsController {
@@ -28,8 +29,25 @@ export class TtsController {
 
     public static async generateSpeech(req: Request, res: Response) {
         try {
-            const { text, model, voice, output_format, speed } = req.body;
+            const { text, model, voice, output_format, speed, fingerprint } = req.body;
             const ip = TtsController.getClientIp(req);
+            const userId = req.headers['x-user-id'] as string;
+
+            // 记录用户信息
+            logger.info('收到TTS请求', {
+                ip,
+                fingerprint,
+                userId,
+                userAgent: req.headers['user-agent'],
+                timestamp: new Date().toISOString(),
+                requestInfo: {
+                    model,
+                    voice,
+                    output_format,
+                    speed,
+                    textLength: text?.length
+                }
+            });
 
             if (!text) {
                 return res.status(400).json({
@@ -37,12 +55,22 @@ export class TtsController {
                 });
             }
 
-            // 检查是否有重复内容
-            const isDuplicate = await StorageManager.checkDuplicate(ip, text);
-            if (isDuplicate) {
-                return res.status(400).json({
-                    error: '您在过去24小时内已经生成过相同的内容'
-                });
+            // 检查用户使用限制
+            if (userId) {
+                const canUse = await UserStorage.incrementUsage(userId);
+                if (!canUse) {
+                    return res.status(429).json({
+                        error: '您今日的使用次数已达上限'
+                    });
+                }
+            } else {
+                // 未登录用户只能使用一次
+                const isDuplicate = await StorageManager.checkDuplicate(ip, fingerprint || 'unknown', text);
+                if (isDuplicate) {
+                    return res.status(400).json({
+                        error: '您已经生成过相同的内容，请登录以获取更多使用次数'
+                    });
+                }
             }
 
             const result = await TtsController.ttsService.generateSpeech({
@@ -54,7 +82,16 @@ export class TtsController {
             });
 
             // 记录生成历史
-            await StorageManager.addRecord(ip, text, result.fileName);
+            await StorageManager.addRecord(ip, fingerprint || 'unknown', text, result.fileName);
+
+            // 记录成功信息
+            logger.info('TTS生成成功', {
+                ip,
+                fingerprint,
+                userId,
+                fileName: result.fileName,
+                timestamp: new Date().toISOString()
+            });
 
             res.json(result);
         } catch (error) {
@@ -66,7 +103,19 @@ export class TtsController {
     public static async getRecentGenerations(req: Request, res: Response) {
         try {
             const ip = TtsController.getClientIp(req);
-            const records = await StorageManager.getRecentRecords(ip);
+            const fingerprint = req.query.fingerprint as string || 'unknown';
+            const userId = req.headers['x-user-id'] as string;
+
+            // 记录历史记录请求
+            logger.info('获取历史记录', {
+                ip,
+                fingerprint,
+                userId,
+                userAgent: req.headers['user-agent'],
+                timestamp: new Date().toISOString()
+            });
+
+            const records = await StorageManager.getRecentRecords(ip, fingerprint);
             res.json(records);
         } catch (error) {
             logger.error('获取生成历史失败:', error);

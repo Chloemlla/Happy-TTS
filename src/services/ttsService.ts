@@ -26,9 +26,9 @@ export class TtsService {
 
     constructor() {
         this.openai = new OpenAI({
-            apiKey: config.openai.apiKey
+            apiKey: config.openaiApiKey
         });
-        this.outputDir = path.join(__dirname, '../../finish');
+        this.outputDir = config.audioDir;
         this.ensureOutputDir();
     }
 
@@ -47,11 +47,11 @@ export class TtsService {
             }
 
             const response = await this.openai.audio.speech.create({
-                model: model,
-                voice: voice,
+                model: model || config.openaiModel,
+                voice: voice || config.openaiVoice,
                 input: text,
-                response_format: output_format,
-                speed: speed
+                response_format: output_format || config.openaiResponseFormat as OutputFormat,
+                speed: speed || parseFloat(config.openaiSpeed)
             });
 
             const buffer = Buffer.from(await response.arrayBuffer());

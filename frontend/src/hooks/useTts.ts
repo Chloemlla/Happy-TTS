@@ -1,45 +1,37 @@
 import { useState } from 'react';
 import axios from 'axios';
-
-interface TtsRequest {
-    text: string;
-    model: string;
-    voice: string;
-    output_format: string;
-    speed: number;
-}
-
-interface TtsResponse {
-    fileName: string;
-    audioUrl: string;
-}
+import { TtsRequest, TtsResponse } from '../types/tts';
 
 export const useTts = () => {
-    const [isConverting, setIsConverting] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
 
-    const generateSpeech = async (request: TtsRequest): Promise<TtsResponse> => {
-        setIsConverting(true);
-        try {
-            const response = await axios.post('/api/tts', request);
-            return response.data;
-        } finally {
-            setIsConverting(false);
-        }
-    };
+  const generateSpeech = async (request: TtsRequest): Promise<TtsResponse> => {
+    try {
+      setLoading(true);
+      setError(null);
+      setAudioUrl(null);
 
-    const getHistory = async () => {
-        try {
-            const response = await axios.get('/api/tts/history');
-            return response.data;
-        } catch (error) {
-            console.error('获取历史记录失败:', error);
-            return [];
-        }
-    };
+      const response = await axios.post<TtsResponse>('/api/tts/generate', request);
+      setAudioUrl(response.data.audioUrl);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        setError(error.response?.data?.message || '生成语音时发生错误');
+      } else {
+        setError('生成语音时发生未知错误');
+      }
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    return {
-        generateSpeech,
-        getHistory,
-        isConverting
-    };
+  return {
+    loading,
+    error,
+    audioUrl,
+    generateSpeech
+  };
 }; 

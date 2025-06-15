@@ -1,0 +1,12 @@
+[
+  {
+    "id": "1",
+    "username": "admin",
+    "email": "admin@example.com",
+    "password": "admin",
+    "role": "admin",
+    "dailyUsage": 0,
+    "lastUsageDate": "2025-06-15T16:37:43.590Z",
+    "createdAt": "2025-06-15T16:37:43.590Z"
+  }
+]
