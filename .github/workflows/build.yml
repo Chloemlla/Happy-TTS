@@ -23,6 +23,9 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: "npm"
 
+      - name: Generate package-lock.json
+        run: npm install --package-lock-only
+
       - name: Install dependencies
         run: npm install
 
