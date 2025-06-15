@@ -12,6 +12,9 @@ import rateLimit from 'express-rate-limit';
 
 const app = express();
 
+// 设置信任代理
+app.set('trust proxy', true);
+
 // 创建请求限制器
 const limiter = rateLimit({
   windowMs: 5000, // 5秒窗口

@@ -7,11 +7,20 @@ export class TtsController {
     private static ttsService = new TtsService();
 
     private static getClientIp(req: Request): string {
-        // 尝试从不同位置获取 IP 地址
-        const ip = req.ip || 
-                  req.connection.remoteAddress || 
-                  req.socket.remoteAddress || 
-                  'unknown';
+        // 按优先级尝试从不同位置获取 IP 地址
+        const ip = 
+            // 1. 从 X-Forwarded-For 头部获取
+            (req.headers['x-forwarded-for'] as string)?.split(',')[0] ||
+            // 2. 从 X-Real-IP 头部获取
+            req.headers['x-real-ip'] as string ||
+            // 3. 从 Express 的 ip 属性获取
+            req.ip ||
+            // 4. 从连接对象获取
+            req.connection.remoteAddress ||
+            // 5. 从 socket 对象获取
+            req.socket.remoteAddress ||
+            // 6. 如果都获取不到，返回 unknown
+            'unknown';
         
         // 如果是 IPv6 格式的本地地址，转换为 IPv4 格式
         return ip.replace(/^::ffff:/, '');
