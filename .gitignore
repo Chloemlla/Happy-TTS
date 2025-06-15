@@ -12,6 +12,7 @@ build/
 out/
 .next/
 .nuxt/
+generation_records.json
 .cache/
 finish/
 *.mp3

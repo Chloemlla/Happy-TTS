@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import AudioPreview from './components/AudioPreview';
 import WelcomeToast from './components/WelcomeToast';
 import { motion, AnimatePresence } from 'framer-motion';
+import { TtsForm } from './components/TtsForm';
+import { HistoryList } from './components/HistoryList';
+import { useTts } from './hooks/useTts';
 
-function App() {
+const App: React.FC = () => {
   const [text, setText] = useState('');
   const [model, setModel] = useState('tts-1-hd');
   const [voice, setVoice] = useState('nova');

@@ -126,14 +126,15 @@
             </div>
 
             <!-- 转换按钮 -->
-            <button
-                @click="convertText"
-                class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50 transition-colors"
-                :disabled="isConverting"
-            >
-                <span x-show="!isConverting">开始转换</span>
-                <span x-show="isConverting">转换中...</span>
-            </button>
+            <div class="mt-4">
+                <button @click="convertText" 
+                        :disabled="isConverting || cooldown"
+                        class="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                    <span x-show="!isConverting && !cooldown">转换文本</span>
+                    <span x-show="isConverting">转换中...</span>
+                    <span x-show="cooldown">冷却中 ({{ cooldownTime }}秒)</span>
+                </button>
+            </div>
 
             <!-- 错误信息 -->
             <div x-show="error" class="mt-4 p-4 bg-red-100 text-red-700 rounded-lg">
@@ -143,10 +144,47 @@
             <!-- 音频播放器 -->
             <div x-show="audioUrl" class="mt-6">
                 <h2 class="text-xl font-bold text-gray-900 mb-4">预览</h2>
-                <audio controls class="w-full">
-                    <source :src="audioUrl" :type="'audio/' + outputFormat">
-                    您的浏览器不支持音频播放。
-                </audio>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <audio controls class="w-full">
+                        <source :src="audioUrl" :type="'audio/' + outputFormat">
+                        您的浏览器不支持音频播放。
+                    </audio>
+                    <div class="mt-2 flex justify-between items-center">
+                        <span class="text-sm text-gray-600" x-text="'文件名: ' + currentFileName"></span>
+                        <a :href="audioUrl" download class="text-indigo-600 hover:text-indigo-800 text-sm flex items-center">
+                            <span class="material-icons text-sm mr-1">download</span>
+                            下载
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 历史记录 -->
+            <div x-show="audioHistory.length > 0" class="mt-8">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">历史记录</h2>
+                <div class="space-y-4">
+                    <template x-for="(audio, index) in audioHistory" :key="index">
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <div class="mb-2">
+                                <span class="text-sm text-gray-600" x-text="'生成时间: ' + audio.timestamp"></span>
+                            </div>
+                            <div class="mb-2">
+                                <span class="text-sm text-gray-600" x-text="'文本内容: ' + audio.text"></span>
+                            </div>
+                            <audio controls class="w-full">
+                                <source :src="audio.url" :type="'audio/' + audio.format">
+                                您的浏览器不支持音频播放。
+                            </audio>
+                            <div class="mt-2 flex justify-between items-center">
+                                <span class="text-sm text-gray-600" x-text="'文件名: ' + audio.fileName"></span>
+                                <a :href="audio.url" download class="text-indigo-600 hover:text-indigo-800 text-sm flex items-center">
+                                    <span class="material-icons text-sm mr-1">download</span>
+                                    下载
+                                </a>
+                            </div>
+                        </div>
+                    </template>
+                </div>
             </div>
         </div>
     </div>
@@ -163,8 +201,68 @@
                 isConverting: false,
                 error: '',
                 audioUrl: '',
+                currentFileName: '',
+                audioHistory: [],
+                cooldown: false,
+                cooldownTime: 0,
+                cooldownTimer: null,
+
+                async init() {
+                    // 初始化时检查是否有冷却时间
+                    const savedCooldown = localStorage.getItem('ttsCooldown');
+                    if (savedCooldown) {
+                        const cooldownEnd = parseInt(savedCooldown);
+                        if (cooldownEnd > Date.now()) {
+                            this.startCooldown(cooldownEnd - Date.now());
+                        }
+                    }
+
+                    // 加载历史记录
+                    await this.loadHistory();
+                },
+
+                async loadHistory() {
+                    try {
+                        const response = await fetch('/api/tts/history');
+                        if (response.ok) {
+                            const records = await response.json();
+                            this.audioHistory = records.map(record => ({
+                                url: `/static/audio/${record.fileName}`,
+                                fileName: record.fileName,
+                                format: record.fileName.split('.').pop(),
+                                text: record.text,
+                                timestamp: new Date(record.timestamp).toLocaleString()
+                            }));
+                        }
+                    } catch (error) {
+                        console.error('加载历史记录失败:', error);
+                    }
+                },
+
+                startCooldown(duration) {
+                    this.cooldown = true;
+                    this.cooldownTime = Math.ceil(duration / 1000);
+                    
+                    // 保存冷却结束时间到 localStorage
+                    localStorage.setItem('ttsCooldown', (Date.now() + duration).toString());
+
+                    // 更新冷却时间显示
+                    this.cooldownTimer = setInterval(() => {
+                        this.cooldownTime--;
+                        if (this.cooldownTime <= 0) {
+                            this.cooldown = false;
+                            clearInterval(this.cooldownTimer);
+                            localStorage.removeItem('ttsCooldown');
+                        }
+                    }, 1000);
+                },
 
                 async convertText() {
+                    if (this.cooldown) {
+                        this.error = `请等待 ${this.cooldownTime} 秒后再试`;
+                        return;
+                    }
+
                     if (!this.text) {
                         this.error = '请输入要转换的文本';
                         return;
@@ -185,18 +283,25 @@
                                 model: this.model,
                                 voice: this.voice,
                                 output_format: this.outputFormat,
-                                speed: this.speed,
-                                custom_file_name: this.customFileName
+                                speed: this.speed
                             })
                         });
 
                         const data = await response.json();
 
                         if (!response.ok) {
+                            if (response.status === 429) {
+                                this.startCooldown(10000);
+                                throw new Error('请求过于频繁，请等待10秒后再试');
+                            }
                             throw new Error(data.error || '转换失败');
                         }
 
-                        this.audioUrl = data.audio_url;
+                        this.audioUrl = data.audioUrl;
+                        this.currentFileName = data.fileName;
+
+                        // 重新加载历史记录
+                        await this.loadHistory();
                     } catch (error) {
                         this.error = error.message;
                     } finally {

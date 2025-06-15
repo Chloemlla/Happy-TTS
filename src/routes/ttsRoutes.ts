@@ -1,8 +1,9 @@
 import express from 'express';
-import { ttsHandler } from '../controllers/ttsController';
+import { TtsController } from '../controllers/ttsController';
 
 const router = express.Router();
 
-router.post('/', ttsHandler);
+router.post('/', TtsController.generateSpeech);
+router.get('/history', TtsController.getRecentGenerations);
 
 export default router; 

@@ -3,46 +3,70 @@
 import OpenAI from 'openai';
 import { config } from '../config/config';
 import logger from '../utils/logger';
-import fs from 'fs';
 import path from 'path';
+import fs from 'fs';
 import dotenv from 'dotenv';
 
 // 加载环境变量
 dotenv.config();
 
-// 创建 OpenAI 客户端实例
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  baseURL: process.env.OPENAI_BASE_URL
-});
-
 type OutputFormat = 'mp3' | 'opus' | 'aac' | 'flac' | 'wav' | 'pcm';
 
-export const generateSpeech = async (
-  text: string,
-  model: string = 'tts-1-hd',
-  voice: string = 'nova',
-  outputFormat: OutputFormat = 'mp3',
-  speed: number = 1.0
-) => {
-  try {
-    const response = await openai.audio.speech.create({
-      model,
-      voice,
-      input: text,
-      response_format: outputFormat,
-      speed
-    });
+interface TtsRequest {
+    text: string;
+    model: string;
+    voice: string;
+    output_format: OutputFormat;
+    speed: number;
+}
 
-    const fileName = `${Date.now()}.${outputFormat}`;
-    const filePath = path.join('finish', fileName);
-    
-    const buffer = Buffer.from(await response.arrayBuffer());
-    fs.writeFileSync(filePath, buffer);
+export class TtsService {
+    private openai: OpenAI;
+    private readonly outputDir: string;
 
-    return fileName;
-  } catch (error) {
-    logger.error('TTS generation error:', error);
-    throw error;
-  }
-}; 
+    constructor() {
+        this.openai = new OpenAI({
+            apiKey: config.openai.apiKey
+        });
+        this.outputDir = path.join(__dirname, '../../finish');
+        this.ensureOutputDir();
+    }
+
+    private ensureOutputDir() {
+        if (!fs.existsSync(this.outputDir)) {
+            fs.mkdirSync(this.outputDir, { recursive: true });
+        }
+    }
+
+    public async generateSpeech(request: TtsRequest) {
+        try {
+            const { text, model, voice, output_format, speed } = request;
+
+            if (!text) {
+                throw new Error('文本内容不能为空');
+            }
+
+            const response = await this.openai.audio.speech.create({
+                model: model,
+                voice: voice,
+                input: text,
+                response_format: output_format,
+                speed: speed
+            });
+
+            const buffer = Buffer.from(await response.arrayBuffer());
+            const fileName = `${Date.now()}.${output_format}`;
+            const filePath = path.join(this.outputDir, fileName);
+
+            await fs.promises.writeFile(filePath, buffer);
+
+            return {
+                fileName,
+                audioUrl: `/static/audio/${fileName}`
+            };
+        } catch (error) {
+            logger.error('生成语音失败:', error);
+            throw error;
+        }
+    }
+} 
