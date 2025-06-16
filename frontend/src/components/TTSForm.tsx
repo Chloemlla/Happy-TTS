@@ -105,22 +105,39 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                     message: '检测到重复内容，已返回已有音频。请注意：重复提交相同内容可能导致账号被封禁。',
                     type: 'warning'
                 });
+            } else {
+                setNotification({
+                    message: '语音生成成功',
+                    type: 'success'
+                });
             }
 
             if (onSuccess) {
                 onSuccess(result);
             }
         } catch (error: any) {
-            if (error.status === 429) {
-                startCooldown(10000);
-                setError('请求过于频繁，请等待10秒后再试');
-            } else if (error.message.includes('封禁')) {
+            console.error('TTS生成错误:', error);
+            
+            if (error.message.includes('封禁')) {
                 setNotification({
                     message: error.message,
                     type: 'error'
                 });
+            } else if (error.message.includes('网络连接错误')) {
+                setNotification({
+                    message: '网络连接错误，请检查网络连接后重试',
+                    type: 'error'
+                });
+            } else if (error.message.includes('超时')) {
+                setNotification({
+                    message: '请求超时，请稍后重试',
+                    type: 'error'
+                });
             } else {
-                setError(error.message || '转换失败');
+                setNotification({
+                    message: error.message || '生成失败，请稍后重试',
+                    type: 'error'
+                });
             }
         }
     };

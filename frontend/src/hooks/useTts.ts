@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { TtsRequest, TtsResponse } from '../types/tts';
 
 // 创建axios实例
@@ -8,7 +8,8 @@ const api = axios.create({
     withCredentials: true,
     headers: {
         'Content-Type': 'application/json'
-    }
+    },
+    timeout: 30000 // 设置30秒超时
 });
 
 export const useTts = () => {
@@ -23,15 +24,39 @@ export const useTts = () => {
       setAudioUrl(null);
 
       const response = await api.post<TtsResponse>('/api/tts', request);
-      setAudioUrl(response.data.audioUrl);
-      return response.data;
+      
+      if (response.data && response.data.audioUrl) {
+        setAudioUrl(response.data.audioUrl);
+        return response.data;
+      } else {
+        throw new Error('服务器返回数据格式错误');
+      }
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        setError(error.response?.data?.message || '生成语音时发生错误');
+        const axiosError = error as AxiosError;
+        if (axiosError.response) {
+          // 服务器返回错误响应
+          const errorData = axiosError.response.data as { message?: string };
+          const errorMessage = errorData?.message || '服务器错误';
+          setError(errorMessage);
+          throw new Error(errorMessage);
+        } else if (axiosError.request) {
+          // 请求发送但没有收到响应
+          const errorMessage = '网络连接错误，请检查网络连接';
+          setError(errorMessage);
+          throw new Error(errorMessage);
+        } else {
+          // 请求配置出错
+          const errorMessage = '请求配置错误';
+          setError(errorMessage);
+          throw new Error(errorMessage);
+        }
       } else {
-        setError('生成语音时发生未知错误');
+        // 其他错误
+        const errorMessage = '生成语音时发生未知错误';
+        setError(errorMessage);
+        throw new Error(errorMessage);
       }
-      throw error;
     } finally {
       setLoading(false);
     }
