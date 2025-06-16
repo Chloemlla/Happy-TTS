@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,186 +7,21 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/alpinejs" defer></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 </head>
 <body class="bg-gray-50 min-h-screen" x-data="ttsApp()">
     <div class="container mx-auto px-4 py-8">
-        <!-- 顶部导航栏 -->
-        <nav class="bg-white shadow-lg rounded-lg mb-8">
-            <div class="max-w-7xl mx-auto px-4">
-                <div class="flex justify-between h-16">
-                    <div class="flex items-center">
-                        <span class="text-2xl font-bold text-indigo-600">Synapse</span>
-                    </div>
-                    <div class="flex items-center space-x-4">
-                        <a href="https://tts-terms-of-use.happys.icu/" class="text-gray-600 hover:text-indigo-600">服务条款</a>
-                        <a href="https://github.com/Happy-clo/OpenAI-TTS-Gradio/" class="text-gray-600 hover:text-indigo-600">GitHub</a>
-                    </div>
-                </div>
+        <header class="flex justify-between items-center mb-8">
+            <div class="flex items-center space-x-4">
+                <span class="text-2xl font-bold text-indigo-600">Synapse</span>
             </div>
-        </nav>
-
-        <!-- 主要内容区域 -->
-        <div class="bg-white rounded-lg shadow-lg p-6">
-            <h1 class="text-3xl font-bold text-gray-900 mb-6">文本转语音</h1>
-            
-            <!-- 文本输入区域 -->
-            <div class="mb-6">
-                <label class="block text-gray-700 text-sm font-bold mb-2" for="text">
-                    输入文本
-                </label>
-                <textarea
-                    id="text"
-                    x-model="text"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    rows="4"
-                    placeholder="请输入要转换的文本..."
-                ></textarea>
+            <div class="flex items-center space-x-4">
+                <a href="https://tts-terms-of-use.happys.icu/" class="text-gray-600 hover:text-indigo-600">服务条款</a>
             </div>
-
-            <!-- 设置选项 -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <!-- 模型选择 -->
-                <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2">
-                        模型
-                    </label>
-                    <select
-                        x-model="model"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    >
-                        <option value="tts-1">TTS-1</option>
-                        <option value="tts-1-hd">TTS-1-HD</option>
-                    </select>
-                </div>
-
-                <!-- 声音选择 -->
-                <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2">
-                        声音
-                    </label>
-                    <select
-                        x-model="voice"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    >
-                        <option value="alloy">Alloy</option>
-                        <option value="echo">Echo</option>
-                        <option value="fable">Fable</option>
-                        <option value="onyx">Onyx</option>
-                        <option value="nova">Nova</option>
-                        <option value="shimmer">Shimmer</option>
-                    </select>
-                </div>
-
-                <!-- 输出格式 -->
-                <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2">
-                        输出格式
-                    </label>
-                    <select
-                        x-model="outputFormat"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    >
-                        <option value="mp3">MP3</option>
-                        <option value="opus">Opus</option>
-                        <option value="aac">AAC</option>
-                        <option value="flac">FLAC</option>
-                    </select>
-                </div>
-
-                <!-- 语速调节 -->
-                <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2">
-                        语速
-                    </label>
-                    <input
-                        type="range"
-                        x-model="speed"
-                        min="0.5"
-                        max="2.0"
-                        step="0.1"
-                        class="w-full"
-                    >
-                    <div class="text-center text-gray-600" x-text="speed + 'x'"></div>
-                </div>
-            </div>
-
-            <!-- 自定义文件名 -->
-            <div class="mb-6">
-                <label class="block text-gray-700 text-sm font-bold mb-2" for="customFileName">
-                    自定义文件名（可选）
-                </label>
-                <input
-                    type="text"
-                    id="customFileName"
-                    x-model="customFileName"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="输入自定义文件名..."
-                >
-            </div>
-
-            <!-- 转换按钮 -->
-            <div class="mt-4">
-                <button @click="convertText" 
-                        :disabled="isConverting || cooldown"
-                        class="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed">
-                    <span x-show="!isConverting && !cooldown">转换文本</span>
-                    <span x-show="isConverting">转换中...</span>
-                    <span x-show="cooldown">冷却中 ({{ cooldownTime }}秒)</span>
-                </button>
-            </div>
-
-            <!-- 错误信息 -->
-            <div x-show="error" class="mt-4 p-4 bg-red-100 text-red-700 rounded-lg">
-                <span x-text="error"></span>
-            </div>
-
-            <!-- 音频播放器 -->
-            <div x-show="audioUrl" class="mt-6">
-                <h2 class="text-xl font-bold text-gray-900 mb-4">预览</h2>
-                <div class="bg-gray-50 p-4 rounded-lg">
-                    <audio controls class="w-full">
-                        <source :src="audioUrl" :type="'audio/' + outputFormat">
-                        您的浏览器不支持音频播放。
-                    </audio>
-                    <div class="mt-2 flex justify-between items-center">
-                        <span class="text-sm text-gray-600" x-text="'文件名: ' + currentFileName"></span>
-                        <a :href="audioUrl" download class="text-indigo-600 hover:text-indigo-800 text-sm flex items-center">
-                            <span class="material-icons text-sm mr-1">download</span>
-                            下载
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 历史记录 -->
-            <div x-show="audioHistory.length > 0" class="mt-8">
-                <h2 class="text-xl font-bold text-gray-900 mb-4">历史记录</h2>
-                <div class="space-y-4">
-                    <template x-for="(audio, index) in audioHistory" :key="index">
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <div class="mb-2">
-                                <span class="text-sm text-gray-600" x-text="'生成时间: ' + audio.timestamp"></span>
-                            </div>
-                            <div class="mb-2">
-                                <span class="text-sm text-gray-600" x-text="'文本内容: ' + audio.text"></span>
-                            </div>
-                            <audio controls class="w-full">
-                                <source :src="audio.url" :type="'audio/' + audio.format">
-                                您的浏览器不支持音频播放。
-                            </audio>
-                            <div class="mt-2 flex justify-between items-center">
-                                <span class="text-sm text-gray-600" x-text="'文件名: ' + audio.fileName"></span>
-                                <a :href="audio.url" download class="text-indigo-600 hover:text-indigo-800 text-sm flex items-center">
-                                    <span class="material-icons text-sm mr-1">download</span>
-                                    下载
-                                </a>
-                            </div>
-                        </div>
-                    </template>
-                </div>
-            </div>
-        </div>
+        </header>
+        <main>
+            <!-- 主要内容将通过React渲染 -->
+        </main>
     </div>
 
     <script>

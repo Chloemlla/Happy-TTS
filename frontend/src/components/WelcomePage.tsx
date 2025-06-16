@@ -11,12 +11,10 @@ export const WelcomePage: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-8"
         >
-          <h1 className="text-4xl font-bold text-gray-900 mb-3">
-            欢迎使用 OpenAI TTS
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            欢迎使用 Synapse
           </h1>
-          <p className="text-xl text-gray-600">
-            将您的文本转换为自然流畅的语音
-          </p>
+          <p className="text-gray-600">使用最新的语音合成技术，生成自然流畅的语音</p>
         </motion.div>
 
         <div className="max-w-md mx-auto mb-8">
