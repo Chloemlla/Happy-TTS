@@ -3,12 +3,15 @@ import { motion } from 'framer-motion';
 import { useTts } from '../hooks/useTts';
 import { TtsRequest, TtsResponse } from '../types/tts';
 import { AudioPreview } from './AudioPreview';
+import { Notification } from './Notification';
 
 interface TtsFormProps {
     onSuccess?: (result: TtsResponse) => void;
+    userId?: string;
+    isAdmin?: boolean;
 }
 
-export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess }) => {
+export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) => {
     const [text, setText] = useState('');
     const [model, setModel] = useState('tts-1-hd');
     const [voice, setVoice] = useState('nova');
@@ -20,6 +23,10 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess }) => {
     const [isPlaying, setIsPlaying] = useState(false);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const [audioUrl, setAudioUrl] = useState<string | null>(null);
+    const [notification, setNotification] = useState<{
+        message: string;
+        type: 'success' | 'error' | 'warning' | 'info';
+    } | null>(null);
 
     const { generateSpeech, loading, error: ttsError, audioUrl: ttsAudioUrl } = useTts();
 
@@ -86,10 +93,20 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess }) => {
                 model,
                 voice,
                 output_format: outputFormat,
-                speed
+                speed,
+                userId,
+                isAdmin
             };
 
             const result = await generateSpeech(request);
+            
+            if (result.isDuplicate) {
+                setNotification({
+                    message: '检测到重复内容，已返回已有音频。请注意：重复提交相同内容可能导致账号被封禁。',
+                    type: 'warning'
+                });
+            }
+
             if (onSuccess) {
                 onSuccess(result);
             }
@@ -97,6 +114,11 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess }) => {
             if (error.status === 429) {
                 startCooldown(10000);
                 setError('请求过于频繁，请等待10秒后再试');
+            } else if (error.message.includes('封禁')) {
+                setNotification({
+                    message: error.message,
+                    type: 'error'
+                });
             } else {
                 setError(error.message || '转换失败');
             }
@@ -118,6 +140,14 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess }) => {
 
     return (
         <div className="space-y-6">
+            {notification && (
+                <Notification
+                    message={notification.message}
+                    type={notification.type}
+                    onClose={() => setNotification(null)}
+                />
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
                     <label className="block text-gray-700 text-lg font-semibold mb-3">
