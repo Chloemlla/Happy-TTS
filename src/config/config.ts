@@ -15,5 +15,7 @@ export const config = {
   adminUsername: process.env.ADMIN_USERNAME || 'admin',
   adminPassword: process.env.ADMIN_PASSWORD || 'happyclo&',
   // 添加本地 IP 配置
-  localIps: (process.env.LOCAL_IPS || '127.0.0.1,::1,::ffff:127.0.0.1').split(',')
+  localIps: (process.env.LOCAL_IPS || '127.0.0.1,::1,::ffff:127.0.0.1').split(','),
+  // 添加基础URL配置
+  baseUrl: process.env.BASE_URL || 'https://tts-api.hapxs.com'
 }; 

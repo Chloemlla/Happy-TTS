@@ -23,12 +23,14 @@ interface TtsRequest {
 export class TtsService {
     private openai: OpenAI;
     private readonly outputDir: string;
+    private readonly baseUrl: string;
 
     constructor() {
         this.openai = new OpenAI({
             apiKey: config.openaiApiKey
         });
         this.outputDir = config.audioDir;
+        this.baseUrl = config.baseUrl || 'https://tts-api.hapxs.com';
         this.ensureOutputDir();
     }
 
@@ -60,9 +62,12 @@ export class TtsService {
 
             await fs.promises.writeFile(filePath, buffer);
 
+            // 返回完整的音频文件URL
+            const audioUrl = `${this.baseUrl}/static/audio/${fileName}`;
+
             return {
                 fileName,
-                audioUrl: `/static/audio/${fileName}`
+                audioUrl
             };
         } catch (error) {
             logger.error('生成语音失败:', error);
