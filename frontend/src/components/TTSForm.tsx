@@ -243,10 +243,12 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess }) => {
                 </div>
             </form>
 
-            <AudioPreview
-                audioUrl={audioUrl}
-                onClose={() => setAudioUrl(null)}
-            />
+            {audioUrl && (
+                <AudioPreview
+                    audioUrl={audioUrl}
+                    onClose={() => setAudioUrl(null)}
+                />
+            )}
         </div>
     );
 };

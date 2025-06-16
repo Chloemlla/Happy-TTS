@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 interface AudioPreviewProps {
     audioUrl: string | null;
@@ -59,40 +59,40 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ audioUrl, onClose })
     if (!audioUrl) return null;
 
     return (
-        <AnimatePresence>
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="fixed bottom-4 left-1/2 transform -translate-x-1/2 w-[90%] max-w-2xl bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden"
-            >
-                <div className="p-4 bg-gradient-to-r from-indigo-500 to-purple-500">
-                    <div className="flex justify-between items-center">
-                        <h3 className="text-white font-semibold">音频预览</h3>
-                        {onClose && (
-                            <button
-                                onClick={onClose}
-                                className="text-white hover:text-gray-200 transition-colors"
-                            >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        )}
-                    </div>
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="w-full bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden mt-6"
+        >
+            <div className="p-4 bg-gradient-to-r from-indigo-500 to-purple-500">
+                <div className="flex justify-between items-center">
+                    <h3 className="text-white font-semibold">音频预览</h3>
+                    {onClose && (
+                        <button
+                            onClick={onClose}
+                            className="text-white hover:text-gray-200 transition-colors"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    )}
                 </div>
+            </div>
 
-                <div className="p-4">
-                    <audio
-                        ref={audioRef}
-                        src={audioUrl}
-                        onTimeUpdate={handleTimeUpdate}
-                        onLoadedMetadata={handleLoadedMetadata}
-                        onEnded={() => setIsPlaying(false)}
-                        className="hidden"
-                    />
+            <div className="p-4">
+                <audio
+                    ref={audioRef}
+                    src={audioUrl}
+                    onTimeUpdate={handleTimeUpdate}
+                    onLoadedMetadata={handleLoadedMetadata}
+                    onEnded={() => setIsPlaying(false)}
+                    className="hidden"
+                />
 
-                    <div className="flex items-center space-x-4 mb-4">
+                <div className="flex flex-col space-y-4">
+                    <div className="flex items-center space-x-4">
                         <button
                             onClick={handlePlayPause}
                             className="p-2 rounded-full bg-indigo-100 hover:bg-indigo-200 transition-colors"
@@ -120,14 +120,14 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ audioUrl, onClose })
                             />
                         </div>
 
-                        <div className="text-sm text-gray-600">
+                        <div className="text-sm text-gray-600 whitespace-nowrap">
                             {formatTime(currentTime)} / {formatTime(duration)}
                         </div>
                     </div>
 
-                    <div className="flex items-center space-x-4">
+                    <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm text-gray-600">播放速度:</span>
-                        <div className="flex space-x-2">
+                        <div className="flex flex-wrap gap-2">
                             {[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => (
                                 <button
                                     key={rate}
@@ -144,7 +144,7 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ audioUrl, onClose })
                         </div>
                     </div>
                 </div>
-            </motion.div>
-        </AnimatePresence>
+            </div>
+        </motion.div>
     );
 }; 
