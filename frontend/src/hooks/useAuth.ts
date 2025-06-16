@@ -79,8 +79,11 @@ export const useAuth = () => {
 
             // 登录成功后，让用户手动访问 / 来刷新页面
             window.location.href = '/';
-        } catch (error) {
-            throw error;
+        } catch (error: any) {
+            if (error.response?.data?.error) {
+                throw new Error(error.response.data.error);
+            }
+            throw new Error('登录失败，请稍后重试');
         }
     };
 
@@ -98,8 +101,11 @@ export const useAuth = () => {
 
             // 注册成功后，让用户手动访问 / 来刷新页面
             window.location.href = '/';
-        } catch (error) {
-            throw error;
+        } catch (error: any) {
+            if (error.response?.data?.error) {
+                throw new Error(error.response.data.error);
+            }
+            throw new Error('注册失败，请稍后重试');
         }
     };
 
