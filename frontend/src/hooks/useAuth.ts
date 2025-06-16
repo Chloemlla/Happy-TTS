@@ -3,6 +3,19 @@ import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { User } from '../types/auth';
 
+// 配置axios默认值
+axios.defaults.withCredentials = true;
+axios.defaults.headers.common['Content-Type'] = 'application/json';
+
+// 创建axios实例
+const api = axios.create({
+    baseURL: 'http://localhost:3000',  // 直接连接到后端服务
+    withCredentials: true,
+    headers: {
+        'Content-Type': 'application/json'
+    }
+});
+
 export const useAuth = () => {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
@@ -29,7 +42,7 @@ export const useAuth = () => {
                 return;
             }
 
-            const response = await axios.get<User>('/api/auth/me', {
+            const response = await api.get<User>('/api/auth/me', {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
@@ -55,7 +68,7 @@ export const useAuth = () => {
 
     const login = async (username: string, password: string) => {
         try {
-            const response = await axios.post<{ user: User; token: string }>('/api/auth/login', {
+            const response = await api.post<{ user: User; token: string }>('/api/auth/login', {
                 username,
                 password
             });
@@ -73,7 +86,7 @@ export const useAuth = () => {
 
     const register = async (username: string, email: string, password: string) => {
         try {
-            const response = await axios.post<{ user: User; token: string }>('/api/auth/register', {
+            const response = await api.post<{ user: User; token: string }>('/api/auth/register', {
                 username,
                 email,
                 password

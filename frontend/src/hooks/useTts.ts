@@ -2,6 +2,15 @@ import { useState } from 'react';
 import axios from 'axios';
 import { TtsRequest, TtsResponse } from '../types/tts';
 
+// 创建axios实例
+const api = axios.create({
+    baseURL: 'http://localhost:3000',  // 直接连接到后端服务
+    withCredentials: true,
+    headers: {
+        'Content-Type': 'application/json'
+    }
+});
+
 export const useTts = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -13,7 +22,7 @@ export const useTts = () => {
       setError(null);
       setAudioUrl(null);
 
-      const response = await axios.post<TtsResponse>('/api/tts', request);
+      const response = await api.post<TtsResponse>('/api/tts', request);
       setAudioUrl(response.data.audioUrl);
       return response.data;
     } catch (error) {

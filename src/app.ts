@@ -96,9 +96,15 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 });
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: ['https://tts.hapx.one', 'https://tts.hapxs.com', 'http://localhost:3000'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(helmet({
-    crossOriginResourcePolicy: { policy: "cross-origin" }
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginEmbedderPolicy: false
 }));
 app.use(morgan('combined'));
 app.use(express.json());
