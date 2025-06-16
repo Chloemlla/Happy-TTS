@@ -42,19 +42,36 @@ export const useAuth = () => {
                 return;
             }
 
-            const response = await api.get<User>('/api/auth/me', {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            });
-            
-            setUser(response.data);
-            
-            // 如果是本地 IP 访问（管理员），只跳转一次
-            if (response.data.role === 'admin' && !isAdminChecked) {
-                setIsAdminChecked(true);
-                if (location.pathname !== '/') {
-                    navigate('/', { replace: true });
+            let retryCount = 0;
+            const maxRetries = 3;
+            const retryDelay = 2000; // 2秒
+
+            while (retryCount < maxRetries) {
+                try {
+                    const response = await api.get<User>('/api/auth/me', {
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
+                    });
+                    
+                    setUser(response.data);
+                    
+                    // 如果是本地 IP 访问（管理员），只跳转一次
+                    if (response.data.role === 'admin' && !isAdminChecked) {
+                        setIsAdminChecked(true);
+                        if (location.pathname !== '/') {
+                            navigate('/', { replace: true });
+                        }
+                    }
+                    break; // 成功获取数据，跳出重试循环
+                } catch (error: any) {
+                    if (error.response?.status === 429 && retryCount < maxRetries - 1) {
+                        // 如果是429错误且还有重试次数，等待后重试
+                        await new Promise(resolve => setTimeout(resolve, retryDelay));
+                        retryCount++;
+                        continue;
+                    }
+                    throw error; // 其他错误或重试次数用完，抛出错误
                 }
             }
         } catch (error) {

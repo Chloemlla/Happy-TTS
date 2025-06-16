@@ -5,13 +5,13 @@ import { AuthForm } from './AuthForm';
 export const WelcomePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-12"
+          className="text-center mb-8"
         >
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+          <h1 className="text-4xl font-bold text-gray-900 mb-3">
             欢迎使用 OpenAI TTS
           </h1>
           <p className="text-xl text-gray-600">
@@ -19,7 +19,7 @@ export const WelcomePage: React.FC = () => {
           </p>
         </motion.div>
 
-        <div className="max-w-md mx-auto">
+        <div className="max-w-md mx-auto mb-8">
           <AuthForm />
         </div>
 
@@ -27,7 +27,7 @@ export const WelcomePage: React.FC = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
-          className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-8"
+          className="grid grid-cols-1 md:grid-cols-3 gap-6"
         >
           <div className="bg-white p-6 rounded-lg shadow-md">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">高质量语音</h3>
