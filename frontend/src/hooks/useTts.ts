@@ -4,7 +4,7 @@ import { TtsRequest, TtsResponse } from '../types/tts';
 
 // 创建axios实例
 const api = axios.create({
-    baseURL: 'http://localhost:3000',  // 直接连接到后端服务
+    baseURL: 'https://tts-api.hapxs.com',  // 直接连接到后端服务
     withCredentials: true,
     headers: {
         'Content-Type': 'application/json'
