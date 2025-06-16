@@ -69,7 +69,7 @@ export const useAuth = () => {
     const login = async (username: string, password: string) => {
         try {
             const response = await api.post<{ user: User; token: string }>('/api/auth/login', {
-                username,
+                identifier: username,
                 password
             });
 
