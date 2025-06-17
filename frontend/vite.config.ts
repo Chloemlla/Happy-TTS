@@ -1,44 +1,54 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
-import pkg from 'vite-plugin-obfuscator'
-const { obfuscator } = pkg
+import JavaScriptObfuscator from 'javascript-obfuscator'
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     react(),
-    obfuscator({
-      // 基础混淆选项
-      compact: true,
-      controlFlowFlattening: false, // 禁用控制流扁平化，提高性能
-      deadCodeInjection: false, // 禁用死代码注入，提高性能
-      debugProtection: true,
-      debugProtectionInterval: 2000,
-      disableConsoleOutput: true,
-      identifierNamesGenerator: 'hexadecimal',
-      log: false,
-      numbersToExpressions: true,
-      renameGlobals: false,
-      selfDefending: true,
-      simplify: true,
-      splitStrings: true,
-      splitStringsChunkLength: 10,
-      stringArray: true,
-      stringArrayCallsTransform: true,
-      stringArrayCallsTransformThreshold: 0.75,
-      stringArrayEncoding: ['base64'],
-      stringArrayIndexShift: true,
-      stringArrayRotate: true,
-      stringArrayShuffle: true,
-      stringArrayWrappersCount: 2,
-      stringArrayWrappersChainedCalls: true,
-      stringArrayWrappersParametersMaxCount: 4,
-      stringArrayWrappersType: 'function',
-      stringArrayThreshold: 0.75,
-      transformObjectKeys: true,
-      unicodeEscapeSequence: false
-    })
+    {
+      name: 'obfuscator',
+      enforce: 'post',
+      transform(code, id) {
+        if (id.endsWith('.js')) {
+          const obfuscationResult = JavaScriptObfuscator.obfuscate(code, {
+            compact: true,
+            controlFlowFlattening: false,
+            deadCodeInjection: false,
+            debugProtection: true,
+            debugProtectionInterval: 2000,
+            disableConsoleOutput: true,
+            identifierNamesGenerator: 'hexadecimal',
+            log: false,
+            numbersToExpressions: true,
+            renameGlobals: false,
+            selfDefending: true,
+            simplify: true,
+            splitStrings: true,
+            splitStringsChunkLength: 10,
+            stringArray: true,
+            stringArrayCallsTransform: true,
+            stringArrayCallsTransformThreshold: 0.75,
+            stringArrayEncoding: ['base64'],
+            stringArrayIndexShift: true,
+            stringArrayRotate: true,
+            stringArrayShuffle: true,
+            stringArrayWrappersCount: 2,
+            stringArrayWrappersChainedCalls: true,
+            stringArrayWrappersParametersMaxCount: 4,
+            stringArrayWrappersType: 'function',
+            stringArrayThreshold: 0.75,
+            transformObjectKeys: true,
+            unicodeEscapeSequence: false
+          });
+          return {
+            code: obfuscationResult.getObfuscatedCode(),
+            map: null
+          };
+        }
+      }
+    }
   ],
   server: {
     host: true,
