@@ -14,6 +14,7 @@ out/
 .nuxt/
 generation_records.json
 .cache/
+data/
 finish/
 *.mp3
 
