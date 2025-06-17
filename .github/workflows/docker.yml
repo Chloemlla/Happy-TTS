@@ -87,6 +87,10 @@ jobs:
         run: |
           pip install paramiko python-dotenv requests logging
 
+      - name: Set script permissions
+        run: |
+          chmod +x scripts/deploy_image.py
+
       - name: Run deployment script
         env:
           SERVER_ADDRESS: ${{ secrets.SERVER_ADDRESS }}
@@ -96,4 +100,4 @@ jobs:
           CONTAINER_NAMES: ${{ secrets.CONTAINER_NAMES }}
           IMAGE_URL: happyclo/tts-node:${{ steps.timestamp.outputs.short_sha }}
         run: |
-          python .github/workflows/deploy_image.py
+          python scripts/deploy_image.py
