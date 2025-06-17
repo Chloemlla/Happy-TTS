@@ -90,6 +90,11 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
             return;
         }
 
+        if (!generationCode) {
+            setError('请输入生成码');
+            return;
+        }
+
         try {
             const request: TtsRequest = {
                 text,
@@ -135,6 +140,11 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
             } else if (error.message.includes('超时')) {
                 setNotification({
                     message: '请求超时，请稍后重试',
+                    type: 'error'
+                });
+            } else if (error.message.includes('生成码无效')) {
+                setNotification({
+                    message: '生成码无效，请检查后重试',
                     type: 'error'
                 });
             } else {
@@ -272,6 +282,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                     <div>
                         <label className="block text-gray-700 text-lg font-semibold mb-3">
                             生成码
+                            <span className="text-red-500 ml-1">*</span>
                         </label>
                         <input
                             type="password"
@@ -279,7 +290,11 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                             onChange={(e) => setGenerationCode(e.target.value)}
                             className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-gray-300"
                             placeholder="请输入生成码..."
+                            required
                         />
+                        <p className="text-sm text-gray-500 mt-1">
+                            生成码用于验证您的身份，请确保输入正确
+                        </p>
                     </div>
                 </div>
 
