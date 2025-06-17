@@ -3,6 +3,9 @@ name: Build and Test
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - .github/**
+      - Dockerfile
   pull_request:
     branches: [main]
 

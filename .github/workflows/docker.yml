@@ -5,10 +5,8 @@ on:
     branches:
       - main
       - dev
-  workflow_run:
-    workflows: ["Upstream Sync"]
-    types:
-      - completed
+    paths-ignore:
+      - .github/**
   workflow_dispatch:
 
 jobs:
