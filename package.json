@@ -4,7 +4,7 @@
   "description": "Synapse with Gradio-like interface",
   "main": "dist/app.js",
   "scripts": {
-    "start": "node dist/app.js",
+    "start": "concurrently \"node dist/app.js\" \"serve -s public -l 3001\"",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "nodemon --watch src -e ts --exec ts-node src/app.ts",
     "dev:frontend": "cd frontend && npm run dev",
@@ -30,6 +30,7 @@
     "helmet": "^8.1.0",
     "morgan": "^1.10.0",
     "openai": "^4.0.0",
+    "serve": "^14.2.1",
     "uuid": "^11.1.0",
     "winston": "^3.11.0"
   },

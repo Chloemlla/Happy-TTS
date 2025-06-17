@@ -44,6 +44,9 @@ RUN npm install --production
 COPY --from=backend-builder /app/dist ./dist
 COPY --from=frontend-builder /app/frontend/dist ./public
 
+# 创建数据目录
+RUN mkdir -p /app/data && chmod 777 /app/data
+
 # 暴露端口
 EXPOSE 3000 3001
 
