@@ -38,7 +38,8 @@ WORKDIR /app
 
 # 安装生产环境依赖
 COPY package*.json ./
-RUN npm install --production
+RUN npm install --production && \
+    npm install -g concurrently serve
 
 # 从构建阶段复制文件
 COPY --from=backend-builder /app/dist ./dist
