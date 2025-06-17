@@ -5,6 +5,10 @@ on:
     branches:
       - main
       - dev
+  workflow_run:
+    workflows: ["Upstream Sync"]
+    types:
+      - completed
   workflow_dispatch:
 
 jobs:
