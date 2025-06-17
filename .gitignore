@@ -16,6 +16,7 @@ generation_records.json
 data/
 finish/
 *.mp3
+app.py
 .github/workflows/read.yml
 
 # 环境文件
