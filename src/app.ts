@@ -33,10 +33,10 @@ const isLocalIp = (req: Request, res: Response, next: NextFunction) => {
     next();
 };
 
-// 创建不同的请求限制器
+// 创建限流器
 const ttsLimiter = rateLimit({
-    windowMs: 5000, // 5秒窗口
-    max: 2, // 限制每个IP在窗口期内最多2个请求
+    windowMs: 60 * 1000, // 1分钟
+    max: 10, // 限制每个IP每分钟10次请求
     message: { error: '请求过于频繁，请稍后再试' },
     standardHeaders: true,
     legacyHeaders: false,
@@ -52,9 +52,9 @@ const ttsLimiter = rateLimit({
 });
 
 const authLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1分钟窗口
-    max: 10, // 限制每个IP在窗口期内最多10个请求
-    message: { error: '登录尝试次数过多，请稍后再试' },
+    windowMs: 60 * 1000, // 1分钟
+    max: 30, // 限制每个IP每分钟30次请求
+    message: { error: '请求过于频繁，请稍后再试' },
     standardHeaders: true,
     legacyHeaders: false,
     // 添加 IP 地址获取方法
@@ -69,8 +69,26 @@ const authLimiter = rateLimit({
 });
 
 const historyLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1分钟窗口
-    max: 30, // 限制每个IP在窗口期内最多30个请求
+    windowMs: 60 * 1000, // 1分钟
+    max: 20, // 限制每个IP每分钟20次请求
+    message: { error: '请求过于频繁，请稍后再试' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    // 添加 IP 地址获取方法
+    keyGenerator: (req: Request) => {
+        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        return ip;
+    },
+    // 跳过本地 IP 的限制
+    skip: (req: Request): boolean => {
+        return req.isLocalIp || false;
+    }
+});
+
+// 为 /api/auth/me 创建特殊的限流器
+const meEndpointLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1分钟
+    max: 60, // 限制每个IP每分钟60次请求
     message: { error: '请求过于频繁，请稍后再试' },
     standardHeaders: true,
     legacyHeaders: false,
@@ -114,6 +132,7 @@ app.use(isLocalIp); // 添加本地 IP 检查中间件
 // 应用请求限制到不同路由
 app.use('/api/tts/generate', ttsLimiter);
 app.use('/api/auth', authLimiter);
+app.use('/api/auth/me', meEndpointLimiter); // 为 /me 端点添加特殊的限流器
 app.use('/api/tts/history', historyLimiter);
 
 // Static files
