@@ -164,12 +164,16 @@ app.use('/api/auth', authRoutes);
 app.use('/api', statusRouter);
 
 // 静态文件服务
-app.use(express.static(join(__dirname, '../frontend/dist')));
-
-// 前端路由
-app.get('*', (req, res) => {
-  res.sendFile(join(__dirname, '../frontend/dist/index.html'));
-});
+const frontendPath = join(__dirname, '../frontend/dist');
+if (existsSync(frontendPath)) {
+  app.use(express.static(frontendPath));
+  // 前端路由
+  app.get('*', (req, res) => {
+    res.sendFile(join(frontendPath, 'index.html'));
+  });
+} else {
+  logger.warn('Frontend files not found at:', frontendPath);
+}
 
 // Error handling
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
