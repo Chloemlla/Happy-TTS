@@ -16,7 +16,7 @@ COPY frontend/ .
 RUN npm run build
 
 # 确保favicon.ico存在
-RUN touch public/favicon.ico
+RUN touch dist/favicon.ico
 
 # 构建后端
 FROM node:18-alpine AS backend-builder
