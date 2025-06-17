@@ -1,0 +1,86 @@
+name: Build Docker Image
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  workflow_dispatch:
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    if: github.actor == 'happy-clo' || github.actor == 'actions-user' # 只允许 happy-clo 和 actions-user 触发
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@master
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@master
+
+      - name: Set timezone to Shanghai
+        run: |
+          sudo ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+          sudo dpkg-reconfigure -f noninteractive tzdata
+
+      - name: Get timestamp and short SHA
+        id: timestamp
+        run: |
+          echo "::set-output name=timestamp::$(TZ='Asia/Shanghai' date +%s)"
+          echo "::set-output name=repo_name::$(echo ${{ github.repository }} | cut -d'/' -f2)"
+          echo "::set-output name=short_sha::$(git rev-parse --short HEAD)"
+
+      - name: Get previous commit SHA
+        id: prev_commit
+        run: echo "::set-output name=prev_sha::$(git rev-parse HEAD^1)"
+
+      - name: Check if only .github folder was modified
+        id: check_github_changes
+        run: |
+          if git diff --name-only HEAD~1 HEAD -- | grep -qv '^.github/'; then
+            echo "GITHUB_ONLY_CHANGED=false" >> $GITHUB_ENV
+          else
+            echo "GITHUB_ONLY_CHANGED=true" >> $GITHUB_ENV
+          fi
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@master
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@master
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: |
+            happyclo/tts-node:${{ github.ref_name }}
+            happyclo/tts-node:${{ steps.timestamp.outputs.short_sha }}
+
+      - name: Set up Python 3
+        uses: actions/setup-python@main
+        with:
+          python-version: "3.13"
+
+      - name: Cache Python packages
+        uses: actions/cache@main
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install paramiko library
+        run: |
+          pip install paramiko python-dotenv requests logging

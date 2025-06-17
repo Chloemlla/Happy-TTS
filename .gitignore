@@ -17,6 +17,7 @@ generation_records.json
 data/
 finish/
 *.mp3
+.github/workflows/read.yml
 
 # 环境文件
 .env
