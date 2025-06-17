@@ -25,7 +25,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.18.3",
-    "express-rate-limit": "^6.7.0",
+    "express-rate-limit": "^7.5.0",
     "synapse-gradio": "file:",
     "helmet": "^8.1.0",
     "morgan": "^1.10.0",
