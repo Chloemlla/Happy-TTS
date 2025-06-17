@@ -1,10 +1,11 @@
 # 构建前端
 FROM node:18-alpine AS frontend-builder
 
-WORKDIR /app/frontend
+WORKDIR /app
 
 # 安装前端依赖
-COPY frontend/package*.json ./
+COPY frontend/package*.json ./frontend/
+WORKDIR /app/frontend
 RUN npm install
 RUN npm install @fingerprintjs/fingerprintjs
 
@@ -28,7 +29,7 @@ COPY src/ ./src/
 COPY tsconfig.json ./
 
 # 构建后端
-RUN npm run build
+RUN npm run build:backend
 
 # 生产环境
 FROM node:18-alpine
