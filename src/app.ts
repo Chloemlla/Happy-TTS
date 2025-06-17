@@ -19,6 +19,7 @@ import { writeFile, readFile, appendFile, mkdir } from 'fs/promises';
 import { existsSync, mkdirSync } from 'fs';
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
 import statusRouter from './routes/status';
+import { getIPInfo } from './services/ip';
 
 // 扩展 Request 类型
 declare global {
@@ -162,6 +163,23 @@ if (!fs.existsSync(audioDir)) {
 app.use('/api/tts', ttsRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api', statusRouter);
+
+// 根路由重定向到前端
+app.get('/', (req, res) => {
+  res.redirect('/index.html');
+});
+
+// IP 路由
+app.get('/ip', async (req, res) => {
+  try {
+    const ip = req.headers['x-real-ip'] || req.ip;
+    const ipInfo = await getIPInfo(ip as string);
+    res.json(ipInfo);
+  } catch (error) {
+    logger.error('IP查询错误:', error);
+    res.status(500).json({ error: 'IP查询失败' });
+  }
+});
 
 // 静态文件服务
 const frontendPath = join(__dirname, '../frontend/dist');
