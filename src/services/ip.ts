@@ -10,6 +10,34 @@ interface IPInfo {
   isp: string;
 }
 
+// 内网IP预定义信息
+const PRIVATE_IP_RANGES = [
+  /^10\./,
+  /^172\.(1[6-9]|2[0-9]|3[0-1])\./,
+  /^192\.168\./,
+  /^127\./,
+  /^169\.254\./,
+  /^fc00::/,
+  /^fe80::/,
+  /^::1$/
+];
+
+// 检查是否是内网IP
+function isPrivateIP(ip: string): boolean {
+  return PRIVATE_IP_RANGES.some(range => range.test(ip));
+}
+
+// 获取内网IP信息
+function getPrivateIPInfo(ip: string): IPInfo {
+  return {
+    ip,
+    country: '内网',
+    region: '内网',
+    city: '内网',
+    isp: '内网'
+  };
+}
+
 // IP信息缓存
 const ipCache = new Map<string, { info: IPInfo; timestamp: number }>();
 const CACHE_TTL = 3600000; // 1小时缓存
@@ -49,6 +77,11 @@ async function withConcurrencyLimit<T>(fn: () => Promise<T>): Promise<T> {
 
 export async function getIPInfo(ip: string): Promise<IPInfo> {
   try {
+    // 检查是否是内网IP
+    if (isPrivateIP(ip)) {
+      return getPrivateIPInfo(ip);
+    }
+
     // 检查缓存
     const cached = ipCache.get(ip);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
