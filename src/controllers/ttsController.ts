@@ -4,6 +4,7 @@ import { StorageManager } from '../utils/storage';
 import { UserStorage } from '../utils/userStorage';
 import logger from '../utils/logger';
 import { config } from '../config/config';
+import axios from 'axios';
 
 export class TtsController {
     private static ttsService = new TtsService();
@@ -67,6 +68,21 @@ export class TtsController {
             if (text.length > 4096) {
                 return res.status(400).json({
                     error: '文本长度不能超过4096个字符'
+                });
+            }
+
+            // 进行违禁词检测
+            try {
+                const detectResponse = await axios.get(`https://v2.xxapi.cn/api/detect?text=${encodeURIComponent(text)}`);
+                if (detectResponse.data.is_prohibited) {
+                    return res.status(400).json({
+                        error: '文本包含违禁内容，请修改后重试'
+                    });
+                }
+            } catch (error) {
+                logger.error('违禁词检测失败:', error);
+                return res.status(500).json({
+                    error: '违禁词检测服务暂时不可用，请稍后重试'
                 });
             }
 
