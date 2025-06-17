@@ -84,10 +84,14 @@ def recreate_container(ssh, old_container_name, new_image_url):
             host_port = binding.get("HostPort")
             create_command += f"-p {host_ip}:{host_port}:{port.split('/')[0]} "
 
-    mounts = config.get("Volumes", {})
+    # 处理挂载卷
+    mounts = host_config.get("Mounts", [])
     if mounts:
-        for mount in mounts.keys():
-            create_command += f"-v {mount}:{mount} "
+        for mount in mounts:
+            source = mount.get("Source", "")
+            target = mount.get("Target", "")
+            if source and target:
+                create_command += f"-v {source}:{target} "
 
     networks = container_info[0].get("NetworkSettings", {}).get("Networks", {})
     for network_name in networks.keys():
