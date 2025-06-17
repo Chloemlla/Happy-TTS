@@ -10,25 +10,70 @@ interface IPInfo {
   isp: string;
 }
 
+// IP信息缓存
+const ipCache = new Map<string, { info: IPInfo; timestamp: number }>();
+const CACHE_TTL = 3600000; // 1小时缓存
+const MAX_CONCURRENT_REQUESTS = 50; // 最大并发请求数
+let currentRequests = 0;
+
+// 并发控制
+async function withConcurrencyLimit<T>(fn: () => Promise<T>): Promise<T> {
+  if (currentRequests >= MAX_CONCURRENT_REQUESTS) {
+    await new Promise(resolve => setTimeout(resolve, 1000)); // 等待1秒
+    return withConcurrencyLimit(fn);
+  }
+  
+  currentRequests++;
+  try {
+    return await fn();
+  } finally {
+    currentRequests--;
+  }
+}
+
 export async function getIPInfo(ip: string): Promise<IPInfo> {
   try {
-    const response = await axios.get(`http://ip-api.com/json/${ip}`);
-    const data = response.data;
-
-    if (!data || data.status === 'fail') {
-      logger.error('IP API returned error', data);
-      throw new Error('IP 查询失败');
+    // 检查缓存
+    const cached = ipCache.get(ip);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return cached.info;
     }
 
-    return {
-      ip: data.query,
-      country: data.country || '未知',
-      region: data.regionName || '未知',
-      city: data.city || '未知',
-      isp: data.isp || '未知',
-    };
+    return await withConcurrencyLimit(async () => {
+      const response = await axios.get(`http://ip-api.com/json/${ip}`, {
+        timeout: 5000, // 5秒超时
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      });
+      
+      const data = response.data;
+
+      if (!data || data.status === 'fail') {
+        logger.error('IP API returned error', data);
+        throw new Error('IP 查询失败');
+      }
+
+      const info = {
+        ip: data.query,
+        country: data.country || '未知',
+        region: data.regionName || '未知',
+        city: data.city || '未知',
+        isp: data.isp || '未知',
+      };
+
+      // 更新缓存
+      ipCache.set(ip, { info, timestamp: Date.now() });
+      
+      return info;
+    });
   } catch (error) {
     logger.error('IP info error:', error);
+    // 如果缓存中有旧数据，返回旧数据
+    const cached = ipCache.get(ip);
+    if (cached) {
+      return cached.info;
+    }
     throw new Error('获取 IP 信息失败');
   }
 }
