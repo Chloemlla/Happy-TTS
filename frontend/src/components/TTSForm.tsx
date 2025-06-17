@@ -39,6 +39,8 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
         { id: 'shimmer', name: 'Shimmer' }
     ];
 
+    const MAX_TEXT_LENGTH = 4096;
+
     useEffect(() => {
         const savedCooldown = localStorage.getItem('ttsCooldown');
         if (savedCooldown) {
@@ -172,11 +174,19 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                     </label>
                     <textarea
                         value={text}
-                        onChange={(e) => setText(e.target.value)}
+                        onChange={(e) => {
+                            const newText = e.target.value;
+                            if (newText.length <= MAX_TEXT_LENGTH) {
+                                setText(newText);
+                            }
+                        }}
                         className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-gray-300"
                         rows={4}
                         placeholder="请输入要转换的文本..."
                     />
+                    <div className="text-right text-sm text-gray-500 mt-1">
+                        {text.length}/{MAX_TEXT_LENGTH} 字符
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

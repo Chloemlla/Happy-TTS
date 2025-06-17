@@ -55,6 +55,13 @@ export class TtsController {
                 });
             }
 
+            // 检查文本长度
+            if (text.length > 4096) {
+                return res.status(400).json({
+                    error: '文本长度不能超过4096个字符'
+                });
+            }
+
             // 检查用户使用限制
             if (userId) {
                 const canUse = await UserStorage.incrementUsage(userId);
