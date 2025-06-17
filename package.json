@@ -27,7 +27,7 @@
     "express": "^4.18.3",
     "express-rate-limit": "^6.7.0",
     "synapse-gradio": "file:",
-    "helmet": "^6.0.1",
+    "helmet": "^8.1.0",
     "morgan": "^1.10.0",
     "openai": "^4.0.0",
     "uuid": "^11.1.0",
