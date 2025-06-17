@@ -12,11 +12,11 @@ RUN npm install @fingerprintjs/fingerprintjs
 # 复制前端源代码
 COPY frontend/ .
 
-# 确保favicon.ico存在
-RUN touch public/favicon.ico
-
 # 构建前端
 RUN npm run build
+
+# 确保favicon.ico存在
+RUN touch public/favicon.ico
 
 # 构建后端
 FROM node:18-alpine AS backend-builder
