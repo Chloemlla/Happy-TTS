@@ -13,10 +13,10 @@ jobs:
     if: github.actor == 'happy-clo' || github.actor == 'actions-user' # 只允许 happy-clo 和 actions-user 触发
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@main
 
       - name: Use Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@main
         with:
           node-version: 20
 
