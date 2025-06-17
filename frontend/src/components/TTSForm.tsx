@@ -17,6 +17,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
     const [voice, setVoice] = useState('nova');
     const [outputFormat, setOutputFormat] = useState('mp3');
     const [speed, setSpeed] = useState(1.0);
+    const [generationCode, setGenerationCode] = useState('');
     const [error, setError] = useState('');
     const [cooldown, setCooldown] = useState(false);
     const [cooldownTime, setCooldownTime] = useState(0);
@@ -97,7 +98,8 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                 output_format: outputFormat,
                 speed,
                 userId,
-                isAdmin
+                isAdmin,
+                generationCode
             };
 
             const result = await generateSpeech(request);
@@ -265,6 +267,19 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                         <div className="text-center text-gray-600 mt-2">
                             {speed}x
                         </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-gray-700 text-lg font-semibold mb-3">
+                            生成码
+                        </label>
+                        <input
+                            type="password"
+                            value={generationCode}
+                            onChange={(e) => setGenerationCode(e.target.value)}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-gray-300"
+                            placeholder="请输入生成码..."
+                        />
                     </div>
                 </div>
 

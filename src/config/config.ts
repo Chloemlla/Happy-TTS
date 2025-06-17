@@ -17,5 +17,7 @@ export const config = {
   // 添加本地 IP 配置
   localIps: (process.env.LOCAL_IPS || '127.0.0.1,::1,::ffff:127.0.0.1').split(','),
   // 添加基础URL配置
-  baseUrl: process.env.BASE_URL || 'https://tts-api.hapxs.com'
+  baseUrl: process.env.BASE_URL || 'https://tts-api.hapxs.com',
+  // 添加生成码配置
+  generationCode: process.env.GENERATION_CODE || 'default-code'
 }; 

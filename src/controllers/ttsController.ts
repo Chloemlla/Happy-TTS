@@ -3,6 +3,7 @@ import { TtsService } from '../services/ttsService';
 import { StorageManager } from '../utils/storage';
 import { UserStorage } from '../utils/userStorage';
 import logger from '../utils/logger';
+import { config } from '../config/config';
 
 export class TtsController {
     private static ttsService = new TtsService();
@@ -29,7 +30,7 @@ export class TtsController {
 
     public static async generateSpeech(req: Request, res: Response) {
         try {
-            const { text, model, voice, output_format, speed, fingerprint } = req.body;
+            const { text, model, voice, output_format, speed, fingerprint, generationCode } = req.body;
             const ip = TtsController.getClientIp(req);
             const userId = req.headers['x-user-id'] as string;
 
@@ -52,6 +53,13 @@ export class TtsController {
             if (!text) {
                 return res.status(400).json({
                     error: '文本内容不能为空'
+                });
+            }
+
+            // 检查生成码
+            if (!generationCode || generationCode !== config.generationCode) {
+                return res.status(403).json({
+                    error: '生成码无效'
                 });
             }
 

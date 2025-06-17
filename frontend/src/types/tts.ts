@@ -6,6 +6,7 @@ export interface TtsRequest {
   speed: number;
   userId?: string;
   isAdmin?: boolean;
+  generationCode: string;
 }
 
 export interface TtsResponse {
