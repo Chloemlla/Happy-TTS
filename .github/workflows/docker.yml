@@ -92,6 +92,7 @@ jobs:
           chmod +x scripts/deploy_image.py
 
       - name: Run deployment script
+        if: github.event_name != 'pull_request'
         env:
           SERVER_ADDRESS: ${{ secrets.SERVER_ADDRESS }}
           USERNAME: ${{ secrets.USERNAME }}
