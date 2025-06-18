@@ -94,7 +94,6 @@ export const TtsPage: React.FC = () => {
                     )}
                 </div>
             </div>
-            <Footer />
         </div>
     );
 }; 

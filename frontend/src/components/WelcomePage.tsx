@@ -42,7 +42,6 @@ export const WelcomePage: React.FC = () => {
           </div>
         </motion.div>
       </div>
-      <Footer />
     </div>
   );
 }; 
