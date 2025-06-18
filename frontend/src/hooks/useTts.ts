@@ -45,8 +45,8 @@ export const useTts = () => {
         const axiosError = error as AxiosError;
         if (axiosError.response) {
           // 服务器返回错误响应
-          const errorData = axiosError.response.data as { message?: string };
-          const errorMessage = errorData?.message || '服务器错误';
+          const errorData = axiosError.response.data as { message?: string; error?: string };
+          const errorMessage = errorData?.error || errorData?.message || '服务器错误';
           setError(errorMessage);
           throw new Error(errorMessage);
         } else if (axiosError.request) {
