@@ -72,7 +72,6 @@ const PolicyPage: React.FC = () => (
           <li className="transition-all duration-200 hover:scale-105 hover:-translate-y-1 cursor-pointer"><i className="fas fa-envelope text-blue-500 mr-2" /> 如对隐私政策有任何疑问，请通过上述电子邮件与我们联系。</li>
         </ul>
       </section>
-      <Footer />
     </div>
   </div>
 );
