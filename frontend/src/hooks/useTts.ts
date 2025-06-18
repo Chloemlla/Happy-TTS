@@ -51,7 +51,7 @@ export const useTts = () => {
           throw new Error(errorMessage);
         } else if (axiosError.request) {
           // 请求发送但没有收到响应
-          const errorMessage = '网络连接错误，请检查网络连接';
+          const errorMessage = `网络连接错误，请检查网络连接\n详细信息: ${JSON.stringify(axiosError.toJSON ? axiosError.toJSON() : axiosError)}`;
           setError(errorMessage);
           throw new Error(errorMessage);
         } else {
