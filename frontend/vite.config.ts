@@ -65,6 +65,11 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  esbuild: {
+    sourcemap: false,
+    legalComments: 'none',
+    logOverride: { 'this-is-undefined-in-esm': 'silent' }
+  },
   build: {
     minify: 'terser',
     terserOptions: {
