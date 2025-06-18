@@ -4,6 +4,7 @@ import { useAuth } from './hooks/useAuth';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { WelcomePage } from './components/WelcomePage';
 import { TtsPage } from './components/TtsPage';
+import PolicyPage from './components/PolicyPage';
 
 const App: React.FC = () => {
   const { user, loading, logout } = useAuth();
@@ -141,6 +142,7 @@ const App: React.FC = () => {
               )
             }
           />
+          <Route path="/policy" element={<PolicyPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

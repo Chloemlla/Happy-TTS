@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { Link } from 'react-router-dom';
 
 interface AuthFormProps {
     onSuccess?: () => void;
@@ -13,10 +14,15 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+    const [agreed, setAgreed] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
+        if (!agreed) {
+            setError('请阅读并同意服务条款与隐私政策');
+            return;
+        }
         setLoading(true);
 
         try {
@@ -126,13 +132,28 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
                             />
                         </div>
                     </div>
-
+                    <div className="flex items-center">
+                        <input
+                            id="agree"
+                            name="agree"
+                            type="checkbox"
+                            checked={agreed}
+                            onChange={e => setAgreed(e.target.checked)}
+                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                            required
+                        />
+                        <label htmlFor="agree" className="ml-2 block text-sm text-gray-700">
+                            我已阅读并同意
+                            <Link to="/policy" className="text-blue-600 hover:underline ml-1" target="_blank">
+                                服务条款与隐私政策
+                            </Link>
+                        </label>
+                    </div>
                     {error && (
                         <div className="text-red-500 text-sm text-center">
                             {error}
                         </div>
                     )}
-
                     <div>
                         <button
                             type="submit"
