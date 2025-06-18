@@ -41,9 +41,9 @@ function getPrivateIPInfo(ip: string): IPInfo {
 // IP信息缓存
 const ipCache = new Map<string, { info: IPInfo; timestamp: number }>();
 const CACHE_TTL = 3600000; // 1小时缓存
-const MAX_CONCURRENT_REQUESTS = 50; // 最大并发请求数
+const MAX_CONCURRENT_REQUESTS = 140; // 最大并发请求数
 const MAX_RETRIES = 3; // 最大重试次数
-const RETRY_DELAY = 2000; // 重试延迟（毫秒）
+const RETRY_DELAY = 15; // 重试延迟（毫秒）
 let currentRequests = 0;
 
 // 重试函数
