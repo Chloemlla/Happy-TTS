@@ -23,15 +23,6 @@ export const useTts = () => {
       setError(null);
       setAudioUrl(null);
 
-      // 先进行违禁词检测
-      const detectResponse = await api.get(`https://v2.xxapi.cn/api/detect?text=${encodeURIComponent(request.text)}`);
-      
-      if (detectResponse.data.is_prohibited) {
-        const errorMessage = '文本包含违禁内容，请修改后重试';
-        setError(errorMessage);
-        throw new Error(errorMessage);
-      }
-
       const response = await api.post<TtsResponse>('/api/tts', request);
       
       if (response.data && response.data.audioUrl) {
