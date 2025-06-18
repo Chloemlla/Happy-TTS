@@ -45,7 +45,7 @@ RUN npm install --production && \
     npm install -g concurrently serve
 
 # 从构建阶段复制文件
-COPY --from=backend-builder /app/dist ./dist
+COPY --from=backend-builder /app/dist-obfuscated ./dist
 COPY --from=frontend-builder /app/frontend/dist ./public
 
 # 创建数据目录
