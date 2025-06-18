@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { AuthForm } from './AuthForm';
+import Footer from './Footer';
 
 export const WelcomePage: React.FC = () => {
   return (
@@ -41,6 +42,7 @@ export const WelcomePage: React.FC = () => {
           </div>
         </motion.div>
       </div>
+      <Footer />
     </div>
   );
 }; 

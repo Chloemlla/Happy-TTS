@@ -1,4 +1,5 @@
 import React from 'react';
+import Footer from './Footer';
 
 const PolicyPage: React.FC = () => (
   <div className="min-h-screen bg-gradient-to-br from-pink-400 via-blue-300 to-indigo-500 py-10 px-4 flex justify-center items-center">
@@ -71,9 +72,7 @@ const PolicyPage: React.FC = () => (
           <li className="transition-all duration-200 hover:scale-105 hover:-translate-y-1 cursor-pointer"><i className="fas fa-envelope text-blue-500 mr-2" /> 如对隐私政策有任何疑问，请通过上述电子邮件与我们联系。</li>
         </ul>
       </section>
-      <footer className="text-center text-gray-500 mt-8 text-sm transition-all duration-200 hover:scale-105 hover:-translate-y-1 cursor-pointer">
-        <i className="fas fa-thumbs-up text-pink-400 mr-1" /> 感谢您使用Happy文本转语音服务，祝您体验愉快！
-      </footer>
+      <Footer />
     </div>
   </div>
 );

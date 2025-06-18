@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { TtsForm } from './TTSForm';
 import { LegalNotice } from './LegalNotice';
 import { TtsResponse } from '../types/tts';
+import Footer from './Footer';
 
 export const TtsPage: React.FC = () => {
     const { user } = useAuth();
@@ -93,6 +94,7 @@ export const TtsPage: React.FC = () => {
                     )}
                 </div>
             </div>
+            <Footer />
         </div>
     );
 }; 

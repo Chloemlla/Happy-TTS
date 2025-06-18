@@ -5,6 +5,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link } f
 import { WelcomePage } from './components/WelcomePage';
 import { TtsPage } from './components/TtsPage';
 import PolicyPage from './components/PolicyPage';
+import Footer from './components/Footer';
 
 const App: React.FC = () => {
   const { user, loading, logout } = useAuth();
@@ -69,6 +70,7 @@ const App: React.FC = () => {
             <TtsPage />
           </motion.div>
         </main>
+        <Footer />
       </div>
     );
   }
@@ -146,6 +148,7 @@ const App: React.FC = () => {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+      <Footer />
     </div>
   );
 };
