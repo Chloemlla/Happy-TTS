@@ -35,7 +35,7 @@ COPY tsconfig.json ./
 RUN npm run build:backend
 
 # 生产环境
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 
