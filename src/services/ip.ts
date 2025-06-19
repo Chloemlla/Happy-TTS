@@ -1,4 +1,7 @@
 import axios, { AxiosResponse, AxiosError } from 'axios';
+import { readFile, writeFile, mkdir } from 'fs/promises';
+import { join } from 'path';
+import { existsSync } from 'fs';
 import config from '../config';
 import { logger } from './logger';
 
@@ -8,6 +11,7 @@ interface IPInfo {
   region: string;
   city: string;
   isp: string;
+  timestamp?: number;
 }
 
 interface APIProvider {
@@ -145,6 +149,63 @@ async function tryAllProviders(ip: string): Promise<IPInfo> {
   throw new Error('所有API提供商都查询失败');
 }
 
+// 本地存储相关配置
+const DATA_DIR = join(process.cwd(), 'data');
+const IP_DATA_FILE = join(DATA_DIR, 'ip-info.json');
+const LOCAL_CACHE: { [key: string]: IPInfo } = {};
+
+// 初始化本地存储
+async function initializeLocalStorage(): Promise<void> {
+  try {
+    // 确保 data 目录存在
+    if (!existsSync(DATA_DIR)) {
+      await mkdir(DATA_DIR, { recursive: true });
+      logger.log('Created data directory for IP info');
+    }
+
+    // 读取本地存储的 IP 信息
+    if (existsSync(IP_DATA_FILE)) {
+      const data = await readFile(IP_DATA_FILE, 'utf-8');
+      Object.assign(LOCAL_CACHE, JSON.parse(data));
+      logger.log(`Loaded ${Object.keys(LOCAL_CACHE).length} IP records from local storage`);
+    }
+  } catch (error) {
+    logger.error('Error initializing IP local storage:', error);
+  }
+}
+
+// 保存 IP 信息到本地文件
+async function saveIPInfoToLocal(info: IPInfo): Promise<void> {
+  try {
+    LOCAL_CACHE[info.ip] = {
+      ...info,
+      timestamp: Date.now()
+    };
+    
+    await writeFile(IP_DATA_FILE, JSON.stringify(LOCAL_CACHE, null, 2));
+  } catch (error) {
+    logger.error('Error saving IP info to local storage:', error);
+  }
+}
+
+// 从本地获取 IP 信息
+function getIPInfoFromLocal(ip: string): IPInfo | null {
+  const info = LOCAL_CACHE[ip];
+  if (!info) return null;
+
+  // 检查是否过期（1小时）
+  if (info.timestamp && Date.now() - info.timestamp < CACHE_TTL) {
+    return info;
+  }
+
+  // 如果过期，删除缓存
+  delete LOCAL_CACHE[ip];
+  return null;
+}
+
+// 初始化本地存储
+initializeLocalStorage();
+
 export async function getIPInfo(ip: string): Promise<IPInfo> {
   try {
     // 处理特殊IP
@@ -160,29 +221,48 @@ export async function getIPInfo(ip: string): Promise<IPInfo> {
       return getPrivateIPInfo(ip);
     }
 
-    // 检查缓存
+    // 先检查内存缓存
     const cached = ipCache.get(ip);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
       return cached.info;
+    }
+
+    // 检查本地存储
+    const localInfo = getIPInfoFromLocal(ip);
+    if (localInfo) {
+      // 更新内存缓存
+      ipCache.set(ip, { info: localInfo, timestamp: Date.now() });
+      return localInfo;
     }
 
     return await withConcurrencyLimit(async () => {
       return await withRetry(async () => {
         const info = await tryAllProviders(ip);
         
-        // 更新缓存
+        // 更新内存缓存
         ipCache.set(ip, { info, timestamp: Date.now() });
+        
+        // 保存到本地存储
+        await saveIPInfoToLocal(info);
         
         return info;
       });
     });
   } catch (error) {
     logger.error('IP info error:', error);
-    // 如果缓存中有旧数据，返回旧数据
+    
+    // 如果内存缓存中有旧数据，返回旧数据
     const cached = ipCache.get(ip);
     if (cached) {
-      logger.error(`使用缓存的IP信息: ${ip}`);
+      logger.log(`使用内存缓存的IP信息: ${ip}`);
       return cached.info;
+    }
+    
+    // 如果本地存储中有数据（即使过期），也返回
+    const localInfo = LOCAL_CACHE[ip];
+    if (localInfo) {
+      logger.log(`使用本地存储的IP信息: ${ip}`);
+      return localInfo;
     }
     
     // 如果所有方法都失败，返回一个基本的信息
