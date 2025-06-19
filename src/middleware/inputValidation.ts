@@ -24,25 +24,36 @@ export class InputValidationError extends Error {
 // 密码强度检查
 const checkPasswordStrength = (password: string, username: string): ValidationError[] => {
     const errors: ValidationError[] = [];
+    let score = 0;
 
+    // 基本长度要求
     if (password.length < 8) {
         errors.push({ field: 'password', message: '密码长度至少需要8个字符' });
+        return errors;
+    } else if (password.length >= 12) {
+        score += 2;
+    } else {
+        score += 1;
     }
 
-    if (!/\d/.test(password)) {
-        errors.push({ field: 'password', message: '密码需要包含数字' });
+    // 包含数字
+    if (/\d/.test(password)) {
+        score += 1;
     }
 
-    if (!/[a-z]/.test(password)) {
-        errors.push({ field: 'password', message: '密码需要包含小写字母' });
+    // 包含小写字母
+    if (/[a-z]/.test(password)) {
+        score += 1;
     }
 
-    if (!/[A-Z]/.test(password)) {
-        errors.push({ field: 'password', message: '密码需要包含大写字母' });
+    // 包含大写字母
+    if (/[A-Z]/.test(password)) {
+        score += 1;
     }
 
-    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-        errors.push({ field: 'password', message: '密码需要包含特殊字符' });
+    // 包含特殊字符
+    if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+        score += 1;
     }
 
     // 检查常见密码模式
@@ -52,7 +63,12 @@ const checkPasswordStrength = (password: string, username: string): ValidationEr
     ];
 
     if (commonPatterns.some(pattern => pattern.test(password))) {
-        errors.push({ field: 'password', message: '密码不能使用常见密码模式或包含用户名' });
+        score = 0;
+    }
+
+    // 只需要达到中等强度（分数>=2）
+    if (score < 2) {
+        errors.push({ field: 'password', message: '密码强度不足，请确保密码包含以下条件之一：1. 长度超过12个字符；2. 包含数字和字母；3. 包含大小写字母；4. 包含特殊字符和字母' });
     }
 
     return errors;

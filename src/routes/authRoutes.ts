@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { validateAuthInput } from '../middleware/inputValidation';
 import rateLimiter from '../middleware/rateLimiter';
+import { logUserData } from '../middleware/userDataLogger';
 import logger from '../utils/logger';
 import bcrypt from 'bcrypt';
 import jwt, { SignOptions } from 'jsonwebtoken';
@@ -29,7 +30,7 @@ const jwtSignOptions: SignOptions = {
 };
 
 // 注册路由
-router.post('/register', registerLimiter, validateAuthInput, async (req, res) => {
+router.post('/register', registerLimiter, validateAuthInput, logUserData, async (req, res) => {
     try {
         const { username, email, password } = req.body;
 

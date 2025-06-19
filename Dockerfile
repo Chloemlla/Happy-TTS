@@ -30,9 +30,13 @@ COPY package*.json ./
 RUN npm install
 RUN npm install -g javascript-obfuscator
 
-# 复制后端源代码
+# 复制后端源代码和 Prisma 配置
 COPY src/ ./src/
+COPY prisma/ ./prisma/
 COPY tsconfig.json ./
+
+# 初始化 Prisma
+RUN npx prisma generate
 
 # 构建后端（增加重试机制）
 RUN npm run build:backend || npm run build:backend
@@ -49,10 +53,14 @@ RUN npm install --production && \
 
 # 从构建阶段复制文件
 COPY --from=backend-builder /app/dist-obfuscated ./dist
+COPY --from=backend-builder /app/prisma ./prisma
 COPY --from=frontend-builder /app/frontend/dist ./public
 
-# 创建数据目录
+# 创建数据目录并初始化数据库
 RUN mkdir -p /app/data && chmod 777 /app/data
+RUN npm install @prisma/client && \
+    npx prisma generate && \
+    npx prisma db push --accept-data-loss
 
 # 暴露端口
 EXPOSE 3000 3001

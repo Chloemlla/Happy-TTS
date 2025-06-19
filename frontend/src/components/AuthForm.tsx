@@ -106,7 +106,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
                 break;
             case 'password':
                 const strength = checkPasswordStrength(sanitizedValue);
-                if (strength.score < 3) {
+                if (strength.score < 2) {
                     return strength.feedback || '密码强度不足';
                 }
                 break;
@@ -245,6 +245,30 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
                                 onChange={(e) => setPassword(e.target.value)}
                                 minLength={8}
                             />
+                            {password && (
+                                <div className="relative">
+                                    <div className="mt-1 p-2 text-sm text-gray-600 bg-gray-50 rounded border border-gray-200 break-words">
+                                        <div className="mb-1">密码强度：
+                                            <span className={`font-medium ${
+                                                passwordStrength.score >= 4 ? 'text-green-600' :
+                                                passwordStrength.score >= 3 ? 'text-blue-600' :
+                                                passwordStrength.score >= 2 ? 'text-yellow-600' :
+                                                'text-red-600'
+                                            }`}>
+                                                {passwordStrength.score >= 4 ? '很强' :
+                                                 passwordStrength.score >= 3 ? '强' :
+                                                 passwordStrength.score >= 2 ? '中等' :
+                                                 '弱'}
+                                            </span>
+                                        </div>
+                                        {passwordStrength.feedback && (
+                                            <div className="text-xs text-gray-500">
+                                                {passwordStrength.feedback}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                         {!isLogin && (
                             <div>
@@ -262,37 +286,6 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
                             </div>
                         )}
                     </div>
-
-                    {/* 密码强度指示器 */}
-                    {password && (
-                        <div className="mt-2">
-                            <div className="flex justify-between mb-1">
-                                <span className="text-sm text-gray-600">密码强度</span>
-                                <span className="text-sm text-gray-600">
-                                    {passwordStrength.score === 0 && '非常弱'}
-                                    {passwordStrength.score === 1 && '弱'}
-                                    {passwordStrength.score === 2 && '中等'}
-                                    {passwordStrength.score === 3 && '强'}
-                                    {passwordStrength.score >= 4 && '非常强'}
-                                </span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2">
-                                <div
-                                    className={`h-2 rounded-full ${
-                                        passwordStrength.score === 0 ? 'bg-red-500' :
-                                        passwordStrength.score === 1 ? 'bg-orange-500' :
-                                        passwordStrength.score === 2 ? 'bg-yellow-500' :
-                                        passwordStrength.score === 3 ? 'bg-green-500' :
-                                        'bg-green-600'
-                                    }`}
-                                    style={{ width: `${(passwordStrength.score / 5) * 100}%` }}
-                                />
-                            </div>
-                            {passwordStrength.feedback && (
-                                <p className="mt-1 text-sm text-gray-600">{passwordStrength.feedback}</p>
-                            )}
-                        </div>
-                    )}
 
                     <div className="flex items-center">
                         <input

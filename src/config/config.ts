@@ -21,7 +21,7 @@ export const config = {
   // 添加生成码配置
   generationCode: process.env.GENERATION_CODE || 'wmy',
   // JWT 配置
-  jwtSecret: process.env.JWT_SECRET || 'your-super-secret-jwt-key',
+  jwtSecret: process.env.JWT_SECRET || 'yb56beb12b35ab636b66c4f9fc168646785a8e85a',
   jwtExpiresIn: '24h',
   // 密码加密配置
   bcryptSaltRounds: 12,
