@@ -26,9 +26,9 @@ export const TtsPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 py-8">
+        <div className="min-h-screen bg-white py-8">
             <div className="max-w-7xl mx-auto px-4">
-                <div className="bg-white rounded-2xl shadow-xl p-6 mb-8">
+                <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
                     <div className="text-center">
                         <h1 className="text-3xl font-bold text-gray-900 mb-2">文本转语音</h1>
                         <p className="text-gray-600 mb-4">将您的文本转换为自然流畅的语音</p>
@@ -73,7 +73,7 @@ export const TtsPage: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col lg:flex-row gap-8">
-                    <div ref={formRef as React.RefObject<HTMLDivElement>} className="flex-1 bg-white rounded-2xl shadow-xl p-6">
+                    <div ref={formRef as React.RefObject<HTMLDivElement>} className="flex-1 bg-white rounded-2xl shadow-lg p-6">
                         <TtsForm
                             onSuccess={handleSuccess}
                         />
@@ -83,7 +83,7 @@ export const TtsPage: React.FC = () => {
                     </div>
 
                     {audioUrl && (
-                        <div ref={audioRef as React.RefObject<HTMLDivElement>} className="flex-1 bg-white rounded-2xl shadow-xl p-6">
+                        <div ref={audioRef as React.RefObject<HTMLDivElement>} className="flex-1 bg-white rounded-2xl shadow-lg p-6">
                             <div className="space-y-4">
                                 <audio controls className="w-full">
                                     <source src={audioUrl} type="audio/mpeg" />
