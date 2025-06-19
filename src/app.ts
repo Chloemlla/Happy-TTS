@@ -20,6 +20,8 @@ import { existsSync, mkdirSync } from 'fs';
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
 import statusRouter from './routes/status';
 import { getIPInfo } from './services/ip';
+import tamperRoutes from './routes/tamperRoutes';
+import { tamperProtectionMiddleware } from './middleware/tamperProtection';
 
 // 扩展 Request 类型
 declare global {
@@ -163,6 +165,12 @@ if (!fs.existsSync(audioDir)) {
 app.use('/api/tts', ttsRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api', statusRouter);
+
+// 添加篡改保护中间件
+app.use(tamperProtectionMiddleware);
+
+// 注册路由
+app.use('/api', tamperRoutes);
 
 // 根路由重定向到前端
 app.get('/', (req, res) => {

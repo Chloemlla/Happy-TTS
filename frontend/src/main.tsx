@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import './index.css'
+import { integrityChecker } from './utils/integrityCheck'
 
 // 禁止右键和常见调试快捷键
 if (typeof window !== 'undefined') {
@@ -16,6 +17,24 @@ if (typeof window !== 'undefined') {
     }
   });
 }
+
+// 初始化完整性检查
+document.addEventListener('DOMContentLoaded', () => {
+  // 记录初始状态
+  const criticalElements = [
+    'app-header',
+    'app-footer',
+    'tts-form',
+    'legal-notice'
+  ];
+
+  criticalElements.forEach(id => {
+    const element = document.getElementById(id);
+    if (element) {
+      integrityChecker.setIntegrity(id, element.innerHTML);
+    }
+  });
+});
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
