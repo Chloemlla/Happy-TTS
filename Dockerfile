@@ -53,7 +53,7 @@ RUN npm install --production && \
 
 # 从构建阶段复制文件
 COPY --from=backend-builder /app/dist-obfuscated ./dist
-COPY --from=backend-builder /app/prisma ./prisma
+COPY prisma/ ./prisma
 COPY --from=frontend-builder /app/frontend/dist ./public
 
 # 创建数据目录并初始化数据库

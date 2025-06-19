@@ -131,12 +131,13 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
                 setError(emailError);
                 return;
             }
-        }
 
-        const passwordError = validateInput(password, 'password');
-        if (passwordError) {
-            setError(passwordError);
-            return;
+            // 只在注册时验证密码强度
+            const passwordError = validateInput(password, 'password');
+            if (passwordError) {
+                setError(passwordError);
+                return;
+            }
         }
 
         if (!isLogin && password !== confirmPassword) {

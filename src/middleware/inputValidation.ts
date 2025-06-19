@@ -123,13 +123,14 @@ export const validateAuthInput = (req: Request, res: Response, next: NextFunctio
         // 验证用户名
         errors.push(...validateUsername(sanitizedUsername));
 
-        // 注册时验证邮箱
-        if (req.path.includes('register') && email) {
-            errors.push(...validateEmail(sanitizedEmail));
+        // 注册时验证邮箱和密码强度
+        if (req.path.includes('register')) {
+            if (email) {
+                errors.push(...validateEmail(sanitizedEmail));
+            }
+            // 只在注册时验证密码强度
+            errors.push(...checkPasswordStrength(password, sanitizedUsername));
         }
-
-        // 验证密码强度
-        errors.push(...checkPasswordStrength(password, sanitizedUsername));
 
         if (errors.length > 0) {
             throw new InputValidationError(errors);
