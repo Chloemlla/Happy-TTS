@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import './index.css'
 import { integrityChecker } from './utils/integrityCheck'
+import { disableSelection } from './utils/disableSelection'
 
 // 禁止右键和常见调试快捷键
 if (typeof window !== 'undefined') {
@@ -16,6 +17,9 @@ if (typeof window !== 'undefined') {
       e.preventDefault();
     }
   });
+
+  // 初始化禁用选择功能
+  disableSelection();
 }
 
 // 初始化完整性检查
