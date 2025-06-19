@@ -32,7 +32,7 @@
     "synapse-gradio": "file:",
     "helmet": "^8.1.0",
     "morgan": "^1.10.0",
-    "openai": "^4.0.0",
+    "openai": "^5.5.1",
     "serve": "^14.2.1",
     "uuid": "^11.1.0",
     "winston": "^3.11.0"
