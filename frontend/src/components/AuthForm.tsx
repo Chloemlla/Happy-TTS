@@ -241,12 +241,12 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
                                 type="password"
                                 required
                                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                                placeholder="密码 (至少8位，包含大小写字母、数字和特殊字符)"
+                                placeholder={isLogin ? "请输入密码" : "密码 (至少8位，包含大小写字母、数字和特殊字符)"}
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 minLength={8}
                             />
-                            {password && (
+                            {!isLogin && password && (
                                 <div className="relative">
                                     <div className="mt-1 p-2 text-sm text-gray-600 bg-gray-50 rounded border border-gray-200 break-words">
                                         <div className="mb-1">密码强度：
