@@ -163,11 +163,22 @@ async function initializeLocalStorage(): Promise<void> {
       logger.log('Created data directory for IP info');
     }
 
-    // 读取本地存储的 IP 信息
-    if (existsSync(IP_DATA_FILE)) {
-      const data = await readFile(IP_DATA_FILE, 'utf-8');
-      Object.assign(LOCAL_CACHE, JSON.parse(data));
-      logger.log(`Loaded ${Object.keys(LOCAL_CACHE).length} IP records from local storage`);
+    // 检查并初始化 IP 信息文件
+    if (!existsSync(IP_DATA_FILE)) {
+      await writeFile(IP_DATA_FILE, JSON.stringify({}, null, 2));
+      logger.log('Created empty IP info file');
+    } else {
+      // 读取本地存储的 IP 信息
+      try {
+        const data = await readFile(IP_DATA_FILE, 'utf-8');
+        Object.assign(LOCAL_CACHE, JSON.parse(data));
+        logger.log(`Loaded ${Object.keys(LOCAL_CACHE).length} IP records from local storage`);
+      } catch (error) {
+        // 如果文件损坏或格式错误，重新创建
+        logger.error('Error reading IP info file, creating new one:', error);
+        await writeFile(IP_DATA_FILE, JSON.stringify({}, null, 2));
+        Object.keys(LOCAL_CACHE).forEach(key => delete LOCAL_CACHE[key]);
+      }
     }
   } catch (error) {
     logger.error('Error initializing IP local storage:', error);
