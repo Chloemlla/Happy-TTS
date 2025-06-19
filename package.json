@@ -31,6 +31,7 @@
     "express-rate-limit": "^7.5.0",
     "synapse-gradio": "file:",
     "helmet": "^8.1.0",
+    "liquid-glass-react": "^1.1.1",
     "morgan": "^1.10.0",
     "openai": "^5.5.1",
     "serve": "^14.2.1",
