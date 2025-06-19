@@ -49,7 +49,7 @@ const PolicyPage: React.FC = () => (
       <section className="mb-6">
         <h2 className="text-xl font-semibold text-gray-800 mb-2 flex items-center gap-2 transition-all duration-200 hover:scale-105 hover:-translate-y-1 cursor-pointer"><i className="fas fa-copyright" /> 版权声明</h2>
         <ul className="list-disc ml-6 text-gray-700 space-y-1">
-          <li className="transition-all duration-200 hover:scale-105 hover:-translate-y-1 cursor-pointer"><i className="fas fa-file-alt text-blue-500 mr-2" /> 本服务中使用的所有音频、文本和其他附加资源均属于Happy或相关权利人所有。</li>
+          <li className="transition-all duration-200 hover:scale-105 hover:-translate-y-1 cursor-pointer"><i className="fas fa-file-alt text-blue-500 mr-2" /> 本服务中使用的所有音频、文本和其他附加资源均属于 GitHub Individual Developer Happy-clo 或相关权利人所有。</li>
           <li className="transition-all duration-200 hover:scale-105 hover:-translate-y-1 cursor-pointer"><i className="fas fa-comments text-blue-500 mr-2" /> 我们鼓励用户积极反馈意见和建议。</li>
         </ul>
       </section>

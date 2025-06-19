@@ -1,5 +1,6 @@
-import { writeFile, readFile } from 'fs/promises';
+import { writeFile, readFile, mkdir } from 'fs/promises';
 import { join } from 'path';
+import { existsSync } from 'fs';
 import logger from '../utils/logger';
 
 interface TamperEvent {
@@ -22,12 +23,26 @@ interface BlockedIP {
 
 class TamperService {
   private static instance: TamperService;
-  private readonly TAMPER_LOG_PATH = join(process.cwd(), 'data', 'tamper-events.json');
-  private readonly BLOCKED_IPS_PATH = join(process.cwd(), 'data', 'blocked-ips.json');
+  private readonly DATA_DIR = join(process.cwd(), 'data');
+  private readonly TAMPER_LOG_PATH = join(this.DATA_DIR, 'tamper-events.json');
+  private readonly BLOCKED_IPS_PATH = join(this.DATA_DIR, 'blocked-ips.json');
   private blockedIPs: Map<string, BlockedIP> = new Map();
   
   private constructor() {
-    this.loadBlockedIPs();
+    this.initializeDataDirectory();
+  }
+
+  private async initializeDataDirectory(): Promise<void> {
+    try {
+      // 确保 data 目录存在
+      if (!existsSync(this.DATA_DIR)) {
+        await mkdir(this.DATA_DIR, { recursive: true });
+        logger.info('Created data directory');
+      }
+      await this.loadBlockedIPs();
+    } catch (error) {
+      logger.error('Error initializing data directory:', error);
+    }
   }
 
   public static getInstance(): TamperService {
@@ -50,6 +65,10 @@ class TamperService {
 
   private async saveBlockedIPs(): Promise<void> {
     try {
+      // 确保目录存在
+      if (!existsSync(this.DATA_DIR)) {
+        await mkdir(this.DATA_DIR, { recursive: true });
+      }
       const blockedList = Array.from(this.blockedIPs.values());
       await writeFile(this.BLOCKED_IPS_PATH, JSON.stringify(blockedList, null, 2));
     } catch (error) {
@@ -59,6 +78,11 @@ class TamperService {
 
   public async recordTamperEvent(event: TamperEvent): Promise<void> {
     try {
+      // 确保目录存在
+      if (!existsSync(this.DATA_DIR)) {
+        await mkdir(this.DATA_DIR, { recursive: true });
+      }
+
       // 读取现有事件
       let events: TamperEvent[] = [];
       try {
