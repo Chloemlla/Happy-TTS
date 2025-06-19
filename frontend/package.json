@@ -9,9 +9,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@types/jsdom": "^21.1.7",
     "axios": "^1.6.2",
     "framer-motion": "^12.18.1",
     "synapse-frontend": "file:",
+    "jsdom": "^26.1.0",
     "liquid-glass-react": "^1.1.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

@@ -22,6 +22,7 @@
   "license": "MIT",
   "dependencies": {
     "@fingerprintjs/fingerprintjs": "^4.6.2",
+    "@types/jsdom": "^21.1.7",
     "@types/uuid": "^10.0.0",
     "axios": "^1.6.7",
     "cors": "^2.8.5",
@@ -31,6 +32,7 @@
     "express-rate-limit": "^7.5.0",
     "synapse-gradio": "file:",
     "helmet": "^8.1.0",
+    "jsdom": "^26.1.0",
     "liquid-glass-react": "^1.1.1",
     "morgan": "^1.10.0",
     "openai": "^5.5.1",

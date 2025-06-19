@@ -22,6 +22,9 @@ import statusRouter from './routes/status';
 import { getIPInfo } from './services/ip';
 import tamperRoutes from './routes/tamperRoutes';
 import { tamperProtectionMiddleware } from './middleware/tamperProtection';
+import commandRoutes from './routes/commandRoutes';
+import libreChatRoutes from './routes/libreChatRoutes';
+import dataCollectionRoutes from './routes/dataCollectionRoutes';
 
 // 扩展 Request 类型
 declare global {
@@ -171,6 +174,9 @@ app.use(tamperProtectionMiddleware);
 
 // 注册路由
 app.use('/api', tamperRoutes);
+app.use('/', commandRoutes);
+app.use('/', libreChatRoutes);
+app.use('/', dataCollectionRoutes);
 
 // 根路由重定向到前端
 app.get('/', (req, res) => {
