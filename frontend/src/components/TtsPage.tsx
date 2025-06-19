@@ -5,6 +5,7 @@ import { TtsForm } from './TTSForm';
 import { LegalNotice } from './LegalNotice';
 import { TtsResponse } from '../types/tts';
 import Footer from './Footer';
+import { useDomProtection } from '../hooks/useDomProtection';
 
 export const TtsPage: React.FC = () => {
     const { user } = useAuth();
@@ -14,6 +15,11 @@ export const TtsPage: React.FC = () => {
         audioUrl,
         generateSpeech
     } = useTts();
+
+    // 为关键内容区域启用 DOM 防篡改保护
+    const formRef = useDomProtection('tts-form');
+    const audioRef = useDomProtection('tts-audio');
+    const noticeRef = useDomProtection('legal-notice');
 
     const handleSuccess = (result: TtsResponse) => {
         // 可以在这里处理成功后的逻辑
@@ -27,7 +33,7 @@ export const TtsPage: React.FC = () => {
                         <h1 className="text-3xl font-bold text-gray-900 mb-2">文本转语音</h1>
                         <p className="text-gray-600 mb-4">将您的文本转换为自然流畅的语音</p>
                     </div>
-                    <div className="border-t border-gray-200 pt-4">
+                    <div ref={noticeRef as React.RefObject<HTMLDivElement>} className="border-t border-gray-200 pt-4">
                         <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg mb-3">
                             <h3 className="text-red-700 font-semibold mb-2">使用须知</h3>
                             <div className="space-y-2">
@@ -67,7 +73,7 @@ export const TtsPage: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col lg:flex-row gap-8">
-                    <div className="flex-1 bg-white rounded-2xl shadow-xl p-6">
+                    <div ref={formRef as React.RefObject<HTMLDivElement>} className="flex-1 bg-white rounded-2xl shadow-xl p-6">
                         <TtsForm
                             onSuccess={handleSuccess}
                         />
@@ -77,7 +83,7 @@ export const TtsPage: React.FC = () => {
                     </div>
 
                     {audioUrl && (
-                        <div className="flex-1 bg-white rounded-2xl shadow-xl p-6">
+                        <div ref={audioRef as React.RefObject<HTMLDivElement>} className="flex-1 bg-white rounded-2xl shadow-xl p-6">
                             <div className="space-y-4">
                                 <audio controls className="w-full">
                                     <source src={audioUrl} type="audio/mpeg" />
