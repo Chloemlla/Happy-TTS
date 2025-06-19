@@ -132,8 +132,18 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 app.use(cors({
     origin: ['https://tts.hapx.one', 'https://tts.hapxs.com', 'http://localhost:3000'],
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'X-Requested-With',
+        'Accept',
+        'Origin',
+        'Access-Control-Request-Method',
+        'Access-Control-Request-Headers'
+    ],
+    exposedHeaders: ['Content-Length', 'X-RateLimit-Limit', 'X-RateLimit-Remaining'],
+    maxAge: 86400 // 预检请求的结果可以缓存24小时
 }));
 app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
