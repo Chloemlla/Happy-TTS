@@ -58,7 +58,7 @@ const PolicyPage: React.FC = () => (
         <div className="bg-blue-50 p-4 rounded-lg">
           <p className="text-gray-700 mb-1"><i className="fas fa-envelope text-blue-500 mr-2" />如有任何疑问或反馈，请通过以下方式联系我们：</p>
           <p className="text-blue-700 font-bold">
-            <a href="mailto:support@hapxs.com" className="transition-all duration-200 hover:scale-110 hover:-translate-y-1 cursor-pointer">support@hapxs.com</a>
+            <a href="mailto:support@hapxs.com" className="transition-all duration-200 hover:scale-110 hover:-translate-y-1 cursor-pointer"> support@hapxs.com</a>
           </p>
         </div>
       </section>
