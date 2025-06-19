@@ -106,7 +106,8 @@ const validateEmail = (email: string): ValidationError[] => {
 };
 
 // 输入净化
-const sanitizeInput = (input: string): string => {
+const sanitizeInput = (input: string | undefined): string => {
+    if (!input) return '';
     return DOMPurify.sanitize(validator.trim(input));
 };
 
@@ -114,14 +115,28 @@ const sanitizeInput = (input: string): string => {
 export const validateAuthInput = (req: Request, res: Response, next: NextFunction) => {
     try {
         const errors: ValidationError[] = [];
-        const { username, email, password } = req.body;
+        const { username = '', email = '', password = '' } = req.body;
+
+        // 检查必填字段
+        if (!username) {
+            errors.push({ field: 'username', message: '用户名不能为空' });
+        }
+        if (!password) {
+            errors.push({ field: 'password', message: '密码不能为空' });
+        }
+
+        if (errors.length > 0) {
+            throw new InputValidationError(errors);
+        }
 
         // 净化输入
         const sanitizedUsername = sanitizeInput(username);
         const sanitizedEmail = email ? sanitizeInput(email) : '';
         
         // 验证用户名
-        errors.push(...validateUsername(sanitizedUsername));
+        if (sanitizedUsername) {
+            errors.push(...validateUsername(sanitizedUsername));
+        }
 
         // 注册时验证邮箱和密码强度
         if (req.path.includes('register')) {
