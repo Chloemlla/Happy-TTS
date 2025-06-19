@@ -8,6 +8,8 @@ COPY frontend/package*.json ./frontend/
 WORKDIR /app/frontend
 RUN npm install
 RUN npm install @fingerprintjs/fingerprintjs
+RUN npm install crypto-js
+RUN npm install --save-dev @types/crypto-js
 
 # 复制前端源代码
 COPY frontend/ .
@@ -26,13 +28,14 @@ WORKDIR /app
 # 安装后端依赖
 COPY package*.json ./
 RUN npm install
+RUN npm install -g javascript-obfuscator
 
 # 复制后端源代码
 COPY src/ ./src/
 COPY tsconfig.json ./
 
-# 构建后端
-RUN npm run build:backend
+# 构建后端（增加重试机制）
+RUN npm run build:backend || npm run build:backend
 
 # 生产环境
 FROM node:20-alpine
