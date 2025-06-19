@@ -244,7 +244,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
                                 placeholder={isLogin ? "请输入密码" : "密码 (至少8位，包含大小写字母、数字和特殊字符)"}
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                minLength={8}
+                                minLength={isLogin ? undefined : 8}
                             />
                             {!isLogin && password && (
                                 <div className="relative">
