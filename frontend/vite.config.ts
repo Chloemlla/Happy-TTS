@@ -58,10 +58,7 @@ export default defineConfig({
       'tts.hapxs.com',
       'localhost',
       '127.0.0.1'
-    ],
-    hmr: {
-      overlay: true
-    }
+    ]
   },
   resolve: {
     alias: {
@@ -91,22 +88,22 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'ui-vendor': ['@headlessui/react', '@heroicons/react', 'tailwindcss'],
-          'utils-vendor': ['axios', 'lodash', 'date-fns'],
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          utils: ['axios', 'framer-motion']
         },
-        chunkFileNames: 'assets/[name]-[hash].js',
-        entryFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]'
+        // 确保生成的文件名是唯一的
+        entryFileNames: 'assets/[name].[hash].js',
+        chunkFileNames: 'assets/[name].[hash].js',
+        assetFileNames: 'assets/[name].[hash].[ext]'
       }
     },
+    // 启用源码映射，方便调试
     sourcemap: false,
+    // 启用 CSS 代码分割
     cssCodeSplit: true,
+    // 启用资源压缩
     assetsInlineLimit: 4096,
-    reportCompressedSize: true,
-    chunkSizeWarningLimit: 800
-  },
-  optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom']
+    // 启用 gzip 压缩
+    reportCompressedSize: true
   }
 }) 
