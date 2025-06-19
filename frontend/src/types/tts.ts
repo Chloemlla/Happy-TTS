@@ -12,4 +12,5 @@ export interface TtsRequest {
 export interface TtsResponse {
   audioUrl: string;
   isDuplicate?: boolean;
+  signature: string;
 } 

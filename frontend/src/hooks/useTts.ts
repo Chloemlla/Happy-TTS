@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import axios, { AxiosError } from 'axios';
 import { TtsRequest, TtsResponse } from '../types/tts';
+import { verifyContent } from '../utils/sign';
 
 // 创建axios实例
 const api = axios.create({
@@ -26,6 +27,10 @@ export const useTts = () => {
       const response = await api.post<TtsResponse>('/api/tts', request);
       
       if (response.data && response.data.audioUrl) {
+        // 校验签名
+        if (!verifyContent(response.data.audioUrl, response.data.signature)) {
+          throw new Error('内容签名校验失败，数据可能被篡改');
+        }
         setAudioUrl(response.data.audioUrl);
         return response.data;
       } else {
