@@ -88,10 +88,28 @@ def recreate_container(ssh, old_container_name, new_image_url):
     mounts = host_config.get("Mounts", [])
     if mounts:
         for mount in mounts:
+            # 获取挂载类型
+            type = mount.get("Type", "")
             source = mount.get("Source", "")
             target = mount.get("Target", "")
-            if source and target:
+
+            # 根据不同的挂载类型处理
+            if type == "bind" and source and target:
+                # 确保源路径存在
+                source_path = os.path.abspath(source)
+                if not os.path.exists(source_path):
+                    os.makedirs(source_path, exist_ok=True)
+                # 添加绑定挂载
+                create_command += f"-v {source_path}:{target} "
+            elif type == "volume" and source and target:
+                # 对于命名卷，直接使用卷名
                 create_command += f"-v {source}:{target} "
+
+            # 处理读写模式
+            mode = mount.get("Mode", "")
+            if mode:
+                # 移除末尾空格并添加模式
+                create_command = create_command.rstrip() + f":{mode} "
 
     networks = container_info[0].get("NetworkSettings", {}).get("Networks", {})
     for network_name in networks.keys():
