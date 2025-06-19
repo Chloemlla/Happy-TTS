@@ -4,7 +4,7 @@ import Footer from './Footer';
 const PolicyPage: React.FC = () => (
   <div className="min-h-screen bg-white py-10 px-4 flex justify-center items-center">
     <div className="max-w-3xl w-full bg-white rounded-2xl shadow-lg p-8">
-      <h1 className="text-3xl font-bold text-center text-pink-600 mb-6 flex items-center justify-center gap-2 transition-all duration-200 hover:scale-105 hover:-translate-y-1 cursor-pointer">
+      <h1 className="text-3xl font-bold text-center text-blue-500 mb-6 flex items-center justify-center gap-2 transition-all duration-200 hover:scale-105 hover:-translate-y-1 cursor-pointer">
         <i className="fas fa-volume-up" /> Happy 文本转语音服务条款与隐私政策
       </h1>
       <section className="mb-6">
