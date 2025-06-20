@@ -6,6 +6,7 @@ import { WelcomePage } from './components/WelcomePage';
 import { TtsPage } from './components/TtsPage';
 import PolicyPage from './components/PolicyPage';
 import Footer from './components/Footer';
+import PublicIP from './components/PublicIP';
 
 const App: React.FC = () => {
   const { user, loading, logout } = useAuth();
@@ -61,6 +62,8 @@ const App: React.FC = () => {
           </div>
         </motion.nav>
 
+        <PublicIP />
+
         <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -109,6 +112,8 @@ const App: React.FC = () => {
           </div>
         </div>
       </motion.nav>
+
+      <PublicIP />
 
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <Routes>

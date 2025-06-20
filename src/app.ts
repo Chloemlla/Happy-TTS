@@ -200,8 +200,55 @@ app.get('/ip', async (req, res) => {
     const ipInfo = await getIPInfo(ip as string);
     res.json(ipInfo);
   } catch (error) {
-    logger.error('IP查询错误:', error);
-    res.status(500).json({ error: 'IP查询失败' });
+    res.status(500).json({ error: '获取IP信息失败' });
+  }
+});
+
+// 前端上报公网IP
+const DATA_DIR = path.join(process.cwd(), 'data');
+const CLIENT_REPORTED_IP_FILE = path.join(DATA_DIR, 'clientReportedIP.json');
+app.post('/api/report-ip', async (req, res) => {
+  try {
+    const { ip: clientReportedIP, userAgent, url, referrer, timestamp } = req.body;
+    const realIP = req.headers['x-real-ip'] || req.ip;
+    const ua = req.headers['user-agent'] || '';
+    logger.info(`前端上报公网IP: ${clientReportedIP}，请求真实IP: ${realIP}，UA: ${ua}，userAgent: ${userAgent}，url: ${url}，referrer: ${referrer}，timestamp: ${timestamp}`);
+
+    // 确保 data 目录存在
+    if (!existsSync(DATA_DIR)) {
+      mkdirSync(DATA_DIR, { recursive: true });
+    }
+
+    // 读取已存在的 clientReportedIP.json
+    let records = [];
+    if (existsSync(CLIENT_REPORTED_IP_FILE)) {
+      try {
+        const content = await readFile(CLIENT_REPORTED_IP_FILE, 'utf-8');
+        records = JSON.parse(content);
+        if (!Array.isArray(records)) records = [];
+      } catch (e) {
+        records = [];
+      }
+    }
+
+    // 追加新记录
+    records.push({
+      clientReportedIP,
+      realIP,
+      ua,
+      userAgent,
+      url,
+      referrer,
+      timestamp
+    });
+
+    // 写回文件
+    await writeFile(CLIENT_REPORTED_IP_FILE, JSON.stringify(records, null, 2));
+
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('处理 /api/report-ip 失败:', error);
+    res.status(500).json({ error: '上报公网IP失败' });
   }
 });
 
