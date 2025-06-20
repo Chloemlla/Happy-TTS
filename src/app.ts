@@ -9,6 +9,7 @@ import { config } from './config/config';
 import logger from './utils/logger';
 import ttsRoutes from './routes/ttsRoutes';
 import authRoutes from './routes/authRoutes';
+import adminRoutes from './routes/adminRoutes';
 import rateLimit from 'express-rate-limit';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
@@ -26,6 +27,7 @@ import commandRoutes from './routes/commandRoutes';
 import libreChatRoutes from './routes/libreChatRoutes';
 import dataCollectionRoutes from './routes/dataCollectionRoutes';
 import { AuthController, isAdminToken, registerLogoutRoute } from './controllers/authController';
+import { adminController } from 'controllers/adminController';
 
 // 扩展 Request 类型
 declare global {
@@ -119,6 +121,22 @@ const meEndpointLimiter = rateLimit({
     }
 });
 
+// 管理员路由限流器
+const adminLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1分钟
+    max: 50, // 限制每个IP每分钟50次请求
+    message: { error: '管理员操作过于频繁，请稍后再试' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req: Request) => {
+        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        return ip;
+    },
+    skip: (req: Request): boolean => {
+        return req.isLocalIp || false;
+    }
+});
+
 // 请求日志中间件
 app.use((req: Request, res: Response, next: NextFunction) => {
     logger.info(`收到请求: ${req.method} ${req.url}`, {
@@ -178,6 +196,7 @@ if (!fs.existsSync(audioDir)) {
 // Routes
 app.use('/api/tts', ttsRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminLimiter, adminRoutes);
 app.use('/api', statusRouter);
 
 // 添加篡改保护中间件
@@ -197,8 +216,8 @@ app.get('/', (req, res) => {
 // IP 路由
 app.get('/ip', async (req, res) => {
   try {
-    const ip = req.headers['x-real-ip'] || req.ip;
-    const ipInfo = await getIPInfo(ip as string);
+    const ip = (req.headers['x-real-ip'] as string) || req.ip || '127.0.0.1';
+    const ipInfo = await getIPInfo(ip);
     res.json(ipInfo);
   } catch (error) {
     res.status(500).json({ error: '获取IP信息失败' });
@@ -469,9 +488,10 @@ app.get('/server_status', (req, res) => {
 registerLogoutRoute(app);
 
 // Start server
-app.listen(config.port, async () => {
+const PORT = config.port;
+app.listen(Number(PORT), '0.0.0.0', async () => {
   await ensureDirectories();
-  logger.info(`Server is running on port ${config.port}`);
+  logger.info(`服务器运行在 http://0.0.0.0:${PORT}`);
   logger.info(`Audio files directory: ${audioDir}`);
 });
 
@@ -485,66 +505,4 @@ const ensureDirectories = async () => {
   }
 };
 
-const USERS_FILE = path.join(process.cwd(), 'data/users.json');
-
-interface User {
-  id: string;
-  username: string;
-  email: string;
-  password: string;
-  role: string;
-  createdAt: string;
-  dailyUsage: number;
-  lastUsageDate: string;
-  token?: string;
-}
-
-function readUsers(): User[] {
-  if (!fs.existsSync(USERS_FILE)) return [];
-  return JSON.parse(fs.readFileSync(USERS_FILE, 'utf-8'));
-}
-function writeUsers(users: User[]): void {
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
-}
-
-// 管理员操作相关接口全部用 isAdminToken 校验
-app.get('/api/admin/users', (req, res) => {
-  const token = req.headers.authorization?.replace('Bearer ', '');
-  if (!isAdminToken(token)) return res.status(403).json({ error: '无权限' });
-  res.json(readUsers());
-});
-app.post('/api/admin/users', (req, res) => {
-  const token = req.headers.authorization?.replace('Bearer ', '');
-  if (!isAdminToken(token)) return res.status(403).json({ error: '无权限' });
-  const users = readUsers();
-  const { username, email, password, role } = req.body;
-  if (!username || !email || !password) return res.status(400).json({ error: '参数不全' });
-  if (users.find(u => u.username === username)) return res.status(400).json({ error: '用户名已存在' });
-  const user = { id: uuidv4(), username, email, password, role, createdAt: new Date().toISOString(), dailyUsage: 0, lastUsageDate: new Date().toISOString() };
-  users.push(user);
-  writeUsers(users);
-  res.json(user);
-});
-app.put('/api/admin/users/:id', (req, res) => {
-  const token = req.headers.authorization?.replace('Bearer ', '');
-  if (!isAdminToken(token)) return res.status(403).json({ error: '无权限' });
-  const users = readUsers();
-  const idx = users.findIndex(u => u.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: '用户不存在' });
-  const { username, email, password, role } = req.body;
-  if (!username || !email || !password) return res.status(400).json({ error: '参数不全' });
-  users[idx] = { ...users[idx], username, email, password, role };
-  writeUsers(users);
-  res.json(users[idx]);
-});
-app.delete('/api/admin/users/:id', (req, res) => {
-  const token = req.headers.authorization?.replace('Bearer ', '');
-  if (!isAdminToken(token)) return res.status(403).json({ error: '无权限' });
-  let users = readUsers();
-  const idx = users.findIndex(u => u.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: '用户不存在' });
-  const deleted = users[idx];
-  users = users.filter(u => u.id !== req.params.id);
-  writeUsers(users);
-  res.json(deleted);
-}); 
+export default app; 
