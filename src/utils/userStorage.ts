@@ -3,9 +3,30 @@ import path from 'path';
 import logger from './logger';
 import dotenv from 'dotenv';
 import { config } from '../config/config';
+import validator from 'validator';
+import { sanitize } from 'dompurify';
+import { JSDOM } from 'jsdom';
+
+const window = new JSDOM('').window;
+const DOMPurify = require('dompurify')(window);
 
 // 加载环境变量
 dotenv.config();
+
+export interface ValidationError {
+    field: string;
+    message: string;
+}
+
+export class InputValidationError extends Error {
+    errors: ValidationError[];
+    
+    constructor(errors: ValidationError[]) {
+        super('输入验证失败');
+        this.errors = errors;
+        this.name = 'InputValidationError';
+    }
+}
 
 export interface User {
     id: string;
@@ -21,6 +42,124 @@ export interface User {
 export class UserStorage {
     private static readonly USERS_FILE = path.join(process.cwd(), 'data', 'users.json');
     private static readonly DAILY_LIMIT = 5;
+
+    // 输入净化
+    private static sanitizeInput(input: string | undefined): string {
+        if (!input) return '';
+        return DOMPurify.sanitize(validator.trim(input));
+    }
+
+    // 密码强度检查
+    private static validatePassword(password: string, username: string, isRegistration: boolean = true): ValidationError[] {
+        const errors: ValidationError[] = [];
+
+        // 登录时不检查密码强度
+        if (!isRegistration) {
+            return errors;
+        }
+
+        let score = 0;
+
+        // 基本长度要求
+        if (password.length < 8) {
+            errors.push({ field: 'password', message: '密码长度至少需要8个字符' });
+            return errors;
+        } else if (password.length >= 12) {
+            score += 2;
+        } else {
+            score += 1;
+        }
+
+        // 包含数字
+        if (/\d/.test(password)) score += 1;
+        // 包含小写字母
+        if (/[a-z]/.test(password)) score += 1;
+        // 包含大写字母
+        if (/[A-Z]/.test(password)) score += 1;
+        // 包含特殊字符
+        if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) score += 1;
+
+        // 检查常见密码模式
+        const commonPatterns = [
+            /^123/, /password/i, /qwerty/i, /abc/i,
+            new RegExp(username, 'i')
+        ];
+
+        if (commonPatterns.some(pattern => pattern.test(password))) {
+            score = 0;
+        }
+
+        if (score < 2) {
+            errors.push({ 
+                field: 'password', 
+                message: '密码强度不足，请确保密码包含以下条件之一：1. 长度超过12个字符；2. 包含数字和字母；3. 包含大小写字母；4. 包含特殊字符和字母' 
+            });
+        }
+
+        return errors;
+    }
+
+    // 用户名验证
+    private static validateUsername(username: string): ValidationError[] {
+        const errors: ValidationError[] = [];
+
+        if (!validator.isLength(username, { min: 3, max: 20 })) {
+            errors.push({ field: 'username', message: '用户名长度必须在3-20个字符之间' });
+        }
+
+        if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+            errors.push({ field: 'username', message: '用户名只能包含字母、数字和下划线' });
+        }
+
+        if (/['";]/.test(username)) {
+            errors.push({ field: 'username', message: '用户名包含非法字符' });
+        }
+
+        return errors;
+    }
+
+    // 邮箱验证
+    private static validateEmail(email: string): ValidationError[] {
+        const errors: ValidationError[] = [];
+
+        if (!validator.isEmail(email)) {
+            errors.push({ field: 'email', message: '请输入有效的邮箱地址' });
+        }
+
+        return errors;
+    }
+
+    // 验证用户输入
+    public static validateUserInput(username: string, password: string, email?: string, isRegistration: boolean = false): ValidationError[] {
+        const errors: ValidationError[] = [];
+        
+        // 净化输入
+        const sanitizedUsername = this.sanitizeInput(username);
+        const sanitizedEmail = email ? this.sanitizeInput(email) : '';
+
+        // 检查必填字段
+        if (!sanitizedUsername) {
+            errors.push({ field: 'username', message: '用户名不能为空' });
+        }
+        if (!password) {
+            errors.push({ field: 'password', message: '密码不能为空' });
+        }
+
+        // 验证用户名
+        if (sanitizedUsername) {
+            errors.push(...this.validateUsername(sanitizedUsername));
+        }
+
+        // 验证密码
+        errors.push(...this.validatePassword(password, sanitizedUsername, isRegistration));
+
+        // 注册时验证邮箱
+        if (isRegistration && sanitizedEmail) {
+            errors.push(...this.validateEmail(sanitizedEmail));
+        }
+
+        return errors;
+    }
 
     private static ensureUsersFile() {
         try {
@@ -103,17 +242,26 @@ export class UserStorage {
 
     public static async createUser(username: string, email: string, password: string): Promise<User | null> {
         try {
+            // 验证输入
+            const errors = this.validateUserInput(username, password, email, true);
+            if (errors.length > 0) {
+                throw new InputValidationError(errors);
+            }
+
+            const sanitizedUsername = this.sanitizeInput(username);
+            const sanitizedEmail = this.sanitizeInput(email);
+
             const users = this.readUsers();
             
             // 检查用户名和邮箱是否已存在
-            if (users.some(u => u.username === username || u.email === email)) {
-                return null;
+            if (users.some(u => u.username === sanitizedUsername || u.email === sanitizedEmail)) {
+                throw new InputValidationError([{ field: 'username', message: '用户名或邮箱已存在' }]);
             }
 
             const newUser: User = {
                 id: (users.length + 1).toString(),
-                username,
-                email,
+                username: sanitizedUsername,
+                email: sanitizedEmail,
                 password,
                 role: 'user',
                 dailyUsage: 0,
@@ -136,9 +284,17 @@ export class UserStorage {
 
     public static async authenticateUser(identifier: string, password: string): Promise<User | null> {
         try {
+            // 验证输入（登录时不检查密码强度）
+            const errors = this.validateUserInput(identifier, password, undefined, false);
+            if (errors.length > 0) {
+                throw new InputValidationError(errors);
+            }
+
+            const sanitizedIdentifier = this.sanitizeInput(identifier);
             const users = this.readUsers();
+            
             return users.find(u => 
-                (u.username === identifier || u.email === identifier) && 
+                (u.username === sanitizedIdentifier || u.email === sanitizedIdentifier) && 
                 u.password === password
             ) || null;
         } catch (error) {
