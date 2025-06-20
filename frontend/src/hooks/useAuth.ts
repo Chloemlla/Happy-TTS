@@ -7,13 +7,24 @@ import { User } from '../types/auth';
 axios.defaults.withCredentials = true;
 axios.defaults.headers.common['Content-Type'] = 'application/json';
 
+// 获取API基础URL
+const getApiBaseUrl = () => {
+    // 优先使用环境变量
+    if (import.meta.env.VITE_API_URL) {
+        return import.meta.env.VITE_API_URL;
+    }
+    // 回退到生产环境URL
+    return 'https://tts-api.hapxs.com';
+};
+
 // 创建axios实例
 const api = axios.create({
-    baseURL: 'https://tts-api.hapxs.com',  // 直接连接到后端服务
+    baseURL: getApiBaseUrl(),
     withCredentials: true,
     headers: {
         'Content-Type': 'application/json'
-    }
+    },
+    timeout: 1000 // 1秒超时
 });
 
 // 添加请求拦截器
@@ -125,16 +136,34 @@ export const useAuth = () => {
     };
 
     const logout = async () => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            await api.post('/api/auth/logout', {}, {
-                headers: { Authorization: `Bearer ${token}` }
+        try {
+            const token = localStorage.getItem('token');
+            console.log('开始登出流程，token存在:', !!token);
+            
+            if (token) {
+                const response = await api.post('/api/auth/logout', {}, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                console.log('登出请求成功:', response.status, response.data);
+            } else {
+                console.log('没有找到token，直接清理本地状态');
+            }
+        } catch (error: any) {
+            console.error('登出请求失败:', {
+                message: error.message,
+                status: error.response?.status,
+                data: error.response?.data,
+                url: error.config?.url,
+                baseURL: api.defaults.baseURL
             });
+            // 即使后端请求失败，也要清理本地状态
+        } finally {
+            console.log('清理本地状态');
+            localStorage.removeItem('token');
+            setUser(null);
+            setIsAdminChecked(false);
+            navigate('/welcome');
         }
-        localStorage.removeItem('token');
-        setUser(null);
-        setIsAdminChecked(false);
-        navigate('/welcome');
     };
 
     return {
