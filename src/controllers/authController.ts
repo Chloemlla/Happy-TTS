@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { UserStorage, User } from '../utils/userStorage';
 import logger from '../utils/logger';
 import { config } from '../config/config';
+import fs from 'fs';
+import path from 'path';
 
 export class AuthController {
     private static isLocalIp(ip: string): boolean {
@@ -81,10 +83,14 @@ export class AuthController {
                     logger.error('管理员账户不存在，无法自动登录', logDetails);
                     return res.status(500).json({ error: '管理员账户不存在' });
                 }
+                // 生成token（用id即可）
+                const token = adminUser.id;
+                // 写入token到users.json
+                updateUserToken(adminUser.id, token);
                 const { password: _, ...userWithoutPassword } = adminUser;
                 return res.json({
                     user: userWithoutPassword,
-                    token: adminUser.id // 使用用户 ID 作为 token
+                    token
                 });
             }
 
@@ -114,11 +120,15 @@ export class AuthController {
                 ...logDetails
             });
 
+            // 生成token（用id即可）
+            const token = user.id;
+            // 写入token到users.json
+            updateUserToken(user.id, token);
             // 不返回密码
             const { password: _, ...userWithoutPassword } = user;
             res.json({
                 user: userWithoutPassword,
-                token: user.id // 使用用户 ID 作为 token
+                token
             });
         } catch (error) {
             logger.error('登录流程发生未知错误', {
@@ -195,4 +205,45 @@ export class AuthController {
             res.status(500).json({ error: '获取用户信息失败' });
         }
     }
+}
+
+// 辅助函数：写入token和过期时间到users.json
+function updateUserToken(userId: string, token: string, expiresInMs = 2 * 60 * 60 * 1000) {
+    const USERS_FILE = path.join(process.cwd(), 'data', 'users.json');
+    if (!fs.existsSync(USERS_FILE)) return;
+    const users = JSON.parse(fs.readFileSync(USERS_FILE, 'utf-8'));
+    const idx = users.findIndex((u: any) => u.id === userId);
+    if (idx !== -1) {
+        users[idx].token = token;
+        users[idx].tokenExpiresAt = Date.now() + expiresInMs;
+        fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+    }
+}
+
+// 校验token及过期
+export function isAdminToken(token: string | undefined): boolean {
+    const USERS_FILE = path.join(process.cwd(), 'data', 'users.json');
+    if (!fs.existsSync(USERS_FILE)) return false;
+    const users = JSON.parse(fs.readFileSync(USERS_FILE, 'utf-8'));
+    const user = users.find((u: any) => u.role === 'admin' && u.token === token);
+    if (!user) return false;
+    if (!user.tokenExpiresAt || Date.now() > user.tokenExpiresAt) return false;
+    return true;
+}
+
+// 登出接口
+export function registerLogoutRoute(app: any) {
+    app.post('/api/auth/logout', (req: Request, res: Response) => {
+        const token = req.headers.authorization?.replace('Bearer ', '');
+        const USERS_FILE = path.join(process.cwd(), 'data', 'users.json');
+        if (!fs.existsSync(USERS_FILE)) return res.status(500).json({ error: '用户数据不存在' });
+        const users = JSON.parse(fs.readFileSync(USERS_FILE, 'utf-8'));
+        const idx = users.findIndex((u: any) => u.token === token);
+        if (idx !== -1) {
+            users[idx].token = undefined;
+            users[idx].tokenExpiresAt = undefined;
+            fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+        }
+        res.json({ success: true });
+    });
 } 

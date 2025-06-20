@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { User } from '../types/auth';
+import { fetchWithFallback } from '../utils/fetchWithFallback';
 
 // 配置axios默认值
 axios.defaults.withCredentials = true;
@@ -54,62 +55,41 @@ export const useAuth = () => {
 
     const checkAuth = async () => {
         if (isChecking) return;
-        
         try {
-            console.log('开始检查用户认证状态');
             setIsChecking(true);
             const token = localStorage.getItem('token');
-            console.log('从localStorage获取token:', token ? '存在' : '不存在');
-            
             if (!token) {
-                console.log('没有token，设置用户为null');
                 setUser(null);
                 setLoading(false);
                 return;
             }
-
-            console.log('发送认证检查请求到 /api/auth/me');
-            const response = await api.get<User>('/api/auth/me', {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
+            // 用 fetchWithFallback 兼容 dev
+            const res = await fetchWithFallback('/api/auth/me', {
+                headers: { Authorization: `Bearer ${token}` },
+                credentials: 'include'
             });
-            
-            console.log('认证检查响应:', response.data);
-            
-            if (response.data) {
-                console.log('设置用户信息:', response.data);
-                setUser(response.data);
-                
-                // 如果是本地 IP 访问（管理员），只跳转一次
-                if (response.data.role === 'admin' && !isAdminChecked) {
-                    console.log('检测到管理员用户，准备跳转');
+            if (res.status === 401 || res.status === 403) {
+                // token 过期或无效
+                logout();
+                return;
+            }
+            const data = await res.json();
+            if (data) {
+                setUser(data);
+                if (data.role === 'admin' && !isAdminChecked) {
                     setIsAdminChecked(true);
                     if (location.pathname !== '/') {
-                        console.log('跳转到首页');
                         navigate('/', { replace: true });
                     }
                 }
             } else {
-                console.log('响应数据为空，清除用户状态');
                 setUser(null);
                 localStorage.removeItem('token');
             }
         } catch (error: any) {
-            console.error('认证检查失败:', {
-                message: error.message,
-                status: error.response?.status,
-                data: error.response?.data
-            });
-            
-            // 只有在非429错误时才清除用户状态
-            if (error.response?.status !== 429) {
-                console.log('清除用户状态和token');
-                setUser(null);
-                localStorage.removeItem('token');
-            }
+            setUser(null);
+            localStorage.removeItem('token');
         } finally {
-            console.log('认证检查完成，设置loading为false');
             setLoading(false);
             setIsChecking(false);
         }
@@ -117,88 +97,59 @@ export const useAuth = () => {
 
     const login = async (username: string, password: string) => {
         try {
-            console.log('开始登录流程，用户名:', username);
-            console.log('发送登录请求到 /api/auth/login');
-            
-            const response = await api.post<{ user: User; token: string }>('/api/auth/login', {
-                identifier: username,
-                password
+            const res = await fetchWithFallback('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ identifier: username, password }),
+                credentials: 'include'
             });
-
-            console.log('登录请求成功，响应:', response.data);
-            
-            const { user, token } = response.data;
-            console.log('保存token到localStorage');
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || '登录失败');
+            }
+            const { user, token } = await res.json();
             localStorage.setItem('token', token);
-            console.log('设置用户状态:', user);
             setUser(user);
-
-            console.log('登录成功，准备跳转到首页');
-            // 登录成功后，让用户手动访问 / 来刷新页面
             window.location.href = '/';
         } catch (error: any) {
-            // 记录详细的错误日志
-            console.error('登录API调用失败:', {
-                message: error.message,
-                status: error.response?.status,
-                data: error.response?.data,
-                config: error.config,
-            });
-
-            if (error.response?.data?.error) {
-                throw new Error(error.response.data.error);
-            }
-            throw new Error('登录失败，请检查网络或稍后重试');
+            throw new Error(error.message || '登录失败，请检查网络或稍后重试');
         }
     };
 
     const register = async (username: string, email: string, password: string) => {
         try {
-            console.log('开始注册流程，用户名:', username, '邮箱:', email);
-            console.log('发送注册请求到 /api/auth/register');
-            
-            const response = await api.post<{ user: User; token: string }>('/api/auth/register', {
-                username,
-                email,
-                password
+            const res = await fetchWithFallback('/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, email, password }),
+                credentials: 'include'
             });
-
-            console.log('注册请求成功，响应:', response.data);
-            
-            const { user, token } = response.data;
-            console.log('保存token到localStorage');
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || '注册失败');
+            }
+            const { user, token } = await res.json();
             localStorage.setItem('token', token);
-            console.log('设置用户状态:', user);
             setUser(user);
-
-            console.log('注册成功，准备跳转到首页');
-            // 注册成功后，让用户手动访问 / 来刷新页面
             window.location.href = '/';
         } catch (error: any) {
-            // 记录详细的错误日志
-            console.error('注册API调用失败:', {
-                message: error.message,
-                status: error.response?.status,
-                data: error.response?.data,
-                config: error.config,
-            });
-
-            if (error.response?.data?.error) {
-                throw new Error(error.response.data.error);
-            }
-            throw new Error('注册失败，请检查网络或稍后重试');
+            throw new Error(error.message || '注册失败，请检查网络或稍后重试');
         }
     };
 
-    const logout = () => {
-        console.log('开始登出流程');
-        console.log('清除localStorage中的token');
+    const logout = async () => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            await fetchWithFallback('/api/auth/logout', {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+                credentials: 'include'
+            });
+        }
         localStorage.removeItem('token');
-        console.log('清除用户状态');
         setUser(null);
         setIsAdminChecked(false);
-        console.log('跳转到欢迎页面');
-        window.location.href = '/welcome';
+        navigate('/welcome');
     };
 
     return {

@@ -9,7 +9,7 @@ const PolicyPage: React.FC = () => (
       </h1>
       <section className="mb-6">
         <h2 className="text-xl font-semibold text-gray-800 mb-2 flex items-center gap-2 transition-all duration-200 hover:scale-105 hover:-translate-y-1 cursor-pointer"><i className="fas fa-info-circle" /> 服务简介</h2>
-        <p className="text-gray-700 mb-2"><i className="fas fa-hand-point-right text-blue-500" /> 欢迎使用Happy文本转语音服务。我们的服务旨在便捷高效地将文字转换为语音，提升用户的听觉体验。我们承诺遵守中国《网络安全法》《个人信息保护法》及美国《加州消费者隐私法案（CCPA）》等相关法律法规，保护您的合法权益。</p>
+        <p className="text-gray-700 mb-2"><i className="fas fa-hand-point-right text-blue-500" /> 欢迎使用 Happy 文本转语音服务。我们的服务旨在便捷高效地将文字转换为语音，提升用户的听觉体验。我们承诺遵守中国《网络安全法》《个人信息保护法》及美国《加州消费者隐私法案（CCPA）》等相关法律法规，保护您的合法权益。</p>
       </section>
       <section className="mb-6">
         <h2 className="text-xl font-semibold text-gray-800 mb-2 flex items-center gap-2 transition-all duration-200 hover:scale-105 hover:-translate-y-1 cursor-pointer"><i className="fas fa-cogs" /> 服务内容</h2>
