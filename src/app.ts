@@ -204,10 +204,34 @@ app.get('/ip', async (req, res) => {
   }
 });
 
+// 定义公网IP上报白名单
+const ipReportWhitelist = [
+  '127.0.0.1', '::1', 'localhost',
+  // 可扩展内网段
+  /^10\./, /^192\.168\./, /^172\.(1[6-9]|2[0-9]|3[0-1])\./
+];
+
+// 公网IP上报专用限流器（默认每分钟15次）
+const ipReportLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 15,
+  message: { error: 'IP上报过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.ip || req.socket.remoteAddress || 'unknown',
+  skip: (req) => {
+    const ip = req.ip || req.socket.remoteAddress || '';
+    // 白名单IP直接跳过限流
+    return ipReportWhitelist.some(rule =>
+      typeof rule === 'string' ? ip === rule : rule.test(ip)
+    );
+  }
+});
+
 // 前端上报公网IP
 const DATA_DIR = path.join(process.cwd(), 'data');
 const CLIENT_REPORTED_IP_FILE = path.join(DATA_DIR, 'clientReportedIP.json');
-app.post('/api/report-ip', async (req, res) => {
+app.post('/api/report-ip', ipReportLimiter, async (req, res) => {
   try {
     const { ip: clientReportedIP, userAgent, url, referrer, timestamp } = req.body;
     const realIP = req.headers['x-real-ip'] || req.ip;
