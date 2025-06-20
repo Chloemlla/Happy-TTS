@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Link } from 'react-router-dom';
 import DOMPurify from 'dompurify';
+import AlertModal from './AlertModal';
 
 interface AuthFormProps {
     onSuccess?: () => void;
@@ -23,6 +24,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
     const [loading, setLoading] = useState(false);
     const [agreed, setAgreed] = useState(false);
     const [passwordStrength, setPasswordStrength] = useState<PasswordStrength>({ score: 0, feedback: '' });
+    const [showAlert, setShowAlert] = useState(false);
 
     // 密码复杂度检查
     const checkPasswordStrength = (pwd: string): PasswordStrength => {
@@ -146,7 +148,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
         }
 
         if (!agreed) {
-            setError('请阅读并同意服务条款与隐私政策');
+            setShowAlert(true);
             return;
         }
 
@@ -333,6 +335,12 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
                     </div>
                 </form>
             </div>
+            <AlertModal
+                open={showAlert}
+                onClose={() => setShowAlert(false)}
+                title="请勾选服务条款与隐私政策"
+                message="为了保障您的合法权益，请您在继续使用本服务前，仔细阅读并同意我们的服务条款与隐私政策。未勾选将无法继续注册或登录。"
+            />
         </div>
     );
 };
