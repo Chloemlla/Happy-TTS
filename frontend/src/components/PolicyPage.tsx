@@ -138,7 +138,6 @@ const PolicyPage: React.FC = () => (
           </p>
         </div>
       </section>
-      <Footer />
     </div>
   </div>
 );
