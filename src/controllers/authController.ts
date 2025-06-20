@@ -44,9 +44,27 @@ export class AuthController {
 
     public static async login(req: Request, res: Response) {
         try {
+            // 记录收到的请求体
+            logger.info('收到登录请求', {
+                body: req.body,
+                headers: req.headers,
+                ip: req.ip,
+                timestamp: new Date().toISOString()
+            });
+
             const { identifier, password } = req.body;
             const ip = req.ip || 'unknown';
             const userAgent = req.headers['user-agent'] || 'unknown';
+
+            // 验证必填字段
+            if (!identifier) {
+                logger.warn('登录失败：identifier 字段缺失', { body: req.body });
+                return res.status(400).json({ error: '请提供用户名或邮箱' });
+            }
+            if (!password) {
+                logger.warn('登录失败：password 字段缺失', { body: req.body });
+                return res.status(400).json({ error: '请提供密码' });
+            }
 
             const logDetails = {
                 identifier,
@@ -70,11 +88,7 @@ export class AuthController {
                 });
             }
 
-            if (!identifier || !password) {
-                return res.status(400).json({ error: '请提供登录信息' });
-            }
-
-            logger.info('登录尝试', logDetails);
+            logger.info('开始用户认证', logDetails);
 
             // 使用 UserStorage 进行认证
             const user = await UserStorage.authenticateUser(identifier, password);
@@ -110,8 +124,9 @@ export class AuthController {
             logger.error('登录流程发生未知错误', {
                 error: error instanceof Error ? error.message : String(error),
                 stack: error instanceof Error ? error.stack : undefined,
-                identifier: req.body.identifier,
-                ip: req.ip
+                identifier: req.body?.identifier,
+                ip: req.ip,
+                body: req.body
             });
             res.status(500).json({ error: '登录失败' });
         }
