@@ -7,6 +7,7 @@ import { TtsPage } from './components/TtsPage';
 import PolicyPage from './components/PolicyPage';
 import Footer from './components/Footer';
 import PublicIP from './components/PublicIP';
+import UserManagement from './components/UserManagement';
 
 const App: React.FC = () => {
   const { user, loading, logout } = useAuth();
@@ -48,6 +49,7 @@ const App: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                 </svg>
                 <Link to="/" className="text-xl font-bold text-gray-900 hover:text-indigo-600 transition-colors">Synapse</Link>
+                <Link to="/admin/users" className="ml-6 px-4 py-1 rounded-lg bg-blue-100 text-blue-700 font-semibold hover:bg-blue-200 transition-all">用户管理</Link>
               </motion.div>
               <div className="flex items-center">
                 <motion.button
@@ -66,13 +68,11 @@ const App: React.FC = () => {
         <PublicIP />
 
         <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <TtsPage />
-          </motion.div>
+          <Routes>
+            <Route path="/" element={<TtsPage />} />
+            <Route path="/admin/users" element={<UserManagement token={localStorage.getItem('token') || ''} />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </main>
         <Footer />
       </div>
@@ -151,6 +151,7 @@ const App: React.FC = () => {
             }
           />
           <Route path="/policy" element={<PolicyPage />} />
+          <Route path="/admin/users" element={<UserManagement token={localStorage.getItem('token') || ''} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

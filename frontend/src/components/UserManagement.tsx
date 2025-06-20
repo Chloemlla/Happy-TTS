@@ -92,54 +92,61 @@ const UserManagement: React.FC<{ token: string }> = ({ token }) => {
   };
 
   return (
-    <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-lg p-8 mt-8">
-      <h2 className="text-2xl font-bold mb-4">用户管理</h2>
-      {error && <div className="text-red-500 mb-2">{error}</div>}
+    <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-2xl p-10 mt-10 border border-blue-100">
+      <h2 className="text-3xl font-extrabold mb-6 text-blue-700 flex items-center gap-2">
+        <i className="fas fa-users-cog text-blue-500 text-2xl" /> 用户管理
+      </h2>
+      <hr className="mb-6 border-blue-200" />
+      {error && <div className="text-red-500 mb-2 font-semibold">{error}</div>}
       <button
-        className="mb-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        className="mb-6 px-6 py-2 bg-gradient-to-r from-blue-500 to-blue-400 text-white rounded-lg shadow hover:from-blue-600 hover:to-blue-500 transition-all font-bold"
         onClick={() => { setShowForm(true); setEditingUser(null); setForm(emptyUser); }}
-      >添加用户</button>
+      >
+        <i className="fas fa-user-plus mr-2" />添加用户
+      </button>
       {showForm && (
-        <form onSubmit={handleSubmit} className="mb-6 space-y-2">
-          <input name="username" value={form.username} onChange={handleChange} placeholder="用户名" required className="border p-2 rounded w-full" />
-          <input name="email" value={form.email} onChange={handleChange} placeholder="邮箱" required className="border p-2 rounded w-full" />
-          <input name="password" value={form.password} onChange={handleChange} placeholder="密码" required className="border p-2 rounded w-full" type="text" />
-          <select name="role" value={form.role} onChange={handleChange} className="border p-2 rounded w-full">
+        <form onSubmit={handleSubmit} className="mb-8 space-y-3 bg-blue-50 p-6 rounded-xl shadow-inner">
+          <input name="username" value={form.username} onChange={handleChange} placeholder="用户名" required className="border p-2 rounded w-full focus:ring-2 focus:ring-blue-300" />
+          <input name="email" value={form.email} onChange={handleChange} placeholder="邮箱" required className="border p-2 rounded w-full focus:ring-2 focus:ring-blue-300" />
+          <input name="password" value={form.password} onChange={handleChange} placeholder="密码" required className="border p-2 rounded w-full focus:ring-2 focus:ring-blue-300" type="text" />
+          <select name="role" value={form.role} onChange={handleChange} className="border p-2 rounded w-full focus:ring-2 focus:ring-blue-300">
             <option value="user">普通用户</option>
             <option value="admin">管理员</option>
           </select>
-          <div className="flex gap-2">
-            <button type="submit" className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">{editingUser ? '保存修改' : '添加'}</button>
-            <button type="button" className="px-4 py-2 bg-gray-300 rounded" onClick={() => { setShowForm(false); setEditingUser(null); }}>取消</button>
+          <div className="flex gap-3 mt-2">
+            <button type="submit" className="px-5 py-2 bg-green-500 text-white rounded-lg font-bold shadow hover:bg-green-600 transition-all">{editingUser ? '保存修改' : '添加'}</button>
+            <button type="button" className="px-5 py-2 bg-gray-300 rounded-lg font-bold hover:bg-gray-400 transition-all" onClick={() => { setShowForm(false); setEditingUser(null); }}>取消</button>
           </div>
         </form>
       )}
-      <table className="w-full border mt-4">
-        <thead>
-          <tr className="bg-gray-100">
-            <th className="p-2">用户名</th>
-            <th className="p-2">邮箱</th>
-            <th className="p-2">角色</th>
-            <th className="p-2">创建时间</th>
-            <th className="p-2">操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map(u => (
-            <tr key={u.id} className="border-t">
-              <td className="p-2">{u.username}</td>
-              <td className="p-2">{u.email}</td>
-              <td className="p-2">{u.role}</td>
-              <td className="p-2">{new Date(u.createdAt).toLocaleString()}</td>
-              <td className="p-2 flex gap-2">
-                <button className="px-2 py-1 bg-yellow-400 rounded" onClick={() => { setEditingUser(u); setForm(u); setShowForm(true); }}>编辑</button>
-                <button className="px-2 py-1 bg-red-500 text-white rounded" onClick={() => handleDelete(u.id)}>删除</button>
-              </td>
+      <div className="overflow-x-auto">
+        <table className="w-full border mt-4 rounded-xl overflow-hidden shadow-md">
+          <thead>
+            <tr className="bg-blue-100 text-blue-800">
+              <th className="p-3">用户名</th>
+              <th className="p-3">邮箱</th>
+              <th className="p-3">角色</th>
+              <th className="p-3">创建时间</th>
+              <th className="p-3">操作</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-      {loading && <div className="mt-2 text-blue-500">操作中...</div>}
+          </thead>
+          <tbody>
+            {users.map((u, idx) => (
+              <tr key={u.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-blue-50'}>
+                <td className="p-3 font-medium">{u.username}</td>
+                <td className="p-3">{u.email}</td>
+                <td className="p-3">{u.role === 'admin' ? <span className="text-red-500 font-bold">管理员</span> : '普通用户'}</td>
+                <td className="p-3">{new Date(u.createdAt).toLocaleString()}</td>
+                <td className="p-3 flex gap-2">
+                  <button className="px-3 py-1 bg-yellow-400 rounded-lg font-bold shadow hover:bg-yellow-500 transition-all" onClick={() => { setEditingUser(u); setForm(u); setShowForm(true); }}><i className="fas fa-edit mr-1" />编辑</button>
+                  <button className="px-3 py-1 bg-red-500 text-white rounded-lg font-bold shadow hover:bg-red-600 transition-all" onClick={() => handleDelete(u.id)}><i className="fas fa-trash-alt mr-1" />删除</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {loading && <div className="mt-4 text-blue-500 font-semibold flex items-center gap-2"><i className="fas fa-spinner fa-spin" />操作中...</div>}
     </div>
   );
 };
