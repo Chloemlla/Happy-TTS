@@ -121,6 +121,13 @@ const PolicyPage: React.FC = () => (
           <i className="fas fa-info-circle mr-1" />
           温馨提示：请您在使用本服务前，仔细阅读并充分理解上述条款。如您不同意相关内容，请立即停止使用本服务。您的使用行为即视为对本协议全部内容的认可和接受。
         </div>
+        <div className="mt-6 text-gray-700 text-sm leading-relaxed">
+          <b>不可抗力与免责：</b>因自然灾害、战争、政府行为、网络故障、黑客攻击等不可抗力因素导致服务中断、延迟或数据丢失的，平台不承担任何责任。<br />
+          <b>单方解释权：</b>平台有权对本协议条款的内容及含义作出最终解释，并有权根据实际情况对服务内容进行调整。<br />
+          <b>服务限制：</b>平台有权根据用户的使用行为、账号安全、系统负载等情况，采取限制、暂停或终止部分或全部服务的措施，无需事先通知用户。<br />
+          <b>通知方式：</b>平台可通过网站公告、弹窗、邮件、短信等方式向用户发布通知，通知一经发布即视为送达。用户有义务及时关注相关信息。<br />
+          <b>第三方服务：</b>本服务可能包含第三方提供的内容或链接，平台对第三方服务的可用性、合法性及安全性不承担任何保证或责任。用户因使用第三方服务产生的纠纷，由用户与第三方自行解决。
+        </div>
       </section>
       <section className="mb-6">
         <h2 className="text-xl font-semibold text-gray-800 mb-2 flex items-center gap-2 transition-all duration-200 hover:scale-105 hover:-translate-y-1 cursor-pointer"><i className="fas fa-address-book" /> 联系方式</h2>
