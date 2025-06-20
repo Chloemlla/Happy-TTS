@@ -110,10 +110,18 @@ export const useAuth = () => {
             // 登录成功后，让用户手动访问 / 来刷新页面
             window.location.href = '/';
         } catch (error: any) {
+            // 记录详细的错误日志
+            console.error('登录API调用失败:', {
+                message: error.message,
+                status: error.response?.status,
+                data: error.response?.data,
+                config: error.config,
+            });
+
             if (error.response?.data?.error) {
                 throw new Error(error.response.data.error);
             }
-            throw new Error('登录失败，请稍后重试');
+            throw new Error('登录失败，请检查网络或稍后重试');
         }
     };
 
@@ -132,10 +140,18 @@ export const useAuth = () => {
             // 注册成功后，让用户手动访问 / 来刷新页面
             window.location.href = '/';
         } catch (error: any) {
+            // 记录详细的错误日志
+            console.error('注册API调用失败:', {
+                message: error.message,
+                status: error.response?.status,
+                data: error.response?.data,
+                config: error.config,
+            });
+
             if (error.response?.data?.error) {
                 throw new Error(error.response.data.error);
             }
-            throw new Error('注册失败，请稍后重试');
+            throw new Error('注册失败，请检查网络或稍后重试');
         }
     };
 
