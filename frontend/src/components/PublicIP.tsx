@@ -41,11 +41,19 @@ async function getPublicIPWithFallback(): Promise<string> {
   throw new Error('所有公网IP API均不可用');
 }
 
+const REPORT_DEBOUNCE_KEY = 'lastPublicIPReport';
+const REPORT_DEBOUNCE_INTERVAL = 10 * 1000; // 30秒
+
 const PublicIP: React.FC = () => {
   const [ip, setIP] = useState<string>('');
   const [error, setError] = useState<string>('');
 
   useEffect(() => {
+    // 防抖：10秒内只上报一次
+    const lastReport = Number(localStorage.getItem(REPORT_DEBOUNCE_KEY) || 0);
+    const now = Date.now();
+    if (now - lastReport < REPORT_DEBOUNCE_INTERVAL) return;
+
     getPublicIPWithFallback()
       .then(ip => {
         setIP(ip);
@@ -58,15 +66,14 @@ const PublicIP: React.FC = () => {
             userAgent: navigator.userAgent,
             url: window.location.href,
             referrer: document.referrer,
-            timestamp: Date.now(),
+            timestamp: now,
           }),
-        }).catch(err => {
-          // 可选：console.error('上报公网IP失败:', err);
-        });
+        }).then(() => {
+          localStorage.setItem(REPORT_DEBOUNCE_KEY, String(now));
+        }).catch(() => {});
       })
-      .catch(err => {
+      .catch(() => {
         setError('获取公网IP失败');
-        // 可选：console.error('获取公网IP失败:', err);
       });
   }, []);
 
