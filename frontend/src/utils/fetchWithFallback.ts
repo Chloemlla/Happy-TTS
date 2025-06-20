@@ -6,7 +6,14 @@ export async function fetchWithFallback(input: string, init?: RequestInit) {
   try {
     const res = await fetch(url, init);
     if (!res.ok) throw new Error('Primary API failed');
-    return res;
+    const contentType = res.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      const data = await res.json();
+      return res;
+    } else {
+      const text = await res.text();
+      throw new Error('API 响应不是 JSON，实际返回：' + text.slice(0, 100));
+    }
   } catch (e) {
     // 仅开发环境降级
     if (import.meta.env.DEV && apiUrl && !url.startsWith('http://localhost:3000')) {
