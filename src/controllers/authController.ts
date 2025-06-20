@@ -46,83 +46,58 @@ export class AuthController {
         try {
             const { identifier, password } = req.body;
             const ip = req.ip || 'unknown';
+            const userAgent = req.headers['user-agent'] || 'unknown';
+
+            const logDetails = {
+                identifier,
+                ip,
+                userAgent,
+                timestamp: new Date().toISOString()
+            };
 
             // 检查是否是本地 IP
             if (AuthController.isLocalIp(ip)) {
-                logger.info('本地 IP 访问，自动登录管理员账户', {
-                    ip,
-                    timestamp: new Date().toISOString()
-                });
-
-                // 获取管理员账户
+                logger.info('本地 IP 访问，自动登录管理员账户', logDetails);
                 const adminUser = await UserStorage.getUserById('1');
                 if (!adminUser) {
-                    return res.status(500).json({
-                        error: '管理员账户不存在'
-                    });
+                    logger.error('管理员账户不存在，无法自动登录', logDetails);
+                    return res.status(500).json({ error: '管理员账户不存在' });
                 }
-
-                // 不返回密码
                 const { password: _, ...userWithoutPassword } = adminUser;
-                res.json({
+                return res.json({
                     user: userWithoutPassword,
                     token: adminUser.id // 使用用户 ID 作为 token
                 });
-                return;
             }
 
             if (!identifier || !password) {
-                return res.status(400).json({
-                    error: '请提供登录信息'
-                });
+                return res.status(400).json({ error: '请提供登录信息' });
             }
 
-            // 记录登录尝试
-            logger.info('登录尝试', {
-                identifier,
-                timestamp: new Date().toISOString(),
-                ip: req.ip,
-                userAgent: req.headers['user-agent']
-            });
+            logger.info('登录尝试', logDetails);
 
-            // 先查找用户是否存在
-            const users = await UserStorage.getAllUsers();
-            const user = users.find((u: User) => u.username === identifier || u.email === identifier);
+            // 使用 UserStorage 进行认证
+            const user = await UserStorage.authenticateUser(identifier, password);
 
             if (!user) {
-                logger.warn('登录失败：用户不存在', {
-                    identifier,
-                    timestamp: new Date().toISOString(),
-                    ip: req.ip,
-                    userAgent: req.headers['user-agent']
-                });
-                return res.status(401).json({
-                    error: '用户名/邮箱或密码错误'
-                });
-            }
+                // 为了确定失败的具体原因，我们再次查找用户
+                const allUsers = await UserStorage.getAllUsers();
+                const userExists = allUsers.some(u => u.username === identifier || u.email === identifier);
 
-            // 验证密码
-            if (user.password !== password) {
-                logger.warn('登录失败：密码错误', {
-                    identifier,
-                    timestamp: new Date().toISOString(),
-                    ip: req.ip,
-                    userAgent: req.headers['user-agent']
-                });
-                return res.status(401).json({
-                    error: '用户名/邮箱或密码错误'
-                });
+                if (!userExists) {
+                    logger.warn('登录失败：用户不存在', logDetails);
+                } else {
+                    logger.warn('登录失败：密码错误', logDetails);
+                }
+                
+                return res.status(401).json({ error: '用户名/邮箱或密码错误' });
             }
 
             // 记录登录成功
             logger.info('登录成功', {
                 userId: user.id,
                 username: user.username,
-                email: user.email,
-                role: user.role,
-                timestamp: new Date().toISOString(),
-                ip: req.ip,
-                userAgent: req.headers['user-agent']
+                ...logDetails
             });
 
             // 不返回密码
@@ -132,7 +107,12 @@ export class AuthController {
                 token: user.id // 使用用户 ID 作为 token
             });
         } catch (error) {
-            logger.error('登录失败:', error);
+            logger.error('登录流程发生未知错误', {
+                error: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined,
+                identifier: req.body.identifier,
+                ip: req.ip
+            });
             res.status(500).json({ error: '登录失败' });
         }
     }
