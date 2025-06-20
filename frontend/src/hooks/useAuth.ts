@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { User } from '../types/auth';
-import { fetchWithFallback } from '../utils/fetchWithFallback';
 
 // 配置axios默认值
 axios.defaults.withCredentials = true;
@@ -63,17 +62,14 @@ export const useAuth = () => {
                 setLoading(false);
                 return;
             }
-            // 用 fetchWithFallback 兼容 dev
-            const res = await fetchWithFallback('/api/auth/me', {
-                headers: { Authorization: `Bearer ${token}` },
-                credentials: 'include'
+            const response = await api.get<User>('/api/auth/me', {
+                headers: { Authorization: `Bearer ${token}` }
             });
-            if (res.status === 401 || res.status === 403) {
-                // token 过期或无效
+            if (response.status === 401 || response.status === 403) {
                 logout();
                 return;
             }
-            const data = await res.json();
+            const data = response.data;
             if (data) {
                 setUser(data);
                 if (data.role === 'admin' && !isAdminChecked) {
@@ -97,53 +93,42 @@ export const useAuth = () => {
 
     const login = async (username: string, password: string) => {
         try {
-            const res = await fetchWithFallback('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ identifier: username, password }),
-                credentials: 'include'
+            const response = await api.post<{ user: User; token: string }>('/api/auth/login', {
+                identifier: username,
+                password
             });
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || '登录失败');
-            }
-            const { user, token } = await res.json();
+            const { user, token } = response.data;
             localStorage.setItem('token', token);
             setUser(user);
             window.location.href = '/';
         } catch (error: any) {
-            throw new Error(error.message || '登录失败，请检查网络或稍后重试');
+            const msg = error.response?.data?.error || error.message || '登录失败，请检查网络或稍后重试';
+            throw new Error(msg);
         }
     };
 
     const register = async (username: string, email: string, password: string) => {
         try {
-            const res = await fetchWithFallback('/api/auth/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, email, password }),
-                credentials: 'include'
+            const response = await api.post<{ user: User; token: string }>('/api/auth/register', {
+                username,
+                email,
+                password
             });
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || '注册失败');
-            }
-            const { user, token } = await res.json();
+            const { user, token } = response.data;
             localStorage.setItem('token', token);
             setUser(user);
             window.location.href = '/';
         } catch (error: any) {
-            throw new Error(error.message || '注册失败，请检查网络或稍后重试');
+            const msg = error.response?.data?.error || error.message || '注册失败，请检查网络或稍后重试';
+            throw new Error(msg);
         }
     };
 
     const logout = async () => {
         const token = localStorage.getItem('token');
         if (token) {
-            await fetchWithFallback('/api/auth/logout', {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${token}` },
-                credentials: 'include'
+            await api.post('/api/auth/logout', {}, {
+                headers: { Authorization: `Bearer ${token}` }
             });
         }
         localStorage.removeItem('token');

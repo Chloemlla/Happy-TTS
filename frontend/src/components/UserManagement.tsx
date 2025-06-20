@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { fetchWithFallback } from '../utils/fetchWithFallback';
+import axios from 'axios';
 
 interface User {
   id: string;
@@ -11,6 +11,12 @@ interface User {
 }
 
 const emptyUser = { id: '', username: '', email: '', password: '', role: 'user', createdAt: '' };
+
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || 'https://tts-api.hapxs.com',
+  withCredentials: true,
+  headers: { 'Content-Type': 'application/json' }
+});
 
 const UserManagement: React.FC<{ token: string }> = ({ token }) => {
   const [users, setUsers] = useState<User[]>([]);
@@ -25,14 +31,12 @@ const UserManagement: React.FC<{ token: string }> = ({ token }) => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetchWithFallback('/api/admin/users', {
-        headers: { Authorization: `Bearer ${token}` },
-        credentials: 'include',
+      const res = await api.get<User[]>('/api/admin/users', {
+        headers: { Authorization: `Bearer ${token}` }
       });
-      if (!res.ok) throw new Error('获取用户列表失败');
-      setUsers(await res.json());
+      setUsers(res.data);
     } catch (e: any) {
-      setError(e.message || '获取用户失败');
+      setError(e.response?.data?.error || e.message || '获取用户失败');
     } finally {
       setLoading(false);
     }
@@ -51,24 +55,20 @@ const UserManagement: React.FC<{ token: string }> = ({ token }) => {
     setLoading(true);
     setError('');
     try {
-      const method = editingUser ? 'PUT' : 'POST';
+      const method = editingUser ? 'put' : 'post';
       const url = editingUser ? `/api/admin/users/${editingUser.id}` : '/api/admin/users';
-      const res = await fetchWithFallback(url, {
+      const res = await api.request({
+        url,
         method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(form),
-        credentials: 'include',
+        headers: { Authorization: `Bearer ${token}` },
+        data: form
       });
-      if (!res.ok) throw new Error('操作失败');
       setShowForm(false);
       setEditingUser(null);
       setForm(emptyUser);
       fetchUsers();
     } catch (e: any) {
-      setError(e.message || '操作失败');
+      setError(e.response?.data?.error || e.message || '操作失败');
     } finally {
       setLoading(false);
     }
@@ -80,15 +80,12 @@ const UserManagement: React.FC<{ token: string }> = ({ token }) => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetchWithFallback(`/api/admin/users/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-        credentials: 'include',
+      await api.delete(`/api/admin/users/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
       });
-      if (!res.ok) throw new Error('删除失败');
       fetchUsers();
     } catch (e: any) {
-      setError(e.message || '删除失败');
+      setError(e.response?.data?.error || e.message || '删除失败');
     } finally {
       setLoading(false);
     }
