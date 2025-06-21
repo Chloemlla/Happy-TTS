@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 // 配置
-const API_BASE_URL = 'http://localhost:3000'; // 根据实际情况调整
+const API_BASE_URL = 'https://tts-api.hapxs.com'; // 根据实际情况调整
 const TEST_USER = {
   username: 'testuser',
   email: 'test@example.com',
