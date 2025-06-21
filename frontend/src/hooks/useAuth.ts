@@ -53,6 +53,12 @@ export const useAuth = () => {
     const checkingRef = useRef(false);
     const lastCheckRef = useRef(0);
     const lastErrorRef = useRef(0);
+    const isAdminCheckedRef = useRef(false);
+    const locationPathRef = useRef('');
+
+    // 更新ref值
+    isAdminCheckedRef.current = isAdminChecked;
+    locationPathRef.current = location.pathname;
 
     const checkAuth = useCallback(async () => {
         // 使用ref来防止重复请求
@@ -83,16 +89,17 @@ export const useAuth = () => {
             });
             
             if (response.status === 401 || response.status === 403) {
-                logout();
+                // 使用ref中的navigate，避免依赖项
+                navigate('/welcome');
                 return;
             }
             
             const data = response.data;
             if (data) {
                 setUser(data);
-                if (data.role === 'admin' && !isAdminChecked) {
+                if (data.role === 'admin' && !isAdminCheckedRef.current) {
                     setIsAdminChecked(true);
-                    if (location.pathname !== '/') {
+                    if (locationPathRef.current !== '/') {
                         navigate('/', { replace: true });
                     }
                 }
@@ -123,7 +130,7 @@ export const useAuth = () => {
             setIsChecking(false);
             checkingRef.current = false;
         }
-    }, [isAdminChecked, location.pathname, navigate]);
+    }, []); // 移除所有依赖项，使用ref来避免闭包问题
 
     // 使用useEffect来定期检查认证状态
     useEffect(() => {
@@ -135,7 +142,7 @@ export const useAuth = () => {
         checkAuth();
         
         return () => clearInterval(interval);
-    }, [checkAuth]);
+    }, []); // 移除checkAuth依赖项，避免重复触发
 
     const login = async (username: string, password: string) => {
         try {
@@ -154,6 +161,9 @@ export const useAuth = () => {
                 // 直接登录成功
                 localStorage.setItem('token', token);
                 setUser(user);
+                // 登录成功后立即更新检查时间，避免重复请求
+                lastCheckRef.current = Date.now();
+                setLastCheckTime(Date.now());
                 navigate('/', { replace: true });
                 return { requiresTOTP: false };
             }
@@ -180,8 +190,12 @@ export const useAuth = () => {
             if (response.data.verified) {
                 // TOTP验证成功，完成登录
                 localStorage.setItem('token', pendingTOTP.token);
-                setUser(await getUserById(pendingTOTP.userId));
+                const userData = await getUserById(pendingTOTP.userId);
+                setUser(userData);
                 setPendingTOTP(null);
+                // 登录成功后立即更新检查时间，避免重复请求
+                lastCheckRef.current = Date.now();
+                setLastCheckTime(Date.now());
                 navigate('/', { replace: true });
                 return true;
             } else {
@@ -215,8 +229,14 @@ export const useAuth = () => {
 
     const getUserById = useCallback(async (userId: string): Promise<User> => {
         try {
+            // 使用正确的token而不是userId
+            const token = localStorage.getItem('token');
+            if (!token) {
+                throw new Error('没有有效的认证token');
+            }
+            
             const response = await api.get<User>(`/api/auth/me`, {
-                headers: { Authorization: `Bearer ${userId}` }
+                headers: { Authorization: `Bearer ${token}` }
             });
             return response.data;
         } catch (error: any) {
@@ -235,6 +255,9 @@ export const useAuth = () => {
             const { user, token } = response.data;
             localStorage.setItem('token', token);
             setUser(user);
+            // 注册成功后立即更新检查时间，避免重复请求
+            lastCheckRef.current = Date.now();
+            setLastCheckTime(Date.now());
             navigate('/', { replace: true });
         } catch (error: any) {
             const msg = error.response?.data?.error || error.message || '注册失败，请检查网络或稍后重试';
