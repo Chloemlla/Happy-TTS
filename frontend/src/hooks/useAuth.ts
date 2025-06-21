@@ -24,7 +24,7 @@ const api = axios.create({
     headers: {
         'Content-Type': 'application/json'
     },
-    timeout: 1000 // 1秒超时
+    timeout: 5000 // 5秒超时
 });
 
 // 添加请求拦截器
