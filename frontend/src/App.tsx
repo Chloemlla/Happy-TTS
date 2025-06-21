@@ -115,6 +115,19 @@ const App: React.FC = () => {
           <Routes>
             <Route path="/" element={<TtsPage />} />
             <Route path="/admin/users" element={<UserManagement token={localStorage.getItem('token') || ''} />} />
+            <Route path="/policy" element={
+              user ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  <PolicyPage />
+                </motion.div>
+              ) : (
+                <Navigate to="/welcome" replace state={{ from: location.pathname }} />
+              )
+            } />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
@@ -253,7 +266,19 @@ const App: React.FC = () => {
               )
             }
           />
-          <Route path="/policy" element={<PolicyPage />} />
+          <Route path="/policy" element={
+            user ? (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+              >
+                <PolicyPage />
+              </motion.div>
+            ) : (
+              <Navigate to="/welcome" replace state={{ from: location.pathname }} />
+            )
+          } />
           <Route path="/admin/users" element={<UserManagement token={localStorage.getItem('token') || ''} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

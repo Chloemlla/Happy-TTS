@@ -96,11 +96,11 @@ const MobileNav: React.FC<MobileNavProps> = ({
       <motion.button
         onClick={toggleMenu}
         whileTap={{ scale: 0.95 }}
-        className="flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+        className="flex items-center justify-center px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors h-10"
         aria-label="打开菜单"
       >
         <svg 
-          className={`w-6 h-6 transition-transform duration-200 ${isMenuOpen ? 'rotate-90' : ''}`}
+          className={`w-5 h-5 transition-transform duration-200 ${isMenuOpen ? 'rotate-90' : ''}`}
           fill="none" 
           stroke="currentColor" 
           viewBox="0 0 24 24"
@@ -203,6 +203,8 @@ const MobileNav: React.FC<MobileNavProps> = ({
                 {/* 服务条款 */}
                 <Link
                   to="/policy"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
                     location.pathname === '/policy' ? 'bg-green-50 text-green-700 font-semibold shadow-sm' : 'hover:bg-green-50'
                   }`}
@@ -215,23 +217,9 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   {location.pathname === '/policy' && (
                     <span className="ml-auto text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">当前</span>
                   )}
-                </Link>
-
-                {/* 欢迎页面 */}
-                <Link
-                  to="/welcome"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
-                    location.pathname === '/welcome' ? 'bg-yellow-50 text-yellow-700 font-semibold shadow-sm' : 'hover:bg-yellow-50'
-                  }`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <svg className={`w-5 h-5 ${location.pathname === '/welcome' ? 'text-yellow-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                   </svg>
-                  <span>欢迎页面</span>
-                  {location.pathname === '/welcome' && (
-                    <span className="ml-auto text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full">当前</span>
-                  )}
                 </Link>
 
                 {/* 分割线 */}

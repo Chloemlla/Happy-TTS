@@ -1,6 +1,12 @@
 # 构建前端
 FROM node:20-alpine AS frontend-builder
 
+# 设置时区为上海
+RUN apk add --no-cache tzdata && \
+    cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone && \
+    apk del tzdata
+
 WORKDIR /app
 
 # 安装前端依赖
@@ -23,6 +29,12 @@ RUN touch dist/favicon.ico
 # 构建后端
 FROM node:20-alpine AS backend-builder
 
+# 设置时区为上海
+RUN apk add --no-cache tzdata && \
+    cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone && \
+    apk del tzdata
+
 WORKDIR /app
 
 # 安装后端依赖
@@ -43,6 +55,15 @@ RUN npm run build:backend || npm run build:backend
 
 # 生产环境
 FROM node:20-alpine
+
+# 设置时区为上海
+RUN apk add --no-cache tzdata && \
+    cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone && \
+    apk del tzdata
+
+# 设置环境变量
+ENV TZ=Asia/Shanghai
 
 WORKDIR /app
 
