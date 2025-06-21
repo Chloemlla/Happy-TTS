@@ -164,7 +164,8 @@ export const useAuth = () => {
                 // 登录成功后立即更新检查时间，避免重复请求
                 lastCheckRef.current = Date.now();
                 setLastCheckTime(Date.now());
-                navigate('/', { replace: true });
+                // 使用页面刷新而不是路由跳转
+                window.location.reload();
                 return { requiresTOTP: false };
             }
         } catch (error: any) {
@@ -196,7 +197,8 @@ export const useAuth = () => {
                 // 登录成功后立即更新检查时间，避免重复请求
                 lastCheckRef.current = Date.now();
                 setLastCheckTime(Date.now());
-                navigate('/', { replace: true });
+                // 使用页面刷新而不是路由跳转
+                window.location.reload();
                 return true;
             } else {
                 throw new Error('TOTP验证失败');
@@ -258,7 +260,8 @@ export const useAuth = () => {
             // 注册成功后立即更新检查时间，避免重复请求
             lastCheckRef.current = Date.now();
             setLastCheckTime(Date.now());
-            navigate('/', { replace: true });
+            // 使用页面刷新而不是路由跳转
+            window.location.reload();
         } catch (error: any) {
             const msg = error.response?.data?.error || error.message || '注册失败，请检查网络或稍后重试';
             throw new Error(msg);

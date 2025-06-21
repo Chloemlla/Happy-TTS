@@ -139,11 +139,16 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                   <div className="bg-gray-50 rounded-lg p-4 inline-block">
                     <QRCodeSVG
                       value={setupData.otpauthUrl}
-                      size={Math.min(200, window.innerWidth * 0.6)}
+                      size={Math.min(256, window.innerWidth * 0.7)}
                       level="M"
                       includeMargin={true}
+                      bgColor="#FFFFFF"
+                      fgColor="#000000"
                     />
                   </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    使用Google Authenticator、Microsoft Authenticator等应用扫描
+                  </p>
                 </div>
 
                 {/* 密钥 */}

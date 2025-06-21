@@ -73,9 +73,9 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
       });
 
       if (response.data.verified) {
-        // TOTP验证成功，保存token并跳转
+        // TOTP验证成功，保存token并刷新页面
         localStorage.setItem('token', token);
-        onSuccess();
+        window.location.reload();
       } else {
         throw new Error('TOTP验证失败');
       }

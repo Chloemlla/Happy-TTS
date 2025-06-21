@@ -47,10 +47,14 @@ export class TOTPService {
             throw new Error('服务名不能为空');
         }
         try {
+            // 确保用户名不包含特殊字符，避免URL编码问题
+            const safeUsername = username.replace(/[^a-zA-Z0-9_-]/g, '_');
+            const safeServiceName = serviceName.replace(/[^a-zA-Z0-9_-]/g, '_');
+            
             const otpauthUrl = speakeasy.otpauthURL({
                 secret,
-                label: username,
-                issuer: serviceName,
+                label: safeUsername,
+                issuer: safeServiceName,
                 algorithm: 'sha1',
                 digits: 6,
                 period: 30
@@ -58,7 +62,17 @@ export class TOTPService {
             if (!otpauthUrl) {
                 throw new Error('生成otpauth URL失败');
             }
-            logger.info('otpauth URL生成成功:', { username, serviceName });
+            
+            // 记录生成的URL用于调试（不包含secret）
+            logger.info('otpauth URL生成成功:', { 
+                username: safeUsername, 
+                serviceName: safeServiceName,
+                urlPattern: otpauthUrl.replace(/secret=[^&]+/, 'secret=***'),
+                algorithm: 'sha1',
+                digits: 6,
+                period: 30
+            });
+            
             return otpauthUrl;
         } catch (error) {
             logger.error('生成otpauth URL失败:', error);
@@ -79,15 +93,31 @@ export class TOTPService {
         }
         try {
             const otpauthUrl = this.generateOTPAuthURL(secret, username, serviceName);
+            
+            // 优化QR码设置，提高Authenticator应用的兼容性
             const qrCodeDataUrl = await QRCode.toDataURL(otpauthUrl, {
-                errorCorrectionLevel: 'M',
-                margin: 2,
-                width: 200
+                errorCorrectionLevel: 'M', // 中等错误纠正级别，平衡大小和容错性
+                margin: 1, // 减少边距，提高扫描成功率
+                width: 256, // 增加尺寸，提高扫描清晰度
+                color: {
+                    dark: '#000000', // 黑色前景
+                    light: '#FFFFFF'  // 白色背景
+                },
+                type: 'image/png'
             });
+            
             if (!qrCodeDataUrl) {
                 throw new Error('生成QR码失败');
             }
-            logger.info('QR码生成成功:', { username });
+            
+            logger.info('QR码生成成功:', { 
+                username,
+                size: '256x256',
+                errorCorrection: 'M',
+                margin: 1,
+                format: 'PNG'
+            });
+            
             return qrCodeDataUrl;
         } catch (error) {
             logger.error('生成QR码失败:', error);
