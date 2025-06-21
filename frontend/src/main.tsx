@@ -4,7 +4,6 @@ import App from './App'
 import './index.css'
 import { integrityChecker } from './utils/integrityCheck'
 import { disableSelection } from './utils/disableSelection'
-import { domProtector } from './utils/domProtector'
 
 // 禁止右键和常见调试快捷键
 if (typeof window !== 'undefined') {
@@ -39,9 +38,6 @@ document.addEventListener('DOMContentLoaded', () => {
       integrityChecker.setIntegrity(id, element.innerHTML);
     }
   });
-
-  // 启动title监控
-  domProtector.startTitleMonitoring();
 });
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
