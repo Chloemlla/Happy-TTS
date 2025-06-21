@@ -16,6 +16,7 @@ generation_records.json
 data/
 finish/
 *.mp3
+dist-obfuscated/
 app.py
 .github/workflows/read.yml
 

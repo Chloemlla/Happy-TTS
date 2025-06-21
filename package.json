@@ -45,7 +45,9 @@
     "liquid-glass-react": "^1.1.1",
     "morgan": "^1.10.0",
     "openai": "^5.5.1",
+    "qrcode": "^1.5.4",
     "serve": "^14.2.1",
+    "speakeasy": "^2.0.0",
     "uuid": "^11.1.0",
     "validator": "^13.15.15",
     "winston": "^3.11.0"
@@ -58,11 +60,14 @@
     "@types/jest": "^30.0.0",
     "@types/morgan": "^1.9.4",
     "@types/node": "^24.0.3",
+    "@types/qrcode": "^1.5.5",
+    "@types/speakeasy": "^2.0.10",
     "concurrently": "^9.1.2",
     "javascript-obfuscator": "^4.1.1",
     "jest": "^30.0.2",
     "nodemon": "^3.1.0",
+    "ts-jest": "^29.4.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
+    "typescript": "^5.8.3"
   }
 }

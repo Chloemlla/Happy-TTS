@@ -7,4 +7,43 @@ export interface User {
   lastUsageDate: string;
   createdAt: string;
   remainingUsage?: number;
+  totpEnabled?: boolean;
+  totpSecret?: string;
+  backupCodes?: string[];
+  token?: string;
+  tokenExpiresAt?: number;
+}
+
+export interface TOTPStatus {
+  enabled: boolean;
+  hasBackupCodes: boolean;
+}
+
+export interface TOTPSetupData {
+  secret: string;
+  otpauthUrl: string;
+  qrCodeDataUrl: string;
+  backupCodes: string[];
+  message: string;
+}
+
+export interface TOTPErrorResponse {
+  error: string;
+  remainingAttempts?: number;
+  lockedUntil?: number;
+}
+
+export interface TOTPVerificationResponse {
+  message: string;
+  verified: boolean;
+}
+
+export interface TOTPEnableResponse {
+  message: string;
+  enabled: boolean;
+}
+
+export interface TOTPDisableResponse {
+  message: string;
+  enabled: boolean;
 } 

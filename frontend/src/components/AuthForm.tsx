@@ -3,6 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import { Link } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import AlertModal from './AlertModal';
+import TOTPVerification from './TOTPVerification';
 
 interface AuthFormProps {
     onSuccess?: () => void;
@@ -14,7 +15,7 @@ interface PasswordStrength {
 }
 
 export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
-    const { login, register } = useAuth();
+    const { login, register, pendingTOTP, verifyTOTP } = useAuth();
     const [isLogin, setIsLogin] = useState(true);
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
@@ -25,6 +26,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
     const [agreed, setAgreed] = useState(false);
     const [passwordStrength, setPasswordStrength] = useState<PasswordStrength>({ score: 0, feedback: '' });
     const [showAlert, setShowAlert] = useState(false);
+    const [showTOTPVerification, setShowTOTPVerification] = useState(false);
+    const [pendingUser, setPendingUser] = useState<any>(null);
 
     // 密码复杂度检查
     const checkPasswordStrength = (pwd: string): PasswordStrength => {
@@ -161,7 +164,12 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
             const sanitizedPassword = password; // 密码不需要 sanitize，但需要在传输前加密
 
             if (isLogin) {
-                await login(sanitizedUsername, sanitizedPassword);
+                const result = await login(sanitizedUsername, sanitizedPassword);
+                if (result.requiresTOTP) {
+                    setPendingUser(result.user);
+                    setShowTOTPVerification(true);
+                    return;
+                }
             } else {
                 await register(sanitizedUsername, sanitizedEmail, sanitizedPassword);
             }
@@ -341,6 +349,22 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
                 title="请勾选服务条款与隐私政策"
                 message="为了保障您的合法权益，请您在继续使用本服务前，仔细阅读并同意我们的服务条款与隐私政策。未勾选将无法继续注册或登录。"
             />
+            
+            {/* TOTP验证模态框 */}
+            {pendingUser && (
+                <TOTPVerification
+                    isOpen={showTOTPVerification}
+                    onClose={() => {
+                        setShowTOTPVerification(false);
+                        setPendingUser(null);
+                    }}
+                    onSuccess={() => {
+                        setShowTOTPVerification(false);
+                        setPendingUser(null);
+                        onSuccess?.();
+                    }}
+                />
+            )}
         </div>
     );
 };

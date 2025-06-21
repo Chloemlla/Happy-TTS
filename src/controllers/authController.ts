@@ -113,6 +113,21 @@ export class AuthController {
                 return res.status(401).json({ error: '用户名/邮箱或密码错误' });
             }
 
+            // 检查用户是否启用了TOTP
+            if (user.totpEnabled) {
+                // 生成临时token用于TOTP验证
+                const tempToken = user.id;
+                // 写入临时token到users.json
+                updateUserToken(user.id, tempToken, 5 * 60 * 1000); // 5分钟过期
+                
+                const { password: _, ...userWithoutPassword } = user;
+                return res.json({
+                    user: userWithoutPassword,
+                    token: tempToken,
+                    requiresTOTP: true
+                });
+            }
+
             // 记录登录成功
             logger.info('登录成功', {
                 userId: user.id,

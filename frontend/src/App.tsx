@@ -8,17 +8,25 @@ import PolicyPage from './components/PolicyPage';
 import Footer from './components/Footer';
 import PublicIP from './components/PublicIP';
 import UserManagement from './components/UserManagement';
+import TOTPManager from './components/TOTPManager';
+import { TOTPStatus } from './types/auth';
 
 const App: React.FC = () => {
   const { user, loading, logout } = useAuth();
   const location = useLocation();
   const [isInitialized, setIsInitialized] = useState(false);
+  const [showTOTPManager, setShowTOTPManager] = useState(false);
+  const [totpStatus, setTotpStatus] = useState<TOTPStatus | null>(null);
 
   useEffect(() => {
     if (!loading) {
       setIsInitialized(true);
     }
   }, [loading]);
+
+  const handleTOTPStatusChange = (status: TOTPStatus) => {
+    setTotpStatus(status);
+  };
 
   if (loading || !isInitialized) {
     return (
@@ -51,7 +59,21 @@ const App: React.FC = () => {
                 <Link to="/" className="text-xl font-bold text-gray-900 hover:text-indigo-600 transition-colors">Synapse</Link>
                 <Link to="/admin/users" className="ml-6 px-4 py-1 rounded-lg bg-blue-100 text-blue-700 font-semibold hover:bg-blue-200 transition-all">用户管理</Link>
               </motion.div>
-              <div className="flex items-center">
+              <div className="flex items-center space-x-3">
+                <motion.button
+                  onClick={() => setShowTOTPManager(true)}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-all duration-200"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  <span>二次验证</span>
+                  {totpStatus?.enabled && (
+                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                  )}
+                </motion.button>
                 <motion.button
                   onClick={logout}
                   whileHover={{ scale: 1.05 }}
@@ -75,6 +97,42 @@ const App: React.FC = () => {
           </Routes>
         </main>
         <Footer />
+
+        {/* TOTP管理器模态框 */}
+        <AnimatePresence>
+          {showTOTPManager && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+              onClick={() => setShowTOTPManager(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-2xl font-bold text-gray-900">账户安全设置</h2>
+                    <button
+                      onClick={() => setShowTOTPManager(false)}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  <TOTPManager onStatusChange={handleTOTPStatusChange} />
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     );
   }
@@ -99,7 +157,21 @@ const App: React.FC = () => {
               <Link to="/" className="text-xl font-bold text-gray-900 hover:text-indigo-600 transition-colors">Synapse</Link>
             </motion.div>
             {user && (
-              <div className="flex items-center">
+              <div className="flex items-center space-x-3">
+                <motion.button
+                  onClick={() => setShowTOTPManager(true)}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-all duration-200"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  <span>二次验证</span>
+                  {totpStatus?.enabled && (
+                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                  )}
+                </motion.button>
                 <motion.button
                   onClick={logout}
                   whileHover={{ scale: 1.05 }}
@@ -156,6 +228,42 @@ const App: React.FC = () => {
         </Routes>
       </main>
       <Footer />
+
+      {/* TOTP管理器模态框 */}
+      <AnimatePresence>
+        {showTOTPManager && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowTOTPManager(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">账户安全设置</h2>
+                  <button
+                    onClick={() => setShowTOTPManager(false)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <TOTPManager onStatusChange={handleTOTPStatusChange} />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

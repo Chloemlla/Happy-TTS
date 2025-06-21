@@ -10,6 +10,7 @@ import logger from './utils/logger';
 import ttsRoutes from './routes/ttsRoutes';
 import authRoutes from './routes/authRoutes';
 import adminRoutes from './routes/adminRoutes';
+import totpRoutes from './routes/totpRoutes';
 import rateLimit from 'express-rate-limit';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
@@ -196,6 +197,7 @@ if (!fs.existsSync(audioDir)) {
 // Routes
 app.use('/api/tts', ttsRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/totp', totpRoutes);
 app.use('/api/admin', adminLimiter, adminRoutes);
 app.use('/api', statusRouter);
 

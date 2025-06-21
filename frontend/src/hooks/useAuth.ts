@@ -46,6 +46,7 @@ api.interceptors.response.use(
 export const useAuth = () => {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
+    const [pendingTOTP, setPendingTOTP] = useState<{ userId: string; token: string } | null>(null);
     const navigate = useNavigate();
     const location = useLocation();
     const [isChecking, setIsChecking] = useState(false);
@@ -104,17 +105,89 @@ export const useAuth = () => {
 
     const login = async (username: string, password: string) => {
         try {
-            const response = await api.post<{ user: User; token: string }>('/api/auth/login', {
+            const response = await api.post<{ user: User; token: string; requiresTOTP?: boolean }>('/api/auth/login', {
                 identifier: username,
                 password
             });
-            const { user, token } = response.data;
-            localStorage.setItem('token', token);
-            setUser(user);
-            window.location.href = '/';
+            
+            const { user, token, requiresTOTP } = response.data;
+            
+            if (requiresTOTP) {
+                // 需要TOTP验证
+                setPendingTOTP({ userId: user.id, token });
+                return { requiresTOTP: true, user };
+            } else {
+                // 直接登录成功
+                localStorage.setItem('token', token);
+                setUser(user);
+                window.location.href = '/';
+                return { requiresTOTP: false };
+            }
         } catch (error: any) {
             const msg = error.response?.data?.error || error.message || '登录失败，请检查网络或稍后重试';
             throw new Error(msg);
+        }
+    };
+
+    const verifyTOTP = async (token: string, backupCode?: string) => {
+        if (!pendingTOTP) {
+            throw new Error('没有待验证的TOTP请求');
+        }
+
+        try {
+            const response = await api.post('/api/totp/verify-token', {
+                userId: pendingTOTP.userId,
+                token: backupCode ? undefined : token,
+                backupCode
+            }, {
+                headers: { Authorization: `Bearer ${pendingTOTP.token}` }
+            });
+
+            if (response.data.verified) {
+                // TOTP验证成功，完成登录
+                localStorage.setItem('token', pendingTOTP.token);
+                setUser(await getUserById(pendingTOTP.userId));
+                setPendingTOTP(null);
+                window.location.href = '/';
+                return true;
+            } else {
+                throw new Error('TOTP验证失败');
+            }
+        } catch (error: any) {
+            // TOTP验证失败时清理pendingTOTP状态
+            setPendingTOTP(null);
+            
+            const errorData = error.response?.data;
+            
+            if (error.response?.status === 429) {
+                // 验证尝试次数过多
+                const remainingTime = Math.ceil((errorData.lockedUntil - Date.now()) / 1000 / 60);
+                throw new Error(`验证尝试次数过多，请${remainingTime}分钟后再试`);
+            } else if (errorData?.remainingAttempts !== undefined) {
+                // 显示剩余尝试次数
+                const remainingAttempts = errorData.remainingAttempts;
+                if (remainingAttempts === 0) {
+                    const remainingTime = Math.ceil((errorData.lockedUntil - Date.now()) / 1000 / 60);
+                    throw new Error(`验证码错误，账户已被锁定，请${remainingTime}分钟后再试`);
+                } else {
+                    throw new Error(`验证码错误，还剩${remainingAttempts}次尝试机会`);
+                }
+            } else {
+                const msg = errorData?.error || error.message || 'TOTP验证失败';
+                throw new Error(msg);
+            }
+        }
+    };
+
+    const getUserById = async (userId: string): Promise<User> => {
+        try {
+            const response = await api.get<User>(`/api/auth/me`, {
+                headers: { Authorization: `Bearer ${userId}` }
+            });
+            return response.data;
+        } catch (error: any) {
+            console.error('获取用户信息失败:', error);
+            throw new Error('获取用户信息失败');
         }
     };
 
@@ -161,6 +234,7 @@ export const useAuth = () => {
             console.log('清理本地状态');
             localStorage.removeItem('token');
             setUser(null);
+            setPendingTOTP(null);
             setIsAdminChecked(false);
             navigate('/welcome');
         }
@@ -169,7 +243,9 @@ export const useAuth = () => {
     return {
         user,
         loading,
+        pendingTOTP,
         login,
+        verifyTOTP,
         register,
         logout
     };

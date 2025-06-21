@@ -37,6 +37,9 @@ export interface User {
     dailyUsage: number;
     lastUsageDate: string;
     createdAt: string;
+    totpSecret?: string;
+    totpEnabled?: boolean;
+    backupCodes?: string[];
 }
 
 export class UserStorage {

@@ -24,6 +24,7 @@
     "jsdom": "^26.1.0",
     "jsonwebtoken": "^9.0.2",
     "liquid-glass-react": "^1.1.1",
+    "qrcode.react": "^4.2.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-icons": "^5.5.0",
