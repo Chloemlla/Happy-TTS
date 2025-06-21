@@ -1,25 +1,44 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAuth } from '../hooks/useAuth';
+import axios from 'axios';
 import { validateTOTPToken, validateBackupCode, cleanTOTPToken, cleanBackupCode } from '../utils/totpUtils';
 
 interface TOTPVerificationProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  userId: string;
+  token: string;
 }
 
 const TOTPVerification: React.FC<TOTPVerificationProps> = ({ 
   isOpen, 
   onClose, 
-  onSuccess
+  onSuccess,
+  userId,
+  token
 }) => {
-  const { verifyTOTP } = useAuth();
   const [verificationCode, setVerificationCode] = useState('');
   const [backupCode, setBackupCode] = useState('');
   const [useBackupCode, setUseBackupCode] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // 获取API基础URL
+  const getApiBaseUrl = () => {
+    if (import.meta.env.VITE_API_URL) {
+      return import.meta.env.VITE_API_URL;
+    }
+    return 'https://tts-api.hapxs.com';
+  };
+
+  const api = axios.create({
+    baseURL: getApiBaseUrl(),
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
 
   const handleVerify = async () => {
     // 输入验证
@@ -47,14 +66,38 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
       setLoading(true);
       setError('');
       
-      await verifyTOTP(
-        useBackupCode ? '' : verificationCode,
-        useBackupCode ? backupCode : undefined
-      );
-      
-      onSuccess();
+      const response = await api.post('/api/totp/verify-token', {
+        userId: userId,
+        token: useBackupCode ? undefined : verificationCode,
+        backupCode: useBackupCode ? backupCode : undefined
+      });
+
+      if (response.data.verified) {
+        // TOTP验证成功，保存token并跳转
+        localStorage.setItem('token', token);
+        onSuccess();
+      } else {
+        throw new Error('TOTP验证失败');
+      }
     } catch (error: any) {
-      setError(error.message || '验证失败');
+      const errorData = error.response?.data;
+      
+      if (error.response?.status === 429) {
+        // 验证尝试次数过多
+        const remainingTime = Math.ceil((errorData.lockedUntil - Date.now()) / 1000 / 60);
+        setError(`验证尝试次数过多，请${remainingTime}分钟后再试`);
+      } else if (errorData?.remainingAttempts !== undefined) {
+        // 显示剩余尝试次数
+        const remainingAttempts = errorData.remainingAttempts;
+        if (remainingAttempts === 0) {
+          const remainingTime = Math.ceil((errorData.lockedUntil - Date.now()) / 1000 / 60);
+          setError(`验证码错误，账户已被锁定，请${remainingTime}分钟后再试`);
+        } else {
+          setError(`验证码错误，还剩${remainingAttempts}次尝试机会`);
+        }
+      } else {
+        setError(errorData?.error || error.message || '验证失败');
+      }
     } finally {
       setLoading(false);
     }

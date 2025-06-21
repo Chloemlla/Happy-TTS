@@ -28,6 +28,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
     const [showAlert, setShowAlert] = useState(false);
     const [showTOTPVerification, setShowTOTPVerification] = useState(false);
     const [pendingUser, setPendingUser] = useState<any>(null);
+    const [pendingUserId, setPendingUserId] = useState<string>('');
+    const [pendingToken, setPendingToken] = useState<string>('');
 
     // 密码复杂度检查
     const checkPasswordStrength = (pwd: string): PasswordStrength => {
@@ -165,8 +167,10 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
 
             if (isLogin) {
                 const result = await login(sanitizedUsername, sanitizedPassword);
-                if (result.requiresTOTP) {
+                if (result.requiresTOTP && result.user && result.token) {
                     setPendingUser(result.user);
+                    setPendingUserId(result.user.id);
+                    setPendingToken(result.token);
                     setShowTOTPVerification(true);
                     return;
                 }
@@ -357,12 +361,18 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
                     onClose={() => {
                         setShowTOTPVerification(false);
                         setPendingUser(null);
+                        setPendingUserId('');
+                        setPendingToken('');
                     }}
                     onSuccess={() => {
                         setShowTOTPVerification(false);
                         setPendingUser(null);
+                        setPendingUserId('');
+                        setPendingToken('');
                         onSuccess?.();
                     }}
+                    userId={pendingUserId}
+                    token={pendingToken}
                 />
             )}
         </div>

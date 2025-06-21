@@ -115,7 +115,7 @@ export const useAuth = () => {
             if (requiresTOTP) {
                 // 需要TOTP验证
                 setPendingTOTP({ userId: user.id, token });
-                return { requiresTOTP: true, user };
+                return { requiresTOTP: true, user, token };
             } else {
                 // 直接登录成功
                 localStorage.setItem('token', token);

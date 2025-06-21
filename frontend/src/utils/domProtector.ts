@@ -21,6 +21,8 @@ class DOMProtector {
     { original: 'Synapse', pattern: /Synapse/gi },
     { original: 'Happy', pattern: /Happy(?![\w-])/gi }  // 防止匹配 Happy-clo
   ];
+  private titleObserver: MutationObserver | null = null;
+  private originalTitle: string = 'Synapse - 文本转语音服务';
   
   private constructor() {
     // 私有构造函数，确保单例
@@ -50,6 +52,17 @@ class DOMProtector {
         node.textContent = textContent;
         return true;
       }
+    }
+    return false;
+  }
+
+  // 检查并修复title标签
+  private checkTitle(): boolean {
+    const titleElement = document.querySelector('title');
+    if (titleElement && titleElement.textContent !== this.originalTitle) {
+      console.warn('检测到title标签被篡改，正在恢复...');
+      titleElement.textContent = this.originalTitle;
+      return true;
     }
     return false;
   }
@@ -170,11 +183,44 @@ class DOMProtector {
     }, 2000);
   }
 
+  // 开始监控title标签
+  public startTitleMonitoring(): void {
+    // 立即检查一次
+    this.checkTitle();
+
+    // 设置title监控
+    this.titleObserver = new MutationObserver((mutations) => {
+      mutations.forEach(mutation => {
+        if (mutation.type === 'characterData' || mutation.type === 'childList') {
+          this.checkTitle();
+        }
+      });
+    });
+
+    const titleElement = document.querySelector('title');
+    if (titleElement) {
+      this.titleObserver.observe(titleElement, {
+        childList: true,
+        characterData: true,
+        subtree: true
+      });
+    }
+
+    // 设置定期检查title
+    setInterval(() => {
+      this.checkTitle();
+    }, 1000);
+  }
+
   // 停止监控
   public stopMonitoring(): void {
     if (this.observer) {
       this.observer.disconnect();
       this.observer = null;
+    }
+    if (this.titleObserver) {
+      this.titleObserver.disconnect();
+      this.titleObserver = null;
     }
     if (this.checkInterval) {
       clearInterval(this.checkInterval);
@@ -188,6 +234,12 @@ class DOMProtector {
       original: text,
       pattern: new RegExp(text.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi')
     });
+  }
+
+  // 设置受保护的title
+  public setProtectedTitle(title: string): void {
+    this.originalTitle = title;
+    this.checkTitle();
   }
 }
 
