@@ -12,7 +12,12 @@
     "build:backend": "tsc && npm run obfuscate",
     "obfuscate": "javascript-obfuscator dist --output dist-obfuscated --config package.json",
     "build:frontend": "cd frontend && npm run build",
-    "prod": "npm run build && npm start"
+    "prod": "npm run build && npm start",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:auth": "jest --testPathPattern=authController.test.ts",
+    "test:rate-limit": "jest --testPathPattern=rateLimit.test.ts"
   },
   "keywords": [
     "happy",
@@ -62,10 +67,12 @@
     "@types/node": "^24.0.3",
     "@types/qrcode": "^1.5.5",
     "@types/speakeasy": "^2.0.10",
+    "@types/supertest": "^6.0.3",
     "concurrently": "^9.1.2",
     "javascript-obfuscator": "^4.1.1",
     "jest": "^30.0.2",
     "nodemon": "^3.1.0",
+    "supertest": "^7.1.1",
     "ts-jest": "^29.4.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"

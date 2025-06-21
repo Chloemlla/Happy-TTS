@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { User } from '../types/auth';
@@ -31,14 +31,7 @@ const api = axios.create({
 api.interceptors.response.use(
     (response) => response,
     (error) => {
-        if (error.response?.status === 429) {
-            // 如果是429错误，等待一段时间后重试
-            return new Promise((resolve) => {
-                setTimeout(() => {
-                    resolve(api(error.config));
-                }, 2000); // 等待2秒后重试
-            });
-        }
+        // 移除自动重试逻辑，直接返回错误
         return Promise.reject(error);
     }
 );
@@ -52,35 +45,48 @@ export const useAuth = () => {
     const [isChecking, setIsChecking] = useState(false);
     const [isAdminChecked, setIsAdminChecked] = useState(false);
     const [lastCheckTime, setLastCheckTime] = useState(0);
+    const [lastErrorTime, setLastErrorTime] = useState(0);
     const CHECK_INTERVAL = 30000; // 30秒检查一次
+    const ERROR_RETRY_INTERVAL = 60000; // 错误后60秒再重试
+    
+    // 使用ref来跟踪检查状态，避免闭包问题
+    const checkingRef = useRef(false);
+    const lastCheckRef = useRef(0);
+    const lastErrorRef = useRef(0);
 
-    useEffect(() => {
-        if (!isChecking && !isAdminChecked) {
-            const now = Date.now();
-            if (now - lastCheckTime >= CHECK_INTERVAL) {
-                checkAuth();
-                setLastCheckTime(now);
-            }
+    const checkAuth = useCallback(async () => {
+        // 使用ref来防止重复请求
+        if (checkingRef.current) return;
+        
+        const now = Date.now();
+        const timeSinceLastCheck = now - lastCheckRef.current;
+        const timeSinceLastError = now - lastErrorRef.current;
+        
+        // 检查时间间隔
+        if (timeSinceLastCheck < CHECK_INTERVAL || timeSinceLastError < ERROR_RETRY_INTERVAL) {
+            return;
         }
-    }, [isChecking, isAdminChecked, lastCheckTime]);
-
-    const checkAuth = async () => {
-        if (isChecking) return;
+        
+        checkingRef.current = true;
+        setIsChecking(true);
+        
         try {
-            setIsChecking(true);
             const token = localStorage.getItem('token');
             if (!token) {
                 setUser(null);
                 setLoading(false);
                 return;
             }
+            
             const response = await api.get<User>('/api/auth/me', {
                 headers: { Authorization: `Bearer ${token}` }
             });
+            
             if (response.status === 401 || response.status === 403) {
                 logout();
                 return;
             }
+            
             const data = response.data;
             if (data) {
                 setUser(data);
@@ -94,14 +100,42 @@ export const useAuth = () => {
                 setUser(null);
                 localStorage.removeItem('token');
             }
+            
+            // 更新最后检查时间
+            lastCheckRef.current = now;
+            setLastCheckTime(now);
+            
         } catch (error: any) {
-            setUser(null);
-            localStorage.removeItem('token');
+            // 记录错误时间
+            lastErrorRef.current = now;
+            setLastErrorTime(now);
+            
+            if (error.response?.status === 429) {
+                // 429错误不清理用户状态，只是记录错误时间
+                console.warn('认证检查被限流，将在60秒后重试');
+            } else {
+                // 其他错误才清理用户状态
+                setUser(null);
+                localStorage.removeItem('token');
+            }
         } finally {
             setLoading(false);
             setIsChecking(false);
+            checkingRef.current = false;
         }
-    };
+    }, [isAdminChecked, location.pathname, navigate]);
+
+    // 使用useEffect来定期检查认证状态
+    useEffect(() => {
+        const interval = setInterval(() => {
+            checkAuth();
+        }, CHECK_INTERVAL);
+        
+        // 初始检查
+        checkAuth();
+        
+        return () => clearInterval(interval);
+    }, [checkAuth]);
 
     const login = async (username: string, password: string) => {
         try {
@@ -179,7 +213,7 @@ export const useAuth = () => {
         }
     };
 
-    const getUserById = async (userId: string): Promise<User> => {
+    const getUserById = useCallback(async (userId: string): Promise<User> => {
         try {
             const response = await api.get<User>(`/api/auth/me`, {
                 headers: { Authorization: `Bearer ${userId}` }
@@ -189,7 +223,7 @@ export const useAuth = () => {
             console.error('获取用户信息失败:', error);
             throw new Error('获取用户信息失败');
         }
-    };
+    }, []);
 
     const register = async (username: string, email: string, password: string) => {
         try {

@@ -106,8 +106,8 @@ const historyLimiter = rateLimit({
 
 // 为 /api/auth/me 创建特殊的限流器
 const meEndpointLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1分钟
-    max: 60, // 限制每个IP每分钟60次请求
+    windowMs: 5 * 60 * 1000, // 5分钟
+    max: 300, // 限制每个IP每5分钟300次请求（平均每分钟60次）
     message: { error: '请求过于频繁，请稍后再试' },
     standardHeaders: true,
     legacyHeaders: false,
