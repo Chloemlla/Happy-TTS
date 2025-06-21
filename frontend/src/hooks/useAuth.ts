@@ -120,7 +120,7 @@ export const useAuth = () => {
                 // 直接登录成功
                 localStorage.setItem('token', token);
                 setUser(user);
-                window.location.href = '/';
+                navigate('/', { replace: true });
                 return { requiresTOTP: false };
             }
         } catch (error: any) {
@@ -148,7 +148,7 @@ export const useAuth = () => {
                 localStorage.setItem('token', pendingTOTP.token);
                 setUser(await getUserById(pendingTOTP.userId));
                 setPendingTOTP(null);
-                window.location.href = '/';
+                navigate('/', { replace: true });
                 return true;
             } else {
                 throw new Error('TOTP验证失败');
@@ -201,7 +201,7 @@ export const useAuth = () => {
             const { user, token } = response.data;
             localStorage.setItem('token', token);
             setUser(user);
-            window.location.href = '/';
+            navigate('/', { replace: true });
         } catch (error: any) {
             const msg = error.response?.data?.error || error.message || '注册失败，请检查网络或稍后重试';
             throw new Error(msg);
