@@ -31,6 +31,12 @@ export interface TOTPErrorResponse {
   error: string;
   remainingAttempts?: number;
   lockedUntil?: number;
+  debug?: {
+    expectedToken: string;
+    prevToken: string;
+    nextToken: string;
+    message: string;
+  };
 }
 
 export interface TOTPVerificationResponse {

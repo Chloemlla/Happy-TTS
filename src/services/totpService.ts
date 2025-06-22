@@ -3,6 +3,12 @@ import QRCode from 'qrcode';
 import crypto from 'crypto';
 import logger from '../utils/logger';
 
+// 确保时区设置为上海
+if (process.env.TZ !== 'Asia/Shanghai') {
+    process.env.TZ = 'Asia/Shanghai';
+    logger.info('TOTP服务时区已设置为上海');
+}
+
 export class TOTPService {
     /**
      * 生成TOTP密钥
@@ -149,6 +155,22 @@ export class TOTPService {
                 logger.error('TOTP验证window参数无效:', { window });
                 return false;
             }
+
+            // 记录当前时间和时区信息
+            const now = new Date();
+            const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            const currentTime = now.toISOString();
+            const localTime = now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+            
+            logger.info('TOTP验证开始:', { 
+                token, 
+                timeZone, 
+                currentTime, 
+                localTime,
+                window,
+                serverTime: now.getTime()
+            });
+
             const result = speakeasy.totp.verify({
                 secret,
                 encoding: 'base32',
@@ -156,7 +178,15 @@ export class TOTPService {
                 window,
                 step: 30
             });
-            logger.info('TOTP验证结果:', { token, result, window });
+
+            logger.info('TOTP验证结果:', { 
+                token, 
+                result, 
+                window,
+                timeZone,
+                currentTime,
+                localTime
+            });
             return result;
         } catch (error) {
             logger.error('验证TOTP令牌失败:', error);

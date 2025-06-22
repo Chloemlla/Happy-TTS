@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { UserStorage } from '../utils/userStorage';
 import { TOTPService } from '../services/totpService';
+import { TOTPDebugger } from '../utils/totpDebugger';
 import logger from '../utils/logger';
 import fs from 'fs';
 import path from 'path';
@@ -170,11 +171,32 @@ export class TOTPController {
             
             if (!isValid) {
                 const remainingAttempts = attemptCheck.remainingAttempts - 1;
-                logger.warn('verifyAndEnable: 验证码错误', { userId, username: user.username, token, remainingAttempts });
+                
+                // 生成当前时间窗口的期望验证码用于调试
+                const expectedToken = TOTPDebugger.generateTestToken(user.totpSecret, 0);
+                const prevToken = TOTPDebugger.generateTestToken(user.totpSecret, -30);
+                const nextToken = TOTPDebugger.generateTestToken(user.totpSecret, 30);
+                
+                logger.warn('verifyAndEnable: 验证码错误', { 
+                    userId, 
+                    username: user.username, 
+                    token, 
+                    remainingAttempts,
+                    expectedToken,
+                    prevToken,
+                    nextToken
+                });
+                
                 return res.status(400).json({ 
                     error: '验证码错误',
                     remainingAttempts,
-                    lockedUntil: remainingAttempts === 0 ? Date.now() + TOTP_LOCKOUT_DURATION : undefined
+                    lockedUntil: remainingAttempts === 0 ? Date.now() + TOTP_LOCKOUT_DURATION : undefined,
+                    debug: {
+                        expectedToken,
+                        prevToken,
+                        nextToken,
+                        message: '这些是服务器当前时间窗口的期望验证码，用于调试时间同步问题'
+                    }
                 });
             }
 
@@ -296,10 +318,32 @@ export class TOTPController {
                 if (token) {
                     const attemptCheck = TOTPController.checkTOTPAttempts(userId);
                     const remainingAttempts = attemptCheck.remainingAttempts - 1;
+                    
+                    // 生成当前时间窗口的期望验证码用于调试
+                    const expectedToken = TOTPDebugger.generateTestToken(user.totpSecret!, 0);
+                    const prevToken = TOTPDebugger.generateTestToken(user.totpSecret!, -30);
+                    const nextToken = TOTPDebugger.generateTestToken(user.totpSecret!, 30);
+                    
+                    logger.warn('verifyToken: TOTP验证码错误', { 
+                        userId, 
+                        username: user.username, 
+                        token, 
+                        remainingAttempts,
+                        expectedToken,
+                        prevToken,
+                        nextToken
+                    });
+                    
                     return res.status(400).json({ 
                         error: '验证码错误',
                         remainingAttempts,
-                        lockedUntil: remainingAttempts === 0 ? Date.now() + TOTP_LOCKOUT_DURATION : undefined
+                        lockedUntil: remainingAttempts === 0 ? Date.now() + TOTP_LOCKOUT_DURATION : undefined,
+                        debug: {
+                            expectedToken,
+                            prevToken,
+                            nextToken,
+                            message: '这些是服务器当前时间窗口的期望验证码，用于调试时间同步问题'
+                        }
                     });
                 } else {
                     return res.status(400).json({ error: '恢复码错误' });
@@ -357,10 +401,32 @@ export class TOTPController {
             
             if (!isValid) {
                 const remainingAttempts = attemptCheck.remainingAttempts - 1;
+                
+                // 生成当前时间窗口的期望验证码用于调试
+                const expectedToken = TOTPDebugger.generateTestToken(user.totpSecret!, 0);
+                const prevToken = TOTPDebugger.generateTestToken(user.totpSecret!, -30);
+                const nextToken = TOTPDebugger.generateTestToken(user.totpSecret!, 30);
+                
+                logger.warn('disable: TOTP验证码错误', { 
+                    userId, 
+                    username: user.username, 
+                    token, 
+                    remainingAttempts,
+                    expectedToken,
+                    prevToken,
+                    nextToken
+                });
+                
                 return res.status(400).json({ 
                     error: '验证码错误',
                     remainingAttempts,
-                    lockedUntil: remainingAttempts === 0 ? Date.now() + TOTP_LOCKOUT_DURATION : undefined
+                    lockedUntil: remainingAttempts === 0 ? Date.now() + TOTP_LOCKOUT_DURATION : undefined,
+                    debug: {
+                        expectedToken,
+                        prevToken,
+                        nextToken,
+                        message: '这些是服务器当前时间窗口的期望验证码，用于调试时间同步问题'
+                    }
                 });
             }
 

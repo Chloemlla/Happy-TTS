@@ -1,5 +1,8 @@
 'use server';
 
+// 设置时区为上海
+process.env.TZ = 'Asia/Shanghai';
+
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';

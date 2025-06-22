@@ -1,6 +1,12 @@
 import speakeasy from 'speakeasy';
 import logger from './logger';
 
+// 确保时区设置为上海
+if (process.env.TZ !== 'Asia/Shanghai') {
+    process.env.TZ = 'Asia/Shanghai';
+    logger.info('TOTP调试工具时区已设置为上海');
+}
+
 // 辅助函数：base32解码
 function base32Decode(str: string): Buffer {
     // 移除填充字符
@@ -267,24 +273,43 @@ export class TOTPDebugger {
         timeZone: string;
         timeOffset: number;
         issues: string[];
+        shanghaiTime: string;
+        timeZoneInfo: any;
     } {
         const issues: string[] = [];
         const now = new Date();
         const serverTime = now.toISOString();
         const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const shanghaiTime = now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
         
         // 检查时间偏移（这里可以根据NTP服务器进行更精确的检查）
         const timeOffset = now.getTimezoneOffset();
         
+        // 获取详细的时区信息
+        const timeZoneInfo = {
+            current: timeZone,
+            expected: 'Asia/Shanghai',
+            isCorrect: timeZone === 'Asia/Shanghai',
+            offset: timeOffset,
+            shanghaiOffset: 480, // 上海时区偏移（分钟）
+            difference: Math.abs(timeOffset + 480) // 与上海时区的差异
+        };
+        
         if (Math.abs(timeOffset) > 300) { // 5分钟偏移
             issues.push('服务器时间可能不准确');
+        }
+
+        if (timeZone !== 'Asia/Shanghai') {
+            issues.push(`时区设置不正确: 当前=${timeZone}, 期望=Asia/Shanghai`);
         }
 
         return {
             serverTime,
             timeZone,
             timeOffset,
-            issues
+            issues,
+            shanghaiTime,
+            timeZoneInfo
         };
     }
 } 
