@@ -201,9 +201,14 @@ describe('TOTPDebugger', () => {
     });
 
     it('应该在正常时间偏移时不报告问题', () => {
-      // 模拟正常的时间偏移
+      // 模拟正常的时间偏移和正确的时区
       const originalGetTimezoneOffset = Date.prototype.getTimezoneOffset;
-      Date.prototype.getTimezoneOffset = jest.fn().mockReturnValue(60); // 1小时偏移
+      const originalResolvedOptions = Intl.DateTimeFormat.prototype.resolvedOptions;
+      
+      Date.prototype.getTimezoneOffset = jest.fn().mockReturnValue(-480); // 上海时区偏移
+      Intl.DateTimeFormat.prototype.resolvedOptions = jest.fn().mockReturnValue({
+        timeZone: 'Asia/Shanghai'
+      });
 
       const result = TOTPDebugger.checkTimeSync();
 
@@ -211,6 +216,7 @@ describe('TOTPDebugger', () => {
 
       // 恢复原始方法
       Date.prototype.getTimezoneOffset = originalGetTimezoneOffset;
+      Intl.DateTimeFormat.prototype.resolvedOptions = originalResolvedOptions;
     });
   });
 
