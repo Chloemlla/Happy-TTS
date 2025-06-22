@@ -27,7 +27,6 @@
   "license": "MIT",
   "dependencies": {
     "@fingerprintjs/fingerprintjs": "^4.6.2",
-    "@prisma/client": "^6.10.1",
     "@types/bcrypt": "^5.0.2",
     "@types/dompurify": "^3.2.0",
     "@types/express-rate-limit": "^6.0.2",

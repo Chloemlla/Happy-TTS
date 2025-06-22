@@ -8,7 +8,6 @@ import logger from '../utils/logger';
 import bcrypt from 'bcrypt';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import { config } from '../config/config';
-import prisma from '../lib/prisma';
 
 const router = express.Router();
 

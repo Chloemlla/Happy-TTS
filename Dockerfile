@@ -47,9 +47,6 @@ COPY src/ ./src/
 COPY prisma/ ./prisma/
 COPY tsconfig.json ./
 
-# 初始化 Prisma
-RUN npx prisma generate
-
 # 构建后端（增加重试机制）
 RUN npm run build:backend || npm run build:backend
 
@@ -76,12 +73,6 @@ RUN npm install --production && \
 COPY --from=backend-builder /app/dist-obfuscated ./dist
 COPY prisma/ ./prisma
 COPY --from=frontend-builder /app/frontend/dist ./public
-
-# 创建数据目录并初始化数据库
-RUN mkdir -p /app/data && chmod 777 /app/data
-RUN npm install @prisma/client && \
-    npx prisma generate && \
-    npx prisma db push --accept-data-loss
 
 # 暴露端口
 EXPOSE 3000 3001
