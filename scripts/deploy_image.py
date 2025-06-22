@@ -16,8 +16,17 @@ load_dotenv()
 def remote_login(server_address, username, port, private_key):
     private_key_obj = paramiko.RSAKey.from_private_key(StringIO(private_key))
     ssh = paramiko.SSHClient()
-    ssh.load_system_host_keys()  # 加载~/.ssh/known_hosts
-    ssh.set_missing_host_key_policy(paramiko.RejectPolicy())  # 拒绝未知主机
+
+    # 在CI/CD环境中，允许首次连接未知主机
+    if os.getenv("CI") or os.getenv("GITHUB_ACTIONS"):
+        # CI/CD环境：使用AutoAddPolicy但记录警告
+        logging.warning("CI/CD环境：自动接受未知主机密钥（仅用于部署）")
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    else:
+        # 生产环境：使用严格的策略
+        ssh.load_system_host_keys()  # 加载~/.ssh/known_hosts
+        ssh.set_missing_host_key_policy(paramiko.RejectPolicy())  # 拒绝未知主机
+
     ssh.connect(
         hostname=server_address, username=username, port=port, pkey=private_key_obj
     )
