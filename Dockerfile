@@ -13,8 +13,8 @@ WORKDIR /app
 COPY frontend/package*.json ./frontend/
 WORKDIR /app/frontend
 
-# 安装前端依赖（这层会被缓存）
-RUN npm ci --only=production && \
+# 安装前端依赖（包括开发依赖，因为需要构建工具）
+RUN npm ci && \
     npm install @fingerprintjs/fingerprintjs && \
     npm install crypto-js && \
     npm install --save-dev @types/crypto-js
@@ -42,8 +42,8 @@ WORKDIR /app
 # 首先复制package文件以利用缓存
 COPY package*.json ./
 
-# 安装后端依赖（这层会被缓存）
-RUN npm ci --only=production && \
+# 安装后端依赖（包括开发依赖，因为需要TypeScript编译器）
+RUN npm ci && \
     npm install -g javascript-obfuscator
 
 # 复制后端源代码和配置文件（这层会在源代码变化时重新构建）
