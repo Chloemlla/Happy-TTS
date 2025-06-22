@@ -25,12 +25,12 @@ export class TOTPService {
             const secret = speakeasy.generateSecret({
                 name: `${serviceName} (${username})`,
                 issuer: serviceName,
-                length: 32
+                length: 20 // 20字节 = 32字符的base32编码（标准TOTP密钥长度）
             });
             if (!secret.base32) {
                 throw new Error('TOTP密钥生成失败');
             }
-            logger.info('TOTP密钥生成成功:', { username, serviceName });
+            logger.info('TOTP密钥生成成功:', { username, serviceName, secretLength: secret.base32.length });
             return secret.base32;
         } catch (error) {
             logger.error('生成TOTP密钥失败:', error);
@@ -57,14 +57,16 @@ export class TOTPService {
             const safeUsername = username.replace(/[^a-zA-Z0-9_-]/g, '_');
             const safeServiceName = serviceName.replace(/[^a-zA-Z0-9_-]/g, '_');
             
+            // 直接使用speakeasy.otpauthURL方法
             const otpauthUrl = speakeasy.otpauthURL({
-                secret,
-                label: safeUsername,
+                secret: secret,
+                label: `${safeServiceName}:${safeUsername}`,
                 issuer: safeServiceName,
                 algorithm: 'sha1',
                 digits: 6,
                 period: 30
             });
+            
             if (!otpauthUrl) {
                 throw new Error('生成otpauth URL失败');
             }
