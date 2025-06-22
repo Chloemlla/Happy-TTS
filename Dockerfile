@@ -9,15 +9,17 @@ RUN apk add --no-cache tzdata && \
 
 WORKDIR /app
 
-# 安装前端依赖
+# 首先复制package文件以利用缓存
 COPY frontend/package*.json ./frontend/
 WORKDIR /app/frontend
-RUN npm install
-RUN npm install @fingerprintjs/fingerprintjs
-RUN npm install crypto-js
-RUN npm install --save-dev @types/crypto-js
 
-# 复制前端源代码
+# 安装前端依赖（这层会被缓存）
+RUN npm ci --only=production && \
+    npm install @fingerprintjs/fingerprintjs && \
+    npm install crypto-js && \
+    npm install --save-dev @types/crypto-js
+
+# 复制前端源代码（这层会在源代码变化时重新构建）
 COPY frontend/ .
 
 # 构建前端
@@ -37,12 +39,14 @@ RUN apk add --no-cache tzdata && \
 
 WORKDIR /app
 
-# 安装后端依赖
+# 首先复制package文件以利用缓存
 COPY package*.json ./
-RUN npm install
-RUN npm install -g javascript-obfuscator
 
-# 复制后端源代码和 Prisma 配置
+# 安装后端依赖（这层会被缓存）
+RUN npm ci --only=production && \
+    npm install -g javascript-obfuscator
+
+# 复制后端源代码和配置文件（这层会在源代码变化时重新构建）
 COPY src/ ./src/
 COPY prisma/ ./prisma/
 COPY tsconfig.json ./
@@ -64,9 +68,9 @@ ENV TZ=Asia/Shanghai
 
 WORKDIR /app
 
-# 安装生产环境依赖
+# 安装生产环境依赖（这层会被缓存）
 COPY package*.json ./
-RUN npm install --production && \
+RUN npm ci --only=production && \
     npm install -g concurrently serve
 
 # 从构建阶段复制文件
@@ -78,4 +82,4 @@ COPY --from=frontend-builder /app/frontend/dist ./public
 EXPOSE 3000 3001
 
 # 启动服务
-CMD ["npm", "start"] 
+CMD ["npm", "start"]
