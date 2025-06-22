@@ -46,4 +46,10 @@ export interface TOTPEnableResponse {
 export interface TOTPDisableResponse {
   message: string;
   enabled: boolean;
+}
+
+export interface BackupCodesResponse {
+  backupCodes: string[];
+  remainingCount: number;
+  message: string;
 } 

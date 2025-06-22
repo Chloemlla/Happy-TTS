@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import TOTPSetup from './TOTPSetup';
+import BackupCodesModal from './BackupCodesModal';
 import axios from 'axios';
 import { TOTPStatus } from '../types/auth';
 import { handleTOTPError, cleanTOTPToken, validateTOTPToken } from '../utils/totpUtils';
@@ -14,6 +15,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
   const [loading, setLoading] = useState(true);
   const [showSetup, setShowSetup] = useState(false);
   const [showDisable, setShowDisable] = useState(false);
+  const [showBackupCodes, setShowBackupCodes] = useState(false);
   const [disableCode, setDisableCode] = useState('');
   const [error, setError] = useState('');
 
@@ -154,14 +156,31 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
                 </div>
               )}
 
-              <motion.button
-                onClick={() => setShowDisable(true)}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="w-full px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-colors"
-              >
-                禁用二次验证
-              </motion.button>
+              <div className="space-y-2">
+                {status.hasBackupCodes && (
+                  <motion.button
+                    onClick={() => setShowBackupCodes(true)}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full px-4 py-2 border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 transition-colors flex items-center justify-center"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    查看备用恢复码
+                  </motion.button>
+                )}
+
+                <motion.button
+                  onClick={() => setShowDisable(true)}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-colors"
+                >
+                  禁用二次验证
+                </motion.button>
+              </div>
             </div>
           ) : (
             <div className="space-y-3">
@@ -197,6 +216,12 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
         isOpen={showSetup}
         onClose={() => setShowSetup(false)}
         onSuccess={handleSetupSuccess}
+      />
+
+      {/* 备用恢复码模态框 */}
+      <BackupCodesModal
+        isOpen={showBackupCodes}
+        onClose={() => setShowBackupCodes(false)}
       />
 
       {/* 禁用TOTP模态框 */}

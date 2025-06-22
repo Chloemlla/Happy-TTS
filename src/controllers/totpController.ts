@@ -228,12 +228,51 @@ export class TOTPController {
                 if (!user.backupCodes || user.backupCodes.length === 0) {
                     return res.status(400).json({ error: '用户没有设置备用恢复码' });
                 }
+                
+                // 记录验证前的恢复码数量
+                const originalCount = user.backupCodes.length;
                 const backupCodes = [...user.backupCodes];
+                
                 isValid = TOTPService.verifyBackupCode(backupCode, backupCodes);
+                
                 if (isValid) {
-                    // 更新用户的备用恢复码
+                    // 更新用户的备用恢复码（报废已使用的恢复码）
                     await TOTPController.updateUserBackupCodes(userId, backupCodes);
-                    logger.info('备用恢复码验证成功:', { userId, username: user.username });
+                    
+                    // 记录详细的报废信息
+                    const usedCode = backupCode.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                    const remainingCount = backupCodes.length;
+                    
+                    logger.info('备用恢复码验证成功并已报废:', { 
+                        userId, 
+                        username: user.username,
+                        usedCode,
+                        originalCount,
+                        remainingCount,
+                        codesRemoved: originalCount - remainingCount
+                    });
+                    
+                    // 如果恢复码用完，记录警告
+                    if (remainingCount === 0) {
+                        logger.warn('用户所有备用恢复码已用完:', { 
+                            userId, 
+                            username: user.username 
+                        });
+                    } else if (remainingCount <= 3) {
+                        logger.warn('用户备用恢复码数量不足:', { 
+                            userId, 
+                            username: user.username,
+                            remainingCount 
+                        });
+                    }
+                } else {
+                    // 记录失败的验证尝试
+                    logger.warn('备用恢复码验证失败:', { 
+                        userId, 
+                        username: user.username,
+                        attemptedCode: backupCode.toUpperCase().replace(/[^A-Z0-9]/g, ''),
+                        availableCodes: user.backupCodes.length
+                    });
                 }
             }
 
@@ -347,6 +386,43 @@ export class TOTPController {
         } catch (error) {
             logger.error('获取TOTP状态失败:', error);
             res.status(500).json({ error: '获取TOTP状态失败' });
+        }
+    }
+
+    /**
+     * 获取备用恢复码
+     */
+    public static async getBackupCodes(req: Request, res: Response) {
+        try {
+            const userId = req.headers.authorization?.replace('Bearer ', '');
+            
+            if (!userId) {
+                return res.status(401).json({ error: '未授权访问' });
+            }
+
+            const user = await UserStorage.getUserById(userId);
+            if (!user) {
+                return res.status(404).json({ error: '用户不存在' });
+            }
+
+            if (!user.totpEnabled) {
+                return res.status(400).json({ error: 'TOTP未启用' });
+            }
+
+            if (!user.backupCodes || user.backupCodes.length === 0) {
+                return res.status(404).json({ error: '没有可用的备用恢复码' });
+            }
+
+            logger.info('获取备用恢复码成功:', { userId, username: user.username, remainingCodes: user.backupCodes.length });
+
+            res.json({
+                backupCodes: user.backupCodes,
+                remainingCount: user.backupCodes.length,
+                message: '备用恢复码获取成功'
+            });
+        } catch (error) {
+            logger.error('获取备用恢复码失败:', error);
+            res.status(500).json({ error: '获取备用恢复码失败' });
         }
     }
 

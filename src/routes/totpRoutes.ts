@@ -18,4 +18,7 @@ router.post('/disable', TOTPController.disable);
 // 获取TOTP状态
 router.get('/status', TOTPController.getStatus);
 
+// 获取备用恢复码
+router.get('/backup-codes', TOTPController.getBackupCodes);
+
 export default router; 
