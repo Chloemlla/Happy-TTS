@@ -26,6 +26,32 @@ function validateFileName(fileName: string): string {
   return basename(sanitized);
 }
 
+// 验证输出格式
+function validateOutputFormat(format: string): 'mp3' | 'opus' | 'aac' | 'flac' {
+  const validFormats = ['mp3', 'opus', 'aac', 'flac'];
+  if (validFormats.includes(format)) {
+    return format as 'mp3' | 'opus' | 'aac' | 'flac';
+  }
+  return 'mp3'; // 默认格式
+}
+
+// 生成安全的文件名
+function generateSafeFileName(customFileName?: string, outputFormat?: string): string {
+  const safeOutputFormat = validateOutputFormat(outputFormat || 'mp3');
+  
+  if (customFileName) {
+    const validatedFileName = validateFileName(customFileName);
+    // 确保文件名有正确的扩展名
+    if (!validatedFileName.includes('.')) {
+      return `${validatedFileName}.${safeOutputFormat}`;
+    }
+    return validatedFileName;
+  }
+  
+  // 使用UUID生成文件名
+  return `${uuidv4()}.${safeOutputFormat}`;
+}
+
 export async function generateSpeech(options: TTSOptions): Promise<string> {
   const {
     text,
@@ -46,7 +72,7 @@ export async function generateSpeech(options: TTSOptions): Promise<string> {
     });
 
     // 安全处理文件名
-    const safeFileName = customFileName ? validateFileName(customFileName) : `${uuidv4()}.${outputFormat}`;
+    const safeFileName = generateSafeFileName(customFileName, outputFormat);
     const filePath = join(config.paths.finish, safeFileName);
 
     await writeFile(filePath, Buffer.from(await response.arrayBuffer()));
