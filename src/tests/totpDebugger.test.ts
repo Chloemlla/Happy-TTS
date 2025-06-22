@@ -205,7 +205,7 @@ describe('TOTPDebugger', () => {
       const originalGetTimezoneOffset = Date.prototype.getTimezoneOffset;
       const originalResolvedOptions = Intl.DateTimeFormat.prototype.resolvedOptions;
       
-      Date.prototype.getTimezoneOffset = jest.fn().mockReturnValue(-480); // 上海时区偏移
+      Date.prototype.getTimezoneOffset = jest.fn().mockReturnValue(-60); // 1小时偏移，在300分钟阈值内
       Intl.DateTimeFormat.prototype.resolvedOptions = jest.fn().mockReturnValue({
         timeZone: 'Asia/Shanghai'
       });
