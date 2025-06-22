@@ -48,7 +48,6 @@ RUN npm ci --only=production && \
 
 # 复制后端源代码和配置文件（这层会在源代码变化时重新构建）
 COPY src/ ./src/
-COPY prisma/ ./prisma/
 COPY tsconfig.json ./
 
 # 构建后端（增加重试机制）
@@ -75,7 +74,6 @@ RUN npm ci --only=production && \
 
 # 从构建阶段复制文件
 COPY --from=backend-builder /app/dist-obfuscated ./dist
-COPY prisma/ ./prisma
 COPY --from=frontend-builder /app/frontend/dist ./public
 
 # 暴露端口
