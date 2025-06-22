@@ -118,28 +118,35 @@ export class TOTPController {
      * 验证并启用TOTP
      */
     public static async verifyAndEnable(req: Request, res: Response) {
+        let userId: string | undefined;
+        let user: any = undefined;
         try {
-            const userId = req.headers.authorization?.replace('Bearer ', '');
+            userId = req.headers.authorization?.replace('Bearer ', '');
             const { token } = req.body;
 
             if (!userId) {
+                logger.warn('verifyAndEnable: 未授权访问', { userId, token, body: req.body });
                 return res.status(401).json({ error: '未授权访问' });
             }
 
             if (!token) {
+                logger.warn('verifyAndEnable: 未提供验证码', { userId, token, body: req.body });
                 return res.status(400).json({ error: '请提供验证码' });
             }
 
-            const user = await UserStorage.getUserById(userId);
+            user = await UserStorage.getUserById(userId);
             if (!user) {
+                logger.warn('verifyAndEnable: 用户不存在', { userId, token, body: req.body });
                 return res.status(404).json({ error: '用户不存在' });
             }
 
             if (user.totpEnabled) {
+                logger.warn('verifyAndEnable: TOTP已经启用', { userId, username: user.username });
                 return res.status(400).json({ error: 'TOTP已经启用' });
             }
 
             if (!user.totpSecret) {
+                logger.warn('verifyAndEnable: 未生成TOTP设置', { userId, username: user.username });
                 return res.status(400).json({ error: '请先生成TOTP设置' });
             }
 
@@ -147,6 +154,7 @@ export class TOTPController {
             const attemptCheck = TOTPController.checkTOTPAttempts(userId);
             if (!attemptCheck.allowed) {
                 const remainingTime = Math.ceil((attemptCheck.lockedUntil! - Date.now()) / 1000 / 60);
+                logger.warn('verifyAndEnable: 验证尝试次数过多', { userId, username: user.username, lockedUntil: attemptCheck.lockedUntil });
                 return res.status(429).json({ 
                     error: `验证尝试次数过多，请${remainingTime}分钟后再试`,
                     lockedUntil: attemptCheck.lockedUntil
@@ -155,12 +163,14 @@ export class TOTPController {
 
             // 验证令牌
             const isValid = TOTPService.verifyToken(token, user.totpSecret);
+            logger.info('verifyAndEnable: 验证TOTP令牌', { userId, username: user.username, token, isValid });
             
             // 记录验证尝试
             TOTPController.recordTOTPAttempt(userId, isValid);
             
             if (!isValid) {
                 const remainingAttempts = attemptCheck.remainingAttempts - 1;
+                logger.warn('verifyAndEnable: 验证码错误', { userId, username: user.username, token, remainingAttempts });
                 return res.status(400).json({ 
                     error: '验证码错误',
                     remainingAttempts,
@@ -178,7 +188,13 @@ export class TOTPController {
                 enabled: true
             });
         } catch (error) {
-            logger.error('验证并启用TOTP失败:', error);
+            logger.error('验证并启用TOTP失败:', {
+                error: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined,
+                userId,
+                user,
+                body: req.body
+            });
             res.status(500).json({ error: '验证并启用TOTP失败' });
         }
     }
