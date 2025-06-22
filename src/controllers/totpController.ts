@@ -509,6 +509,50 @@ export class TOTPController {
     }
 
     /**
+     * 重新生成备用恢复码
+     */
+    public static async regenerateBackupCodes(req: Request, res: Response) {
+        try {
+            const userId = req.headers.authorization?.replace('Bearer ', '');
+            
+            if (!userId) {
+                return res.status(401).json({ error: '未授权访问' });
+            }
+
+            const user = await UserStorage.getUserById(userId);
+            if (!user) {
+                return res.status(404).json({ error: '用户不存在' });
+            }
+
+            if (!user.totpEnabled) {
+                return res.status(400).json({ error: 'TOTP未启用' });
+            }
+
+            // 生成新的备用恢复码
+            const newBackupCodes = TOTPService.generateBackupCodes();
+            
+            // 更新用户的备用恢复码
+            await TOTPController.updateUserBackupCodes(userId, newBackupCodes);
+
+            logger.info('备用恢复码重新生成成功:', { 
+                userId, 
+                username: user.username, 
+                newCodesCount: newBackupCodes.length,
+                previousCodesCount: user.backupCodes?.length || 0
+            });
+
+            res.json({
+                backupCodes: newBackupCodes,
+                remainingCount: newBackupCodes.length,
+                message: '备用恢复码重新生成成功'
+            });
+        } catch (error) {
+            logger.error('重新生成备用恢复码失败:', error);
+            res.status(500).json({ error: '重新生成备用恢复码失败' });
+        }
+    }
+
+    /**
      * 更新用户TOTP信息
      */
     private static async updateUserTOTP(userId: string, secret: string, enabled: boolean, backupCodes: string[]): Promise<void> {

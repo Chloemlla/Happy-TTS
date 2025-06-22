@@ -21,4 +21,7 @@ router.get('/status', TOTPController.getStatus);
 // 获取备用恢复码
 router.get('/backup-codes', TOTPController.getBackupCodes);
 
+// 重新生成备用恢复码
+router.post('/regenerate-backup-codes', TOTPController.regenerateBackupCodes);
+
 export default router; 
