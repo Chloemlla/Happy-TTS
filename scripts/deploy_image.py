@@ -16,7 +16,8 @@ load_dotenv()
 def remote_login(server_address, username, port, private_key):
     private_key_obj = paramiko.RSAKey.from_private_key(StringIO(private_key))
     ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.load_system_host_keys()  # 加载~/.ssh/known_hosts
+    ssh.set_missing_host_key_policy(paramiko.RejectPolicy())  # 拒绝未知主机
     ssh.connect(
         hostname=server_address, username=username, port=port, pkey=private_key_obj
     )

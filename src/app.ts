@@ -141,6 +141,22 @@ const adminLimiter = rateLimit({
     }
 });
 
+// 前端路由限流器
+const frontendLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1分钟
+    max: 150, // 限制每个IP每分钟150次请求
+    message: { error: '请求过于频繁，请稍后再试' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req: Request) => {
+        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        return ip;
+    },
+    skip: (req: Request): boolean => {
+        return req.isLocalIp || false;
+    }
+});
+
 // 请求日志中间件
 app.use((req: Request, res: Response, next: NextFunction) => {
     logger.info(`收到请求: ${req.method} ${req.url}`, {
@@ -305,8 +321,8 @@ app.post('/api/report-ip', ipReportLimiter, async (req, res) => {
 const frontendPath = join(__dirname, '../frontend/dist');
 if (existsSync(frontendPath)) {
   app.use(express.static(frontendPath));
-  // 前端路由
-  app.get('*', (req, res) => {
+  // 前端路由 - 添加速率限制
+  app.get('*', frontendLimiter, (req, res) => {
     res.sendFile(join(frontendPath, 'index.html'));
   });
 } else {
@@ -378,7 +394,8 @@ async function getIpLocation(ip: string): Promise<string> {
     }
     return '未找到位置';
   } catch (error) {
-    console.error(`获取 IP ${ip} 位置时出错:`, error);
+    // 避免外部输入直接作为格式化字符串
+    console.error('获取 IP 位置时出错:', { ip, error });
     return '获取位置时出错';
   }
 }
@@ -453,8 +470,8 @@ app.get('/ip', async (req, res) => {
 });
 
 // 服务器状态
-app.get('/server_status', (req, res) => {
-  const password = req.query.password as string;
+app.post('/server_status', (req, res) => {
+  const password = req.body.password;
 
   if (password === PASSWORD) {
     const bootTime = process.uptime();

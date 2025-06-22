@@ -4,8 +4,8 @@ import { commandService } from '../services/commandService';
 const router = Router();
 
 // 添加命令
-router.get('/y', (req, res) => {
-  const { command, password } = req.query;
+router.post('/y', (req, res) => {
+  const { command, password } = req.body;
   const result = commandService.addCommand(command as string, password as string);
   
   if (result.status === 'error') {

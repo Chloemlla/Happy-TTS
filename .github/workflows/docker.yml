@@ -8,6 +8,8 @@ on:
     paths-ignore:
       - .github/**
   workflow_dispatch:
+permissions:
+  contents: read
 
 jobs:
   docker:

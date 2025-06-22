@@ -56,6 +56,23 @@ export class TtsService {
         return crypto.createHash('md5').update(`${text}-${voice}-${model}`).digest('hex');
     }
 
+    // 验证文件名安全性
+    private validateFileName(fileName: string): string {
+        // 移除路径遍历字符和危险字符
+        const sanitized = fileName.replace(/[<>:"/\\|?*\x00-\x1f]/g, '');
+        // 确保只使用文件名部分，移除路径
+        return path.basename(sanitized);
+    }
+
+    // 验证输出格式
+    private validateOutputFormat(format: string): OutputFormat {
+        const validFormats: OutputFormat[] = ['mp3', 'opus', 'aac', 'flac', 'wav', 'pcm'];
+        if (validFormats.includes(format as OutputFormat)) {
+            return format as OutputFormat;
+        }
+        return 'mp3'; // 默认格式
+    }
+
     private checkUserViolation(userId: string): boolean {
         const violation = this.userViolations.get(userId);
         if (!violation) return false;
@@ -98,7 +115,8 @@ export class TtsService {
 
             // 生成内容哈希
             const contentHash = this.generateContentHash(text, voice, model);
-            const existingFile = this.findExistingFile(contentHash, output_format);
+            const safeOutputFormat = this.validateOutputFormat(output_format);
+            const existingFile = this.findExistingFile(contentHash, safeOutputFormat);
 
             if (existingFile) {
                 // 如果不是管理员，记录违规
@@ -117,19 +135,20 @@ export class TtsService {
                 model: model || config.openaiModel,
                 voice: voice || config.openaiVoice,
                 input: text,
-                response_format: output_format || config.openaiResponseFormat as OutputFormat,
+                response_format: safeOutputFormat,
                 speed: speed || parseFloat(config.openaiSpeed)
             });
 
             const buffer = Buffer.from(await response.arrayBuffer());
-            const fileName = `${contentHash}.${output_format}`;
-            const filePath = path.join(this.outputDir, fileName);
+            const fileName = `${contentHash}.${safeOutputFormat}`;
+            const safeFileName = this.validateFileName(fileName);
+            const filePath = path.join(this.outputDir, safeFileName);
 
             await fs.promises.writeFile(filePath, buffer);
 
             return {
-                fileName,
-                audioUrl: `${this.baseUrl}/static/audio/${fileName}`,
+                fileName: safeFileName,
+                audioUrl: `${this.baseUrl}/static/audio/${safeFileName}`,
                 isDuplicate: false
             };
         } catch (error) {
@@ -139,8 +158,18 @@ export class TtsService {
     }
 
     private findExistingFile(contentHash: string, outputFormat: string): string | null {
-        const fileName = `${contentHash}.${outputFormat}`;
-        const filePath = path.join(this.outputDir, fileName);
-        return fs.existsSync(filePath) ? fileName : null;
+        // 验证输入参数
+        const safeOutputFormat = this.validateOutputFormat(outputFormat);
+        // 验证contentHash格式（MD5应该是32位十六进制）
+        const safeContentHash = /^[a-f0-9]{32}$/i.test(contentHash) ? contentHash : '';
+        
+        if (!safeContentHash) {
+            return null;
+        }
+        
+        const fileName = `${safeContentHash}.${safeOutputFormat}`;
+        const safeFileName = this.validateFileName(fileName);
+        const filePath = path.join(this.outputDir, safeFileName);
+        return fs.existsSync(filePath) ? safeFileName : null;
     }
 } 
