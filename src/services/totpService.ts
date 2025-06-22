@@ -57,11 +57,12 @@ export class TOTPService {
             const safeUsername = username.replace(/[^a-zA-Z0-9_-]/g, '_');
             const safeServiceName = serviceName.replace(/[^a-zA-Z0-9_-]/g, '_');
             
-            // 直接使用speakeasy.otpauthURL方法
+            // 直接使用speakeasy.otpauthURL方法，传入base32密钥并指定编码
             const otpauthUrl = speakeasy.otpauthURL({
                 secret: secret,
                 label: `${safeServiceName}:${safeUsername}`,
                 issuer: safeServiceName,
+                encoding: 'base32', // 明确指定传入的是base32编码
                 algorithm: 'sha1',
                 digits: 6,
                 period: 30
