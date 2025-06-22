@@ -96,7 +96,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
       <motion.button
         onClick={toggleMenu}
         whileTap={{ scale: 0.95 }}
-        className="flex items-center justify-center px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors h-10"
+        className="flex items-center justify-center p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
         aria-label="打开菜单"
       >
         <svg 

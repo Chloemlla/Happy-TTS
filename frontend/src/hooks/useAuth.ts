@@ -99,7 +99,9 @@ export const useAuth = () => {
                 setUser(data);
                 if (data.role === 'admin' && !isAdminCheckedRef.current) {
                     setIsAdminChecked(true);
-                    if (locationPathRef.current !== '/') {
+                    // 排除特定路径，避免管理员访问这些页面时被重定向
+                    const excludedPaths = ['/policy', '/welcome', '/admin/users'];
+                    if (locationPathRef.current !== '/' && !excludedPaths.includes(locationPathRef.current)) {
                         navigate('/', { replace: true });
                     }
                 }

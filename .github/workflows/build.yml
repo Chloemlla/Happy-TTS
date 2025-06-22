@@ -38,6 +38,15 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@main
+        with:
+          name: build-artifacts
+          path: |
+            dist/
+            frontend/dist/
+          retention-days: 30
+
       - name: Cache build artifacts
         uses: actions/cache@main
         with:
