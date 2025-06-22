@@ -22,18 +22,6 @@ export const handleTOTPError = (error: any): string => {
       message = `验证码错误，还剩${remainingAttempts}次尝试机会`;
     }
     
-    // 如果有调试信息，添加期望的验证码
-    if (errorData.debug?.expectedToken) {
-      message += `\n\n调试信息：\n当前窗口期望验证码：${errorData.debug.expectedToken}`;
-      if (errorData.debug.prevToken) {
-        message += `\n前一个窗口：${errorData.debug.prevToken}`;
-      }
-      if (errorData.debug.nextToken) {
-        message += `\n下一个窗口：${errorData.debug.nextToken}`;
-      }
-      message += `\n\n如果验证码不匹配，可能是时间同步问题，请检查认证器应用的时间设置。`;
-    }
-    
     return message;
   } else {
     return errorData?.error || '验证失败';
