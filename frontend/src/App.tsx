@@ -11,6 +11,7 @@ import UserManagement from './components/UserManagement';
 import TOTPManager from './components/TOTPManager';
 import { TOTPStatus } from './types/auth';
 import MobileNav from './components/MobileNav';
+import ApiDocs from './components/ApiDocs';
 
 const App: React.FC = () => {
   const { user, loading, logout } = useAuth();
@@ -160,6 +161,7 @@ const App: React.FC = () => {
                 <Navigate to="/" replace />
               )
             } />
+            <Route path="/api-docs" element={<ApiDocs />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
@@ -318,6 +320,7 @@ const App: React.FC = () => {
               <Navigate to="/" replace />
             )
           } />
+          <Route path="/api-docs" element={<ApiDocs />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

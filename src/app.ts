@@ -198,7 +198,10 @@ app.use('/api/tts/generate', ttsLimiter);
 app.use('/api/auth', authLimiter);
 app.use('/api/auth/me', meEndpointLimiter); // 为 /me 端点添加特殊的限流器
 app.use('/api/tts/history', historyLimiter);
-
+// 放在所有API路由之后
+app.get('/docs', (req, res) => {
+  res.redirect('https://tts.hapx.one/api-docs');
+});
 // Static files
 const audioDir = path.join(__dirname, '../finish');
 app.use('/static/audio', express.static(audioDir, {

@@ -52,6 +52,8 @@
     "qrcode": "^1.5.4",
     "serve": "^14.2.1",
     "speakeasy": "^2.0.0",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
     "uuid": "^11.1.0",
     "validator": "^13.15.15",
     "winston": "^3.11.0"
