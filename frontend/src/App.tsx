@@ -35,6 +35,32 @@ const App: React.FC = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  useEffect(() => {
+    const fetchTOTPStatus = async () => {
+      if (!user) {
+        setTotpStatus(null);
+        return;
+      }
+      try {
+        const response = await fetch('/api/totp/status', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setTotpStatus(data);
+        } else {
+          setTotpStatus(null);
+        }
+      } catch (e) {
+        setTotpStatus(null);
+      }
+    };
+    fetchTOTPStatus();
+  }, [user]);
+
   const handleTOTPStatusChange = (status: TOTPStatus) => {
     setTotpStatus(status);
   };
