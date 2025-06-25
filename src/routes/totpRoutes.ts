@@ -23,25 +23,81 @@ const totpLimiter = rateLimit({
     }
 });
 
-// 生成TOTP设置信息
+/**
+ * @openapi
+ * /totp/generate-setup:
+ *   post:
+ *     summary: 生成TOTP设置信息
+ *     responses:
+ *       200:
+ *         description: 生成TOTP设置信息
+ */
 router.post('/generate-setup', totpLimiter, TOTPController.generateSetup);
 
-// 验证并启用TOTP
+/**
+ * @openapi
+ * /totp/verify-and-enable:
+ *   post:
+ *     summary: 验证并启用TOTP
+ *     responses:
+ *       200:
+ *         description: 验证并启用TOTP
+ */
 router.post('/verify-and-enable', totpLimiter, TOTPController.verifyAndEnable);
 
-// 验证TOTP令牌
+/**
+ * @openapi
+ * /totp/verify-token:
+ *   post:
+ *     summary: 验证TOTP令牌
+ *     responses:
+ *       200:
+ *         description: 验证TOTP令牌
+ */
 router.post('/verify-token', totpLimiter, TOTPController.verifyToken);
 
-// 禁用TOTP
+/**
+ * @openapi
+ * /totp/disable:
+ *   post:
+ *     summary: 禁用TOTP
+ *     responses:
+ *       200:
+ *         description: 禁用TOTP
+ */
 router.post('/disable', totpLimiter, TOTPController.disable);
 
-// 获取TOTP状态
+/**
+ * @openapi
+ * /totp/status:
+ *   get:
+ *     summary: 获取TOTP状态
+ *     responses:
+ *       200:
+ *         description: 获取TOTP状态
+ */
 router.get('/status', totpLimiter, TOTPController.getStatus);
 
-// 获取备用恢复码
+/**
+ * @openapi
+ * /totp/backup-codes:
+ *   get:
+ *     summary: 获取备用恢复码
+ *     responses:
+ *       200:
+ *         description: 获取备用恢复码
+ */
 router.get('/backup-codes', totpLimiter, TOTPController.getBackupCodes);
 
-// 重新生成备用恢复码
+/**
+ * @openapi
+ * /totp/regenerate-backup-codes:
+ *   post:
+ *     summary: 重新生成备用恢复码
+ *     responses:
+ *       200:
+ *         description: 重新生成备用恢复码
+ */
 router.post('/regenerate-backup-codes', totpLimiter, TOTPController.regenerateBackupCodes);
 
 export default router; 

@@ -4,7 +4,22 @@ import { logger } from '../services/logger';
 
 const router = Router();
 
-// 支持多种 HTTP 方法的数据收集路由
+/**
+ * @openapi
+ * /collect_data:
+ *   post:
+ *     summary: 数据收集
+ *     description: 支持多种 HTTP 方法的数据收集接口
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: 数据收集成功
+ */
 router.all('/collect_data', async (req, res) => {
   try {
     let data: any;

@@ -41,7 +41,7 @@ export class TtsService {
             apiKey: config.openaiApiKey
         });
         this.outputDir = config.audioDir;
-        this.baseUrl = config.baseUrl || 'https://tts-api.hapxs.com';
+        this.baseUrl = config.baseUrl;
         this.userViolations = new Map();
         this.ensureOutputDir();
     }

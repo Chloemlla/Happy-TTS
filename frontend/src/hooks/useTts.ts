@@ -5,7 +5,7 @@ import { verifyContent } from '../utils/sign';
 
 // 创建axios实例
 const api = axios.create({
-    baseURL: 'https://tts-api.hapxs.com',  // 直接连接到后端服务
+    baseURL: import.meta.env.VITE_API_URL || 'https://tts-api.hapxs.com',  // 优先用环境变量
     withCredentials: true,
     headers: {
         'Content-Type': 'application/json'

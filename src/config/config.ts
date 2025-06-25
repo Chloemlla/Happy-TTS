@@ -17,7 +17,7 @@ export const config = {
   // 添加本地 IP 配置
   localIps: ['127.0.0.1', 'localhost', '::1'],
   // 添加基础URL配置
-  baseUrl: process.env.BASE_URL || 'http://localhost:3000',
+  baseUrl: process.env.VITE_API_URL || process.env.BASE_URL || 'https://tts-api.hapxs.com',
   // 添加生成码配置
   generationCode: process.env.GENERATION_CODE || 'wmy',
   // JWT 配置

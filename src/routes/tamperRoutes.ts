@@ -4,6 +4,22 @@ import logger from '../utils/logger';
 
 const router = Router();
 
+/**
+ * @openapi
+ * /report-tampering:
+ *   post:
+ *     summary: 上报篡改事件
+ *     description: 上报客户端检测到的篡改事件
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: 篡改报告已记录
+ */
 router.post('/report-tampering', async (req, res) => {
   try {
     const tamperEvent = {

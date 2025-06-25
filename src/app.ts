@@ -32,6 +32,8 @@ import libreChatRoutes from './routes/libreChatRoutes';
 import dataCollectionRoutes from './routes/dataCollectionRoutes';
 import { AuthController, isAdminToken, registerLogoutRoute } from './controllers/authController';
 import { adminController } from 'controllers/adminController';
+import swaggerJSDoc from 'swagger-jsdoc';
+import swaggerUi from 'swagger-ui-express';
 
 // 扩展 Request 类型
 declare global {
@@ -511,6 +513,21 @@ app.post('/server_status', (req, res) => {
 
 // 注册登出接口
 registerLogoutRoute(app);
+
+// ========== Swagger OpenAPI 文档集成 ==========
+const swaggerOptions = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'Synapse API 文档',
+      version: '1.0.0',
+      description: '基于 OpenAPI 3.0 的接口文档'
+    }
+  },
+  apis: [path.join(__dirname, './routes/*.ts')],
+};
+const swaggerSpec = swaggerJSDoc(swaggerOptions);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Start server
 const PORT = config.port;
