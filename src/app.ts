@@ -187,6 +187,17 @@ app.use(cors({
     maxAge: 86400 // 预检请求的结果可以缓存24小时
 }));
 app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+            fontSrc: ["'self'", "https://fonts.gstatic.com"],
+            connectSrc: ["'self'", "https://api.ipify.org", "https://ipapi.co", "https://ipinfo.io"],
+            imgSrc: ["'self'", "data:", "https://api.ipify.org", "https://ipapi.co", "https://ipinfo.io"],
+            scriptSrc: ["'self'", "'unsafe-inline'"],
+            frameSrc: ["'self'", "https://tts.hapx.one"]
+        }
+    },
     crossOriginResourcePolicy: { policy: "cross-origin" },
     crossOriginEmbedderPolicy: false
 }));
@@ -200,10 +211,41 @@ app.use('/api/tts/generate', ttsLimiter);
 app.use('/api/auth', authLimiter);
 app.use('/api/auth/me', meEndpointLimiter); // 为 /me 端点添加特殊的限流器
 app.use('/api/tts/history', historyLimiter);
-// 放在所有API路由之后
-app.get('/docs', (req, res) => {
-  res.redirect('https://tts.hapx.one/api-docs');
+
+// ========== Swagger OpenAPI 文档集成 ==========
+const swaggerOptions = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'Synapse API 文档',
+      version: '1.0.0',
+      description: '基于 OpenAPI 3.0 的接口文档'
+    }
+  },
+  apis: [
+    path.join(process.cwd(), 'src/routes/*.ts'),
+    path.join(process.cwd(), 'dist/routes/*.js')
+  ],
+};
+const swaggerSpec = swaggerJSDoc(swaggerOptions);
+
+// openapi.json 路由（必须在最前面）
+const openapiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1分钟
+  max: 10, // 每个IP每分钟最多10次
+  message: { error: '请求过于频繁，请稍后再试' }
 });
+app.get('/api/api-docs.json', openapiLimiter, (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(fs.readFileSync(path.join(process.cwd(), 'openapi.json'), 'utf-8'));
+});
+app.get('/api-docs.json', openapiLimiter, (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(fs.readFileSync(path.join(process.cwd(), 'openapi.json'), 'utf-8'));
+});
+// Swagger UI 路由
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 // Static files
 const audioDir = path.join(__dirname, '../finish');
 app.use('/static/audio', express.static(audioDir, {
@@ -326,49 +368,13 @@ app.post('/api/report-ip', ipReportLimiter, async (req, res) => {
 const frontendPath = join(__dirname, '../frontend/dist');
 if (existsSync(frontendPath)) {
   app.use(express.static(frontendPath));
-  // 前端路由 - 添加速率限制
-  app.get('*', frontendLimiter, (req, res) => {
+  // 前端 SPA 路由 - 只匹配非 /api /api-docs /static /openapi 开头的路径
+  app.get(/^\/(?!api|api-docs|static|openapi)(.*)/, frontendLimiter, (req, res) => {
     res.sendFile(join(frontendPath, 'index.html'));
   });
 } else {
   logger.warn('Frontend files not found at:', frontendPath);
 }
-
-// ========== Swagger OpenAPI 文档集成 ==========
-const swaggerOptions = {
-  definition: {
-    openapi: '3.0.0',
-    info: {
-      title: 'Synapse API 文档',
-      version: '1.0.0',
-      description: '基于 OpenAPI 3.0 的接口文档'
-    }
-  },
-  apis: [
-    path.join(process.cwd(), 'src/routes/*.ts'),
-    path.join(process.cwd(), 'dist/routes/*.js')
-  ],
-};
-const swaggerSpec = swaggerJSDoc(swaggerOptions);
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
-const openapiJsonPath = path.join(process.cwd(), 'openapi.json');
-
-// 针对 openapi.json 的限流器（每个IP每分钟最多30次）
-const openapiLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1分钟
-  max: 10, // 每个IP每分钟最多10次
-  message: { error: '请求过于频繁，请稍后再试' }
-});
-
-app.get('/api/api-docs.json', openapiLimiter, (req, res) => {
-  res.setHeader('Content-Type', 'application/json');
-  res.send(fs.readFileSync(openapiJsonPath, 'utf-8'));
-});
-app.get('/api-docs.json', openapiLimiter, (req, res) => {
-  res.setHeader('Content-Type', 'application/json');
-  res.send(fs.readFileSync(openapiJsonPath, 'utf-8'));
-});
 
 // 文档加载超时上报接口
 app.post('/api/report-docs-timeout', express.json(), (req, res) => {
