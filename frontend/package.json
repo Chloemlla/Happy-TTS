@@ -19,7 +19,7 @@
     "bcrypt": "^6.0.0",
     "dompurify": "^3.2.6",
     "express-rate-limit": "^7.5.0",
-    "framer-motion": "^12.18.1",
+    "framer-motion": "^12.19.1",
     "synapse-frontend": "file:",
     "jsdom": "^26.1.0",
     "jsonwebtoken": "^9.0.2",
