@@ -47,8 +47,8 @@ declare global {
 const app = express();
 const execAsync = promisify(exec);
 
-// 设置信任代理 - 信任所有代理
-app.set('trust proxy', true);
+// 设置信任代理 - 只信任第一个代理（安全）
+app.set('trust proxy', 1);
 
 // 检查是否是本地 IP 的中间件
 const isLocalIp = (req: Request, res: Response, next: NextFunction) => {
