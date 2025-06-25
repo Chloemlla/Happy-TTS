@@ -235,13 +235,39 @@ const ApiDocs: React.FC = () => {
   const [codeTab, setCodeTab] = useState<'curl'|'axios'|'fetch'|'python'|'go'>('curl');
 
   useEffect(() => {
+    let timeoutId: any;
+    let didTimeout = false;
+
+    // 超时2秒后上报
+    timeoutId = setTimeout(() => {
+      didTimeout = true;
+      fetch('/api/report-docs-timeout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: '/api/api-docs.json',
+          timestamp: Date.now(),
+          userAgent: navigator.userAgent
+        })
+      });
+    }, 2000);
+
     fetch('/api/api-docs.json')
       .then(res => res.json())
       .then(openapi => {
-        const docs = openApiToApiDocs(openapi);
-        setApiDocs(docs);
+        if (!didTimeout) {
+          clearTimeout(timeoutId);
+          const docs = openApiToApiDocs(openapi);
+          setApiDocs(docs);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        clearTimeout(timeoutId);
         setLoading(false);
       });
+
+    return () => clearTimeout(timeoutId);
   }, []);
 
   const filtered = useMemo(() => {
