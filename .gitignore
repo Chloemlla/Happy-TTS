@@ -11,6 +11,7 @@ build/
 out/
 .next/
 .nuxt/
+openapi.json
 generation_records.json
 .cache/
 data/
