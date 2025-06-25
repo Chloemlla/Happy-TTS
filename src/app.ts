@@ -524,7 +524,7 @@ const swaggerOptions = {
       description: '基于 OpenAPI 3.0 的接口文档'
     }
   },
-  apis: [path.join(__dirname, './routes/*.ts')],
+  apis: [path.join(process.cwd(), 'src/routes/*.ts')],
 };
 const swaggerSpec = swaggerJSDoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
