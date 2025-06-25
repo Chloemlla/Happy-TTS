@@ -14,7 +14,11 @@ COPY frontend/package*.json ./frontend/
 WORKDIR /app/frontend
 
 # 安装前端依赖（包括开发依赖，因为需要构建工具）
-RUN npm ci
+RUN npm ci && \
+    npm install @fingerprintjs/fingerprintjs && \
+    npm install crypto-js && \
+    npm install --save-dev @types/crypto-js
+
 
 # 复制前端源代码（这层会在源代码变化时重新构建）
 COPY frontend/ .
