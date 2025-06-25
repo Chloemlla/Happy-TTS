@@ -334,15 +334,40 @@ if (existsSync(frontendPath)) {
   logger.warn('Frontend files not found at:', frontendPath);
 }
 
-// Error handling
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  logger.error('服务器错误:', {
-    error: err.message,
-    stack: err.stack,
-    url: req.url,
-    method: req.method
+// ========== Swagger OpenAPI 文档集成 ==========
+const swaggerOptions = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'Synapse API 文档',
+      version: '1.0.0',
+      description: '基于 OpenAPI 3.0 的接口文档'
+    }
+  },
+  apis: [path.join(process.cwd(), 'src/routes/*.ts')],
+};
+const swaggerSpec = swaggerJSDoc(swaggerOptions);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.get('/api/api-docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
+app.get('/api-docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
+
+// 文档加载超时上报接口
+app.post('/api/report-docs-timeout', express.json(), (req, res) => {
+  const { url, timestamp, userAgent } = req.body;
+  logger.error('API文档加载超时', {
+    url,
+    timestamp: new Date(timestamp).toISOString(),
+    userAgent,
+    ip: req.ip,
+    headers: req.headers
   });
-  res.status(500).json({ error: 'Something broke!' });
+  res.json({ success: true });
 });
 
 // 404 处理
@@ -513,45 +538,6 @@ app.post('/server_status', (req, res) => {
 
 // 注册登出接口
 registerLogoutRoute(app);
-
-// ========== Swagger OpenAPI 文档集成 ==========
-const swaggerOptions = {
-  definition: {
-    openapi: '3.0.0',
-    info: {
-      title: 'Synapse API 文档',
-      version: '1.0.0',
-      description: '基于 OpenAPI 3.0 的接口文档'
-    }
-  },
-  apis: [path.join(process.cwd(), 'src/routes/*.ts')],
-};
-const swaggerSpec = swaggerJSDoc(swaggerOptions);
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
-// 提供原始 OpenAPI JSON
-app.get('/api/api-docs.json', (req, res) => {
-  res.setHeader('Content-Type', 'application/json');
-  res.send(swaggerSpec);
-});
-// 兼容 /api-docs.json 路径
-app.get('/api-docs.json', (req, res) => {
-  res.setHeader('Content-Type', 'application/json');
-  res.send(swaggerSpec);
-});
-
-// 文档加载超时上报接口
-app.post('/api/report-docs-timeout', express.json(), (req, res) => {
-  const { url, timestamp, userAgent } = req.body;
-  logger.error('API文档加载超时', {
-    url,
-    timestamp: new Date(timestamp).toISOString(),
-    userAgent,
-    ip: req.ip,
-    headers: req.headers
-  });
-  res.json({ success: true });
-});
 
 // Start server
 const PORT = config.port;
