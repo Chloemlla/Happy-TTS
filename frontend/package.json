@@ -35,7 +35,7 @@
     "@types/javascript-obfuscator": "^0.17.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
-    "@vitejs/plugin-react": "^4.0.3",
+    "@vitejs/plugin-react": "^4.6.0",
     "autoprefixer": "^10.4.16",
     "javascript-obfuscator": "^4.1.1",
     "postcss": "^8.5.6",
