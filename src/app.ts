@@ -353,11 +353,19 @@ const swaggerSpec = swaggerJSDoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 const openapiJsonPath = path.join(process.cwd(), 'openapi.json');
-app.get('/api/api-docs.json', (req, res) => {
+
+// 针对 openapi.json 的限流器（每个IP每分钟最多30次）
+const openapiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1分钟
+  max: 10, // 每个IP每分钟最多10次
+  message: { error: '请求过于频繁，请稍后再试' }
+});
+
+app.get('/api/api-docs.json', openapiLimiter, (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   res.send(fs.readFileSync(openapiJsonPath, 'utf-8'));
 });
-app.get('/api-docs.json', (req, res) => {
+app.get('/api-docs.json', openapiLimiter, (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   res.send(fs.readFileSync(openapiJsonPath, 'utf-8'));
 });
