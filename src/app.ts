@@ -529,6 +529,12 @@ const swaggerOptions = {
 const swaggerSpec = swaggerJSDoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
+// 提供原始 OpenAPI JSON
+app.get('/api/api-docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
+
 // Start server
 const PORT = config.port;
 app.listen(Number(PORT), '0.0.0.0', async () => {
