@@ -53,6 +53,9 @@ COPY tsconfig.json ./
 # 构建后端（增加重试机制）
 RUN npm run build:backend || npm run build:backend
 
+# 生成 openapi.json
+RUN npm run generate:openapi
+
 # 生产环境
 FROM node:20-alpine
 
@@ -74,6 +77,7 @@ RUN npm ci --only=production && \
 
 # 从构建阶段复制文件
 COPY --from=backend-builder /app/dist-obfuscated ./dist
+COPY --from=backend-builder /app/openapi.json ./openapi.json
 COPY --from=frontend-builder /app/frontend/dist ./public
 
 # 暴露端口

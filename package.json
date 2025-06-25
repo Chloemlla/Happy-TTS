@@ -17,7 +17,8 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:auth": "jest --testPathPattern=authController.test.ts",
-    "test:rate-limit": "jest --testPathPattern=rateLimit.test.ts"
+    "test:rate-limit": "jest --testPathPattern=rateLimit.test.ts",
+    "generate:openapi": "node scripts/generate-openapi.js"
   },
   "keywords": [
     "happy",

@@ -351,13 +351,15 @@ const swaggerOptions = {
 };
 const swaggerSpec = swaggerJSDoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+const openapiJsonPath = path.join(process.cwd(), 'openapi.json');
 app.get('/api/api-docs.json', (req, res) => {
   res.setHeader('Content-Type', 'application/json');
-  res.send(swaggerSpec);
+  res.send(fs.readFileSync(openapiJsonPath, 'utf-8'));
 });
 app.get('/api-docs.json', (req, res) => {
   res.setHeader('Content-Type', 'application/json');
-  res.send(swaggerSpec);
+  res.send(fs.readFileSync(openapiJsonPath, 'utf-8'));
 });
 
 // 文档加载超时上报接口
