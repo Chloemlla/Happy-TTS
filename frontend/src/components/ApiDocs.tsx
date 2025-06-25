@@ -130,6 +130,7 @@ function renderParams(params: ApiParam[], lang: 'zh'|'en', level = 0) {
 
 // openApiToApiDocs 增强，递归解析 requestBody schema
 function openApiToApiDocs(openapi: any): ApiGroup[] {
+  if (!openapi.paths || typeof openapi.paths !== 'object') return [];
   const tagMap: Record<string, ApiGroup> = {};
   for (const path in openapi.paths) {
     for (const method in openapi.paths[path]) {
