@@ -534,6 +534,11 @@ app.get('/api/api-docs.json', (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   res.send(swaggerSpec);
 });
+// 兼容 /api-docs.json 路径
+app.get('/api-docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
 
 // Start server
 const PORT = config.port;
