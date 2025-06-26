@@ -167,7 +167,7 @@ const LogShare: React.FC = () => {
         </button>
         {queryResult && (
           <div className="mt-4">
-            <div className="mb-2 text-gray-600">类型: {queryResult.ext} {queryResult.encoding && <span>({queryResult.encoding})</span>}</div>
+            <div className="mb-2 text-gray-600">类型: {queryResult.ext ? queryResult.ext : '未知'} {queryResult.encoding && <span>({queryResult.encoding})</span>}</div>
             {isTextExt(queryResult.ext) ? (
               <pre className="bg-gray-100 p-2 rounded text-sm whitespace-pre-wrap max-h-64 overflow-auto border border-gray-200">{queryResult.content}</pre>
             ) : (
@@ -200,7 +200,7 @@ const LogShare: React.FC = () => {
           {queryHistory.map((item, idx) => (
             <li key={idx} className="mb-1 text-sm flex items-center gap-2">
               <button className="underline text-green-600" onClick={() => { setQueryId(item.id); setQueryResult(null); setSuccess(''); setError(''); }}>{item.id}</button>
-              <span className="text-gray-500">({item.ext})</span>
+              <span className="text-gray-500">{item.ext ? `(${item.ext})` : ''}</span>
               <span className="text-gray-400 ml-2">{item.time}</span>
             </li>
           ))}

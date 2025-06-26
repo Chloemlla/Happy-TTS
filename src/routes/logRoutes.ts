@@ -109,7 +109,7 @@ router.post('/sharelog/:id', logLimiter, async (req, res) => {
       return res.status(404).json({ error: '日志不存在' });
     }
     const filePath = path.join(SHARELOGS_DIR, fileName);
-    const ext = path.extname(fileName).toLowerCase();
+    const ext = path.extname(fileName).toLowerCase() || '.txt';
     logger.info(`[调试] 查询文件路径: filePath=${filePath}, ext=${ext}`);
     if ([".txt", ".log", ".json", ".md"].includes(ext)) {
       const content = fs.readFileSync(filePath, 'utf-8');
