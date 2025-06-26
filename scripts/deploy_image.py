@@ -6,12 +6,32 @@ from io import StringIO
 from dotenv import load_dotenv
 import logging
 import requests
+from datetime import datetime
+
+
+class InMemoryLogHandler(logging.Handler):
+    def __init__(self):
+        super().__init__()
+        self.logs = []
+
+    def emit(self, record):
+        self.logs.append(self.format(record))
+
+    def get_logs(self):
+        return "\n".join(self.logs)
+
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
 load_dotenv()
+
+# 替换logging.basicConfig，增加内存日志收集
+in_memory_handler = InMemoryLogHandler()
+formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+in_memory_handler.setFormatter(formatter)
+logging.getLogger().addHandler(in_memory_handler)
 
 
 def remote_login(server_address, username, port, private_key):
@@ -273,6 +293,19 @@ def upload_log_file(log_path, token=None):
     return None, None
 
 
+def write_deploy_log(server_address, username, container_names, image_url):
+    log_path = "deploy.log"
+    with open(log_path, "w", encoding="utf-8") as f:
+        f.write(f"部署时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"服务器: {server_address}\n")
+        f.write(f"用户名: {username}\n")
+        f.write(f"容器: {', '.join(container_names)}\n")
+        f.write(f"镜像: {image_url}\n")
+        f.write("\n--- 运行日志 ---\n")
+        f.write(in_memory_handler.get_logs())
+    return log_path
+
+
 def main():
     image_url = os.getenv("IMAGE_URL", "").strip()
     server_addresses = os.getenv("SERVER_ADDRESS", "").split(",")
@@ -321,8 +354,10 @@ def main():
         cleanup_unused_images(ssh)
         ssh.close()
 
-        # 日志上传
-        log_path = "deploy.log"
+        # 自动生成并上传日志
+        log_path = write_deploy_log(
+            server_address, username, container_names, image_url
+        )
         http_url, https_url = upload_log_file(log_path)
         if http_url or https_url:
             logging.info(f"日志已上传: {http_url or https_url}")

@@ -9,6 +9,7 @@ describe('logRoutes API', () => {
   let logId = '';
   const testLog = 'Jest test log content.';
   const sharelogsDir = path.join(process.cwd(), 'data', 'sharelogs');
+  const testFilePath = path.join(__dirname, 'testlog.txt');
 
   beforeAll(async () => {
     // 获取管理员密码
@@ -19,20 +20,28 @@ describe('logRoutes API', () => {
     if (!fs.existsSync(sharelogsDir)) {
       fs.mkdirSync(sharelogsDir, { recursive: true });
     }
+    // 创建测试文件
+    fs.writeFileSync(testFilePath, testLog, 'utf-8');
   });
 
   afterAll(() => {
     // 清理测试日志文件
     if (logId) {
-      const filePath = path.join(sharelogsDir, `${logId}.txt`);
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      const files = fs.readdirSync(sharelogsDir);
+      const fileName = files.find(f => f.startsWith(logId));
+      if (fileName) {
+        const filePath = path.join(sharelogsDir, fileName);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      }
     }
+    if (fs.existsSync(testFilePath)) fs.unlinkSync(testFilePath);
   });
 
   it('管理员密码正确时上传日志成功并返回访问链接', async () => {
     const res = await request(app)
       .post('/api/sharelog')
-      .send({ log: testLog, adminPassword });
+      .attach('file', testFilePath)
+      .field('adminPassword', adminPassword);
     expect(res.status).toBe(200);
     expect(res.body.id).toBeDefined();
     expect(res.body.link).toContain('/logshare?id=');
@@ -42,7 +51,8 @@ describe('logRoutes API', () => {
   it('管理员密码错误时上传失败', async () => {
     const res = await request(app)
       .post('/api/sharelog')
-      .send({ log: testLog, adminPassword: 'wrongpass' });
+      .attach('file', testFilePath)
+      .field('adminPassword', 'wrongpass');
     expect(res.status).toBe(403);
     expect(res.body.error).toMatch(/密码错误/);
   });
