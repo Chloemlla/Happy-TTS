@@ -72,6 +72,7 @@ router.post('/sharelog', logLimiter, upload.single('file'), async (req, res) => 
     const ext = path.extname(req.file.originalname) || '.txt';
     const fileId = crypto.randomBytes(8).toString('hex');
     const filePath = path.join(SHARELOGS_DIR, `${fileId}${ext}`);
+    logger.info(`[调试] 上传写入文件: filePath=${filePath}, ext=${ext}, fileName=${fileName}, size=${req.file.size}`);
     fs.writeFileSync(filePath, req.file.buffer);
     // 构造前端访问链接
     const baseUrl = 'https://tts-api.hapxs.com';
@@ -101,18 +102,22 @@ router.post('/sharelog/:id', logLimiter, async (req, res) => {
     // 查找以id开头的文件（支持多扩展名）
     const files = fs.readdirSync(SHARELOGS_DIR);
     const fileName = files.find(f => f.startsWith(id));
+    logger.info(`[调试] 查询文件: id=${id}, files=${JSON.stringify(files)}, fileName=${fileName}`);
     if (!fileName) {
       logger.warn(`查询 | IP:${ip} | 文件ID:${id} | 结果:失败 | 原因:日志不存在`);
       return res.status(404).json({ error: '日志不存在' });
     }
     const filePath = path.join(SHARELOGS_DIR, fileName);
     const ext = path.extname(fileName).toLowerCase();
+    logger.info(`[调试] 查询文件路径: filePath=${filePath}, ext=${ext}`);
     if ([".txt", ".log", ".json", ".md"].includes(ext)) {
       const content = fs.readFileSync(filePath, 'utf-8');
+      logger.info(`[调试] 读取文本内容前100字符: ${content.slice(0, 100)}`);
       logger.info(`查询 | IP:${ip} | 文件ID:${id} | 文件:${fileName} | 结果:成功 | 类型:文本`);
       return res.json({ content, ext });
     } else {
       const content = fs.readFileSync(filePath);
+      logger.info(`[调试] 读取二进制内容长度: ${content.length}`);
       logger.info(`查询 | IP:${ip} | 文件ID:${id} | 文件:${fileName} | 结果:成功 | 类型:二进制`);
       return res.json({ content: content.toString('base64'), ext, encoding: 'base64' });
     }
