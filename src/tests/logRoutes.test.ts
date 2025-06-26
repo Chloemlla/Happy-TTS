@@ -59,16 +59,16 @@ describe('logRoutes API', () => {
 
   it('查询日志内容成功', async () => {
     const res = await request(app)
-      .get(`/api/sharelog/${logId}`)
-      .query({ adminPassword });
+      .post(`/api/sharelog/${logId}`)
+      .send({ adminPassword });
     expect(res.status).toBe(200);
     expect(res.body.content).toBe(testLog);
   });
 
   it('查询不存在的日志返回404', async () => {
     const res = await request(app)
-      .get('/api/sharelog/notexistid')
-      .query({ adminPassword });
+      .post('/api/sharelog/notexistid')
+      .send({ adminPassword });
     expect(res.status).toBe(404);
     expect(res.body.error).toMatch(/日志不存在/);
   });
