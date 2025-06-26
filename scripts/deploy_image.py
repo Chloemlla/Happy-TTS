@@ -120,7 +120,7 @@ def recreate_container(ssh, old_container_name, new_image_url):
                 # 添加 SELinux 标签选项
                 selinux_label = mount.get("SELinuxRelabel", "")
                 if selinux_label:
-                    mount_opts.append(f"Z" if selinux_label == "shared" else "z")
+                    mount_opts.append("Z" if selinux_label == "shared" else "z")
 
                 # 添加其他模式选项
                 if mode:
@@ -213,36 +213,52 @@ def cleanup_unused_images(ssh):
 
 
 def main():
-    server_address = os.getenv("SERVER_ADDRESS")
-    username = os.getenv("USERNAME")
-    port = int(os.getenv("PORT", 22))
-    private_key = os.getenv("PRIVATE_KEY")
-    image_url = os.getenv("IMAGE_URL")
-    container_names = os.getenv("CONTAINER_NAMES").split("&")
+    image_url = os.getenv("IMAGE_URL", "").strip()
+    server_addresses = os.getenv("SERVER_ADDRESS", "").split(",")
+    usernames = os.getenv("USERNAME", "").split(",")
+    ports = os.getenv("PORT", "22").split(",")
+    private_keys = os.getenv("PRIVATE_KEY", "").split(",")
+    container_names_list = os.getenv("CONTAINER_NAMES", "").split(",")
 
-    if not all([server_address, username, private_key]):
-        logging.error("请确保 SERVER_ADDRESS, USERNAME 和 PRIVATE_KEY 环境变量已设置。")
+    num_servers = len(server_addresses)
+    if not all(
+        [
+            len(server_addresses)
+            == len(usernames)
+            == len(ports)
+            == len(private_keys)
+            == len(container_names_list)
+        ]
+    ):
+        logging.error("请确保所有服务器相关环境变量数量一致，并用英文逗号分隔。")
         return
 
-    ssh = remote_login(server_address, username, port, private_key)
-    image_url = os.getenv("IMAGE_URL")
+    for i in range(num_servers):
+        server_address = server_addresses[i].strip()
+        username = usernames[i].strip()
+        port = int(ports[i].strip()) if ports[i].strip() else 22
+        private_key = private_keys[i].strip()
+        container_names = [
+            name.strip() for name in container_names_list[i].split("&") if name.strip()
+        ]
 
-    if not image_url:
-        return
-
-    for container_name in container_names:
-        container_name = container_name.strip()
-        logging.info(f"正在处理容器：{container_name}")
-        backup_file = backup_container_settings(ssh, container_name)
-
-        if not backup_file:
+        if not all([server_address, username, private_key, image_url, container_names]):
+            logging.error(f"第{i+1}组服务器配置有缺失，请检查环境变量。")
             continue
 
-        pull_docker_image(ssh, image_url)
-        recreate_container(ssh, container_name, image_url)
+        logging.info(f"\n===== 正在处理服务器: {server_address} =====")
+        ssh = remote_login(server_address, username, port, private_key)
 
-    cleanup_unused_images(ssh)
-    ssh.close()
+        for container_name in container_names:
+            logging.info(f"正在处理容器：{container_name}")
+            backup_file = backup_container_settings(ssh, container_name)
+            if not backup_file:
+                continue
+            pull_docker_image(ssh, image_url)
+            recreate_container(ssh, container_name, image_url)
+
+        cleanup_unused_images(ssh)
+        ssh.close()
 
 
 if __name__ == "__main__":

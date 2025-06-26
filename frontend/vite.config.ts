@@ -55,6 +55,7 @@ export default defineConfig({
     port: 3001,
     allowedHosts: [
       'tts.hapx.one',
+      '18.217.88.110',
       'tts.hapxs.com',
       'localhost',
       '127.0.0.1'
