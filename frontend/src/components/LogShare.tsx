@@ -15,6 +15,14 @@ const LogShare: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [copied, setCopied] = useState(false);
+  const [uploadHistory, setUploadHistory] = useState<{ link: string, ext: string, time: string }[]>(() => {
+    const saved = localStorage.getItem('uploadHistory');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [queryHistory, setQueryHistory] = useState<{ id: string, ext: string, time: string }[]>(() => {
+    const saved = localStorage.getItem('queryHistory');
+    return saved ? JSON.parse(saved) : [];
+  });
 
   useEffect(() => {
     if (uploadResult && uploadResult.link) {
@@ -53,6 +61,10 @@ const LogShare: React.FC = () => {
       if (res.data.link) {
         setUploadResult({ link: res.data.link, ext: res.data.ext });
         setSuccess('上传成功！');
+        const newItem = { link: res.data.link, ext: res.data.ext, time: new Date().toLocaleString() };
+        const newHistory = [newItem, ...uploadHistory].slice(0, 10);
+        setUploadHistory(newHistory);
+        localStorage.setItem('uploadHistory', JSON.stringify(newHistory));
       } else {
         setError('上传失败');
       }
@@ -76,6 +88,10 @@ const LogShare: React.FC = () => {
       });
       setQueryResult(res.data);
       setSuccess('查询成功！');
+      const newItem = { id: queryId, ext: res.data.ext, time: new Date().toLocaleString() };
+      const newHistory = [newItem, ...queryHistory].slice(0, 10);
+      setQueryHistory(newHistory);
+      localStorage.setItem('queryHistory', JSON.stringify(newHistory));
     } catch (e: any) {
       setError(e.response?.data?.error || '查询失败');
     } finally {
@@ -166,6 +182,30 @@ const LogShare: React.FC = () => {
       {/* 全局提示 */}
       {error && <div className="text-red-600 font-bold text-center mb-2 animate-pulse"><i className="fas fa-exclamation-circle mr-2" />{error}</div>}
       {success && <div className="text-green-600 font-bold text-center mb-2 animate-fade-in"><i className="fas fa-check-circle mr-2" />{success}</div>}
+      <div className="mt-10">
+        <h3 className="text-xl font-bold mb-2 text-blue-700">上传历史</h3>
+        <ul className="mb-6">
+          {uploadHistory.length === 0 && <li className="text-gray-400">暂无上传记录</li>}
+          {uploadHistory.map((item, idx) => (
+            <li key={idx} className="mb-1 text-sm flex items-center gap-2">
+              <a href={item.link} target="_blank" rel="noopener noreferrer" className="underline text-blue-600">{item.link}</a>
+              <span className="text-gray-500">({item.ext})</span>
+              <span className="text-gray-400 ml-2">{item.time}</span>
+            </li>
+          ))}
+        </ul>
+        <h3 className="text-xl font-bold mb-2 text-green-700">查询历史</h3>
+        <ul>
+          {queryHistory.length === 0 && <li className="text-gray-400">暂无查询记录</li>}
+          {queryHistory.map((item, idx) => (
+            <li key={idx} className="mb-1 text-sm flex items-center gap-2">
+              <button className="underline text-green-600" onClick={() => { setQueryId(item.id); setQueryResult(null); setSuccess(''); setError(''); }}>{item.id}</button>
+              <span className="text-gray-500">({item.ext})</span>
+              <span className="text-gray-400 ml-2">{item.time}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 };

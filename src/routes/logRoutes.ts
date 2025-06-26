@@ -50,6 +50,7 @@ const logger = winston.createLogger({
   ]
 });
 
+// 每次上传都会生成唯一 fileId，文件名为 `${fileId}${ext}`，所有上传结果均保留在 data/sharelogs/ 目录下，支持多次上传和历史回查。
 // 上传日志/文件（支持多种类型）
 router.post('/sharelog', logLimiter, upload.single('file'), async (req, res) => {
   const ip = req.ip;
