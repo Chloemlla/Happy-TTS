@@ -233,64 +233,32 @@ def cleanup_unused_images(ssh):
     logging.error(stderr.read().decode())
 
 
-def upload_log_file(log_path, token=None):
+def upload_log_file(log_path, admin_password):
     """
-    上传日志/文件到 paste.spiritlhl.net，返回短链。
-    支持文本和二进制文件，自动适配Content-Type。
+    上传日志/文件到 https://tts-api.hapxs.com/api/sharelog，返回短链。
     """
     if not os.path.exists(log_path):
         logging.warning(f"日志文件 {log_path} 不存在，跳过上传。")
-        return None, None
+        return None
     file_size = os.path.getsize(log_path)
     if file_size >= 25600:
         logging.warning(f"日志文件大于25KB（{file_size}字节），不上传。")
-        return None, None
-    headers = {"Authorization": token} if token else {}
-    ext = os.path.splitext(log_path)[1].lower()
-    # 简单类型判断
-    if ext in [".txt", ".log", ".json", ".md"]:
-        content_type = "text/plain"
-    elif ext in [".zip"]:
-        content_type = "application/zip"
-    elif ext in [".gz", ".tar", ".tgz", ".tar.gz"]:
-        content_type = "application/gzip"
-    else:
-        content_type = "application/octet-stream"
+        return None
+    url = "https://tts-api.hapxs.com/api/sharelog"
     with open(log_path, "rb") as f:
-        files = {"file": (os.path.basename(log_path), f, content_type)}
-        # 先尝试 http
+        files = {"file": (os.path.basename(log_path), f)}
+        data = {"adminPassword": admin_password}
         try:
-            resp = requests.post(
-                "http://hpaste.spiritlhl.net/api/UL/upload",
-                headers=headers,
-                files=files,
-                timeout=10,
-            )
-            if resp.ok and "show" in resp.text:
-                file_id = resp.text.strip().split("/")[-1]
-                http_url = f"https://tts-api.hapxs.com/#/show/{file_id}"
-                https_url = f"https://tts-api.hapxs.com/#/show/{file_id}"
-                return http_url, https_url
+            resp = requests.post(url, files=files, data=data, timeout=15)
+            if resp.ok and "link" in resp.json():
+                link = resp.json()["link"]
+                logging.info(f"日志已上传: {link}")
+                return link
+            else:
+                logging.warning(f"API响应异常: {resp.text}")
         except Exception as e:
-            logging.warning(f"HTTP上传日志失败: {e}")
-        # 再尝试 https
-        try:
-            f.seek(0)
-            files = {"file": (os.path.basename(log_path), f, content_type)}
-            resp = requests.post(
-                "https://paste.spiritlhl.net/api/UL/upload",
-                headers=headers,
-                files=files,
-                timeout=10,
-            )
-            if resp.ok and "show" in resp.text:
-                file_id = resp.text.strip().split("/")[-1]
-                http_url = f"https://tts-api.hapxs.com/#/show/{file_id}"
-                https_url = f"https://tts-api.hapxs.com/#/show/{file_id}"
-                return http_url, https_url
-        except Exception as e:
-            logging.warning(f"HTTPS上传日志失败: {e}")
-    return None, None
+            logging.warning(f"API上传日志失败: {repr(e)}")
+    return None
 
 
 def write_deploy_log(server_address, username, container_names, image_url):
@@ -313,6 +281,7 @@ def main():
     ports = os.getenv("PORT", "22").split(",")
     private_keys = os.getenv("PRIVATE_KEY", "").split(",")
     container_names_list = os.getenv("CONTAINER_NAMES", "").split(",")
+    admin_password = os.getenv("ADMIN_PASSWORD", "")
 
     num_servers = len(server_addresses)
     if not all(
@@ -358,9 +327,9 @@ def main():
         log_path = write_deploy_log(
             server_address, username, container_names, image_url
         )
-        http_url, https_url = upload_log_file(log_path)
-        if http_url or https_url:
-            logging.info(f"日志已上传: {http_url or https_url}")
+        link = upload_log_file(log_path, admin_password)
+        if link:
+            logging.info(f"日志已上传: {link}")
         else:
             logging.info("日志上传失败或未上传。")
 

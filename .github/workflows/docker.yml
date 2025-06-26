@@ -113,5 +113,6 @@ jobs:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           CONTAINER_NAMES: ${{ secrets.CONTAINER_NAMES }}
           IMAGE_URL: happyclo/tts-node:${{ steps.timestamp.outputs.short_sha }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
         run: |
           python scripts/deploy_image.py
