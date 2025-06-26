@@ -5,10 +5,12 @@ import { UserStorage } from '../utils/userStorage';
 import crypto from 'crypto';
 import multer from 'multer';
 import rateLimit from 'express-rate-limit';
+import winston from 'winston';
 
 const router = express.Router();
 const DATA_DIR = path.join(process.cwd(), 'data');
 const SHARELOGS_DIR = path.join(DATA_DIR, 'sharelogs');
+const logDir = path.join(DATA_DIR, 'logs');
 
 // 确保 sharelogs 目录存在
 if (!fs.existsSync(SHARELOGS_DIR)) {
@@ -37,17 +39,33 @@ async function checkAdminPassword(password: string) {
   return admin && admin.password === password;
 }
 
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+    winston.format.printf(({ timestamp, level, message }) => `${timestamp} [${level}] ${message}`)
+  ),
+  transports: [
+    new winston.transports.File({ filename: path.join(logDir, `${new Date().toISOString().slice(0,10)}.log`) })
+  ]
+});
+
 // 上传日志/文件（支持多种类型）
 router.post('/sharelog', logLimiter, upload.single('file'), async (req, res) => {
+  const ip = req.ip;
+  const adminPassword = req.body.adminPassword;
+  const fileName = req.file?.originalname;
   try {
-    const adminPassword = req.body.adminPassword;
     if (!req.file || !adminPassword) {
+      logger.warn(`上传 | IP:${ip} | 文件:${fileName} | 结果:失败 | 原因:缺少参数`);
       return res.status(400).json({ error: '缺少参数' });
     }
     if (req.file.size > 25600) {
+      logger.warn(`上传 | IP:${ip} | 文件:${fileName} | 结果:失败 | 原因:文件过大`);
       return res.status(400).json({ error: '文件内容过大' });
     }
     if (!(await checkAdminPassword(adminPassword))) {
+      logger.warn(`上传 | IP:${ip} | 文件:${fileName} | 结果:失败 | 原因:管理员密码错误`);
       return res.status(403).json({ error: '管理员密码错误' });
     }
     // 生成随机文件名，保留原扩展名
@@ -58,40 +76,48 @@ router.post('/sharelog', logLimiter, upload.single('file'), async (req, res) => 
     // 构造前端访问链接
     const baseUrl = 'https://tts-api.hapxs.com';
     const link = `${baseUrl}/logshare?id=${fileId}`;
+    logger.info(`上传 | IP:${ip} | 文件:${fileName} | 结果:成功 | ID:${fileId}`);
     return res.json({ id: fileId, link, ext });
-  } catch (e) {
+  } catch (e: any) {
+    logger.error(`上传 | IP:${ip} | 文件:${fileName} | 结果:异常 | 错误:${e?.message}`);
     return res.status(500).json({ error: '日志上传失败' });
   }
 });
 
 // 查询日志/文件内容（POST，密码在body）
 router.post('/sharelog/:id', logLimiter, async (req, res) => {
+  const ip = req.ip;
+  const { adminPassword } = req.body;
+  const { id } = req.params;
   try {
-    const { adminPassword } = req.body;
-    const { id } = req.params;
     if (!adminPassword) {
+      logger.warn(`查询 | IP:${ip} | 文件ID:${id} | 结果:失败 | 原因:缺少管理员密码`);
       return res.status(400).json({ error: '缺少管理员密码' });
     }
     if (!(await checkAdminPassword(adminPassword))) {
+      logger.warn(`查询 | IP:${ip} | 文件ID:${id} | 结果:失败 | 原因:管理员密码错误`);
       return res.status(403).json({ error: '管理员密码错误' });
     }
     // 查找以id开头的文件（支持多扩展名）
     const files = fs.readdirSync(SHARELOGS_DIR);
     const fileName = files.find(f => f.startsWith(id));
     if (!fileName) {
+      logger.warn(`查询 | IP:${ip} | 文件ID:${id} | 结果:失败 | 原因:日志不存在`);
       return res.status(404).json({ error: '日志不存在' });
     }
     const filePath = path.join(SHARELOGS_DIR, fileName);
     const ext = path.extname(fileName).toLowerCase();
-    // 文本类直接返回内容，其他类型返回base64
     if ([".txt", ".log", ".json", ".md"].includes(ext)) {
       const content = fs.readFileSync(filePath, 'utf-8');
+      logger.info(`查询 | IP:${ip} | 文件ID:${id} | 文件:${fileName} | 结果:成功 | 类型:文本`);
       return res.json({ content, ext });
     } else {
       const content = fs.readFileSync(filePath);
+      logger.info(`查询 | IP:${ip} | 文件ID:${id} | 文件:${fileName} | 结果:成功 | 类型:二进制`);
       return res.json({ content: content.toString('base64'), ext, encoding: 'base64' });
     }
-  } catch (e) {
+  } catch (e: any) {
+    logger.error(`查询 | IP:${ip} | 文件ID:${id} | 结果:异常 | 错误:${e?.message}`);
     return res.status(500).json({ error: '日志查询失败' });
   }
 });
