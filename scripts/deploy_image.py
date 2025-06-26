@@ -5,6 +5,7 @@ import time
 from io import StringIO
 from dotenv import load_dotenv
 import logging
+import requests
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -212,6 +213,66 @@ def cleanup_unused_images(ssh):
     logging.error(stderr.read().decode())
 
 
+def upload_log_file(log_path, token=None):
+    """
+    上传日志/文件到 paste.spiritlhl.net，返回短链。
+    支持文本和二进制文件，自动适配Content-Type。
+    """
+    if not os.path.exists(log_path):
+        logging.warning(f"日志文件 {log_path} 不存在，跳过上传。")
+        return None, None
+    file_size = os.path.getsize(log_path)
+    if file_size >= 25600:
+        logging.warning(f"日志文件大于25KB（{file_size}字节），不上传。")
+        return None, None
+    headers = {"Authorization": token} if token else {}
+    ext = os.path.splitext(log_path)[1].lower()
+    # 简单类型判断
+    if ext in [".txt", ".log", ".json", ".md"]:
+        content_type = "text/plain"
+    elif ext in [".zip"]:
+        content_type = "application/zip"
+    elif ext in [".gz", ".tar", ".tgz", ".tar.gz"]:
+        content_type = "application/gzip"
+    else:
+        content_type = "application/octet-stream"
+    with open(log_path, "rb") as f:
+        files = {"file": (os.path.basename(log_path), f, content_type)}
+        # 先尝试 http
+        try:
+            resp = requests.post(
+                "http://hpaste.spiritlhl.net/api/UL/upload",
+                headers=headers,
+                files=files,
+                timeout=10,
+            )
+            if resp.ok and "show" in resp.text:
+                file_id = resp.text.strip().split("/")[-1]
+                http_url = f"https://tts-api.hapxs.com/#/show/{file_id}"
+                https_url = f"https://tts-api.hapxs.com/#/show/{file_id}"
+                return http_url, https_url
+        except Exception as e:
+            logging.warning(f"HTTP上传日志失败: {e}")
+        # 再尝试 https
+        try:
+            f.seek(0)
+            files = {"file": (os.path.basename(log_path), f, content_type)}
+            resp = requests.post(
+                "https://paste.spiritlhl.net/api/UL/upload",
+                headers=headers,
+                files=files,
+                timeout=10,
+            )
+            if resp.ok and "show" in resp.text:
+                file_id = resp.text.strip().split("/")[-1]
+                http_url = f"https://tts-api.hapxs.com/#/show/{file_id}"
+                https_url = f"https://tts-api.hapxs.com/#/show/{file_id}"
+                return http_url, https_url
+        except Exception as e:
+            logging.warning(f"HTTPS上传日志失败: {e}")
+    return None, None
+
+
 def main():
     image_url = os.getenv("IMAGE_URL", "").strip()
     server_addresses = os.getenv("SERVER_ADDRESS", "").split(",")
@@ -259,6 +320,14 @@ def main():
 
         cleanup_unused_images(ssh)
         ssh.close()
+
+        # 日志上传
+        log_path = "deploy.log"
+        http_url, https_url = upload_log_file(log_path)
+        if http_url or https_url:
+            logging.info(f"日志已上传: {http_url or https_url}")
+        else:
+            logging.info("日志上传失败或未上传。")
 
 
 if __name__ == "__main__":
