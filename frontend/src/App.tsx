@@ -142,17 +142,13 @@ const App: React.FC = () => {
           <Routes>
             <Route path="/" element={<TtsPage />} />
             <Route path="/policy" element={
-              user ? (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5 }}
-                >
-                  <PolicyPage />
-                </motion.div>
-              ) : (
-                <Navigate to="/welcome" replace state={{ from: location.pathname }} />
-              )
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+              >
+                <PolicyPage />
+              </motion.div>
             } />
             <Route path="/admin/users" element={
               user?.role === 'admin' ? (
@@ -301,17 +297,13 @@ const App: React.FC = () => {
             }
           />
           <Route path="/policy" element={
-            user ? (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-              >
-                <PolicyPage />
-              </motion.div>
-            ) : (
-              <Navigate to="/welcome" replace state={{ from: location.pathname }} />
-            )
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <PolicyPage />
+            </motion.div>
           } />
           <Route path="/admin/users" element={
             user?.role === 'admin' ? (
