@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 
 const isTextExt = (ext: string) => ['.txt', '.log', '.json', '.md'].includes(ext);
@@ -14,6 +14,16 @@ const LogShare: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (uploadResult && uploadResult.link) {
+      navigator.clipboard.writeText(uploadResult.link).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
+    }
+  }, [uploadResult]);
 
   // 上传日志/文件
   const handleUpload = async () => {
@@ -119,7 +129,12 @@ const LogShare: React.FC = () => {
         <button className={`mt-2 bg-gradient-to-r from-blue-500 to-blue-400 text-white px-6 py-2 rounded-lg shadow hover:from-blue-600 hover:to-blue-500 transition-all font-bold flex items-center gap-2 ${loading ? 'opacity-60 cursor-not-allowed' : ''}`} onClick={handleUpload} disabled={loading || !adminPassword || (!logContent && !file)}>
           {loading ? <span className="animate-spin mr-2"><i className="fas fa-spinner" /></span> : <i className="fas fa-cloud-upload-alt" />} 上传日志/文件
         </button>
-        {uploadResult && <div className="mt-3 text-green-600 font-semibold">上传成功，访问链接：<a href={uploadResult.link} className="underline" target="_blank" rel="noopener noreferrer">{uploadResult.link}</a> <span className="text-gray-500">({uploadResult.ext})</span></div>}
+        {uploadResult && uploadResult.link && (
+          <div className="mt-3 text-green-600 font-semibold flex items-center gap-2">
+            上传成功，访问链接：<a href={uploadResult.link} className="underline" target="_blank" rel="noopener noreferrer">{uploadResult.link}</a> <span className="text-gray-500">({uploadResult.ext})</span>
+            {copied && <span className="ml-2 text-green-500 text-sm">已自动复制</span>}
+          </div>
+        )}
       </div>
       {/* 查询区块 */}
       <div className="mb-6 p-6 rounded-xl bg-green-50/60 border border-green-100 shadow-sm">
