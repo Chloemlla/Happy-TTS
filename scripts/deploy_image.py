@@ -261,6 +261,23 @@ def upload_log_file(log_path, admin_password):
     return None
 
 
+def query_log_file(log_id, admin_password):
+    """
+    查询日志内容，POST到 https://tts-api.hapxs.com/api/sharelog/{id}，body为{adminPassword}
+    """
+    url = f"https://tts-api.hapxs.com/api/sharelog/{log_id}"
+    data = {"adminPassword": admin_password}
+    try:
+        resp = requests.post(url, json=data, timeout=10)
+        if resp.ok and "content" in resp.json():
+            return resp.json()["content"]
+        else:
+            logging.warning(f"日志查询失败: {resp.text}")
+    except Exception as e:
+        logging.warning(f"日志查询异常: {repr(e)}")
+    return None
+
+
 def write_deploy_log(server_address, username, container_names, image_url):
     log_path = "deploy.log"
     with open(log_path, "w", encoding="utf-8") as f:

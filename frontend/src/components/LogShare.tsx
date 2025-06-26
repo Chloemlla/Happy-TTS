@@ -70,8 +70,9 @@ const LogShare: React.FC = () => {
     setQueryResult(null);
     setLoading(true);
     try {
-      const res = await axios.get(`/api/sharelog/${queryId}`, {
-        params: { adminPassword }
+      const res = await axios.post(`/api/sharelog/${queryId}`, {
+        adminPassword,
+        id: queryId
       });
       setQueryResult(res.data);
       setSuccess('查询成功！');

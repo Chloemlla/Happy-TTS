@@ -4,6 +4,7 @@ import path from 'path';
 import { UserStorage } from '../utils/userStorage';
 import crypto from 'crypto';
 import multer from 'multer';
+import rateLimit from 'express-rate-limit';
 
 const router = express.Router();
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -20,6 +21,15 @@ const upload = multer({
   limits: { fileSize: 25600 * 2 }, // 50KB以内
 });
 
+// 简单速率限制（每IP每分钟最多10次上传/查询）
+const logLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  message: { error: '请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // 工具：校验管理员密码
 async function checkAdminPassword(password: string) {
   const users = await UserStorage.getAllUsers();
@@ -28,7 +38,7 @@ async function checkAdminPassword(password: string) {
 }
 
 // 上传日志/文件（支持多种类型）
-router.post('/sharelog', upload.single('file'), async (req, res) => {
+router.post('/sharelog', logLimiter, upload.single('file'), async (req, res) => {
   try {
     const adminPassword = req.body.adminPassword;
     if (!req.file || !adminPassword) {
@@ -54,15 +64,15 @@ router.post('/sharelog', upload.single('file'), async (req, res) => {
   }
 });
 
-// 查询日志/文件内容
-router.get('/sharelog/:id', async (req, res) => {
+// 查询日志/文件内容（POST，密码在body）
+router.post('/sharelog/:id', logLimiter, async (req, res) => {
   try {
-    const { adminPassword } = req.query;
+    const { adminPassword } = req.body;
     const { id } = req.params;
     if (!adminPassword) {
       return res.status(400).json({ error: '缺少管理员密码' });
     }
-    if (!(await checkAdminPassword(adminPassword as string))) {
+    if (!(await checkAdminPassword(adminPassword))) {
       return res.status(403).json({ error: '管理员密码错误' });
     }
     // 查找以id开头的文件（支持多扩展名）
