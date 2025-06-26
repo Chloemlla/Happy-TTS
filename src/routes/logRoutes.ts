@@ -75,7 +75,7 @@ router.post('/sharelog', logLimiter, upload.single('file'), async (req, res) => 
     logger.info(`[调试] 上传写入文件: filePath=${filePath}, ext=${ext}, fileName=${fileName}, size=${req.file.size}`);
     fs.writeFileSync(filePath, req.file.buffer);
     // 构造前端访问链接
-    const baseUrl = 'https://tts-api.hapxs.com';
+    const baseUrl = 'https://tts.hapx.one';
     const link = `${baseUrl}/logshare?id=${fileId}`;
     logger.info(`上传 | IP:${ip} | 文件:${fileName} | 结果:成功 | ID:${fileId}`);
     return res.json({ id: fileId, link, ext });
