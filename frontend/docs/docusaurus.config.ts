@@ -7,7 +7,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'Synapse API 文档',
   tagline: 'Synapse 文本转语音服务 API 文档',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/favicon.svg',
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
   future: {
@@ -45,7 +45,7 @@ const config: Config = {
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
           editUrl:
-            'https://github.com/synapse/synapse/tree/main/frontend/docs/',
+            'https://github.com/hapxscom/synapse/tree/main/frontend/docs/',
         },
         blog: {
           showReadingTime: true,
@@ -56,7 +56,7 @@ const config: Config = {
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
           editUrl:
-            'https://github.com/synapse/synapse/tree/main/frontend/docs/',
+            'https://github.com/hapxscom/synapse/tree/main/frontend/docs/',
           // Useful options to enforce blogging best practices
           onInlineTags: 'warn',
           onInlineAuthors: 'warn',
@@ -71,7 +71,7 @@ const config: Config = {
 
   themeConfig: {
     // Replace with your project's social card
-    image: 'img/docusaurus-social-card.jpg',
+    image: 'img/social-card.svg',
     navbar: {
       title: 'Synapse API',
       logo: {
@@ -114,7 +114,7 @@ const config: Config = {
           items: [
             {
               label: 'GitHub Issues',
-              href: 'https://github.com/synapse/synapse/issues',
+              href: 'https://github.com/hapxscom/synapse/issues',
             },
             {
               label: 'Discord',
@@ -131,7 +131,7 @@ const config: Config = {
             },
             {
               label: 'GitHub',
-              href: 'https://github.com/synapse/synapse',
+              href: 'https://github.com/hapxscom/synapse',
             },
           ],
         },

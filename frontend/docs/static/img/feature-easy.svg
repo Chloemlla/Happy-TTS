@@ -1,0 +1,13 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 背景圆形 -->
+  <circle cx="100" cy="100" r="80" fill="#e0e7ff" stroke="#6366f1" stroke-width="4"/>
+  
+  <!-- 简化的界面图标 -->
+  <rect x="60" y="70" width="80" height="60" rx="8" fill="#6366f1" opacity="0.8"/>
+  <rect x="70" y="80" width="60" height="8" rx="4" fill="white"/>
+  <rect x="70" y="95" width="40" height="8" rx="4" fill="white" opacity="0.7"/>
+  <rect x="70" y="110" width="50" height="8" rx="4" fill="white" opacity="0.7"/>
+  
+  <!-- 箭头指示 -->
+  <path d="M 140 100 L 160 100 L 155 95 L 160 100 L 155 105" stroke="#6366f1" stroke-width="3" fill="none"/>
+</svg> 

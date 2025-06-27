@@ -8,16 +8,308 @@
   text-align: center;
   position: relative;
   overflow: hidden;
+  background: linear-gradient(135deg, var(--ifm-color-primary) 0%, var(--ifm-color-primary-dark) 100%);
 }
 
-@media screen and (max-width: 996px) {
-  .heroBanner {
-    padding: 2rem;
-  }
+.heroBanner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.1"/><circle cx="10" cy="60" r="0.5" fill="white" opacity="0.1"/><circle cx="90" cy="40" r="0.5" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+  opacity: 0.3;
+}
+
+.heroBanner h1 {
+  color: white;
+  font-size: 3rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.heroBanner p {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1.25rem;
+  margin-bottom: 2rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .buttons {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+/* 特色功能卡片 */
+.features {
+  padding: 4rem 0;
+  background: var(--ifm-background-surface-color);
+}
+
+.featureCard {
+  background: white;
+  border-radius: var(--ifm-card-border-radius);
+  padding: 2rem;
+  text-align: center;
+  box-shadow: var(--ifm-global-shadow-md);
+  transition: all var(--ifm-transition-fast);
+  height: 100%;
+  border: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.featureCard:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--ifm-global-shadow-tl);
+}
+
+.featureIcon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  display: block;
+}
+
+.featureCard h3 {
+  color: var(--ifm-color-emphasis-800);
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.featureCard p {
+  color: var(--ifm-color-emphasis-600);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* 快速开始区域 */
+.quickStart {
+  padding: 4rem 0;
+  background: white;
+}
+
+.quickStart h2 {
+  color: var(--ifm-color-emphasis-800);
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.quickStart p {
+  color: var(--ifm-color-emphasis-600);
+  font-size: 1.125rem;
+  margin-bottom: 3rem;
+}
+
+.codeBlock {
+  background: var(--ifm-color-emphasis-100);
+  border-radius: var(--ifm-border-radius);
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.codeBlock h4 {
+  color: var(--ifm-color-emphasis-800);
+  margin-bottom: 1rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.codeBlock pre {
+  background: var(--ifm-color-emphasis-900);
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 0;
+  overflow-x: auto;
+}
+
+.codeBlock code {
+  color: var(--ifm-color-emphasis-100);
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* 技术栈展示 */
+.techStack {
+  padding: 4rem 0;
+  background: var(--ifm-background-surface-color);
+}
+
+.techStack h2 {
+  color: var(--ifm-color-emphasis-800);
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.techStack p {
+  color: var(--ifm-color-emphasis-600);
+  font-size: 1.125rem;
+  margin-bottom: 3rem;
+}
+
+.techItem {
+  background: white;
+  border-radius: var(--ifm-border-radius);
+  padding: 1.5rem;
+  text-align: center;
+  box-shadow: var(--ifm-global-shadow-lw);
+  transition: all var(--ifm-transition-fast);
+  border: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.techItem:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--ifm-global-shadow-md);
+}
+
+.techIcon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.techItem span {
+  color: var(--ifm-color-emphasis-700);
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+/* 深色模式适配 */
+[data-theme='dark'] .featureCard {
+  background: var(--ifm-color-emphasis-100);
+  border-color: var(--ifm-color-emphasis-200);
+}
+
+[data-theme='dark'] .featureCard h3 {
+  color: var(--ifm-color-emphasis-100);
+}
+
+[data-theme='dark'] .featureCard p {
+  color: var(--ifm-color-emphasis-300);
+}
+
+[data-theme='dark'] .quickStart {
+  background: var(--ifm-background-color);
+}
+
+[data-theme='dark'] .quickStart h2,
+[data-theme='dark'] .techStack h2 {
+  color: var(--ifm-color-emphasis-100);
+}
+
+[data-theme='dark'] .quickStart p,
+[data-theme='dark'] .techStack p {
+  color: var(--ifm-color-emphasis-300);
+}
+
+[data-theme='dark'] .codeBlock {
+  background: var(--ifm-color-emphasis-200);
+  border-color: var(--ifm-color-emphasis-300);
+}
+
+[data-theme='dark'] .codeBlock h4 {
+  color: var(--ifm-color-emphasis-100);
+}
+
+[data-theme='dark'] .techStack {
+  background: var(--ifm-background-color);
+}
+
+[data-theme='dark'] .techItem {
+  background: var(--ifm-color-emphasis-100);
+  border-color: var(--ifm-color-emphasis-200);
+}
+
+[data-theme='dark'] .techItem span {
+  color: var(--ifm-color-emphasis-200);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .heroBanner {
+    padding: 2rem 0;
+  }
+  
+  .heroBanner h1 {
+    font-size: 2rem;
+  }
+  
+  .heroBanner p {
+    font-size: 1rem;
+  }
+  
+  .buttons {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .buttons .button {
+    margin: 0.5rem 0;
+  }
+  
+  .features,
+  .quickStart,
+  .techStack {
+    padding: 2rem 0;
+  }
+  
+  .featureCard,
+  .codeBlock,
+  .techItem {
+    margin-bottom: 1rem;
+  }
+  
+  .quickStart .row .col {
+    margin-bottom: 2rem;
+  }
+}
+
+/* 动画效果 */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.featureCard,
+.codeBlock,
+.techItem {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.featureCard:nth-child(1) { animation-delay: 0.1s; }
+.featureCard:nth-child(2) { animation-delay: 0.2s; }
+.featureCard:nth-child(3) { animation-delay: 0.3s; }
+
+/* 滚动条美化 */
+.quickStart pre::-webkit-scrollbar {
+  height: 6px;
+}
+
+.quickStart pre::-webkit-scrollbar-track {
+  background: var(--ifm-color-emphasis-200);
+  border-radius: 3px;
+}
+
+.quickStart pre::-webkit-scrollbar-thumb {
+  background: var(--ifm-color-emphasis-400);
+  border-radius: 3px;
+}
+
+.quickStart pre::-webkit-scrollbar-thumb:hover {
+  background: var(--ifm-color-emphasis-500);
 }

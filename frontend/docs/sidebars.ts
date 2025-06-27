@@ -31,7 +31,6 @@ const sidebars: SidebarsConfig = {
       items: [
         'api/authentication',
         'api/tts-endpoints',
-        'api/voice-management',
         'api/user-management',
         'api/error-codes',
       ],
@@ -41,26 +40,6 @@ const sidebars: SidebarsConfig = {
       label: '教程',
       items: [
         'tutorials/basic-usage',
-        'tutorials/advanced-features',
-        'tutorials/integration-examples',
-      ],
-    },
-    {
-      type: 'category',
-      label: 'SDK',
-      items: [
-        'sdk/javascript',
-        'sdk/python',
-        'sdk/java',
-      ],
-    },
-    {
-      type: 'category',
-      label: '最佳实践',
-      items: [
-        'best-practices/performance',
-        'best-practices/security',
-        'best-practices/error-handling',
       ],
     },
   ],

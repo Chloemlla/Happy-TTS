@@ -77,10 +77,12 @@ logs/
 .stylelintcache
 .cache
 .parcel-cache
+!*.svg
 
 # 静态文件目录（如果需要版本控制，请删除此行）
-static/
+
 frontend/static/
+!frontend/docs/static/img/
 
 # 本地开发配置
 *.local

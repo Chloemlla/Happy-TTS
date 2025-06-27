@@ -1,6 +1,8 @@
+import React from 'react';
 import type {ReactNode} from 'react';
 import clsx from 'clsx';
 import Heading from '@theme/Heading';
+
 import styles from './styles.module.css';
 
 type FeatureItem = {
@@ -11,32 +13,32 @@ type FeatureItem = {
 
 const FeatureList: FeatureItem[] = [
   {
-    title: 'Easy to Use',
-    Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
+    title: '简单易用',
+    Svg: require('@site/static/img/feature-easy.svg').default,
     description: (
       <>
-        Docusaurus was designed from the ground up to be easily installed and
-        used to get your website up and running quickly.
+        提供简洁的 RESTful API，支持多种编程语言，快速集成到您的应用中。
+        详细的文档和示例代码，让您轻松上手。
       </>
     ),
   },
   {
-    title: 'Focus on What Matters',
-    Svg: require('@site/static/img/undraw_docusaurus_tree.svg').default,
+    title: '高质量语音',
+    Svg: require('@site/static/img/feature-quality.svg').default,
     description: (
       <>
-        Docusaurus lets you focus on your docs, and we&apos;ll do the chores. Go
-        ahead and move your docs into the <code>docs</code> directory.
+        基于先进的深度学习技术，提供自然流畅、情感丰富的语音合成效果。
+        支持多种音色和语速调节，满足不同场景需求。
       </>
     ),
   },
   {
-    title: 'Powered by React',
-    Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
+    title: '多语言支持',
+    Svg: require('@site/static/img/feature-multilingual.svg').default,
     description: (
       <>
-        Extend or customize your website layout by reusing React. Docusaurus can
-        be extended while reusing the same header and footer.
+        支持中文、英文等多种语言，满足全球用户的多语言需求。
+        智能语言检测，自动选择最适合的语音模型。
       </>
     ),
   },

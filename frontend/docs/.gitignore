@@ -7,7 +7,7 @@
 # Generated files
 .docusaurus
 .cache-loader
-
+!frontend/docs/static/img/
 # Misc
 .DS_Store
 .env.local
