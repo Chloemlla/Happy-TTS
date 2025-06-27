@@ -196,7 +196,7 @@ app.use(helmet({
             connectSrc: ["'self'", "https://api.ipify.org", "https://ipapi.co", "https://ipinfo.io"],
             imgSrc: ["'self'", "data:", "https://api.ipify.org", "https://ipapi.co", "https://ipinfo.io"],
             scriptSrc: ["'self'", "'unsafe-inline'"],
-            frameSrc: ["'self'", "https://tts.hapx.one"]
+            frameSrc: ["'self'", "https://tts.hapx.one",'https://tts-api-docs.hapxs.com']
         }
     },
     crossOriginResourcePolicy: { policy: "cross-origin" },
