@@ -80,7 +80,7 @@ export default function Home(): ReactNode {
               <div className="col col--6">
                 <div className={styles.codeBlock}>
                   <h4>1. 获取 API Key</h4>
-                  <pre><code>{`curl -X POST https://api.synapse.com/auth/register \\
+                  <pre><code>{`curl -X POST https://tts-api.hapxs.com/api/auth/register \\
   -H "Content-Type: application/json" \\
   -d '{"username": "your_username", "password": "your_password"}'`}</code></pre>
                 </div>
@@ -88,10 +88,10 @@ export default function Home(): ReactNode {
               <div className="col col--6">
                 <div className={styles.codeBlock}>
                   <h4>2. 调用 TTS 接口</h4>
-                  <pre><code>{`curl -X POST https://api.synapse.com/tts/synthesize \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
+                  <pre><code>{`curl -X POST https://tts-api.hapxs.com/api/tts/generate \\
+  -H "Authorization: Bearer YOUR_TOKEN" \\
   -H "Content-Type: application/json" \\
-  -d '{"text": "Hello, World!", "voice": "zh-CN-XiaoxiaoNeural"}'`}</code></pre>
+  -d '{"text": "Hello, World!", "model": "tts-1", "voice": "alloy"}'`}</code></pre>
                 </div>
               </div>
             </div>

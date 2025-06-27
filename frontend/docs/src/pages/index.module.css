@@ -8,26 +8,19 @@
   text-align: center;
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, var(--ifm-color-primary) 0%, var(--ifm-color-primary-dark) 100%);
+  background: #4f8cff;
 }
 
 .heroBanner::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.1"/><circle cx="10" cy="60" r="0.5" fill="white" opacity="0.1"/><circle cx="90" cy="40" r="0.5" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
-  opacity: 0.3;
+  content: none;
 }
 
 .heroBanner h1 {
-  color: white;
+  color: #fff !important;
   font-size: 3rem;
   font-weight: 700;
   margin-bottom: 1rem;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  text-shadow: none;
 }
 
 .heroBanner p {
@@ -123,7 +116,8 @@
 }
 
 .codeBlock pre {
-  background: var(--ifm-color-emphasis-900);
+  background: var(--ifm-color-emphasis-100);
+  color: var(--ifm-color-emphasis-900);
   border-radius: 8px;
   padding: 1rem;
   margin: 0;
@@ -131,7 +125,7 @@
 }
 
 .codeBlock code {
-  color: var(--ifm-color-emphasis-100);
+  color: var(--ifm-color-emphasis-900);
   font-family: var(--ifm-font-family-monospace);
   font-size: 0.875rem;
   line-height: 1.5;
@@ -220,6 +214,19 @@
   color: var(--ifm-color-emphasis-100);
 }
 
+[data-theme='dark'] .codeBlock pre {
+  background: #1e293b !important;
+  color: #e2e8f0 !important;
+  border: 1px solid #475569;
+}
+
+[data-theme='dark'] .codeBlock code {
+  color: #e2e8f0 !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+}
+
 [data-theme='dark'] .techStack {
   background: var(--ifm-background-color);
 }
@@ -230,7 +237,7 @@
 }
 
 [data-theme='dark'] .techItem span {
-  color: var(--ifm-color-emphasis-200);
+  color: #fff !important;
 }
 
 /* 响应式设计 */
@@ -312,4 +319,74 @@
 
 .quickStart pre::-webkit-scrollbar-thumb:hover {
   background: var(--ifm-color-emphasis-500);
+}
+
+.heroBanner .hero__title {
+  color: #fff !important;
+  text-shadow: none !important;
+}
+
+.button--primary,
+.button--primary *,
+.button--primary:visited {
+  color: #fff !important;
+  fill: #fff !important;
+  opacity: 1 !important;
+  filter: none !important;
+  text-shadow: none !important;
+  text-decoration: none !important;
+}
+
+.button--primary {
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%) !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.button--primary:disabled,
+.button--primary[aria-disabled='true'] {
+  opacity: 1 !important;
+  color: #fff !important;
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%) !important;
+  filter: none !important;
+}
+
+.button--primary a {
+  color: #fff !important;
+  opacity: 1 !important;
+  filter: none !important;
+  text-shadow: none !important;
+  text-decoration: none !important;
+}
+.button--primary,
+.button--primary *,
+.button--primary:visited {
+  color: #fff !important;
+  fill: #fff !important;
+  opacity: 1 !important;
+  filter: none !important;
+  text-shadow: none !important;
+  text-decoration: none !important;
+  mix-blend-mode: normal !important;
+  background: none !important;
+}
+
+.button--primary {
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%) !important;
+  box-shadow: none !important;
+  border: none !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+.button--primary,
+.button--primary *,
+.button--primary a,
+.button--primary a:visited,
+.button--primary a:hover,
+.button--primary a:active,
+.button--primary span,
+.button--primary svg {
+  text-decoration: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
 }

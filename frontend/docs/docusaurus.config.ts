@@ -42,25 +42,6 @@ const config: Config = {
       {
         docs: {
           sidebarPath: './sidebars.ts',
-        //   // Please change this to your repo.
-        //   // Remove this to remove the "edit this page" links.
-        //   editUrl:
-        //     'https://github.com/hapxscom/synapse/tree/main/frontend/docs/',
-        // },
-        // blog: {
-        //   showReadingTime: true,
-        //   feedOptions: {
-        //     type: ['rss', 'atom'],
-        //     xslt: true,
-        //   },
-        //   // Please change this to your repo.
-        //   // Remove this to remove the "edit this page" links.
-        //   editUrl:
-        //     'https://github.com/hapxscom/synapse/tree/main/frontend/docs/',
-        //   // Useful options to enforce blogging best practices
-        //   onInlineTags: 'warn',
-        //   onInlineAuthors: 'warn',
-        //   onUntruncatedBlogPosts: 'warn',
         },
         theme: {
           customCss: './src/css/custom.css',
@@ -115,10 +96,6 @@ const config: Config = {
               label: 'GitHub Issues',
               href: 'https://github.com/hapxscom/synapse/issues',
             },
-            // {
-            //   label: 'Discord',
-            //   href: 'https://discord.gg/synapse',
-            // },
           ],
         },
         {

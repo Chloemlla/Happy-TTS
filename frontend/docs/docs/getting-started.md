@@ -1,4 +1,6 @@
 ---
+id: getting-started
+title: 快速开始
 sidebar_position: 2
 ---
 
@@ -231,8 +233,8 @@ if __name__ == '__main__':
 
 - 📖 查看 [API 参考文档](./api/tts-endpoints.md) 了解所有可用接口
 - 🔐 了解 [认证机制](./api/authentication.md)
-- 🛠️ 查看 [集成示例](./tutorials/integration-examples.md)
-- 📊 学习 [最佳实践](./best-practices/performance.md)
+  <!-- - 🛠️ 查看 [集成示例](./tutorials/integration-examples.md) -->
+  <!-- - 📊 学习 [最佳实践](./best-practices/performance.md) -->
 
 ---
 

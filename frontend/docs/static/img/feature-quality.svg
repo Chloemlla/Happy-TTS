@@ -3,7 +3,7 @@
   <circle cx="100" cy="100" r="80" fill="#dbeafe" stroke="#3b82f6" stroke-width="4"/>
   
   <!-- 语音波形 -->
-  <g transform="translate(60, 80)">
+  <g transform="translate(65, 60)">
     <rect x="0" y="20" width="6" height="40" rx="3" fill="#3b82f6"/>
     <rect x="15" y="10" width="6" height="60" rx="3" fill="#3b82f6"/>
     <rect x="30" y="30" width="6" height="20" rx="3" fill="#3b82f6"/>
