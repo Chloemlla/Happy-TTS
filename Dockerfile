@@ -29,6 +29,24 @@ RUN npm run build
 # 确保favicon.ico存在
 RUN touch dist/favicon.ico
 
+# 构建 Docusaurus 文档
+FROM node:20-alpine AS docs-builder
+
+# 设置时区为上海
+RUN apk add --no-cache tzdata && \
+    cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone && \
+    apk del tzdata
+
+WORKDIR /app
+
+# 复制文档源代码
+COPY frontend/docs/ ./docs/
+
+# 安装文档依赖并构建
+WORKDIR /app/docs
+RUN npm ci && npm run build
+
 # 构建后端
 FROM node:20-alpine AS backend-builder
 
@@ -82,9 +100,10 @@ COPY --from=backend-builder /app/dist-obfuscated ./dist
 COPY --from=backend-builder /app/openapi.json ./openapi.json
 COPY --from=backend-builder /app/openapi.json ./dist/openapi.json
 COPY --from=frontend-builder /app/frontend/dist ./public
+COPY --from=docs-builder /app/docs/build ./docs
 
 # 暴露端口
-EXPOSE 3000 3001
+EXPOSE 3000 3001 3002
 
 # 启动服务
 CMD ["npm", "start"]

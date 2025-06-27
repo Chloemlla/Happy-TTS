@@ -36,6 +36,8 @@ jobs:
           npm install
           cd frontend
           npm install
+          cd docs
+          npm install
 
       - name: Test
         run: npm test
@@ -50,6 +52,7 @@ jobs:
           path: |
             dist/
             frontend/dist/
+            frontend/docs/build/
           retention-days: 30
 
       - name: Cache build artifacts
@@ -58,6 +61,8 @@ jobs:
           path: |
             dist
             node_modules
+            frontend/node_modules
+            frontend/docs/node_modules
           key: ${{ runner.os }}-build-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-build-
