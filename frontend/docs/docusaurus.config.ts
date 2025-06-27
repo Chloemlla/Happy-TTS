@@ -42,25 +42,25 @@ const config: Config = {
       {
         docs: {
           sidebarPath: './sidebars.ts',
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
-          editUrl:
-            'https://github.com/hapxscom/synapse/tree/main/frontend/docs/',
-        },
-        blog: {
-          showReadingTime: true,
-          feedOptions: {
-            type: ['rss', 'atom'],
-            xslt: true,
-          },
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
-          editUrl:
-            'https://github.com/hapxscom/synapse/tree/main/frontend/docs/',
-          // Useful options to enforce blogging best practices
-          onInlineTags: 'warn',
-          onInlineAuthors: 'warn',
-          onUntruncatedBlogPosts: 'warn',
+        //   // Please change this to your repo.
+        //   // Remove this to remove the "edit this page" links.
+        //   editUrl:
+        //     'https://github.com/hapxscom/synapse/tree/main/frontend/docs/',
+        // },
+        // blog: {
+        //   showReadingTime: true,
+        //   feedOptions: {
+        //     type: ['rss', 'atom'],
+        //     xslt: true,
+        //   },
+        //   // Please change this to your repo.
+        //   // Remove this to remove the "edit this page" links.
+        //   editUrl:
+        //     'https://github.com/hapxscom/synapse/tree/main/frontend/docs/',
+        //   // Useful options to enforce blogging best practices
+        //   onInlineTags: 'warn',
+        //   onInlineAuthors: 'warn',
+        //   onUntruncatedBlogPosts: 'warn',
         },
         theme: {
           customCss: './src/css/custom.css',
@@ -85,7 +85,6 @@ const config: Config = {
           position: 'left',
           label: 'API 文档',
         },
-        {to: '/blog', label: '更新日志', position: 'left'},
         {
           href: 'https://github.com/synapse/synapse',
           label: 'GitHub',
@@ -116,19 +115,15 @@ const config: Config = {
               label: 'GitHub Issues',
               href: 'https://github.com/hapxscom/synapse/issues',
             },
-            {
-              label: 'Discord',
-              href: 'https://discord.gg/synapse',
-            },
+            // {
+            //   label: 'Discord',
+            //   href: 'https://discord.gg/synapse',
+            // },
           ],
         },
         {
           title: '更多',
           items: [
-            {
-              label: '更新日志',
-              to: '/blog',
-            },
             {
               label: 'GitHub',
               href: 'https://github.com/hapxscom/synapse',
