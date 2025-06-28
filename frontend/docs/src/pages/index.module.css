@@ -36,9 +36,9 @@
 }
 
 .heroBanner p {
-  color: rgba(255, 255, 255, 0.9);
+  color: #f8fafc;
   font-size: 1.25rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   max-width: 600px;
   margin-left: auto;
   margin-right: auto;
