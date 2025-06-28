@@ -14,7 +14,8 @@ COPY frontend/package*.json ./frontend/
 WORKDIR /app/frontend
 
 # 安装前端依赖（包括开发依赖，因为需要构建工具）
-RUN npm ci && \
+RUN rm -rf node_modules package-lock.json
+RUN npm install && \
     npm install @fingerprintjs/fingerprintjs && \
     npm install crypto-js && \
     npm install --save-dev @types/crypto-js
