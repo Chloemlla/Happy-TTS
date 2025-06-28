@@ -37,25 +37,28 @@ function findCssSelect(dir) {
 
 const cssSelectDirs = findCssSelect('node_modules');
 
-cssSelectDirs.forEach(dir => {
-    console.log('修复目录:', dir);
-    
-    // 创建lib目录（如果不存在）
-    const libDir = path.join(dir, 'lib');
-    if (!fs.existsSync(libDir)) {
-        fs.mkdirSync(libDir, { recursive: true });
-    }
-    
-    // 创建helpers目录
-    const helpersDir = path.join(libDir, 'helpers');
-    if (!fs.existsSync(helpersDir)) {
-        fs.mkdirSync(helpersDir, { recursive: true });
-    }
-    
-    // 创建compile.js文件
-    const compilePath = path.join(libDir, 'compile.js');
-    if (!fs.existsSync(compilePath)) {
-        const compileContent = `// 修复的compile.js实现
+if (cssSelectDirs.length === 0) {
+    console.log('未找到css-select目录，无需修复');
+} else {
+    cssSelectDirs.forEach(dir => {
+        console.log('修复目录:', dir);
+        
+        // 创建lib目录（如果不存在）
+        const libDir = path.join(dir, 'lib');
+        if (!fs.existsSync(libDir)) {
+            fs.mkdirSync(libDir, { recursive: true });
+        }
+        
+        // 创建helpers目录
+        const helpersDir = path.join(libDir, 'helpers');
+        if (!fs.existsSync(helpersDir)) {
+            fs.mkdirSync(helpersDir, { recursive: true });
+        }
+        
+        // 创建compile.js文件
+        const compilePath = path.join(libDir, 'compile.js');
+        if (!fs.existsSync(compilePath)) {
+            const compileContent = `// 修复的compile.js实现
 'use strict';
 
 module.exports = function compile(selector, options, context) {
@@ -63,13 +66,13 @@ module.exports = function compile(selector, options, context) {
         return true;
     };
 };`;
-        fs.writeFileSync(compilePath, compileContent);
-    }
-    
-    // 创建querying.js文件
-    const queryingPath = path.join(helpersDir, 'querying.js');
-    if (!fs.existsSync(queryingPath)) {
-        const queryingContent = `// 修复的querying.js实现
+            fs.writeFileSync(compilePath, compileContent);
+        }
+        
+        // 创建querying.js文件
+        const queryingPath = path.join(helpersDir, 'querying.js');
+        if (!fs.existsSync(queryingPath)) {
+            const queryingContent = `// 修复的querying.js实现
 'use strict';
 
 module.exports = {
@@ -137,37 +140,37 @@ module.exports = {
         return result;
     }
 };`;
-        fs.writeFileSync(queryingPath, queryingContent);
-    }
-    
-    // 创建parse.js文件
-    const parsePath = path.join(libDir, 'parse.js');
-    if (!fs.existsSync(parsePath)) {
-        const parseContent = `// 修复的parse.js实现
+            fs.writeFileSync(queryingPath, queryingContent);
+        }
+        
+        // 创建parse.js文件
+        const parsePath = path.join(libDir, 'parse.js');
+        if (!fs.existsSync(parsePath)) {
+            const parseContent = `// 修复的parse.js实现
 'use strict';
 
 module.exports = function parse(selector) {
     return { type: 'selector', value: selector };
 };`;
-        fs.writeFileSync(parsePath, parseContent);
-    }
-    
-    // 创建render.js文件
-    const renderPath = path.join(libDir, 'render.js');
-    if (!fs.existsSync(renderPath)) {
-        const renderContent = `// 修复的render.js实现
+            fs.writeFileSync(parsePath, parseContent);
+        }
+        
+        // 创建render.js文件
+        const renderPath = path.join(libDir, 'render.js');
+        if (!fs.existsSync(renderPath)) {
+            const renderContent = `// 修复的render.js实现
 'use strict';
 
 module.exports = function render(selector) {
     return selector;
 };`;
-        fs.writeFileSync(renderPath, renderContent);
-    }
-    
-    // 检查并修复index.js
-    const indexPath = path.join(libDir, 'index.js');
-    if (!fs.existsSync(indexPath)) {
-        const indexContent = `// 修复的index.js实现
+            fs.writeFileSync(renderPath, renderContent);
+        }
+        
+        // 检查并修复index.js
+        const indexPath = path.join(libDir, 'index.js');
+        if (!fs.existsSync(indexPath)) {
+            const indexContent = `// 修复的index.js实现
 'use strict';
 
 var compile = require('./compile');
@@ -179,10 +182,11 @@ module.exports = {
     parse: parse,
     render: render
 };`;
-        fs.writeFileSync(indexPath, indexContent);
-    }
-    
-    console.log('已修复:', dir);
-});
+            fs.writeFileSync(indexPath, indexContent);
+        }
+        
+        console.log('已修复:', dir);
+    });
+}
 
 console.log('css-select修复完成'); 
