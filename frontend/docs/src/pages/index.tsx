@@ -269,10 +269,10 @@ export default function Home(): ReactNode {
                 </Link>
               </div>
               <div className="col col--2">
-                <div className={styles.techItem}>
+                <Link to="/docs/sdk/rust-sdk" className={styles.techItem}>
                   <div className={styles.techIcon}>🦀</div>
                   <span>Rust</span>
-                </div>
+                </Link>
               </div>
             </div>
            </div>
