@@ -47,6 +47,18 @@ const sidebars: SidebarsConfig = {
       label: '博客',
       href: '/blog',
     },
+    {
+      type: 'category',
+      label: 'SDK 文档',
+      items: [
+        { type: 'doc', id: 'sdk/tts-sdk', label: 'TTS SDK (Node.js)' },
+        { type: 'doc', id: 'sdk/python-sdk', label: 'Python SDK' },
+        { type: 'doc', id: 'sdk/rest-api', label: 'REST API' },
+        { type: 'doc', id: 'sdk/java-sdk', label: 'Java SDK' },
+        { type: 'doc', id: 'sdk/go-sdk', label: 'Go SDK' },
+        { type: 'doc', id: 'sdk/web-frontend', label: 'Web 前端调用' },
+      ],
+    },
   ],
 
   // But you can create a sidebar manually
