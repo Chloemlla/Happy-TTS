@@ -48,7 +48,11 @@ COPY frontend/docs/ ./docs/
 
 # 安装文档依赖并构建
 WORKDIR /app/docs
-RUN npm ci && npm run build
+RUN npm ci && \
+    npm cache clean --force && \
+    rm -rf node_modules && \
+    npm ci && \
+    npm run build
 
 # 构建后端
 FROM node:20-alpine AS backend-builder
