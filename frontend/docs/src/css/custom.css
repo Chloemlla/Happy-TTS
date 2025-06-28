@@ -846,3 +846,13 @@ table {
   margin-right: 8px;
   font-size: 0.85em;
 }
+
+body {
+  overflow-x: hidden;
+}
+body,
+html,
+#__docusaurus {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
