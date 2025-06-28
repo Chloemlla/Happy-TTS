@@ -144,6 +144,12 @@ const config: Config = {
   themes: [
     // 可以添加自定义主题
   ],
+
+  clientModules: [
+    require.resolve('./src/clientModules/fixNavbar.js'),
+    require.resolve('./src/clientModules/scrollNavbar.js'),
+    require.resolve('./src/clientModules/routeModules.js'),
+  ],
 };
 
 export default config;
