@@ -15,12 +15,24 @@
   content: none;
 }
 
-.heroBanner h1 {
-  color: #fff !important;
+.heroBanner h1,
+.heroBanner h1:hover,
+.heroBanner h1:active,
+.heroBanner h1:focus {
+  color: #f8fafc !important;
   font-size: 3rem;
   font-weight: 700;
   margin-bottom: 1rem;
   text-shadow: none;
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  -webkit-text-fill-color: unset !important;
+  background-clip: unset !important;
+  transition: none !important;
+  transform: none !important;
+  filter: none !important;
+  box-shadow: none !important;
+  cursor: default !important;
 }
 
 .heroBanner p {

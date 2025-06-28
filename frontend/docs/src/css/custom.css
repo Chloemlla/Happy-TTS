@@ -337,16 +337,100 @@ tr:hover {
   transition: all var(--ifm-transition-fast);
 }
 
-.button--primary {
-  background: linear-gradient(135deg, var(--ifm-color-primary) 0%, var(--ifm-color-primary-dark) 100%);
-  border: none;
-  box-shadow: var(--ifm-global-shadow-md);
+.button--primary,
+.button--primary *,
+.button--primary:visited,
+.button--primary a,
+.button--primary a:visited,
+.button--primary a:hover,
+.button--primary a:active,
+.button--primary span,
+.button--primary svg {
+  color: #fff !important;
+  fill: #fff !important;
+  opacity: 1 !important;
+  filter: none !important;
+  text-shadow: none !important;
+  text-decoration: none !important;
+  mix-blend-mode: normal !important;
+  background: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+  transition: none !important;
 }
 
-.button--primary:hover {
-  background: linear-gradient(135deg, var(--ifm-color-primary-dark) 0%, var(--ifm-color-primary-darker) 100%);
-  box-shadow: var(--ifm-global-shadow-tl);
-  transform: translateY(-1px);
+.button--primary {
+  background: #4f46e5 !important;
+  box-shadow: none !important;
+  border: none !important;
+  opacity: 1 !important;
+  filter: none !important;
+  transition: none !important;
+}
+
+.button--primary:hover,
+.button--primary:focus,
+.button--primary:active {
+  background: #4f46e5 !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  filter: none !important;
+  text-decoration: none !important;
+  transition: none !important;
+}
+
+.button--secondary,
+.button--secondary *,
+.button--secondary:visited,
+.button--secondary a,
+.button--secondary a:visited,
+.button--secondary a:hover,
+.button--secondary a:active,
+.button--secondary span,
+.button--secondary svg {
+  color: #fff !important;
+  fill: #fff !important;
+  opacity: 1 !important;
+  filter: none !important;
+  text-shadow: none !important;
+  text-decoration: none !important;
+  mix-blend-mode: normal !important;
+  background: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+  transition: none !important;
+}
+
+.button--secondary {
+  background: #8b5cf6 !important;
+  box-shadow: none !important;
+  border: none !important;
+  opacity: 1 !important;
+  filter: none !important;
+  transition: none !important;
+}
+
+.button--secondary:hover,
+.button--secondary:focus,
+.button--secondary:active {
+  background: #7c3aed !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  filter: none !important;
+  text-decoration: none !important;
+  transition: none !important;
+}
+
+.button,
+.button *,
+.button:visited,
+.button a,
+.button a:visited,
+.button a:hover,
+.button a:active,
+.button span,
+.button svg {
+  text-decoration: none !important;
 }
 
 /* 警告框美化 */
@@ -382,6 +466,10 @@ tr:hover {
   border-top: 1px solid var(--ifm-color-emphasis-200);
 }
 
+.footer__copyright {
+  color: #f1f1f1 !important;
+}
+
 [data-theme='dark'] .footer {
   background: #0a0a0a !important;
   color: #fff !important;
@@ -393,6 +481,10 @@ tr:hover {
 
 [data-theme='dark'] .footer a:hover {
   color: #fff !important;
+}
+
+[data-theme='dark'] .footer__copyright {
+  color: #f1f1f1 !important;
 }
 
 /* 响应式设计 */
@@ -563,16 +655,4 @@ tr:hover {
   background: #1e293b !important;
   color: #e2e8f0 !important;
   border: 1px solid #475569;
-}
-.button--primary,
-.button--primary *,
-.button--primary a,
-.button--primary a:visited,
-.button--primary a:hover,
-.button--primary a:active,
-.button--primary span,
-.button--primary svg {
-  text-decoration: none !important;
-  border-bottom: none !important;
-  box-shadow: none !important;
 }

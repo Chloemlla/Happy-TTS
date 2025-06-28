@@ -67,7 +67,7 @@ const config: Config = {
           label: 'API 文档',
         },
         {
-          href: 'https://github.com/synapse/synapse',
+          href: 'https://github.com/hapxscom/synapse',
           label: 'GitHub',
           position: 'right',
         },
@@ -108,7 +108,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Synapse. Built with Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} Synapse.`,
     },
     prism: {
       theme: prismThemes.github,
