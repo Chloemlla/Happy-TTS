@@ -150,6 +150,31 @@ body {
   color: white;
 }
 
+/* 浅色模式下：父级菜单激活为深蓝色 */
+.menu__link--active.menu__link--sublist[aria-expanded="true"],
+.menu__link--active.menu__link--sublist-caret[aria-expanded="true"] {
+  background: transparent !important;
+  color: #1505f4 !important; /* 深蓝色 */
+  font-weight: 700 !important;
+  opacity: 1 !important;
+  filter: none !important;
+  cursor: pointer !important;
+  pointer-events: auto !important;
+  border-radius: 12px !important;
+  text-shadow: none !important;
+}
+
+/* 深色模式下，未激活菜单项字体颜色与浅色模式一致 */
+[data-theme='dark'] .menu__link {
+  color: #6366f1 !important; /* 与浅色模式主色一致 */
+}
+
+/* 保持激活项和选中项为原有高亮色 */
+[data-theme='dark'] .menu__link--active,
+[data-theme='dark'] .menu__link--active.menu__link--sublist-caret[aria-expanded="true"] {
+  color: #fff !important;
+}
+
 /* 主内容区域美化 */
 .main-wrapper {
   background: linear-gradient(135deg, var(--ifm-background-color) 0%, var(--ifm-background-surface-color) 100%);
@@ -692,4 +717,100 @@ table {
   margin: 0 auto !important;
   background: transparent !important;
   box-shadow: none !important;
+}
+/* 恢复 Docusaurus 移动端侧边栏的默认样式，避免被全局 100vw 覆盖 */
+.navbar-sidebar,
+.theme-layout-navbar-sidebar {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: auto !important;
+  width: 80vw !important;
+  /* 或 300px，按需调整 */
+  max-width: 400px !important;
+  height: 100vh !important;
+  background: var(--ifm-background-color, #fff) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  z-index: 2000 !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow-y: auto !important;
+}
+
+/* 让侧边栏在移动端正常弹出 */
+@media (max-width: 996px) {
+
+  .navbar-sidebar,
+  .theme-layout-navbar-sidebar {
+    display: block !important;
+    transform: translateX(0) !important;
+  }
+}
+
+/* 侧边栏展开时，右侧空白区域毛玻璃效果并禁用操作 */
+.navbar-sidebar__backdrop {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 1500 !important;
+  background: rgba(30, 41, 59, 0.25) !important; /* 深色毛玻璃 */
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  pointer-events: auto !important;
+  transition: background 0.3s;
+}
+
+/* 禁用 backdrop 下方文档的交互 */
+.navbar-sidebar__backdrop {
+  cursor: not-allowed !important;
+}
+
+/* 侧边栏关闭时隐藏 backdrop */
+.navbar-sidebar__backdrop:not(.navbar-sidebar--show) {
+  display: none !important;
+}
+/* 让侧边栏右侧空白区域有毛玻璃遮罩 */
+.navbar-sidebar__backdrop {
+  position: fixed !important;
+  top: 0 !important;
+  left: 80vw !important;
+  /* 侧边栏宽度 */
+  width: 20vw !important;
+  /* 剩余部分 */
+  height: 100vh !important;
+  z-index: 1500 !important;
+  background: rgba(30, 41, 59, 0.25) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  pointer-events: auto !important;
+  transition: background 0.3s;
+  cursor: not-allowed !important;
+}
+
+/* 侧边栏本身始终在最上层且不透明 */
+.navbar-sidebar,
+.theme-layout-navbar-sidebar {
+  z-index: 2000 !important;
+  background: var(--ifm-background-color, #fff) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* 侧边栏关闭时隐藏 backdrop */
+.navbar-sidebar__backdrop:not(.navbar-sidebar--show) {
+  display: none !important;
+}
+@media (max-width: 996px) {
+  .navbar-sidebar__backdrop {
+    left: 80vw !important;
+    width: 20vw !important;
+  }
+
+  .navbar-sidebar,
+  .theme-layout-navbar-sidebar {
+    width: 80vw !important;
+    max-width: 400px !important;
+  }
 }
