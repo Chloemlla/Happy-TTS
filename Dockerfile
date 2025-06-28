@@ -51,11 +51,6 @@ WORKDIR /app/docs
 RUN npm cache clean --force && \
     rm -rf node_modules package-lock.json && \
     npm install --legacy-peer-deps --force && \
-    # 手动删除任何css-select相关的包
-    find node_modules -name "*css-select*" -type d -exec rm -rf {} + 2>/dev/null || true && \
-    find node_modules -name "*cheerio-select*" -type d -exec rm -rf {} + 2>/dev/null || true && \
-    # 重新安装依赖以确保完整性
-    npm install --legacy-peer-deps --force && \
     npm run build
 
 # 构建后端
