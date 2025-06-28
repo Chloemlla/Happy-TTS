@@ -48,12 +48,7 @@ COPY frontend/docs/ ./docs/
 
 # 安装文档依赖并构建
 WORKDIR /app/docs
-RUN npm ci && \
-    npm cache clean --force && \
-    rm -rf node_modules package-lock.json && \
-    npm install -g npm@11.4.2 && \
-    npm install && \
-    npm install webpack-dev-server@^5.0.0 && \
+RUN npm install && \
     npm run build
 
 # 构建后端
