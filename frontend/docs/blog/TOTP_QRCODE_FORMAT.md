@@ -1,6 +1,6 @@
 ---
 title: TOTP 二维码格式说明
-date: 2025-06-28
+date: 2025-06-29
 slug: totp-qrcode-format
 ---
 
