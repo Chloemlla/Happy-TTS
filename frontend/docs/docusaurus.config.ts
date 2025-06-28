@@ -46,20 +46,7 @@ const config: Config = {
         theme: {
           customCss: './src/css/custom.css',
         },
-        blog: {
-          showReadingTime: true,
-          blogSidebarTitle: '所有博客',
-          blogSidebarCount: 'ALL',
-          postsPerPage: 10,
-          path: './blog',
-          routeBasePath: 'blog',
-          blogTitle: '项目博客',
-          blogDescription: '项目开发与实现相关博客',
-          feedOptions: {
-            type: 'all',
-            copyright: `Copyright © ${new Date().getFullYear()} Synapse`,
-          },
-        },
+        blog: false,
       } satisfies Preset.Options,
     ],
   ],
