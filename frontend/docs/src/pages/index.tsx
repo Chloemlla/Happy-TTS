@@ -239,22 +239,34 @@ export default function Home(): ReactNode {
             </div>
             <div className="row">
               <div className="col col--2">
-                <div className={styles.techItem}>
+                <Link to="/docs/sdk/web-frontend" className={styles.techItem}>
                   <div className={styles.techIcon}>⚡</div>
                   <span>JavaScript</span>
-                </div>
+                </Link>
               </div>
               <div className="col col--2">
-                <div className={styles.techItem}>
+                <Link to="/docs/sdk/python-sdk" className={styles.techItem}>
                   <div className={styles.techIcon}>🐍</div>
                   <span>Python</span>
-                </div>
+                </Link>
               </div>
               <div className="col col--2">
-                <div className={styles.techItem}>
+                <Link to="/docs/sdk/java-sdk" className={styles.techItem}>
                   <div className={styles.techIcon}>☕</div>
                   <span>Java</span>
-                </div>
+                </Link>
+              </div>
+              <div className="col col--2">
+                <Link to="/docs/sdk/go-sdk" className={styles.techItem}>
+                  <div className={styles.techIcon}>🐹</div>
+                  <span>Go</span>
+                </Link>
+              </div>
+              <div className="col col--2">
+                <Link to="/docs/sdk/rest-api" className={styles.techItem}>
+                  <div className={styles.techIcon}>🔧</div>
+                  <span>REST API</span>
+                </Link>
               </div>
               <div className="col col--2">
                 <div className={styles.techItem}>
@@ -262,22 +274,9 @@ export default function Home(): ReactNode {
                   <span>Rust</span>
                 </div>
               </div>
-              <div className="col col--2">
-                <div className={styles.techItem}>
-                  <div className={styles.techIcon}>🐹</div>
-                  <span>Go</span>
-                </div>
-              </div>
-              <div className="col col--2">
-                <div className={styles.techItem}>
-                  <div className={styles.techIcon}>🔧</div>
-                  <span>REST API</span>
-                </div>
-              </div>
             </div>
-          </div>
+           </div>
         </section>
-
       </main>
     </Layout>
   );

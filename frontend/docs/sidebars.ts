@@ -57,6 +57,7 @@ const sidebars: SidebarsConfig = {
         { type: 'doc', id: 'sdk/java-sdk', label: 'Java SDK' },
         { type: 'doc', id: 'sdk/go-sdk', label: 'Go SDK' },
         { type: 'doc', id: 'sdk/web-frontend', label: 'Web 前端调用' },
+        { type: 'doc', id: 'sdk/rust-sdk', label: 'Rust SDK' },
       ],
     },
   ],
