@@ -50,8 +50,10 @@ COPY frontend/docs/ ./docs/
 WORKDIR /app/docs
 RUN npm ci && \
     npm cache clean --force && \
-    rm -rf node_modules && \
-    npm ci && \
+    rm -rf node_modules package-lock.json && \
+    npm install -g npm@11.4.2 && \
+    npm install && \
+    npm audit fix --force && \
     npm run build
 
 # 构建后端
