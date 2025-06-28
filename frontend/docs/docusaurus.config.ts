@@ -46,7 +46,13 @@ const config: Config = {
         theme: {
           customCss: './src/css/custom.css',
         },
-        blog: false,
+        blog: {
+          showReadingTime: true,
+          feedOptions: {
+            type: 'all',
+            copyright: `Copyright © ${new Date().getFullYear()} Synapse`,
+          },
+        },
       } satisfies Preset.Options,
     ],
   ],
@@ -67,11 +73,11 @@ const config: Config = {
           position: 'left',
           label: 'API 文档',
         },
-        // {
-        //   to: '/blog',
-        //   label: '博客',
-        //   position: 'left'
-        // },
+        {
+          to: '/blog',
+          label: '博客',
+          position: 'left'
+        },
         {
           href: 'https://github.com/hapxscom/synapse',
           label: 'GitHub',
