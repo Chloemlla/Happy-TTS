@@ -42,11 +42,11 @@ const sidebars: SidebarsConfig = {
         'tutorials/basic-usage',
       ],
     },
-    {
-      type: 'link',
-      label: '博客',
-      href: '/blog',
-    },
+    // {
+    //   type: 'link',
+    //   label: '博客',
+    //   href: '/blog',
+    // },
   ],
 
   // But you can create a sidebar manually

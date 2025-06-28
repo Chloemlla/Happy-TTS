@@ -80,11 +80,11 @@ const config: Config = {
           position: 'left',
           label: 'API 文档',
         },
-        {
-          to: '/blog',
-          label: '博客',
-          position: 'left'
-        },
+        // {
+        //   to: '/blog',
+        //   label: '博客',
+        //   position: 'left'
+        // },
         {
           href: 'https://github.com/hapxscom/synapse',
           label: 'GitHub',
