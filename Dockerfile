@@ -49,7 +49,7 @@ COPY frontend/docs/ ./docs/
 
 # 安装文档依赖并构建
 WORKDIR /app/docs
-RUN npm ci && npm run build
+RUN npm install && npm run build
 
 # 构建后端
 FROM node:20-alpine AS backend-builder
@@ -66,7 +66,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # 安装后端依赖（包括开发依赖，因为需要TypeScript编译器）
-RUN npm ci && \
+RUN npm install && \
     npm install -g javascript-obfuscator
 
 # 复制后端源代码和配置文件（这层会在源代码变化时重新构建）
