@@ -53,6 +53,7 @@ RUN npm ci && \
     rm -rf node_modules package-lock.json && \
     npm install -g npm@11.4.2 && \
     npm install && \
+    npm install webpack-dev-server@^5.0.0 && \
     npm run build
 
 # 构建后端
