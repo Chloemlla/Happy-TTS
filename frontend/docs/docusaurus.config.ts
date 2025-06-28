@@ -46,6 +46,20 @@ const config: Config = {
         theme: {
           customCss: './src/css/custom.css',
         },
+        blog: {
+          showReadingTime: true,
+          blogSidebarTitle: '所有博客',
+          blogSidebarCount: 'ALL',
+          postsPerPage: 10,
+          path: './blog',
+          routeBasePath: 'blog',
+          blogTitle: '项目博客',
+          blogDescription: '项目开发与实现相关博客',
+          feedOptions: {
+            type: 'all',
+            copyright: `Copyright © ${new Date().getFullYear()} Synapse`,
+          },
+        },
       } satisfies Preset.Options,
     ],
   ],
@@ -65,6 +79,11 @@ const config: Config = {
           sidebarId: 'apiSidebar',
           position: 'left',
           label: 'API 文档',
+        },
+        {
+          to: '/blog',
+          label: '博客',
+          position: 'left'
         },
         {
           href: 'https://github.com/hapxscom/synapse',

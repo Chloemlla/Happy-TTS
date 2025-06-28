@@ -814,3 +814,35 @@ table {
     max-width: 400px !important;
   }
 }
+/* 博客卡片美化 */
+.blog-list-page .card {
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.08);
+  transition: box-shadow 0.2s;
+}
+
+.blog-list-page .card:hover {
+  box-shadow: 0 8px 32px rgba(99, 102, 241, 0.16);
+}
+
+/* 博客正文美化 */
+.blog-post-page h1 {
+  font-size: 2.2rem;
+  color: var(--ifm-color-primary);
+  margin-bottom: 1rem;
+}
+
+.blog-post-page .blog-post-meta {
+  color: #64748b;
+  font-size: 0.95rem;
+  margin-bottom: 1.5rem;
+}
+
+.blog-post-page .tag {
+  background: #6366f1;
+  color: #fff;
+  border-radius: 8px;
+  padding: 2px 10px;
+  margin-right: 8px;
+  font-size: 0.85em;
+}
