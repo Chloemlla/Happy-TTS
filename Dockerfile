@@ -38,6 +38,9 @@ RUN apk add --no-cache tzdata && \
     echo "Asia/Shanghai" > /etc/timezone && \
     apk del tzdata
 
+# 安装编译 gifsicle 所需的系统依赖
+RUN apk add --no-cache autoconf automake libtool build-base
+
 WORKDIR /app
 
 # 复制文档源代码
