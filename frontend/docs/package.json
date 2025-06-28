@@ -13,14 +13,14 @@
     "write-translations": "docusaurus write-translations",
     "write-heading-ids": "docusaurus write-heading-ids",
     "typecheck": "tsc",
-    "postinstall": "node fix-css-select.js"
+    "postinstall": "node fix-css-select.js && node test-css-select.js"
   },
   "dependencies": {
     "@docusaurus/core": "3.8.1",
     "@docusaurus/preset-classic": "3.8.1",
     "@mdx-js/react": "^3.0.0",
     "clsx": "^2.0.0",
-    "css-select": "^5.1.0",
+    "css-select": "4.3.0",
     "mitt": "^3.0.1",
     "prism-react-renderer": "^2.3.0",
     "react": "^19.0.0",
@@ -32,6 +32,9 @@
     "@docusaurus/tsconfig": "3.8.1",
     "@docusaurus/types": "3.8.1",
     "typescript": "~5.8.3"
+  },
+  "resolutions": {
+    "css-select": "4.3.0"
   },
   "browserslist": {
     "production": [
