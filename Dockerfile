@@ -46,9 +46,11 @@ WORKDIR /app
 # 复制文档源代码
 COPY frontend/docs/ ./docs/
 
-# 安装文档依赖并构建
+# 安装文档依赖并构建（添加清理和重试机制）
 WORKDIR /app/docs
-RUN npm install && \
+RUN npm cache clean --force && \
+    rm -rf node_modules package-lock.json && \
+    npm install --legacy-peer-deps && \
     npm run build
 
 # 构建后端

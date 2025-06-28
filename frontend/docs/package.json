@@ -18,8 +18,7 @@
     "@docusaurus/core": "3.8.1",
     "@docusaurus/preset-classic": "3.8.1",
     "@mdx-js/react": "^3.0.0",
-    "cheerio": "1.0.0-rc.12",
-    "cheerio-select": "2.1.0",
+    "cheerio": "^1.0.0-rc.12",
     "clsx": "^2.0.0",
     "mitt": "^3.0.1",
     "prism-react-renderer": "^2.3.0",
@@ -32,6 +31,9 @@
     "@docusaurus/tsconfig": "3.8.1",
     "@docusaurus/types": "3.8.1",
     "typescript": "~5.8.3"
+  },
+  "resolutions": {
+    "css-select": "^5.1.0"
   },
   "browserslist": {
     "production": [
