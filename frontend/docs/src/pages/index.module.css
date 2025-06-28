@@ -162,14 +162,29 @@
   margin-bottom: 3rem;
 }
 
+.techStack .row {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
 .techItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   background: white;
   border-radius: var(--ifm-border-radius);
-  padding: 1.5rem;
+  padding: 2.5rem 0 1.25rem 0;
+  min-height: 160px;
+  min-width: 120px;
   text-align: center;
   box-shadow: var(--ifm-global-shadow-lw);
   transition: all var(--ifm-transition-fast);
   border: 1px solid var(--ifm-color-emphasis-200);
+  cursor: pointer;
 }
 
 .techItem:hover {
@@ -178,15 +193,15 @@
 }
 
 .techIcon {
-  font-size: 2rem;
-  margin-bottom: 0.5rem;
+  font-size: 2.5rem;
+  margin-bottom: 0.75rem;
   display: block;
 }
 
 .techItem span {
   color: var(--ifm-color-emphasis-700);
   font-weight: 500;
-  font-size: 0.875rem;
+  font-size: 1.1rem;
 }
 
 /* 深色模式适配 */
@@ -281,10 +296,22 @@
     padding: 2rem 0;
   }
   
-  .featureCard,
-  .codeBlock,
+  .techStack .row {
+    gap: 0.5rem;
+  }
+  
   .techItem {
-    margin-bottom: 1rem;
+    min-width: 90px;
+    padding: 1.5rem 0 0.75rem 0;
+  }
+  
+  .techIcon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .techItem span {
+    font-size: 0.95rem;
   }
   
   .quickStart .row .col {
