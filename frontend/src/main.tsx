@@ -5,25 +5,96 @@ import './index.css'
 import { integrityChecker } from './utils/integrityCheck'
 import { disableSelection } from './utils/disableSelection'
 
-// 统一危险关键字
+// 统一危险关键字 - 扩展更多关键词
 const DANGEROUS_KEYWORDS = [
-  'supercopy', 'copy', 'fatkun', 'downloader', 'ocr', 'scraper', 'image', 'clip', 'capture'
+  'supercopy', 'copy', 'fatkun', 'downloader', 'ocr', 'scraper', 'capture',
+  'copyy', 'copycat', 'copyhelper', 'copyall', 'copytext', 'copycontent', 'copyweb',
+  'supercopy', 'supercopyy', 'supercopycat', 'supercopyhelper',
+  'fatkun', 'fatkundownloader', 'fatkunbatch', 'fatkunimage',
+  'imagecapture', 'screenshot', 'screencapture', 'webcapture',
+  'webscraper', 'datascraper', 'contentscraper', 'textscraper',
+  'ocr', 'ocrtool', 'ocrreader', 'textrecognizer',
+  'batchdownload', 'bulkdownload', 'massdownload',
+  'clipboard', 'clipboardmanager', 'clipboardhelper',
+  'selection', 'textselection', 'contentselection',
+  // 油猴相关关键词
+  'tampermonkey', 'greasemonkey', 'violentmonkey', 'userscript',
+  'userscripts', 'scriptmonkey', 'monkey', 'tamper', 'grease',
+  'violent', 'userjs', 'user.js', 'gm_', 'GM_', 'unsafeWindow',
+  'grant', 'namespace', 'match', 'exclude'
 ];
 
+// 扩展特定的检测模式
+const EXTENSION_PATTERNS = [
+  // SuperCopy 相关
+  { pattern: /supercopy/i, name: 'SuperCopy' },
+  { pattern: /copyy/i, name: 'CopyY' },
+  { pattern: /copycat/i, name: 'CopyCat' },
+  
+  // Fatkun 相关
+  { pattern: /fatkun/i, name: 'Fatkun批量下载' },
+  { pattern: /batch.*download/i, name: '批量下载工具' },
+  
+  // OCR 相关
+  { pattern: /ocr.*tool/i, name: 'OCR识别工具' },
+  { pattern: /text.*recognizer/i, name: '文字识别工具' },
+  
+  // 截图相关
+  { pattern: /screenshot/i, name: '截图工具' },
+  { pattern: /screen.*capture/i, name: '屏幕捕获工具' },
+  
+  // 抓取相关
+  { pattern: /scraper/i, name: '内容抓取工具' },
+  { pattern: /data.*extractor/i, name: '数据提取工具' },
+  
+  // 油猴相关
+  { pattern: /tampermonkey/i, name: 'Tampermonkey' },
+  { pattern: /greasemonkey/i, name: 'Greasemonkey' },
+  { pattern: /violentmonkey/i, name: 'Violentmonkey' },
+  { pattern: /userscript/i, name: '用户脚本' },
+  { pattern: /==UserScript==/i, name: '用户脚本头部' },
+  { pattern: /@grant/i, name: '油猴权限' },
+  { pattern: /@match/i, name: '油猴匹配规则' },
+  { pattern: /@include/i, name: '油猴包含规则' },
+  { pattern: /@exclude/i, name: '油猴排除规则' },
+  { pattern: /@namespace/i, name: '油猴命名空间' },
+  { pattern: /unsafeWindow/i, name: '油猴不安全窗口' },
+  { pattern: /GM_/i, name: '油猴API' }
+];
+
+// 记录命中的危险特征
+let detectedReasons: string[] = [];
+
 function hasDangerousExtension() {
+  detectedReasons = [];
   // 1. 检查所有 script 标签（src 和内容，模糊匹配）
   const scripts = Array.from(document.querySelectorAll('script'));
   for (const s of scripts) {
     const src = (s.src || '').toLowerCase();
     const content = (s.textContent || '').toLowerCase();
     for (const kw of DANGEROUS_KEYWORDS) {
+      if (src.includes(kw)) detectedReasons.push(`script标签src命中关键词：${kw}`);
+      if (content.includes(kw)) detectedReasons.push(`script标签内容命中关键词：${kw}`);
       if (src.includes(kw) || content.includes(kw)) return true;
     }
   }
-  // 2. 检查已知扩展注入的 DOM
+
+  // 2. 检查已知扩展注入的 DOM 元素
   for (const kw of DANGEROUS_KEYWORDS) {
-    if (document.querySelector(`[id*="${kw}"], [class*="${kw}"], ${kw}-drop-panel`)) return true;
+    if (document.querySelector(`[id*="${kw}"], [class*="${kw}"], [data-*="${kw}"]`)) {
+      detectedReasons.push(`DOM节点属性命中关键词：${kw}`);
+      return true;
+    }
+    if (document.querySelector(`[id*="${kw}-drop-panel"], [class*="${kw}-drop-panel"]`)) {
+      detectedReasons.push(`扩展面板命中关键词：${kw}`);
+      return true;
+    }
+    if (document.querySelector(`[id*="${kw}-float"], [class*="${kw}-float"]`)) {
+      detectedReasons.push(`扩展浮动元素命中关键词：${kw}`);
+      return true;
+    }
   }
+
   // 3. 检查 body/head 属性
   const allAttrs = [
     ...Array.from(document.body.attributes),
@@ -31,13 +102,243 @@ function hasDangerousExtension() {
   ].map(a => a.name + '=' + a.value.toLowerCase());
   for (const attr of allAttrs) {
     for (const kw of DANGEROUS_KEYWORDS) {
-      if (attr.includes(kw)) return true;
+      if (attr.includes(kw)) {
+        detectedReasons.push(`body/head属性命中关键词：${kw}`);
+        return true;
+      }
     }
   }
-  // 4. 检查全局变量
-  for (const kw of DANGEROUS_KEYWORDS) {
-    if ((window as any)[kw]) return true;
+
+  // 4. 检查全局变量（只检测典型扩展API，防止误报，window.copy豁免）
+  const extensionGlobals = [
+    'GM_info', 'GM_getValue', 'GM_setValue', 'GM_addStyle', 'unsafeWindow',
+    'tampermonkey', 'greasemonkey', 'violentmonkey'
+  ];
+  for (const name of extensionGlobals) {
+    if (name === 'copy') continue;
+    if ((window as any)[name]) {
+      detectedReasons.push(`window全局变量命中：${name}`);
+      return true;
+    }
   }
+
+  // 5. 检查扩展注入的样式
+  const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'));
+  for (const style of styles) {
+    const content = style.textContent || '';
+    for (const kw of DANGEROUS_KEYWORDS) {
+      if (content.toLowerCase().includes(kw)) {
+        detectedReasons.push(`样式内容命中关键词：${kw}`);
+        return true;
+      }
+    }
+  }
+
+  // 6. 检查扩展的 iframe
+  const iframes = Array.from(document.querySelectorAll('iframe'));
+  for (const iframe of iframes) {
+    const src = (iframe.src || '').toLowerCase();
+    for (const kw of DANGEROUS_KEYWORDS) {
+      if (src.includes(kw)) {
+        detectedReasons.push(`iframe src命中关键词：${kw}`);
+        return true;
+      }
+    }
+  }
+
+  // 7. 检查扩展的 web accessible resources
+  const links = Array.from(document.querySelectorAll('link'));
+  for (const link of links) {
+    const href = (link.href || '').toLowerCase();
+    for (const kw of DANGEROUS_KEYWORDS) {
+      if (href.includes(kw)) {
+        detectedReasons.push(`link href命中关键词：${kw}`);
+        return true;
+      }
+    }
+  }
+
+  // 8. 检查扩展的模式匹配
+  const pageContent = document.documentElement.outerHTML.toLowerCase();
+  for (const pattern of EXTENSION_PATTERNS) {
+    if (pattern.pattern.test(pageContent)) {
+      detectedReasons.push(`页面源码命中扩展特征：${pattern.name}`);
+      return true;
+    }
+  }
+
+  // 9. 检查扩展的特定DOM结构
+  const suspiciousSelectors = [
+    '[id*="copy"]',
+    '[class*="copy"]',
+    '[id*="download"]',
+    '[class*="download"]',
+    '[id*="ocr"]',
+    '[class*="ocr"]',
+    '[id*="scraper"]',
+    '[class*="scraper"]',
+    '[id*="capture"]',
+    '[class*="capture"]',
+    '[style*="position: fixed"][style*="z-index: 999"]',
+    '[style*="position:fixed"][style*="z-index:999"]'
+  ];
+  for (const selector of suspiciousSelectors) {
+    if (document.querySelector(selector)) {
+      detectedReasons.push(`DOM结构命中可疑选择器：${selector}`);
+      // 进一步检查是否真的是扩展注入的
+      const element = document.querySelector(selector);
+      if (element) {
+        const computedStyle = window.getComputedStyle(element);
+        if (computedStyle.position === 'fixed' && 
+            parseInt(computedStyle.zIndex) > 1000) {
+          detectedReasons.push(`可疑元素为高z-index固定定位`);
+          return true;
+        }
+      }
+    }
+  }
+
+  // 10. 检查扩展的 MutationObserver 监听器
+  try {
+    const originalObserver = window.MutationObserver;
+    if (originalObserver.prototype.observe.toString().includes('copy') ||
+        originalObserver.prototype.observe.toString().includes('download')) {
+      detectedReasons.push('MutationObserver监听器命中copy/download');
+      return true;
+    }
+  } catch (e) {}
+
+  // 11. 检查油猴脚本管理器
+  try {
+    if (typeof (window as any).GM_info !== 'undefined') {
+      detectedReasons.push('检测到油猴API GM_info');
+      return true;
+    }
+    if (typeof (window as any).tampermonkey !== 'undefined') {
+      detectedReasons.push('检测到 Tampermonkey 脚本管理器');
+      return true;
+    }
+    if (typeof (window as any).greasemonkey !== 'undefined') {
+      detectedReasons.push('检测到 Greasemonkey 脚本管理器');
+      return true;
+    }
+    if (typeof (window as any).violentmonkey !== 'undefined') {
+      detectedReasons.push('检测到 Violentmonkey 脚本管理器');
+      return true;
+    }
+    if (typeof (window as any).unsafeWindow !== 'undefined') {
+      detectedReasons.push('检测到油猴特有 unsafeWindow');
+      return true;
+    }
+  } catch (e) {}
+
+  // 12. 检查用户脚本内容
+  try {
+    const pageText = document.documentElement.outerHTML;
+    const userScriptPatterns = [
+      /==UserScript==/i,
+      /==\/UserScript==/i,
+      /@name\s+/i,
+      /@version\s+/i,
+      /@description\s+/i,
+      /@author\s+/i,
+      /@match\s+/i,
+      /@include\s+/i,
+      /@exclude\s+/i,
+      /@grant\s+/i,
+      /@namespace\s+/i,
+      /@require\s+/i,
+      /@resource\s+/i,
+      /@connect\s+/i,
+      /@antifeature\s+/i,
+      /@unwrap\s+/i,
+      /@noframes\s+/i,
+      /@run-at\s+/i,
+      /@sandbox\s+/i
+    ];
+    for (const pattern of userScriptPatterns) {
+      if (pattern.test(pageText)) {
+        detectedReasons.push(`页面源码命中用户脚本特征：${pattern}`);
+        return true;
+      }
+    }
+    const scriptTags = Array.from(document.querySelectorAll('script'));
+    for (const script of scriptTags) {
+      const content = script.textContent || '';
+      for (const pattern of userScriptPatterns) {
+        if (pattern.test(content)) {
+          detectedReasons.push(`script标签内容命中用户脚本特征：${pattern}`);
+          return true;
+        }
+      }
+    }
+  } catch (e) {}
+
+  // 13. 检查油猴注入的DOM元素
+  try {
+    const tampermonkeySelectors = [
+      '[id*="tampermonkey"]',
+      '[class*="tampermonkey"]',
+      '[id*="greasemonkey"]',
+      '[class*="greasemonkey"]',
+      '[id*="violentmonkey"]',
+      '[class*="violentmonkey"]',
+      '[id*="userscript"]',
+      '[class*="userscript"]',
+      '[id*="gm-"]',
+      '[class*="gm-"]',
+      '[id*="GM_"]',
+      '[class*="GM_"]'
+    ];
+    for (const selector of tampermonkeySelectors) {
+      if (document.querySelector(selector)) {
+        detectedReasons.push(`DOM节点命中油猴特征选择器：${selector}`);
+        return true;
+      }
+    }
+    const styles = Array.from(document.querySelectorAll('style'));
+    for (const style of styles) {
+      const content = style.textContent || '';
+      if (content.includes('tampermonkey') || 
+          content.includes('greasemonkey') || 
+          content.includes('violentmonkey') ||
+          content.includes('userscript') ||
+          content.includes('GM_')) {
+        detectedReasons.push('样式内容命中油猴特征');
+        return true;
+      }
+    }
+  } catch (e) {}
+
+  // 14. 检查油猴的脚本管理器特征
+  try {
+    const functionNames = Object.getOwnPropertyNames(window);
+    const tampermonkeyFunctions = [
+      'tampermonkey', 'greasemonkey', 'violentmonkey', 'userscript',
+      'scriptmonkey', 'monkey', 'tamper', 'grease', 'violent'
+    ];
+    for (const funcName of functionNames) {
+      for (const tmFunc of tampermonkeyFunctions) {
+        if (funcName.toLowerCase().includes(tmFunc)) {
+          detectedReasons.push(`window全局函数名命中油猴特征：${funcName}`);
+          return true;
+        }
+      }
+    }
+    if ((window as any).__tampermonkey__) {
+      detectedReasons.push('window.__tampermonkey__ 命中');
+      return true;
+    }
+    if ((window as any).__greasemonkey__) {
+      detectedReasons.push('window.__greasemonkey__ 命中');
+      return true;
+    }
+    if ((window as any).__violentmonkey__) {
+      detectedReasons.push('window.__violentmonkey__ 命中');
+      return true;
+    }
+  } catch (e) {}
+
   return false;
 }
 
@@ -100,6 +401,16 @@ function blockDangerousExtension() {
   // 让 body 可滚动
   document.body.style.overflow = 'auto';
 
+  // 展示详细原因
+  const reasonHtml = detectedReasons.length
+    ? `<div style="margin:1.2rem 0 1.5rem 0;padding:1rem 1.2rem;background:#fff8e1;border-radius:1rem;border:1px solid #ffe082;text-align:left;max-width:100%;overflow-x:auto;">
+        <div style="color:#d32f2f;font-weight:bold;font-size:1.1rem;margin-bottom:0.5rem;">⚠️ 触发拦截的详细信息：</div>
+        <ul style="color:#d32f2f;font-size:1.05rem;padding-left:1.5em;margin:0;">
+          ${detectedReasons.map(r => `<li>${r}</li>`).join('')}
+        </ul>
+      </div>`
+    : '';
+
   document.body.innerHTML = `
     <div style="position:fixed;z-index:99999;top:0;left:0;width:100vw;height:100vh;background:linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;min-height:100vh;min-width:100vw;">
       <!-- 主警告容器 -->
@@ -116,15 +427,20 @@ function blockDangerousExtension() {
           <p style="color:#333;font-size:1.15rem;margin-bottom:1.2rem;line-height:1.6;font-weight:500;">
             为了确保您的账户安全和系统稳定，我们检测到您的浏览器中运行了可能影响服务正常使用的扩展程序。
           </p>
+          ${reasonHtml}
           <div style="background:linear-gradient(135deg, #fff3cd, #ffeaa7);border:1px solid #ffc107;border-radius:0.9rem;padding:1.1rem;margin:1.1rem 0;animation:shake 0.5s cubic-bezier(.4,2,.6,1) 0.5s 1 both;">
             <p style="color:#856404;font-size:1.05rem;margin:0;font-weight:600;">
               🔒 <strong>安全提示：</strong>请关闭以下扩展后刷新页面：
             </p>
             <ul class="danger-modal-list" style="color:#856404;font-size:1rem;margin:0.7rem 0 0 0;text-align:left;padding-left:2rem;">
-              <li style="margin:0.4rem 0;">• 超级复制 (SuperCopy)</li>
+              <li style="margin:0.4rem 0;">• 超级复制 (SuperCopy/CopyY/CopyCat)</li>
               <li style="margin:0.4rem 0;">• Fatkun批量图片下载</li>
-              <li style="margin:0.4rem 0;">• 其他OCR识别扩展</li>
+              <li style="margin:0.4rem 0;">• OCR识别扩展</li>
               <li style="margin:0.4rem 0;">• 网页内容抓取工具</li>
+              <li style="margin:0.4rem 0;">• 截图/屏幕捕获工具</li>
+              <li style="margin:0.4rem 0;">• 批量下载工具</li>
+              <li style="margin:0.4rem 0;">• 油猴脚本管理器 (Tampermonkey/Greasemonkey/Violentmonkey)</li>
+              <li style="margin:0.4rem 0;">• 用户脚本 (UserScript)</li>
             </ul>
           </div>
           <p style="color:#666;font-size:0.98rem;margin-top:1.5rem;font-style:italic;">
@@ -172,21 +488,21 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // 禁止右键和常见调试快捷键
-if (typeof window !== 'undefined') {
-  window.addEventListener('contextmenu', e => e.preventDefault());
-  window.addEventListener('keydown', e => {
-    // F12
-    if (e.key === 'F12') e.preventDefault();
-    // Ctrl+Shift+I/C/U/J
-    if ((e.ctrlKey && e.shiftKey && ['I', 'C', 'J'].includes(e.key)) ||
-      (e.ctrlKey && e.key === 'U')) {
-      e.preventDefault();
-    }
-  });
+// if (typeof window !== 'undefined') {
+//   window.addEventListener('contextmenu', e => e.preventDefault());
+//   window.addEventListener('keydown', e => {
+//     // F12
+//     if (e.key === 'F12') e.preventDefault();
+//     // Ctrl+Shift+I/C/U/J
+//     if ((e.ctrlKey && e.shiftKey && ['I', 'C', 'J'].includes(e.key)) ||
+//       (e.ctrlKey && e.key === 'U')) {
+//       e.preventDefault();
+//     }
+//   });
 
-  // 初始化禁用选择功能
-  disableSelection();
-}
+//   // 初始化禁用选择功能
+//   disableSelection();
+// }
 
 // 初始化完整性检查
 document.addEventListener('DOMContentLoaded', () => {

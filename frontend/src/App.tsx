@@ -71,27 +71,24 @@ const LoadingSpinner: React.FC = () => {
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5 }}
       >
-        {/* 外圈旋转动画 */}
-        <motion.div
-          className="relative w-16 h-16"
-          animate={{ rotate: 360 }}
-          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-        >
-          <div className="w-full h-full border-4 border-indigo-200 border-t-indigo-600 rounded-full"></div>
-        </motion.div>
-        
-        {/* 内圈缩放动画 - 独立定位 */}
-        <motion.div
-          className="absolute w-8 h-8 bg-indigo-600 rounded-full"
-          animate={{ scale: [1, 1.2, 1] }}
-          transition={{ duration: 2, repeat: Infinity }}
-          style={{
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)'
-          }}
-        />
-        
+        {/* 包裹外圈和内圈的容器，保证居中 */}
+        <div className="relative w-16 h-16 flex items-center justify-center">
+          {/* 外圈旋转 */}
+          <motion.div
+            className="absolute inset-0"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+          >
+            <div className="w-full h-full border-4 border-indigo-200 border-t-indigo-600 rounded-full"></div>
+          </motion.div>
+          {/* 内圈缩放 */}
+          <motion.div
+            className="absolute top-1/2 left-1/2 w-8 h-8 bg-indigo-600 rounded-full"
+            animate={{ scale: [1, 1.2, 1] }}
+            transition={{ duration: 2, repeat: Infinity }}
+            style={{ transform: "translate(-50%, -50%)" }}
+          />
+        </div>
         <motion.p
           className="mt-6 text-center text-gray-600 font-medium"
           initial={{ opacity: 0, y: 10 }}
