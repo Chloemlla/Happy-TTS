@@ -132,8 +132,9 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                     initial={{ rotate: -10 }}
                     animate={{ rotate: 0 }}
                     transition={{ duration: 0.5, type: 'spring', stiffness: 200 }}
+                    className="flex items-center"
                   >
-                    {/* 锁图标（可替换为你实际用的icon） */}
+                    {/* 锁图标 */}
                     <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="text-indigo-500">
                       <rect x="5" y="11" width="14" height="8" rx="2"/>
                       <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
@@ -190,7 +191,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                     transition={{ duration: 0.6, delay: 0.3, type: "spring", stiffness: 100 }}
                   >
                     <div className="w-full max-w-[220px] mx-auto my-2">
-                      {/* 豁免二维码旋转，始终正向显示 */}
+                      {/* 彻底移除二维码旋转，父级和自身都无 transform/rotate，仅锁图标可动 */}
                       <QRCodeSVG
                         value={setupData.otpauthUrl}
                         size={Math.min(220, window.innerWidth * 0.7)}
@@ -199,7 +200,6 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                         bgColor="#FFFFFF"
                         fgColor="#000000"
                         className="w-full h-auto"
-                        style={{ transform: 'none' }}
                       />
                     </div>
                     <motion.p 

@@ -184,6 +184,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                         exit={{ opacity: 0, y: -20, scale: 0.95 }}
                         transition={{ duration: 0.3 }}
                     >
+                        {/* Notification 组件本身不做旋转动画，若有图标动画请在 Notification 内部单独处理 */}
                         <Notification
                             message={notification.message}
                             type={notification.type}
