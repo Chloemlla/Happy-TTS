@@ -114,35 +114,36 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.9, opacity: 0, y: 50 }}
           transition={{ duration: 0.4, type: "spring", stiffness: 300, damping: 25 }}
-          className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto my-8 min-h-fit border border-gray-100"
+          className="bg-white rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-[95vw] sm:max-w-md mx-auto my-8 min-h-fit border border-gray-100 p-2 sm:p-6 overflow-x-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           {/* 可滚动的内容容器 */}
-          <div className="p-6 max-h-[90vh] overflow-y-auto">
+          <div className="max-h-[90vh] overflow-y-auto flex flex-col items-center w-full">
             {/* 标题 */}
             <motion.div 
-              className="text-center mb-6"
+              className="text-center mb-4 w-full"
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
             >
               <div className="flex flex-col items-center">
-                <motion.h2 
-                  className="text-2xl font-bold text-gray-900 mb-2"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.2 }}
-                >
-                  设置二次验证
-                </motion.h2>
-                <motion.p 
-                  className="text-gray-600"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.3 }}
-                >
-                  使用认证器应用扫描QR码
-                </motion.p>
+                <div className="flex items-center gap-2 mb-2">
+                  <motion.span
+                    initial={{ rotate: -10 }}
+                    animate={{ rotate: 0 }}
+                    transition={{ duration: 0.5, type: 'spring', stiffness: 200 }}
+                  >
+                    {/* 锁图标（可替换为你实际用的icon） */}
+                    <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="text-indigo-500">
+                      <rect x="5" y="11" width="14" height="8" rx="2"/>
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                  </motion.span>
+                  <span className="text-lg sm:text-2xl font-bold text-gray-900 leading-normal select-none">二次验证</span>
+                  <span className="ml-2 px-2 py-0.5 rounded-full bg-gray-100 text-xs text-gray-600 align-middle select-none">未启用</span>
+                </div>
+                <span className="text-sm sm:text-base text-gray-600 leading-normal mb-1 select-none">增强账户安全性</span>
+                <span className="text-sm sm:text-base text-gray-600 leading-normal select-none">使用认证器应用扫描QR码</span>
               </div>
             </motion.div>
 
@@ -150,7 +151,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
             <AnimatePresence mode="wait">
               {step === 'loading' && (
                 <motion.div 
-                  className="text-center py-8"
+                  className="text-center py-8 w-full"
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
@@ -163,7 +164,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                     transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                   />
                   <motion.p 
-                    className="text-gray-600"
+                    className="text-sm text-gray-600 leading-normal"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.3, delay: 0.2 }}
@@ -176,34 +177,33 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
               {/* 设置步骤 */}
               {step === 'setup' && setupData && (
                 <motion.div 
-                  className="space-y-6"
+                  className="space-y-4 w-full"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.2 }}
                 >
                   {/* QR码 */}
                   <motion.div 
-                    className="text-center"
+                    className="w-full flex flex-col items-center"
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.6, delay: 0.3, type: "spring", stiffness: 100 }}
                   >
-                    <motion.div 
-                      className="bg-gray-50 rounded-lg p-4 inline-block shadow-lg"
-                      animate={{ rotate: 0 }}
-                      whileHover={{ scale: 1.02, y: -2 }}
-                    >
+                    <div className="w-full max-w-[220px] mx-auto my-2">
+                      {/* 豁免二维码旋转，始终正向显示 */}
                       <QRCodeSVG
                         value={setupData.otpauthUrl}
-                        size={Math.min(256, window.innerWidth * 0.7)}
+                        size={Math.min(220, window.innerWidth * 0.7)}
                         level="M"
                         includeMargin={true}
                         bgColor="#FFFFFF"
                         fgColor="#000000"
+                        className="w-full h-auto"
+                        style={{ transform: 'none' }}
                       />
-                    </motion.div>
+                    </div>
                     <motion.p 
-                      className="text-xs text-gray-500 mt-2"
+                      className="text-xs text-gray-500 mt-2 text-center leading-normal"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.3, delay: 0.5 }}
@@ -214,23 +214,23 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
 
                   {/* 密钥 */}
                   <motion.div 
-                    className="bg-gray-50 rounded-lg p-4"
+                    className="bg-gray-50 rounded-lg p-4 w-full"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: 0.4 }}
                     whileHover={{ scale: 1.01 }}
                   >
                     <motion.p 
-                      className="text-sm text-gray-600 mb-2"
+                      className="text-sm text-gray-600 mb-2 leading-normal"
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.3, delay: 0.5 }}
                     >
                       手动输入密钥（如果无法扫描QR码）：
                     </motion.p>
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full">
                       <motion.code 
-                        className="bg-white px-3 py-2 rounded border text-sm font-mono flex-1 break-all"
+                        className="bg-white px-3 py-2 rounded border text-sm font-mono flex-1 break-all w-full"
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ duration: 0.3, delay: 0.6 }}
@@ -250,7 +250,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
 
                   {/* 备用恢复码 */}
                   <motion.div 
-                    className="bg-yellow-50 rounded-lg p-4 border border-yellow-200"
+                    className="bg-yellow-50 rounded-lg p-4 border border-yellow-200 w-full"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: 0.5 }}
@@ -258,7 +258,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                   >
                     <div className="flex items-center justify-between mb-2">
                       <motion.p 
-                        className="text-sm font-medium text-yellow-800"
+                        className="text-sm font-medium text-yellow-800 leading-normal"
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.3, delay: 0.6 }}
@@ -275,7 +275,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                       </motion.button>
                     </div>
                     <motion.p 
-                      className="text-sm text-yellow-700 mb-2"
+                      className="text-sm text-yellow-700 mb-2 leading-normal"
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.3, delay: 0.7 }}
@@ -285,7 +285,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                     <AnimatePresence>
                       {showBackupCodes && (
                         <motion.div 
-                          className="grid grid-cols-1 sm:grid-cols-2 gap-2"
+                          className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full"
                           initial={{ opacity: 0, height: 0 }}
                           animate={{ opacity: 1, height: "auto" }}
                           exit={{ opacity: 0, height: 0 }}
@@ -294,7 +294,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                           {setupData.backupCodes.map((code, index) => (
                             <motion.code 
                               key={index} 
-                              className="bg-white px-2 py-1 rounded text-xs font-mono text-center break-all border border-yellow-200"
+                              className="bg-white px-2 py-1 rounded text-xs font-mono text-center break-all border border-yellow-200 w-full"
                               initial={{ opacity: 0, scale: 0.8 }}
                               animate={{ opacity: 1, scale: 1 }}
                               transition={{ duration: 0.2, delay: 0.1 * index }}
@@ -313,9 +313,10 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: 0.6 }}
+                    className="w-full"
                   >
                     <motion.label 
-                      className="block text-sm font-medium text-gray-700 mb-2"
+                      className="block text-sm font-medium text-gray-700 mb-2 leading-normal"
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.3, delay: 0.7 }}
@@ -337,14 +338,14 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                   <AnimatePresence>
                     {error && (
                       <motion.div 
-                        className="bg-red-50 border border-red-200 rounded-lg p-3"
+                        className="bg-red-50 border border-red-200 rounded-lg p-3 w-full"
                         initial={{ opacity: 0, scale: 0.95, y: -10 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: -10 }}
                         transition={{ duration: 0.3 }}
                       >
                         <motion.p 
-                          className="text-red-700 text-sm"
+                          className="text-red-700 text-sm leading-normal"
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           transition={{ duration: 0.2, delay: 0.1 }}
@@ -357,14 +358,14 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
 
                   {/* 操作按钮 */}
                   <motion.div 
-                    className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3"
+                    className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 w-full"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: 0.8 }}
                   >
                     <motion.button
                       onClick={handleClose}
-                      className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all duration-200"
+                      className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all duration-200 w-full"
                       whileHover={{ scale: 1.02, y: -1 }}
                       whileTap={{ scale: 0.98 }}
                     >
@@ -373,7 +374,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                     <motion.button
                       onClick={handleVerify}
                       disabled={loading || verificationCode.length !== 6}
-                      className="flex-1 px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
+                      className="flex-1 px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl w-full"
                       whileHover={{ scale: 1.02, y: -1 }}
                       whileTap={{ scale: 0.98 }}
                     >
@@ -397,7 +398,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
               {/* 成功状态 */}
               {step === 'success' && (
                 <motion.div 
-                  className="text-center py-8"
+                  className="text-center py-8 w-full"
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.5 }}
@@ -421,7 +422,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                     </motion.svg>
                   </motion.div>
                   <motion.h3 
-                    className="text-xl font-semibold text-gray-900 mb-2"
+                    className="text-lg sm:text-xl font-semibold text-gray-900 mb-2 leading-normal"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4, delay: 0.2 }}
@@ -429,7 +430,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                     设置成功！
                   </motion.h3>
                   <motion.p 
-                    className="text-gray-600"
+                    className="text-sm sm:text-base text-gray-600 leading-normal"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4, delay: 0.3 }}
