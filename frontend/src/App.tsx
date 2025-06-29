@@ -66,25 +66,32 @@ const LoadingSpinner: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
       <BackgroundParticles />
       <motion.div
-        className="relative z-10"
+        className="relative z-10 flex flex-col items-center"
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5 }}
       >
+        {/* 外圈旋转动画 */}
         <motion.div
-          className="relative"
+          className="relative w-16 h-16"
           animate={{ rotate: 360 }}
           transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
         >
-          <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full"></div>
+          <div className="w-full h-full border-4 border-indigo-200 border-t-indigo-600 rounded-full"></div>
         </motion.div>
+        
+        {/* 内圈缩放动画 - 独立定位 */}
         <motion.div
-          className="absolute inset-0 flex items-center justify-center"
+          className="absolute w-8 h-8 bg-indigo-600 rounded-full"
           animate={{ scale: [1, 1.2, 1] }}
           transition={{ duration: 2, repeat: Infinity }}
-        >
-          <div className="w-8 h-8 bg-indigo-600 rounded-full"></div>
-        </motion.div>
+          style={{
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)'
+          }}
+        />
+        
         <motion.p
           className="mt-6 text-center text-gray-600 font-medium"
           initial={{ opacity: 0, y: 10 }}
@@ -105,22 +112,12 @@ const App: React.FC = () => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [showTOTPManager, setShowTOTPManager] = useState(false);
   const [totpStatus, setTotpStatus] = useState<TOTPStatus | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     if (!loading) {
       setIsInitialized(true);
     }
   }, [loading]);
-
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
 
   useEffect(() => {
     const fetchTOTPStatus = async () => {
@@ -186,72 +183,16 @@ const App: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                 </motion.svg>
                 <Link to="/" className="text-xl font-bold text-gray-900 hover:text-indigo-600 transition-colors">Synapse</Link>
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Link to="/admin/users" className="ml-6 px-4 py-1 rounded-lg bg-blue-100 text-blue-700 font-semibold hover:bg-blue-200 transition-all">用户管理</Link>
-                </motion.div>
               </motion.div>
               
-              {/* API 文档链接 - 始终显示 */}
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Link 
-                  to="/api-docs" 
-                  className="px-4 py-2 rounded-lg bg-indigo-100 text-indigo-700 font-semibold hover:bg-indigo-200 transition-all"
-                >
-                  API 文档
-                </Link>
-              </motion.div>
-              
+              {/* 所有按钮都交由MobileNav统一管理 */}
               {user && (
-                isMobile ? (
-                  <MobileNav
-                    user={user}
-                    logout={logout}
-                    onTOTPManagerOpen={() => setShowTOTPManager(true)}
-                    totpStatus={totpStatus}
-                  />
-                ) : (
-                  <div className="flex items-center space-x-3">
-                    <motion.button
-                      onClick={() => setShowTOTPManager(true)}
-                      whileHover={{ scale: 1.05, y: -2 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-all duration-200 shadow-sm hover:shadow-md"
-                    >
-                      <motion.svg 
-                        className="w-4 h-4" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        viewBox="0 0 24 24"
-                        animate={{ rotate: [0, 5, -5, 0] }}
-                        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </motion.svg>
-                      <span>二次验证</span>
-                      {totpStatus?.enabled && (
-                        <motion.span 
-                          className="w-2 h-2 bg-green-500 rounded-full"
-                          animate={{ scale: [1, 1.2, 1] }}
-                          transition={{ duration: 2, repeat: Infinity }}
-                        />
-                      )}
-                    </motion.button>
-                    <motion.button
-                      onClick={logout}
-                      whileHover={{ scale: 1.05, y: -2 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-sm hover:shadow-md"
-                    >
-                      退出
-                    </motion.button>
-                  </div>
-                )
+                <MobileNav
+                  user={user}
+                  logout={logout}
+                  onTOTPManagerOpen={() => setShowTOTPManager(true)}
+                  totpStatus={totpStatus}
+                />
               )}
             </div>
           </div>
@@ -431,64 +372,14 @@ const App: React.FC = () => {
               <Link to="/" className="text-xl font-bold text-gray-900 hover:text-indigo-600 transition-colors">Synapse</Link>
             </motion.div>
             
-            {/* API 文档链接 - 始终显示 */}
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Link 
-                to="/api-docs" 
-                className="px-4 py-2 rounded-lg bg-indigo-100 text-indigo-700 font-semibold hover:bg-indigo-200 transition-all"
-              >
-                API 文档
-              </Link>
-            </motion.div>
-            
+            {/* 所有按钮都交由MobileNav统一管理 */}
             {user && (
-              isMobile ? (
-                <MobileNav
-                  user={user}
-                  logout={logout}
-                  onTOTPManagerOpen={() => setShowTOTPManager(true)}
-                  totpStatus={totpStatus}
-                />
-              ) : (
-                <div className="flex items-center space-x-3">
-                  <motion.button
-                    onClick={() => setShowTOTPManager(true)}
-                    whileHover={{ scale: 1.05, y: -2 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-all duration-200 shadow-sm hover:shadow-md"
-                  >
-                    <motion.svg 
-                      className="w-4 h-4" 
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
-                      animate={{ rotate: [0, 5, -5, 0] }}
-                      transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </motion.svg>
-                    <span>二次验证</span>
-                    {totpStatus?.enabled && (
-                      <motion.span 
-                        className="w-2 h-2 bg-green-500 rounded-full"
-                        animate={{ scale: [1, 1.2, 1] }}
-                        transition={{ duration: 2, repeat: Infinity }}
-                      />
-                    )}
-                  </motion.button>
-                  <motion.button
-                    onClick={logout}
-                    whileHover={{ scale: 1.05, y: -2 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-sm hover:shadow-md"
-                  >
-                    退出
-                  </motion.button>
-                </div>
-              )
+              <MobileNav
+                user={user}
+                logout={logout}
+                onTOTPManagerOpen={() => setShowTOTPManager(true)}
+                totpStatus={totpStatus}
+              />
             )}
           </div>
         </div>

@@ -95,7 +95,8 @@ const MobileNav: React.FC<MobileNavProps> = ({
             fill="none" 
             stroke="currentColor" 
             viewBox="0 0 24 24"
-            whileHover={{ rotate: 5 }}
+            animate={{ rotate: [0, 5, -5, 0] }}
+            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
           </motion.svg>
@@ -103,9 +104,8 @@ const MobileNav: React.FC<MobileNavProps> = ({
           {totpStatus?.enabled && (
             <motion.span 
               className="w-2 h-2 bg-green-500 rounded-full"
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: "spring", stiffness: 500, damping: 15 }}
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
             />
           )}
         </motion.button>
@@ -175,7 +175,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
                 duration: 0.25,
                 staggerChildren: 0.05
               }}
-              className="absolute right-2 top-14 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden ring-1 ring-indigo-100 max-h-[80vh] flex flex-col"
+              className="absolute right-0 top-14 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden ring-1 ring-indigo-100 max-h-[80vh] flex flex-col"
             >
               {/* 用户信息 */}
               <motion.div 
@@ -328,9 +328,8 @@ const MobileNav: React.FC<MobileNavProps> = ({
                     {totpStatus?.enabled && (
                       <motion.span 
                         className="ml-auto w-2 h-2 bg-green-500 rounded-full"
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ duration: 2, repeat: Infinity }}
                       />
                     )}
                   </motion.button>
