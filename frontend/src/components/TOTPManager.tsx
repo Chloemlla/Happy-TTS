@@ -353,11 +353,21 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
 
               <motion.button
                 onClick={() => setShowSetup(true)}
-                whileHover={{ scale: 1.02, y: -1 }}
-                whileTap={{ scale: 0.98 }}
-                className="w-full px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                className="w-full px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
               >
-                设置二次验证
+                <motion.span
+                  initial={{ rotate: -20 }}
+                  animate={{ rotate: 0 }}
+                  transition={{ duration: 0.5, type: 'spring', stiffness: 200 }}
+                  className="inline-flex items-center"
+                >
+                  {/* 锁图标 */}
+                  <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="text-white">
+                    <rect x="5" y="11" width="14" height="8" rx="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
+                </motion.span>
+                <span>设置二次验证</span>
               </motion.button>
             </div>
           )}
