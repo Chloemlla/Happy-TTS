@@ -152,7 +152,9 @@ body {
 
 /* 浅色模式下：父级菜单激活为深蓝色 */
 .menu__link--active.menu__link--sublist[aria-expanded="true"],
-.menu__link--active.menu__link--sublist-caret[aria-expanded="true"] {
+.menu__link--active.menu__link--sublist-caret[aria-expanded="true"],
+.menu__link--active.menu__link--sublist[aria-expanded="false"],
+.menu__link--active.menu__link--sublist-caret[aria-expanded="false"] {
   background: transparent !important;
   color: #1505f4 !important; /* 深蓝色 */
   font-weight: 700 !important;
@@ -171,7 +173,8 @@ body {
 
 /* 保持激活项和选中项为原有高亮色 */
 [data-theme='dark'] .menu__link--active,
-[data-theme='dark'] .menu__link--active.menu__link--sublist-caret[aria-expanded="true"] {
+[data-theme='dark'] .menu__link--active.menu__link--sublist-caret[aria-expanded="true"],
+[data-theme='dark'] .menu__link--active.menu__link--sublist-caret[aria-expanded="false"] {
   color: #fff !important;
 }
 
