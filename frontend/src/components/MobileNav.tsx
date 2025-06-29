@@ -175,7 +175,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
                 duration: 0.25,
                 staggerChildren: 0.05
               }}
-              className="absolute right-0 top-14 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden ring-1 ring-indigo-100 max-h-[80vh] flex flex-col"
+              className="absolute right-0 top-14 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[9999] overflow-hidden ring-1 ring-indigo-100 max-h-[80vh] flex flex-col"
             >
               {/* 用户信息 */}
               <motion.div 
