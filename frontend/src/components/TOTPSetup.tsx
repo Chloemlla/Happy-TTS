@@ -126,22 +126,24 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
             >
-              <motion.h2 
-                className="text-2xl font-bold text-gray-900 mb-2"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.2 }}
-              >
-                设置二次验证
-              </motion.h2>
-              <motion.p 
-                className="text-gray-600"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.3 }}
-              >
-                使用认证器应用扫描QR码
-              </motion.p>
+              <div className="flex flex-col items-center">
+                <motion.h2 
+                  className="text-2xl font-bold text-gray-900 mb-2"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.2 }}
+                >
+                  设置二次验证
+                </motion.h2>
+                <motion.p 
+                  className="text-gray-600"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.3 }}
+                >
+                  使用认证器应用扫描QR码
+                </motion.p>
+              </div>
             </motion.div>
 
             {/* 加载状态 */}
@@ -188,6 +190,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                   >
                     <motion.div 
                       className="bg-gray-50 rounded-lg p-4 inline-block shadow-lg"
+                      animate={{ rotate: 0 }}
                       whileHover={{ scale: 1.02, y: -2 }}
                     >
                       <QRCodeSVG
