@@ -105,146 +105,337 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
+        transition={{ duration: 0.3 }}
         className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto"
         onClick={handleClose}
       >
         <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.9, opacity: 0 }}
-          className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto my-8 min-h-fit"
+          initial={{ scale: 0.9, opacity: 0, y: 50 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.9, opacity: 0, y: 50 }}
+          transition={{ duration: 0.4, type: "spring", stiffness: 300, damping: 25 }}
+          className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto my-8 min-h-fit border border-gray-100"
           onClick={(e) => e.stopPropagation()}
         >
           {/* 可滚动的内容容器 */}
           <div className="p-6 max-h-[90vh] overflow-y-auto">
             {/* 标题 */}
-            <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">设置二次验证</h2>
-              <p className="text-gray-600">使用认证器应用扫描QR码</p>
-            </div>
+            <motion.div 
+              className="text-center mb-6"
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+            >
+              <motion.h2 
+                className="text-2xl font-bold text-gray-900 mb-2"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.2 }}
+              >
+                设置二次验证
+              </motion.h2>
+              <motion.p 
+                className="text-gray-600"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.3 }}
+              >
+                使用认证器应用扫描QR码
+              </motion.p>
+            </motion.div>
 
             {/* 加载状态 */}
-            {step === 'loading' && (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500 mx-auto mb-4"></div>
-                <p className="text-gray-600">正在生成设置...</p>
-              </div>
-            )}
-
-            {/* 设置步骤 */}
-            {step === 'setup' && setupData && (
-              <div className="space-y-6">
-                {/* QR码 */}
-                <div className="text-center">
-                  <div className="bg-gray-50 rounded-lg p-4 inline-block">
-                    <QRCodeSVG
-                      value={setupData.otpauthUrl}
-                      size={Math.min(256, window.innerWidth * 0.7)}
-                      level="M"
-                      includeMargin={true}
-                      bgColor="#FFFFFF"
-                      fgColor="#000000"
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    使用Google Authenticator、Microsoft Authenticator等应用扫描
-                  </p>
-                </div>
-
-                {/* 密钥 */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-sm text-gray-600 mb-2">手动输入密钥（如果无法扫描QR码）：</p>
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
-                    <code className="bg-white px-3 py-2 rounded border text-sm font-mono flex-1 break-all">
-                      {setupData.secret}
-                    </code>
-                    <button
-                      onClick={() => navigator.clipboard.writeText(setupData.secret)}
-                      className="px-3 py-2 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 transition-colors whitespace-nowrap"
-                    >
-                      复制
-                    </button>
-                  </div>
-                </div>
-
-                {/* 备用恢复码 */}
-                <div className="bg-yellow-50 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium text-yellow-800">备用恢复码</p>
-                    <button
-                      onClick={() => setShowBackupCodes(!showBackupCodes)}
-                      className="text-sm text-yellow-700 hover:text-yellow-800"
-                    >
-                      {showBackupCodes ? '隐藏' : '显示'}
-                    </button>
-                  </div>
-                  <p className="text-sm text-yellow-700 mb-2">
-                    请妥善保存这些恢复码，在无法使用认证器时可以使用它们登录。
-                  </p>
-                  {showBackupCodes && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {setupData.backupCodes.map((code, index) => (
-                        <code key={index} className="bg-white px-2 py-1 rounded text-xs font-mono text-center break-all">
-                          {code}
-                        </code>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* 验证码输入 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    输入6位验证码
-                  </label>
-                  <input
-                    type="text"
-                    value={verificationCode}
-                    onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-center text-lg font-mono"
-                    placeholder="000000"
-                    maxLength={6}
+            <AnimatePresence mode="wait">
+              {step === 'loading' && (
+                <motion.div 
+                  className="text-center py-8"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <motion.div 
+                    className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500 mx-auto mb-4"
+                    initial={{ rotate: 0 }}
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                   />
-                </div>
-
-                {/* 错误信息 */}
-                {error && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                    <p className="text-red-700 text-sm">{error}</p>
-                  </div>
-                )}
-
-                {/* 操作按钮 */}
-                <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
-                  <button
-                    onClick={handleClose}
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                  <motion.p 
+                    className="text-gray-600"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.3, delay: 0.2 }}
                   >
-                    取消
-                  </button>
-                  <button
-                    onClick={handleVerify}
-                    disabled={loading || verificationCode.length !== 6}
-                    className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {loading ? '验证中...' : '验证并启用'}
-                  </button>
-                </div>
-              </div>
-            )}
+                    正在生成设置...
+                  </motion.p>
+                </motion.div>
+              )}
 
-            {/* 成功状态 */}
-            {step === 'success' && (
-              <div className="text-center py-8">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">设置成功！</h3>
-                <p className="text-gray-600">二次验证已启用，您的账户现在更加安全。</p>
-              </div>
-            )}
+              {/* 设置步骤 */}
+              {step === 'setup' && setupData && (
+                <motion.div 
+                  className="space-y-6"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                >
+                  {/* QR码 */}
+                  <motion.div 
+                    className="text-center"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.6, delay: 0.3, type: "spring", stiffness: 100 }}
+                  >
+                    <motion.div 
+                      className="bg-gray-50 rounded-lg p-4 inline-block shadow-lg"
+                      whileHover={{ scale: 1.02, y: -2 }}
+                    >
+                      <QRCodeSVG
+                        value={setupData.otpauthUrl}
+                        size={Math.min(256, window.innerWidth * 0.7)}
+                        level="M"
+                        includeMargin={true}
+                        bgColor="#FFFFFF"
+                        fgColor="#000000"
+                      />
+                    </motion.div>
+                    <motion.p 
+                      className="text-xs text-gray-500 mt-2"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.3, delay: 0.5 }}
+                    >
+                      使用Google Authenticator、Microsoft Authenticator等应用扫描
+                    </motion.p>
+                  </motion.div>
+
+                  {/* 密钥 */}
+                  <motion.div 
+                    className="bg-gray-50 rounded-lg p-4"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.4 }}
+                    whileHover={{ scale: 1.01 }}
+                  >
+                    <motion.p 
+                      className="text-sm text-gray-600 mb-2"
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3, delay: 0.5 }}
+                    >
+                      手动输入密钥（如果无法扫描QR码）：
+                    </motion.p>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
+                      <motion.code 
+                        className="bg-white px-3 py-2 rounded border text-sm font-mono flex-1 break-all"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.3, delay: 0.6 }}
+                      >
+                        {setupData.secret}
+                      </motion.code>
+                      <motion.button
+                        onClick={() => navigator.clipboard.writeText(setupData.secret)}
+                        className="px-3 py-2 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 transition-colors whitespace-nowrap"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        复制
+                      </motion.button>
+                    </div>
+                  </motion.div>
+
+                  {/* 备用恢复码 */}
+                  <motion.div 
+                    className="bg-yellow-50 rounded-lg p-4 border border-yellow-200"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.5 }}
+                    whileHover={{ scale: 1.01 }}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <motion.p 
+                        className="text-sm font-medium text-yellow-800"
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.3, delay: 0.6 }}
+                      >
+                        备用恢复码
+                      </motion.p>
+                      <motion.button
+                        onClick={() => setShowBackupCodes(!showBackupCodes)}
+                        className="text-sm text-yellow-700 hover:text-yellow-800"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        {showBackupCodes ? '隐藏' : '显示'}
+                      </motion.button>
+                    </div>
+                    <motion.p 
+                      className="text-sm text-yellow-700 mb-2"
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3, delay: 0.7 }}
+                    >
+                      请妥善保存这些恢复码，在无法使用认证器时可以使用它们登录。
+                    </motion.p>
+                    <AnimatePresence>
+                      {showBackupCodes && (
+                        <motion.div 
+                          className="grid grid-cols-1 sm:grid-cols-2 gap-2"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          {setupData.backupCodes.map((code, index) => (
+                            <motion.code 
+                              key={index} 
+                              className="bg-white px-2 py-1 rounded text-xs font-mono text-center break-all border border-yellow-200"
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ duration: 0.2, delay: 0.1 * index }}
+                              whileHover={{ scale: 1.05 }}
+                            >
+                              {code}
+                            </motion.code>
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+
+                  {/* 验证码输入 */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.6 }}
+                  >
+                    <motion.label 
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3, delay: 0.7 }}
+                    >
+                      输入6位验证码
+                    </motion.label>
+                    <motion.input
+                      type="text"
+                      value={verificationCode}
+                      onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-center text-lg font-mono transition-all duration-200 hover:border-gray-300"
+                      placeholder="000000"
+                      maxLength={6}
+                      whileFocus={{ scale: 1.02 }}
+                    />
+                  </motion.div>
+
+                  {/* 错误信息 */}
+                  <AnimatePresence>
+                    {error && (
+                      <motion.div 
+                        className="bg-red-50 border border-red-200 rounded-lg p-3"
+                        initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <motion.p 
+                          className="text-red-700 text-sm"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ duration: 0.2, delay: 0.1 }}
+                        >
+                          {error}
+                        </motion.p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* 操作按钮 */}
+                  <motion.div 
+                    className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.8 }}
+                  >
+                    <motion.button
+                      onClick={handleClose}
+                      className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all duration-200"
+                      whileHover={{ scale: 1.02, y: -1 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      取消
+                    </motion.button>
+                    <motion.button
+                      onClick={handleVerify}
+                      disabled={loading || verificationCode.length !== 6}
+                      className="flex-1 px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
+                      whileHover={{ scale: 1.02, y: -1 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      {loading ? (
+                        <motion.div className="flex items-center justify-center">
+                          <motion.div 
+                            className="w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          />
+                          验证中...
+                        </motion.div>
+                      ) : (
+                        '验证并启用'
+                      )}
+                    </motion.button>
+                  </motion.div>
+                </motion.div>
+              )}
+
+              {/* 成功状态 */}
+              {step === 'success' && (
+                <motion.div 
+                  className="text-center py-8"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  <motion.div 
+                    className="w-16 h-16 bg-gradient-to-br from-green-100 to-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg"
+                    initial={{ scale: 0, rotate: -180 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ duration: 0.6, type: "spring", stiffness: 200 }}
+                  >
+                    <motion.svg 
+                      className="w-8 h-8 text-green-600" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.3, delay: 0.3 }}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </motion.svg>
+                  </motion.div>
+                  <motion.h3 
+                    className="text-xl font-semibold text-gray-900 mb-2"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: 0.2 }}
+                  >
+                    设置成功！
+                  </motion.h3>
+                  <motion.p 
+                    className="text-gray-600"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: 0.3 }}
+                  >
+                    二次验证已启用，您的账户现在更加安全。
+                  </motion.p>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </motion.div>
       </motion.div>

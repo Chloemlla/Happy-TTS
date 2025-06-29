@@ -1,5 +1,5 @@
 # 构建前端
-FROM node:20-alpine AS frontend-builder
+FROM node:22-alpine AS frontend-builder
 
 # 设置时区为上海
 RUN apk add --no-cache tzdata && \
@@ -15,6 +15,7 @@ WORKDIR /app/frontend
 
 # 安装前端依赖（包括开发依赖，因为需要构建工具）
 RUN rm -rf node_modules package-lock.json
+RUN npm install -g npm
 RUN npm install && \
     npm install @fingerprintjs/fingerprintjs && \
     npm install crypto-js && \
@@ -31,7 +32,7 @@ RUN npm run build
 RUN touch dist/favicon.ico
 
 # 构建 Docusaurus 文档
-FROM node:20-alpine AS docs-builder
+FROM node:22-alpine AS docs-builder
 
 # 设置时区为上海
 RUN apk add --no-cache tzdata && \
@@ -49,10 +50,11 @@ COPY frontend/docs/ ./docs/
 
 # 安装文档依赖并构建
 WORKDIR /app/docs
+RUN npm install -g npm
 RUN npm install && npm run build
 
 # 构建后端
-FROM node:20-alpine AS backend-builder
+FROM node:22-alpine AS backend-builder
 
 # 设置时区为上海
 RUN apk add --no-cache tzdata && \
@@ -66,6 +68,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # 安装后端依赖（包括开发依赖，因为需要TypeScript编译器）
+RUN npm install -g npm
 RUN npm install && \
     npm install -g javascript-obfuscator
 
@@ -81,7 +84,7 @@ RUN npm run build:backend || npm run build:backend
 RUN npm run generate:openapi
 
 # 生产环境
-FROM node:20-alpine
+FROM node:22-alpine
 
 # 设置时区为上海
 RUN apk add --no-cache tzdata && \

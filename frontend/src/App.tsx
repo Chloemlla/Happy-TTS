@@ -108,6 +108,12 @@ const App: React.FC = () => {
                   />
                 ) : (
                   <div className="flex items-center space-x-3">
+                    <Link 
+                      to="/api-docs" 
+                      className="px-4 py-2 rounded-lg bg-indigo-100 text-indigo-700 font-semibold hover:bg-indigo-200 transition-all"
+                    >
+                      API 文档
+                    </Link>
                     <motion.button
                       onClick={() => setShowTOTPManager(true)}
                       whileHover={{ scale: 1.05 }}
@@ -233,6 +239,12 @@ const App: React.FC = () => {
                 />
               ) : (
                 <div className="flex items-center space-x-3">
+                  <Link 
+                    to="/api-docs" 
+                    className="px-4 py-2 rounded-lg bg-indigo-100 text-indigo-700 font-semibold hover:bg-indigo-200 transition-all"
+                  >
+                    API 文档
+                  </Link>
                   <motion.button
                     onClick={() => setShowTOTPManager(true)}
                     whileHover={{ scale: 1.05 }}

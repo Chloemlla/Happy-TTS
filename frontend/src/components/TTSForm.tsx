@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useTts } from '../hooks/useTts';
 import { TtsRequest, TtsResponse } from '../types/tts';
 import { AudioPreview } from './AudioPreview';
@@ -170,21 +170,50 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
     const displayError = error || ttsError;
 
     return (
-        <div className="space-y-6">
-            {notification && (
-                <Notification
-                    message={notification.message}
-                    type={notification.type}
-                    onClose={() => setNotification(null)}
-                />
-            )}
+        <motion.div 
+            className="space-y-6"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+        >
+            <AnimatePresence>
+                {notification && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                        transition={{ duration: 0.3 }}
+                    >
+                        <Notification
+                            message={notification.message}
+                            type={notification.type}
+                            onClose={() => setNotification(null)}
+                        />
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-                <div>
-                    <label className="block text-gray-700 text-lg font-semibold mb-3">
+            <motion.form 
+                onSubmit={handleSubmit} 
+                className="space-y-6"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+            >
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.3 }}
+                >
+                    <motion.label 
+                        className="block text-gray-700 text-lg font-semibold mb-3"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.4, delay: 0.4 }}
+                    >
                         输入文本
-                    </label>
-                    <textarea
+                    </motion.label>
+                    <motion.textarea
                         value={text}
                         onChange={(e) => {
                             const newText = e.target.value;
@@ -195,18 +224,38 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                         className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-gray-300"
                         rows={4}
                         placeholder="请输入要转换的文本..."
+                        whileFocus={{ scale: 1.01 }}
                     />
-                    <div className="text-right text-sm text-gray-500 mt-1">
+                    <motion.div 
+                        className="text-right text-sm text-gray-500 mt-1"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.3, delay: 0.5 }}
+                    >
                         {text.length}/{MAX_TEXT_LENGTH} 字符
-                    </div>
-                </div>
+                    </motion.div>
+                </motion.div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label className="block text-gray-700 text-lg font-semibold mb-3">
+                <motion.div 
+                    className="grid grid-cols-1 md:grid-cols-2 gap-6"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: 0.4 }}
+                >
+                    <motion.div
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.4, delay: 0.5 }}
+                    >
+                        <motion.label 
+                            className="block text-gray-700 text-lg font-semibold mb-3"
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3, delay: 0.6 }}
+                        >
                             模型
-                        </label>
-                        <select
+                        </motion.label>
+                        <motion.select
                             value={model}
                             onChange={(e) => setModel(e.target.value)}
                             className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-gray-300 appearance-none bg-white bg-no-repeat bg-right pr-10"
@@ -214,17 +263,27 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                                 backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236B7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
                                 backgroundSize: '1.5em 1.5em'
                             }}
+                            whileFocus={{ scale: 1.01 }}
                         >
                             <option value="tts-1">TTS-1</option>
                             <option value="tts-1-hd">TTS-1-HD</option>
-                        </select>
-                    </div>
+                        </motion.select>
+                    </motion.div>
 
-                    <div>
-                        <label className="block text-gray-700 text-lg font-semibold mb-3">
+                    <motion.div
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.4, delay: 0.6 }}
+                    >
+                        <motion.label 
+                            className="block text-gray-700 text-lg font-semibold mb-3"
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3, delay: 0.7 }}
+                        >
                             声音
-                        </label>
-                        <select
+                        </motion.label>
+                        <motion.select
                             value={voice}
                             onChange={(e) => setVoice(e.target.value)}
                             className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-gray-300 appearance-none bg-white bg-no-repeat bg-right pr-10"
@@ -232,20 +291,30 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                                 backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236B7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
                                 backgroundSize: '1.5em 1.5em'
                             }}
+                            whileFocus={{ scale: 1.01 }}
                         >
                             {voices.map((v) => (
                                 <option key={v.id} value={v.id}>
                                     {v.name}
                                 </option>
                             ))}
-                        </select>
-                    </div>
+                        </motion.select>
+                    </motion.div>
 
-                    <div>
-                        <label className="block text-gray-700 text-lg font-semibold mb-3">
+                    <motion.div
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.4, delay: 0.7 }}
+                    >
+                        <motion.label 
+                            className="block text-gray-700 text-lg font-semibold mb-3"
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3, delay: 0.8 }}
+                        >
                             输出格式
-                        </label>
-                        <select
+                        </motion.label>
+                        <motion.select
                             value={outputFormat}
                             onChange={(e) => setOutputFormat(e.target.value)}
                             className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-gray-300 appearance-none bg-white bg-no-repeat bg-right pr-10"
@@ -253,19 +322,29 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                                 backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236B7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
                                 backgroundSize: '1.5em 1.5em'
                             }}
+                            whileFocus={{ scale: 1.01 }}
                         >
                             <option value="mp3">MP3</option>
                             <option value="opus">Opus</option>
                             <option value="aac">AAC</option>
                             <option value="flac">FLAC</option>
-                        </select>
-                    </div>
+                        </motion.select>
+                    </motion.div>
 
-                    <div>
-                        <label className="block text-gray-700 text-lg font-semibold mb-3">
+                    <motion.div
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.4, delay: 0.8 }}
+                    >
+                        <motion.label 
+                            className="block text-gray-700 text-lg font-semibold mb-3"
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3, delay: 0.9 }}
+                        >
                             语速
-                        </label>
-                        <input
+                        </motion.label>
+                        <motion.input
                             type="range"
                             min="0.25"
                             max="4.0"
@@ -273,70 +352,143 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                             value={speed}
                             onChange={(e) => setSpeed(parseFloat(e.target.value))}
                             className="w-full"
+                            whileHover={{ scale: 1.02 }}
                         />
-                        <div className="text-center text-gray-600 mt-2">
+                        <motion.div 
+                            className="text-center text-gray-600 mt-2"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.3, delay: 1.0 }}
+                        >
                             {speed}x
-                        </div>
-                    </div>
+                        </motion.div>
+                    </motion.div>
 
-                    <div>
-                        <label className="block text-gray-700 text-lg font-semibold mb-3">
+                    <motion.div
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.4, delay: 0.9 }}
+                    >
+                        <motion.label 
+                            className="block text-gray-700 text-lg font-semibold mb-3"
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3, delay: 1.0 }}
+                        >
                             生成码
                             <span className="text-red-500 ml-1">*</span>
-                        </label>
-                        <input
+                        </motion.label>
+                        <motion.input
                             type="password"
                             value={generationCode}
                             onChange={(e) => setGenerationCode(e.target.value)}
                             className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-gray-300"
                             placeholder="请输入生成码..."
                             required
+                            whileFocus={{ scale: 1.01 }}
                         />
-                        <p className="text-sm text-gray-500 mt-1">
+                        <motion.p 
+                            className="text-sm text-gray-500 mt-1"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.3, delay: 1.1 }}
+                        >
                             生成码用于验证您的身份，请确保输入正确
-                        </p>
-                    </div>
-                </div>
+                        </motion.p>
+                    </motion.div>
+                </motion.div>
 
-                {displayError && (
-                    <div className="text-red-500 text-sm">{displayError}</div>
-                )}
+                <AnimatePresence>
+                    {displayError && (
+                        <motion.div 
+                            className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-lg p-3"
+                            initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                            transition={{ duration: 0.3 }}
+                        >
+                            {displayError}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
-                <div className="flex space-x-4">
-                    <button
+                <motion.div 
+                    className="flex space-x-4"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 1.0 }}
+                >
+                    <motion.button
                         type="submit"
                         disabled={loading || cooldown}
                         className={`flex-1 py-3 px-6 rounded-xl text-white font-semibold transition-all duration-200 ${
                             loading || cooldown
                                 ? 'bg-gray-400 cursor-not-allowed'
-                                : 'bg-blue-500 hover:bg-blue-600'
+                                : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-lg hover:shadow-xl'
                         }`}
+                        whileHover={{ scale: 1.02, y: -1 }}
+                        whileTap={{ scale: 0.98 }}
                     >
-                        {loading ? '生成中...' : cooldown ? `请等待 ${cooldownTime} 秒` : '生成语音'}
-                    </button>
+                        {loading ? (
+                            <motion.div className="flex items-center justify-center">
+                                <motion.div 
+                                    className="w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"
+                                    animate={{ rotate: 360 }}
+                                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                                />
+                                生成中...
+                            </motion.div>
+                        ) : cooldown ? (
+                            `请等待 ${cooldownTime} 秒`
+                        ) : (
+                            '生成语音'
+                        )}
+                    </motion.button>
 
-                    {audioUrl && (
-                        <button
-                            type="button"
-                            onClick={handleDownload}
-                            className="flex items-center justify-center px-6 py-3 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors"
-                        >
-                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                            </svg>
-                            下载
-                        </button>
-                    )}
-                </div>
-            </form>
+                    <AnimatePresence>
+                        {audioUrl && (
+                            <motion.button
+                                type="button"
+                                onClick={handleDownload}
+                                className="flex items-center justify-center px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                                initial={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.8 }}
+                                whileHover={{ scale: 1.05, y: -1 }}
+                                whileTap={{ scale: 0.95 }}
+                            >
+                                <motion.svg 
+                                    className="w-5 h-5 mr-2" 
+                                    fill="none" 
+                                    stroke="currentColor" 
+                                    viewBox="0 0 24 24"
+                                    whileHover={{ scale: 1.1 }}
+                                >
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </motion.svg>
+                                下载
+                            </motion.button>
+                        )}
+                    </AnimatePresence>
+                </motion.div>
+            </motion.form>
 
-            {audioUrl && (
-                <AudioPreview
-                    audioUrl={audioUrl}
-                    onClose={() => setAudioUrl(null)}
-                />
-            )}
-        </div>
+            <AnimatePresence>
+                {audioUrl && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                        transition={{ duration: 0.4, type: "spring", stiffness: 100 }}
+                    >
+                        <AudioPreview
+                            audioUrl={audioUrl}
+                            onClose={() => setAudioUrl(null)}
+                        />
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </motion.div>
     );
 };
 

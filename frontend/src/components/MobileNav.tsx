@@ -54,44 +54,70 @@ const MobileNav: React.FC<MobileNavProps> = ({
   // 桌面端导航
   if (!isMobile) {
     return (
-      <div className="flex items-center space-x-3">
-        <Link 
-          to="/api-docs" 
-          className="px-4 py-1 rounded-lg bg-indigo-100 text-indigo-700 font-semibold hover:bg-indigo-200 transition-all"
+      <motion.div 
+        className="flex items-center space-x-3"
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+      >
+        <motion.div
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
         >
-          API 文档
-        </Link>
-        {user?.role === 'admin' && (
           <Link 
-            to="/admin/users" 
-            className="px-4 py-1 rounded-lg bg-blue-100 text-blue-700 font-semibold hover:bg-blue-200 transition-all"
+            to="/api-docs" 
+            className="px-4 py-2 rounded-lg bg-indigo-100 text-indigo-700 font-semibold hover:bg-indigo-200 transition-all duration-200 shadow-sm hover:shadow-md"
           >
-            用户管理
+            API 文档
           </Link>
+        </motion.div>
+        {user?.role === 'admin' && (
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Link 
+              to="/admin/users" 
+              className="px-4 py-2 rounded-lg bg-blue-100 text-blue-700 font-semibold hover:bg-blue-200 transition-all duration-200 shadow-sm hover:shadow-md"
+            >
+              用户管理
+            </Link>
+          </motion.div>
         )}
         <motion.button
           onClick={onTOTPManagerOpen}
-          whileHover={{ scale: 1.05 }}
+          whileHover={{ scale: 1.05, y: -1 }}
           whileTap={{ scale: 0.95 }}
-          className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-all duration-200"
+          className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-all duration-200 shadow-sm hover:shadow-md"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <motion.svg 
+            className="w-4 h-4" 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+            whileHover={{ rotate: 5 }}
+          >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-          </svg>
+          </motion.svg>
           <span>二次验证</span>
           {totpStatus?.enabled && (
-            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+            <motion.span 
+              className="w-2 h-2 bg-green-500 rounded-full"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", stiffness: 500, damping: 15 }}
+            />
           )}
         </motion.button>
         <motion.button
           onClick={logout}
-          whileHover={{ scale: 1.05 }}
+          whileHover={{ scale: 1.05, y: -1 }}
           whileTap={{ scale: 0.95 }}
-          className="bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200"
+          className="bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-sm hover:shadow-md"
         >
           退出
         </motion.button>
-      </div>
+      </motion.div>
     );
   }
 
@@ -101,12 +127,15 @@ const MobileNav: React.FC<MobileNavProps> = ({
       {/* 汉堡菜单按钮 */}
       <motion.button
         onClick={toggleMenu}
+        whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        className="flex items-center justify-center p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+        className="flex items-center justify-center p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors duration-200 shadow-sm"
         aria-label="打开菜单"
       >
-        <svg 
-          className={`w-5 h-5 transition-transform duration-200 ${isMenuOpen ? 'rotate-90' : ''}`}
+        <motion.svg 
+          className="w-5 h-5"
+          animate={{ rotate: isMenuOpen ? 90 : 0 }}
+          transition={{ duration: 0.3, ease: "easeInOut" }}
           fill="none" 
           stroke="currentColor" 
           viewBox="0 0 24 24"
@@ -117,7 +146,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
             strokeWidth={2} 
             d="M4 6h16M4 12h16M4 18h16" 
           />
-        </svg>
+        </motion.svg>
       </motion.button>
 
       {/* 下拉菜单 */}
@@ -129,135 +158,299 @@ const MobileNav: React.FC<MobileNavProps> = ({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
               className="fixed inset-0 bg-black bg-opacity-25 z-40"
               onClick={() => setIsMenuOpen(false)}
             />
             
             {/* 菜单内容 */}
             <motion.div
-              initial={{ opacity: 0, y: -20, scale: 0.92 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -20, scale: 0.92 }}
-              transition={{ type: 'spring', stiffness: 320, damping: 22, duration: 0.22 }}
+              initial={{ opacity: 0, y: -20, scale: 0.92, x: 20 }}
+              animate={{ opacity: 1, y: 0, scale: 1, x: 0 }}
+              exit={{ opacity: 0, y: -20, scale: 0.92, x: 20 }}
+              transition={{ 
+                type: 'spring', 
+                stiffness: 320, 
+                damping: 22, 
+                duration: 0.25,
+                staggerChildren: 0.05
+              }}
               className="absolute right-2 top-14 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden ring-1 ring-indigo-100 max-h-[80vh] flex flex-col"
             >
               {/* 用户信息 */}
-              <div className="px-5 py-4 bg-gradient-to-r from-indigo-100 to-purple-100 border-b border-gray-100 flex items-center gap-4 shrink-0">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-300 to-purple-300 flex items-center justify-center border-2 border-white shadow">
-                  <svg className="w-6 h-6 text-white drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <motion.div 
+                className="px-5 py-4 bg-gradient-to-r from-indigo-100 to-purple-100 border-b border-gray-100 flex items-center gap-4 shrink-0"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.1 }}
+              >
+                <motion.div 
+                  className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-300 to-purple-300 flex items-center justify-center border-2 border-white shadow-lg"
+                  initial={{ scale: 0, rotate: -180 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ duration: 0.5, delay: 0.2, type: "spring", stiffness: 200 }}
+                  whileHover={{ scale: 1.1, rotate: 5 }}
+                >
+                  <motion.svg 
+                    className="w-6 h-6 text-white drop-shadow" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.3, delay: 0.4 }}
+                  >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="font-bold text-gray-900 text-base leading-tight">{user?.username}</p>
-                  <p className="text-xs text-indigo-500 font-medium mt-1">{user?.role === 'admin' ? '管理员' : '普通用户'}</p>
-                </div>
-              </div>
+                  </motion.svg>
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.4, delay: 0.3 }}
+                >
+                  <motion.p 
+                    className="font-bold text-gray-900 text-base leading-tight"
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.4 }}
+                  >
+                    {user?.username}
+                  </motion.p>
+                  <motion.p 
+                    className="text-xs text-indigo-500 font-medium mt-1"
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.5 }}
+                  >
+                    {user?.role === 'admin' ? '管理员' : '普通用户'}
+                  </motion.p>
+                </motion.div>
+              </motion.div>
 
               {/* 菜单项 */}
               <div className="py-2 overflow-y-auto flex-1 min-h-0 max-h-[calc(80vh-80px)]">
                 {/* 主页 - 语音合成 */}
-                <Link
-                  to="/"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
-                    location.pathname === '/' ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm' : 'hover:bg-indigo-50'
-                  }`}
-                  onClick={() => setIsMenuOpen(false)}
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.4, delay: 0.2 }}
                 >
-                  <svg className={`w-5 h-5 ${location.pathname === '/' ? 'text-indigo-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                  </svg>
-                  <span>语音合成</span>
-                  {location.pathname === '/' && (
-                    <span className="ml-auto text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">当前</span>
-                  )}
-                </Link>
-
-                {/* 管理员用户管理 */}
-                {user?.role === 'admin' && (
                   <Link
-                    to="/admin/users"
+                    to="/"
                     className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
-                      location.pathname === '/admin/users' ? 'bg-blue-50 text-blue-700 font-semibold shadow-sm' : 'hover:bg-blue-50'
+                      location.pathname === '/' ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm' : 'hover:bg-indigo-50'
                     }`}
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    <svg className={`w-5 h-5 ${location.pathname === '/admin/users' ? 'text-blue-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                    </svg>
-                    <span>用户管理</span>
-                    {location.pathname === '/admin/users' && (
-                      <span className="ml-auto text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">当前</span>
+                    <motion.svg 
+                      className={`w-5 h-5 ${location.pathname === '/' ? 'text-indigo-500' : 'text-gray-400'}`} 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                      whileHover={{ scale: 1.1, rotate: 5 }}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </motion.svg>
+                    <span>语音合成</span>
+                    {location.pathname === '/' && (
+                      <motion.span 
+                        className="ml-auto text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full"
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                      >
+                        当前
+                      </motion.span>
                     )}
                   </Link>
+                </motion.div>
+
+                {/* 管理员用户管理 */}
+                {user?.role === 'admin' && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.4, delay: 0.25 }}
+                  >
+                    <Link
+                      to="/admin/users"
+                      className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
+                        location.pathname === '/admin/users' ? 'bg-blue-50 text-blue-700 font-semibold shadow-sm' : 'hover:bg-blue-50'
+                      }`}
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <motion.svg 
+                        className={`w-5 h-5 ${location.pathname === '/admin/users' ? 'text-blue-500' : 'text-gray-400'}`} 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                        whileHover={{ scale: 1.1, rotate: 5 }}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                      </motion.svg>
+                      <span>用户管理</span>
+                      {location.pathname === '/admin/users' && (
+                        <motion.span 
+                          className="ml-auto text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full"
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                        >
+                          当前
+                        </motion.span>
+                      )}
+                    </Link>
+                  </motion.div>
                 )}
 
                 {/* 二次验证 */}
-                <button
-                  onClick={handleTOTPManager}
-                  className="flex items-center gap-3 w-full px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 hover:bg-purple-50 transition-all duration-150 active:scale-95"
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.4, delay: 0.3 }}
                 >
-                  <svg className={`w-5 h-5 ${totpStatus?.enabled ? 'text-purple-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                  <span>二次验证</span>
-                  {totpStatus?.enabled && (
-                    <span className="ml-auto w-2 h-2 bg-green-500 rounded-full"></span>
-                  )}
-                </button>
+                  <motion.button
+                    onClick={handleTOTPManager}
+                    className="flex items-center gap-3 w-full px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 hover:bg-purple-50 transition-all duration-150"
+                    whileHover={{ x: 5 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <motion.svg 
+                      className={`w-5 h-5 ${totpStatus?.enabled ? 'text-purple-500' : 'text-gray-400'}`} 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                      whileHover={{ scale: 1.1, rotate: 5 }}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </motion.svg>
+                    <span>二次验证</span>
+                    {totpStatus?.enabled && (
+                      <motion.span 
+                        className="ml-auto w-2 h-2 bg-green-500 rounded-full"
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                      />
+                    )}
+                  </motion.button>
+                </motion.div>
 
                 {/* 服务条款 */}
-                <Link
-                  to="/policy"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
-                    location.pathname === '/policy' ? 'bg-green-50 text-green-700 font-semibold shadow-sm' : 'hover:bg-green-50'
-                  }`}
-                  onClick={() => setIsMenuOpen(false)}
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.4, delay: 0.35 }}
                 >
-                  <svg className={`w-5 h-5 ${location.pathname === '/policy' ? 'text-green-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <span>服务条款</span>
-                  {location.pathname === '/policy' && (
-                    <span className="ml-auto text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">当前</span>
-                  )}
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </Link>
+                  <Link
+                    to="/policy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
+                      location.pathname === '/policy' ? 'bg-green-50 text-green-700 font-semibold shadow-sm' : 'hover:bg-green-50'
+                    }`}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    <motion.svg 
+                      className={`w-5 h-5 ${location.pathname === '/policy' ? 'text-green-500' : 'text-gray-400'}`} 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                      whileHover={{ scale: 1.1, rotate: 5 }}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </motion.svg>
+                    <span>服务条款</span>
+                    {location.pathname === '/policy' && (
+                      <motion.span 
+                        className="ml-auto text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full"
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                      >
+                        当前
+                      </motion.span>
+                    )}
+                    <motion.svg 
+                      className="w-4 h-4 text-gray-400" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                      whileHover={{ scale: 1.1, x: 2 }}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </motion.svg>
+                  </Link>
+                </motion.div>
 
                 {/* API 文档 */}
-                <Link
-                  to="/api-docs"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
-                    location.pathname === '/api-docs' ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm' : 'hover:bg-indigo-50'
-                  }`}
-                  onClick={() => setIsMenuOpen(false)}
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.4, delay: 0.4 }}
                 >
-                  <svg className={`w-5 h-5 ${location.pathname === '/api-docs' ? 'text-indigo-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <span>API 文档</span>
-                  {location.pathname === '/api-docs' && (
-                    <span className="ml-auto text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">当前</span>
-                  )}
-                </Link>
+                  <Link
+                    to="/api-docs"
+                    className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
+                      location.pathname === '/api-docs' ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm' : 'hover:bg-indigo-50'
+                    }`}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    <motion.svg 
+                      className={`w-5 h-5 ${location.pathname === '/api-docs' ? 'text-indigo-500' : 'text-gray-400'}`} 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                      whileHover={{ scale: 1.1, rotate: 5 }}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </motion.svg>
+                    <span>API 文档</span>
+                    {location.pathname === '/api-docs' && (
+                      <motion.span 
+                        className="ml-auto text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full"
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                      >
+                        当前
+                      </motion.span>
+                    )}
+                  </Link>
+                </motion.div>
 
                 {/* 分割线 */}
-                <div className="border-t border-gray-200 my-2"></div>
+                <motion.div 
+                  className="border-t border-gray-200 my-2"
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: 1 }}
+                  transition={{ duration: 0.3, delay: 0.45 }}
+                />
 
                 {/* 退出登录 */}
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-3 w-full px-5 py-3 rounded-lg mx-2 my-1 text-red-600 bg-gradient-to-r from-red-50 to-white hover:from-red-100 hover:to-red-50 font-semibold shadow-sm transition-all duration-150 active:scale-95"
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.4, delay: 0.5 }}
                 >
-                  <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </svg>
-                  <span>退出登录</span>
-                </button>
+                  <motion.button
+                    onClick={handleLogout}
+                    className="flex items-center gap-3 w-full px-5 py-3 rounded-lg mx-2 my-1 text-red-600 bg-gradient-to-r from-red-50 to-white hover:from-red-100 hover:to-red-50 font-semibold shadow-sm transition-all duration-150"
+                    whileHover={{ x: 5, scale: 1.02 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <motion.svg 
+                      className="w-5 h-5 text-red-500" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                      whileHover={{ scale: 1.1, rotate: 5 }}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </motion.svg>
+                    <span>退出登录</span>
+                  </motion.button>
+                </motion.div>
               </div>
             </motion.div>
           </>

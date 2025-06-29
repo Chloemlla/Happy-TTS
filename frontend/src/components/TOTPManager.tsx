@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import TOTPSetup from './TOTPSetup';
 import BackupCodesModal from './BackupCodesModal';
 import axios from 'axios';
@@ -86,130 +86,283 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-4">
-        <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-indigo-500"></div>
-      </div>
+      <motion.div 
+        className="flex items-center justify-center p-4"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
+        <motion.div 
+          className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-indigo-500"
+          initial={{ rotate: 0 }}
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+        />
+      </motion.div>
     );
   }
 
   return (
     <>
-      <div className="bg-white rounded-lg shadow-sm border p-4">
-        <div className="flex items-center justify-between mb-4">
+      <motion.div 
+        className="bg-white rounded-lg shadow-sm border p-4"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      >
+        <motion.div 
+          className="flex items-center justify-between mb-4"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+        >
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-              <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <motion.div 
+              className="w-10 h-10 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-lg flex items-center justify-center shadow-sm"
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ duration: 0.5, delay: 0.2, type: "spring", stiffness: 200 }}
+              whileHover={{ scale: 1.1, rotate: 5 }}
+            >
+              <motion.svg 
+                className="w-5 h-5 text-indigo-600" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3, delay: 0.3 }}
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-            </div>
+              </motion.svg>
+            </motion.div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">二次验证</h3>
-              <p className="text-sm text-gray-600">增强账户安全性</p>
+              <motion.h3 
+                className="text-lg font-semibold text-gray-900"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.3 }}
+              >
+                二次验证
+              </motion.h3>
+              <motion.p 
+                className="text-sm text-gray-600"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.4 }}
+              >
+                增强账户安全性
+              </motion.p>
             </div>
           </div>
           <div className="flex items-center space-x-2">
             {status?.enabled ? (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <motion.span 
+                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.4, delay: 0.5, type: "spring", stiffness: 300 }}
+              >
+                <motion.svg 
+                  className="w-3 h-3 mr-1" 
+                  fill="currentColor" 
+                  viewBox="0 0 20 20"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ duration: 0.2, delay: 0.6 }}
+                >
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
+                </motion.svg>
                 已启用
-              </span>
+              </motion.span>
             ) : (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+              <motion.span 
+                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.4, delay: 0.5, type: "spring", stiffness: 300 }}
+              >
                 未启用
-              </span>
+              </motion.span>
             )}
           </div>
-        </div>
+        </motion.div>
 
-        <div className="space-y-3">
+        <motion.div 
+          className="space-y-3"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+        >
           {status?.enabled ? (
             <div className="space-y-3">
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+              <motion.div 
+                className="bg-green-50 border border-green-200 rounded-lg p-3"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.5 }}
+                whileHover={{ scale: 1.02, y: -1 }}
+              >
                 <div className="flex items-start">
-                  <svg className="w-5 h-5 text-green-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <motion.svg 
+                    className="w-5 h-5 text-green-600 mt-0.5 mr-2" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                  >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+                  </motion.svg>
                   <div>
-                    <p className="text-sm font-medium text-green-800">二次验证已启用</p>
-                    <p className="text-sm text-green-700 mt-1">
+                    <motion.p 
+                      className="text-sm font-medium text-green-800"
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: 0.6 }}
+                    >
+                      二次验证已启用
+                    </motion.p>
+                    <motion.p 
+                      className="text-sm text-green-700 mt-1"
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: 0.7 }}
+                    >
                       您的账户现在受到双重保护，登录时需要输入验证码。
-                    </p>
+                    </motion.p>
                   </div>
                 </div>
-              </div>
+              </motion.div>
 
               {status.hasBackupCodes && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <motion.div 
+                  className="bg-blue-50 border border-blue-200 rounded-lg p-3"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.4, delay: 0.6 }}
+                  whileHover={{ scale: 1.02, y: -1 }}
+                >
                   <div className="flex items-start">
-                    <svg className="w-5 h-5 text-blue-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <motion.svg 
+                      className="w-5 h-5 text-blue-600 mt-0.5 mr-2" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                      whileHover={{ scale: 1.1, rotate: 5 }}
+                    >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
+                    </motion.svg>
                     <div>
-                      <p className="text-sm font-medium text-blue-800">备用恢复码可用</p>
-                      <p className="text-sm text-blue-700 mt-1">
+                      <motion.p 
+                        className="text-sm font-medium text-blue-800"
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: 0.7 }}
+                      >
+                        备用恢复码可用
+                      </motion.p>
+                      <motion.p 
+                        className="text-sm text-blue-700 mt-1"
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: 0.8 }}
+                      >
                         您有备用恢复码，可以在无法使用认证器时登录。
-                      </p>
+                      </motion.p>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               )}
 
-              <div className="space-y-2">
+              <motion.div 
+                className="space-y-2"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.7 }}
+              >
                 {status.hasBackupCodes && (
                   <motion.button
                     onClick={() => setShowBackupCodes(true)}
-                    whileHover={{ scale: 1.02 }}
+                    whileHover={{ scale: 1.02, y: -1 }}
                     whileTap={{ scale: 0.98 }}
-                    className="w-full px-4 py-2 border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 transition-colors flex items-center justify-center"
+                    className="w-full px-4 py-2 border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 transition-all duration-200 flex items-center justify-center"
                   >
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <motion.svg 
+                      className="w-4 h-4 mr-2" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                      whileHover={{ scale: 1.1 }}
+                    >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
+                    </motion.svg>
                     查看备用恢复码
                   </motion.button>
                 )}
 
                 <motion.button
                   onClick={() => setShowDisable(true)}
-                  whileHover={{ scale: 1.02 }}
+                  whileHover={{ scale: 1.02, y: -1 }}
                   whileTap={{ scale: 0.98 }}
-                  className="w-full px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-colors"
+                  className="w-full px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-all duration-200"
                 >
                   禁用二次验证
                 </motion.button>
-              </div>
+              </motion.div>
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <motion.div 
+                className="bg-yellow-50 border border-yellow-200 rounded-lg p-3"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.5 }}
+                whileHover={{ scale: 1.02, y: -1 }}
+              >
                 <div className="flex items-start">
-                  <svg className="w-5 h-5 text-yellow-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <motion.svg 
+                    className="w-5 h-5 text-yellow-600 mt-0.5 mr-2" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                  >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
+                  </motion.svg>
                   <div>
-                    <p className="text-sm font-medium text-yellow-800">建议启用二次验证</p>
-                    <p className="text-sm text-yellow-700 mt-1">
+                    <motion.p 
+                      className="text-sm font-medium text-yellow-800"
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: 0.6 }}
+                    >
+                      建议启用二次验证
+                    </motion.p>
+                    <motion.p 
+                      className="text-sm text-yellow-700 mt-1"
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: 0.7 }}
+                    >
                       启用二次验证可以为您的账户提供额外的安全保护。
-                    </p>
+                    </motion.p>
                   </div>
                 </div>
-              </div>
+              </motion.div>
 
               <motion.button
                 onClick={() => setShowSetup(true)}
-                whileHover={{ scale: 1.02 }}
+                whileHover={{ scale: 1.02, y: -1 }}
                 whileTap={{ scale: 0.98 }}
-                className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                className="w-full px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
               >
                 设置二次验证
               </motion.button>
             </div>
           )}
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
       {/* TOTP设置模态框 */}
       <TOTPSetup
@@ -225,69 +378,131 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
       />
 
       {/* 禁用TOTP模态框 */}
-      {showDisable && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto"
-          onClick={() => setShowDisable(false)}
-        >
+      <AnimatePresence>
+        {showDisable && (
           <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto my-8 min-h-fit"
-            onClick={(e) => e.stopPropagation()}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto"
+            onClick={() => setShowDisable(false)}
           >
-            {/* 可滚动的内容容器 */}
-            <div className="p-6 max-h-[90vh] overflow-y-auto">
-              <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">禁用二次验证</h2>
-                <p className="text-gray-600">请输入当前验证码以确认禁用</p>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    验证码
-                  </label>
-                  <input
-                    type="text"
-                    value={disableCode}
-                    onChange={(e) => setDisableCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-center text-lg font-mono"
-                    placeholder="000000"
-                    maxLength={6}
-                  />
-                </div>
-
-                {error && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                    <p className="text-red-700 text-sm">{error}</p>
-                  </div>
-                )}
-
-                <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
-                  <button
-                    onClick={() => setShowDisable(false)}
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 50 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 50 }}
+              transition={{ duration: 0.4, type: "spring", stiffness: 300, damping: 25 }}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto my-8 min-h-fit border border-gray-100"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* 可滚动的内容容器 */}
+              <div className="p-6 max-h-[90vh] overflow-y-auto">
+                <motion.div 
+                  className="text-center mb-6"
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.1 }}
+                >
+                  <motion.h2 
+                    className="text-2xl font-bold text-gray-900 mb-2"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: 0.2 }}
                   >
-                    取消
-                  </button>
-                  <button
-                    onClick={handleDisable}
-                    disabled={disableCode.length !== 6}
-                    className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    禁用二次验证
+                  </motion.h2>
+                  <motion.p 
+                    className="text-gray-600"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: 0.3 }}
                   >
-                    确认禁用
-                  </button>
-                </div>
+                    请输入当前验证码以确认禁用
+                  </motion.p>
+                </motion.div>
+
+                <motion.div 
+                  className="space-y-4"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                >
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: 0.3 }}
+                  >
+                    <motion.label 
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3, delay: 0.4 }}
+                    >
+                      验证码
+                    </motion.label>
+                    <motion.input
+                      type="text"
+                      value={disableCode}
+                      onChange={(e) => setDisableCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-center text-lg font-mono transition-all duration-200 hover:border-gray-300"
+                      placeholder="000000"
+                      maxLength={6}
+                      whileFocus={{ scale: 1.02 }}
+                    />
+                  </motion.div>
+
+                  <AnimatePresence>
+                    {error && (
+                      <motion.div 
+                        className="bg-red-50 border border-red-200 rounded-lg p-3"
+                        initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <motion.p 
+                          className="text-red-700 text-sm"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ duration: 0.2, delay: 0.1 }}
+                        >
+                          {error}
+                        </motion.p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <motion.div 
+                    className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.4 }}
+                  >
+                    <motion.button
+                      onClick={() => setShowDisable(false)}
+                      className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all duration-200"
+                      whileHover={{ scale: 1.02, y: -1 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      取消
+                    </motion.button>
+                    <motion.button
+                      onClick={handleDisable}
+                      disabled={disableCode.length !== 6}
+                      className="flex-1 px-4 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
+                      whileHover={{ scale: 1.02, y: -1 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      确认禁用
+                    </motion.button>
+                  </motion.div>
+                </motion.div>
               </div>
-            </div>
+            </motion.div>
           </motion.div>
-        </motion.div>
-      )}
+        )}
+      </AnimatePresence>
     </>
   );
 };
