@@ -289,6 +289,7 @@ class IntegrityChecker {
 
   private showTamperWarning(event: TamperEvent): void {
     const warning = document.createElement('div');
+    let countdown = 10;
     warning.style.cssText = `
       position: fixed;
       top: 0;
@@ -309,18 +310,26 @@ class IntegrityChecker {
         时间: ${new Date(event.timestamp).toLocaleTimeString()} | 
         尝试次数: ${event.attempts}/${this.MAX_ATTEMPTS}
       </div>
+      <div id="tamper-countdown" style="margin-top: 5px; font-size: 1em;">
+        页面将在 <span id="tamper-seconds">${countdown}</span> 秒后自动关闭并显示水印
+      </div>
     `;
     document.body.prepend(warning);
 
-    // 添加动画样式
-    const style = document.createElement('style');
-    style.textContent = `
-      @keyframes slideDown {
-        from { transform: translateY(-100%); }
-        to { transform: translateY(0); }
+    // 倒计时逻辑
+    const interval = setInterval(() => {
+      countdown--;
+      const secSpan = warning.querySelector('#tamper-seconds');
+      if (secSpan) secSpan.textContent = countdown.toString();
+      if (countdown <= 0) {
+        clearInterval(interval);
+        warning.remove();
+        // 触发全屏水印
+        window.dispatchEvent(new Event('show-synapse-watermark'));
+        // 关闭页面
+        window.close();
       }
-    `;
-    document.head.appendChild(style);
+    }, 1000);
   }
 }
 

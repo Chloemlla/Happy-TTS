@@ -103,18 +103,54 @@ const LoadingSpinner: React.FC = () => {
   );
 };
 
+// 水印组件
+const WatermarkOverlay: React.FC = () => {
+  return (
+    <div className="fixed inset-0 z-[99999] pointer-events-none overflow-hidden">
+      {[...Array(50)].map((_, i) => (
+        <div
+          key={i}
+          className="absolute text-red-500/20 font-bold text-lg select-none"
+          style={{
+            left: `${(i % 10) * 10}%`,
+            top: `${Math.floor(i / 10) * 10}%`,
+            transform: `rotate(${Math.random() * 30 - 15}deg)`,
+            fontSize: `${Math.random() * 20 + 16}px`,
+          }}
+        >
+          Synapse
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const App: React.FC = () => {
   const { user, loading, logout } = useAuth();
   const location = useLocation();
   const [isInitialized, setIsInitialized] = useState(false);
   const [showTOTPManager, setShowTOTPManager] = useState(false);
   const [totpStatus, setTotpStatus] = useState<TOTPStatus | null>(null);
+  const [showWatermark, setShowWatermark] = useState(false);
 
   useEffect(() => {
     if (!loading) {
       setIsInitialized(true);
     }
   }, [loading]);
+
+  // 监听水印事件
+  useEffect(() => {
+    const handleShowWatermark = () => {
+      setShowWatermark(true);
+    };
+
+    window.addEventListener('show-synapse-watermark', handleShowWatermark);
+    
+    return () => {
+      window.removeEventListener('show-synapse-watermark', handleShowWatermark);
+    };
+  }, []);
 
   useEffect(() => {
     const fetchTOTPStatus = async () => {
@@ -335,6 +371,20 @@ const App: React.FC = () => {
             </motion.div>
           )}
         </AnimatePresence>
+        
+        {/* 水印覆盖层 */}
+        <AnimatePresence>
+          {showWatermark && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <WatermarkOverlay />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     );
   }
@@ -519,6 +569,20 @@ const App: React.FC = () => {
                 <TOTPManager onStatusChange={handleTOTPStatusChange} />
               </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
+      {/* 水印覆盖层 */}
+      <AnimatePresence>
+        {showWatermark && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <WatermarkOverlay />
           </motion.div>
         )}
       </AnimatePresence>
