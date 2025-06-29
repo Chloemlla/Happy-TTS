@@ -31,6 +31,10 @@ jobs:
       - name: Generate package-lock.json
         run: npm install --package-lock-only
 
+      - name: Clean node_modules and lock
+        run: |
+          rm -rf node_modules package-lock.json frontend/node_modules frontend/package-lock.json frontend/docs/node_modules frontend/docs/package-lock.json
+
       - name: Install dependencies
         run: |
           npm install -g npm
