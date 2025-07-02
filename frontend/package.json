@@ -28,7 +28,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-icons": "^5.5.0",
-    "react-router-dom": "^7.6.2",
+    "react-router-dom": "^7.6.3",
     "react-syntax-highlighter": "^15.6.1",
     "swagger-ui-react": "^5.14.0",
     "validator": "^13.15.15"
