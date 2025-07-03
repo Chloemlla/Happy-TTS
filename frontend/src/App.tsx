@@ -75,19 +75,20 @@ const LoadingSpinner: React.FC = () => {
         <div className="relative w-16 h-16 flex items-center justify-center">
           {/* 外圈旋转 */}
           <motion.div
-            className="absolute inset-0"
+            className="absolute inset-0 flex items-center justify-center"
             animate={{ rotate: 360 }}
             transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
           >
             <div className="w-full h-full border-4 border-indigo-200 border-t-indigo-600 rounded-full"></div>
           </motion.div>
-          {/* 内圈缩放 */}
+          {/* 内圈缩放 - 使用flex居中替代transform */}
           <motion.div
-            className="absolute top-1/2 left-1/2 w-8 h-8 bg-indigo-600 rounded-full"
+            className="absolute inset-0 flex items-center justify-center"
             animate={{ scale: [1, 1.2, 1] }}
             transition={{ duration: 2, repeat: Infinity }}
-            style={{ transform: "translate(-50%, -50%)" }}
-          />
+          >
+            <div className="w-8 h-8 bg-indigo-600 rounded-full"></div>
+          </motion.div>
         </div>
         <motion.p
           className="mt-6 text-center text-gray-600 font-medium"

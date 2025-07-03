@@ -141,25 +141,20 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
               transition={{ duration: 0.5, delay: 0.1 }}
             >
               <div className="flex flex-col items-center">
-                <motion.div 
-                  className="w-16 h-16 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg"
-                  initial={{ scale: 0, rotate: -180 }}
-                  animate={{ scale: 1, rotate: 0 }}
-                  transition={{ duration: 0.6, delay: 0.2, type: "spring", stiffness: 200 }}
-                  whileHover={{ scale: 1.1, rotate: 5 }}
-                >
+                <div className="w-16 h-16 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
                   <motion.svg 
                     className="w-8 h-8 text-indigo-600" 
                     fill="none" 
                     stroke="currentColor" 
                     viewBox="0 0 24 24"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.3, delay: 0.4 }}
+                    initial={{ opacity: 0, rotate: -180 }}
+                    animate={{ opacity: 1, rotate: 0 }}
+                    transition={{ duration: 0.6, delay: 0.2, type: "spring", stiffness: 200 }}
+                    whileHover={{ rotate: 5 }}
                   >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </motion.svg>
-                </motion.div>
+                </div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">二次验证</h2>
                 <p className="text-gray-600">请输入验证码完成登录</p>
               </div>

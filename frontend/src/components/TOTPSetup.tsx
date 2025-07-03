@@ -128,18 +128,23 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
             >
               <div className="flex flex-col items-center">
                 <div className="flex items-center gap-2 mb-2">
-                  <motion.span
-                    initial={{ rotate: -10 }}
-                    animate={{ rotate: 0 }}
-                    transition={{ duration: 0.5, type: 'spring', stiffness: 200 }}
-                    className="flex items-center"
-                  >
-                    {/* 锁图标 */}
-                    <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="text-indigo-500">
+                  {/* 只让SVG图标有旋转动画，不包裹文字 */}
+                  <span className="flex items-center">
+                    <motion.svg
+                      className="w-6 h-6 text-indigo-500"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      viewBox="0 0 24 24"
+                      initial={{ rotate: -10 }}
+                      animate={{ rotate: 0 }}
+                      transition={{ duration: 0.5, type: 'spring', stiffness: 200 }}
+                      whileHover={{ rotate: 10 }}
+                    >
                       <rect x="5" y="11" width="14" height="8" rx="2"/>
                       <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                    </svg>
-                  </motion.span>
+                    </motion.svg>
+                  </span>
                   <span className="text-lg sm:text-2xl font-bold text-gray-900 leading-normal select-none">二次验证</span>
                   <span className="ml-2 px-2 py-0.5 rounded-full bg-gray-100 text-xs text-gray-600 align-middle select-none">未启用</span>
                 </div>

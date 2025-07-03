@@ -45,7 +45,19 @@ jobs:
           npm install
 
       - name: Test
-        run: npm test
+        run: |
+          npm test
+          cd frontend
+          npm install -g vitest
+          npm install -g @testing-library/jest-dom
+          npm install -g @testing-library/react
+          npm install -g @testing-library/user-event
+          npm install -g @babel/preset-env
+          npm install -g @babel/preset-react
+          npm install -g @babel/preset-typescript
+          npm install -g @babel/preset-stage-2
+          npm install -g @babel/preset-stage-3
+          npx vitest
 
       - name: Build
         run: npm run build
