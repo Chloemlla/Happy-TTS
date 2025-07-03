@@ -3,17 +3,16 @@ import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { User } from '../types/auth';
 
-// 配置axios默认值
-axios.defaults.withCredentials = true;
-axios.defaults.headers.common['Content-Type'] = 'application/json';
-
 // 获取API基础URL
 const getApiBaseUrl = () => {
-    // 优先使用环境变量
+    // 在开发环境中使用相对路径
+    if (import.meta.env.DEV) {
+        return '';
+    }
+    // 生产环境使用实际的 API URL
     if (import.meta.env.VITE_API_URL) {
         return import.meta.env.VITE_API_URL;
     }
-    // 回退到生产环境URL
     return 'https://tts-api.hapxs.com';
 };
 
@@ -22,7 +21,8 @@ const api = axios.create({
     baseURL: getApiBaseUrl(),
     withCredentials: true,
     headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
     },
     timeout: 5000 // 5秒超时
 });

@@ -5,7 +5,7 @@ const router = express.Router();
 
 /**
  * @openapi
- * /tts:
+ * /api/tts/generate:
  *   post:
  *     summary: 生成语音
  *     description: 提交文本生成语音
@@ -25,7 +25,7 @@ const router = express.Router();
  *               voice:
  *                 type: string
  *                 description: 发音人
- *               output_format:
+ *               outputFormat:
  *                 type: string
  *                 description: 输出格式
  *               speed:
@@ -39,11 +39,17 @@ const router = express.Router();
  *             schema:
  *               type: object
  *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   description: 是否成功
  *                 audioUrl:
  *                   type: string
  *                   description: 语音文件地址
+ *                 signature:
+ *                   type: string
+ *                   description: 签名
  */
-router.post('/', TtsController.generateSpeech);
+router.post('/generate', TtsController.generateSpeech);
 
 /**
  * @openapi

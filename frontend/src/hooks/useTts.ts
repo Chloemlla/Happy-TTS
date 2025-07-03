@@ -3,9 +3,22 @@ import axios, { AxiosError } from 'axios';
 import { TtsRequest, TtsResponse } from '../types/tts';
 import { verifyContent } from '../utils/sign';
 
+// 获取API基础URL
+const getApiBaseUrl = () => {
+    // 在开发环境中使用相对路径
+    if (import.meta.env.DEV) {
+        return '';
+    }
+    // 生产环境使用实际的 API URL
+    if (import.meta.env.VITE_API_URL) {
+        return import.meta.env.VITE_API_URL;
+    }
+    return 'https://tts-api.hapxs.com';
+};
+
 // 创建axios实例
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || 'https://tts-api.hapxs.com',  // 优先用环境变量
+    baseURL: getApiBaseUrl(),
     withCredentials: true,
     headers: {
         'Content-Type': 'application/json'
@@ -24,8 +37,21 @@ export const useTts = () => {
       setError(null);
       setAudioUrl(null);
 
+      // 获取认证 token
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('请先登录');
+      }
+
       console.log('发送TTS请求:', request);
-      const response = await api.post<TtsResponse>('/api/tts/generate', request);
+      const response = await api.post<TtsResponse>('/api/tts/generate', {
+        ...request,
+        generationCode: import.meta.env.VITE_GENERATION_CODE || 'wmy'
+      }, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
       console.log('收到TTS响应:', response.data);
       
       if (response.data) {

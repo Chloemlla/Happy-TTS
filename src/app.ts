@@ -172,7 +172,14 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 // Middleware
 app.use(cors({
-    origin: ['https://tts.hapx.one', 'https://tts.hapxs.com', 'http://localhost:3000'],
+    origin: [
+        'https://tts.hapx.one',
+        'https://tts.hapxs.com',
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'http://127.0.0.1:3001',
+        'http://192.168.137.1:3001'
+    ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     allowedHeaders: [
@@ -212,6 +219,10 @@ app.use('/api/tts/generate', ttsLimiter);
 app.use('/api/auth', authLimiter);
 app.use('/api/auth/me', meEndpointLimiter); // 为 /me 端点添加特殊的限流器
 app.use('/api/tts/history', historyLimiter);
+
+// 注册路由
+app.use('/api/tts', ttsRoutes);
+app.use('/api/auth', authRoutes);
 
 // ========== Swagger OpenAPI 文档集成 ==========
 const swaggerOptions = {
