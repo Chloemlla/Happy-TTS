@@ -96,6 +96,12 @@ export default defineConfig({
         entryFileNames: 'assets/[name].[hash].js',
         chunkFileNames: 'assets/[name].[hash].js',
         assetFileNames: 'assets/[name].[hash].[ext]'
+      },
+      onwarn(warning, warn) {
+        if (warning.message && warning.message.includes('sourcemap')) {
+          return;
+        }
+        warn(warning);
       }
     },
     // 启用源码映射，方便调试
