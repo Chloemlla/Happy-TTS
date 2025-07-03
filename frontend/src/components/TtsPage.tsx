@@ -16,9 +16,7 @@ export const TtsPage: React.FC = () => {
         generateSpeech
     } = useTts();
 
-    // 为关键内容区域启用 DOM 防篡改保护
-    const formRef = useDomProtection('tts-form');
-    const audioRef = useDomProtection('tts-audio');
+    // 只对静态内容区域启用 DOM 防篡改保护
     const noticeRef = useDomProtection('legal-notice');
 
     const handleSuccess = (result: TtsResponse) => {
@@ -75,7 +73,7 @@ export const TtsPage: React.FC = () => {
 
                 {/* 表单和音频预览部分 */}
                 <div className="flex flex-col lg:flex-row gap-8">
-                    <div ref={formRef as React.RefObject<HTMLDivElement>} className="flex-1">
+                    <div className="flex-1">
                         <div className="bg-white rounded-2xl shadow-lg p-6 relative">
                             <TtsForm
                                 onSuccess={handleSuccess}
@@ -87,7 +85,7 @@ export const TtsPage: React.FC = () => {
                     </div>
 
                     {audioUrl && (
-                        <div ref={audioRef as React.RefObject<HTMLDivElement>} className="flex-1">
+                        <div className="flex-1">
                             <div className="bg-white rounded-2xl shadow-lg p-6">
                                 <div className="space-y-4">
                                     <audio controls className="w-full">
