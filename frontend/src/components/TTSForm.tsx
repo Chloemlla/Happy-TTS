@@ -100,11 +100,11 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                 text,
                 model,
                 voice,
-                output_format: outputFormat,
+                outputFormat: outputFormat,
                 speed,
                 userId,
                 isAdmin,
-                generationCode
+                customFileName: `tts-${Date.now()}`
             };
 
             const result = await generateSpeech(request);
