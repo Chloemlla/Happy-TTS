@@ -29,24 +29,29 @@ vi.mock('axios', () => ({
 }));
 
 describe('TOTPSetup 组件', () => {
-  it('弹窗打开时能正常渲染', () => {
+  it('弹窗打开时能正常渲染', async () => {
     render(<TOTPSetup isOpen={true} onClose={vi.fn()} onSuccess={vi.fn()} />);
-    expect(screen.getByText('二次验证')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('二次验证')).toBeInTheDocument();
+    });
   });
 
-  it('显示二维码说明文字', () => {
+  it('显示二维码说明文字', async () => {
     render(<TOTPSetup isOpen={true} onClose={vi.fn()} onSuccess={vi.fn()} />);
-    expect(
-      screen.getByText(/使用认证器应用扫描QR码|使用Google Authenticator/)
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByText(/使用认证器应用扫描QR码|使用Google Authenticator/)
+      ).toBeInTheDocument();
+    });
   });
 
   it('点击取消按钮会调用onClose', async () => {
     const onClose = vi.fn();
     render(<TOTPSetup isOpen={true} onClose={onClose} onSuccess={vi.fn()} />);
-    // 等待取消按钮渲染
     const cancelBtn = await waitFor(() => screen.getByText('取消'));
     fireEvent.click(cancelBtn);
-    expect(onClose).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalled();
+    });
   });
 }); 

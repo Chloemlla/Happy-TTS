@@ -189,14 +189,8 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                   transition={{ duration: 0.5, delay: 0.2 }}
                 >
                   {/* QR码 */}
-                  <motion.div 
-                    className="w-full flex flex-col items-center"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.6, delay: 0.3, type: "spring", stiffness: 100 }}
-                  >
+                  <div className="w-full flex flex-col items-center">
                     <div className="w-full max-w-[220px] mx-auto my-2">
-                      {/* 彻底移除二维码旋转，父级和自身都无 transform/rotate，仅锁图标可动 */}
                       <QRCodeSVG
                         value={setupData.otpauthUrl}
                         size={Math.min(220, window.innerWidth * 0.7)}
@@ -207,15 +201,10 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                         className="w-full h-auto"
                       />
                     </div>
-                    <motion.p 
-                      className="text-xs text-gray-500 mt-2 text-center leading-normal"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ duration: 0.3, delay: 0.5 }}
-                    >
+                    <p className="text-xs text-gray-500 mt-2 text-center leading-normal">
                       使用Google Authenticator、Microsoft Authenticator等应用扫描
-                    </motion.p>
-                  </motion.div>
+                    </p>
+                  </div>
 
                   {/* 密钥 */}
                   <motion.div 
