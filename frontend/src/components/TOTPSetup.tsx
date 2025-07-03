@@ -120,38 +120,35 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
           {/* 可滚动的内容容器 */}
           <div className="max-h-[90vh] overflow-y-auto flex flex-col items-center w-full">
             {/* 标题 */}
-            <motion.div 
-              className="text-center mb-4 w-full"
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-            >
+            <div className="text-center mb-4 w-full">
               <div className="flex flex-col items-center">
                 <div className="flex items-center gap-2 mb-2">
-                  {/* 只让SVG图标有旋转动画，不包裹文字 */}
-                  <span className="flex items-center">
-                    <motion.svg
+                  {/* 只让SVG图标有动画 */}
+                  <motion.span
+                    className="flex items-center"
+                    initial={{ rotate: -10 }}
+                    animate={{ rotate: 0 }}
+                    transition={{ duration: 0.5, type: 'spring', stiffness: 200 }}
+                    whileHover={{ rotate: 10 }}
+                  >
+                    <svg
                       className="w-6 h-6 text-indigo-500"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="2"
                       viewBox="0 0 24 24"
-                      initial={{ rotate: -10 }}
-                      animate={{ rotate: 0 }}
-                      transition={{ duration: 0.5, type: 'spring', stiffness: 200 }}
-                      whileHover={{ rotate: 10 }}
                     >
                       <rect x="5" y="11" width="14" height="8" rx="2"/>
                       <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                    </motion.svg>
-                  </span>
+                    </svg>
+                  </motion.span>
                   <span className="text-lg sm:text-2xl font-bold text-gray-900 leading-normal select-none">二次验证</span>
                   <span className="ml-2 px-2 py-0.5 rounded-full bg-gray-100 text-xs text-gray-600 align-middle select-none">未启用</span>
                 </div>
                 <span className="text-sm sm:text-base text-gray-600 leading-normal mb-1 select-none">增强账户安全性</span>
                 <span className="text-sm sm:text-base text-gray-600 leading-normal select-none">使用认证器应用扫描QR码</span>
               </div>
-            </motion.div>
+            </div>
 
             {/* 加载状态 */}
             <AnimatePresence mode="wait">
