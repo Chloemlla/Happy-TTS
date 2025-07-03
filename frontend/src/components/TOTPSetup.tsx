@@ -18,6 +18,16 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showBackupCodes, setShowBackupCodes] = useState(false);
+  const [rotation, setRotation] = useState(-90);
+
+  useEffect(() => {
+    if (rotation !== 0) {
+      const timer = setTimeout(() => {
+        setRotation(0);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [rotation]);
 
   // 获取API基础URL
   const getApiBaseUrl = () => {
@@ -123,26 +133,36 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
             <div className="text-center mb-4 w-full">
               <div className="flex flex-col items-center">
                 <div className="flex items-center gap-2 mb-2">
-                  {/* 只让SVG图标有动画 */}
-                  <motion.span
-                    className="flex items-center"
-                    initial={{ rotate: -10 }}
-                    animate={{ rotate: 0 }}
-                    transition={{ duration: 0.5, type: 'spring', stiffness: 200 }}
-                    whileHover={{ rotate: 10 }}
+                  {/* 图标和文字容器 */}
+                  <motion.div
+                    className="flex items-center gap-2"
+                    animate={{ rotate: rotation }}
+                    transition={{
+                      type: "spring",
+                      stiffness: 200,
+                      damping: 20
+                    }}
                   >
-                    <svg
-                      className="w-6 h-6 text-indigo-500"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      viewBox="0 0 24 24"
+                    {/* 图标 */}
+                    <motion.div
+                      className="flex items-center"
+                      whileHover={{ scale: 1.1, rotate: 10 }}
+                      whileTap={{ scale: 0.9 }}
                     >
-                      <rect x="5" y="11" width="14" height="8" rx="2"/>
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                    </svg>
-                  </motion.span>
-                  <span className="text-lg sm:text-2xl font-bold text-gray-900 leading-normal select-none">二次验证</span>
+                      <svg
+                        className="w-6 h-6 text-indigo-500"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        viewBox="0 0 24 24"
+                      >
+                        <rect x="5" y="11" width="14" height="8" rx="2"/>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                      </svg>
+                    </motion.div>
+                    {/* 文字 */}
+                    <span className="text-lg sm:text-2xl font-bold text-gray-900 leading-normal select-none">二次验证</span>
+                  </motion.div>
                   <span className="ml-2 px-2 py-0.5 rounded-full bg-gray-100 text-xs text-gray-600 align-middle select-none">未启用</span>
                 </div>
                 <span className="text-sm sm:text-base text-gray-600 leading-normal mb-1 select-none">增强账户安全性</span>
