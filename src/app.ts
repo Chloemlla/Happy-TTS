@@ -273,7 +273,6 @@ if (!fs.existsSync(audioDir)) {
 }
 
 // Routes
-app.use('/api/tts', ttsRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/totp', totpRoutes);
 app.use('/api/admin', adminLimiter, adminRoutes);
