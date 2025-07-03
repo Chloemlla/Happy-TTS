@@ -26,7 +26,7 @@ export const TtsPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-white py-8">
+        <div className="min-h-screen bg-gray-50 py-8">
             <div className="max-w-7xl mx-auto px-4">
                 <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
                     <div className="text-center">
@@ -73,13 +73,15 @@ export const TtsPage: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col lg:flex-row gap-8">
-                    <div ref={formRef as React.RefObject<HTMLDivElement>} className="flex-1 bg-white rounded-2xl shadow-lg p-6">
-                        <TtsForm
-                            onSuccess={handleSuccess}
-                        />
-                        {error && (
-                            <div className="text-red-500 mt-4">{error}</div>
-                        )}
+                    <div ref={formRef as React.RefObject<HTMLDivElement>} className="flex-1 bg-white rounded-2xl shadow-lg p-6 relative z-10">
+                        <div className="relative">
+                            <TtsForm
+                                onSuccess={handleSuccess}
+                            />
+                            {error && (
+                                <div className="text-red-500 mt-4">{error}</div>
+                            )}
+                        </div>
                     </div>
 
                     {audioUrl && (

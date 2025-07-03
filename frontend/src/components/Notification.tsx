@@ -43,12 +43,12 @@ export const Notification: React.FC<NotificationProps> = ({
                 initial={{ opacity: 0, y: -50, scale: 0.3 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.5, transition: { duration: 0.2 } }}
-                className={`fixed top-4 right-4 z-50 ${getTypeStyles()} text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-3`}
+                className={`fixed top-4 right-4 z-[9999] ${getTypeStyles()} text-white px-6 py-3 rounded-lg shadow-lg backdrop-blur-sm bg-opacity-95 flex items-center space-x-3`}
             >
-                <span>{message}</span>
+                <span className="text-sm font-medium">{message}</span>
                 <button
                     onClick={onClose}
-                    className="ml-4 hover:text-gray-200 transition-colors"
+                    className="ml-4 hover:text-gray-200 transition-colors focus:outline-none"
                 >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

@@ -88,7 +88,7 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ audioUrl, onClose })
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="w-full bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden mt-6"
+                className="relative z-30 w-full bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-100 overflow-hidden mt-6"
             >
                 <div className="p-4 bg-gradient-to-r from-indigo-500 to-purple-500">
                     <div className="flex justify-between items-center">
@@ -106,7 +106,7 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ audioUrl, onClose })
                     </div>
                 </div>
 
-                <div className="p-4">
+                <div className="relative p-4 bg-white">
                     <div className="flex flex-col space-y-4">
                         <div className="flex items-center space-x-4">
                             <button

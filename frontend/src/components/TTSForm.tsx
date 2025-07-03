@@ -171,7 +171,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
 
     return (
         <motion.div 
-            className="space-y-6"
+            className="relative z-10 space-y-6 bg-white rounded-xl"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
@@ -179,12 +179,12 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
             <AnimatePresence>
                 {notification && (
                     <motion.div
+                        className="relative z-20"
                         initial={{ opacity: 0, y: -20, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -20, scale: 0.95 }}
                         transition={{ duration: 0.3 }}
                     >
-                        {/* Notification 组件本身不做旋转动画，若有图标动画请在 Notification 内部单独处理 */}
                         <Notification
                             message={notification.message}
                             type={notification.type}
@@ -196,7 +196,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
 
             <motion.form 
                 onSubmit={handleSubmit} 
-                className="space-y-6"
+                className="relative z-10 space-y-6 bg-transparent"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.2 }}
@@ -477,6 +477,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
             <AnimatePresence>
                 {audioUrl && (
                     <motion.div
+                        className="relative z-20"
                         initial={{ opacity: 0, y: 20, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 20, scale: 0.95 }}
