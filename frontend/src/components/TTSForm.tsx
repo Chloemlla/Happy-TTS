@@ -170,16 +170,11 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
     const displayError = error || ttsError;
 
     return (
-        <motion.div 
-            className="relative z-10 space-y-6 bg-white rounded-xl"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
-        >
+        <div className="relative">
             <AnimatePresence>
                 {notification && (
                     <motion.div
-                        className="relative z-20"
+                        className="absolute -top-4 left-0 right-0 z-50"
                         initial={{ opacity: 0, y: -20, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -20, scale: 0.95 }}
@@ -196,10 +191,10 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
 
             <motion.form 
                 onSubmit={handleSubmit} 
-                className="relative z-10 space-y-6 bg-transparent"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
+                className="space-y-6"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.6 }}
             >
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -222,7 +217,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                                 setText(newText);
                             }
                         }}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-gray-300"
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-gray-300 bg-white"
                         rows={4}
                         placeholder="请输入要转换的文本..."
                         whileFocus={{ scale: 1.01 }}
@@ -477,7 +472,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
             <AnimatePresence>
                 {audioUrl && (
                     <motion.div
-                        className="relative z-20"
+                        className="mt-6"
                         initial={{ opacity: 0, y: 20, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -490,7 +485,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                     </motion.div>
                 )}
             </AnimatePresence>
-        </motion.div>
+        </div>
     );
 };
 

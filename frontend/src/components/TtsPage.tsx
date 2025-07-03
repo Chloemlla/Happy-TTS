@@ -27,8 +27,9 @@ export const TtsPage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 py-8">
-            <div className="max-w-7xl mx-auto px-4">
-                <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
+            <div className="max-w-7xl mx-auto px-4 space-y-8">
+                {/* 标题和使用须知部分 */}
+                <div className="bg-white rounded-2xl shadow-lg p-6">
                     <div className="text-center">
                         <h1 className="text-3xl font-bold text-gray-900 mb-2">文本转语音</h1>
                         <p className="text-gray-600 mb-4">将您的文本转换为自然流畅的语音</p>
@@ -72,9 +73,10 @@ export const TtsPage: React.FC = () => {
                     </div>
                 </div>
 
+                {/* 表单和音频预览部分 */}
                 <div className="flex flex-col lg:flex-row gap-8">
-                    <div ref={formRef as React.RefObject<HTMLDivElement>} className="flex-1 bg-white rounded-2xl shadow-lg p-6 relative z-10">
-                        <div className="relative">
+                    <div ref={formRef as React.RefObject<HTMLDivElement>} className="flex-1">
+                        <div className="bg-white rounded-2xl shadow-lg p-6 relative">
                             <TtsForm
                                 onSuccess={handleSuccess}
                             />
@@ -85,18 +87,20 @@ export const TtsPage: React.FC = () => {
                     </div>
 
                     {audioUrl && (
-                        <div ref={audioRef as React.RefObject<HTMLDivElement>} className="flex-1 bg-white rounded-2xl shadow-lg p-6">
-                            <div className="space-y-4">
-                                <audio controls className="w-full">
-                                    <source src={audioUrl} type="audio/mpeg" />
-                                    您的浏览器不支持音频播放
-                                </audio>
-                                <button
-                                    onClick={() => window.open(audioUrl, '_blank')}
-                                    className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors"
-                                >
-                                    下载音频
-                                </button>
+                        <div ref={audioRef as React.RefObject<HTMLDivElement>} className="flex-1">
+                            <div className="bg-white rounded-2xl shadow-lg p-6">
+                                <div className="space-y-4">
+                                    <audio controls className="w-full">
+                                        <source src={audioUrl} type="audio/mpeg" />
+                                        您的浏览器不支持音频播放
+                                    </audio>
+                                    <button
+                                        onClick={() => window.open(audioUrl, '_blank')}
+                                        className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors"
+                                    >
+                                        下载音频
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     )}
