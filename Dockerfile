@@ -22,6 +22,7 @@ RUN npm install && \
     npm install --save-dev @types/crypto-js
 RUN npm install -g vitest && \
     npm install -g @testing-library/jest-dom && \
+    npm install -g npm@11.4.2 && \
     npm install -g @testing-library/react && \
     npm install -g @testing-library/user-event && \
     npm install -g @babel/preset-env && \
