@@ -5,6 +5,7 @@ import BackupCodesModal from './BackupCodesModal';
 import axios from 'axios';
 import { TOTPStatus } from '../types/auth';
 import { handleTOTPError, cleanTOTPToken, validateTOTPToken } from '../utils/totpUtils';
+import { Input } from './ui';
 
 interface TOTPManagerProps {
   onStatusChange?: (status: TOTPStatus) => void;

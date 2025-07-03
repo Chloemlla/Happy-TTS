@@ -4,6 +4,7 @@ import { useTts } from '../hooks/useTts';
 import { TtsRequest, TtsResponse } from '../types/tts';
 import { AudioPreview } from './AudioPreview';
 import { Notification } from './Notification';
+import { Input } from './ui';
 
 interface TtsFormProps {
     onSuccess?: (result: TtsResponse) => void;

@@ -40,6 +40,16 @@ export interface User {
     totpSecret?: string;
     totpEnabled?: boolean;
     backupCodes?: string[];
+    webauthnEnabled?: boolean;
+    webauthnCredentials?: {
+        id: string;
+        name: string;
+        credentialID: string;
+        credentialPublicKey: string;
+        counter: number;
+        createdAt: string;
+    }[];
+    pendingChallenge?: string;
 }
 
 export class UserStorage {
@@ -384,6 +394,45 @@ export class UserStorage {
             logger.error('获取剩余使用次数失败:', {
                 error,
                 userId
+            });
+            throw error;
+        }
+    }
+
+    public static async getUserByUsername(username: string): Promise<User | null> {
+        try {
+            const users = this.readUsers();
+            return users.find(u => u.username === username) || null;
+        } catch (error) {
+            logger.error('通过用户名获取用户失败:', {
+                error,
+                username
+            });
+            throw error;
+        }
+    }
+
+    public static async updateUser(userId: string, updates: Partial<User>): Promise<User | null> {
+        try {
+            const users = this.readUsers();
+            const userIndex = users.findIndex(u => u.id === userId);
+            
+            if (userIndex === -1) {
+                return null;
+            }
+
+            users[userIndex] = {
+                ...users[userIndex],
+                ...updates
+            };
+
+            this.writeUsers(users);
+            return users[userIndex];
+        } catch (error) {
+            logger.error('更新用户失败:', {
+                error,
+                userId,
+                updates
             });
             throw error;
         }

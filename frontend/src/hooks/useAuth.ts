@@ -309,6 +309,7 @@ export const useAuth = () => {
         login,
         verifyTOTP,
         register,
-        logout
+        logout,
+        api
     };
 }; 

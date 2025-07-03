@@ -35,6 +35,7 @@ import { adminController } from 'controllers/adminController';
 import swaggerJSDoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import logRoutes from './routes/logRoutes';
+import webauthnRoutes from './routes/webauthnRoutes';
 
 // 扩展 Request 类型
 declare global {
@@ -287,6 +288,7 @@ app.use('/', commandRoutes);
 app.use('/', libreChatRoutes);
 app.use('/', dataCollectionRoutes);
 app.use('/api', logRoutes);
+app.use('/api/webauthn', webauthnRoutes);
 
 // 根路由重定向到前端
 app.get('/', (req, res) => {

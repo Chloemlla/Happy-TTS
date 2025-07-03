@@ -13,6 +13,8 @@ import { TOTPStatus } from './types/auth';
 import MobileNav from './components/MobileNav';
 import ApiDocs from './components/ApiDocs';
 import LogShare from './components/LogShare';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 // 页面切换动画变体
 const pageVariants = {
@@ -386,6 +388,7 @@ const App: React.FC = () => {
             </motion.div>
           )}
         </AnimatePresence>
+        <ToastContainer />
       </div>
     );
   }
@@ -587,6 +590,7 @@ const App: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      <ToastContainer />
     </div>
   );
 };

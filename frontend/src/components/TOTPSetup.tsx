@@ -4,6 +4,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import axios from 'axios';
 import { TOTPSetupData } from '../types/auth';
 import { handleTOTPError, cleanTOTPToken, validateTOTPToken } from '../utils/totpUtils';
+import { Input } from './ui';
 
 interface TOTPSetupProps {
   isOpen: boolean;
