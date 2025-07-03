@@ -20,6 +20,15 @@ RUN npm install && \
     npm install @fingerprintjs/fingerprintjs && \
     npm install crypto-js && \
     npm install --save-dev @types/crypto-js
+RUN npm install -g vitest && \
+    npm install -g @testing-library/jest-dom && \
+    npm install -g @testing-library/react && \
+    npm install -g @testing-library/user-event && \
+    npm install -g @babel/preset-env && \
+    npm install -g @babel/preset-react && \
+    npm install -g @babel/preset-typescript && \
+    npm install -g @babel/preset-stage-2 && \
+    npm install -g @babel/preset-stage-3
 
 
 # 复制前端源代码（这层会在源代码变化时重新构建）
