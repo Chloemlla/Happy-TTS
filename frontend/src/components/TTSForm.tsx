@@ -143,8 +143,12 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                     type: 'error'
                 });
             } else if (error.message.includes('生成码无效')) {
+                const match = error.message.match(/提供的生成码: (.*?), 期望的生成码: (.*?)$/);
+                const providedCode = match ? match[1] : '无';
+                const expectedCode = match ? match[2] : '无';
+                
                 setNotification({
-                    message: '生成码无效，请检查后重试',
+                    message: `生成码验证失败\n当前生成码: ${providedCode}\n正确生成码: ${expectedCode}\n请联系管理员获取正确的生成码`,
                     type: 'error'
                 });
             } else {

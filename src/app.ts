@@ -576,6 +576,7 @@ app.listen(Number(PORT), '0.0.0.0', async () => {
   await ensureDirectories();
   logger.info(`服务器运行在 http://0.0.0.0:${PORT}`);
   logger.info(`Audio files directory: ${audioDir}`);
+  logger.info(`当前生成码: ${config.generationCode}`);
 });
 
 // 确保必要的目录存在

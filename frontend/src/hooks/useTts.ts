@@ -105,7 +105,23 @@ export const useTts = () => {
         const axiosError = error as AxiosError;
         if (axiosError.response) {
           // 服务器返回错误响应
-          const errorData = axiosError.response.data as { message?: string; error?: string };
+          const errorData = axiosError.response.data as { 
+            message?: string; 
+            error?: string;
+            details?: {
+              provided?: string;
+              expected?: string;
+            }
+          };
+
+          // 处理生成码错误
+          if (axiosError.response.status === 403 && errorData.details) {
+            const errorMessage = `生成码无效 - 提供的生成码: ${errorData.details.provided || '无'}, 期望的生成码: ${errorData.details.expected || '无'}`;
+            console.error('生成码验证失败:', errorData.details);
+            setError(errorMessage);
+            throw new Error(errorMessage);
+          }
+
           const errorMessage = errorData?.error || errorData?.message || '服务器错误';
           console.error('服务器错误响应:', errorData);
           setError(errorMessage);

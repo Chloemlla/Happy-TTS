@@ -59,8 +59,19 @@ export class TtsController {
 
             // 检查生成码
             if (!generationCode || generationCode !== config.generationCode) {
+                logger.warn('生成码验证失败', {
+                    ip,
+                    userAgent: req.headers['user-agent'],
+                    providedCode: generationCode,
+                    expectedCode: config.generationCode,
+                    timestamp: new Date().toISOString()
+                });
                 return res.status(403).json({
-                    error: '生成码无效'
+                    error: '生成码无效',
+                    details: {
+                        provided: generationCode,
+                        expected: config.generationCode
+                    }
                 });
             }
 
