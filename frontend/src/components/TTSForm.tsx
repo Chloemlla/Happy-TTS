@@ -150,7 +150,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                 const expectedCode = match ? match[2] : '无';
                 
                 setNotification({
-                    message: `生成码验证失败\n当前生成码: ${providedCode}\n正确生成码: ${expectedCode}\n请联系管理员获取正确的生成码`,
+                    message: `生成码验证失败`,
                     type: 'error'
                 });
             } else {
