@@ -7,7 +7,7 @@ export interface TtsRequest {
   userId?: string;
   isAdmin?: boolean;
   customFileName?: string;
-  generationCode?: string;
+  generationCode: string;
 }
 
 export interface TtsResponse {

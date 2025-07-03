@@ -104,7 +104,8 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                 speed,
                 userId,
                 isAdmin,
-                customFileName: `tts-${Date.now()}`
+                customFileName: `tts-${Date.now()}`,
+                generationCode
             };
 
             const result = await generateSpeech(request);

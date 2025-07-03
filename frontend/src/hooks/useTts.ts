@@ -46,7 +46,6 @@ export const useTts = () => {
       console.log('发送TTS请求:', request);
       const response = await api.post<TtsResponse>('/api/tts/generate', {
         ...request,
-        generationCode: import.meta.env.VITE_GENERATION_CODE || 'wmy'
       }, {
         headers: {
           Authorization: `Bearer ${token}`
