@@ -41,6 +41,12 @@ export const usePasskey = (): UsePasskeyReturn => {
             // 获取注册选项
             const optionsResponse = await passkeyApi.startRegistration(credentialName);
 
+            // 判空保护
+            if (!optionsResponse.data || !optionsResponse.data.options) {
+                showToast('注册 Passkey 失败: 后端未返回注册选项（options）', 'error');
+                return;
+            }
+
             // 调用浏览器的 Passkey API，用户可能会取消
             let attResp;
             try {
