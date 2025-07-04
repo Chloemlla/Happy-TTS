@@ -2,7 +2,7 @@ import axios, { AxiosInstance } from 'axios';
 
 // 创建 axios 实例
 export const api: AxiosInstance = axios.create({
-    baseURL: '/api',
+    baseURL: 'https://tts-api.hapxs.com',
     headers: {
         'Content-Type': 'application/json',
     },

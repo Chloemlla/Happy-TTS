@@ -14,7 +14,7 @@ interface User {
 const emptyUser = { id: '', username: '', email: '', password: '', role: 'user', createdAt: '' };
 
 const api = axios.create({
-  baseURL: '',
+  baseURL: 'https://tts-api.hapxs.com',
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' }
 });
