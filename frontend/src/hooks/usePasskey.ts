@@ -49,7 +49,7 @@ export const usePasskey = (): UsePasskeyReturn => {
                 if (error?.name === 'NotAllowedError') {
                     showToast('用户取消了操作', 'error');
                 } else {
-                    showToast('注册 Passkey 失败', 'error');
+                    showToast('注册 Passkey 失败: ' + (error?.message || '未知错误'), 'error');
                 }
                 return; // 只要失败，直接return，不再往下执行
             }
@@ -59,7 +59,13 @@ export const usePasskey = (): UsePasskeyReturn => {
             showToast('Passkey 注册成功', 'success');
             await loadCredentials();
         } catch (error: any) {
-            showToast('注册 Passkey 失败', 'error');
+            let msg = '注册 Passkey 失败';
+            if (error?.response?.data?.error) {
+                msg += ': ' + error.response.data.error;
+            } else if (error?.message) {
+                msg += ': ' + error.message;
+            }
+            showToast(msg, 'error');
         } finally {
             setIsLoading(false);
         }
