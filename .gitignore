@@ -15,6 +15,7 @@ openapi.json
 generation_records.json
 .cache/
 data/
+test-data/
 finish/
 *.mp3
 dist-obfuscated/

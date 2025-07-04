@@ -5,6 +5,7 @@ import { UserStorage } from '../utils/userStorage';
 import logger from '../utils/logger';
 import { config } from '../config/config';
 import axios from 'axios';
+import { ContentFilterService } from '../services/contentFilterService';
 
 export class TtsController {
     private static ttsService = new TtsService();
@@ -49,10 +50,35 @@ export class TtsController {
 
             // 测试环境下直接 mock 返回（提前到所有校验之前）
             if (process.env.NODE_ENV === 'test') {
+                // 不输出 info 日志
                 return res.status(200).json({
                     audioUrl: '/mock/audio/path.wav',
                     message: '测试环境mock，不调用OpenAI'
                 });
+            }
+
+            // 内容安全检测（在生成码校验之前）
+            if (!ContentFilterService.shouldSkipDetection()) {
+                const contentFilterResult = await ContentFilterService.detectProhibitedContent(text);
+                
+                if (contentFilterResult.isProhibited) {
+                    logger.log('TTS请求被内容过滤拦截', {
+                        ip,
+                        text: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
+                        confidence: contentFilterResult.confidence,
+                        maxVariant: contentFilterResult.maxVariant,
+                        error: contentFilterResult.error
+                    });
+                    
+                    return res.status(403).json({
+                        error: '内容包含违禁词，无法生成语音',
+                        details: {
+                            confidence: contentFilterResult.confidence,
+                            maxVariant: contentFilterResult.maxVariant,
+                            error: contentFilterResult.error
+                        }
+                    });
+                }
             }
 
             // 检查生成码

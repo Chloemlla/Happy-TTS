@@ -197,3 +197,15 @@ jest.mock('../controllers/authController', () => {
     register: async (req: any, res: any) => res.status(200).json({ userId: 'mock', message: 'mock' })
   };
 });
+
+// mock content filter service
+jest.mock('../services/contentFilterService', () => ({
+  ContentFilterService: {
+    detectProhibitedContent: jest.fn().mockResolvedValue({
+      isProhibited: false,
+      confidence: 0
+    }),
+    batchDetect: jest.fn().mockResolvedValue([]),
+    shouldSkipDetection: jest.fn().mockReturnValue(true)
+  }
+}));
