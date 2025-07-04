@@ -2,6 +2,7 @@ import express from 'express';
 import { PasskeyService } from '../services/passkeyService';
 import { authenticateToken } from '../middleware/authenticateToken';
 import { UserStorage, User } from '../utils/userStorage';
+import logger from '../utils/logger';
 
 const router = express.Router();
 
@@ -22,33 +23,48 @@ router.post('/register/start', authenticateToken, async (req, res) => {
     try {
         const userId = (req as any).user?.id;
         const { credentialName } = req.body;
-        console.log('[Passkey] /register/start userId:', userId, 'credentialName:', credentialName);
+        const ip = req.headers['x-real-ip'] || req.ip || 'unknown';
+        logger.info('[Passkey] /register/start 收到请求', { userId, credentialName, ip, headers: req.headers });
 
         if (!credentialName || typeof credentialName !== 'string') {
-            console.warn('[Passkey] 缺少或无效的 credentialName:', credentialName);
-            return res.status(400).json({ error: '认证器名称是必需的', details: 'credentialName 缺失或类型错误' });
+            logger.warn('[Passkey] credentialName 缺失或类型错误', { userId, credentialName, body: req.body });
+            return res.status(400).json({ error: '认证器名称是必需的', details: { credentialName, type: typeof credentialName, body: req.body } });
+        }
+        if (!userId || typeof userId !== 'string') {
+            logger.error('[Passkey] userId 缺失或类型错误', { userId, headers: req.headers });
+            return res.status(401).json({ error: '用户未登录或 userId 异常', details: { userId, headers: req.headers } });
         }
 
         const user = await UserStorage.getUserById(userId);
-        console.log('[Passkey] /register/start user:', user);
+        logger.info('[Passkey] /register/start 获取用户', { userId, user });
         if (!user) {
-            console.warn('[Passkey] 用户不存在:', userId);
-            return res.status(404).json({ error: '用户不存在', details: 'userId: ' + userId });
+            logger.warn('[Passkey] 用户不存在', { userId });
+            return res.status(404).json({ error: '用户不存在', details: { userId } });
+        }
+        if (!user.id || typeof user.id !== 'string') {
+            logger.error('[Passkey] user.id 缺失或类型错误', { user });
+            return res.status(500).json({ error: '用户ID异常', details: { user } });
+        }
+        if (!user.username || typeof user.username !== 'string') {
+            logger.error('[Passkey] user.username 缺失或类型错误', { user });
+            return res.status(500).json({ error: '用户名异常', details: { user } });
         }
 
         let options;
         try {
             options = await PasskeyService.generateRegistrationOptions(user, credentialName);
         } catch (err) {
-            console.error('[Passkey] generateRegistrationOptions error:', err);
+            logger.error('[Passkey] generateRegistrationOptions error', { userId, credentialName, err });
             return res.status(500).json({ error: '生成注册选项失败', details: err instanceof Error ? err.message : String(err) });
         }
-        console.log('[Passkey] /register/start options:', options);
+        logger.info('[Passkey] /register/start options', { userId, options });
         if (!options) {
-            return res.status(500).json({ error: '生成注册选项失败', details: 'options 为 undefined' });
+            logger.error('[Passkey] options 为 undefined', { userId, credentialName });
+            return res.status(500).json({ error: '生成注册选项失败', details: { userId, credentialName, options } });
         }
         if (!options.challenge) {
-            return res.status(500).json({ error: '生成注册选项失败', details: 'options.challenge 为 undefined' });
+            logger.error('[Passkey] options.challenge 为 undefined', { userId, credentialName, options });
+            return res.status(500).json({ error: '生成注册选项失败', details: { userId, credentialName, options } });
         }
 
         await UserStorage.updateUser(userId, {
@@ -57,7 +73,7 @@ router.post('/register/start', authenticateToken, async (req, res) => {
 
         res.json({ options });
     } catch (error) {
-        console.error('生成 Passkey 注册选项失败:', error);
+        logger.error('生成 Passkey 注册选项失败', { error: error instanceof Error ? error.stack : error, body: req.body, headers: req.headers });
         res.status(500).json({ error: '生成 Passkey 注册选项失败', details: error instanceof Error ? error.message : String(error) });
     }
 });
