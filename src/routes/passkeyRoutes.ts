@@ -1,7 +1,7 @@
 import express from 'express';
 import { PasskeyService } from '../services/passkeyService';
 import { authenticateToken } from '../middleware/authenticateToken';
-import { User } from '../utils/userStorage';
+import { UserStorage, User } from '../utils/userStorage';
 
 const router = express.Router();
 
@@ -27,7 +27,7 @@ router.post('/register/start', authenticateToken, async (req, res) => {
             return res.status(400).json({ error: '认证器名称是必需的' });
         }
 
-        const user = await User.findById(userId);
+        const user = await UserStorage.getUserById(userId);
         if (!user) {
             return res.status(404).json({ error: '用户不存在' });
         }
@@ -35,7 +35,7 @@ router.post('/register/start', authenticateToken, async (req, res) => {
         const options = await PasskeyService.generateRegistrationOptions(user, credentialName);
         
         // 保存 challenge 到用户数据中
-        await User.findByIdAndUpdate(userId, {
+        await UserStorage.updateUser(userId, {
             currentChallenge: options.challenge
         });
 
@@ -56,7 +56,7 @@ router.post('/register/finish', authenticateToken, async (req, res) => {
             return res.status(400).json({ error: '认证器名称和响应是必需的' });
         }
 
-        const user = await User.findById(userId);
+        const user = await UserStorage.getUserById(userId);
         if (!user) {
             return res.status(404).json({ error: '用户不存在' });
         }
@@ -78,7 +78,7 @@ router.post('/authenticate/start', async (req, res) => {
             return res.status(400).json({ error: '用户名是必需的' });
         }
 
-        const user = await User.findByUsername(username);
+        const user = await UserStorage.getUserByUsername(username);
         if (!user) {
             return res.status(404).json({ error: '用户不存在' });
         }
@@ -90,7 +90,7 @@ router.post('/authenticate/start', async (req, res) => {
         const options = await PasskeyService.generateAuthenticationOptions(user);
         
         // 保存 challenge 到用户数据中
-        await User.findByIdAndUpdate(user.id, {
+        await UserStorage.updateUser(user.id, {
             currentChallenge: options.challenge
         });
 
@@ -110,7 +110,7 @@ router.post('/authenticate/finish', async (req, res) => {
             return res.status(400).json({ error: '用户名和响应是必需的' });
         }
 
-        const user = await User.findByUsername(username);
+        const user = await UserStorage.getUserByUsername(username);
         if (!user) {
             return res.status(404).json({ error: '用户不存在' });
         }
@@ -120,7 +120,8 @@ router.post('/authenticate/finish', async (req, res) => {
         
         res.json({
             success: true,
-            ...token
+            token: token,
+            user: { id: user.id, username: user.username }
         });
     } catch (error) {
         console.error('完成 Passkey 认证失败:', error);

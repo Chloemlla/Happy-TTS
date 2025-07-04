@@ -50,6 +50,7 @@ export interface User {
         createdAt: string;
     }[];
     pendingChallenge?: string;
+    currentChallenge?: string;
 }
 
 export class UserStorage {
