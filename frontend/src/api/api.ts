@@ -1,8 +1,15 @@
 import axios, { AxiosInstance } from 'axios';
 
+// 获取API基础URL
+const getApiBaseUrl = () => {
+    if (import.meta.env.DEV) return '';
+    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+    return 'https://tts-api.hapxs.com';
+};
+
 // 创建 axios 实例
 export const api: AxiosInstance = axios.create({
-    baseURL: 'https://tts-api.hapxs.com',
+    baseURL: getApiBaseUrl(),
     headers: {
         'Content-Type': 'application/json',
     },

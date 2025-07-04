@@ -13,8 +13,15 @@ interface User {
 
 const emptyUser = { id: '', username: '', email: '', password: '', role: 'user', createdAt: '' };
 
+// 获取API基础URL
+const getApiBaseUrl = () => {
+    if (import.meta.env.DEV) return '';
+    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+    return 'https://tts-api.hapxs.com';
+};
+
 const api = axios.create({
-  baseURL: 'https://tts-api.hapxs.com',
+  baseURL: getApiBaseUrl(),
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' }
 });
