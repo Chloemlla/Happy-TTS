@@ -35,21 +35,11 @@ export class TtsController {
             const ip = TtsController.getClientIp(req);
             const userId = req.headers['x-user-id'] as string;
 
-            // 记录用户信息
-            logger.info('收到TTS请求', {
-                ip,
-                fingerprint,
-                userId,
-                userAgent: req.headers['user-agent'],
-                timestamp: new Date().toISOString(),
-                requestInfo: {
-                    model,
-                    voice,
-                    output_format,
-                    speed,
-                    textLength: text?.length
-                }
-            });
+            // 只在非 test 环境下输出 info 日志
+            if (process.env.NODE_ENV !== 'test') {
+                logger.info('收到请求: POST /api/tts/generate', { ip, headers: req.headers });
+                logger.info('收到TTS请求', { ip, requestInfo: { model, voice, textLength: text.length } });
+            }
 
             if (!text) {
                 return res.status(400).json({
