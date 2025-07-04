@@ -225,6 +225,143 @@ app.use('/api/tts/history', historyLimiter);
 app.use('/api/tts', ttsRoutes);
 app.use('/api/auth', authRoutes);
 
+// TOTP路由限流器
+const totpLimiter = rateLimit({
+    windowMs: 5 * 60 * 1000, // 5分钟
+    max: 20, // 限制每个IP每5分钟20次请求
+    message: { error: 'TOTP操作过于频繁，请稍后再试' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req: Request) => {
+        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        return ip;
+    },
+    skip: (req: Request): boolean => {
+        return req.isLocalIp || false;
+    }
+});
+
+// WebAuthn路由限流器
+const webauthnLimiter = rateLimit({
+    windowMs: 5 * 60 * 1000, // 5分钟
+    max: 30, // 限制每个IP每5分钟30次请求
+    message: { error: 'WebAuthn操作过于频繁，请稍后再试' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req: Request) => {
+        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        return ip;
+    },
+    skip: (req: Request): boolean => {
+        return req.isLocalIp || false;
+    }
+});
+
+// 防篡改路由限流器
+const tamperLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1分钟
+    max: 30, // 限制每个IP每分钟30次请求
+    message: { error: '防篡改验证请求过于频繁，请稍后再试' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req: Request) => {
+        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        return ip;
+    },
+    skip: (req: Request): boolean => {
+        return req.isLocalIp || false;
+    }
+});
+
+// 命令路由限流器
+const commandLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1分钟
+    max: 10, // 限制每个IP每分钟10次请求
+    message: { error: '命令执行请求过于频繁，请稍后再试' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req: Request) => {
+        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        return ip;
+    },
+    skip: (req: Request): boolean => {
+        return req.isLocalIp || false;
+    }
+});
+
+// LibreChat路由限流器
+const libreChatLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1分钟
+    max: 60, // 限制每个IP每分钟60次请求
+    message: { error: 'LibreChat请求过于频繁，请稍后再试' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req: Request) => {
+        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        return ip;
+    },
+    skip: (req: Request): boolean => {
+        return req.isLocalIp || false;
+    }
+});
+
+// 数据收集路由限流器
+const dataCollectionLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1分钟
+    max: 30, // 限制每个IP每分钟30次请求
+    message: { error: '数据收集请求过于频繁，请稍后再试' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req: Request) => {
+        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        return ip;
+    },
+    skip: (req: Request): boolean => {
+        return req.isLocalIp || false;
+    }
+});
+
+// 日志路由限流器
+const logsLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1分钟
+    max: 20, // 限制每个IP每分钟20次请求
+    message: { error: '日志请求过于频繁，请稍后再试' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req: Request) => {
+        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        return ip;
+    },
+    skip: (req: Request): boolean => {
+        return req.isLocalIp || false;
+    }
+});
+
+// 状态路由限流器
+const statusLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1分钟
+    max: 60, // 限制每个IP每分钟60次请求
+    message: { error: '状态检查请求过于频繁，请稍后再试' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req: Request) => {
+        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        return ip;
+    },
+    skip: (req: Request): boolean => {
+        return req.isLocalIp || false;
+    }
+});
+
+app.use('/api/totp', totpLimiter);
+app.use('/api/webauthn', webauthnLimiter);
+app.use('/api/tamper', tamperLimiter);
+app.use('/api/command', commandLimiter);
+app.use('/api/libre-chat', libreChatLimiter);
+app.use('/api/data-collection', dataCollectionLimiter);
+app.use('/api/logs', logsLimiter);
+app.use('/api/status', statusLimiter);
+
 // ========== Swagger OpenAPI 文档集成 ==========
 const swaggerOptions = {
   definition: {
@@ -313,10 +450,10 @@ const ipReportWhitelist = [
   /^10\./, /^192\.168\./, /^172\.(1[6-9]|2[0-9]|3[0-1])\./
 ];
 
-// 公网IP上报专用限流器（默认每分钟15次）
+// 公网IP上报专用限流器（默认每分钟25次）
 const ipReportLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 15,
+  max: 25,
   message: { error: 'IP上报过于频繁，请稍后再试' },
   standardHeaders: true,
   legacyHeaders: false,

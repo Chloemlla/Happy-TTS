@@ -7,21 +7,19 @@ import { disableSelection } from './utils/disableSelection'
 
 // 统一危险关键字 - 扩展更多关键词
 const DANGEROUS_KEYWORDS = [
-  'supercopy', 'copy', 'fatkun', 'downloader', 'ocr', 'scraper', 'capture',
+  'supercopy', 'fatkun', 'downloader', 'ocr', 'scraper', 'capture',
   'copyy', 'copycat', 'copyhelper', 'copyall', 'copytext', 'copycontent', 'copyweb',
   'supercopy', 'supercopyy', 'supercopycat', 'supercopyhelper',
   'fatkun', 'fatkundownloader', 'fatkunbatch', 'fatkunimage',
   'imagecapture', 'screenshot', 'screencapture', 'webcapture',
   'webscraper', 'datascraper', 'contentscraper', 'textscraper',
   'ocr', 'ocrtool', 'ocrreader', 'textrecognizer',
-  'batchdownload', 'bulkdownload', 'massdownload',
-  'clipboard', 'clipboardmanager', 'clipboardhelper',
-  'selection', 'textselection', 'contentselection',
+  'batchdownload', 'bulkdownload', 'massdownload', 'clipboardmanager', 'clipboardhelper', 'textselection', 'contentselection',
   // 油猴相关关键词
   'tampermonkey', 'greasemonkey', 'violentmonkey', 'userscript',
-  'userscripts', 'scriptmonkey', 'monkey',  'grease',
+  'userscripts', 'scriptmonkey',  'grease',
   'violent', 'userjs', 'user.js', 'gm_', 'GM_', 'unsafeWindow',
-  'grant', 'namespace', 'match', 'exclude'
+  'grant', 'namespace', 'match'
 ];
 
 // 扩展特定的检测模式
