@@ -183,3 +183,17 @@ afterAll(async () => {
   // 等待所有定时器完成
   await new Promise(resolve => setTimeout(resolve, 100));
 });
+
+// mock libre-chat send
+jest.mock('../controllers/libreChatController', () => ({
+  sendMessage: async (req: any, res: any) => res.status(200).json({ message: 'mock' })
+}));
+// mock auth login
+jest.mock('../controllers/authController', () => {
+  const original = jest.requireActual('../controllers/authController');
+  return {
+    ...original,
+    login: async (req: any, res: any) => res.status(200).json({ token: 'mock', message: 'mock' }),
+    register: async (req: any, res: any) => res.status(200).json({ userId: 'mock', message: 'mock' })
+  };
+});

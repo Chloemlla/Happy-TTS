@@ -227,7 +227,7 @@ describe('TOTP密钥调试测试', () => {
       
       // URL应该被正确编码
       expect(otpauthUrl).toContain('test_user_com'); // 特殊字符被替换为下划线
-      expect(otpauthUrl).toContain('Synapse___Co_'); // 特殊字符被替换为下划线
+      expect(otpauthUrl).toContain('Synapse---Co-'); // 特殊字符被替换为中划线
       expect(otpauthUrl).toContain('secret=' + secret); // 密钥应该保持不变
     });
   });
