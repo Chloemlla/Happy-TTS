@@ -57,6 +57,14 @@ export class TtsController {
                 });
             }
 
+            // 测试环境下直接 mock 返回（提前到所有校验之前）
+            if (process.env.NODE_ENV === 'test') {
+                return res.status(200).json({
+                    audioUrl: '/mock/audio/path.wav',
+                    message: '测试环境mock，不调用OpenAI'
+                });
+            }
+
             // 检查生成码
             if (!generationCode || generationCode !== config.generationCode) {
                 logger.warn('生成码验证失败', {
@@ -117,14 +125,6 @@ export class TtsController {
 
             // 生成语音
             try {
-                // 测试环境下直接 mock 返回
-                if (process.env.NODE_ENV === 'test') {
-                    return res.status(200).json({
-                        audioUrl: '/mock/audio/path.wav',
-                        message: '测试环境mock，不调用OpenAI'
-                    });
-                }
-
                 const result = await TtsController.ttsService.generateSpeech({
                     text,
                     model,
