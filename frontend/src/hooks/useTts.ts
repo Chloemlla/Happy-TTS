@@ -5,14 +5,8 @@ import { verifyContent } from '../utils/sign';
 
 // 获取API基础URL
 const getApiBaseUrl = () => {
-    // 在开发环境中使用相对路径
-    if (import.meta.env.DEV) {
-        return '';
-    }
-    // 生产环境使用实际的 API URL
-    if (import.meta.env.VITE_API_URL) {
-        return import.meta.env.VITE_API_URL;
-    }
+    if (import.meta.env.DEV) return '';
+    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
     return 'https://tts-api.hapxs.com';
 };
 

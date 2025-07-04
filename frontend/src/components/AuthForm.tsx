@@ -163,8 +163,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
             // 对输入进行清理
             const sanitizedUsername = DOMPurify.sanitize(username).trim();
             const sanitizedEmail = DOMPurify.sanitize(email).trim();
-            const sanitizedPassword = password; // 密码不需要 sanitize，但需要在传输前加密
-
+            const sanitizedPassword = password;
             if (isLogin) {
                 const result = await login(sanitizedUsername, sanitizedPassword);
                 if (result.requiresTOTP && result.user && result.token) {
@@ -175,7 +174,18 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
                     return;
                 }
             } else {
+                // 注册后自动登录
                 await register(sanitizedUsername, sanitizedEmail, sanitizedPassword);
+                // 注册成功后自动登录
+                const loginResult = await login(sanitizedUsername, sanitizedPassword);
+                if (loginResult && loginResult.token) {
+                    if (typeof loginResult.token === 'string' && loginResult.token.length > 20) {
+                        localStorage.setItem('token', loginResult.token);
+                    } else {
+                        alert('登录失败，服务器返回无效token，请联系管理员');
+                        return;
+                    }
+                }
             }
             onSuccess?.();
         } catch (err: any) {
@@ -183,7 +193,6 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
                 type: isLogin ? '登录' : '注册',
                 error: err.message,
             });
-
             setError(err.message || '操作失败');
         } finally {
             setLoading(false);
