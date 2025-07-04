@@ -47,7 +47,7 @@
     "cors": "^2.8.5",
     "crypto-js": "^4.2.0",
     "dompurify": "^3.2.6",
-    "dotenv": "^17.0.0",
+    "dotenv": "^17.0.1",
     "express": "^4.18.3",
     "express-rate-limit": "^7.5.0",
     "synapse-gradio": "file:",
