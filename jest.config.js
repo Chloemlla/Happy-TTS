@@ -34,9 +34,5 @@ module.exports = {
   // 测试报告
   reporters: [
     'default',
-    ['jest-junit', {
-      outputDirectory: './test-results/junit',
-      outputName: 'results.xml',
-    }],
   ],
 };

@@ -5,7 +5,7 @@
   "main": "dist/app.js",
   "scripts": {
     "start": "concurrently \"node dist/app.js\" \"serve -s public -l 3001\" \"serve -s docs -l 3002\"",
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:docs\"",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "nodemon --watch src -e ts --exec ts-node src/app.ts",
     "dev:frontend": "cd frontend && npm run dev",
     "dev:docs": "cd frontend/docs && npm start",

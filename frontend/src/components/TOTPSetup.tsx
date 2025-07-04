@@ -5,6 +5,7 @@ import axios from 'axios';
 import { TOTPSetupData } from '../types/auth';
 import { handleTOTPError, cleanTOTPToken, validateTOTPToken } from '../utils/totpUtils';
 import { Input } from './ui';
+import { WebAuthnSetup } from './WebAuthnSetup';
 
 interface TOTPSetupProps {
   isOpen: boolean;
@@ -19,16 +20,18 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showBackupCodes, setShowBackupCodes] = useState(false);
-  const [rotation, setRotation] = useState(-90);
+  const [rotation, setRotation] = useState(0);
+  const [activeTab, setActiveTab] = useState<'totp' | 'webauthn'>('totp');
 
   useEffect(() => {
-    if (rotation !== 0) {
-      const timer = setTimeout(() => {
-        setRotation(0);
-      }, 100);
-      return () => clearTimeout(timer);
+    if (isOpen) {
+      setRotation(0);
     }
-  }, [rotation]);
+  }, [isOpen]);
+
+  useEffect(() => {
+    setRotation(0);
+  }, [isOpen, activeTab, step]);
 
   // 获取API基础URL
   const getApiBaseUrl = () => {
@@ -129,45 +132,48 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
           onClick={(e) => e.stopPropagation()}
         >
           {/* 可滚动的内容容器 */}
-          <div className="max-h-[90vh] overflow-y-auto flex flex-col items-center w-full">
+          <div className="max-h-[90vh] overflow-y-auto flex flex-col items-center w-full pt-8">
             {/* 标题 */}
             <div className="text-center mb-4 w-full">
               <div className="flex flex-col items-center">
                 <div className="flex items-center gap-2 mb-2">
-                  {/* 图标和文字容器 */}
                   <motion.div
-                    className="flex items-center gap-2"
                     animate={{ rotate: rotation }}
-                    transition={{
-                      type: "spring",
-                      stiffness: 200,
-                      damping: 20
-                    }}
+                    whileHover={{ rotate: 20 }}
+                    onHoverEnd={() => setRotation(0)}
+                    transition={{ type: "spring", stiffness: 200, damping: 20 }}
+                    className="flex items-center"
                   >
-                    {/* 图标 */}
-                    <motion.div
-                      className="flex items-center"
-                      whileHover={{ scale: 1.1, rotate: 10 }}
-                      whileTap={{ scale: 0.9 }}
+                    <svg
+                      className="w-6 h-6 text-indigo-500"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      viewBox="0 0 24 24"
                     >
-                      <svg
-                        className="w-6 h-6 text-indigo-500"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        viewBox="0 0 24 24"
-                      >
-                        <rect x="5" y="11" width="14" height="8" rx="2"/>
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                      </svg>
-                    </motion.div>
-                    {/* 文字 */}
-                    <span className="text-lg sm:text-2xl font-bold text-gray-900 leading-normal select-none">二次验证</span>
+                      <rect x="5" y="11" width="14" height="8" rx="2"/>
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
                   </motion.div>
-                  <span className="ml-2 px-2 py-0.5 rounded-full bg-gray-100 text-xs text-gray-600 align-middle select-none">未启用</span>
+                  <span className="text-lg sm:text-2xl font-bold text-gray-900 leading-normal select-none">二次验证</span>
                 </div>
-                <span className="text-sm sm:text-base text-gray-600 leading-normal mb-1 select-none">增强账户安全性</span>
-                <span className="text-sm sm:text-base text-gray-600 leading-normal select-none">使用认证器应用扫描QR码</span>
+                <div className="flex mb-4 gap-2">
+                  <button
+                    className={`px-4 py-1 rounded-t-lg font-medium text-sm transition-all duration-200 ${activeTab === 'totp' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                    onClick={() => setActiveTab('totp')}
+                  >
+                    动态口令（TOTP）
+                  </button>
+                  <button
+                    className={`px-4 py-1 rounded-t-lg font-medium text-sm transition-all duration-200 ${activeTab === 'webauthn' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                    onClick={() => setActiveTab('webauthn')}
+                  >
+                    生物识别（WebAuthn）
+                  </button>
+                </div>
+                {activeTab === 'totp' && (
+                  <span className="text-sm sm:text-base text-gray-600 leading-normal select-none">使用认证器应用扫描QR码</span>
+                )}
               </div>
             </div>
 
@@ -207,22 +213,24 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                   transition={{ duration: 0.5, delay: 0.2 }}
                 >
                   {/* QR码 */}
-                  <div className="w-full flex flex-col items-center">
-                    <div className="w-full max-w-[220px] mx-auto my-2">
-                      <QRCodeSVG
-                        value={setupData.otpauthUrl}
-                        size={Math.min(220, window.innerWidth * 0.7)}
-                        level="M"
-                        includeMargin={true}
-                        bgColor="#FFFFFF"
-                        fgColor="#000000"
-                        className="w-full h-auto"
-                      />
+                  {activeTab === 'totp' && (
+                    <div className="w-full flex flex-col items-center">
+                      <div className="w-full max-w-[220px] mx-auto my-2">
+                        <QRCodeSVG
+                          value={setupData.otpauthUrl}
+                          size={Math.min(220, window.innerWidth * 0.7)}
+                          level="M"
+                          includeMargin={true}
+                          bgColor="#FFFFFF"
+                          fgColor="#000000"
+                          className="w-full h-auto"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2 text-center leading-normal">
+                        使用Google Authenticator、Microsoft Authenticator等应用扫描
+                      </p>
                     </div>
-                    <p className="text-xs text-gray-500 mt-2 text-center leading-normal">
-                      使用Google Authenticator、Microsoft Authenticator等应用扫描
-                    </p>
-                  </div>
+                  )}
 
                   {/* 密钥 */}
                   <motion.div 
