@@ -118,7 +118,7 @@ export class PasskeyService {
         await UserStorage.updateUser(user.id, {
             passkeyEnabled: true,
             passkeyCredentials: [...existingCredentials, newCredential],
-            pendingChallenge: undefined
+            currentChallenge: undefined
         });
 
         return verification;

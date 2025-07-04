@@ -36,26 +36,30 @@ export const usePasskey = (): UsePasskeyReturn => {
     }, [showToast]);
 
     const registerAuthenticator = useCallback(async (credentialName: string) => {
+        setIsLoading(true);
         try {
-            setIsLoading(true);
-            
             // 获取注册选项
             const optionsResponse = await passkeyApi.startRegistration(credentialName);
-            
-            // 调用浏览器的 Passkey API
-            const attResp = await startRegistration({ optionsJSON: optionsResponse.data.options });
-            
+
+            // 调用浏览器的 Passkey API，用户可能会取消
+            let attResp;
+            try {
+                attResp = await startRegistration({ optionsJSON: optionsResponse.data.options });
+            } catch (error: any) {
+                if (error?.name === 'NotAllowedError') {
+                    showToast('用户取消了操作', 'error');
+                } else {
+                    showToast('注册 Passkey 失败', 'error');
+                }
+                return; // 只要失败，直接return，不再往下执行
+            }
+
             // 完成注册
             await passkeyApi.finishRegistration(credentialName, attResp);
-            
             showToast('Passkey 注册成功', 'success');
             await loadCredentials();
         } catch (error: any) {
-            if (error.name === 'NotAllowedError') {
-                showToast('用户取消了操作', 'error');
-            } else {
-                showToast('注册 Passkey 失败', 'error');
-            }
+            showToast('注册 Passkey 失败', 'error');
         } finally {
             setIsLoading(false);
         }

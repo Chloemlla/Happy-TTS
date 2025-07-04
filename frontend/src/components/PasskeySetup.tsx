@@ -82,10 +82,10 @@ export const PasskeySetup: React.FC = () => {
                                 size="sm"
                                 onClick={() => handleRemove(credential.id)}
                                 disabled={isLoading || removingId === credential.id}
-                                className="hover:bg-red-600 transition flex items-center gap-1"
+                                className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-200 transition flex items-center gap-1"
                             >
                                 {removingId === credential.id ? (
-                                    <span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+                                    <span className="animate-spin w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full"></span>
                                 ) : (
                                     <Trash2Icon className="w-4 h-4" />
                                 )}
@@ -135,12 +135,14 @@ export const PasskeySetup: React.FC = () => {
                             variant="outline"
                             onClick={() => setIsOpen(false)}
                             disabled={isLoading}
+                            className="border-indigo-200 text-indigo-600 hover:bg-indigo-50"
                         >
                             取消
                         </Button>
                         <Button
                             onClick={handleRegister}
                             disabled={isLoading || !credentialName.trim()}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white"
                         >
                             {isLoading ? (
                                 <span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></span>
