@@ -306,7 +306,7 @@ const App: React.FC = () => {
                     exit="out"
                     transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
                   >
-                    <UserManagement token={localStorage.getItem('token') || ''} />
+                    <UserManagement />
                   </motion.div>
                 ) : (
                   <Navigate to="/" replace />
@@ -500,7 +500,7 @@ const App: React.FC = () => {
                   exit="out"
                   transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
                 >
-                  <UserManagement token={localStorage.getItem('token') || ''} />
+                  <UserManagement />
                 </motion.div>
               ) : (
                 <Navigate to="/" replace />

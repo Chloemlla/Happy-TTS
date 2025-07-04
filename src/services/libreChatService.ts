@@ -16,6 +16,7 @@ class LibreChatService {
   private readonly DATA_DIR = join(process.cwd(), 'data');
   private readonly DATA_FILE = join(this.DATA_DIR, 'lc_data.json');
   private isRunning: boolean = false;
+  private intervalId: NodeJS.Timeout | null = null;
 
   private constructor() {
     this.initializeService();
@@ -43,8 +44,8 @@ class LibreChatService {
         logger.log('Loaded previous LibreChat image record');
       }
 
-      // 开始定时检查
-      if (!this.isRunning) {
+      // 只在非测试环境中启动定时检查
+      if (!this.isRunning && process.env.NODE_ENV !== 'test') {
         this.startPeriodicCheck();
       }
     } catch (error) {
@@ -96,13 +97,22 @@ class LibreChatService {
     this.fetchAndRecord(); // 立即执行一次
 
     // 每小时检查一次
-    setInterval(() => {
+    this.intervalId = setInterval(() => {
       this.fetchAndRecord();
     }, 3600000); // 3600000 ms = 1 hour
   }
 
   public getLatestRecord(): ImageRecord | null {
     return this.latestRecord;
+  }
+
+  // 清理方法，用于测试环境
+  public cleanup() {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
+    this.isRunning = false;
   }
 }
 

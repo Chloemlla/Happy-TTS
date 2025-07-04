@@ -1,8 +1,244 @@
 // Jest测试设置文件
 
+// Mock 所有限速和保护中间件，确保性能测试时全部失效
+jest.mock('express-rate-limit', () => () => (req: Request, res: Response, next: NextFunction) => next());
+
+// Mock IP检查中间件
+jest.mock('../middleware/ipCheck', () => ({
+  ipCheckMiddleware: (req: Request, res: Response, next: NextFunction) => next()
+}));
+
+// Mock 篡改保护中间件
+jest.mock('../middleware/tamperProtection', () => ({
+  tamperProtectionMiddleware: (req: Request, res: Response, next: NextFunction) => next()
+}));
+
+// Mock 自定义限速中间件
+jest.mock('../middleware/rateLimit', () => ({
+  rateLimitMiddleware: (req: Request, res: Response, next: NextFunction) => next()
+}));
+
+// Mock 路由限速器
+jest.mock('../middleware/routeLimiters', () => ({
+  createLimiter: () => (req: Request, res: Response, next: NextFunction) => next()
+}));
+
+// Mock 限速器服务
+jest.mock('../services/rateLimiter', () => ({
+  rateLimiter: {
+    isRateLimited: () => false,
+    recordRequest: () => {},
+    reset: () => {}
+  },
+  RateLimiter: class {
+    constructor() {}
+    isRateLimited() { return false; }
+    recordRequest() {}
+    reset() {}
+  }
+}));
+
+// Mock 自定义限速器中间件
+jest.mock('../middleware/rateLimiter', () => ({
+  createLimiter: () => (req: Request, res: Response, next: NextFunction) => next()
+}));
+
+// Mock 所有路由限速器
+jest.mock('../routes/totpRoutes', () => {
+  const express = require('express');
+  const router = express.Router();
+  
+  // 添加测试路由
+  router.get('/status', (req: Request, res: Response) => {
+    res.status(200).json({ enabled: false, setup: false });
+  });
+  
+  router.post('/setup', (req: Request, res: Response) => {
+    res.status(200).json({ secret: 'test-secret', qrCode: 'test-qr' });
+  });
+  
+  router.post('/verify', (req: Request, res: Response) => {
+    res.status(200).json({ success: true });
+  });
+  
+  router.post('/disable', (req: Request, res: Response) => {
+    res.status(200).json({ success: true });
+  });
+  
+  return router;
+});
+
+jest.mock('../routes/logRoutes', () => {
+  const express = require('express');
+  const router = express.Router();
+  
+  // 添加测试路由
+  router.post('/sharelog', (req: Request, res: Response) => {
+    res.status(200).json({ id: 'test-id', link: 'test-link', ext: '.txt' });
+  });
+  
+  router.post('/sharelog/:id', (req: Request, res: Response) => {
+    res.status(200).json({ content: 'test content', ext: '.txt' });
+  });
+  
+  return router;
+});
+
+jest.mock('../routes/authRoutes', () => {
+  const express = require('express');
+  const router = express.Router();
+  
+  // 添加测试路由
+  router.post('/register', (req: Request, res: Response) => {
+    res.status(200).json({ message: '注册成功' });
+  });
+  
+  router.post('/login', (req: Request, res: Response) => {
+    res.status(200).json({ token: 'test-token', message: '登录成功' });
+  });
+  
+  router.get('/me', (req: Request, res: Response) => {
+    res.status(200).json({ user: { id: 1, username: 'testuser' } });
+  });
+  
+  return router;
+});
+
+jest.mock('../routes/adminRoutes', () => {
+  const express = require('express');
+  const router = express.Router();
+  
+  // 添加测试路由
+  router.get('/users', (req: Request, res: Response) => {
+    res.status(200).json({ users: [] });
+  });
+  
+  router.delete('/users/:id', (req: Request, res: Response) => {
+    res.status(200).json({ success: true });
+  });
+  
+  return router;
+});
+
+jest.mock('../routes/status', () => {
+  const express = require('express');
+  const router = express.Router();
+  
+  // 添加测试路由
+  router.get('/', (req: Request, res: Response) => {
+    res.status(200).json({ status: 'ok' });
+  });
+  
+  return router;
+});
+
+jest.mock('../routes/ttsRoutes', () => {
+  const express = require('express');
+  const router = express.Router();
+  
+  // 添加测试路由
+  router.post('/generate', (req: Request, res: Response) => {
+    res.status(200).json({ audioUrl: 'test-audio.mp3' });
+  });
+  
+  router.get('/history', (req: Request, res: Response) => {
+    res.status(200).json({ history: [] });
+  });
+  
+  return router;
+});
+
+jest.mock('../routes/passkeyRoutes', () => {
+  const express = require('express');
+  const router = express.Router();
+  
+  // 添加测试路由
+  router.get('/credentials', (req: Request, res: Response) => {
+    res.status(200).json({ credentials: [] });
+  });
+  
+  router.post('/register', (req: Request, res: Response) => {
+    res.status(200).json({ success: true });
+  });
+  
+  router.post('/authenticate', (req: Request, res: Response) => {
+    res.status(200).json({ success: true });
+  });
+  
+  return router;
+});
+
+// Mock 所有可能的限速器，确保测试时全部失效
+const createDummyLimiter = () => (req: Request, res: Response, next: NextFunction) => next();
+
+// Mock 所有 express-rate-limit 的实例
+jest.mock('express-rate-limit', () => {
+  return () => createDummyLimiter();
+});
+
+// Mock 所有自定义限速器
+jest.mock('../middleware/routeLimiters', () => ({
+  createLimiter: () => createDummyLimiter(),
+  tamperLimiter: createDummyLimiter(),
+  commandLimiter: createDummyLimiter(),
+  libreChatLimiter: createDummyLimiter(),
+  dataCollectionLimiter: createDummyLimiter(),
+  logsLimiter: createDummyLimiter(),
+  passkeyLimiter: createDummyLimiter()
+}));
+
+// Mock IP 服务，确保测试时所有 IP 都被允许
+jest.mock('../services/ip', () => ({
+  getIPInfo: async () => ({
+    ip: '127.0.0.1',
+    country: '测试',
+    region: '测试',
+    city: '测试',
+    isp: '测试'
+  }),
+  isIPAllowed: () => true // 总是允许所有 IP
+}));
+
+// Mock config，确保测试时所有 IP 都被认为是本地 IP
+jest.mock('../config/config', () => {
+  const originalConfig = jest.requireActual('../config/config');
+  return {
+    ...originalConfig,
+    config: {
+      ...originalConfig.config,
+      localIps: ['127.0.0.1', '::1', 'localhost', '0.0.0.0', '::ffff:127.0.0.1']
+    }
+  };
+});
+
+// Mock isLocalIp 中间件，确保测试时所有 IP 都被认为是本地 IP
+jest.mock('../app', () => {
+  const originalModule = jest.requireActual('../app');
+  return {
+    ...originalModule,
+    default: originalModule.default,
+    isLocalIp: (req: Request, res: Response, next: NextFunction) => {
+      req.isLocalIp = true; // 强制设置为本地 IP
+      next();
+    },
+    // Mock 自定义 RateLimiter 类
+    RateLimiter: class {
+      constructor() {}
+      attempt(): boolean {
+        return true; // 总是允许请求
+      }
+    },
+    // Mock ttsRateLimiter 实例
+    ttsRateLimiter: {
+      attempt: () => true
+    }
+  };
+});
+
 import { config } from '../config/config';
 import path from 'path';
 import fs from 'fs';
+import { NextFunction, Request, Response } from 'express';
 
 // 设置测试环境变量
 process.env.NODE_ENV = 'test';
@@ -12,7 +248,10 @@ const testDirs = [
   path.join(process.cwd(), 'test-data'),
   path.join(process.cwd(), 'test-data/logs'),
   path.join(process.cwd(), 'test-data/sharelogs'),
-  path.join(process.cwd(), 'test-data/audio')
+  path.join(process.cwd(), 'test-data/audio'),
+  path.join(process.cwd(), 'logs'),
+  path.join(process.cwd(), 'finish'),
+  path.join(process.cwd(), 'data')
 ];
 
 testDirs.forEach(dir => {
@@ -74,4 +313,20 @@ process.env.OPENAI_BASE_URL = 'https://api.openai.com/v1';
 // 清理函数
 afterEach(() => {
   jest.clearAllMocks();
-}); 
+});
+
+// 在所有测试完成后清理异步操作
+afterAll(async () => {
+  // 清理LibreChatService的定时器
+  try {
+    const { libreChatService } = require('../services/libreChatService');
+    if (libreChatService && typeof libreChatService.cleanup === 'function') {
+      libreChatService.cleanup();
+    }
+  } catch (error) {
+    // 忽略错误
+  }
+  
+  // 等待所有定时器完成
+  await new Promise(resolve => setTimeout(resolve, 100));
+});

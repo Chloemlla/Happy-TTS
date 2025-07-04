@@ -68,7 +68,7 @@ const ttsLimiter = rateLimit({
     legacyHeaders: false,
     // 添加 IP 地址获取方法
     keyGenerator: (req: Request) => {
-        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
         return ip;
     },
     // 跳过本地 IP 的限制
@@ -85,7 +85,7 @@ const authLimiter = rateLimit({
     legacyHeaders: false,
     // 添加 IP 地址获取方法
     keyGenerator: (req: Request) => {
-        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
         return ip;
     },
     // 跳过本地 IP 的限制
@@ -102,7 +102,7 @@ const historyLimiter = rateLimit({
     legacyHeaders: false,
     // 添加 IP 地址获取方法
     keyGenerator: (req: Request) => {
-        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
         return ip;
     },
     // 跳过本地 IP 的限制
@@ -120,7 +120,7 @@ const meEndpointLimiter = rateLimit({
     legacyHeaders: false,
     // 添加 IP 地址获取方法
     keyGenerator: (req: Request) => {
-        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
         return ip;
     },
     // 跳过本地 IP 的限制
@@ -137,7 +137,7 @@ const adminLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req: Request) => {
-        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
         return ip;
     },
     skip: (req: Request): boolean => {
@@ -153,7 +153,7 @@ const frontendLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req: Request) => {
-        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
         return ip;
     },
     skip: (req: Request): boolean => {
@@ -223,7 +223,6 @@ app.use('/api/tts/history', historyLimiter);
 
 // 注册路由
 app.use('/api/tts', ttsRoutes);
-app.use('/api/auth', authRoutes);
 
 // TOTP路由限流器
 const totpLimiter = rateLimit({
@@ -233,7 +232,7 @@ const totpLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req: Request) => {
-        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
         return ip;
     },
     skip: (req: Request): boolean => {
@@ -249,7 +248,7 @@ const passkeyLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req: Request) => {
-        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
         return ip;
     },
     skip: (req: Request): boolean => {
@@ -265,7 +264,7 @@ const tamperLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req: Request) => {
-        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
         return ip;
     },
     skip: (req: Request): boolean => {
@@ -281,7 +280,7 @@ const commandLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req: Request) => {
-        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
         return ip;
     },
     skip: (req: Request): boolean => {
@@ -297,7 +296,7 @@ const libreChatLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req: Request) => {
-        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
         return ip;
     },
     skip: (req: Request): boolean => {
@@ -313,7 +312,7 @@ const dataCollectionLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req: Request) => {
-        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
         return ip;
     },
     skip: (req: Request): boolean => {
@@ -329,7 +328,7 @@ const logsLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req: Request) => {
-        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
         return ip;
     },
     skip: (req: Request): boolean => {
@@ -345,7 +344,7 @@ const statusLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req: Request) => {
-        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
         return ip;
     },
     skip: (req: Request): boolean => {
@@ -359,7 +358,6 @@ app.use('/api/tamper', tamperLimiter);
 app.use('/api/command', commandLimiter);
 app.use('/api/libre-chat', libreChatLimiter);
 app.use('/api/data-collection', dataCollectionLimiter);
-app.use('/api', logRoutes);
 app.use('/api/status', statusLimiter);
 
 // ========== Swagger OpenAPI 文档集成 ==========
@@ -434,7 +432,7 @@ const integrityLimiter = rateLimit({
     message: { error: '请求过于频繁，请稍后再试' },
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req: Request) => req.ip || req.socket.remoteAddress || 'unknown',
+    keyGenerator: (req: Request) => req.ip || (req.socket?.remoteAddress) || 'unknown',
     skip: (req: Request): boolean => req.isLocalIp || false
 });
 
@@ -472,9 +470,9 @@ const ipReportLimiter = rateLimit({
   message: { error: 'IP上报过于频繁，请稍后再试' },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.ip || req.socket.remoteAddress || 'unknown',
+  keyGenerator: (req) => req.ip || (req.socket?.remoteAddress) || 'unknown',
   skip: (req) => {
-    const ip = req.ip || req.socket.remoteAddress || '';
+    const ip = req.ip || (req.socket?.remoteAddress) || '';
     // 白名单IP直接跳过限流
     return ipReportWhitelist.some(rule =>
       typeof rule === 'string' ? ip === rule : rule.test(ip)
@@ -721,18 +719,6 @@ app.post('/server_status', (req, res) => {
   return res.json(statusInfo);
 });
 
-// 注册登出接口
-registerLogoutRoute(app);
-
-// Start server
-const PORT = config.port;
-app.listen(Number(PORT), '0.0.0.0', async () => {
-  await ensureDirectories();
-  logger.info(`服务器运行在 http://0.0.0.0:${PORT}`);
-  logger.info(`Audio files directory: ${audioDir}`);
-  logger.info(`当前生成码: ${config.generationCode}`);
-});
-
 // 确保必要的目录存在
 const ensureDirectories = async () => {
   const dirs = ['logs', 'finish', 'data'];
@@ -742,5 +728,19 @@ const ensureDirectories = async () => {
     }
   }
 };
+
+// 注册登出接口
+registerLogoutRoute(app);
+
+// Start server (only in non-test environment)
+if (process.env.NODE_ENV !== 'test') {
+  const PORT = config.port;
+  app.listen(Number(PORT), '0.0.0.0', async () => {
+    await ensureDirectories();
+    logger.info(`服务器运行在 http://0.0.0.0:${PORT}`);
+    logger.info(`Audio files directory: ${audioDir}`);
+    logger.info(`当前生成码: ${config.generationCode}`);
+  });
+}
 
 export default app; 

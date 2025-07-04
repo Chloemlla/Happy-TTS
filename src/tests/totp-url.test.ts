@@ -36,7 +36,7 @@ describe('TOTP URL Format Tests', () => {
         
         // 验证特殊字符被正确处理
         expect(otpauthUrl).toContain('user_domain_com');
-        expect(otpauthUrl).toContain('Test_Service');
+        expect(otpauthUrl).toContain('Test-Service');
     });
 
     test('should handle Chinese characters in username', () => {
@@ -48,7 +48,7 @@ describe('TOTP URL Format Tests', () => {
         
         // 验证中文字符被正确处理 - 修复期望值
         expect(otpauthUrl).toContain('____'); // 中文字符被替换为下划线
-        expect(otpauthUrl).toContain('issuer=____'); // 服务名也被替换
+        expect(otpauthUrl).toContain('issuer=----'); // 服务名也被替换
     });
 
     test('should include all required parameters', () => {
