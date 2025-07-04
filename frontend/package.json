@@ -10,7 +10,7 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@prisma/client": "^6.10.1",
+    "@prisma/client": "^6.11.1",
     "@radix-ui/react-dialog": "^1.1.14",
     "@simplewebauthn/browser": "^13.1.0",
     "@simplewebauthn/server": "^7.4.0",
