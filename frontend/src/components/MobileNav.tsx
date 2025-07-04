@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
 import { User } from '../types/auth';
 import ReactDOM from 'react-dom';
+import { useTwoFactorStatus } from '../hooks/useTwoFactorStatus';
 
 interface MobileNavProps {
   user: User | null;
@@ -20,6 +21,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const location = useLocation();
+  const twoFactorStatus = useTwoFactorStatus();
 
   // 检测是否为移动设备
   useEffect(() => {
@@ -102,7 +104,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
           </motion.svg>
           <span>二次验证</span>
-          {totpStatus?.enabled && (
+          {twoFactorStatus.enabled && (
             <motion.span 
               className="w-2 h-2 bg-green-500 rounded-full"
               animate={{ scale: [1, 1.2, 1] }}
@@ -316,7 +318,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   whileTap={{ scale: 0.95 }}
                 >
                   <motion.svg 
-                    className={`w-5 h-5 ${totpStatus?.enabled ? 'text-purple-500' : 'text-gray-400'}`} 
+                    className={`w-5 h-5 ${twoFactorStatus.enabled ? 'text-purple-500' : 'text-gray-400'}`} 
                     fill="none" 
                     stroke="currentColor" 
                     viewBox="0 0 24 24"
@@ -325,7 +327,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </motion.svg>
                   <span>二次验证</span>
-                  {totpStatus?.enabled && (
+                  {twoFactorStatus.enabled && (
                     <motion.span 
                       className="ml-auto w-2 h-2 bg-green-500 rounded-full"
                       animate={{ scale: [1, 1.2, 1] }}

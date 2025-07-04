@@ -55,7 +55,7 @@ export class TOTPService {
         try {
             // 确保用户名不包含特殊字符，避免URL编码问题
             const safeUsername = username.replace(/[^a-zA-Z0-9_-]/g, '_');
-            const safeServiceName = serviceName.replace(/[^a-zA-Z0-9_-]/g, '_');
+            const safeServiceName = serviceName.replace(/[^a-zA-Z0-9_-]/g, '-');
             
             // 直接使用speakeasy.otpauthURL方法，传入base32密钥并指定编码
             const otpauthUrl = speakeasy.otpauthURL({

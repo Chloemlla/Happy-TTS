@@ -349,24 +349,16 @@ const App: React.FC = () => {
               >
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-6">
-                    <motion.h2 
-                      className="text-2xl font-bold text-gray-900"
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.1 }}
-                    >
-                      账户安全设置
-                    </motion.h2>
-                    <motion.button
+                    <h2 className="text-2xl font-bold text-gray-900">账户安全设置</h2>
+                    <button
                       onClick={() => setShowTOTPManager(false)}
                       className="text-gray-400 hover:text-gray-600 transition-colors"
-                      whileHover={{ scale: 1.1, rotate: 90 }}
-                      whileTap={{ scale: 0.9 }}
+                      title="关闭"
                     >
                       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
-                    </motion.button>
+                    </button>
                   </div>
                   <TOTPManager onStatusChange={handleTOTPStatusChange} />
                 </div>
@@ -551,24 +543,16 @@ const App: React.FC = () => {
             >
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
-                  <motion.h2 
-                    className="text-2xl font-bold text-gray-900"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.1 }}
-                  >
-                    账户安全设置
-                  </motion.h2>
-                  <motion.button
+                  <h2 className="text-2xl font-bold text-gray-900">账户安全设置</h2>
+                  <button
                     onClick={() => setShowTOTPManager(false)}
                     className="text-gray-400 hover:text-gray-600 transition-colors"
-                    whileHover={{ scale: 1.1, rotate: 90 }}
-                    whileTap={{ scale: 0.9 }}
+                    title="关闭"
                   >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
-                  </motion.button>
+                  </button>
                 </div>
                 <TOTPManager onStatusChange={handleTOTPStatusChange} />
               </div>

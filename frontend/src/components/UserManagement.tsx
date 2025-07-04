@@ -14,12 +14,12 @@ interface User {
 const emptyUser = { id: '', username: '', email: '', password: '', role: 'user', createdAt: '' };
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'https://tts-api.hapxs.com',
+  baseURL: '',
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' }
 });
 
-const UserManagement: React.FC<{ token: string }> = ({ token }) => {
+const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -32,6 +32,7 @@ const UserManagement: React.FC<{ token: string }> = ({ token }) => {
     setLoading(true);
     setError('');
     try {
+      const token = localStorage.getItem('token') || '';
       const res = await api.get<User[]>('/api/admin/users', {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -56,6 +57,7 @@ const UserManagement: React.FC<{ token: string }> = ({ token }) => {
     setLoading(true);
     setError('');
     try {
+      const token = localStorage.getItem('token') || '';
       const method = editingUser ? 'put' : 'post';
       const url = editingUser ? `/api/admin/users/${editingUser.id}` : '/api/admin/users';
       const res = await api.request({
@@ -81,6 +83,7 @@ const UserManagement: React.FC<{ token: string }> = ({ token }) => {
     setLoading(true);
     setError('');
     try {
+      const token = localStorage.getItem('token') || '';
       await api.delete(`/api/admin/users/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });

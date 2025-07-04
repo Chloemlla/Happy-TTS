@@ -127,11 +127,12 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.9, opacity: 0, y: 50 }}
           transition={{ duration: 0.4, type: "spring", stiffness: 300, damping: 25 }}
-          className="bg-white rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-[95vw] sm:max-w-md mx-auto my-8 min-h-fit border border-gray-100 p-2 sm:p-6 overflow-x-hidden"
+          className="bg-white rounded-2xl shadow-2xl w-full mx-auto my-8 min-h-fit border border-gray-100"
+          style={{ width: '90vw', maxWidth: '900px' }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* 可滚动的内容容器 */}
-          <div className="max-h-[90vh] overflow-y-auto flex flex-col items-center w-full pt-8">
+          <div className="max-h-[90vh] overflow-y-auto flex flex-col items-center w-full p-8">
             {/* 标题 */}
             <div className="text-center mb-4 w-full">
               <div className="flex flex-col items-center">

@@ -30,9 +30,7 @@ const getRpId = () => {
 
 // 获取 RP 原点
 const getRpOrigin = () => {
-    const rpId = getRpId();
-    const isSecure = process.env.NODE_ENV === 'production';
-    return `${isSecure ? 'https' : 'http'}://${rpId}`;
+    return process.env.RP_ORIGIN || 'http://localhost:3001';
 };
 
 export class PasskeyService {
@@ -80,7 +78,8 @@ export class PasskeyService {
     public static async verifyRegistration(
         user: User,
         response: any,
-        credentialName: string
+        credentialName: string,
+        requestOrigin?: string
     ): Promise<VerifiedRegistrationResponse> {
         if (!user.pendingChallenge) {
             throw new Error('注册会话已过期');
@@ -91,7 +90,7 @@ export class PasskeyService {
             verification = await verifyRegistrationResponse({
                 response,
                 expectedChallenge: user.pendingChallenge,
-                expectedOrigin: getRpOrigin(),
+                expectedOrigin: requestOrigin || getRpOrigin(),
                 expectedRPID: getRpId()
             });
         } catch (error) {
@@ -103,21 +102,25 @@ export class PasskeyService {
         if (!verified || !registrationInfo) {
             throw new Error('注册验证失败');
         }
-
-        const existingCredentials = user.passkeyCredentials || [];
+        console.log('registrationInfo:', registrationInfo);
+        const { credential } = registrationInfo as any;
+        if (!credential || !credential.id || !credential.publicKey) {
+            logger.error('注册信息不完整:', registrationInfo);
+            throw new Error('注册信息不完整，credential.id 或 credential.publicKey 缺失');
+        }
         const newCredential: Authenticator = {
-            id: (registrationInfo as any).credentialID.toString('base64'),
+            id: credential.id,
             name: credentialName,
-            credentialID: (registrationInfo as any).credentialID.toString('base64'),
-            credentialPublicKey: (registrationInfo as any).credentialPublicKey.toString('base64'),
-            counter: (registrationInfo as any).counter,
+            credentialID: credential.id,
+            credentialPublicKey: Buffer.from(credential.publicKey).toString('base64'),
+            counter: credential.counter,
             createdAt: new Date().toISOString()
         };
 
         // 更新用户记录
         await UserStorage.updateUser(user.id, {
             passkeyEnabled: true,
-            passkeyCredentials: [...existingCredentials, newCredential],
+            passkeyCredentials: [...(user.passkeyCredentials || []), newCredential],
             currentChallenge: undefined
         });
 
@@ -152,7 +155,8 @@ export class PasskeyService {
     // 验证认证
     public static async verifyAuthentication(
         user: User,
-        response: any
+        response: any,
+        requestOrigin?: string
     ): Promise<VerifiedAuthenticationResponse> {
         if (!user.pendingChallenge) {
             throw new Error('认证会话已过期');
@@ -172,7 +176,7 @@ export class PasskeyService {
             verification = await verifyAuthenticationResponse({
                 response,
                 expectedChallenge: user.pendingChallenge,
-                expectedOrigin: getRpOrigin(),
+                expectedOrigin: requestOrigin || getRpOrigin(),
                 expectedRPID: getRpId(),
                 authenticator: {
                     credentialID: Buffer.from(authenticator.credentialID, 'base64'),

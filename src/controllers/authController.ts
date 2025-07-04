@@ -113,18 +113,20 @@ export class AuthController {
                 return res.status(401).json({ error: '用户名/邮箱或密码错误' });
             }
 
-            // 检查用户是否启用了TOTP
-            if (user.totpEnabled) {
-                // 生成临时token用于TOTP验证
+            // 检查用户是否启用了TOTP或Passkey
+            const hasTOTP = !!user.totpEnabled;
+            const hasPasskey = Array.isArray(user.passkeyCredentials) && user.passkeyCredentials.length > 0;
+            if (hasTOTP || hasPasskey) {
+                // 兜底：只返回临时token和二次验证类型，禁止直接登录
+                // 必须通过TOTP或Passkey二次验证接口后，才发放正式token
                 const tempToken = user.id;
-                // 写入临时token到users.json
                 updateUserToken(user.id, tempToken, 5 * 60 * 1000); // 5分钟过期
-                
                 const { password: _, ...userWithoutPassword } = user;
                 return res.json({
                     user: userWithoutPassword,
                     token: tempToken,
-                    requiresTOTP: true
+                    requires2FA: true,
+                    twoFactorType: [hasTOTP ? 'TOTP' : null, hasPasskey ? 'Passkey' : null].filter(Boolean)
                 });
             }
 

@@ -51,17 +51,16 @@ router.post('/register/finish', authenticateToken, async (req, res) => {
     try {
         const userId = (req as any).user.id;
         const { credentialName, response } = req.body;
-
         if (!credentialName || !response) {
             return res.status(400).json({ error: '认证器名称和响应是必需的' });
         }
-
         const user = await UserStorage.getUserById(userId);
         if (!user) {
             return res.status(404).json({ error: '用户不存在' });
         }
-
-        const verification = await PasskeyService.verifyRegistration(user, response, credentialName);
+        // 自动获取请求origin
+        const requestOrigin = req.headers.origin || req.headers.referer || 'http://localhost:3001';
+        const verification = await PasskeyService.verifyRegistration(user, response, credentialName, requestOrigin);
         res.json(verification);
     } catch (error) {
         console.error('完成 Passkey 注册失败:', error);
@@ -105,19 +104,17 @@ router.post('/authenticate/start', async (req, res) => {
 router.post('/authenticate/finish', async (req, res) => {
     try {
         const { username, response } = req.body;
-
         if (!username || !response) {
             return res.status(400).json({ error: '用户名和响应是必需的' });
         }
-
         const user = await UserStorage.getUserByUsername(username);
         if (!user) {
             return res.status(404).json({ error: '用户不存在' });
         }
-
-        const verification = await PasskeyService.verifyAuthentication(user, response);
+        // 自动获取请求origin
+        const requestOrigin = req.headers.origin || req.headers.referer || 'http://localhost:3001';
+        const verification = await PasskeyService.verifyAuthentication(user, response, requestOrigin);
         const token = await PasskeyService.generateToken(user);
-        
         res.json({
             success: true,
             token: token,

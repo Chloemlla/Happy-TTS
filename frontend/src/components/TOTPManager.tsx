@@ -6,6 +6,8 @@ import axios from 'axios';
 import { TOTPStatus } from '../types/auth';
 import { handleTOTPError, cleanTOTPToken, validateTOTPToken } from '../utils/totpUtils';
 import { Input } from './ui';
+import { useTwoFactorStatus } from '../hooks/useTwoFactorStatus';
+import { PasskeySetup } from './PasskeySetup';
 
 interface TOTPManagerProps {
   onStatusChange?: (status: TOTPStatus) => void;
@@ -17,8 +19,11 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
   const [showSetup, setShowSetup] = useState(false);
   const [showDisable, setShowDisable] = useState(false);
   const [showBackupCodes, setShowBackupCodes] = useState(false);
+  const [showPasskeySetup, setShowPasskeySetup] = useState(false);
   const [disableCode, setDisableCode] = useState('');
   const [error, setError] = useState('');
+
+  const twoFactor = useTwoFactorStatus();
 
   // 获取API基础URL
   const getApiBaseUrl = () => {
@@ -94,8 +99,6 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
       >
         <motion.div 
           className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-indigo-500"
-          initial={{ rotate: 0 }}
-          animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
         />
       </motion.div>
@@ -123,62 +126,40 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
                 fill="none" 
                 stroke="currentColor" 
                 viewBox="0 0 24 24"
-                initial={{ opacity: 0, rotate: -180 }}
-                animate={{ opacity: 1, rotate: 0 }}
-                transition={{ duration: 0.5, delay: 0.2, type: "spring", stiffness: 200 }}
-                whileHover={{ rotate: 5 }}
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </motion.svg>
             </span>
             <div>
-              <motion.h3 
-                className="text-lg font-semibold text-gray-900"
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.3 }}
-              >
-                二次验证
-              </motion.h3>
-              <motion.p 
-                className="text-sm text-gray-600"
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.4 }}
-              >
-                增强账户安全性
-              </motion.p>
+              <div className="text-lg font-semibold text-gray-900">二次验证</div>
+              <div className="text-sm text-gray-600">增强账户安全性</div>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
-            {status?.enabled ? (
-              <motion.span 
-                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ duration: 0.4, delay: 0.5, type: "spring", stiffness: 300 }}
-              >
+          <div className="flex items-center space-x-2 mt-2">
+            {twoFactor.enabled ? (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                 <motion.svg 
                   className="w-3 h-3 mr-1" 
                   fill="currentColor" 
                   viewBox="0 0 20 20"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ duration: 0.2, delay: 0.6 }}
                 >
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </motion.svg>
-                已启用
-              </motion.span>
+                已启用（{twoFactor.type.join(' + ')}）
+              </span>
             ) : (
-              <motion.span 
-                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ duration: 0.4, delay: 0.5, type: "spring", stiffness: 300 }}
-              >
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 ml-2 align-middle">
+                <motion.svg 
+                  className="w-3 h-3 mr-1" 
+                  fill="currentColor" 
+                  viewBox="0 0 20 20"
+                >
+                  <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="2" fill="none" />
+                  <rect x="9" y="5" width="2" height="6" rx="1" fill="currentColor" />
+                  <rect x="9" y="13" width="2" height="2" rx="1" fill="currentColor" />
+                </motion.svg>
                 未启用
-              </motion.span>
+              </span>
             )}
           </div>
         </motion.div>
@@ -204,7 +185,6 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
                     fill="none" 
                     stroke="currentColor" 
                     viewBox="0 0 24 24"
-                    whileHover={{ scale: 1.1, rotate: 5 }}
                   >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </motion.svg>
@@ -243,7 +223,6 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
                       fill="none" 
                       stroke="currentColor" 
                       viewBox="0 0 24 24"
-                      whileHover={{ scale: 1.1, rotate: 5 }}
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                     </motion.svg>
@@ -287,7 +266,6 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
                       fill="none" 
                       stroke="currentColor" 
                       viewBox="0 0 24 24"
-                      whileHover={{ scale: 1.1 }}
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -321,7 +299,6 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
                     fill="none" 
                     stroke="currentColor" 
                     viewBox="0 0 24 24"
-                    whileHover={{ scale: 1.1, rotate: 5 }}
                   >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                   </motion.svg>
@@ -351,8 +328,6 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
                 className="w-full px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
               >
                 <motion.span
-                  initial={{ rotate: -20 }}
-                  animate={{ rotate: 0 }}
                   transition={{ duration: 0.5, type: 'spring', stiffness: 200 }}
                   className="inline-flex items-center"
                 >
@@ -503,6 +478,58 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
                     </motion.button>
                   </motion.div>
                 </motion.div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Passkey 设置按钮（仅TOTP启用时显示） */}
+      {status?.enabled && (
+        <AnimatePresence>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="mt-6 flex justify-center"
+          >
+            <motion.button
+              onClick={() => setShowPasskeySetup(true)}
+              whileHover={{ scale: 1.02, y: -1 }}
+              whileTap={{ scale: 0.98 }}
+              className="w-full px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 text-base font-medium"
+            >
+              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="text-white mr-2">
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                <rect x="5" y="11" width="14" height="8" rx="2" />
+              </svg>
+              <span>管理 Passkey 无密码认证</span>
+            </motion.button>
+          </motion.div>
+        </AnimatePresence>
+      )}
+      <AnimatePresence>
+        {showPasskeySetup && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto"
+            onClick={() => setShowPasskeySetup(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 50 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 50 }}
+              transition={{ duration: 0.4, type: 'spring', stiffness: 300, damping: 25 }}
+              style={{ width: '90vw', maxWidth: '900px' }}
+              className="bg-white rounded-2xl shadow-2xl w-full mx-auto my-8 min-h-fit border border-gray-100"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="p-8 max-h-[90vh] overflow-y-auto">
+                <PasskeySetup />
               </div>
             </motion.div>
           </motion.div>

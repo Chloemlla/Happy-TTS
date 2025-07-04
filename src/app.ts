@@ -427,6 +427,21 @@ app.use('/api/data-collection', dataCollectionRoutes);
 app.use('/api', logRoutes);
 app.use('/api/passkey', passkeyRoutes);
 
+// 完整性检测相关兜底接口限速
+const integrityLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1分钟
+    max: 10, // 每分钟最多10次
+    message: { error: '请求过于频繁，请稍后再试' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req: Request) => req.ip || req.socket.remoteAddress || 'unknown',
+    skip: (req: Request): boolean => req.isLocalIp || false
+});
+
+app.head('/api/proxy-test', integrityLimiter, (req, res) => res.sendStatus(200));
+app.get('/api/proxy-test', integrityLimiter, (req, res) => res.sendStatus(200));
+app.get('/api/timing-test', integrityLimiter, (req, res) => res.sendStatus(200));
+
 // 根路由重定向到前端
 app.get('/', (req, res) => {
   res.redirect('/index.html');

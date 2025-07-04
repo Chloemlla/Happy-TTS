@@ -414,28 +414,12 @@ export class UserStorage {
     }
 
     public static async updateUser(userId: string, updates: Partial<User>): Promise<User | null> {
-        try {
-            const users = this.readUsers();
-            const userIndex = users.findIndex(u => u.id === userId);
-            
-            if (userIndex === -1) {
-                return null;
-            }
-
-            users[userIndex] = {
-                ...users[userIndex],
-                ...updates
-            };
-
-            this.writeUsers(users);
-            return users[userIndex];
-        } catch (error) {
-            logger.error('更新用户失败:', {
-                error,
-                userId,
-                updates
-            });
-            throw error;
-        }
+        const users = this.readUsers();
+        const idx = users.findIndex(u => u.id === userId);
+        if (idx === -1) return null;
+        // 合并所有字段，支持追加 passkeyCredentials
+        users[idx] = { ...users[idx], ...updates };
+        this.writeUsers(users);
+        return users[idx];
     }
 } 

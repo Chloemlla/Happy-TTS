@@ -17,6 +17,7 @@ export interface User {
 export interface TOTPStatus {
   enabled: boolean;
   hasBackupCodes: boolean;
+  type?: string[];
 }
 
 export interface TOTPSetupData {

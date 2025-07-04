@@ -4,6 +4,9 @@ import { Link } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import AlertModal from './AlertModal';
 import TOTPVerification from './TOTPVerification';
+import { usePasskey } from '../hooks/usePasskey';
+import { Dialog } from './ui/Dialog';
+import { Button } from './ui/Button';
 
 interface AuthFormProps {
     onSuccess?: () => void;
@@ -15,7 +18,8 @@ interface PasswordStrength {
 }
 
 export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
-    const { login, register, pendingTOTP, verifyTOTP } = useAuth();
+    const { login, register, pending2FA, setPending2FA, verifyTOTP } = useAuth();
+    const { authenticateWithPasskey } = usePasskey();
     const [isLogin, setIsLogin] = useState(true);
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
@@ -30,6 +34,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
     const [pendingUser, setPendingUser] = useState<any>(null);
     const [pendingUserId, setPendingUserId] = useState<string>('');
     const [pendingToken, setPendingToken] = useState<string>('');
+    const [showPasskeyVerification, setShowPasskeyVerification] = useState(false);
 
     // 密码复杂度检查
     const checkPasswordStrength = (pwd: string): PasswordStrength => {
@@ -166,7 +171,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
             const sanitizedPassword = password;
             if (isLogin) {
                 const result = await login(sanitizedUsername, sanitizedPassword);
-                if (result.requiresTOTP && result.user && result.token) {
+                if (result && result.twoFactorType) {
                     setPendingUser(result.user);
                     setPendingUserId(result.user.id);
                     setPendingToken(result.token);
@@ -215,6 +220,35 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
             setPasswordStrength({ score: 0, feedback: '' });
         }
     }, [password, username]);
+
+    useEffect(() => {
+        if (pending2FA) {
+            if (pending2FA.type.includes('Passkey')) {
+                setShowPasskeyVerification(true);
+            } else if (pending2FA.type.includes('TOTP')) {
+                setShowTOTPVerification(true);
+            }
+        }
+    }, [pending2FA]);
+
+    // Passkey验证弹窗逻辑
+    const handlePasskeyVerify = async () => {
+        setLoading(true);
+        try {
+            const success = await authenticateWithPasskey();
+            if (success) {
+                setShowPasskeyVerification(false);
+                setPending2FA(null);
+                window.location.reload();
+            } else {
+                setError('Passkey 验证失败');
+            }
+        } catch (e: any) {
+            setError(e.message || 'Passkey 验证失败');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <div className="w-full">
@@ -363,25 +397,35 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
                 message="为了保障您的合法权益，请您在继续使用本服务前，仔细阅读并同意我们的服务条款与隐私政策。未勾选将无法继续注册或登录。"
             />
             
-            {/* TOTP验证模态框 */}
-            {pendingUser && (
+            {/* Passkey 验证弹窗 */}
+            {showPasskeyVerification && (
+                <Dialog open={showPasskeyVerification} onOpenChange={setShowPasskeyVerification}>
+                    <div className="p-6 flex flex-col items-center">
+                        <h2 className="text-xl font-bold mb-4">Passkey 二次验证</h2>
+                        <p className="mb-6 text-gray-700">请点击下方按钮，使用 Passkey 完成二次验证</p>
+                        <Button
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg"
+                            onClick={handlePasskeyVerify}
+                            disabled={loading}
+                        >
+                            {loading ? '验证中...' : '开始 Passkey 验证'}
+                        </Button>
+                        {error && <div className="text-red-500 mt-4">{error}</div>}
+                    </div>
+                </Dialog>
+            )}
+            {/* TOTP 验证弹窗 */}
+            {showTOTPVerification && (
                 <TOTPVerification
                     isOpen={showTOTPVerification}
-                    onClose={() => {
-                        setShowTOTPVerification(false);
-                        setPendingUser(null);
-                        setPendingUserId('');
-                        setPendingToken('');
-                    }}
+                    onClose={() => setShowTOTPVerification(false)}
                     onSuccess={() => {
                         setShowTOTPVerification(false);
-                        setPendingUser(null);
-                        setPendingUserId('');
-                        setPendingToken('');
-                        onSuccess?.();
+                        setPending2FA(null);
+                        window.location.reload();
                     }}
-                    userId={pendingUserId}
-                    token={pendingToken}
+                    userId={pending2FA?.userId || ''}
+                    token={pending2FA?.token || ''}
                 />
             )}
         </div>
