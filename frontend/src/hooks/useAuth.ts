@@ -21,6 +21,14 @@ const api = axios.create({
     timeout: 5000 // 5秒超时
 });
 
+api.interceptors.request.use(config => {
+    const token = localStorage.getItem('token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+});
+
 // 添加请求拦截器
 api.interceptors.response.use(
     (response) => response,
@@ -165,6 +173,15 @@ export const useAuth = () => {
         }
     };
 
+    // 新增：使用 token 和用户信息直接登录（用于 Passkey 认证）
+    const loginWithToken = async (token: string, user: User) => {
+        localStorage.setItem('token', token);
+        setUser(user);
+        lastCheckRef.current = Date.now();
+        setLastCheckTime(Date.now());
+        window.location.reload();
+    };
+
     const verifyTOTP = async (token: string, backupCode?: string) => {
         if (!pendingTOTP) {
             throw new Error('没有待验证的TOTP请求');
@@ -276,6 +293,7 @@ export const useAuth = () => {
         pending2FA,
         setPending2FA,
         login,
+        loginWithToken,
         verifyTOTP,
         register,
         logout,

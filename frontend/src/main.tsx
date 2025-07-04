@@ -12,8 +12,7 @@ const DANGEROUS_KEYWORDS = [
   'supercopy', 'supercopyy', 'supercopycat', 'supercopyhelper',
   'fatkun', 'fatkundownloader', 'fatkunbatch', 'fatkunimage',
   'imagecapture', 'screenshot', 'screencapture', 'webcapture',
-  'webscraper', 'datascraper', 'contentscraper', 'textscraper',
-  'ocr', 'ocrtool', 'ocrreader', 'textrecognizer',
+  'webscraper', 'datascraper', 'contentscraper', 'textscraper', 'ocrtool', 'ocrreader', 'textrecognizer',
   'batchdownload', 'bulkdownload', 'massdownload', 'clipboardmanager', 'clipboardhelper', 'textselection', 'contentselection',
   // 油猴相关关键词
   'tampermonkey', 'greasemonkey', 'violentmonkey', 'userscript',

@@ -17,7 +17,7 @@ export const usePasskey = (): UsePasskeyReturn => {
     const [credentials, setCredentials] = useState<Authenticator[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const { showToast } = useToast();
-    const { login } = useAuth();
+    const { loginWithToken } = useAuth();
 
     const loadCredentials = useCallback(async () => {
         try {
@@ -91,7 +91,7 @@ export const usePasskey = (): UsePasskeyReturn => {
             const response = await passkeyApi.finishAuthentication(asseResp);
             
             // 使用返回的令牌登录
-            await login(response.data.token, response.data.user);
+            await loginWithToken(response.data.token, response.data.user);
             
             showToast('Passkey 认证成功', 'success');
             return response.data.success || false;
@@ -105,7 +105,7 @@ export const usePasskey = (): UsePasskeyReturn => {
         } finally {
             setIsLoading(false);
         }
-    }, [login, showToast]);
+    }, [loginWithToken, showToast]);
 
     const removeAuthenticator = useCallback(async (credentialId: string) => {
         try {
