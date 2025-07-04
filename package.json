@@ -21,6 +21,9 @@
     "test:coverage": "jest --coverage",
     "test:auth": "jest --testPathPattern=authController.test.ts",
     "test:rate-limit": "jest --testPathPattern=rateLimit.test.ts",
+    "test:performance": "jest performance.test.ts",
+    "test:concurrency": "jest concurrency.test.ts",
+    "test:ci": "jest --ci --runInBand --coverage --reporters=default --reporters=jest-junit",
     "generate:openapi": "node scripts/generate-openapi.js",
     "check:api-docs": "node scripts/check-api-docs.js",
     "check:openapi-json": "node scripts/check-openapi-json.js"
