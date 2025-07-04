@@ -46,31 +46,49 @@ export class PasskeyService {
 
     // 生成注册选项
     public static async generateRegistrationOptions(user: User, credentialName: string) {
-                const userAuthenticators = user.passkeyCredentials || [];
-        
-        const options = await generateRegistrationOptions({
-            rpName: 'Synapse',
-            rpID: getRpId(),
-            userID: Buffer.from(user.id),
-            userName: user.username,
-            attestationType: 'none',
-            authenticatorSelection: {
-                authenticatorAttachment: 'platform', // 使用平台认证器（指纹、面容等）
-                requireResidentKey: true, // 要求认证器存储凭证
-                userVerification: 'required' // 要求用户验证（生物识别）
-            },
-            excludeCredentials: userAuthenticators.map(authenticator => ({
-                id: authenticator.credentialID,
-                type: 'public-key',
-                transports: ['internal']
-            } as any))
-        });
-
+        if (!user) {
+            throw new Error('generateRegistrationOptions: user 为空');
+        }
+        if (!user.id) {
+            throw new Error('generateRegistrationOptions: user.id 为空');
+        }
+        if (!user.username) {
+            throw new Error('generateRegistrationOptions: user.username 为空');
+        }
+        const userAuthenticators = user.passkeyCredentials || [];
+        let options;
+        try {
+            options = await generateRegistrationOptions({
+                rpName: 'Synapse',
+                rpID: getRpId(),
+                userID: Buffer.from(user.id),
+                userName: user.username,
+                attestationType: 'none',
+                authenticatorSelection: {
+                    authenticatorAttachment: 'platform',
+                    requireResidentKey: true,
+                    userVerification: 'required'
+                },
+                excludeCredentials: userAuthenticators.map(authenticator => ({
+                    id: authenticator.credentialID,
+                    type: 'public-key',
+                    transports: ['internal']
+                } as any))
+            });
+        } catch (err) {
+            logger.error('[PasskeyService] generateRegistrationOptions 调用底层库异常:', err);
+            throw new Error('generateRegistrationOptions: 调用底层库异常: ' + (err instanceof Error ? err.message : String(err)));
+        }
+        if (!options) {
+            throw new Error('generateRegistrationOptions: options 为 undefined');
+        }
+        if (!options.challenge) {
+            throw new Error('generateRegistrationOptions: options.challenge 为 undefined');
+        }
         // 存储挑战到用户记录
         await UserStorage.updateUser(user.id, {
             pendingChallenge: options.challenge
         });
-
         return options;
     }
 

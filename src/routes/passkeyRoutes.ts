@@ -20,21 +20,37 @@ router.get('/credentials', authenticateToken, async (req, res) => {
 // 开始注册 Passkey
 router.post('/register/start', authenticateToken, async (req, res) => {
     try {
-        const userId = (req as any).user.id;
+        const userId = (req as any).user?.id;
         const { credentialName } = req.body;
+        console.log('[Passkey] /register/start userId:', userId, 'credentialName:', credentialName);
 
         if (!credentialName || typeof credentialName !== 'string') {
-            return res.status(400).json({ error: '认证器名称是必需的' });
+            console.warn('[Passkey] 缺少或无效的 credentialName:', credentialName);
+            return res.status(400).json({ error: '认证器名称是必需的', details: 'credentialName 缺失或类型错误' });
         }
 
         const user = await UserStorage.getUserById(userId);
+        console.log('[Passkey] /register/start user:', user);
         if (!user) {
-            return res.status(404).json({ error: '用户不存在' });
+            console.warn('[Passkey] 用户不存在:', userId);
+            return res.status(404).json({ error: '用户不存在', details: 'userId: ' + userId });
         }
 
-        const options = await PasskeyService.generateRegistrationOptions(user, credentialName);
-        
-        // 保存 challenge 到用户数据中
+        let options;
+        try {
+            options = await PasskeyService.generateRegistrationOptions(user, credentialName);
+        } catch (err) {
+            console.error('[Passkey] generateRegistrationOptions error:', err);
+            return res.status(500).json({ error: '生成注册选项失败', details: err instanceof Error ? err.message : String(err) });
+        }
+        console.log('[Passkey] /register/start options:', options);
+        if (!options) {
+            return res.status(500).json({ error: '生成注册选项失败', details: 'options 为 undefined' });
+        }
+        if (!options.challenge) {
+            return res.status(500).json({ error: '生成注册选项失败', details: 'options.challenge 为 undefined' });
+        }
+
         await UserStorage.updateUser(userId, {
             currentChallenge: options.challenge
         });
@@ -42,7 +58,7 @@ router.post('/register/start', authenticateToken, async (req, res) => {
         res.json({ options });
     } catch (error) {
         console.error('生成 Passkey 注册选项失败:', error);
-        res.status(500).json({ error: '生成 Passkey 注册选项失败' });
+        res.status(500).json({ error: '生成 Passkey 注册选项失败', details: error instanceof Error ? error.message : String(error) });
     }
 });
 

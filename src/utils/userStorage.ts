@@ -322,8 +322,16 @@ export class UserStorage {
 
     public static async getUserById(id: string): Promise<User | null> {
         try {
+            if (!id) {
+                logger.error('getUserById: id 为空');
+                return null;
+            }
             const users = this.readUsers();
-            return users.find(u => u.id === id) || null;
+            const user = users.find(u => u.id === id) || null;
+            if (!user) {
+                logger.warn('getUserById: 未找到用户', { id });
+            }
+            return user;
         } catch (error) {
             logger.error('获取用户信息失败:', {
                 error,
@@ -414,12 +422,20 @@ export class UserStorage {
     }
 
     public static async updateUser(userId: string, updates: Partial<User>): Promise<User | null> {
+        if (!userId) {
+            logger.error('updateUser: userId 为空');
+            return null;
+        }
         const users = this.readUsers();
         const idx = users.findIndex(u => u.id === userId);
-        if (idx === -1) return null;
+        if (idx === -1) {
+            logger.warn('updateUser: 未找到用户', { userId });
+            return null;
+        }
         // 合并所有字段，支持追加 passkeyCredentials
         users[idx] = { ...users[idx], ...updates };
         this.writeUsers(users);
+        logger.info('updateUser: 用户已更新', { userId, updates });
         return users[idx];
     }
 } 
