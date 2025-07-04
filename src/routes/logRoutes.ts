@@ -12,10 +12,12 @@ const DATA_DIR = path.join(process.cwd(), 'data');
 const SHARELOGS_DIR = path.join(DATA_DIR, 'sharelogs');
 const logDir = path.join(DATA_DIR, 'logs');
 
-// 确保 sharelogs 目录存在
-if (!fs.existsSync(SHARELOGS_DIR)) {
-  fs.mkdirSync(SHARELOGS_DIR, { recursive: true });
-}
+// 确保必要的目录都存在
+[DATA_DIR, SHARELOGS_DIR, logDir].forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+});
 
 // 配置multer用于多文件类型上传
 const upload = multer({

@@ -359,7 +359,7 @@ app.use('/api/tamper', tamperLimiter);
 app.use('/api/command', commandLimiter);
 app.use('/api/libre-chat', libreChatLimiter);
 app.use('/api/data-collection', dataCollectionLimiter);
-app.use('/api/logs', logsLimiter);
+app.use('/api', logRoutes);
 app.use('/api/status', statusLimiter);
 
 // ========== Swagger OpenAPI 文档集成 ==========
@@ -424,7 +424,7 @@ app.use('/api/tamper', tamperRoutes);
 app.use('/api/command', commandRoutes);
 app.use('/api/libre-chat', libreChatRoutes);
 app.use('/api/data-collection', dataCollectionRoutes);
-app.use('/api/logs', logRoutes);
+app.use('/api', logRoutes);
 app.use('/api/webauthn', webauthnRoutes);
 
 // 根路由重定向到前端
