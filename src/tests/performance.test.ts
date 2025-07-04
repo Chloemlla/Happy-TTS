@@ -12,7 +12,8 @@ describe('性能测试', () => {
     testVoice: config.openaiVoice,
     testModel: config.openaiModel,
     adminUsername: 'admin',
-    adminPassword: 'admin123'
+    adminPassword: 'admin123',
+    generationCode: "happyclo"
   };
   
   // 辅助函数：创建延迟
@@ -109,7 +110,8 @@ describe('性能测试', () => {
           .send({
               text: generateRandomText(50 + (i % 100)), // 变长文本
             voice: testConfig.testVoice,
-            model: testConfig.testModel
+            model: testConfig.testModel,
+            generationCode: testConfig.generationCode
           });
         
           const duration = Date.now() - start;
@@ -147,7 +149,8 @@ describe('性能测试', () => {
             .send({
               text,
               voice: testConfig.testVoice,
-              model: testConfig.testModel
+              model: testConfig.testModel,
+              generationCode: testConfig.generationCode
             });
           
           const duration = Date.now() - start;
@@ -178,7 +181,8 @@ describe('性能测试', () => {
             .send({
               text: testConfig.testText,
               voice,
-              model: testConfig.testModel
+              model: testConfig.testModel,
+              generationCode: testConfig.generationCode
             });
           
           const duration = Date.now() - start;
@@ -206,7 +210,8 @@ describe('性能测试', () => {
         {
           text: testConfig.testText,
           voice: testConfig.testVoice,
-          model: testConfig.testModel
+          model: testConfig.testModel,
+          generationCode: testConfig.generationCode
         }
       );
         const totalDuration = Date.now() - start;
@@ -233,7 +238,8 @@ describe('性能测试', () => {
           {
             text: testConfig.testText,
             voice: testConfig.testVoice,
-            model: testConfig.testModel
+            model: testConfig.testModel,
+            generationCode: testConfig.generationCode
           }
         );
         const totalDuration = Date.now() - start;
@@ -261,7 +267,8 @@ describe('性能测试', () => {
           mixedRequests.push({
             text: generateRandomText(textLength),
             voice,
-            model: testConfig.testModel
+            model: testConfig.testModel,
+            generationCode: testConfig.generationCode
           });
         }
         
@@ -271,7 +278,7 @@ describe('性能测试', () => {
         const requests = mixedRequests.map(req =>
           request(app)
             .post('/api/tts/generate')
-            .send(req)
+            .send({ ...req, generationCode: testConfig.generationCode })
         );
         
         const responses = await Promise.all(requests);
@@ -300,7 +307,8 @@ describe('性能测试', () => {
           {
             text: testConfig.testText,
             voice: testConfig.testVoice,
-            model: testConfig.testModel
+            model: testConfig.testModel,
+            generationCode: testConfig.generationCode
           }
         );
         
@@ -329,7 +337,8 @@ describe('性能测试', () => {
             {
               text: testConfig.testText,
               voice: testConfig.testVoice,
-              model: testConfig.testModel
+              model: testConfig.testModel,
+              generationCode: testConfig.generationCode
             }
           );
           
@@ -368,9 +377,11 @@ describe('性能测试', () => {
           const start = Date.now();
         const res = await request(app)
           .post('/api/libre-chat/send')
+          .set('code', testConfig.generationCode)
           .send({
             token: testConfig.validToken,
-              message: generateRandomText(30 + (i % 50))
+              message: generateRandomText(30 + (i % 50)),
+              generationCode: testConfig.generationCode
           });
 
           const duration = Date.now() - start;
@@ -405,9 +416,11 @@ describe('性能测试', () => {
           
           const res = await request(app)
             .post('/api/libre-chat/send')
+            .set('code', testConfig.generationCode)
             .send({
               token: testConfig.validToken,
-              message
+              message,
+              generationCode: testConfig.generationCode
             });
           
           const duration = Date.now() - start;
@@ -438,8 +451,10 @@ describe('性能测试', () => {
         concurrentRequests,
         {
           token: testConfig.validToken,
-          message: testConfig.testText
-        }
+          message: testConfig.testText,
+          generationCode: testConfig.generationCode
+        },
+        { code: testConfig.generationCode }
       );
         const totalDuration = Date.now() - start;
 
@@ -469,9 +484,11 @@ describe('性能测试', () => {
           const start = Date.now();
         const res = await request(app)
           .post('/api/auth/login')
+          .set('code', testConfig.generationCode)
           .send({
               username: `testuser${i}@example.com`,
-              password: 'testpassword123'
+              password: 'testpassword123',
+              generationCode: testConfig.generationCode
           });
 
           const duration = Date.now() - start;
@@ -506,8 +523,10 @@ describe('性能测试', () => {
         concurrentRequests,
         {
             username: 'testuser@example.com',
-            password: 'testpassword123'
-          }
+            password: 'testpassword123',
+            generationCode: testConfig.generationCode
+          },
+          { code: testConfig.generationCode }
         );
         const totalDuration = Date.now() - start;
 
@@ -535,10 +554,12 @@ describe('性能测试', () => {
           const start = Date.now();
           const res = await request(app)
             .post('/api/auth/register')
+            .set('code', testConfig.generationCode)
             .send({
               username: `perftestuser${i}`,
               email: `perftestuser${i}@example.com`,
-              password: 'testpassword123'
+              password: 'testpassword123',
+              generationCode: testConfig.generationCode
             });
           
           const duration = Date.now() - start;
@@ -578,7 +599,8 @@ describe('性能测试', () => {
           const start = Date.now();
           const res = await request(app)
             .get('/api/totp/status')
-            .set('Authorization', `Bearer ${testConfig.validToken}`);
+            .set('Authorization', `Bearer ${testConfig.validToken}`)
+            .set('code', testConfig.generationCode);
           
           const duration = Date.now() - start;
           results.push(res.status);
@@ -607,6 +629,7 @@ describe('性能测试', () => {
           request(app)
             .get('/api/totp/status')
             .set('Authorization', `Bearer ${testConfig.validToken}`)
+            .set('code', testConfig.generationCode)
         );
         
         const responses = await Promise.all(requests);
@@ -638,7 +661,8 @@ describe('性能测试', () => {
           const start = Date.now();
         const res = await request(app)
             .get('/api/passkey/credentials')
-            .set('Authorization', `Bearer ${testConfig.validToken}`);
+            .set('Authorization', `Bearer ${testConfig.validToken}`)
+            .set('code', testConfig.generationCode);
           
           const duration = Date.now() - start;
           results.push(res.status);
@@ -673,7 +697,8 @@ describe('性能测试', () => {
           const start = Date.now();
           const res = await request(app)
             .get('/api/auth/me')
-            .set('Authorization', `Bearer ${testConfig.validToken}`);
+            .set('Authorization', `Bearer ${testConfig.validToken}`)
+            .set('code', testConfig.generationCode);
           
           const duration = Date.now() - start;
         results.push(res.status);
@@ -706,6 +731,7 @@ describe('性能测试', () => {
           request(app)
             .get('/api/auth/me')
             .set('Authorization', `Bearer ${testConfig.validToken}`)
+            .set('code', testConfig.generationCode)
         );
         
         const responses = await Promise.all(requests);
@@ -737,7 +763,8 @@ describe('性能测试', () => {
           const start = Date.now();
       const res = await request(app)
             .get('/api/tts/history')
-            .set('Authorization', `Bearer ${testConfig.validToken}`);
+            .set('Authorization', `Bearer ${testConfig.validToken}`)
+            .set('code', testConfig.generationCode);
           
           const duration = Date.now() - start;
           results.push(res.status);
@@ -786,14 +813,17 @@ describe('性能测试', () => {
             makeConcurrentRequests('/api/tts/generate', batchSize / 3, {
           text: testConfig.testText,
           voice: testConfig.testVoice,
-          model: testConfig.testModel
+          model: testConfig.testModel,
+          generationCode: testConfig.generationCode
         }),
             makeConcurrentRequests('/api/libre-chat/send', batchSize / 3, {
           token: testConfig.validToken,
-          message: testConfig.testText
+          message: testConfig.testText,
+          generationCode: testConfig.generationCode
             }),
             makeConcurrentRequests('/api/auth/me', batchSize / 3, {}, {
-              'Authorization': `Bearer ${testConfig.validToken}`
+              'Authorization': `Bearer ${testConfig.validToken}`,
+              'code': testConfig.generationCode
         })
       ]);
 
@@ -839,7 +869,8 @@ describe('性能测试', () => {
             .send({
               text: generateRandomText(200 + (i % 300)), // 较长文本增加处理时间
               voice: testConfig.testVoice,
-              model: testConfig.testModel
+              model: testConfig.testModel,
+              generationCode: testConfig.generationCode
             })
         );
         
@@ -887,34 +918,37 @@ describe('性能测试', () => {
             request: () => request(app).post('/api/tts/generate').send({
               text: generateRandomText(100),
               voice: testConfig.testVoice,
-              model: testConfig.testModel
+              model: testConfig.testModel,
+              generationCode: testConfig.generationCode
             })
           },
           {
             name: 'librechat',
             request: () => request(app).post('/api/libre-chat/send').send({
               token: testConfig.validToken,
-              message: generateRandomText(50)
+              message: generateRandomText(50),
+              generationCode: testConfig.generationCode
             })
           },
           {
             name: 'auth',
             request: () => request(app).post('/api/auth/login').send({
               username: `mixedtest${Math.random()}@example.com`,
-              password: 'testpassword123'
+              password: 'testpassword123',
+              generationCode: testConfig.generationCode
             })
           },
           {
             name: 'totp',
-            request: () => request(app).get('/api/totp/status').set('Authorization', `Bearer ${testConfig.validToken}`)
+            request: () => request(app).get('/api/totp/status').set('Authorization', `Bearer ${testConfig.validToken}`).set('code', testConfig.generationCode)
           },
           {
             name: 'passkey',
-            request: () => request(app).get('/api/passkey/credentials').set('Authorization', `Bearer ${testConfig.validToken}`)
+            request: () => request(app).get('/api/passkey/credentials').set('Authorization', `Bearer ${testConfig.validToken}`).set('code', testConfig.generationCode)
           },
           {
             name: 'user',
-            request: () => request(app).get('/api/auth/me').set('Authorization', `Bearer ${testConfig.validToken}`)
+            request: () => request(app).get('/api/auth/me').set('Authorization', `Bearer ${testConfig.validToken}`).set('code', testConfig.generationCode)
           }
         ];
         
@@ -987,19 +1021,22 @@ describe('性能测试', () => {
             return request(app).post('/api/tts/generate').send({
               text: generateRandomText(50),
               voice: testConfig.testVoice,
-              model: testConfig.testModel
+              model: testConfig.testModel,
+              generationCode: testConfig.generationCode
             });
           case 1:
             return request(app).post('/api/libre-chat/send').send({
               token: testConfig.validToken,
-              message: generateRandomText(30)
+              message: generateRandomText(30),
+              generationCode: testConfig.generationCode
             });
           case 2:
-            return request(app).get('/api/auth/me').set('Authorization', `Bearer ${testConfig.validToken}`);
+            return request(app).get('/api/auth/me').set('Authorization', `Bearer ${testConfig.validToken}`).set('code', testConfig.generationCode);
           case 3:
             return request(app).post('/api/auth/login').send({
               username: `extremetest${i}@example.com`,
-              password: 'testpassword123'
+              password: 'testpassword123',
+              generationCode: testConfig.generationCode
             });
         }
       });

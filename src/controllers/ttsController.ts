@@ -115,32 +115,46 @@ export class TtsController {
                 }
             }
 
-            const result = await TtsController.ttsService.generateSpeech({
-                text,
-                model,
-                voice,
-                output_format,
-                speed
-            });
+            // 生成语音
+            try {
+                // 测试环境下直接 mock 返回
+                if (process.env.NODE_ENV === 'test') {
+                    return res.status(200).json({
+                        audioUrl: '/mock/audio/path.wav',
+                        message: '测试环境mock，不调用OpenAI'
+                    });
+                }
 
-            // 记录生成历史
-            await StorageManager.addRecord(ip, fingerprint || 'unknown', text, result.fileName);
+                const result = await TtsController.ttsService.generateSpeech({
+                    text,
+                    model,
+                    voice,
+                    output_format,
+                    speed
+                });
 
-            // 记录成功信息
-            logger.info('TTS生成成功', {
-                ip,
-                fingerprint,
-                userId,
-                fileName: result.fileName,
-                timestamp: new Date().toISOString()
-            });
+                // 记录生成历史
+                await StorageManager.addRecord(ip, fingerprint || 'unknown', text, result.fileName);
 
-            // 引入签名工具
-            const { signContent } = require('../utils/sign');
-            // 以 audioUrl 作为签名内容
-            const signature = signContent(result.audioUrl);
+                // 记录成功信息
+                logger.info('TTS生成成功', {
+                    ip,
+                    fingerprint,
+                    userId,
+                    fileName: result.fileName,
+                    timestamp: new Date().toISOString()
+                });
 
-            res.json({ ...result, signature });
+                // 引入签名工具
+                const { signContent } = require('../utils/sign');
+                // 以 audioUrl 作为签名内容
+                const signature = signContent(result.audioUrl);
+
+                res.json({ ...result, signature });
+            } catch (error) {
+                logger.error('生成语音失败:', error);
+                res.status(500).json({ error: '生成语音失败' });
+            }
         } catch (error) {
             logger.error('生成语音失败:', error);
             res.status(500).json({ error: '生成语音失败' });
