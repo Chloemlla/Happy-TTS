@@ -184,10 +184,6 @@ afterAll(async () => {
   await new Promise(resolve => setTimeout(resolve, 100));
 });
 
-// mock libre-chat send
-jest.mock('../controllers/libreChatController', () => ({
-  sendMessage: async (req: any, res: any) => res.status(200).json({ message: 'mock' })
-}));
 // mock auth login
 jest.mock('../controllers/authController', () => {
   const original = jest.requireActual('../controllers/authController');

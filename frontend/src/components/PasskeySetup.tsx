@@ -28,6 +28,11 @@ export const PasskeySetup: React.FC = () => {
         loadCredentials();
     }, [loadCredentials]);
 
+    // 打印 credentials 用于线上排查
+    useEffect(() => {
+        console.log('credentials:', credentials);
+    }, [credentials]);
+
     // 注册 Passkey
     const handleRegister = async () => {
         if (!credentialName.trim()) return;
@@ -78,7 +83,7 @@ export const PasskeySetup: React.FC = () => {
             </div>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 <AnimatePresence>
-                    {credentials.length > 0 && credentials.map((credential) => (
+                    {Array.isArray(credentials) && credentials.length > 0 && credentials.map((credential) => (
                         <motion.div
                             key={credential.id}
                             initial={{ opacity: 0, scale: 0.95 }}
