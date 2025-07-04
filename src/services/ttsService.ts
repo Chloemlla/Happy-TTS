@@ -1,4 +1,4 @@
-'use server';
+
 
 import OpenAI from 'openai';
 import { config } from '../config/config';

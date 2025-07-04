@@ -1,5 +1,3 @@
-'use server';
-
 // 设置时区为上海
 process.env.TZ = 'Asia/Shanghai';
 
@@ -743,4 +741,5 @@ if (process.env.NODE_ENV !== 'test') {
   });
 }
 
+// 确保在测试环境中也能正确导出 Express 应用
 export default app; 
