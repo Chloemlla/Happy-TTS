@@ -53,9 +53,9 @@ export const logsLimiter = createLimiter({
     message: '日志请求过于频繁，请稍后再试'
 });
 
-// WebAuthn路由限流器
-export const webauthnLimiter = createLimiter({
+// Passkey路由限流器
+export const passkeyLimiter = createLimiter({
     windowMs: 5 * 60 * 1000, // 5分钟
     max: 30, // 限制每个IP每5分钟30次请求
-    message: 'WebAuthn操作过于频繁，请稍后再试'
+    message: 'Passkey操作过于频繁，请稍后再试'
 });

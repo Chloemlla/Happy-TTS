@@ -35,21 +35,21 @@ const getRpOrigin = () => {
     return `${isSecure ? 'https' : 'http'}://${rpId}`;
 };
 
-export class WebAuthnService {
+export class PasskeyService {
     // 获取用户的认证器列表
     public static async getCredentials(userId: string): Promise<Authenticator[]> {
         const user = await UserStorage.getUserById(userId);
-        if (!user || !user.webauthnCredentials) {
+                if (!user || !user.passkeyCredentials) {
             return [];
         }
-
-        return user.webauthnCredentials;
+        
+        return user.passkeyCredentials;
     }
 
     // 生成注册选项
     public static async generateRegistrationOptions(user: User, credentialName: string) {
-        const userAuthenticators = user.webauthnCredentials || [];
-
+                const userAuthenticators = user.passkeyCredentials || [];
+        
         const options = await generateRegistrationOptions({
             rpName: 'Synapse',
             rpID: getRpId(),
@@ -104,7 +104,7 @@ export class WebAuthnService {
             throw new Error('注册验证失败');
         }
 
-        const existingCredentials = user.webauthnCredentials || [];
+        const existingCredentials = user.passkeyCredentials || [];
         const newCredential: Authenticator = {
             id: (registrationInfo as any).credentialID.toString('base64'),
             name: credentialName,
@@ -116,8 +116,8 @@ export class WebAuthnService {
 
         // 更新用户记录
         await UserStorage.updateUser(user.id, {
-            webauthnEnabled: true,
-            webauthnCredentials: [...existingCredentials, newCredential],
+            passkeyEnabled: true,
+            passkeyCredentials: [...existingCredentials, newCredential],
             pendingChallenge: undefined
         });
 
@@ -126,7 +126,7 @@ export class WebAuthnService {
 
     // 生成认证选项
     public static async generateAuthenticationOptions(user: User) {
-        const userAuthenticators = user.webauthnCredentials || [];
+        const userAuthenticators = user.passkeyCredentials || [];
         if (userAuthenticators.length === 0) {
             throw new Error('用户没有注册的认证器');
         }
@@ -158,7 +158,7 @@ export class WebAuthnService {
             throw new Error('认证会话已过期');
         }
 
-        const userAuthenticators = user.webauthnCredentials || [];
+        const userAuthenticators = user.passkeyCredentials || [];
         const authenticator = userAuthenticators.find(
             auth => auth.id === response.id
         );
@@ -195,7 +195,7 @@ export class WebAuthnService {
 
             // 更新用户记录
             await UserStorage.updateUser(user.id, {
-                webauthnCredentials: updatedCredentials,
+                passkeyCredentials: updatedCredentials,
                 pendingChallenge: undefined
             });
         }
@@ -206,22 +206,22 @@ export class WebAuthnService {
     // 删除认证器
     public static async removeCredential(userId: string, credentialId: string): Promise<void> {
         const user = await UserStorage.getUserById(userId);
-        if (!user || !user.webauthnCredentials) {
+        if (!user || !user.passkeyCredentials) {
             throw new Error('用户不存在或没有认证器');
         }
 
-        const updatedCredentials = user.webauthnCredentials.filter(
+        const updatedCredentials = user.passkeyCredentials.filter(
             auth => auth.id !== credentialId
         );
 
-        if (updatedCredentials.length === user.webauthnCredentials.length) {
+        if (updatedCredentials.length === user.passkeyCredentials.length) {
             throw new Error('找不到指定的认证器');
         }
 
         // 更新用户记录
         await UserStorage.updateUser(userId, {
-            webauthnCredentials: updatedCredentials,
-            webauthnEnabled: updatedCredentials.length > 0
+            passkeyCredentials: updatedCredentials,
+            passkeyEnabled: updatedCredentials.length > 0
         });
     }
 

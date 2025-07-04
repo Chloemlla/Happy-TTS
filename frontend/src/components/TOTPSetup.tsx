@@ -5,7 +5,7 @@ import axios from 'axios';
 import { TOTPSetupData } from '../types/auth';
 import { handleTOTPError, cleanTOTPToken, validateTOTPToken } from '../utils/totpUtils';
 import { Input } from './ui';
-import { WebAuthnSetup } from './WebAuthnSetup';
+import { PasskeySetup } from './PasskeySetup';
 
 interface TOTPSetupProps {
   isOpen: boolean;
@@ -21,7 +21,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
   const [loading, setLoading] = useState(false);
   const [showBackupCodes, setShowBackupCodes] = useState(false);
   const [rotation, setRotation] = useState(0);
-  const [activeTab, setActiveTab] = useState<'totp' | 'webauthn'>('totp');
+      const [activeTab, setActiveTab] = useState<'totp' | 'passkey'>('totp');
 
   useEffect(() => {
     if (isOpen) {
@@ -163,12 +163,12 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                   >
                     动态口令（TOTP）
                   </button>
-                  <button
-                    className={`px-4 py-1 rounded-t-lg font-medium text-sm transition-all duration-200 ${activeTab === 'webauthn' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-                    onClick={() => setActiveTab('webauthn')}
-                  >
-                    生物识别（WebAuthn）
-                  </button>
+                                  <button
+                    className={`px-4 py-1 rounded-t-lg font-medium text-sm transition-all duration-200 ${activeTab === 'passkey' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                    onClick={() => setActiveTab('passkey')}
+                >
+                    Passkey 无密码认证
+                </button>
                 </div>
                 {activeTab === 'totp' && (
                   <span className="text-sm sm:text-base text-gray-600 leading-normal select-none">使用认证器应用扫描QR码</span>
@@ -414,7 +414,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
             ) : (
               <div className="w-full flex flex-col items-center">
                 <div className="w-full max-w-lg mx-auto">
-                  <WebAuthnSetup />
+                  <PasskeySetup />
                 </div>
               </div>
             )}

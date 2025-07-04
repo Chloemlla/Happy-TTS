@@ -35,7 +35,7 @@ import { adminController } from 'controllers/adminController';
 import swaggerJSDoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import logRoutes from './routes/logRoutes';
-import webauthnRoutes from './routes/webauthnRoutes';
+import passkeyRoutes from './routes/passkeyRoutes';
 
 // 扩展 Request 类型
 declare global {
@@ -241,11 +241,11 @@ const totpLimiter = rateLimit({
     }
 });
 
-// WebAuthn路由限流器
-const webauthnLimiter = rateLimit({
+// Passkey路由限流器
+const passkeyLimiter = rateLimit({
     windowMs: 5 * 60 * 1000, // 5分钟
     max: 30, // 限制每个IP每5分钟30次请求
-    message: { error: 'WebAuthn操作过于频繁，请稍后再试' },
+    message: { error: 'Passkey操作过于频繁，请稍后再试' },
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req: Request) => {
@@ -354,7 +354,7 @@ const statusLimiter = rateLimit({
 });
 
 app.use('/api/totp', totpLimiter);
-app.use('/api/webauthn', webauthnLimiter);
+app.use('/api/passkey', passkeyLimiter);
 app.use('/api/tamper', tamperLimiter);
 app.use('/api/command', commandLimiter);
 app.use('/api/libre-chat', libreChatLimiter);
@@ -425,7 +425,7 @@ app.use('/api/command', commandRoutes);
 app.use('/api/libre-chat', libreChatRoutes);
 app.use('/api/data-collection', dataCollectionRoutes);
 app.use('/api', logRoutes);
-app.use('/api/webauthn', webauthnRoutes);
+app.use('/api/passkey', passkeyRoutes);
 
 // 根路由重定向到前端
 app.get('/', (req, res) => {

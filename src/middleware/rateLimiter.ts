@@ -65,54 +65,54 @@ export const createLimiter = (options: {
     });
 };
 
-// WebAuthn相关的速率限制器
-export const webAuthnLimiter = {
+// Passkey相关的速率限制器
+export const passkeyLimiter = {
     // 获取认证器列表
     credentials: createLimiter({
         windowMs: 1 * 60 * 1000, // 1分钟
         max: 30,
-        routeName: 'webauthn.credentials',
-        message: 'WebAuthn凭证请求过于频繁，请稍后再试'
+        routeName: 'passkey.credentials',
+        message: 'Passkey凭证请求过于频繁，请稍后再试'
     }),
 
     // 注册开始
     registerStart: createLimiter({
         windowMs: 5 * 60 * 1000, // 5分钟
         max: 10,
-        routeName: 'webauthn.registerStart',
-        message: 'WebAuthn注册请求过于频繁，请稍后再试'
+        routeName: 'passkey.registerStart',
+        message: 'Passkey注册请求过于频繁，请稍后再试'
     }),
 
     // 注册完成
     registerFinish: createLimiter({
         windowMs: 5 * 60 * 1000, // 5分钟
         max: 10,
-        routeName: 'webauthn.registerFinish',
-        message: 'WebAuthn注册完成请求过于频繁，请稍后再试'
+        routeName: 'passkey.registerFinish',
+        message: 'Passkey注册完成请求过于频繁，请稍后再试'
     }),
 
     // 认证开始
     authenticateStart: createLimiter({
         windowMs: 1 * 60 * 1000, // 1分钟
         max: 20,
-        routeName: 'webauthn.authenticateStart',
-        message: 'WebAuthn认证请求过于频繁，请稍后再试'
+        routeName: 'passkey.authenticateStart',
+        message: 'Passkey认证请求过于频繁，请稍后再试'
     }),
 
     // 认证完成
     authenticateFinish: createLimiter({
         windowMs: 1 * 60 * 1000, // 1分钟
         max: 20,
-        routeName: 'webauthn.authenticateFinish',
-        message: 'WebAuthn认证完成请求过于频繁，请稍后再试'
+        routeName: 'passkey.authenticateFinish',
+        message: 'Passkey认证完成请求过于频繁，请稍后再试'
     }),
 
     // 删除认证器
     removeCredential: createLimiter({
         windowMs: 5 * 60 * 1000, // 5分钟
         max: 10,
-        routeName: 'webauthn.removeCredential',
-        message: 'WebAuthn凭证删除请求过于频繁，请稍后再试'
+        routeName: 'passkey.removeCredential',
+        message: 'Passkey凭证删除请求过于频繁，请稍后再试'
     }),
 };
 

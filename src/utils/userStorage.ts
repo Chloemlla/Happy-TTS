@@ -40,8 +40,8 @@ export interface User {
     totpSecret?: string;
     totpEnabled?: boolean;
     backupCodes?: string[];
-    webauthnEnabled?: boolean;
-    webauthnCredentials?: {
+    passkeyEnabled?: boolean;
+    passkeyCredentials?: {
         id: string;
         name: string;
         credentialID: string;
