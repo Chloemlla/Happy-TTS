@@ -4,9 +4,6 @@ import app from '../app';
 import { config } from '../config/config';
 import { UserStorage } from '../utils/userStorage';
 
-// 保存 server 实例以便在测试结束后关闭
-let server: any;
-
 describe('性能测试', () => {
   // 使用测试环境的配置
   const testConfig = {
@@ -80,31 +77,10 @@ describe('性能测试', () => {
   beforeAll(async () => {
     // 确保测试环境准备就绪
     console.log('开始性能压力测试...');
-    
-    // 启动服务器并保存实例
-    const PORT = Number(config.port) || 3001;
-    server = app.listen(PORT, '0.0.0.0', () => {
-      console.log(`测试服务器运行在 http://0.0.0.0:${PORT}`);
-    });
   });
 
   afterAll(async () => {
     console.log('性能压力测试完成');
-    
-    // 关闭服务器
-    if (server) {
-      await new Promise<void>((resolve, reject) => {
-        server.close((err: any) => {
-          if (err) {
-            console.error('关闭服务器时出错:', err);
-            reject(err);
-          } else {
-            console.log('测试服务器已关闭');
-            resolve();
-          }
-        });
-      });
-    }
   });
 
   beforeEach(async () => {
