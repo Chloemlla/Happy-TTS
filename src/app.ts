@@ -414,17 +414,17 @@ if (!fs.existsSync(audioDir)) {
 app.use('/api/auth', authRoutes);
 app.use('/api/totp', totpRoutes);
 app.use('/api/admin', adminLimiter, adminRoutes);
-app.use('/api', statusRouter);
+app.use('/api/status', statusRouter);
 
 // 添加篡改保护中间件
 app.use(tamperProtectionMiddleware);
 
 // 注册路由
-app.use('/api', tamperRoutes);
-app.use('/', commandRoutes);
-app.use('/', libreChatRoutes);
-app.use('/', dataCollectionRoutes);
-app.use('/api', logRoutes);
+app.use('/api/tamper', tamperRoutes);
+app.use('/api/command', commandRoutes);
+app.use('/api/libre-chat', libreChatRoutes);
+app.use('/api/data-collection', dataCollectionRoutes);
+app.use('/api/logs', logRoutes);
 app.use('/api/webauthn', webauthnRoutes);
 
 // 根路由重定向到前端
