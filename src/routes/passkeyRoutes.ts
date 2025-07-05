@@ -1,5 +1,6 @@
 import express from 'express';
 import { PasskeyService } from '../services/passkeyService';
+import { PasskeyDataRepairService } from '../services/passkeyDataRepairService';
 import { authenticateToken } from '../middleware/authenticateToken';
 import { UserStorage, User } from '../utils/userStorage';
 import logger from '../utils/logger';
@@ -203,6 +204,116 @@ router.delete('/credentials/:credentialId', authenticateToken, async (req, res) 
     } catch (error) {
         console.error('删除 Passkey 凭证失败:', error);
         res.status(500).json({ error: '删除 Passkey 凭证失败' });
+    }
+});
+
+// 检查当前用户的Passkey数据状态（需要认证）
+router.get('/data/check', authenticateToken, async (req, res) => {
+    try {
+        const userId = (req as any).user.id;
+        const result = await PasskeyDataRepairService.checkUserPasskeyData(userId);
+        
+        res.json({
+            success: true,
+            data: result
+        });
+    } catch (error) {
+        logger.error('[Passkey] 检查用户数据状态失败', { 
+            userId: (req as any).user.id,
+            error: error instanceof Error ? error.message : String(error) 
+        });
+        res.status(500).json({ error: '检查数据状态失败' });
+    }
+});
+
+// 修复当前用户的Passkey数据（需要认证）
+router.post('/data/repair', authenticateToken, async (req, res) => {
+    try {
+        const userId = (req as any).user.id;
+        const result = await PasskeyDataRepairService.repairUserPasskeyData(userId);
+        
+        if (result.success) {
+            res.json({
+                success: true,
+                message: result.message,
+                repairedCredentialsCount: result.repairedCredentialsCount
+            });
+        } else {
+            res.status(400).json({
+                success: false,
+                error: result.message
+            });
+        }
+    } catch (error) {
+        logger.error('[Passkey] 修复用户数据失败', { 
+            userId: (req as any).user.id,
+            error: error instanceof Error ? error.message : String(error) 
+        });
+        res.status(500).json({ error: '修复数据失败' });
+    }
+});
+
+// 管理员接口：检查所有用户的Passkey数据状态（需要管理员权限）
+router.get('/admin/data/check-all', authenticateToken, async (req, res) => {
+    try {
+        const user = (req as any).user;
+        
+        // 检查管理员权限
+        if (user.role !== 'admin') {
+            return res.status(403).json({ error: '需要管理员权限' });
+        }
+        
+        const allUsers = await UserStorage.getAllUsers();
+        const results = [];
+        
+        for (const user of allUsers) {
+            if (user.passkeyEnabled && user.passkeyCredentials && user.passkeyCredentials.length > 0) {
+                const checkResult = await PasskeyDataRepairService.checkUserPasskeyData(user.id);
+                results.push({
+                    userId: user.id,
+                    username: user.username,
+                    ...checkResult
+                });
+            }
+        }
+        
+        res.json({
+            success: true,
+            data: {
+                totalUsers: allUsers.length,
+                usersWithPasskey: results.length,
+                results
+            }
+        });
+    } catch (error) {
+        logger.error('[Passkey] 管理员检查所有用户数据失败', { 
+            error: error instanceof Error ? error.message : String(error) 
+        });
+        res.status(500).json({ error: '检查所有用户数据失败' });
+    }
+});
+
+// 管理员接口：修复所有用户的Passkey数据（需要管理员权限）
+router.post('/admin/data/repair-all', authenticateToken, async (req, res) => {
+    try {
+        const user = (req as any).user;
+        
+        // 检查管理员权限
+        if (user.role !== 'admin') {
+            return res.status(403).json({ error: '需要管理员权限' });
+        }
+        
+        await PasskeyDataRepairService.repairAllUsersPasskeyData();
+        
+        res.json({
+            success: true,
+            message: '所有用户Passkey数据修复完成'
+        });
+    } catch (error) {
+        logger.error('[Passkey] 管理员修复所有用户数据失败', { 
+            error: error instanceof Error ? error.message : String(error) 
+        });
+        res.status(500).json({ error: '修复所有用户数据失败' });
     }
 });
 

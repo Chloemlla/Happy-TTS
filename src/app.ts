@@ -34,6 +34,7 @@ import swaggerJSDoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import logRoutes from './routes/logRoutes';
 import passkeyRoutes from './routes/passkeyRoutes';
+import { PasskeyDataRepairService } from './services/passkeyDataRepairService';
 
 // 扩展 Request 类型
 declare global {
@@ -743,6 +744,17 @@ if (process.env.NODE_ENV !== 'test') {
     logger.info(`服务器运行在 http://0.0.0.0:${PORT}`);
     logger.info(`Audio files directory: ${audioDir}`);
     logger.info(`当前生成码: ${config.generationCode}`);
+    
+    // 启动时自动修复Passkey数据
+    try {
+      logger.info('[启动] 开始自动修复Passkey数据...');
+      await PasskeyDataRepairService.repairAllUsersPasskeyData();
+      logger.info('[启动] Passkey数据自动修复完成');
+    } catch (error) {
+      logger.error('[启动] Passkey数据自动修复失败', { 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+    }
   });
 }
 
