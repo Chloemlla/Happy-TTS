@@ -151,11 +151,10 @@ def recreate_container(ssh, old_container_name, new_image_url):
                 opts_str = ",".join(mount_opts) if mount_opts else ""
 
                 if type == "bind":
-                    # 确保源路径存在
                     source_path = os.path.abspath(source)
                     if not os.path.exists(source_path):
                         os.makedirs(source_path, exist_ok=True)
-                    # 添加绑定挂载和选项
+                    logging.info(f"挂载本机目录: {source_path} -> 容器目录: {target}")
                     if opts_str:
                         create_command += f"-v {source_path}:{target}:{opts_str} "
                     else:
@@ -209,6 +208,8 @@ def recreate_container(ssh, old_container_name, new_image_url):
                 create_command += f":{cgroupPermissions}"
             create_command += " "
 
+    # 在执行docker run前打印最终命令
+    logging.info(f"最终docker run命令: {create_command}")
     time.sleep(5)
     create_command += f"{new_image_url}"
 
