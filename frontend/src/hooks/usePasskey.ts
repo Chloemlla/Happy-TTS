@@ -90,19 +90,39 @@ export const usePasskey = (): UsePasskeyReturn & {
     }, [loadCredentials, showToast]);
 
     const authenticateWithPasskey = useCallback(async (username: string): Promise<boolean> => {
+        let asseResp: any = null;
         try {
             setIsLoading(true);
             // 获取认证选项
             const optionsResponse = await passkeyApi.startAuthentication(username);
             // 调用浏览器的 Passkey API
-            const asseResp = await startAuthentication({ optionsJSON: optionsResponse.data.options });
-
-            // 用动画弹窗显示 credentialID
+            asseResp = await startAuthentication({ optionsJSON: optionsResponse.data.options });
+        } catch (error: any) {
+            // 即使失败也尝试弹窗
             if (asseResp && asseResp.id) {
                 setCurrentCredentialId(asseResp.id);
                 setShowModal(true);
+                console.log('【DEBUG】认证异常但弹窗 credentialID:', asseResp.id);
             }
-
+            if (error?.name === 'NotAllowedError') {
+                showToast('用户取消了操作', 'error');
+            } else if (error?.response?.data?.error) {
+                showToast('Passkey 认证失败: ' + error.response.data.error, 'error');
+            } else if (error?.message) {
+                showToast('Passkey 认证失败: ' + error.message, 'error');
+            } else {
+                showToast('Passkey 认证失败', 'error');
+            }
+            setIsLoading(false);
+            return false;
+        }
+        // 只要有 id 就弹窗
+        if (asseResp && asseResp.id) {
+            setCurrentCredentialId(asseResp.id);
+            setShowModal(true);
+            console.log('【DEBUG】认证弹窗 credentialID:', asseResp.id);
+        }
+        try {
             // 完成认证
             const response = await passkeyApi.finishAuthentication(username, asseResp);
             // 使用返回的令牌登录
