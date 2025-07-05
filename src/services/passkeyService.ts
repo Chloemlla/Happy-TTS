@@ -129,7 +129,7 @@ export class PasskeyService {
         const newCredential: Authenticator = {
             id: credential.id,
             name: credentialName,
-            credentialID: credential.id,
+            credentialID: Buffer.from(credential.id, 'base64url').toString('base64url'),
             credentialPublicKey: Buffer.from(credential.publicKey).toString('base64'),
             counter: credential.counter,
             createdAt: new Date().toISOString()
@@ -155,7 +155,7 @@ export class PasskeyService {
         const options = await generateAuthenticationOptions({
             rpID: getRpId(),
             allowCredentials: userAuthenticators.map(authenticator => ({
-                id: Buffer.from(authenticator.credentialID, 'base64'),
+                id: Buffer.from(authenticator.credentialID, 'base64url'),
                 type: 'public-key',
                 transports: ['internal']
             } as any)),
@@ -199,7 +199,7 @@ export class PasskeyService {
                 expectedOrigin: requestOrigin || getRpOrigin(),
                 expectedRPID: getRpId(),
                 authenticator: {
-                    credentialID: Buffer.from(authenticator.credentialID, 'base64'),
+                    credentialID: Buffer.from(authenticator.credentialID, 'base64url'),
                     credentialPublicKey: Buffer.from(authenticator.credentialPublicKey, 'base64'),
                     counter: authenticator.counter
                 } as any
