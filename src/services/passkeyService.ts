@@ -785,25 +785,34 @@ export class PasskeyService {
                 id: responseIdBase64 // 使用我们处理过的credentialID
             };
             
-            // 如果原始response中有rawId字段，需要将其转换为正确的ArrayBuffer格式
+            // 处理rawId字段：如果存在且不为空，转换为正确的ArrayBuffer格式；如果为空或无效，则移除
             if (response.rawId) {
-                try {
-                    // 将处理过的credentialID转换回ArrayBuffer
-                    const rawIdBuffer = Buffer.from(responseIdBase64, 'base64url');
-                    responseToVerify.rawId = rawIdBuffer;
-                    
-                    logger.info('[Passkey] 成功转换rawId为ArrayBuffer', {
+                // 检查rawId是否为空字符串或无效值
+                if (response.rawId === '' || response.rawId === null || response.rawId === undefined) {
+                    logger.info('[Passkey] rawId为空或无效，移除该字段', {
                         userId: user.id,
-                        rawIdBufferLength: rawIdBuffer.length,
-                        rawIdType: typeof responseToVerify.rawId
+                        rawIdValue: response.rawId
                     });
-                } catch (error) {
-                    logger.error('[Passkey] 转换rawId失败', {
-                        userId: user.id,
-                        error: error instanceof Error ? error.message : String(error)
-                    });
-                    // 如果转换失败，移除rawId字段
                     delete responseToVerify.rawId;
+                } else {
+                    try {
+                        // 将处理过的credentialID转换回ArrayBuffer
+                        const rawIdBuffer = Buffer.from(responseIdBase64, 'base64url');
+                        responseToVerify.rawId = rawIdBuffer;
+                        
+                        logger.info('[Passkey] 成功转换rawId为ArrayBuffer', {
+                            userId: user.id,
+                            rawIdBufferLength: rawIdBuffer.length,
+                            rawIdType: typeof responseToVerify.rawId
+                        });
+                    } catch (error) {
+                        logger.error('[Passkey] 转换rawId失败', {
+                            userId: user.id,
+                            error: error instanceof Error ? error.message : String(error)
+                        });
+                        // 如果转换失败，移除rawId字段
+                        delete responseToVerify.rawId;
+                    }
                 }
             }
             
