@@ -779,11 +779,54 @@ export class PasskeyService {
         
         let verification: VerifiedAuthenticationResponse;
         try {
-            // 确保传递给verifyAuthenticationResponse的response对象中的id字段是base64url格式
+            // 确保传递给verifyAuthenticationResponse的response对象中的所有credentialID相关字段都是正确的格式
             const responseToVerify = {
                 ...response,
                 id: responseIdBase64 // 使用我们处理过的credentialID
             };
+            
+            // 如果原始response中有rawId字段，需要将其转换为正确的ArrayBuffer格式
+            if (response.rawId) {
+                try {
+                    // 将处理过的credentialID转换回ArrayBuffer
+                    const rawIdBuffer = Buffer.from(responseIdBase64, 'base64url');
+                    responseToVerify.rawId = rawIdBuffer;
+                    
+                    logger.info('[Passkey] 成功转换rawId为ArrayBuffer', {
+                        userId: user.id,
+                        rawIdBufferLength: rawIdBuffer.length,
+                        rawIdType: typeof responseToVerify.rawId
+                    });
+                } catch (error) {
+                    logger.error('[Passkey] 转换rawId失败', {
+                        userId: user.id,
+                        error: error instanceof Error ? error.message : String(error)
+                    });
+                    // 如果转换失败，移除rawId字段
+                    delete responseToVerify.rawId;
+                }
+            }
+            
+            // 详细记录传递给库的response对象
+            logger.info('[Passkey] 传递给verifyAuthenticationResponse的完整response对象', {
+                userId: user.id,
+                responseToVerify: {
+                    id: responseToVerify.id,
+                    type: responseToVerify.type,
+                    responseKeys: Object.keys(responseToVerify.response || {}),
+                    rawId: responseToVerify.rawId ? '存在' : '不存在',
+                    rawIdType: typeof responseToVerify.rawId,
+                    rawIdLength: responseToVerify.rawId?.length || 0
+                },
+                originalResponse: {
+                    id: response.id,
+                    type: response.type,
+                    responseKeys: Object.keys(response.response || {}),
+                    rawId: response.rawId ? '存在' : '不存在',
+                    rawIdType: typeof response.rawId,
+                    rawIdLength: response.rawId?.length || 0
+                }
+            });
             
             logger.info('[Passkey] 准备调用verifyAuthenticationResponse', {
                 userId: user.id,
