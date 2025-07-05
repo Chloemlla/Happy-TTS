@@ -410,8 +410,26 @@ export class UserStorage {
 
     public static async getUserByUsername(username: string): Promise<User | null> {
         try {
+            if (!username) {
+                logger.error('getUserByUsername: username 为空');
+                return null;
+            }
+            
             const users = this.readUsers();
-            return users.find(u => u.username === username) || null;
+            const user = users.find(u => u.username === username) || null;
+            
+            // 调试日志
+            logger.info('getUserByUsername 查询结果:', {
+                searchUsername: username,
+                foundUser: !!user,
+                userId: user?.id,
+                userUsername: user?.username,
+                passkeyEnabled: user?.passkeyEnabled,
+                credentialsCount: user?.passkeyCredentials?.length || 0,
+                totalUsers: users.length
+            });
+            
+            return user;
         } catch (error) {
             logger.error('通过用户名获取用户失败:', {
                 error,

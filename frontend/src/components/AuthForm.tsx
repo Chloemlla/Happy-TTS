@@ -5,6 +5,7 @@ import DOMPurify from 'dompurify';
 import AlertModal from './AlertModal';
 import TOTPVerification from './TOTPVerification';
 import { usePasskey } from '../hooks/usePasskey';
+import { DebugInfoModal } from './DebugInfoModal';
 import { Dialog } from './ui/Dialog';
 import { Button } from './ui/Button';
 
@@ -19,7 +20,12 @@ interface PasswordStrength {
 
 export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
     const { login, register, pending2FA, setPending2FA, verifyTOTP } = useAuth();
-    const { authenticateWithPasskey } = usePasskey();
+    const { 
+        authenticateWithPasskey, 
+        showDebugModal, 
+        setShowDebugModal, 
+        debugInfos 
+    } = usePasskey();
     const [isLogin, setIsLogin] = useState(true);
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
@@ -199,10 +205,13 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
             }
             onSuccess?.();
         } catch (err: any) {
-            console.error('认证操作失败:', {
+            // 记录认证操作失败（不输出到控制台）
+            const authOperationErrorInfo = {
+                action: '认证操作失败',
                 type: isLogin ? '登录' : '注册',
                 error: err.message,
-            });
+                timestamp: new Date().toISOString()
+            };
             setError(err.message || '操作失败');
         } finally {
             setLoading(false);
@@ -246,6 +255,16 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
                 setError('无法获取用户名信息');
                 return;
             }
+            
+            // 记录Passkey验证的用户名来源（不输出到控制台）
+            const usernameSourceInfo = {
+                action: 'Passkey验证用户名来源',
+                pending2FAUsername: pending2FA?.username,
+                currentInputUsername: username,
+                finalUsername: currentUsername,
+                timestamp: new Date().toISOString()
+            };
+            
             const success = await authenticateWithPasskey(currentUsername);
             if (success) {
                 setShowPasskeyVerification(false);
@@ -438,6 +457,28 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
                     userId={pending2FA?.userId || ''}
                     token={pending2FA?.token || ''}
                 />
+            )}
+
+            {/* 调试信息弹窗 */}
+            <DebugInfoModal
+                isOpen={showDebugModal}
+                onClose={() => setShowDebugModal(false)}
+                debugInfos={debugInfos}
+            />
+
+            {/* 调试信息按钮 */}
+            {debugInfos.length > 0 && (
+                <div className="fixed bottom-4 right-4 z-40">
+                    <button
+                        onClick={() => setShowDebugModal(true)}
+                        className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow-lg transition-colors flex items-center space-x-2"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>调试信息 ({debugInfos.length})</span>
+                    </button>
+                </div>
             )}
         </div>
     );

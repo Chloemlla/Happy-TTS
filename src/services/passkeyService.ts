@@ -309,16 +309,53 @@ export class PasskeyService {
             logger.info('[Passkey] 准备生成认证选项', {
                 userId: user.id,
                 validCredentialsCount: finalValidCredentials.length,
-                credentialIDs: finalValidCredentials.map(c => c.credentialID.substring(0, 10) + '...')
+                credentialIDs: finalValidCredentials.map(c => c.credentialID.substring(0, 10) + '...'),
+                allowCredentials: finalValidCredentials.map(authenticator => ({
+                    id: authenticator.credentialID.substring(0, 20) + '...',
+                    type: 'public-key',
+                    transports: ['internal']
+                }))
+            });
+            
+            // 确保allowCredentials格式正确
+            const allowCredentials = finalValidCredentials.map(authenticator => {
+                logger.info('[Passkey] 处理认证器:', {
+                    userId: user.id,
+                    credentialID: authenticator.credentialID.substring(0, 20) + '...',
+                    credentialIDLength: authenticator.credentialID.length,
+                    isValidBase64Url: /^[A-Za-z0-9_-]+$/.test(authenticator.credentialID)
+                });
+                
+                return {
+                    id: authenticator.credentialID,
+                    transports: ['internal'] as any
+                };
+            });
+            
+            logger.info('[Passkey] 生成的allowCredentials:', {
+                userId: user.id,
+                count: allowCredentials.length,
+                credentials: allowCredentials.map(cred => ({
+                    id: cred.id.substring(0, 20) + '...',
+                    transports: cred.transports,
+                    fullId: cred.id
+                })),
+                fullAllowCredentials: JSON.stringify(allowCredentials, null, 2)
             });
             
             const options = await generateAuthenticationOptions({
                 rpID: getRpId(),
-                allowCredentials: finalValidCredentials.map(authenticator => ({
-                    id: authenticator.credentialID,
-                    transports: ['internal']
-                })),
+                allowCredentials,
                 userVerification: 'required'
+            });
+            
+            logger.info('[Passkey] generateAuthenticationOptions返回结果:', {
+                userId: user.id,
+                hasOptions: !!options,
+                optionsKeys: Object.keys(options || {}),
+                challenge: options?.challenge?.substring(0, 20) + '...',
+                allowCredentialsCount: options?.allowCredentials?.length || 0,
+                fullOptions: JSON.stringify(options, null, 2)
             });
             
             // 存储挑战到用户记录
@@ -420,8 +457,91 @@ export class PasskeyService {
         }
 
         const userAuthenticators = user.passkeyCredentials || [];
-        // 使用 base64 编码的 credentialID 进行匹配
-        const responseIdBase64 = isoBase64URL.fromBuffer(response.rawId);
+        
+        // 提取credentialID，支持多种格式
+        let responseIdBase64: string;
+        
+        // 详细记录响应对象结构
+        logger.info('[Passkey] 认证响应对象结构', {
+            userId: user.id,
+            responseKeys: Object.keys(response),
+            hasRawId: !!response.rawId,
+            hasId: !!response.id,
+            rawIdType: typeof response.rawId,
+            idType: typeof response.id,
+            responseType: typeof response.response,
+            rawIdIsArray: Array.isArray(response.rawId)
+        });
+        
+        if (response.rawId) {
+            // 处理rawId，可能是ArrayBuffer或数组
+            try {
+                let buffer: Buffer;
+                if (Array.isArray(response.rawId)) {
+                    // 如果是数组，转换为Buffer
+                    buffer = Buffer.from(response.rawId);
+                    logger.info('[Passkey] 从数组rawId转换为Buffer', {
+                        userId: user.id,
+                        arrayLength: response.rawId.length,
+                        bufferLength: buffer.length
+                    });
+                } else if (response.rawId instanceof ArrayBuffer) {
+                    // 如果是ArrayBuffer，直接使用
+                    buffer = Buffer.from(response.rawId);
+                } else {
+                    // 其他情况，尝试转换
+                    buffer = Buffer.from(response.rawId);
+                }
+                
+                responseIdBase64 = isoBase64URL.fromBuffer(buffer);
+                logger.info('[Passkey] 从rawId提取credentialID成功', {
+                    userId: user.id,
+                    rawIdLength: buffer.length,
+                    extractedId: responseIdBase64.substring(0, 10) + '...',
+                    fullId: responseIdBase64
+                });
+            } catch (error) {
+                logger.error('[Passkey] 从rawId提取credentialID失败', {
+                    userId: user.id,
+                    error: error instanceof Error ? error.message : String(error),
+                    rawIdType: typeof response.rawId,
+                    rawIdIsArray: Array.isArray(response.rawId),
+                    rawIdLength: Array.isArray(response.rawId) ? response.rawId.length : response.rawId?.byteLength
+                });
+                throw new Error('从rawId提取credentialID失败: ' + (error instanceof Error ? error.message : String(error)));
+            }
+        } else if (response.id) {
+            // 如果直接有id字段（base64url字符串），直接使用
+            responseIdBase64 = response.id;
+            logger.info('[Passkey] 直接使用id字段', {
+                userId: user.id,
+                idLength: response.id.length,
+                id: response.id.substring(0, 10) + '...',
+                idValue: response.id
+            });
+        } else {
+            // 如果都没有，记录错误信息
+            logger.error('[Passkey] 认证响应中缺少credentialID', {
+                userId: user.id,
+                responseKeys: Object.keys(response),
+                response: JSON.stringify(response, null, 2),
+                responseType: typeof response,
+                hasRawId: !!response.rawId,
+                hasId: !!response.id,
+                hasResponse: !!response.response,
+                rawIdType: typeof response.rawId,
+                rawIdIsArray: Array.isArray(response.rawId)
+            });
+            throw new Error('认证响应中缺少credentialID');
+        }
+        
+        logger.info('[Passkey] 提取到credentialID', {
+            userId: user.id,
+            responseIdBase64: responseIdBase64.substring(0, 10) + '...',
+            hasRawId: !!response.rawId,
+            hasId: !!response.id
+        });
+        
         const authenticator = userAuthenticators.find(
             auth => auth.credentialID === responseIdBase64
         );
@@ -429,6 +549,12 @@ export class PasskeyService {
         if (!authenticator) {
             // 新增详细错误信息，便于前后端比对
             const allCredentialIDs = userAuthenticators.map(a => a.credentialID);
+            logger.error('[Passkey] 找不到匹配的认证器', {
+                userId: user.id,
+                responseIdBase64: responseIdBase64.substring(0, 20) + '...',
+                allCredentialIDs: allCredentialIDs.map(id => id.substring(0, 10) + '...'),
+                responseKeys: Object.keys(response)
+            });
             throw new Error(`找不到匹配的认证器 | 前端credentialID: ${responseIdBase64} | 后端credentialID列表: ${JSON.stringify(allCredentialIDs)}`);
         }
 

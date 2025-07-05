@@ -4,6 +4,7 @@ import { PasskeyDataRepairService } from '../services/passkeyDataRepairService';
 import { authenticateToken } from '../middleware/authenticateToken';
 import { UserStorage, User } from '../utils/userStorage';
 import logger from '../utils/logger';
+import { rateLimitMiddleware } from '../middleware/rateLimit';
 
 const router = express.Router();
 
@@ -20,7 +21,7 @@ router.get('/credentials', authenticateToken, async (req, res) => {
 });
 
 // 开始注册 Passkey
-router.post('/register/start', authenticateToken, async (req, res) => {
+router.post('/register/start', authenticateToken, rateLimitMiddleware, async (req, res) => {
     try {
         const userId = (req as any).user?.id;
         const { credentialName } = req.body;
@@ -80,7 +81,7 @@ router.post('/register/start', authenticateToken, async (req, res) => {
 });
 
 // 完成注册 Passkey
-router.post('/register/finish', authenticateToken, async (req, res) => {
+router.post('/register/finish', authenticateToken, rateLimitMiddleware, async (req, res) => {
     try {
         const userId = (req as any).user.id;
         const { credentialName, response } = req.body;
@@ -102,7 +103,7 @@ router.post('/register/finish', authenticateToken, async (req, res) => {
 });
 
 // 开始认证
-router.post('/authenticate/start', async (req, res) => {
+router.post('/authenticate/start', rateLimitMiddleware, async (req, res) => {
     try {
         const { username } = req.body;
         const ip = req.headers['x-real-ip'] || req.ip || 'unknown';
@@ -124,7 +125,8 @@ router.post('/authenticate/start', async (req, res) => {
             userId: user.id, 
             username: user.username,
             passkeyEnabled: user.passkeyEnabled,
-            credentialsCount: user.passkeyCredentials?.length || 0
+            credentialsCount: user.passkeyCredentials?.length || 0,
+            searchUsername: username
         });
 
         if (!user.passkeyEnabled || !user.passkeyCredentials || user.passkeyCredentials.length === 0) {
@@ -140,7 +142,9 @@ router.post('/authenticate/start', async (req, res) => {
         
         logger.info('[Passkey] 生成认证选项成功', { 
             userId: user.id, 
-            challenge: options.challenge?.substring(0, 20) + '...'
+            challenge: options.challenge?.substring(0, 20) + '...',
+            allowCredentialsCount: options.allowCredentials?.length || 0,
+            fullOptions: JSON.stringify(options, null, 2)
         });
         
         // 保存 challenge 到用户数据中
@@ -163,12 +167,27 @@ router.post('/authenticate/start', async (req, res) => {
 });
 
 // 完成认证
-router.post('/authenticate/finish', async (req, res) => {
+router.post('/authenticate/finish', rateLimitMiddleware, async (req, res) => {
     try {
         const { username, response } = req.body;
         if (!username || !response) {
             return res.status(400).json({ error: '用户名和响应是必需的' });
         }
+        
+        // 调试日志：记录接收到的响应对象
+        logger.info('[Passkey] /authenticate/finish 收到请求', {
+            username,
+            responseKeys: Object.keys(response),
+            hasId: !!response.id,
+            hasRawId: !!response.rawId,
+            hasResponse: !!response.response,
+            type: response.type,
+            idLength: response.id?.length,
+            rawIdType: typeof response.rawId,
+            idValue: response.id?.substring(0, 20) + '...',
+            fullResponse: JSON.stringify(response, null, 2)
+        });
+        
         const user = await UserStorage.getUserByUsername(username);
         if (!user) {
             return res.status(404).json({ error: '用户不存在' });
@@ -190,7 +209,7 @@ router.post('/authenticate/finish', async (req, res) => {
 });
 
 // 删除 Passkey 凭证
-router.delete('/credentials/:credentialId', authenticateToken, async (req, res) => {
+router.delete('/credentials/:credentialId', authenticateToken, rateLimitMiddleware, async (req, res) => {
     try {
         const userId = (req as any).user.id;
         const { credentialId } = req.params;

@@ -157,6 +157,16 @@ export const useAuth = () => {
             });
             const { user, token, requires2FA, twoFactorType } = response.data;
             if (requires2FA && twoFactorType && twoFactorType.length > 0) {
+                // 记录二次验证信息（不输出到控制台）
+                const twoFactorInfo = {
+                    action: '登录需要二次验证',
+                    userId: user.id,
+                    username: user.username,
+                    twoFactorType,
+                    requires2FA,
+                    timestamp: new Date().toISOString()
+                };
+                
                 setPending2FA({ userId: user.id, token, type: twoFactorType, username: user.username });
                 return { requires2FA: true, user, token, twoFactorType };
             } else {
@@ -250,7 +260,12 @@ export const useAuth = () => {
             });
             return response.data;
         } catch (error: any) {
-            console.error('获取用户信息失败:', error);
+            // 记录获取用户信息失败（不输出到控制台）
+            const getUserErrorInfo = {
+                action: '获取用户信息失败',
+                error: error instanceof Error ? error.message : String(error),
+                timestamp: new Date().toISOString()
+            };
             throw new Error('获取用户信息失败');
         }
     }, []);
