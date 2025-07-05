@@ -539,32 +539,13 @@ export class PasskeyService {
                 }
             }
             
-            // 检查长度是否需要填充
-            if (responseIdBase64.length % 4 !== 0) {
-                logger.warn('[Passkey] credentialID长度不是4的倍数，可能需要填充', {
-                    userId: user.id,
-                    originalLength: responseIdBase64.length,
-                    originalId: responseIdBase64.substring(0, 10) + '...'
-                });
-                
-                // 尝试添加填充字符
-                const paddedId = responseIdBase64 + '='.repeat(4 - (responseIdBase64.length % 4));
-                try {
-                    const buffer = Buffer.from(paddedId, 'base64url');
-                    logger.info('[Passkey] 添加填充后解码成功', {
-                        userId: user.id,
-                        paddedId: paddedId.substring(0, 10) + '...',
-                        bufferLength: buffer.length
-                    });
-                    // 使用填充后的ID
-                    responseIdBase64 = paddedId;
-                } catch (error) {
-                    logger.warn('[Passkey] 添加填充后解码失败，使用原始长度', {
-                        userId: user.id,
-                        error: error instanceof Error ? error.message : String(error)
-                    });
-                }
-            }
+            // 确保credentialID是纯base64url格式（移除所有填充字符）
+            responseIdBase64 = responseIdBase64.replace(/=/g, '');
+            logger.info('[Passkey] 移除填充字符后的credentialID', {
+                userId: user.id,
+                finalId: responseIdBase64.substring(0, 10) + '...',
+                finalLength: responseIdBase64.length
+            });
             
             logger.info('[Passkey] 直接使用id字段', {
                 userId: user.id,

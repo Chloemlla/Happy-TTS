@@ -365,18 +365,14 @@ export const usePasskey = (): UsePasskeyReturn & {
                     });
                 }
                 
-                // 检查长度是否需要填充
-                if (responseToSend.id.length % 4 !== 0) {
-                    const padding = '='.repeat(4 - (responseToSend.id.length % 4));
-                    responseToSend.id = responseToSend.id + padding;
-                    addDebugInfo({
-                        action: '添加填充字符',
-                        originalLength: responseToSend.id.length - padding.length,
-                        paddedLength: responseToSend.id.length,
-                        padding: padding,
-                        timestamp: new Date().toISOString()
-                    });
-                }
+                // 确保id是纯base64url格式（移除所有填充字符）
+                responseToSend.id = responseToSend.id.replace(/=/g, '');
+                addDebugInfo({
+                    action: '移除填充字符',
+                    originalLength: responseToSend.id.length + (responseToSend.id.match(/=/g) || []).length,
+                    finalLength: responseToSend.id.length,
+                    timestamp: new Date().toISOString()
+                });
             }
             
             // 记录credentialID的详细信息
