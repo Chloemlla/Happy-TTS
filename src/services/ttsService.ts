@@ -1,5 +1,3 @@
-
-
 import OpenAI from 'openai';
 import { config } from '../config/config';
 import logger from '../utils/logger';
@@ -105,7 +103,7 @@ export class TtsService {
             const { text, model, voice, output_format, speed, userId, isAdmin } = request;
 
             if (!text) {
-                throw new Error('文本内容不能为空');
+                throw new Error('文本不能为空');
             }
 
             // 检查用户是否被封禁

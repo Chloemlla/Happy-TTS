@@ -40,7 +40,7 @@ describe('ContentFilterService', () => {
       expect(mockedAxios.get).toHaveBeenCalledWith(
         'https://v2.xxapi.cn/api/detect',
         expect.objectContaining({
-          params: { text: '你妈死了' },
+          params: { text: '测试违禁词' },
           timeout: 5000
         })
       );

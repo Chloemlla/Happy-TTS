@@ -4,7 +4,24 @@ import { config } from '../config/config';
 import fs from 'fs';
 import path from 'path';
 
-jest.mock('openai');
+// Define a proper mock for OpenAI audio.speech.create response
+interface MockSpeechResponse {
+  arrayBuffer: () => Promise<ArrayBuffer>;
+}
+
+const mockArrayBuffer = async () => new Uint8Array([1, 2, 3]).buffer;
+
+jest.mock('openai', () => ({
+  default: jest.fn().mockImplementation(() => ({
+    audio: {
+      speech: {
+        create: jest.fn().mockResolvedValue({
+          arrayBuffer: () => Promise.resolve(new Uint8Array([1,2,3]).buffer)
+        } as any)
+      }
+    }
+  }))
+}));
 
 describe('TTS Service', () => {
   let ttsService: TtsService;
