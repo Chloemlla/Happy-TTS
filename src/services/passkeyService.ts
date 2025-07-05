@@ -244,6 +244,11 @@ export class PasskeyService {
                 if (changed) {
                     await UserStorage.updateUser(user.id, { passkeyCredentials: user.passkeyCredentials });
                 }
+                // 修复后如无可用credential，直接报错
+                if (!user.passkeyCredentials || user.passkeyCredentials.length === 0) {
+                    logger.error('[Passkey自愈] 修复后无可用Passkey，需重新注册', { userId: user.id });
+                    throw new Error('所有Passkey已失效，请重新注册');
+                }
                 // 再次尝试
                 const options = await generateAuthenticationOptions({
                     rpID: getRpId(),
