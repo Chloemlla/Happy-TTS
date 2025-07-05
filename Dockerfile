@@ -122,9 +122,5 @@ COPY --from=docs-builder /app/docs/build ./docs
 # 暴露端口
 EXPOSE 3000 3001 3002
 
-# 复制启动脚本
-COPY scripts/start-container.sh /app/start-container.sh
-RUN chmod +x /app/start-container.sh
-
 # 启动服务
-CMD ["/app/start-container.sh"]
+CMD ["npm", "start"]
