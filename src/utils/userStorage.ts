@@ -178,40 +178,174 @@ export class UserStorage {
     private static ensureUsersFile() {
         try {
             const dir = path.dirname(this.USERS_FILE);
+            
+            // 检查目录是否存在
             if (!fs.existsSync(dir)) {
-                fs.mkdirSync(dir, { recursive: true });
-                logger.info('创建用户数据目录', { dir });
+                try {
+                    fs.mkdirSync(dir, { recursive: true });
+                    logger.info('创建用户数据目录', { dir });
+                } catch (mkdirError) {
+                    logger.error('创建用户数据目录失败:', {
+                        error: mkdirError,
+                        dir,
+                        filePath: this.USERS_FILE
+                    });
+                    throw new Error('创建用户数据目录失败');
+                }
+            }
+
+            // 检查目录权限
+            try {
+                fs.accessSync(dir, fs.constants.W_OK);
+            } catch (accessError) {
+                logger.error('用户数据目录无写入权限:', {
+                    error: accessError,
+                    dir,
+                    filePath: this.USERS_FILE
+                });
+                throw new Error('用户数据目录无写入权限');
             }
 
             if (!fs.existsSync(this.USERS_FILE)) {
-                // 从环境变量获取管理员配置
-                const adminUsername = config.adminUsername;
-                const adminPassword = config.adminPassword;
-                const adminEmail = `${adminUsername}@example.com`;
+                try {
+                    // 从环境变量获取管理员配置
+                    const adminUsername = config.adminUsername;
+                    const adminPassword = config.adminPassword;
+                    const adminEmail = `${adminUsername}@example.com`;
 
-                // 创建默认管理员账户
-                const defaultAdmin: User = {
-                    id: '1',
-                    username: adminUsername,
-                    email: adminEmail,
-                    password: adminPassword,
-                    role: 'admin',
-                    dailyUsage: 0,
-                    lastUsageDate: new Date().toISOString(),
-                    createdAt: new Date().toISOString()
-                };
+                    // 创建默认管理员账户
+                    const defaultAdmin: User = {
+                        id: '1',
+                        username: adminUsername,
+                        email: adminEmail,
+                        password: adminPassword,
+                        role: 'admin',
+                        dailyUsage: 0,
+                        lastUsageDate: new Date().toISOString(),
+                        createdAt: new Date().toISOString()
+                    };
 
-                fs.writeFileSync(this.USERS_FILE, JSON.stringify([defaultAdmin], null, 2));
-                logger.info('已创建默认管理员账户', {
-                    username: adminUsername,
-                    email: adminEmail,
-                    filePath: this.USERS_FILE
-                });
+                    fs.writeFileSync(this.USERS_FILE, JSON.stringify([defaultAdmin], null, 2));
+                    logger.info('已创建默认管理员账户', {
+                        username: adminUsername,
+                        email: adminEmail,
+                        filePath: this.USERS_FILE
+                    });
+                } catch (writeError) {
+                    logger.error('创建默认用户数据文件失败:', {
+                        error: writeError,
+                        filePath: this.USERS_FILE
+                    });
+                    throw new Error('创建默认用户数据文件失败');
+                }
+            } else {
+                // 检查现有文件是否可写
+                try {
+                    fs.accessSync(this.USERS_FILE, fs.constants.R_OK | fs.constants.W_OK);
+                    
+                    // 检查文件是否为空或内容无效
+                    const fileContent = fs.readFileSync(this.USERS_FILE, 'utf-8');
+                    if (!fileContent || fileContent.trim() === '') {
+                        logger.warn('用户数据文件为空，创建默认管理员账户', { filePath: this.USERS_FILE });
+                        
+                        // 从环境变量获取管理员配置
+                        const adminUsername = config.adminUsername;
+                        const adminPassword = config.adminPassword;
+                        const adminEmail = `${adminUsername}@example.com`;
+
+                        // 创建默认管理员账户
+                        const defaultAdmin: User = {
+                            id: '1',
+                            username: adminUsername,
+                            email: adminEmail,
+                            password: adminPassword,
+                            role: 'admin',
+                            dailyUsage: 0,
+                            lastUsageDate: new Date().toISOString(),
+                            createdAt: new Date().toISOString()
+                        };
+
+                        fs.writeFileSync(this.USERS_FILE, JSON.stringify([defaultAdmin], null, 2));
+                        logger.info('已为空的用户文件创建默认管理员账户', {
+                            username: adminUsername,
+                            email: adminEmail,
+                            filePath: this.USERS_FILE
+                        });
+                    } else {
+                        // 检查JSON格式是否正确
+                        try {
+                            const parsed = JSON.parse(fileContent);
+                            if (!Array.isArray(parsed) || parsed.length === 0) {
+                                logger.warn('用户数据文件格式错误或为空数组，创建默认管理员账户', { filePath: this.USERS_FILE });
+                                
+                                // 从环境变量获取管理员配置
+                                const adminUsername = config.adminUsername;
+                                const adminPassword = config.adminPassword;
+                                const adminEmail = `${adminUsername}@example.com`;
+
+                                // 创建默认管理员账户
+                                const defaultAdmin: User = {
+                                    id: '1',
+                                    username: adminUsername,
+                                    email: adminEmail,
+                                    password: adminPassword,
+                                    role: 'admin',
+                                    dailyUsage: 0,
+                                    lastUsageDate: new Date().toISOString(),
+                                    createdAt: new Date().toISOString()
+                                };
+
+                                fs.writeFileSync(this.USERS_FILE, JSON.stringify([defaultAdmin], null, 2));
+                                logger.info('已为格式错误的用户文件创建默认管理员账户', {
+                                    username: adminUsername,
+                                    email: adminEmail,
+                                    filePath: this.USERS_FILE
+                                });
+                            }
+                        } catch (parseError) {
+                            logger.warn('用户数据文件JSON格式错误，创建默认管理员账户', { 
+                                filePath: this.USERS_FILE,
+                                error: parseError instanceof Error ? parseError.message : String(parseError)
+                            });
+                            
+                            // 从环境变量获取管理员配置
+                            const adminUsername = config.adminUsername;
+                            const adminPassword = config.adminPassword;
+                            const adminEmail = `${adminUsername}@example.com`;
+
+                            // 创建默认管理员账户
+                            const defaultAdmin: User = {
+                                id: '1',
+                                username: adminUsername,
+                                email: adminEmail,
+                                password: adminPassword,
+                                role: 'admin',
+                                dailyUsage: 0,
+                                lastUsageDate: new Date().toISOString(),
+                                createdAt: new Date().toISOString()
+                            };
+
+                            fs.writeFileSync(this.USERS_FILE, JSON.stringify([defaultAdmin], null, 2));
+                            logger.info('已为JSON格式错误的用户文件创建默认管理员账户', {
+                                username: adminUsername,
+                                email: adminEmail,
+                                filePath: this.USERS_FILE
+                            });
+                        }
+                    }
+                } catch (accessError) {
+                    logger.error('现有用户数据文件无读写权限:', {
+                        error: accessError,
+                        filePath: this.USERS_FILE
+                    });
+                    throw new Error('用户数据文件无读写权限');
+                }
             }
         } catch (error) {
             logger.error('初始化用户数据文件失败:', {
-                error,
-                filePath: this.USERS_FILE
+                error: error instanceof Error ? error.message : String(error),
+                filePath: this.USERS_FILE,
+                stack: error instanceof Error ? error.stack : undefined
             });
             throw new Error('初始化用户数据文件失败');
         }
@@ -220,12 +354,67 @@ export class UserStorage {
     private static readUsers(): User[] {
         try {
             this.ensureUsersFile();
+            
+            // 检查文件是否存在
+            if (!fs.existsSync(this.USERS_FILE)) {
+                logger.warn('用户数据文件不存在，创建默认文件', { filePath: this.USERS_FILE });
+                this.ensureUsersFile(); // 重新确保文件存在
+                return [];
+            }
+            
+            // 检查文件是否可读
+            try {
+                fs.accessSync(this.USERS_FILE, fs.constants.R_OK);
+            } catch (accessError) {
+                logger.error('用户数据文件无读取权限:', {
+                    error: accessError,
+                    filePath: this.USERS_FILE
+                });
+                throw new Error('用户数据文件无读取权限');
+            }
+            
             const data = fs.readFileSync(this.USERS_FILE, 'utf-8');
-            return JSON.parse(data);
+            
+            // 检查文件内容是否为空
+            if (!data || data.trim() === '') {
+                logger.warn('用户数据文件为空，重新初始化默认管理员账户', { filePath: this.USERS_FILE });
+                
+                // 重新确保文件存在并包含默认管理员账户
+                this.ensureUsersFile();
+                
+                // 重新读取文件
+                const newData = fs.readFileSync(this.USERS_FILE, 'utf-8');
+                if (!newData || newData.trim() === '') {
+                    logger.error('重新初始化后文件仍为空', { filePath: this.USERS_FILE });
+                    return [];
+                }
+                
+                const newParsed = JSON.parse(newData);
+                if (!Array.isArray(newParsed)) {
+                    logger.error('重新初始化后文件格式仍错误', { filePath: this.USERS_FILE });
+                    return [];
+                }
+                
+                return newParsed;
+            }
+            
+            const parsed = JSON.parse(data);
+            
+            // 确保返回的是数组
+            if (!Array.isArray(parsed)) {
+                logger.error('用户数据文件格式错误，不是数组:', {
+                    filePath: this.USERS_FILE,
+                    type: typeof parsed
+                });
+                throw new Error('用户数据文件格式错误');
+            }
+            
+            return parsed;
         } catch (error) {
             logger.error('读取用户数据失败:', {
-                error,
-                filePath: this.USERS_FILE
+                error: error instanceof Error ? error.message : String(error),
+                filePath: this.USERS_FILE,
+                stack: error instanceof Error ? error.stack : undefined
             });
             throw new Error('读取用户数据失败');
         }

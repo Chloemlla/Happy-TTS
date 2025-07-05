@@ -1,6 +1,7 @@
 import express from 'express';
 import { PasskeyService } from '../services/passkeyService';
 import { PasskeyDataRepairService } from '../services/passkeyDataRepairService';
+import { PasskeyCredentialIdFixer } from '../utils/passkeyCredentialIdFixer';
 import { authenticateToken } from '../middleware/authenticateToken';
 import { UserStorage, User } from '../utils/userStorage';
 import logger from '../utils/logger';
@@ -333,6 +334,113 @@ router.post('/admin/data/repair-all', authenticateToken, async (req, res) => {
             error: error instanceof Error ? error.message : String(error) 
         });
         res.status(500).json({ error: '修复所有用户数据失败' });
+    }
+});
+
+// 修复当前用户的credentialID（需要认证）
+router.post('/credential-id/fix', authenticateToken, async (req, res) => {
+    try {
+        const userId = (req as any).user.id;
+        const result = await PasskeyCredentialIdFixer.fixUserCredentialIds(userId);
+        
+        if (result.success) {
+            res.json({
+                success: true,
+                message: result.message,
+                fixedCredentials: result.fixedCredentials,
+                totalCredentials: result.totalCredentials
+            });
+        } else {
+            res.status(400).json({
+                success: false,
+                error: result.message
+            });
+        }
+    } catch (error) {
+        logger.error('[Passkey] 修复用户credentialID失败', { 
+            userId: (req as any).user.id,
+            error: error instanceof Error ? error.message : String(error) 
+        });
+        res.status(500).json({ error: '修复credentialID失败' });
+    }
+});
+
+// 检查当前用户的credentialID状态（需要认证）
+router.get('/credential-id/check', authenticateToken, async (req, res) => {
+    try {
+        const userId = (req as any).user.id;
+        const user = await UserStorage.getUserById(userId);
+        
+        if (!user) {
+            return res.status(404).json({ error: '用户不存在' });
+        }
+        
+        if (!user.passkeyEnabled || !user.passkeyCredentials || user.passkeyCredentials.length === 0) {
+            return res.json({
+                success: true,
+                hasPasskey: false,
+                message: '用户未启用Passkey或无凭证'
+            });
+        }
+        
+        const credentialInfo = user.passkeyCredentials.map((cred, index) => ({
+            index,
+            credentialId: cred.credentialID,
+            ...PasskeyCredentialIdFixer.getCredentialIdInfo(cred.credentialID)
+        }));
+        
+        const validCredentials = credentialInfo.filter(info => info.isValid);
+        const invalidCredentials = credentialInfo.filter(info => !info.isValid);
+        
+        res.json({
+            success: true,
+            hasPasskey: true,
+            totalCredentials: user.passkeyCredentials.length,
+            validCredentials: validCredentials.length,
+            invalidCredentials: invalidCredentials.length,
+            needsFix: invalidCredentials.length > 0,
+            credentialDetails: credentialInfo
+        });
+    } catch (error) {
+        logger.error('[Passkey] 检查用户credentialID状态失败', { 
+            userId: (req as any).user.id,
+            error: error instanceof Error ? error.message : String(error) 
+        });
+        res.status(500).json({ error: '检查credentialID状态失败' });
+    }
+});
+
+// 管理员接口：修复所有用户的credentialID（需要管理员权限）
+router.post('/admin/credential-id/fix-all', authenticateToken, async (req, res) => {
+    try {
+        const user = (req as any).user;
+        
+        // 检查管理员权限
+        if (user.role !== 'admin') {
+            return res.status(403).json({ error: '需要管理员权限' });
+        }
+        
+        const result = await PasskeyCredentialIdFixer.fixAllUsersCredentialIds();
+        
+        if (result.success) {
+            res.json({
+                success: true,
+                message: result.message,
+                totalUsers: result.totalUsers,
+                fixedUsers: result.fixedUsers,
+                totalFixedCredentials: result.totalFixedCredentials
+            });
+        } else {
+            res.status(400).json({
+                success: false,
+                error: result.message
+            });
+        }
+    } catch (error) {
+        logger.error('[Passkey] 管理员修复所有用户credentialID失败', { 
+            error: error instanceof Error ? error.message : String(error) 
+        });
+        res.status(500).json({ error: '修复所有用户credentialID失败' });
     }
 });
 

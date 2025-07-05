@@ -298,8 +298,22 @@ export const usePasskey = (): UsePasskeyReturn & {
                     signature: asseResp.response?.signature,
                     userHandle: asseResp.response?.userHandle
                 },
-                // 如果rawId存在，转换为base64url字符串
-                rawId: asseResp.rawId ? Array.from(new Uint8Array(asseResp.rawId)) : undefined
+                // 如果rawId存在，转换为base64url字符串而不是数组
+                rawId: asseResp.rawId ? (() => {
+                    try {
+                        const uint8Array = new Uint8Array(asseResp.rawId);
+                        const base64String = btoa(String.fromCharCode(...uint8Array));
+                        // 转换为base64url格式（替换+为-，/为_，移除=）
+                        return base64String.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+                    } catch (error) {
+                        addDebugInfo({
+                            action: 'rawId转换失败',
+                            error: error instanceof Error ? error.message : String(error),
+                            timestamp: new Date().toISOString()
+                        });
+                        return undefined;
+                    }
+                })() : undefined
             };
             
             addDebugInfo({

@@ -542,18 +542,65 @@ export class PasskeyService {
             hasId: !!response.id
         });
         
-        const authenticator = userAuthenticators.find(
+        // 修复：确保所有用户认证器的credentialID都是正确的base64url格式
+        const validAuthenticators = userAuthenticators.filter(auth => {
+            if (!auth.credentialID || typeof auth.credentialID !== 'string') {
+                logger.warn('[Passkey] 发现无效的credentialID，跳过', {
+                    userId: user.id,
+                    credentialID: auth.credentialID,
+                    type: typeof auth.credentialID
+                });
+                return false;
+            }
+            return true;
+        });
+        
+        // 尝试多种匹配方式
+        let authenticator = validAuthenticators.find(
             auth => auth.credentialID === responseIdBase64
         );
+        
+        // 如果直接匹配失败，尝试base64解码后匹配
+        if (!authenticator) {
+            try {
+                const responseIdBuffer = Buffer.from(responseIdBase64, 'base64url');
+                const responseIdBase64Standard = responseIdBuffer.toString('base64');
+                
+                authenticator = validAuthenticators.find(auth => {
+                    try {
+                        const authBuffer = Buffer.from(auth.credentialID, 'base64url');
+                        const authBase64Standard = authBuffer.toString('base64');
+                        return authBase64Standard === responseIdBase64Standard;
+                    } catch {
+                        return false;
+                    }
+                });
+                
+                if (authenticator) {
+                    logger.info('[Passkey] 通过base64转换找到匹配的认证器', {
+                        userId: user.id,
+                        responseIdBase64: responseIdBase64.substring(0, 10) + '...',
+                        authCredentialID: authenticator.credentialID.substring(0, 10) + '...'
+                    });
+                }
+            } catch (error) {
+                logger.warn('[Passkey] base64转换匹配失败', {
+                    userId: user.id,
+                    error: error instanceof Error ? error.message : String(error)
+                });
+            }
+        }
 
         if (!authenticator) {
             // 新增详细错误信息，便于前后端比对
-            const allCredentialIDs = userAuthenticators.map(a => a.credentialID);
+            const allCredentialIDs = validAuthenticators.map(a => a.credentialID);
             logger.error('[Passkey] 找不到匹配的认证器', {
                 userId: user.id,
                 responseIdBase64: responseIdBase64.substring(0, 20) + '...',
                 allCredentialIDs: allCredentialIDs.map(id => id.substring(0, 10) + '...'),
-                responseKeys: Object.keys(response)
+                responseKeys: Object.keys(response),
+                validAuthenticatorsCount: validAuthenticators.length,
+                totalAuthenticatorsCount: userAuthenticators.length
             });
             throw new Error(`找不到匹配的认证器 | 前端credentialID: ${responseIdBase64} | 后端credentialID列表: ${JSON.stringify(allCredentialIDs)}`);
         }

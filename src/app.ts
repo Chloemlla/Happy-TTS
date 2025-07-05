@@ -745,6 +745,16 @@ if (process.env.NODE_ENV !== 'test') {
     logger.info(`Audio files directory: ${audioDir}`);
     logger.info(`当前生成码: ${config.generationCode}`);
     
+    // 启动时检查文件权限
+    try {
+      const { checkFilePermissions } = require('../scripts/check-file-permissions.js');
+      checkFilePermissions();
+    } catch (error) {
+      logger.warn('[启动] 文件权限检查失败，继续启动', { 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+    }
+    
     // 启动时自动修复Passkey数据
     try {
       logger.info('[启动] 开始自动修复Passkey数据...');
@@ -754,6 +764,7 @@ if (process.env.NODE_ENV !== 'test') {
       logger.error('[启动] Passkey数据自动修复失败', { 
         error: error instanceof Error ? error.message : String(error) 
       });
+      // 不阻止服务器启动，只记录错误
     }
   });
 }

@@ -119,7 +119,40 @@ export class PasskeyDataRepairService {
         try {
             logger.info('[Passkey数据修复] 开始启动时数据修复检查...');
             
-            const allUsers = await UserStorage.getAllUsers();
+            // 添加重试机制
+            let allUsers;
+            let retryCount = 0;
+            const maxRetries = 3;
+            
+            while (retryCount < maxRetries) {
+                try {
+                    allUsers = await UserStorage.getAllUsers();
+                    break; // 成功获取数据，跳出重试循环
+                } catch (error) {
+                    retryCount++;
+                    logger.warn('[Passkey数据修复] 读取用户数据失败，尝试重试', { 
+                        retryCount, 
+                        maxRetries,
+                        error: error instanceof Error ? error.message : String(error)
+                    });
+                    
+                    if (retryCount >= maxRetries) {
+                        logger.error('[Passkey数据修复] 读取用户数据最终失败，跳过数据修复', { 
+                            error: error instanceof Error ? error.message : String(error)
+                        });
+                        return; // 放弃修复，不阻止服务器启动
+                    }
+                    
+                    // 等待一段时间后重试
+                    await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+                }
+            }
+            
+            if (!allUsers || allUsers.length === 0) {
+                logger.info('[Passkey数据修复] 没有用户数据需要修复');
+                return;
+            }
+            
             logger.info('[Passkey数据修复] 获取到用户总数', { totalUsers: allUsers.length });
             
             let repairedUsers = 0;
@@ -161,6 +194,7 @@ export class PasskeyDataRepairService {
                         username: user.username,
                         error: error instanceof Error ? error.message : String(error) 
                     });
+                    // 继续处理其他用户，不因为单个用户失败而停止
                 }
             }
             
@@ -175,6 +209,7 @@ export class PasskeyDataRepairService {
                 error: error instanceof Error ? error.message : String(error),
                 stack: error instanceof Error ? error.stack : undefined
             });
+            // 不抛出错误，避免阻止服务器启动
         }
     }
     
