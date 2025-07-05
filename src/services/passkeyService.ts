@@ -101,8 +101,47 @@ async function fixUserPasskeyCredentialIDs(user: User) {
                 fixed = Buffer.from(String(original)).toString('base64url');
             }
             
+            // 二次检验：确保修复后的credentialID格式正确
+            if (fixed && !fixed.match(/^[A-Za-z0-9_-]+$/)) {
+                logger.warn('[Passkey自愈] 修复后的credentialID仍不是纯base64url格式，尝试强制修复', {
+                    userId: user.id,
+                    original,
+                    fixed,
+                    containsPlus: fixed.includes('+'),
+                    containsSlash: fixed.includes('/'),
+                    containsEquals: fixed.includes('=')
+                });
+                
+                // 强制移除所有非base64url字符
+                fixed = fixed.replace(/[^A-Za-z0-9_-]/g, '');
+                
+                // 如果移除后为空，则剔除
+                if (!fixed || fixed.length === 0) {
+                    reason = '修复后credentialID为空，剔除';
+                    user.passkeyCredentials[i] = null as any;
+                    changed = true;
+                    continue;
+                }
+            }
+            
+            // 最终检验：确保可以正确解码
+            try {
+                const buffer = Buffer.from(fixed, 'base64url');
+                if (buffer.length === 0) {
+                    reason = '修复后credentialID解码为空buffer，剔除';
+                    user.passkeyCredentials[i] = null as any;
+                    changed = true;
+                    continue;
+                }
+            } catch (error) {
+                reason = '修复后credentialID无法解码，剔除';
+                user.passkeyCredentials[i] = null as any;
+                changed = true;
+                continue;
+            }
+            
             cred.credentialID = fixed;
-            reason = '异常类型，强制转base64url';
+            reason = '异常类型，强制转base64url并二次检验通过';
             changed = true;
             
         } catch (e) {
@@ -237,10 +276,47 @@ export class PasskeyService {
             logger.error('注册信息不完整:', registrationInfo);
             throw new Error('注册信息不完整，credential.id 或 credential.publicKey 缺失');
         }
+        // 二次检验：确保注册的credentialID格式正确
+        const credentialID = Buffer.from(credential.id, 'base64url').toString('base64url');
+        
+        logger.info('[Passkey] 注册二次检验：检查credentialID格式', {
+            userId: user.id,
+            originalId: credential.id.substring(0, 10) + '...',
+            convertedId: credentialID.substring(0, 10) + '...',
+            credentialIDLength: credentialID.length
+        });
+        
+        // 检验1：确保转换后的credentialID是纯base64url格式
+        if (!credentialID.match(/^[A-Za-z0-9_-]+$/)) {
+            logger.error('[Passkey] 注册二次检验失败：credentialID不是纯base64url格式', {
+                userId: user.id,
+                credentialID: credentialID,
+                containsPlus: credentialID.includes('+'),
+                containsSlash: credentialID.includes('/'),
+                containsEquals: credentialID.includes('=')
+            });
+            throw new Error('注册失败：Credential ID格式无效');
+        }
+        
+        // 检验2：确保可以正确解码
+        try {
+            const buffer = Buffer.from(credentialID, 'base64url');
+            logger.info('[Passkey] 注册二次检验通过：credentialID可以正确解码', {
+                userId: user.id,
+                bufferLength: buffer.length
+            });
+        } catch (error) {
+            logger.error('[Passkey] 注册二次检验失败：credentialID无法解码', {
+                userId: user.id,
+                error: error instanceof Error ? error.message : String(error)
+            });
+            throw new Error('注册失败：Credential ID无法解码');
+        }
+        
         const newCredential: Authenticator = {
             id: credential.id,
             name: credentialName,
-            credentialID: Buffer.from(credential.id, 'base64url').toString('base64url'),
+            credentialID: credentialID,
             credentialPublicKey: Buffer.from(credential.publicKey).toString('base64'),
             counter: credential.counter,
             createdAt: new Date().toISOString()
@@ -640,6 +716,67 @@ export class PasskeyService {
             throw new Error(`找不到匹配的认证器 | 前端credentialID: ${responseIdBase64} | 后端credentialID列表: ${JSON.stringify(allCredentialIDs)}`);
         }
 
+        // 二次检验：确保credentialID格式完全符合要求
+        logger.info('[Passkey] 开始二次检验credentialID格式', {
+            userId: user.id,
+            responseId: responseIdBase64.substring(0, 10) + '...',
+            responseIdLength: responseIdBase64.length,
+            authenticatorId: authenticator.credentialID.substring(0, 10) + '...',
+            authenticatorIdLength: authenticator.credentialID.length
+        });
+        
+        // 检验1：确保responseIdBase64是纯base64url格式
+        if (!responseIdBase64.match(/^[A-Za-z0-9_-]+$/)) {
+            logger.error('[Passkey] 二次检验失败：responseIdBase64不是纯base64url格式', {
+                userId: user.id,
+                responseIdBase64: responseIdBase64,
+                containsPlus: responseIdBase64.includes('+'),
+                containsSlash: responseIdBase64.includes('/'),
+                containsEquals: responseIdBase64.includes('=')
+            });
+            throw new Error('Credential ID格式验证失败：不是有效的base64url格式');
+        }
+        
+        // 检验2：确保authenticator.credentialID也是纯base64url格式
+        if (!authenticator.credentialID.match(/^[A-Za-z0-9_-]+$/)) {
+            logger.error('[Passkey] 二次检验失败：authenticator.credentialID不是纯base64url格式', {
+                userId: user.id,
+                authenticatorCredentialID: authenticator.credentialID,
+                containsPlus: authenticator.credentialID.includes('+'),
+                containsSlash: authenticator.credentialID.includes('/'),
+                containsEquals: authenticator.credentialID.includes('=')
+            });
+            throw new Error('存储的Credential ID格式验证失败：不是有效的base64url格式');
+        }
+        
+        // 检验3：尝试解码验证两个credentialID是否等价
+        try {
+            const responseBuffer = Buffer.from(responseIdBase64, 'base64url');
+            const authenticatorBuffer = Buffer.from(authenticator.credentialID, 'base64url');
+            
+            if (!responseBuffer.equals(authenticatorBuffer)) {
+                logger.error('[Passkey] 二次检验失败：credentialID不匹配', {
+                    userId: user.id,
+                    responseIdBase64: responseIdBase64.substring(0, 10) + '...',
+                    authenticatorCredentialID: authenticator.credentialID.substring(0, 10) + '...',
+                    responseBufferLength: responseBuffer.length,
+                    authenticatorBufferLength: authenticatorBuffer.length
+                });
+                throw new Error('Credential ID不匹配');
+            }
+            
+            logger.info('[Passkey] 二次检验通过：credentialID格式和内容都正确', {
+                userId: user.id,
+                bufferLength: responseBuffer.length
+            });
+        } catch (error) {
+            logger.error('[Passkey] 二次检验失败：credentialID解码或比较失败', {
+                userId: user.id,
+                error: error instanceof Error ? error.message : String(error)
+            });
+            throw new Error('Credential ID验证失败：' + (error instanceof Error ? error.message : String(error)));
+        }
+        
         let verification: VerifiedAuthenticationResponse;
         try {
             // 确保传递给verifyAuthenticationResponse的response对象中的id字段是base64url格式
