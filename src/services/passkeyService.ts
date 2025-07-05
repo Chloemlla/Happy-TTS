@@ -37,35 +37,45 @@ const getRpOrigin = () => {
 async function fixUserPasskeyCredentialIDs(user: User) {
     if (!user || !Array.isArray(user.passkeyCredentials)) return;
     let changed = false;
+    const validPattern = /^[A-Za-z0-9_-]+$/;
     for (const cred of user.passkeyCredentials) {
         let original = cred.credentialID;
+        let fixed = null;
         let reason = '';
-        // 非字符串（如Buffer、对象等）
-        if (cred.credentialID && typeof cred.credentialID !== 'string') {
-            cred.credentialID = Buffer.from(cred.credentialID).toString('base64url');
-            reason = '非字符串，转base64url';
+        try {
+            if (typeof original === 'string' && validPattern.test(original)) {
+                continue; // 已合规
+            }
+            if (original == null) {
+                reason = 'credentialID为null/undefined，剔除';
+                cred.credentialID = '';
+                changed = true;
+                continue;
+            }
+            // 尝试Buffer转base64url
+            fixed = Buffer.from(String(original)).toString('base64url');
+            cred.credentialID = fixed;
+            reason = '异常类型，强制转base64url';
+            changed = true;
+        } catch (e) {
+            reason = 'credentialID彻底无法修复，剔除';
+            cred.credentialID = '';
             changed = true;
         }
-        // 普通base64（含+/=）
-        else if (typeof cred.credentialID === 'string' && /[+/=]/.test(cred.credentialID)) {
-            cred.credentialID = Buffer.from(cred.credentialID, 'base64').toString('base64url');
-            reason = 'base64字符串，转base64url';
-            changed = true;
-        }
-        // 不是base64url也不是base64，尝试utf8转base64url
-        else if (typeof cred.credentialID === 'string' && !/^[A-Za-z0-9_-]+$/.test(cred.credentialID)) {
-            cred.credentialID = Buffer.from(cred.credentialID, 'utf8').toString('base64url');
-            reason = '疑似明文或非法字符，utf8转base64url';
-            changed = true;
-        }
-        if (reason) {
-            logger.info('[Passkey自愈] 修正用户credentialID', {
-                userId: user.id,
-                original,
-                fixed: cred.credentialID,
-                reason
-            });
-        }
+        logger.warn('[Passkey自愈] credentialID修复', {
+            userId: user.id,
+            original,
+            fixed,
+            reason
+        });
+    }
+    // 剔除所有无效credential
+    const before = user.passkeyCredentials.length;
+    user.passkeyCredentials = user.passkeyCredentials.filter(c => typeof c.credentialID === 'string' && validPattern.test(c.credentialID) && c.credentialID.length > 0);
+    const after = user.passkeyCredentials.length;
+    if (before !== after) {
+        logger.warn('[Passkey自愈] 剔除无效credentialID', { userId: user.id, before, after });
+        changed = true;
     }
     if (changed) {
         await UserStorage.updateUser(user.id, { passkeyCredentials: user.passkeyCredentials });
