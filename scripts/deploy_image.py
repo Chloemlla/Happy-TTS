@@ -156,16 +156,16 @@ def recreate_container(ssh, old_container_name, new_image_url):
                     if not os.path.exists(source_path):
                         os.makedirs(source_path, exist_ok=True)
                     # 添加绑定挂载和选项
-                    create_command += f"-v {source_path}:{target}"
+                    if opts_str:
+                        create_command += f"-v {source_path}:{target}:{opts_str} "
+                    else:
+                        create_command += f"-v {source_path}:{target} "
                 elif type == "volume":
                     # 对于命名卷，直接使用卷名
-                    create_command += f"-v {source}:{target}"
-
-                # 添加挂载选项
-                if opts_str:
-                    create_command = create_command.rstrip() + f":{opts_str} "
-                else:
-                    create_command += " "
+                    if opts_str:
+                        create_command += f"-v {source}:{target}:{opts_str} "
+                    else:
+                        create_command += f"-v {source}:{target} "
 
     # 继承网络设置
     networks = container_info[0].get("NetworkSettings", {}).get("Networks", {})

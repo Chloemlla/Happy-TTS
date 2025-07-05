@@ -45,14 +45,16 @@ export const validateBackupCode = (code: string): boolean => {
 /**
  * 清理TOTP验证码输入
  */
-export const cleanTOTPToken = (input: string): string => {
+export const cleanTOTPToken = (input: any): string => {
+  if (typeof input !== 'string') input = String(input ?? '');
   return input.replace(/\D/g, '').slice(0, 6);
 };
 
 /**
  * 清理备用恢复码输入
  */
-export const cleanBackupCode = (input: string): string => {
+export const cleanBackupCode = (input: any): string => {
+  if (typeof input !== 'string') input = String(input ?? '');
   return input.replace(/[^A-Z0-9]/g, '').toUpperCase().slice(0, 8);
 };
 

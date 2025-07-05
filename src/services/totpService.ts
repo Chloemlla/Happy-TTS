@@ -245,7 +245,7 @@ export class TOTPService {
                 logger.error('备用恢复码验证参数无效: backupCodes为空数组');
                 return false;
             }
-            const normalizedCode = code.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            const normalizedCode = (typeof code === 'string' ? code : String(code ?? '')).toUpperCase().replace(/[^A-Z0-9]/g, '');
             // 验证恢复码格式
             if (normalizedCode.length !== 8) {
                 logger.error('备用恢复码格式错误:', { code: normalizedCode });
@@ -256,9 +256,7 @@ export class TOTPService {
                 logger.error('备用恢复码包含非法字符:', { code: normalizedCode });
                 return false;
             }
-            const index = backupCodes.findIndex(backupCode => 
-                backupCode.toUpperCase().replace(/[^A-Z0-9]/g, '') === normalizedCode
-            );
+            const index = backupCodes.findIndex(backupCode => (typeof backupCode === 'string' ? backupCode : String(backupCode ?? '')).toUpperCase().replace(/[^A-Z0-9]/g, '') === normalizedCode);
             if (index !== -1) {
                 // 移除已使用的恢复码
                 backupCodes.splice(index, 1);

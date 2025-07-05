@@ -278,7 +278,7 @@ export class TOTPController {
                     await TOTPController.updateUserBackupCodes(userId, backupCodes);
                     
                     // 记录详细的报废信息
-                    const usedCode = backupCode.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                    const usedCode = (typeof backupCode === 'string' ? backupCode : String(backupCode ?? '')).toUpperCase().replace(/[^A-Z0-9]/g, '');
                     const remainingCount = backupCodes.length;
                     
                     logger.info('备用恢复码验证成功并已报废:', { 
@@ -308,7 +308,7 @@ export class TOTPController {
                     logger.warn('备用恢复码验证失败:', { 
                         userId, 
                         username: user.username,
-                        attemptedCode: backupCode.toUpperCase().replace(/[^A-Z0-9]/g, ''),
+                        attemptedCode: (typeof backupCode === 'string' ? backupCode : String(backupCode ?? '')).toUpperCase().replace(/[^A-Z0-9]/g, ''),
                         availableCodes: user.backupCodes.length
                     });
                 }
