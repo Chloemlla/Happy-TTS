@@ -104,21 +104,43 @@ router.post('/register/finish', authenticateToken, async (req, res) => {
 router.post('/authenticate/start', async (req, res) => {
     try {
         const { username } = req.body;
+        const ip = req.headers['x-real-ip'] || req.ip || 'unknown';
+        
+        logger.info('[Passkey] /authenticate/start 收到请求', { username, ip, headers: req.headers });
 
         if (!username) {
+            logger.warn('[Passkey] 用户名缺失', { body: req.body });
             return res.status(400).json({ error: '用户名是必需的' });
         }
 
         const user = await UserStorage.getUserByUsername(username);
         if (!user) {
+            logger.warn('[Passkey] 用户不存在', { username });
             return res.status(404).json({ error: '用户不存在' });
         }
 
+        logger.info('[Passkey] 获取用户信息', { 
+            userId: user.id, 
+            username: user.username,
+            passkeyEnabled: user.passkeyEnabled,
+            credentialsCount: user.passkeyCredentials?.length || 0
+        });
+
         if (!user.passkeyEnabled || !user.passkeyCredentials || user.passkeyCredentials.length === 0) {
+            logger.warn('[Passkey] 用户未启用Passkey或无凭证', { 
+                userId: user.id, 
+                passkeyEnabled: user.passkeyEnabled,
+                credentialsCount: user.passkeyCredentials?.length || 0
+            });
             return res.status(400).json({ error: '用户未启用 Passkey 或没有注册的凭证' });
         }
 
         const options = await PasskeyService.generateAuthenticationOptions(user);
+        
+        logger.info('[Passkey] 生成认证选项成功', { 
+            userId: user.id, 
+            challenge: options.challenge?.substring(0, 20) + '...'
+        });
         
         // 保存 challenge 到用户数据中
         await UserStorage.updateUser(user.id, {
@@ -127,7 +149,13 @@ router.post('/authenticate/start', async (req, res) => {
 
         res.json({ options });
     } catch (error: any) {
-        console.error('生成 Passkey 认证选项失败:', error);
+        logger.error('[Passkey] 生成认证选项失败', { 
+            error: error.message, 
+            stack: error.stack,
+            body: req.body,
+            username: req.body.username
+        });
+        
         const errorMessage = error?.message || '生成 Passkey 认证选项失败';
         res.status(500).json({ error: errorMessage });
     }
