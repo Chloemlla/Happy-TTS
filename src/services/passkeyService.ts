@@ -33,19 +33,62 @@ const getRpOrigin = () => {
     return env.RP_ORIGIN;
 };
 
+// 自动修复用户历史passkey credentialID为base64url字符串，并详细日志
+async function fixUserPasskeyCredentialIDs(user: User) {
+    if (!user || !Array.isArray(user.passkeyCredentials)) return;
+    let changed = false;
+    for (const cred of user.passkeyCredentials) {
+        let original = cred.credentialID;
+        let reason = '';
+        // 非字符串（如Buffer、对象等）
+        if (cred.credentialID && typeof cred.credentialID !== 'string') {
+            cred.credentialID = Buffer.from(cred.credentialID).toString('base64url');
+            reason = '非字符串，转base64url';
+            changed = true;
+        }
+        // 普通base64（含+/=）
+        else if (typeof cred.credentialID === 'string' && /[+/=]/.test(cred.credentialID)) {
+            cred.credentialID = Buffer.from(cred.credentialID, 'base64').toString('base64url');
+            reason = 'base64字符串，转base64url';
+            changed = true;
+        }
+        // 不是base64url也不是base64，尝试utf8转base64url
+        else if (typeof cred.credentialID === 'string' && !/^[A-Za-z0-9_-]+$/.test(cred.credentialID)) {
+            cred.credentialID = Buffer.from(cred.credentialID, 'utf8').toString('base64url');
+            reason = '疑似明文或非法字符，utf8转base64url';
+            changed = true;
+        }
+        if (reason) {
+            logger.info('[Passkey自愈] 修正用户credentialID', {
+                userId: user.id,
+                original,
+                fixed: cred.credentialID,
+                reason
+            });
+        }
+    }
+    if (changed) {
+        await UserStorage.updateUser(user.id, { passkeyCredentials: user.passkeyCredentials });
+        logger.info('[Passkey自愈] 已更新用户passkeyCredentials', { userId: user.id });
+    }
+}
+
 export class PasskeyService {
     // 获取用户的认证器列表
     public static async getCredentials(userId: string): Promise<Authenticator[]> {
         const user = await UserStorage.getUserById(userId);
-                if (!user || !user.passkeyCredentials) {
+        if (user) {
+            await fixUserPasskeyCredentialIDs(user);
+        }
+        if (!user || !user.passkeyCredentials) {
             return [];
         }
-        
         return user.passkeyCredentials;
     }
 
     // 生成注册选项
     public static async generateRegistrationOptions(user: User, credentialName: string) {
+        await fixUserPasskeyCredentialIDs(user);
         if (!user) {
             throw new Error('generateRegistrationOptions: user 为空');
         }
@@ -147,27 +190,67 @@ export class PasskeyService {
 
     // 生成认证选项
     public static async generateAuthenticationOptions(user: User) {
+        await fixUserPasskeyCredentialIDs(user);
         const userAuthenticators = user.passkeyCredentials || [];
         if (userAuthenticators.length === 0) {
             throw new Error('用户没有注册的认证器');
         }
-
-        const options = await generateAuthenticationOptions({
-            rpID: getRpId(),
-            allowCredentials: userAuthenticators.map(authenticator => ({
-                id: Buffer.from(authenticator.credentialID, 'base64url'),
-                type: 'public-key',
-                transports: ['internal']
-            } as any)),
-            userVerification: 'required'
-        });
-
-        // 存储挑战到用户记录
-        await UserStorage.updateUser(user.id, {
-            pendingChallenge: options.challenge
-        });
-
-        return options;
+        try {
+            const options = await generateAuthenticationOptions({
+                rpID: getRpId(),
+                allowCredentials: userAuthenticators.map(authenticator => ({
+                    id: Buffer.from(authenticator.credentialID, 'base64url'),
+                    type: 'public-key',
+                    transports: ['internal']
+                } as any)),
+                userVerification: 'required'
+            });
+            // 存储挑战到用户记录
+            await UserStorage.updateUser(user.id, {
+                pendingChallenge: options.challenge
+            });
+            return options;
+        } catch (err: any) {
+            // 检查input.replace is not a function等类型错误，强制修复所有credentialID
+            if (err && err.message && err.message.includes('replace is not a function')) {
+                logger.warn('[Passkey自愈] 捕获到input.replace类型错误，强制修复所有credentialID并重试', {
+                    userId: user.id,
+                    error: err.message
+                });
+                // 强制全部转base64url字符串
+                let changed = false;
+                for (const cred of userAuthenticators) {
+                    if (typeof cred.credentialID !== 'string' || !/^[A-Za-z0-9_-]+$/.test(cred.credentialID)) {
+                        const original = cred.credentialID;
+                        cred.credentialID = Buffer.from(String(original)).toString('base64url');
+                        logger.info('[Passkey自愈] 强制修正credentialID', {
+                            userId: user.id,
+                            original,
+                            fixed: cred.credentialID
+                        });
+                        changed = true;
+                    }
+                }
+                if (changed) {
+                    await UserStorage.updateUser(user.id, { passkeyCredentials: user.passkeyCredentials });
+                }
+                // 再次尝试
+                const options = await generateAuthenticationOptions({
+                    rpID: getRpId(),
+                    allowCredentials: userAuthenticators.map(authenticator => ({
+                        id: Buffer.from(authenticator.credentialID, 'base64url'),
+                        type: 'public-key',
+                        transports: ['internal']
+                    } as any)),
+                    userVerification: 'required'
+                });
+                await UserStorage.updateUser(user.id, {
+                    pendingChallenge: options.challenge
+                });
+                return options;
+            }
+            throw err;
+        }
     }
 
     // 验证认证
@@ -176,6 +259,7 @@ export class PasskeyService {
         response: any,
         requestOrigin?: string
     ): Promise<VerifiedAuthenticationResponse> {
+        await fixUserPasskeyCredentialIDs(user);
         if (!user.pendingChallenge) {
             throw new Error('认证会话已过期');
         }
@@ -230,6 +314,9 @@ export class PasskeyService {
     // 删除认证器
     public static async removeCredential(userId: string, credentialId: string): Promise<void> {
         const user = await UserStorage.getUserById(userId);
+        if (user) {
+            await fixUserPasskeyCredentialIDs(user);
+        }
         if (!user || !user.passkeyCredentials) {
             throw new Error('用户不存在或没有认证器');
         }
