@@ -165,7 +165,7 @@ export class AuthController {
             const authHeader = req.headers.authorization;
 
             // 检查是否是本地 IP
-            if (AuthController.isLocalIp(ip)) {
+            if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'dev' && AuthController.isLocalIp(ip)) {
                 logger.info('本地 IP 访问，自动获取管理员信息', {
                     ip,
                     timestamp: new Date().toISOString()

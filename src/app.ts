@@ -53,7 +53,12 @@ app.set('trust proxy', 1);
 // 检查是否是本地 IP 的中间件
 const isLocalIp = (req: Request, res: Response, next: NextFunction) => {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
-    req.isLocalIp = config.localIps.includes(ip);
+    // DEV环境下不跳过二次校验，isLocalIp始终为false
+    if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev') {
+        req.isLocalIp = false;
+    } else {
+        req.isLocalIp = config.localIps.includes(ip);
+    }
     next();
 };
 
@@ -742,4 +747,13 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 // 确保在测试环境中也能正确导出 Express 应用
-export default app; 
+export default app;
+
+// 禁止二次校验相关接口缓存，防止304导致安全绕过
+app.use(['/api/totp/status', '/api/passkey/credentials', '/api/passkey/authenticate/start', '/api/passkey/authenticate/finish', '/api/passkey/register/start', '/api/passkey/register/finish', '/api/auth/me', '/api/auth/logout', '/api/auth/login', '/api/auth/register', '/api/totp/status'], (req: any, res: any, next: any) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  res.removeHeader && res.removeHeader('ETag');
+  next();
+}); 
