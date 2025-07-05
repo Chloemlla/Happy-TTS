@@ -118,53 +118,28 @@ def recreate_container(ssh, old_container_name, new_image_url):
 
     # 继承挂载卷和权限
     mounts = host_config.get("Mounts", [])
-    if mounts:
-        for mount in mounts:
-            type = mount.get("Type", "")
-            source = mount.get("Source", "")
-            target = mount.get("Target", "")
-            mode = mount.get("Mode", "")
-            rw = mount.get("RW", True)  # 读写权限
-            propagation = mount.get("Propagation", "")  # 传播模式
-
-            if type and source and target:
-                mount_opts = []
-
-                # 添加读写模式
-                if not rw:
-                    mount_opts.append("ro")
-
-                # 添加传播模式
-                if propagation:
-                    mount_opts.append(propagation)
-
-                # 添加 SELinux 标签选项
-                selinux_label = mount.get("SELinuxRelabel", "")
-                if selinux_label:
-                    mount_opts.append("Z" if selinux_label == "shared" else "z")
-
-                # 添加其他模式选项
-                if mode:
-                    mount_opts.append(mode)
-
-                # 构建挂载选项字符串
-                opts_str = ",".join(mount_opts) if mount_opts else ""
-
-                if type == "bind":
-                    source_path = os.path.abspath(source)
-                    if not os.path.exists(source_path):
-                        os.makedirs(source_path, exist_ok=True)
-                    logging.info(f"挂载本机目录: {source_path} -> 容器目录: {target}")
-                    if opts_str:
-                        create_command += f"-v {source_path}:{target}:{opts_str} "
-                    else:
-                        create_command += f"-v {source_path}:{target} "
-                elif type == "volume":
-                    # 对于命名卷，直接使用卷名
-                    if opts_str:
-                        create_command += f"-v {source}:{target}:{opts_str} "
-                    else:
-                        create_command += f"-v {source}:{target} "
+    # 兼容旧版docker inspect格式，补充MountPoints和Volumes
+    mount_points = container_info[0].get("MountPoints", {})
+    volumes = container_info[0].get("Volumes", {})
+    all_mount_targets = set()
+    # 先收集已拼接的目标目录
+    for mount in mounts:
+        if mount.get("Target"):
+            all_mount_targets.add(mount["Target"])
+    # 检查MountPoints
+    for target, mp in mount_points.items():
+        if target not in all_mount_targets:
+            source = mp.get("Source")
+            if source:
+                logging.info(f"自动补全挂载: {source} -> {target}")
+                create_command += f"-v {source}:{target} "
+                all_mount_targets.add(target)
+    # 检查Volumes
+    for target, source in volumes.items():
+        if target not in all_mount_targets:
+            logging.info(f"自动补全挂载: {source} -> {target}")
+            create_command += f"-v {source}:{target} "
+            all_mount_targets.add(target)
 
     # 继承网络设置
     networks = container_info[0].get("NetworkSettings", {}).get("Networks", {})
@@ -208,8 +183,6 @@ def recreate_container(ssh, old_container_name, new_image_url):
                 create_command += f":{cgroupPermissions}"
             create_command += " "
 
-    # 在执行docker run前打印最终命令
-    logging.info(f"最终docker run命令: {create_command}")
     time.sleep(5)
     create_command += f"{new_image_url}"
 
