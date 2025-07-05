@@ -228,6 +228,17 @@ export const usePasskey = (): UsePasskeyReturn & {
                             timestamp: new Date().toISOString()
                         });
                     }
+                } else if (asseResp.id) {
+                    // 如果已有id字段，确保它是base64url格式
+                    if (asseResp.id.includes('+') || asseResp.id.includes('/') || asseResp.id.includes('=')) {
+                        asseResp.id = asseResp.id.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+                        addDebugInfo({
+                            action: '修复现有id字段格式',
+                            originalId: asseResp.id,
+                            fixedId: asseResp.id.substring(0, 20) + '...',
+                            timestamp: new Date().toISOString()
+                        });
+                    }
                 }
                 
             } catch (error) {
@@ -317,25 +328,26 @@ export const usePasskey = (): UsePasskeyReturn & {
             };
             
             // 确保id字段也是正确的base64url格式
-            if (responseToSend.id && !responseToSend.id.match(/^[A-Za-z0-9_-]+$/)) {
-                try {
-                    // 如果id不是base64url格式，尝试转换
-                    const uint8Array = new Uint8Array(asseResp.rawId);
-                    const base64String = btoa(String.fromCharCode(...uint8Array));
-                    responseToSend.id = base64String.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-                    
-                    addDebugInfo({
-                        action: '修复id字段格式',
-                        originalId: asseResp.id,
-                        fixedId: responseToSend.id.substring(0, 20) + '...',
-                        timestamp: new Date().toISOString()
-                    });
-                } catch (error) {
-                    addDebugInfo({
-                        action: 'id字段格式修复失败',
-                        error: error instanceof Error ? error.message : String(error),
-                        timestamp: new Date().toISOString()
-                    });
+            if (responseToSend.id) {
+                // 检查id是否包含base64标准字符，需要转换为base64url
+                if (responseToSend.id.includes('+') || responseToSend.id.includes('/') || responseToSend.id.includes('=')) {
+                    try {
+                        // 如果id包含base64标准字符，转换为base64url格式
+                        responseToSend.id = responseToSend.id.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+                        
+                        addDebugInfo({
+                            action: '修复id字段格式',
+                            originalId: asseResp.id,
+                            fixedId: responseToSend.id.substring(0, 20) + '...',
+                            timestamp: new Date().toISOString()
+                        });
+                    } catch (error) {
+                        addDebugInfo({
+                            action: 'id字段格式修复失败',
+                            error: error instanceof Error ? error.message : String(error),
+                            timestamp: new Date().toISOString()
+                        });
+                    }
                 }
             }
             
