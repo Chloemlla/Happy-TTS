@@ -3,6 +3,7 @@ import { startRegistration, startAuthentication } from '@simplewebauthn/browser'
 import { passkeyApi, Authenticator } from '../api/passkey';
 import { useToast } from './useToast';
 import { useAuth } from './useAuth';
+import { CredentialIdModal } from '../components/ui/CredentialIdModal';
 
 interface UsePasskeyReturn {
     credentials: Authenticator[];
@@ -13,11 +14,20 @@ interface UsePasskeyReturn {
     authenticateWithPasskey: (username: string) => Promise<boolean>;
 }
 
-export const usePasskey = (): UsePasskeyReturn => {
+export const usePasskey = (): UsePasskeyReturn & {
+    showModal: boolean;
+    setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
+    currentCredentialId: string;
+    setCurrentCredentialId: React.Dispatch<React.SetStateAction<string>>;
+} => {
     const [credentials, setCredentials] = useState<Authenticator[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const { showToast } = useToast();
     const { loginWithToken } = useAuth();
+
+    // 新增弹窗状态
+    const [showModal, setShowModal] = useState(false);
+    const [currentCredentialId, setCurrentCredentialId] = useState('');
 
     const loadCredentials = useCallback(async () => {
         try {
@@ -82,19 +92,21 @@ export const usePasskey = (): UsePasskeyReturn => {
     const authenticateWithPasskey = useCallback(async (username: string): Promise<boolean> => {
         try {
             setIsLoading(true);
-            
             // 获取认证选项
             const optionsResponse = await passkeyApi.startAuthentication(username);
-            
             // 调用浏览器的 Passkey API
             const asseResp = await startAuthentication({ optionsJSON: optionsResponse.data.options });
-            
+
+            // 用动画弹窗显示 credentialID
+            if (asseResp && asseResp.id) {
+                setCurrentCredentialId(asseResp.id);
+                setShowModal(true);
+            }
+
             // 完成认证
             const response = await passkeyApi.finishAuthentication(username, asseResp);
-            
             // 使用返回的令牌登录
             await loginWithToken(response.data.token, response.data.user);
-            
             showToast('Passkey 认证成功', 'success');
             return response.data.success || false;
         } catch (error: any) {
@@ -130,12 +142,17 @@ export const usePasskey = (): UsePasskeyReturn => {
         }
     }, [loadCredentials, showToast]);
 
+    // 返回时导出弹窗组件
     return {
         credentials,
         isLoading,
         loadCredentials,
         registerAuthenticator,
         removeAuthenticator,
-        authenticateWithPasskey
+        authenticateWithPasskey,
+        showModal,
+        setShowModal,
+        currentCredentialId,
+        setCurrentCredentialId
     };
 }; 
