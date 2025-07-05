@@ -513,11 +513,38 @@ export class PasskeyService {
         } else if (response.id) {
             // 如果直接有id字段（base64url字符串），直接使用
             responseIdBase64 = response.id;
+            
+            // 检查id格式，如果不是base64url格式，尝试转换
+            if (!responseIdBase64.match(/^[A-Za-z0-9_-]+$/)) {
+                logger.warn('[Passkey] id字段格式不是base64url，尝试转换', {
+                    userId: user.id,
+                    originalId: responseIdBase64,
+                    idLength: responseIdBase64.length
+                });
+                
+                try {
+                    // 尝试从base64解码再重新编码为base64url
+                    const buffer = Buffer.from(responseIdBase64, 'base64');
+                    responseIdBase64 = buffer.toString('base64url');
+                    logger.info('[Passkey] id字段格式转换成功', {
+                        userId: user.id,
+                        convertedId: responseIdBase64.substring(0, 10) + '...'
+                    });
+                } catch (error) {
+                    logger.error('[Passkey] id字段格式转换失败', {
+                        userId: user.id,
+                        error: error instanceof Error ? error.message : String(error)
+                    });
+                    throw new Error('credentialID格式无效');
+                }
+            }
+            
             logger.info('[Passkey] 直接使用id字段', {
                 userId: user.id,
                 idLength: response.id.length,
                 id: response.id.substring(0, 10) + '...',
-                idValue: response.id
+                idValue: response.id,
+                finalId: responseIdBase64.substring(0, 10) + '...'
             });
         } else {
             // 如果都没有，记录错误信息

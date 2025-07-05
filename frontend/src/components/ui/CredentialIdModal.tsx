@@ -24,7 +24,7 @@ export const CredentialIdModal: React.FC<CredentialIdModalProps> = ({ open, cred
           exit={{ scale: 0.8, opacity: 0 }}
           onClick={e => e.stopPropagation()}
         >
-          <div className="font-bold text-lg mb-2">前端 credentialID</div>
+          <div className="font-bold text-lg mb-2">验证器 CredentialID</div>
           <div className="break-all text-sm bg-gray-100 p-2 rounded">{credentialId}</div>
           <button
             className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"

@@ -298,7 +298,7 @@ export const usePasskey = (): UsePasskeyReturn & {
                     signature: asseResp.response?.signature,
                     userHandle: asseResp.response?.userHandle
                 },
-                // 如果rawId存在，转换为base64url字符串而不是数组
+                // 确保rawId是正确的base64url格式
                 rawId: asseResp.rawId ? (() => {
                     try {
                         const uint8Array = new Uint8Array(asseResp.rawId);
@@ -315,6 +315,39 @@ export const usePasskey = (): UsePasskeyReturn & {
                     }
                 })() : undefined
             };
+            
+            // 确保id字段也是正确的base64url格式
+            if (responseToSend.id && !responseToSend.id.match(/^[A-Za-z0-9_-]+$/)) {
+                try {
+                    // 如果id不是base64url格式，尝试转换
+                    const uint8Array = new Uint8Array(asseResp.rawId);
+                    const base64String = btoa(String.fromCharCode(...uint8Array));
+                    responseToSend.id = base64String.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+                    
+                    addDebugInfo({
+                        action: '修复id字段格式',
+                        originalId: asseResp.id,
+                        fixedId: responseToSend.id.substring(0, 20) + '...',
+                        timestamp: new Date().toISOString()
+                    });
+                } catch (error) {
+                    addDebugInfo({
+                        action: 'id字段格式修复失败',
+                        error: error instanceof Error ? error.message : String(error),
+                        timestamp: new Date().toISOString()
+                    });
+                }
+            }
+            
+            // 记录credentialID的详细信息
+            addDebugInfo({
+                action: 'credentialID详细信息',
+                originalId: asseResp.id,
+                finalId: responseToSend.id,
+                rawIdExists: !!asseResp.rawId,
+                rawIdLength: asseResp.rawId?.byteLength,
+                timestamp: new Date().toISOString()
+            });
             
             addDebugInfo({
                 action: '最终发送的响应对象',

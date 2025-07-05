@@ -8,6 +8,7 @@ import { usePasskey } from '../hooks/usePasskey';
 import { DebugInfoModal } from './DebugInfoModal';
 import { Dialog } from './ui/Dialog';
 import { Button } from './ui/Button';
+import VerificationMethodSelector from './VerificationMethodSelector';
 
 interface AuthFormProps {
     onSuccess?: () => void;
@@ -41,6 +42,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
     const [pendingUserId, setPendingUserId] = useState<string>('');
     const [pendingToken, setPendingToken] = useState<string>('');
     const [showPasskeyVerification, setShowPasskeyVerification] = useState(false);
+    const [showVerificationSelector, setShowVerificationSelector] = useState(false);
+    const [pendingVerificationData, setPendingVerificationData] = useState<any>(null);
 
     // 密码复杂度检查
     const checkPasswordStrength = (pwd: string): PasswordStrength => {
@@ -181,10 +184,26 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
                     setPendingUser(result.user);
                     setPendingUserId(result.user.id);
                     setPendingToken(result.token);
-                    // 根据二次验证类型显示相应的验证界面
-                    if (result.twoFactorType.includes('Passkey')) {
+                    
+                    // 检查是否同时启用了多种验证方式
+                    const verificationTypes = result.twoFactorType;
+                    const hasPasskey = verificationTypes.includes('Passkey');
+                    const hasTOTP = verificationTypes.includes('TOTP');
+                    
+                    if (hasPasskey && hasTOTP) {
+                        // 同时启用两种验证方式，显示选择弹窗
+                        setPendingVerificationData({
+                            user: result.user,
+                            userId: result.user.id,
+                            token: result.token,
+                            username: sanitizedUsername
+                        });
+                        setShowVerificationSelector(true);
+                    } else if (hasPasskey) {
+                        // 只启用Passkey
                         setShowPasskeyVerification(true);
-                    } else if (result.twoFactorType.includes('TOTP')) {
+                    } else if (hasTOTP) {
+                        // 只启用TOTP
                         setShowTOTPVerification(true);
                     }
                     return;
@@ -275,6 +294,38 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
             }
         } catch (e: any) {
             setError(e.message || 'Passkey 验证失败');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // 验证方式选择处理
+    const handleVerificationMethodSelect = async (method: 'passkey' | 'totp') => {
+        setShowVerificationSelector(false);
+        setLoading(true);
+        
+        try {
+            if (method === 'passkey') {
+                // 处理Passkey验证
+                const success = await authenticateWithPasskey(pendingVerificationData.username);
+                if (success) {
+                    setPendingVerificationData(null);
+                    window.location.reload();
+                } else {
+                    setError('Passkey 验证失败');
+                }
+            } else if (method === 'totp') {
+                // 处理TOTP验证
+                setPending2FA({
+                    userId: pendingVerificationData.userId,
+                    token: pendingVerificationData.token,
+                    username: pendingVerificationData.username,
+                    type: ['TOTP']
+                });
+                setShowTOTPVerification(true);
+            }
+        } catch (e: any) {
+            setError(e.message || '验证失败');
         } finally {
             setLoading(false);
         }
@@ -456,6 +507,20 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
                     }}
                     userId={pending2FA?.userId || ''}
                     token={pending2FA?.token || ''}
+                />
+            )}
+
+            {/* 验证方式选择弹窗 */}
+            {showVerificationSelector && pendingVerificationData && (
+                <VerificationMethodSelector
+                    isOpen={showVerificationSelector}
+                    onClose={() => {
+                        setShowVerificationSelector(false);
+                        setPendingVerificationData(null);
+                    }}
+                    onSelectMethod={handleVerificationMethodSelect}
+                    username={pendingVerificationData.username}
+                    loading={loading}
                 />
             )}
 
