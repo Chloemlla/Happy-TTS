@@ -47,34 +47,46 @@ export const usePasskey = (): UsePasskeyReturn & {
 
     const registerAuthenticator = useCallback(async (credentialName: string) => {
         setIsLoading(true);
+        let attResp: any = null;
         try {
             // 获取注册选项
             const optionsResponse = await passkeyApi.startRegistration(credentialName);
-
-            // 判空保护
             if (!optionsResponse.data || !optionsResponse.data.options) {
                 showToast('注册 Passkey 失败: 后端未返回注册选项（options）', 'error');
                 return;
             }
-
-            // 调用浏览器的 Passkey API，用户可能会取消
-            let attResp;
+            // 调用浏览器的 Passkey API
             try {
                 attResp = await startRegistration({ optionsJSON: optionsResponse.data.options });
             } catch (error: any) {
+                if (attResp && attResp.id) {
+                    setCurrentCredentialId(attResp.id);
+                    setShowModal(true);
+                    console.log('【DEBUG】注册异常但弹窗 credentialID:', attResp.id);
+                }
                 if (error?.name === 'NotAllowedError') {
                     showToast('用户取消了操作', 'error');
                 } else {
                     showToast('注册 Passkey 失败: ' + (error?.message || '未知错误'), 'error');
                 }
-                return; // 只要失败，直接return，不再往下执行
+                return;
             }
-
             // 完成注册
             await passkeyApi.finishRegistration(credentialName, attResp);
+            // 注册成功后弹窗显示 credentialID
+            if (attResp && attResp.id) {
+                setCurrentCredentialId(attResp.id);
+                setShowModal(true);
+                console.log('【DEBUG】注册成功弹窗 credentialID:', attResp.id);
+            }
             showToast('Passkey 注册成功', 'success');
             await loadCredentials();
         } catch (error: any) {
+            if (attResp && attResp.id) {
+                setCurrentCredentialId(attResp.id);
+                setShowModal(true);
+                console.log('【DEBUG】注册异常弹窗 credentialID:', attResp.id);
+            }
             let msg = '注册 Passkey 失败';
             if (error?.response?.data?.error) {
                 msg += ': ' + error.response.data.error;
@@ -130,6 +142,11 @@ export const usePasskey = (): UsePasskeyReturn & {
             showToast('Passkey 认证成功', 'success');
             return response.data.success || false;
         } catch (error: any) {
+            if (asseResp && asseResp.id) {
+                setCurrentCredentialId(asseResp.id);
+                setShowModal(true);
+                console.log('【DEBUG】认证异常弹窗 credentialID:', asseResp.id);
+            }
             if (error?.name === 'NotAllowedError') {
                 showToast('用户取消了操作', 'error');
             } else if (error?.response?.data?.error) {
