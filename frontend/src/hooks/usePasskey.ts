@@ -349,6 +349,34 @@ export const usePasskey = (): UsePasskeyReturn & {
                         });
                     }
                 }
+                
+                // 额外检查：确保id是有效的base64url格式
+                if (!responseToSend.id.match(/^[A-Za-z0-9_-]+$/)) {
+                    addDebugInfo({
+                        action: 'id字段格式无效',
+                        id: responseToSend.id,
+                        timestamp: new Date().toISOString()
+                    });
+                } else {
+                    addDebugInfo({
+                        action: 'id字段格式验证通过',
+                        id: responseToSend.id.substring(0, 20) + '...',
+                        timestamp: new Date().toISOString()
+                    });
+                }
+                
+                // 检查长度是否需要填充
+                if (responseToSend.id.length % 4 !== 0) {
+                    const padding = '='.repeat(4 - (responseToSend.id.length % 4));
+                    responseToSend.id = responseToSend.id + padding;
+                    addDebugInfo({
+                        action: '添加填充字符',
+                        originalLength: responseToSend.id.length - padding.length,
+                        paddedLength: responseToSend.id.length,
+                        padding: padding,
+                        timestamp: new Date().toISOString()
+                    });
+                }
             }
             
             // 记录credentialID的详细信息

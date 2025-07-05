@@ -539,6 +539,33 @@ export class PasskeyService {
                 }
             }
             
+            // 检查长度是否需要填充
+            if (responseIdBase64.length % 4 !== 0) {
+                logger.warn('[Passkey] credentialID长度不是4的倍数，可能需要填充', {
+                    userId: user.id,
+                    originalLength: responseIdBase64.length,
+                    originalId: responseIdBase64.substring(0, 10) + '...'
+                });
+                
+                // 尝试添加填充字符
+                const paddedId = responseIdBase64 + '='.repeat(4 - (responseIdBase64.length % 4));
+                try {
+                    const buffer = Buffer.from(paddedId, 'base64url');
+                    logger.info('[Passkey] 添加填充后解码成功', {
+                        userId: user.id,
+                        paddedId: paddedId.substring(0, 10) + '...',
+                        bufferLength: buffer.length
+                    });
+                    // 使用填充后的ID
+                    responseIdBase64 = paddedId;
+                } catch (error) {
+                    logger.warn('[Passkey] 添加填充后解码失败，使用原始长度', {
+                        userId: user.id,
+                        error: error instanceof Error ? error.message : String(error)
+                    });
+                }
+            }
+            
             logger.info('[Passkey] 直接使用id字段', {
                 userId: user.id,
                 idLength: response.id.length,
@@ -634,8 +661,21 @@ export class PasskeyService {
 
         let verification: VerifiedAuthenticationResponse;
         try {
+            // 确保传递给verifyAuthenticationResponse的response对象中的id字段是base64url格式
+            const responseToVerify = {
+                ...response,
+                id: responseIdBase64 // 使用我们处理过的credentialID
+            };
+            
+            logger.info('[Passkey] 准备调用verifyAuthenticationResponse', {
+                userId: user.id,
+                responseId: responseIdBase64.substring(0, 10) + '...',
+                authenticatorCredentialID: authenticator.credentialID.substring(0, 10) + '...',
+                responseKeys: Object.keys(responseToVerify)
+            });
+            
             verification = await verifyAuthenticationResponse({
-                response,
+                response: responseToVerify,
                 expectedChallenge: user.pendingChallenge,
                 expectedOrigin: requestOrigin || getRpOrigin(),
                 expectedRPID: getRpId(),
