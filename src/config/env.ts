@@ -8,5 +8,8 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 export const env = {
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   OPENAI_BASE_URL: process.env.OPENAI_BASE_URL,
-  PORT: process.env.PORT || '3000'
+  PORT: process.env.PORT || '3000',
+  // Passkey 相关配置
+  RP_ID: process.env.RP_ID || 'tts.hapx.one',
+  RP_ORIGIN: process.env.RP_ORIGIN || 'https://tts.hapx.one'
 }; 

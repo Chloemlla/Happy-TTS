@@ -11,6 +11,7 @@ import { User, UserStorage } from '../utils/userStorage';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/config';
 import logger from '../utils/logger';
+import { env } from '../config/env';
 
 // 认证器模型
 interface Authenticator {
@@ -24,13 +25,12 @@ interface Authenticator {
 
 // 获取 RP ID（依赖域名）
 const getRpId = () => {
-    const rpId = process.env.RP_ID || 'localhost';
-    return rpId;
+    return env.RP_ID;
 };
 
 // 获取 RP 原点
 const getRpOrigin = () => {
-    return process.env.RP_ORIGIN || 'http://localhost:3001';
+    return env.RP_ORIGIN;
 };
 
 export class PasskeyService {
@@ -139,7 +139,7 @@ export class PasskeyService {
         await UserStorage.updateUser(user.id, {
             passkeyEnabled: true,
             passkeyCredentials: [...(user.passkeyCredentials || []), newCredential],
-            currentChallenge: undefined
+            pendingChallenge: undefined
         });
 
         return verification;
@@ -181,8 +181,10 @@ export class PasskeyService {
         }
 
         const userAuthenticators = user.passkeyCredentials || [];
+        // 使用 base64 编码的 credentialID 进行匹配
+        const responseIdBase64 = isoBase64URL.fromBuffer(response.rawId);
         const authenticator = userAuthenticators.find(
-            auth => auth.id === response.id
+            auth => auth.credentialID === responseIdBase64
         );
 
         if (!authenticator) {
@@ -210,7 +212,7 @@ export class PasskeyService {
         if (verification.verified) {
             // 更新认证器计数器
             const updatedCredentials = userAuthenticators.map(cred =>
-                cred.id === authenticator.id
+                cred.credentialID === responseIdBase64
                     ? { ...cred, counter: verification.authenticationInfo.newCounter }
                     : cred
             );

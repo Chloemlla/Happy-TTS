@@ -10,7 +10,7 @@ interface UsePasskeyReturn {
     loadCredentials: () => Promise<void>;
     registerAuthenticator: (name: string) => Promise<void>;
     removeAuthenticator: (id: string) => Promise<void>;
-    authenticateWithPasskey: () => Promise<boolean>;
+    authenticateWithPasskey: (username: string) => Promise<boolean>;
 }
 
 export const usePasskey = (): UsePasskeyReturn => {
@@ -70,6 +70,8 @@ export const usePasskey = (): UsePasskeyReturn => {
                 msg += ': ' + error.response.data.error;
             } else if (error?.message) {
                 msg += ': ' + error.message;
+            } else if (error?.name === 'NotAllowedError') {
+                msg = '用户取消了操作';
             }
             showToast(msg, 'error');
         } finally {
@@ -77,18 +79,18 @@ export const usePasskey = (): UsePasskeyReturn => {
         }
     }, [loadCredentials, showToast]);
 
-    const authenticateWithPasskey = useCallback(async (): Promise<boolean> => {
+    const authenticateWithPasskey = useCallback(async (username: string): Promise<boolean> => {
         try {
             setIsLoading(true);
             
             // 获取认证选项
-            const optionsResponse = await passkeyApi.startAuthentication();
+            const optionsResponse = await passkeyApi.startAuthentication(username);
             
             // 调用浏览器的 Passkey API
             const asseResp = await startAuthentication({ optionsJSON: optionsResponse.data.options });
             
             // 完成认证
-            const response = await passkeyApi.finishAuthentication(asseResp);
+            const response = await passkeyApi.finishAuthentication(username, asseResp);
             
             // 使用返回的令牌登录
             await loginWithToken(response.data.token, response.data.user);
@@ -96,8 +98,12 @@ export const usePasskey = (): UsePasskeyReturn => {
             showToast('Passkey 认证成功', 'success');
             return response.data.success || false;
         } catch (error: any) {
-            if (error.name === 'NotAllowedError') {
+            if (error?.name === 'NotAllowedError') {
                 showToast('用户取消了操作', 'error');
+            } else if (error?.response?.data?.error) {
+                showToast('Passkey 认证失败: ' + error.response.data.error, 'error');
+            } else if (error?.message) {
+                showToast('Passkey 认证失败: ' + error.message, 'error');
             } else {
                 showToast('Passkey 认证失败', 'error');
             }

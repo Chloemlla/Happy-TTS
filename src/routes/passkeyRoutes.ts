@@ -68,7 +68,7 @@ router.post('/register/start', authenticateToken, async (req, res) => {
         }
 
         await UserStorage.updateUser(userId, {
-            currentChallenge: options.challenge
+            pendingChallenge: options.challenge
         });
 
         res.json({ options });
@@ -122,13 +122,14 @@ router.post('/authenticate/start', async (req, res) => {
         
         // 保存 challenge 到用户数据中
         await UserStorage.updateUser(user.id, {
-            currentChallenge: options.challenge
+            pendingChallenge: options.challenge
         });
 
         res.json({ options });
-    } catch (error) {
+    } catch (error: any) {
         console.error('生成 Passkey 认证选项失败:', error);
-        res.status(500).json({ error: '生成 Passkey 认证选项失败' });
+        const errorMessage = error?.message || '生成 Passkey 认证选项失败';
+        res.status(500).json({ error: errorMessage });
     }
 });
 
@@ -152,9 +153,10 @@ router.post('/authenticate/finish', async (req, res) => {
             token: token,
             user: { id: user.id, username: user.username }
         });
-    } catch (error) {
+    } catch (error: any) {
         console.error('完成 Passkey 认证失败:', error);
-        res.status(500).json({ error: '完成 Passkey 认证失败' });
+        const errorMessage = error?.message || '完成 Passkey 认证失败';
+        res.status(500).json({ error: errorMessage });
     }
 });
 

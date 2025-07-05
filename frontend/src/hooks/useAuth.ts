@@ -42,7 +42,7 @@ export const useAuth = () => {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     const [pendingTOTP, setPendingTOTP] = useState<{ userId: string; token: string } | null>(null);
-    const [pending2FA, setPending2FA] = useState<{ userId: string; token: string; type: string[] } | null>(null);
+    const [pending2FA, setPending2FA] = useState<{ userId: string; token: string; type: string[]; username?: string } | null>(null);
     const navigate = useNavigate();
     const location = useLocation();
     const [isChecking, setIsChecking] = useState(false);
@@ -157,7 +157,7 @@ export const useAuth = () => {
             });
             const { user, token, requires2FA, twoFactorType } = response.data;
             if (requires2FA && twoFactorType && twoFactorType.length > 0) {
-                setPending2FA({ userId: user.id, token, type: twoFactorType });
+                setPending2FA({ userId: user.id, token, type: twoFactorType, username: user.username });
                 return { requires2FA: true, user, token, twoFactorType };
             } else {
                 localStorage.setItem('token', token);

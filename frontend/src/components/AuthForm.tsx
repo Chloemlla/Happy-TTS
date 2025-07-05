@@ -171,11 +171,16 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
             const sanitizedPassword = password;
             if (isLogin) {
                 const result = await login(sanitizedUsername, sanitizedPassword);
-                if (result && result.twoFactorType) {
+                if (result && result.requires2FA && result.twoFactorType) {
                     setPendingUser(result.user);
                     setPendingUserId(result.user.id);
                     setPendingToken(result.token);
-                    setShowTOTPVerification(true);
+                    // 根据二次验证类型显示相应的验证界面
+                    if (result.twoFactorType.includes('Passkey')) {
+                        setShowPasskeyVerification(true);
+                    } else if (result.twoFactorType.includes('TOTP')) {
+                        setShowTOTPVerification(true);
+                    }
                     return;
                 }
             } else {
@@ -235,7 +240,13 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
     const handlePasskeyVerify = async () => {
         setLoading(true);
         try {
-            const success = await authenticateWithPasskey();
+            // 从 pending2FA 中获取用户名，如果没有则使用当前输入的用户名
+            const currentUsername = pending2FA?.username || username;
+            if (!currentUsername) {
+                setError('无法获取用户名信息');
+                return;
+            }
+            const success = await authenticateWithPasskey(currentUsername);
             if (success) {
                 setShowPasskeyVerification(false);
                 setPending2FA(null);
