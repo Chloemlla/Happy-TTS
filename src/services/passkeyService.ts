@@ -427,7 +427,9 @@ export class PasskeyService {
         );
 
         if (!authenticator) {
-            throw new Error('找不到匹配的认证器');
+            // 新增详细错误信息，便于前后端比对
+            const allCredentialIDs = userAuthenticators.map(a => a.credentialID);
+            throw new Error(`找不到匹配的认证器 | 前端credentialID: ${responseIdBase64} | 后端credentialID列表: ${JSON.stringify(allCredentialIDs)}`);
         }
 
         let verification: VerifiedAuthenticationResponse;
