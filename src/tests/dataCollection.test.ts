@@ -3,6 +3,13 @@ import { dataCollectionService } from '../services/dataCollectionService';
 import fs from 'fs';
 import path from 'path';
 
+// Mock fs.promises
+jest.mock('fs/promises', () => ({
+  writeFile: jest.fn(),
+  appendFile: jest.fn(),
+  mkdir: jest.fn()
+}));
+
 describe('Data Collection Service', () => {
   const testDataDir = path.join(process.cwd(), 'test-data');
 
@@ -11,6 +18,9 @@ describe('Data Collection Service', () => {
     if (!fs.existsSync(testDataDir)) {
       fs.mkdirSync(testDataDir, { recursive: true });
     }
+    
+    // 清理mock
+    jest.clearAllMocks();
   });
 
   afterEach(() => {
@@ -38,14 +48,13 @@ describe('Data Collection Service', () => {
 
   it('应该正确处理无效数据', async () => {
     const invalidData = null;
-    await expect(dataCollectionService.saveData(invalidData as any)).rejects.toThrow();
+    await expect(dataCollectionService.saveData(invalidData as any)).rejects.toThrow('无效的数据格式');
   });
 
   it('应该正确处理文件系统错误', async () => {
     // 模拟文件系统错误
-    jest.spyOn(fs, 'writeFileSync').mockImplementation(() => {
-      throw new Error('文件系统错误');
-    });
+    const { writeFile } = require('fs/promises');
+    writeFile.mockRejectedValue(new Error('文件系统错误'));
 
     const testData = {
       userId: 'test-user',

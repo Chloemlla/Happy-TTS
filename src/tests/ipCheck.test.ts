@@ -6,7 +6,8 @@ import { config } from '../config/config';
 describe('IP Check Middleware', () => {
   let mockRequest: { 
     ip?: string; 
-    headers: { [key: string]: string }; 
+    headers: { [key: string]: string };
+    socket?: { remoteAddress?: string };
   };
   let mockResponse: { 
     status: jest.Mock; 
@@ -17,7 +18,8 @@ describe('IP Check Middleware', () => {
 
   beforeEach(() => {
     mockRequest = {
-      headers: {}
+      headers: {},
+      socket: {}
     };
     mockResponse = {
       status: jest.fn().mockReturnThis(),
@@ -69,6 +71,7 @@ describe('IP Check Middleware', () => {
   it('应该正确处理缺少IP信息的请求', () => {
     mockRequest.ip = undefined;
     mockRequest.headers = {};
+    mockRequest.socket = {};
     ipCheckMiddleware(mockRequest as unknown as Request, mockResponse as unknown as Response, nextFunction);
     expect(mockResponse.status).toHaveBeenCalledWith(400);
     expect(mockResponse.json).toHaveBeenCalledWith({ error: '无法确定客户端IP' });

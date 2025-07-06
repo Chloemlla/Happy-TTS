@@ -69,6 +69,11 @@ export async function ipCheckMiddleware(req: Request, res: Response, next: NextF
       (req as any).ip = realIP;
     }
     
+    // 为了测试兼容性，也设置到socket.remoteAddress
+    if (realIP) {
+      (req.socket as any).remoteAddress = realIP;
+    }
+    
     // 记录IP访问日志
     console.log(`IP访问: ${realIP || 'unknown'} - ${req.method} ${req.path}`);
     
