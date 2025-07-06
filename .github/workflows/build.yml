@@ -46,7 +46,7 @@ jobs:
 
       - name: Test
         run: |
-          npm test
+          npm test -- --detectOpenHandles
           cd frontend
           npm install -g vitest
           npm install -g @testing-library/jest-dom

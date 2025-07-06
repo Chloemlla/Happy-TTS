@@ -2,562 +2,455 @@
 sidebar_position: 5
 ---
 
-# 错误代码参考
+# Synapse API 错误代码参考
 
-本文档详细列出了 Synapse API 中可能遇到的所有错误代码及其解决方案。
+本文档列出了 Synapse API 中可能遇到的所有错误代码及其解决方案。
 
 ## HTTP 状态码
 
 ### 2xx - 成功
 
-| 状态码 | 描述         |
-| ------ | ------------ |
-| 200    | 请求成功     |
-| 201    | 资源创建成功 |
+- **200 OK**: 请求成功
+- **201 Created**: 资源创建成功
 
 ### 4xx - 客户端错误
 
-| 状态码 | 描述         | 常见原因                     |
-| ------ | ------------ | ---------------------------- |
-| 400    | 请求参数错误 | 参数格式不正确、缺少必需参数 |
-| 401    | 认证失败     | 令牌无效、过期或未提供       |
-| 403    | 权限不足     | 没有访问权限、生成码错误     |
-| 404    | 资源不存在   | 接口地址错误、用户不存在     |
-| 409    | 资源冲突     | 用户名已存在                 |
-| 429    | 请求频率超限 | 超过频率限制、使用次数达上限 |
+#### 400 Bad Request
 
-### 5xx - 服务器错误
+请求参数错误或格式不正确
 
-| 状态码 | 描述           | 常见原因             |
-| ------ | -------------- | -------------------- |
-| 500    | 服务器内部错误 | 系统异常、服务不可用 |
-| 502    | 网关错误       | 上游服务不可用       |
-| 503    | 服务不可用     | 系统维护、过载       |
+**常见原因**:
 
-## 详细错误信息
-
-### 认证相关错误
-
-#### 400 - 用户名或密码格式错误
-
-**错误信息**: `用户名或密码格式错误`
-
-**原因**: 输入的用户名或密码不符合格式要求
+- 缺少必需参数
+- 参数类型错误
+- 参数格式不正确
+- 请求体格式错误
 
 **解决方案**:
 
-- 用户名: 3-20 个字符，只能包含字母、数字、下划线
-- 密码: 6-50 个字符
-
-**示例**:
-
-```json
-{
-  "error": "用户名或密码格式错误"
-}
-```
-
-#### 400 - 用户名已存在
-
-**错误信息**: `用户名已存在`
-
-**原因**: 注册时使用的用户名已被其他用户使用
-
-**解决方案**: 选择其他用户名
-
-**示例**:
-
-```json
-{
-  "error": "用户名已存在"
-}
-```
-
-#### 401 - 用户名或密码错误
-
-**错误信息**: `用户名或密码错误`
-
-**原因**: 登录时提供的凭据不正确
-
-**解决方案**: 检查用户名和密码是否正确
-
-**示例**:
-
-```json
-{
-  "error": "用户名或密码错误"
-}
-```
-
-#### 401 - 令牌无效或已过期
-
-**错误信息**: `令牌无效或已过期`
-
-**原因**: JWT 令牌无效、过期或格式错误
-
-**解决方案**: 重新登录获取新的令牌
-
-**示例**:
-
-```json
-{
-  "error": "令牌无效或已过期"
-}
-```
-
-#### 403 - 权限不足
-
-**错误信息**: `权限不足`
-
-**原因**: 用户没有访问该资源的权限
-
-**解决方案**: 联系管理员获取相应权限
-
-**示例**:
-
-```json
-{
-  "error": "权限不足"
-}
-```
-
-### TTS 相关错误
-
-#### 400 - 文本内容不能为空
-
-**错误信息**: `文本内容不能为空`
-
-**原因**: 请求中缺少 text 参数或参数为空
-
-**解决方案**: 提供有效的文本内容
-
-**示例**:
-
-```json
-{
-  "error": "文本内容不能为空"
-}
-```
-
-#### 400 - 文本长度不能超过 4096 个字符
-
-**错误信息**: `文本长度不能超过4096个字符`
-
-**原因**: 提供的文本内容超过最大长度限制
-
-**解决方案**: 缩短文本内容或分段处理
-
-**示例**:
-
-```json
-{
-  "error": "文本长度不能超过4096个字符"
-}
-```
-
-#### 400 - 文本包含违禁内容，请修改后重试
-
-**错误信息**: `文本包含违禁内容，请修改后重试`
-
-**原因**: 文本内容包含系统检测到的违禁词汇
-
-**解决方案**: 修改文本内容，避免使用违禁词汇
-
-**示例**:
-
-```json
-{
-  "error": "文本包含违禁内容，请修改后重试"
-}
-```
-
-#### 400 - 您已经生成过相同的内容，请登录以获取更多使用次数
-
-**错误信息**: `您已经生成过相同的内容，请登录以获取更多使用次数`
-
-**原因**: 未登录用户尝试重复生成相同内容
-
-**解决方案**: 登录账户或修改文本内容
-
-**示例**:
-
-```json
-{
-  "error": "您已经生成过相同的内容，请登录以获取更多使用次数"
-}
-```
-
-#### 403 - 生成码无效
-
-**错误信息**: `生成码无效`
-
-**原因**: generationCode 参数错误或未提供
-
-**解决方案**: 检查并修正 generationCode 参数
-
-**示例**:
-
-```json
-{
-  "error": "生成码无效"
-}
-```
-
-### 频率限制错误
-
-#### 429 - 请求过于频繁，请稍后再试
-
-**错误信息**: `请求过于频繁，请稍后再试`
-
-**原因**: 请求频率超过系统限制
-
-**解决方案**: 降低请求频率，等待一段时间后重试
-
-**示例**:
-
-```json
-{
-  "error": "请求过于频繁，请稍后再试"
-}
-```
-
-#### 429 - 登录尝试次数过多，请 15 分钟后再试
-
-**错误信息**: `登录尝试次数过多，请15分钟后再试`
-
-**原因**: 短时间内登录失败次数过多
-
-**解决方案**: 等待 15 分钟后重试
-
-**示例**:
-
-```json
-{
-  "error": "登录尝试次数过多，请15分钟后再试"
-}
-```
-
-#### 429 - 注册尝试次数过多，请稍后再试
-
-**错误信息**: `注册尝试次数过多，请稍后再试`
-
-**原因**: 短时间内注册尝试次数过多
-
-**解决方案**: 等待 1 小时后重试
-
-**示例**:
-
-```json
-{
-  "error": "注册尝试次数过多，请稍后再试"
-}
-```
-
-#### 429 - 您今日的使用次数已达上限
-
-**错误信息**: `您今日的使用次数已达上限`
-
-**原因**: 用户当日 TTS 使用次数已达到限制
-
-**解决方案**: 等待次日或联系管理员提升限制
-
-**示例**:
-
-```json
-{
-  "error": "您今日的使用次数已达上限"
-}
-```
-
-### 管理员接口错误
-
-#### 403 - 需要管理员权限
-
-**错误信息**: `需要管理员权限`
-
-**原因**: 非管理员用户尝试访问管理员接口
-
-**解决方案**: 使用管理员账户登录
-
-**示例**:
-
-```json
-{
-  "error": "需要管理员权限"
-}
-```
-
-#### 404 - 用户不存在
-
-**错误信息**: `用户不存在`
-
-**原因**: 管理员接口中指定的用户 ID 不存在
-
-**解决方案**: 检查用户 ID 是否正确
-
-**示例**:
-
-```json
-{
-  "error": "用户不存在"
-}
-```
-
-### 系统错误
-
-#### 500 - 生成语音失败
-
-**错误信息**: `生成语音失败`
-
-**原因**: 服务器内部错误，TTS 服务异常
-
-**解决方案**: 稍后重试或联系技术支持
-
-**示例**:
-
-```json
-{
-  "error": "生成语音失败"
-}
-```
-
-#### 500 - 违禁词检测服务暂时不可用，请稍后重试
-
-**错误信息**: `违禁词检测服务暂时不可用，请稍后重试`
-
-**原因**: 违禁词检测服务暂时不可用
-
-**解决方案**: 稍后重试
-
-**示例**:
-
-```json
-{
-  "error": "违禁词检测服务暂时不可用，请稍后重试"
-}
-```
-
-## 错误处理最佳实践
-
-### 1. 统一的错误处理函数
-
 ```javascript
-// 统一的错误处理函数
-function handleApiError(response) {
-  if (response.ok) {
-    return response.json();
-  }
-
-  return response.json().then((errorData) => {
-    const error = new Error(errorData.error || "请求失败");
-    error.status = response.status;
-    error.data = errorData;
-    throw error;
-  });
-}
-
-// 使用示例
-async function apiRequest(url, options = {}) {
-  try {
-    const response = await fetch(url, options);
-    return await handleApiError(response);
-  } catch (error) {
-    console.error("API 请求失败:", error);
-    throw error;
+// 检查请求参数
+const requiredParams = ["username", "password"];
+for (const param of requiredParams) {
+  if (!data[param]) {
+    throw new Error(`缺少必需参数: ${param}`);
   }
 }
 ```
 
-### 2. 错误分类处理
+#### 401 Unauthorized
+
+未认证或认证失败
+
+**常见原因**:
+
+- 未提供 JWT token
+- JWT token 已过期
+- JWT token 格式错误
+- 用户名或密码错误
+
+**解决方案**:
 
 ```javascript
-// 错误分类处理
-function handleErrorByType(error) {
-  const status = error.status;
-
-  switch (status) {
-    case 400:
-      handleBadRequest(error);
-      break;
-    case 401:
-      handleUnauthorized(error);
-      break;
-    case 403:
-      handleForbidden(error);
-      break;
-    case 429:
-      handleRateLimit(error);
-      break;
-    case 500:
-      handleServerError(error);
-      break;
-    default:
-      handleUnknownError(error);
-  }
+// 检查 token 是否存在
+if (!token) {
+  // 重新登录
+  await login(username, password);
 }
 
-// 处理不同类型的错误
-function handleBadRequest(error) {
-  const message = error.data?.error || "请求参数错误";
-  showMessage(message, "warning");
-}
-
-function handleUnauthorized(error) {
-  const message = error.data?.error || "认证失败";
-  showMessage(message, "error");
-
-  // 清除本地存储的令牌
-  localStorage.removeItem("auth_token");
-
-  // 重定向到登录页面
-  setTimeout(() => {
-    window.location.href = "/login";
-  }, 2000);
-}
-
-function handleForbidden(error) {
-  const message = error.data?.error || "权限不足";
-  showMessage(message, "error");
-}
-
-function handleRateLimit(error) {
-  const message = error.data?.error || "请求过于频繁";
-  showMessage(message, "warning");
-
-  // 显示重试倒计时
-  showRetryCountdown();
-}
-
-function handleServerError(error) {
-  const message = error.data?.error || "服务器内部错误";
-  showMessage(message, "error");
-
-  // 记录错误日志
-  logError(error);
+// 检查 token 是否过期
+try {
+  const decoded = jwt.verify(token, secret);
+} catch (error) {
+  // token 过期，重新登录
+  await login(username, password);
 }
 ```
 
-### 3. 重试机制
+#### 403 Forbidden
+
+权限不足
+
+**常见原因**:
+
+- 用户角色权限不足
+- 管理员密码错误
+- IP 被封禁
+- 账户被禁用
+
+**解决方案**:
 
 ```javascript
-// 带重试的请求函数
-async function apiRequestWithRetry(url, options = {}, maxRetries = 3) {
+// 检查用户权限
+const user = await getCurrentUser();
+if (user.role !== "admin") {
+  throw new Error("需要管理员权限");
+}
+
+// 检查 IP 是否被封禁
+if (response.status === 403 && response.data.error.includes("封禁")) {
+  // 等待一段时间后重试
+  await new Promise((resolve) => setTimeout(resolve, 60000));
+}
+```
+
+#### 404 Not Found
+
+资源不存在
+
+**常见原因**:
+
+- API 路径错误
+- 用户不存在
+- 文件不存在
+- 记录不存在
+
+**解决方案**:
+
+```javascript
+// 检查 API 路径
+const validPaths = ["/api/auth/login", "/api/tts/generate"];
+if (!validPaths.includes(path)) {
+  throw new Error("API 路径不存在");
+}
+
+// 检查用户是否存在
+const user = await getUser(username);
+if (!user) {
+  throw new Error("用户不存在");
+}
+```
+
+#### 429 Too Many Requests
+
+请求过于频繁（限流）
+
+**常见原因**:
+
+- 超过接口调用频率限制
+- 短时间内发送过多请求
+
+**解决方案**:
+
+```javascript
+// 指数退避重试
+async function handleRateLimit(fn, maxRetries = 3) {
   for (let i = 0; i < maxRetries; i++) {
     try {
-      const response = await fetch(url, options);
-
-      if (response.ok) {
-        return await response.json();
-      }
-
-      const errorData = await response.json();
-
-      // 对于某些错误不进行重试
-      if (
-        response.status === 400 ||
-        response.status === 401 ||
-        response.status === 403
-      ) {
-        throw new Error(errorData.error);
-      }
-
-      // 对于频率限制，等待后重试
-      if (response.status === 429) {
-        const waitTime = Math.pow(2, i) * 1000; // 指数退避
-        await new Promise((resolve) => setTimeout(resolve, waitTime));
-        continue;
-      }
-
-      throw new Error(errorData.error);
+      return await fn();
     } catch (error) {
-      if (i === maxRetries - 1) {
-        throw error;
+      if (error.status === 429) {
+        if (i < maxRetries - 1) {
+          const delay = Math.pow(2, i) * 1000;
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
       }
-
-      // 等待后重试
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      throw error;
     }
   }
 }
 ```
 
-### 4. 用户友好的错误提示
+### 5xx - 服务器错误
+
+#### 500 Internal Server Error
+
+服务器内部错误
+
+**常见原因**:
+
+- 服务器配置错误
+- 数据库连接失败
+- 第三方服务异常
+- 代码逻辑错误
+
+**解决方案**:
 
 ```javascript
-// 用户友好的错误提示
-function showUserFriendlyError(error) {
+// 重试机制
+async function retryOnError(fn, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (error.status === 500 && i < maxRetries - 1) {
+        const delay = Math.pow(2, i) * 1000;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+      throw error;
+    }
+  }
+}
+```
+
+## 业务错误码
+
+### 认证相关错误
+
+#### AUTH_001 - 用户名已存在
+
+**错误信息**: "用户名已存在"
+**解决方案**: 使用其他用户名注册
+
+#### AUTH_002 - 用户名或密码错误
+
+**错误信息**: "用户名或密码错误"
+**解决方案**: 检查用户名和密码是否正确
+
+#### AUTH_003 - Token 已过期
+
+**错误信息**: "Token 已过期"
+**解决方案**: 重新登录获取新的 token
+
+#### AUTH_004 - 用户不存在
+
+**错误信息**: "用户不存在"
+**解决方案**: 检查用户名是否正确，或先注册用户
+
+### TTS 相关错误
+
+#### TTS_001 - 文本内容为空
+
+**错误信息**: "文本内容不能为空"
+**解决方案**: 提供有效的文本内容
+
+#### TTS_002 - 文本内容过长
+
+**错误信息**: "文本内容过长"
+**解决方案**: 缩短文本内容（通常限制在 4000 字符以内）
+
+#### TTS_003 - 不支持的语音模型
+
+**错误信息**: "不支持的语音模型"
+**解决方案**: 使用支持的语音模型（如 "tts-1"）
+
+#### TTS_004 - 不支持的发音人
+
+**错误信息**: "不支持的发音人"
+**解决方案**: 使用支持的发音人（alloy, echo, fable, onyx, nova, shimmer）
+
+#### TTS_005 - 语速超出范围
+
+**错误信息**: "语速超出范围"
+**解决方案**: 使用 0.25-4.0 范围内的语速值
+
+### TOTP 相关错误
+
+#### TOTP_001 - TOTP 已启用
+
+**错误信息**: "TOTP 已启用"
+**解决方案**: 如需重新设置，先禁用当前 TOTP
+
+#### TOTP_002 - TOTP 未启用
+
+**错误信息**: "TOTP 未启用"
+**解决方案**: 先启用 TOTP 功能
+
+#### TOTP_003 - 验证码错误
+
+**错误信息**: "验证码错误"
+**解决方案**: 检查 6 位数字验证码是否正确
+
+#### TOTP_004 - 验证码已过期
+
+**错误信息**: "验证码已过期"
+**解决方案**: 重新生成验证码
+
+#### TOTP_005 - 备用恢复码无效
+
+**错误信息**: "备用恢复码无效"
+**解决方案**: 使用有效的备用恢复码
+
+### Passkey 相关错误
+
+#### PASSKEY_001 - Passkey 未启用
+
+**错误信息**: "用户未启用 Passkey"
+**解决方案**: 先注册 Passkey
+
+#### PASSKEY_002 - 无可用凭证
+
+**错误信息**: "没有注册的凭证"
+**解决方案**: 先注册 Passkey 凭证
+
+#### PASSKEY_003 - 认证失败
+
+**错误信息**: "Passkey 认证失败"
+**解决方案**: 检查认证器是否正常工作
+
+#### PASSKEY_004 - 凭证名称重复
+
+**错误信息**: "凭证名称已存在"
+**解决方案**: 使用其他凭证名称
+
+### 管理员相关错误
+
+#### ADMIN_001 - 权限不足
+
+**错误信息**: "需要管理员权限"
+**解决方案**: 使用管理员账户登录
+
+#### ADMIN_002 - 管理员密码错误
+
+**错误信息**: "管理员密码错误"
+**解决方案**: 提供正确的管理员密码
+
+#### ADMIN_003 - 用户已存在
+
+**错误信息**: "用户已存在"
+**解决方案**: 使用其他用户名
+
+#### ADMIN_004 - 用户不存在
+
+**错误信息**: "用户不存在"
+**解决方案**: 检查用户 ID 是否正确
+
+### 系统相关错误
+
+#### SYS_001 - 服务不可用
+
+**错误信息**: "服务暂时不可用"
+**解决方案**: 稍后重试
+
+#### SYS_002 - 数据库连接失败
+
+**错误信息**: "数据库连接失败"
+**解决方案**: 联系管理员
+
+#### SYS_003 - 文件上传失败
+
+**错误信息**: "文件上传失败"
+**解决方案**: 检查文件大小和格式
+
+#### SYS_004 - 命令执行失败
+
+**错误信息**: "命令执行失败"
+**解决方案**: 检查命令语法和权限
+
+## 错误处理最佳实践
+
+### 1. 统一错误处理
+
+```javascript
+class APIError extends Error {
+  constructor(message, status, code, details) {
+    super(message);
+    this.name = "APIError";
+    this.status = status;
+    this.code = code;
+    this.details = details;
+  }
+}
+
+async function handleAPIResponse(response) {
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new APIError(
+      errorData.error || "请求失败",
+      response.status,
+      errorData.code,
+      errorData.details
+    );
+  }
+  return await response.json();
+}
+```
+
+### 2. 错误重试机制
+
+```javascript
+async function retryWithBackoff(fn, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (error.status === 429 || error.status === 500) {
+        if (i < maxRetries - 1) {
+          const delay = Math.pow(2, i) * 1000;
+          console.log(`请求失败，${delay}ms 后重试...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+      }
+      throw error;
+    }
+  }
+}
+```
+
+### 3. 用户友好的错误提示
+
+```javascript
+function getUserFriendlyMessage(error) {
   const errorMessages = {
-    文本内容不能为空: "请输入要转换的文本内容",
-    文本长度不能超过4096个字符: "文本内容过长，请缩短后重试",
-    文本包含违禁内容: "文本内容包含敏感词汇，请修改后重试",
-    您已经生成过相同的内容: "请登录账户或修改文本内容",
-    生成码无效: "系统配置错误，请联系管理员",
-    请求过于频繁: "操作过于频繁，请稍后再试",
-    您今日的使用次数已达上限: "今日使用次数已用完，请明天再试",
+    AUTH_001: "用户名已被使用，请选择其他用户名",
+    AUTH_002: "用户名或密码错误，请检查后重试",
+    AUTH_003: "登录已过期，请重新登录",
+    TTS_001: "请输入要转换的文本内容",
+    TTS_002: "文本内容过长，请缩短后重试",
+    TOTP_003: "验证码错误，请重新输入",
+    PASSKEY_003: "认证失败，请检查认证器",
+    ADMIN_001: "需要管理员权限才能执行此操作",
+    SYS_001: "服务暂时不可用，请稍后重试",
   };
 
-  const message = errorMessages[error.message] || error.message;
-  showMessage(message, "warning");
+  return errorMessages[error.code] || error.message || "操作失败，请稍后重试";
 }
 ```
 
-## 调试建议
-
-### 1. 启用详细日志
+### 4. 错误日志记录
 
 ```javascript
-// 启用详细日志
-const DEBUG = true;
-
-function logApiRequest(url, options) {
-  if (DEBUG) {
-    console.log("API 请求:", {
-      url,
-      method: options.method || "GET",
-      headers: options.headers,
-      body: options.body,
-    });
-  }
-}
-
-function logApiResponse(response, data) {
-  if (DEBUG) {
-    console.log("API 响应:", {
-      status: response.status,
-      statusText: response.statusText,
-      headers: Object.fromEntries(response.headers.entries()),
-      data,
-    });
-  }
-}
-```
-
-### 2. 错误监控
-
-```javascript
-// 错误监控
-function reportError(error, context = {}) {
-  const errorReport = {
+function logError(error, context = {}) {
+  console.error("API 错误:", {
     message: error.message,
-    stack: error.stack,
     status: error.status,
-    data: error.data,
+    code: error.code,
+    details: error.details,
     context,
     timestamp: new Date().toISOString(),
-    userAgent: navigator.userAgent,
-    url: window.location.href,
-  };
+  });
 
-  // 发送错误报告到服务器
-  fetch("/api/error-report", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(errorReport),
-  }).catch(console.error);
+  // 可以发送到错误监控服务
+  if (error.status >= 500) {
+    // 发送到监控服务
+    sendToErrorMonitoring(error, context);
+  }
 }
 ```
+
+## 常见问题解决
+
+### Q: 如何处理 429 限流错误？
+
+A: 实现指数退避重试机制，或降低请求频率
+
+### Q: Token 过期怎么办？
+
+A: 捕获 401 错误，自动重新登录获取新 token
+
+### Q: 如何处理网络错误？
+
+A: 实现重试机制和离线检测
+
+### Q: 用户输入错误如何处理？
+
+A: 在前端进行输入验证，提供清晰的错误提示
+
+### Q: 服务器错误如何排查？
+
+A: 查看错误日志，联系技术支持
+
+## 联系支持
+
+如果您遇到未在此文档中列出的错误，请：
+
+1. 记录完整的错误信息
+2. 提供复现步骤
+3. 包含相关的请求和响应数据
+4. 联系技术支持团队
 
 ---
 

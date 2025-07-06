@@ -29,9 +29,9 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'API 参考',
       items: [
-        'api/authentication',
-        'api/tts-endpoints',
-        'api/user-management',
+        'api/index',
+        'api/quick-start',
+        'api/backend-api',
         'api/error-codes',
       ],
     },
