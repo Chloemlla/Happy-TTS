@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+
 import { commandService } from '../services/commandService';
 import { MediaController } from '../controllers/mediaController';
 
@@ -27,6 +27,32 @@ describe('安全修复测试', () => {
         const result = commandService.addCommand(command, 'wumy');
         expect(result.status).toBe('error');
         expect(result.message).toContain('命令包含危险字符');
+      });
+    });
+
+    it('应该拒绝包含危险字符的参数', () => {
+      const dangerousArgs = [
+        'ls --help; rm -rf /',
+        'pwd --version && cat /etc/passwd',
+        'whoami --help | wc -l',
+        'date --help `whoami`',
+        'uptime --help $(cat /etc/passwd)',
+        'free --help; echo "malicious"',
+        'df --help & echo "attack"',
+        'ps --help | grep root',
+        'top --help `id`',
+        'systemctl --help; rm -rf /',
+        'service --help; cat /etc/shadow',
+        'docker --help; echo "hack"',
+        'git --help; rm -rf .',
+        'npm --help; echo "evil"',
+        'node --help; process.exit(1)'
+      ];
+
+      dangerousArgs.forEach(command => {
+        const result = commandService.addCommand(command, 'wumy');
+        expect(result.status).toBe('error');
+        expect(result.message).toContain('参数包含危险字符');
       });
     });
 

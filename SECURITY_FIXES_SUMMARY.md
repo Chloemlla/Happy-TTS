@@ -8,9 +8,12 @@
 
 **修复方案**:
 
+- 使用 `spawn` 替代 `exec` 进行参数化执行
 - 添加命令白名单验证 (`ALLOWED_COMMANDS`)
 - 检查危险字符 (`;`, `&`, `|`, `` ` ``, `$`, `(`, `)`, `{`, `}`, `[`, `]`, `<`, `>`, `"`, `'`)
 - 限制命令长度 (最大 100 字符)
+- 分别验证命令和参数的安全性
+- 禁用 shell 执行以避免命令注入
 - 在 `addCommand` 和 `executeCommand` 方法中都进行验证
 
 **修复文件**: `src/services/commandService.ts`
@@ -111,6 +114,7 @@
 ### 新增的文件
 
 - `src/tests/security-fixes.test.ts` - 安全修复测试套件
+- `src/tests/command-service-security.test.ts` - 命令服务安全性详细测试
 - `SECURITY_FIXES_SUMMARY.md` - 本总结文档
 
 ## 验证命令

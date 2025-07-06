@@ -1,9 +1,7 @@
 import { logger } from './logger';
-import { exec } from 'child_process';
+import { spawn } from 'child_process';
 import { promisify } from 'util';
 import * as os from 'os';
-
-const execAsync = promisify(exec);
 
 class CommandService {
   private static instance: CommandService;
@@ -28,7 +26,7 @@ class CommandService {
   /**
    * 验证命令是否安全
    */
-  private validateCommand(command: string): { isValid: boolean; error?: string } {
+  private validateCommand(command: string): { isValid: boolean; error?: string; command?: string; args?: string[] } {
     if (!command || typeof command !== 'string') {
       return { isValid: false, error: '命令不能为空' };
     }
@@ -44,13 +42,66 @@ class CommandService {
       return { isValid: false, error: '命令包含危险字符' };
     }
 
+    // 解析命令和参数
+    const parts = command.trim().split(/\s+/);
+    const baseCommand = parts[0];
+    const args = parts.slice(1);
+
     // 检查命令是否在白名单中
-    const baseCommand = command.trim().split(' ')[0];
     if (!this.ALLOWED_COMMANDS.has(baseCommand)) {
       return { isValid: false, error: `不允许执行命令: ${baseCommand}` };
     }
 
-    return { isValid: true };
+    // 验证参数安全性
+    for (const arg of args) {
+      if (dangerousChars.some(char => arg.includes(char))) {
+        return { isValid: false, error: `参数包含危险字符: ${arg}` };
+      }
+    }
+
+    return { isValid: true, command: baseCommand, args };
+  }
+
+  /**
+   * 安全执行命令
+   */
+  private async executeCommandSafely(command: string, args: string[]): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const childProcess = spawn(command, args, {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        shell: false, // 禁用shell以避免命令注入
+        timeout: 30000
+      });
+
+      let stdout = '';
+      let stderr = '';
+
+      childProcess.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+
+      childProcess.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+
+      childProcess.on('close', (code) => {
+        if (code === 0) {
+          resolve(stdout || 'Command executed successfully');
+        } else {
+          reject(new Error(`Command failed with exit code ${code}: ${stderr}`));
+        }
+      });
+
+      childProcess.on('error', (error) => {
+        reject(new Error(`Command execution error: ${error.message}`));
+      });
+
+      // 设置超时
+      setTimeout(() => {
+        childProcess.kill('SIGTERM');
+        reject(new Error('Command execution timeout'));
+      }, 30000);
+    });
   }
 
   public addCommand(command: string, password: string): { status: string; message?: string; command?: string } {
@@ -103,14 +154,15 @@ class CommandService {
         throw new Error(validation.error);
       }
 
-      const { stdout, stderr } = await execAsync(command, { timeout: 30000 });
-      
-      if (stderr) {
-        logger.error(`Command stderr: ${stderr}`);
+      if (!validation.command || !validation.args) {
+        throw new Error('命令验证失败');
       }
+
+      // 使用安全的参数化执行
+      const result = await this.executeCommandSafely(validation.command, validation.args);
       
       logger.log(`Command executed: ${command}`);
-      return stdout || 'Command executed successfully';
+      return result;
     } catch (error) {
       logger.error(`Command execution error: ${error}`);
       throw error;
