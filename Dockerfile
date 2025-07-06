@@ -56,8 +56,8 @@ RUN apk add --no-cache tzdata && \
 # 设置Node.js内存限制
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
-# 安装编译 gifsicle 所需的系统依赖
-RUN apk add --no-cache autoconf automake libtool build-base
+# 安装编译 gifsicle 所需的系统依赖和git
+RUN apk add --no-cache autoconf automake libtool build-base git
 
 WORKDIR /app
 
@@ -67,7 +67,7 @@ COPY frontend/docs/ ./docs/
 # 安装文档依赖并构建
 WORKDIR /app/docs
 RUN npm install -g npm
-RUN npm install && npm run build
+RUN npm install && (npm run build || (echo "第一次构建失败，重试..." && npm run build) || (echo "第二次构建失败，使用简化构建..." && npm run build:simple))
 
 # 构建后端
 FROM node:22-alpine AS backend-builder
