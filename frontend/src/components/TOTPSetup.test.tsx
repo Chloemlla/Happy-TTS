@@ -4,27 +4,25 @@ import '@testing-library/jest-dom';
 import TOTPSetup from './TOTPSetup';
 import { vi } from 'vitest';
 
-// mock axios.post 让其直接返回 setupData
-vi.mock('axios', () => ({
-  default: {
-    create: () => ({
-      post: vi.fn().mockImplementation((url: string) => {
-        if (url.includes('/api/totp/generate-setup')) {
-          return Promise.resolve({
-            data: {
-              otpauthUrl: 'otpauth://totp/xxx',
-              secret: 'MOCKSECRET',
-              backupCodes: ['CODE1', 'CODE2']
-            }
-          });
-        }
-        if (url.includes('/api/totp/verify-and-enable')) {
-          return Promise.resolve({ data: {} });
-        }
+// Mock the API module instead of axios directly
+vi.mock('../api/api', () => ({
+  api: {
+    post: vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/api/totp/generate-setup')) {
+        return Promise.resolve({
+          data: {
+            otpauthUrl: 'otpauth://totp/xxx',
+            secret: 'MOCKSECRET',
+            backupCodes: ['CODE1', 'CODE2']
+          }
+        });
+      }
+      if (url.includes('/api/totp/verify-and-enable')) {
         return Promise.resolve({ data: {} });
-      }),
-      get: vi.fn(),
+      }
+      return Promise.resolve({ data: {} });
     }),
+    get: vi.fn(),
   },
 }));
 

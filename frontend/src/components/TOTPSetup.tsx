@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
-import axios from 'axios';
+import { api } from '../api/api';
 import { TOTPSetupData } from '../types/auth';
 import { handleTOTPError, cleanTOTPToken, validateTOTPToken } from '../utils/totpUtils';
 import { Input } from './ui';
@@ -33,20 +33,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
     setRotation(0);
   }, [isOpen, activeTab, step]);
 
-  // 获取API基础URL
-  const getApiBaseUrl = () => {
-    if (import.meta.env.DEV) return '';
-    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-    return 'https://tts-api.hapxs.com';
-  };
 
-  const api = axios.create({
-    baseURL: getApiBaseUrl(),
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${localStorage.getItem('token')}`
-    }
-  });
 
   useEffect(() => {
     if (isOpen) {
