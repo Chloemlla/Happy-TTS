@@ -34,6 +34,12 @@ import swaggerJSDoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import logRoutes from './routes/logRoutes';
 import passkeyRoutes from './routes/passkeyRoutes';
+import ipfsRoutes from './routes/ipfsRoutes';
+import networkRoutes from './routes/networkRoutes';
+import dataProcessRoutes from './routes/dataProcessRoutes';
+import mediaRoutes from './routes/mediaRoutes';
+import socialRoutes from './routes/socialRoutes';
+import lifeRoutes from './routes/lifeRoutes';
 import { PasskeyDataRepairService } from './services/passkeyDataRepairService';
 
 // 扩展 Request 类型
@@ -340,6 +346,102 @@ const logsLimiter = rateLimit({
     }
 });
 
+// IPFS上传路由限流器
+const ipfsLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1分钟
+    max: 10, // 限制每个IP每分钟10次上传请求
+    message: { error: '上传请求过于频繁，请稍后再试' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req: Request) => {
+        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
+        return ip;
+    },
+    skip: (req: Request): boolean => {
+        return req.isLocalIp || false;
+    }
+});
+
+// 网络检测路由限流器
+const networkLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1分钟
+    max: 30, // 限制每个IP每分钟30次网络检测请求
+    message: { error: '网络检测请求过于频繁，请稍后再试' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req: Request) => {
+        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
+        return ip;
+    },
+    skip: (req: Request): boolean => {
+        return req.isLocalIp || false;
+    }
+});
+
+// 数据处理路由限流器
+const dataProcessLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1分钟
+    max: 50, // 限制每个IP每分钟50次数据处理请求
+    message: { error: '数据处理请求过于频繁，请稍后再试' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req: Request) => {
+        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
+        return ip;
+    },
+    skip: (req: Request): boolean => {
+        return req.isLocalIp || false;
+    }
+});
+
+// 媒体解析路由限流器
+const mediaLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1分钟
+    max: 20, // 限制每个IP每分钟20次媒体解析请求
+    message: { error: '媒体解析请求过于频繁，请稍后再试' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req: Request) => {
+        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
+        return ip;
+    },
+    skip: (req: Request): boolean => {
+        return req.isLocalIp || false;
+    }
+});
+
+// 社交媒体路由限流器
+const socialLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1分钟
+    max: 30, // 限制每个IP每分钟30次社交媒体请求
+    message: { error: '社交媒体请求过于频繁，请稍后再试' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req: Request) => {
+        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
+        return ip;
+    },
+    skip: (req: Request): boolean => {
+        return req.isLocalIp || false;
+    }
+});
+
+// 生活信息路由限流器
+const lifeLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1分钟
+    max: 40, // 限制每个IP每分钟40次生活信息请求
+    message: { error: '生活信息请求过于频繁，请稍后再试' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req: Request) => {
+        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
+        return ip;
+    },
+    skip: (req: Request): boolean => {
+        return req.isLocalIp || false;
+    }
+});
+
 // 状态路由限流器
 const statusLimiter = rateLimit({
     windowMs: 60 * 1000, // 1分钟
@@ -362,6 +464,12 @@ app.use('/api/tamper', tamperLimiter);
 app.use('/api/command', commandLimiter);
 app.use('/api/libre-chat', libreChatLimiter);
 app.use('/api/data-collection', dataCollectionLimiter);
+app.use('/api/ipfs', ipfsLimiter);
+app.use('/api/network', networkLimiter);
+app.use('/api/data', dataProcessLimiter);
+app.use('/api/media', mediaLimiter);
+app.use('/api/social', socialLimiter);
+app.use('/api/life', lifeLimiter);
 app.use('/api/status', statusLimiter);
 
 // ========== Swagger OpenAPI 文档集成 ==========
@@ -426,6 +534,12 @@ app.use('/api/tamper', tamperRoutes);
 app.use('/api/command', commandRoutes);
 app.use('/api/libre-chat', libreChatRoutes);
 app.use('/api/data-collection', dataCollectionRoutes);
+app.use('/api/ipfs', ipfsRoutes);
+app.use('/api/network', networkRoutes);
+app.use('/api/data', dataProcessRoutes);
+app.use('/api/media', mediaRoutes);
+app.use('/api/social', socialRoutes);
+app.use('/api/life', lifeRoutes);
 app.use('/api', logRoutes);
 app.use('/api/passkey', passkeyRoutes);
 

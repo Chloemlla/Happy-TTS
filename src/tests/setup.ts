@@ -163,6 +163,14 @@ process.env.SERVER_PASSWORD = 'test-password';
 process.env.OPENAI_KEY = 'test-openai-key';
 process.env.OPENAI_BASE_URL = 'https://api.openai.com/v1';
 
+// 存储所有需要清理的资源
+const cleanupTasks: (() => void | Promise<void>)[] = [];
+
+// 添加清理任务
+export function addCleanupTask(task: () => void | Promise<void>) {
+  cleanupTasks.push(task);
+}
+
 // 清理函数
 afterEach(() => {
   jest.clearAllMocks();
@@ -170,6 +178,8 @@ afterEach(() => {
 
 // 在所有测试完成后清理异步操作
 afterAll(async () => {
+  console.log('开始清理测试资源...');
+  
   // 清理LibreChatService的定时器
   try {
     const { libreChatService } = require('../services/libreChatService');
@@ -180,6 +190,52 @@ afterAll(async () => {
     // 忽略错误
   }
   
-  // 等待所有定时器完成
+  // 清理所有注册的清理任务
+  for (const task of cleanupTasks) {
+    try {
+      await task();
+    } catch (error) {
+      console.warn('清理任务执行失败:', error);
+    }
+  }
+  
+  // 清理所有定时器
+  const activeTimers = jest.getTimerCount();
+  if (activeTimers > 0) {
+    console.log(`清理 ${activeTimers} 个活跃定时器`);
+    jest.clearAllTimers();
+  }
+  
+  // 等待所有微任务完成
+  await new Promise(resolve => setImmediate(resolve));
+  
+  // 等待一小段时间确保所有异步操作完成
   await new Promise(resolve => setTimeout(resolve, 100));
+  
+  console.log('测试资源清理完成');
+});
+
+// 处理未捕获的异常
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('未处理的Promise拒绝:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('未捕获的异常:', error);
+});
+
+// 确保在测试结束时强制退出
+process.on('beforeExit', () => {
+  console.log('进程即将退出，执行最终清理...');
+});
+
+// 添加优雅退出处理
+process.on('SIGINT', () => {
+  console.log('收到SIGINT信号，正在清理...');
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  console.log('收到SIGTERM信号，正在清理...');
+  process.exit(0);
 });

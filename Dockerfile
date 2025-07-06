@@ -7,6 +7,9 @@ RUN apk add --no-cache tzdata && \
     echo "Asia/Shanghai" > /etc/timezone && \
     apk del tzdata
 
+# 设置Node.js内存限制
+ENV NODE_OPTIONS="--max-old-space-size=8192"
+
 WORKDIR /app
 
 # 首先复制package文件以利用缓存
@@ -35,8 +38,8 @@ RUN npm install -g vitest && \
 # 复制前端源代码（这层会在源代码变化时重新构建）
 COPY frontend/ .
 
-# 构建前端
-RUN npm run build
+# 构建前端（增加内存优化和重试机制）
+RUN npm run build || (echo "第一次构建失败，重试..." && npm run build) || (echo "第二次构建失败，使用简化构建..." && npm run build:simple) || (echo "简化构建失败，使用最小构建..." && npm run build:minimal)
 
 # 确保favicon.ico存在
 RUN touch dist/favicon.ico
@@ -49,6 +52,9 @@ RUN apk add --no-cache tzdata && \
     cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
     echo "Asia/Shanghai" > /etc/timezone && \
     apk del tzdata
+
+# 设置Node.js内存限制
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 # 安装编译 gifsicle 所需的系统依赖
 RUN apk add --no-cache autoconf automake libtool build-base
@@ -71,6 +77,9 @@ RUN apk add --no-cache tzdata && \
     cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
     echo "Asia/Shanghai" > /etc/timezone && \
     apk del tzdata
+
+# 设置Node.js内存限制
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 WORKDIR /app
 

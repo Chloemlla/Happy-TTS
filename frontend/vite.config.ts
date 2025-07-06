@@ -96,11 +96,12 @@ export default defineConfig(({ mode }) => ({
     sourcemap: false,
     legalComments: 'none',
     logOverride: { 'this-is-undefined-in-esm': 'silent' },
-    // 增强摇树优化
     treeShaking: true,
     minifyIdentifiers: true,
     minifySyntax: true,
-    minifyWhitespace: true
+    minifyWhitespace: true,
+    keepNames: false,
+    target: 'es2020'
   },
   build: {
     minify: 'terser',
@@ -109,8 +110,7 @@ export default defineConfig(({ mode }) => ({
         drop_console: true,
         drop_debugger: true,
         pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.warn'],
-        // 增强摇树优化
-        passes: 2,
+        passes: 1, // 减少passes以节省内存
         unsafe: true,
         unsafe_comps: true,
         unsafe_Function: true,
@@ -122,7 +122,6 @@ export default defineConfig(({ mode }) => ({
       },
       mangle: {
         safari10: true,
-        // 增强名称混淆
         toplevel: true,
         properties: {
           regex: /^_/
@@ -133,7 +132,6 @@ export default defineConfig(({ mode }) => ({
       }
     },
     rollupOptions: {
-      // 增强摇树优化配置
       treeshake: {
         moduleSideEffects: false,
         propertyReadSideEffects: false,
@@ -142,7 +140,6 @@ export default defineConfig(({ mode }) => ({
       },
       output: {
         manualChunks: mode === 'analyze' ? undefined : {
-          // 更精细的代码分割
           'react-vendor': ['react', 'react-dom'],
           'router': ['react-router-dom'],
           'ui': ['@radix-ui/react-dialog', 'lucide-react', 'react-icons'],
@@ -153,7 +150,6 @@ export default defineConfig(({ mode }) => ({
           'toast': ['react-toastify'],
           'swagger': ['swagger-ui-react']
         },
-        // 确保生成的文件名是唯一的
         entryFileNames: 'assets/[name].[hash].js',
         chunkFileNames: 'assets/[name].[hash].js',
         assetFileNames: 'assets/[name].[hash].[ext]'
@@ -165,21 +161,17 @@ export default defineConfig(({ mode }) => ({
         warn(warning);
       }
     },
-    // 启用源码映射，方便调试
     sourcemap: false,
-    // 启用 CSS 代码分割
     cssCodeSplit: true,
-    // 启用资源压缩
     assetsInlineLimit: 4096,
-    // 启用 gzip 压缩
-    reportCompressedSize: true,
-    // 增强摇树优化
+    reportCompressedSize: false, // 禁用压缩大小报告以节省内存
     target: 'esnext',
     modulePreload: {
       polyfill: false
-    }
+    },
+    chunkSizeWarningLimit: 1000,
+    emptyOutDir: true
   },
-  // 优化依赖预构建
   optimizeDeps: {
     include: [
       'react',
@@ -191,6 +183,10 @@ export default defineConfig(({ mode }) => ({
     ],
     exclude: [
       'javascript-obfuscator'
-    ]
+    ],
+    force: false
+  },
+  worker: {
+    format: 'es'
   }
 })) 
