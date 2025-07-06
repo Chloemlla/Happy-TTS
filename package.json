@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Synapse with Gradio-like interface",
   "main": "dist/app.js",
-  "sideEffects": false,
+  "sideEffects": true,
   "scripts": {
     "start": "concurrently \"node dist/app.js\" \"serve -s public -l 3001\" \"serve -s docs -l 3002\"",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",

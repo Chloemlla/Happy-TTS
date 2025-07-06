@@ -96,48 +96,17 @@ export default defineConfig(({ mode }) => ({
     sourcemap: false,
     legalComments: 'none',
     logOverride: { 'this-is-undefined-in-esm': 'silent' },
-    treeShaking: true,
-    minifyIdentifiers: true,
-    minifySyntax: true,
-    minifyWhitespace: true,
-    keepNames: false,
+    treeShaking: false,
+    minifyIdentifiers: false,
+    minifySyntax: false,
+    minifyWhitespace: false,
+    keepNames: true,
     target: 'es2020'
   },
   build: {
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true,
-        pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.warn'],
-        passes: 1, // 减少passes以节省内存
-        unsafe: true,
-        unsafe_comps: true,
-        unsafe_Function: true,
-        unsafe_math: true,
-        unsafe_methods: true,
-        unsafe_proto: true,
-        unsafe_regexp: true,
-        unsafe_undefined: true
-      },
-      mangle: {
-        safari10: true,
-        toplevel: true,
-        properties: {
-          regex: /^_/
-        }
-      },
-      format: {
-        comments: false
-      }
-    },
+    minify: false,
     rollupOptions: {
-      treeshake: {
-        moduleSideEffects: false,
-        propertyReadSideEffects: false,
-        unknownGlobalSideEffects: false,
-        tryCatchDeoptimization: false
-      },
+      treeshake: false,
       output: {
         manualChunks: mode === 'analyze' ? undefined : {
           'react-vendor': ['react', 'react-dom'],
