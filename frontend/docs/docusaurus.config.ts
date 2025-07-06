@@ -42,6 +42,9 @@ const config: Config = {
       {
         docs: {
           sidebarPath: './sidebars.ts',
+          // 禁用Git历史信息获取，避免在Docker环境中出现Git相关警告
+          showLastUpdateTime: false,
+          showLastUpdateAuthor: false,
         },
         theme: {
           customCss: './src/css/custom.css',
