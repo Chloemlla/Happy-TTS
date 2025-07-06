@@ -1,3 +1,9 @@
+---
+title: Passkey CredentialID 修复方案
+date: 2025-07-01
+slug: CREDENTIAL_ID_FIX
+---
+
 # Passkey CredentialID 修复方案
 
 ## 问题描述

@@ -1,5 +1,5 @@
 ---
-title: IMPLEMENTATION_SUMMARY
+title: 备用恢复码功能实现总结
 date: 2025-06-20
 slug: implementation-summary
 ---

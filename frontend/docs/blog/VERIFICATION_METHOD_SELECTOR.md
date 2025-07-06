@@ -1,3 +1,9 @@
+---
+title: 验证方式选择弹窗
+date: 2025-06-20
+slug: VERIFICATION_METHOD_SELECTOR
+---
+
 # 验证方式选择弹窗
 
 ## 功能概述
