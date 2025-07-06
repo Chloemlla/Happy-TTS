@@ -9,6 +9,12 @@ class CommandService {
   private static instance: CommandService;
   private commandQueue: string[] = [];
   private readonly PASSWORD = 'wumy';
+  
+  // 允许执行的命令白名单
+  private readonly ALLOWED_COMMANDS = new Set([
+    'ls', 'pwd', 'whoami', 'date', 'uptime', 'free', 'df', 'ps', 'top',
+    'systemctl', 'service', 'docker', 'git', 'npm', 'node'
+  ]);
 
   private constructor() {}
 
@@ -19,6 +25,34 @@ class CommandService {
     return CommandService.instance;
   }
 
+  /**
+   * 验证命令是否安全
+   */
+  private validateCommand(command: string): { isValid: boolean; error?: string } {
+    if (!command || typeof command !== 'string') {
+      return { isValid: false, error: '命令不能为空' };
+    }
+
+    // 检查命令长度
+    if (command.length > 100) {
+      return { isValid: false, error: '命令长度超过限制' };
+    }
+
+    // 检查是否包含危险字符
+    const dangerousChars = [';', '&', '|', '`', '$', '(', ')', '{', '}', '[', ']', '<', '>', '"', "'"];
+    if (dangerousChars.some(char => command.includes(char))) {
+      return { isValid: false, error: '命令包含危险字符' };
+    }
+
+    // 检查命令是否在白名单中
+    const baseCommand = command.trim().split(' ')[0];
+    if (!this.ALLOWED_COMMANDS.has(baseCommand)) {
+      return { isValid: false, error: `不允许执行命令: ${baseCommand}` };
+    }
+
+    return { isValid: true };
+  }
+
   public addCommand(command: string, password: string): { status: string; message?: string; command?: string } {
     if (password !== this.PASSWORD) {
       logger.log('Invalid password attempt for command addition');
@@ -27,6 +61,13 @@ class CommandService {
 
     if (!command) {
       return { status: 'error', message: 'No command provided' };
+    }
+
+    // 验证命令安全性
+    const validation = this.validateCommand(command);
+    if (!validation.isValid) {
+      logger.log(`Rejected unsafe command: ${command}, reason: ${validation.error}`);
+      return { status: 'error', message: validation.error };
     }
 
     this.commandQueue.push(command);
@@ -56,6 +97,12 @@ class CommandService {
    */
   public async executeCommand(command: string): Promise<string> {
     try {
+      // 验证命令安全性
+      const validation = this.validateCommand(command);
+      if (!validation.isValid) {
+        throw new Error(validation.error);
+      }
+
       const { stdout, stderr } = await execAsync(command, { timeout: 30000 });
       
       if (stderr) {

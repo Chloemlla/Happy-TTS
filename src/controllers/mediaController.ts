@@ -3,6 +3,47 @@ import { MediaService } from '../services/mediaService';
 import logger from '../utils/logger';
 
 export class MediaController {
+    // 允许的域名白名单
+    private static readonly ALLOWED_DOMAINS = new Set([
+        'pipix.com',
+        'www.pipix.com',
+        'douyin.com',
+        'www.douyin.com'
+    ]);
+
+    /**
+     * 验证URL是否来自允许的域名
+     */
+    private static validateUrl(url: string): { isValid: boolean; error?: string } {
+        try {
+            const urlObj = new URL(url);
+            const hostname = urlObj.hostname.toLowerCase();
+            
+            // 检查域名是否在白名单中
+            if (!this.ALLOWED_DOMAINS.has(hostname)) {
+                return { 
+                    isValid: false, 
+                    error: `不支持的域名: ${hostname}。仅支持 pipix.com 和 douyin.com` 
+                };
+            }
+            
+            // 检查协议
+            if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
+                return { 
+                    isValid: false, 
+                    error: '仅支持 HTTP 和 HTTPS 协议' 
+                };
+            }
+            
+            return { isValid: true };
+        } catch (error) {
+            return { 
+                isValid: false, 
+                error: '无效的URL格式' 
+            };
+        }
+    }
+
     /**
      * 网抑云音乐解析
      */
@@ -84,10 +125,12 @@ export class MediaController {
                 });
             }
 
-            if (!url.includes('pipix.com') && !url.includes('douyin.com')) {
+            // 使用安全的URL验证
+            const urlValidation = MediaController.validateUrl(url);
+            if (!urlValidation.isValid) {
                 return res.status(400).json({
                     success: false,
-                    error: '请输入有效的皮皮虾或抖音视频链接'
+                    error: urlValidation.error
                 });
             }
 
