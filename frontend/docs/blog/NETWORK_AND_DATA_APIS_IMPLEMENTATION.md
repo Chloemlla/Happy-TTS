@@ -1,6 +1,15 @@
+---
+slug: network-and-data-apis-implementation
+title: 网络检测与数据处理 API 实现总结
+authors: [synapse]
+tags: [api, implementation, network, data-processing]
+---
+
 # 网络检测与数据处理 API 实现总结
 
 ## 已完成的工作
+
+<!--truncate-->
 
 ### 1. 网络检测服务 (`src/services/networkService.ts`)
 

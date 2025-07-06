@@ -1,8 +1,17 @@
+---
+slug: ipfs-upload-api
+title: IPFS 图片上传 API
+authors: [synapse]
+tags: [api, ipfs, upload, image]
+---
+
 # IPFS 图片上传 API
 
 ## 概述
 
 IPFS 图片上传 API 允许用户将图片文件上传到 IPFS 网络，获得可访问的 URL。
+
+<!--truncate-->
 
 ## 端点
 

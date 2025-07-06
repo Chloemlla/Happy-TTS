@@ -1,8 +1,17 @@
+---
+slug: network-and-data-apis
+title: 网络检测与数据处理 API 文档
+authors: [synapse]
+tags: [api, network, data-processing]
+---
+
 # 网络检测与数据处理 API 文档
 
 ## 概述
 
 本 API 提供了网络检测和数据处理功能，包括 TCP 连接检测、Ping 检测、网站测速、端口扫描、Base64 编码解码和 MD5 哈希加密。
+
+<!--truncate-->
 
 ## 网络检测 API
 

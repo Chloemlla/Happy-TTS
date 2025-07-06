@@ -1,6 +1,15 @@
+---
+slug: ipfs-upload-implementation
+title: IPFS 图片上传功能实现总结
+authors: [synapse]
+tags: [api, implementation, ipfs, upload]
+---
+
 # IPFS 图片上传功能实现总结
 
 ## 已完成的工作
+
+<!--truncate-->
 
 ### 1. 核心服务层 (`src/services/ipfsService.ts`)
 

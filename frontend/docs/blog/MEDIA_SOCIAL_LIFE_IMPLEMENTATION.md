@@ -1,8 +1,17 @@
+---
+slug: media-social-life-implementation
+title: 媒体解析、社交媒体和生活信息 API 实现总结
+authors: [synapse]
+tags: [api, implementation, media, social, life-info]
+---
+
 # 媒体解析、社交媒体和生活信息 API 实现总结
 
 ## 概述
 
 本次实现为 Synapse 后端添加了完整的媒体解析、社交媒体和生活信息 API 功能，包括网抑云音乐解析、皮皮虾视频解析、微博热搜、百度热搜、手机号码归属地查询和油价查询等功能。
+
+<!--truncate-->
 
 ## 实现的功能模块
 
