@@ -1,7 +1,6 @@
 ---
 slug: network-and-data-apis-implementation
 title: 网络检测与数据处理 API 实现总结
-authors: [synapse]
 tags: [api, implementation, network, data-processing]
 ---
 

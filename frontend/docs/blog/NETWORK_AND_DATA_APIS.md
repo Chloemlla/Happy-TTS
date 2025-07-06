@@ -1,7 +1,6 @@
 ---
 slug: network-and-data-apis
 title: 网络检测与数据处理 API 文档
-authors: [synapse]
 tags: [api, network, data-processing]
 ---
 

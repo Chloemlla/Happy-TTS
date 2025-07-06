@@ -1,7 +1,6 @@
 ---
 slug: media-social-life-apis
 title: 媒体解析、社交媒体和生活信息 API 文档
-authors: [synapse]
 tags: [api, media, social, life-info]
 ---
 

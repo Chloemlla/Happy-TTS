@@ -1,7 +1,6 @@
 ---
 slug: media-social-life-implementation
 title: 媒体解析、社交媒体和生活信息 API 实现总结
-authors: [synapse]
 tags: [api, implementation, media, social, life-info]
 ---
 

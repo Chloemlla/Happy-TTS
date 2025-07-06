@@ -55,7 +55,6 @@ const config: Config = {
           routeBasePath: 'blog',
           blogTitle: '项目博客',
           blogDescription: '项目开发与实现相关博客',
-          authorsMapPath: 'blog/authors.yml',
           showLastUpdateTime: false,
           showLastUpdateAuthor: false,
           feedOptions: {

@@ -1,7 +1,6 @@
 ---
 slug: ipfs-upload-implementation
 title: IPFS 图片上传功能实现总结
-authors: [synapse]
 tags: [api, implementation, ipfs, upload]
 ---
 
