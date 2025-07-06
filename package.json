@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Synapse with Gradio-like interface",
   "main": "dist/app.js",
+  "sideEffects": false,
   "scripts": {
     "start": "concurrently \"node dist/app.js\" \"serve -s public -l 3001\" \"serve -s docs -l 3002\"",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
@@ -12,6 +13,7 @@
     "start:docs": "cd frontend/docs && npm run serve",
     "build": "npm run build:backend && npm run build:frontend && npm run build:docs",
     "build:backend": "tsc && npm run obfuscate",
+    "build:backend:clean": "rm -rf dist && tsc && npm run obfuscate",
     "obfuscate": "javascript-obfuscator dist --output dist-obfuscated --config package.json",
     "build:frontend": "cd frontend && npm run build",
     "build:docs": "cd frontend/docs && npm run build",
@@ -26,7 +28,15 @@
     "test:ci": "jest --ci --runInBand --coverage --reporters=default --reporters=jest-junit",
     "generate:openapi": "node scripts/generate-openapi.js",
     "check:api-docs": "node scripts/check-api-docs.js",
-    "check:openapi-json": "node scripts/check-openapi-json.js"
+    "check:openapi-json": "node scripts/check-openapi-json.js",
+    "analyze:bundle": "npm run build:backend && npm run analyze:size",
+    "analyze:size": "node -e \"const fs=require('fs');const path=require('path');const dir='dist';const files=fs.readdirSync(dir).filter(f=>f.endsWith('.js'));let total=0;files.forEach(f=>{const size=fs.statSync(path.join(dir,f)).size;total+=size;console.log(f+' '+Math.round(size/1024)+'KB')});console.log('Total: '+Math.round(total/1024)+'KB')\"",
+    "analyze:full": "node scripts/analyze-bundle.js",
+    "analyze:frontend": "cd frontend && npm run build:analyze",
+    "analyze:backend": "npm run build:backend && npm run analyze:size",
+    "check:unused-deps": "npx depcheck",
+    "check:tree-shaking": "npm run analyze:full && echo '检查完成，请查看上面的分析结果'",
+    "check:tree-shaking-config": "node scripts/check-tree-shaking.js"
   },
   "keywords": [
     "happy",

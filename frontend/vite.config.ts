@@ -95,7 +95,12 @@ export default defineConfig(({ mode }) => ({
   esbuild: {
     sourcemap: false,
     legalComments: 'none',
-    logOverride: { 'this-is-undefined-in-esm': 'silent' }
+    logOverride: { 'this-is-undefined-in-esm': 'silent' },
+    // 增强摇树优化
+    treeShaking: true,
+    minifyIdentifiers: true,
+    minifySyntax: true,
+    minifyWhitespace: true
   },
   build: {
     minify: 'terser',
@@ -103,20 +108,50 @@ export default defineConfig(({ mode }) => ({
       compress: {
         drop_console: true,
         drop_debugger: true,
-        pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.warn']
+        pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.warn'],
+        // 增强摇树优化
+        passes: 2,
+        unsafe: true,
+        unsafe_comps: true,
+        unsafe_Function: true,
+        unsafe_math: true,
+        unsafe_methods: true,
+        unsafe_proto: true,
+        unsafe_regexp: true,
+        unsafe_undefined: true
       },
       mangle: {
-        safari10: true
+        safari10: true,
+        // 增强名称混淆
+        toplevel: true,
+        properties: {
+          regex: /^_/
+        }
       },
       format: {
         comments: false
       }
     },
     rollupOptions: {
+      // 增强摇树优化配置
+      treeshake: {
+        moduleSideEffects: false,
+        propertyReadSideEffects: false,
+        unknownGlobalSideEffects: false,
+        tryCatchDeoptimization: false
+      },
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          utils: ['axios', 'framer-motion']
+        manualChunks: mode === 'analyze' ? undefined : {
+          // 更精细的代码分割
+          'react-vendor': ['react', 'react-dom'],
+          'router': ['react-router-dom'],
+          'ui': ['@radix-ui/react-dialog', 'lucide-react', 'react-icons'],
+          'utils': ['axios', 'clsx', 'tailwind-merge'],
+          'auth': ['@simplewebauthn/browser', 'qrcode.react'],
+          'animations': ['framer-motion'],
+          'code-highlight': ['react-syntax-highlighter', 'prismjs'],
+          'toast': ['react-toastify'],
+          'swagger': ['swagger-ui-react']
         },
         // 确保生成的文件名是唯一的
         entryFileNames: 'assets/[name].[hash].js',
@@ -137,6 +172,25 @@ export default defineConfig(({ mode }) => ({
     // 启用资源压缩
     assetsInlineLimit: 4096,
     // 启用 gzip 压缩
-    reportCompressedSize: true
+    reportCompressedSize: true,
+    // 增强摇树优化
+    target: 'esnext',
+    modulePreload: {
+      polyfill: false
+    }
+  },
+  // 优化依赖预构建
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      'axios',
+      'clsx',
+      'tailwind-merge'
+    ],
+    exclude: [
+      'javascript-obfuscator'
+    ]
   }
 })) 

@@ -10,13 +10,32 @@ interface ImageRecord {
   imageUrl: string;
 }
 
+interface ChatMessage {
+  id: string;
+  message: string;
+  timestamp: string;
+  token: string;
+}
+
+interface ChatHistory {
+  messages: ChatMessage[];
+  total: number;
+}
+
+interface PaginationOptions {
+  page: number;
+  limit: number;
+}
+
 class LibreChatService {
   private static instance: LibreChatService;
   private latestRecord: ImageRecord | null = null;
   private readonly DATA_DIR = join(process.cwd(), 'data');
   private readonly DATA_FILE = join(this.DATA_DIR, 'lc_data.json');
+  private readonly CHAT_HISTORY_FILE = join(this.DATA_DIR, 'chat_history.json');
   private isRunning: boolean = false;
   private intervalId: NodeJS.Timeout | null = null;
+  private chatHistory: ChatMessage[] = [];
 
   private constructor() {
     this.initializeService();
@@ -44,6 +63,13 @@ class LibreChatService {
         logger.log('Loaded previous LibreChat image record');
       }
 
+      // 加载聊天历史
+      if (existsSync(this.CHAT_HISTORY_FILE)) {
+        const data = await readFile(this.CHAT_HISTORY_FILE, 'utf-8');
+        this.chatHistory = JSON.parse(data);
+        logger.log('Loaded chat history');
+      }
+
       // 只在非测试环境中启动定时检查
       if (!this.isRunning && process.env.NODE_ENV !== 'test') {
         this.startPeriodicCheck();
@@ -60,6 +86,14 @@ class LibreChatService {
       logger.log(`Saved new LibreChat image record: ${record.imageUrl}`);
     } catch (error) {
       logger.error('Error saving LibreChat record:', error);
+    }
+  }
+
+  private async saveChatHistory() {
+    try {
+      await writeFile(this.CHAT_HISTORY_FILE, JSON.stringify(this.chatHistory, null, 2));
+    } catch (error) {
+      logger.error('Error saving chat history:', error);
     }
   }
 
@@ -104,6 +138,72 @@ class LibreChatService {
 
   public getLatestRecord(): ImageRecord | null {
     return this.latestRecord;
+  }
+
+  /**
+   * 发送聊天消息
+   */
+  public async sendMessage(token: string, message: string): Promise<string> {
+    // 模拟发送消息到LibreChat
+    const chatMessage: ChatMessage = {
+      id: Date.now().toString(),
+      message,
+      timestamp: new Date().toISOString(),
+      token
+    };
+
+    // 添加到历史记录
+    this.chatHistory.push(chatMessage);
+    await this.saveChatHistory();
+
+    // 模拟AI响应
+    const responses = [
+      '我理解您的问题，让我为您解答...',
+      '这是一个很好的问题，根据我的了解...',
+      '感谢您的提问，我的回答是...',
+      '基于您提供的信息，我认为...',
+      '让我为您详细解释一下...'
+    ];
+
+    const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+    
+    // 保存AI响应
+    const aiMessage: ChatMessage = {
+      id: (Date.now() + 1).toString(),
+      message: randomResponse,
+      timestamp: new Date().toISOString(),
+      token
+    };
+
+    this.chatHistory.push(aiMessage);
+    await this.saveChatHistory();
+
+    return randomResponse;
+  }
+
+  /**
+   * 获取聊天历史
+   */
+  public async getHistory(token: string, options: PaginationOptions = { page: 1, limit: 20 }): Promise<ChatHistory> {
+    const userMessages = this.chatHistory.filter(msg => msg.token === token);
+    const total = userMessages.length;
+    
+    const startIndex = (options.page - 1) * options.limit;
+    const endIndex = startIndex + options.limit;
+    const messages = userMessages.slice(startIndex, endIndex);
+
+    return {
+      messages,
+      total
+    };
+  }
+
+  /**
+   * 清除聊天历史
+   */
+  public async clearHistory(token: string): Promise<void> {
+    this.chatHistory = this.chatHistory.filter(msg => msg.token !== token);
+    await this.saveChatHistory();
   }
 
   // 清理方法，用于测试环境

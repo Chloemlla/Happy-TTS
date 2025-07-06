@@ -12,8 +12,25 @@
     "baseUrl": ".",
     "paths": {
       "*": ["src/*"]
-    }
+    },
+    "importHelpers": true,
+    "isolatedModules": true,
+    "noEmitOnError": true,
+    "removeComments": true,
+    "sourceMap": false,
+    "declaration": false,
+    "declarationMap": false,
+    "incremental": false,
+    "tsBuildInfoFile": null,
+    "assumeChangesOnlyAffectDirectDependencies": true,
+    "disableSourceOfProjectReferenceRedirect": true,
+    "disableSizeLimit": false,
+    "generateCpuProfile": null,
+    "listEmittedFiles": false,
+    "listFiles": false,
+    "traceResolution": false,
+    "useDefineForClassFields": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "dist", "dist-obfuscated", "tests", "**/*.test.ts", "**/*.spec.ts"]
 } 

@@ -3,9 +3,16 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "sideEffects": [
+    "*.css",
+    "*.scss",
+    "*.sass",
+    "*.less"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:analyze": "tsc && vite build --mode analyze",
     "preview": "vite preview",
     "test": "vitest"
   },

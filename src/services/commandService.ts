@@ -1,4 +1,9 @@
 import { logger } from './logger';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import * as os from 'os';
+
+const execAsync = promisify(exec);
 
 class CommandService {
   private static instance: CommandService;
@@ -44,6 +49,53 @@ class CommandService {
       return { status: 'command removed', command };
     }
     return { status: 'error', message: 'Command not found' };
+  }
+
+  /**
+   * 执行命令
+   */
+  public async executeCommand(command: string): Promise<string> {
+    try {
+      const { stdout, stderr } = await execAsync(command, { timeout: 30000 });
+      
+      if (stderr) {
+        logger.error(`Command stderr: ${stderr}`);
+      }
+      
+      logger.log(`Command executed: ${command}`);
+      return stdout || 'Command executed successfully';
+    } catch (error) {
+      logger.error(`Command execution error: ${error}`);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取服务器状态
+   */
+  public getServerStatus(): {
+    uptime: number;
+    memory_usage: NodeJS.MemoryUsage;
+    cpu_usage_percent: number;
+    platform: string;
+    arch: string;
+    node_version: string;
+  } {
+    const memUsage = process.memoryUsage();
+    const uptime = process.uptime();
+    
+    // 计算CPU使用率（简化版本）
+    const cpuUsage = process.cpuUsage();
+    const cpuUsagePercent = Math.round((cpuUsage.user + cpuUsage.system) / 1000000);
+
+    return {
+      uptime,
+      memory_usage: memUsage,
+      cpu_usage_percent: cpuUsagePercent,
+      platform: os.platform(),
+      arch: os.arch(),
+      node_version: process.version
+    };
   }
 }
 
