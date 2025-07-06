@@ -64,6 +64,9 @@ export async function ipCheckMiddleware(req: Request, res: Response, next: NextF
     // 提取真实IP地址
     const realIP = extractRealIP(req);
     
+    // 记录IP访问日志
+    console.log(`IP访问: ${realIP || 'unknown'} - ${req.method} ${req.path}`);
+    
     // 设置IP到请求对象（使用类型断言）
     if (realIP) {
       (req as any).ip = realIP;
@@ -73,9 +76,6 @@ export async function ipCheckMiddleware(req: Request, res: Response, next: NextF
     if (realIP) {
       (req.socket as any).remoteAddress = realIP;
     }
-    
-    // 记录IP访问日志
-    console.log(`IP访问: ${realIP || 'unknown'} - ${req.method} ${req.path}`);
     
     // 如果没有IP信息
     if (!realIP) {
