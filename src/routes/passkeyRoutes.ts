@@ -204,6 +204,44 @@ router.post('/authenticate/finish', rateLimitMiddleware, async (req, res) => {
         });
     } catch (error: any) {
         console.error('完成 Passkey 认证失败:', error);
+        
+        // 如果是认证失败，尝试自动修复用户数据
+        if (error?.message?.includes('验证认证响应失败') || 
+            error?.message?.includes('找不到匹配的认证器') ||
+            error?.message?.includes('Credential ID')) {
+            
+            try {
+                logger.info('[Passkey] 路由层检测到认证失败，尝试自动修复', {
+                    username: req.body.username,
+                    error: error.message
+                });
+                
+                // 重新获取用户数据
+                const user = await UserStorage.getUserByUsername(req.body.username);
+                if (user) {
+                    // 调用自动修复
+                    await PasskeyService.autoFixUserPasskeyData(user);
+                    
+                    logger.info('[Passkey] 路由层自动修复完成，建议用户重新尝试认证', {
+                        username: req.body.username,
+                        userId: user.id
+                    });
+                    
+                    // 返回友好的错误信息，建议用户重新尝试
+                    return res.status(401).json({ 
+                        error: '认证失败，系统已自动修复数据，请重新尝试Passkey认证',
+                        code: 'AUTO_FIXED',
+                        retry: true
+                    });
+                }
+            } catch (fixError) {
+                logger.error('[Passkey] 路由层自动修复失败:', {
+                    username: req.body.username,
+                    fixError: fixError instanceof Error ? fixError.message : String(fixError)
+                });
+            }
+        }
+        
         const errorMessage = error?.message || '完成 Passkey 认证失败';
         res.status(500).json({ error: errorMessage });
     }

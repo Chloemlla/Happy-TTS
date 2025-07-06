@@ -857,6 +857,37 @@ export class PasskeyService {
             } as any);
         } catch (error) {
             logger.error('验证认证响应失败:', error);
+            
+            // 自动触发Passkey数据修复
+            try {
+                logger.info('[Passkey] 检测到认证失败，开始自动修复用户数据', {
+                    userId: user.id,
+                    username: user.username,
+                    error: error instanceof Error ? error.message : String(error)
+                });
+                
+                // 调用自动修复函数
+                await this.autoFixUserPasskeyData(user);
+                
+                logger.info('[Passkey] 自动修复完成，重新尝试认证', {
+                    userId: user.id,
+                    username: user.username
+                });
+                
+                // 重新获取用户数据（可能已被修复）
+                const updatedUser = await UserStorage.getUserById(user.id);
+                if (updatedUser) {
+                    // 重新尝试认证
+                    return await this.verifyAuthentication(updatedUser, response, requestOrigin);
+                }
+            } catch (fixError) {
+                logger.error('[Passkey] 自动修复失败:', {
+                    userId: user.id,
+                    username: user.username,
+                    fixError: fixError instanceof Error ? fixError.message : String(fixError)
+                });
+            }
+            
             throw new Error('验证认证响应失败');
         }
 
@@ -910,5 +941,144 @@ export class PasskeyService {
             config.jwtSecret,
             { expiresIn: '24h' }
         );
+    }
+
+    // 自动修复用户Passkey数据
+    public static async autoFixUserPasskeyData(user: User): Promise<void> {
+        try {
+            logger.info('[Passkey] 开始自动修复用户数据', {
+                userId: user.id,
+                username: user.username,
+                passkeyEnabled: user.passkeyEnabled,
+                credentialsCount: user.passkeyCredentials?.length || 0
+            });
+
+            let hasChanges = false;
+
+            // 确保passkeyEnabled字段存在
+            if (user.passkeyEnabled === undefined) {
+                user.passkeyEnabled = false;
+                hasChanges = true;
+                logger.info('[Passkey] 自动修复：设置 passkeyEnabled 为 false', { userId: user.id });
+            }
+
+            // 确保passkeyCredentials字段存在
+            if (!user.passkeyCredentials) {
+                user.passkeyCredentials = [];
+                hasChanges = true;
+                logger.info('[Passkey] 自动修复：初始化 passkeyCredentials 为空数组', { userId: user.id });
+            }
+
+            // 修复credentialID格式
+            if (user.passkeyCredentials && user.passkeyCredentials.length > 0) {
+                logger.info('[Passkey] 自动修复：检查并修复credentialID格式', { userId: user.id });
+
+                for (let i = 0; i < user.passkeyCredentials.length; i++) {
+                    const cred = user.passkeyCredentials[i];
+                    if (!cred || typeof cred !== 'object') {
+                        logger.warn('[Passkey] 自动修复：发现无效的credential对象，剔除', {
+                            userId: user.id,
+                            index: i,
+                            cred
+                        });
+                        user.passkeyCredentials[i] = null as any;
+                        hasChanges = true;
+                        continue;
+                    }
+
+                    const originalCredentialId = cred.credentialID;
+                    const fixedCredentialId = this.fixCredentialIdFormat(originalCredentialId);
+
+                    if (fixedCredentialId !== originalCredentialId) {
+                        logger.info('[Passkey] 自动修复：修复credentialID', {
+                            userId: user.id,
+                            index: i,
+                            original: originalCredentialId?.substring(0, 10) + '...',
+                            fixed: fixedCredentialId.substring(0, 10) + '...'
+                        });
+                        cred.credentialID = fixedCredentialId;
+                        hasChanges = true;
+                    }
+                }
+
+                // 移除无效的凭证
+                const beforeCount = user.passkeyCredentials.length;
+                user.passkeyCredentials = user.passkeyCredentials.filter(c => 
+                    c && typeof c === 'object' && typeof c.credentialID === 'string' && c.credentialID.length > 0
+                );
+                const afterCount = user.passkeyCredentials.length;
+
+                if (beforeCount !== afterCount) {
+                    logger.info('[Passkey] 自动修复：移除无效凭证', {
+                        userId: user.id,
+                        before: beforeCount,
+                        after: afterCount
+                    });
+                    hasChanges = true;
+                }
+            }
+
+            // 更新passkeyEnabled状态
+            const shouldBeEnabled = user.passkeyCredentials && user.passkeyCredentials.length > 0;
+            if (user.passkeyEnabled !== shouldBeEnabled) {
+                user.passkeyEnabled = shouldBeEnabled;
+                hasChanges = true;
+                logger.info('[Passkey] 自动修复：更新 passkeyEnabled 为 ' + shouldBeEnabled, { userId: user.id });
+            }
+
+            if (hasChanges) {
+                await UserStorage.updateUser(user.id, {
+                    passkeyCredentials: user.passkeyCredentials,
+                    passkeyEnabled: user.passkeyEnabled
+                });
+                logger.info('[Passkey] 自动修复：用户数据已更新', { userId: user.id });
+            } else {
+                logger.info('[Passkey] 自动修复：用户数据无需修复', { userId: user.id });
+            }
+
+        } catch (error) {
+            logger.error('[Passkey] 自动修复失败:', {
+                userId: user.id,
+                username: user.username,
+                error: error instanceof Error ? error.message : String(error)
+            });
+            throw error;
+        }
+    }
+
+    // 修复单个credentialID格式
+    private static fixCredentialIdFormat(credentialId: any): string {
+        if (!credentialId) {
+            throw new Error('credentialID为空');
+        }
+
+        // 如果已经是正确的base64url格式，直接返回
+        if (typeof credentialId === 'string' && /^[A-Za-z0-9_-]+$/.test(credentialId)) {
+            return credentialId;
+        }
+
+        // 尝试转换为base64url格式
+        try {
+            if (Buffer.isBuffer(credentialId)) {
+                return credentialId.toString('base64url');
+            }
+
+            if (typeof credentialId === 'string') {
+                // 尝试从base64解码再重新编码为base64url
+                try {
+                    const buffer = Buffer.from(credentialId, 'base64');
+                    return buffer.toString('base64url');
+                } catch {
+                    // 如果解码失败，直接转换为base64url
+                    return Buffer.from(credentialId).toString('base64url');
+                }
+            }
+
+            // 其他类型，强制转换为字符串再转base64url
+            return Buffer.from(String(credentialId)).toString('base64url');
+
+        } catch (error) {
+            throw new Error(`无法修复credentialID: ${credentialId} - ${error instanceof Error ? error.message : String(error)}`);
+        }
     }
 } 

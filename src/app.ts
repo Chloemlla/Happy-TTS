@@ -34,6 +34,7 @@ import swaggerJSDoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import logRoutes from './routes/logRoutes';
 import passkeyRoutes from './routes/passkeyRoutes';
+import { passkeyAutoFixMiddleware, passkeyErrorHandler } from './middleware/passkeyAutoFix';
 import ipfsRoutes from './routes/ipfsRoutes';
 import networkRoutes from './routes/networkRoutes';
 import dataProcessRoutes from './routes/dataProcessRoutes';
@@ -541,6 +542,7 @@ app.use('/api/media', mediaRoutes);
 app.use('/api/social', socialRoutes);
 app.use('/api/life', lifeRoutes);
 app.use('/api', logRoutes);
+app.use('/api/passkey', passkeyAutoFixMiddleware);
 app.use('/api/passkey', passkeyRoutes);
 
 // 完整性检测相关兜底接口限速
@@ -856,7 +858,7 @@ if (process.env.NODE_ENV !== 'test') {
   app.listen(Number(PORT), '0.0.0.0', async () => {
     await ensureDirectories();
     logger.info(`服务器运行在 http://0.0.0.0:${PORT}`);
-    logger.info(`Audio files directory: ${audioDir}`);
+    logger.info(`生成音频目录: ${audioDir}`);
     logger.info(`当前生成码: ${config.generationCode}`);
     
     // 启动时检查文件权限
@@ -893,4 +895,7 @@ app.use(['/api/totp/status', '/api/passkey/credentials', '/api/passkey/authentic
   res.set('Expires', '0');
   res.removeHeader && res.removeHeader('ETag');
   next();
-}); 
+});
+
+// 添加Passkey错误处理中间件
+app.use(passkeyErrorHandler); 
