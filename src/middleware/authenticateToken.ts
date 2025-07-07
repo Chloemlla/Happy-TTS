@@ -9,16 +9,6 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
         const authHeader = req.headers.authorization;
         const ip = req.ip || 'unknown';
 
-        // 如果是本地 IP，则跳过验证，并附加管理员信息
-        if (config.localIps.includes(ip)) {
-            const adminUser = await UserStorage.getUserById('1');
-            if (adminUser) {
-                // @ts-ignore
-                req.user = adminUser;
-            }
-            return next();
-        }
-
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return res.status(401).json({ error: '未授权' });
         }

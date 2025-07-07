@@ -536,7 +536,7 @@ export class PasskeyService {
         const userAuthenticators = user.passkeyCredentials || [];
         
         // 仅本地校验，不调用 @simplewebauthn/server
-        const credentialId = response.id || response.rawId;
+        const credentialId = response.rawId;
         if (!credentialId || typeof credentialId !== 'string') {
             throw new Error('认证响应 credentialID 格式无效');
         }

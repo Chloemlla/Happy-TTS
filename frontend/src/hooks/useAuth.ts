@@ -189,7 +189,7 @@ export const useAuth = () => {
         setUser(user);
         lastCheckRef.current = Date.now();
         setLastCheckTime(Date.now());
-        navigate('/welcome');
+        window.location.reload(); // Passkey 登录后强制刷新，确保新 token 生效
     };
 
     const verifyTOTP = async (token: string, backupCode?: string) => {
