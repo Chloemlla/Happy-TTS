@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-简单的API路径测试脚本
-验证修复后的API路径是否正确
+最终API测试脚本
+验证所有API修复是否完成
 """
 
 import requests
 import json
+import time
 
 BASE_URL = "https://tts-api.hapxs.com"
 
@@ -17,7 +18,6 @@ def test_endpoint(name, path, method="GET", params=None):
 
     print(f"测试: {name}")
     print(f"URL: {url}")
-    print(f"方法: {method}")
     if params:
         print(f"参数: {params}")
 
@@ -33,11 +33,20 @@ def test_endpoint(name, path, method="GET", params=None):
             print("✓ 成功")
             try:
                 data = response.json()
-                print(
-                    f"响应: {json.dumps(data, ensure_ascii=False, indent=2)[:200]}..."
-                )
-            except:
-                print(f"响应: {response.text[:200]}...")
+                if data.get("success"):
+                    print(f"  响应: {data.get('message', '操作成功')}")
+                    if data.get("data", {}).get("code") == 200:
+                        print("  ✓ 第三方API调用成功")
+                    elif data.get("data", {}).get("code") == -8:
+                        print("  ⚠ 需要API Key（正常）")
+                    else:
+                        print(
+                            f"  ⚠ 第三方API状态: {data.get('data', {}).get('msg', '未知')}"
+                        )
+                else:
+                    print(f"  响应: {data.get('error', '未知错误')}")
+            except Exception:
+                print(f"  响应: {response.text[:100]}...")
         elif response.status_code == 429:
             print("⚠ 频率限制")
         else:
@@ -51,10 +60,10 @@ def test_endpoint(name, path, method="GET", params=None):
 
 def main():
     """主测试函数"""
-    print("开始测试API路径修复")
-    print("=" * 50)
+    print("最终API测试 - 验证所有修复")
+    print("=" * 60)
 
-    # 测试修复后的端点
+    # 测试所有修复后的端点
     test_cases = [
         ("精准IP查询", "/api/network/ipquery", "GET", {"ip": "8.8.8.8"}),
         ("IP信息查询", "/api/network/ipquery", "GET", {"ip": "8.8.8.8"}),
@@ -89,11 +98,18 @@ def main():
         ("随机驾考题", "/api/network/jiakao", "GET", {"subject": "1"}),
     ]
 
+    success_count = 0
+    total_count = len(test_cases)
+
     for name, path, method, *args in test_cases:
         params = args[0] if args else None
         test_endpoint(name, path, method, params)
 
-    print("测试完成")
+        # 简单延迟
+        time.sleep(1)
+
+    print(f"\n测试完成！")
+    print(f"总计测试: {total_count} 个API端点")
 
 
 if __name__ == "__main__":

@@ -28,8 +28,8 @@
 
 - **工具类**
 
-  - 字符串 Hash 加密 (`/api/network/hash?text=Hello World&algorithm=md5`)
-  - Base64 编码/解码 (`/api/network/base64?text=Hello World&operation=encode`)
+  - 字符串 Hash 加密 (`/api/network/hash?text=Hello World&type=md5`)
+  - Base64 编码/解码 (`/api/network/base64?text=Hello World&type=encode`)
   - BMI 身体指数计算 (`/api/network/bmi?weight=70&height=175`)
 
 - **媒体转换**
