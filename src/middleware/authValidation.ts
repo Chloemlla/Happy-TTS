@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { UserStorage, InputValidationError } from '../utils/userStorage';
 
-export const validateAuthInput = (req: Request, res: Response, next: NextFunction) => {
+export const validateAuthInput = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { identifier, username, email = '', password = '' } = req.body;
         const isRegistration = req.path.includes('register');

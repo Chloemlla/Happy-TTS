@@ -385,7 +385,7 @@ export class NetworkController {
     /**
      * 字符串Hash加密
      */
-    public static hashEncrypt(req: Request, res: Response) {
+    public static async hashEncrypt(req: Request, res: Response) {
         try {
             const { type, text } = req.query;
             const ip = NetworkController.getClientIp(req);
@@ -420,7 +420,7 @@ export class NetworkController {
                 });
             }
 
-            const result = NetworkService.hashEncrypt(type as 'md4' | 'md5' | 'sha1' | 'sha256' | 'sha512', text);
+            const result = await NetworkService.hashEncrypt(type as 'md4' | 'md5' | 'sha1' | 'sha256' | 'sha512', text);
 
             if (result.success) {
                 res.json({
@@ -453,7 +453,7 @@ export class NetworkController {
     /**
      * Base64编码与解码
      */
-    public static base64Operation(req: Request, res: Response) {
+    public static async base64Operation(req: Request, res: Response) {
         try {
             const { type, text } = req.query;
             const ip = NetworkController.getClientIp(req);
@@ -487,7 +487,7 @@ export class NetworkController {
                 });
             }
 
-            const result = NetworkService.base64Operation(type as 'encode' | 'decode', text);
+            const result = await NetworkService.base64Operation(type as 'encode' | 'decode', text);
 
             if (result.success) {
                 res.json({
@@ -520,7 +520,7 @@ export class NetworkController {
     /**
      * BMI身体指数计算
      */
-    public static bmiCalculate(req: Request, res: Response) {
+    public static async bmiCalculate(req: Request, res: Response) {
         try {
             const { height, weight } = req.query;
             const ip = NetworkController.getClientIp(req);
@@ -539,7 +539,7 @@ export class NetworkController {
                 });
             }
 
-            const result = NetworkService.bmiCalculate(height, weight);
+            const result = await NetworkService.bmiCalculate(height, weight);
 
             if (result.success) {
                 res.json({

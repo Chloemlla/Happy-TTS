@@ -525,13 +525,23 @@ const openapiLimiter = rateLimit({
   max: 10, // 每个IP每分钟最多10次
   message: { error: '请求过于频繁，请稍后再试' }
 });
-app.get('/api/api-docs.json', openapiLimiter, (req, res) => {
-  res.setHeader('Content-Type', 'application/json');
-  res.send(fs.readFileSync(path.join(process.cwd(), 'openapi.json'), 'utf-8'));
+app.get('/api/api-docs.json', openapiLimiter, async (req, res) => {
+  try {
+    res.setHeader('Content-Type', 'application/json');
+    const content = await fs.promises.readFile(path.join(process.cwd(), 'openapi.json'), 'utf-8');
+    res.send(content);
+  } catch (error) {
+    res.status(500).json({ error: '无法读取API文档' });
+  }
 });
-app.get('/api-docs.json', openapiLimiter, (req, res) => {
-  res.setHeader('Content-Type', 'application/json');
-  res.send(fs.readFileSync(path.join(process.cwd(), 'openapi.json'), 'utf-8'));
+app.get('/api-docs.json', openapiLimiter, async (req, res) => {
+  try {
+    res.setHeader('Content-Type', 'application/json');
+    const content = await fs.promises.readFile(path.join(process.cwd(), 'openapi.json'), 'utf-8');
+    res.send(content);
+  } catch (error) {
+    res.status(500).json({ error: '无法读取API文档' });
+  }
 });
 // Swagger UI 路由
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -557,9 +567,12 @@ app.use('/static/audio', audioFileLimiter, express.static(audioDir, {
 }));
 
 // 确保音频目录存在
-if (!fs.existsSync(audioDir)) {
-  fs.mkdirSync(audioDir, { recursive: true });
-}
+const ensureAudioDir = async () => {
+  if (!fs.existsSync(audioDir)) {
+    await fs.promises.mkdir(audioDir, { recursive: true });
+  }
+};
+ensureAudioDir().catch(console.error);
 
 // Routes
 app.use('/api/auth', authRoutes);

@@ -563,7 +563,8 @@ export class TOTPController {
         }
 
         try {
-            const users = JSON.parse(fs.readFileSync(USERS_FILE, 'utf-8'));
+            const data = await fs.promises.readFile(USERS_FILE, 'utf-8');
+            const users = JSON.parse(data);
             const userIndex = users.findIndex((u: any) => u.id === userId);
             
             if (userIndex === -1) {
@@ -577,8 +578,8 @@ export class TOTPController {
 
             // 使用临时文件确保写入的原子性
             const tempFile = `${USERS_FILE}.tmp`;
-            fs.writeFileSync(tempFile, JSON.stringify(users, null, 2));
-            fs.renameSync(tempFile, USERS_FILE);
+            await fs.promises.writeFile(tempFile, JSON.stringify(users, null, 2));
+            await fs.promises.rename(tempFile, USERS_FILE);
             
             logger.info('TOTP信息更新成功:', { userId, enabled });
         } catch (error) {
@@ -598,7 +599,8 @@ export class TOTPController {
         }
 
         try {
-            const users = JSON.parse(fs.readFileSync(USERS_FILE, 'utf-8'));
+            const data = await fs.promises.readFile(USERS_FILE, 'utf-8');
+            const users = JSON.parse(data);
             const userIndex = users.findIndex((u: any) => u.id === userId);
             
             if (userIndex === -1) {
@@ -610,8 +612,8 @@ export class TOTPController {
 
             // 使用临时文件确保写入的原子性
             const tempFile = `${USERS_FILE}.tmp`;
-            fs.writeFileSync(tempFile, JSON.stringify(users, null, 2));
-            fs.renameSync(tempFile, USERS_FILE);
+            await fs.promises.writeFile(tempFile, JSON.stringify(users, null, 2));
+            await fs.promises.rename(tempFile, USERS_FILE);
             
             logger.info('备用恢复码更新成功:', { userId, remainingCodes: backupCodes.length });
         } catch (error) {

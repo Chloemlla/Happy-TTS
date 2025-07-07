@@ -13,11 +13,16 @@ const SHARELOGS_DIR = path.join(DATA_DIR, 'sharelogs');
 const logDir = path.join(DATA_DIR, 'logs');
 
 // 确保必要的目录都存在
-[DATA_DIR, SHARELOGS_DIR, logDir].forEach(dir => {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+const ensureDirectories = async () => {
+  for (const dir of [DATA_DIR, SHARELOGS_DIR, logDir]) {
+    if (!fs.existsSync(dir)) {
+      await fs.promises.mkdir(dir, { recursive: true });
+    }
   }
-});
+};
+
+// 初始化目录
+ensureDirectories().catch(console.error);
 
 // 配置multer用于多文件类型上传
 const upload = multer({
@@ -76,7 +81,7 @@ router.post('/sharelog', logLimiter, upload.single('file'), async (req, res) => 
     const fileId = crypto.randomBytes(8).toString('hex');
     const filePath = path.join(SHARELOGS_DIR, `${fileId}${ext}`);
     logger.info(`[调试] 上传写入文件: filePath=${filePath}, ext=${ext}, fileName=${fileName}, size=${req.file.size}`);
-    fs.writeFileSync(filePath, req.file.buffer);
+    await fs.promises.writeFile(filePath, req.file.buffer);
     // 构造前端访问链接
     const baseUrl = 'https://tts.hapx.one';
     const link = `${baseUrl}/logshare?id=${fileId}`;
@@ -103,7 +108,7 @@ router.post('/sharelog/:id', logLimiter, async (req, res) => {
       return res.status(403).json({ error: '管理员密码错误' });
     }
     // 查找以id开头的文件（支持多扩展名）
-    const files = fs.readdirSync(SHARELOGS_DIR);
+    const files = await fs.promises.readdir(SHARELOGS_DIR);
     const fileName = files.find(f => f.startsWith(id));
     logger.info(`[调试] 查询文件: id=${id}, files=${JSON.stringify(files)}, fileName=${fileName}`);
     if (!fileName) {
@@ -114,12 +119,12 @@ router.post('/sharelog/:id', logLimiter, async (req, res) => {
     const ext = path.extname(fileName).toLowerCase() || '.txt';
     logger.info(`[调试] 查询文件路径: filePath=${filePath}, ext=${ext}`);
     if ([".txt", ".log", ".json", ".md"].includes(ext)) {
-      const content = fs.readFileSync(filePath, 'utf-8');
+      const content = await fs.promises.readFile(filePath, 'utf-8');
       logger.info(`[调试] 读取文本内容前100字符: ${content.slice(0, 100)}`);
       logger.info(`查询 | IP:${ip} | 文件ID:${id} | 文件:${fileName} | 结果:成功 | 类型:文本`);
       return res.json({ content, ext });
     } else {
-      const content = fs.readFileSync(filePath);
+      const content = await fs.promises.readFile(filePath);
       logger.info(`[调试] 读取二进制内容长度: ${content.length}`);
       logger.info(`查询 | IP:${ip} | 文件ID:${id} | 文件:${fileName} | 结果:成功 | 类型:二进制`);
       return res.json({ content: content.toString('base64'), ext, encoding: 'base64' });

@@ -13,12 +13,7 @@ const PublicIP: React.FC = () => {
       .catch(() => setError('获取IP失败'));
   }, []);
 
-  return (
-    <div>
-      <h3>公网IP</h3>
-      {ip ? <p>{ip}</p> : <p>{error || '加载中...'}</p>}
-    </div>
-  );
+  return null;
 };
 
 export default PublicIP; 
