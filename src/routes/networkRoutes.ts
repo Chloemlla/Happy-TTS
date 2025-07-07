@@ -1,5 +1,6 @@
 import express from 'express';
 import { NetworkController } from '../controllers/networkController';
+import axios from 'axios';
 
 const router = express.Router();
 
@@ -966,5 +967,16 @@ router.get('/flactomp3', NetworkController.flacToMp3);
  *                   description: 错误信息
  */
 router.get('/jiakao', NetworkController.randomJiakao);
+
+// 新增：获取公网IP的代理接口
+router.get('/get-ip', async (req, res) => {
+  try {
+    // 推荐用国内可访问的IP API
+    const response = await axios.get('https://ip.useragentinfo.com/json');
+    res.json(response.data);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch IP' });
+  }
+});
 
 export default router; 
