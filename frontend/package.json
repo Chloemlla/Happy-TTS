@@ -23,7 +23,7 @@
     "@prisma/client": "^6.11.1",
     "@radix-ui/react-dialog": "^1.1.14",
     "@simplewebauthn/browser": "^13.1.0",
-    "@simplewebauthn/server": "^7.4.0",
+    "@simplewebauthn/server": "^13.1.2",
     "@simplewebauthn/types": "^12.0.0",
     "@types/axios": "^0.14.4",
     "@types/bcrypt": "^5.0.2",
