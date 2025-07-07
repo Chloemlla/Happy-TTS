@@ -198,10 +198,10 @@ class IntegrityChecker {
     // 监控网络请求和响应
     this.interceptNetworkRequests();
     
-    // 定期检查网络完整性
-    this.networkMonitorInterval = window.setInterval(() => {
-      this.checkNetworkIntegrity();
-    }, this.networkCheckInterval);
+    // 注释掉定期检查网络完整性，避免频繁请求
+    // this.networkMonitorInterval = window.setInterval(() => {
+    //   this.checkNetworkIntegrity();
+    // }, this.networkCheckInterval);
   }
 
   private interceptNetworkRequests(): void {
@@ -278,17 +278,15 @@ class IntegrityChecker {
   }
 
   private initializeProxyDetection(): void {
-    // 检测代理相关的HTTP头
-    this.detectProxyHeaders();
-    
-    // 检测响应时间异常（代理可能增加延迟）
-    this.detectResponseTimeAnomalies();
-    
-    // 检测内容长度变化
-    this.detectContentLengthChanges();
+    // 注释掉代理检测功能，避免定时请求
+    // this.detectProxyHeaders();
+    // this.detectResponseTimeAnomalies();
+    // this.detectContentLengthChanges();
   }
 
   private detectProxyHeaders(): void {
+    // 注释掉代理检测请求，避免定时请求
+    /*
     // 检查常见的代理头
     const proxyHeaders = [
       'via',
@@ -316,6 +314,7 @@ class IntegrityChecker {
       // 如果测试失败，假设可能存在代理
       this.enableEnhancedMonitoring();
     });
+    */
   }
 
   private enableEnhancedMonitoring(): void {
@@ -330,6 +329,8 @@ class IntegrityChecker {
   }
 
   private detectResponseTimeAnomalies(): void {
+    // 注释掉响应时间检测请求，避免定时请求
+    /*
     const startTime = performance.now();
     fetch('/api/timing-test', { cache: 'no-cache' })
       .then(() => {
@@ -341,6 +342,7 @@ class IntegrityChecker {
       .catch(() => {
         // 忽略错误
       });
+    */
   }
 
   private detectContentLengthChanges(): void {
@@ -757,7 +759,7 @@ class IntegrityChecker {
     });
 
     // 定期检查，但频率降低
-    setInterval(() => this.checkPageIntegrity(), 5000); // 改为5秒检查一次
+    setInterval(() => this.checkPageIntegrity(), 300000); // 改为5分钟检查一次
   }
 
   private handleMutation(mutation: MutationRecord): void {

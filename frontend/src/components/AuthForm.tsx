@@ -9,6 +9,8 @@ import { DebugInfoModal } from './DebugInfoModal';
 import { Dialog } from './ui/Dialog';
 import { Button } from './ui/Button';
 import VerificationMethodSelector from './VerificationMethodSelector';
+import PasskeyVerifyModal from './PasskeyVerifyModal';
+import { useNavigate } from 'react-router-dom';
 
 interface AuthFormProps {
     onSuccess?: () => void;
@@ -44,6 +46,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
     const [showPasskeyVerification, setShowPasskeyVerification] = useState(false);
     const [showVerificationSelector, setShowVerificationSelector] = useState(false);
     const [pendingVerificationData, setPendingVerificationData] = useState<any>(null);
+    const navigate = useNavigate();
 
     // 密码复杂度检查
     const checkPasswordStrength = (pwd: string): PasswordStrength => {
@@ -256,13 +259,13 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
 
     useEffect(() => {
         if (pending2FA) {
-            if (pending2FA.type.includes('Passkey')) {
+            if (pending2FA.type.includes('Passkey') && !showPasskeyVerification) {
                 setShowPasskeyVerification(true);
-            } else if (pending2FA.type.includes('TOTP')) {
+            } else if (pending2FA.type.includes('TOTP') && !showTOTPVerification) {
                 setShowTOTPVerification(true);
             }
         }
-    }, [pending2FA]);
+    }, [pending2FA, showPasskeyVerification, showTOTPVerification]);
 
     // Passkey验证弹窗逻辑
     const handlePasskeyVerify = async () => {
@@ -288,7 +291,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
             if (success) {
                 setShowPasskeyVerification(false);
                 setPending2FA(null);
-                window.location.reload();
+                navigate('/welcome');
             } else {
                 setError('Passkey 验证失败');
             }
@@ -310,7 +313,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
                 const success = await authenticateWithPasskey(pendingVerificationData.username);
                 if (success) {
                     setPendingVerificationData(null);
-                    window.location.reload();
+                    navigate('/welcome');
                 } else {
                     setError('Passkey 验证失败');
                 }
@@ -478,23 +481,13 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
                 message="为了保障您的合法权益，请您在继续使用本服务前，仔细阅读并同意我们的服务条款与隐私政策。未勾选将无法继续注册或登录。"
             />
             
-            {/* Passkey 验证弹窗 */}
-            {showPasskeyVerification && (
-                <Dialog open={showPasskeyVerification} onOpenChange={setShowPasskeyVerification}>
-                    <div className="p-6 flex flex-col items-center">
-                        <h2 className="text-xl font-bold mb-4">Passkey 二次验证</h2>
-                        <p className="mb-6 text-gray-700">请点击下方按钮，使用 Passkey 完成二次验证</p>
-                        <Button
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg"
-                            onClick={handlePasskeyVerify}
-                            disabled={loading}
-                        >
-                            {loading ? '验证中...' : '开始 Passkey 验证'}
-                        </Button>
-                        {error && <div className="text-red-500 mt-4">{error}</div>}
-                    </div>
-                </Dialog>
-            )}
+            {/* Passkey 二次校验弹窗 */}
+            <PasskeyVerifyModal
+                open={showPasskeyVerification}
+                username={username}
+                onSuccess={() => { setShowPasskeyVerification(false); setPending2FA(null); navigate('/welcome'); }}
+                onClose={() => setShowPasskeyVerification(false)}
+            />
             {/* TOTP 验证弹窗 */}
             {showTOTPVerification && (
                 <TOTPVerification
@@ -503,7 +496,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
                     onSuccess={() => {
                         setShowTOTPVerification(false);
                         setPending2FA(null);
-                        window.location.reload();
+                        navigate('/welcome');
                     }}
                     userId={pending2FA?.userId || ''}
                     token={pending2FA?.token || ''}

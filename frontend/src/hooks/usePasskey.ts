@@ -286,118 +286,13 @@ export const usePasskey = (): UsePasskeyReturn & {
             });
         }
         try {
-            // 完成认证 - 确保传递完整的响应对象
-            addDebugInfo({
-                action: '发送认证响应到后端',
-                username,
-                responseKeys: Object.keys(asseResp),
-                hasId: !!asseResp.id,
-                hasRawId: !!asseResp.rawId,
-                hasResponse: !!asseResp.response,
-                idValue: asseResp.id?.substring(0, 20) + '...',
-                responseType: asseResp.type,
-                timestamp: new Date().toISOString()
-            });
-            
-            // 确保响应对象包含所有必要字段，并正确处理ArrayBuffer
-            const responseToSend = {
-                id: asseResp.id,
-                type: asseResp.type,
-                response: {
-                    authenticatorData: asseResp.response?.authenticatorData,
-                    clientDataJSON: asseResp.response?.clientDataJSON,
-                    signature: asseResp.response?.signature,
-                    userHandle: asseResp.response?.userHandle
-                },
-                // 确保rawId是正确的base64url格式
-                rawId: asseResp.rawId ? (() => {
-                    try {
-                        const uint8Array = new Uint8Array(asseResp.rawId);
-                        const base64String = btoa(String.fromCharCode(...uint8Array));
-                        // 转换为base64url格式（替换+为-，/为_，移除=）
-                        return base64String.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-                    } catch (error) {
-                        addDebugInfo({
-                            action: 'rawId转换失败',
-                            error: error instanceof Error ? error.message : String(error),
-                            timestamp: new Date().toISOString()
-                        });
-                        return undefined;
-                    }
-                })() : undefined
-            };
-            
-            // 确保id字段也是正确的base64url格式
-            if (responseToSend.id) {
-                // 检查id是否包含base64标准字符，需要转换为base64url
-                if (responseToSend.id.includes('+') || responseToSend.id.includes('/') || responseToSend.id.includes('=')) {
-                    try {
-                        // 如果id包含base64标准字符，转换为base64url格式
-                        responseToSend.id = responseToSend.id.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-                        
-                        addDebugInfo({
-                            action: '修复id字段格式',
-                            originalId: asseResp.id,
-                            fixedId: responseToSend.id.substring(0, 20) + '...',
-                            timestamp: new Date().toISOString()
-                        });
-                    } catch (error) {
-                        addDebugInfo({
-                            action: 'id字段格式修复失败',
-                            error: error instanceof Error ? error.message : String(error),
-                            timestamp: new Date().toISOString()
-                        });
-                    }
-                }
-                
-                // 额外检查：确保id是有效的base64url格式
-                if (!responseToSend.id.match(/^[A-Za-z0-9_-]+$/)) {
-                    addDebugInfo({
-                        action: 'id字段格式无效',
-                        id: responseToSend.id,
-                        timestamp: new Date().toISOString()
-                    });
-                } else {
-                    addDebugInfo({
-                        action: 'id字段格式验证通过',
-                        id: responseToSend.id.substring(0, 20) + '...',
-                        timestamp: new Date().toISOString()
-                    });
-                }
-                
-                // 确保id是纯base64url格式（移除所有填充字符）
-                responseToSend.id = responseToSend.id.replace(/=/g, '');
-                addDebugInfo({
-                    action: '移除填充字符',
-                    originalLength: responseToSend.id.length + (responseToSend.id.match(/=/g) || []).length,
-                    finalLength: responseToSend.id.length,
-                    timestamp: new Date().toISOString()
-                });
-            }
-            
-            // 记录credentialID的详细信息
-            addDebugInfo({
-                action: 'credentialID详细信息',
-                originalId: asseResp.id,
-                finalId: responseToSend.id,
-                rawIdExists: !!asseResp.rawId,
-                rawIdLength: asseResp.rawId?.byteLength,
-                timestamp: new Date().toISOString()
-            });
-            
-            addDebugInfo({
-                action: '最终发送的响应对象',
-                hasId: !!responseToSend.id,
-                idValue: responseToSend.id?.substring(0, 20) + '...',
-                responseKeys: Object.keys(responseToSend),
-                timestamp: new Date().toISOString()
-            });
-            
-            const response = await passkeyApi.finishAuthentication(username, responseToSend);
-            // 使用返回的令牌登录
-            await loginWithToken(response.data.token, response.data.user);
+            // 认证成功后，直接将asseResp原始对象传递给后端，无需手动处理id/rawId
+            const resp = await passkeyApi.finishAuthentication(username, asseResp);
+            // 使用后端返回的令牌登录
+            await loginWithToken(resp.data.token, resp.data.user);
             showToast('Passkey 认证成功', 'success');
-            return response.data.success || false;
+            window.location.reload();
+            return resp.data.success || false;
         } catch (error: any) {
             if (asseResp && asseResp.id) {
                 setCurrentCredentialId(asseResp.id);

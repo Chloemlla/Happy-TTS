@@ -30,6 +30,18 @@ export const PasskeySetup: React.FC = () => {
     const [removingId, setRemovingId] = useState<string | null>(null);
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
+    // 浏览器Passkey支持性检测（异步）
+    const [isPasskeySupported, setIsPasskeySupported] = useState<boolean | null>(null);
+    useEffect(() => {
+        if (typeof window !== 'undefined' && window.PublicKeyCredential && typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function') {
+            window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+                .then((result: boolean) => setIsPasskeySupported(result))
+                .catch(() => setIsPasskeySupported(false));
+        } else {
+            setIsPasskeySupported(false);
+        }
+    }, []);
+
     useEffect(() => {
         loadCredentials();
     }, [loadCredentials]);
@@ -72,6 +84,12 @@ export const PasskeySetup: React.FC = () => {
 
     return (
         <>
+            {isPasskeySupported === false && (
+                <div className="bg-yellow-100 border border-yellow-300 text-yellow-800 rounded-lg p-4 mb-4 flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                    <span>当前浏览器不支持 Passkey（无密码认证）。请使用最新版 Chrome、Edge、Safari，且确保使用 HTTPS 访问。</span>
+                </div>
+            )}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

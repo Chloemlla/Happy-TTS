@@ -53,6 +53,7 @@ function getPrivateIPInfo(ip: string): IPInfo {
 // IP信息缓存
 const ipCache = new Map<string, { info: IPInfo; timestamp: number }>();
 const CACHE_TTL = 3600000; // 1小时缓存
+const MAX_CACHE_SIZE = 100; // 最大缓存条数，超出自动清理最早的key
 const MAX_CONCURRENT_REQUESTS = 50; // 降低并发请求数
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 增加重试延迟到1秒
@@ -217,6 +218,15 @@ function getIPInfoFromLocal(ip: string): IPInfo | null {
 // 初始化本地存储
 initializeLocalStorage();
 
+function setIpCache(ip: string, value: { info: IPInfo; timestamp: number }) {
+  if (ipCache.size >= MAX_CACHE_SIZE) {
+    // 删除最早的key
+    const firstKey = ipCache.keys().next().value;
+    if (firstKey) ipCache.delete(firstKey);
+  }
+  ipCache.set(ip, value);
+}
+
 export async function getIPInfo(ip: string): Promise<IPInfo> {
   try {
     // 处理特殊IP
@@ -242,7 +252,7 @@ export async function getIPInfo(ip: string): Promise<IPInfo> {
     const localInfo = getIPInfoFromLocal(ip);
     if (localInfo) {
       // 更新内存缓存
-      ipCache.set(ip, { info: localInfo, timestamp: Date.now() });
+      setIpCache(ip, { info: localInfo, timestamp: Date.now() });
       return localInfo;
     }
 
@@ -251,7 +261,7 @@ export async function getIPInfo(ip: string): Promise<IPInfo> {
         const info = await tryAllProviders(ip);
         
         // 更新内存缓存
-        ipCache.set(ip, { info, timestamp: Date.now() });
+        setIpCache(ip, { info, timestamp: Date.now() });
         
         // 保存到本地存储
         await saveIPInfoToLocal(info);

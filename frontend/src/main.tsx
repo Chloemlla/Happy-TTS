@@ -470,6 +470,7 @@ function runDangerousExtensionCheck() {
   }
 }
 
+// 注释危险扩展检测相关调用，避免阻断页面渲染
 document.addEventListener('DOMContentLoaded', () => {
   runDangerousExtensionCheck();
   setTimeout(runDangerousExtensionCheck, 500);
@@ -481,7 +482,7 @@ document.addEventListener('DOMContentLoaded', () => {
   observer.observe(document, { childList: true, subtree: true, attributes: true });
 
   // setInterval 定时检测，防止极端延迟注入
-  setInterval(runDangerousExtensionCheck, 2000);
+  setInterval(runDangerousExtensionCheck, 20000);
 });
 
 // 禁止右键和常见调试快捷键

@@ -51,6 +51,7 @@ export interface User {
     }[];
     pendingChallenge?: string;
     currentChallenge?: string;
+    passkeyVerified?: boolean;
 }
 
 export class UserStorage {

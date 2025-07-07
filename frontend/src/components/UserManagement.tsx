@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 interface User {
   id: string;
@@ -33,6 +34,7 @@ const UserManagement: React.FC = () => {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [form, setForm] = useState<User>(emptyUser);
   const [showForm, setShowForm] = useState(false);
+  const navigate = useNavigate();
 
   // 获取用户列表
   const fetchUsers = async () => {
@@ -40,12 +42,24 @@ const UserManagement: React.FC = () => {
     setError('');
     try {
       const token = localStorage.getItem('token') || '';
+      if (!token) {
+        setError('未找到有效的认证令牌，请重新登录');
+        return;
+      }
+      
       const res = await api.get<User[]>('/api/admin/users', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setUsers(res.data);
     } catch (e: any) {
-      setError(e.response?.data?.error || e.message || '获取用户失败');
+      console.error('获取用户列表失败:', e);
+      if (e.response?.status === 401) {
+        setError('认证失败，请重新登录');
+      } else if (e.response?.status === 403) {
+        setError('需要管理员权限');
+      } else {
+        setError(e.response?.data?.error || e.message || '获取用户失败');
+      }
     } finally {
       setLoading(false);
     }
@@ -135,13 +149,26 @@ const UserManagement: React.FC = () => {
       <AnimatePresence>
         {error && (
           <motion.div 
-            className="text-red-500 mb-2 font-semibold bg-red-50 border border-red-200 rounded-lg p-3"
+            className="text-red-500 mb-4 font-semibold bg-red-50 border border-red-200 rounded-lg p-4 text-center"
             initial={{ opacity: 0, scale: 0.95, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -10 }}
             transition={{ duration: 0.3 }}
           >
-            {error}
+            <div className="flex items-center justify-center gap-2">
+              <i className="fas fa-exclamation-triangle text-red-500"></i>
+              <span>{error}</span>
+            </div>
+            {error.includes('认证失败') && (
+              <div className="mt-2">
+                <button 
+                  onClick={() => navigate('/welcome')}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  重新登录
+                </button>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

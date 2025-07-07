@@ -189,7 +189,7 @@ export const useAuth = () => {
         setUser(user);
         lastCheckRef.current = Date.now();
         setLastCheckTime(Date.now());
-        window.location.reload();
+        navigate('/welcome');
     };
 
     const verifyTOTP = async (token: string, backupCode?: string) => {
@@ -215,8 +215,7 @@ export const useAuth = () => {
                 // 登录成功后立即更新检查时间，避免重复请求
                 lastCheckRef.current = Date.now();
                 setLastCheckTime(Date.now());
-                // 使用页面刷新而不是路由跳转
-                window.location.reload();
+                navigate('/welcome');
                 return true;
             } else {
                 throw new Error('TOTP验证失败');
@@ -283,8 +282,7 @@ export const useAuth = () => {
             // 注册成功后立即更新检查时间，避免重复请求
             lastCheckRef.current = Date.now();
             setLastCheckTime(Date.now());
-            // 使用页面刷新而不是路由跳转
-            window.location.reload();
+            navigate('/welcome');
         } catch (error: any) {
             const msg = error.response?.data?.error || error.message || '注册失败，请检查网络或稍后重试';
             throw new Error(msg);

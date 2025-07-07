@@ -4,7 +4,16 @@ import { authMiddleware } from '../middleware/authMiddleware';
 
 const router = express.Router();
 
-router.use(authMiddleware); // 所有管理接口都需要管理员权限
+// 管理员权限检查中间件
+const adminAuthMiddleware = (req: any, res: any, next: any) => {
+    if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ error: '需要管理员权限' });
+    }
+    next();
+};
+
+router.use(authMiddleware); // 先验证token
+router.use(adminAuthMiddleware); // 再检查管理员权限
 
 /**
  * @openapi

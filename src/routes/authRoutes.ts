@@ -88,4 +88,7 @@ router.post('/login', loginLimiter, validateAuthInput, AuthController.login);
  */
 router.get('/me', authenticateToken, AuthController.getCurrentUser);
 
+// Passkey 二次校验接口
+router.post('/passkey-verify', AuthController.passkeyVerify);
+
 export default router; 

@@ -190,7 +190,8 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
   'http://127.0.0.1:3001',
-  'http://192.168.137.1:3001'
+  'http://192.168.137.1:3001',
+  'http://192.168.10.7:3001'
 ];
 
 app.use(cors({
@@ -544,7 +545,13 @@ app.get('/api-docs.json', openapiLimiter, async (req, res) => {
   }
 });
 // Swagger UI 路由
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use('/api-docs', (req: Request, res: Response, next: NextFunction) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  res.removeHeader && res.removeHeader('ETag');
+  next();
+}, swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // 音频文件服务限流器
 const audioFileLimiter = rateLimit({

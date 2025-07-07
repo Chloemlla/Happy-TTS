@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { UserStorage } from '../utils/userStorage';
 import { config } from '../config/config';
 import logger from '../utils/logger';
+import jwt from 'jsonwebtoken';
 
 export const authenticateToken = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -27,8 +28,20 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
             return res.status(401).json({ error: '无效的Token' });
         }
 
-        // 在这个简单的系统中，token 就是 userId
-        const user = await UserStorage.getUserById(token);
+        // 解析 JWT，获取 userId
+        let payload: any;
+        try {
+            payload = jwt.verify(token, config.jwtSecret);
+        } catch (err) {
+            return res.status(401).json({ error: 'Token 无效或已过期' });
+        }
+
+        const userId = payload.userId;
+        if (!userId) {
+            return res.status(401).json({ error: 'Token 无 userId' });
+        }
+
+        const user = await UserStorage.getUserById(userId);
 
         if (!user) {
             return res.status(403).json({ error: '无效的Token' });
