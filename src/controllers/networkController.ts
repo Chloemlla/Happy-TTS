@@ -341,6 +341,355 @@ export class NetworkController {
     }
 
     /**
+     * 抖音热榜查询
+     */
+    public static async douyinHot(req: Request, res: Response) {
+        try {
+            const ip = NetworkController.getClientIp(req);
+
+            logger.info('收到抖音热榜查询请求', {
+                ip,
+                userAgent: req.headers['user-agent']
+            });
+
+            const result = await NetworkService.douyinHot();
+
+            if (result.success) {
+                res.json({
+                    success: true,
+                    message: '抖音热榜获取完成',
+                    data: result.data
+                });
+            } else {
+                res.status(500).json({
+                    success: false,
+                    error: result.error
+                });
+            }
+
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : '获取失败';
+            
+            logger.error('抖音热榜获取失败', {
+                ip: NetworkController.getClientIp(req),
+                error: errorMessage
+            });
+
+            res.status(500).json({
+                success: false,
+                error: errorMessage
+            });
+        }
+    }
+
+    /**
+     * 字符串Hash加密
+     */
+    public static hashEncrypt(req: Request, res: Response) {
+        try {
+            const { type, text } = req.query;
+            const ip = NetworkController.getClientIp(req);
+
+            logger.info('收到字符串Hash加密请求', {
+                ip,
+                type,
+                textLength: text ? String(text).length : 0,
+                userAgent: req.headers['user-agent']
+            });
+
+            // 参数验证
+            if (!type || typeof type !== 'string') {
+                return res.status(400).json({
+                    success: false,
+                    error: '加密算法类型参数不能为空'
+                });
+            }
+
+            if (!text || typeof text !== 'string') {
+                return res.status(400).json({
+                    success: false,
+                    error: '加密文本参数不能为空'
+                });
+            }
+
+            const validTypes = ['md4', 'md5', 'sha1', 'sha256', 'sha512'];
+            if (!validTypes.includes(type)) {
+                return res.status(400).json({
+                    success: false,
+                    error: `不支持的加密算法: ${type}。支持的算法: ${validTypes.join(', ')}`
+                });
+            }
+
+            const result = NetworkService.hashEncrypt(type as 'md4' | 'md5' | 'sha1' | 'sha256' | 'sha512', text);
+
+            if (result.success) {
+                res.json({
+                    success: true,
+                    message: '字符串Hash加密完成',
+                    data: result.data
+                });
+            } else {
+                res.status(400).json({
+                    success: false,
+                    error: result.error
+                });
+            }
+
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : '加密失败';
+            
+            logger.error('字符串Hash加密失败', {
+                ip: NetworkController.getClientIp(req),
+                error: errorMessage
+            });
+
+            res.status(500).json({
+                success: false,
+                error: errorMessage
+            });
+        }
+    }
+
+    /**
+     * Base64编码与解码
+     */
+    public static base64Operation(req: Request, res: Response) {
+        try {
+            const { type, text } = req.query;
+            const ip = NetworkController.getClientIp(req);
+
+            logger.info('收到Base64操作请求', {
+                ip,
+                type,
+                textLength: text ? String(text).length : 0,
+                userAgent: req.headers['user-agent']
+            });
+
+            // 参数验证
+            if (!type || typeof type !== 'string') {
+                return res.status(400).json({
+                    success: false,
+                    error: '操作类型参数不能为空'
+                });
+            }
+
+            if (!text || typeof text !== 'string') {
+                return res.status(400).json({
+                    success: false,
+                    error: '操作文本参数不能为空'
+                });
+            }
+
+            if (type !== 'encode' && type !== 'decode') {
+                return res.status(400).json({
+                    success: false,
+                    error: '操作类型必须是 encode(编码) 或 decode(解码)'
+                });
+            }
+
+            const result = NetworkService.base64Operation(type as 'encode' | 'decode', text);
+
+            if (result.success) {
+                res.json({
+                    success: true,
+                    message: 'Base64操作完成',
+                    data: result.data
+                });
+            } else {
+                res.status(400).json({
+                    success: false,
+                    error: result.error
+                });
+            }
+
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : '操作失败';
+            
+            logger.error('Base64操作失败', {
+                ip: NetworkController.getClientIp(req),
+                error: errorMessage
+            });
+
+            res.status(500).json({
+                success: false,
+                error: errorMessage
+            });
+        }
+    }
+
+    /**
+     * BMI身体指数计算
+     */
+    public static bmiCalculate(req: Request, res: Response) {
+        try {
+            const { height, weight } = req.query;
+            const ip = NetworkController.getClientIp(req);
+
+            logger.info('收到BMI计算请求', {
+                ip,
+                height,
+                weight,
+                userAgent: req.headers['user-agent']
+            });
+
+            if (!height || typeof height !== 'string' || !weight || typeof weight !== 'string') {
+                return res.status(400).json({
+                    success: false,
+                    error: '身高和体重参数不能为空'
+                });
+            }
+
+            const result = NetworkService.bmiCalculate(height, weight);
+
+            if (result.success) {
+                res.json({
+                    success: true,
+                    message: 'BMI计算完成',
+                    data: result.data
+                });
+            } else {
+                res.status(400).json({
+                    success: false,
+                    error: result.error
+                });
+            }
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'BMI计算失败';
+            logger.error('BMI计算失败', {
+                ip: NetworkController.getClientIp(req),
+                error: errorMessage
+            });
+            res.status(500).json({
+                success: false,
+                error: errorMessage
+            });
+        }
+    }
+
+    /**
+     * FLAC转MP3音频转换
+     */
+    public static async flacToMp3(req: Request, res: Response) {
+        try {
+            const { url, return: returnType } = req.query;
+            const ip = NetworkController.getClientIp(req);
+
+            logger.info('收到FLAC转MP3请求', {
+                ip,
+                url,
+                returnType,
+                userAgent: req.headers['user-agent']
+            });
+
+            // 参数验证
+            if (!url || typeof url !== 'string') {
+                return res.status(400).json({
+                    success: false,
+                    error: 'URL参数不能为空'
+                });
+            }
+
+            // 验证return参数
+            const validReturnTypes = ['json', '302'];
+            const returnValue = returnType && typeof returnType === 'string' && validReturnTypes.includes(returnType) 
+                ? returnType as 'json' | '302' 
+                : 'json';
+
+            const result = await NetworkService.flacToMp3(url, returnValue);
+
+            if (result.success) {
+                // 如果请求返回类型是302，直接重定向
+                if (returnValue === '302' && result.data && typeof result.data === 'string') {
+                    return res.redirect(result.data);
+                }
+
+                res.json({
+                    success: true,
+                    message: 'FLAC转MP3转换完成',
+                    data: result.data
+                });
+            } else {
+                res.status(400).json({
+                    success: false,
+                    error: result.error
+                });
+            }
+
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : '转换失败';
+            
+            logger.error('FLAC转MP3转换失败', {
+                ip: NetworkController.getClientIp(req),
+                error: errorMessage
+            });
+
+            res.status(500).json({
+                success: false,
+                error: errorMessage
+            });
+        }
+    }
+
+    /**
+     * 随机驾考题目
+     */
+    public static async randomJiakao(req: Request, res: Response) {
+        try {
+            const { subject } = req.query;
+            const ip = NetworkController.getClientIp(req);
+
+            logger.info('收到随机驾考题目请求', {
+                ip,
+                subject,
+                userAgent: req.headers['user-agent']
+            });
+
+            // 参数验证
+            if (!subject || typeof subject !== 'string') {
+                return res.status(400).json({
+                    success: false,
+                    error: '科目参数不能为空'
+                });
+            }
+
+            if (subject !== '1' && subject !== '4') {
+                return res.status(400).json({
+                    success: false,
+                    error: '科目参数必须是 1(科目1) 或 4(科目4)'
+                });
+            }
+
+            const result = await NetworkService.randomJiakao(subject as '1' | '4');
+
+            if (result.success) {
+                res.json({
+                    success: true,
+                    message: '随机驾考题目获取完成',
+                    data: result.data
+                });
+            } else {
+                res.status(400).json({
+                    success: false,
+                    error: result.error
+                });
+            }
+
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : '获取失败';
+            
+            logger.error('随机驾考题目获取失败', {
+                ip: NetworkController.getClientIp(req),
+                error: errorMessage
+            });
+
+            res.status(500).json({
+                success: false,
+                error: errorMessage
+            });
+        }
+    }
+
+    /**
      * 获取客户端IP地址
      */
     private static getClientIp(req: Request): string {
