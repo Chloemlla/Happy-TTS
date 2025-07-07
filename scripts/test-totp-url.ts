@@ -1,4 +1,4 @@
-import { TOTPService } from './services/totpService';
+import { TOTPService } from '../src/services/totpService';
 
 /**
  * 测试TOTP otpauth URL格式

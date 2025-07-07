@@ -182,29 +182,43 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     next();
 });
 
-// Middleware
+// 允许的域名
+const allowedOrigins = [
+  'https://tts.hapx.one',
+  'https://tts.hapxs.com',
+  'https://tts-api.hapxs.com',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://127.0.0.1:3001',
+  'http://192.168.137.1:3001'
+];
+
 app.use(cors({
-    origin: [
-        'https://tts.hapx.one',
-        'https://tts.hapxs.com',
-        'http://localhost:3000',
-        'http://localhost:3001',
-        'http://127.0.0.1:3001',
-        'http://192.168.137.1:3001'
-    ],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: [
-        'Content-Type',
-        'Authorization',
-        'X-Requested-With',
-        'Accept',
-        'Origin',
-        'Access-Control-Request-Method',
-        'Access-Control-Request-Headers'
-    ],
-    exposedHeaders: ['Content-Length', 'X-RateLimit-Limit', 'X-RateLimit-Remaining'],
-    maxAge: 86400 // 预检请求的结果可以缓存24小时
+  origin: function(origin, callback) {
+    // 允许本地无origin的情况（如curl、postman等）
+    if (!origin) return callback(null, true);
+    // 允许所有 *.hapxs.com
+    if (/^https:\/\/([a-zA-Z0-9-]+\.)*hapxs\.com$/.test(origin)) {
+      return callback(null, true);
+    }
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS'), false);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+    'Access-Control-Request-Method',
+    'Access-Control-Request-Headers'
+  ],
+  exposedHeaders: ['Content-Length', 'X-RateLimit-Limit', 'X-RateLimit-Remaining'],
+  maxAge: 86400 // 预检请求的结果可以缓存24小时
 }));
 app.use(helmet({
     contentSecurityPolicy: {
@@ -212,8 +226,23 @@ app.use(helmet({
             defaultSrc: ["'self'"],
             styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
-            connectSrc: ["'self'", "https://api.ipify.org", "https://ipapi.co", "https://ipinfo.io"],
-            imgSrc: ["'self'", "data:", "https://api.ipify.org", "https://ipapi.co", "https://ipinfo.io"],
+            connectSrc: [
+                "'self'",
+                "https://*.hapxs.com",
+                "https://api.ipify.org",
+                "https://ipapi.co",
+                "https://ipinfo.io",
+                "https://api.ip.sb",
+                "https://cdn.shopimgs.com"
+            ],
+            imgSrc: [
+                "'self'",
+                "data:",
+                "https://api.ipify.org",
+                "https://ipapi.co",
+                "https://ipinfo.io",
+                "https://api.ip.sb"
+            ],
             scriptSrc: ["'self'", "'unsafe-inline'"],
             frameSrc: ["'self'", "https://tts.hapx.one",'https://tts-api-docs.hapxs.com']
         }

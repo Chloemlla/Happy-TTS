@@ -1,4 +1,4 @@
-const { TOTPService } = require('./services/totpService');
+const { TOTPService } = require('../src/services/totpService');
 
 /**
  * 测试TOTP otpauth URL格式
