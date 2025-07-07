@@ -50,19 +50,19 @@ ENDPOINTS = [
         "name": "字符串Hash",
         "path": "/api/network/hash",
         "method": "GET",
-        "params": {"text": "Hello World", "algorithm": "md5"},
+        "params": {"text": "Hello World", "type": "md5"},
     },
     {
         "name": "Base64编码",
         "path": "/api/network/base64",
         "method": "GET",
-        "params": {"text": "Hello World", "operation": "encode"},
+        "params": {"text": "Hello World", "type": "encode"},
     },
     {
         "name": "Base64解码",
         "path": "/api/network/base64",
         "method": "GET",
-        "params": {"text": "SGVsbG8gV29ybGQ=", "operation": "decode"},
+        "params": {"text": "SGVsbG8gV29ybGQ=", "type": "decode"},
     },
     {
         "name": "BMI计算",
