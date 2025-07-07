@@ -14,6 +14,13 @@ class CommandService {
     'systemctl', 'service', 'docker', 'git', 'npm', 'node'
   ]);
 
+  // 危险命令黑名单
+  private readonly DANGEROUS_COMMANDS = new Set([
+    'rm', 'cat', 'wget', 'curl', 'nc', 'bash', 'sh', 'python', 'perl', 'ruby',
+    'echo', 'touch', 'mkdir', 'cp', 'mv', 'ln', 'chmod', 'chown', 'kill', 'reboot',
+    'dd', 'format', 'fdisk', 'mkfs', 'mount', 'umount', 'sudo', 'su', 'chmod', 'chown'
+  ]);
+
   private constructor() {}
 
   public static getInstance(): CommandService {
@@ -36,16 +43,45 @@ class CommandService {
       return { isValid: false, error: '命令长度超过限制' };
     }
 
-    // 检查是否包含危险字符
+    // 检查是否包含危险字符（优先检查）
     const dangerousChars = [';', '&', '|', '`', '$', '(', ')', '{', '}', '[', ']', '<', '>', '"', "'"];
     if (dangerousChars.some(char => command.includes(char))) {
       return { isValid: false, error: '命令包含危险字符' };
+    }
+
+    // 检查路径遍历攻击
+    const pathTraversalPatterns = [
+      /\.\.\//g,  // ../
+      /\.\.\\/g,  // ..\
+      /\/etc\//g, // /etc/
+      /\/root\//g, // /root/
+      /\/tmp\//g,  // /tmp/
+      /\/var\//g,  // /var/
+      /\/home\//g, // /home/
+      /\/usr\//g,  // /usr/
+      /\/bin\//g,  // /bin/
+      /\/sbin\//g, // /sbin/
+      /\/lib\//g,  // /lib/
+      /\/opt\//g,  // /opt/
+      /\/mnt\//g,  // /mnt/
+      /\/media\//g, // /media/
+      /\/dev\//g,  // /dev/
+      /\/proc\//g  // /proc/
+    ];
+    
+    if (pathTraversalPatterns.some(pattern => pattern.test(command))) {
+      return { isValid: false, error: '参数包含危险字符' };
     }
 
     // 解析命令和参数
     const parts = command.trim().split(/\s+/);
     const baseCommand = parts[0];
     const args = parts.slice(1);
+
+    // 检查命令是否在黑名单中
+    if (this.DANGEROUS_COMMANDS.has(baseCommand)) {
+      return { isValid: false, error: `不允许执行命令: ${baseCommand}` };
+    }
 
     // 检查命令是否在白名单中
     if (!this.ALLOWED_COMMANDS.has(baseCommand)) {
@@ -55,6 +91,11 @@ class CommandService {
     // 验证参数安全性
     for (const arg of args) {
       if (dangerousChars.some(char => arg.includes(char))) {
+        return { isValid: false, error: `参数包含危险字符: ${arg}` };
+      }
+      
+      // 检查参数中的路径遍历
+      if (pathTraversalPatterns.some(pattern => pattern.test(arg))) {
         return { isValid: false, error: `参数包含危险字符: ${arg}` };
       }
     }

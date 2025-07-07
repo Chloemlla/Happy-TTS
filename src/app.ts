@@ -507,9 +507,20 @@ app.get('/api-docs.json', openapiLimiter, (req, res) => {
 // Swagger UI 路由
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
+// 音频文件服务限流器
+const audioFileLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1分钟
+  max: 50, // 每分钟最多50次音频文件请求
+  message: { error: '音频文件请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => req.ip || (req.socket?.remoteAddress) || 'unknown',
+  skip: (req: Request): boolean => req.isLocalIp || false
+});
+
 // Static files
 const audioDir = path.join(__dirname, '../finish');
-app.use('/static/audio', express.static(audioDir, {
+app.use('/static/audio', audioFileLimiter, express.static(audioDir, {
   setHeaders: (res) => {
     res.set('Cross-Origin-Resource-Policy', 'cross-origin');
     res.set('Access-Control-Allow-Origin', '*');
@@ -560,13 +571,35 @@ app.head('/api/proxy-test', integrityLimiter, (req, res) => res.sendStatus(200))
 app.get('/api/proxy-test', integrityLimiter, (req, res) => res.sendStatus(200));
 app.get('/api/timing-test', integrityLimiter, (req, res) => res.sendStatus(200));
 
+// 根路由限流器
+const rootLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1分钟
+  max: 100, // 每分钟最多100次根路由访问
+  message: { error: '访问过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => req.ip || (req.socket?.remoteAddress) || 'unknown',
+  skip: (req: Request): boolean => req.isLocalIp || false
+});
+
 // 根路由重定向到前端
-app.get('/', (req, res) => {
+app.get('/', rootLimiter, (req, res) => {
   res.redirect('/index.html');
 });
 
-// IP 路由
-app.get('/ip', async (req, res) => {
+// IP查询路由限流器
+const ipQueryLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1分钟
+  max: 30, // 每分钟最多30次IP查询
+  message: { error: 'IP查询过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => req.ip || (req.socket?.remoteAddress) || 'unknown',
+  skip: (req: Request): boolean => req.isLocalIp || false
+});
+
+// IP 信息路由（使用 getIPInfo 服务）
+app.get('/ip', ipQueryLimiter, async (req, res) => {
   try {
     const ip = (req.headers['x-real-ip'] as string) || req.ip || '127.0.0.1';
     const ipInfo = await getIPInfo(ip);
@@ -648,10 +681,21 @@ app.post('/api/report-ip', ipReportLimiter, async (req, res) => {
   }
 });
 
+// 静态文件服务限流器
+const staticFileLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1分钟
+  max: 200, // 每分钟最多200次静态文件请求
+  message: { error: '静态文件请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => req.ip || (req.socket?.remoteAddress) || 'unknown',
+  skip: (req: Request): boolean => req.isLocalIp || false
+});
+
 // 静态文件服务
 const frontendPath = join(__dirname, '../frontend/dist');
 if (existsSync(frontendPath)) {
-  app.use(express.static(frontendPath));
+  app.use('/static', staticFileLimiter, express.static(frontendPath));
   // 前端 SPA 路由 - 只匹配非 /api /api-docs /static /openapi 开头的路径
   app.get(/^\/(?!api|api-docs|static|openapi)(.*)/, frontendLimiter, (req, res) => {
     res.sendFile(join(frontendPath, 'index.html'));
@@ -660,8 +704,19 @@ if (existsSync(frontendPath)) {
   logger.warn('Frontend files not found at:', frontendPath);
 }
 
+// 文档加载超时上报接口限流器
+const docsTimeoutLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1分钟
+  max: 5, // 每分钟最多5次上报
+  message: { error: '上报过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => req.ip || (req.socket?.remoteAddress) || 'unknown',
+  skip: (req: Request): boolean => req.isLocalIp || false
+});
+
 // 文档加载超时上报接口
-app.post('/api/report-docs-timeout', express.json(), (req, res) => {
+app.post('/api/report-docs-timeout', docsTimeoutLimiter, express.json(), (req, res) => {
   const { url, timestamp, userAgent } = req.body;
   logger.error('API文档加载超时', {
     url,
@@ -673,8 +728,33 @@ app.post('/api/report-docs-timeout', express.json(), (req, res) => {
   res.json({ success: true });
 });
 
+// 全局默认限流器（保护未明确限速的路由）
+const globalDefaultLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1分钟
+  max: 100, // 每分钟最多100次请求
+  message: { error: '请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => req.ip || (req.socket?.remoteAddress) || 'unknown',
+  skip: (req: Request): boolean => req.isLocalIp || false
+});
+
+// 404处理限流器
+const notFoundLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1分钟
+  max: 50, // 每分钟最多50次404请求
+  message: { error: '请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => req.ip || (req.socket?.remoteAddress) || 'unknown',
+  skip: (req: Request): boolean => req.isLocalIp || false
+});
+
+// 应用全局默认限流器
+app.use(globalDefaultLimiter);
+
 // 404 处理
-app.use((req: Request, res: Response) => {
+app.use(notFoundLimiter, (req: Request, res: Response) => {
   logger.warn(`404 Not Found: ${req.method} ${req.url}`, {
     ip: req.ip,
     headers: req.headers,
@@ -759,8 +839,19 @@ async function readIpData(): Promise<Record<string, string>> {
   return ipData;
 }
 
-// 路由处理
-app.get('/ip', async (req, res) => {
+// IP位置查询路由限流器
+const ipLocationLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1分钟
+  max: 20, // 每分钟最多20次IP位置查询
+  message: { error: 'IP位置查询过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => req.ip || (req.socket?.remoteAddress) || 'unknown',
+  skip: (req: Request): boolean => req.isLocalIp || false
+});
+
+// IP位置查询路由（使用外部API）
+app.get('/ip-location', ipLocationLimiter, async (req, res) => {
   const providedIp = req.query.ip as string;
   const realTime = req.query['real-time'] !== undefined;
 
@@ -802,8 +893,19 @@ app.get('/ip', async (req, res) => {
   });
 });
 
+// 服务器状态查询限流器
+const serverStatusLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1分钟
+  max: 10, // 每分钟最多10次状态查询
+  message: { error: '状态查询过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => req.ip || (req.socket?.remoteAddress) || 'unknown',
+  skip: (req: Request): boolean => req.isLocalIp || false
+});
+
 // 服务器状态
-app.post('/server_status', (req, res) => {
+app.post('/server_status', serverStatusLimiter, (req, res) => {
   const password = req.body.password;
 
   if (password === PASSWORD) {

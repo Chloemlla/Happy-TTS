@@ -41,13 +41,6 @@ module.exports = {
     'default',
   ],
   
-  // 全局设置
-  globals: {
-    'ts-jest': {
-      tsconfig: 'tsconfig.json',
-    },
-  },
-  
   // 清理配置
   clearMocks: true,
   restoreMocks: true,

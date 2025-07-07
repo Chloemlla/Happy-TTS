@@ -220,6 +220,127 @@ export class NetworkController {
     }
 
     /**
+     * 精准IP查询
+     */
+    public static async ipQuery(req: Request, res: Response) {
+        try {
+            const { ip } = req.query;
+            const clientIp = NetworkController.getClientIp(req);
+
+            logger.info('收到精准IP查询请求', {
+                clientIp,
+                queryIp: ip,
+                userAgent: req.headers['user-agent']
+            });
+
+            // 参数验证
+            if (!ip || typeof ip !== 'string') {
+                return res.status(400).json({
+                    success: false,
+                    error: 'IP参数不能为空'
+                });
+            }
+
+            // 简单的IP格式验证
+            const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+            if (!ipRegex.test(ip)) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'IP地址格式不正确'
+                });
+            }
+
+            const result = await NetworkService.ipQuery(ip);
+
+            if (result.success) {
+                res.json({
+                    success: true,
+                    message: '精准IP查询完成',
+                    data: result.data
+                });
+            } else {
+                res.status(500).json({
+                    success: false,
+                    error: result.error
+                });
+            }
+
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : '查询失败';
+            
+            logger.error('精准IP查询失败', {
+                ip: NetworkController.getClientIp(req),
+                error: errorMessage
+            });
+
+            res.status(500).json({
+                success: false,
+                error: errorMessage
+            });
+        }
+    }
+
+    /**
+     * 随机一言古诗词
+     */
+    public static async randomQuote(req: Request, res: Response) {
+        try {
+            const { type } = req.query;
+            const ip = NetworkController.getClientIp(req);
+
+            logger.info('收到随机一言古诗词请求', {
+                ip,
+                type,
+                userAgent: req.headers['user-agent']
+            });
+
+            // 参数验证
+            if (!type || typeof type !== 'string') {
+                return res.status(400).json({
+                    success: false,
+                    error: '类型参数不能为空'
+                });
+            }
+
+            // 验证类型参数
+            if (type !== 'hitokoto' && type !== 'poetry') {
+                return res.status(400).json({
+                    success: false,
+                    error: '类型参数必须是 hitokoto(一言) 或 poetry(古诗词)'
+                });
+            }
+
+            const result = await NetworkService.randomQuote(type as 'hitokoto' | 'poetry');
+
+            if (result.success) {
+                res.json({
+                    success: true,
+                    message: '随机一言古诗词获取完成',
+                    data: result.data
+                });
+            } else {
+                res.status(500).json({
+                    success: false,
+                    error: result.error
+                });
+            }
+
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : '获取失败';
+            
+            logger.error('随机一言古诗词获取失败', {
+                ip: NetworkController.getClientIp(req),
+                error: errorMessage
+            });
+
+            res.status(500).json({
+                success: false,
+                error: errorMessage
+            });
+        }
+    }
+
+    /**
      * 获取客户端IP地址
      */
     private static getClientIp(req: Request): string {

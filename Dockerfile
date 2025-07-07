@@ -67,7 +67,7 @@ COPY frontend/docs/ ./docs/
 # 安装文档依赖并构建
 WORKDIR /app/docs
 RUN npm install -g npm
-RUN npm install && (npm run build || (echo "第一次构建失败，重试..." && npm run build) || (echo "第二次构建失败，使用简化构建..." && npm run build:simple))
+RUN npm install && (npm run build:no-git || (echo "第一次构建失败，重试..." && npm run build) || (echo "第二次构建失败，使用简化构建..." && npm run build:simple))
 
 # 构建后端
 FROM node:22-alpine AS backend-builder
