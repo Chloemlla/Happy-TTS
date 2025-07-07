@@ -51,7 +51,7 @@
   "license": "MIT",
   "dependencies": {
     "@fingerprintjs/fingerprintjs": "^4.6.2",
-    "@simplewebauthn/browser": "^13.1.0",
+    "@simplewebauthn/browser": "^13.1.2",
     "@simplewebauthn/server": "^13.1.1",
     "@types/bcrypt": "^5.0.2",
     "@types/dompurify": "^3.2.0",
