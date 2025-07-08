@@ -118,61 +118,16 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       treeshake: true, // 启用tree shaking
       output: {
-        manualChunks: (id) => {
-          // 更细粒度的代码分割策略
-          if (id.includes('node_modules')) {
-            // React相关库
-            if (id.includes('react') || id.includes('react-dom')) {
-              return 'react-vendor';
-            }
-            // 路由相关
-            if (id.includes('react-router')) {
-              return 'router';
-            }
-            // UI组件库
-            if (id.includes('@radix-ui') || id.includes('lucide-react') || id.includes('react-icons')) {
-              return 'ui-components';
-            }
-            // 动画库
-            if (id.includes('framer-motion')) {
-              return 'animations';
-            }
-            // 认证相关
-            if (id.includes('@simplewebauthn') || id.includes('qrcode.react')) {
-              return 'auth';
-            }
-            // 代码高亮
-            if (id.includes('react-syntax-highlighter') || id.includes('prismjs')) {
-              return 'code-highlight';
-            }
-            // 工具库
-            if (id.includes('axios') || id.includes('clsx') || id.includes('tailwind-merge')) {
-              return 'utils';
-            }
-            // 通知库
-            if (id.includes('react-toastify')) {
-              return 'toast';
-            }
-            // API文档
-            if (id.includes('swagger-ui-react')) {
-              return 'swagger';
-            }
-            // 其他第三方库
-            return 'vendor';
-          }
-          // 组件级别的分割
-          if (id.includes('/components/')) {
-            if (id.includes('TOTP') || id.includes('Passkey')) {
-              return 'auth-components';
-            }
-            if (id.includes('ApiDocs') || id.includes('LogShare')) {
-              return 'admin-components';
-            }
-            if (id.includes('TTS') || id.includes('Audio')) {
-              return 'tts-components';
-            }
-            return 'common-components';
-          }
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom'],
+          'router': ['react-router-dom'],
+          'ui': ['@radix-ui/react-dialog', 'lucide-react', 'react-icons'],
+          'utils': ['axios', 'clsx', 'tailwind-merge'],
+          'auth': ['@simplewebauthn/browser', 'qrcode.react'],
+          'animations': ['framer-motion'],
+          'code-highlight': ['react-syntax-highlighter', 'prismjs'],
+          'toast': ['react-toastify'],
+          'swagger': ['swagger-ui-react']
         },
         entryFileNames: 'assets/[name].[hash].js',
         chunkFileNames: 'assets/[name].[hash].js',
@@ -225,5 +180,10 @@ export default defineConfig(({ mode }) => ({
   },
   worker: {
     format: 'es'
+  },
+  // 添加SPA路由支持
+  preview: {
+    port: 3001,
+    host: '0.0.0.0'
   }
 })) 

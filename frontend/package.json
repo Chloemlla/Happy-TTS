@@ -11,12 +11,14 @@
   ],
   "scripts": {
     "dev": "vite",
-    "build": "cross-env NODE_OPTIONS=\"--max-old-space-size=8192\" tsc && cross-env NODE_OPTIONS=\"--max-old-space-size=8192\" vite build",
-    "build:simple": "cross-env NODE_OPTIONS=\"--max-old-space-size=4096\" tsc && cross-env NODE_OPTIONS=\"--max-old-space-size=4096\" vite build --mode simple",
-    "build:minimal": "cross-env NODE_OPTIONS=\"--max-old-space-size=2048\" tsc && cross-env NODE_OPTIONS=\"--max-old-space-size=2048\" vite build --mode minimal",
+    "build": "tsc && vite build",
+    "build:simple": "tsc && vite build --mode simple",
+    "build:minimal": "tsc && vite build --mode minimal",
     "build:analyze": "tsc && vite build --mode analyze",
-    "build:optimized": "cross-env NODE_OPTIONS=\"--max-old-space-size=8192\" tsc && cross-env NODE_OPTIONS=\"--max-old-space-size=8192\" vite build --mode production",
+    "build:optimized": "tsc && vite build --mode production",
     "preview": "vite preview",
+    "serve": "node static-server.js",
+    "serve:prod": "npm run build && node static-server.js",
     "test": "vitest",
     "analyze": "npm run build:analyze && npx vite-bundle-analyzer dist",
     "analyze:bundle": "node scripts/analyze-bundle.js"

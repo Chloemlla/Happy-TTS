@@ -25,6 +25,8 @@ api.interceptors.request.use(config => {
     const token = localStorage.getItem('token');
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+        // 添加调试日志
+        console.log('设置Authorization头:', `Bearer ${token}`);
     }
     return config;
 });
@@ -87,13 +89,19 @@ export const useAuth = () => {
                 return;
             }
             
+            console.log('检查认证状态，token:', token);
+            
             const response = await api.get<User>('/api/auth/me', {
                 headers: { Authorization: `Bearer ${token}` }
             });
             
+            console.log('认证检查响应:', response.status, response.data);
+            
             if (response.status === 401 || response.status === 403) {
-                // 使用ref中的navigate，避免依赖项
-                navigate('/welcome');
+                // 清除无效token
+                localStorage.removeItem('token');
+                setUser(null);
+                setLoading(false);
                 return;
             }
             
@@ -139,12 +147,12 @@ export const useAuth = () => {
 
     // 使用useEffect来定期检查认证状态
     useEffect(() => {
+        // 初始检查
+        checkAuth();
+        
         const interval = setInterval(() => {
             checkAuth();
         }, CHECK_INTERVAL);
-        
-        // 初始检查
-        checkAuth();
         
         return () => clearInterval(interval);
     }, []); // 移除checkAuth依赖项，避免重复触发
@@ -174,7 +182,10 @@ export const useAuth = () => {
                 setUser(user);
                 lastCheckRef.current = Date.now();
                 setLastCheckTime(Date.now());
-                window.location.reload();
+                // 添加调试日志
+                console.log('登录成功，保存token:', token);
+                console.log('用户信息:', user);
+                // 移除强制刷新，让React Router处理导航
                 return { requires2FA: false };
             }
         } catch (error: any) {
@@ -189,7 +200,7 @@ export const useAuth = () => {
         setUser(user);
         lastCheckRef.current = Date.now();
         setLastCheckTime(Date.now());
-        window.location.reload(); // Passkey 登录后强制刷新，确保新 token 生效
+        // 移除强制刷新，让React Router处理导航
     };
 
     const verifyTOTP = async (token: string, backupCode?: string) => {

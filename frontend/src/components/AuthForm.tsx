@@ -214,17 +214,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
             } else {
                 // 注册后自动登录
                 await register(sanitizedUsername, sanitizedEmail, sanitizedPassword);
-                // 注册成功后自动登录
-                const loginResult = await login(sanitizedUsername, sanitizedPassword);
-                if (loginResult && loginResult.token) {
-                    if (typeof loginResult.token === 'string' && loginResult.token.length > 20) {
-                        localStorage.setItem('token', loginResult.token);
-                    } else {
-                        alert('登录失败，服务器返回无效token，请联系管理员');
-                        return;
-                    }
-                }
             }
+            // 登录成功后调用回调函数
             onSuccess?.();
         } catch (err: any) {
             // 记录认证操作失败（不输出到控制台）

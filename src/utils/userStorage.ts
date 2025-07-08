@@ -37,6 +37,8 @@ export interface User {
     dailyUsage: number;
     lastUsageDate: string;
     createdAt: string;
+    token?: string;
+    tokenExpiresAt?: number;
     totpSecret?: string;
     totpEnabled?: boolean;
     backupCodes?: string[];
