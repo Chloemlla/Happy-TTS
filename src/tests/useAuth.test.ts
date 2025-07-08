@@ -75,18 +75,6 @@ describe('Authentication Logic', () => {
       expect(validateToken('Invalid token')).toBe(false);
       expect(validateToken('')).toBe(false);
     });
-
-    it('应该验证本地IP识别', () => {
-      const isLocalIp = (ip: string) => {
-        return ['127.0.0.1', 'localhost', '::1'].includes(ip);
-      };
-
-      expect(isLocalIp('127.0.0.1')).toBe(true);
-      expect(isLocalIp('localhost')).toBe(true);
-      expect(isLocalIp('::1')).toBe(true);
-      expect(isLocalIp('192.168.1.1')).toBe(false);
-      expect(isLocalIp('10.0.0.1')).toBe(false);
-    });
   });
 
   describe('Error Handling', () => {

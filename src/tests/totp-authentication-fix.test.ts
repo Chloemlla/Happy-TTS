@@ -9,11 +9,22 @@ describe('TOTP认证修复测试', () => {
     let validToken: string;
 
     beforeEach(async () => {
-        // 清理测试数据
-        const allUsers = await UserStorage.getAllUsers();
-        const existingUser = allUsers.find(u => u.username === 'testuser_totp_fix');
-        if (existingUser) {
-            await UserStorage.deleteUser(existingUser.id);
+        // 清理测试数据 - 更彻底的清理
+        try {
+            const allUsers = await UserStorage.getAllUsers();
+            const existingUsers = allUsers.filter(u => 
+                u.username === 'testuser_totp_fix' || 
+                u.email === 'test@example.com'
+            );
+            
+            for (const user of existingUsers) {
+                await UserStorage.deleteUser(user.id);
+            }
+            
+            // 等待一下确保删除操作完成
+            await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (error) {
+            console.log('清理测试数据时出错:', error);
         }
 
         // 创建测试用户
@@ -33,7 +44,11 @@ describe('TOTP认证修复测试', () => {
     afterEach(async () => {
         // 清理测试数据
         if (testUser) {
-            await UserStorage.deleteUser(testUser.id);
+            try {
+                await UserStorage.deleteUser(testUser.id);
+            } catch (error) {
+                console.log('删除测试用户时出错:', error);
+            }
         }
     });
 

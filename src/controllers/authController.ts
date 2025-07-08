@@ -153,6 +153,7 @@ export class AuthController {
                     error: '无效的认证令牌'
                 });
             }
+            
             // 解析 JWT token 获取 userId
             let userId: string;
             try {
@@ -161,12 +162,14 @@ export class AuthController {
             } catch (e) {
                 return res.status(401).json({ error: '认证令牌无效或已过期' });
             }
+            
             const user = await UserStorage.getUserById(userId);
             if (!user) {
                 return res.status(404).json({
                     error: '用户不存在'
                 });
             }
+            
             const remainingUsage = await UserStorage.getRemainingUsage(userId);
             const { password: _, ...userWithoutPassword } = user;
             res.json({
@@ -272,6 +275,8 @@ export class AuthController {
             return res.status(500).json({ error: '服务器异常' });
         }
     }
+
+
 }
 
 // 辅助函数：写入token和过期时间到users.json

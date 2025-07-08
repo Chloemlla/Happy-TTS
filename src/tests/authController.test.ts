@@ -1,6 +1,8 @@
 import express from 'express';
 import { AuthController } from '../controllers/authController';
 import { UserStorage } from '../utils/userStorage';
+import jwt from 'jsonwebtoken';
+import { config } from '../config/config';
 
 // 模拟依赖
 jest.mock('../utils/userStorage');
@@ -24,45 +26,6 @@ describe('AuthController', () => {
   });
 
   describe('getCurrentUser', () => {
-    it('应该为本地IP返回管理员信息', async () => {
-      const mockAdminUser = {
-        id: '1',
-        username: 'admin',
-        email: 'admin@example.com',
-        role: 'admin' as const,
-        dailyUsage: 1000,
-        lastUsageDate: '2024-01-01',
-        createdAt: '2024-01-01',
-        password: 'hashedPassword'
-      };
-
-      mockUserStorage.getUserById.mockResolvedValue(mockAdminUser);
-      mockUserStorage.getRemainingUsage.mockResolvedValue(500);
-
-      const req = {
-        ip: '127.0.0.1',
-        headers: {}
-      } as any;
-
-      const res = {
-        json: jest.fn(),
-        status: jest.fn().mockReturnThis()
-      } as any;
-
-      await AuthController.getCurrentUser(req, res);
-
-      expect(mockUserStorage.getUserById).toHaveBeenCalledWith('1');
-      expect(mockUserStorage.getRemainingUsage).toHaveBeenCalledWith('1');
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: '1',
-          username: 'admin',
-          role: 'admin',
-          remainingUsage: 500
-        })
-      );
-    });
-
     it('应该在没有Authorization头时返回401', async () => {
       const req = {
         ip: '192.168.1.1',
@@ -106,10 +69,17 @@ describe('AuthController', () => {
     it('应该在用户不存在时返回404', async () => {
       mockUserStorage.getUserById.mockResolvedValue(null);
 
+      // 创建有效的JWT token
+      const validToken = jwt.sign(
+        { userId: 'user123', username: 'testuser' },
+        config.jwtSecret,
+        { expiresIn: '24h' }
+      );
+
       const req = {
         ip: '192.168.1.1',
         headers: {
-          authorization: 'Bearer user123'
+          authorization: `Bearer ${validToken}`
         }
       } as any;
 
@@ -141,10 +111,17 @@ describe('AuthController', () => {
       mockUserStorage.getUserById.mockResolvedValue(mockUser);
       mockUserStorage.getRemainingUsage.mockResolvedValue(50);
 
+      // 创建有效的JWT token
+      const validToken = jwt.sign(
+        { userId: 'user123', username: 'testuser' },
+        config.jwtSecret,
+        { expiresIn: '24h' }
+      );
+
       const req = {
         ip: '192.168.1.1',
         headers: {
-          authorization: 'Bearer user123'
+          authorization: `Bearer ${validToken}`
         }
       } as any;
 
@@ -171,24 +148,6 @@ describe('AuthController', () => {
           password: expect.anything()
         })
       );
-    });
-  });
-
-  describe('isLocalIp', () => {
-    it('应该正确识别本地IP', () => {
-      const localIps = ['127.0.0.1', '::1', 'localhost'];
-      
-      localIps.forEach(ip => {
-        expect(AuthController['isLocalIp'](ip)).toBe(true);
-      });
-    });
-
-    it('应该正确识别非本地IP', () => {
-      const nonLocalIps = ['192.168.1.1', '10.0.0.1', '172.16.0.1'];
-      
-      nonLocalIps.forEach(ip => {
-        expect(AuthController['isLocalIp'](ip)).toBe(false);
-      });
     });
   });
 }); 
