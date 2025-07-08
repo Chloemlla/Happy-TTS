@@ -173,7 +173,7 @@ export class AuthController {
             const user = await UserStorage.getUserById(userId);
             if (!user) {
                 logger.warn('getUserById: 未找到用户', { id: userId, tokenType: isJWTToken ? 'JWT' : 'UserID' });
-                return res.status(401).json({
+                return res.status(404).json({
                     error: '用户不存在'
                 });
             }
