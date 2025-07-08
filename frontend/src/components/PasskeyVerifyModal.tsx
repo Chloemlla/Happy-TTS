@@ -170,7 +170,6 @@ const PasskeyVerifyModal: React.FC<PasskeyVerifyModalProps> = ({ open, username,
               <motion.button
                 type="button"
                 onClick={onClose}
-                disabled={loading}
                 className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium rounded-lg hover:bg-gray-100 transition-colors duration-200"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}

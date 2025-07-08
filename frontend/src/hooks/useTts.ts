@@ -53,8 +53,10 @@ export const useTts = () => {
           throw new Error('语音生成失败');
         }
 
-        if (!response.data.audioUrl) {
-          console.error('响应中缺少audioUrl:', response.data);
+        // 兼容 fileName 字段
+        const audioUrl = response.data.audioUrl || response.data.fileName;
+        if (!audioUrl) {
+          console.error('响应中缺少audioUrl和fileName:', response.data);
           throw new Error('服务器返回数据缺少音频URL');
         }
 
@@ -65,7 +67,7 @@ export const useTts = () => {
 
         // 校验签名
         try {
-          const isValid = verifyContent(response.data.audioUrl, response.data.signature);
+          const isValid = verifyContent(audioUrl, response.data.signature);
           console.log('签名验证结果:', isValid);
           if (!isValid) {
             throw new Error('内容签名校验失败，数据可能被篡改');
@@ -73,13 +75,13 @@ export const useTts = () => {
         } catch (error: unknown) {
           const signError = error instanceof Error ? error : new Error('未知签名验证错误');
           console.error('签名验证错误:', signError);
-          throw new Error(`签名验证失败: ${signError.message}`);
+          throw new Error(`签名校验失败: ${signError.message}`);
         }
 
         // 确保音频URL是完整的
-        const finalAudioUrl = response.data.audioUrl.startsWith('http') 
-          ? response.data.audioUrl 
-          : `${api.defaults.baseURL}/static/audio/${response.data.audioUrl}`;
+        const finalAudioUrl = audioUrl.startsWith('http') 
+          ? audioUrl 
+          : `${api.defaults.baseURL}/static/audio/${audioUrl}`;
         
         console.log('设置音频URL:', finalAudioUrl);
         setAudioUrl(finalAudioUrl);

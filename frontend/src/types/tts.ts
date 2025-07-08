@@ -12,7 +12,8 @@ export interface TtsRequest {
 
 export interface TtsResponse {
   success: boolean;
-  audioUrl: string;
+  audioUrl?: string;
+  fileName?: string; // 兼容后端 fileName 字段
   signature: string;
   isDuplicate?: boolean;
 } 

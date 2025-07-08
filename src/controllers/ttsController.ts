@@ -166,7 +166,7 @@ export class TtsController {
                 // 以 audioUrl 作为签名内容
                 const signature = signContent(result.audioUrl);
 
-                res.json({ ...result, signature });
+                res.json({ success: true, ...result, signature });
             } catch (error) {
                 logger.error('生成语音失败:', error);
                 res.status(500).json({ error: '生成语音失败' });
