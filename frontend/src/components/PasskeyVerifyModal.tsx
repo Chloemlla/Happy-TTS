@@ -94,6 +94,19 @@ const PasskeyVerifyModal: React.FC<PasskeyVerifyModalProps> = ({ open, username,
               </div>
             </motion.div>
 
+            {/* 认证流程说明和安全提示 */}
+            <motion.div
+              className="mb-4"
+              initial={{ opacity: 0, y: -5 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+            >
+              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded text-yellow-800 text-sm flex items-center gap-2">
+                <svg className="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" /></svg>
+                <span>Passkey 是一种基于 FIDO2 的无密码认证方式，认证过程将唤起系统安全验证，保障账户安全。</span>
+              </div>
+            </motion.div>
+
             {/* 状态内容 */}
             <motion.div
               className="text-center"
@@ -113,6 +126,9 @@ const PasskeyVerifyModal: React.FC<PasskeyVerifyModalProps> = ({ open, username,
                   <div className="space-y-2">
                     <p className="text-gray-700 font-medium">正在进行 Passkey 认证</p>
                     <p className="text-gray-500 text-sm">请在弹出的系统窗口中操作...</p>
+                    <div className="w-full bg-gray-100 rounded-full h-2 mt-2">
+                      <div className="bg-blue-400 h-2 rounded-full animate-pulse" style={{ width: '80%' }}></div>
+                    </div>
                   </div>
                 </div>
               ) : error ? (
@@ -126,6 +142,7 @@ const PasskeyVerifyModal: React.FC<PasskeyVerifyModalProps> = ({ open, username,
                   </div>
                   <div className="bg-red-50 border border-red-200 rounded-xl p-4">
                     <p className="text-red-700 text-sm font-medium">{error}</p>
+                    <p className="text-red-500 text-xs mt-2">如多次失败，请检查浏览器是否支持 Passkey，或尝试更换浏览器/设备。</p>
                   </div>
                   <motion.button
                     onClick={handlePasskeyAuth}
@@ -160,22 +177,50 @@ const PasskeyVerifyModal: React.FC<PasskeyVerifyModalProps> = ({ open, username,
               )}
             </motion.div>
 
-            {/* 底部按钮 */}
+            {/* 认证成功提示（可选动画） */}
+            {(!loading && !error) && (
+              <motion.div
+                className="flex flex-col items-center mt-6"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2 }}
+              >
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-2">
+                  <ShieldCheckIcon className="w-7 h-7 text-green-600" />
+                </div>
+                <p className="text-green-700 font-semibold">认证成功，已安全登录！</p>
+              </motion.div>
+            )}
+
+            {/* 底部按钮优化：认证中禁用取消，认证成功后显示“完成” */}
             <motion.div
               className="flex justify-end mt-6 pt-4 border-t border-gray-200"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5 }}
             >
-              <motion.button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium rounded-lg hover:bg-gray-100 transition-colors duration-200"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                取消
-              </motion.button>
+              {(!loading && !error) ? (
+                <motion.button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 text-green-700 font-medium rounded-lg bg-green-100 hover:bg-green-200 transition-colors duration-200 ml-2"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  完成
+                </motion.button>
+              ) : (
+                <motion.button
+                  type="button"
+                  onClick={onClose}
+                  disabled={loading}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium rounded-lg hover:bg-gray-100 transition-colors duration-200"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  取消
+                </motion.button>
+              )}
             </motion.div>
           </motion.div>
         </motion.div>
