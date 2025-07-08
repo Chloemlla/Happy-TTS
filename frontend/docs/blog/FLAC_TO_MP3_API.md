@@ -1,3 +1,10 @@
+---
+title: FLAC 转 MP3 音频转换 API 文档
+date: 2025-07-07
+slug: flac-to-mp3-api
+tags: [api, audio, flac, mp3, convert]
+---
+
 # FLAC 转 MP3 音频转换 API 文档
 
 ## 概述

@@ -646,4 +646,34 @@ export class UserStorage {
         logger.info('updateUser: 用户已更新', { userId, updates });
         return users[idx];
     }
+
+    // 删除用户
+    public static async deleteUser(userId: string): Promise<boolean> {
+        try {
+            if (!userId) {
+                logger.error('deleteUser: userId 为空');
+                return false;
+            }
+            
+            const users = this.readUsers();
+            const userIndex = users.findIndex(user => user.id === userId);
+            
+            if (userIndex === -1) {
+                logger.warn('deleteUser: 未找到用户', { userId });
+                return false;
+            }
+            
+            // 移除用户
+            users.splice(userIndex, 1);
+            
+            // 写入文件
+            this.writeUsers(users);
+            
+            logger.info('deleteUser: 用户删除成功', { userId });
+            return true;
+        } catch (error) {
+            logger.error('deleteUser: 删除用户失败', { userId, error });
+            return false;
+        }
+    }
 } 

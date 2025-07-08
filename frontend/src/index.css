@@ -9,4 +9,329 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* 自定义Toast样式 */
+.custom-toast {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 24px 0 !important; /* 上下留白 */
+  border-radius: 20px !important;
+  min-height: 56px !important;
+  max-width: 420px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* 让内容区域更像卡片气泡 */
+.custom-toast .Toastify__toast-body {
+  border-radius: 18px !important;
+  background: white !important;
+  box-shadow: 0 4px 24px 0 rgba(0,0,0,0.08) !important;
+  padding: 20px 28px !important;
+  margin: 0 12px !important;
+  min-width: 220px !important;
+  max-width: 360px !important;
+  display: flex !important;
+  align-items: center !important;
+  font-size: 16px !important;
+}
+
+/* 针对不同类型的卡片色带 */
+.custom-toast-success .Toastify__toast-body {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%) !important;
+}
+.custom-toast-error .Toastify__toast-body {
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%) !important;
+}
+.custom-toast-warning .Toastify__toast-body {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%) !important;
+}
+.custom-toast-info .Toastify__toast-body {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%) !important;
+}
+
+/* 成功类型Toast */
+.custom-toast-success {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%) !important;
+  border: 1px solid #bbf7d0 !important;
+  box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.1), 0 4px 6px -2px rgba(16, 185, 129, 0.05) !important;
+}
+
+.custom-toast-success .Toastify__toast-body {
+  color: #065f46 !important;
+  font-weight: 500 !important;
+  padding: 16px !important;
+}
+
+.custom-toast-success .Toastify__progress-bar {
+  background: linear-gradient(90deg, #10b981, #059669) !important;
+  height: 3px !important;
+  border-radius: 0 0 16px 16px !important;
+}
+
+.custom-toast-success .Toastify__close-button {
+  color: #10b981 !important;
+}
+
+/* 错误类型Toast */
+.custom-toast-error {
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%) !important;
+  border: 1px solid #fecaca !important;
+  box-shadow: 0 10px 25px -5px rgba(239, 68, 68, 0.1), 0 4px 6px -2px rgba(239, 68, 68, 0.05) !important;
+}
+
+.custom-toast-error .Toastify__toast-body {
+  color: #991b1b !important;
+  font-weight: 500 !important;
+  padding: 16px !important;
+}
+
+.custom-toast-error .Toastify__progress-bar {
+  background: linear-gradient(90deg, #ef4444, #dc2626) !important;
+  height: 3px !important;
+  border-radius: 0 0 16px 16px !important;
+}
+
+.custom-toast-error .Toastify__close-button {
+  color: #ef4444 !important;
+}
+
+/* 警告类型Toast */
+.custom-toast-warning {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%) !important;
+  border: 1px solid #fed7aa !important;
+  box-shadow: 0 10px 25px -5px rgba(245, 158, 11, 0.1), 0 4px 6px -2px rgba(245, 158, 11, 0.05) !important;
+}
+
+.custom-toast-warning .Toastify__toast-body {
+  color: #92400e !important;
+  font-weight: 500 !important;
+  padding: 16px !important;
+}
+
+.custom-toast-warning .Toastify__progress-bar {
+  background: linear-gradient(90deg, #f59e0b, #d97706) !important;
+  height: 3px !important;
+  border-radius: 0 0 16px 16px !important;
+}
+
+.custom-toast-warning .Toastify__close-button {
+  color: #f59e0b !important;
+}
+
+/* 信息类型Toast */
+.custom-toast-info {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%) !important;
+  border: 1px solid #bfdbfe !important;
+  box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.1), 0 4px 6px -2px rgba(59, 130, 246, 0.05) !important;
+}
+
+.custom-toast-info .Toastify__toast-body {
+  color: #1e40af !important;
+  font-weight: 500 !important;
+  padding: 16px !important;
+}
+
+.custom-toast-info .Toastify__progress-bar {
+  background: linear-gradient(90deg, #3b82f6, #6366f1) !important;
+  height: 3px !important;
+  border-radius: 0 0 16px 16px !important;
+}
+
+.custom-toast-info .Toastify__close-button {
+  color: #3b82f6 !important;
+}
+
+/* 通用Toast样式增强 */
+.Toastify__toast {
+  border-radius: 16px !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif !important;
+  backdrop-filter: blur(10px) !important;
+  transition: all 0.3s ease !important;
+}
+
+.Toastify__toast:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+}
+
+.Toastify__close-button {
+  opacity: 0.7 !important;
+  transition: opacity 0.2s ease !important;
+  border-radius: 50% !important;
+  margin-right: 4px !important;
+}
+
+.Toastify__close-button:hover {
+  opacity: 1 !important;
+}
+
+/* 动画效果 */
+@keyframes toastSlideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.Toastify__toast {
+  animation: toastSlideIn 0.3s ease-out !important;
+}
+
+/* 响应式设计 */
+@media (max-width: 640px) {
+  .custom-toast {
+    max-width: calc(100vw - 32px) !important;
+    margin: 0 16px !important;
+  }
+  
+  .Toastify__toast-body {
+    padding: 12px !important;
+    font-size: 14px !important;
+  }
+}
+
+/* 增强的动画效果 - Motion风格 */
+.animated-toast {
+  animation: toastSlideInSpring 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+}
+
+@keyframes toastSlideInSpring {
+  0% {
+    transform: translateX(100%) scale(0.8);
+    opacity: 0;
+  }
+  50% {
+    transform: translateX(-10%) scale(1.05);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* 悬停动画效果 */
+.animated-toast:hover {
+  animation: toastHover 0.2s ease-out forwards !important;
+}
+
+@keyframes toastHover {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    transform: translateY(-5px) scale(1.02);
+  }
+}
+
+/* 点击动画效果 */
+.animated-toast:active {
+  animation: toastTap 0.1s ease-out forwards !important;
+}
+
+@keyframes toastTap {
+  0% {
+    transform: translateY(-5px) scale(1.02);
+  }
+  100% {
+    transform: translateY(-3px) scale(0.98);
+  }
+}
+
+/* 图标动画 */
+.Toastify__toast-body::before {
+  content: '';
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  margin-right: 12px;
+  vertical-align: middle;
+  animation: iconSpin 0.6s ease-out;
+}
+
+.custom-toast-success .Toastify__toast-body::before {
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2310b981'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M5 13l4 4L19 7'/%3E%3C/svg%3E") no-repeat center;
+  background-size: contain;
+}
+
+.custom-toast-error .Toastify__toast-body::before {
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23ef4444'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 18L18 6M6 6l12 12'/%3E%3C/svg%3E") no-repeat center;
+  background-size: contain;
+}
+
+.custom-toast-warning .Toastify__toast-body::before {
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23f59e0b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z'/%3E%3C/svg%3E") no-repeat center;
+  background-size: contain;
+}
+
+.custom-toast-info .Toastify__toast-body::before {
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%233b82f6'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'/%3E%3C/svg%3E") no-repeat center;
+  background-size: contain;
+}
+
+@keyframes iconSpin {
+  0% {
+    transform: scale(0) rotate(-180deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2) rotate(-90deg);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+/* 进度条动画增强 */
+.Toastify__progress-bar {
+  animation: progressShimmer 2s ease-in-out infinite !important;
+  border-radius: 0 0 18px 18px !important;
+}
+
+@keyframes progressShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* 关闭按钮动画 */
+.Toastify__close-button {
+  transition: all 0.2s ease !important;
+}
+
+.Toastify__close-button:hover {
+  transform: scale(1.1) rotate(90deg) !important;
+}
+
+.Toastify__close-button:active {
+  transform: scale(0.9) !important;
+}
+
+/* 淡出动画 */
+.Toastify__toast--rtl {
+  animation: toastSlideOut 0.3s ease-in forwards !important;
+}
+
+@keyframes toastSlideOut {
+  0% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100%) scale(0.8);
+    opacity: 0;
+  }
 } 

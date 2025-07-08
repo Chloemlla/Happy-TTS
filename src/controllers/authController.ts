@@ -189,28 +189,86 @@ export class AuthController {
             if (!username || !passkeyCredentialId) {
                 return res.status(400).json({ error: '缺少必要参数' });
             }
-            // 查找用户
+            
+            // 查找用户并验证
             const user = await UserStorage.getUserByUsername(username);
-            if (!user || !user.passkeyEnabled || !Array.isArray(user.passkeyCredentials)) {
-                return res.status(404).json({ error: '用户未启用Passkey或不存在' });
+            if (!user) {
+                logger.warn('[AuthController] Passkey校验失败：用户不存在', { username });
+                return res.status(404).json({ error: '用户不存在' });
             }
+            
+            // 验证用户是否启用了Passkey
+            if (!user.passkeyEnabled || !Array.isArray(user.passkeyCredentials) || user.passkeyCredentials.length === 0) {
+                logger.warn('[AuthController] Passkey校验失败：用户未启用Passkey', { 
+                    username, 
+                    userId: user.id,
+                    passkeyEnabled: user.passkeyEnabled,
+                    credentialsCount: user.passkeyCredentials?.length || 0
+                });
+                return res.status(400).json({ error: '用户未启用Passkey' });
+            }
+            
+            // 验证用户名与用户数据的一致性
+            if (user.username !== username) {
+                logger.error('[AuthController] Passkey校验失败：用户名与用户数据不匹配', {
+                    providedUsername: username,
+                    actualUsername: user.username,
+                    userId: user.id
+                });
+                return res.status(400).json({ error: '用户名验证失败' });
+            }
+            
             // 校验 passkeyCredentialId 是否存在
             const found = user.passkeyCredentials.some(
                 cred => cred.credentialID === passkeyCredentialId
             );
             if (!found) {
+                logger.warn('[AuthController] Passkey校验失败：找不到匹配的credentialID', {
+                    username,
+                    userId: user.id,
+                    providedCredentialId: passkeyCredentialId,
+                    availableCredentialIds: user.passkeyCredentials.map(c => c.credentialID?.substring(0, 10) + '...')
+                });
                 return res.status(401).json({ error: 'Passkey 校验失败' });
             }
+            
             // 更新用户状态（如添加 passkeyVerified 字段）
             await UserStorage.updateUser(user.id, { passkeyVerified: true });
-            logger.info('Passkey 校验通过，已更新用户状态', { userId: user.id, username });
-            // 生成正式 token
+            logger.info('[AuthController] Passkey 校验通过，已更新用户状态', { 
+                userId: user.id, 
+                username,
+                credentialId: passkeyCredentialId.substring(0, 10) + '...'
+            });
+            
+            // 生成正式 token（使用用户ID作为token）
             const token = user.id;
             await updateUserToken(user.id, token);
+            
+            // 验证token与用户ID的一致性
+            if (token !== user.id) {
+                logger.error('[AuthController] Token生成错误：token与用户ID不匹配', {
+                    username,
+                    userId: user.id,
+                    generatedToken: token
+                });
+                return res.status(500).json({ error: 'Token生成失败' });
+            }
+            
             const { password: _, ...userWithoutPassword } = user;
-            return res.json({ success: true, token, user: userWithoutPassword });
+            return res.json({ 
+                success: true, 
+                token, 
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    email: user.email
+                }
+            });
         } catch (error) {
-            logger.error('Passkey 校验接口异常', { error });
+            logger.error('[AuthController] Passkey 校验接口异常', { 
+                error: error instanceof Error ? error.message : String(error),
+                username: req.body?.username
+            });
             return res.status(500).json({ error: '服务器异常' });
         }
     }

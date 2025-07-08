@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { TOTPController } from '../controllers/totpController';
+import { authenticateToken } from '../middleware/authenticateToken';
 import { config } from '../config/config';
 
 const router = Router();
@@ -32,7 +33,7 @@ const totpLimiter = rateLimit({
  *       200:
  *         description: 生成TOTP设置信息
  */
-router.post('/generate-setup', totpLimiter, TOTPController.generateSetup);
+router.post('/generate-setup', authenticateToken, totpLimiter, TOTPController.generateSetup);
 
 /**
  * @openapi
@@ -43,7 +44,7 @@ router.post('/generate-setup', totpLimiter, TOTPController.generateSetup);
  *       200:
  *         description: 验证并启用TOTP
  */
-router.post('/verify-and-enable', totpLimiter, TOTPController.verifyAndEnable);
+router.post('/verify-and-enable', authenticateToken, totpLimiter, TOTPController.verifyAndEnable);
 
 /**
  * @openapi
@@ -54,7 +55,7 @@ router.post('/verify-and-enable', totpLimiter, TOTPController.verifyAndEnable);
  *       200:
  *         description: 验证TOTP令牌
  */
-router.post('/verify-token', totpLimiter, TOTPController.verifyToken);
+router.post('/verify-token', authenticateToken, totpLimiter, TOTPController.verifyToken);
 
 /**
  * @openapi
@@ -65,7 +66,7 @@ router.post('/verify-token', totpLimiter, TOTPController.verifyToken);
  *       200:
  *         description: 禁用TOTP
  */
-router.post('/disable', totpLimiter, TOTPController.disable);
+router.post('/disable', authenticateToken, totpLimiter, TOTPController.disable);
 
 /**
  * @openapi
@@ -76,7 +77,7 @@ router.post('/disable', totpLimiter, TOTPController.disable);
  *       200:
  *         description: 获取TOTP状态
  */
-router.get('/status', totpLimiter, TOTPController.getStatus);
+router.get('/status', authenticateToken, totpLimiter, TOTPController.getStatus);
 
 /**
  * @openapi
@@ -87,7 +88,7 @@ router.get('/status', totpLimiter, TOTPController.getStatus);
  *       200:
  *         description: 获取备用恢复码
  */
-router.get('/backup-codes', totpLimiter, TOTPController.getBackupCodes);
+router.get('/backup-codes', authenticateToken, totpLimiter, TOTPController.getBackupCodes);
 
 /**
  * @openapi
@@ -98,6 +99,6 @@ router.get('/backup-codes', totpLimiter, TOTPController.getBackupCodes);
  *       200:
  *         description: 重新生成备用恢复码
  */
-router.post('/regenerate-backup-codes', totpLimiter, TOTPController.regenerateBackupCodes);
+router.post('/regenerate-backup-codes', authenticateToken, totpLimiter, TOTPController.regenerateBackupCodes);
 
 export default router; 

@@ -189,19 +189,94 @@ router.post('/authenticate/finish', rateLimitMiddleware, async (req, res) => {
             fullResponse: JSON.stringify(response, null, 2)
         });
         
+        // 查找用户并验证用户名匹配
         const user = await UserStorage.getUserByUsername(username);
         if (!user) {
+            logger.warn('[Passkey] 认证失败：用户不存在', { username });
             return res.status(404).json({ error: '用户不存在' });
         }
+        
+        // 验证用户是否启用了Passkey
+        if (!user.passkeyEnabled || !Array.isArray(user.passkeyCredentials) || user.passkeyCredentials.length === 0) {
+            logger.warn('[Passkey] 认证失败：用户未启用Passkey', { 
+                username, 
+                userId: user.id,
+                passkeyEnabled: user.passkeyEnabled,
+                credentialsCount: user.passkeyCredentials?.length || 0
+            });
+            return res.status(400).json({ error: '用户未启用Passkey' });
+        }
+        
+        // 验证用户名与用户ID的一致性
+        if (user.username !== username) {
+            logger.error('[Passkey] 认证失败：用户名与用户数据不匹配', {
+                providedUsername: username,
+                actualUsername: user.username,
+                userId: user.id
+            });
+            return res.status(400).json({ error: '用户名验证失败' });
+        }
+        
         // 自动获取请求origin
         const requestOrigin = req.headers.origin || req.headers.referer || 'http://localhost:3001';
+        
+        // 执行Passkey验证
         const verification = await PasskeyService.verifyAuthentication(user, response, requestOrigin);
+        
+        if (!verification.verified) {
+            logger.warn('[Passkey] 认证失败：验证未通过', { 
+                username, 
+                userId: user.id 
+            });
+            return res.status(401).json({ error: 'Passkey验证失败' });
+        }
+        
+        // 生成token并确保使用正确的用户信息
         const token = await PasskeyService.generateToken(user);
+        
+        // 验证生成的token包含正确的用户信息
+        try {
+            const jwt = require('jsonwebtoken');
+            const config = require('../config/config').config;
+            const decoded = jwt.verify(token, config.jwtSecret);
+            
+            if (decoded.userId !== user.id || decoded.username !== user.username) {
+                logger.error('[Passkey] Token生成错误：用户信息不匹配', {
+                    username,
+                    userId: user.id,
+                    tokenUserId: decoded.userId,
+                    tokenUsername: decoded.username
+                });
+                return res.status(500).json({ error: 'Token生成失败' });
+            }
+            
+            logger.info('[Passkey] 认证成功，Token验证通过', {
+                username,
+                userId: user.id,
+                tokenUserId: decoded.userId,
+                tokenUsername: decoded.username
+            });
+            
+        } catch (tokenError) {
+            logger.error('[Passkey] Token验证失败', {
+                username,
+                userId: user.id,
+                error: tokenError instanceof Error ? tokenError.message : String(tokenError)
+            });
+            return res.status(500).json({ error: 'Token生成失败' });
+        }
+        
+        // 返回成功响应，确保用户信息正确
         res.json({
             success: true,
             token: token,
-            user: { id: user.id, username: user.username }
+            user: { 
+                id: user.id, 
+                username: user.username,
+                email: user.email 
+            }
         });
+        
     } catch (error: any) {
         console.error('完成 Passkey 认证失败:', error);
         

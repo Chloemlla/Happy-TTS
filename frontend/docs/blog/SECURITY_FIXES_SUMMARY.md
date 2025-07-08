@@ -1,3 +1,10 @@
+---
+title: 安全修复总结
+date: 2025-07-07
+slug: security-fixes-summary
+tags: [security, fix, summary]
+---
+
 # 安全修复总结
 
 ## 修复的安全问题

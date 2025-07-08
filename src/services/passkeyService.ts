@@ -580,11 +580,59 @@ export class PasskeyService {
 
     // 生成访问令牌
     public static async generateToken(user: User): Promise<string> {
-        return jwt.sign(
+        // 验证用户数据完整性
+        if (!user || !user.id || !user.username) {
+            logger.error('[Passkey] generateToken: 用户数据不完整', {
+                hasUser: !!user,
+                userId: user?.id,
+                username: user?.username
+            });
+            throw new Error('用户数据不完整，无法生成token');
+        }
+        
+        // 记录token生成信息
+        logger.info('[Passkey] 生成token', {
+            userId: user.id,
+            username: user.username,
+            email: user.email
+        });
+        
+        const token = jwt.sign(
             { userId: user.id, username: user.username },
             config.jwtSecret,
             { expiresIn: '24h' }
         );
+        
+        // 验证生成的token
+        try {
+            const decoded = jwt.verify(token, config.jwtSecret) as any;
+            if (decoded.userId !== user.id || decoded.username !== user.username) {
+                logger.error('[Passkey] Token验证失败：用户信息不匹配', {
+                    userId: user.id,
+                    username: user.username,
+                    tokenUserId: decoded.userId,
+                    tokenUsername: decoded.username
+                });
+                throw new Error('Token生成失败：用户信息不匹配');
+            }
+            
+            logger.info('[Passkey] Token生成成功并验证通过', {
+                userId: user.id,
+                username: user.username,
+                tokenUserId: decoded.userId,
+                tokenUsername: decoded.username
+            });
+            
+        } catch (verifyError) {
+            logger.error('[Passkey] Token验证异常', {
+                userId: user.id,
+                username: user.username,
+                error: verifyError instanceof Error ? verifyError.message : String(verifyError)
+            });
+            throw new Error('Token验证失败');
+        }
+        
+        return token;
     }
 
     // 自动修复用户Passkey数据

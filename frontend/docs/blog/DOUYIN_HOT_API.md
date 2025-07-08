@@ -1,3 +1,10 @@
+---
+title: 抖音热榜 API 文档
+date: 2025-07-07
+slug: douyin-hot-api
+tags: [api, douyin, hot, trending]
+---
+
 # 抖音热榜 API 文档
 
 ## 概述

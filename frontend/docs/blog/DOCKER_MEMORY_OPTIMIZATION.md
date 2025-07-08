@@ -1,3 +1,10 @@
+---
+title: Docker 内存优化指南
+date: 2025-07-07
+slug: docker-memory-optimization
+tags: [docker, memory, optimization, build]
+---
+
 # Docker 内存优化指南
 
 ## 问题描述

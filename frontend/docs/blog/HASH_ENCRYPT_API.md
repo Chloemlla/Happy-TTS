@@ -1,3 +1,10 @@
+---
+title: 字符串 Hash 加密 API 文档
+date: 2025-07-07
+slug: hash-encrypt-api
+tags: [api, hash, encrypt, security]
+---
+
 # 字符串 Hash 加密 API 文档
 
 ## 概述

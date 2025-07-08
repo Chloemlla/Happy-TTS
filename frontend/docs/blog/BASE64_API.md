@@ -1,3 +1,10 @@
+---
+title: Base64 编码与解码 API 文档
+date: 2025-07-07
+slug: base64-api
+tags: [api, base64, encode, decode]
+---
+
 # Base64 编码与解码 API 文档
 
 ## 概述
