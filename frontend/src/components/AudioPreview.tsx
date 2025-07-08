@@ -22,29 +22,48 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ audioUrl, onClose })
 
     useEffect(() => {
         if (audioUrl && audioRef.current) {
+            // 自动暂停上一个音频
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
             setIsLoading(true);
-            // 重置状态
             setCurrentTime(0);
             setDuration(0);
             setIsPlaying(false);
             
-            // 加载新的音频文件
             audioRef.current.load();
-            
-            // 监听加载完成事件
+
             const handleLoadedMetadata = () => {
                 if (audioRef.current) {
                     setDuration(audioRef.current.duration);
-                    setIsLoading(false);
                 }
             };
 
+            const handleCanPlay = () => {
+                setIsLoading(false);
+                // 自动播放，失败时不报错
+                audioRef.current?.play().then(() => {
+                    setIsPlaying(true);
+                }).catch(() => {
+                    setIsPlaying(false);
+                });
+            };
+
+            const handleError = () => {
+                setIsLoading(false);
+                setIsPlaying(false);
+                setDuration(0);
+                // 可选：弹出错误提示
+                // alert('音频加载失败，请重试或下载收听');
+            };
+
             audioRef.current.addEventListener('loadedmetadata', handleLoadedMetadata);
-            
+            audioRef.current.addEventListener('canplay', handleCanPlay);
+            audioRef.current.addEventListener('error', handleError);
+
             return () => {
-                if (audioRef.current) {
-                    audioRef.current.removeEventListener('loadedmetadata', handleLoadedMetadata);
-                }
+                audioRef.current?.removeEventListener('loadedmetadata', handleLoadedMetadata);
+                audioRef.current?.removeEventListener('canplay', handleCanPlay);
+                audioRef.current?.removeEventListener('error', handleError);
             };
         }
     }, [audioUrl]);
@@ -66,11 +85,25 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ audioUrl, onClose })
         }
     };
 
+    // 拖动进度条时暂停，松开后恢复
+    const [isSeeking, setIsSeeking] = useState(false);
     const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
         const time = parseFloat(e.target.value);
         if (audioRef.current) {
             audioRef.current.currentTime = time;
             setCurrentTime(time);
+        }
+    };
+    const handleSeekStart = () => {
+        setIsSeeking(true);
+        if (audioRef.current) {
+            audioRef.current.pause();
+        }
+    };
+    const handleSeekEnd = () => {
+        setIsSeeking(false);
+        if (audioRef.current && isPlaying) {
+            audioRef.current.play().catch(() => {});
         }
     };
 
@@ -112,6 +145,7 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ audioUrl, onClose })
                             <button
                                 onClick={handlePlayPause}
                                 className="p-2 rounded-full bg-indigo-100 hover:bg-indigo-200 transition-colors"
+                                disabled={isLoading}
                             >
                                 {isPlaying ? (
                                     <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -132,6 +166,10 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ audioUrl, onClose })
                                     max={duration || 0}
                                     value={currentTime}
                                     onChange={handleSeek}
+                                    onMouseDown={handleSeekStart}
+                                    onMouseUp={handleSeekEnd}
+                                    onTouchStart={handleSeekStart}
+                                    onTouchEnd={handleSeekEnd}
                                     className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                                 />
                             </div>
@@ -173,6 +211,7 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ audioUrl, onClose })
                     onEnded={() => setIsPlaying(false)}
                     onPlay={() => setIsPlaying(true)}
                     onPause={() => setIsPlaying(false)}
+                    onError={() => setIsLoading(false)}
                 />
             </motion.div>
         </AnimatePresence>
