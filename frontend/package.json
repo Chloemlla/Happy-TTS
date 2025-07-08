@@ -19,6 +19,8 @@
     "preview": "vite preview",
     "serve": "node static-server.js",
     "serve:prod": "npm run build && node static-server.js",
+    "test:rate-limit": "node test-rate-limit.js",
+    "security-check": "node security-check.js",
     "test": "vitest",
     "analyze": "npm run build:analyze && npx vite-bundle-analyzer dist",
     "analyze:bundle": "node scripts/analyze-bundle.js"
