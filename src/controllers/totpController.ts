@@ -344,9 +344,21 @@ export class TOTPController {
 
             logger.info('TOTP验证成功:', { userId, username: user.username, usedBackupCode: !!backupCode });
 
+            // 生成JWT token
+            const jwt = require('jsonwebtoken');
+            const config = require('../config/config').config;
+            const jwtToken = jwt.sign({ userId: user.id }, config.jwtSecret, { expiresIn: '2h' });
+            
+            logger.info('TOTP验证成功，生成JWT token', { 
+                userId: user.id, 
+                username: user.username,
+                tokenType: 'JWT'
+            });
+
             res.json({
                 message: '验证成功',
-                verified: true
+                verified: true,
+                token: jwtToken
             });
         } catch (error) {
             logger.error('验证TOTP令牌失败:', error);

@@ -185,7 +185,8 @@ export const useAuth = () => {
                 // 添加调试日志
                 console.log('登录成功，保存token:', token);
                 console.log('用户信息:', user);
-                // 移除强制刷新，让React Router处理导航
+                // 强制刷新页面，确保所有状态重新初始化
+                window.location.reload();
                 return { requires2FA: false };
             }
         } catch (error: any) {
@@ -200,7 +201,8 @@ export const useAuth = () => {
         setUser(user);
         lastCheckRef.current = Date.now();
         setLastCheckTime(Date.now());
-        // 移除强制刷新，让React Router处理导航
+        // 强制刷新页面，确保所有状态重新初始化
+        window.location.reload();
     };
 
     const verifyTOTP = async (token: string, backupCode?: string) => {
@@ -226,7 +228,8 @@ export const useAuth = () => {
                 // 登录成功后立即更新检查时间，避免重复请求
                 lastCheckRef.current = Date.now();
                 setLastCheckTime(Date.now());
-                navigate('/welcome');
+                // 强制刷新页面，确保所有状态重新初始化
+                window.location.reload();
                 return true;
             } else {
                 throw new Error('TOTP验证失败');
@@ -293,7 +296,8 @@ export const useAuth = () => {
             // 注册成功后立即更新检查时间，避免重复请求
             lastCheckRef.current = Date.now();
             setLastCheckTime(Date.now());
-            navigate('/welcome');
+            // 强制刷新页面，确保所有状态重新初始化
+            window.location.reload();
         } catch (error: any) {
             const msg = error.response?.data?.error || error.message || '注册失败，请检查网络或稍后重试';
             throw new Error(msg);

@@ -10,10 +10,8 @@ import { Dialog } from './ui/Dialog';
 import { Button } from './ui/Button';
 import VerificationMethodSelector from './VerificationMethodSelector';
 import PasskeyVerifyModal from './PasskeyVerifyModal';
-import { useNavigate } from 'react-router-dom';
 
 interface AuthFormProps {
-    onSuccess?: () => void;
 }
 
 interface PasswordStrength {
@@ -21,7 +19,7 @@ interface PasswordStrength {
     feedback: string;
 }
 
-export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
+export const AuthForm: React.FC<AuthFormProps> = () => {
     const { login, register, pending2FA, setPending2FA, verifyTOTP } = useAuth();
     const { 
         authenticateWithPasskey, 
@@ -46,7 +44,6 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
     const [showPasskeyVerification, setShowPasskeyVerification] = useState(false);
     const [showVerificationSelector, setShowVerificationSelector] = useState(false);
     const [pendingVerificationData, setPendingVerificationData] = useState<any>(null);
-    const navigate = useNavigate();
 
     // 密码复杂度检查
     const checkPasswordStrength = (pwd: string): PasswordStrength => {
@@ -215,8 +212,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
                 // 注册后自动登录
                 await register(sanitizedUsername, sanitizedEmail, sanitizedPassword);
             }
-            // 登录成功后调用回调函数
-            onSuccess?.();
+            // 登录成功后强制刷新页面，不需要回调函数
         } catch (err: any) {
             // 记录认证操作失败（不输出到控制台）
             const authOperationErrorInfo = {
@@ -282,7 +278,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
             if (success) {
                 setShowPasskeyVerification(false);
                 setPending2FA(null);
-                navigate('/welcome');
+                // 强制刷新页面，确保所有状态重新初始化
+                window.location.reload();
             } else {
                 setError('Passkey 验证失败');
             }
@@ -304,7 +301,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
                 const success = await authenticateWithPasskey(pendingVerificationData.username);
                 if (success) {
                     setPendingVerificationData(null);
-                    navigate('/welcome');
+                    // 强制刷新页面，确保所有状态重新初始化
+                    window.location.reload();
                 } else {
                     setError('Passkey 验证失败');
                 }
@@ -476,7 +474,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
             <PasskeyVerifyModal
                 open={showPasskeyVerification}
                 username={username}
-                onSuccess={() => { setShowPasskeyVerification(false); setPending2FA(null); navigate('/welcome'); }}
+                onSuccess={() => { setShowPasskeyVerification(false); setPending2FA(null); window.location.reload(); }}
                 onClose={() => setShowPasskeyVerification(false)}
             />
             {/* TOTP 验证弹窗 */}
@@ -487,7 +485,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
                     onSuccess={() => {
                         setShowTOTPVerification(false);
                         setPending2FA(null);
-                        navigate('/welcome');
+                        window.location.reload();
                     }}
                     userId={pending2FA?.userId || ''}
                     token={pending2FA?.token || ''}

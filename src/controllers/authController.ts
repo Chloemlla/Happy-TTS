@@ -154,20 +154,43 @@ export class AuthController {
                 });
             }
             
-            // 解析 JWT token 获取 userId
+            // 尝试解析JWT token，如果失败则使用token作为userId
             let userId: string;
+            let isJWTToken = false;
             try {
                 const decoded: any = require('jsonwebtoken').verify(token, require('../config/config').config.jwtSecret);
                 userId = decoded.userId;
+                isJWTToken = true;
+                logger.info('使用JWT token解析用户ID', { userId, tokenType: 'JWT' });
             } catch (e) {
-                return res.status(401).json({ error: '认证令牌无效或已过期' });
+                // JWT解析失败，尝试使用token作为用户ID（兼容旧的登录方式）
+                userId = token;
+                isJWTToken = false;
+                logger.info('使用token作为用户ID', { userId, tokenType: 'UserID' });
             }
             
+            // 验证token是否有效（检查用户是否存在且token未过期）
             const user = await UserStorage.getUserById(userId);
             if (!user) {
-                return res.status(404).json({
+                logger.warn('getUserById: 未找到用户', { id: userId, tokenType: isJWTToken ? 'JWT' : 'UserID' });
+                return res.status(401).json({
                     error: '用户不存在'
                 });
+            }
+            
+            // 对于UserID类型的token，检查过期时间和匹配性
+            if (!isJWTToken) {
+                // 检查token是否过期
+                if (user.tokenExpiresAt && Date.now() > user.tokenExpiresAt) {
+                    logger.warn('token已过期', { userId, tokenExpiresAt: user.tokenExpiresAt, now: Date.now() });
+                    return res.status(401).json({ error: '认证令牌已过期' });
+                }
+                
+                // 验证token是否匹配
+                if (user.token !== token) {
+                    logger.warn('token不匹配', { userId, storedToken: user.token, providedToken: token });
+                    return res.status(401).json({ error: '认证令牌无效' });
+                }
             }
             
             const remainingUsage = await UserStorage.getRemainingUsage(userId);
@@ -243,19 +266,16 @@ export class AuthController {
                 credentialId: passkeyCredentialId.substring(0, 10) + '...'
             });
             
-            // 生成正式 token（使用用户ID作为token）
-            const token = user.id;
-            await updateUserToken(user.id, token);
+            // 生成JWT token
+            const jwt = require('jsonwebtoken');
+            const config = require('../config/config').config;
+            const token = jwt.sign({ userId: user.id }, config.jwtSecret, { expiresIn: '2h' });
             
-            // 验证token与用户ID的一致性
-            if (token !== user.id) {
-                logger.error('[AuthController] Token生成错误：token与用户ID不匹配', {
-                    username,
-                    userId: user.id,
-                    generatedToken: token
-                });
-                return res.status(500).json({ error: 'Token生成失败' });
-            }
+            logger.info('[AuthController] Passkey验证成功，生成JWT token', { 
+                userId: user.id, 
+                username,
+                tokenType: 'JWT'
+            });
             
             const { password: _, ...userWithoutPassword } = user;
             return res.json({ 

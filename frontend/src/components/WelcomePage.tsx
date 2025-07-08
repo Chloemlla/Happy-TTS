@@ -1,17 +1,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
 import { AuthForm } from './AuthForm';
 import Footer from './Footer';
 
 export const WelcomePage: React.FC = () => {
-  const navigate = useNavigate();
-
-  const handleLoginSuccess = () => {
-    // 登录成功后导航到主页
-    navigate('/', { replace: true });
-  };
-
   return (
     <div className="min-h-screen bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -45,7 +37,7 @@ export const WelcomePage: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.3, type: 'spring', stiffness: 120 }}
         >
-          <AuthForm onSuccess={handleLoginSuccess} />
+          <AuthForm />
         </motion.div>
 
         <motion.div

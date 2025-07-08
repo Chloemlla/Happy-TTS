@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { validateTOTPToken, validateBackupCode, cleanTOTPToken, cleanBackupCode } from '../utils/totpUtils';
 import { Input } from './ui';
-import { useNavigate } from 'react-router-dom';
 
 interface TOTPVerificationProps {
   isOpen: boolean;
@@ -25,7 +24,6 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
   const [useBackupCode, setUseBackupCode] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
 
   // 获取API基础URL
   const getApiBaseUrl = () => {
@@ -75,9 +73,11 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
       });
 
       if (response.data.verified) {
-        // TOTP验证成功，清理状态并刷新页面
-        localStorage.setItem('token', token);
-        navigate('/welcome');
+        // TOTP验证成功，保存JWT token并调用成功回调
+        if (response.data.token) {
+          localStorage.setItem('token', response.data.token);
+        }
+        onSuccess();
       } else {
         throw new Error('TOTP验证失败');
       }
