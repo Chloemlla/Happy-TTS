@@ -265,10 +265,10 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
     }, [password, username]);
 
     useEffect(() => {
-        if (pending2FA) {
-            if (pending2FA.type.includes('Passkey') && !showPasskeyVerification) {
+        if (pending2FA && Array.isArray(pending2FA.type) && pending2FA.type.length === 1) {
+            if (pending2FA.type[0] === 'Passkey' && !showPasskeyVerification) {
                 startTransition(() => setShowPasskeyVerification(true));
-            } else if (pending2FA.type.includes('TOTP') && !showTOTPVerification) {
+            } else if (pending2FA.type[0] === 'TOTP' && !showTOTPVerification) {
                 startTransition(() => setShowTOTPVerification(true));
             }
         }
