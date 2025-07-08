@@ -42,6 +42,7 @@ import mediaRoutes from './routes/mediaRoutes';
 import socialRoutes from './routes/socialRoutes';
 import lifeRoutes from './routes/lifeRoutes';
 import { PasskeyDataRepairService } from './services/passkeyDataRepairService';
+import miniapiRoutes from './routes/miniapiRoutes';
 
 // 扩展 Request 类型
 declare global {
