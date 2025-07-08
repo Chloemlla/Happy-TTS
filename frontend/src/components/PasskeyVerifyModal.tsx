@@ -44,7 +44,7 @@ const PasskeyVerifyModal: React.FC<PasskeyVerifyModalProps> = ({ open, username,
           onClick={onClose}
         >
           <motion.div
-            className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4"
+            className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto"
             initial={{ scale: 0.8, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.8, opacity: 0, y: 20 }}
@@ -177,8 +177,8 @@ const PasskeyVerifyModal: React.FC<PasskeyVerifyModalProps> = ({ open, username,
               )}
             </motion.div>
 
-            {/* 认证成功提示（可选动画） */}
-            {(!loading && !error) && (
+            {/* 认证成功提示（仅认证成功后显示） */}
+            {(!loading && !error && typeof onSuccess === 'function') && (
               <motion.div
                 className="flex flex-col items-center mt-6"
                 initial={{ opacity: 0, scale: 0.9 }}
