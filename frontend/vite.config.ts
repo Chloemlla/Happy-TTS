@@ -96,32 +96,100 @@ export default defineConfig(({ mode }) => ({
     sourcemap: false,
     legalComments: 'none',
     logOverride: { 'this-is-undefined-in-esm': 'silent' },
-    treeShaking: false,
-    minifyIdentifiers: false,
-    minifySyntax: false,
-    minifyWhitespace: false,
-    keepNames: true,
+    treeShaking: true, // 启用tree shaking
+    minifyIdentifiers: true, // 暂时禁用以减少内存使用
+    minifySyntax: true, // 暂时禁用以减少内存使用
+    minifyWhitespace: true, // 暂时禁用以减少内存使用
+    keepNames: true, // 保留名称以减少内存使用
     target: 'es2020'
   },
   build: {
-    minify: false,
+    minify: 'terser', // 使用terser进行更好的压缩
+    terserOptions: {
+      compress: {
+        drop_console: true, // 移除console.log
+        drop_debugger: true, // 移除debugger
+        pure_funcs: ['console.log', 'console.info', 'console.debug'], // 移除特定函数调用
+      },
+      mangle: {
+        toplevel: true, // 混淆顶级变量名
+      },
+    },
     rollupOptions: {
-      treeshake: false,
+      treeshake: true, // 启用tree shaking
       output: {
-        manualChunks: mode === 'analyze' ? undefined : {
-          'react-vendor': ['react', 'react-dom'],
-          'router': ['react-router-dom'],
-          'ui': ['@radix-ui/react-dialog', 'lucide-react', 'react-icons'],
-          'utils': ['axios', 'clsx', 'tailwind-merge'],
-          'auth': ['@simplewebauthn/browser', 'qrcode.react'],
-          'animations': ['framer-motion'],
-          'code-highlight': ['react-syntax-highlighter', 'prismjs'],
-          'toast': ['react-toastify'],
-          'swagger': ['swagger-ui-react']
+        manualChunks: (id) => {
+          // 更细粒度的代码分割策略
+          if (id.includes('node_modules')) {
+            // React相关库
+            if (id.includes('react') || id.includes('react-dom')) {
+              return 'react-vendor';
+            }
+            // 路由相关
+            if (id.includes('react-router')) {
+              return 'router';
+            }
+            // UI组件库
+            if (id.includes('@radix-ui') || id.includes('lucide-react') || id.includes('react-icons')) {
+              return 'ui-components';
+            }
+            // 动画库
+            if (id.includes('framer-motion')) {
+              return 'animations';
+            }
+            // 认证相关
+            if (id.includes('@simplewebauthn') || id.includes('qrcode.react')) {
+              return 'auth';
+            }
+            // 代码高亮
+            if (id.includes('react-syntax-highlighter') || id.includes('prismjs')) {
+              return 'code-highlight';
+            }
+            // 工具库
+            if (id.includes('axios') || id.includes('clsx') || id.includes('tailwind-merge')) {
+              return 'utils';
+            }
+            // 通知库
+            if (id.includes('react-toastify')) {
+              return 'toast';
+            }
+            // API文档
+            if (id.includes('swagger-ui-react')) {
+              return 'swagger';
+            }
+            // 其他第三方库
+            return 'vendor';
+          }
+          // 组件级别的分割
+          if (id.includes('/components/')) {
+            if (id.includes('TOTP') || id.includes('Passkey')) {
+              return 'auth-components';
+            }
+            if (id.includes('ApiDocs') || id.includes('LogShare')) {
+              return 'admin-components';
+            }
+            if (id.includes('TTS') || id.includes('Audio')) {
+              return 'tts-components';
+            }
+            return 'common-components';
+          }
         },
         entryFileNames: 'assets/[name].[hash].js',
         chunkFileNames: 'assets/[name].[hash].js',
-        assetFileNames: 'assets/[name].[hash].[ext]'
+        assetFileNames: (assetInfo) => {
+          if (!assetInfo.name) {
+            return 'assets/[name].[hash].[ext]';
+          }
+          const info = assetInfo.name.split('.');
+          const ext = info[info.length - 1];
+          if (/\.(css)$/.test(assetInfo.name)) {
+            return `assets/css/[name].[hash].${ext}`;
+          }
+          if (/\.(png|jpe?g|svg|gif|tiff|bmp|ico)$/i.test(assetInfo.name)) {
+            return `assets/images/[name].[hash].${ext}`;
+          }
+          return `assets/[name].[hash].${ext}`;
+        }
       },
       onwarn(warning, warn) {
         if (warning.message && warning.message.includes('sourcemap')) {
@@ -133,12 +201,12 @@ export default defineConfig(({ mode }) => ({
     sourcemap: false,
     cssCodeSplit: true,
     assetsInlineLimit: 4096,
-    reportCompressedSize: false, // 禁用压缩大小报告以节省内存
+    reportCompressedSize: true, // 启用压缩大小报告
     target: 'esnext',
     modulePreload: {
       polyfill: false
     },
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 500, // 降低警告阈值以更好地控制包大小
     emptyOutDir: true
   },
   optimizeDeps: {

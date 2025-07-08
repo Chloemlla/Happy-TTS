@@ -1,20 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from './hooks/useAuth';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
-import { WelcomePage } from './components/WelcomePage';
-import { TtsPage } from './components/TtsPage';
-import PolicyPage from './components/PolicyPage';
-import Footer from './components/Footer';
-import PublicIP from './components/PublicIP';
-import UserManagement from './components/UserManagement';
-import TOTPManager from './components/TOTPManager';
-import { TOTPStatus } from './types/auth';
-import MobileNav from './components/MobileNav';
-import ApiDocs from './components/ApiDocs';
-import LogShare from './components/LogShare';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { TOTPStatus } from './types/auth';
+import { LoadingSpinner, SimpleLoadingSpinner } from './components/LoadingSpinner';
+
+// 懒加载组件
+const WelcomePage = React.lazy(() => import('./components/WelcomePage').then(module => ({ default: module.WelcomePage })));
+const TtsPage = React.lazy(() => import('./components/TtsPage').then(module => ({ default: module.TtsPage })));
+const PolicyPage = React.lazy(() => import('./components/PolicyPage'));
+const Footer = React.lazy(() => import('./components/Footer'));
+const PublicIP = React.lazy(() => import('./components/PublicIP'));
+const UserManagement = React.lazy(() => import('./components/UserManagement'));
+const TOTPManager = React.lazy(() => import('./components/TOTPManager'));
+const MobileNav = React.lazy(() => import('./components/MobileNav'));
+const ApiDocs = React.lazy(() => import('./components/ApiDocs'));
+const LogShare = React.lazy(() => import('./components/LogShare'));
 
 // 页面切换动画变体
 const pageVariants = {
@@ -58,50 +61,6 @@ const BackgroundParticles: React.FC = () => {
           }}
         />
       ))}
-    </div>
-  );
-};
-
-// 加载动画组件
-const LoadingSpinner: React.FC = () => {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
-      <BackgroundParticles />
-      <motion.div
-        className="relative z-10 flex flex-col items-center"
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5 }}
-      >
-        {/* 包裹外圈和内圈的容器，保证居中 */}
-        <div className="relative w-16 h-16 flex items-center justify-center">
-          {/* 外圈旋转 */}
-          <motion.div
-            className="absolute inset-0 flex items-center justify-center"
-            animate={{ rotate: 360 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-          >
-            <div className="w-full h-full border-4 border-indigo-200 border-t-indigo-600 rounded-full"></div>
-          </motion.div>
-          {/* 内圈缩放 - 使用flex居中替代transform */}
-          <motion.div
-            className="absolute inset-0 flex items-center justify-center"
-            animate={{ scale: [1, 1.2, 1] }}
-            transition={{ duration: 2, repeat: Infinity }}
-          >
-            <div className="w-8 h-8 bg-indigo-600 rounded-full"></div>
-          </motion.div>
-        </div>
-        <motion.p
-          className="mt-6 text-center text-gray-600 font-medium"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          正在加载...
-        </motion.p>
-      </motion.div>
-      <PublicIP />
     </div>
   );
 };
@@ -223,82 +182,28 @@ const App: React.FC = () => {
               
               {/* 所有按钮都交由MobileNav统一管理 */}
               {user && (
-                <MobileNav
-                  user={user}
-                  logout={logout}
-                  onTOTPManagerOpen={() => setShowTOTPManager(true)}
-                  totpStatus={totpStatus}
-                />
+                <Suspense fallback={<div className="w-8 h-8 bg-gray-200 rounded animate-pulse"></div>}>
+                  <MobileNav
+                    user={user}
+                    logout={logout}
+                    onTOTPManagerOpen={() => setShowTOTPManager(true)}
+                    totpStatus={totpStatus}
+                  />
+                </Suspense>
               )}
             </div>
           </div>
         </motion.nav>
 
-        <PublicIP />
+        <Suspense fallback={<div className="h-4"></div>}>
+          <PublicIP />
+        </Suspense>
 
         <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 relative z-10">
           <AnimatePresence mode="wait">
             <Routes location={location} key={location.pathname}>
               <Route path="/api-docs" element={
-                <motion.div
-                  variants={pageVariants}
-                  initial="initial"
-                  animate="in"
-                  exit="out"
-                  transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
-                >
-                  <ApiDocs />
-                </motion.div>
-              } />
-              <Route path="/policy" element={
-                <motion.div
-                  variants={pageVariants}
-                  initial="initial"
-                  animate="in"
-                  exit="out"
-                  transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
-                >
-                  <PolicyPage />
-                </motion.div>
-              } />
-              <Route
-                path="/welcome"
-                element={
-                  user ? (
-                    <Navigate to="/" replace />
-                  ) : (
-                    <motion.div
-                      variants={pageVariants}
-                      initial="initial"
-                      animate="in"
-                      exit="out"
-                      transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
-                    >
-                      <WelcomePage />
-                    </motion.div>
-                  )
-                }
-              />
-              <Route
-                path="/"
-                element={
-                  user ? (
-                    <motion.div
-                      variants={pageVariants}
-                      initial="initial"
-                      animate="in"
-                      exit="out"
-                      transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
-                    >
-                      <TtsPage />
-                    </motion.div>
-                  ) : (
-                    <Navigate to="/welcome" replace state={{ from: location.pathname }} />
-                  )
-                }
-              />
-              <Route path="/admin/users" element={
-                user?.role === 'admin' ? (
+                <Suspense fallback={<LoadingSpinner />}>
                   <motion.div
                     variants={pageVariants}
                     initial="initial"
@@ -306,28 +211,100 @@ const App: React.FC = () => {
                     exit="out"
                     transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
                   >
-                    <UserManagement />
+                    <ApiDocs />
                   </motion.div>
+                </Suspense>
+              } />
+              <Route path="/policy" element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <motion.div
+                    variants={pageVariants}
+                    initial="initial"
+                    animate="in"
+                    exit="out"
+                    transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                  >
+                    <PolicyPage />
+                  </motion.div>
+                </Suspense>
+              } />
+              <Route
+                path="/welcome"
+                element={
+                  user ? (
+                    <Navigate to="/" replace />
+                  ) : (
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <motion.div
+                        variants={pageVariants}
+                        initial="initial"
+                        animate="in"
+                        exit="out"
+                        transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                      >
+                        <WelcomePage />
+                      </motion.div>
+                    </Suspense>
+                  )
+                }
+              />
+              <Route
+                path="/"
+                element={
+                  user ? (
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <motion.div
+                        variants={pageVariants}
+                        initial="initial"
+                        animate="in"
+                        exit="out"
+                        transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                      >
+                        <TtsPage />
+                      </motion.div>
+                    </Suspense>
+                  ) : (
+                    <Navigate to="/welcome" replace state={{ from: location.pathname }} />
+                  )
+                }
+              />
+              <Route path="/admin/users" element={
+                user?.role === 'admin' ? (
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <motion.div
+                      variants={pageVariants}
+                      initial="initial"
+                      animate="in"
+                      exit="out"
+                      transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                    >
+                      <UserManagement />
+                    </motion.div>
+                  </Suspense>
                 ) : (
                   <Navigate to="/" replace />
                 )
               } />
               <Route path="/logshare" element={
-                <motion.div
-                  variants={pageVariants}
-                  initial="initial"
-                  animate="in"
-                  exit="out"
-                  transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
-                >
-                  <LogShare />
-                </motion.div>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <motion.div
+                    variants={pageVariants}
+                    initial="initial"
+                    animate="in"
+                    exit="out"
+                    transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                  >
+                    <LogShare />
+                  </motion.div>
+                </Suspense>
               } />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </AnimatePresence>
         </main>
-        <Footer />
+        <Suspense fallback={<div className="h-20 bg-gray-100"></div>}>
+          <Footer />
+        </Suspense>
 
         {/* TOTP管理器模态框 */}
         <AnimatePresence>
@@ -360,7 +337,9 @@ const App: React.FC = () => {
                       </svg>
                     </button>
                   </div>
-                  <TOTPManager onStatusChange={handleTOTPStatusChange} />
+                  <Suspense fallback={<SimpleLoadingSpinner />}>
+                    <TOTPManager onStatusChange={handleTOTPStatusChange} />
+                  </Suspense>
                 </div>
               </motion.div>
             </motion.div>

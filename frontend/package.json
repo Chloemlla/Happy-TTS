@@ -11,12 +11,15 @@
   ],
   "scripts": {
     "dev": "vite",
-    "build": "node --max-old-space-size=8192 ./node_modules/.bin/tsc && node --max-old-space-size=8192 ./node_modules/.bin/vite build",
-    "build:simple": "node --max-old-space-size=4096 ./node_modules/.bin/tsc && node --max-old-space-size=4096 ./node_modules/.bin/vite build --mode simple",
-    "build:minimal": "node --max-old-space-size=2048 ./node_modules/.bin/tsc && node --max-old-space-size=2048 ./node_modules/.bin/vite build --mode minimal",
+    "build": "cross-env NODE_OPTIONS=\"--max-old-space-size=8192\" tsc && cross-env NODE_OPTIONS=\"--max-old-space-size=8192\" vite build",
+    "build:simple": "cross-env NODE_OPTIONS=\"--max-old-space-size=4096\" tsc && cross-env NODE_OPTIONS=\"--max-old-space-size=4096\" vite build --mode simple",
+    "build:minimal": "cross-env NODE_OPTIONS=\"--max-old-space-size=2048\" tsc && cross-env NODE_OPTIONS=\"--max-old-space-size=2048\" vite build --mode minimal",
     "build:analyze": "tsc && vite build --mode analyze",
+    "build:optimized": "cross-env NODE_OPTIONS=\"--max-old-space-size=8192\" tsc && cross-env NODE_OPTIONS=\"--max-old-space-size=8192\" vite build --mode production",
     "preview": "vite preview",
-    "test": "vitest"
+    "test": "vitest",
+    "analyze": "npm run build:analyze && npx vite-bundle-analyzer dist",
+    "analyze:bundle": "node scripts/analyze-bundle.js"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
@@ -61,6 +64,7 @@
     "@vitejs/plugin-react": "^4.6.0",
     "@vitest/ui": "^3.2.4",
     "autoprefixer": "^10.4.16",
+    "cross-env": "^7.0.3",
     "javascript-obfuscator": "^4.1.1",
     "jest-environment-jsdom": "^30.0.4",
     "jsdom": "^26.1.0",
