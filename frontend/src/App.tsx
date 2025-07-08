@@ -6,6 +6,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { TOTPStatus } from './types/auth';
 import { LoadingSpinner, SimpleLoadingSpinner } from './components/LoadingSpinner';
+import TOTPManager from './components/TOTPManager';
 
 // 懒加载组件
 const WelcomePage = React.lazy(() => import('./components/WelcomePage').then(module => ({ default: module.WelcomePage })));
@@ -14,7 +15,6 @@ const PolicyPage = React.lazy(() => import('./components/PolicyPage'));
 const Footer = React.lazy(() => import('./components/Footer'));
 const PublicIP = React.lazy(() => import('./components/PublicIP'));
 const UserManagement = React.lazy(() => import('./components/UserManagement'));
-const TOTPManager = React.lazy(() => import('./components/TOTPManager'));
 const MobileNav = React.lazy(() => import('./components/MobileNav'));
 const ApiDocs = React.lazy(() => import('./components/ApiDocs'));
 const LogShare = React.lazy(() => import('./components/LogShare'));
@@ -337,9 +337,7 @@ const App: React.FC = () => {
                       </svg>
                     </button>
                   </div>
-                  <Suspense fallback={<SimpleLoadingSpinner />}>
-                    <TOTPManager onStatusChange={handleTOTPStatusChange} />
-                  </Suspense>
+                  <TOTPManager onStatusChange={handleTOTPStatusChange} />
                 </div>
               </motion.div>
             </motion.div>
@@ -413,65 +411,6 @@ const App: React.FC = () => {
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
             <Route path="/api-docs" element={
-              <motion.div
-                variants={pageVariants}
-                initial="initial"
-                animate="in"
-                exit="out"
-                transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
-              >
-                <ApiDocs />
-              </motion.div>
-            } />
-            <Route path="/policy" element={
-              <motion.div
-                variants={pageVariants}
-                initial="initial"
-                animate="in"
-                exit="out"
-                transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
-              >
-                <PolicyPage />
-              </motion.div>
-            } />
-            <Route
-              path="/welcome"
-              element={
-                user ? (
-                  <Navigate to="/" replace />
-                ) : (
-                  <motion.div
-                    variants={pageVariants}
-                    initial="initial"
-                    animate="in"
-                    exit="out"
-                    transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
-                  >
-                    <WelcomePage />
-                  </motion.div>
-                )
-              }
-            />
-            <Route
-              path="/"
-              element={
-                user ? (
-                  <motion.div
-                    variants={pageVariants}
-                    initial="initial"
-                    animate="in"
-                    exit="out"
-                    transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
-                  >
-                    <TtsPage />
-                  </motion.div>
-                ) : (
-                  <Navigate to="/welcome" replace state={{ from: location.pathname }} />
-                )
-              }
-            />
-            <Route path="/admin/users" element={
-              user?.role === 'admin' ? (
                 <motion.div
                   variants={pageVariants}
                   initial="initial"
@@ -479,22 +418,81 @@ const App: React.FC = () => {
                   exit="out"
                   transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
                 >
-                  <UserManagement />
+                  <ApiDocs />
                 </motion.div>
+            } />
+            <Route path="/policy" element={
+                <motion.div
+                  variants={pageVariants}
+                  initial="initial"
+                  animate="in"
+                  exit="out"
+                  transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                >
+                  <PolicyPage />
+                </motion.div>
+            } />
+            <Route
+              path="/welcome"
+              element={
+                user ? (
+                  <Navigate to="/" replace />
+                ) : (
+                    <motion.div
+                      variants={pageVariants}
+                      initial="initial"
+                      animate="in"
+                      exit="out"
+                      transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                    >
+                      <WelcomePage />
+                    </motion.div>
+                )
+              }
+            />
+            <Route
+              path="/"
+              element={
+                user ? (
+                    <motion.div
+                      variants={pageVariants}
+                      initial="initial"
+                      animate="in"
+                      exit="out"
+                      transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                    >
+                      <TtsPage />
+                    </motion.div>
+                ) : (
+                  <Navigate to="/welcome" replace state={{ from: location.pathname }} />
+                )
+              }
+            />
+            <Route path="/admin/users" element={
+              user?.role === 'admin' ? (
+                  <motion.div
+                    variants={pageVariants}
+                    initial="initial"
+                    animate="in"
+                    exit="out"
+                    transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                  >
+                    <UserManagement />
+                  </motion.div>
               ) : (
                 <Navigate to="/" replace />
               )
             } />
             <Route path="/logshare" element={
-              <motion.div
-                variants={pageVariants}
-                initial="initial"
-                animate="in"
-                exit="out"
-                transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
-              >
-                <LogShare />
-              </motion.div>
+                <motion.div
+                  variants={pageVariants}
+                  initial="initial"
+                  animate="in"
+                  exit="out"
+                  transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                >
+                  <LogShare />
+                </motion.div>
             } />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
@@ -558,11 +556,30 @@ const App: React.FC = () => {
   );
 };
 
+// ErrorBoundary 组件
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+    constructor(props: { children: React.ReactNode }) {
+        super(props);
+        this.state = { hasError: false };
+    }
+    static getDerivedStateFromError(error: any) {
+        return { hasError: true };
+    }
+    render() {
+        if (this.state.hasError) {
+            return <div style={{color: 'red', textAlign: 'center', marginTop: 40}}>页面加载失败，请刷新或重试。</div>;
+        }
+        return this.props.children;
+    }
+}
+
 // 包装 App 组件以使用 useLocation
 const AppWithRouter: React.FC = () => (
-  <Router>
-    <App />
-  </Router>
+  <ErrorBoundary>
+    <Router>
+      <App />
+    </Router>
+  </ErrorBoundary>
 );
 
 export default AppWithRouter; 

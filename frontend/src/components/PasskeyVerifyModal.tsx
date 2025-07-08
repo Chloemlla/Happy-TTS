@@ -14,6 +14,7 @@ interface PasskeyVerifyModalProps {
 const PasskeyVerifyModal: React.FC<PasskeyVerifyModalProps> = ({ open, username, onSuccess, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false); // 新增认证成功状态
   const { authenticateWithPasskey } = usePasskey();
 
   const handlePasskeyAuth = async () => {
@@ -22,6 +23,7 @@ const PasskeyVerifyModal: React.FC<PasskeyVerifyModalProps> = ({ open, username,
     try {
       const result = await authenticateWithPasskey(username);
       if (result === true) {
+        setSuccess(true); // 标记认证成功
         onSuccess();
       } else {
         setError('认证失败，请重试');
@@ -33,6 +35,14 @@ const PasskeyVerifyModal: React.FC<PasskeyVerifyModalProps> = ({ open, username,
     }
   };
 
+  // 关闭弹窗时重置状态
+  const handleClose = () => {
+    setSuccess(false);
+    setError('');
+    setLoading(false);
+    onClose();
+  };
+
   return (
     <AnimatePresence>
       {open && (
@@ -41,7 +51,7 @@ const PasskeyVerifyModal: React.FC<PasskeyVerifyModalProps> = ({ open, username,
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={onClose}
+          onClick={handleClose}
         >
           <motion.div
             className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto"
@@ -124,8 +134,8 @@ const PasskeyVerifyModal: React.FC<PasskeyVerifyModalProps> = ({ open, username,
                     <ArrowPathIcon className="w-8 h-8 text-blue-500" />
                   </motion.div>
                   <div className="space-y-2">
-                    <p className="text-gray-700 font-medium">正在进行 Passkey 认证</p>
-                    <p className="text-gray-500 text-sm">请在弹出的系统窗口中操作...</p>
+                    <div className="text-gray-700 font-medium">正在进行 Passkey 认证</div>
+                    <div className="text-gray-500 text-sm">请在弹出的系统窗口中操作...</div>
                     <div className="w-full bg-gray-100 rounded-full h-2 mt-2">
                       <div className="bg-blue-400 h-2 rounded-full animate-pulse" style={{ width: '80%' }}></div>
                     </div>
@@ -141,8 +151,8 @@ const PasskeyVerifyModal: React.FC<PasskeyVerifyModalProps> = ({ open, username,
                     <ExclamationTriangleIcon className="w-8 h-8 text-red-500" />
                   </div>
                   <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                    <p className="text-red-700 text-sm font-medium">{error}</p>
-                    <p className="text-red-500 text-xs mt-2">如多次失败，请检查浏览器是否支持 Passkey，或尝试更换浏览器/设备。</p>
+                    <div className="text-red-700 text-sm font-medium">{error}</div>
+                    <div className="text-red-500 text-xs mt-2">如多次失败，请检查浏览器是否支持 Passkey，或尝试更换浏览器/设备。</div>
                   </div>
                   <motion.button
                     onClick={handlePasskeyAuth}
@@ -160,10 +170,10 @@ const PasskeyVerifyModal: React.FC<PasskeyVerifyModalProps> = ({ open, username,
                   animate={{ opacity: 1, y: 0 }}
                 >
                   <div className="space-y-2">
-                    <p className="text-gray-700 font-medium">准备开始认证</p>
-                    <p className="text-gray-500 text-sm">
+                    <div className="text-gray-700 font-medium">准备开始认证</div>
+                    <div className="text-gray-500 text-sm">
                       点击下方按钮开始 Passkey 身份验证流程
-                    </p>
+                    </div>
                   </div>
                   <motion.button
                     onClick={handlePasskeyAuth}
@@ -178,7 +188,7 @@ const PasskeyVerifyModal: React.FC<PasskeyVerifyModalProps> = ({ open, username,
             </motion.div>
 
             {/* 认证成功提示（仅认证成功后显示） */}
-            {(!loading && !error && typeof onSuccess === 'function') && (
+            {success && !loading && !error && (
               <motion.div
                 className="flex flex-col items-center mt-6"
                 initial={{ opacity: 0, scale: 0.9 }}
@@ -188,7 +198,7 @@ const PasskeyVerifyModal: React.FC<PasskeyVerifyModalProps> = ({ open, username,
                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-2">
                   <ShieldCheckIcon className="w-7 h-7 text-green-600" />
                 </div>
-                <p className="text-green-700 font-semibold">认证成功，已安全登录！</p>
+                <div className="text-green-700 font-semibold">认证成功，已安全登录！</div>
               </motion.div>
             )}
 
@@ -199,10 +209,10 @@ const PasskeyVerifyModal: React.FC<PasskeyVerifyModalProps> = ({ open, username,
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5 }}
             >
-              {(!loading && !error) ? (
+              {success && !loading && !error ? (
                 <motion.button
                   type="button"
-                  onClick={onClose}
+                  onClick={handleClose}
                   className="px-4 py-2 text-green-700 font-medium rounded-lg bg-green-100 hover:bg-green-200 transition-colors duration-200 ml-2"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
@@ -212,7 +222,7 @@ const PasskeyVerifyModal: React.FC<PasskeyVerifyModalProps> = ({ open, username,
               ) : (
                 <motion.button
                   type="button"
-                  onClick={onClose}
+                  onClick={handleClose}
                   disabled={loading}
                   className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium rounded-lg hover:bg-gray-100 transition-colors duration-200"
                   whileHover={{ scale: 1.05 }}

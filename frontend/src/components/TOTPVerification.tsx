@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { validateTOTPToken, validateBackupCode, cleanTOTPToken, cleanBackupCode } from '../utils/totpUtils';
-import { Input } from './ui';
+import { Input } from './ui/Input';
 
 interface TOTPVerificationProps {
   isOpen: boolean;
@@ -158,7 +158,7 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
                   </motion.svg>
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">二次验证</h2>
-                <p className="text-gray-600">请输入验证码完成登录</p>
+                <div className="text-gray-600">请输入验证码完成登录</div>
               </div>
             </motion.div>
 

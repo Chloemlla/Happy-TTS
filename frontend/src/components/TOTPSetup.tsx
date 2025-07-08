@@ -4,7 +4,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { api } from '../api/api';
 import { TOTPSetupData } from '../types/auth';
 import { handleTOTPError, cleanTOTPToken, validateTOTPToken } from '../utils/totpUtils';
-import { Input } from './ui';
+import { Input } from './ui/Input';
 import { PasskeySetup } from './PasskeySetup';
 
 interface TOTPSetupProps {
@@ -211,9 +211,9 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                           className="w-full h-auto"
                         />
                       </div>
-                      <p className="text-xs text-gray-500 mt-2 text-center leading-normal">
+                      <div className="text-xs text-gray-500 mt-2 text-center leading-normal">
                         使用Google Authenticator、Microsoft Authenticator等应用扫描
-                      </p>
+                      </div>
                     </div>
 
                     {/* 密钥 */}

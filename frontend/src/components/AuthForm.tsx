@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, startTransition, Suspense } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Link } from 'react-router-dom';
 import DOMPurify from 'dompurify';
@@ -17,6 +17,23 @@ interface AuthFormProps {
 interface PasswordStrength {
     score: number;
     feedback: string;
+}
+
+// ErrorBoundary 组件
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+    constructor(props: { children: React.ReactNode }) {
+        super(props);
+        this.state = { hasError: false };
+    }
+    static getDerivedStateFromError(error: any) {
+        return { hasError: true };
+    }
+    render() {
+        if (this.state.hasError) {
+            return <div>加载失败，请重试。</div>;
+        }
+        return this.props.children;
+    }
 }
 
 export const AuthForm: React.FC<AuthFormProps> = () => {
@@ -198,13 +215,13 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
                             token: result.token,
                             username: sanitizedUsername
                         });
-                        setShowVerificationSelector(true);
+                        startTransition(() => setShowVerificationSelector(true));
                     } else if (hasPasskey) {
                         // 只启用Passkey
-                        setShowPasskeyVerification(true);
+                        startTransition(() => setShowPasskeyVerification(true));
                     } else if (hasTOTP) {
                         // 只启用TOTP
-                        setShowTOTPVerification(true);
+                        startTransition(() => setShowTOTPVerification(true));
                     }
                     return;
                 }
@@ -227,11 +244,14 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
         }
     };
 
+    // 切换登录/注册模式
     const handleModeSwitch = () => {
-        setIsLogin(!isLogin);
-        setError(null);
-        setPassword('');
-        setConfirmPassword('');
+        startTransition(() => {
+            setIsLogin(!isLogin);
+            setError(null);
+            setPassword('');
+            setConfirmPassword('');
+        });
     };
 
     // 实时密码强度检查
@@ -247,9 +267,9 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
     useEffect(() => {
         if (pending2FA) {
             if (pending2FA.type.includes('Passkey') && !showPasskeyVerification) {
-                setShowPasskeyVerification(true);
+                startTransition(() => setShowPasskeyVerification(true));
             } else if (pending2FA.type.includes('TOTP') && !showTOTPVerification) {
-                setShowTOTPVerification(true);
+                startTransition(() => setShowTOTPVerification(true));
             }
         }
     }, [pending2FA, showPasskeyVerification, showTOTPVerification]);
@@ -276,10 +296,11 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
             
             const success = await authenticateWithPasskey(currentUsername);
             if (success) {
-                setShowPasskeyVerification(false);
-                setPending2FA(null);
-                // 强制刷新页面，确保所有状态重新初始化
-                window.location.reload();
+                startTransition(() => {
+                    setShowPasskeyVerification(false);
+                    setPending2FA(null);
+                    window.location.reload();
+                });
             } else {
                 setError('Passkey 验证失败');
             }
@@ -292,7 +313,7 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
 
     // 验证方式选择处理
     const handleVerificationMethodSelect = async (method: 'passkey' | 'totp') => {
-        setShowVerificationSelector(false);
+        startTransition(() => setShowVerificationSelector(false));
         setLoading(true);
         
         try {
@@ -300,21 +321,24 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
                 // 处理Passkey验证
                 const success = await authenticateWithPasskey(pendingVerificationData.username);
                 if (success) {
-                    setPendingVerificationData(null);
-                    // 强制刷新页面，确保所有状态重新初始化
-                    window.location.reload();
+                    startTransition(() => {
+                        setPendingVerificationData(null);
+                        // 强制刷新页面，确保所有状态重新初始化
+                        window.location.reload();
+                    });
                 } else {
                     setError('Passkey 验证失败');
                 }
             } else if (method === 'totp') {
-                // 处理TOTP验证
-                setPending2FA({
-                    userId: pendingVerificationData.userId,
-                    token: pendingVerificationData.token,
-                    username: pendingVerificationData.username,
-                    type: ['TOTP']
+                startTransition(() => {
+                    setPending2FA({
+                        userId: pendingVerificationData.userId,
+                        token: pendingVerificationData.token,
+                        username: pendingVerificationData.username,
+                        type: ['TOTP']
+                    });
+                    setShowTOTPVerification(true);
                 });
-                setShowTOTPVerification(true);
             }
         } catch (e: any) {
             setError(e.message || '验证失败');
@@ -465,7 +489,7 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
             </div>
             <AlertModal
                 open={showAlert}
-                onClose={() => setShowAlert(false)}
+                onClose={() => startTransition(() => setShowAlert(false))}
                 title="请勾选服务条款与隐私政策"
                 message="为了保障您的合法权益，请您在继续使用本服务前，仔细阅读并同意我们的服务条款与隐私政策。未勾选将无法继续注册或登录。"
             />
@@ -474,22 +498,26 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
             <PasskeyVerifyModal
                 open={showPasskeyVerification}
                 username={username}
-                onSuccess={() => { setShowPasskeyVerification(false); setPending2FA(null); window.location.reload(); }}
-                onClose={() => setShowPasskeyVerification(false)}
+                onSuccess={() => { startTransition(() => { setShowPasskeyVerification(false); setPending2FA(null); window.location.reload(); }); }}
+                onClose={() => startTransition(() => setShowPasskeyVerification(false))}
             />
             {/* TOTP 验证弹窗 */}
             {showTOTPVerification && (
-                <TOTPVerification
-                    isOpen={showTOTPVerification}
-                    onClose={() => setShowTOTPVerification(false)}
-                    onSuccess={() => {
-                        setShowTOTPVerification(false);
-                        setPending2FA(null);
-                        window.location.reload();
-                    }}
-                    userId={pending2FA?.userId || ''}
-                    token={pending2FA?.token || ''}
-                />
+                <ErrorBoundary>
+                    <TOTPVerification
+                        isOpen={showTOTPVerification}
+                        onClose={() => startTransition(() => setShowTOTPVerification(false))}
+                        onSuccess={() => {
+                            startTransition(() => {
+                                setShowTOTPVerification(false);
+                                setPending2FA(null);
+                                window.location.reload();
+                            });
+                        }}
+                        userId={pending2FA?.userId || ''}
+                        token={pending2FA?.token || ''}
+                    />
+                </ErrorBoundary>
             )}
 
             {/* 验证方式选择弹窗 */}
@@ -497,8 +525,10 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
                 <VerificationMethodSelector
                     isOpen={showVerificationSelector}
                     onClose={() => {
-                        setShowVerificationSelector(false);
-                        setPendingVerificationData(null);
+                        startTransition(() => {
+                            setShowVerificationSelector(false);
+                            setPendingVerificationData(null);
+                        });
                     }}
                     onSelectMethod={handleVerificationMethodSelect}
                     username={pendingVerificationData.username}
@@ -509,7 +539,7 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
             {/* 调试信息弹窗 */}
             <DebugInfoModal
                 isOpen={showDebugModal}
-                onClose={() => setShowDebugModal(false)}
+                onClose={() => startTransition(() => setShowDebugModal(false))}
                 debugInfos={debugInfos}
             />
 
