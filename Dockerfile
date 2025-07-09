@@ -20,11 +20,16 @@ WORKDIR /app
 COPY frontend/package*.json ./frontend/
 WORKDIR /app/frontend
 
-# 安装前端依赖（包括开发依赖，因为需要构建工具）
+# 安装前端依赖前，彻底清理依赖和缓存
 RUN rm -rf node_modules package-lock.json
+
+# 安装最新npm
 RUN npm install -g npm@latest
-RUN npm install --no-optional --no-audit --no-fund && \
-    npm install @fingerprintjs/fingerprintjs --no-optional && \
+
+# 先安装依赖，遇到 rollup 可选依赖问题时强制修复
+RUN npm install --no-optional --no-audit --no-fund || (echo "依赖安装失败，尝试修复..." && rm -rf node_modules package-lock.json && npm install --no-optional --no-audit --no-fund)
+
+RUN npm install @fingerprintjs/fingerprintjs --no-optional && \
     npm install crypto-js --no-optional && \
     npm install --save-dev @types/crypto-js --no-optional
 RUN npm install -g vitest && \
