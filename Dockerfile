@@ -7,8 +7,12 @@ RUN apk add --no-cache tzdata && \
     echo "Asia/Shanghai" > /etc/timezone && \
     apk del tzdata
 
-# 设置Node.js内存限制
-ENV NODE_OPTIONS="--max-old-space-size=8192"
+# 设置Node.js内存限制和优化
+ENV NODE_OPTIONS="--max-old-space-size=5096"
+ENV NPM_CONFIG_CACHE="/tmp/.npm"
+ENV NPM_CONFIG_PREFER_OFFLINE=true
+ENV NPM_CONFIG_AUDIT=false
+ENV NPM_CONFIG_FUND=false
 
 WORKDIR /app
 
@@ -18,14 +22,13 @@ WORKDIR /app/frontend
 
 # 安装前端依赖（包括开发依赖，因为需要构建工具）
 RUN rm -rf node_modules package-lock.json
-RUN npm install -g npm
-RUN npm install && \
-    npm install @fingerprintjs/fingerprintjs && \
-    npm install crypto-js && \
-    npm install --save-dev @types/crypto-js
+RUN npm install -g npm@latest
+RUN npm install --no-optional --no-audit --no-fund && \
+    npm install @fingerprintjs/fingerprintjs --no-optional && \
+    npm install crypto-js --no-optional && \
+    npm install --save-dev @types/crypto-js --no-optional
 RUN npm install -g vitest && \
     npm install -g @testing-library/jest-dom && \
-    npm install -g npm@11.4.2 && \
     npm install -g @testing-library/react && \
     npm install -g @testing-library/user-event && \
     npm install -g @babel/preset-env && \
@@ -34,12 +37,11 @@ RUN npm install -g vitest && \
     npm install -g @babel/preset-stage-2 && \
     npm install -g @babel/preset-stage-3
 
-
 # 复制前端源代码（这层会在源代码变化时重新构建）
 COPY frontend/ .
 
 # 构建前端（增加内存优化和重试机制）
-RUN npm run build || (echo "第一次构建失败，重试..." && npm run build) || (echo "第二次构建失败，使用简化构建..." && npm run build:simple) || (echo "简化构建失败，使用最小构建..." && npm run build:minimal)
+RUN npm run build || (echo "第一次构建失败，清理缓存后重试..." && rm -rf node_modules/.cache && npm run build) || (echo "第二次构建失败，使用简化构建..." && npm run build:simple) || (echo "简化构建失败，使用最小构建..." && npm run build:minimal)
 
 # 确保favicon.ico存在
 RUN touch dist/favicon.ico
@@ -53,8 +55,12 @@ RUN apk add --no-cache tzdata && \
     echo "Asia/Shanghai" > /etc/timezone && \
     apk del tzdata
 
-# 设置Node.js内存限制
-ENV NODE_OPTIONS="--max-old-space-size=4096"
+# 设置Node.js内存限制和优化
+ENV NODE_OPTIONS="--max-old-space-size=2048"
+ENV NPM_CONFIG_CACHE="/tmp/.npm"
+ENV NPM_CONFIG_PREFER_OFFLINE=true
+ENV NPM_CONFIG_AUDIT=false
+ENV NPM_CONFIG_FUND=false
 
 # 安装编译 gifsicle 所需的系统依赖和git
 RUN apk add --no-cache autoconf automake libtool build-base git
@@ -66,8 +72,8 @@ COPY frontend/docs/ ./docs/
 
 # 安装文档依赖并构建
 WORKDIR /app/docs
-RUN npm install -g npm
-RUN npm install && (npm run build:no-git || (echo "第一次构建失败，重试..." && npm run build) || (echo "第二次构建失败，使用简化构建..." && npm run build:simple))
+RUN npm install -g npm@latest
+RUN npm install --no-optional --no-audit --no-fund && (npm run build:no-git || (echo "第一次构建失败，重试..." && npm run build) || (echo "第二次构建失败，使用简化构建..." && npm run build:simple))
 
 # 构建后端
 FROM node:22-alpine AS backend-builder
@@ -78,8 +84,12 @@ RUN apk add --no-cache tzdata && \
     echo "Asia/Shanghai" > /etc/timezone && \
     apk del tzdata
 
-# 设置Node.js内存限制
-ENV NODE_OPTIONS="--max-old-space-size=4096"
+# 设置Node.js内存限制和优化
+ENV NODE_OPTIONS="--max-old-space-size=3048"
+ENV NPM_CONFIG_CACHE="/tmp/.npm"
+ENV NPM_CONFIG_PREFER_OFFLINE=true
+ENV NPM_CONFIG_AUDIT=false
+ENV NPM_CONFIG_FUND=false
 
 WORKDIR /app
 
@@ -87,8 +97,8 @@ WORKDIR /app
 COPY package*.json ./
 
 # 安装后端依赖（包括开发依赖，因为需要TypeScript编译器）
-RUN npm install -g npm
-RUN npm install && \
+RUN npm install -g npm@latest
+RUN npm install --no-optional --no-audit --no-fund && \
     npm install -g javascript-obfuscator
 
 # 复制后端源代码和配置文件（这层会在源代码变化时重新构建）
@@ -97,7 +107,7 @@ COPY src/ ./src/
 COPY tsconfig.json ./
 
 # 构建后端（增加重试机制）
-RUN npm run build:backend || npm run build:backend
+RUN npm run build:backend || (echo "第一次构建失败，重试..." && npm run build:backend)
 
 # 生成 openapi.json
 RUN npm run generate:openapi
@@ -113,12 +123,13 @@ RUN apk add --no-cache tzdata && \
 
 # 设置环境变量
 ENV TZ=Asia/Shanghai
+ENV NODE_OPTIONS="--max-old-space-size=2048"
 
 WORKDIR /app
 
 # 安装生产环境依赖（这层会被缓存）
 COPY package*.json ./
-RUN npm ci --only=production && \
+RUN npm ci --only=production --no-optional --no-audit --no-fund && \
     npm install -g concurrently serve
 
 # 从构建阶段复制文件

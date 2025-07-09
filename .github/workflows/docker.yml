@@ -24,6 +24,11 @@ jobs:
         with:
           node-version: 20
 
+      - name: Set Node.js memory limits
+        run: |
+          echo "NODE_OPTIONS=--max-old-space-size=5096" >> $GITHUB_ENV
+          echo "NPM_CONFIG_CACHE=/tmp/.npm" >> $GITHUB_ENV
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@master
 
@@ -61,19 +66,24 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build and push with memory optimization
         if: github.event_name != 'pull_request'
         uses: docker/build-push-action@master
         with:
           context: .
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+            NODE_OPTIONS=--max-old-space-size=5096
           cache-from: |
             type=local,src=/tmp/.buildx-cache
             type=gha
+            type=registry,ref=happyclo/tts-node:cache
           cache-to: |
             type=local,dest=/tmp/.buildx-cache-new,mode=max
             type=gha,mode=max
+            type=registry,ref=happyclo/tts-node:cache,mode=max
           tags: |
             happyclo/tts-node:${{ github.ref_name }}
             happyclo/tts-node:${{ steps.timestamp.outputs.short_sha }}
