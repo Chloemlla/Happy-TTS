@@ -198,6 +198,48 @@ body {
   }
 }
 
+/* 文本截断和行数限制样式 */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 移动端触摸优化 */
+@media (max-width: 768px) {
+  /* 增加触摸目标大小 */
+  button, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* 优化滚动体验 */
+  .overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+  
+  /* 防止iOS Safari中的橡皮筋效果 */
+  body {
+    overscroll-behavior: none;
+  }
+  
+  /* 优化模态框在移动端的显示 */
+  .fixed.inset-0 {
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+}
+
 /* 增强的动画效果 - Motion风格 */
 .animated-toast {
   animation: toastSlideInSpring 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;

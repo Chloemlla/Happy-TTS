@@ -1,0 +1,216 @@
+import React from 'react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import VerificationMethodSelector from './VerificationMethodSelector';
+
+// Mock framer-motion
+vi.mock('framer-motion', () => ({
+  motion: {
+    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+  },
+  AnimatePresence: ({ children }: any) => <div>{children}</div>,
+}));
+
+// Mock Dialog component
+vi.mock('./ui/Dialog', () => ({
+  Dialog: ({ children, open, onOpenChange }: any) => 
+    open ? <div data-testid="dialog">{children}</div> : null,
+}));
+
+describe('VerificationMethodSelector', () => {
+  const mockOnClose = vi.fn();
+  const mockOnSelectMethod = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('应该正确渲染组件', () => {
+    render(
+      <VerificationMethodSelector
+        isOpen={true}
+        onClose={mockOnClose}
+        onSelectMethod={mockOnSelectMethod}
+        username="testuser"
+        loading={false}
+      />
+    );
+
+    expect(screen.getByText('选择验证方式')).toBeInTheDocument();
+    expect(screen.getByText('为 testuser 选择二次验证方式')).toBeInTheDocument();
+    expect(screen.getByText('Passkey 验证')).toBeInTheDocument();
+    expect(screen.getByText('动态口令 (TOTP)')).toBeInTheDocument();
+    expect(screen.getByText('安全提示')).toBeInTheDocument();
+    expect(screen.getByText('取消')).toBeInTheDocument();
+  });
+
+  it('应该响应式地调整大小', () => {
+    render(
+      <VerificationMethodSelector
+        isOpen={true}
+        onClose={mockOnClose}
+        onSelectMethod={mockOnSelectMethod}
+        username="testuser"
+        loading={false}
+      />
+    );
+
+    const modal = screen.getByTestId('dialog');
+    expect(modal).toBeInTheDocument();
+    
+    // 检查响应式类是否存在
+    const modalContainer = modal.querySelector('.max-w-sm.sm\\:max-w-md.md\\:max-w-lg.lg\\:max-w-xl.xl\\:max-w-2xl');
+    expect(modalContainer).toBeInTheDocument();
+  });
+
+  it('应该处理Passkey选择', () => {
+    render(
+      <VerificationMethodSelector
+        isOpen={true}
+        onClose={mockOnClose}
+        onSelectMethod={mockOnSelectMethod}
+        username="testuser"
+        loading={false}
+      />
+    );
+
+    const passkeyOption = screen.getByText('Passkey 验证').closest('.group');
+    fireEvent.click(passkeyOption!);
+
+    expect(mockOnSelectMethod).toHaveBeenCalledWith('passkey');
+  });
+
+  it('应该处理TOTP选择', () => {
+    render(
+      <VerificationMethodSelector
+        isOpen={true}
+        onClose={mockOnClose}
+        onSelectMethod={mockOnSelectMethod}
+        username="testuser"
+        loading={false}
+      />
+    );
+
+    const totpOption = screen.getByText('动态口令 (TOTP)').closest('.group');
+    fireEvent.click(totpOption!);
+
+    expect(mockOnSelectMethod).toHaveBeenCalledWith('totp');
+  });
+
+  it('应该在加载状态下禁用选择', () => {
+    render(
+      <VerificationMethodSelector
+        isOpen={true}
+        onClose={mockOnClose}
+        onSelectMethod={mockOnSelectMethod}
+        username="testuser"
+        loading={true}
+      />
+    );
+
+    const passkeyOption = screen.getByText('Passkey 验证').closest('.group');
+    fireEvent.click(passkeyOption!);
+
+    // 在加载状态下不应该调用选择方法
+    expect(mockOnSelectMethod).not.toHaveBeenCalled();
+  });
+
+  it('应该处理取消按钮点击', () => {
+    render(
+      <VerificationMethodSelector
+        isOpen={true}
+        onClose={mockOnClose}
+        onSelectMethod={mockOnSelectMethod}
+        username="testuser"
+        loading={false}
+      />
+    );
+
+    const cancelButton = screen.getByText('取消');
+    fireEvent.click(cancelButton);
+
+    expect(mockOnClose).toHaveBeenCalled();
+  });
+
+  it('应该处理触摸滑动事件', () => {
+    render(
+      <VerificationMethodSelector
+        isOpen={true}
+        onClose={mockOnClose}
+        onSelectMethod={mockOnSelectMethod}
+        username="testuser"
+        loading={false}
+      />
+    );
+
+    const modal = screen.getByTestId('dialog');
+    const modalContainer = modal.querySelector('.relative.w-full');
+
+    // 模拟触摸开始
+    fireEvent.touchStart(modalContainer!, {
+      touches: [{ clientY: 100 }]
+    });
+
+    // 模拟触摸移动（向上滑动超过100px）
+    fireEvent.touchMove(modalContainer!, {
+      touches: [{ clientY: 0 }]
+    });
+
+    // 模拟触摸结束
+    fireEvent.touchEnd(modalContainer!);
+
+    // 应该调用关闭函数
+    expect(mockOnClose).toHaveBeenCalled();
+  });
+
+  it('应该处理键盘ESC键', async () => {
+    render(
+      <VerificationMethodSelector
+        isOpen={true}
+        onClose={mockOnClose}
+        onSelectMethod={mockOnSelectMethod}
+        username="testuser"
+        loading={false}
+      />
+    );
+
+    // 模拟按下ESC键
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    await waitFor(() => {
+      expect(mockOnClose).toHaveBeenCalled();
+    });
+  });
+
+  it('应该包含滑动指示器', () => {
+    render(
+      <VerificationMethodSelector
+        isOpen={true}
+        onClose={mockOnClose}
+        onSelectMethod={mockOnSelectMethod}
+        username="testuser"
+        loading={false}
+      />
+    );
+
+    // 检查滑动指示器是否存在
+    const swipeIndicator = document.querySelector('.absolute.top-2.left-1\\/2.transform.-translate-x-1\\/2.w-12.h-1.bg-white\\/30.rounded-full');
+    expect(swipeIndicator).toBeInTheDocument();
+  });
+
+  it('应该正确显示文本截断', () => {
+    render(
+      <VerificationMethodSelector
+        isOpen={true}
+        onClose={mockOnClose}
+        onSelectMethod={mockOnSelectMethod}
+        username="testuser"
+        loading={false}
+      />
+    );
+
+    // 检查文本截断类是否存在
+    const descriptions = document.querySelectorAll('.line-clamp-2');
+    expect(descriptions.length).toBeGreaterThan(0);
+  });
+}); 
