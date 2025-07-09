@@ -33,12 +33,20 @@ jobs:
           echo "NODE_OPTIONS=--max-old-space-size=5096" >> $GITHUB_ENV
           echo "NPM_CONFIG_CACHE=/tmp/.npm" >> $GITHUB_ENV
 
+      - name: Clean node_modules and lock (root)
+        run: |
+          rm -rf node_modules package-lock.json
+
+      - name: Clean node_modules and lock (frontend)
+        run: |
+          rm -rf frontend/node_modules frontend/package-lock.json
+
+      - name: Clean node_modules and lock (frontend/docs)
+        run: |
+          rm -rf frontend/docs/node_modules frontend/docs/package-lock.json
+
       - name: Generate package-lock.json
         run: npm install --package-lock-only
-
-      - name: Clean node_modules and lock
-        run: |
-          rm -rf node_modules package-lock.json frontend/node_modules frontend/package-lock.json frontend/docs/node_modules frontend/docs/package-lock.json
 
       - name: Install dependencies with retry
         run: |
