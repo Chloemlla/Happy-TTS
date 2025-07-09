@@ -1,3 +1,10 @@
+---
+title: Docker 构建问题解决方案
+date: 2025-07-07
+slug: docker-build-fix
+tags: [docker, build, fix, blog]
+---
+
 # Docker 构建问题解决方案
 
 ## 问题描述

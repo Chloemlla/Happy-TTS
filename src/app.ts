@@ -260,6 +260,9 @@ app.use(isLocalIp); // 添加本地 IP 检查中间件
 // 应用请求限制到不同路由
 app.use('/api/auth', authLimiter);
 app.use('/api/auth/me', meEndpointLimiter); // 为 /me 端点添加特殊的限流器
+app.use('/api/tts/generate', ttsLimiter);
+app.use('/api/tts/history', historyLimiter);
+
 
 // 注册路由（路由内部已有速率限制）
 app.use('/api/tts', ttsRoutes);
@@ -487,9 +490,8 @@ const statusLimiter = rateLimit({
         return req.isLocalIp || false;
     }
 });
-
-app.use('/api/totp', totpRoutes);
-app.use('/api/passkey', passkeyRoutes);
+app.use('/api/totp', totpLimiter);
+app.use('/api/passkey', passkeyLimiter);
 app.use('/api/tamper', tamperLimiter);
 app.use('/api/command', commandLimiter);
 app.use('/api/libre-chat', libreChatLimiter);

@@ -1,3 +1,10 @@
+---
+title: 速率限制配置说明
+date: 2025-07-07
+slug: rate-limiting
+tags: [rate-limit, config, blog]
+---
+
 # 速率限制配置说明
 
 ## 概述

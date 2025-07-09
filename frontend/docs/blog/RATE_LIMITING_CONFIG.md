@@ -1,3 +1,10 @@
+---
+title: 后端速率限制配置文档
+date: 2025-07-07
+slug: rate-limiting-config
+tags: [rate-limit, backend, config, blog]
+---
+
 # 后端速率限制配置文档
 
 ## 概述

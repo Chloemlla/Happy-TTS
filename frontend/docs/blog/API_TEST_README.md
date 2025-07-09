@@ -1,3 +1,10 @@
+---
+title: API 批量测试脚本使用说明
+date: 2025-07-07
+slug: api-batch-test-readme
+tags: [api, test, batch, blog]
+---
+
 # API 批量测试脚本使用说明
 
 ## 概述

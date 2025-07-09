@@ -1,3 +1,10 @@
+---
+title: 前端项目优化说明
+date: 2025-07-07
+slug: frontend-optimization
+tags: [optimization, frontend, blog]
+---
+
 # 前端项目优化说明
 
 ## 优化概述
