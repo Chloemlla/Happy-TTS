@@ -34,5 +34,7 @@ export const config = {
   registerRateLimit: {
     windowMs: 60 * 60 * 1000, // 1小时
     max: 3 // 最多3次尝试
-  }
+  },
+  // 用户数据存储方式: 'file' 或 'mongo'
+  userStorageMode: process.env.USER_STORAGE_MODE || 'file',
 }; 

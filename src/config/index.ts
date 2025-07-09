@@ -11,6 +11,7 @@ export default {
   server: {
     password: process.env.SERVER_PASSWORD || 'wmy',
   },
+  userStorageMode: process.env.USER_STORAGE_MODE || 'file',
   paths: {
     ipData: 'ip_data.txt',
     lcData: 'lc_data.txt',

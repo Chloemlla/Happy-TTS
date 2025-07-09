@@ -301,65 +301,32 @@ export class AuthController {
 
 // 辅助函数：写入token和过期时间到users.json
 async function updateUserToken(userId: string, token: string, expiresInMs = 2 * 60 * 60 * 1000) {
-    const USERS_FILE = path.join(process.cwd(), 'data', 'users.json');
-    if (!fs.existsSync(USERS_FILE)) return;
-    
-    try {
-        const data = await fs.promises.readFile(USERS_FILE, 'utf-8');
-        const users = JSON.parse(data);
-        const idx = users.findIndex((u: any) => u.id === userId);
-        if (idx !== -1) {
-            users[idx].token = token;
-            users[idx].tokenExpiresAt = Date.now() + expiresInMs;
-            await fs.promises.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
-        }
-    } catch (error) {
-        logger.error('更新用户token失败:', error);
-    }
+    await UserStorage.updateUser(userId, { token, tokenExpiresAt: Date.now() + expiresInMs });
 }
 
-// 校验token及过期
+// 校验管理员token
 export async function isAdminToken(token: string | undefined): Promise<boolean> {
-    const USERS_FILE = path.join(process.cwd(), 'data', 'users.json');
-    if (!fs.existsSync(USERS_FILE)) return false;
-    
-    try {
-        const data = await fs.promises.readFile(USERS_FILE, 'utf-8');
-        const users = JSON.parse(data);
-        const user = users.find((u: any) => u.role === 'admin' && u.token === token);
-        if (!user) return false;
-        if (!user.tokenExpiresAt || Date.now() > user.tokenExpiresAt) return false;
-        return true;
-    } catch (error) {
-        logger.error('校验管理员token失败:', error);
-        return false;
-    }
+    if (!token) return false;
+    const users = await UserStorage.getAllUsers();
+    const user = users.find(u => u.role === 'admin' && u.token === token);
+    if (!user) return false;
+    if (!user.tokenExpiresAt || Date.now() > user.tokenExpiresAt) return false;
+    return true;
 }
 
 // 登出接口
 export function registerLogoutRoute(app: any) {
-    app.post('/api/auth/logout', async (req: Request, res: Response) => {
+    app.post('/api/auth/logout', async (req: any, res: any) => {
         try {
             const token = req.headers.authorization?.replace('Bearer ', '');
-            const USERS_FILE = path.join(process.cwd(), 'data', 'users.json');
-            
-            if (!fs.existsSync(USERS_FILE)) {
-                return res.status(500).json({ error: '用户数据不存在' });
-            }
-            
-            const data = await fs.promises.readFile(USERS_FILE, 'utf-8');
-            const users = JSON.parse(data);
+            if (!token) return res.json({ success: true });
+            const users = await UserStorage.getAllUsers();
             const idx = users.findIndex((u: any) => u.token === token);
-            
             if (idx !== -1) {
-                users[idx].token = undefined;
-                users[idx].tokenExpiresAt = undefined;
-                await fs.promises.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
+                await UserStorage.updateUser(users[idx].id, { token: undefined, tokenExpiresAt: undefined });
             }
-            
             res.json({ success: true });
         } catch (error) {
-            logger.error('登出失败:', error);
             res.status(500).json({ error: '登出失败' });
         }
     });

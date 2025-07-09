@@ -43,6 +43,7 @@ import socialRoutes from './routes/socialRoutes';
 import lifeRoutes from './routes/lifeRoutes';
 import { PasskeyDataRepairService } from './services/passkeyDataRepairService';
 import miniapiRoutes from './routes/miniapiRoutes';
+import { connectMongo } from './services/mongoService';
 
 // 扩展 Request 类型
 declare global {

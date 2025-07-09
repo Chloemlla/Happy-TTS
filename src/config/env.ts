@@ -11,5 +11,6 @@ export const env = {
   PORT: process.env.PORT || '3000',
   // Passkey 相关配置
   RP_ID: process.env.RP_ID || 'tts.hapx.one',
-  RP_ORIGIN: process.env.RP_ORIGIN || 'https://tts.hapx.one'
+  RP_ORIGIN: process.env.RP_ORIGIN || 'https://tts.hapx.one',
+  USER_STORAGE_MODE: process.env.USER_STORAGE_MODE || 'file',
 }; 

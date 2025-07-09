@@ -81,6 +81,7 @@
     "jsdom": "^26.1.0",
     "jsonwebtoken": "^9.0.2",
     "liquid-glass-react": "^1.1.1",
+    "mongoose": "^8.16.2",
     "morgan": "^1.10.0",
     "multer": "^2.0.1",
     "openai": "^5.7.0",

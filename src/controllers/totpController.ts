@@ -544,69 +544,13 @@ export class TOTPController {
      * 更新用户TOTP信息
      */
     private static async updateUserTOTP(userId: string, secret: string, enabled: boolean, backupCodes: string[]): Promise<void> {
-        const USERS_FILE = path.join(process.cwd(), 'data', 'users.json');
-        if (!fs.existsSync(USERS_FILE)) {
-            logger.error('用户数据文件不存在:', { filePath: USERS_FILE });
-            throw new Error('用户数据文件不存在');
-        }
-
-        try {
-            const data = await fs.promises.readFile(USERS_FILE, 'utf-8');
-            const users = JSON.parse(data);
-            const userIndex = users.findIndex((u: any) => u.id === userId);
-            
-            if (userIndex === -1) {
-                logger.error('用户不存在:', { userId });
-                throw new Error('用户不存在');
-            }
-
-            users[userIndex].totpSecret = secret;
-            users[userIndex].totpEnabled = enabled;
-            users[userIndex].backupCodes = backupCodes;
-
-            // 使用临时文件确保写入的原子性
-            const tempFile = `${USERS_FILE}.tmp`;
-            await fs.promises.writeFile(tempFile, JSON.stringify(users, null, 2));
-            await fs.promises.rename(tempFile, USERS_FILE);
-            
-            logger.info('TOTP信息更新成功:', { userId, enabled });
-        } catch (error) {
-            logger.error('更新用户TOTP信息失败:', { error, userId });
-            throw error;
-        }
+        await UserStorage.updateUser(userId, { totpSecret: secret, totpEnabled: enabled, backupCodes });
     }
 
     /**
      * 更新用户备用恢复码
      */
     private static async updateUserBackupCodes(userId: string, backupCodes: string[]): Promise<void> {
-        const USERS_FILE = path.join(process.cwd(), 'data', 'users.json');
-        if (!fs.existsSync(USERS_FILE)) {
-            logger.error('用户数据文件不存在:', { filePath: USERS_FILE });
-            throw new Error('用户数据文件不存在');
-        }
-
-        try {
-            const data = await fs.promises.readFile(USERS_FILE, 'utf-8');
-            const users = JSON.parse(data);
-            const userIndex = users.findIndex((u: any) => u.id === userId);
-            
-            if (userIndex === -1) {
-                logger.error('用户不存在:', { userId });
-                throw new Error('用户不存在');
-            }
-
-            users[userIndex].backupCodes = backupCodes;
-
-            // 使用临时文件确保写入的原子性
-            const tempFile = `${USERS_FILE}.tmp`;
-            await fs.promises.writeFile(tempFile, JSON.stringify(users, null, 2));
-            await fs.promises.rename(tempFile, USERS_FILE);
-            
-            logger.info('备用恢复码更新成功:', { userId, remainingCodes: backupCodes.length });
-        } catch (error) {
-            logger.error('更新用户备用恢复码失败:', { error, userId });
-            throw error;
-        }
+        await UserStorage.updateUser(userId, { backupCodes });
     }
 } 

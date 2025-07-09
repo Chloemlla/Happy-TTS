@@ -61,14 +61,9 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
 
                     // 检查token是否过期（从users.json文件中读取）
                     try {
-                        const USERS_FILE = path.join(process.cwd(), 'data', 'users.json');
-                        if (fs.existsSync(USERS_FILE)) {
-                            const data = await fs.promises.readFile(USERS_FILE, 'utf-8');
-                            const users = JSON.parse(data);
-                            const userWithToken = users.find((u: any) => u.id === user.id);
-                            if (userWithToken && userWithToken.tokenExpiresAt && Date.now() > userWithToken.tokenExpiresAt) {
-                                return res.status(401).json({ error: '认证令牌已过期' });
-                            }
+                        const userWithToken = await UserStorage.getUserById(user.id);
+                        if (userWithToken && userWithToken.tokenExpiresAt && Date.now() > userWithToken.tokenExpiresAt) {
+                            return res.status(401).json({ error: '认证令牌已过期' });
                         }
                     } catch (error) {
                         // 如果读取token过期时间失败，继续执行
