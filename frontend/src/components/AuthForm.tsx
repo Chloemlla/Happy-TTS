@@ -209,6 +209,7 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
                     
                     if (hasPasskey && hasTOTP) {
                         // 同时启用两种验证方式，显示选择弹窗
+                        // 注意：不设置 pending2FA，避免自动弹出验证弹窗
                         setPendingVerificationData({
                             user: result.user,
                             userId: result.user.id,
@@ -217,10 +218,22 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
                         });
                         startTransition(() => setShowVerificationSelector(true));
                     } else if (hasPasskey) {
-                        // 只启用Passkey
+                        // 只启用Passkey，直接显示Passkey验证弹窗
+                        setPending2FA({
+                            userId: result.user.id,
+                            token: result.token,
+                            username: sanitizedUsername,
+                            type: ['Passkey']
+                        });
                         startTransition(() => setShowPasskeyVerification(true));
                     } else if (hasTOTP) {
-                        // 只启用TOTP
+                        // 只启用TOTP，直接显示TOTP验证弹窗
+                        setPending2FA({
+                            userId: result.user.id,
+                            token: result.token,
+                            username: sanitizedUsername,
+                            type: ['TOTP']
+                        });
                         startTransition(() => setShowTOTPVerification(true));
                     }
                     return;
@@ -264,15 +277,17 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
         }
     }, [password, username]);
 
+    // 修改useEffect逻辑，避免在显示验证方式选择器时自动弹出验证弹窗
     useEffect(() => {
-        if (pending2FA && Array.isArray(pending2FA.type) && pending2FA.type.length === 1) {
+        // 只有在不显示验证方式选择器时才自动弹出验证弹窗
+        if (!showVerificationSelector && pending2FA && Array.isArray(pending2FA.type) && pending2FA.type.length === 1) {
             if (pending2FA.type[0] === 'Passkey' && !showPasskeyVerification) {
                 startTransition(() => setShowPasskeyVerification(true));
             } else if (pending2FA.type[0] === 'TOTP' && !showTOTPVerification) {
                 startTransition(() => setShowTOTPVerification(true));
             }
         }
-    }, [pending2FA, showPasskeyVerification, showTOTPVerification]);
+    }, [pending2FA, showPasskeyVerification, showTOTPVerification, showVerificationSelector]);
 
     // Passkey验证弹窗逻辑
     const handlePasskeyVerify = async () => {
@@ -318,7 +333,7 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
         
         try {
             if (method === 'passkey') {
-                // 处理Passkey验证
+                // 处理Passkey验证 - 直接调用验证，不设置pending2FA
                 const success = await authenticateWithPasskey(pendingVerificationData.username);
                 if (success) {
                     startTransition(() => {
@@ -330,6 +345,7 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
                     setError('Passkey 验证失败');
                 }
             } else if (method === 'totp') {
+                // 选择TOTP验证方式，设置pending2FA并显示TOTP验证弹窗
                 startTransition(() => {
                     setPending2FA({
                         userId: pendingVerificationData.userId,
@@ -345,6 +361,15 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    // 验证方式选择器关闭处理
+    const handleVerificationSelectorClose = () => {
+        startTransition(() => {
+            setShowVerificationSelector(false);
+            setPendingVerificationData(null);
+            setPending2FA(null); // 清除pending2FA状态，防止其他弹窗自动显示
+        });
     };
 
     return (
@@ -498,19 +523,35 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
             <PasskeyVerifyModal
                 open={showPasskeyVerification}
                 username={username}
-                onSuccess={() => { startTransition(() => { setShowPasskeyVerification(false); setPending2FA(null); window.location.reload(); }); }}
-                onClose={() => startTransition(() => setShowPasskeyVerification(false))}
+                onSuccess={() => { 
+                    startTransition(() => { 
+                        setShowPasskeyVerification(false); 
+                        setPending2FA(null); 
+                        setPendingVerificationData(null);
+                        window.location.reload(); 
+                    }); 
+                }}
+                onClose={() => startTransition(() => {
+                    setShowPasskeyVerification(false);
+                    setPending2FA(null);
+                    setPendingVerificationData(null);
+                })}
             />
             {/* TOTP 验证弹窗 */}
             {showTOTPVerification && (
                 <ErrorBoundary>
                     <TOTPVerification
                         isOpen={showTOTPVerification}
-                        onClose={() => startTransition(() => setShowTOTPVerification(false))}
+                        onClose={() => startTransition(() => {
+                            setShowTOTPVerification(false);
+                            setPending2FA(null);
+                            setPendingVerificationData(null);
+                        })}
                         onSuccess={() => {
                             startTransition(() => {
                                 setShowTOTPVerification(false);
                                 setPending2FA(null);
+                                setPendingVerificationData(null);
                                 window.location.reload();
                             });
                         }}
@@ -524,12 +565,7 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
             {showVerificationSelector && pendingVerificationData && (
                 <VerificationMethodSelector
                     isOpen={showVerificationSelector}
-                    onClose={() => {
-                        startTransition(() => {
-                            setShowVerificationSelector(false);
-                            setPendingVerificationData(null);
-                        });
-                    }}
+                    onClose={handleVerificationSelectorClose}
                     onSelectMethod={handleVerificationMethodSelect}
                     username={pendingVerificationData.username}
                     loading={loading}
