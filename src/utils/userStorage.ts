@@ -739,7 +739,11 @@ export class UserStorage {
             }
             users[idx] = { ...users[idx], ...updates };
             this.writeUsers(users);
-            logger.info('updateUser: 用户已更新', { userId, updates });
+            // 日志只记录 userId 和字段名，避免敏感信息泄露
+            const safeLogUpdates = Object.keys(updates).filter(
+              k => !['password', 'token', 'tokenExpiresAt', 'totpSecret', 'backupCodes'].includes(k)
+            );
+            logger.info('updateUser: 用户已更新', { userId, updatedFields: safeLogUpdates });
             return users[idx];
         }
     }
