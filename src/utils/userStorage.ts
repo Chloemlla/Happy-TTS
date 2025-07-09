@@ -778,4 +778,42 @@ export class UserStorage {
             }
         }
     }
+
+    /**
+     * 自动检查并修复本地或 MongoDB 用户数据健康状况
+     * @returns {Promise<{ healthy: boolean, fixed: boolean, mode: string, message: string }>}
+     */
+    public static async autoCheckAndFix(): Promise<{ healthy: boolean, fixed: boolean, mode: string, message: string }> {
+        let healthy = false;
+        let fixed = false;
+        let message = '';
+        const mode = STORAGE_MODE;
+        if (mode === 'file') {
+            healthy = this.isHealthy();
+            if (!healthy) {
+                fixed = this.tryFix();
+                healthy = this.isHealthy();
+                message = fixed ? (healthy ? '本地用户数据已修复' : '尝试修复失败') : '本地用户数据异常且无法修复';
+            } else {
+                message = '本地用户数据健康';
+            }
+        } else if (mode === 'mongo') {
+            try {
+                const users = await userService.getAllUsers();
+                healthy = Array.isArray(users) && users.every(u => u.id && u.username && u.email);
+                if (!healthy) {
+                    // MongoDB 一般不做自动修复，只做健康提示
+                    message = 'MongoDB 用户数据异常，请手动检查';
+                } else {
+                    message = 'MongoDB 用户数据健康';
+                }
+            } catch (e) {
+                healthy = false;
+                message = 'MongoDB 连接或查询异常：' + (e instanceof Error ? e.message : String(e));
+            }
+        } else {
+            message = '未知存储模式';
+        }
+        return { healthy, fixed, mode, message };
+    }
 } 
