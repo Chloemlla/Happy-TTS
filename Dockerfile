@@ -14,6 +14,9 @@ ENV NPM_CONFIG_PREFER_OFFLINE=true
 ENV NPM_CONFIG_AUDIT=false
 ENV NPM_CONFIG_FUND=false
 
+# 禁用 rollup native
+ENV ROLLUP_NO_NATIVE=1
+
 WORKDIR /app
 
 # 首先复制package文件以利用缓存
@@ -26,8 +29,10 @@ RUN rm -rf node_modules package-lock.json
 # 安装最新npm
 RUN npm install -g npm@latest
 
-# 先安装依赖，遇到 rollup 可选依赖问题时强制修复
-RUN npm install --no-optional --no-audit --no-fund || (echo "依赖安装失败，尝试修复..." && rm -rf node_modules package-lock.json && npm install --no-optional --no-audit --no-fund)
+# 先安装依赖，遇到 rollup 可选依赖问题时强制修复，并强制安装 rollup 及其 musl 依赖
+RUN npm install --no-optional --no-audit --no-fund \
+    && npm install rollup @rollup/rollup-linux-x64-musl --no-optional \
+    || (echo "依赖安装失败，尝试修复..." && rm -rf node_modules package-lock.json && npm install --no-optional --no-audit --no-fund && npm install rollup @rollup/rollup-linux-x64-musl --no-optional)
 
 RUN npm install @fingerprintjs/fingerprintjs --no-optional && \
     npm install crypto-js --no-optional && \
