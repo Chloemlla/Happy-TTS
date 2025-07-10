@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import path from 'path';
+import { MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DATABASE } from './env';
 
 // 加载环境变量
 dotenv.config();
@@ -13,13 +14,13 @@ export const config = {
   openaiSpeed: process.env.OPENAI_SPEED || '1.0',
   audioDir: path.join(process.cwd(), 'finish'),
   adminUsername: process.env.ADMIN_USERNAME || 'admin',
-  adminPassword: process.env.ADMIN_PASSWORD || 'wmy',
+  adminPassword: process.env.ADMIN_PASSWORD || 'admin',
   // 添加本地 IP 配置
   localIps: ['127.0.0.1', 'localhost', '::1'],
   // 添加基础URL配置
   baseUrl: process.env.VITE_API_URL || process.env.BASE_URL || 'https://tts-api.hapxs.com',
   // 添加生成码配置
-  generationCode: process.env.GENERATION_CODE || 'wmy',
+  generationCode: process.env.GENERATION_CODE || 'admin',
   // JWT 配置
   jwtSecret: process.env.JWT_SECRET || 'yb56beb12b35ab636b66c4f9fc168646785a8e85a',
   jwtExpiresIn: '24h',
@@ -37,4 +38,11 @@ export const config = {
   },
   // 用户数据存储方式: 'file' 或 'mongo'
   userStorageMode: process.env.USER_STORAGE_MODE || 'file',
+  mysql: {
+    host: process.env.MYSQL_HOST || 'localhost',
+    port: process.env.MYSQL_PORT || 3306,
+    user: process.env.MYSQL_USER || 'root',
+    password: process.env.MYSQL_PASSWORD || 'root',
+    database: MYSQL_DATABASE,
+  },
 }; 

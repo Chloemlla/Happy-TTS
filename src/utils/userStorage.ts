@@ -7,6 +7,8 @@ import validator from 'validator';
 import { sanitize } from 'dompurify';
 import { JSDOM } from 'jsdom';
 import * as userService from '../services/userService';
+// MySQL 相关依赖
+import mysql from 'mysql2/promise';
 
 const STORAGE_MODE = process.env.USER_STORAGE_MODE || 'file'; // 'file' 或 'mongo'
 
@@ -57,6 +59,12 @@ export interface User {
     pendingChallenge?: string;
     currentChallenge?: string;
     passkeyVerified?: boolean;
+}
+
+// 获取 MySQL 连接
+async function getMysqlConnection() {
+    const { host, port, user, password, database } = config.mysql;
+    return await mysql.createConnection({ host, port: Number(port), user, password, database });
 }
 
 export class UserStorage {
@@ -229,23 +237,70 @@ export class UserStorage {
     }
 
     // 健康检查
-    public static isHealthy(): boolean {
-        try {
-            const users = this.readUsers();
-            return this.isValidUserList(users);
-        } catch {
-            return false;
+    public static async isHealthy(): Promise<boolean> {
+        const mode = STORAGE_MODE;
+        if (mode === 'file') {
+            try {
+                const users = this.readUsers();
+                return this.isValidUserList(users);
+            } catch {
+                return false;
+            }
+        } else if (mode === 'mongo') {
+            try {
+                const users = await userService.getAllUsers();
+                return Array.isArray(users) && users.every(u => u.id && u.username && u.email);
+            } catch {
+                return false;
+            }
+        } else if (mode === 'mysql') {
+            try {
+                const conn = await getMysqlConnection();
+                await conn.execute('SELECT 1 FROM users LIMIT 1');
+                await conn.end();
+                return true;
+            } catch {
+                return false;
+            }
         }
+        return false;
     }
 
     // 尝试修复
-    public static tryFix(): boolean {
-        try {
-            this.ensureUsersFile();
-            return true;
-        } catch {
+    public static async tryFix(): Promise<boolean> {
+        const mode = STORAGE_MODE;
+        if (mode === 'file') {
+            try {
+                this.ensureUsersFile();
+                return true;
+            } catch {
+                return false;
+            }
+        } else if (mode === 'mongo') {
+            // MongoDB 一般不做自动修复
             return false;
+        } else if (mode === 'mysql') {
+            try {
+                const conn = await getMysqlConnection();
+                await conn.execute(`
+                    CREATE TABLE IF NOT EXISTS users (
+                        id VARCHAR(64) PRIMARY KEY,
+                        username VARCHAR(64) NOT NULL,
+                        email VARCHAR(128) NOT NULL,
+                        password VARCHAR(128) NOT NULL,
+                        role VARCHAR(16) NOT NULL,
+                        dailyUsage INT DEFAULT 0,
+                        lastUsageDate VARCHAR(32),
+                        createdAt VARCHAR(32)
+                    )
+                `);
+                await conn.end();
+                return true;
+            } catch {
+                return false;
+            }
         }
+        return false;
     }
 
     private static ensureUsersFile() {
@@ -256,9 +311,9 @@ export class UserStorage {
             if (!fs.existsSync(dir)) {
                 try {
                     fs.mkdirSync(dir, { recursive: true });
-                    logger.info('创建用户数据目录', { dir });
+                    logger.info(`[UserStorage] 创建用户数据目录`, { dir });
                 } catch (mkdirError) {
-                    logger.error('创建用户数据目录失败:', {
+                    logger.error(`[UserStorage] 创建用户数据目录失败:`, {
                         error: mkdirError,
                         dir,
                         filePath: this.USERS_FILE
@@ -271,7 +326,7 @@ export class UserStorage {
             try {
                 fs.accessSync(dir, fs.constants.W_OK);
             } catch (accessError) {
-                logger.error('用户数据目录无写入权限:', {
+                logger.error(`[UserStorage] 用户数据目录无写入权限:`, {
                     error: accessError,
                     dir,
                     filePath: this.USERS_FILE
@@ -299,13 +354,13 @@ export class UserStorage {
                     };
 
                     fs.writeFileSync(this.USERS_FILE, JSON.stringify([defaultAdmin], null, 2));
-                    logger.info('已创建默认管理员账户', {
+                    logger.info(`[UserStorage] 已创建默认管理员账户`, {
                         username: adminUsername,
                         email: adminEmail,
                         filePath: this.USERS_FILE
                     });
                 } catch (writeError) {
-                    logger.error('创建默认用户数据文件失败:', {
+                    logger.error(`[UserStorage] 创建默认用户数据文件失败:`, {
                         error: writeError,
                         filePath: this.USERS_FILE
                     });
@@ -319,7 +374,7 @@ export class UserStorage {
                     // 检查文件是否为空或内容无效
                     const fileContent = fs.readFileSync(this.USERS_FILE, 'utf-8');
                     if (!fileContent || fileContent.trim() === '') {
-                        logger.warn('用户数据文件为空，创建默认管理员账户', { filePath: this.USERS_FILE });
+                        logger.warn(`[UserStorage] 用户数据文件为空，创建默认管理员账户`, { filePath: this.USERS_FILE });
                         
                         // 从环境变量获取管理员配置
                         const adminUsername = config.adminUsername;
@@ -339,7 +394,7 @@ export class UserStorage {
                         };
 
                         fs.writeFileSync(this.USERS_FILE, JSON.stringify([defaultAdmin], null, 2));
-                        logger.info('已为空的用户文件创建默认管理员账户', {
+                        logger.info(`[UserStorage] 已为空的用户文件创建默认管理员账户`, {
                             username: adminUsername,
                             email: adminEmail,
                             filePath: this.USERS_FILE
@@ -349,7 +404,7 @@ export class UserStorage {
                         try {
                             const parsed = JSON.parse(fileContent);
                             if (!Array.isArray(parsed) || parsed.length === 0) {
-                                logger.warn('用户数据文件格式错误或为空数组，创建默认管理员账户', { filePath: this.USERS_FILE });
+                                logger.warn(`[UserStorage] 用户数据文件格式错误或为空数组，创建默认管理员账户`, { filePath: this.USERS_FILE });
                                 
                                 // 从环境变量获取管理员配置
                                 const adminUsername = config.adminUsername;
@@ -369,14 +424,14 @@ export class UserStorage {
                                 };
 
                                 fs.writeFileSync(this.USERS_FILE, JSON.stringify([defaultAdmin], null, 2));
-                                logger.info('已为格式错误的用户文件创建默认管理员账户', {
+                                logger.info(`[UserStorage] 已为格式错误的用户文件创建默认管理员账户`, {
                                     username: adminUsername,
                                     email: adminEmail,
                                     filePath: this.USERS_FILE
                                 });
                             }
                         } catch (parseError) {
-                            logger.warn('用户数据文件JSON格式错误，创建默认管理员账户', { 
+                            logger.warn(`[UserStorage] 用户数据文件JSON格式错误，创建默认管理员账户`, { 
                                 filePath: this.USERS_FILE,
                                 error: parseError instanceof Error ? parseError.message : String(parseError)
                             });
@@ -399,7 +454,7 @@ export class UserStorage {
                             };
 
                             fs.writeFileSync(this.USERS_FILE, JSON.stringify([defaultAdmin], null, 2));
-                            logger.info('已为JSON格式错误的用户文件创建默认管理员账户', {
+                            logger.info(`[UserStorage] 已为JSON格式错误的用户文件创建默认管理员账户`, {
                                 username: adminUsername,
                                 email: adminEmail,
                                 filePath: this.USERS_FILE
@@ -407,7 +462,7 @@ export class UserStorage {
                         }
                     }
                 } catch (accessError) {
-                    logger.error('现有用户数据文件无读写权限:', {
+                    logger.error(`[UserStorage] 现有用户数据文件无读写权限:`, {
                         error: accessError,
                         filePath: this.USERS_FILE
                     });
@@ -424,7 +479,7 @@ export class UserStorage {
                 
                 // 检查文件是否存在
                 if (!fs.existsSync(this.USERS_FILE)) {
-                    logger.warn('用户数据文件不存在，创建默认文件', { filePath: this.USERS_FILE });
+                    logger.warn(`[UserStorage] 用户数据文件不存在，创建默认文件`, { filePath: this.USERS_FILE });
                     this.ensureUsersFile(); // 重新确保文件存在
                     return [];
                 }
@@ -433,7 +488,7 @@ export class UserStorage {
                 try {
                     fs.accessSync(this.USERS_FILE, fs.constants.R_OK);
                 } catch (accessError) {
-                    logger.error('用户数据文件无读取权限:', {
+                    logger.error(`[UserStorage] 用户数据文件无读取权限:`, {
                         error: accessError,
                         filePath: this.USERS_FILE
                     });
@@ -444,7 +499,7 @@ export class UserStorage {
                 
                 // 检查文件内容是否为空
                 if (!data || data.trim() === '') {
-                    logger.warn('用户数据文件为空，重新初始化默认管理员账户', { filePath: this.USERS_FILE });
+                    logger.warn(`[UserStorage] 用户数据文件为空，重新初始化默认管理员账户`, { filePath: this.USERS_FILE });
                     
                     // 重新确保文件存在并包含默认管理员账户
                     this.ensureUsersFile();
@@ -452,13 +507,13 @@ export class UserStorage {
                     // 重新读取文件
                     const newData = fs.readFileSync(this.USERS_FILE, 'utf-8');
                     if (!newData || newData.trim() === '') {
-                        logger.error('重新初始化后文件仍为空', { filePath: this.USERS_FILE });
+                        logger.error(`[UserStorage] 重新初始化后文件仍为空`, { filePath: this.USERS_FILE });
                         return [];
                     }
                     
                     const newParsed = JSON.parse(newData);
                     if (!Array.isArray(newParsed)) {
-                        logger.error('重新初始化后文件格式仍错误', { filePath: this.USERS_FILE });
+                        logger.error(`[UserStorage] 重新初始化后文件格式仍错误`, { filePath: this.USERS_FILE });
                         return [];
                     }
                     
@@ -469,7 +524,7 @@ export class UserStorage {
                 
                 // 确保返回的是数组
                 if (!Array.isArray(parsed)) {
-                    logger.error('用户数据文件格式错误，不是数组:', {
+                    logger.error(`[UserStorage] 用户数据文件格式错误，不是数组:`, {
                         filePath: this.USERS_FILE,
                         type: typeof parsed
                     });
@@ -478,7 +533,7 @@ export class UserStorage {
                 
                 return parsed;
             } catch (error) {
-                logger.error('读取用户数据失败:', {
+                logger.error(`[UserStorage] 读取用户数据失败:`, {
                     error: error instanceof Error ? error.message : String(error),
                     filePath: this.USERS_FILE,
                     stack: error instanceof Error ? error.stack : undefined
@@ -495,7 +550,7 @@ export class UserStorage {
                 fs.writeFileSync(tempFile, JSON.stringify(users, null, 2));
                 fs.renameSync(tempFile, this.USERS_FILE);
             } catch (error) {
-                logger.error('写入用户数据失败:', {
+                logger.error(`[UserStorage] 写入用户数据失败:`, {
                     error,
                     filePath: this.USERS_FILE
                 });
@@ -505,18 +560,44 @@ export class UserStorage {
     }
 
     public static async getAllUsers(): Promise<User[]> {
-        if (STORAGE_MODE === 'mongo') {
-            return await userService.getAllUsers();
-        } else {
-            return this.readUsers();
+        try {
+            if (STORAGE_MODE === 'mongo') {
+                return await userService.getAllUsers();
+            } else if (STORAGE_MODE === 'mysql') {
+                const conn = await getMysqlConnection();
+                try {
+                    const [rows] = await conn.execute('SELECT * FROM users');
+                    return rows as User[];
+                } catch (error) {
+                    logger.error(`[UserStorage] MySQL 查询所有用户失败`, { error });
+                    throw error;
+                } finally {
+                    await conn.end();
+                }
+            } else {
+                return this.readUsers();
+            }
+        } catch (error) {
+            logger.error(`[UserStorage] getAllUsers 失败`, { error });
+            throw error;
         }
     }
 
     public static async createUser(username: string, email: string, password: string): Promise<User | null> {
-        if (STORAGE_MODE === 'mongo') {
+        try {
             // 复用原有校验逻辑
             const errors = this.validateUserInput(username, password, email, true);
-            if (errors.length > 0) throw new InputValidationError(errors);
+            if (errors.length > 0) {
+                logger.error(`[UserStorage] 创建用户失败:`, { error: errors, username, email, mode: 'file' });
+                throw new InputValidationError(errors);
+            }
+            // 检查用户名或邮箱是否已存在
+            const existUserByName = await userService.getUserByUsername(username);
+            const existUserByEmail = await userService.getUserByEmail(email);
+            if (existUserByName || existUserByEmail) {
+                logger.error(`[UserStorage] 创建用户失败: 用户名或邮箱已存在`, { username, email, mode: 'file' });
+                throw new InputValidationError([{ field: 'username', message: '用户名或邮箱已存在' }]);
+            }
             // 生成 id
             const id = Date.now().toString();
             const newUser: User = {
@@ -529,40 +610,17 @@ export class UserStorage {
                 lastUsageDate: new Date().toISOString(),
                 createdAt: new Date().toISOString()
             };
-            return await userService.createUser(newUser);
-        } else {
             try {
-                const errors = this.validateUserInput(username, password, email, true);
-                if (errors.length > 0) {
-                    throw new InputValidationError(errors);
-                }
-                const sanitizedUsername = this.sanitizeInput(username);
-                const sanitizedEmail = this.sanitizeInput(email);
-                const users = this.readUsers();
-                if (users.some(u => u.username === sanitizedUsername || u.email === sanitizedEmail)) {
-                    throw new InputValidationError([{ field: 'username', message: '用户名或邮箱已存在' }]);
-                }
-                const newUser: User = {
-                    id: (users.length + 1).toString(),
-                    username: sanitizedUsername,
-                    email: sanitizedEmail,
-                    password,
-                    role: 'user',
-                    dailyUsage: 0,
-                    lastUsageDate: new Date().toISOString(),
-                    createdAt: new Date().toISOString()
-                };
-                users.push(newUser);
-                this.writeUsers(users);
-                return newUser;
+                const created = await userService.createUser(newUser);
+                logger.info(`[UserStorage] 创建用户成功`, { userId: created.id, username, email, mode: 'file' });
+                return created;
             } catch (error) {
-                logger.error('创建用户失败:', {
-                    error,
-                    username,
-                    email
-                });
+                logger.error(`[UserStorage] 创建用户失败:`, { error, username, email, mode: 'file' });
                 throw error;
             }
+        } catch (error) {
+            logger.error(`[UserStorage] createUser 失败`, { error, username, email, password });
+            throw error;
         }
     }
 
@@ -571,18 +629,47 @@ export class UserStorage {
             // 验证输入（登录时不检查密码强度）
             const errors = this.validateUserInput(identifier, password, undefined, false);
             if (errors.length > 0) {
+                logger.error(`[UserStorage] authenticateUser 输入验证失败`, { error: errors, identifier });
                 throw new InputValidationError(errors);
             }
-
             const sanitizedIdentifier = this.sanitizeInput(identifier);
-            const users = this.readUsers();
-            
-            return users.find(u => 
-                (u.username === sanitizedIdentifier || u.email === sanitizedIdentifier) && 
-                u.password === password
-            ) || null;
+            if (STORAGE_MODE === 'mongo') {
+                try {
+                    let user = await userService.getUserByUsername(sanitizedIdentifier);
+                    if (!user) {
+                        user = await userService.getUserByEmail(sanitizedIdentifier);
+                    }
+                    if (user && user.password === password) {
+                        return user;
+                    }
+                    return null;
+                } catch (error) {
+                    logger.error(`[UserStorage] MongoDB 用户认证失败`, { error, identifier });
+                    throw error;
+                }
+            } else if (STORAGE_MODE === 'mysql') {
+                const conn = await getMysqlConnection();
+                try {
+                    const [rows] = await conn.execute(
+                        'SELECT * FROM users WHERE (username = ? OR email = ?) AND password = ?',
+                        [sanitizedIdentifier, sanitizedIdentifier, password]
+                    );
+                    return (rows as User[])[0] || null;
+                } catch (error) {
+                    logger.error(`[UserStorage] MySQL 用户认证失败`, { error, identifier });
+                    throw error;
+                } finally {
+                    await conn.end();
+                }
+            } else {
+                const users = this.readUsers();
+                return users.find(u => 
+                    (u.username === sanitizedIdentifier || u.email === sanitizedIdentifier) && 
+                    u.password === password
+                ) || null;
+            }
         } catch (error) {
-            logger.error('用户认证失败:', {
+            logger.error(`[UserStorage] 用户认证失败:`, {
                 error,
                 identifier
             });
@@ -591,79 +678,177 @@ export class UserStorage {
     }
 
     public static async getUserById(id: string): Promise<User | null> {
-        if (STORAGE_MODE === 'mongo') {
-            return await userService.getUserById(id);
-        } else {
-            const users = this.readUsers();
-            const user = users.find(u => u.id === id) || null;
-            if (!user) {
-                logger.warn('getUserById: 未找到用户', { id });
+        try {
+            if (STORAGE_MODE === 'mongo') {
+                return await userService.getUserById(id);
+            } else if (STORAGE_MODE === 'mysql') {
+                const conn = await getMysqlConnection();
+                try {
+                    const [rows] = await conn.execute('SELECT * FROM users WHERE id = ?', [id]);
+                    return (rows as User[])[0] || null;
+                } catch (error) {
+                    logger.error(`[UserStorage] MySQL getUserById 失败`, { error, id });
+                    throw error;
+                } finally {
+                    await conn.end();
+                }
+            } else {
+                const users = this.readUsers();
+                const user = users.find(u => u.id === id) || null;
+                if (!user) {
+                    logger.warn(`[UserStorage] getUserById: 未找到用户`, { id });
+                }
+                return user;
             }
-            return user;
+        } catch (error) {
+            logger.error(`[UserStorage] getUserById 失败`, { error, id });
+            throw error;
         }
     }
 
     public static async getUserByEmail(email: string): Promise<User | null> {
-        if (STORAGE_MODE === 'mongo') {
-            return await userService.getUserByEmail(email);
-        } else {
-            const users = this.readUsers();
-            return users.find(u => u.email === email) || null;
+        try {
+            if (STORAGE_MODE === 'mongo') {
+                return await userService.getUserByEmail(email);
+            } else if (STORAGE_MODE === 'mysql') {
+                const conn = await getMysqlConnection();
+                try {
+                    const [rows] = await conn.execute('SELECT * FROM users WHERE email = ?', [email]);
+                    return (rows as User[])[0] || null;
+                } catch (error) {
+                    logger.error(`[UserStorage] MySQL getUserByEmail 失败`, { error, email });
+                    throw error;
+                } finally {
+                    await conn.end();
+                }
+            } else {
+                const users = this.readUsers();
+                return users.find(u => u.email === email) || null;
+            }
+        } catch (error) {
+            logger.error(`[UserStorage] getUserByEmail 失败`, { error, email });
+            throw error;
         }
     }
 
-    public static async incrementUsage(userId: string): Promise<boolean> {
-        if (STORAGE_MODE === 'mongo') {
-            const user = await userService.getUserById(userId);
-            if (!user) return false;
-            const today = new Date().toISOString().split('T')[0];
-            const lastUsageDate = new Date(user.lastUsageDate).toISOString().split('T')[0];
-            let dailyUsage = user.dailyUsage;
-            if (today !== lastUsageDate) {
-                dailyUsage = 0;
-            }
-            if (user.role === 'admin') return true;
-            if (dailyUsage >= this.DAILY_LIMIT) return false;
-            dailyUsage++;
-            await userService.updateUser(userId, { dailyUsage, lastUsageDate: new Date().toISOString() });
-            return true;
-        } else {
-            try {
+    public static async getUserByUsername(username: string): Promise<User | null> {
+        try {
+            if (STORAGE_MODE === 'mongo') {
+                return await userService.getUserByUsername(username);
+            } else if (STORAGE_MODE === 'mysql') {
+                const conn = await getMysqlConnection();
+                try {
+                    const [rows] = await conn.execute('SELECT * FROM users WHERE username = ?', [username]);
+                    return (rows as User[])[0] || null;
+                } catch (error) {
+                    logger.error(`[UserStorage] MySQL getUserByUsername 失败`, { error, username });
+                    throw error;
+                } finally {
+                    await conn.end();
+                }
+            } else {
                 const users = this.readUsers();
-                const userIndex = users.findIndex(u => u.id === userId);
-                
-                if (userIndex === -1) return false;
+                const user = users.find(u => u.username === username) || null;
+                logger.info(`[UserStorage] getUserByUsername 查询结果:`, {
+                    searchUsername: username,
+                    foundUser: !!user,
+                    userId: user?.id,
+                    userUsername: user?.username,
+                    passkeyEnabled: user?.passkeyEnabled,
+                    credentialsCount: user?.passkeyCredentials?.length || 0,
+                    totalUsers: users.length
+                });
+                return user;
+            }
+        } catch (error) {
+            logger.error(`[UserStorage] getUserByUsername 失败`, { error, username });
+            throw error;
+        }
+    }
 
-                const user = users[userIndex];
-                const today = new Date().toISOString().split('T')[0];
-                const lastUsageDate = new Date(user.lastUsageDate).toISOString().split('T')[0];
-
-                // 如果是新的一天，重置使用次数
-                if (today !== lastUsageDate) {
-                    user.dailyUsage = 0;
-                    user.lastUsageDate = new Date().toISOString();
+    public static async updateUser(userId: string, updates: Partial<User>): Promise<User | null> {
+        // 敏感字段脱敏
+        const safeLogUpdates = Object.keys(updates).filter(
+            k => !['password', 'token', 'tokenExpiresAt', 'totpSecret', 'backupCodes'].includes(k)
+        );
+        try {
+            if (STORAGE_MODE === 'mongo') {
+                return await userService.updateUser(userId, updates);
+            } else if (STORAGE_MODE === 'mysql') {
+                const conn = await getMysqlConnection();
+                try {
+                    const fields = Object.keys(updates).filter(k => k !== 'id');
+                    if (fields.length === 0) {
+                        return null;
+                    }
+                    const setClause = fields.map(f => `${f} = ?`).join(', ');
+                    const values = fields.map(f => (updates as any)[f]);
+                    await conn.execute(`UPDATE users SET ${setClause} WHERE id = ?`, [...values, userId]);
+                    const [rows] = await conn.execute('SELECT * FROM users WHERE id = ?', [userId]);
+                    logger.info(`[UserStorage] updateUser: 用户已更新`, { userId, updatedFields: safeLogUpdates, mode: 'mysql' });
+                    return (rows as User[])[0] || null;
+                } catch (error) {
+                    logger.error(`[UserStorage] MySQL updateUser 失败`, { error, userId, updatedFields: safeLogUpdates });
+                    throw error;
+                } finally {
+                    await conn.end();
                 }
+            } else {
+                const users = this.readUsers();
+                const idx = users.findIndex(u => u.id === userId);
+                if (idx === -1) {
+                    logger.warn(`[UserStorage] updateUser: 未找到用户`, { userId });
+                    return null;
+                }
+                users[idx] = { ...users[idx], ...updates };
+                this.writeUsers(users);
+                logger.info(`[UserStorage] updateUser: 用户已更新`, { userId, updatedFields: safeLogUpdates, mode: 'file' });
+                return users[idx];
+            }
+        } catch (error) {
+            logger.error(`[UserStorage] updateUser 失败`, { error, userId, updatedFields: safeLogUpdates });
+            throw error;
+        }
+    }
 
-                // 管理员不受使用限制
-                if (user.role === 'admin') {
+    // 删除用户
+    public static async deleteUser(userId: string): Promise<boolean> {
+        try {
+            if (STORAGE_MODE === 'mongo') {
+                await userService.deleteUser(userId);
+                logger.info(`[UserStorage] deleteUser: 用户删除成功`, { userId, mode: 'mongo' });
+                return true;
+            } else if (STORAGE_MODE === 'mysql') {
+                const conn = await getMysqlConnection();
+                try {
+                    await conn.execute('DELETE FROM users WHERE id = ?', [userId]);
+                    logger.info(`[UserStorage] deleteUser: 用户删除成功`, { userId, mode: 'mysql' });
                     return true;
+                } catch (error) {
+                    logger.error(`[UserStorage] MySQL deleteUser 失败`, { error, userId });
+                    return false;
+                } finally {
+                    await conn.end();
                 }
-
-                // 检查是否超过每日限制
-                if (user.dailyUsage >= this.DAILY_LIMIT) {
+            } else {
+                if (!userId) {
+                    logger.error(`[UserStorage] deleteUser: userId 为空`, { mode: 'file' });
                     return false;
                 }
-
-                user.dailyUsage++;
+                const users = this.readUsers();
+                const userIndex = users.findIndex(user => user.id === userId);
+                if (userIndex === -1) {
+                    logger.warn(`[UserStorage] deleteUser: 未找到用户`, { userId, mode: 'file' });
+                    return false;
+                }
+                users.splice(userIndex, 1);
                 this.writeUsers(users);
+                logger.info(`[UserStorage] deleteUser: 用户删除成功`, { userId, mode: 'file' });
                 return true;
-            } catch (error) {
-                logger.error('增加使用次数失败:', {
-                    error,
-                    userId
-                });
-                throw error;
             }
+        } catch (error) {
+            logger.error(`[UserStorage] deleteUser: 删除用户失败`, { userId, error });
+            return false;
         }
     }
 
@@ -676,115 +861,33 @@ export class UserStorage {
             const lastUsageDate = new Date(user.lastUsageDate).toISOString().split('T')[0];
             if (today !== lastUsageDate) return this.DAILY_LIMIT;
             return this.DAILY_LIMIT - user.dailyUsage;
-        } else {
+        } else if (STORAGE_MODE === 'mysql') {
+            const conn = await getMysqlConnection();
             try {
-                const user = await this.getUserById(userId);
+                const [rows] = await conn.execute('SELECT * FROM users WHERE id = ?', [userId]);
+                const user = (rows as User[])[0];
                 if (!user) return 0;
-
-                // 管理员无使用限制
-                if (user.role === 'admin') {
-                    return Infinity;
-                }
-
+                if (user.role === 'admin') return Infinity;
                 const today = new Date().toISOString().split('T')[0];
                 const lastUsageDate = new Date(user.lastUsageDate).toISOString().split('T')[0];
-
-                // 如果是新的一天，返回完整限制
-                if (today !== lastUsageDate) {
-                    return this.DAILY_LIMIT;
-                }
-
+                if (today !== lastUsageDate) return this.DAILY_LIMIT;
                 return this.DAILY_LIMIT - user.dailyUsage;
-            } catch (error) {
-                logger.error('获取剩余使用次数失败:', {
-                    error,
-                    userId
-                });
-                throw error;
+            } finally {
+                await conn.end();
             }
-        }
-    }
-
-    public static async getUserByUsername(username: string): Promise<User | null> {
-        if (STORAGE_MODE === 'mongo') {
-            return await userService.getUserByUsername(username);
         } else {
-            const users = this.readUsers();
-            const user = users.find(u => u.username === username) || null;
-            
-            // 调试日志
-            logger.info('getUserByUsername 查询结果:', {
-                searchUsername: username,
-                foundUser: !!user,
-                userId: user?.id,
-                userUsername: user?.username,
-                passkeyEnabled: user?.passkeyEnabled,
-                credentialsCount: user?.passkeyCredentials?.length || 0,
-                totalUsers: users.length
-            });
-            
-            return user;
-        }
-    }
-
-    public static async updateUser(userId: string, updates: Partial<User>): Promise<User | null> {
-        if (STORAGE_MODE === 'mongo') {
-            return await userService.updateUser(userId, updates);
-        } else {
-            const users = this.readUsers();
-            const idx = users.findIndex(u => u.id === userId);
-            if (idx === -1) {
-                logger.warn('updateUser: 未找到用户', { userId });
-                return null;
-            }
-            users[idx] = { ...users[idx], ...updates };
-            this.writeUsers(users);
-            // 日志只记录 userId 和字段名，避免敏感信息泄露
-            const safeLogUpdates = Object.keys(updates).filter(
-              k => !['password', 'token', 'tokenExpiresAt', 'totpSecret', 'backupCodes'].includes(k)
-            );
-            logger.info('updateUser: 用户已更新', { userId, updatedFields: safeLogUpdates });
-            return users[idx];
-        }
-    }
-
-    // 删除用户
-    public static async deleteUser(userId: string): Promise<boolean> {
-        if (STORAGE_MODE === 'mongo') {
-            await userService.deleteUser(userId);
-            return true;
-        } else {
-            try {
-                if (!userId) {
-                    logger.error('deleteUser: userId 为空');
-                    return false;
-                }
-                
-                const users = this.readUsers();
-                const userIndex = users.findIndex(user => user.id === userId);
-                
-                if (userIndex === -1) {
-                    logger.warn('deleteUser: 未找到用户', { userId });
-                    return false;
-                }
-                
-                // 移除用户
-                users.splice(userIndex, 1);
-                
-                // 写入文件
-                this.writeUsers(users);
-                
-                logger.info('deleteUser: 用户删除成功', { userId });
-                return true;
-            } catch (error) {
-                logger.error('deleteUser: 删除用户失败', { userId, error });
-                return false;
-            }
+            const user = await this.getUserById(userId);
+            if (!user) return 0;
+            if (user.role === 'admin') return Infinity;
+            const today = new Date().toISOString().split('T')[0];
+            const lastUsageDate = new Date(user.lastUsageDate).toISOString().split('T')[0];
+            if (today !== lastUsageDate) return this.DAILY_LIMIT;
+            return this.DAILY_LIMIT - user.dailyUsage;
         }
     }
 
     /**
-     * 自动检查并修复本地或 MongoDB 用户数据健康状况
+     * 自动检查并修复本地、MongoDB 或 MySQL 用户数据健康状况
      * @returns {Promise<{ healthy: boolean, fixed: boolean, mode: string, message: string }>}
      */
     public static async autoCheckAndFix(): Promise<{ healthy: boolean, fixed: boolean, mode: string, message: string }> {
@@ -793,10 +896,10 @@ export class UserStorage {
         let message = '';
         const mode = STORAGE_MODE;
         if (mode === 'file') {
-            healthy = this.isHealthy();
+            healthy = await this.isHealthy();
             if (!healthy) {
-                fixed = this.tryFix();
-                healthy = this.isHealthy();
+                fixed = await this.tryFix();
+                healthy = await this.isHealthy();
                 message = fixed ? (healthy ? '本地用户数据已修复' : '尝试修复失败') : '本地用户数据异常且无法修复';
             } else {
                 message = '本地用户数据健康';
@@ -806,7 +909,6 @@ export class UserStorage {
                 const users = await userService.getAllUsers();
                 healthy = Array.isArray(users) && users.every(u => u.id && u.username && u.email);
                 if (!healthy) {
-                    // MongoDB 一般不做自动修复，只做健康提示
                     message = 'MongoDB 用户数据异常，请手动检查';
                 } else {
                     message = 'MongoDB 用户数据健康';
@@ -814,6 +916,20 @@ export class UserStorage {
             } catch (e) {
                 healthy = false;
                 message = 'MongoDB 连接或查询异常：' + (e instanceof Error ? e.message : String(e));
+            }
+        } else if (mode === 'mysql') {
+            try {
+                healthy = await this.isHealthy();
+                if (!healthy) {
+                    fixed = await this.tryFix();
+                    healthy = await this.isHealthy();
+                    message = fixed ? (healthy ? 'MySQL 用户表已修复' : '尝试修复失败') : 'MySQL 用户表异常且无法修复';
+                } else {
+                    message = 'MySQL 用户表健康';
+                }
+            } catch (e) {
+                healthy = false;
+                message = 'MySQL 连接或查询异常：' + (e instanceof Error ? e.message : String(e));
             }
         } else {
             message = '未知存储模式';
