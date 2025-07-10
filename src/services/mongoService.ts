@@ -20,11 +20,14 @@ export const connectMongo = async () => {
     }
     await mongoose.connect(uri, {
       // 可根据需要添加更多 mongoose 连接选项
+      serverSelectionTimeoutMS: 5000, // 5秒超时
+      socketTimeoutMS: 45000, // 45秒超时
     });
     console.log('MongoDB 连接成功:', uri);
   } catch (error) {
     console.error('MongoDB 连接失败:', error);
-    process.exit(1);
+    // 不退出进程，让应用继续运行并使用文件存储
+    throw error;
   }
 };
 

@@ -359,6 +359,16 @@ export class UserStorage {
                         email: adminEmail,
                         filePath: this.USERS_FILE
                     });
+                    
+                    // 打印管理员账户信息到控制台
+                    console.log('\n' + '='.repeat(50));
+                    console.log('🔐 新创建的管理员账户信息');
+                    console.log('='.repeat(50));
+                    console.log(`用户名: ${adminUsername}`);
+                    console.log(`密码: ${adminPassword}`);
+                    console.log(`邮箱: ${adminEmail}`);
+                    console.log('='.repeat(50));
+                    console.log('请妥善保管这些信息！\n');
                 } catch (writeError) {
                     logger.error(`[UserStorage] 创建默认用户数据文件失败:`, {
                         error: writeError,
@@ -399,6 +409,16 @@ export class UserStorage {
                             email: adminEmail,
                             filePath: this.USERS_FILE
                         });
+                        
+                        // 打印管理员账户信息到控制台
+                        console.log('\n' + '='.repeat(50));
+                        console.log('🔐 新创建的管理员账户信息');
+                        console.log('='.repeat(50));
+                        console.log(`用户名: ${adminUsername}`);
+                        console.log(`密码: ${adminPassword}`);
+                        console.log(`邮箱: ${adminEmail}`);
+                        console.log('='.repeat(50));
+                        console.log('请妥善保管这些信息！\n');
                     } else {
                         // 检查JSON格式是否正确
                         try {
@@ -429,6 +449,16 @@ export class UserStorage {
                                     email: adminEmail,
                                     filePath: this.USERS_FILE
                                 });
+                                
+                                // 打印管理员账户信息到控制台
+                                console.log('\n' + '='.repeat(50));
+                                console.log('🔐 新创建的管理员账户信息');
+                                console.log('='.repeat(50));
+                                console.log(`用户名: ${adminUsername}`);
+                                console.log(`密码: ${adminPassword}`);
+                                console.log(`邮箱: ${adminEmail}`);
+                                console.log('='.repeat(50));
+                                console.log('请妥善保管这些信息！\n');
                             }
                         } catch (parseError) {
                             logger.warn(`[UserStorage] 用户数据文件JSON格式错误，创建默认管理员账户`, { 
@@ -459,6 +489,16 @@ export class UserStorage {
                                 email: adminEmail,
                                 filePath: this.USERS_FILE
                             });
+                            
+                            // 打印管理员账户信息到控制台
+                            console.log('\n' + '='.repeat(50));
+                            console.log('🔐 新创建的管理员账户信息');
+                            console.log('='.repeat(50));
+                            console.log(`用户名: ${adminUsername}`);
+                            console.log(`密码: ${adminPassword}`);
+                            console.log(`邮箱: ${adminEmail}`);
+                            console.log('='.repeat(50));
+                            console.log('请妥善保管这些信息！\n');
                         }
                     }
                 } catch (accessError) {
@@ -562,17 +602,36 @@ export class UserStorage {
     public static async getAllUsers(): Promise<User[]> {
         try {
             if (STORAGE_MODE === 'mongo') {
-                return await userService.getAllUsers();
-            } else if (STORAGE_MODE === 'mysql') {
-                const conn = await getMysqlConnection();
                 try {
-                    const [rows] = await conn.execute('SELECT * FROM users');
-                    return rows as User[];
+                    return await userService.getAllUsers();
                 } catch (error) {
-                    logger.error(`[UserStorage] MySQL 查询所有用户失败`, { error });
-                    throw error;
-                } finally {
-                    await conn.end();
+                    logger.error(`[UserStorage] MongoDB 查询所有用户失败，尝试切换到文件模式`, {
+                        error,
+                        MONGO_URI: process.env.MONGO_URI,
+                        NODE_ENV: process.env.NODE_ENV,
+                        USER_STORAGE_MODE: process.env.USER_STORAGE_MODE
+                    });
+                    // MongoDB 连接失败时，自动切换到文件模式
+                    logger.info(`[UserStorage] 自动切换到文件存储模式`);
+                    return this.readUsers();
+                }
+            } else if (STORAGE_MODE === 'mysql') {
+                try {
+                    const conn = await getMysqlConnection();
+                    try {
+                        const [rows] = await conn.execute('SELECT * FROM users');
+                        return rows as User[];
+                    } catch (error) {
+                        logger.error(`[UserStorage] MySQL 查询所有用户失败`, { error });
+                        throw error;
+                    } finally {
+                        await conn.end();
+                    }
+                } catch (error) {
+                    logger.error(`[UserStorage] MySQL 连接失败，尝试切换到文件模式`, { error });
+                    // MySQL 连接失败时，自动切换到文件模式
+                    logger.info(`[UserStorage] 自动切换到文件存储模式`);
+                    return this.readUsers();
                 }
             } else {
                 return this.readUsers();
@@ -644,22 +703,45 @@ export class UserStorage {
                     }
                     return null;
                 } catch (error) {
-                    logger.error(`[UserStorage] MongoDB 用户认证失败`, { error, identifier });
-                    throw error;
+                    logger.error(`[UserStorage] MongoDB 用户认证失败，尝试切换到文件模式`, {
+                        error,
+                        identifier,
+                        MONGO_URI: process.env.MONGO_URI,
+                        NODE_ENV: process.env.NODE_ENV,
+                        USER_STORAGE_MODE: process.env.USER_STORAGE_MODE
+                    });
+                    // MongoDB 连接失败时，自动切换到文件模式
+                    logger.info(`[UserStorage] 自动切换到文件存储模式进行认证`);
+                    const users = this.readUsers();
+                    return users.find(u => 
+                        (u.username === sanitizedIdentifier || u.email === sanitizedIdentifier) && 
+                        u.password === password
+                    ) || null;
                 }
             } else if (STORAGE_MODE === 'mysql') {
-                const conn = await getMysqlConnection();
                 try {
-                    const [rows] = await conn.execute(
-                        'SELECT * FROM users WHERE (username = ? OR email = ?) AND password = ?',
-                        [sanitizedIdentifier, sanitizedIdentifier, password]
-                    );
-                    return (rows as User[])[0] || null;
+                    const conn = await getMysqlConnection();
+                    try {
+                        const [rows] = await conn.execute(
+                            'SELECT * FROM users WHERE (username = ? OR email = ?) AND password = ?',
+                            [sanitizedIdentifier, sanitizedIdentifier, password]
+                        );
+                        return (rows as User[])[0] || null;
+                    } catch (error) {
+                        logger.error(`[UserStorage] MySQL 用户认证失败`, { error, identifier });
+                        throw error;
+                    } finally {
+                        await conn.end();
+                    }
                 } catch (error) {
-                    logger.error(`[UserStorage] MySQL 用户认证失败`, { error, identifier });
-                    throw error;
-                } finally {
-                    await conn.end();
+                    logger.error(`[UserStorage] MySQL 连接失败，尝试切换到文件模式`, { error, identifier });
+                    // MySQL 连接失败时，自动切换到文件模式
+                    logger.info(`[UserStorage] 自动切换到文件存储模式进行认证`);
+                    const users = this.readUsers();
+                    return users.find(u => 
+                        (u.username === sanitizedIdentifier || u.email === sanitizedIdentifier) && 
+                        u.password === password
+                    ) || null;
                 }
             } else {
                 const users = this.readUsers();
@@ -680,7 +762,18 @@ export class UserStorage {
     public static async getUserById(id: string): Promise<User | null> {
         try {
             if (STORAGE_MODE === 'mongo') {
-                return await userService.getUserById(id);
+                try {
+                    return await userService.getUserById(id);
+                } catch (error) {
+                    logger.error(`[UserStorage] MongoDB getUserById 失败，尝试切换到文件模式`, {
+                        error,
+                        id,
+                        MONGO_URI: process.env.MONGO_URI,
+                        NODE_ENV: process.env.NODE_ENV,
+                        USER_STORAGE_MODE: process.env.USER_STORAGE_MODE
+                    });
+                    return this.readUsers().find(u => u.id === id) || null;
+                }
             } else if (STORAGE_MODE === 'mysql') {
                 const conn = await getMysqlConnection();
                 try {
@@ -709,7 +802,18 @@ export class UserStorage {
     public static async getUserByEmail(email: string): Promise<User | null> {
         try {
             if (STORAGE_MODE === 'mongo') {
-                return await userService.getUserByEmail(email);
+                try {
+                    return await userService.getUserByEmail(email);
+                } catch (error) {
+                    logger.error(`[UserStorage] MongoDB getUserByEmail 失败，尝试切换到文件模式`, {
+                        error,
+                        email,
+                        MONGO_URI: process.env.MONGO_URI,
+                        NODE_ENV: process.env.NODE_ENV,
+                        USER_STORAGE_MODE: process.env.USER_STORAGE_MODE
+                    });
+                    return this.readUsers().find(u => u.email === email) || null;
+                }
             } else if (STORAGE_MODE === 'mysql') {
                 const conn = await getMysqlConnection();
                 try {
@@ -734,7 +838,18 @@ export class UserStorage {
     public static async getUserByUsername(username: string): Promise<User | null> {
         try {
             if (STORAGE_MODE === 'mongo') {
-                return await userService.getUserByUsername(username);
+                try {
+                    return await userService.getUserByUsername(username);
+                } catch (error) {
+                    logger.error(`[UserStorage] MongoDB getUserByUsername 失败，尝试切换到文件模式`, {
+                        error,
+                        username,
+                        MONGO_URI: process.env.MONGO_URI,
+                        NODE_ENV: process.env.NODE_ENV,
+                        USER_STORAGE_MODE: process.env.USER_STORAGE_MODE
+                    });
+                    return this.readUsers().find(u => u.username === username) || null;
+                }
             } else if (STORAGE_MODE === 'mysql') {
                 const conn = await getMysqlConnection();
                 try {
@@ -773,7 +888,29 @@ export class UserStorage {
         );
         try {
             if (STORAGE_MODE === 'mongo') {
-                return await userService.updateUser(userId, updates);
+                try {
+                    return await userService.updateUser(userId, updates);
+                } catch (error) {
+                    logger.error(`[UserStorage] MongoDB updateUser 失败，尝试切换到文件模式`, {
+                        error,
+                        userId,
+                        updates,
+                        MONGO_URI: process.env.MONGO_URI,
+                        NODE_ENV: process.env.NODE_ENV,
+                        USER_STORAGE_MODE: process.env.USER_STORAGE_MODE
+                    });
+                    // 文件模式下更新
+                    const users = this.readUsers();
+                    const idx = users.findIndex(u => u.id === userId);
+                    if (idx === -1) {
+                        logger.warn(`[UserStorage] updateUser: 未找到用户`, { userId });
+                        return null;
+                    }
+                    users[idx] = { ...users[idx], ...updates };
+                    this.writeUsers(users);
+                    logger.info(`[UserStorage] updateUser: 用户已更新`, { userId, updatedFields: safeLogUpdates, mode: 'file' });
+                    return users[idx];
+                }
             } else if (STORAGE_MODE === 'mysql') {
                 const conn = await getMysqlConnection();
                 try {
@@ -815,9 +952,34 @@ export class UserStorage {
     public static async deleteUser(userId: string): Promise<boolean> {
         try {
             if (STORAGE_MODE === 'mongo') {
-                await userService.deleteUser(userId);
-                logger.info(`[UserStorage] deleteUser: 用户删除成功`, { userId, mode: 'mongo' });
-                return true;
+                try {
+                    await userService.deleteUser(userId);
+                    logger.info(`[UserStorage] deleteUser: 用户删除成功`, { userId, mode: 'mongo' });
+                    return true;
+                } catch (error) {
+                    logger.error(`[UserStorage] MongoDB deleteUser 失败，尝试切换到文件模式`, {
+                        error,
+                        userId,
+                        MONGO_URI: process.env.MONGO_URI,
+                        NODE_ENV: process.env.NODE_ENV,
+                        USER_STORAGE_MODE: process.env.USER_STORAGE_MODE
+                    });
+                    // 文件模式下删除
+                    if (!userId) {
+                        logger.error(`[UserStorage] deleteUser: userId 为空`, { mode: 'file' });
+                        return false;
+                    }
+                    const users = this.readUsers();
+                    const userIndex = users.findIndex(user => user.id === userId);
+                    if (userIndex === -1) {
+                        logger.warn(`[UserStorage] deleteUser: 未找到用户`, { userId, mode: 'file' });
+                        return false;
+                    }
+                    users.splice(userIndex, 1);
+                    this.writeUsers(users);
+                    logger.info(`[UserStorage] deleteUser: 用户删除成功`, { userId, mode: 'file' });
+                    return true;
+                }
             } else if (STORAGE_MODE === 'mysql') {
                 const conn = await getMysqlConnection();
                 try {
@@ -989,5 +1151,312 @@ export class UserStorage {
             message = '未知存储模式';
         }
         return { healthy, fixed, mode, message };
+    }
+
+    /**
+     * 初始化数据库结构并创建默认管理员账户
+     * @returns {Promise<{ initialized: boolean, message: string }>}
+     */
+    public static async initializeDatabase(): Promise<{ initialized: boolean, message: string }> {
+        const mode = STORAGE_MODE;
+        const adminUsername = config.adminUsername;
+        const adminPassword = config.adminPassword;
+        const adminEmail = `${adminUsername}@example.com`;
+
+        logger.info(`[UserStorage] 开始初始化数据库，模式: ${mode}`);
+
+        try {
+            if (mode === 'mongo') {
+                return await this.initializeMongoDB(adminUsername, adminPassword, adminEmail);
+            } else if (mode === 'mysql') {
+                return await this.initializeMySQL(adminUsername, adminPassword, adminEmail);
+            } else {
+                return await this.initializeFileStorage(adminUsername, adminPassword, adminEmail);
+            }
+        } catch (error) {
+            logger.error(`[UserStorage] 数据库初始化失败`, { error, mode });
+            return { initialized: false, message: `数据库初始化失败: ${error instanceof Error ? error.message : String(error)}` };
+        }
+    }
+
+    /**
+     * 初始化 MongoDB 数据库
+     */
+    private static async initializeMongoDB(adminUsername: string, adminPassword: string, adminEmail: string): Promise<{ initialized: boolean, message: string }> {
+        try {
+            // 检查是否有用户数据
+            const existingUsers = await userService.getAllUsers();
+            logger.info(`[UserStorage] MongoDB 现有用户数量: ${existingUsers.length}`);
+
+            // 检查是否已有管理员账户（按角色或用户名检查）
+            const existingAdmin = existingUsers.find(u => u.role === 'admin' || u.username === adminUsername);
+            
+            if (existingAdmin) {
+                logger.info(`[UserStorage] MongoDB 已存在管理员账户: ${existingAdmin.username} (角色: ${existingAdmin.role})`);
+                
+                // 如果现有用户不是管理员但用户名是admin，将其升级为管理员
+                if (existingAdmin.username === adminUsername && existingAdmin.role !== 'admin') {
+                    logger.warn(`[UserStorage] 发现同名非管理员用户，正在升级为管理员: ${existingAdmin.username}`);
+                    await userService.updateUser(existingAdmin.id, { 
+                        role: 'admin',
+                        email: adminEmail // 更新邮箱为默认值
+                    });
+                    logger.info(`[UserStorage] 已升级用户为管理员: ${existingAdmin.username}`);
+                }
+                
+                // 清理冲突的用户数据：删除其他非管理员但与管理员同名的用户
+                const conflicts = existingUsers.filter(u => 
+                    u.id !== existingAdmin.id && 
+                    u.role !== 'admin' && 
+                    u.username === adminUsername
+                );
+                
+                if (conflicts.length > 0) {
+                    logger.warn(`[UserStorage] 发现 ${conflicts.length} 个冲突用户，正在删除...`);
+                    for (const conflict of conflicts) {
+                        await userService.deleteUser(conflict.id);
+                        logger.info(`[UserStorage] 已删除冲突用户: ${conflict.username} (ID: ${conflict.id})`);
+                    }
+                }
+                
+                return { 
+                    initialized: true, 
+                    message: `MongoDB 初始化完成，已存在管理员账户，清理了 ${conflicts.length} 个冲突用户` 
+                };
+            } else {
+                // 创建默认管理员账户
+                const defaultAdmin: User = {
+                    id: Date.now().toString(),
+                    username: adminUsername,
+                    email: adminEmail,
+                    password: adminPassword,
+                    role: 'admin',
+                    dailyUsage: 0,
+                    lastUsageDate: new Date().toISOString(),
+                    createdAt: new Date().toISOString()
+                };
+
+                await userService.createUser(defaultAdmin);
+                logger.info(`[UserStorage] MongoDB 已创建默认管理员账户: ${adminUsername}`);
+                
+                // 打印管理员账户信息到控制台
+                console.log('\n' + '='.repeat(50));
+                console.log('🔐 新创建的管理员账户信息');
+                console.log('='.repeat(50));
+                console.log(`用户名: ${adminUsername}`);
+                console.log(`密码: ${adminPassword}`);
+                console.log(`邮箱: ${adminEmail}`);
+                console.log('='.repeat(50));
+                console.log('请妥善保管这些信息！\n');
+                
+                return { 
+                    initialized: true, 
+                    message: `MongoDB 初始化完成，已创建默认管理员账户: ${adminUsername}` 
+                };
+            }
+        } catch (error) {
+            logger.error(`[UserStorage] MongoDB 初始化失败`, { error });
+            throw error;
+        }
+    }
+
+    /**
+     * 初始化 MySQL 数据库
+     */
+    private static async initializeMySQL(adminUsername: string, adminPassword: string, adminEmail: string): Promise<{ initialized: boolean, message: string }> {
+        const conn = await getMysqlConnection();
+        try {
+            // 检查表是否存在，不存在则创建
+            await conn.execute(`
+                CREATE TABLE IF NOT EXISTS users (
+                    id VARCHAR(64) PRIMARY KEY,
+                    username VARCHAR(64) NOT NULL,
+                    email VARCHAR(128) NOT NULL,
+                    password VARCHAR(128) NOT NULL,
+                    role VARCHAR(16) NOT NULL,
+                    dailyUsage INT DEFAULT 0,
+                    lastUsageDate VARCHAR(32),
+                    createdAt VARCHAR(32),
+                    token VARCHAR(255),
+                    tokenExpiresAt BIGINT,
+                    totpSecret VARCHAR(255),
+                    totpEnabled BOOLEAN DEFAULT FALSE,
+                    backupCodes JSON,
+                    passkeyEnabled BOOLEAN DEFAULT FALSE,
+                    passkeyCredentials JSON,
+                    pendingChallenge VARCHAR(255),
+                    currentChallenge VARCHAR(255),
+                    passkeyVerified BOOLEAN DEFAULT FALSE
+                )
+            `);
+            logger.info(`[UserStorage] MySQL 用户表结构检查/创建完成`);
+
+            // 检查是否有用户数据
+            const [rows] = await conn.execute('SELECT * FROM users');
+            const existingUsers = rows as User[];
+            logger.info(`[UserStorage] MySQL 现有用户数量: ${existingUsers.length}`);
+
+            // 检查是否已有管理员账户（按角色或用户名检查）
+            const existingAdmin = existingUsers.find(u => u.role === 'admin' || u.username === adminUsername);
+            
+            if (existingAdmin) {
+                logger.info(`[UserStorage] MySQL 已存在管理员账户: ${existingAdmin.username} (角色: ${existingAdmin.role})`);
+                
+                // 如果现有用户不是管理员但用户名是admin，将其升级为管理员
+                if (existingAdmin.username === adminUsername && existingAdmin.role !== 'admin') {
+                    logger.warn(`[UserStorage] 发现同名非管理员用户，正在升级为管理员: ${existingAdmin.username}`);
+                    await conn.execute(
+                        'UPDATE users SET role = ?, email = ? WHERE id = ?',
+                        ['admin', adminEmail, existingAdmin.id]
+                    );
+                    logger.info(`[UserStorage] 已升级用户为管理员: ${existingAdmin.username}`);
+                }
+                
+                // 清理冲突的用户数据：删除其他非管理员但与管理员同名的用户
+                const conflicts = existingUsers.filter(u => 
+                    u.id !== existingAdmin.id && 
+                    u.role !== 'admin' && 
+                    u.username === adminUsername
+                );
+                
+                if (conflicts.length > 0) {
+                    logger.warn(`[UserStorage] 发现 ${conflicts.length} 个冲突用户，正在删除...`);
+                    for (const conflict of conflicts) {
+                        await conn.execute('DELETE FROM users WHERE id = ?', [conflict.id]);
+                        logger.info(`[UserStorage] 已删除冲突用户: ${conflict.username} (ID: ${conflict.id})`);
+                    }
+                }
+                
+                return { 
+                    initialized: true, 
+                    message: `MySQL 初始化完成，已存在管理员账户，清理了 ${conflicts.length} 个冲突用户` 
+                };
+            } else {
+                // 创建默认管理员账户
+                const defaultAdmin: User = {
+                    id: Date.now().toString(),
+                    username: adminUsername,
+                    email: adminEmail,
+                    password: adminPassword,
+                    role: 'admin',
+                    dailyUsage: 0,
+                    lastUsageDate: new Date().toISOString(),
+                    createdAt: new Date().toISOString()
+                };
+
+                await conn.execute(
+                    'INSERT INTO users (id, username, email, password, role, dailyUsage, lastUsageDate, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                    [defaultAdmin.id, defaultAdmin.username, defaultAdmin.email, defaultAdmin.password, defaultAdmin.role, defaultAdmin.dailyUsage, defaultAdmin.lastUsageDate, defaultAdmin.createdAt]
+                );
+                logger.info(`[UserStorage] MySQL 已创建默认管理员账户: ${adminUsername}`);
+                
+                // 打印管理员账户信息到控制台
+                console.log('\n' + '='.repeat(50));
+                console.log('🔐 新创建的管理员账户信息');
+                console.log('='.repeat(50));
+                console.log(`用户名: ${adminUsername}`);
+                console.log(`密码: ${adminPassword}`);
+                console.log(`邮箱: ${adminEmail}`);
+                console.log('='.repeat(50));
+                console.log('请妥善保管这些信息！\n');
+                
+                return { 
+                    initialized: true, 
+                    message: `MySQL 初始化完成，已创建默认管理员账户: ${adminUsername}` 
+                };
+            }
+        } finally {
+            await conn.end();
+        }
+    }
+
+    /**
+     * 初始化文件存储
+     */
+    private static async initializeFileStorage(adminUsername: string, adminPassword: string, adminEmail: string): Promise<{ initialized: boolean, message: string }> {
+        try {
+            // 确保文件存在
+            this.ensureUsersFile();
+            
+            // 读取现有用户
+            const existingUsers = this.readUsers();
+            logger.info(`[UserStorage] 文件存储现有用户数量: ${existingUsers.length}`);
+
+            // 检查是否已有管理员账户（按角色或用户名检查）
+            const existingAdmin = existingUsers.find(u => u.role === 'admin' || u.username === adminUsername);
+            
+            if (existingAdmin) {
+                logger.info(`[UserStorage] 文件存储已存在管理员账户: ${existingAdmin.username} (角色: ${existingAdmin.role})`);
+                
+                // 如果现有用户不是管理员但用户名是admin，将其升级为管理员
+                if (existingAdmin.username === adminUsername && existingAdmin.role !== 'admin') {
+                    logger.warn(`[UserStorage] 发现同名非管理员用户，正在升级为管理员: ${existingAdmin.username}`);
+                    existingAdmin.role = 'admin';
+                    existingAdmin.email = adminEmail; // 更新邮箱为默认值
+                    this.writeUsers(existingUsers);
+                    logger.info(`[UserStorage] 已升级用户为管理员: ${existingAdmin.username}`);
+                }
+                
+                // 清理冲突的用户数据：删除其他非管理员但与管理员同名的用户
+                const conflicts = existingUsers.filter(u => 
+                    u.id !== existingAdmin.id && 
+                    u.role !== 'admin' && 
+                    u.username === adminUsername
+                );
+                
+                if (conflicts.length > 0) {
+                    logger.warn(`[UserStorage] 发现 ${conflicts.length} 个冲突用户，正在删除...`);
+                    const cleanedUsers = existingUsers.filter(u => 
+                        !(u.id !== existingAdmin.id && 
+                          u.role !== 'admin' && 
+                          u.username === adminUsername)
+                    );
+                    this.writeUsers(cleanedUsers);
+                    
+                    for (const conflict of conflicts) {
+                        logger.info(`[UserStorage] 已删除冲突用户: ${conflict.username} (ID: ${conflict.id})`);
+                    }
+                }
+                
+                return { 
+                    initialized: true, 
+                    message: `文件存储初始化完成，已存在管理员账户，清理了 ${conflicts.length} 个冲突用户` 
+                };
+            } else {
+                // 创建默认管理员账户
+                const defaultAdmin: User = {
+                    id: Date.now().toString(),
+                    username: adminUsername,
+                    email: adminEmail,
+                    password: adminPassword,
+                    role: 'admin',
+                    dailyUsage: 0,
+                    lastUsageDate: new Date().toISOString(),
+                    createdAt: new Date().toISOString()
+                };
+
+                const updatedUsers = [...existingUsers, defaultAdmin];
+                this.writeUsers(updatedUsers);
+                logger.info(`[UserStorage] 文件存储已创建默认管理员账户: ${adminUsername}`);
+                
+                // 打印管理员账户信息到控制台
+                console.log('\n' + '='.repeat(50));
+                console.log('🔐 新创建的管理员账户信息');
+                console.log('='.repeat(50));
+                console.log(`用户名: ${adminUsername}`);
+                console.log(`密码: ${adminPassword}`);
+                console.log(`邮箱: ${adminEmail}`);
+                console.log('='.repeat(50));
+                console.log('请妥善保管这些信息！\n');
+                
+                return { 
+                    initialized: true, 
+                    message: `文件存储初始化完成，已创建默认管理员账户: ${adminUsername}` 
+                };
+            }
+        } catch (error) {
+            logger.error(`[UserStorage] 文件存储初始化失败`, { error });
+            throw error;
+        }
     }
 } 

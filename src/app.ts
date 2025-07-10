@@ -1016,21 +1016,110 @@ if (process.env.NODE_ENV !== 'test') {
     
     // 启动时检查文件权限
     try {
-      const { checkFilePermissions } = require('../scripts/check-file-permissions.js');
-      checkFilePermissions();
+      // 尝试多个可能的路径
+      let checkFilePermissions;
+      const possiblePaths = [
+        '../scripts/check-file-permissions.js',
+        '../../scripts/check-file-permissions.js',
+        './scripts/check-file-permissions.js',
+        path.join(process.cwd(), 'scripts', 'check-file-permissions.js')
+      ];
+      
+      for (const scriptPath of possiblePaths) {
+        try {
+          const scriptModule = require(scriptPath);
+          checkFilePermissions = scriptModule.checkFilePermissions;
+          if (checkFilePermissions) {
+            logger.info(`[启动] 找到文件权限检查脚本: ${scriptPath}`);
+            break;
+          }
+        } catch (e) {
+          // 继续尝试下一个路径
+        }
+      }
+      
+      if (checkFilePermissions) {
+        checkFilePermissions();
+      } else {
+        logger.warn('[启动] 未找到文件权限检查脚本，跳过检查');
+      }
     } catch (error) {
       logger.warn('[启动] 文件权限检查失败，继续启动', { 
         error: error instanceof Error ? error.message : String(error) 
       });
     }
     
-    // 启动时自动修复Passkey数据
+    // 启动时检查存储模式并初始化数据库
     try {
+      logger.info('[启动] 检查用户存储模式...');
+      const storageMode = process.env.USER_STORAGE_MODE || 'file';
+      logger.info(`[启动] 当前存储模式: ${storageMode}`);
+      
+      // 检查存储模式是否可用并初始化数据库
+      if (storageMode === 'mongo') {
+        try {
+          // 尝试连接 MongoDB
+          const { connectMongo } = require('./services/mongoService');
+          await connectMongo();
+          logger.info('[启动] MongoDB 连接成功');
+          
+          // 初始化 MongoDB 数据库
+          const { UserStorage } = require('./utils/userStorage');
+          const initResult = await UserStorage.initializeDatabase();
+          if (initResult.initialized) {
+            logger.info(`[启动] ${initResult.message}`);
+          } else {
+            logger.error(`[启动] MongoDB 初始化失败: ${initResult.message}`);
+          }
+        } catch (error) {
+          logger.warn('[启动] MongoDB 连接失败，建议切换到文件模式', { 
+            error: error instanceof Error ? error.message : String(error) 
+          });
+        }
+      } else if (storageMode === 'mysql') {
+        try {
+          // 尝试连接 MySQL
+          const { getMysqlConnection } = require('./utils/userStorage');
+          const conn = await getMysqlConnection();
+          await conn.execute('SELECT 1');
+          await conn.end();
+          logger.info('[启动] MySQL 连接成功');
+          
+          // 初始化 MySQL 数据库
+          const { UserStorage } = require('./utils/userStorage');
+          const initResult = await UserStorage.initializeDatabase();
+          if (initResult.initialized) {
+            logger.info(`[启动] ${initResult.message}`);
+          } else {
+            logger.error(`[启动] MySQL 初始化失败: ${initResult.message}`);
+          }
+        } catch (error) {
+          logger.warn('[启动] MySQL 连接失败，建议切换到文件模式', { 
+            error: error instanceof Error ? error.message : String(error) 
+          });
+        }
+      } else {
+        // 文件存储模式初始化
+        try {
+          const { UserStorage } = require('./utils/userStorage');
+          const initResult = await UserStorage.initializeDatabase();
+          if (initResult.initialized) {
+            logger.info(`[启动] ${initResult.message}`);
+          } else {
+            logger.error(`[启动] 文件存储初始化失败: ${initResult.message}`);
+          }
+        } catch (error) {
+          logger.error('[启动] 文件存储初始化失败', { 
+            error: error instanceof Error ? error.message : String(error) 
+          });
+        }
+      }
+      
       logger.info('[启动] 开始自动修复Passkey数据...');
       await PasskeyDataRepairService.repairAllUsersPasskeyData();
       logger.info('[启动] Passkey数据自动修复完成');
     } catch (error) {
-      logger.error('[启动] Passkey数据自动修复失败', { 
+      logger.error('[启动] 数据库初始化和Passkey数据修复失败', { 
         error: error instanceof Error ? error.message : String(error) 
       });
       // 不阻止服务器启动，只记录错误

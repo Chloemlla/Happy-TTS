@@ -6,7 +6,9 @@
   "sideEffects": true,
   "scripts": {
     "start": "concurrently \"node dist/app.js\" \"serve -s public -l 3001\" \"serve -s docs -l 3002\"",
+    "start:file": "USER_STORAGE_MODE=file concurrently \"node dist/app.js\" \"serve -s public -l 3001\" \"serve -s docs -l 3002\"",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:file": "USER_STORAGE_MODE=file concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "nodemon --watch src -e ts --exec ts-node src/app.ts",
     "dev:frontend": "cd frontend && npm run dev",
     "dev:docs": "cd frontend/docs && npm start",
@@ -30,6 +32,7 @@
     "test:clean": "node scripts/test-cleanup.js",
     "test:auth": "jest --testPathPattern=authController.test.ts",
     "test:rate-limit": "jest --testPathPattern=rateLimit.test.ts",
+    "test:db-init": "node scripts/test-database-init.js",
     "test:performance": "jest performance.test.ts",
     "test:concurrency": "jest concurrency.test.ts",
     "test:ci": "jest --ci --runInBand --coverage --reporters=default --reporters=jest-junit",
