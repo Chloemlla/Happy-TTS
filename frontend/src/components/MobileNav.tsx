@@ -68,6 +68,17 @@ const MobileNav: React.FC<MobileNavProps> = ({
           whileTap={{ scale: 0.95 }}
         >
           <Link 
+            to="/case-converter" 
+            className="px-4 py-2 rounded-lg bg-green-100 text-green-700 font-semibold hover:bg-green-200 transition-all duration-200 shadow-sm hover:shadow-md"
+          >
+            大小写转换
+          </Link>
+        </motion.div>
+        <motion.div
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          <Link 
             to="/api-docs" 
             className="px-4 py-2 rounded-lg bg-indigo-100 text-indigo-700 font-semibold hover:bg-indigo-200 transition-all duration-200 shadow-sm hover:shadow-md"
           >
@@ -384,11 +395,47 @@ const MobileNav: React.FC<MobileNavProps> = ({
                 </Link>
               </motion.div>
 
-              {/* API 文档 */}
+              {/* 字母转换 */}
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.4, delay: 0.4 }}
+              >
+                <Link
+                  to="/case-converter"
+                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
+                    location.pathname === '/case-converter' ? 'bg-green-50 text-green-700 font-semibold shadow-sm' : 'hover:bg-green-50'
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <motion.svg 
+                    className={`w-5 h-5 ${location.pathname === '/case-converter' ? 'text-green-500' : 'text-gray-400'}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </motion.svg>
+                  <span>字母转换</span>
+                  {location.pathname === '/case-converter' && (
+                    <motion.span 
+                      className="ml-auto text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full"
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                    >
+                      当前
+                    </motion.span>
+                  )}
+                </Link>
+              </motion.div>
+
+              {/* API 文档 */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.45 }}
               >
                 <Link
                   to="/api-docs"
@@ -425,14 +472,14 @@ const MobileNav: React.FC<MobileNavProps> = ({
                 className="border-t border-gray-200 my-2"
                 initial={{ scaleX: 0 }}
                 animate={{ scaleX: 1 }}
-                transition={{ duration: 0.3, delay: 0.45 }}
+                transition={{ duration: 0.3, delay: 0.5 }}
               />
 
               {/* 退出登录 */}
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.5 }}
+                transition={{ duration: 0.4, delay: 0.55 }}
               >
                 <motion.button
                   onClick={handleLogout}

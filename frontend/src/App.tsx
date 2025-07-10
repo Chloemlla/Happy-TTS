@@ -18,6 +18,7 @@ const UserManagement = React.lazy(() => import('./components/UserManagement'));
 const MobileNav = React.lazy(() => import('./components/MobileNav'));
 const ApiDocs = React.lazy(() => import('./components/ApiDocs'));
 const LogShare = React.lazy(() => import('./components/LogShare'));
+const CaseConverter = React.lazy(() => import('./components/CaseConverter'));
 
 // 页面切换动画变体
 const pageVariants = {
@@ -295,6 +296,19 @@ const App: React.FC = () => {
                     transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
                   >
                     <LogShare />
+                  </motion.div>
+                </Suspense>
+              } />
+              <Route path="/case-converter" element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <motion.div
+                    variants={pageVariants}
+                    initial="initial"
+                    animate="in"
+                    exit="out"
+                    transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                  >
+                    <CaseConverter />
                   </motion.div>
                 </Suspense>
               } />
