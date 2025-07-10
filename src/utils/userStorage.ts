@@ -886,6 +886,60 @@ export class UserStorage {
         }
     }
 
+    public static async incrementUsage(userId: string): Promise<boolean> {
+        if (STORAGE_MODE === 'mongo') {
+            const user = await userService.getUserById(userId);
+            if (!user) return false;
+            const today = new Date().toISOString().split('T')[0];
+            const lastUsageDate = new Date(user.lastUsageDate).toISOString().split('T')[0];
+            let dailyUsage = user.dailyUsage;
+            if (today !== lastUsageDate) {
+                dailyUsage = 0;
+            }
+            if (user.role === 'admin') return true;
+            if (dailyUsage >= this.DAILY_LIMIT) return false;
+            dailyUsage++;
+            await userService.updateUser(userId, { dailyUsage, lastUsageDate: new Date().toISOString() });
+            return true;
+        } else if (STORAGE_MODE === 'mysql') {
+            const conn = await getMysqlConnection();
+            try {
+                const [rows] = await conn.execute('SELECT * FROM users WHERE id = ?', [userId]);
+                const user = (rows as User[])[0];
+                if (!user) return false;
+                const today = new Date().toISOString().split('T')[0];
+                const lastUsageDate = new Date(user.lastUsageDate).toISOString().split('T')[0];
+                let dailyUsage = user.dailyUsage;
+                if (today !== lastUsageDate) {
+                    dailyUsage = 0;
+                }
+                if (user.role === 'admin') return true;
+                if (dailyUsage >= this.DAILY_LIMIT) return false;
+                dailyUsage++;
+                await conn.execute('UPDATE users SET dailyUsage = ?, lastUsageDate = ? WHERE id = ?', [dailyUsage, new Date().toISOString(), userId]);
+                return true;
+            } finally {
+                await conn.end();
+            }
+        } else {
+            const users = this.readUsers();
+            const userIndex = users.findIndex(u => u.id === userId);
+            if (userIndex === -1) return false;
+            const user = users[userIndex];
+            const today = new Date().toISOString().split('T')[0];
+            const lastUsageDate = new Date(user.lastUsageDate).toISOString().split('T')[0];
+            if (today !== lastUsageDate) {
+                user.dailyUsage = 0;
+                user.lastUsageDate = new Date().toISOString();
+            }
+            if (user.role === 'admin') return true;
+            if (user.dailyUsage >= this.DAILY_LIMIT) return false;
+            user.dailyUsage++;
+            this.writeUsers(users);
+            return true;
+        }
+    }
+
     /**
      * 自动检查并修复本地、MongoDB 或 MySQL 用户数据健康状况
      * @returns {Promise<{ healthy: boolean, fixed: boolean, mode: string, message: string }>}
