@@ -8,6 +8,7 @@ export interface TtsRequest {
   isAdmin?: boolean;
   customFileName?: string;
   generationCode: string;
+  cfToken?: string; // Cloudflare Turnstile token
 }
 
 export interface TtsResponse {

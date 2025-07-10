@@ -376,4 +376,97 @@ body {
     transform: translateX(100%) scale(0.8);
     opacity: 0;
   }
+}
+
+/* Cloudflare Turnstile 组件美化样式 */
+.cloudflare-turnstile {
+  position: relative;
+  display: inline-block;
+}
+
+.turnstile-container {
+  position: relative;
+  display: inline-block;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.turnstile-container:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.turnstile-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(99, 102, 241, 0.1));
+  border-radius: 8px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.turnstile-container:hover::before {
+  opacity: 1;
+}
+
+/* 确保 Cloudflare Turnstile iframe 样式正确 */
+.turnstile-container iframe {
+  border-radius: 8px !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* 验证状态指示器动画 */
+@keyframes verificationPulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.verification-success {
+  animation: verificationPulse 0.6s ease-in-out;
+}
+
+/* 响应式设计优化 */
+@media (max-width: 640px) {
+  .turnstile-container {
+    transform: scale(0.9);
+    transform-origin: center;
+  }
+  
+  .turnstile-container:hover {
+    transform: scale(0.9) translateY(-1px);
+  }
+}
+
+/* 深色模式支持 */
+@media (prefers-color-scheme: dark) {
+  .turnstile-container {
+    box-shadow: 0 2px 8px rgba(255, 255, 255, 0.1);
+  }
+  
+  .turnstile-container:hover {
+    box-shadow: 0 4px 16px rgba(255, 255, 255, 0.15);
+  }
+  
+  .turnstile-container::before {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(99, 102, 241, 0.2));
+  }
 } 

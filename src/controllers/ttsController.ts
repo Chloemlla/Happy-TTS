@@ -6,6 +6,7 @@ import logger from '../utils/logger';
 import { config } from '../config/config';
 import axios from 'axios';
 import { ContentFilterService } from '../services/contentFilterService';
+import { CloudflareTurnstileService } from '../services/cloudflareTurnstileService';
 
 export class TtsController {
     private static ttsService = new TtsService();
@@ -32,7 +33,7 @@ export class TtsController {
 
     public static async generateSpeech(req: Request, res: Response) {
         try {
-            const { text, model, voice, output_format, speed, fingerprint, generationCode } = req.body;
+            const { text, model, voice, output_format, speed, fingerprint, generationCode, cfToken } = req.body;
             const ip = TtsController.getClientIp(req);
             const userId = req.headers['x-user-id'] as string;
 
@@ -97,6 +98,21 @@ export class TtsController {
                         expected: config.generationCode
                     }
                 });
+            }
+
+            // 验证 Cloudflare Turnstile
+            if (CloudflareTurnstileService.isEnabled()) {
+                const cfVerified = await CloudflareTurnstileService.verifyToken(cfToken, ip);
+                if (!cfVerified) {
+                    logger.warn('Cloudflare Turnstile 验证失败', {
+                        ip,
+                        userAgent: req.headers['user-agent'],
+                        timestamp: new Date().toISOString()
+                    });
+                    return res.status(403).json({
+                        error: '人机验证失败，请重新验证'
+                    });
+                }
             }
 
             // 检查文本长度

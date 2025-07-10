@@ -5,6 +5,7 @@ import { TtsRequest, TtsResponse } from '../types/tts';
 import { AudioPreview } from './AudioPreview';
 import { Notification } from './Notification';
 import { Input } from './ui';
+import { CloudflareTurnstile } from './CloudflareTurnstile';
 
 interface TtsFormProps {
     onSuccess?: (result: TtsResponse) => void;
@@ -29,6 +30,10 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
         message: string;
         type: 'success' | 'error' | 'warning' | 'info';
     } | null>(null);
+    const [cfToken, setCfToken] = useState<string>('');
+    const [cfVerified, setCfVerified] = useState(false);
+    const [cfError, setCfError] = useState(false);
+    const [cfHidden, setCfHidden] = useState(false);
 
     const { generateSpeech, loading, error: ttsError, audioUrl: ttsAudioUrl } = useTts();
 
@@ -96,6 +101,14 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
             return;
         }
 
+        if (!cfVerified || !cfToken) {
+            setError('请完成人机验证');
+            return;
+        }
+
+        // 验证通过后隐藏验证组件
+        setCfHidden(true);
+
         try {
             const request: TtsRequest = {
                 text,
@@ -106,7 +119,8 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                 userId,
                 isAdmin,
                 customFileName: `tts-${Date.now()}`,
-                generationCode
+                generationCode,
+                cfToken
             };
 
             const result = await generateSpeech(request);
@@ -123,11 +137,17 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                 });
             }
 
+            // 生成成功后重置验证状态，为下一次生成做准备
+            resetCfVerification();
+
             if (onSuccess) {
                 onSuccess(result);
             }
         } catch (error: any) {
             console.error('TTS生成错误:', error);
+            
+            // 生成失败时重置验证状态，允许用户重新验证
+            resetCfVerification();
             
             if (error.message.includes('封禁')) {
                 setNotification({
@@ -153,6 +173,11 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                     message: `生成码验证失败`,
                     type: 'error'
                 });
+            } else if (error.message.includes('人机验证失败')) {
+                setNotification({
+                    message: '人机验证失败，请重新验证',
+                    type: 'error'
+                });
             } else {
                 setNotification({
                     message: error.message || '生成失败，请稍后重试',
@@ -174,6 +199,35 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
     };
 
     const displayError = error || ttsError;
+
+    const handleCfVerify = (token: string) => {
+        setCfToken(token);
+        setCfVerified(true);
+        setCfError(false);
+        setCfHidden(false); // 确保验证组件可见
+    };
+
+    const handleCfExpire = () => {
+        setCfToken('');
+        setCfVerified(false);
+        setCfError(false);
+        setCfHidden(false); // 过期时显示验证组件
+    };
+
+    const handleCfError = () => {
+        setCfToken('');
+        setCfVerified(false);
+        setCfError(true);
+        setCfHidden(false); // 错误时显示验证组件
+    };
+
+    // 重置验证状态，用于下一次生成
+    const resetCfVerification = () => {
+        setCfToken('');
+        setCfVerified(false);
+        setCfError(false);
+        setCfHidden(false);
+    };
 
     return (
         <div className="relative">
@@ -399,6 +453,101 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                         </motion.p>
                     </motion.div>
                 </motion.div>
+
+                {/* 人机验证区域 */}
+                <div className="space-y-2">
+                  <AnimatePresence>
+                    {!cfHidden && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20, height: 0 }}
+                        transition={{ duration: 0.5, delay: 1.0 }}
+                      >
+                        <motion.label 
+                          className="block text-gray-700 text-lg font-semibold mb-3"
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.3, delay: 1.1 }}
+                        >
+                          人机验证
+                          <span className="text-red-500 ml-1">*</span>
+                        </motion.label>
+                        <motion.div
+                          className="flex flex-col space-y-4"
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ duration: 0.4, delay: 1.2 }}
+                        >
+                          <motion.div
+                            className="relative bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-300"
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                          >
+                            <div className="absolute -top-2 -left-2 w-4 h-4 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full flex items-center justify-center">
+                              <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                            <CloudflareTurnstile
+                              siteKey={import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY || ''}
+                              onVerify={handleCfVerify}
+                              onExpire={handleCfExpire}
+                              onError={handleCfError}
+                              theme="light"
+                              size="normal"
+                              className="flex justify-center"
+                            />
+                          </motion.div>
+                        </motion.div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  {/* 验证失败提示 */}
+                  <AnimatePresence>
+                    {cfError && (
+                      <motion.div
+                        className="flex items-center justify-center bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-200 rounded-xl p-3 shadow-sm"
+                        initial={{ opacity: 0, scale: 0.8, y: -10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.8, y: -10 }}
+                        transition={{ duration: 0.4, type: "spring", stiffness: 200 }}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <div className="w-6 h-6 bg-gradient-to-r from-red-400 to-pink-500 rounded-full flex items-center justify-center">
+                            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                          <span className="text-red-700 font-medium">验证失败，请重试</span>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  {/* 安全验证说明始终显示 */}
+                  <motion.div
+                    className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-3"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.3, delay: 1.3 }}
+                  >
+                    <div className="flex items-start space-x-2">
+                      <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <svg className="w-3 h-3 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-sm text-blue-800 font-medium mb-1">
+                          安全验证
+                        </p>
+                        <p className="text-xs text-blue-600 leading-relaxed">
+                          请完成人机验证以证明您是人类用户，保护系统免受自动化攻击
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+                </div>
 
                 <AnimatePresence>
                     {displayError && (
