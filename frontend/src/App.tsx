@@ -18,7 +18,7 @@ const UserManagement = React.lazy(() => import('./components/UserManagement'));
 const MobileNav = React.lazy(() => import('./components/MobileNav'));
 const ApiDocs = React.lazy(() => import('./components/ApiDocs'));
 const LogShare = React.lazy(() => import('./components/LogShare'));
-const CaseConverter = React.lazy(() => import('./components/CaseConverter'));
+const CaseConverter = React.lazy(() => import('./components/CaseConverter').then(module => ({ default: module.CaseConverter })));
 
 // 页面切换动画变体
 const pageVariants = {

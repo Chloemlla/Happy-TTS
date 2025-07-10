@@ -1,3 +1,4 @@
+// 此组件已在 App.tsx 中通过 React.lazy 实现懒加载
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
@@ -411,4 +412,4 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
   );
 };
 
-export default CaseConverter; 
+export { CaseConverter }; 
