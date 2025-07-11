@@ -1,5 +1,6 @@
 import mongoose from './mongoService';
 import { User as UserType } from '../utils/userStorage';
+import validator from 'validator';
 
 const userSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
@@ -57,7 +58,11 @@ export const getUserByUsername = async (username: string): Promise<UserType | nu
 };
 
 export const getUserByEmail = async (email: string): Promise<UserType | null> => {
-  const doc = await UserModel.findOne({ email }).lean();
+  // 防注入：只允许字符串类型且为合法邮箱
+  if (typeof email !== 'string') return null;
+  const safeEmail = email.trim();
+  if (!validator.isEmail(safeEmail)) return null;
+  const doc = await UserModel.findOne({ email: safeEmail }).lean();
   if (!doc) return null;
   return doc as unknown as UserType;
 };
