@@ -79,8 +79,12 @@ jobs:
         run: |
           # 第一次尝试构建
           npm run build || (
-            echo "第一次构建失败，清理缓存后重试..."
+            echo "第一次构建失败，清理缓存和依赖后重试..."
+            rm -rf node_modules package-lock.json frontend/node_modules frontend/package-lock.json frontend/docs/node_modules frontend/docs/package-lock.json
             rm -rf node_modules/.cache frontend/node_modules/.cache frontend/docs/node_modules/.cache
+            npm install --no-optional --no-audit --no-fund
+            cd frontend && npm install --no-optional --no-audit --no-fund && cd ..
+            cd frontend/docs && npm install --no-optional --no-audit --no-fund && cd ../..
             npm run build
           ) || (
             echo "第二次构建失败，使用简化构建..."
