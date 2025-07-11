@@ -34,6 +34,8 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
     const [cfError, setCfError] = useState(false);
     const [cfHidden, setCfHidden] = useState(false);
     const [cfInstanceId, setCfInstanceId] = useState(0);
+    const [cfLoading, setCfLoading] = useState(true);
+    const turnstileRef = useRef<HTMLDivElement>(null);
 
     const { generateSpeech, loading, error: ttsError, audioUrl: ttsAudioUrl } = useTts();
 
@@ -74,7 +76,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
     // 确保Turnstile脚本被加载
     useEffect(() => {
         const loadTurnstileScript = () => {
-            if ((window as any).turnstile) {
+            if ((window as any).turnstileScriptLoaded) {
                 return Promise.resolve();
             }
 
@@ -84,7 +86,10 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                 script.async = true;
                 script.defer = true;
                 
-                script.onload = () => resolve();
+                script.onload = () => {
+                    (window as any).turnstileScriptLoaded = true;
+                    resolve();
+                };
                 script.onerror = () => reject(new Error('Failed to load Cloudflare Turnstile script'));
                 
                 document.head.appendChild(script);
@@ -112,34 +117,29 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
         }
     }, [ttsAudioUrl]);
 
+    // 只负责渲染，不再插入script
     useEffect(() => {
-        const loadScript = () => {
-            if ((window as any).turnstile) return Promise.resolve();
-            return new Promise<void>((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
-                script.async = true;
-                script.defer = true;
-                script.onload = () => resolve();
-                script.onerror = () => reject();
-                document.head.appendChild(script);
-            });
-        };
-
-        loadScript().then(() => {
-            const el = document.getElementById('cf-turnstile-container');
-            if (el) el.innerHTML = '';
-            if ((window as any).turnstile) {
-                (window as any).turnstile.render('#cf-turnstile-container', {
-                    sitekey: import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY || '',
+        setCfLoading(true);
+        const sitekey = String(import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY || '0x4AAAAAAAD');
+        if (turnstileRef.current && (window as any).turnstile) {
+            try {
+                (window as any).turnstile.render(turnstileRef.current, {
+                    sitekey,
                     theme: 'light',
                     size: 'normal',
                     callback: (token: string) => handleCfVerify(token),
                     'expired-callback': () => handleCfExpire(),
                     'error-callback': () => handleCfError(),
                 });
+                setCfError(false);
+            } catch (error) {
+                setCfError(true);
             }
-        });
+        } else {
+            setCfError(true);
+        }
+        setCfLoading(false);
+        // eslint-disable-next-line
     }, [cfInstanceId]);
 
     const startCooldown = (duration: number) => {
@@ -310,21 +310,6 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
         setCfError(false);
         setCfHidden(false);
     };
-
-    // 人机验证区域
-    <div className="flex justify-center">
-      <div
-        key={cfInstanceId}
-        className="cf-turnstile"
-        data-sitekey={import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY || ''}
-        data-theme="light"
-        data-size="normal"
-        data-callback="turnstileCallback"
-        data-expired-callback="turnstileExpiredCallback"
-        data-error-callback="turnstileErrorCallback"
-        style={{ minHeight: 70 }}
-      />
-    </div>
 
     return (
         <div className="relative">
@@ -570,19 +555,27 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                           人机验证
                           <span className="text-red-500 ml-1">*</span>
                         </motion.label>
-                        {/* 使用官方默认样式，移除所有自定义样式 */}
-                        <div className="flex justify-center">
-                          <div
-                            key={cfInstanceId}
-                            className="cf-turnstile"
-                            data-sitekey={import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY || ''}
-                            data-theme="light"
-                            data-size="normal"
-                            data-callback="turnstileCallback"
-                            data-expired-callback="turnstileExpiredCallback"
-                            data-error-callback="turnstileErrorCallback"
-                            style={{ minHeight: 70 }}
-                          />
+                        {/* Turnstile容器 */}
+                        <div className="flex justify-center items-center min-h-[70px] bg-gray-50 rounded-lg border-2 border-dashed border-gray-200 p-4">
+                          {cfLoading ? (
+                            <div className="flex items-center space-x-2 text-gray-500">
+                              <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+                              <span>正在加载人机验证...</span>
+                            </div>
+                          ) : (
+                            <div
+                              key={cfInstanceId}
+                              ref={turnstileRef}
+                              className="cf-turnstile"
+                              style={{ 
+                                minHeight: 70,
+                                minWidth: 300,
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center'
+                              }}
+                            />
+                          )}
                         </div>
                       </motion.div>
                     )}
@@ -603,7 +596,25 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                               <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                             </svg>
                           </div>
-                          <span className="text-red-700 font-medium">验证失败，请重试</span>
+                          <span className="text-red-700 font-medium">
+                            {import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY ? '验证失败，请重试' : '人机验证加载失败，请刷新页面重试'}
+                          </span>
+                          {!import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY && (
+                            <div className="text-xs text-red-600 mt-1">
+                              当前使用测试模式，生产环境请配置 VITE_CLOUDFLARE_TURNSTILE_SITE_KEY
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCfError(false);
+                              setCfLoading(true);
+                              setCfInstanceId(id => id + 1);
+                            }}
+                            className="mt-2 px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                          >
+                            重试
+                          </button>
                         </div>
                       </motion.div>
                     )}
