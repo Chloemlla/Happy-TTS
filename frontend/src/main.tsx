@@ -7,7 +7,7 @@ import { disableSelection } from './utils/disableSelection'
 
 // 统一危险关键字 - 扩展更多关键词
 const DANGEROUS_KEYWORDS = [
-  'supercopy', 'fatkun', 'downloader', 'ocr', 'scraper', 'capture',
+  'supercopy', 'fatkun', 'downloader', 'scraper', 'capture',
   'copyy', 'copycat', 'copyhelper', 'copyall', 'copytext', 'copycontent', 'copyweb',
   'supercopy', 'supercopyy', 'supercopycat', 'supercopyhelper',
   'fatkun', 'fatkundownloader', 'fatkunbatch', 'fatkunimage',

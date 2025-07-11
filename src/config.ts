@@ -55,4 +55,6 @@ const config: Config = {
   },
 };
 
+export const enableTurnstile = process.env.VITE_ENABLE_TURNSTILE === 'true';
+
 export default config; 

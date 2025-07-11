@@ -50,6 +50,8 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
 
     const MAX_TEXT_LENGTH = 4096;
 
+    const enableTurnstile = import.meta.env.VITE_ENABLE_TURNSTILE === 'true';
+
     // 设置全局Turnstile回调函数
     useEffect(() => {
         // 定义全局回调函数
@@ -509,85 +511,95 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                     </motion.div>
                 </motion.div>
 
-                {/* 人机验证区域 */}
-                <div>
-                  <AnimatePresence>
-                    {!cfHidden && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20, height: 0 }}
-                        transition={{ duration: 0.5, delay: 1.0 }}
-                      >
-                        <motion.label 
-                          className="block text-gray-700 text-lg font-semibold mb-3"
-                          initial={{ opacity: 0, y: -10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.3, delay: 1.1 }}
+                {/* 人机验证区域（可选） */}
+                {enableTurnstile && (
+                    <div>
+                        <AnimatePresence>
+                            {!cfHidden && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -20, height: 0 }}
+                                    transition={{ duration: 0.5, delay: 1.0 }}
+                                >
+                                    <motion.label 
+                                        className="block text-gray-700 text-lg font-semibold mb-3"
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ duration: 0.3, delay: 1.1 }}
+                                    >
+                                        人机验证
+                                        <span className="text-red-500 ml-1">*</span>
+                                    </motion.label>
+                                    {/* 只保留官方Turnstile组件，无任何装饰样式 */}
+                                    <div>
+                                        <div
+                                            className="cf-turnstile"
+                                            data-sitekey="0x4AAAAAABkocXH4KiqcoV1a"
+                                            // data-theme="light"
+                                            // data-callback="turnstileCallback"
+                                            // data-expired-callback="turnstileExpiredCallback"
+                                            // data-error-callback="turnstileErrorCallback"
+                                        />
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                        {/* 验证失败提示 */}
+                        <AnimatePresence>
+                            {cfError && (
+                                <motion.div
+                                    className="flex items-center justify-center bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-200 rounded-xl p-3 shadow-sm"
+                                    initial={{ opacity: 0, scale: 0.8, y: -10 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.8, y: -10 }}
+                                    transition={{ duration: 0.4, type: "spring", stiffness: 200 }}
+                                >
+                                    <div className="flex flex-col items-center space-y-2">
+                                        <div className="flex items-center space-x-2">
+                                            <div className="w-6 h-6 bg-gradient-to-r from-red-400 to-pink-500 rounded-full flex items-center justify-center">
+                                                <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                                </svg>
+                                            </div>
+                                            <span className="text-red-700 font-medium">验证失败，请重试</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setCfError(false);
+                                                    setCfLoading(true);
+                                                    setCfInstanceId(id => id + 1);
+                                                }}
+                                                className="mt-2 px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                                            >
+                                                重试
+                                            </button>
+                                        </div>
+                                        {/* 详细错误信息打印 */}
+                                        {cfError && typeof cfError === 'object' && (
+                                            <pre className="mt-2 text-xs text-red-500 bg-red-100 rounded p-2 max-w-xl overflow-x-auto">
+                                                {JSON.stringify(cfError, null, 2)}
+                                            </pre>
+                                        )}
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                        
+                        {/* 安全验证说明 */}
+                        <motion.div
+                            className="flex items-center justify-center space-x-2 text-sm text-gray-600 mt-2"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.3, delay: 1.3 }}
                         >
-                          人机验证
-                          <span className="text-red-500 ml-1">*</span>
-                        </motion.label>
-                        {/* 只保留官方Turnstile组件，无任何装饰样式 */}
-                        <div>
-                          <div
-                            className="cf-turnstile"
-                            data-sitekey="0x4AAAAAABkocXH4KiqcoV1a"
-                            data-theme="light"
-                            data-callback="turnstileCallback"
-                            data-expired-callback="turnstileExpiredCallback"
-                            data-error-callback="turnstileErrorCallback"
-                          />
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                  {/* 验证失败提示 */}
-                  <AnimatePresence>
-                    {cfError && (
-                      <motion.div
-                        className="flex items-center justify-center bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-200 rounded-xl p-3 shadow-sm"
-                        initial={{ opacity: 0, scale: 0.8, y: -10 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.8, y: -10 }}
-                        transition={{ duration: 0.4, type: "spring", stiffness: 200 }}
-                      >
-                        <div className="flex items-center space-x-2">
-                          <div className="w-6 h-6 bg-gradient-to-r from-red-400 to-pink-500 rounded-full flex items-center justify-center">
-                            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                            <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                             </svg>
-                          </div>
-                          <span className="text-red-700 font-medium">验证失败，请重试</span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setCfError(false);
-                              setCfLoading(true);
-                              setCfInstanceId(id => id + 1);
-                            }}
-                            className="mt-2 px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-                          >
-                            重试
-                          </button>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                  
-                  {/* 安全验证说明 */}
-                  <motion.div
-                    className="flex items-center justify-center space-x-2 text-sm text-gray-600 mt-2"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.3, delay: 1.3 }}
-                  >
-                    <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                    <span>请完成人机验证以证明您是人类用户，保护系统免受自动化攻击</span>
-                  </motion.div>
-                </div>
+                            <span>请完成人机验证以证明您是人类用户，保护系统免受自动化攻击</span>
+                        </motion.div>
+                    </div>
+                )}
 
                 <AnimatePresence>
                     {displayError && (

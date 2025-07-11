@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { config } from '../config/config';
 import logger from '../utils/logger';
+import { enableTurnstile } from '../config';
 
 interface TurnstileResponse {
   success: boolean;
@@ -20,6 +21,11 @@ export class CloudflareTurnstileService {
    */
   public static async verifyToken(token: string, remoteIp?: string): Promise<boolean> {
     try {
+      // 如果未启用Turnstile，直接跳过
+      if (!enableTurnstile) {
+        logger.warn('Cloudflare Turnstile 校验已禁用，直接跳过');
+        return true;
+      }
       // 如果没有配置密钥，跳过验证（开发环境）
       if (!config.cloudflareTurnstile.secretKey) {
         logger.warn('Cloudflare Turnstile 密钥未配置，跳过验证');
@@ -82,6 +88,6 @@ export class CloudflareTurnstileService {
    * 检查是否启用了 Cloudflare Turnstile
    */
   public static isEnabled(): boolean {
-    return !!config.cloudflareTurnstile.secretKey;
+    return enableTurnstile && !!config.cloudflareTurnstile.secretKey;
   }
 } 
