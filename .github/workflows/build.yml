@@ -59,9 +59,11 @@ jobs:
 
       - name: Test with memory optimization
         run: |
+          npm install -g rollup@latest vite@latest --save-dev
           npm install --save-dev ts-jest typescript
           npm test -- --detectOpenHandles --maxWorkers=2
           cd frontend
+          npm install -g rollup@latest vite@latest --save-dev
           npm install -g vitest
           npm install -g @testing-library/jest-dom
           npm install -g @testing-library/react
