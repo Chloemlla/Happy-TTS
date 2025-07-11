@@ -45,32 +45,20 @@ jobs:
         run: |
           rm -rf frontend/docs/node_modules frontend/docs/package-lock.json
 
-      - name: Generate package-lock.json
-        run: npm install --package-lock-only
+      - name: Install dependencies (root)
+        run: npm install --no-optional --no-audit --no-fund
 
-      - name: Install dependencies with retry
-        run: |
-          npm install -g npm@latest
-          npm install --no-optional --no-audit --no-fund
-          cd frontend
-          npm install --no-optional --no-audit --no-fund
-          cd docs
-          npm install --no-optional --no-audit --no-fund
+      - name: Install dependencies (frontend)
+        run: cd frontend && npm install --no-optional --no-audit --no-fund
+
+      - name: Install dependencies (frontend/docs)
+        run: cd frontend/docs && npm install --no-optional --no-audit --no-fund
 
       - name: Test with memory optimization
         run: |
           npm install --save-dev ts-jest typescript
           npm test -- --detectOpenHandles --maxWorkers=2
           cd frontend
-          npm install -g vitest
-          npm install -g @testing-library/jest-dom
-          npm install -g @testing-library/react
-          npm install -g @testing-library/user-event
-          npm install -g @babel/preset-env
-          npm install -g @babel/preset-react
-          npm install -g @babel/preset-typescript
-          npm install -g @babel/preset-stage-2
-          npm install -g @babel/preset-stage-3
           npx vitest run --pool=forks --poolOptions.forks.singleFork=true
 
       - name: Build with retry mechanism
