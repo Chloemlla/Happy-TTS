@@ -95,6 +95,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
         const sitekey = '0x4AAAAAABkocXH4KiqcoV1a';
         if (turnstileRef.current && (window as any).turnstile) {
             try {
+                // 官方隐式渲染方式
                 (window as any).turnstile.render(turnstileRef.current, {
                     sitekey,
                     theme: 'light',
@@ -509,7 +510,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                 </motion.div>
 
                 {/* 人机验证区域 */}
-                <div className="space-y-2">
+                <div>
                   <AnimatePresence>
                     {!cfHidden && (
                       <motion.div
@@ -527,27 +528,16 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                           人机验证
                           <span className="text-red-500 ml-1">*</span>
                         </motion.label>
-                        {/* Turnstile容器 居中显示 */}
-                        <div className="w-full flex justify-center">
-                          {cfLoading ? (
-                            <div className="flex items-center space-x-2 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200 p-4">
-                              <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
-                              <span>正在加载人机验证...</span>
-                            </div>
-                          ) : (
-                            <div
-                              key={cfInstanceId}
-                              ref={turnstileRef}
-                              className="cf-turnstile bg-gray-50 rounded-lg border-2 border-dashed border-gray-200 p-4"
-                              style={{
-                                minHeight: 70,
-                                minWidth: 300,
-                                display: 'flex',
-                                justifyContent: 'center',
-                                alignItems: 'center'
-                              }}
-                            />
-                          )}
+                        {/* 只保留官方Turnstile组件，无任何装饰样式 */}
+                        <div>
+                          <div
+                            className="cf-turnstile"
+                            data-sitekey="0x4AAAAAABkocXH4KiqcoV1a"
+                            data-theme="light"
+                            data-callback="turnstileCallback"
+                            data-expired-callback="turnstileExpiredCallback"
+                            data-error-callback="turnstileErrorCallback"
+                          />
                         </div>
                       </motion.div>
                     )}
