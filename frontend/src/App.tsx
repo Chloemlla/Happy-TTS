@@ -581,7 +581,54 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
     }
     render() {
         if (this.state.hasError) {
-            return <div style={{color: 'red', textAlign: 'center', marginTop: 40}}>页面加载失败，请刷新或重试。</div>;
+            return (
+                <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                    className="min-h-screen flex items-center justify-center bg-gray-50"
+                >
+                    <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full">
+                        <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ delay: 0.2 }}
+                            className="w-20 h-20 mx-auto mb-6 bg-red-100 rounded-full flex items-center justify-center"
+                        >
+                            <svg className="w-12 h-12 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        </motion.div>
+                        <motion.h2 
+                            initial={{ y: 20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ delay: 0.3 }}
+                            className="text-2xl font-bold text-center text-gray-800 mb-4"
+                        >
+                            页面加载失败
+                        </motion.h2>
+                        <motion.p
+                            initial={{ y: 20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ delay: 0.4 }}
+                            className="text-gray-600 text-center mb-8"
+                        >
+                            抱歉，页面出现了一些问题。请尝试刷新页面或稍后重试。
+                        </motion.p>
+                        <motion.button
+                            initial={{ y: 20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ delay: 0.5 }}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => window.location.reload()}
+                            className="w-full py-3 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-300"
+                        >
+                            刷新页面
+                        </motion.button>
+                    </div>
+                </motion.div>
+            );
         }
         return this.props.children;
     }

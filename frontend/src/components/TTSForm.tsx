@@ -33,6 +33,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
     const [cfVerified, setCfVerified] = useState(false);
     const [cfError, setCfError] = useState(false);
     const [cfHidden, setCfHidden] = useState(false);
+    const [cfInstanceId, setCfInstanceId] = useState(0);
 
     const { generateSpeech, loading, error: ttsError, audioUrl: ttsAudioUrl } = useTts();
 
@@ -110,6 +111,36 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
             setAudioUrl(ttsAudioUrl);
         }
     }, [ttsAudioUrl]);
+
+    useEffect(() => {
+        const loadScript = () => {
+            if ((window as any).turnstile) return Promise.resolve();
+            return new Promise<void>((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+                script.async = true;
+                script.defer = true;
+                script.onload = () => resolve();
+                script.onerror = () => reject();
+                document.head.appendChild(script);
+            });
+        };
+
+        loadScript().then(() => {
+            const el = document.getElementById('cf-turnstile-container');
+            if (el) el.innerHTML = '';
+            if ((window as any).turnstile) {
+                (window as any).turnstile.render('#cf-turnstile-container', {
+                    sitekey: import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY || '',
+                    theme: 'light',
+                    size: 'normal',
+                    callback: (token: string) => handleCfVerify(token),
+                    'expired-callback': () => handleCfExpire(),
+                    'error-callback': () => handleCfError(),
+                });
+            }
+        });
+    }, [cfInstanceId]);
 
     const startCooldown = (duration: number) => {
         setCooldown(true);
@@ -231,6 +262,10 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                     type: 'error'
                 });
             }
+        } finally {
+            // 每次提交后都重置cf验证状态并强制刷新cf-turnstile
+            resetCfVerification();
+            setCfInstanceId(id => id + 1);
         }
     };
 
@@ -275,6 +310,21 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
         setCfError(false);
         setCfHidden(false);
     };
+
+    // 人机验证区域
+    <div className="flex justify-center">
+      <div
+        key={cfInstanceId}
+        className="cf-turnstile"
+        data-sitekey={import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY || ''}
+        data-theme="light"
+        data-size="normal"
+        data-callback="turnstileCallback"
+        data-expired-callback="turnstileExpiredCallback"
+        data-error-callback="turnstileErrorCallback"
+        style={{ minHeight: 70 }}
+      />
+    </div>
 
     return (
         <div className="relative">
@@ -522,14 +572,16 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                         </motion.label>
                         {/* 使用官方默认样式，移除所有自定义样式 */}
                         <div className="flex justify-center">
-                          <div 
-                            className="cf-turnstile" 
+                          <div
+                            key={cfInstanceId}
+                            className="cf-turnstile"
                             data-sitekey={import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY || ''}
                             data-theme="light"
                             data-size="normal"
                             data-callback="turnstileCallback"
                             data-expired-callback="turnstileExpiredCallback"
                             data-error-callback="turnstileErrorCallback"
+                            style={{ minHeight: 70 }}
                           />
                         </div>
                       </motion.div>
