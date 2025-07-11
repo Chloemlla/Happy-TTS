@@ -73,34 +73,6 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
         };
     }, []);
 
-    // 确保Turnstile脚本被加载
-    useEffect(() => {
-        const loadTurnstileScript = () => {
-            if ((window as any).turnstileScriptLoaded) {
-                return Promise.resolve();
-            }
-
-            return new Promise<void>((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
-                script.async = true;
-                script.defer = true;
-                
-                script.onload = () => {
-                    (window as any).turnstileScriptLoaded = true;
-                    resolve();
-                };
-                script.onerror = () => reject(new Error('Failed to load Cloudflare Turnstile script'));
-                
-                document.head.appendChild(script);
-            });
-        };
-
-        loadTurnstileScript().catch(error => {
-            console.error('Failed to load Cloudflare Turnstile script:', error);
-        });
-    }, []);
-
     useEffect(() => {
         const savedCooldown = localStorage.getItem('ttsCooldown');
         if (savedCooldown) {
