@@ -8,7 +8,7 @@ const ApiDocs: React.FC = () => {
   const [lang, setLang] = useState<'zh'|'en'>('zh');
   const [showConfirm, setShowConfirm] = useState(false);
   const [countdown, setCountdown] = useState(5);
-  const [timer, setTimer] = useState<NodeJS.Timeout|null>(null);
+  const [timer, setTimer] = useState<number|null>(null);
   const [autoRedirect, setAutoRedirect] = useState(true);
 
   const handleRedirect = () => {
@@ -26,7 +26,8 @@ const ApiDocs: React.FC = () => {
         return prev - 1;
       });
     }, 1000);
-    setTimer(t);
+    // 将 NodeJS.Timeout 类型转换为 number
+    setTimer(t as unknown as number);
   };
 
   const confirmRedirect = (url: string) => {
