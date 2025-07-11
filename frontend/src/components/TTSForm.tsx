@@ -527,10 +527,10 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                           人机验证
                           <span className="text-red-500 ml-1">*</span>
                         </motion.label>
-                        {/* Turnstile容器 */}
-                        <div className="flex justify-center items-center min-h-[70px] bg-gray-50 rounded-lg border-2 border-dashed border-gray-200 p-4">
+                        {/* Turnstile容器 居中显示 */}
+                        <div className="w-full flex justify-center">
                           {cfLoading ? (
-                            <div className="flex items-center space-x-2 text-gray-500">
+                            <div className="flex items-center space-x-2 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200 p-4">
                               <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
                               <span>正在加载人机验证...</span>
                             </div>
@@ -538,8 +538,8 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                             <div
                               key={cfInstanceId}
                               ref={turnstileRef}
-                              className="cf-turnstile"
-                              style={{ 
+                              className="cf-turnstile bg-gray-50 rounded-lg border-2 border-dashed border-gray-200 p-4"
+                              style={{
                                 minHeight: 70,
                                 minWidth: 300,
                                 display: 'flex',
