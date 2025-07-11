@@ -92,7 +92,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
     // 只负责渲染，不再插入script
     useEffect(() => {
         setCfLoading(true);
-        const sitekey = String(import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY || '0x4AAAAAAAD');
+        const sitekey = '0x4AAAAAABkocXH4KiqcoV1a';
         if (turnstileRef.current && (window as any).turnstile) {
             try {
                 (window as any).turnstile.render(turnstileRef.current, {
