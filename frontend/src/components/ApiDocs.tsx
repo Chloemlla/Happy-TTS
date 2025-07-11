@@ -1,21 +1,48 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const MAIN_DOC_URL = 'https://tts-api-docs.hapx.one';
+const BACKUP_DOC_URL = 'https://tts-api-docs.hapxs.com';
+
 const ApiDocs: React.FC = () => {
   const [lang, setLang] = useState<'zh'|'en'>('zh');
   const [showConfirm, setShowConfirm] = useState(false);
+  const [countdown, setCountdown] = useState(5);
+  const [timer, setTimer] = useState<NodeJS.Timeout|null>(null);
+  const [autoRedirect, setAutoRedirect] = useState(true);
 
   const handleRedirect = () => {
     setShowConfirm(true);
+    setCountdown(5);
+    setAutoRedirect(true);
+    const t = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1 && autoRedirect) {
+          clearInterval(t);
+          window.open(MAIN_DOC_URL, '_blank', 'noopener,noreferrer');
+          setShowConfirm(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    setTimer(t);
   };
 
-  const confirmRedirect = () => {
-    window.open('https://tts-api-docs.hapxs.com', '_blank', 'noopener,noreferrer');
+  const confirmRedirect = (url: string) => {
+    if (timer) clearInterval(timer);
+    window.open(url, '_blank', 'noopener,noreferrer');
     setShowConfirm(false);
   };
 
   const cancelRedirect = () => {
+    if (timer) clearInterval(timer);
     setShowConfirm(false);
+  };
+
+  const toggleAutoRedirect = () => {
+    setAutoRedirect(!autoRedirect);
+    if (timer) clearInterval(timer);
   };
 
   return (
@@ -130,12 +157,34 @@ const ApiDocs: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 1.2 }}
               >
-                <p>
+                <p className="mb-1">
                   {lang==='zh' 
-                    ? 'tts-api-docs.hapxs.com 是本站点的附属网站，专门提供 API 文档服务。' 
-                    : 'tts-api-docs.hapxs.com is an affiliate site of this website, specifically providing API documentation services.'
+                    ? (
+                      <>
+                        <span className="font-semibold text-indigo-700">Synapse API 文档服务</span> 由以下两个附属站点联合提供，内容完全一致，均为官方维护：
+                      </>
+                    ) : (
+                      <>
+                        <span className="font-semibold text-indigo-700">Synapse API documentation</span> is provided by two official affiliate sites below. Content is identical and officially maintained:
+                      </>
+                    )
                   }
                 </p>
+                <ul className="text-left text-xs md:text-sm mt-2 ml-4 list-disc">
+                  <li>
+                    <span className="font-semibold text-indigo-700">{lang==='zh' ? '主站点：' : 'Main: '}</span>
+                    <a href={MAIN_DOC_URL} target="_blank" rel="noopener noreferrer" className="underline hover:text-indigo-900 font-bold">tts-api-docs.hapx.one</a>
+                    <span className="ml-1 text-gray-500">{lang==='zh' ? '（推荐，速度快，优先访问）' : ' (Recommended, fast, preferred)'} </span>
+                  </li>
+                  <li>
+                    <span className="font-semibold text-indigo-700">{lang==='zh' ? '备用站点：' : 'Backup: '}</span>
+                    <a href={BACKUP_DOC_URL} target="_blank" rel="noopener noreferrer" className="underline hover:text-indigo-900">tts-api-docs.hapxs.com</a>
+                    <span className="ml-1 text-gray-500">{lang==='zh' ? '（如主站点无法访问时使用）' : ' (Use if main is unavailable)'}</span>
+                  </li>
+                </ul>
+                <div className="mt-2 text-xs text-gray-400">
+                  {lang==='zh' ? '所有文档均为 Synapse 官方团队维护，确保内容权威、及时更新。' : 'All docs are maintained by the Synapse official team, ensuring authority and timely updates.'}
+                </div>
               </motion.div>
             </div>
           </motion.div>
@@ -168,20 +217,20 @@ const ApiDocs: React.FC = () => {
         <AnimatePresence>
           {showConfirm && (
             <motion.div 
-              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 p-4 overflow-y-auto"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
-              onClick={() => setShowConfirm(false)}
+              onClick={cancelRedirect}
             >
               <motion.div 
-                className="bg-white rounded-2xl p-8 max-w-md mx-4 shadow-2xl border border-gray-100"
+                className="bg-white rounded-2xl p-6 max-w-lg w-full mx-4 shadow-2xl border border-gray-100 relative my-8 max-h-[90vh] overflow-y-auto"
                 initial={{ opacity: 0, scale: 0.8, y: 50 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.8, y: 50 }}
-                transition={{ duration: 0.4, type: "spring", stiffness: 300, damping: 25 }}
-                onClick={(e) => e.stopPropagation()}
+                transition={{ duration: 0.4, type: 'spring', stiffness: 300, damping: 25 }}
+                onClick={e => e.stopPropagation()}
               >
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
@@ -195,46 +244,119 @@ const ApiDocs: React.FC = () => {
                       </svg>
                     </div>
                     <h3 className="text-xl font-bold text-gray-900">
-                      {lang==='zh' ? '确认跳转' : 'Confirm Redirect'}
+                      {lang==='zh' ? '请选择 API 文档站点' : 'Select API Documentation Site'}
                     </h3>
                   </div>
                 </motion.div>
-                
                 <motion.p 
-                  className="text-gray-600 mb-6 leading-relaxed"
+                  className="text-gray-600 mb-4 leading-relaxed text-base"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: 0.2 }}
                 >
                   {lang==='zh' 
-                    ? '您即将跳转到附属网站 tts-api-docs.hapxs.com，该网站将在新窗口中打开。' 
-                    : 'You are about to be redirected to the affiliate site tts-api-docs.hapxs.com, which will open in a new window.'
+                    ? (
+                      <>
+                        <span className="block mb-1 font-semibold text-indigo-700">官方 API 文档站点</span>
+                        <span className="block mb-1">Synapse 致力于为开发者提供权威、详尽、持续更新的 API 文档，助力高效集成与创新应用。</span>
+                        <span className="block mb-1 text-blue-700">主站点响应速度快，稳定性高，推荐优先访问。</span>
+                        <span className="block mb-1 text-gray-500">如遇网络问题，可选择备用站点，内容完全一致。</span>
+                        <span className="block mt-2 text-xs text-gray-400">（为保障访问体验，5 秒后将自动跳转主站点）</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="block mb-1 font-semibold text-indigo-700">Official API Documentation Sites</span>
+                        <span className="block mb-1">Synapse is committed to providing developers with authoritative, detailed, and continuously updated API docs for efficient integration and innovation.</span>
+                        <span className="block mb-1 text-blue-700">The main site is fast and highly stable. Recommended for most users.</span>
+                        <span className="block mb-1 text-gray-500">If you have network issues, use the backup site. Content is identical.</span>
+                        <span className="block mt-2 text-xs text-gray-400">(For your convenience, you will be redirected to the main site in 5 seconds)</span>
+                      </>
+                    )
                   }
                 </motion.p>
-                
-                <motion.div 
-                  className="flex gap-3"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: 0.3 }}
-                >
+                <motion.div className="flex flex-col gap-3 mb-4">
                   <motion.button
-                    onClick={confirmRedirect}
-                    className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
-                    whileHover={{ scale: 1.02 }}
+                    onClick={() => confirmRedirect(MAIN_DOC_URL)}
+                    className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl text-lg flex items-center justify-center gap-2 border-2 border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    whileHover={{ scale: 1.04 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    {lang==='zh' ? '确认跳转' : 'Confirm'}
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 4h6m0 0v6m0-6L10 14" /></svg>
+                    {lang==='zh' ? '主站点：hapx.one（推荐）' : 'Main: hapx.one (Recommended)'}
+                    {autoRedirect && (
+                      <span className="ml-2 text-xs bg-white bg-opacity-80 text-indigo-700 rounded px-2 py-0.5 font-mono animate-pulse">{lang==='zh' ? `（${countdown}秒后自动跳转）` : `(Auto in ${countdown}s)`}</span>
+                    )}
                   </motion.button>
                   <motion.button
+                    onClick={() => confirmRedirect(BACKUP_DOC_URL)}
+                    className="flex-1 bg-gradient-to-r from-blue-100 to-indigo-50 hover:from-blue-200 hover:to-indigo-100 text-indigo-700 font-semibold py-3 px-4 rounded-xl transition-all duration-200 border-2 border-indigo-200 text-lg flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4" /></svg>
+                    {lang==='zh' ? '备用站点：hapxs.com' : 'Backup: hapxs.com'}
+                  </motion.button>
+                </motion.div>
+                <motion.div className="flex gap-3 mb-4">
+                  <motion.button
                     onClick={cancelRedirect}
-                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-4 rounded-xl transition-all duration-200 border border-gray-200"
+                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-4 rounded-xl transition-all duration-200 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-200"
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
                     {lang==='zh' ? '取消' : 'Cancel'}
                   </motion.button>
+                  <motion.button
+                    onClick={toggleAutoRedirect}
+                    className={`flex-1 py-3 px-4 rounded-xl transition-all duration-200 border-2 focus:outline-none focus:ring-2 text-sm font-semibold ${
+                      autoRedirect 
+                        ? 'bg-red-50 hover:bg-red-100 text-red-700 border-red-200 focus:ring-red-200' 
+                        : 'bg-green-50 hover:bg-green-100 text-green-700 border-green-200 focus:ring-green-200'
+                    }`}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    {autoRedirect 
+                      ? (lang==='zh' ? '取消自动跳转' : 'Cancel Auto Redirect')
+                      : (lang==='zh' ? '启用自动跳转' : 'Enable Auto Redirect')
+                    }
+                  </motion.button>
                 </motion.div>
+                <div className="absolute top-2 right-4 text-xs text-gray-400 select-none">
+                  {autoRedirect 
+                    ? (lang==='zh' ? '如无操作，将自动跳转主站点' : 'Auto redirect to main if no action')
+                    : (lang==='zh' ? '自动跳转已禁用' : 'Auto redirect disabled')
+                  }
+                </div>
+                {/* FAQ 区域 */}
+                <div className="mt-8 p-4 bg-gray-50 rounded-xl border border-gray-200 text-left">
+                  <div className="font-bold text-indigo-700 mb-2 text-base flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 14h.01M16 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    {lang==='zh' ? '常见问题 FAQ' : 'Frequently Asked Questions'}
+                  </div>
+                  <div className="mb-2">
+                    <div className="font-semibold text-gray-800 text-sm mb-1">
+                      {lang==='zh' ? 'Q: 为什么有时会被连续跳转两次？' : 'Q: Why am I sometimes redirected twice?'}
+                    </div>
+                    <div className="text-gray-600 text-xs md:text-sm">
+                      {lang==='zh'
+                        ? '部分浏览器或网络环境下，主站点可能因 CDN、缓存或安全策略导致首次跳转失败，系统会自动尝试再次跳转以确保您能顺利访问文档。若遇到此情况，建议检查网络或直接访问备用站点。'
+                        : 'In some browsers or network environments, the main site may fail to load on the first attempt due to CDN, cache, or security policies. The system will automatically try a second redirect to ensure you can access the docs. If this happens, please check your network or use the backup site.'
+                      }
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-800 text-sm mb-1">
+                      {lang==='zh' ? 'Q: 站点内容有区别吗？' : 'Q: Is there any difference between the two sites?'}
+                    </div>
+                    <div className="text-gray-600 text-xs md:text-sm">
+                      {lang==='zh'
+                        ? '两个站点内容完全一致，均为 Synapse 官方团队同步维护。'
+                        : 'Both sites have identical content and are maintained by the Synapse official team.'
+                      }
+                    </div>
+                  </div>
+                </div>
               </motion.div>
             </motion.div>
           )}
