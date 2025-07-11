@@ -62,6 +62,28 @@ jest.mock('../middleware/routeLimiters', () => ({
   passkeyLimiter: createDummyLimiter()
 }));
 
+// Mock MongoDB 服务，避免连接超时
+jest.mock('../services/mongoService', () => ({
+  connectMongo: jest.fn().mockResolvedValue(undefined),
+  default: {
+    connect: jest.fn().mockResolvedValue(undefined),
+    connection: {
+      readyState: 1
+    }
+  }
+}));
+
+// Mock userService，避免MongoDB连接问题
+jest.mock('../services/userService', () => ({
+  getUserByUsername: jest.fn().mockResolvedValue(null),
+  getUserByEmail: jest.fn().mockResolvedValue(null),
+  getUserById: jest.fn().mockResolvedValue(null),
+  getAllUsers: jest.fn().mockResolvedValue([]),
+  createUser: jest.fn().mockResolvedValue(null),
+  updateUser: jest.fn().mockResolvedValue(null),
+  deleteUser: jest.fn().mockResolvedValue(false)
+}));
+
 // Mock IP 服务，确保测试时所有 IP 都被允许
 jest.mock('../services/ip', () => ({
   getIPInfo: async () => ({
@@ -96,6 +118,20 @@ import { NextFunction, Request, Response } from 'express';
 // 设置测试环境变量
 process.env.NODE_ENV = 'test';
 
+// 设置测试环境的存储模式为文件模式，避免MongoDB连接问题
+process.env.USER_STORAGE_MODE = 'file';
+
+// 设置测试环境的MongoDB URI（即使不使用也要设置，避免连接尝试）
+process.env.MONGO_URI = 'mongodb://localhost:27017/tts-test';
+
+// 设置其他必要的环境变量
+process.env.SERVER_PASSWORD = 'test-password';
+process.env.OPENAI_KEY = 'test-openai-key';
+process.env.OPENAI_BASE_URL = 'https://api.openai.com/v1';
+process.env.JWT_SECRET = 'test-jwt-secret';
+process.env.ADMIN_USERNAME = 'admin';
+process.env.ADMIN_PASSWORD = 'admin123';
+
 // 创建测试所需的目录
 const testDirs = [
   path.join(process.cwd(), 'test-data'),
@@ -112,6 +148,43 @@ testDirs.forEach(dir => {
     fs.mkdirSync(dir, { recursive: true });
   }
 });
+
+// 初始化测试用户数据
+const initializeTestUsers = () => {
+  const usersFile = path.join(process.cwd(), 'data', 'users.json');
+  const testUsers = [
+    {
+      id: '1',
+      username: 'admin',
+      email: 'admin@example.com',
+      password: 'admin123',
+      role: 'admin',
+      dailyUsage: 0,
+      lastUsageDate: new Date().toISOString(),
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: '2',
+      username: 'testuser',
+      email: 'test@example.com',
+      password: 'TestPass123!',
+      role: 'user',
+      dailyUsage: 0,
+      lastUsageDate: new Date().toISOString(),
+      createdAt: new Date().toISOString()
+    }
+  ];
+  
+  try {
+    fs.writeFileSync(usersFile, JSON.stringify(testUsers, null, 2));
+    console.log('测试用户数据初始化完成');
+  } catch (error) {
+    console.error('测试用户数据初始化失败:', error);
+  }
+};
+
+// 在测试开始前初始化用户数据
+initializeTestUsers();
 
 // 设置全局测试超时
 jest.setTimeout(30000);

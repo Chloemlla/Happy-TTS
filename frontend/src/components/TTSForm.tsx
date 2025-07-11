@@ -5,7 +5,6 @@ import { TtsRequest, TtsResponse } from '../types/tts';
 import { AudioPreview } from './AudioPreview';
 import { Notification } from './Notification';
 import { Input } from './ui';
-import { CloudflareTurnstile } from './CloudflareTurnstile';
 
 interface TtsFormProps {
     onSuccess?: (result: TtsResponse) => void;
@@ -47,6 +46,54 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
     ];
 
     const MAX_TEXT_LENGTH = 4096;
+
+    // 设置全局Turnstile回调函数
+    useEffect(() => {
+        // 定义全局回调函数
+        (window as any).turnstileCallback = (token: string) => {
+            handleCfVerify(token);
+        };
+        
+        (window as any).turnstileExpiredCallback = () => {
+            handleCfExpire();
+        };
+        
+        (window as any).turnstileErrorCallback = () => {
+            handleCfError();
+        };
+
+        // 清理函数
+        return () => {
+            delete (window as any).turnstileCallback;
+            delete (window as any).turnstileExpiredCallback;
+            delete (window as any).turnstileErrorCallback;
+        };
+    }, []);
+
+    // 确保Turnstile脚本被加载
+    useEffect(() => {
+        const loadTurnstileScript = () => {
+            if ((window as any).turnstile) {
+                return Promise.resolve();
+            }
+
+            return new Promise<void>((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+                script.async = true;
+                script.defer = true;
+                
+                script.onload = () => resolve();
+                script.onerror = () => reject(new Error('Failed to load Cloudflare Turnstile script'));
+                
+                document.head.appendChild(script);
+            });
+        };
+
+        loadTurnstileScript().catch(error => {
+            console.error('Failed to load Cloudflare Turnstile script:', error);
+        });
+    }, []);
 
     useEffect(() => {
         const savedCooldown = localStorage.getItem('ttsCooldown');
@@ -473,33 +520,18 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                           人机验证
                           <span className="text-red-500 ml-1">*</span>
                         </motion.label>
-                        <motion.div
-                          className="flex flex-col space-y-4"
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ duration: 0.4, delay: 1.2 }}
-                        >
-                          <motion.div
-                            className="relative bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-300"
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                          >
-                            <div className="absolute -top-2 -left-2 w-4 h-4 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full flex items-center justify-center">
-                              <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                              </svg>
-                            </div>
-                            <CloudflareTurnstile
-                              siteKey={import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY || ''}
-                              onVerify={handleCfVerify}
-                              onExpire={handleCfExpire}
-                              onError={handleCfError}
-                              theme="light"
-                              size="normal"
-                              className="flex justify-center"
-                            />
-                          </motion.div>
-                        </motion.div>
+                        {/* 使用官方默认样式，移除所有自定义样式 */}
+                        <div className="flex justify-center">
+                          <div 
+                            className="cf-turnstile" 
+                            data-sitekey={import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY || ''}
+                            data-theme="light"
+                            data-size="normal"
+                            data-callback="turnstileCallback"
+                            data-expired-callback="turnstileExpiredCallback"
+                            data-error-callback="turnstileErrorCallback"
+                          />
+                        </div>
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -524,28 +556,18 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                       </motion.div>
                     )}
                   </AnimatePresence>
-                  {/* 安全验证说明始终显示 */}
+                  
+                  {/* 安全验证说明 */}
                   <motion.div
-                    className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-3"
+                    className="flex items-center justify-center space-x-2 text-sm text-gray-600 mt-2"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.3, delay: 1.3 }}
                   >
-                    <div className="flex items-start space-x-2">
-                      <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <svg className="w-3 h-3 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <div>
-                        <p className="text-sm text-blue-800 font-medium mb-1">
-                          安全验证
-                        </p>
-                        <p className="text-xs text-blue-600 leading-relaxed">
-                          请完成人机验证以证明您是人类用户，保护系统免受自动化攻击
-                        </p>
-                      </div>
-                    </div>
+                    <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    <span>请完成人机验证以证明您是人类用户，保护系统免受自动化攻击</span>
                   </motion.div>
                 </div>
 

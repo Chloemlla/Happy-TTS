@@ -11,15 +11,25 @@ describe('TOTP 登录流程', () => {
   it('完整流程', async () => {
     // 注册用户
     try {
-      await request(app)
+      const registerResponse = await request(app)
         .post('/api/auth/register')
         .send({
           username: TEST_USER.username,
           email: TEST_USER.email,
           password: TEST_USER.password
         });
+      
+      // 如果注册成功，记录信息
+      if (registerResponse.status === 201) {
+        console.log('用户注册成功');
+      }
     } catch (error: any) {
-      if (error.response?.status !== 409) throw error;
+      if (error.response?.status !== 409) {
+        console.error('注册失败:', error.response?.body || error.message);
+        throw error;
+      } else {
+        console.log('用户已存在，跳过注册');
+      }
     }
     
     // 登录
@@ -30,6 +40,10 @@ describe('TOTP 登录流程', () => {
         password: TEST_USER.password
       });
     
+    // 添加详细的调试信息
+    console.log('登录响应状态:', loginResponse.status);
+    console.log('登录响应体:', JSON.stringify(loginResponse.body, null, 2));
+    
     expect(loginResponse.status).toBe(200);
     expect(loginResponse.body).toHaveProperty('user');
     expect(loginResponse.body).toHaveProperty('token');
@@ -38,6 +52,14 @@ describe('TOTP 登录流程', () => {
     // 如果是本地IP访问，可能直接返回管理员账户，这种情况下需要特殊处理
     const user = loginResponse.body.user;
     const token = loginResponse.body.token;
+    
+    console.log('用户信息:', {
+      id: user.id,
+      username: user.username,
+      role: user.role,
+      totpEnabled: user.totpEnabled,
+      hasBackupCodes: !!(user.backupCodes && user.backupCodes.length > 0)
+    });
     
     // 如果返回的是管理员账户（本地IP自动登录），我们需要启用TOTP
     if (user.role === 'admin') {
@@ -117,6 +139,7 @@ describe('TOTP 登录流程', () => {
           expect(backupResponse.body.verified).toBe(true);
         } else {
           // 其他错误状态
+          console.error('TOTP验证响应:', verifyResponse.status, verifyResponse.body);
           throw new Error(`Unexpected response status: ${verifyResponse.status}`);
         }
         
@@ -228,16 +251,31 @@ describe('TOTP 登录流程', () => {
           .set('Authorization', `Bearer ${token}`)
           .send({ token: realToken });
         
-        // 如果TOTP验证成功，检查启用状态
         if (realVerifyResponse.status === 200) {
+          // TOTP验证成功
           expect(realVerifyResponse.body).toHaveProperty('enabled');
           expect(realVerifyResponse.body.enabled).toBe(true);
+        } else if (realVerifyResponse.status === 400) {
+          // TOTP验证失败，使用备用码验证
+          console.log('TOTP验证失败，使用备用码验证:', realVerifyResponse.body);
+          const backupCode = setupResponse.body.backupCodes[0];
+          const backupResponse = await request(app)
+            .post('/api/totp/verify-token')
+            .set('Authorization', `Bearer ${token}`)
+            .send({
+              userId: user.id,
+              backupCode
+            });
+          
+          expect(backupResponse.status).toBe(200);
+          expect(backupResponse.body).toHaveProperty('verified');
+          expect(backupResponse.body.verified).toBe(true);
         } else {
-          // 如果TOTP验证失败，说明时间同步有问题，这种情况下我们跳过TOTP启用测试
-          console.log('TOTP验证失败，跳过TOTP启用测试:', realVerifyResponse.body);
-          expect(realVerifyResponse.status).toBe(400);
+          // 其他错误状态
+          console.error('TOTP验证响应:', realVerifyResponse.status, realVerifyResponse.body);
+          throw new Error(`Unexpected response status: ${realVerifyResponse.status}`);
         }
       }
     }
-  });
+  }, 30000); // 增加超时时间到30秒
 }); 
