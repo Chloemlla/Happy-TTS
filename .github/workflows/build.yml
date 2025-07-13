@@ -65,8 +65,11 @@ jobs:
           npm install -g npm@latest
           npm install --no-optional --no-audit --no-fund
           cd frontend
-          # 修复 Rollup 依赖问题
+          # 修复依赖问题
           npm install --no-optional --no-audit --no-fund
+          # 特别安装缺失的依赖
+          npm install @fingerprintjs/fingerprintjs@^4.2.0 crypto-js@^4.2.0 --save
+          npm install @testing-library/react@^14.2.1 --save-dev
           # 特别安装 Rollup 的 Linux 依赖
           npm install @rollup/rollup-linux-x64-gnu --save-dev || echo "Rollup Linux dependency installation failed, continuing..."
           # 验证 Rollup 依赖
@@ -95,9 +98,12 @@ jobs:
 
       - name: Build with retry mechanism
         run: |
-          # 修复 Rollup 依赖问题
-          echo "🔧 修复 Rollup 依赖问题..."
+          # 修复依赖问题
+          echo "🔧 修复依赖问题..."
           cd frontend
+          # 特别安装缺失的依赖
+          npm install @fingerprintjs/fingerprintjs@^4.2.0 crypto-js@^4.2.0 --save
+          npm install @testing-library/react@^14.2.1 --save-dev
           # 确保 Rollup Linux 依赖已安装
           npm install @rollup/rollup-linux-x64-gnu --save-dev || echo "Rollup Linux dependency installation failed, continuing..."
           cd ..

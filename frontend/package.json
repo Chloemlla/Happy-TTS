@@ -27,6 +27,7 @@
     "fix:rollup": "node fix-rollup-deps.js"
   },
   "dependencies": {
+    "@fingerprintjs/fingerprintjs": "^4.2.0",
     "@heroicons/react": "^2.2.0",
     "@prisma/client": "^6.11.1",
     "@radix-ui/react-dialog": "^1.1.14",
@@ -41,6 +42,7 @@
     "axios": "^1.10.0",
     "bcrypt": "^6.0.0",
     "clsx": "^2.1.1",
+    "crypto-js": "^4.2.0",
     "dompurify": "^3.2.6",
     "express-rate-limit": "^7.5.0",
     "framer-motion": "^12.23.0",
@@ -62,7 +64,7 @@
   "devDependencies": {
     "@rollup/rollup-linux-x64-gnu": "^4.9.5",
     "@testing-library/jest-dom": "^6.6.3",
-    "@testing-library/react": "^16.3.0",
+    "@testing-library/react": "^14.2.1",
     "@types/javascript-obfuscator": "^0.17.0",
     "@types/jest": "^30.0.0",
     "@types/react": "^19.1.8",
