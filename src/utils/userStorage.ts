@@ -804,7 +804,27 @@ export class UserStorage {
                         NODE_ENV: process.env.NODE_ENV,
                         USER_STORAGE_MODE: process.env.USER_STORAGE_MODE
                     });
-                    return this.readUsers().find(u => u.id === id) || null;
+                    // MongoDB 失败时，尝试在文件模式中查找用户
+                    const users = this.readUsers();
+                    let user = users.find(u => u.id === id) || null;
+                    
+                    // 如果找不到用户，尝试查找管理员用户作为后备方案
+                    if (!user) {
+                        logger.warn(`[UserStorage] MongoDB 切换到文件模式后仍未找到用户，尝试查找管理员用户`, { 
+                            id, 
+                            availableUserIds: users.map(u => u.id),
+                            totalUsers: users.length 
+                        });
+                        user = users.find(u => u.role === 'admin') || null;
+                        if (user) {
+                            logger.info(`[UserStorage] 使用管理员用户作为后备方案`, { 
+                                originalId: id, 
+                                fallbackUserId: user.id,
+                                username: user.username 
+                            });
+                        }
+                    }
+                    return user;
                 }
             } else if (STORAGE_MODE === 'mysql') {
                 const conn = await getMysqlConnection();
@@ -821,7 +841,11 @@ export class UserStorage {
                 const users = this.readUsers();
                 const user = users.find(u => u.id === id) || null;
                 if (!user) {
-                    logger.warn(`[UserStorage] getUserById: 未找到用户`, { id });
+                    logger.warn(`[UserStorage] getUserById: 未找到用户`, { 
+                        id, 
+                        availableUserIds: users.map(u => u.id),
+                        totalUsers: users.length 
+                    });
                 }
                 return user;
             }

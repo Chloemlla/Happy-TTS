@@ -41,13 +41,27 @@ const Footer: React.FC = () => {
     const fetchIPInfo = async () => {
       try {
         setIpLoading(true);
-        const response = await fetch('/ip');
-        if (response.ok) {
-          const data: IPInfo = await response.json();
-          setIpInfo(data);
-        } else {
-          throw new Error('获取IP信息失败');
+        const response = await fetch('https://tts-api.hapxs.com/ip');
+        
+        // 检查响应状态
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
+        
+        // 检查内容类型
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new Error(`预期JSON响应，但收到: ${contentType}`);
+        }
+        
+        const data: IPInfo = await response.json();
+        
+        // 验证数据格式
+        if (!data || typeof data.ip !== 'string') {
+          throw new Error('IP信息数据格式无效');
+        }
+        
+        setIpInfo(data);
       } catch (error) {
         console.error('获取IP信息失败:', error);
         setIpInfo(null);

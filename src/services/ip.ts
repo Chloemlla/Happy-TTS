@@ -239,12 +239,14 @@ export async function getIPInfo(ip: string): Promise<IPInfo> {
 
     // 检查是否是内网IP
     if (isPrivateIP(ip)) {
+      logger.log('检测到内网IP，返回本地信息', { ip });
       return getPrivateIPInfo(ip);
     }
 
     // 先检查内存缓存
     const cached = ipCache.get(ip);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      logger.log('使用内存缓存的IP信息', { ip });
       return cached.info;
     }
 
@@ -253,9 +255,11 @@ export async function getIPInfo(ip: string): Promise<IPInfo> {
     if (localInfo) {
       // 更新内存缓存
       setIpCache(ip, { info: localInfo, timestamp: Date.now() });
+      logger.log('使用本地存储的IP信息', { ip });
       return localInfo;
     }
 
+    logger.log('开始查询外部API获取IP信息', { ip });
     return await withConcurrencyLimit(async () => {
       return await withRetry(async () => {
         const info = await tryAllProviders(ip);
@@ -266,6 +270,7 @@ export async function getIPInfo(ip: string): Promise<IPInfo> {
         // 保存到本地存储
         await saveIPInfoToLocal(info);
         
+        logger.log('成功获取IP信息', { ip, info });
         return info;
       });
     });
@@ -287,6 +292,7 @@ export async function getIPInfo(ip: string): Promise<IPInfo> {
     }
     
     // 如果所有方法都失败，返回一个基本的信息
+    logger.log('所有IP查询方法都失败，返回默认信息', { ip });
     return {
       ip,
       country: '未知',

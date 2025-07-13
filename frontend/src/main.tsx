@@ -486,21 +486,21 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // 禁止右键和常见调试快捷键
-if (typeof window !== 'undefined') {
-  window.addEventListener('contextmenu', e => e.preventDefault());
-  window.addEventListener('keydown', e => {
-    // F12
-    if (e.key === 'F12') e.preventDefault();
-    // Ctrl+Shift+I/C/U/J
-    if ((e.ctrlKey && e.shiftKey && ['I', 'C', 'J'].includes(e.key)) ||
-      (e.ctrlKey && e.key === 'U')) {
-      e.preventDefault();
-    }
-  });
+// if (typeof window !== 'undefined') {
+//   window.addEventListener('contextmenu', e => e.preventDefault());
+//   window.addEventListener('keydown', e => {
+//     // F12
+//     if (e.key === 'F12') e.preventDefault();
+//     // Ctrl+Shift+I/C/U/J
+//     if ((e.ctrlKey && e.shiftKey && ['I', 'C', 'J'].includes(e.key)) ||
+//       (e.ctrlKey && e.key === 'U')) {
+//       e.preventDefault();
+//     }
+//   });
 
-  // 初始化禁用选择功能
-  disableSelection();
-}
+//   // 初始化禁用选择功能
+//   disableSelection();
+// }
 
 // 初始化完整性检查
 document.addEventListener('DOMContentLoaded', () => {

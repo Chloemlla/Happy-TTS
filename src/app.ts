@@ -653,10 +653,23 @@ const ipQueryLimiter = rateLimit({
 app.get('/ip', ipQueryLimiter, async (req, res) => {
   try {
     const ip = (req.headers['x-real-ip'] as string) || req.ip || '127.0.0.1';
+    logger.info('收到IP信息查询请求', { ip, userAgent: req.headers['user-agent'] });
+    
     const ipInfo = await getIPInfo(ip);
+    logger.info('IP信息查询成功', { ip, ipInfo });
     res.json(ipInfo);
   } catch (error) {
-    res.status(500).json({ error: '获取IP信息失败' });
+    logger.error('IP信息查询失败', { 
+      ip: (req.headers['x-real-ip'] as string) || req.ip || '127.0.0.1',
+      error: error instanceof Error ? error.message : String(error)
+    });
+    
+    // 确保返回JSON格式的错误响应
+    res.status(500).json({ 
+      error: '获取IP信息失败',
+      ip: (req.headers['x-real-ip'] as string) || req.ip || '127.0.0.1',
+      message: error instanceof Error ? error.message : '未知错误'
+    });
   }
 });
 

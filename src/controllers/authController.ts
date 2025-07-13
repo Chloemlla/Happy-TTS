@@ -172,7 +172,11 @@ export class AuthController {
             // 验证token是否有效（检查用户是否存在且token未过期）
             const user = await UserStorage.getUserById(userId);
             if (!user) {
-                logger.warn('getUserById: 未找到用户', { id: userId, tokenType: isJWTToken ? 'JWT' : 'UserID' });
+                logger.warn('getUserById: 未找到用户', { 
+                    id: userId, 
+                    tokenType: isJWTToken ? 'JWT' : 'UserID',
+                    storageMode: process.env.USER_STORAGE_MODE || 'file'
+                });
                 return res.status(404).json({
                     error: '用户不存在'
                 });
