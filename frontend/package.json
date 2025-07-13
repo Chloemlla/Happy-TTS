@@ -63,7 +63,7 @@
     "javascript-obfuscator": "^4.0.0"
   },
   "devDependencies": {
-    "@rollup/rollup-linux-x64-gnu": "^4.9.5",
+    "@rollup/rollup-linux-x64-musl": "^4.9.5",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^14.2.1",
     "@types/javascript-obfuscator": "^0.17.0",
