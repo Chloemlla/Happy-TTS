@@ -50,6 +50,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
 
     const MAX_TEXT_LENGTH = 4096;
 
+    // 默认关闭人机验证，只有明确设置为 'true' 时才启用
     const enableTurnstile = import.meta.env.VITE_ENABLE_TURNSTILE === 'true';
 
     // 设置全局Turnstile回调函数
@@ -154,7 +155,8 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
             return;
         }
 
-        if (!cfVerified || !cfToken) {
+        // 只有在启用人机验证时才检查验证状态
+        if (enableTurnstile && (!cfVerified || !cfToken)) {
             setError('请完成人机验证');
             return;
         }
@@ -173,7 +175,8 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                 isAdmin,
                 customFileName: `tts-${Date.now()}`,
                 generationCode,
-                cfToken
+                // 只有在启用人机验证时才发送 cfToken
+                ...(enableTurnstile && { cfToken })
             };
 
             const result = await generateSpeech(request);

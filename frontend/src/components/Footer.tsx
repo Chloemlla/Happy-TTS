@@ -1,9 +1,18 @@
 import React, { useState, useEffect } from 'react';
 
+interface IPInfo {
+  ip: string;
+  country: string;
+  region: string;
+  city: string;
+  isp: string;
+}
+
 const Footer: React.FC = () => {
   const year = new Date().getFullYear();
   const [uptime, setUptime] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-  const [userIP, setUserIP] = useState<string>('');
+  const [ipInfo, setIpInfo] = useState<IPInfo | null>(null);
+  const [ipLoading, setIpLoading] = useState(true);
 
   useEffect(() => {
     const startDate = new Date('2025-06-15T09:30:00');
@@ -29,25 +38,25 @@ const Footer: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const fetchIP = async () => {
+    const fetchIPInfo = async () => {
       try {
-        // 尝试获取IPv6地址
-        const response = await fetch('https://api64.ipify.org?format=json');
-        const data = await response.json();
-        setUserIP(data.ip);
-      } catch (error) {
-        try {
-          // 如果IPv6失败，尝试IPv4
-          const response = await fetch('https://api.ipify.org?format=json');
-          const data = await response.json();
-          setUserIP(data.ip);
-        } catch (fallbackError) {
-          setUserIP('获取失败');
+        setIpLoading(true);
+        const response = await fetch('/ip');
+        if (response.ok) {
+          const data: IPInfo = await response.json();
+          setIpInfo(data);
+        } else {
+          throw new Error('获取IP信息失败');
         }
+      } catch (error) {
+        console.error('获取IP信息失败:', error);
+        setIpInfo(null);
+      } finally {
+        setIpLoading(false);
       }
     };
 
-    fetchIP();
+    fetchIPInfo();
   }, []);
 
   return (
@@ -74,10 +83,24 @@ const Footer: React.FC = () => {
         </span>
       </div>
       <div className="mt-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded text-blue-700 text-xs max-w-xs">
-        🌐 您的IP地址：{' '}
-        <span className="font-mono font-bold text-blue-800">
-          {userIP || '获取中...'}
-        </span>
+        🌐 您的网络信息：
+        {ipLoading ? (
+          <span className="font-mono font-bold text-blue-800">获取中...</span>
+        ) : ipInfo ? (
+          <div className="mt-1 space-y-0.5">
+            <div className="font-mono font-bold text-blue-800">
+              IP: {ipInfo.ip}
+            </div>
+            <div className="text-blue-600">
+              📍 {ipInfo.country} {ipInfo.region} {ipInfo.city}
+            </div>
+            <div className="text-blue-600">
+              🌐 {ipInfo.isp}
+            </div>
+          </div>
+        ) : (
+          <span className="font-mono font-bold text-red-600">获取失败</span>
+        )}
       </div>
     </footer>
   );

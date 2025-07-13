@@ -1,74 +1,48 @@
 # 依赖目录
 node_modules
 frontend/node_modules
-**/node_modules
+frontend/docs/node_modules
 
 # 构建输出
 dist
 frontend/dist
-build
-**/dist
-**/build
+frontend/docs/build
+
+# 日志文件
+logs
+*.log
+npm-debug.log*
 
 # 环境文件
 .env
 .env.local
-.env.*.local
-.env.production
-.env.development
+.env.development.local
+.env.test.local
+.env.production.local
 
-# 日志文件
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-logs/
-*.log
-test-data/
+# 缓存目录
+.cache
+.npm
+.tmp
 
-# 编辑器配置
-.idea
+# 版本控制
+.git
+.gitignore
+
+# IDE 文件
 .vscode
+.idea
 *.swp
 *.swo
-*~
 
-# 系统文件
+# 操作系统文件
 .DS_Store
 Thumbs.db
 
-# Git
-.git
-.gitignore
-.github
-
 # 测试文件
-coverage/
-.nyc_output/
-*.test.js
-*.test.ts
-**/__tests__/
-**/*.test.*
-**/*.spec.*
-
-# 文档
-*.md
-!README.md
-docs/
+coverage
+.nyc_output
 
 # 临时文件
-tmp/
-temp/
-.tmp/
-.temp/
-
-# 缓存文件
-.cache/
-.npm/
-.yarn/
-
-# 其他
-*.zip
-*.tar.gz
-Dockerfile*
-docker-compose*
-.dockerignore 
+*.tmp
+*.temp 

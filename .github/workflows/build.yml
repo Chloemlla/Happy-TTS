@@ -32,6 +32,8 @@ jobs:
         run: |
           echo "NODE_OPTIONS=--max-old-space-size=5096" >> $GITHUB_ENV
           echo "NPM_CONFIG_CACHE=/tmp/.npm" >> $GITHUB_ENV
+          echo "ROLLUP_SKIP_NATIVE_DEPENDENCIES=true" >> $GITHUB_ENV
+          echo "VITE_SKIP_ROLLUP_NATIVE=true" >> $GITHUB_ENV
 
       - name: Clean node_modules and lock (root)
         run: |
@@ -45,6 +47,16 @@ jobs:
         run: |
           rm -rf frontend/docs/node_modules frontend/docs/package-lock.json
 
+      - name: Fix Rollup dependencies
+        run: |
+          echo "🔧 修复 Rollup 依赖问题..."
+          cd frontend
+          # 清理 npm 缓存
+          npm cache clean --force
+          # 确保 Rollup Linux 依赖已安装
+          npm install @rollup/rollup-linux-x64-gnu --save-dev || echo "Rollup Linux dependency installation failed, continuing..."
+          cd ..
+
       - name: Generate package-lock.json
         run: npm install --package-lock-only
 
@@ -53,7 +65,12 @@ jobs:
           npm install -g npm@latest
           npm install --no-optional --no-audit --no-fund
           cd frontend
+          # 修复 Rollup 依赖问题
           npm install --no-optional --no-audit --no-fund
+          # 特别安装 Rollup 的 Linux 依赖
+          npm install @rollup/rollup-linux-x64-gnu --save-dev || echo "Rollup Linux dependency installation failed, continuing..."
+          # 验证 Rollup 依赖
+          ls node_modules/@rollup/ || echo "Rollup dependencies not found, but continuing..."
           cd docs
           npm install --no-optional --no-audit --no-fund
 
@@ -77,13 +94,23 @@ jobs:
 
       - name: Build with retry mechanism
         run: |
+          # 修复 Rollup 依赖问题
+          echo "🔧 修复 Rollup 依赖问题..."
+          cd frontend
+          # 确保 Rollup Linux 依赖已安装
+          npm install @rollup/rollup-linux-x64-gnu --save-dev || echo "Rollup Linux dependency installation failed, continuing..."
+          cd ..
+
           # 第一次尝试构建
           npm run build || (
             echo "第一次构建失败，清理缓存和依赖后重试..."
             rm -rf node_modules package-lock.json frontend/node_modules frontend/package-lock.json frontend/docs/node_modules frontend/docs/package-lock.json
             rm -rf node_modules/.cache frontend/node_modules/.cache frontend/docs/node_modules/.cache
             npm install --no-optional --no-audit --no-fund
-            cd frontend && npm install --no-optional --no-audit --no-fund && cd ..
+            cd frontend 
+            npm install --no-optional --no-audit --no-fund
+            npm install @rollup/rollup-linux-x64-gnu --save-dev || echo "Rollup Linux dependency installation failed, continuing..."
+            cd ..
             cd frontend/docs && npm install --no-optional --no-audit --no-fund && cd ../..
             npm run build
           ) || (

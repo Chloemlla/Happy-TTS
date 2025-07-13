@@ -143,6 +143,16 @@ export default defineConfig(({ mode }) => {
       },
       rollupOptions: {
         treeshake: true, // 启用tree shaking
+        external: (id: string) => {
+          // 避免 Rollup 尝试处理可选依赖
+          if (process.env.VITE_SKIP_ROLLUP_NATIVE === 'true') {
+            return id.includes('@rollup/rollup-linux-x64-gnu') || 
+                   id.includes('@rollup/rollup-darwin-x64') ||
+                   id.includes('@rollup/rollup-win32-x64-msvc') ||
+                   id.includes('@rollup/rollup-win32-x64-gnu');
+          }
+          return false;
+        },
         output: {
           manualChunks: {
             'react-vendor': ['react', 'react-dom'],
