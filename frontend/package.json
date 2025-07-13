@@ -24,7 +24,8 @@
     "test": "vitest",
     "analyze": "npm run build:analyze && npx vite-bundle-analyzer dist",
     "analyze:bundle": "node scripts/analyze-bundle.js",
-    "fix:rollup": "node fix-rollup-deps.js"
+    "fix:rollup": "node fix-rollup-deps.js",
+    "fix:rollup:smart": "chmod +x fix-rollup-deps.sh && ./fix-rollup-deps.sh"
   },
   "dependencies": {
     "@fingerprintjs/fingerprintjs": "^4.2.0",

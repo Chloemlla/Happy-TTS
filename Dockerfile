@@ -36,10 +36,10 @@ RUN npm install -g npm@latest
 RUN echo "🔧 修复 Rollup 依赖问题..." && \
     npm cache clean --force
 
-# 先安装依赖，遇到 rollup 可选依赖问题时强制修复，并强制安装 rollup 及其 musl 依赖
+# 先安装依赖，遇到 rollup 可选依赖问题时强制修复，只安装 musl 版本的 rollup 依赖
 RUN npm install --no-optional --no-audit --no-fund \
-    && npm install rollup @rollup/rollup-linux-x64-musl @rollup/rollup-linux-x64-gnu --no-optional \
-    || (echo "依赖安装失败，尝试修复..." && rm -rf node_modules package-lock.json && npm install --no-optional --no-audit --no-fund && npm install rollup @rollup/rollup-linux-x64-musl @rollup/rollup-linux-x64-gnu --no-optional)
+    && npm install rollup @rollup/rollup-linux-x64-musl --no-optional \
+    || (echo "依赖安装失败，尝试修复..." && rm -rf node_modules package-lock.json && npm install --no-optional --no-audit --no-fund && npm install rollup @rollup/rollup-linux-x64-musl --no-optional)
 
 RUN npm install @fingerprintjs/fingerprintjs --no-optional && \
     npm install crypto-js --no-optional && \
@@ -58,7 +58,7 @@ RUN npm install -g vitest && \
 COPY frontend/ .
 
 # 构建前端（增加内存优化和重试机制，修复 Rollup 依赖问题）
-RUN npm run build || (echo "第一次构建失败，清理缓存后重试..." && rm -rf node_modules/.cache && npm run build) || (echo "第二次构建失败，使用简化构建..." && npm run build:simple) || (echo "简化构建失败，使用最小构建..." && npm run build:minimal) || (echo "所有构建失败，尝试修复 Rollup 依赖..." && npm install @rollup/rollup-linux-x64-gnu --save-dev && npm run build:minimal)
+RUN npm run build || (echo "第一次构建失败，清理缓存后重试..." && rm -rf node_modules/.cache && npm run build) || (echo "第二次构建失败，使用简化构建..." && npm run build:simple) || (echo "简化构建失败，使用最小构建..." && npm run build:minimal) || (echo "所有构建失败，尝试修复 Rollup 依赖..." && npm install @rollup/rollup-linux-x64-musl --save-dev && npm run build:minimal)
 
 # 确保favicon.ico存在
 RUN touch dist/favicon.ico

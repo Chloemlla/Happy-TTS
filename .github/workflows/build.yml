@@ -53,8 +53,16 @@ jobs:
           cd frontend
           # 清理 npm 缓存
           npm cache clean --force
-          # 确保 Rollup Linux 依赖已安装
-          npm install @rollup/rollup-linux-x64-gnu --save-dev || echo "Rollup Linux dependency installation failed, continuing..."
+          # 根据平台安装正确的 Rollup Linux 依赖
+          if [[ "$(uname -m)" == "x86_64" ]]; then
+            if [[ "$(ldd --version 2>/dev/null | head -1)" == *"musl"* ]]; then
+              npm install @rollup/rollup-linux-x64-musl --save-dev || echo "Rollup musl dependency installation failed, continuing..."
+            else
+              npm install @rollup/rollup-linux-x64-gnu --save-dev || echo "Rollup gnu dependency installation failed, continuing..."
+            fi
+          else
+            echo "Non-x64 platform, skipping native Rollup dependencies"
+          fi
           cd ..
 
       - name: Generate package-lock.json
@@ -70,8 +78,16 @@ jobs:
           # 特别安装缺失的依赖
           npm install @fingerprintjs/fingerprintjs@^4.2.0 crypto-js@^4.2.0 --save
           npm install @testing-library/react@^14.2.1 --save-dev
-          # 特别安装 Rollup 的 Linux 依赖
-          npm install @rollup/rollup-linux-x64-gnu --save-dev || echo "Rollup Linux dependency installation failed, continuing..."
+          # 根据平台安装正确的 Rollup Linux 依赖
+          if [[ "$(uname -m)" == "x86_64" ]]; then
+            if [[ "$(ldd --version 2>/dev/null | head -1)" == *"musl"* ]]; then
+              npm install @rollup/rollup-linux-x64-musl --save-dev || echo "Rollup musl dependency installation failed, continuing..."
+            else
+              npm install @rollup/rollup-linux-x64-gnu --save-dev || echo "Rollup gnu dependency installation failed, continuing..."
+            fi
+          else
+            echo "Non-x64 platform, skipping native Rollup dependencies"
+          fi
           # 验证 Rollup 依赖
           ls node_modules/@rollup/ || echo "Rollup dependencies not found, but continuing..."
           cd docs
@@ -104,8 +120,16 @@ jobs:
           # 特别安装缺失的依赖
           npm install @fingerprintjs/fingerprintjs@^4.2.0 crypto-js@^4.2.0 --save
           npm install @testing-library/react@^14.2.1 --save-dev
-          # 确保 Rollup Linux 依赖已安装
-          npm install @rollup/rollup-linux-x64-gnu --save-dev || echo "Rollup Linux dependency installation failed, continuing..."
+          # 根据平台安装正确的 Rollup Linux 依赖
+          if [[ "$(uname -m)" == "x86_64" ]]; then
+            if [[ "$(ldd --version 2>/dev/null | head -1)" == *"musl"* ]]; then
+              npm install @rollup/rollup-linux-x64-musl --save-dev || echo "Rollup musl dependency installation failed, continuing..."
+            else
+              npm install @rollup/rollup-linux-x64-gnu --save-dev || echo "Rollup gnu dependency installation failed, continuing..."
+            fi
+          else
+            echo "Non-x64 platform, skipping native Rollup dependencies"
+          fi
           cd ..
 
           # 第一次尝试构建
