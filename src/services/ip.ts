@@ -4,6 +4,7 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 import config from '../config';
 import { logger } from './logger';
+import cheerio from 'cheerio';
 
 interface IPInfo {
   ip: string;
@@ -127,8 +128,45 @@ async function withConcurrencyLimit<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-// 尝试使用所有API提供商
+// 新增IP38网页解析方法
+async function queryIp38(ip: string): Promise<IPInfo> {
+  try {
+    const url = `https://www.ip38.com/ip/${ip}.htm`;
+    const resp = await axios.get(url, { timeout: 8000 });
+    const html = resp.data;
+    const $ = cheerio.load(html);
+    // 解析页面结构
+    // IP: 页面h1下的 .query-box strong
+    // 结果: .query-box .result-data
+    // 兼容页面变动，优先找高亮IP和红色归属地
+    const ipText = $('h1 strong').first().text().trim() || ip;
+    let country = '未知', region = '未知', city = '未知', isp = '未知';
+    // 解析红色归属地
+    const resultText = $('.query-box .result-data').text().replace(/\s+/g, ' ').trim();
+    // 例：中国 香港 新界 荃湾区 IPXO
+    if (resultText) {
+      const parts = resultText.split(' ');
+      if (parts.length >= 1) country = parts[0];
+      if (parts.length >= 2) region = parts[1];
+      if (parts.length >= 3) city = parts[2];
+      if (parts.length >= 4) isp = parts.slice(3).join(' ');
+    }
+    return { ip: ipText, country, region, city, isp };
+  } catch (e: any) {
+    logger.error('ip38.com 网页查询失败', { ip, error: e.message });
+    throw e;
+  }
+}
+
+// 优先用ip38.com网页，其次用API_PROVIDERS
 async function tryAllProviders(ip: string): Promise<IPInfo> {
+  // 先尝试ip38网页
+  try {
+    return await queryIp38(ip);
+  } catch (e) {
+    logger.error('ip38.com 查询失败，尝试备用API', { ip });
+  }
+  // 失败后fallback到原有API
   for (const provider of API_PROVIDERS) {
     try {
       const response = await axios.get(provider.url(ip), {
@@ -137,7 +175,6 @@ async function tryAllProviders(ip: string): Promise<IPInfo> {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
       });
-
       if (provider.validate(response.data)) {
         return provider.transform(response.data, ip);
       }
