@@ -10,7 +10,7 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 30
     labels:
       - "dependencies"
       - "npm"
@@ -23,7 +23,7 @@ updates:
     directory: "/frontend"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 30
     labels:
       - "dependencies"
       - "npm"
@@ -37,7 +37,7 @@ updates:
     directory: "/frontend/docs"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 30
     labels:
       - "dependencies"
       - "npm"
