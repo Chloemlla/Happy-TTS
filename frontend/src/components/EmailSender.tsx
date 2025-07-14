@@ -254,6 +254,13 @@ const EmailSender: React.FC = () => {
   };
 
   const htmlTemplates = [
+    { name: '现代卡片', code: `<div style="max-width:420px;margin:0 auto;background:#fff;border-radius:1.2rem;box-shadow:0 4px 24px rgba(80,80,180,0.08);padding:2.2rem 2rem 1.5rem 2rem;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;text-align:center;">
+  <div style="font-size:2rem;font-weight:700;color:#6366f1;margin-bottom:1.2rem;">您的验证码</div>
+  <div style="font-size:2.4rem;letter-spacing:0.4rem;font-family:monospace;background:#f3f4f6;padding:1rem 0;border-radius:0.8rem;color:#111;font-weight:600;box-shadow:0 2px 8px rgba(99,102,241,0.08);margin-bottom:1.2rem;">12345678</div>
+  <div style="color:#555;font-size:1.1rem;margin-bottom:1.2rem;">请在页面输入上方验证码完成验证。验证码有效期10分钟，请勿泄露。</div>
+  <a href="https://tts.hapxs.com" style="display:inline-block;margin-top:1.2rem;padding:0.7rem 2.2rem;background:linear-gradient(90deg,#6366f1,#8b5cf6);color:#fff;border-radius:2rem;text-decoration:none;font-weight:600;box-shadow:0 2px 8px rgba(99,102,241,0.12);transition:background 0.2s;">访问 Synapse</a>
+  <div style="margin-top:2rem;font-size:0.95rem;color:#aaa;">如非本人操作请忽略本邮件</div>
+</div>` },
     { name: '标题', code: '<h1>标题</h1>' },
     { name: '段落', code: '<p>段落内容</p>' },
     { name: '粗体', code: '<strong>粗体文本</strong>' },
@@ -263,6 +270,14 @@ const EmailSender: React.FC = () => {
     { name: '列表', code: '<ul><li>列表项1</li><li>列表项2</li></ul>' },
     { name: '表格', code: '<table border="1"><tr><td>单元格1</td><td>单元格2</td></tr></table>' }
   ];
+
+  // 默认内容美化
+  useEffect(() => {
+    if (!form.html || form.html === '<h1>Hello World</h1><p>这是一封测试邮件。</p>') {
+      setForm(f => ({ ...f, html: htmlTemplates[0].code }));
+    }
+    // eslint-disable-next-line
+  }, []);
 
   return (
     <motion.div 

@@ -12,6 +12,8 @@ import VerificationMethodSelector from './VerificationMethodSelector';
 import PasskeyVerifyModal from './PasskeyVerifyModal';
 import api from '../api/index';
 import { useNotification } from './Notification';
+import VerifyCodeInput from './VerifyCodeInput';
+import { AnimatePresence, motion } from 'framer-motion';
 
 interface AuthFormProps {
 }
@@ -642,24 +644,34 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
             )}
 
             {/* 邮箱验证码弹窗 */}
+            <AnimatePresence>
             {showEmailVerify && (
-                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
-                    <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-sm">
+                <motion.div
+                    className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.25 }}
+                >
+                    <motion.div
+                        className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm relative"
+                        initial={{ scale: 0.95, opacity: 0, y: 40 }}
+                        animate={{ scale: 1, opacity: 1, y: 0 }}
+                        exit={{ scale: 0.95, opacity: 0, y: 40 }}
+                        transition={{ duration: 0.28 }}
+                    >
                         <h3 className="text-lg font-bold mb-4 text-center">邮箱验证</h3>
                         <p className="mb-2 text-gray-600 text-center">我们已向 <span className="font-semibold">{pendingEmail}</span> 发送了验证码，请输入收到的验证码完成注册。</p>
-                        <input
-                            type="text"
-                            className="w-full border border-gray-300 rounded-md px-3 py-2 mb-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                            placeholder="请输入验证码"
-                            value={verifyCode}
-                            onChange={e => setVerifyCode(e.target.value)}
-                            maxLength={6}
+                        <VerifyCodeInput
+                            length={8}
+                            onComplete={(code) => setVerifyCode(code)}
+                            loading={verifyLoading}
+                            error={verifyError}
                         />
-                        {verifyError && <div className="text-red-500 text-sm mb-2 text-center">{verifyError}</div>}
                         <button
-                            className="w-full py-2 px-4 bg-indigo-600 text-white rounded-md font-semibold hover:bg-indigo-700 transition-all mb-2"
+                            className="w-full py-2 px-4 bg-indigo-600 text-white rounded-md font-semibold hover:bg-indigo-700 transition-all mb-2 mt-2"
                             onClick={handleVerifyCode}
-                            disabled={verifyLoading}
+                            disabled={verifyLoading || verifyCode.length !== 8}
                         >
                             {verifyLoading ? '验证中...' : '提交验证'}
                         </button>
@@ -670,9 +682,10 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
                         >
                             取消
                         </button>
-                    </div>
-                </div>
+                    </motion.div>
+                </motion.div>
             )}
+            </AnimatePresence>
         </div>
     );
 };
