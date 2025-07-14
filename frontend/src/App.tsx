@@ -19,6 +19,7 @@ const MobileNav = React.lazy(() => import('./components/MobileNav'));
 const ApiDocs = React.lazy(() => import('./components/ApiDocs'));
 const LogShare = React.lazy(() => import('./components/LogShare'));
 const CaseConverter = React.lazy(() => import('./components/CaseConverter').then(module => ({ default: module.CaseConverter })));
+const EmailSender = React.lazy(() => import('./components/EmailSender'));
 
 // 页面切换动画变体
 const pageVariants = {
@@ -311,6 +312,23 @@ const App: React.FC = () => {
                     <CaseConverter />
                   </motion.div>
                 </Suspense>
+              } />
+              <Route path="/email-sender" element={
+                user?.role === 'admin' ? (
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <motion.div
+                      variants={pageVariants}
+                      initial="initial"
+                      animate="in"
+                      exit="out"
+                      transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                    >
+                      <EmailSender />
+                    </motion.div>
+                  </Suspense>
+                ) : (
+                  <Navigate to="/" replace />
+                )
               } />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

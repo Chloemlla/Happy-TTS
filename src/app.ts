@@ -44,6 +44,7 @@ import lifeRoutes from './routes/lifeRoutes';
 import { PasskeyDataRepairService } from './services/passkeyDataRepairService';
 import miniapiRoutes from './routes/miniapiRoutes';
 import { connectMongo } from './services/mongoService';
+import emailRoutes from './routes/emailRoutes';
 
 // 扩展 Request 类型
 declare global {
@@ -53,6 +54,10 @@ declare global {
         }
     }
 }
+
+// 邮件服务全局开关
+// eslint-disable-next-line no-var
+var EMAIL_ENABLED: boolean;
 
 const app = express();
 const execAsync = promisify(exec);
@@ -606,6 +611,7 @@ app.use('/api/life', lifeRoutes);
 app.use('/api', logRoutes);
 app.use('/api/passkey', passkeyAutoFixMiddleware);
 app.use('/api/passkey', passkeyRoutes);
+app.use('/api/email', emailRoutes);
 
 // 完整性检测相关兜底接口限速
 const integrityLimiter = rateLimit({
@@ -1017,6 +1023,14 @@ const ensureDirectories = async () => {
 
 // 注册登出接口
 registerLogoutRoute(app);
+
+// 检查邮件API密钥
+if (!process.env.RESEND_API_KEY) {
+  (globalThis as any).EMAIL_ENABLED = false;
+  console.warn('[邮件服务] 未检测到 RESEND_API_KEY，邮件发送功能已禁用');
+} else {
+  (globalThis as any).EMAIL_ENABLED = true;
+}
 
 // Start server (only in non-test environment)
 if (process.env.NODE_ENV !== 'test') {
