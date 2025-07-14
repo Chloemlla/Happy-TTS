@@ -128,7 +128,9 @@ async function withConcurrencyLimit<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-// 工具：判断是否为公网IPv4
+/**
+ * SSRF防护：只允许合法的公网IPv4，禁止内网、环回、保留、0.0.0.0等危险IP
+ */
 function isValidPublicIPv4(ip: string): boolean {
   // 基本格式
   const ipv4Regex = /^(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})(\.(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})){3}$/;
@@ -147,10 +149,12 @@ function isValidPublicIPv4(ip: string): boolean {
 
 // 新增IP38网页解析方法
 async function queryIp38(ip: string): Promise<IPInfo> {
+  // SSRF防护：仅允许合法的公网IPv4，禁止内网、环回/保留地址
   if (!isValidPublicIPv4(ip)) {
     throw new Error('非法IP，禁止查询内网/环回/保留地址');
   }
   try {
+    // 只允许拼接到可信第三方的IP查询接口，避免SSRF
     const url = `https://www.ip38.com/ip/${ip}.htm`;
     const resp = await axios.get(url, { timeout: 8000 });
     const html = resp.data;
@@ -180,10 +184,12 @@ async function queryIp38(ip: string): Promise<IPInfo> {
 
 // 新增tool.lu/ip/ajax.html查询方法
 async function queryToolLu(ip: string): Promise<IPInfo> {
+  // SSRF防护：仅允许合法的公网IPv4，禁止内网、环回/保留地址
   if (!isValidPublicIPv4(ip)) {
     throw new Error('非法IP，禁止查询内网/环回/保留地址');
   }
   try {
+    // 只允许拼接到可信第三方的IP查询接口，避免SSRF
     const resp = await axios.post('https://tool.lu/ip/ajax.html', `ip=${encodeURIComponent(ip)}`, {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -220,6 +226,7 @@ async function queryToolLu(ip: string): Promise<IPInfo> {
 
 // 优先用ip38.com网页，其次用tool.lu，再用API_PROVIDERS
 async function tryAllProviders(ip: string): Promise<IPInfo> {
+  // SSRF防护：仅允许合法的公网IPv4，禁止内网、环回/保留地址
   if (!isValidPublicIPv4(ip)) {
     throw new Error('非法IP，禁止查询内网/环回/保留地址');
   }
