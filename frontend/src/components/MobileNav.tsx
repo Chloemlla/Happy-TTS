@@ -111,6 +111,17 @@ const MobileNav: React.FC<MobileNavProps> = ({
             </motion.div>
           </>
         )}
+        <motion.div
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          <Link 
+            to="/profile" 
+            className="px-4 py-2 rounded-lg bg-yellow-100 text-yellow-700 font-semibold hover:bg-yellow-200 transition-all duration-200 shadow-sm hover:shadow-md"
+          >
+            个人主页
+          </Link>
+        </motion.div>
         <motion.button
           onClick={onTOTPManagerOpen}
           whileHover={{ scale: 1.05, y: -1 }}
@@ -210,47 +221,49 @@ const MobileNav: React.FC<MobileNavProps> = ({
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.1 }}
             >
-              <motion.div 
-                className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-300 to-purple-300 flex items-center justify-center border-2 border-white shadow-lg"
-                initial={{ scale: 0, rotate: -180 }}
-                animate={{ scale: 1, rotate: 0 }}
-                transition={{ duration: 0.5, delay: 0.2, type: "spring", stiffness: 200 }}
-                whileHover={{ scale: 1.1, rotate: 5 }}
-              >
-                <motion.svg 
-                  className="w-6 h-6 text-white drop-shadow" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3, delay: 0.4 }}
+              <Link to="/profile" className="flex items-center gap-4">
+                <motion.div 
+                  className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-300 to-purple-300 flex items-center justify-center border-2 border-white shadow-lg"
+                  initial={{ scale: 0, rotate: -180 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ duration: 0.5, delay: 0.2, type: "spring", stiffness: 200 }}
+                  whileHover={{ scale: 1.1, rotate: 5 }}
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </motion.svg>
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.3 }}
-              >
-                <motion.p 
-                  className="font-bold text-gray-900 text-base leading-tight"
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: 0.4 }}
+                  <motion.svg 
+                    className="w-6 h-6 text-white drop-shadow" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.3, delay: 0.4 }}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </motion.svg>
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.4, delay: 0.3 }}
                 >
-                  {user?.username}
-                </motion.p>
-                <motion.p 
-                  className="text-xs text-indigo-500 font-medium mt-1"
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: 0.5 }}
-                >
-                  {user?.role === 'admin' ? '管理员' : '普通用户'}
-                </motion.p>
-              </motion.div>
+                  <motion.p 
+                    className="font-bold text-gray-900 text-base leading-tight"
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.4 }}
+                  >
+                    {user?.username}
+                  </motion.p>
+                  <motion.p 
+                    className="text-xs text-indigo-500 font-medium mt-1"
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.5 }}
+                  >
+                    {user?.role === 'admin' ? '管理员' : '普通用户'}
+                  </motion.p>
+                </motion.div>
+              </Link>
             </motion.div>
 
             {/* 菜单项 */}

@@ -19,6 +19,7 @@ const ApiDocs = React.lazy(() => import('./components/ApiDocs'));
 const LogShare = React.lazy(() => import('./components/LogShare'));
 const CaseConverter = React.lazy(() => import('./components/CaseConverter').then(module => ({ default: module.CaseConverter })));
 const EmailSender = React.lazy(() => import('./components/EmailSender'));
+const UserProfile = React.lazy(() => import('./components/UserProfile'));
 
 // 页面切换动画变体
 const pageVariants = {
@@ -330,6 +331,19 @@ const App: React.FC = () => {
                     <Navigate to="/" replace />
                   )
                 } />
+                <Route path="/profile" element={
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <motion.div
+                      variants={pageVariants}
+                      initial="initial"
+                      animate="in"
+                      exit="out"
+                      transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                    >
+                      <UserProfile />
+                    </motion.div>
+                  </Suspense>
+                } />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </AnimatePresence>
@@ -526,6 +540,45 @@ const App: React.FC = () => {
                 >
                   <LogShare />
                 </motion.div>
+              } />
+              <Route path="/case-converter" element={
+                <motion.div
+                  variants={pageVariants}
+                  initial="initial"
+                  animate="in"
+                  exit="out"
+                  transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                >
+                  <CaseConverter />
+                </motion.div>
+              } />
+              <Route path="/email-sender" element={
+                user?.role === 'admin' ? (
+                  <motion.div
+                    variants={pageVariants}
+                    initial="initial"
+                    animate="in"
+                    exit="out"
+                    transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                  >
+                    <EmailSender />
+                  </motion.div>
+                ) : (
+                  <Navigate to="/" replace />
+                )
+              } />
+              <Route path="/profile" element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <motion.div
+                    variants={pageVariants}
+                    initial="initial"
+                    animate="in"
+                    exit="out"
+                    transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                  >
+                    <UserProfile />
+                  </motion.div>
+                </Suspense>
               } />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

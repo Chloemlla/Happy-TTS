@@ -30,6 +30,7 @@ const userSchema = new mongoose.Schema({
   pendingChallenge: String,
   currentChallenge: String,
   passkeyVerified: Boolean,
+  avatarBase64: { type: String },
 }, { collection: 'tts' });
 
 const UserModel = mongoose.models.User || mongoose.model('User', userSchema);

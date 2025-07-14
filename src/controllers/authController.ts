@@ -17,6 +17,9 @@ const emailPattern = new RegExp(
 // 临时存储验证码（生产建议用redis等持久化）
 const emailCodeMap = new Map();
 
+// 顶部 import 后添加类型声明
+type UserWithVerified = User & { verified?: boolean };
+
 export class AuthController {
 
     public static async register(req: Request, res: Response) {
@@ -370,6 +373,161 @@ export class AuthController {
                 username: req.body?.username
             });
             return res.status(500).json({ error: '服务器异常' });
+        }
+    }
+
+    // 新增 GET /api/user/profile 获取当前用户信息
+    public static async getUserProfile(req: Request, res: Response) {
+        try {
+            const userId = req.params.id || req.user?.id; // 从请求参数或认证头中获取用户ID
+            if (!userId) {
+                return res.status(401).json({ error: '未登录或用户ID缺失' });
+            }
+
+            const user = await UserStorage.getUserById(userId);
+            if (!user) {
+                return res.status(404).json({ error: '用户不存在' });
+            }
+
+            const { password: _, ...userWithoutPassword } = user;
+            res.json(userWithoutPassword);
+        } catch (error) {
+            logger.error('获取用户信息失败:', error);
+            res.status(500).json({ error: '获取用户信息失败' });
+        }
+    }
+
+    // 新增 POST /api/user/profile 修改邮箱、密码、头像，需验证通过
+    public static async updateUserProfile(req: Request, res: Response) {
+        try {
+            const userId = req.user?.id; // 从认证头中获取用户ID
+            if (!userId) {
+                return res.status(401).json({ error: '未登录或用户ID缺失' });
+            }
+
+            const { email, password, newPassword } = req.body;
+
+            if (email) {
+                if (!emailPattern.test(email)) {
+                    return res.status(400).json({ error: '只支持主流邮箱（如gmail、outlook、qq、163、126、hotmail、yahoo、icloud、foxmail等）' });
+                }
+                const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+                if (!emailRegex.test(email)) {
+                    return res.status(400).json({ error: '邮箱格式不正确' });
+                }
+                const existingUser = await UserStorage.getUserByEmail(email);
+                if (existingUser && existingUser.id !== userId) {
+                    return res.status(400).json({ error: '邮箱已被其他用户使用' });
+                }
+            }
+
+            if (password) {
+                const user = await UserStorage.authenticateUser((req.user as any)?.username || (req.user as any)?.email || '', password);
+                if (!user) {
+                    return res.status(401).json({ error: '当前密码错误' });
+                }
+            }
+
+            if (newPassword) {
+                if (password === newPassword) {
+                    return res.status(400).json({ error: '新密码与当前密码相同' });
+                }
+                await UserStorage.updateUser(userId, { password: newPassword });
+            }
+
+            if (email) {
+                await UserStorage.updateUser(userId, { email });
+            }
+
+            const updatedUser = await UserStorage.getUserById(userId);
+            if (!updatedUser) {
+                return res.status(404).json({ error: '用户不存在' });
+            }
+
+            const { password: _, ...userWithoutPassword } = updatedUser;
+            res.json(userWithoutPassword);
+        } catch (error) {
+            logger.error('更新用户信息失败:', error);
+            res.status(500).json({ error: '更新用户信息失败' });
+        }
+    }
+
+    // 新增 POST /api/user/verify 支持邮箱验证码、TOTP等验证方式
+    public static async verifyUser(req: Request, res: Response) {
+        try {
+            const { userId, verificationCode } = req.body;
+            if (!userId || !verificationCode) {
+                return res.status(400).json({ error: '用户ID或验证码缺失' });
+            }
+
+            const user = await UserStorage.getUserById(userId);
+            if (!user) {
+                return res.status(404).json({ error: '用户不存在' });
+            }
+
+            // 检查是否启用了TOTP或Passkey
+            const hasTOTP = !!user.totpEnabled;
+            const hasPasskey = Array.isArray(user.passkeyCredentials) && user.passkeyCredentials.length > 0;
+
+            if (!hasTOTP && !hasPasskey) {
+                return res.status(400).json({ error: '用户未启用任何二次验证' });
+            }
+
+            let verificationResult = false;
+            if (hasTOTP) {
+                // TOTP验证
+                if (user.totpSecret) {
+                    const totp = require('otplib');
+                    totp.options = {
+                        digits: 6,
+                        step: 30,
+                        window: 1
+                    };
+                    const isValid = totp.verify({
+                        secret: user.totpSecret,
+                        token: verificationCode,
+                        encoding: 'hex'
+                    });
+                    if (isValid) {
+                        verificationResult = true;
+                        logger.info(`TOTP验证成功: userId=${userId}, token=${verificationCode}`);
+                    } else {
+                        logger.warn(`TOTP验证失败: userId=${userId}, token=${verificationCode}`);
+                    }
+                } else {
+                    logger.warn(`TOTP验证失败: userId=${userId}, 用户未启用TOTP`);
+                }
+            }
+
+            if (!verificationResult && hasPasskey) {
+                // Passkey验证
+                const { username, passkeyCredentials } = user;
+                if (username && passkeyCredentials && passkeyCredentials.length > 0) {
+                    const found = passkeyCredentials.some(
+                        cred => cred.credentialID === verificationCode
+                    );
+                    if (found) {
+                        verificationResult = true;
+                        logger.info(`Passkey验证成功: userId=${userId}, credentialId=${verificationCode}`);
+                    } else {
+                        logger.warn(`Passkey验证失败: userId=${userId}, credentialId=${verificationCode}`);
+                    }
+                } else {
+                    logger.warn(`Passkey验证失败: userId=${userId}, 用户未启用Passkey`);
+                }
+            }
+
+            if (!verificationResult) {
+                return res.status(401).json({ error: '验证码错误或用户未启用二次验证' });
+            }
+
+            // 验证通过，更新用户状态
+            await UserStorage.updateUser(userId, { verified: true } as Partial<UserWithVerified>);
+            logger.info(`用户 ${userId} 验证成功`);
+            res.json({ success: true });
+        } catch (error) {
+            logger.error('用户验证失败:', error);
+            res.status(500).json({ error: '用户验证失败' });
         }
     }
 
