@@ -129,20 +129,19 @@ async function withConcurrencyLimit<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 /**
- * SSRF防护：只允许合法公网IPv4，禁止内网/环回/保留/非法IP
+ * SSRF防护：只允许合法公网IPv4，禁止内网、环回、保留、0.0.0.0、255.255.255.255等危险IP
  */
 function isValidPublicIPv4(ip: string): boolean {
-  // 基本格式
   const ipv4Regex = /^(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})(\.(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})){3}$/;
   if (!ipv4Regex.test(ip)) return false;
-  // 排除内网/环回/保留/0.0.0.0
+  const parts = ip.split('.').map(Number);
   if (
     ip.startsWith('10.') ||
     ip.startsWith('192.168.') ||
+    (ip.startsWith('172.') && parts[1] >= 16 && parts[1] <= 31) ||
     ip.startsWith('127.') ||
-    ip.startsWith('169.254.') ||
-    ip.startsWith('0.') ||
-    /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(ip)
+    ip === '0.0.0.0' ||
+    ip === '255.255.255.255'
   ) return false;
   return true;
 }
@@ -151,7 +150,7 @@ function isValidPublicIPv4(ip: string): boolean {
 async function queryIp38(ip: string): Promise<IPInfo> {
   // SSRF防护：只允许合法公网IPv4
   if (!isValidPublicIPv4(ip)) {
-    throw new Error('非法IP，禁止查询内网/环回/保留地址');
+    throw new Error('非法IP，禁止查询内网/环回/保留/危险地址');
   }
   try {
     // 只允许拼接到可信第三方的IP查询接口，避免SSRF
