@@ -414,4 +414,42 @@ router.post('/validate', emailValidationLimiter, EmailController.validateEmails)
  */
 router.get('/quota', authMiddleware, adminAuthMiddleware, EmailController.getQuota);
 
+/**
+ * @openapi
+ * /api/email/domains:
+ *   get:
+ *     summary: 获取所有可用发件人域名
+ *     description: 获取所有可用发件人域名接口
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 域名获取成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 domains:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   example: ["hapxs.com", "example.com"]
+ *                 error:
+ *                   type: string
+ *                   example: null
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 权限不足
+ *       429:
+ *         description: 请求过于频繁
+ *       500:
+ *         description: 服务器错误
+ */
+router.get('/domains', authMiddleware, EmailController.getDomains);
+
 export default router; 

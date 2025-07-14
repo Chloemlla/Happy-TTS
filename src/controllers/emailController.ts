@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { EmailService, EmailData, addEmailUsage, getEmailQuota } from '../services/emailService';
+import { EmailService, EmailData, addEmailUsage, getEmailQuota, getAllSenderDomains } from '../services/emailService';
 import logger from '../utils/logger';
 
 export class EmailController {
@@ -507,10 +507,24 @@ export class EmailController {
     try {
       const user = (req as any).user;
       if (!user?.id) return res.status(401).json({ error: '未登录' });
-      const quota = await getEmailQuota(user.id);
+      const domain = req.query.domain as string | undefined;
+      const quota = await getEmailQuota(user.id, domain);
       res.json(quota);
     } catch (error) {
       res.status(500).json({ error: '查询配额失败' });
+    }
+  }
+
+  /**
+   * 查询所有可用发件人域名
+   * GET /api/email/domains
+   */
+  public static async getDomains(req: Request, res: Response) {
+    try {
+      const domains = getAllSenderDomains();
+      res.json({ domains });
+    } catch (error) {
+      res.status(500).json({ error: '查询域名失败' });
     }
   }
 

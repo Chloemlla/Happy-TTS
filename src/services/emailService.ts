@@ -18,7 +18,7 @@ import fs from 'fs';
 import path from 'path';
 import { getUserById } from './userService';
 
-const EMAIL_QUOTA_TOTAL = 100;
+const EMAIL_QUOTA_TOTAL = Number(process.env.RESEND_QUOTA_TOTAL) || 100;
 const EMAIL_QUOTA_FILE = path.join(__dirname, '../../data/email_quota.json');
 
 export interface EmailQuotaInfo {
@@ -40,7 +40,20 @@ function writeQuotaFile(data: Record<string, { used: number; resetAt: string }>)
   fs.writeFileSync(EMAIL_QUOTA_FILE, JSON.stringify(data, null, 2));
 }
 
-export async function getEmailQuota(userId: string): Promise<EmailQuotaInfo> {
+// 多域名配额支持
+const domainQuotaMap: Record<string, number> = {};
+(function loadDomainQuotas() {
+  let idx = 0;
+  while (true) {
+    const domain = process.env[`RESEND_DOMAIN${idx ? '_' + idx : ''}`] || (idx === 0 ? process.env.RESEND_DOMAIN : undefined);
+    const quota = process.env[`RESEND_QUOTA_TOTAL${idx ? '_' + idx : ''}`];
+    if (!domain) break;
+    domainQuotaMap[domain] = quota ? Number(quota) : 100;
+    idx++;
+  }
+})();
+
+export async function getEmailQuota(userId: string, domain?: string): Promise<EmailQuotaInfo & { quotaTotal: number }> {
   // 可扩展为Mongo/MySQL
   const all = readQuotaFile();
   let info = all[userId];
@@ -51,7 +64,9 @@ export async function getEmailQuota(userId: string): Promise<EmailQuotaInfo> {
     all[userId] = info;
     writeQuotaFile(all);
   }
-  return { used: info.used, total: EMAIL_QUOTA_TOTAL, resetAt: info.resetAt };
+  // 根据域名返回配额
+  const quotaTotal = domain && domainQuotaMap[domain] ? domainQuotaMap[domain] : 100;
+  return { used: info.used, total: quotaTotal, resetAt: info.resetAt, quotaTotal };
 }
 
 export async function addEmailUsage(userId: string, count = 1) {
@@ -92,6 +107,29 @@ export interface EmailResponse {
   messageId?: string;
 }
 
+// 多域名多API key支持
+const domainApiKeyMap: Record<string, string> = {};
+(function loadDomainApiKeys() {
+  let idx = 0;
+  while (true) {
+    const domain = process.env[`RESEND_DOMAIN${idx ? '_' + idx : ''}`] || (idx === 0 ? process.env.RESEND_DOMAIN : undefined);
+    const key = process.env[`RESEND_API_KEY${idx ? '_' + idx : ''}`] || (idx === 0 ? process.env.RESEND_API_KEY : undefined);
+    if (!domain || !key) break;
+    domainApiKeyMap[domain] = key;
+    idx++;
+  }
+})();
+
+export function getAllSenderDomains(): string[] {
+  return Object.keys(domainApiKeyMap);
+}
+
+function getResendInstanceByDomain(domain: string) {
+  const key = domainApiKeyMap[domain];
+  if (!key) throw new Error(`未配置该域名(${domain})的API key`);
+  return new Resend(key);
+}
+
 export class EmailService {
   /**
    * 发送邮件
@@ -104,25 +142,20 @@ export class EmailService {
     }
     try {
       // 验证发件人域名
-      if (!this.isValidSenderDomain(emailData.from)) {
-        const errorMessage = `发件人邮箱必须是 @${RESEND_DOMAIN} 域名，当前域名: ${emailData.from.split('@')[1]}`;
-        logger.error('邮件发送失败：发件人域名不允许', {
-          from: emailData.from,
-          domain: emailData.from.split('@')[1]
-        });
+      const domain = emailData.from.split('@')[1];
+      if (!domainApiKeyMap[domain]) {
         return {
           success: false,
-          error: errorMessage
+          error: `发件人邮箱必须是已配置域名之一，当前域名: ${domain}`
         };
       }
-
+      const resend = getResendInstanceByDomain(domain);
       logger.log('开始发送邮件', {
         from: emailData.from,
         to: emailData.to,
         subject: emailData.subject,
         hasAttachments: !!emailData.attachments?.length
       });
-
       const { data, error } = await resend.emails.send({
         from: emailData.from,
         to: emailData.to,
@@ -131,7 +164,6 @@ export class EmailService {
         text: emailData.text,
         attachments: emailData.attachments
       });
-
       if (error) {
         logger.error('邮件发送失败', {
           error: error.message,
@@ -143,20 +175,18 @@ export class EmailService {
           error: error.message || '邮件发送失败'
         };
       }
-
       logger.log('邮件发送成功', {
         messageId: data?.id,
         from: emailData.from,
         to: emailData.to,
         subject: emailData.subject
       });
-
       return {
         success: true,
         data,
         messageId: data?.id
       };
-    } catch (error) {
+    } catch (error: any) {
       const errorMessage = error instanceof Error ? error.message : '未知错误';
       logger.error('邮件发送异常', {
         error: errorMessage,

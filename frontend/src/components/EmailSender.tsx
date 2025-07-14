@@ -44,6 +44,7 @@ const EmailSender: React.FC = () => {
   const htmlEditorRef = useRef<HTMLTextAreaElement>(null);
   const { setNotification } = useNotification();
   const [quota, setQuota] = useState<EmailQuota>({ used: 0, total: 100, resetAt: '' });
+  const [senderDomains, setSenderDomains] = useState<string[]>([]);
 
   // 获取API基础URL
   const getApiBaseUrl = () => {
@@ -66,15 +67,37 @@ const EmailSender: React.FC = () => {
   };
   const resendDomain = getResendDomain();
 
+  // 获取发件人域名
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await axios.get('/api/email/domains', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.data.domains) setSenderDomains(res.data.domains);
+      } catch {}
+    })();
+  }, []);
+
   // 查询配额
-  const fetchQuota = async () => {
+  const fetchQuota = async (domain?: string) => {
     try {
-      const response = await api.get('/api/email/quota');
-      setQuota(response.data);
-    } catch (e) {
-      // 失败时不影响主流程
-    }
+      const response = await api.get('/api/email/quota' + (domain ? `?domain=${domain}` : ''));
+      setQuota({
+        used: response.data.used,
+        total: response.data.quotaTotal || response.data.total,
+        resetAt: response.data.resetAt
+      });
+    } catch {}
   };
+
+  // 监听发件人域名变化自动刷新配额
+  useEffect(() => {
+    const domain = form.from.split('@')[1] || senderDomains[0] || '';
+    if (domain) fetchQuota(domain);
+    // eslint-disable-next-line
+  }, [form.from, senderDomains.length]);
 
   useEffect(() => {
     checkServiceStatus();
@@ -514,12 +537,22 @@ const EmailSender: React.FC = () => {
                       value={form.from.split('@')[0]}
                       onChange={(e) => {
                         const username = e.target.value;
-                        setForm({ ...form, from: `${username}@${resendDomain}` });
+                        setForm({ ...form, from: `${username}@${form.from.split('@')[1] || senderDomains[0] || ''}` });
                       }}
                       className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
                       placeholder="noreply"
                     />
-                    <span className="text-gray-500 font-medium">@{resendDomain}</span>
+                    <select
+                      value={form.from.split('@')[1] || senderDomains[0] || ''}
+                      onChange={e => {
+                        setForm({ ...form, from: `${form.from.split('@')[0]}@${e.target.value}` });
+                      }}
+                      className="px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white"
+                    >
+                      {senderDomains.map(domain => (
+                        <option key={domain} value={domain}>@{domain}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
