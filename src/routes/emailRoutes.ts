@@ -44,6 +44,9 @@ const statusQueryLimiter = createLimiter({
     routeName: 'email.status'
 });
 
+// 全局邮件接口速率限制（每管理员每分钟最多5次）
+router.use(emailSendLimiter);
+
 // 应用认证和管理员权限中间件
 router.use(authMiddleware);
 router.use(adminAuthMiddleware);
@@ -116,7 +119,7 @@ router.use(adminAuthMiddleware);
  *       500:
  *         description: 服务器错误
  */
-router.post('/send', emailSendLimiter, EmailController.sendEmail);
+router.post('/send', EmailController.sendEmail);
 
 /**
  * @openapi
@@ -166,7 +169,7 @@ router.post('/send', emailSendLimiter, EmailController.sendEmail);
  *       500:
  *         description: 服务器错误
  */
-router.post('/send-simple', emailSendLimiter, EmailController.sendSimpleEmail);
+router.post('/send-simple', EmailController.sendSimpleEmail);
 
 /**
  * @openapi
@@ -216,7 +219,7 @@ router.post('/send-simple', emailSendLimiter, EmailController.sendSimpleEmail);
  *       500:
  *         description: 服务器错误
  */
-router.post('/send-markdown', emailSendLimiter, EmailController.sendMarkdownEmail);
+router.post('/send-markdown', EmailController.sendMarkdownEmail);
 
 /**
  * @openapi

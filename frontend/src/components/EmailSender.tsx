@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import MarkdownPreview from './MarkdownPreview'; // Added MarkdownPreview import
+import DOMPurify from 'dompurify';
 
 interface EmailForm {
   from: string;
@@ -583,7 +584,7 @@ const EmailSender: React.FC = () => {
                             <h4 className="text-sm font-medium text-gray-700 mb-2">预览效果：</h4>
                             <div 
                               className="prose prose-sm max-w-none"
-                              dangerouslySetInnerHTML={{ __html: form.html }}
+                              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(form.html) }}
                             />
                           </motion.div>
                         )}
