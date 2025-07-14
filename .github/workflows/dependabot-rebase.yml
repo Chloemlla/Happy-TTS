@@ -1,0 +1,42 @@
+name: Dependabot Rebase All
+
+on:
+  workflow_dispatch:
+
+jobs:
+  rebase-all:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: List open dependabot PRs
+        id: list_prs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prs = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+            const dependabotPRs = prs.data.filter(pr => pr.user && pr.user.login === 'dependabot[bot]');
+            core.setOutput('pr_numbers', dependabotPRs.map(pr => pr.number).join(','));
+
+      - name: Comment @dependabot rebase on each PR
+        if: steps.list_prs.outputs.pr_numbers != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumbers = core.getInput('pr_numbers').split(',').filter(Boolean);
+            for (const pr of prNumbers) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: Number(pr),
+                body: '@dependabot rebase'
+              });
+            }
+        env:
+          pr_numbers: ${{ steps.list_prs.outputs.pr_numbers }}
