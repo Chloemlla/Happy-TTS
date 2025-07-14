@@ -6,7 +6,7 @@ import { Card } from './ui/Card';
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from './ui/Dialog';
 import { formatDate } from '../utils/date';
 import { KeyRoundIcon, PlusIcon, Trash2Icon, AlertTriangle } from 'lucide-react';
-import { useToast } from '../hooks/useToast';
+import { useNotification } from './Notification';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CredentialIdModal } from './ui/CredentialIdModal';
 
@@ -23,7 +23,7 @@ export const PasskeySetup: React.FC = () => {
         currentCredentialId,
         setCurrentCredentialId
     } = usePasskey();
-    const { showToast } = useToast();
+    const { setNotification } = useNotification();
 
     const [isOpen, setIsOpen] = useState(false);
     const [credentialName, setCredentialName] = useState('');
@@ -56,9 +56,9 @@ export const PasskeySetup: React.FC = () => {
         if (!credentialName.trim()) return;
         try {
             await registerAuthenticator(credentialName);
-            showToast('Passkey 注册成功', 'success');
+            setNotification({ message: 'Passkey 注册成功', type: 'success' });
         } catch {
-            showToast('Passkey 注册失败', 'error');
+            setNotification({ message: 'Passkey 注册失败', type: 'error' });
         }
         setCredentialName('');
         setIsOpen(false);
@@ -74,9 +74,9 @@ export const PasskeySetup: React.FC = () => {
         setRemovingId(confirmDeleteId);
         try {
             await removeAuthenticator(confirmDeleteId);
-            showToast('Passkey 已删除', 'success');
+            setNotification({ message: 'Passkey 已删除', type: 'success' });
         } catch {
-            showToast('删除失败', 'error');
+            setNotification({ message: '删除失败', type: 'error' });
         }
         setRemovingId(null);
         setConfirmDeleteId(null);

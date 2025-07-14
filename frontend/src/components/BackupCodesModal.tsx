@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
+import { useNotification } from './Notification';
 
 interface BackupCodesModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ const BackupCodesModal: React.FC<BackupCodesModalProps> = ({ isOpen, onClose }) 
   const [showCodes, setShowCodes] = useState(false);
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const { setNotification } = useNotification();
 
   // 获取API基础URL
   const getApiBaseUrl = () => {
@@ -50,7 +52,7 @@ const BackupCodesModal: React.FC<BackupCodesModalProps> = ({ isOpen, onClose }) 
       setBackupCodes(response.data.backupCodes);
     } catch (error: any) {
       console.error('获取备用恢复码失败:', error);
-      setError(error.response?.data?.error || '获取备用恢复码失败');
+      setNotification({ message: error.response?.data?.error || '获取备用恢复码失败', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -66,7 +68,7 @@ const BackupCodesModal: React.FC<BackupCodesModalProps> = ({ isOpen, onClose }) 
       setShowCodes(true); // 重新生成后自动显示新的恢复码
     } catch (error: any) {
       console.error('重新生成备用恢复码失败:', error);
-      setError(error.response?.data?.error || '重新生成备用恢复码失败');
+      setNotification({ message: error.response?.data?.error || '重新生成备用恢复码失败', type: 'error' });
     } finally {
       setRegenerating(false);
     }

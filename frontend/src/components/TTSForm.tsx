@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTts } from '../hooks/useTts';
 import { TtsRequest, TtsResponse } from '../types/tts';
 import { AudioPreview } from './AudioPreview';
-import { Notification } from './Notification';
 import { Input } from './ui';
+import { useNotification } from './Notification';
 
 interface TtsFormProps {
     onSuccess?: (result: TtsResponse) => void;
@@ -25,10 +25,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
     const [isPlaying, setIsPlaying] = useState(false);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const [audioUrl, setAudioUrl] = useState<string | null>(null);
-    const [notification, setNotification] = useState<{
-        message: string;
-        type: 'success' | 'error' | 'warning' | 'info';
-    } | null>(null);
+    const { setNotification } = useNotification();
     const [cfToken, setCfToken] = useState<string>('');
     const [cfVerified, setCfVerified] = useState(false);
     const [cfError, setCfError] = useState(false);
@@ -292,21 +289,8 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
     return (
         <div className="relative">
             <AnimatePresence>
-                {notification && (
-                    <motion.div
-                        className="absolute -top-4 left-0 right-0 z-50"
-                        initial={{ opacity: 0, y: -20, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -20, scale: 0.95 }}
-                        transition={{ duration: 0.3 }}
-                    >
-                        <Notification
-                            message={notification.message}
-                            type={notification.type}
-                            onClose={() => setNotification(null)}
-                        />
-                    </motion.div>
-                )}
+                {/* 所有 setNotification({ message, type }) 保持不变，直接调用 context */}
+                {/* 删除 notification 渲染相关代码 */}
             </AnimatePresence>
 
             <motion.form 

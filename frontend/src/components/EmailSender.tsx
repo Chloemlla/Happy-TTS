@@ -5,6 +5,7 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import MarkdownPreview from './MarkdownPreview'; // Added MarkdownPreview import
 import DOMPurify from 'dompurify';
+import { useNotification } from './Notification';
 
 interface EmailForm {
   from: string;
@@ -35,6 +36,7 @@ const EmailSender: React.FC = () => {
   const [markdownContent, setMarkdownContent] = useState('');
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const htmlEditorRef = useRef<HTMLTextAreaElement>(null);
+  const { setNotification } = useNotification();
 
   // 获取API基础URL
   const getApiBaseUrl = () => {
@@ -165,7 +167,7 @@ const EmailSender: React.FC = () => {
         });
 
         if (response.data.success) {
-          toast.success('邮件发送成功！');
+          setNotification({ message: '邮件发送成功！', type: 'success' });
           // 重置表单
           setForm({
             from: `noreply@${resendDomain}`,
@@ -185,7 +187,7 @@ const EmailSender: React.FC = () => {
         });
 
         if (response.data.success) {
-          toast.success('邮件发送成功！');
+          setNotification({ message: '邮件发送成功！', type: 'success' });
           // 重置表单
           setForm({
             from: `noreply@${resendDomain}`,
@@ -204,7 +206,7 @@ const EmailSender: React.FC = () => {
           markdown: markdownContent
         });
         if (response.data.success) {
-          toast.success('邮件发送成功！');
+          setNotification({ message: '邮件发送成功！', type: 'success' });
           setForm({
             from: `noreply@${resendDomain}`,
             to: [''],
@@ -219,7 +221,7 @@ const EmailSender: React.FC = () => {
     } catch (error: any) {
       console.error('邮件发送失败:', error);
       const errorMessage = error.response?.data?.error || error.message || '邮件发送失败';
-      toast.error(errorMessage);
+      setNotification({ message: errorMessage, type: 'error' });
     } finally {
       setLoading(false);
     }

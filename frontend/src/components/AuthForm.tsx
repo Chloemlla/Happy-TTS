@@ -11,6 +11,7 @@ import { Button } from './ui/Button';
 import VerificationMethodSelector from './VerificationMethodSelector';
 import PasskeyVerifyModal from './PasskeyVerifyModal';
 import api from '../api/index';
+import { useNotification } from './Notification';
 
 interface AuthFormProps {
 }
@@ -54,7 +55,6 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
     const [loading, setLoading] = useState(false);
     const [agreed, setAgreed] = useState(false);
     const [passwordStrength, setPasswordStrength] = useState<PasswordStrength>({ score: 0, feedback: '' });
-    const [showAlert, setShowAlert] = useState(false);
     const [showTOTPVerification, setShowTOTPVerification] = useState(false);
     const [pendingUser, setPendingUser] = useState<any>(null);
     const [pendingUserId, setPendingUserId] = useState<string>('');
@@ -67,6 +67,7 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
     const [verifyCode, setVerifyCode] = useState('');
     const [verifyError, setVerifyError] = useState('');
     const [verifyLoading, setVerifyLoading] = useState(false);
+    const { setNotification } = useNotification();
 
     // 支持的主流邮箱后缀
     const allowedDomains = [
@@ -199,7 +200,7 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
         }
 
         if (!agreed) {
-            setShowAlert(true);
+            setNotification({ message: '请勾选服务条款与隐私政策', type: 'warning' });
             return;
         }
 
@@ -563,12 +564,7 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
                     </div>
                 </form>
             </div>
-            <AlertModal
-                open={showAlert}
-                onClose={() => startTransition(() => setShowAlert(false))}
-                title="请勾选服务条款与隐私政策"
-                message="为了保障您的合法权益，请您在继续使用本服务前，仔细阅读并同意我们的服务条款与隐私政策。未勾选将无法继续注册或登录。"
-            />
+            {/* 服务条款与隐私政策弹窗已用 setNotification 全局弹窗替换 */}
             
             {/* Passkey 二次校验弹窗 */}
             <PasskeyVerifyModal

@@ -6,6 +6,7 @@ import { TOTPSetupData } from '../types/auth';
 import { handleTOTPError, cleanTOTPToken, validateTOTPToken } from '../utils/totpUtils';
 import { Input } from './ui/Input';
 import { PasskeySetup } from './PasskeySetup';
+import { useNotification } from './Notification';
 
 interface TOTPSetupProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
   const [showBackupCodes, setShowBackupCodes] = useState(false);
   const [rotation, setRotation] = useState(0);
       const [activeTab, setActiveTab] = useState<'totp' | 'passkey'>('totp');
+  const { setNotification } = useNotification();
 
   useEffect(() => {
     if (isOpen) {
@@ -60,12 +62,12 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
     const cleanCode = cleanTOTPToken(verificationCode);
     
     if (!cleanCode.trim()) {
-      setError('请输入验证码');
+      setNotification({ message: '请输入验证码', type: 'warning' });
       return;
     }
 
     if (!validateTOTPToken(cleanCode)) {
-      setError('验证码必须是6位数字');
+      setNotification({ message: '验证码必须是6位数字', type: 'warning' });
       return;
     }
 
@@ -83,7 +85,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
         onClose();
       }, 2000);
     } catch (error: any) {
-      setError(handleTOTPError(error));
+      setNotification({ message: handleTOTPError(error), type: 'error' });
     } finally {
       setLoading(false);
     }

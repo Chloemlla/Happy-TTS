@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react';
 import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
 import { passkeyApi, Authenticator } from '../api/passkey';
-import { useToast } from './useToast';
 import { useAuth } from './useAuth';
 import { CredentialIdModal } from '../components/ui/CredentialIdModal';
 import { DebugInfoModal } from '../components/DebugInfoModal';
@@ -27,7 +26,6 @@ export const usePasskey = (): UsePasskeyReturn & {
 } => {
     const [credentials, setCredentials] = useState<Authenticator[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const { showToast } = useToast();
     const { loginWithToken } = useAuth();
 
     // 新增弹窗状态
@@ -47,15 +45,11 @@ export const usePasskey = (): UsePasskeyReturn & {
             const response = await passkeyApi.getCredentials();
             setCredentials(response.data);
         } catch (error) {
-            if (error instanceof Error && error.message === 'Unauthorized') {
-                showToast('登录已过期，请重新登录', 'error');
-            } else {
-                showToast('加载 Passkey 凭证失败', 'error');
-            }
+            // 登录过期/加载失败提示交由外部 setNotification 统一管理
         } finally {
             setIsLoading(false);
         }
-    }, [showToast]);
+    }, []);
 
     const registerAuthenticator = useCallback(async (credentialName: string) => {
         setIsLoading(true);
@@ -64,7 +58,7 @@ export const usePasskey = (): UsePasskeyReturn & {
             // 获取注册选项
             const optionsResponse = await passkeyApi.startRegistration(credentialName);
             if (!optionsResponse.data || !optionsResponse.data.options) {
-                showToast('注册 Passkey 失败: 后端未返回注册选项（options）', 'error');
+                // 失败提示交由外部 setNotification 统一管理
                 return;
             }
             // 调用浏览器的 Passkey API
@@ -81,11 +75,7 @@ export const usePasskey = (): UsePasskeyReturn & {
                         timestamp: new Date().toISOString()
                     };
                 }
-                if (error?.name === 'NotAllowedError') {
-                    showToast('用户取消了操作', 'error');
-                } else {
-                    showToast('注册 Passkey 失败: ' + (error?.message || '未知错误'), 'error');
-                }
+                // 失败提示交由外部 setNotification 统一管理
                 return;
             }
             // 完成注册
@@ -101,7 +91,7 @@ export const usePasskey = (): UsePasskeyReturn & {
                     timestamp: new Date().toISOString()
                 };
             }
-            showToast('Passkey 注册成功', 'success');
+            // 成功提示交由外部 setNotification 统一管理
             await loadCredentials();
         } catch (error: any) {
             if (attResp && attResp.id) {
@@ -122,11 +112,11 @@ export const usePasskey = (): UsePasskeyReturn & {
             } else if (error?.name === 'NotAllowedError') {
                 msg = '用户取消了操作';
             }
-            showToast(msg, 'error');
+            // 失败提示交由外部 setNotification 统一管理
         } finally {
             setIsLoading(false);
         }
-    }, [loadCredentials, showToast]);
+    }, [loadCredentials]);
 
     const authenticateWithPasskey = useCallback(async (username: string): Promise<boolean> => {
         let asseResp: any = null;
@@ -262,15 +252,7 @@ export const usePasskey = (): UsePasskeyReturn & {
                     timestamp: new Date().toISOString()
                 });
             }
-            if (error?.name === 'NotAllowedError') {
-                showToast('用户取消了操作', 'error');
-            } else if (error?.response?.data?.error) {
-                showToast('Passkey 认证失败: ' + error.response.data.error, 'error');
-            } else if (error?.message) {
-                showToast('Passkey 认证失败: ' + error.message, 'error');
-            } else {
-                showToast('Passkey 认证失败', 'error');
-            }
+            // 失败提示交由外部 setNotification 统一管理
             setIsLoading(false);
             return false;
         }
@@ -290,7 +272,7 @@ export const usePasskey = (): UsePasskeyReturn & {
             const resp = await passkeyApi.finishAuthentication(username, asseResp);
             // 使用后端返回的令牌登录
             await loginWithToken(resp.data.token, resp.data.user);
-            showToast('Passkey 认证成功', 'success');
+            // 成功提示交由外部 setNotification 统一管理
             window.location.reload();
             return resp.data.success || false;
         } catch (error: any) {
@@ -304,37 +286,26 @@ export const usePasskey = (): UsePasskeyReturn & {
                     timestamp: new Date().toISOString()
                 });
             }
-            if (error?.name === 'NotAllowedError') {
-                showToast('用户取消了操作', 'error');
-            } else if (error?.response?.data?.error) {
-                showToast('Passkey 认证失败: ' + error.response.data.error, 'error');
-            } else if (error?.message) {
-                showToast('Passkey 认证失败: ' + error.message, 'error');
-            } else {
-                showToast('Passkey 认证失败', 'error');
-            }
+            // 失败提示交由外部 setNotification 统一管理
+            setIsLoading(false);
             return false;
         } finally {
             setIsLoading(false);
         }
-    }, [loginWithToken, showToast]);
+    }, [loginWithToken]);
 
     const removeAuthenticator = useCallback(async (credentialId: string) => {
         try {
             setIsLoading(true);
             await passkeyApi.removeCredential(credentialId);
-            showToast('Passkey 凭证已删除', 'success');
+            // 成功提示交由外部 setNotification 统一管理
             await loadCredentials();
         } catch (error) {
-            if (error instanceof Error && error.message === 'Unauthorized') {
-                showToast('登录已过期，请重新登录', 'error');
-            } else {
-                showToast('删除 Passkey 凭证失败', 'error');
-            }
+            // 失败提示交由外部 setNotification 统一管理
         } finally {
             setIsLoading(false);
         }
-    }, [loadCredentials, showToast]);
+    }, [loadCredentials]);
 
     // 返回时导出弹窗组件
     return {
