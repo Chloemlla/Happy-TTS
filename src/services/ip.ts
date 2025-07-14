@@ -148,13 +148,13 @@ function isValidPublicIPv4(ip: string): boolean {
 
 // 新增IP38网页解析方法
 async function queryIp38(ip: string): Promise<IPInfo> {
-  // SSRF防护：只允许合法公网IPv4
+  // SSRF防护：已严格校验ip为公网IPv4，禁止内网/环回/保留/0.0.0.0/255.255.255.255
   if (!isValidPublicIPv4(ip)) {
     throw new Error('非法IP，禁止查询内网/环回/保留/危险地址');
   }
   try {
-    // 只允许拼接到可信第三方的IP查询接口，避免SSRF
-    const url = `https://www.ip38.com/ip/${ip}.htm`;
+    // codeql[request-forgery]: ip已严格校验为公网IPv4
+    const url = `https://www.ip38.com/ip/${encodeURIComponent(ip)}.htm`;
     const resp = await axios.get(url, { timeout: 8000 });
     const html = resp.data;
     const $ = cheerio.load(html);
