@@ -128,8 +128,28 @@ async function withConcurrencyLimit<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
+// 工具：判断是否为公网IPv4
+function isValidPublicIPv4(ip: string): boolean {
+  // 基本格式
+  const ipv4Regex = /^(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})(\.(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})){3}$/;
+  if (!ipv4Regex.test(ip)) return false;
+  // 排除内网/环回/保留/0.0.0.0
+  if (
+    ip.startsWith('10.') ||
+    ip.startsWith('192.168.') ||
+    ip.startsWith('127.') ||
+    ip.startsWith('169.254.') ||
+    ip.startsWith('0.') ||
+    /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(ip)
+  ) return false;
+  return true;
+}
+
 // 新增IP38网页解析方法
 async function queryIp38(ip: string): Promise<IPInfo> {
+  if (!isValidPublicIPv4(ip)) {
+    throw new Error('非法IP，禁止查询内网/环回/保留地址');
+  }
   try {
     const url = `https://www.ip38.com/ip/${ip}.htm`;
     const resp = await axios.get(url, { timeout: 8000 });
@@ -160,6 +180,9 @@ async function queryIp38(ip: string): Promise<IPInfo> {
 
 // 新增tool.lu/ip/ajax.html查询方法
 async function queryToolLu(ip: string): Promise<IPInfo> {
+  if (!isValidPublicIPv4(ip)) {
+    throw new Error('非法IP，禁止查询内网/环回/保留地址');
+  }
   try {
     const resp = await axios.post('https://tool.lu/ip/ajax.html', `ip=${encodeURIComponent(ip)}`, {
       headers: {
@@ -197,6 +220,9 @@ async function queryToolLu(ip: string): Promise<IPInfo> {
 
 // 优先用ip38.com网页，其次用tool.lu，再用API_PROVIDERS
 async function tryAllProviders(ip: string): Promise<IPInfo> {
+  if (!isValidPublicIPv4(ip)) {
+    throw new Error('非法IP，禁止查询内网/环回/保留地址');
+  }
   // 先尝试ip38网页
   try {
     return await queryIp38(ip);
@@ -308,6 +334,15 @@ function setIpCache(ip: string, value: { info: IPInfo; timestamp: number }) {
 }
 
 export async function getIPInfo(ip: string): Promise<IPInfo> {
+  if (!isValidPublicIPv4(ip)) {
+    return {
+      ip,
+      country: '非法IP',
+      region: '非法IP',
+      city: '非法IP',
+      isp: '非法IP'
+    };
+  }
   try {
     // 处理特殊IP
     if (!ip || ip === '::1' || ip === 'localhost') {
