@@ -372,4 +372,46 @@ router.post('/validate-sender-domain', emailValidationLimiter, EmailController.v
  */
 router.post('/validate', emailValidationLimiter, EmailController.validateEmails);
 
+/**
+ * @openapi
+ * /api/email/quota:
+ *   get:
+ *     summary: 获取邮件配额
+ *     description: 管理员获取邮件配额接口
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 配额获取成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 quota:
+ *                   type: object
+ *                   properties:
+ *                     daily:
+ *                       type: number
+ *                       example: 1000
+ *                     monthly:
+ *                       type: number
+ *                       example: 50000
+ *                 error:
+ *                   type: string
+ *                   example: null
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 权限不足
+ *       429:
+ *         description: 请求过于频繁
+ *       500:
+ *         description: 服务器错误
+ */
+router.get('/quota', authMiddleware, adminAuthMiddleware, EmailController.getQuota);
+
 export default router; 

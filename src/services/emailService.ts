@@ -1,6 +1,7 @@
 import { Resend } from 'resend';
 import { logger } from './logger';
 import { marked } from 'marked';
+import dayjs from 'dayjs';
 
 // 从环境变量获取Resend API密钥
 const RESEND_API_KEY = process.env.RESEND_API_KEY || 're_xxxxxxxxx';
@@ -11,6 +12,65 @@ const DEFAULT_EMAIL_FROM = `noreply@${RESEND_DOMAIN}`;
 
 // 创建Resend实例
 const resend = new Resend(RESEND_API_KEY);
+
+// 邮件配额存储实现（多后端支持）
+import fs from 'fs';
+import path from 'path';
+import { getUserById } from './userService';
+
+const EMAIL_QUOTA_TOTAL = 100;
+const EMAIL_QUOTA_FILE = path.join(__dirname, '../../data/email_quota.json');
+
+export interface EmailQuotaInfo {
+  used: number;
+  total: number;
+  resetAt: string; // ISO
+}
+
+// 简单本地文件实现（可扩展为Mongo/MySQL）
+function readQuotaFile(): Record<string, { used: number; resetAt: string }> {
+  if (!fs.existsSync(EMAIL_QUOTA_FILE)) return {};
+  try {
+    return JSON.parse(fs.readFileSync(EMAIL_QUOTA_FILE, 'utf-8'));
+  } catch {
+    return {};
+  }
+}
+function writeQuotaFile(data: Record<string, { used: number; resetAt: string }>) {
+  fs.writeFileSync(EMAIL_QUOTA_FILE, JSON.stringify(data, null, 2));
+}
+
+export async function getEmailQuota(userId: string): Promise<EmailQuotaInfo> {
+  // 可扩展为Mongo/MySQL
+  const all = readQuotaFile();
+  let info = all[userId];
+  const now = dayjs();
+  if (!info || !info.resetAt || dayjs(info.resetAt).isBefore(now)) {
+    // 首次/已过期，重置
+    info = { used: 0, resetAt: now.add(1, 'day').startOf('day').toISOString() };
+    all[userId] = info;
+    writeQuotaFile(all);
+  }
+  return { used: info.used, total: EMAIL_QUOTA_TOTAL, resetAt: info.resetAt };
+}
+
+export async function addEmailUsage(userId: string, count = 1) {
+  const all = readQuotaFile();
+  let info = all[userId];
+  const now = dayjs();
+  if (!info || !info.resetAt || dayjs(info.resetAt).isBefore(now)) {
+    info = { used: 0, resetAt: now.add(1, 'day').startOf('day').toISOString() };
+  }
+  info.used = (info.used || 0) + count;
+  all[userId] = info;
+  writeQuotaFile(all);
+}
+
+export async function resetEmailQuota(userId: string) {
+  const all = readQuotaFile();
+  all[userId] = { used: 0, resetAt: dayjs().add(1, 'day').startOf('day').toISOString() };
+  writeQuotaFile(all);
+}
 
 export interface EmailData {
   from: string;

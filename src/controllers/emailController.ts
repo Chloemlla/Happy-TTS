@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { EmailService, EmailData } from '../services/emailService';
+import { EmailService, EmailData, addEmailUsage, getEmailQuota } from '../services/emailService';
 import logger from '../utils/logger';
 
 export class EmailController {
@@ -99,6 +99,8 @@ export class EmailController {
       const result = await EmailService.sendEmail(emailData);
 
       if (result.success) {
+        // 邮件配额统计
+        if (user?.id) await addEmailUsage(user.id, 1);
         logger.info('邮件发送成功', {
           messageId: result.messageId,
           from,
@@ -235,6 +237,8 @@ export class EmailController {
       const result = await EmailService.sendSimpleEmail(to, subject, content, from);
 
       if (result.success) {
+        // 邮件配额统计
+        if (user?.id) await addEmailUsage(user.id, 1);
         logger.info('简单邮件发送成功', {
           messageId: result.messageId,
           to,
@@ -367,6 +371,8 @@ export class EmailController {
       const result = await EmailService.sendMarkdownEmail({ from, to, subject, markdown });
 
       if (result.success) {
+        // 邮件配额统计
+        if (user?.id) await addEmailUsage(user.id, 1);
         logger.info('Markdown邮件发送成功', {
           messageId: result.messageId,
           from,
@@ -490,6 +496,21 @@ export class EmailController {
         success: false,
         error: '服务状态查询失败' 
       });
+    }
+  }
+
+  /**
+   * 查询当前用户邮件配额
+   * GET /api/email/quota
+   */
+  public static async getQuota(req: Request, res: Response) {
+    try {
+      const user = (req as any).user;
+      if (!user?.id) return res.status(401).json({ error: '未登录' });
+      const quota = await getEmailQuota(user.id);
+      res.json(quota);
+    } catch (error) {
+      res.status(500).json({ error: '查询配额失败' });
     }
   }
 

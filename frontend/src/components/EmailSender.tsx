@@ -20,6 +20,12 @@ interface ServiceStatus {
   error?: string;
 }
 
+interface EmailQuota {
+  used: number;
+  total: number;
+  resetAt: string; // ISO 时间
+}
+
 const EmailSender: React.FC = () => {
   const [form, setForm] = useState<EmailForm>({
     from: `noreply@${import.meta.env.VITE_RESEND_DOMAIN || 'hapxs.com'}`,
@@ -37,6 +43,7 @@ const EmailSender: React.FC = () => {
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const htmlEditorRef = useRef<HTMLTextAreaElement>(null);
   const { setNotification } = useNotification();
+  const [quota, setQuota] = useState<EmailQuota>({ used: 0, total: 100, resetAt: '' });
 
   // 获取API基础URL
   const getApiBaseUrl = () => {
@@ -59,8 +66,19 @@ const EmailSender: React.FC = () => {
   };
   const resendDomain = getResendDomain();
 
+  // 查询配额
+  const fetchQuota = async () => {
+    try {
+      const response = await api.get('/api/email/quota');
+      setQuota(response.data);
+    } catch (e) {
+      // 失败时不影响主流程
+    }
+  };
+
   useEffect(() => {
     checkServiceStatus();
+    fetchQuota();
   }, []);
 
   const checkServiceStatus = async () => {
@@ -286,6 +304,21 @@ const EmailSender: React.FC = () => {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
     >
+      {/* 邮件配额进度条 */}
+      <div className="max-w-2xl mx-auto px-4 pt-6">
+        <div className="mb-4">
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-sm text-gray-700 font-medium">今日邮件配额</span>
+            <span className="text-xs text-gray-500">{quota.used} / {quota.total} 封 &nbsp;|&nbsp; {quota.resetAt ? `重置时间：${new Date(quota.resetAt).toLocaleString('zh-CN')}` : ''}</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-3">
+            <div
+              className="bg-gradient-to-r from-indigo-500 to-purple-500 h-3 rounded-full transition-all duration-300"
+              style={{ width: `${Math.min(100, (quota.used / quota.total) * 100)}%` }}
+            ></div>
+          </div>
+        </div>
+      </div>
       {/* 顶部导航栏 */}
       <motion.div 
         className="bg-white shadow-sm border-b border-gray-100"
