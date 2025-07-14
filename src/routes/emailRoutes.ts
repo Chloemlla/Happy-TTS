@@ -170,6 +170,56 @@ router.post('/send-simple', emailSendLimiter, EmailController.sendSimpleEmail);
 
 /**
  * @openapi
+ * /api/email/send-markdown:
+ *   post:
+ *     summary: 发送Markdown格式邮件
+ *     description: 管理员发送Markdown格式邮件接口，后端自动将markdown转为HTML
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [from, to, subject, markdown]
+ *             properties:
+ *               from:
+ *                 type: string
+ *                 description: 发件人邮箱（必须是 @hapxs.com 域名）
+ *                 example: "noreply@hapxs.com"
+ *               to:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: 收件人邮箱列表
+ *                 example: ["recipient1@example.com"]
+ *               subject:
+ *                 type: string
+ *                 description: 邮件主题
+ *                 example: "Markdown通知"
+ *               markdown:
+ *                 type: string
+ *                 description: Markdown格式的邮件内容
+ *                 example: "# Hello World\n这是一封测试邮件。"
+ *     responses:
+ *       200:
+ *         description: 邮件发送成功
+ *       400:
+ *         description: 请求参数错误
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 权限不足
+ *       429:
+ *         description: 请求过于频繁
+ *       500:
+ *         description: 服务器错误
+ */
+router.post('/send-markdown', emailSendLimiter, EmailController.sendMarkdownEmail);
+
+/**
+ * @openapi
  * /api/email/status:
  *   get:
  *     summary: 获取邮件服务状态

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import MarkdownPreview from './MarkdownPreview'; // Added MarkdownPreview import
 
 interface EmailForm {
   from: string;
@@ -28,8 +29,9 @@ const EmailSender: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [serviceStatus, setServiceStatus] = useState<ServiceStatus | null>(null);
   const [showPreview, setShowPreview] = useState(false);
-  const [emailMode, setEmailMode] = useState<'html' | 'simple'>('html');
+  const [emailMode, setEmailMode] = useState<'html' | 'simple' | 'markdown'>('html');
   const [simpleContent, setSimpleContent] = useState('');
+  const [markdownContent, setMarkdownContent] = useState('');
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const htmlEditorRef = useRef<HTMLTextAreaElement>(null);
 
@@ -115,6 +117,8 @@ const EmailSender: React.FC = () => {
       errors.push('请填写邮件内容');
     } else if (emailMode === 'simple' && !simpleContent.trim()) {
       errors.push('请填写邮件内容');
+    } else if (emailMode === 'markdown' && !markdownContent.trim()) {
+      errors.push('请填写邮件内容');
     }
 
     setValidationErrors(errors);
@@ -165,7 +169,7 @@ const EmailSender: React.FC = () => {
           });
           setSimpleContent('');
         }
-      } else {
+      } else if (emailMode === 'simple') {
         const response = await api.post('/api/email/send-simple', {
           from: form.from,
           to: validRecipients,
@@ -184,6 +188,25 @@ const EmailSender: React.FC = () => {
             text: ''
           });
           setSimpleContent('');
+        }
+      } else if (emailMode === 'markdown') {
+        const response = await api.post('/api/email/send-markdown', {
+          from: form.from,
+          to: validRecipients,
+          subject: form.subject,
+          markdown: markdownContent
+        });
+        if (response.data.success) {
+          toast.success('邮件发送成功！');
+          setForm({
+            from: 'noreply@hapxs.com',
+            to: [''],
+            subject: '',
+            html: '<h1>Hello World</h1><p>这是一封测试邮件。</p>',
+            text: ''
+          });
+          setSimpleContent('');
+          setMarkdownContent('');
         }
       }
     } catch (error: any) {
@@ -337,6 +360,18 @@ const EmailSender: React.FC = () => {
                       whileTap={{ scale: 0.95 }}
                     >
                       HTML模式
+                    </motion.button>
+                    <motion.button
+                      onClick={() => setEmailMode('markdown')}
+                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        emailMode === 'markdown' 
+                          ? 'bg-white text-indigo-600 shadow-md' 
+                          : 'text-white/80 hover:text-white hover:bg-white/10'
+                      }`}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      Markdown模式
                     </motion.button>
                   </div>
                 </div>
@@ -554,13 +589,26 @@ const EmailSender: React.FC = () => {
                         )}
                       </AnimatePresence>
                     </div>
-                  ) : (
+                  ) : emailMode === 'simple' ? (
                     <textarea
                       value={simpleContent}
                       onChange={(e) => setSimpleContent(e.target.value)}
                       className="w-full h-64 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
                       placeholder="请输入邮件内容"
                     />
+                  ) : (
+                    <div className="space-y-4">
+                      <textarea
+                        value={markdownContent}
+                        onChange={(e) => setMarkdownContent(e.target.value)}
+                        className="w-full h-64 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 font-mono text-sm"
+                        placeholder="请输入Markdown格式的邮件内容"
+                      />
+                      <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
+                        <h4 className="text-sm font-medium text-gray-700 mb-2">预览效果：</h4>
+                        <MarkdownPreview markdown={markdownContent} />
+                      </div>
+                    </div>
                   )}
                 </div>
 
@@ -619,7 +667,7 @@ const EmailSender: React.FC = () => {
                   <div className="space-y-2 text-sm text-gray-600">
                     <div className="flex items-start space-x-2">
                       <div className="w-2 h-2 bg-indigo-500 rounded-full mt-2 flex-shrink-0"></div>
-                      <p>支持HTML和纯文本两种邮件格式</p>
+                      <p>支持HTML、简单文本和Markdown三种邮件格式</p>
                     </div>
                     <div className="flex items-start space-x-2">
                       <div className="w-2 h-2 bg-indigo-500 rounded-full mt-2 flex-shrink-0"></div>
@@ -631,7 +679,7 @@ const EmailSender: React.FC = () => {
                     </div>
                     <div className="flex items-start space-x-2">
                       <div className="w-2 h-2 bg-indigo-500 rounded-full mt-2 flex-shrink-0"></div>
-                      <p>实时预览HTML邮件效果</p>
+                      <p>实时预览邮件效果</p>
                     </div>
                   </div>
                 </div>

@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import { logger } from './logger';
+import { marked } from 'marked';
 
 // 从环境变量获取Resend API密钥
 const RESEND_API_KEY = process.env.RESEND_API_KEY || 're_xxxxxxxxx';
@@ -159,6 +160,23 @@ export class EmailService {
       subject,
       html: htmlContent
     });
+  }
+
+  /**
+   * 发送Markdown格式邮件
+   * @param param0 { from, to, subject, markdown }
+   * @returns 发送结果
+   */
+  static async sendMarkdownEmail({ from, to, subject, markdown }: { from: string, to: string[], subject: string, markdown: string }): Promise<EmailResponse> {
+    // markdown转html
+    let html: string;
+    const parsed = typeof marked.parse === 'function' ? marked.parse(markdown || '') : marked(markdown || '');
+    if (parsed instanceof Promise) {
+      html = await parsed;
+    } else {
+      html = parsed as string;
+    }
+    return this.sendEmail({ from, to, subject, html, text: markdown });
   }
 
   /**

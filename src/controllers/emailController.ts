@@ -280,6 +280,138 @@ export class EmailController {
   }
 
   /**
+   * 发送Markdown格式邮件
+   * @param req.body { from: string, to: string[], subject: string, markdown: string }
+   */
+  public static async sendMarkdownEmail(req: Request, res: Response) {
+    try {
+      const { from, to, subject, markdown } = req.body;
+      const ip = req.ip || 'unknown';
+      const user = (req as any).user;
+
+      logger.info('收到Markdown邮件发送请求', {
+        from,
+        to,
+        subject,
+        ip,
+        userId: user?.id,
+        username: user?.username
+      });
+
+      // 验证必填字段
+      if (!from || !to || !subject || !markdown) {
+        logger.warn('Markdown邮件发送失败：缺少必填字段', {
+          body: req.body,
+          ip,
+          userId: user?.id
+        });
+        return res.status(400).json({
+          error: '缺少必填字段：from、to、subject、markdown'
+        });
+      }
+
+      // 验证发件人域名
+      const fromDomain = from.split('@')[1];
+      if (fromDomain !== 'hapxs.com') {
+        logger.warn('Markdown邮件发送失败：发件人域名不允许', {
+          fromDomain,
+          from,
+          ip,
+          userId: user?.id
+        });
+        return res.status(400).json({
+          error: '发件人邮箱必须是 @hapxs.com 域名',
+          invalidDomain: fromDomain
+        });
+      }
+
+      // 验证邮箱格式
+      const emailValidation = EmailService.validateEmails([from, ...to]);
+      if (emailValidation.invalid.length > 0) {
+        logger.warn('Markdown邮件发送失败：邮箱格式无效', {
+          invalidEmails: emailValidation.invalid,
+          ip,
+          userId: user?.id
+        });
+        return res.status(400).json({
+          error: '邮箱格式无效',
+          invalidEmails: emailValidation.invalid
+        });
+      }
+
+      // 限制收件人数量
+      if (to.length > 10) {
+        logger.warn('Markdown邮件发送失败：收件人数量过多', {
+          recipientCount: to.length,
+          ip,
+          userId: user?.id
+        });
+        return res.status(400).json({
+          error: '收件人数量不能超过10个'
+        });
+      }
+
+      // 限制内容长度
+      if (markdown.length > 50000) {
+        logger.warn('Markdown邮件发送失败：内容过长', {
+          contentLength: markdown.length,
+          ip,
+          userId: user?.id
+        });
+        return res.status(400).json({
+          error: '邮件内容不能超过50000字符'
+        });
+      }
+
+      // 调用服务层处理markdown转html并发送
+      const result = await EmailService.sendMarkdownEmail({ from, to, subject, markdown });
+
+      if (result.success) {
+        logger.info('Markdown邮件发送成功', {
+          messageId: result.messageId,
+          from,
+          to,
+          subject,
+          ip,
+          userId: user?.id
+        });
+        res.json({
+          success: true,
+          message: '邮件发送成功',
+          messageId: result.messageId,
+          data: result.data
+        });
+      } else {
+        logger.error('Markdown邮件发送失败', {
+          error: result.error,
+          from,
+          to,
+          subject,
+          ip,
+          userId: user?.id
+        });
+        res.status(500).json({
+          success: false,
+          error: result.error || '邮件发送失败'
+        });
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '未知错误';
+      logger.error('Markdown邮件发送异常', {
+        error: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined,
+        body: req.body,
+        ip: req.ip,
+        userId: (req as any).user?.id
+      });
+      res.status(500).json({
+        success: false,
+        error: '邮件发送失败'
+      });
+    }
+  }
+
+  /**
    * 获取邮件服务状态
    */
   public static async getServiceStatus(req: Request, res: Response) {

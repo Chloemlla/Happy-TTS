@@ -35,7 +35,6 @@
     "@simplewebauthn/browser": "^13.1.2",
     "@simplewebauthn/server": "^13.1.2",
     "@simplewebauthn/types": "^12.0.0",
-    "@types/axios": "^0.14.4",
     "@types/bcrypt": "^5.0.2",
     "@types/jsdom": "^21.1.7",
     "@types/jsonwebtoken": "^9.0.10",
@@ -47,6 +46,7 @@
     "dompurify": "^3.2.6",
     "express-rate-limit": "^7.5.0",
     "framer-motion": "^12.23.0",
+    "javascript-obfuscator": "^4.0.0",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.525.0",
     "prismjs": "^1.30.0",
@@ -59,11 +59,9 @@
     "react-toastify": "^11.0.5",
     "swagger-ui-react": "^5.26.0",
     "tailwind-merge": "^3.3.1",
-    "validator": "^13.15.15",
-    "javascript-obfuscator": "^4.0.0"
+    "validator": "^13.15.15"
   },
   "devDependencies": {
-    "@rollup/rollup-linux-x64-musl": "^4.9.5",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^14.2.1",
     "@types/javascript-obfuscator": "^0.17.0",
