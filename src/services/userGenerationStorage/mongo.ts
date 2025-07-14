@@ -1,17 +1,5 @@
-import mongoose from './mongoService';
-import { Document } from 'mongoose';
-
-export interface GenerationRecord {
-  userId: string;
-  text: string;
-  voice?: string;
-  model?: string;
-  outputFormat?: string;
-  speed?: number;
-  fileName?: string;
-  contentHash?: string;
-  timestamp?: Date;
-}
+import mongoose from '../mongoService';
+import { getUserById } from '../userService';
 
 const generationSchema = new mongoose.Schema({
   userId: { type: String, required: true },
@@ -29,13 +17,11 @@ const GenerationModel = mongoose.models.UserGeneration || mongoose.model('UserGe
 
 function sanitizeString(str: any): string {
   if (typeof str !== 'string') return '';
-  // 禁止 $、.、{、}、[、] 等特殊符号
   if (/[$.{}\[\]]/.test(str)) return '';
   return str;
 }
 
-export async function findDuplicateGeneration({ userId, text, voice, model, contentHash }: GenerationRecord): Promise<any | null> {
-  // NoSQL注入防护：所有字段做严格校验
+export async function findDuplicateGeneration({ userId, text, voice, model, contentHash }: any): Promise<any | null> {
   const safeUserId = sanitizeString(userId);
   const safeText = sanitizeString(text);
   const safeVoice = sanitizeString(voice);
@@ -47,8 +33,7 @@ export async function findDuplicateGeneration({ userId, text, voice, model, cont
   return await GenerationModel.findOne(query).lean();
 }
 
-export async function addGenerationRecord(record: GenerationRecord): Promise<any> {
-  // NoSQL注入防护：所有字段做严格校验
+export async function addGenerationRecord(record: any): Promise<any> {
   const safeRecord = {
     ...record,
     userId: sanitizeString(record.userId),
@@ -60,8 +45,6 @@ export async function addGenerationRecord(record: GenerationRecord): Promise<any
   return await GenerationModel.create(safeRecord);
 }
 
-// 判断用户是否为管理员
-import { getUserById } from '../services/userService';
 export async function isAdminUser(userId: string): Promise<boolean> {
   const user = await getUserById(userId);
   return !!(user && user.role === 'admin');

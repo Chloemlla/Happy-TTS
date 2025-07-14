@@ -129,7 +129,7 @@ async function withConcurrencyLimit<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 /**
- * SSRF防护：只允许合法的公网IPv4，禁止内网、环回、保留、0.0.0.0等危险IP
+ * SSRF防护：只允许合法公网IPv4，禁止内网/环回/保留/非法IP
  */
 function isValidPublicIPv4(ip: string): boolean {
   // 基本格式
@@ -149,7 +149,7 @@ function isValidPublicIPv4(ip: string): boolean {
 
 // 新增IP38网页解析方法
 async function queryIp38(ip: string): Promise<IPInfo> {
-  // SSRF防护：仅允许合法的公网IPv4，禁止内网、环回/保留地址
+  // SSRF防护：只允许合法公网IPv4
   if (!isValidPublicIPv4(ip)) {
     throw new Error('非法IP，禁止查询内网/环回/保留地址');
   }
@@ -226,7 +226,7 @@ async function queryToolLu(ip: string): Promise<IPInfo> {
 
 // 优先用ip38.com网页，其次用tool.lu，再用API_PROVIDERS
 async function tryAllProviders(ip: string): Promise<IPInfo> {
-  // SSRF防护：仅允许合法的公网IPv4，禁止内网、环回/保留地址
+  // SSRF防护：只允许合法公网IPv4，禁止内网/环回/保留/非法IP
   if (!isValidPublicIPv4(ip)) {
     throw new Error('非法IP，禁止查询内网/环回/保留地址');
   }
