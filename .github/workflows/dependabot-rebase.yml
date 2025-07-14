@@ -15,33 +15,59 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: List open dependabot PRs
-        id: list_prs
-        uses: actions/github-script@v7
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          script: |
-            const prs = await github.rest.pulls.list({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'open',
-              per_page: 100
-            });
-            const dependabotPRs = prs.data.filter(pr => pr.user && pr.user.login === 'dependabot[bot]');
-            core.setOutput('pr_numbers', dependabotPRs.map(pr => pr.number).join(','));
+          node-version: "20"
 
-      - name: Comment @dependabot rebase on each PR
-        if: steps.list_prs.outputs.pr_numbers != ''
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const prNumbers = core.getInput('pr_numbers').split(',').filter(Boolean);
-            for (const pr of prNumbers) {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: Number(pr),
-                body: '@dependabot rebase'
-              });
-            }
+      - name: Comment @dependabot rebase on all open dependabot PRs
         env:
-          pr_numbers: ${{ steps.list_prs.outputs.pr_numbers }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node <<'EOF'
+          const https = require('https');
+
+          const owner = process.env.GITHUB_REPOSITORY.split('/')[0];
+          const repo = process.env.GITHUB_REPOSITORY.split('/')[1];
+          const token = process.env.GITHUB_TOKEN;
+
+          function githubRequest(path, method = 'GET', data = null) {
+            return new Promise((resolve, reject) => {
+              const options = {
+                hostname: 'api.github.com',
+                path,
+                method,
+                headers: {
+                  'User-Agent': 'actions/rebase-all',
+                  'Authorization': `Bearer ${token}`,
+                  'Accept': 'application/vnd.github+json',
+                  'Content-Type': 'application/json',
+                },
+              };
+              const req = https.request(options, res => {
+                let body = '';
+                res.on('data', chunk => body += chunk);
+                res.on('end', () => {
+                  if (res.statusCode >= 200 && res.statusCode < 300) {
+                    resolve(JSON.parse(body));
+                  } else {
+                    reject(new Error(`GitHub API error: ${res.statusCode} ${body}`));
+                  }
+                });
+              });
+              req.on('error', reject);
+              if (data) req.write(JSON.stringify(data));
+              req.end();
+            });
+          }
+
+          (async () => {
+            // 获取所有open PR
+            const prs = await githubRequest(`/repos/${owner}/${repo}/pulls?state=open&per_page=100`);
+            const dependabotPRs = prs.filter(pr => pr.user && pr.user.login === 'dependabot[bot]');
+            for (const pr of dependabotPRs) {
+              await githubRequest(`/repos/${owner}/${repo}/issues/${pr.number}/comments`, 'POST', { body: '@dependabot rebase' });
+              console.log(`Commented on PR #${pr.number}`);
+            }
+          })().catch(e => { console.error(e); process.exit(1); });
+          EOF
