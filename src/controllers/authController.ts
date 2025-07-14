@@ -49,11 +49,39 @@ export class AuthController {
                 });
             }
 
-            // 生成验证码
-            const code = Math.floor(100000 + Math.random() * 900000).toString();
+            // 生成8位数字+大小写字母验证码
+            const chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            let code = '';
+            for (let i = 0; i < 8; i++) {
+              code += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
             emailCodeMap.set(email, code);
-            // 发送验证码邮件
-            await EmailService.sendSimpleEmail([email], '注册验证码', `您的注册验证码为：${code}，5分钟内有效。`, 'noreply@hapxs.com');
+            // 精美HTML邮件内容
+            const html = `
+              <div style="max-width:420px;margin:32px auto;padding:32px 24px;background:linear-gradient(135deg,#6366f1 0%,#a5b4fc 100%);border-radius:20px;box-shadow:0 4px 24px 0 rgba(99,102,241,0.08);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Oxygen','Ubuntu','Cantarell',sans-serif;">
+                <div style="text-align:center;margin-bottom:24px;">
+                  <div style="font-size:38px;color:#6366f1;">🔐</div>
+                  <h2 style="margin:0 0 8px 0;color:#fff;font-size:1.8rem;font-weight:700;letter-spacing:1px;">邮箱验证</h2>
+                  <p style="color:#e0e7ff;font-size:1.1rem;margin:0;">欢迎注册 Synapse</p>
+                </div>
+                <div style="background:#fff;border-radius:16px;padding:24px 16px;margin-bottom:24px;box-shadow:0 2px 8px rgba(99,102,241,0.06);">
+                  <div style="text-align:center;font-size:1.1rem;color:#6366f1;font-weight:600;letter-spacing:2px;">您的验证码</div>
+                  <div style="font-size:2.2rem;font-weight:700;color:#4f46e5;letter-spacing:6px;margin:18px 0 8px 0;">${code}</div>
+                  <div style="color:#64748b;font-size:0.95rem;">有效期：5分钟。请勿泄露验证码。</div>
+                </div>
+                <div style="text-align:center;color:#64748b;font-size:0.95rem;">如非本人操作，请忽略此邮件。</div>
+                <div style="margin-top:32px;text-align:center;">
+                  <span style="color:#818cf8;font-size:1.1rem;font-weight:600;">Synapse 团队</span>
+                </div>
+              </div>
+            `;
+            await EmailService.sendEmail({
+              from: 'noreply@hapxs.com',
+              to: [email],
+              subject: 'Synapse 注册验证码',
+              html,
+              text: `您的注册验证码为：${code}，5分钟内有效。`
+            });
             // 返回需验证
             res.status(200).json({ needVerify: true });
         } catch (error) {

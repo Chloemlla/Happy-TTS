@@ -5,6 +5,10 @@ import { marked } from 'marked';
 // 从环境变量获取Resend API密钥
 const RESEND_API_KEY = process.env.RESEND_API_KEY || 're_xxxxxxxxx';
 
+// 统一Resend发件人域名
+const RESEND_DOMAIN = process.env.RESEND_DOMAIN || 'hapxs.com';
+const DEFAULT_EMAIL_FROM = `noreply@${RESEND_DOMAIN}`;
+
 // 创建Resend实例
 const resend = new Resend(RESEND_API_KEY);
 
@@ -41,7 +45,7 @@ export class EmailService {
     try {
       // 验证发件人域名
       if (!this.isValidSenderDomain(emailData.from)) {
-        const errorMessage = `发件人邮箱必须是 @hapxs.com 域名，当前域名: ${emailData.from.split('@')[1]}`;
+        const errorMessage = `发件人邮箱必须是 @${RESEND_DOMAIN} 域名，当前域名: ${emailData.from.split('@')[1]}`;
         logger.error('邮件发送失败：发件人域名不允许', {
           from: emailData.from,
           domain: emailData.from.split('@')[1]
@@ -122,10 +126,8 @@ export class EmailService {
     if (!(globalThis as any).EMAIL_ENABLED) {
       return { success: false, error: '邮件服务未启用，请联系管理员配置 RESEND_API_KEY' };
     }
-    const defaultFrom = process.env.DEFAULT_EMAIL_FROM || 'noreply@hapxs.com';
-    
     return this.sendEmail({
-      from: from || defaultFrom,
+      from: from || DEFAULT_EMAIL_FROM,
       to,
       subject,
       html: `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
@@ -152,10 +154,8 @@ export class EmailService {
     if (!(globalThis as any).EMAIL_ENABLED) {
       return { success: false, error: '邮件服务未启用，请联系管理员配置 RESEND_API_KEY' };
     }
-    const defaultFrom = process.env.DEFAULT_EMAIL_FROM || 'noreply@hapxs.com';
-    
     return this.sendEmail({
-      from: from || defaultFrom,
+      from: from || DEFAULT_EMAIL_FROM,
       to,
       subject,
       html: htmlContent
@@ -197,7 +197,7 @@ export class EmailService {
    */
   static isValidSenderDomain(email: string): boolean {
     const domain = email.split('@')[1];
-    return domain === 'hapxs.com';
+    return domain === RESEND_DOMAIN;
   }
 
   /**

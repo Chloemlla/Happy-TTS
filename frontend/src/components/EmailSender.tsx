@@ -21,7 +21,7 @@ interface ServiceStatus {
 
 const EmailSender: React.FC = () => {
   const [form, setForm] = useState<EmailForm>({
-    from: 'noreply@hapxs.com',
+    from: `noreply@${import.meta.env.VITE_RESEND_DOMAIN || 'hapxs.com'}`,
     to: [''],
     subject: '',
     html: '<h1>Hello World</h1><p>这是一封测试邮件。</p>',
@@ -50,6 +50,12 @@ const EmailSender: React.FC = () => {
       'Authorization': `Bearer ${localStorage.getItem('token')}`
     }
   });
+
+  // 获取发件人域名（自动适配后端环境变量）
+  const getResendDomain = () => {
+    return import.meta.env.VITE_RESEND_DOMAIN || 'hapxs.com';
+  };
+  const resendDomain = getResendDomain();
 
   useEffect(() => {
     checkServiceStatus();
@@ -162,7 +168,7 @@ const EmailSender: React.FC = () => {
           toast.success('邮件发送成功！');
           // 重置表单
           setForm({
-            from: 'noreply@hapxs.com',
+            from: `noreply@${resendDomain}`,
             to: [''],
             subject: '',
             html: '<h1>Hello World</h1><p>这是一封测试邮件。</p>',
@@ -182,7 +188,7 @@ const EmailSender: React.FC = () => {
           toast.success('邮件发送成功！');
           // 重置表单
           setForm({
-            from: 'noreply@hapxs.com',
+            from: `noreply@${resendDomain}`,
             to: [''],
             subject: '',
             html: '<h1>Hello World</h1><p>这是一封测试邮件。</p>',
@@ -200,7 +206,7 @@ const EmailSender: React.FC = () => {
         if (response.data.success) {
           toast.success('邮件发送成功！');
           setForm({
-            from: 'noreply@hapxs.com',
+            from: `noreply@${resendDomain}`,
             to: [''],
             subject: '',
             html: '<h1>Hello World</h1><p>这是一封测试邮件。</p>',
@@ -458,12 +464,12 @@ const EmailSender: React.FC = () => {
                       value={form.from.split('@')[0]}
                       onChange={(e) => {
                         const username = e.target.value;
-                        setForm({ ...form, from: `${username}@hapxs.com` });
+                        setForm({ ...form, from: `${username}@${resendDomain}` });
                       }}
                       className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
                       placeholder="noreply"
                     />
-                    <span className="text-gray-500 font-medium">@hapxs.com</span>
+                    <span className="text-gray-500 font-medium">@{resendDomain}</span>
                   </div>
                 </div>
 
@@ -691,7 +697,7 @@ const EmailSender: React.FC = () => {
                   <div className="space-y-2 text-sm text-gray-600">
                     <div className="flex items-start space-x-2">
                       <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
-                      <p>发件人邮箱固定为 @hapxs.com 域名</p>
+                      <p>发件人邮箱固定为 @{resendDomain} 域名</p>
                     </div>
                     <div className="flex items-start space-x-2">
                       <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>

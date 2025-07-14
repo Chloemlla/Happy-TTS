@@ -47,6 +47,9 @@ const statusQueryLimiter = createLimiter({
 // 全局邮件接口速率限制（每管理员每分钟最多5次）
 router.use(emailSendLimiter);
 
+// 新增：无需认证的 code 校验邮件发送接口
+router.post('/send-with-code', EmailController.sendEmailWithCode);
+
 // 应用认证和管理员权限中间件
 router.use(authMiddleware);
 router.use(adminAuthMiddleware);

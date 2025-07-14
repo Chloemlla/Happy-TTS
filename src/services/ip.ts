@@ -158,13 +158,56 @@ async function queryIp38(ip: string): Promise<IPInfo> {
   }
 }
 
-// 优先用ip38.com网页，其次用API_PROVIDERS
+// 新增tool.lu/ip/ajax.html查询方法
+async function queryToolLu(ip: string): Promise<IPInfo> {
+  try {
+    const resp = await axios.post('https://tool.lu/ip/ajax.html', `ip=${encodeURIComponent(ip)}`, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      },
+      timeout: 8000
+    });
+    const data = resp.data;
+    if (data && data.status && data.text) {
+      // 优先用chunzhen字段
+      let country = '未知', region = '未知', city = '未知', isp = '未知';
+      if (data.text.chunzhen) {
+        // 例：中国 山东 济宁 电信
+        const parts = data.text.chunzhen.split(' ');
+        if (parts.length >= 1) country = parts[0];
+        if (parts.length >= 2) region = parts[1];
+        if (parts.length >= 3) city = parts[2];
+        if (parts.length >= 4) isp = parts.slice(3).join(' ');
+      }
+      return {
+        ip: data.text.ip || ip,
+        country,
+        region,
+        city,
+        isp
+      };
+    }
+    throw new Error('tool.lu 响应格式异常');
+  } catch (e: any) {
+    logger.error('tool.lu/ip/ajax.html 查询失败', { ip, error: e.message });
+    throw e;
+  }
+}
+
+// 优先用ip38.com网页，其次用tool.lu，再用API_PROVIDERS
 async function tryAllProviders(ip: string): Promise<IPInfo> {
   // 先尝试ip38网页
   try {
     return await queryIp38(ip);
-  } catch (e) {
-    logger.error('ip38.com 查询失败，尝试备用API', { ip });
+  } catch (e: any) {
+    logger.error('ip38.com 查询失败，尝试tool.lu', { ip });
+  }
+  // 再尝试tool.lu
+  try {
+    return await queryToolLu(ip);
+  } catch (e: any) {
+    logger.error('tool.lu 查询失败，尝试备用API', { ip });
   }
   // 失败后fallback到原有API
   for (const provider of API_PROVIDERS) {

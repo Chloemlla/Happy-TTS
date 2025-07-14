@@ -12,6 +12,9 @@ interface Config {
   server: {
     password: string;
   };
+  email: {
+    code: string;
+  };
   paths: {
     ipData: string;
     lcData: string;
@@ -37,6 +40,9 @@ const config: Config = {
   },
   server: {
     password: process.env.SERVER_PASSWORD || 'admin',
+  },
+  email: {
+    code: process.env.EMAIL_CODE || '',
   },
   paths: {
     ipData: join(__dirname, '../data/ip_data.json'),

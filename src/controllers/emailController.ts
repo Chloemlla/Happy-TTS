@@ -412,6 +412,45 @@ export class EmailController {
   }
 
   /**
+   * 需要 code 校验的邮件发送接口
+   * @param req.body { from, to, subject, html, text?, code }
+   */
+  public static async sendEmailWithCode(req: Request, res: Response) {
+    try {
+      const { from, to, subject, html, text, code } = req.body;
+      const ip = req.ip || 'unknown';
+      // 校验 code
+      const config = require('../config').default;
+      if (!code || code !== config.email.code) {
+        // 随机返回一段错误信息
+        const errors = [
+          '请求被拒绝，请联系管理员',
+          '无效的请求参数',
+          '操作失败，请稍后重试',
+          '非法请求',
+          '权限不足，无法发送邮件',
+          '请求被拦截',
+          '系统繁忙，请稍后再试',
+          '未知错误',
+        ];
+        const idx = Math.floor(Math.random() * errors.length);
+        return res.status(403).json({ success: false, error: errors[idx] });
+      }
+      // 复用 sendEmail 逻辑
+      return await EmailController.sendEmail(req, res);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '未知错误';
+      logger.error('带code邮件发送异常', {
+        error: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined,
+        body: req.body,
+        ip: req.ip,
+      });
+      res.status(500).json({ success: false, error: '邮件发送失败' });
+    }
+  }
+
+  /**
    * 获取邮件服务状态
    */
   public static async getServiceStatus(req: Request, res: Response) {
