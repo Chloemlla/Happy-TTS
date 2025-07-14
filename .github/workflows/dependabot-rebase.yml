@@ -22,7 +22,7 @@ jobs:
 
       - name: Comment @dependabot rebase on all open dependabot PRs
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.USER_PAT }}
         run: |
           node <<'EOF'
           const https = require('https');
