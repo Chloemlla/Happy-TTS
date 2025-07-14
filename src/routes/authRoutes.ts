@@ -91,4 +91,27 @@ router.get('/me', authenticateToken, AuthController.getCurrentUser);
 // Passkey 二次校验接口
 router.post('/passkey-verify', AuthController.passkeyVerify);
 
+/**
+ * @openapi
+ * /auth/verify-email:
+ *   post:
+ *     summary: 验证邮箱
+ *     description: 验证邮箱接口
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *               code:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 验证成功
+ */
+router.post('/verify-email', AuthController.verifyEmail);
+
 export default router; 

@@ -10,6 +10,7 @@ import { Dialog } from './ui/Dialog';
 import { Button } from './ui/Button';
 import VerificationMethodSelector from './VerificationMethodSelector';
 import PasskeyVerifyModal from './PasskeyVerifyModal';
+import api from '../api/index';
 
 interface AuthFormProps {
 }
@@ -61,6 +62,20 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
     const [showPasskeyVerification, setShowPasskeyVerification] = useState(false);
     const [showVerificationSelector, setShowVerificationSelector] = useState(false);
     const [pendingVerificationData, setPendingVerificationData] = useState<any>(null);
+    const [showEmailVerify, setShowEmailVerify] = useState(false);
+    const [pendingEmail, setPendingEmail] = useState('');
+    const [verifyCode, setVerifyCode] = useState('');
+    const [verifyError, setVerifyError] = useState('');
+    const [verifyLoading, setVerifyLoading] = useState(false);
+
+    // 支持的主流邮箱后缀
+    const allowedDomains = [
+      'gmail.com', 'outlook.com', 'qq.com', '163.com', '126.com',
+      'hotmail.com', 'yahoo.com', 'icloud.com', 'foxmail.com'
+    ];
+    const emailPattern = new RegExp(
+      `^[\\w.-]+@(${allowedDomains.map(d => d.replace('.', '\\.')).join('|')})$`
+    );
 
     // 密码复杂度检查
     const checkPasswordStrength = (pwd: string): PasswordStrength => {
@@ -137,9 +152,9 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
                 }
                 break;
             case 'email':
-                // 邮箱格式验证
-                if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(sanitizedValue)) {
-                    return '请输入有效的邮箱地址';
+                // 邮箱格式验证（只允许主流邮箱）
+                if (!emailPattern.test(sanitizedValue)) {
+                    return '只支持主流邮箱（如gmail、outlook、qq、163、126、hotmail、yahoo、icloud、foxmail等）';
                 }
                 break;
             case 'password':
@@ -239,8 +254,18 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
                     return;
                 }
             } else {
-                // 注册后自动登录
-                await register(sanitizedUsername, sanitizedEmail, sanitizedPassword);
+                // 注册后进入邮箱验证码界面
+                const res = await api.post('/api/auth/register', {
+                    username: sanitizedUsername,
+                    email: sanitizedEmail,
+                    password: sanitizedPassword
+                });
+                if (res.data && res.data.needVerify) {
+                    setShowEmailVerify(true);
+                    setPendingEmail(sanitizedEmail);
+                } else {
+                    setError('注册失败，未收到验证码发送指示');
+                }
             }
             // 登录成功后强制刷新页面，不需要回调函数
         } catch (err: any) {
@@ -370,6 +395,32 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
             setPendingVerificationData(null);
             setPending2FA(null); // 清除pending2FA状态，防止其他弹窗自动显示
         });
+    };
+
+    const handleVerifyCode = async () => {
+        setVerifyLoading(true);
+        setVerifyError('');
+        try {
+            const res = await api.post('/api/auth/verify-email', {
+                email: pendingEmail,
+                code: verifyCode
+            });
+            if (res.data && res.data.success) {
+                setShowEmailVerify(false);
+                setPendingEmail('');
+                setVerifyCode('');
+                setVerifyError('');
+                // 邮箱验证通过后允许登录
+                setIsLogin(true);
+                setError('邮箱验证成功，请登录');
+            } else {
+                setVerifyError(res.data.error || '验证码错误');
+            }
+        } catch (err: any) {
+            setVerifyError(err.response?.data?.error || err.message || '验证码校验失败');
+        } finally {
+            setVerifyLoading(false);
+        }
     };
 
     return (
@@ -591,6 +642,39 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
                         </svg>
                         <span>调试信息 ({debugInfos.length})</span>
                     </button>
+                </div>
+            )}
+
+            {/* 邮箱验证码弹窗 */}
+            {showEmailVerify && (
+                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
+                    <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-sm">
+                        <h3 className="text-lg font-bold mb-4 text-center">邮箱验证</h3>
+                        <p className="mb-2 text-gray-600 text-center">我们已向 <span className="font-semibold">{pendingEmail}</span> 发送了验证码，请输入收到的验证码完成注册。</p>
+                        <input
+                            type="text"
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 mb-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            placeholder="请输入验证码"
+                            value={verifyCode}
+                            onChange={e => setVerifyCode(e.target.value)}
+                            maxLength={6}
+                        />
+                        {verifyError && <div className="text-red-500 text-sm mb-2 text-center">{verifyError}</div>}
+                        <button
+                            className="w-full py-2 px-4 bg-indigo-600 text-white rounded-md font-semibold hover:bg-indigo-700 transition-all mb-2"
+                            onClick={handleVerifyCode}
+                            disabled={verifyLoading}
+                        >
+                            {verifyLoading ? '验证中...' : '提交验证'}
+                        </button>
+                        <button
+                            className="w-full py-2 px-4 bg-gray-200 text-gray-700 rounded-md font-semibold hover:bg-gray-300 transition-all"
+                            onClick={() => setShowEmailVerify(false)}
+                            disabled={verifyLoading}
+                        >
+                            取消
+                        </button>
+                    </div>
                 </div>
             )}
         </div>

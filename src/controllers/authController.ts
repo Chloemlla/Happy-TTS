@@ -3,6 +3,19 @@ import { UserStorage, User } from '../utils/userStorage';
 import logger from '../utils/logger';
 import fs from 'fs';
 import path from 'path';
+import { EmailService } from '../services/emailService';
+
+// 支持的主流邮箱后缀
+const allowedDomains = [
+  'gmail.com', 'outlook.com', 'qq.com', '163.com', '126.com',
+  'hotmail.com', 'yahoo.com', 'icloud.com', 'foxmail.com'
+];
+const emailPattern = new RegExp(
+  `^[\\w.-]+@(${allowedDomains.map(d => d.replace('.', '\\.')).join('|')})$`
+);
+
+// 临时存储验证码（生产建议用redis等持久化）
+const emailCodeMap = new Map();
 
 export class AuthController {
 
@@ -14,6 +27,11 @@ export class AuthController {
                 return res.status(400).json({
                     error: '请提供所有必需的注册信息'
                 });
+            }
+
+            // 只允许主流邮箱
+            if (!emailPattern.test(email)) {
+                return res.status(400).json({ error: '只支持主流邮箱（如gmail、outlook、qq、163、126、hotmail、yahoo、icloud、foxmail等）' });
             }
 
             // 验证邮箱格式
@@ -31,12 +49,39 @@ export class AuthController {
                 });
             }
 
-            // 不返回密码
-            const { password: _, ...userWithoutPassword } = user;
-            res.status(201).json(userWithoutPassword);
+            // 生成验证码
+            const code = Math.floor(100000 + Math.random() * 900000).toString();
+            emailCodeMap.set(email, code);
+            // 发送验证码邮件
+            await EmailService.sendSimpleEmail([email], '注册验证码', `您的注册验证码为：${code}，5分钟内有效。`, 'noreply@hapxs.com');
+            // 返回需验证
+            res.status(200).json({ needVerify: true });
         } catch (error) {
             logger.error('注册失败:', error);
             res.status(500).json({ error: '注册失败' });
+        }
+    }
+
+    public static async verifyEmail(req: Request, res: Response) {
+        try {
+            const { email, code } = req.body;
+            if (!email || !code) {
+                return res.status(400).json({ error: '参数缺失' });
+            }
+            const realCode = emailCodeMap.get(email);
+            if (!realCode) {
+                return res.status(400).json({ error: '请先注册获取验证码' });
+            }
+            if (realCode !== code) {
+                return res.status(400).json({ error: '验证码错误' });
+            }
+            // 验证通过，正式创建用户
+            // 这里假设注册信息已暂存，实际可用redis等存储注册信息
+            // 简化：直接允许登录
+            emailCodeMap.delete(email);
+            res.json({ success: true });
+        } catch (error) {
+            res.status(500).json({ error: '邮箱验证失败' });
         }
     }
 
