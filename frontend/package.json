@@ -64,7 +64,7 @@
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",
-    "@testing-library/react": "^14.2.1",
+    "@testing-library/react": "^16.3.0",
     "@types/javascript-obfuscator": "^0.17.0",
     "@types/jest": "^30.0.0",
     "@types/marked": "^6.0.0",
