@@ -1,4 +1,17 @@
 import mysql from 'mysql2/promise';
+import { getUserById } from '../userService';
+
+export interface GenerationRecord {
+  userId: string;
+  text: string;
+  voice?: string;
+  model?: string;
+  outputFormat?: string;
+  speed?: number;
+  fileName?: string;
+  contentHash?: string;
+  timestamp?: Date | string;
+}
 
 const MYSQL_URI = process.env.MYSQL_URI || 'mysql://root:password@localhost:3306/tts';
 const TABLE = 'user_generations';
@@ -20,7 +33,7 @@ async function getConn() {
   return conn;
 }
 
-export async function findDuplicateGeneration({ userId, text, voice, model, contentHash }: any): Promise<any | null> {
+export async function findDuplicateGeneration({ userId, text, voice, model, contentHash }: GenerationRecord): Promise<GenerationRecord | null> {
   const conn = await getConn();
   let [rows]: any = [null];
   if (contentHash) {
@@ -29,10 +42,10 @@ export async function findDuplicateGeneration({ userId, text, voice, model, cont
     [rows] = await conn.execute(`SELECT * FROM ${TABLE} WHERE userId=? AND text=? AND voice=? AND model=? LIMIT 1`, [userId, text, voice, model]);
   }
   await conn.end();
-  return rows && rows[0] ? rows[0] : null;
+  return rows && rows[0] ? rows[0] as GenerationRecord : null;
 }
 
-export async function addGenerationRecord(record: any): Promise<any> {
+export async function addGenerationRecord(record: GenerationRecord): Promise<GenerationRecord> {
   const conn = await getConn();
   await conn.execute(
     `INSERT INTO ${TABLE} (userId, text, voice, model, outputFormat, speed, fileName, contentHash, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -43,6 +56,6 @@ export async function addGenerationRecord(record: any): Promise<any> {
 }
 
 export async function isAdminUser(userId: string): Promise<boolean> {
-  // 需结合用户表，这里默认 false
-  return false;
+  const user = await getUserById(userId);
+  return !!(user && user.role === 'admin');
 } 
