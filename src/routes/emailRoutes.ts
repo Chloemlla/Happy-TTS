@@ -23,15 +23,15 @@ const adminAuthMiddleware = (req: any, res: any, next: any) => {
 // 邮件发送速率限制（每管理员每分钟最多5封邮件）
 const emailSendLimiter = createLimiter({
     windowMs: 60 * 1000, // 1分钟
-    max: 5, // 最多5次
+    max: 20, // 最多20次
     message: '邮件发送过于频繁，请稍后再试',
     routeName: 'email.send'
 });
 
-// 邮箱验证速率限制（每管理员每分钟最多20次验证）
+// 邮箱验证速率限制（每管理员每分钟最多40次验证）
 const emailValidationLimiter = createLimiter({
     windowMs: 60 * 1000, // 1分钟
-    max: 20, // 最多20次
+    max: 40, // 最多40次
     message: '邮箱验证过于频繁，请稍后再试',
     routeName: 'email.validate'
 });
@@ -39,7 +39,7 @@ const emailValidationLimiter = createLimiter({
 // 服务状态查询速率限制（每管理员每分钟最多10次查询）
 const statusQueryLimiter = createLimiter({
     windowMs: 60 * 1000, // 1分钟
-    max: 10, // 最多10次
+    max: 40, // 最多40次
     message: '状态查询过于频繁，请稍后再试',
     routeName: 'email.status'
 });
