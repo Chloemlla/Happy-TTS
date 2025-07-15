@@ -2,6 +2,16 @@ import { Resend } from 'resend';
 import { logger } from './logger';
 import { marked } from 'marked';
 import dayjs from 'dayjs';
+import mongoose from './mongoService';
+
+// MongoDB 邮件配额 Schema
+const EmailQuotaSchema = new mongoose.Schema({
+  userId: { type: String, required: true },
+  domain: { type: String, required: true },
+  used: { type: Number, default: 0 },
+  resetAt: { type: String, required: true },
+}, { collection: 'email_quotas' });
+const EmailQuotaModel = mongoose.models.EmailQuota || mongoose.model('EmailQuota', EmailQuotaSchema);
 
 // 从环境变量获取Resend API密钥
 const RESEND_API_KEY = process.env.RESEND_API_KEY || 're_xxxxxxxxx';
@@ -54,22 +64,63 @@ const domainQuotaMap: Record<string, number> = {};
 })();
 
 export async function getEmailQuota(userId: string, domain?: string): Promise<EmailQuotaInfo & { quotaTotal: number }> {
-  // 可扩展为Mongo/MySQL
+  try {
+    if (mongoose.connection.readyState === 1) {
+      // MongoDB 优先
+      const quotaTotal = domain && domainQuotaMap[domain] ? domainQuotaMap[domain] : 100;
+      let quota = await EmailQuotaModel.findOne({ userId, domain: domain || 'default' });
+      const now = dayjs();
+      if (!quota || !quota.resetAt || dayjs(quota.resetAt).isBefore(now)) {
+        // 首次/已过期，重置
+        const resetAt = now.add(1, 'day').startOf('day').toISOString();
+        quota = await EmailQuotaModel.findOneAndUpdate(
+          { userId, domain: domain || 'default' },
+          { used: 0, resetAt },
+          { upsert: true, new: true }
+        );
+      }
+      return { used: quota.used, total: quotaTotal, resetAt: quota.resetAt, quotaTotal };
+    }
+  } catch (e) {
+    // Mongo 异常降级为文件
+  }
+  // 文件存储兜底
   const all = readQuotaFile();
   let info = all[userId];
   const now = dayjs();
   if (!info || !info.resetAt || dayjs(info.resetAt).isBefore(now)) {
-    // 首次/已过期，重置
     info = { used: 0, resetAt: now.add(1, 'day').startOf('day').toISOString() };
     all[userId] = info;
     writeQuotaFile(all);
   }
-  // 根据域名返回配额
   const quotaTotal = domain && domainQuotaMap[domain] ? domainQuotaMap[domain] : 100;
   return { used: info.used, total: quotaTotal, resetAt: info.resetAt, quotaTotal };
 }
 
-export async function addEmailUsage(userId: string, count = 1) {
+export async function addEmailUsage(userId: string, count = 1, domain?: string) {
+  try {
+    if (mongoose.connection.readyState === 1) {
+      const quotaTotal = domain && domainQuotaMap[domain] ? domainQuotaMap[domain] : 100;
+      let quota = await EmailQuotaModel.findOne({ userId, domain: domain || 'default' });
+      const now = dayjs();
+      if (!quota || !quota.resetAt || dayjs(quota.resetAt).isBefore(now)) {
+        // 首次/已过期，重置
+        const resetAt = now.add(1, 'day').startOf('day').toISOString();
+        quota = await EmailQuotaModel.findOneAndUpdate(
+          { userId, domain: domain || 'default' },
+          { used: count, resetAt },
+          { upsert: true, new: true }
+        );
+      } else {
+        quota.used = (quota.used || 0) + count;
+        await quota.save();
+      }
+      return;
+    }
+  } catch (e) {
+    // Mongo 异常降级为文件
+  }
+  // 文件存储兜底
   const all = readQuotaFile();
   let info = all[userId];
   const now = dayjs();
@@ -81,7 +132,21 @@ export async function addEmailUsage(userId: string, count = 1) {
   writeQuotaFile(all);
 }
 
-export async function resetEmailQuota(userId: string) {
+export async function resetEmailQuota(userId: string, domain?: string) {
+  try {
+    if (mongoose.connection.readyState === 1) {
+      const resetAt = dayjs().add(1, 'day').startOf('day').toISOString();
+      await EmailQuotaModel.findOneAndUpdate(
+        { userId, domain: domain || 'default' },
+        { used: 0, resetAt },
+        { upsert: true }
+      );
+      return;
+    }
+  } catch (e) {
+    // Mongo 异常降级为文件
+  }
+  // 文件存储兜底
   const all = readQuotaFile();
   all[userId] = { used: 0, resetAt: dayjs().add(1, 'day').startOf('day').toISOString() };
   writeQuotaFile(all);

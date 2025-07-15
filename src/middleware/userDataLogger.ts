@@ -2,6 +2,13 @@ import { Request, Response, NextFunction } from 'express';
 import fs from 'fs';
 import path from 'path';
 import logger from '../utils/logger';
+import mongoose from '../services/mongoService';
+
+// MongoDB 用户行为日志 Schema
+const UserDataSchema = new mongoose.Schema({
+  users: { type: Array, required: true },
+}, { collection: 'user_datas' });
+const UserDataModel = mongoose.models.UserData || mongoose.model('UserData', UserDataSchema);
 
 interface UserData {
     username: string;
@@ -31,6 +38,15 @@ const ensureDataDir = async () => {
 // 读取现有数据
 const readUserData = async (): Promise<UserDataStore> => {
     try {
+        if (mongoose.connection.readyState === 1) {
+            const doc = await UserDataModel.findOne();
+            if (doc) return doc.toObject() as UserDataStore;
+        }
+    } catch (error) {
+        logger.error('MongoDB 读取用户数据失败，降级为本地文件:', error);
+    }
+    // 本地文件兜底
+    try {
         await ensureDataDir();
         if (fs.existsSync(USER_DATA_FILE)) {
             const data = await fs.promises.readFile(USER_DATA_FILE, 'utf8');
@@ -44,6 +60,15 @@ const readUserData = async (): Promise<UserDataStore> => {
 
 // 写入数据
 const writeUserData = async (data: UserDataStore) => {
+    try {
+        if (mongoose.connection.readyState === 1) {
+            await UserDataModel.findOneAndUpdate({}, data, { upsert: true });
+            return;
+        }
+    } catch (error) {
+        logger.error('MongoDB 写入用户数据失败，降级为本地文件:', error);
+    }
+    // 本地文件兜底
     try {
         await ensureDataDir();
         await fs.promises.writeFile(USER_DATA_FILE, JSON.stringify(data, null, 2));

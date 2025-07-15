@@ -5,6 +5,15 @@ import { existsSync } from 'fs';
 import config from '../config';
 import { logger } from './logger';
 import cheerio from 'cheerio';
+import mongoose from './mongoService';
+
+// MongoDB IP信息 Schema
+const IPInfoSchema = new mongoose.Schema({
+  ip: { type: String, required: true, unique: true },
+  info: { type: Object, required: true },
+  timestamp: { type: Number, required: true },
+}, { collection: 'ip_infos' });
+const IPInfoModel = mongoose.models.IPInfo || mongoose.model('IPInfo', IPInfoSchema);
 
 interface IPInfo {
   ip: string;
@@ -270,24 +279,33 @@ const LOCAL_CACHE: { [key: string]: IPInfo } = {};
 // 初始化本地存储
 async function initializeLocalStorage(): Promise<void> {
   try {
-    // 确保 data 目录存在
+    if (mongoose.connection.readyState === 1) {
+      // MongoDB: 加载所有IP到本地缓存
+      const all = await IPInfoModel.find().lean();
+      for (const doc of all) {
+        LOCAL_CACHE[doc.ip] = { ...doc.info, timestamp: doc.timestamp };
+      }
+      logger.log(`Loaded ${all.length} IP records from MongoDB`);
+      return;
+    }
+  } catch (error) {
+    logger.error('MongoDB 加载 IP 信息失败，降级为本地文件:', error);
+  }
+  // 本地文件兜底
+  try {
     if (!existsSync(DATA_DIR)) {
       await mkdir(DATA_DIR, { recursive: true });
       logger.log('Created data directory for IP info');
     }
-
-    // 检查并初始化 IP 信息文件
     if (!existsSync(IP_DATA_FILE)) {
       await writeFile(IP_DATA_FILE, JSON.stringify({}, null, 2));
       logger.log('Created empty IP info file');
     } else {
-      // 读取本地存储的 IP 信息
       try {
         const data = await readFile(IP_DATA_FILE, 'utf-8');
         Object.assign(LOCAL_CACHE, JSON.parse(data));
         logger.log(`Loaded ${Object.keys(LOCAL_CACHE).length} IP records from local storage`);
       } catch (error) {
-        // 如果文件损坏或格式错误，重新创建
         logger.error('Error reading IP info file, creating new one:', error);
         await writeFile(IP_DATA_FILE, JSON.stringify({}, null, 2));
         Object.keys(LOCAL_CACHE).forEach(key => delete LOCAL_CACHE[key]);
@@ -301,11 +319,24 @@ async function initializeLocalStorage(): Promise<void> {
 // 保存 IP 信息到本地文件
 async function saveIPInfoToLocal(info: IPInfo): Promise<void> {
   try {
+    if (mongoose.connection.readyState === 1) {
+      await IPInfoModel.findOneAndUpdate(
+        { ip: info.ip },
+        { info, timestamp: Date.now() },
+        { upsert: true }
+      );
+      LOCAL_CACHE[info.ip] = { ...info, timestamp: Date.now() };
+      return;
+    }
+  } catch (error) {
+    logger.error('MongoDB 保存 IP 信息失败，降级为本地文件:', error);
+  }
+  // 本地文件兜底
+  try {
     LOCAL_CACHE[info.ip] = {
       ...info,
       timestamp: Date.now()
     };
-    
     await writeFile(IP_DATA_FILE, JSON.stringify(LOCAL_CACHE, null, 2));
   } catch (error) {
     logger.error('Error saving IP info to local storage:', error);

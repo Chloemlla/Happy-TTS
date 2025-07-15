@@ -4,6 +4,23 @@ import { writeFile, readFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { logger } from './logger';
+import mongoose from './mongoService';
+
+// MongoDB 图片记录 Schema
+const ImageRecordSchema = new mongoose.Schema({
+  userId: { type: String, required: true },
+  imageUrl: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now },
+}, { collection: 'librechat_images' });
+const ImageRecordModel = mongoose.models.LibreChatImage || mongoose.model('LibreChatImage', ImageRecordSchema);
+
+// MongoDB 聊天历史 Schema
+const ChatHistorySchema = new mongoose.Schema({
+  userId: { type: String, required: true },
+  messages: { type: Array, required: true },
+  updatedAt: { type: Date, default: Date.now },
+}, { collection: 'librechat_histories' });
+const ChatHistoryModel = mongoose.models.LibreChatHistory || mongoose.model('LibreChatHistory', ChatHistorySchema);
 
 interface ImageRecord {
   updateTime: string;
@@ -50,27 +67,40 @@ class LibreChatService {
 
   private async initializeService() {
     try {
-      // 确保数据目录存在
+      if (mongoose.connection.readyState === 1) {
+        // MongoDB: 加载图片记录
+        const latest = await ImageRecordModel.findOne().sort({ createdAt: -1 }).lean();
+        this.latestRecord = latest ? latest as any : null;
+        logger.log('Loaded previous LibreChat image record from MongoDB');
+        // 加载聊天历史
+        const history = await ChatHistoryModel.findOne().sort({ updatedAt: -1 }).lean();
+        const h: any = history;
+        this.chatHistory = h && Array.isArray(h.messages) ? h.messages : [];
+        logger.log('Loaded chat history from MongoDB');
+        if (!this.isRunning && process.env.NODE_ENV !== 'test') {
+          this.startPeriodicCheck();
+        }
+        return;
+      }
+    } catch (error) {
+      logger.error('MongoDB 加载 LibreChat 数据失败，降级为本地文件:', error);
+    }
+    // 本地文件兜底
+    try {
       if (!existsSync(this.DATA_DIR)) {
         await mkdir(this.DATA_DIR, { recursive: true });
         logger.log('Created data directory for LibreChat service');
       }
-
-      // 加载之前的记录
       if (existsSync(this.DATA_FILE)) {
         const data = await readFile(this.DATA_FILE, 'utf-8');
         this.latestRecord = JSON.parse(data);
         logger.log('Loaded previous LibreChat image record');
       }
-
-      // 加载聊天历史
       if (existsSync(this.CHAT_HISTORY_FILE)) {
         const data = await readFile(this.CHAT_HISTORY_FILE, 'utf-8');
         this.chatHistory = JSON.parse(data);
         logger.log('Loaded chat history');
       }
-
-      // 只在非测试环境中启动定时检查
       if (!this.isRunning && process.env.NODE_ENV !== 'test') {
         this.startPeriodicCheck();
       }

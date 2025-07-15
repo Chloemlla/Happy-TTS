@@ -2,6 +2,14 @@ import { writeFile, readFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import logger from '../utils/logger';
+import mongoose from './mongoService';
+
+// MongoDB Blocked IP Schema
+const BlockedIPSchema = new mongoose.Schema({
+  ip: { type: String, required: true, unique: true },
+  blockedAt: { type: Date, required: true },
+}, { collection: 'blocked_ips' });
+const BlockedIPModel = mongoose.models.BlockedIP || mongoose.model('BlockedIP', BlockedIPSchema);
 
 interface TamperEvent {
   elementId: string;
@@ -65,7 +73,20 @@ class TamperService {
 
   private async saveBlockedIPs(): Promise<void> {
     try {
-      // 确保目录存在
+      if (mongoose.connection.readyState === 1) {
+        const blockedList = Array.from(this.blockedIPs.values());
+        // 先清空再批量插入
+        await BlockedIPModel.deleteMany({});
+        if (blockedList.length > 0) {
+          await BlockedIPModel.insertMany(blockedList.map(ip => ({ ip, blockedAt: new Date() })));
+        }
+        return;
+      }
+    } catch (error) {
+      logger.error('MongoDB 保存 Blocked IPs 失败，降级为本地文件:', error);
+    }
+    // 本地文件兜底
+    try {
       if (!existsSync(this.DATA_DIR)) {
         await mkdir(this.DATA_DIR, { recursive: true });
       }
