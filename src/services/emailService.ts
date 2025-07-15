@@ -275,9 +275,18 @@ export class EmailService {
    * @returns 是否有效
    */
   static isValidEmail(email: string): boolean {
-    // 更高效的邮箱正则，防止ReDoS
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    return emailRegex.test(email);
+    // 允许主流邮箱域名
+    const allowedDomains = [
+      'gmail.com', 'outlook.com', 'qq.com', '163.com', '126.com',
+      'hotmail.com', 'yahoo.com', 'icloud.com', 'foxmail.com',
+      'protonmail.com', 'sina.com', 'sohu.com', 'yeah.net', 'vip.qq.com',
+      'aliyun.com', '139.com', '189.cn', '21cn.com', 'tom.com', '263.net',
+      'me.com', 'live.com', 'msn.com', 'hotmail.com', 'ymail.com', 'aol.com', 'hapxs.com'
+    ];
+    const emailRegex = new RegExp(`^[\\w.-]+@(${allowedDomains.map(d => d.replace('.', '\\.')).join('|')})$`);
+    if (!emailRegex.test(email)) return false;
+    const domain = email.split('@')[1].toLowerCase();
+    return allowedDomains.some(d => domain === d);
   }
 
   /**

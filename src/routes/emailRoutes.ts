@@ -20,7 +20,7 @@ const adminAuthMiddleware = (req: any, res: any, next: any) => {
     next();
 };
 
-// 邮件发送速率限制（每管理员每分钟最多5封邮件）
+// 邮件发送速率限制（每管理员每分钟最多20封邮件）
 const emailSendLimiter = createLimiter({
     windowMs: 60 * 1000, // 1分钟
     max: 20, // 最多20次
