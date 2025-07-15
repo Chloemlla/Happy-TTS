@@ -21,12 +21,17 @@ declare global {
 
 export const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const token = req.headers.authorization?.replace('Bearer ', '');
-        
-        if (!token) {
-            return res.status(401).json({ error: '未提供认证令牌' });
+        const authHeader = req.headers.authorization;
+        if (!authHeader) {
+            return res.status(401).json({ error: '未携带Token，请先登录' });
         }
-
+        if (!authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ error: 'Token格式错误，需以Bearer开头' });
+        }
+        const token = authHeader.replace('Bearer ', '');
+        if (!token) {
+            return res.status(401).json({ error: 'Token为空' });
+        }
         try {
             // 首先尝试作为JWT令牌验证
             try {
@@ -34,20 +39,16 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
                     userId: string;
                     username: string;
                 };
-
                 // 获取用户信息
                 const user = await UserStorage.getUserById(decoded.userId);
                 if (!user) {
                     return res.status(401).json({ error: '用户不存在' });
                 }
-
-                // 将用户信息添加到请求对象
                 req.user = {
                     id: user.id,
                     username: user.username,
                     role: user.role
                 };
-
                 next();
                 return;
             } catch (jwtError) {
@@ -58,7 +59,6 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
                     if (!user) {
                         return res.status(401).json({ error: '用户不存在' });
                     }
-
                     // 检查token是否过期（从users.json文件中读取）
                     try {
                         const userWithToken = await UserStorage.getUserById(user.id);
@@ -66,17 +66,13 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
                             return res.status(401).json({ error: '认证令牌已过期' });
                         }
                     } catch (error) {
-                        // 如果读取token过期时间失败，继续执行
                         logger.warn('读取token过期时间失败:', error);
                     }
-
-                    // 将用户信息添加到请求对象
                     req.user = {
                         id: user.id,
                         username: user.username,
                         role: user.role
                     };
-
                     next();
                     return;
                 }

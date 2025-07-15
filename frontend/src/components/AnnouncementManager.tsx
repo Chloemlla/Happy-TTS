@@ -31,6 +31,32 @@ const AnnouncementManager: React.FC = () => {
     try {
       const res = await fetch(API_URL, { credentials: 'include' });
       const data = await res.json();
+      if (!res.ok) {
+        switch (data.error) {
+          case '未携带Token，请先登录':
+            setError('请先登录后再操作');
+            break;
+          case 'Token格式错误，需以Bearer开头':
+          case 'Token为空':
+          case '无效的认证令牌':
+          case '认证令牌已过期':
+            setError('登录状态已失效，请重新登录');
+            break;
+          case '用户不存在':
+            setError('用户不存在，请重新登录');
+            break;
+          case '需要管理员权限':
+          case '无权限':
+            setError('需要管理员权限');
+            break;
+          default:
+            setError(data.error || '获取公告失败');
+        }
+        setContent('');
+        setFormat('markdown');
+        setLoading(false);
+        return;
+      }
       if (data.success && data.announcement) {
         setContent(data.announcement.content || '');
         setFormat(data.announcement.format || 'markdown');
@@ -60,6 +86,29 @@ const AnnouncementManager: React.FC = () => {
         body: JSON.stringify({ content, format }),
       });
       const data = await res.json();
+      if (!res.ok) {
+        switch (data.error) {
+          case '未携带Token，请先登录':
+            setError('请先登录后再操作');
+            break;
+          case 'Token格式错误，需以Bearer开头':
+          case 'Token为空':
+          case '无效的认证令牌':
+          case '认证令牌已过期':
+            setError('登录状态已失效，请重新登录');
+            break;
+          case '用户不存在':
+            setError('用户不存在，请重新登录');
+            break;
+          case '需要管理员权限':
+          case '无权限':
+            setError('需要管理员权限');
+            break;
+          default:
+            setError(data.error || '保存失败');
+        }
+        return;
+      }
       if (data.success) {
         setSuccess('保存成功');
         setEditing(false);
@@ -83,6 +132,29 @@ const AnnouncementManager: React.FC = () => {
         credentials: 'include',
       });
       const data = await res.json();
+      if (!res.ok) {
+        switch (data.error) {
+          case '未携带Token，请先登录':
+            setError('请先登录后再操作');
+            break;
+          case 'Token格式错误，需以Bearer开头':
+          case 'Token为空':
+          case '无效的认证令牌':
+          case '认证令牌已过期':
+            setError('登录状态已失效，请重新登录');
+            break;
+          case '用户不存在':
+            setError('用户不存在，请重新登录');
+            break;
+          case '需要管理员权限':
+          case '无权限':
+            setError('需要管理员权限');
+            break;
+          default:
+            setError(data.error || '删除失败');
+        }
+        return;
+      }
       if (data.success) {
         setContent('');
         setSuccess('已删除');

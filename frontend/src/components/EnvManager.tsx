@@ -25,6 +25,30 @@ const EnvManager: React.FC = () => {
     try {
       const res = await fetch(API_URL, { credentials: 'include' });
       const data = await res.json();
+      if (!res.ok) {
+        switch (data.error) {
+          case '未携带Token，请先登录':
+            setError('请先登录后再操作');
+            break;
+          case 'Token格式错误，需以Bearer开头':
+          case 'Token为空':
+          case '无效的认证令牌':
+          case '认证令牌已过期':
+            setError('登录状态已失效，请重新登录');
+            break;
+          case '用户不存在':
+            setError('用户不存在，请重新登录');
+            break;
+          case '需要管理员权限':
+          case '无权限':
+            setError('需要管理员权限');
+            break;
+          default:
+            setError(data.error || '获取失败');
+        }
+        setLoading(false);
+        return;
+      }
       if (data.success) setEnvs(data.envs || []);
       else setError(data.error || '获取失败');
     } catch {
@@ -66,6 +90,29 @@ const EnvManager: React.FC = () => {
         body: JSON.stringify(form),
       });
       const data = await res.json();
+      if (!res.ok) {
+        switch (data.error) {
+          case '未携带Token，请先登录':
+            setError('请先登录后再操作');
+            break;
+          case 'Token格式错误，需以Bearer开头':
+          case 'Token为空':
+          case '无效的认证令牌':
+          case '认证令牌已过期':
+            setError('登录状态已失效，请重新登录');
+            break;
+          case '用户不存在':
+            setError('用户不存在，请重新登录');
+            break;
+          case '需要管理员权限':
+          case '无权限':
+            setError('需要管理员权限');
+            break;
+          default:
+            setError(data.error || '保存失败');
+        }
+        return;
+      }
       if (data.success) {
         setSuccess('保存成功');
         setEditingKey(null);
@@ -85,6 +132,29 @@ const EnvManager: React.FC = () => {
         body: JSON.stringify({ key }),
       });
       const data = await res.json();
+      if (!res.ok) {
+        switch (data.error) {
+          case '未携带Token，请先登录':
+            setError('请先登录后再操作');
+            break;
+          case 'Token格式错误，需以Bearer开头':
+          case 'Token为空':
+          case '无效的认证令牌':
+          case '认证令牌已过期':
+            setError('登录状态已失效，请重新登录');
+            break;
+          case '用户不存在':
+            setError('用户不存在，请重新登录');
+            break;
+          case '需要管理员权限':
+          case '无权限':
+            setError('需要管理员权限');
+            break;
+          default:
+            setError(data.error || '删除失败');
+        }
+        return;
+      }
       if (data.success) {
         setSuccess('已删除');
         setEnvs(data.envs || []);

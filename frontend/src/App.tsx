@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from './hooks/useAuth';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
@@ -6,6 +6,7 @@ import { TOTPStatus } from './types/auth';
 import { LoadingSpinner, SimpleLoadingSpinner } from './components/LoadingSpinner';
 import TOTPManager from './components/TOTPManager';
 import { NotificationProvider } from './components/Notification';
+import DesktopNav from './components/DesktopNav';
 
 // 懒加载组件
 const WelcomePage = React.lazy(() => import('./components/WelcomePage').then(module => ({ default: module.WelcomePage })));
@@ -97,6 +98,23 @@ const App: React.FC = () => {
   const [showTOTPManager, setShowTOTPManager] = useState(false);
   const [totpStatus, setTotpStatus] = useState<TOTPStatus | null>(null);
   const [showWatermark, setShowWatermark] = useState(false);
+
+  // 在App组件内，提升isMobile/isOverflow状态
+  const [isMobileNav, setIsMobileNav] = useState(false);
+  const navRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const checkMobileOrOverflow = () => {
+      const isMobileScreen = window.innerWidth < 768;
+      let overflow = false;
+      if (navRef.current && !isMobileScreen) {
+        overflow = navRef.current.scrollWidth > navRef.current.clientWidth;
+      }
+      setIsMobileNav(isMobileScreen || overflow);
+    };
+    checkMobileOrOverflow();
+    window.addEventListener('resize', checkMobileOrOverflow);
+    return () => window.removeEventListener('resize', checkMobileOrOverflow);
+  }, []);
 
   useEffect(() => {
     if (!loading) {
@@ -192,8 +210,8 @@ const App: React.FC = () => {
                   <Link to="/" className="text-xl font-bold text-gray-900 hover:text-indigo-600 transition-colors">Synapse</Link>
                 </motion.div>
                 
-                {/* 所有按钮都交由MobileNav统一管理 */}
-                {user && (
+                {/* 导航栏自适应切换 */}
+                <div ref={navRef} className="flex-1 flex justify-end">
                   <Suspense fallback={<div className="w-8 h-8 bg-gray-200 rounded animate-pulse"></div>}>
                     <MobileNav
                       user={user}
@@ -202,7 +220,7 @@ const App: React.FC = () => {
                       totpStatus={totpStatus}
                     />
                   </Suspense>
-                )}
+                </div>
               </div>
             </div>
           </motion.nav>
@@ -465,15 +483,17 @@ const App: React.FC = () => {
                 <Link to="/" className="text-xl font-bold text-gray-900 hover:text-indigo-600 transition-colors">Synapse</Link>
               </motion.div>
               
-              {/* 所有按钮都交由MobileNav统一管理 */}
-              {user && (
-                <MobileNav
-                  user={user}
-                  logout={logout}
-                  onTOTPManagerOpen={() => setShowTOTPManager(true)}
-                  totpStatus={totpStatus}
-                />
-              )}
+              {/* 导航栏自适应切换 */}
+              <div ref={navRef} className="flex-1 flex justify-end">
+                <Suspense fallback={<div className="w-8 h-8 bg-gray-200 rounded animate-pulse"></div>}>
+                  <MobileNav
+                    user={user}
+                    logout={logout}
+                    onTOTPManagerOpen={() => setShowTOTPManager(true)}
+                    totpStatus={totpStatus}
+                  />
+                </Suspense>
+              </div>
             </div>
           </div>
         </motion.nav>
