@@ -20,19 +20,26 @@ const MobileNav: React.FC<MobileNavProps> = ({
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const navRef = React.useRef<HTMLDivElement>(null);
+  const [isOverflow, setIsOverflow] = useState(false);
   const location = useLocation();
   const twoFactorStatus = useTwoFactorStatus();
 
-  // 检测是否为移动设备
+  // 检测是否为移动设备或溢出
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
+    const checkMobileOrOverflow = () => {
+      const isMobileScreen = window.innerWidth < 768;
+      let overflow = false;
+      if (navRef.current && !isMobileScreen) {
+        const nav = navRef.current;
+        overflow = nav.scrollWidth > nav.clientWidth;
+      }
+      setIsOverflow(overflow);
+      setIsMobile(isMobileScreen || overflow);
     };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => window.removeEventListener('resize', checkMobile);
+    checkMobileOrOverflow();
+    window.addEventListener('resize', checkMobileOrOverflow);
+    return () => window.removeEventListener('resize', checkMobileOrOverflow);
   }, []);
 
   // 关闭菜单当路由改变时
@@ -62,6 +69,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.5, delay: 0.2 }}
+        ref={navRef}
       >
         <motion.div
           whileHover={{ scale: 1.05 }}

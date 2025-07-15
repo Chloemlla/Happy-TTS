@@ -481,6 +481,17 @@ const lifeLimiter = rateLimit({
     }
 });
 
+// MiniAPI路由限流器
+const miniapiLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1分钟
+    max: 30, // 限制每个IP每分钟30次MiniAPI请求
+    message: { error: 'MiniAPI请求过于频繁，请稍后再试' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req: Request) => req.ip || (req.socket?.remoteAddress) || 'unknown',
+    skip: (req: Request): boolean => req.isLocalIp || false
+});
+
 // 状态路由限流器
 const statusLimiter = rateLimit({
     windowMs: 60 * 1000, // 1分钟
@@ -612,6 +623,7 @@ app.use('/api', logRoutes);
 app.use('/api/passkey', passkeyAutoFixMiddleware);
 app.use('/api/passkey', passkeyRoutes);
 app.use('/api/email', emailRoutes);
+app.use('/api/miniapi', miniapiLimiter, miniapiRoutes);
 
 // 完整性检测相关兜底接口限速
 const integrityLimiter = rateLimit({
