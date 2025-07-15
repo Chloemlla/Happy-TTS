@@ -283,7 +283,7 @@ export class EmailService {
       'aliyun.com', '139.com', '189.cn', '21cn.com', 'tom.com', '263.net',
       'me.com', 'live.com', 'msn.com', 'hotmail.com', 'ymail.com', 'aol.com', 'hapxs.com'
     ];
-    const emailRegex = new RegExp(`^[\\w.-]+@(${allowedDomains.map(d => d.replace('.', '\\.')).join('|')})$`);
+    const emailRegex = new RegExp(`^[\w.-]+@(${allowedDomains.map(d => d.replace(/\./g, '\\.')).join('|')})$`);
     if (!emailRegex.test(email)) return false;
     const domain = email.split('@')[1].toLowerCase();
     return allowedDomains.some(d => domain === d);
