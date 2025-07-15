@@ -1,7 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import DOMPurify from 'dompurify';
+import { marked } from 'marked';
 
 const API_URL = '/api/admin/announcement';
+
+function renderMarkdownSafe(md: string) {
+  let html: string;
+  try {
+    html = marked(md) as string;
+  } catch {
+    html = md;
+  }
+  return DOMPurify.sanitize(html);
+}
 
 const AnnouncementManager: React.FC = () => {
   const [content, setContent] = useState('');
@@ -154,9 +166,9 @@ const AnnouncementManager: React.FC = () => {
               <div className="prose mb-4 border rounded-lg p-4 min-h-[80px] bg-gray-50">
                 {content ? (
                   format === 'markdown' ? (
-                    <span style={{ whiteSpace: 'pre-wrap' }}>{content}</span>
+                    <span dangerouslySetInnerHTML={{ __html: renderMarkdownSafe(content) }} />
                   ) : (
-                    <span dangerouslySetInnerHTML={{ __html: content }} />
+                    <span dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content) }} />
                   )
                 ) : (
                   <span className="text-gray-400">暂无公告</span>

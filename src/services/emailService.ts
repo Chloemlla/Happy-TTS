@@ -63,18 +63,25 @@ const domainQuotaMap: Record<string, number> = {};
   }
 })();
 
+// 安全正则转义
+function escapeRegExp(str: string) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export async function getEmailQuota(userId: string, domain?: string): Promise<EmailQuotaInfo & { quotaTotal: number }> {
   try {
     if (mongoose.connection.readyState === 1) {
-      // MongoDB 优先
-      const quotaTotal = domain && domainQuotaMap[domain] ? domainQuotaMap[domain] : 100;
-      let quota = await EmailQuotaModel.findOne({ userId, domain: domain || 'default' });
+      // 类型校验，防止NoSQL注入
+      const safeUserId = typeof userId === 'string' ? userId : '';
+      const safeDomain = typeof domain === 'string' ? domain : 'default';
+      const quotaTotal = safeDomain && domainQuotaMap[safeDomain] ? domainQuotaMap[safeDomain] : 100;
+      let quota = await EmailQuotaModel.findOne({ userId: safeUserId, domain: safeDomain });
       const now = dayjs();
       if (!quota || !quota.resetAt || dayjs(quota.resetAt).isBefore(now)) {
         // 首次/已过期，重置
         const resetAt = now.add(1, 'day').startOf('day').toISOString();
         quota = await EmailQuotaModel.findOneAndUpdate(
-          { userId, domain: domain || 'default' },
+          { userId: safeUserId, domain: safeDomain },
           { used: 0, resetAt },
           { upsert: true, new: true }
         );
@@ -100,14 +107,16 @@ export async function getEmailQuota(userId: string, domain?: string): Promise<Em
 export async function addEmailUsage(userId: string, count = 1, domain?: string) {
   try {
     if (mongoose.connection.readyState === 1) {
-      const quotaTotal = domain && domainQuotaMap[domain] ? domainQuotaMap[domain] : 100;
-      let quota = await EmailQuotaModel.findOne({ userId, domain: domain || 'default' });
+      const safeUserId = typeof userId === 'string' ? userId : '';
+      const safeDomain = typeof domain === 'string' ? domain : 'default';
+      const quotaTotal = safeDomain && domainQuotaMap[safeDomain] ? domainQuotaMap[safeDomain] : 100;
+      let quota = await EmailQuotaModel.findOne({ userId: safeUserId, domain: safeDomain });
       const now = dayjs();
       if (!quota || !quota.resetAt || dayjs(quota.resetAt).isBefore(now)) {
         // 首次/已过期，重置
         const resetAt = now.add(1, 'day').startOf('day').toISOString();
         quota = await EmailQuotaModel.findOneAndUpdate(
-          { userId, domain: domain || 'default' },
+          { userId: safeUserId, domain: safeDomain },
           { used: count, resetAt },
           { upsert: true, new: true }
         );
@@ -135,9 +144,11 @@ export async function addEmailUsage(userId: string, count = 1, domain?: string) 
 export async function resetEmailQuota(userId: string, domain?: string) {
   try {
     if (mongoose.connection.readyState === 1) {
+      const safeUserId = typeof userId === 'string' ? userId : '';
+      const safeDomain = typeof domain === 'string' ? domain : 'default';
       const resetAt = dayjs().add(1, 'day').startOf('day').toISOString();
       await EmailQuotaModel.findOneAndUpdate(
-        { userId, domain: domain || 'default' },
+        { userId: safeUserId, domain: safeDomain },
         { used: 0, resetAt },
         { upsert: true }
       );
@@ -348,7 +359,7 @@ export class EmailService {
       'aliyun.com', '139.com', '189.cn', '21cn.com', 'tom.com', '263.net',
       'me.com', 'live.com', 'msn.com', 'hotmail.com', 'ymail.com', 'aol.com', 'hapxs.com'
     ];
-    const emailRegex = new RegExp(`^[\w.-]+@(${allowedDomains.map(d => d.replace(/\./g, '\\.')).join('|')})$`);
+    const emailRegex = new RegExp(`^[\\w.-]+@(${allowedDomains.map(escapeRegExp).join('|')})$`);
     if (!emailRegex.test(email)) return false;
     const domain = email.split('@')[1].toLowerCase();
     return allowedDomains.some(d => domain === d);
