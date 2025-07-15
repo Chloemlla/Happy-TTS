@@ -542,17 +542,21 @@ const EmailSender: React.FC = () => {
                       className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
                       placeholder="noreply"
                     />
-                    <select
-                      value={form.from.split('@')[1] || senderDomains[0] || ''}
-                      onChange={e => {
-                        setForm({ ...form, from: `${form.from.split('@')[0]}@${e.target.value}` });
-                      }}
-                      className="px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white"
-                    >
-                      {senderDomains.map(domain => (
-                        <option key={domain} value={domain}>@{domain}</option>
-                      ))}
-                    </select>
+                    {senderDomains.length > 1 ? (
+                      <select
+                        value={form.from.split('@')[1] || senderDomains[0] || ''}
+                        onChange={e => {
+                          setForm({ ...form, from: `${form.from.split('@')[0]}@${e.target.value}` });
+                        }}
+                        className="px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white"
+                      >
+                        {senderDomains.map(domain => (
+                          <option key={domain} value={domain}>@{domain}</option>
+                        ))}
+                      </select>
+                    ) : senderDomains.length === 1 ? (
+                      <span className="text-gray-600 text-base">@{senderDomains[0]}</span>
+                    ) : null}
                   </div>
                 </div>
 

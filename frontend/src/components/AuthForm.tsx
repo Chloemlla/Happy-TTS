@@ -400,13 +400,13 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
         });
     };
 
-    const handleVerifyCode = async () => {
+    const handleVerifyCode = async (code?: string) => {
         setVerifyLoading(true);
         setVerifyError('');
         try {
             const res = await api.post('/api/auth/verify-email', {
                 email: pendingEmail,
-                code: verifyCode
+                code: code || verifyCode
             });
             if (res.data && res.data.success) {
                 setShowEmailVerify(false);
@@ -664,13 +664,19 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
                         <p className="mb-2 text-gray-600 text-center">我们已向 <span className="font-semibold">{pendingEmail}</span> 发送了验证码，请输入收到的验证码完成注册。</p>
                         <VerifyCodeInput
                             length={8}
-                            onComplete={(code) => setVerifyCode(code)}
+                            onComplete={async (code) => {
+                                setVerifyCode(code);
+                                // 自动触发验证
+                                if (code.length === 8 && !verifyLoading) {
+                                    await handleVerifyCode(code);
+                                }
+                            }}
                             loading={verifyLoading}
                             error={verifyError}
                         />
                         <button
                             className="w-full py-2 px-4 bg-indigo-600 text-white rounded-md font-semibold hover:bg-indigo-700 transition-all mb-2 mt-2"
-                            onClick={handleVerifyCode}
+                            onClick={() => handleVerifyCode()}
                             disabled={verifyLoading || verifyCode.length !== 8}
                         >
                             {verifyLoading ? '验证中...' : '提交验证'}

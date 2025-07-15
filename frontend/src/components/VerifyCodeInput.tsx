@@ -9,7 +9,7 @@ interface VerifyCodeInputProps {
 }
 
 const BOX_STYLE =
-  'w-10 h-12 sm:w-12 sm:h-14 mx-1 rounded-xl border-2 border-gray-200 bg-white text-2xl sm:text-3xl text-center font-mono shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-all duration-150';
+  'w-8 h-10 sm:w-10 sm:h-12 mx-0.5 sm:mx-1 rounded-lg border-2 border-gray-200 bg-white text-xl sm:text-2xl text-center font-mono shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-all duration-150 flex-1 min-w-0';
 
 export const VerifyCodeInput: React.FC<VerifyCodeInputProps> = ({
   length = 8,
@@ -28,12 +28,18 @@ export const VerifyCodeInput: React.FC<VerifyCodeInputProps> = ({
     // eslint-disable-next-line
   }, [values]);
 
-  // 粘贴事件
-  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+  // 粘贴事件优化：支持任意输入框粘贴，自动分配
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>, idx: number) => {
     const paste = e.clipboardData.getData('text').replace(/\s/g, '').slice(0, length);
     if (/^[a-zA-Z0-9]{1,8}$/.test(paste)) {
-      setValues(paste.split('').concat(Array(length - paste.length).fill('')));
-      // 自动提交由 useEffect 触发
+      const chars = paste.split('');
+      setValues(prev => {
+        const arr = [...prev];
+        for (let i = 0; i < chars.length && idx + i < length; i++) {
+          arr[idx + i] = chars[i];
+        }
+        return arr;
+      });
     }
     e.preventDefault();
   };
@@ -82,7 +88,7 @@ export const VerifyCodeInput: React.FC<VerifyCodeInputProps> = ({
 
   return (
     <div className="flex flex-col items-center">
-      <div className="flex justify-center mb-2">
+      <div className="flex justify-center mb-2 w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg">
         {Array.from({ length }).map((_, idx) => (
           <motion.input
             key={idx}
@@ -95,12 +101,13 @@ export const VerifyCodeInput: React.FC<VerifyCodeInputProps> = ({
             value={values[idx]}
             onChange={(e) => handleChange(idx, e.target.value)}
             onKeyDown={(e) => handleKeyDown(idx, e)}
-            onPaste={handlePaste}
+            onPaste={(e) => handlePaste(e, idx)}
             disabled={loading}
             style={{ transition: 'box-shadow 0.2s' }}
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
+            initial={{ scale: 0.85, opacity: 0 }}
+            animate={{ scale: values[idx] ? 1.08 : 1, opacity: 1, boxShadow: inputsRef.current[idx] === document.activeElement ? '0 0 0 2px #6366f1' : undefined }}
+            whileFocus={{ scale: 1.13, boxShadow: '0 0 0 3px #6366f1' }}
+            exit={{ scale: 0.85, opacity: 0 }}
             transition={{ duration: 0.18, delay: idx * 0.03 }}
           />
         ))}
