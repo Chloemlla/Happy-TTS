@@ -664,6 +664,7 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
                         <p className="mb-2 text-gray-600 text-center">我们已向 <span className="font-semibold">{pendingEmail}</span> 发送了验证码，请输入收到的验证码完成注册。</p>
                         <VerifyCodeInput
                             length={8}
+                            inputClassName="bg-blue-50 focus:bg-blue-100 border-blue-200 text-blue-900" // 新增：淡蓝色背景
                             onComplete={async (code) => {
                                 setVerifyCode(code);
                                 // 自动触发验证

@@ -6,6 +6,7 @@ interface VerifyCodeInputProps {
   onComplete: (code: string) => void;
   loading?: boolean;
   error?: string;
+  inputClassName?: string; // 新增
 }
 
 const BOX_STYLE =
@@ -16,6 +17,7 @@ export const VerifyCodeInput: React.FC<VerifyCodeInputProps> = ({
   onComplete,
   loading,
   error,
+  inputClassName = '', // 新增
 }) => {
   const [values, setValues] = useState<string[]>(Array(length).fill(''));
   const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
@@ -97,7 +99,7 @@ export const VerifyCodeInput: React.FC<VerifyCodeInputProps> = ({
             inputMode="text"
             autoComplete="one-time-code"
             maxLength={1}
-            className={BOX_STYLE + (error ? ' border-red-400 dark:border-red-500' : '')}
+            className={BOX_STYLE + (error ? ' border-red-400 dark:border-red-500' : '') + ' ' + inputClassName}
             value={values[idx]}
             onChange={(e) => handleChange(idx, e.target.value)}
             onKeyDown={(e) => handleKeyDown(idx, e)}
