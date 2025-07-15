@@ -13,14 +13,18 @@ interface UserProfileData {
 }
 
 const fetchProfile = async (): Promise<UserProfileData | null> => {
-  const token = localStorage.getItem('token');
-  if (!token) return null;
-  const res = await fetch('/api/user/profile', {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) return null;
-  const data = await res.json();
-  return data;
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+    const res = await fetch('/api/user/profile', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data;
+  } catch (e) {
+    return null;
+  }
 };
 
 const updateProfile = async (data: Partial<UserProfileData> & { password?: string; newPassword?: string; verificationCode?: string }) => {
@@ -56,6 +60,8 @@ const verifyUser = async (verificationCode: string) => {
 const UserProfile: React.FC = () => {
   const { setNotification } = useNotification();
   const [profile, setProfile] = useState<UserProfileData | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadTimeout, setLoadTimeout] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -65,13 +71,30 @@ const UserProfile: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    let timeoutId: any = null;
+    setLoadError(null);
+    setLoadTimeout(false);
+    setLoading(true);
+    timeoutId = setTimeout(() => {
+      setLoadTimeout(true);
+      setLoading(false);
+    }, 5000); // 5秒超时
     fetchProfile().then((data) => {
+      clearTimeout(timeoutId);
+      setLoading(false);
       if (data) {
         setProfile(data);
         setEmail(data.email);
         setAvatarBase64(data.avatarBase64);
+      } else {
+        setLoadError('加载失败，请刷新页面或重新登录');
       }
+    }).catch(() => {
+      clearTimeout(timeoutId);
+      setLoading(false);
+      setLoadError('加载失败，请刷新页面或重新登录');
     });
+    return () => clearTimeout(timeoutId);
   }, []);
 
   const handleAvatarChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -128,8 +151,13 @@ const UserProfile: React.FC = () => {
   if (!localStorage.getItem('token')) {
     return <div className="p-8 text-center text-red-500">未登录或会话已过期，请重新登录。</div>;
   }
-  if (!profile) {
-    // 根据屏幕宽度自适应缩放
+  if (loadError) {
+    return <div className="p-8 text-center text-red-500">{loadError}</div>;
+  }
+  if (loading || !profile) {
+    if (loadTimeout) {
+      return <div className="p-8 text-center text-red-500">加载超时，请检查网络或刷新页面</div>;
+    }
     const scale = typeof window !== 'undefined' ? Math.max(0.7, Math.min(1.2, window.innerWidth / 1200)) : 1;
     return <LoadingSpinner size={scale} />;
   }
