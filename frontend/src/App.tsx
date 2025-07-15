@@ -147,7 +147,14 @@ const App: React.FC = () => {
   };
 
   if (loading || !isInitialized) {
-    const scale = typeof window !== 'undefined' ? Math.max(0.7, Math.min(1.2, window.innerWidth / 1200)) : 1;
+    let scale = 1;
+    if (typeof window !== 'undefined') {
+      if (window.innerWidth < 600) {
+        scale = Math.max(0.95, Math.min(1.2, window.innerWidth / 375)); // 移动端最小0.95
+      } else {
+        scale = Math.max(0.7, Math.min(1.2, window.innerWidth / 1200)); // 桌面端
+      }
+    }
     return <LoadingSpinner size={scale} />;
   }
 
