@@ -34,18 +34,20 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                         initial={{ opacity: 0, y: -50, scale: 0.3 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.5, transition: { duration: 0.2 } }}
-                        className={`fixed top-4 right-4 z-[9999] ${getTypeStyles(notification.type)} text-white px-4 py-3 rounded-lg shadow-lg backdrop-blur-sm bg-opacity-95 flex justify-between items-center min-w-[220px] max-w-xs`}
+                        className={`fixed top-4 right-4 z-[9999] ${getTypeStyles(notification.type)} text-white px-3 sm:px-4 py-2 sm:py-3 rounded-lg shadow-lg backdrop-blur-sm bg-opacity-95 flex justify-between items-center min-w-[180px] max-w-xs`}
                     >
-                        <div className="text-sm font-medium break-all pr-2">{notification.message}</div>
-                        <button
-                            onClick={handleClose}
-                            className="hover:text-gray-200 transition-colors focus:outline-none flex-shrink-0"
-                            style={{ marginLeft: 0 }}
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
+                        <div className="text-sm sm:text-base font-medium break-all pr-2 flex-1">{notification.message}</div>
+                        <div className="flex items-center">
+                            <button
+                                onClick={handleClose}
+                                className="p-1 sm:p-2 rounded-full hover:bg-white/20 focus:outline-none transition-all duration-150"
+                                aria-label="关闭通知"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
                     </motion.div>
                 )}
             </AnimatePresence>
