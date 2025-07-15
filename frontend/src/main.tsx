@@ -18,7 +18,7 @@ const DANGEROUS_KEYWORDS = [
   'tampermonkey', 'greasemonkey', 'violentmonkey', 'userscript',
   'userscripts', 'scriptmonkey',  'grease',
   'violent', 'userjs', 'user.js', 'gm_', 'GM_', 'unsafeWindow',
-  'grant', 'namespace', 'match'
+  'grant', 'namespace'
 ];
 
 // 扩展特定的检测模式
