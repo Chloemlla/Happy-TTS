@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import UserManagement from './UserManagement';
-import AnnouncementManager from './AnnouncementManager';
+const AnnouncementManager = React.lazy(() => import('./AnnouncementManager'));
+const EnvManager = React.lazy(() => import('./EnvManager'));
 import { motion, AnimatePresence } from 'framer-motion';
-import EnvManager from './EnvManager'; // 启用环境变量管理
 
 const TABS = [
   { key: 'users', label: '用户管理' },
   { key: 'announcement', label: '公告管理' },
-  { key: 'env', label: '环境变量' }, // 新增环境变量管理入口
+  { key: 'env', label: '环境变量' },
 ];
 
 const AdminDashboard: React.FC = () => {
@@ -49,7 +49,9 @@ const AdminDashboard: React.FC = () => {
               exit={{ opacity: 0, x: -40 }}
               transition={{ duration: 0.25 }}
             >
-              <AnnouncementManager />
+              <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
+                <AnnouncementManager />
+              </Suspense>
             </motion.div>
           )}
           {tab === 'env' && (
@@ -60,7 +62,9 @@ const AdminDashboard: React.FC = () => {
               exit={{ opacity: 0, x: -40 }}
               transition={{ duration: 0.25 }}
             >
-              <EnvManager />
+              <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
+                <EnvManager />
+              </Suspense>
             </motion.div>
           )}
         </AnimatePresence>

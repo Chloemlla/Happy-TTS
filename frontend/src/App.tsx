@@ -20,6 +20,7 @@ const LogShare = React.lazy(() => import('./components/LogShare'));
 const CaseConverter = React.lazy(() => import('./components/CaseConverter').then(module => ({ default: module.CaseConverter })));
 const EmailSender = React.lazy(() => import('./components/EmailSender'));
 const UserProfile = React.lazy(() => import('./components/UserProfile'));
+const AdminDashboard = React.lazy(() => import('./components/AdminDashboard'));
 
 // 页面切换动画变体
 const pageVariants = {
@@ -296,6 +297,23 @@ const App: React.FC = () => {
                     <Navigate to="/" replace />
                   )
                 } />
+                <Route path="/admin" element={
+                  user?.role === 'admin' ? (
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <motion.div
+                        variants={pageVariants}
+                        initial="initial"
+                        animate="in"
+                        exit="out"
+                        transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                      >
+                        <AdminDashboard />
+                      </motion.div>
+                    </Suspense>
+                  ) : (
+                    <Navigate to="/" replace />
+                  )
+                } />
                 <Route path="/logshare" element={
                   <Suspense fallback={<LoadingSpinner />}>
                     <motion.div
@@ -534,6 +552,23 @@ const App: React.FC = () => {
                   >
                     <UserManagement />
                   </motion.div>
+                ) : (
+                  <Navigate to="/" replace />
+                )
+              } />
+              <Route path="/admin" element={
+                user?.role === 'admin' ? (
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <motion.div
+                      variants={pageVariants}
+                      initial="initial"
+                      animate="in"
+                      exit="out"
+                      transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                    >
+                      <AdminDashboard />
+                    </motion.div>
+                  </Suspense>
                 ) : (
                   <Navigate to="/" replace />
                 )

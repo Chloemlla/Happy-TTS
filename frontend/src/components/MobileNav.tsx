@@ -92,6 +92,17 @@ const MobileNav: React.FC<MobileNavProps> = ({
               whileTap={{ scale: 0.95 }}
             >
               <Link 
+                to="/admin" 
+                className="px-4 py-2 rounded-lg bg-pink-100 text-pink-700 font-semibold hover:bg-pink-200 transition-all duration-200 shadow-sm hover:shadow-md"
+              >
+                管理后台
+              </Link>
+            </motion.div>
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Link 
                 to="/admin/users" 
                 className="px-4 py-2 rounded-lg bg-blue-100 text-blue-700 font-semibold hover:bg-blue-200 transition-all duration-200 shadow-sm hover:shadow-md"
               >
@@ -313,6 +324,42 @@ const MobileNav: React.FC<MobileNavProps> = ({
                     transition={{ duration: 0.4, delay: 0.25 }}
                   >
                     <Link
+                      to="/admin"
+                      className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
+                        location.pathname === '/admin' ? 'bg-pink-50 text-pink-700 font-semibold shadow-sm' : 'hover:bg-pink-50'
+                      }`}
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <motion.svg 
+                        className={`w-5 h-5 ${location.pathname === '/admin' ? 'text-pink-500' : 'text-gray-400'}`} 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                        whileHover={{ scale: 1.1, rotate: 5 }}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M3 12h18M3 17h18" />
+                      </motion.svg>
+                      <span>管理后台</span>
+                      {location.pathname === '/admin' && (
+                        <motion.span 
+                          className="ml-auto text-xs bg-pink-100 text-pink-700 px-2 py-1 rounded-full"
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                        >
+                          当前
+                        </motion.span>
+                      )}
+                    </Link>
+                  </motion.div>
+                  
+                  {/* 管理员邮件发送 */}
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.4, delay: 0.3 }}
+                  >
+                    <Link
                       to="/admin/users"
                       className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
                         location.pathname === '/admin/users' ? 'bg-blue-50 text-blue-700 font-semibold shadow-sm' : 'hover:bg-blue-50'
@@ -332,42 +379,6 @@ const MobileNav: React.FC<MobileNavProps> = ({
                       {location.pathname === '/admin/users' && (
                         <motion.span 
                           className="ml-auto text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full"
-                          initial={{ scale: 0, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          transition={{ type: "spring", stiffness: 500, damping: 15 }}
-                        >
-                          当前
-                        </motion.span>
-                      )}
-                    </Link>
-                  </motion.div>
-                  
-                  {/* 管理员邮件发送 */}
-                  <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.4, delay: 0.3 }}
-                  >
-                    <Link
-                      to="/email-sender"
-                      className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
-                        location.pathname === '/email-sender' ? 'bg-purple-50 text-purple-700 font-semibold shadow-sm' : 'hover:bg-purple-50'
-                      }`}
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      <motion.svg 
-                        className={`w-5 h-5 ${location.pathname === '/email-sender' ? 'text-purple-500' : 'text-gray-400'}`} 
-                        fill="none" 
-                        stroke="currentColor" 
-                        viewBox="0 0 24 24"
-                        whileHover={{ scale: 1.1, rotate: 5 }}
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                      </motion.svg>
-                      <span>邮件发送</span>
-                      {location.pathname === '/email-sender' && (
-                        <motion.span 
-                          className="ml-auto text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full"
                           initial={{ scale: 0, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
                           transition={{ type: "spring", stiffness: 500, damping: 15 }}
