@@ -2,6 +2,7 @@ import React, { useEffect, useState, ChangeEvent } from 'react';
 import { useNotification } from './Notification';
 import { motion } from 'framer-motion';
 import VerifyCodeInput from './VerifyCodeInput';
+import { LoadingSpinner } from './LoadingSpinner';
 
 interface UserProfileData {
   id: string;
@@ -128,7 +129,9 @@ const UserProfile: React.FC = () => {
     return <div className="p-8 text-center text-red-500">未登录或会话已过期，请重新登录。</div>;
   }
   if (!profile) {
-    return <div className="p-8 text-center">加载中...</div>;
+    // 根据屏幕宽度自适应缩放
+    const scale = typeof window !== 'undefined' ? Math.max(0.7, Math.min(1.2, window.innerWidth / 1200)) : 1;
+    return <LoadingSpinner size={scale} />;
   }
 
   return (

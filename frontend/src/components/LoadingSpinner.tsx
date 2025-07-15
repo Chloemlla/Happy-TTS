@@ -28,26 +28,30 @@ const BackgroundParticles: React.FC = () => {
   );
 };
 
-// 加载动画组件
-export const LoadingSpinner: React.FC = () => {
+// 加载动画组件，支持 size 缩放
+export const LoadingSpinner: React.FC<{ size?: number }> = ({ size = 1 }) => {
+  const outerSize = 64 * size; // 原 16 * 4
+  const border = 4 * size;
+  const innerSize = 32 * size; // 原 8 * 4
+  const fontSize = 18 * size;
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
       <BackgroundParticles />
       <motion.div
         className="relative z-10 flex flex-col items-center"
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
+        initial={{ opacity: 0, scale: 0.8 * size }}
+        animate={{ opacity: 1, scale: size }}
         transition={{ duration: 0.5 }}
       >
         {/* 包裹外圈和内圈的容器，保证居中 */}
-        <div className="relative w-16 h-16 flex items-center justify-center">
+        <div className="relative flex items-center justify-center" style={{ width: outerSize, height: outerSize }}>
           {/* 外圈旋转 */}
           <motion.div
             className="absolute inset-0 flex items-center justify-center"
             animate={{ rotate: 360 }}
             transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
           >
-            <div className="w-full h-full border-4 border-indigo-200 border-t-indigo-600 rounded-full"></div>
+            <div style={{ width: outerSize, height: outerSize, borderWidth: border }} className="border-indigo-200 border-t-indigo-600 rounded-full border-solid"></div>
           </motion.div>
           {/* 内圈缩放 - 使用flex居中替代transform */}
           <motion.div
@@ -55,11 +59,12 @@ export const LoadingSpinner: React.FC = () => {
             animate={{ scale: [1, 1.2, 1] }}
             transition={{ duration: 2, repeat: Infinity }}
           >
-            <div className="w-8 h-8 bg-indigo-600 rounded-full"></div>
+            <div style={{ width: innerSize, height: innerSize }} className="bg-indigo-600 rounded-full"></div>
           </motion.div>
         </div>
         <motion.p
           className="mt-6 text-center text-gray-600 font-medium"
+          style={{ fontSize }}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
@@ -71,16 +76,20 @@ export const LoadingSpinner: React.FC = () => {
   );
 };
 
-// 轻量级加载组件（用于组件级别的懒加载）
-export const SimpleLoadingSpinner: React.FC = () => {
+// 轻量级加载组件（用于组件级别的懒加载），支持 size
+export const SimpleLoadingSpinner: React.FC<{ size?: number }> = ({ size = 1 }) => {
+  const spinnerSize = 32 * size;
+  const border = 2 * size;
+  const fontSize = 16 * size;
   return (
     <div className="flex items-center justify-center p-8">
       <motion.div
-        className="w-8 h-8 border-2 border-indigo-200 border-t-indigo-600 rounded-full"
+        style={{ width: spinnerSize, height: spinnerSize, borderWidth: border }}
+        className="border-indigo-200 border-t-indigo-600 rounded-full border-solid"
         animate={{ rotate: 360 }}
         transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
       />
-      <span className="ml-3 text-gray-600">加载中...</span>
+      <span className="ml-3 text-gray-600" style={{ fontSize }}>加载中...</span>
     </div>
   );
 };

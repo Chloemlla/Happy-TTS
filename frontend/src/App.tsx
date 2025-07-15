@@ -147,7 +147,8 @@ const App: React.FC = () => {
   };
 
   if (loading || !isInitialized) {
-    return <LoadingSpinner />;
+    const scale = typeof window !== 'undefined' ? Math.max(0.7, Math.min(1.2, window.innerWidth / 1200)) : 1;
+    return <LoadingSpinner size={scale} />;
   }
 
   // 如果是管理员，直接渲染主页

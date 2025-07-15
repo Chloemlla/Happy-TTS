@@ -35,6 +35,7 @@ import {
   FaAddressBook
 } from 'react-icons/fa';
 import Footer from './Footer';
+import { LoadingSpinner } from './LoadingSpinner';
 
 const PolicyPage: React.FC = () => (
   <div className="min-h-screen bg-white py-10 px-4 flex justify-center items-center">
