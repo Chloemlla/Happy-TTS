@@ -531,32 +531,35 @@ const EmailSender: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     发件人邮箱 *
                   </label>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="text"
-                      value={form.from.split('@')[0]}
-                      onChange={(e) => {
-                        const username = e.target.value;
-                        setForm({ ...form, from: `${username}@${form.from.split('@')[1] || senderDomains[0] || ''}` });
-                      }}
-                      className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
-                      placeholder="noreply"
-                    />
-                    {senderDomains.length > 1 ? (
-                      <select
-                        value={form.from.split('@')[1] || senderDomains[0] || ''}
-                        onChange={e => {
-                          setForm({ ...form, from: `${form.from.split('@')[0]}@${e.target.value}` });
+                  <div className="flex items-center">
+                    <div className="flex-1 flex">
+                      <input
+                        type="text"
+                        value={form.from.split('@')[0]}
+                        onChange={(e) => {
+                          const username = e.target.value;
+                          setForm({ ...form, from: `${username}@${form.from.split('@')[1] || senderDomains[0] || ''}` });
                         }}
-                        className="px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white"
-                      >
-                        {senderDomains.map(domain => (
-                          <option key={domain} value={domain}>@{domain}</option>
-                        ))}
-                      </select>
-                    ) : senderDomains.length === 1 ? (
-                      <span className="text-gray-600 text-base">@{senderDomains[0]}</span>
-                    ) : null}
+                        className="flex-1 px-4 py-3 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 rounded-r-none"
+                        placeholder="noreply"
+                      />
+                      {senderDomains.length === 1 && (
+                        <span className="inline-flex items-center px-3 py-3 border border-l-0 border-gray-300 bg-gray-50 text-gray-600 text-base rounded-r-lg select-none">@{senderDomains[0]}</span>
+                      )}
+                      {senderDomains.length > 1 && (
+                        <select
+                          value={form.from.split('@')[1] || senderDomains[0] || ''}
+                          onChange={e => {
+                            setForm({ ...form, from: `${form.from.split('@')[0]}@${e.target.value}` });
+                          }}
+                          className="px-2 py-2 border border-l-0 border-gray-300 rounded-r-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white"
+                        >
+                          {senderDomains.map(domain => (
+                            <option key={domain} value={domain}>@{domain}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
                   </div>
                 </div>
 

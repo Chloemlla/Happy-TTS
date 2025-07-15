@@ -124,7 +124,12 @@ const UserProfile: React.FC = () => {
     }
   };
 
-  if (!profile) return <div className="p-8 text-center">加载中...</div>;
+  if (!localStorage.getItem('token')) {
+    return <div className="p-8 text-center text-red-500">未登录或会话已过期，请重新登录。</div>;
+  }
+  if (!profile) {
+    return <div className="p-8 text-center">加载中...</div>;
+  }
 
   return (
     <motion.div
