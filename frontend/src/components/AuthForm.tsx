@@ -342,7 +342,10 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
                 startTransition(() => {
                     setShowPasskeyVerification(false);
                     setPending2FA(null);
-                    window.location.reload();
+                    // 认证成功后刷新页面
+                    if (typeof window !== 'undefined') {
+                        window.location.reload();
+                    }
                 });
             } else {
                 setError('Passkey 验证失败');
@@ -366,8 +369,10 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
                 if (success) {
                     startTransition(() => {
                         setPendingVerificationData(null);
-                        // 强制刷新页面，确保所有状态重新初始化
-                        window.location.reload();
+                        // 认证成功后刷新页面
+                        if (typeof window !== 'undefined') {
+                            window.location.reload();
+                        }
                     });
                 } else {
                     setError('Passkey 验证失败');
@@ -577,7 +582,10 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
                         setShowPasskeyVerification(false); 
                         setPending2FA(null); 
                         setPendingVerificationData(null);
-                        window.location.reload(); 
+                        // 认证成功后刷新页面
+                        if (typeof window !== 'undefined') {
+                            window.location.reload(); 
+                        }
                     }); 
                 }}
                 onClose={() => startTransition(() => {
@@ -601,7 +609,10 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
                                 setShowTOTPVerification(false);
                                 setPending2FA(null);
                                 setPendingVerificationData(null);
-                                window.location.reload();
+                                // 认证成功后刷新页面
+                                if (typeof window !== 'undefined') {
+                                    window.location.reload();
+                                }
                             });
                         }}
                         userId={pending2FA?.userId || ''}
