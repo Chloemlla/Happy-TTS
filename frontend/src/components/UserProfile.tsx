@@ -89,10 +89,10 @@ const UserProfile: React.FC = () => {
       } else {
         setLoadError('加载失败，请刷新页面或重新登录');
       }
-    }).catch(() => {
+    }).catch((e) => {
       clearTimeout(timeoutId);
       setLoading(false);
-      setLoadError('加载失败，请刷新页面或重新登录');
+      setLoadError('加载失败：' + (e instanceof Error ? e.message : (e && e.toString ? e.toString() : '未知错误')));
     });
     return () => clearTimeout(timeoutId);
   }, []);
