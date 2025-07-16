@@ -160,6 +160,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
         {/* 管理员功能组 */}
         {user?.role === 'admin' && (
           <div className="flex items-center space-x-1">
+            {/* 管理后台 */}
             <motion.div
               whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
@@ -184,32 +185,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
                 <span className="hidden sm:inline">管理后台</span>
               </Link>
             </motion.div>
-
-            <motion.div
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Link 
-                to="/admin/users" 
-                className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${
-                  location.pathname === '/admin/users'
-                    ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg'
-                    : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-blue-600 border border-gray-200/50'
-                }`}
-              >
-                <motion.svg 
-                  className="w-4 h-4" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                  whileHover={{ rotate: 5 }}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                </motion.svg>
-                <span className="hidden sm:inline">用户管理</span>
-              </Link>
-            </motion.div>
-
+            {/* 邮件发送 */}
             <motion.div
               whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
@@ -458,7 +434,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
                 </Link>
               </motion.div>
 
-              {/* 管理员用户管理 */}
+              {/* 管理员功能组 */}
               {user?.role === 'admin' && (
                 <>
                   <motion.div
@@ -495,33 +471,32 @@ const MobileNav: React.FC<MobileNavProps> = ({
                       )}
                     </Link>
                   </motion.div>
-                  
-                  {/* 管理员邮件发送 */}
+                  {/* 邮件发送 */}
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.4, delay: 0.3 }}
                   >
                     <Link
-                      to="/admin/users"
+                      to="/email-sender"
                       className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
-                        location.pathname === '/admin/users' ? 'bg-blue-50 text-blue-700 font-semibold shadow-sm' : 'hover:bg-blue-50'
+                        location.pathname === '/email-sender' ? 'bg-purple-50 text-purple-700 font-semibold shadow-sm' : 'hover:bg-purple-50'
                       }`}
                       onClick={() => setIsMenuOpen(false)}
                     >
                       <motion.svg 
-                        className={`w-5 h-5 ${location.pathname === '/admin/users' ? 'text-blue-500' : 'text-gray-400'}`} 
+                        className={`w-5 h-5 ${location.pathname === '/email-sender' ? 'text-purple-500' : 'text-gray-400'}`} 
                         fill="none" 
                         stroke="currentColor" 
                         viewBox="0 0 24 24"
                         whileHover={{ scale: 1.1, rotate: 5 }}
                       >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                       </motion.svg>
-                      <span>用户管理</span>
-                      {location.pathname === '/admin/users' && (
+                      <span>邮件发送</span>
+                      {location.pathname === '/email-sender' && (
                         <motion.span 
-                          className="ml-auto text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full"
+                          className="ml-auto text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full"
                           initial={{ scale: 0, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
                           transition={{ type: "spring", stiffness: 500, damping: 15 }}

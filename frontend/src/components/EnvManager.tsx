@@ -51,8 +51,8 @@ const EnvManager: React.FC = () => {
       }
       if (data.success) setEnvs(data.envs || []);
       else setError(data.error || '获取失败');
-    } catch {
-      setError('获取失败');
+    } catch (e) {
+      setError('获取失败：' + (e instanceof Error ? e.message : (e && e.toString ? e.toString() : '未知错误')));
     } finally {
       setLoading(false);
     }
@@ -119,7 +119,9 @@ const EnvManager: React.FC = () => {
         setForm({});
         setEnvs(data.envs || []);
       } else setError(data.error || '保存失败');
-    } catch { setError('保存失败'); }
+    } catch (e) {
+      setError('保存失败：' + (e instanceof Error ? e.message : (e && e.toString ? e.toString() : '未知错误')));
+    }
   };
   const handleDelete = async (key: string) => {
     if (!window.confirm('确定要删除该环境变量吗？')) return;
@@ -160,7 +162,9 @@ const EnvManager: React.FC = () => {
         setEnvs(data.envs || []);
         if (editingKey === key) handleCancel();
       } else setError(data.error || '删除失败');
-    } catch { setError('删除失败'); }
+    } catch (e) {
+      setError('删除失败：' + (e instanceof Error ? e.message : (e && e.toString ? e.toString() : '未知错误')));
+    }
   };
 
   return (

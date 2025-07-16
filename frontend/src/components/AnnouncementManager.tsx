@@ -64,7 +64,7 @@ const AnnouncementManager: React.FC = () => {
         setContent('');
       }
     } catch (e) {
-      setError('获取公告失败');
+      setError('获取公告失败：' + (e instanceof Error ? e.message : (e && e.toString ? e.toString() : '未知错误')));
     } finally {
       setLoading(false);
     }
@@ -117,7 +117,7 @@ const AnnouncementManager: React.FC = () => {
         setError(data.error || '保存失败');
       }
     } catch (e) {
-      setError('保存失败');
+      setError('保存失败：' + (e instanceof Error ? e.message : (e && e.toString ? e.toString() : '未知错误')));
     }
   };
 
@@ -162,7 +162,7 @@ const AnnouncementManager: React.FC = () => {
         setError(data.error || '删除失败');
       }
     } catch (e) {
-      setError('删除失败');
+      setError('删除失败：' + (e instanceof Error ? e.message : (e && e.toString ? e.toString() : '未知错误')));
     }
   };
 
