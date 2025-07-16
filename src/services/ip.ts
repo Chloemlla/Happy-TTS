@@ -276,6 +276,43 @@ const DATA_DIR = join(process.cwd(), 'data');
 const IP_DATA_FILE = join(DATA_DIR, 'ip-info.json');
 const LOCAL_CACHE: { [key: string]: IPInfo } = {};
 
+// MongoDB写入速率限制队列
+const mongoWriteQueue: (() => Promise<void>)[] = [];
+let mongoWriteCount = 0;
+let mongoWriteTimer: NodeJS.Timeout | null = null;
+
+function scheduleMongoWrite(task: () => Promise<void>) {
+  mongoWriteQueue.push(task);
+  processMongoWriteQueue();
+}
+
+function processMongoWriteQueue() {
+  if (mongoWriteCount >= 20) {
+    if (!mongoWriteTimer) {
+      mongoWriteTimer = setTimeout(() => {
+        mongoWriteCount = 0;
+        mongoWriteTimer = null;
+        processMongoWriteQueue();
+      }, 1000);
+    }
+    return;
+  }
+  while (mongoWriteQueue.length && mongoWriteCount < 20) {
+    const task = mongoWriteQueue.shift();
+    if (task) {
+      mongoWriteCount++;
+      task().catch(e => logger.error('MongoDB写入队列任务失败', e));
+    }
+  }
+  if (mongoWriteQueue.length && !mongoWriteTimer) {
+    mongoWriteTimer = setTimeout(() => {
+      mongoWriteCount = 0;
+      mongoWriteTimer = null;
+      processMongoWriteQueue();
+    }, 1000);
+  }
+}
+
 // 初始化本地存储
 async function initializeLocalStorage(): Promise<void> {
   try {
@@ -320,12 +357,16 @@ async function initializeLocalStorage(): Promise<void> {
 async function saveIPInfoToLocal(info: IPInfo): Promise<void> {
   try {
     if (mongoose.connection.readyState === 1) {
-      await IPInfoModel.findOneAndUpdate(
-        { ip: info.ip },
-        { info, timestamp: Date.now() },
-        { upsert: true }
-      );
-      LOCAL_CACHE[info.ip] = { ...info, timestamp: Date.now() };
+      // 限速写入MongoDB，后台排队
+      scheduleMongoWrite(async () => {
+        await IPInfoModel.findOneAndUpdate(
+          { ip: info.ip },
+          { info, timestamp: Date.now() },
+          { upsert: true }
+        );
+        LOCAL_CACHE[info.ip] = { ...info, timestamp: Date.now() };
+      });
+      // 优先返回，不等待写入完成
       return;
     }
   } catch (error) {
@@ -380,79 +421,56 @@ export async function getIPInfo(ip: string): Promise<IPInfo> {
       isp: '非法IP'
     };
   }
-  try {
-    // 处理特殊IP
-    if (!ip || ip === '::1' || ip === 'localhost') {
-      ip = '127.0.0.1';
-    }
-    
-    // 移除IPv6前缀
-    ip = ip.replace(/^::ffff:/, '');
-
-    // 检查是否是内网IP
-    if (isPrivateIP(ip)) {
-      logger.log('检测到内网IP，返回本地信息', { ip });
-      return getPrivateIPInfo(ip);
-    }
-
-    // 先检查内存缓存
-    const cached = ipCache.get(ip);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      logger.log('使用内存缓存的IP信息', { ip });
-      return cached.info;
-    }
-
-    // 检查本地存储
-    const localInfo = getIPInfoFromLocal(ip);
-    if (localInfo) {
-      // 更新内存缓存
-      setIpCache(ip, { info: localInfo, timestamp: Date.now() });
-      logger.log('使用本地存储的IP信息', { ip });
-      return localInfo;
-    }
-
-    logger.log('开始查询外部API获取IP信息', { ip });
-    return await withConcurrencyLimit(async () => {
-      return await withRetry(async () => {
-        const info = await tryAllProviders(ip);
-        
-        // 更新内存缓存
-        setIpCache(ip, { info, timestamp: Date.now() });
-        
-        // 保存到本地存储
-        await saveIPInfoToLocal(info);
-        
-        logger.log('成功获取IP信息', { ip, info });
-        return info;
+  let lastError: any = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      // 处理特殊IP
+      if (!ip || ip === '::1' || ip === 'localhost') {
+        ip = '127.0.0.1';
+      }
+      ip = ip.replace(/^::ffff:/, '');
+      if (isPrivateIP(ip)) {
+        logger.log('检测到内网IP，返回本地信息', { ip });
+        return getPrivateIPInfo(ip);
+      }
+      const cached = ipCache.get(ip);
+      if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+        logger.log('使用内存缓存的IP信息', { ip });
+        return cached.info;
+      }
+      const localInfo = getIPInfoFromLocal(ip);
+      if (localInfo) {
+        setIpCache(ip, { info: localInfo, timestamp: Date.now() });
+        logger.log('使用本地存储的IP信息', { ip });
+        return localInfo;
+      }
+      logger.log('开始查询外部API获取IP信息', { ip });
+      return await withConcurrencyLimit(async () => {
+        return await withRetry(async () => {
+          const info = await tryAllProviders(ip);
+          setIpCache(ip, { info, timestamp: Date.now() });
+          await saveIPInfoToLocal(info);
+          logger.log('成功获取IP信息', { ip, info });
+          return info;
+        });
       });
-    });
-  } catch (error) {
-    logger.error('IP info error:', error);
-    
-    // 如果内存缓存中有旧数据，返回旧数据
-    const cached = ipCache.get(ip);
-    if (cached) {
-      logger.log(`使用内存缓存的IP信息: ${ip}`);
-      return cached.info;
+    } catch (error) {
+      lastError = error;
+      logger.error(`IP信息查询失败（第${attempt + 1}次），2秒后重试...`, { ip, error: error instanceof Error ? error.message : String(error) });
+      if (attempt < 2) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
     }
-    
-    // 如果本地存储中有数据（即使过期），也返回
-    const localInfo = LOCAL_CACHE[ip];
-    if (localInfo) {
-      logger.log(`使用本地存储的IP信息: ${ip}`);
-      return localInfo;
-    }
-    
-    // 如果所有方法都失败，返回一个基本的信息
-    logger.log('所有IP查询方法都失败，返回默认信息', { ip });
-    return {
-      ip,
-      country: '未知',
-      region: '未知',
-      city: '未知',
-      isp: '未知'
-    };
   }
+  // 全部失败后兜底
+  logger.error('IP信息查询连续失败，返回默认信息', { ip, error: lastError instanceof Error ? lastError.message : String(lastError) });
+  return {
+    ip,
+    country: '未知',
+    region: '未知',
+    city: '未知',
+    isp: '未知'
+  };
 }
 
 export function isIPAllowed(ip: string): boolean {
