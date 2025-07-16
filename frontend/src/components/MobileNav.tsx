@@ -61,118 +61,253 @@ const MobileNav: React.FC<MobileNavProps> = ({
     onTOTPManagerOpen();
   };
 
+  // 如果用户未登录，不显示导航
+  if (!user) {
+    return null;
+  }
+
   // 桌面端导航
   if (!isMobile) {
     return (
       <motion.div 
-        className="flex items-center space-x-3"
+        className="flex items-center space-x-2"
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.5, delay: 0.2 }}
         ref={navRef}
       >
+        {/* 主页按钮 */}
         <motion.div
-          whileHover={{ scale: 1.05 }}
+          whileHover={{ scale: 1.05, y: -2 }}
           whileTap={{ scale: 0.95 }}
+          className="relative"
         >
           <Link 
-            to="/case-converter" 
-            className="px-4 py-2 rounded-lg bg-green-100 text-green-700 font-semibold hover:bg-green-200 transition-all duration-200 shadow-sm hover:shadow-md"
+            to="/" 
+            className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${
+              location.pathname === '/' 
+                ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg' 
+                : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-indigo-600 border border-gray-200/50'
+            }`}
           >
-            大小写转换
+            <motion.svg 
+              className="w-4 h-4" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+              animate={location.pathname === '/' ? { rotate: [0, 10, -10, 0] } : {}}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+            </motion.svg>
+            <span className="hidden sm:inline">语音合成</span>
           </Link>
         </motion.div>
-        <motion.div
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          <Link 
-            to="/api-docs" 
-            className="px-4 py-2 rounded-lg bg-indigo-100 text-indigo-700 font-semibold hover:bg-indigo-200 transition-all duration-200 shadow-sm hover:shadow-md"
+
+        {/* 工具按钮组 */}
+        <div className="flex items-center space-x-1">
+          <motion.div
+            whileHover={{ scale: 1.05, y: -2 }}
+            whileTap={{ scale: 0.95 }}
           >
-            API 文档
-          </Link>
-        </motion.div>
+            <Link 
+              to="/case-converter" 
+              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${
+                location.pathname === '/case-converter'
+                  ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg'
+                  : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-green-600 border border-gray-200/50'
+              }`}
+            >
+              <motion.svg 
+                className="w-4 h-4" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+                whileHover={{ rotate: 5 }}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </motion.svg>
+              <span className="hidden sm:inline">大小写转换</span>
+            </Link>
+          </motion.div>
+
+          <motion.div
+            whileHover={{ scale: 1.05, y: -2 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Link 
+              to="/api-docs" 
+              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${
+                location.pathname === '/api-docs'
+                  ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg'
+                  : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-blue-600 border border-gray-200/50'
+              }`}
+            >
+              <motion.svg 
+                className="w-4 h-4" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+                whileHover={{ rotate: 5 }}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </motion.svg>
+              <span className="hidden sm:inline">API 文档</span>
+            </Link>
+          </motion.div>
+        </div>
+
+        {/* 管理员功能组 */}
         {user?.role === 'admin' && (
-          <>
+          <div className="flex items-center space-x-1">
             <motion.div
-              whileHover={{ scale: 1.05 }}
+              whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
             >
               <Link 
                 to="/admin" 
-                className="px-4 py-2 rounded-lg bg-pink-100 text-pink-700 font-semibold hover:bg-pink-200 transition-all duration-200 shadow-sm hover:shadow-md"
+                className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${
+                  location.pathname === '/admin'
+                    ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg'
+                    : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-pink-600 border border-gray-200/50'
+                }`}
               >
-                管理后台
+                <motion.svg 
+                  className="w-4 h-4" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                  whileHover={{ rotate: 5 }}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M3 12h18M3 17h18" />
+                </motion.svg>
+                <span className="hidden sm:inline">管理后台</span>
               </Link>
             </motion.div>
+
             <motion.div
-              whileHover={{ scale: 1.05 }}
+              whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
             >
               <Link 
                 to="/admin/users" 
-                className="px-4 py-2 rounded-lg bg-blue-100 text-blue-700 font-semibold hover:bg-blue-200 transition-all duration-200 shadow-sm hover:shadow-md"
+                className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${
+                  location.pathname === '/admin/users'
+                    ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg'
+                    : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-blue-600 border border-gray-200/50'
+                }`}
               >
-                用户管理
+                <motion.svg 
+                  className="w-4 h-4" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                  whileHover={{ rotate: 5 }}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                </motion.svg>
+                <span className="hidden sm:inline">用户管理</span>
               </Link>
             </motion.div>
+
             <motion.div
-              whileHover={{ scale: 1.05 }}
+              whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
             >
               <Link 
                 to="/email-sender" 
-                className="px-4 py-2 rounded-lg bg-purple-100 text-purple-700 font-semibold hover:bg-purple-200 transition-all duration-200 shadow-sm hover:shadow-md"
+                className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${
+                  location.pathname === '/email-sender'
+                    ? 'bg-gradient-to-r from-purple-500 to-violet-500 text-white shadow-lg'
+                    : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-purple-600 border border-gray-200/50'
+                }`}
               >
-                邮件发送
+                <motion.svg 
+                  className="w-4 h-4" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                  whileHover={{ rotate: 5 }}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </motion.svg>
+                <span className="hidden sm:inline">邮件发送</span>
               </Link>
             </motion.div>
-          </>
+          </div>
         )}
-        <motion.div
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          <Link 
-            to="/profile" 
-            className="px-4 py-2 rounded-lg bg-yellow-100 text-yellow-700 font-semibold hover:bg-yellow-200 transition-all duration-200 shadow-sm hover:shadow-md"
+
+        {/* 用户功能组 */}
+        <div className="flex items-center space-x-1">
+          <motion.div
+            whileHover={{ scale: 1.05, y: -2 }}
+            whileTap={{ scale: 0.95 }}
           >
-            个人主页
-          </Link>
-        </motion.div>
+            <Link 
+              to="/profile" 
+              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${
+                location.pathname === '/profile'
+                  ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-lg'
+                  : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-yellow-600 border border-gray-200/50'
+              }`}
+            >
+              <motion.svg 
+                className="w-4 h-4" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+                whileHover={{ rotate: 5 }}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </motion.svg>
+              <span className="hidden sm:inline">个人主页</span>
+            </Link>
+          </motion.div>
+
+          <motion.button
+            onClick={onTOTPManagerOpen}
+            whileHover={{ scale: 1.05, y: -2 }}
+            whileTap={{ scale: 0.95 }}
+            className="flex items-center space-x-2 px-3 py-2 rounded-xl font-medium bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-indigo-600 border border-gray-200/50 transition-all duration-300 shadow-sm hover:shadow-lg"
+          >
+            <motion.svg 
+              className="w-4 h-4" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+              animate={{ rotate: [0, 5, -5, 0] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </motion.svg>
+            <span className="hidden sm:inline">二次验证</span>
+            {twoFactorStatus.enabled && (
+              <motion.span 
+                className="w-2 h-2 bg-green-500 rounded-full"
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}
+              />
+            )}
+          </motion.button>
+        </div>
+
+        {/* 退出按钮 */}
         <motion.button
-          onClick={onTOTPManagerOpen}
-          whileHover={{ scale: 1.05, y: -1 }}
+          onClick={logout}
+          whileHover={{ scale: 1.05, y: -2 }}
           whileTap={{ scale: 0.95 }}
-          className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-all duration-200 shadow-sm hover:shadow-md"
+          className="flex items-center space-x-2 px-3 py-2 rounded-xl font-medium bg-gradient-to-r from-red-500 to-pink-500 text-white hover:from-red-600 hover:to-pink-600 transition-all duration-300 shadow-sm hover:shadow-lg"
         >
           <motion.svg 
             className="w-4 h-4" 
             fill="none" 
             stroke="currentColor" 
             viewBox="0 0 24 24"
-            animate={{ rotate: [0, 5, -5, 0] }}
-            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+            whileHover={{ rotate: 5 }}
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </motion.svg>
-          <span>二次验证</span>
-          {twoFactorStatus.enabled && (
-            <motion.span 
-              className="w-2 h-2 bg-green-500 rounded-full"
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-            />
-          )}
-        </motion.button>
-        <motion.button
-          onClick={logout}
-          whileHover={{ scale: 1.05, y: -1 }}
-          whileTap={{ scale: 0.95 }}
-          className="bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-sm hover:shadow-md"
-        >
-          退出
+          <span className="hidden sm:inline">退出</span>
         </motion.button>
       </motion.div>
     );
