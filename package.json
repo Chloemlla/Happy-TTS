@@ -91,7 +91,7 @@
     "morgan": "^1.10.0",
     "multer": "^2.0.1",
     "mysql2": "^3.14.2",
-    "openai": "^5.9.0",
+    "openai": "^5.9.2",
     "qrcode": "^1.5.4",
     "react-syntax-highlighter": "^15.6.1",
     "resend": "^4.6.0",
