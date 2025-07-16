@@ -24,6 +24,34 @@ const UserProfile = React.lazy(() => import('./components/UserProfile'));
 const AdminDashboard = React.lazy(() => import('./components/AdminDashboard'));
 const OutEmail = React.lazy(() => import('./components/OutEmail'));
 
+// 恢复 EmailSender 懒加载
+const EmailSenderPage: React.FC = () => {
+  const [to, setTo] = React.useState('');
+  const [subject, setSubject] = React.useState('');
+  const [content, setContent] = React.useState('');
+  const [code, setCode] = React.useState('');
+  const [loading, setLoading] = React.useState(false);
+  const [success, setSuccess] = React.useState('');
+  const [error, setError] = React.useState('');
+  const handleSend = () => {};
+  return (
+    <EmailSender
+      to={to}
+      subject={subject}
+      content={content}
+      code={code}
+      setTo={setTo}
+      setSubject={setSubject}
+      setContent={setContent}
+      setCode={setCode}
+      loading={loading}
+      success={success}
+      error={error}
+      handleSend={handleSend}
+    />
+  );
+};
+
 // 页面切换动画变体
 const pageVariants = {
   initial: {
@@ -354,7 +382,9 @@ const App: React.FC = () => {
                     exit="out"
                     transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
                   >
-                    <EmailSender />
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <EmailSenderPage />
+                    </Suspense>
                   </motion.div>
                 ) : (
                   <Navigate to="/" replace />

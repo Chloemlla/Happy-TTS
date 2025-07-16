@@ -59,32 +59,34 @@ const OutEmail: React.FC = () => {
   };
 
   return (
-    <motion.div 
-      className="w-full max-w-lg mx-auto bg-white rounded-xl shadow-lg p-4 sm:p-8 mt-4 sm:mt-8"
-      style={{ boxSizing: 'border-box' }}
-      initial={{ opacity: 0, y: 30, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.6, type: 'spring', stiffness: 120 }}
-    >
-      <h2 className="text-2xl font-bold mb-6">对外邮件发送</h2>
-      {error && <div className="text-red-500 mb-4">{error}</div>}
-      {success && <div className="text-green-600 mb-4">{success}</div>}
-      <EmailSender
-        to={to}
-        subject={subject}
-        content={content}
-        code={code}
-        setTo={setTo}
-        setSubject={setSubject}
-        setContent={setContent}
-        setCode={setCode}
-        loading={loading}
-        success={success}
-        error={error}
-        handleSend={handleSend}
-        isOutEmail={true} // 标识为对外邮件发送
-      />
-    </motion.div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+      <motion.div 
+        className="w-full max-w-lg bg-white rounded-xl shadow-lg p-4 sm:p-8 m-0"
+        style={{ boxSizing: 'border-box' }}
+        initial={{ opacity: 0, y: 30, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.6, type: 'spring', stiffness: 120 }}
+      >
+        <h2 className="text-2xl font-bold mb-6">对外邮件发送</h2>
+        {error && <div className="text-red-500 mb-4">{error}</div>}
+        {success && <div className="text-green-600 mb-4">{success}</div>}
+        <EmailSender
+          to={to}
+          subject={subject}
+          content={content}
+          code={code}
+          setTo={setTo}
+          setSubject={setSubject}
+          setContent={setContent}
+          setCode={setCode}
+          loading={loading}
+          success={success}
+          error={error}
+          handleSend={handleSend}
+          isOutEmail={true} // 标识为对外邮件发送
+        />
+      </motion.div>
+    </div>
   );
 };
 
