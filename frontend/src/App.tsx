@@ -22,6 +22,7 @@ const CaseConverter = React.lazy(() => import('./components/CaseConverter').then
 const EmailSender = React.lazy(() => import('./components/EmailSender'));
 const UserProfile = React.lazy(() => import('./components/UserProfile'));
 const AdminDashboard = React.lazy(() => import('./components/AdminDashboard'));
+const OutEmail = React.lazy(() => import('./components/OutEmail'));
 
 // 页面切换动画变体
 const pageVariants = {
@@ -371,6 +372,17 @@ const App: React.FC = () => {
                     <UserProfile />
                   </motion.div>
                 </Suspense>
+              } />
+              <Route path="/outemail" element={
+                <motion.div
+                  variants={pageVariants}
+                  initial="initial"
+                  animate="in"
+                  exit="out"
+                  transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                >
+                  <OutEmail />
+                </motion.div>
               } />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

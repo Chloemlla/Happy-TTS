@@ -3,6 +3,7 @@ import { EmailController } from '../controllers/emailController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { createLimiter } from '../middleware/rateLimiter';
 import logger from '../utils/logger';
+import { sendOutEmail } from '../services/outEmailService';
 
 const router = express.Router();
 
@@ -42,6 +43,14 @@ const statusQueryLimiter = createLimiter({
     max: 40, // 最多40次
     message: '状态查询过于频繁，请稍后再试',
     routeName: 'email.status'
+});
+
+// 对外邮件发送限流（每分钟20封，每天100封，独立于管理员邮件）
+const outEmailLimiter = createLimiter({
+    windowMs: 60 * 1000,
+    max: 20,
+    message: '对外邮件发送过于频繁，请稍后再试',
+    routeName: 'outemail.send'
 });
 
 // 全局邮件接口速率限制（每管理员每分钟最多5次）
@@ -451,5 +460,44 @@ router.get('/quota', authMiddleware, adminAuthMiddleware, EmailController.getQuo
  *         description: 服务器错误
  */
 router.get('/domains', authMiddleware, EmailController.getDomains);
+
+router.post('/outemail', outEmailLimiter, async (req, res) => {
+    try {
+        const { to, subject, content, code } = req.body;
+        if (!to || !subject || !content || !code) {
+            return res.status(400).json({ error: '缺少参数' });
+        }
+        if (typeof to === 'string') {
+          if (!/^[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}$/.test(to)) {
+            return res.status(400).json({ error: '收件人邮箱格式无效' });
+          }
+          const ip = String(req.ip || req.headers['x-real-ip'] || '');
+          const result = await sendOutEmail({ to, subject, content, code, ip });
+          if (result.success) {
+            res.json({ success: true, messageId: result.messageId });
+          } else {
+            res.status(400).json({ error: result.error });
+          }
+          return;
+        } else if (Array.isArray(to) && typeof to[0] === 'string') {
+          const first = to[0];
+          if (!/^[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}$/.test(first)) {
+            return res.status(400).json({ error: '收件人邮箱格式无效' });
+          }
+          const ip = String(req.ip || req.headers['x-real-ip'] || '');
+          const result = await sendOutEmail({ to: first, subject, content, code, ip });
+          if (result.success) {
+            res.json({ success: true, messageId: result.messageId });
+          } else {
+            res.status(400).json({ error: result.error });
+          }
+          return;
+        } else {
+          return res.status(400).json({ error: '收件人邮箱格式无效' });
+        }
+    } catch (e) {
+        res.status(500).json({ error: '服务器错误' });
+    }
+});
 
 export default router; 

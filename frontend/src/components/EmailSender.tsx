@@ -7,6 +7,22 @@ import MarkdownPreview from './MarkdownPreview'; // Added MarkdownPreview import
 import DOMPurify from 'dompurify';
 import { useNotification } from './Notification';
 
+export interface EmailSenderProps {
+  to: string;
+  subject: string;
+  content: string;
+  code: string;
+  setTo: (v: string) => void;
+  setSubject: (v: string) => void;
+  setContent: (v: string) => void;
+  setCode: (v: string) => void;
+  loading: boolean;
+  success: string;
+  error: string;
+  handleSend: () => void;
+  isOutEmail?: boolean;
+}
+
 interface EmailForm {
   from: string;
   to: string[];
@@ -26,7 +42,7 @@ interface EmailQuota {
   resetAt: string; // ISO 时间
 }
 
-const EmailSender: React.FC = () => {
+const EmailSender: React.FC<EmailSenderProps> = (props) => {
   const [form, setForm] = useState<EmailForm>({
     from: `noreply@${import.meta.env.VITE_RESEND_DOMAIN || 'hapxs.com'}`,
     to: [''],
