@@ -107,13 +107,14 @@ const LogShare: React.FC = () => {
     const { content, ext, encoding } = queryResult;
     let blob;
     if (encoding === 'base64') {
-      const byteString = atob(content);
-      const ab = new ArrayBuffer(byteString.length);
-      const ia = new Uint8Array(ab);
-      for (let i = 0; i < byteString.length; i++) {
-        ia[i] = byteString.charCodeAt(i);
+      // 修正：base64转Uint8Array再转Blob，避免undefined
+      const binaryString = atob(content);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
       }
-      blob = new Blob([ab]);
+      blob = new Blob([bytes]);
     } else {
       blob = new Blob([content], { type: 'text/plain' });
     }

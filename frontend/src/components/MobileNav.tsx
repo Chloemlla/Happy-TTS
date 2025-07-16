@@ -32,7 +32,19 @@ const MobileNav: React.FC<MobileNavProps> = ({
       let overflow = false;
       if (navRef.current && !isMobileScreen) {
         const nav = navRef.current;
-        overflow = nav.scrollWidth > nav.clientWidth;
+        // 多策略检测溢出/变形
+        const sw = nav.scrollWidth;
+        const cw = nav.clientWidth;
+        const ow = nav.offsetWidth;
+        const rect = nav.getBoundingClientRect();
+        // 1. scrollWidth > clientWidth
+        if (sw > cw + 2) overflow = true;
+        // 2. offsetWidth < scrollWidth
+        if (ow < sw - 2) overflow = true;
+        // 3. 实际高度大于单行高度（按钮换行/变形）
+        if (rect.height > 60) overflow = true; // 60px 视为单行最大高度
+        // 4. 按钮数量过多
+        if (nav.children && nav.children.length > 6) overflow = true;
       }
       setIsOverflow(overflow);
       setIsMobile(isMobileScreen || overflow);
