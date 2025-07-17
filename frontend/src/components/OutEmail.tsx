@@ -66,7 +66,14 @@ const OutEmail: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ from, displayName, to, subject, content, code, domain })
       });
-      const data = await res.json();
+      let data;
+      try {
+        data = await res.json();
+      } catch (e) {
+        setError('服务器响应异常，请联系管理员');
+        setLoading(false);
+        return;
+      }
       if (data.success) {
         setSuccess('邮件发送成功！');
         setTo('');
