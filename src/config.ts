@@ -16,6 +16,8 @@ interface Config {
     code: string;
     outemail: {
       enabled: boolean;
+      domain: string;
+      apiKey: string;
     };
   };
   paths: {
@@ -48,6 +50,8 @@ const config: Config = {
     code: process.env.EMAIL_CODE || '',
     outemail: {
       enabled: process.env.OUTEMAIL_ENABLED === 'true',
+      domain: process.env.RESEND_DOMAIN_OUT || '',
+      apiKey: process.env.RESEND_API_OUT || '',
     },
   },
   paths: {

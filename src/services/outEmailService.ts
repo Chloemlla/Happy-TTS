@@ -2,9 +2,10 @@ import { Resend } from 'resend';
 import mongoose from './mongoService';
 import dayjs from 'dayjs';
 import { logger } from './logger';
+import config from '../config';
 
-const OUTEMAIL_API_KEY = process.env.RESEND_API_OUT || '';
-const OUTEMAIL_DOMAIN = process.env.RESEND_DOMAIN_OUT || '';
+const OUTEMAIL_API_KEY = config.email.outemail.apiKey;
+const OUTEMAIL_DOMAIN = config.email.outemail.domain;
 const OUTEMAIL_CODE = process.env.OUTEMAIL_CODE || '';
 
 // MongoDB Schema
