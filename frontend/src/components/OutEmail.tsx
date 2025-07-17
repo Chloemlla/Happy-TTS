@@ -20,7 +20,7 @@ interface EmailSenderProps {
   isOutEmail?: boolean;
 }
 
-const isOutEmailEnabled = import.meta.env.VITE_OUTEMAIL_ENABLED !== 'false' && typeof import.meta.env.VITE_OUTEMAIL_ENABLED !== 'undefined';
+const isOutEmailEnabled = import.meta.env.VITE_OUTEMAIL_ENABLED !== 'true' && typeof import.meta.env.VITE_OUTEMAIL_ENABLED !== 'undefined';
 
 const OutEmail: React.FC = () => {
   if (!isOutEmailEnabled) {
