@@ -48,9 +48,53 @@ const statusQueryLimiter = createLimiter({
 // 对外邮件发送限流（每分钟20封，每天100封，独立于管理员邮件）
 const outEmailLimiter = createLimiter({
     windowMs: 60 * 1000,
-    max: 20,
+    max: 300,
     message: '对外邮件发送过于频繁，请稍后再试',
     routeName: 'outemail.send'
+});
+
+// 对外邮件发送接口（无需 token 验证，必须放在所有中间件之前）
+const OUTEMAIL_ENABLED = process.env.OUTEMAIL_ENABLED !== 'false' && typeof process.env.OUTEMAIL_ENABLED !== 'undefined';
+router.post('/outemail', outEmailLimiter, async (req, res) => {
+    if (!OUTEMAIL_ENABLED) {
+        return res.status(403).json({ error: '对外邮件功能未启用，请联系管理员配置 OUTEMAIL_ENABLED 环境变量' });
+    }
+    try {
+        const { to, subject, content, code } = req.body;
+        if (!to || !subject || !content || !code) {
+            return res.status(400).json({ error: '缺少参数' });
+        }
+        if (typeof to === 'string') {
+          if (!/^[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}$/.test(to)) {
+            return res.status(400).json({ error: '收件人邮箱格式无效' });
+          }
+          const ip = String(req.ip || req.headers['x-real-ip'] || '');
+          const result = await sendOutEmail({ to, subject, content, code, ip });
+          if (result.success) {
+            res.json({ success: true, messageId: result.messageId });
+          } else {
+            res.status(400).json({ error: result.error });
+          }
+          return;
+        } else if (Array.isArray(to) && typeof to[0] === 'string') {
+          const first = to[0];
+          if (!/^[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}$/.test(first)) {
+            return res.status(400).json({ error: '收件人邮箱格式无效' });
+          }
+          const ip = String(req.ip || req.headers['x-real-ip'] || '');
+          const result = await sendOutEmail({ to: first, subject, content, code, ip });
+          if (result.success) {
+            res.json({ success: true, messageId: result.messageId });
+          } else {
+            res.status(400).json({ error: result.error });
+          }
+          return;
+        } else {
+          return res.status(400).json({ error: '收件人邮箱格式无效' });
+        }
+    } catch (e) {
+        res.status(500).json({ error: '服务器错误' });
+    }
 });
 
 // 全局邮件接口速率限制（每管理员每分钟最多5次）
@@ -460,50 +504,5 @@ router.get('/quota', authMiddleware, adminAuthMiddleware, EmailController.getQuo
  *         description: 服务器错误
  */
 router.get('/domains', authMiddleware, EmailController.getDomains);
-
-// 新增环境变量开关
-const OUTEMAIL_ENABLED = process.env.OUTEMAIL_ENABLED !== 'false' && typeof process.env.OUTEMAIL_ENABLED !== 'undefined';
-
-router.post('/outemail', outEmailLimiter, async (req, res) => {
-    if (!OUTEMAIL_ENABLED) {
-        return res.status(403).json({ error: '对外邮件功能未启用，请联系管理员配置 OUTEMAIL_ENABLED 环境变量' });
-    }
-    try {
-        const { to, subject, content, code } = req.body;
-        if (!to || !subject || !content || !code) {
-            return res.status(400).json({ error: '缺少参数' });
-        }
-        if (typeof to === 'string') {
-          if (!/^[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}$/.test(to)) {
-            return res.status(400).json({ error: '收件人邮箱格式无效' });
-          }
-          const ip = String(req.ip || req.headers['x-real-ip'] || '');
-          const result = await sendOutEmail({ to, subject, content, code, ip });
-          if (result.success) {
-            res.json({ success: true, messageId: result.messageId });
-          } else {
-            res.status(400).json({ error: result.error });
-          }
-          return;
-        } else if (Array.isArray(to) && typeof to[0] === 'string') {
-          const first = to[0];
-          if (!/^[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}$/.test(first)) {
-            return res.status(400).json({ error: '收件人邮箱格式无效' });
-          }
-          const ip = String(req.ip || req.headers['x-real-ip'] || '');
-          const result = await sendOutEmail({ to: first, subject, content, code, ip });
-          if (result.success) {
-            res.json({ success: true, messageId: result.messageId });
-          } else {
-            res.status(400).json({ error: result.error });
-          }
-          return;
-        } else {
-          return res.status(400).json({ error: '收件人邮箱格式无效' });
-        }
-    } catch (e) {
-        res.status(500).json({ error: '服务器错误' });
-    }
-});
 
 export default router; 

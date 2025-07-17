@@ -20,21 +20,7 @@ interface EmailSenderProps {
   isOutEmail?: boolean;
 }
 
-const isOutEmailEnabled = import.meta.env.VITE_OUTEMAIL_ENABLED !== 'true' && typeof import.meta.env.VITE_OUTEMAIL_ENABLED !== 'undefined';
-
 const OutEmail: React.FC = () => {
-  if (!isOutEmailEnabled) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
-        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
-          <h2 className="text-2xl font-bold mb-4 text-gray-800">对外邮件功能未启用</h2>
-          <p className="text-gray-600 mb-2">请联系管理员配置 VITE_OUTEMAIL_ENABLED 环境变量以启用此页面。</p>
-          <p className="text-gray-400 text-sm">（如需临时关闭此功能，可在 .env 文件中设置 VITE_OUTEMAIL_ENABLED=false）</p>
-        </div>
-      </div>
-    );
-  }
-
   const [to, setTo] = useState('');
   const [subject, setSubject] = useState('');
   const [content, setContent] = useState('');
@@ -42,29 +28,43 @@ const OutEmail: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const [fromUser, setFromUser] = useState('noreply');
+  const [displayName, setDisplayName] = useState('Synapse');
+  const OUTEMAIL_DOMAIN = 'arteam.dev'; // 可通过接口/环境变量动态获取
 
   const handleSend = async () => {
     setError(''); setSuccess('');
-    if (!to.trim() || !subject.trim() || !content.trim() || !code.trim()) {
+    if (!displayName.trim() || !fromUser.trim() || !to.trim() || !subject.trim() || !content.trim() || !code.trim()) {
       setError('请填写所有字段');
+      return;
+    }
+    const from = fromUser.trim(); // 保证只传前缀且不为空
+    if (!emailRegex.test(to.trim())) {
+      setError('收件人邮箱格式无效');
       return;
     }
     setLoading(true);
     try {
-      const res = await axios.post('/api/outemail', {
-        to,
-        subject,
-        content,
-        code
+      const res = await fetch('/api/email/outemail', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from, displayName, to, subject, content, code })
       });
-      if (res.data.success) {
+      const data = await res.json();
+      if (data.success) {
         setSuccess('邮件发送成功！');
-        setTo(''); setSubject(''); setContent(''); setCode('');
+        setTo('');
+        setSubject('');
+        setContent('');
+        setCode('');
+        setFromUser('noreply'); // 发送后重置为默认值
+        setDisplayName('');
       } else {
-        setError(res.data.error || '发送失败');
+        setError(data.error || '发送失败');
       }
     } catch (e: any) {
-      setError(e.response?.data?.error || '发送失败');
+      setError(e.message || '发送失败');
     } finally {
       setLoading(false);
     }
@@ -261,6 +261,37 @@ const OutEmail: React.FC = () => {
                     onChange={(e) => setCode(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
                     placeholder="请输入验证码"
+                  />
+                </div>
+
+                {/* 新增发件人输入框 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    发件人邮箱 *
+                  </label>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      value={fromUser}
+                      onChange={e => setFromUser(e.target.value)}
+                      className="w-1/2 px-4 py-3 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                      placeholder="noreply"
+                    />
+                    <span className="px-3 py-3 bg-gray-100 border border-l-0 border-gray-300 rounded-r-lg select-none">@{OUTEMAIL_DOMAIN}</span>
+                  </div>
+                </div>
+
+                {/* 新增发件人显示名输入框 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    发件人显示名 *
+                  </label>
+                  <input
+                    type="text"
+                    value={displayName}
+                    onChange={e => setDisplayName(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                    placeholder="Synapse"
                   />
                 </div>
 

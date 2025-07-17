@@ -4,10 +4,6 @@ import dayjs from 'dayjs';
 import { logger } from './logger';
 import config from '../config';
 
-const OUTEMAIL_API_KEY = config.email.outemail.apiKey;
-const OUTEMAIL_DOMAIN = config.email.outemail.domain;
-const OUTEMAIL_CODE = process.env.OUTEMAIL_CODE || '';
-
 // MongoDB Schema
 const OutEmailRecordSchema = new mongoose.Schema({
   to: String,
@@ -26,14 +22,18 @@ const OutEmailQuotaSchema = new mongoose.Schema({
 }, { collection: 'outemail_quotas' });
 const OutEmailQuota = mongoose.models.OutEmailQuota || mongoose.model('OutEmailQuota', OutEmailQuotaSchema);
 
-const resend = new Resend(OUTEMAIL_API_KEY);
-
-export async function sendOutEmail({ to, subject, content, code, ip }: { to: string, subject: string, content: string, code: string, ip: string }) {
+export async function sendOutEmail({ to, subject, content, code, ip, from: fromUser, displayName }: { to: string, subject: string, content: string, code: string, ip: string, from?: string, displayName?: string }) {
+  const OUTEMAIL_API_KEY = require('../config').default.email.outemail.apiKey;
+  const OUTEMAIL_DOMAIN = require('../config').default.email.outemail.domain;
+  if (!OUTEMAIL_API_KEY || !OUTEMAIL_DOMAIN) {
+    return { success: false, error: 'API密钥或域名未配置' };
+  }
+  const resend = new Resend(OUTEMAIL_API_KEY);
   if (typeof to !== 'string') {
     throw new Error('to 必须为字符串');
   }
   // 校验码
-  if (!OUTEMAIL_CODE || code !== OUTEMAIL_CODE) {
+  if (!config.email.outemail.code || code !== config.email.outemail.code) {
     return { success: false, error: '校验码错误' };
   }
   // 限流检查
@@ -60,21 +60,24 @@ export async function sendOutEmail({ to, subject, content, code, ip }: { to: str
   await quota.save();
   // 发送邮件
   try {
-    const from = `noreply@${OUTEMAIL_DOMAIN}`;
+    // 拼接发件人完整邮箱
+    const fromPrefix = (fromUser || 'noreply').replace(/[^a-zA-Z0-9._-]/g, '');
+    const senderName = displayName || fromPrefix;
+    const from = `${senderName} <${fromPrefix}@${OUTEMAIL_DOMAIN}>`;
     const { data, error } = await resend.emails.send({
       from,
-      to: [to],
+      to,
       subject,
-      html: `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#333;">${content.replace(/\n/g, '<br>')}</div>`
+      html: content,
     });
     if (error) {
-      logger.error('对外邮件发送失败', { error: error.message, to, subject });
-      return { success: false, error: error.message };
+      logger.error('对外邮件发送失败', { error });
+      return { success: false, error: error.message || error.toString() };
     }
     await OutEmailRecord.create({ to, subject, content, ip });
     return { success: true, messageId: data?.id };
   } catch (e: any) {
-    logger.error('对外邮件发送异常', { error: e.message, to, subject });
-    return { success: false, error: e.message };
+    logger.error('对外邮件发送异常', { error: e, stack: e?.stack });
+    return { success: false, error: e?.message || e?.toString() };
   }
 } 

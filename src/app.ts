@@ -263,6 +263,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(isLocalIp); // 添加本地 IP 检查中间件
 
+// 立即注册 emailRoutes，确保 /api/email/outemail 无需 token 验证
+app.use('/api/email', emailRoutes);
+
 // 应用请求限制到不同路由
 app.use('/api/auth', authLimiter);
 app.use('/api/auth/me', meEndpointLimiter); // 为 /me 端点添加特殊的限流器
