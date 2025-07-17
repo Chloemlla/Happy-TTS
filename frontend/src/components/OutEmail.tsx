@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
@@ -32,6 +32,20 @@ const OutEmail: React.FC = () => {
   const [fromUser, setFromUser] = useState('noreply');
   const [displayName, setDisplayName] = useState('Synapse');
   const OUTEMAIL_DOMAIN = 'arteam.dev'; // 可通过接口/环境变量动态获取
+  const [domains, setDomains] = useState<string[]>([OUTEMAIL_DOMAIN]);
+  const [selectedDomain, setSelectedDomain] = useState(OUTEMAIL_DOMAIN);
+
+  // 获取后端支持的所有域名
+  useEffect(() => {
+    fetch('/api/email/domains')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data.domains) && data.domains.length > 0) {
+          setDomains(data.domains);
+          setSelectedDomain(data.domains[0]);
+        }
+      });
+  }, []);
 
   const handleSend = async () => {
     setError(''); setSuccess('');
@@ -39,7 +53,8 @@ const OutEmail: React.FC = () => {
       setError('请填写所有字段');
       return;
     }
-    const from = fromUser.trim(); // 保证只传前缀且不为空
+    const from = fromUser.trim();
+    const domain = selectedDomain;
     if (!emailRegex.test(to.trim())) {
       setError('收件人邮箱格式无效');
       return;
@@ -49,7 +64,7 @@ const OutEmail: React.FC = () => {
       const res = await fetch('/api/email/outemail', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from, displayName, to, subject, content, code })
+        body: JSON.stringify({ from, displayName, to, subject, content, code, domain })
       });
       const data = await res.json();
       if (data.success) {
@@ -58,8 +73,9 @@ const OutEmail: React.FC = () => {
         setSubject('');
         setContent('');
         setCode('');
-        setFromUser('noreply'); // 发送后重置为默认值
+        setFromUser('noreply');
         setDisplayName('');
+        setSelectedDomain(domains[0] || '');
       } else {
         setError(data.error || '发送失败');
       }
@@ -277,7 +293,7 @@ const OutEmail: React.FC = () => {
                       className="w-1/2 px-4 py-3 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
                       placeholder="noreply"
                     />
-                    <span className="px-3 py-3 bg-gray-100 border border-l-0 border-gray-300 rounded-r-lg select-none">@{OUTEMAIL_DOMAIN}</span>
+                    <span className="px-3 py-3 bg-gray-100 border border-l-0 border-gray-300 rounded-r-lg select-none">@{selectedDomain}</span>
                   </div>
                 </div>
 
@@ -293,6 +309,20 @@ const OutEmail: React.FC = () => {
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
                     placeholder="Synapse"
                   />
+                </div>
+
+                {/* 新增发件人域名下拉选择 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    发件人域名 *
+                  </label>
+                  <select
+                    value={selectedDomain}
+                    onChange={e => setSelectedDomain(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                  >
+                    {domains.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
                 </div>
 
                 {/* 发送按钮 */}

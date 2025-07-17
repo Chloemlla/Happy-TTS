@@ -22,13 +22,45 @@ const OutEmailQuotaSchema = new mongoose.Schema({
 }, { collection: 'outemail_quotas' });
 const OutEmailQuota = mongoose.models.OutEmailQuota || mongoose.model('OutEmailQuota', OutEmailQuotaSchema);
 
-export async function sendOutEmail({ to, subject, content, code, ip, from: fromUser, displayName }: { to: string, subject: string, content: string, code: string, ip: string, from?: string, displayName?: string }) {
-  const OUTEMAIL_API_KEY = require('../config').default.email.outemail.apiKey;
-  const OUTEMAIL_DOMAIN = require('../config').default.email.outemail.domain;
-  if (!OUTEMAIL_API_KEY || !OUTEMAIL_DOMAIN) {
-    return { success: false, error: 'API密钥或域名未配置' };
+// 多域名多API key支持
+const domainApiKeyMap: Record<string, string> = {};
+(function loadDomainApiKeys() {
+  let idx = 0;
+  while (true) {
+    const domain = process.env[`OUTEMAIL_DOMAIN${idx ? '_' + idx : ''}`] || process.env[`RESEND_DOMAIN${idx ? '_' + idx : ''}`] || (idx === 0 ? (process.env.OUTEMAIL_DOMAIN || process.env.RESEND_DOMAIN) : undefined);
+    const key = process.env[`OUTEMAIL_API_KEY${idx ? '_' + idx : ''}`] || process.env[`RESEND_API_KEY${idx ? '_' + idx : ''}`] || (idx === 0 ? (process.env.OUTEMAIL_API_KEY || process.env.RESEND_API_KEY) : undefined);
+    if (!domain || !key) break;
+    domainApiKeyMap[domain] = key;
+    idx++;
   }
-  const resend = new Resend(OUTEMAIL_API_KEY);
+})();
+
+function getResendInstanceByDomain(domain: string) {
+  const key = domainApiKeyMap[domain];
+  if (!key) throw new Error(`未配置该域名(${domain})的API key`);
+  return new Resend(key);
+}
+
+// Resend官方建议：from字段仅用邮箱，显示名可尝试用headers['X-From-Name']或reply_to
+function parseSender(fromPrefix: string, displayName: string | undefined, domain: string) {
+  const prefix = (fromPrefix || 'noreply').replace(/[^a-zA-Z0-9._-]/g, '');
+  const name = displayName || prefix;
+  return {
+    email: `${prefix}@${domain}`,
+    name,
+  };
+}
+
+export async function sendOutEmail({ to, subject, content, code, ip, from: fromUser, displayName, domain }: { to: string, subject: string, content: string, code: string, ip: string, from?: string, displayName?: string, domain?: string }) {
+  // 选择域名
+  const OUTEMAIL_DOMAIN = domain || require('../config').default.email.outemail.domain;
+  if (!OUTEMAIL_DOMAIN) {
+    return { success: false, error: '域名未配置' };
+  }
+  if (!domainApiKeyMap[OUTEMAIL_DOMAIN]) {
+    return { success: false, error: 'API密钥未配置' };
+  }
+  const resend = getResendInstanceByDomain(OUTEMAIL_DOMAIN);
   if (typeof to !== 'string') {
     throw new Error('to 必须为字符串');
   }
@@ -42,11 +74,9 @@ export async function sendOutEmail({ to, subject, content, code, ip, from: fromU
   const minute = now.format('YYYY-MM-DD-HH-mm');
   let quota = await OutEmailQuota.findOne({ date });
   if (!quota) quota = await OutEmailQuota.create({ date, minute, countDay: 0, countMinute: 0 });
-  // 检查每日限额
   if (quota.countDay >= 100) {
     return { success: false, error: '今日发送已达上限（100封）' };
   }
-  // 检查每分钟限额
   if (quota.minute === minute) {
     if (quota.countMinute >= 20) {
       return { success: false, error: '当前一分钟内发送已达上限（20封）' };
@@ -60,16 +90,19 @@ export async function sendOutEmail({ to, subject, content, code, ip, from: fromU
   await quota.save();
   // 发送邮件
   try {
-    // 拼接发件人完整邮箱
-    const fromPrefix = (fromUser || 'noreply').replace(/[^a-zA-Z0-9._-]/g, '');
-    const senderName = displayName || fromPrefix;
-    const from = `${senderName} <${fromPrefix}@${OUTEMAIL_DOMAIN}>`;
-    const { data, error } = await resend.emails.send({
-      from,
+    const sender = parseSender(fromUser || '', displayName, OUTEMAIL_DOMAIN);
+    const mailOptions: any = {
+      from: sender.email, // 只用邮箱
       to,
       subject,
       html: content,
-    });
+    };
+    // 兼容部分服务商，尝试用headers或reply_to传递显示名
+    if (sender.name && sender.name !== fromUser) {
+      mailOptions.reply_to = `${sender.name} <${sender.email}>`;
+      mailOptions.headers = { 'X-From-Name': sender.name };
+    }
+    const { data, error } = await resend.emails.send(mailOptions);
     if (error) {
       logger.error('对外邮件发送失败', { error });
       return { success: false, error: error.message || error.toString() };
