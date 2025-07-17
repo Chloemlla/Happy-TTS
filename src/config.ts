@@ -14,6 +14,9 @@ interface Config {
   };
   email: {
     code: string;
+    outemail: {
+      enabled: boolean;
+    };
   };
   paths: {
     ipData: string;
@@ -43,6 +46,9 @@ const config: Config = {
   },
   email: {
     code: process.env.EMAIL_CODE || '',
+    outemail: {
+      enabled: process.env.OUTEMAIL_ENABLED === 'true',
+    },
   },
   paths: {
     ipData: join(__dirname, '../data/ip_data.json'),

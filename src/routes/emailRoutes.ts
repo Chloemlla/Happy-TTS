@@ -461,7 +461,13 @@ router.get('/quota', authMiddleware, adminAuthMiddleware, EmailController.getQuo
  */
 router.get('/domains', authMiddleware, EmailController.getDomains);
 
+// 新增环境变量开关
+const OUTEMAIL_ENABLED = process.env.OUTEMAIL_ENABLED !== 'false' && typeof process.env.OUTEMAIL_ENABLED !== 'undefined';
+
 router.post('/outemail', outEmailLimiter, async (req, res) => {
+    if (!OUTEMAIL_ENABLED) {
+        return res.status(403).json({ error: '对外邮件功能未启用，请联系管理员配置 OUTEMAIL_ENABLED 环境变量' });
+    }
     try {
         const { to, subject, content, code } = req.body;
         if (!to || !subject || !content || !code) {
