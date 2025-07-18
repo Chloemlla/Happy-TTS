@@ -34,6 +34,7 @@ const OutEmail: React.FC = () => {
   const OUTEMAIL_DOMAIN = 'arteam.dev'; // 可通过接口/环境变量动态获取
   const [domains, setDomains] = useState<string[]>([OUTEMAIL_DOMAIN]);
   const [selectedDomain, setSelectedDomain] = useState(OUTEMAIL_DOMAIN);
+  const [outemailStatus, setOutemailStatus] = useState<{ available: boolean; error?: string } | null>(null);
 
   // 获取后端支持的所有域名
   useEffect(() => {
@@ -44,6 +45,23 @@ const OutEmail: React.FC = () => {
           setDomains(data.domains);
           setSelectedDomain(data.domains[0]);
         }
+      });
+  }, []);
+
+  // 获取对外邮件服务状态
+  useEffect(() => {
+    fetch('/api/email/outemail-status')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setOutemailStatus({
+            available: data.available,
+            error: data.error
+          });
+        }
+      })
+      .catch(() => {
+        setOutemailStatus({ available: false, error: '无法获取服务状态' });
       });
   }, []);
 
@@ -453,10 +471,17 @@ const OutEmail: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-600">对外邮件服务</span>
                       <div className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span className="text-sm font-medium">正常</span>
+                        <div className={`w-2 h-2 rounded-full ${outemailStatus?.available ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                        <span className="text-sm font-medium">
+                          {outemailStatus?.available ? '正常' : '异常'}
+                        </span>
                       </div>
                     </div>
+                    {outemailStatus?.error && (
+                      <div className="text-xs text-red-500">
+                        {outemailStatus.error}
+                      </div>
+                    )}
                     <div className="text-xs text-gray-500">
                       服务时间：24/7
                     </div>

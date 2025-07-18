@@ -315,6 +315,64 @@ router.get('/status', statusQueryLimiter, EmailController.getServiceStatus);
 
 /**
  * @openapi
+ * /api/email/outemail-status:
+ *   get:
+ *     summary: 获取对外邮件服务状态
+ *     description: 查询对外邮件服务状态接口
+ *     responses:
+ *       200:
+ *         description: 服务状态查询成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 available:
+ *                   type: boolean
+ *                   example: true
+ *                 error:
+ *                   type: string
+ *                   example: null
+ *       429:
+ *         description: 请求过于频繁
+ *       500:
+ *         description: 服务器错误
+ */
+router.get('/outemail-status', statusQueryLimiter, (req, res) => {
+  try {
+    const outemailStatus = (globalThis as any).OUTEMAIL_SERVICE_STATUS;
+    if (outemailStatus) {
+      res.json({
+        success: true,
+        available: outemailStatus.available,
+        error: outemailStatus.error
+      });
+    } else {
+      res.json({
+        success: true,
+        available: false,
+        error: '对外邮件服务状态未初始化'
+      });
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : '未知错误';
+    logger.error('对外邮件服务状态查询异常', {
+      error: errorMessage,
+      stack: error instanceof Error ? error.stack : undefined,
+      ip: req.ip
+    });
+    res.status(500).json({ 
+      success: false,
+      error: '服务状态查询失败' 
+    });
+  }
+});
+
+/**
+ * @openapi
  * /api/email/validate-sender-domain:
  *   post:
  *     summary: 验证发件人域名

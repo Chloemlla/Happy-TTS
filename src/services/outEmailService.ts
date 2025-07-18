@@ -52,6 +52,12 @@ function parseSender(fromPrefix: string, displayName: string | undefined, domain
 }
 
 export async function sendOutEmail({ to, subject, content, code, ip, from: fromUser, displayName, domain }: { to: string, subject: string, content: string, code: string, ip: string, from?: string, displayName?: string, domain?: string }) {
+  // 检查对外邮件服务状态
+  const outemailStatus = (globalThis as any).OUTEMAIL_SERVICE_STATUS;
+  if (outemailStatus && !outemailStatus.available) {
+    return { success: false, error: outemailStatus.error || '对外邮件服务不可用' };
+  }
+  
   // 选择域名
   const OUTEMAIL_DOMAIN = domain || require('../config').default.email.outemail.domain;
   if (!OUTEMAIL_DOMAIN) {

@@ -213,9 +213,17 @@ export class EmailService {
    * @returns 发送结果
    */
   static async sendEmail(emailData: EmailData): Promise<EmailResponse> {
+    // 检查邮件服务是否启用
     if (!(globalThis as any).EMAIL_ENABLED) {
       return { success: false, error: '邮件服务未启用，请联系管理员配置 RESEND_API_KEY' };
     }
+    
+    // 检查邮件服务状态
+    const serviceStatus = (globalThis as any).EMAIL_SERVICE_STATUS;
+    if (serviceStatus && !serviceStatus.available) {
+      return { success: false, error: serviceStatus.error || '邮件服务不可用' };
+    }
+    
     try {
       // 验证发件人域名
       const domain = emailData.from.split('@')[1];
@@ -292,6 +300,13 @@ export class EmailService {
     if (!(globalThis as any).EMAIL_ENABLED) {
       return { success: false, error: '邮件服务未启用，请联系管理员配置 RESEND_API_KEY' };
     }
+    
+    // 检查邮件服务状态
+    const serviceStatus = (globalThis as any).EMAIL_SERVICE_STATUS;
+    if (serviceStatus && !serviceStatus.available) {
+      return { success: false, error: serviceStatus.error || '邮件服务不可用' };
+    }
+    
     return this.sendEmail({
       from: from || DEFAULT_EMAIL_FROM,
       to,
@@ -320,6 +335,13 @@ export class EmailService {
     if (!(globalThis as any).EMAIL_ENABLED) {
       return { success: false, error: '邮件服务未启用，请联系管理员配置 RESEND_API_KEY' };
     }
+    
+    // 检查邮件服务状态
+    const serviceStatus = (globalThis as any).EMAIL_SERVICE_STATUS;
+    if (serviceStatus && !serviceStatus.available) {
+      return { success: false, error: serviceStatus.error || '邮件服务不可用' };
+    }
+    
     return this.sendEmail({
       from: from || DEFAULT_EMAIL_FROM,
       to,
@@ -400,6 +422,12 @@ export class EmailService {
    * @returns 服务状态
    */
   static async getServiceStatus(): Promise<{ available: boolean; error?: string }> {
+    // 优先使用启动时固定的状态
+    if ((globalThis as any).EMAIL_SERVICE_STATUS) {
+      return (globalThis as any).EMAIL_SERVICE_STATUS;
+    }
+    
+    // 如果没有固定状态，则进行动态检查（兼容旧版本）
     try {
       // 尝试发送测试邮件到无效地址来检查API连接
       const testResult = await resend.emails.send({
