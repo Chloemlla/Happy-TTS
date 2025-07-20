@@ -4,7 +4,7 @@ import { writeFile, readFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { logger } from './logger';
-import mongoose from './mongoService';
+import { mongoose } from './mongoService';
 
 // MongoDB 图片记录 Schema
 const ImageRecordSchema = new mongoose.Schema({

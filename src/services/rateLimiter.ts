@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import config from '../config';
 import { logger } from './logger';
-import mongoose from './mongoService';
+import { mongoose } from './mongoService';
 
 // MongoDB 速率限制 Schema
 const RateLimitSchema = new mongoose.Schema({

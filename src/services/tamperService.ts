@@ -2,7 +2,7 @@ import { writeFile, readFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import logger from '../utils/logger';
-import mongoose from './mongoService';
+import { mongoose } from './mongoService';
 
 // MongoDB Blocked IP Schema
 const BlockedIPSchema = new mongoose.Schema({

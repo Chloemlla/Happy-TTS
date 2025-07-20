@@ -5,7 +5,7 @@ import { existsSync } from 'fs';
 import config from '../config';
 import { logger } from './logger';
 import cheerio from 'cheerio';
-import mongoose from './mongoService';
+import { mongoose } from './mongoService';
 
 // MongoDB IP信息 Schema
 const IPInfoSchema = new mongoose.Schema({

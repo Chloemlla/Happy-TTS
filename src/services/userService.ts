@@ -1,4 +1,4 @@
-import mongoose from './mongoService';
+import { mongoose } from './mongoService';
 import { User as UserType } from '../utils/userStorage';
 import validator from 'validator';
 

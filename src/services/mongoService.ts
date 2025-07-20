@@ -31,4 +31,4 @@ export const connectMongo = async () => {
   }
 };
 
-export default mongoose; 
+export { mongoose }; 

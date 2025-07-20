@@ -1,5 +1,5 @@
 import { Resend } from 'resend';
-import mongoose from './mongoService';
+import { mongoose } from './mongoService';
 import dayjs from 'dayjs';
 import { logger } from './logger';
 import config from '../config';

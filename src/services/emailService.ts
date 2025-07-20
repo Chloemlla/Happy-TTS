@@ -2,7 +2,7 @@ import { Resend } from 'resend';
 import { logger } from './logger';
 import { marked } from 'marked';
 import dayjs from 'dayjs';
-import mongoose from './mongoService';
+import { mongoose } from './mongoService';
 
 // MongoDB 邮件配额 Schema
 const EmailQuotaSchema = new mongoose.Schema({

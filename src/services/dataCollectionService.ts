@@ -2,7 +2,7 @@ import { writeFile, appendFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { logger } from './logger';
-import mongoose from './mongoService';
+import { mongoose } from './mongoService';
 
 // MongoDB 数据收集 Schema
 const DataCollectionSchema = new mongoose.Schema({
