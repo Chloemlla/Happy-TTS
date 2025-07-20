@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import fs from 'fs';
 import path from 'path';
 import logger from '../utils/logger';
-import mongoose from '../services/mongoService';
+import { mongoose } from '../services/mongoService';
 
 // MongoDB 用户行为日志 Schema
 const UserDataSchema = new mongoose.Schema({

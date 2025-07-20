@@ -1,4 +1,4 @@
-import mongoose from '../mongoService';
+import { mongoose } from '../mongoService';
 
 function sanitizeString(str: any): string {
   if (typeof str !== 'string') return '';

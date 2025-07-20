@@ -1,4 +1,4 @@
-import mongoose from '../mongoService';
+import { mongoose } from '../mongoService';
 import { getUserById } from '../userService';
 
 const generationSchema = new mongoose.Schema({

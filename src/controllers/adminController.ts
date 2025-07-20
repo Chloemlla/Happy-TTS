@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { UserStorage } from '../utils/userStorage';
 import { v4 as uuidv4 } from 'uuid';
 import logger from '../utils/logger';
-import mongoose from '../services/mongoService';
+import { mongoose } from '../services/mongoService';
 import mysql from 'mysql2/promise';
 import fs from 'fs';
 import path from 'path';
