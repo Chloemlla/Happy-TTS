@@ -167,6 +167,31 @@ const MobileNav: React.FC<MobileNavProps> = ({
               <span className="hidden sm:inline">API 文档</span>
             </Link>
           </motion.div>
+          <motion.div
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          <Link 
+            to="/lottery" 
+            className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${
+              location.pathname === '/lottery'
+                ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg'
+                : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-green-600 border border-gray-200/50'
+            }`}
+          >
+            <motion.svg 
+              className="w-4 h-4" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+              whileHover={{ rotate: 5 }}
+            >
+              <circle cx="12" cy="12" r="10" strokeWidth="2" />
+              <path d="M8 12l2 2 4-4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </motion.svg>
+            <span className="hidden sm:inline">抽奖系统</span>
+          </Link>
+        </motion.div>
         </div>
 
         {/* 管理员功能组 */}
@@ -662,6 +687,42 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   {location.pathname === '/api-docs' && (
                     <motion.span 
                       className="ml-auto text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full"
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                    >
+                      当前
+                    </motion.span>
+                  )}
+                </Link>
+              </motion.div>
+              {/* 抽奖系统 */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.48 }}
+              >
+                <Link
+                  to="/lottery"
+                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
+                    location.pathname === '/lottery' ? 'bg-green-50 text-green-700 font-semibold shadow-sm' : 'hover:bg-green-50'
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <motion.svg 
+                    className={`w-5 h-5 ${location.pathname === '/lottery' ? 'text-green-500' : 'text-gray-400'}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                  >
+                    <circle cx="12" cy="12" r="10" strokeWidth="2" />
+                    <path d="M8 12l2 2 4-4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </motion.svg>
+                  <span>抽奖系统</span>
+                  {location.pathname === '/lottery' && (
+                    <motion.span 
+                      className="ml-auto text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full"
                       initial={{ scale: 0, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
                       transition={{ type: "spring", stiffness: 500, damping: 15 }}

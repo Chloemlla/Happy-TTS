@@ -43,7 +43,9 @@ import socialRoutes from './routes/socialRoutes';
 import lifeRoutes from './routes/lifeRoutes';
 import { PasskeyDataRepairService } from './services/passkeyDataRepairService';
 import miniapiRoutes from './routes/miniapiRoutes';
+import lotteryRoutes from './routes/lotteryRoutes';
 import { connectMongo } from './services/mongoService';
+
 import emailRoutes from './routes/emailRoutes';
 
 // 扩展 Request 类型
@@ -625,6 +627,7 @@ app.use('/api/data-collection', dataCollectionRoutes);
 app.use('/api/ipfs', ipfsRoutes);
 app.use('/api/network', networkRoutes);
 app.use('/api/data', dataProcessRoutes);
+app.use('/api/lottery', lotteryRoutes);
 app.use('/api/media', mediaRoutes);
 app.use('/api/social', socialRoutes);
 app.use('/api/life', lifeRoutes);

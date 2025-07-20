@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from './hooks/useAuth';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 import { TOTPStatus } from './types/auth';
+import { LotteryPage } from './components/LotteryPage';
+import { LotteryAdmin } from './components/LotteryAdmin';
 import { LoadingSpinner, SimpleLoadingSpinner } from './components/LoadingSpinner';
 import TOTPManager from './components/TOTPManager';
 import { NotificationProvider } from './components/Notification';
@@ -319,6 +321,36 @@ const App: React.FC = () => {
                   )
                 }
               />
+              <Route path="/lottery" element={
+                user ? (
+                  <motion.div
+                    variants={pageVariants}
+                    initial="initial"
+                    animate="in"
+                    exit="out"
+                    transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                  >
+                    <LotteryPage />
+                  </motion.div>
+                ) : (
+                  <Navigate to="/welcome" replace state={{ from: location.pathname }} />
+                )
+              } />
+              <Route path="/admin/lottery" element={
+                user?.role === 'admin' ? (
+                  <motion.div
+                    variants={pageVariants}
+                    initial="initial"
+                    animate="in"
+                    exit="out"
+                    transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                  >
+                    <LotteryAdmin />
+                  </motion.div>
+                ) : (
+                  <Navigate to="/" replace />
+                )
+              } />
               <Route path="/admin/users" element={
                 user?.role === 'admin' ? (
                   <motion.div
