@@ -86,7 +86,7 @@
     "jsdom": "^26.1.0",
     "jsonwebtoken": "^9.0.2",
     "liquid-glass-react": "^1.1.1",
-    "marked": "^16.0.0",
+    "marked": "^16.1.1",
     "mongoose": "^8.16.3",
     "morgan": "^1.10.0",
     "multer": "^2.0.1",
