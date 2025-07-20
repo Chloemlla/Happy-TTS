@@ -69,13 +69,15 @@ jobs:
       - name: Build and push with memory optimization
         if: github.event_name != 'pull_request'
         uses: docker/build-push-action@master
+        env:
+          BUILDKIT_MEM_LIMIT: 13g
         with:
           context: .
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           build-args: |
             BUILDKIT_INLINE_CACHE=1
-            NODE_OPTIONS=--max-old-space-size=5096
+            NODE_OPTIONS=--max-old-space-size=13000
           cache-from: |
             type=local,src=/tmp/.buildx-cache
             type=gha
