@@ -1,5 +1,7 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/dom';
+import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import TOTPSetup from './TOTPSetup';
 import { vi } from 'vitest';
@@ -47,7 +49,7 @@ describe('TOTPSetup 组件', () => {
     const onClose = vi.fn();
     render(<TOTPSetup isOpen={true} onClose={onClose} onSuccess={vi.fn()} />);
     const cancelBtn = await waitFor(() => screen.getByText('取消'));
-    fireEvent.click(cancelBtn);
+    userEvent.click(cancelBtn);
     await waitFor(() => {
       expect(onClose).toHaveBeenCalled();
     });

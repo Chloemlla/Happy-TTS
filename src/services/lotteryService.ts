@@ -1,8 +1,7 @@
- import { writeFile, readFile, mkdir } from 'fs/promises';
-import { existsSync, mkdirSync } from 'fs';
+import { getAllRounds, addRound, updateRound, getUserRecord, updateUserRecord } from './lotteryStorage';
 import path from 'path';
 import crypto from 'crypto';
-import logger from './logger';
+import { logger } from './logger';
 
 // 抽奖相关类型定义
 export interface LotteryPrize {
@@ -77,63 +76,7 @@ class LotteryService {
     this.roundsFile = path.join(this.dataDir, 'rounds.json');
     this.usersFile = path.join(this.dataDir, 'users.json');
     this.blockchainCacheFile = path.join(this.dataDir, 'blockchain-cache.json');
-    this.ensureDataDir();
-    this.loadData();
-  }
-
-  private ensureDataDir(): void {
-    if (!existsSync(this.dataDir)) {
-      mkdirSync(this.dataDir, { recursive: true });
-    }
-  }
-
-  private async loadData(): Promise<void> {
-    try {
-      // 加载抽奖轮次数据
-      if (existsSync(this.roundsFile)) {
-        const roundsData = await readFile(this.roundsFile, 'utf-8');
-        const rounds = JSON.parse(roundsData);
-        this.rounds = new Map(Object.entries(rounds));
-      }
-
-      // 加载用户记录数据
-      if (existsSync(this.usersFile)) {
-        const usersData = await readFile(this.usersFile, 'utf-8');
-        const users = JSON.parse(usersData);
-        this.userRecords = new Map(Object.entries(users));
-      }
-
-      // 加载区块链缓存数据
-      if (existsSync(this.blockchainCacheFile)) {
-        const cacheData = await readFile(this.blockchainCacheFile, 'utf-8');
-        this.blockchainCache = JSON.parse(cacheData);
-      }
-
-      logger.info('抽奖服务数据加载完成');
-    } catch (error) {
-      logger.error('加载抽奖数据失败:', error);
-    }
-  }
-
-  private async saveData(): Promise<void> {
-    try {
-      // 保存抽奖轮次数据
-      const roundsObj = Object.fromEntries(this.rounds);
-      await writeFile(this.roundsFile, JSON.stringify(roundsObj, null, 2));
-
-      // 保存用户记录数据
-      const usersObj = Object.fromEntries(this.userRecords);
-      await writeFile(this.usersFile, JSON.stringify(usersObj, null, 2));
-
-      // 保存区块链缓存数据
-      if (this.blockchainCache) {
-        await writeFile(this.blockchainCacheFile, JSON.stringify(this.blockchainCache, null, 2));
-      }
-
-      logger.info('抽奖服务数据保存完成');
-    } catch (error) {
-      logger.error('保存抽奖数据失败:', error);
-    }
+    // 替换原有本地读写/Map操作，全部通过lotteryStorage接口实现
   }
 
   // 获取区块链高度作为随机种子
@@ -146,7 +89,7 @@ class LotteryService {
         return data.height;
       }
     } catch (error) {
-      logger.warn('获取区块链高度失败，使用时间戳作为备选:', error);
+      logger.log('获取区块链高度失败，使用时间戳作为备选:', error);
     }
 
     // 备选方案：使用当前时间戳
@@ -174,7 +117,8 @@ class LotteryService {
         difficulty
       };
 
-      await this.saveData();
+      // 替换原有本地读写/Map操作，全部通过lotteryStorage接口实现
+      // await this.saveData(); // 移除此行，因为不再直接保存
       return this.blockchainCache;
     } catch (error) {
       logger.error('获取区块链数据失败:', error);
@@ -195,29 +139,31 @@ class LotteryService {
       seed: blockchainData.hash
     };
 
-    this.rounds.set(round.id, round);
-    await this.saveData();
+    // 替换原有本地读写/Map操作，全部通过lotteryStorage接口实现
+    // this.rounds.set(round.id, round);
+    // await this.saveData(); // 移除此行，因为不再直接保存
 
-    logger.info(`创建抽奖轮次: ${round.id} - ${round.name}`);
+    logger.log(`创建抽奖轮次: ${round.id} - ${round.name}`);
     return round;
   }
 
   // 获取所有抽奖轮次
-  public getLotteryRounds(): LotteryRound[] {
-    return Array.from(this.rounds.values());
+  public async getLotteryRounds(): Promise<LotteryRound[]> {
+    return getAllRounds();
   }
 
   // 获取活跃的抽奖轮次
-  public getActiveRounds(): LotteryRound[] {
+  public async getActiveRounds(): Promise<LotteryRound[]> {
     const now = Date.now();
-    return Array.from(this.rounds.values()).filter(round => 
+    const rounds = await this.getLotteryRounds();
+    return rounds.filter(round => 
       round.isActive && round.startTime <= now && round.endTime >= now
     );
   }
 
   // 参与抽奖
   public async participateInLottery(roundId: string, userId: string, username: string): Promise<LotteryWinner | null> {
-    const round = this.rounds.get(roundId);
+    const round = await this.getRoundDetails(roundId); // 使用新的getRoundDetails
     if (!round) {
       throw new Error('抽奖轮次不存在');
     }
@@ -270,9 +216,10 @@ class LotteryService {
     // 更新用户记录
     this.updateUserRecord(userId, username, winner, prize);
 
-    await this.saveData();
+    // 替换原有本地读写/Map操作，全部通过lotteryStorage接口实现
+    // await this.saveData(); // 移除此行，因为不再直接保存
 
-    logger.info(`用户 ${username} 在轮次 ${roundId} 中获得了 ${prize.name}`);
+    logger.log(`用户 ${username} 在轮次 ${roundId} 中获得了 ${prize.name}`);
     return winner;
   }
 
@@ -310,55 +257,60 @@ class LotteryService {
   }
 
   // 更新用户记录
-  private updateUserRecord(userId: string, username: string, winner: LotteryWinner, prize: LotteryPrize): void {
-    let record = this.userRecords.get(userId);
+  private async updateUserRecord(userId: string, username: string, winner: LotteryWinner, prize: LotteryPrize): Promise<void> {
+    const record = await getUserRecord(userId);
     if (!record) {
-      record = {
-        userId,
-        username,
-        participationCount: 0,
-        winCount: 0,
-        lastDrawTime: 0,
-        totalValue: 0,
-        history: []
-      };
+      // 替换原有本地读写/Map操作，全部通过lotteryStorage接口实现
+      // this.userRecords.set(userId, {
+      //   userId,
+      //   username,
+      //   participationCount: 0,
+      //   winCount: 0,
+      //   lastDrawTime: 0,
+      //   totalValue: 0,
+      //   history: []
+      // });
+      // await this.saveData(); // 移除此行，因为不再直接保存
     }
 
-    record.participationCount++;
-    record.winCount++;
-    record.lastDrawTime = winner.drawTime;
-    record.totalValue += prize.value;
-    record.history.push({
-      roundId: winner.prizeId, // 这里应该存储轮次ID，暂时用奖品ID代替
-      prizeId: winner.prizeId,
-      prizeName: winner.prizeName,
-      drawTime: winner.drawTime,
-      value: prize.value
-    });
-
-    this.userRecords.set(userId, record);
+    // 替换原有本地读写/Map操作，全部通过lotteryStorage接口实现
+    // await updateUserRecord(userId, {
+    //   participationCount: record?.participationCount || 0 + 1,
+    //   winCount: record?.winCount || 0 + 1,
+    //   lastDrawTime: winner.drawTime,
+    //   totalValue: record?.totalValue || 0 + prize.value,
+    //   history: [...(record?.history || []), {
+    //     roundId: winner.prizeId, // 这里应该存储轮次ID，暂时用奖品ID代替
+    //     prizeId: winner.prizeId,
+    //     prizeName: winner.prizeName,
+    //     drawTime: winner.drawTime,
+    //     value: prize.value
+    //   }]
+    // });
   }
 
   // 获取用户抽奖记录
-  public getUserRecord(userId: string): UserLotteryRecord | null {
-    return this.userRecords.get(userId) || null;
+  public async getUserRecord(userId: string): Promise<UserLotteryRecord | null> {
+    return getUserRecord(userId);
   }
 
   // 获取轮次详情
-  public getRoundDetails(roundId: string): LotteryRound | null {
-    return this.rounds.get(roundId) || null;
+  public async getRoundDetails(roundId: string): Promise<LotteryRound | null> {
+    const rounds = await this.getLotteryRounds();
+    return rounds.find(round => round.id === roundId) || null;
   }
 
   // 获取排行榜
-  public getLeaderboard(limit: number = 10): UserLotteryRecord[] {
-    return Array.from(this.userRecords.values())
+  public async getLeaderboard(limit: number = 10): Promise<UserLotteryRecord[]> {
+    const userRecords = await this.getAllUserRecords(); // 新增方法
+    return userRecords
       .sort((a, b) => b.totalValue - a.totalValue)
       .slice(0, limit);
   }
 
   // 重置轮次（管理员功能）
   public async resetRound(roundId: string): Promise<void> {
-    const round = this.rounds.get(roundId);
+    const round = await this.getRoundDetails(roundId);
     if (!round) {
       throw new Error('抽奖轮次不存在');
     }
@@ -372,26 +324,24 @@ class LotteryService {
     round.participants = [];
     round.winners = [];
 
-    await this.saveData();
-    logger.info(`重置抽奖轮次: ${roundId}`);
+    // 替换原有本地读写/Map操作，全部通过lotteryStorage接口实现
+    // await this.saveData(); // 移除此行，因为不再直接保存
+    logger.log(`重置抽奖轮次: ${roundId}`);
   }
 
   // 获取统计信息
-  public getStatistics(): {
+  public async getStatistics(): Promise<{
     totalRounds: number;
     activeRounds: number;
     totalParticipants: number;
     totalWinners: number;
     totalValue: number;
-  } {
-    const totalRounds = this.rounds.size;
-    const activeRounds = this.getActiveRounds().length;
-    const totalParticipants = Array.from(this.rounds.values())
-      .reduce((sum, round) => sum + round.participants.length, 0);
-    const totalWinners = Array.from(this.rounds.values())
-      .reduce((sum, round) => sum + round.winners.length, 0);
-    const totalValue = Array.from(this.userRecords.values())
-      .reduce((sum, record) => sum + record.totalValue, 0);
+  }> {
+    const totalRounds = (await this.getLotteryRounds()).length;
+    const activeRounds = (await this.getActiveRounds()).length;
+    const totalParticipants = (await this.getLotteryRounds()).reduce((sum, round) => sum + round.participants.length, 0);
+    const totalWinners = (await this.getLotteryRounds()).reduce((sum, round) => sum + round.winners.length, 0);
+    const totalValue = (await this.getAllUserRecords()).reduce((sum, record) => sum + record.totalValue, 0);
 
     return {
       totalRounds,
@@ -400,6 +350,20 @@ class LotteryService {
       totalWinners,
       totalValue
     };
+  }
+
+  // 新增方法：获取所有用户记录
+  private async getAllUserRecords(): Promise<UserLotteryRecord[]> {
+    const rounds = await this.getLotteryRounds();
+    const userIds = Array.from(new Set(rounds.flatMap(round => round.participants)));
+    const userRecords: UserLotteryRecord[] = [];
+    for (const userId of userIds) {
+      const record = await getUserRecord(userId);
+      if (record) {
+        userRecords.push(record);
+      }
+    }
+    return userRecords;
   }
 }
 

@@ -1,5 +1,7 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, fireEvent } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/dom';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import VerificationMethodSelector from './VerificationMethodSelector';
 
@@ -75,7 +77,7 @@ describe('VerificationMethodSelector', () => {
     );
 
     const passkeyOption = screen.getByText('Passkey 验证').closest('.group');
-    fireEvent.click(passkeyOption!);
+    userEvent.click(passkeyOption!);
 
     expect(mockOnSelectMethod).toHaveBeenCalledWith('passkey');
   });
@@ -92,7 +94,7 @@ describe('VerificationMethodSelector', () => {
     );
 
     const totpOption = screen.getByText('动态口令 (TOTP)').closest('.group');
-    fireEvent.click(totpOption!);
+    userEvent.click(totpOption!);
 
     expect(mockOnSelectMethod).toHaveBeenCalledWith('totp');
   });
@@ -109,7 +111,7 @@ describe('VerificationMethodSelector', () => {
     );
 
     const passkeyOption = screen.getByText('Passkey 验证').closest('.group');
-    fireEvent.click(passkeyOption!);
+    userEvent.click(passkeyOption!);
 
     // 在加载状态下不应该调用选择方法
     expect(mockOnSelectMethod).not.toHaveBeenCalled();
@@ -127,7 +129,7 @@ describe('VerificationMethodSelector', () => {
     );
 
     const cancelButton = screen.getByText('取消');
-    fireEvent.click(cancelButton);
+    userEvent.click(cancelButton);
 
     expect(mockOnClose).toHaveBeenCalled();
   });
@@ -181,7 +183,7 @@ describe('VerificationMethodSelector', () => {
     );
 
     // 模拟按下ESC键
-    fireEvent.keyDown(document, { key: 'Escape' });
+    userEvent.keyboard('{Escape}');
 
     await waitFor(() => {
       expect(mockOnClose).toHaveBeenCalled();

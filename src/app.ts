@@ -45,6 +45,7 @@ import { PasskeyDataRepairService } from './services/passkeyDataRepairService';
 import miniapiRoutes from './routes/miniapiRoutes';
 import lotteryRoutes from './routes/lotteryRoutes';
 import { connectMongo } from './services/mongoService';
+import modlistRoutes from './routes/modlistRoutes';
 
 import emailRoutes from './routes/emailRoutes';
 
@@ -636,6 +637,7 @@ app.use('/api/passkey', passkeyAutoFixMiddleware);
 app.use('/api/passkey', passkeyRoutes);
 app.use('/api/email', emailRoutes);
 app.use('/api/miniapi', miniapiLimiter, miniapiRoutes);
+app.use('/api/modlist', modlistRoutes);
 
 // 完整性检测相关兜底接口限速
 const integrityLimiter = rateLimit({

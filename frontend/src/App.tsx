@@ -7,6 +7,9 @@ import { LoadingSpinner, SimpleLoadingSpinner } from './components/LoadingSpinne
 import TOTPManager from './components/TOTPManager';
 import { NotificationProvider } from './components/Notification';
 import DesktopNav from './components/DesktopNav';
+import ModListPage from './components/ModListPage';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 // 懒加载组件
 const WelcomePage = React.lazy(() => import('./components/WelcomePage').then(module => ({ default: module.WelcomePage })));
@@ -212,6 +215,7 @@ const App: React.FC = () => {
 
   return (
     <NotificationProvider>
+      <ToastContainer position="top-center" autoClose={2000} hideProgressBar newestOnTop />
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
         <BackgroundParticles />
         <motion.nav
@@ -448,6 +452,17 @@ const App: React.FC = () => {
                   transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
                 >
                   <OutEmail />
+                </motion.div>
+              } />
+              <Route path="/modlist" element={
+                <motion.div
+                  variants={pageVariants}
+                  initial="initial"
+                  animate="in"
+                  exit="out"
+                  transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                >
+                  <ModListPage />
                 </motion.div>
               } />
               <Route path="*" element={<Navigate to="/" replace />} />
