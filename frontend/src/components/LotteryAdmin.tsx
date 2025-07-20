@@ -349,7 +349,7 @@ const RoundManagement: React.FC<{ rounds: LotteryRound[]; onRefresh: () => void 
 };
 
 // 主管理员组件
-export const LotteryAdmin: React.FC = () => {
+const LotteryAdmin: React.FC = () => {
   const { user } = useAuth();
   const { allRounds, fetchAllRounds } = useLottery();
   const [activeTab, setActiveTab] = useState<'create' | 'manage'>('create');
@@ -432,3 +432,5 @@ export const LotteryAdmin: React.FC = () => {
     </div>
   );
 }; 
+
+export default LotteryAdmin; 

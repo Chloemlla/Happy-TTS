@@ -307,7 +307,7 @@ const WinnerModal: React.FC<{
 };
 
 // 主抽奖页面组件
-export const LotteryPage: React.FC = () => {
+const LotteryPage: React.FC = () => {
   const { user } = useAuth();
   const {
     blockchainData,
@@ -419,4 +419,6 @@ export const LotteryPage: React.FC = () => {
       <WinnerModal winner={winner} onClose={() => setWinner(null)} />
     </div>
   );
-}; 
+};
+
+export default LotteryPage; 

@@ -3,8 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from './hooks/useAuth';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 import { TOTPStatus } from './types/auth';
-import { LotteryPage } from './components/LotteryPage';
-import { LotteryAdmin } from './components/LotteryAdmin';
 import { LoadingSpinner, SimpleLoadingSpinner } from './components/LoadingSpinner';
 import TOTPManager from './components/TOTPManager';
 import { NotificationProvider } from './components/Notification';
@@ -25,6 +23,8 @@ const EmailSender = React.lazy(() => import('./components/EmailSender'));
 const UserProfile = React.lazy(() => import('./components/UserProfile'));
 const AdminDashboard = React.lazy(() => import('./components/AdminDashboard'));
 const OutEmail = React.lazy(() => import('./components/OutEmail'));
+const LotteryPage = React.lazy(() => import('./components/LotteryPage'));
+const LotteryAdmin = React.lazy(() => import('./components/LotteryAdmin'));
 
 // 恢复 EmailSender 懒加载
 const EmailSenderPage: React.FC = () => {
@@ -323,30 +323,34 @@ const App: React.FC = () => {
               />
               <Route path="/lottery" element={
                 user ? (
-                  <motion.div
-                    variants={pageVariants}
-                    initial="initial"
-                    animate="in"
-                    exit="out"
-                    transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
-                  >
-                    <LotteryPage />
-                  </motion.div>
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <motion.div
+                      variants={pageVariants}
+                      initial="initial"
+                      animate="in"
+                      exit="out"
+                      transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                    >
+                      <LotteryPage />
+                    </motion.div>
+                  </Suspense>
                 ) : (
                   <Navigate to="/welcome" replace state={{ from: location.pathname }} />
                 )
               } />
               <Route path="/admin/lottery" element={
                 user?.role === 'admin' ? (
-                  <motion.div
-                    variants={pageVariants}
-                    initial="initial"
-                    animate="in"
-                    exit="out"
-                    transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
-                  >
-                    <LotteryAdmin />
-                  </motion.div>
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <motion.div
+                      variants={pageVariants}
+                      initial="initial"
+                      animate="in"
+                      exit="out"
+                      transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                    >
+                      <LotteryAdmin />
+                    </motion.div>
+                  </Suspense>
                 ) : (
                   <Navigate to="/" replace />
                 )
