@@ -8,7 +8,7 @@ RUN apk add --no-cache tzdata && \
     apk del tzdata
 
 # 设置Node.js内存限制和优化
-ENV NODE_OPTIONS="--max-old-space-size=5096"
+ENV NODE_OPTIONS="--max-old-space-size=11264"
 ENV NPM_CONFIG_CACHE="/tmp/.npm"
 ENV NPM_CONFIG_PREFER_OFFLINE=true
 ENV NPM_CONFIG_AUDIT=false
