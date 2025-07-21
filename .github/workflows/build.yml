@@ -34,6 +34,8 @@ jobs:
           echo "NPM_CONFIG_CACHE=/tmp/.npm" >> $GITHUB_ENV
           echo "ROLLUP_SKIP_NATIVE_DEPENDENCIES=true" >> $GITHUB_ENV
           echo "VITE_SKIP_ROLLUP_NATIVE=true" >> $GITHUB_ENV
+          echo "MEMORY=11264M" >> $GITHUB_ENV
+          echo "NODE_MEMORY=11264" >> $GITHUB_ENV
 
       - name: Clean node_modules and lock (root)
         run: |
