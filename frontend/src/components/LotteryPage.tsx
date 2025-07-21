@@ -7,6 +7,13 @@ import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { useNotification } from './Notification';
 
+// 获取 API 基础地址（适配本地/生产环境）
+const getApiBaseUrl = () => {
+  if (import.meta.env.DEV) return '';
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  return 'https://tts-api.hapxs.com';
+};
+
 // 区块链数据展示组件
 const BlockchainDisplay: React.FC<{ data: any }> = ({ data }) => (
   <motion.div
