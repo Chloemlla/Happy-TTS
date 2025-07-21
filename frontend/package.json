@@ -59,7 +59,7 @@
     "react-dom": "^18.2.0",
     "react-icons": "^5.5.0",
     "react-markdown": "^10.1.0",
-    "react-router-dom": "^7.6.3",
+    "react-router-dom": "^7.7.0",
     "react-syntax-highlighter": "^15.6.1",
     "react-toastify": "^11.0.5",
     "rollup": "^4.45.1",
