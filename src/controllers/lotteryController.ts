@@ -15,7 +15,7 @@ export class LotteryController {
       logger.error('获取区块链数据失败:', error);
       res.status(500).json({
         success: false,
-        error: '获取区块链数据失败'
+        error: error instanceof Error ? error.message : '服务器错误'
       });
     }
   }
@@ -52,7 +52,7 @@ export class LotteryController {
       logger.error('创建抽奖轮次失败:', error);
       res.status(500).json({
         success: false,
-        error: '创建抽奖轮次失败'
+        error: error instanceof Error ? error.message : '服务器错误'
       });
     }
   }
@@ -69,7 +69,7 @@ export class LotteryController {
       logger.error('获取抽奖轮次失败:', error);
       res.status(500).json({
         success: false,
-        error: '获取抽奖轮次失败'
+        error: error instanceof Error ? error.message : '服务器错误'
       });
     }
   }
@@ -86,7 +86,7 @@ export class LotteryController {
       logger.error('获取活跃抽奖轮次失败:', error);
       res.status(500).json({
         success: false,
-        error: '获取活跃抽奖轮次失败'
+        error: error instanceof Error ? error.message : '服务器错误'
       });
     }
   }
@@ -143,7 +143,7 @@ export class LotteryController {
       logger.error('获取轮次详情失败:', error);
       res.status(500).json({
         success: false,
-        error: '获取轮次详情失败'
+        error: error instanceof Error ? error.message : '服务器错误'
       });
     }
   }
@@ -169,7 +169,7 @@ export class LotteryController {
       logger.error('获取用户记录失败:', error);
       res.status(500).json({
         success: false,
-        error: '获取用户记录失败'
+        error: error instanceof Error ? error.message : '服务器错误'
       });
     }
   }
@@ -188,7 +188,7 @@ export class LotteryController {
       logger.error('获取排行榜失败:', error);
       res.status(500).json({
         success: false,
-        error: '获取排行榜失败'
+        error: error instanceof Error ? error.message : '服务器错误'
       });
     }
   }
@@ -205,7 +205,7 @@ export class LotteryController {
       logger.error('获取统计信息失败:', error);
       res.status(500).json({
         success: false,
-        error: '获取统计信息失败'
+        error: error instanceof Error ? error.message : '服务器错误'
       });
     }
   }
@@ -233,7 +233,7 @@ export class LotteryController {
       logger.error('重置轮次失败:', error);
       res.status(500).json({
         success: false,
-        error: error instanceof Error ? error.message : '重置轮次失败'
+        error: error instanceof Error ? error.message : '服务器错误'
       });
     }
   }
@@ -263,7 +263,7 @@ export class LotteryController {
       logger.error('更新轮次状态失败:', error);
       res.status(500).json({
         success: false,
-        error: '更新轮次状态失败'
+        error: error instanceof Error ? error.message : '服务器错误'
       });
     }
   }

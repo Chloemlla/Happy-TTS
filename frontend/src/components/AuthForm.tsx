@@ -256,6 +256,11 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
                     }
                     return;
                 }
+                // 登录成功且不需要2FA，强制刷新页面
+                if (typeof window !== 'undefined') {
+                    window.location.reload();
+                }
+                return;
             } else {
                 // 注册后进入邮箱验证码界面
                 const res = await api.post('/api/auth/register', {

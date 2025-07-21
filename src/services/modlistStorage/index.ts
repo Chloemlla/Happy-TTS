@@ -19,4 +19,7 @@ switch (storageType) {
 
 export const getAllMods = impl.getAllMods;
 export const addMod = impl.addMod;
-export const updateMod = impl.updateMod; 
+export const updateMod = impl.updateMod;
+export const deleteMod = impl.deleteMod;
+export const batchAddMods = impl.batchAddMods;
+export const batchDeleteMods = impl.batchDeleteMods; 

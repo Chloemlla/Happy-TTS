@@ -191,7 +191,10 @@ const domainApiKeyMap: Record<string, string> = {};
     const domain = process.env[`RESEND_DOMAIN${idx ? '_' + idx : ''}`] || (idx === 0 ? process.env.RESEND_DOMAIN : undefined);
     const key = process.env[`RESEND_API_KEY${idx ? '_' + idx : ''}`] || (idx === 0 ? process.env.RESEND_API_KEY : undefined);
     if (!domain || !key) break;
-    domainApiKeyMap[domain] = key;
+    // 只接受 re_ 开头的 key
+    if (/^re_\w{8,}/.test(key)) {
+      domainApiKeyMap[domain] = key;
+    }
     idx++;
   }
 })();
@@ -426,32 +429,12 @@ export class EmailService {
     if ((globalThis as any).EMAIL_SERVICE_STATUS) {
       return (globalThis as any).EMAIL_SERVICE_STATUS;
     }
-    
-    // 如果没有固定状态，则进行动态检查（兼容旧版本）
-    try {
-      // 尝试发送测试邮件到无效地址来检查API连接
-      const testResult = await resend.emails.send({
-        from: 'test@example.com',
-        to: ['test@example.com'],
-        subject: 'Test',
-        html: '<p>Test</p>'
-      });
-
-      // 如果返回错误但错误不是认证相关，说明服务可用
-      if (testResult.error) {
-        const error = testResult.error as any;
-        if (error.statusCode === 400) {
-          // 400错误通常是参数问题，说明API连接正常
-          return { available: true };
-        } else if (error.statusCode === 401 || error.statusCode === 403) {
-          return { available: false, error: 'API密钥无效' };
-        }
-      }
-
-      return { available: true };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '未知错误';
-      return { available: false, error: errorMessage };
+    // 只做配置检查，不发送测试邮件
+    const keys = Object.values(domainApiKeyMap);
+    const key = keys.find(k => /^re_\w{8,}/.test(k));
+    if (!key) {
+      return { available: false, error: '未配置有效的邮件API密钥（re_ 开头）' };
     }
+    return { available: true };
   }
 } 

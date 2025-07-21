@@ -1058,76 +1058,45 @@ if (!process.env.RESEND_API_KEY) {
   console.warn('[邮件服务] 未检测到 RESEND_API_KEY，邮件发送功能已禁用');
 } else {
   (globalThis as any).EMAIL_ENABLED = true;
-  // 启动时检查邮件服务状态
+  // 启动时仅做配置检查，不发送测试邮件
   (async () => {
     try {
       const { EmailService } = require('./services/emailService');
-      const status = await EmailService.getServiceStatus();
-      (globalThis as any).EMAIL_SERVICE_STATUS = status;
-      if (status.available) {
-        console.log('[邮件服务] 服务状态检查完成：正常');
-      } else {
-        console.warn('[邮件服务] 服务状态检查完成：异常', status.error);
-      }
+      // 只检查配置，不发测试邮件
+      (globalThis as any).EMAIL_SERVICE_STATUS = { available: true };
+      console.log('[邮件服务] 配置检查完成：已启用');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '未知错误';
       (globalThis as any).EMAIL_SERVICE_STATUS = { available: false, error: errorMessage };
-      console.warn('[邮件服务] 服务状态检查失败：', errorMessage);
+      console.warn('[邮件服务] 配置检查失败：', errorMessage);
     }
   })();
-  
-  // 启动时检查对外邮件服务状态
+  // 对外邮件服务同理
   (async () => {
     try {
-      const { sendOutEmail } = require('./services/outEmailService');
       const config = require('./config').default;
-      
-      // 检查对外邮件服务配置
-      if (!config.email.outemail.enabled) {
+      if (!config.email?.outemail?.enabled) {
         (globalThis as any).OUTEMAIL_SERVICE_STATUS = { available: false, error: '对外邮件服务未启用' };
         console.warn('[对外邮件服务] 服务未启用');
         return;
       }
-      
-      if (!config.email.outemail.domain || !config.email.outemail.apiKey) {
-        (globalThis as any).OUTEMAIL_SERVICE_STATUS = { available: false, error: '对外邮件服务配置不完整' };
-        console.warn('[对外邮件服务] 配置不完整');
+      if (!config.email?.outemail?.domain) {
+        (globalThis as any).OUTEMAIL_SERVICE_STATUS = { available: false, error: '对外邮件服务未配置域名' };
+        console.warn('[对外邮件服务] 未配置域名');
         return;
       }
-      
-      // 尝试创建Resend实例来检查API密钥有效性
-      const { Resend } = require('resend');
-      const resend = new Resend(config.email.outemail.apiKey);
-      
-      // 发送测试请求检查API连接
-      const testResult = await resend.emails.send({
-        from: 'test@example.com',
-        to: ['test@example.com'],
-        subject: 'Test',
-        html: '<p>Test</p>'
-      });
-      
-      if (testResult.error) {
-        const error = testResult.error as any;
-        if (error.statusCode === 400) {
-          // 400错误通常是参数问题，说明API连接正常
-          (globalThis as any).OUTEMAIL_SERVICE_STATUS = { available: true };
-          console.log('[对外邮件服务] 服务状态检查完成：正常');
-        } else if (error.statusCode === 401 || error.statusCode === 403) {
-          (globalThis as any).OUTEMAIL_SERVICE_STATUS = { available: false, error: 'API密钥无效' };
-          console.warn('[对外邮件服务] 服务状态检查完成：API密钥无效');
-        } else {
-          (globalThis as any).OUTEMAIL_SERVICE_STATUS = { available: false, error: error.message };
-          console.warn('[对外邮件服务] 服务状态检查完成：异常', error.message);
-        }
-      } else {
-        (globalThis as any).OUTEMAIL_SERVICE_STATUS = { available: true };
-        console.log('[对外邮件服务] 服务状态检查完成：正常');
+      const key = config.email.outemail.apiKey;
+      if (!key || !/^re_\w{8,}/.test(key)) {
+        (globalThis as any).OUTEMAIL_SERVICE_STATUS = { available: false, error: '未配置有效的对外邮件API密钥（re_ 开头）' };
+        console.warn('[对外邮件服务] 未配置有效API密钥');
+        return;
       }
+      (globalThis as any).OUTEMAIL_SERVICE_STATUS = { available: true };
+      console.log('[对外邮件服务] 配置检查完成：已启用');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '未知错误';
       (globalThis as any).OUTEMAIL_SERVICE_STATUS = { available: false, error: errorMessage };
-      console.warn('[对外邮件服务] 服务状态检查失败：', errorMessage);
+      console.warn('[对外邮件服务] 配置检查失败：', errorMessage);
     }
   })();
 }

@@ -6,6 +6,7 @@ import { LotteryRound, LotteryWinner } from '../types/lottery';
 import { toast } from 'react-toastify';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
+import { useNotification } from './Notification';
 
 // 区块链数据展示组件
 const BlockchainDisplay: React.FC<{ data: any }> = ({ data }) => (
@@ -323,6 +324,7 @@ const WinnerModal: React.FC<{
 // 主抽奖页面组件
 const LotteryPage: React.FC = () => {
   const { user } = useAuth();
+  const { setNotification } = useNotification();
   const {
     blockchainData,
     activeRounds,
@@ -343,11 +345,14 @@ const LotteryPage: React.FC = () => {
       setWinner(result);
       toast.success(`恭喜获得 ${result.prizeName}！`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : '参与抽奖失败');
+      const msg = err instanceof Error ? err.message : '参与抽奖失败';
+      setNotification({ message: msg, type: 'error' });
+      toast.error(msg);
     }
   };
 
   if (error) {
+    setNotification({ message: error, type: 'error' });
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4">
         <div className="max-w-7xl mx-auto">

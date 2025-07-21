@@ -32,6 +32,12 @@ async function apiRequest<T>(endpoint: string, options?: RequestInit): Promise<T
     headers,
   });
 
+  // 新增：检查响应类型，防止解析 HTML
+  const contentType = response.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    throw new Error('后端未返回 JSON，可能是 404、未部署 lottery API 或服务器错误');
+  }
+
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.error || `HTTP ${response.status}`);
