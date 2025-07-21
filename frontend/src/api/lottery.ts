@@ -101,6 +101,7 @@ export async function createLotteryRound(roundData: {
   endTime: string;
   prizes: any[];
 }): Promise<LotteryRound> {
+  console.log('收到创建轮次请求', roundData);
   return apiRequest<LotteryRound>('/rounds', {
     method: 'POST',
     body: JSON.stringify(roundData),
@@ -120,4 +121,11 @@ export async function resetRound(roundId: string): Promise<void> {
   return apiRequest<void>(`/rounds/${roundId}/reset`, {
     method: 'POST',
   });
-} 
+}
+
+// 删除所有抽奖轮次（管理员）
+export async function deleteAllRounds(): Promise<void> {
+  return apiRequest<void>('/rounds', {
+    method: 'DELETE',
+  });
+}

@@ -50,6 +50,12 @@ export async function updateRound(id: string, data: any) {
   return merged;
 }
 
+export async function deleteAllRounds() {
+  const conn = await getConn();
+  await conn.execute(`DELETE FROM ${ROUNDS_TABLE}`);
+  await conn.end();
+}
+
 export async function getUserRecord(userId: string) {
   const conn = await getConn();
   const [rows] = await conn.execute(`SELECT * FROM ${USERS_TABLE} WHERE userId=?`, [userId]);

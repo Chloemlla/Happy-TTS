@@ -40,6 +40,11 @@ export async function updateRound(id: string, data: any) {
   return rounds[id];
 }
 
+export async function deleteAllRounds() {
+  ensureDir();
+  writeJson(ROUNDS_FILE, {});
+}
+
 export async function getUserRecord(userId: string) {
   ensureDir();
   const users = readJson(USERS_FILE);

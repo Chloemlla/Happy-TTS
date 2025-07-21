@@ -98,8 +98,8 @@ const PasskeyVerifyModal: React.FC<PasskeyVerifyModalProps> = ({ open, username,
                   </span>
                 </div>
                 <div>
-                  <p className="text-blue-800 font-medium text-sm">正在验证用户</p>
-                  <p className="text-blue-600 text-sm">{username}</p>
+                  <span className="text-blue-800 font-medium text-sm block">正在验证用户</span>
+                  <span className="text-blue-600 text-sm block">{username}</span>
                 </div>
               </div>
             </motion.div>
@@ -204,7 +204,7 @@ const PasskeyVerifyModal: React.FC<PasskeyVerifyModalProps> = ({ open, username,
 
             {/* 底部按钮优化：认证中禁用取消，认证成功后显示“完成” */}
             <motion.div
-              className="flex justify-end mt-6 pt-4 border-t border-gray-200"
+              className="flex flex-col sm:flex-row justify-end gap-2 mt-6 pt-4 border-t border-gray-200"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5 }}
@@ -213,7 +213,7 @@ const PasskeyVerifyModal: React.FC<PasskeyVerifyModalProps> = ({ open, username,
                 <motion.button
                   type="button"
                   onClick={handleClose}
-                  className="px-4 py-2 text-green-700 font-medium rounded-lg bg-green-100 hover:bg-green-200 transition-colors duration-200 ml-2"
+                  className="px-4 py-2 text-green-700 font-medium rounded-lg bg-green-100 hover:bg-green-200 transition-colors duration-200"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >

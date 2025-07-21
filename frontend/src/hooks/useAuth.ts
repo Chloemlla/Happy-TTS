@@ -145,17 +145,10 @@ export const useAuth = () => {
         }
     }, []); // 移除所有依赖项，使用ref来避免闭包问题
 
-    // 使用useEffect来定期检查认证状态
+    // 只在页面刷新（首次挂载）时检查一次
     useEffect(() => {
-        // 初始检查
         checkAuth();
-        
-        const interval = setInterval(() => {
-            checkAuth();
-        }, CHECK_INTERVAL);
-        
-        return () => clearInterval(interval);
-    }, []); // 移除checkAuth依赖项，避免重复触发
+    }, []);
 
     const login = async (username: string, password: string) => {
         try {

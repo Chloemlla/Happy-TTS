@@ -59,4 +59,8 @@ export async function updateUserRecord(userId: string, data: any) {
     await doc.save();
   }
   return doc.data;
+}
+
+export async function deleteAllRounds() {
+  await RoundModel.deleteMany({});
 } 

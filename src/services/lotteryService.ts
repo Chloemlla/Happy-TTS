@@ -129,7 +129,6 @@ class LotteryService {
   // 创建抽奖轮次
   public async createLotteryRound(roundData: Omit<LotteryRound, 'id' | 'participants' | 'winners' | 'blockchainHeight' | 'seed'>): Promise<LotteryRound> {
     const blockchainData = await this.getBlockchainData();
-    
     const round: LotteryRound = {
       ...roundData,
       id: crypto.randomUUID(),
@@ -138,18 +137,27 @@ class LotteryService {
       blockchainHeight: blockchainData.height,
       seed: blockchainData.hash
     };
-
-    // 替换原有本地读写/Map操作，全部通过lotteryStorage接口实现
-    // this.rounds.set(round.id, round);
-    // await this.saveData(); // 移除此行，因为不再直接保存
-
-    logger.log(`创建抽奖轮次: ${round.id} - ${round.name}`);
+    try {
+      await addRound(round);
+      logger.log(`创建抽奖轮次: ${round.id} - ${round.name}`);
+      // 创建后强制刷新所有轮次，避免缓存/延迟
+      await this.getLotteryRounds();
+    } catch (e: any) {
+      logger.error(`创建抽奖轮次失败: ${e.message || e}`);
+      throw new Error('数据库写入失败: ' + (e.message || e));
+    }
     return round;
   }
 
   // 获取所有抽奖轮次
   public async getLotteryRounds(): Promise<LotteryRound[]> {
-    return getAllRounds();
+    const rounds = await getAllRounds();
+    if (!rounds || !Array.isArray(rounds) || rounds.length === 0) {
+      logger.log('[lottery] getLotteryRounds: 未读取到任何轮次数据');
+    } else {
+      logger.log(`[lottery] getLotteryRounds: 读取到 ${rounds.length} 条轮次数据`);
+    }
+    return rounds;
   }
 
   // 获取活跃的抽奖轮次
@@ -364,6 +372,23 @@ class LotteryService {
       }
     }
     return userRecords;
+  }
+
+  // 删除所有抽奖轮次
+  public async deleteAllRounds(): Promise<void> {
+    if (typeof (global as any).deleteAllRounds === 'function') {
+      await (global as any).deleteAllRounds();
+    } else if (typeof require !== 'undefined') {
+      // 动态引入 storage 层
+      const storage = require('./lotteryStorage');
+      if (typeof storage.deleteAllRounds === 'function') {
+        await storage.deleteAllRounds();
+      } else {
+        throw new Error('当前存储实现不支持批量删除');
+      }
+    } else {
+      throw new Error('无法找到 deleteAllRounds 实现');
+    }
   }
 }
 

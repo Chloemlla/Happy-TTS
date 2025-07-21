@@ -102,8 +102,8 @@ export const PasskeySetup: React.FC = () => {
                     <div className="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg px-4 py-3 flex items-center gap-2">
                         <KeyRoundIcon className="w-5 h-5 text-blue-400" />
                         <div>
-                            <div className="font-semibold">每个账户仅允许设置<strong>一个</strong>Passkey作为无密码验证方式。</div>
-                            <div className="text-xs text-blue-600 mt-1">如需更换设备或认证方式，请先删除原有Passkey后再注册新Passkey。</div>
+                            <span className="font-semibold block">每个账户仅允许设置<strong>一个</strong>Passkey作为无密码验证方式。</span>
+                            <span className="text-xs text-blue-600 mt-1 block">如需更换设备或认证方式，请先删除原有Passkey后再注册新Passkey。</span>
                         </div>
                     </div>
                 </div>
@@ -125,26 +125,26 @@ export const PasskeySetup: React.FC = () => {
                                         animate={{ opacity: 1, scale: 1 }}
                                         exit={{ opacity: 0, scale: 0.95 }}
                                         transition={{ duration: 0.3 }}
-                                        className="relative group bg-white rounded-xl shadow-md border hover:shadow-2xl transition-all p-5 flex flex-col gap-2 min-h-[120px] mx-auto w-full max-w-xs"
+                                        className="group bg-white rounded-xl shadow-md border hover:shadow-2xl transition-all p-5 flex flex-row justify-between items-start gap-2 min-h-[120px] mx-auto w-full max-w-xs"
                                         whileHover={{ scale: 1.03, boxShadow: '0 8px 32px 0 rgba(99,102,241,0.15)' }}
                                     >
-                                        <div className="flex items-center gap-2">
-                                            <KeyRoundIcon className="w-5 h-5 text-indigo-500" />
-                                            <div>
-                                                <div className="font-semibold text-base">{credential.name}</div>
-                                                <div className="text-xs text-gray-400 mt-1">添加时间：{formatDate(credential.createdAt)}</div>
+                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                            <KeyRoundIcon className="w-5 h-5 text-indigo-500 flex-shrink-0" />
+                                            <div className="min-w-0">
+                                                <div className="font-semibold text-base truncate">{credential.name}</div>
+                                                <div className="text-xs text-gray-400 mt-1 truncate">添加时间：{formatDate(credential.createdAt)}</div>
                                             </div>
                                         </div>
                                         <button
                                             onClick={() => handleRemove(credential.id)}
                                             disabled={isLoading || removingId === credential.id}
-                                            className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-white rounded-full p-1 border border-red-100 hover:bg-red-50 text-red-500 hover:text-red-700 shadow-sm"
+                                            className="ml-2 flex items-center justify-center bg-white rounded-full p-1 border border-red-100 hover:bg-red-50 text-red-500 hover:text-red-700 shadow-sm z-10"
                                             title="删除"
                                         >
                                             {removingId === credential.id ? (
-                                                <span className="animate-spin w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full"></span>
+                                                <span className="animate-spin w-4 h-4 sm:w-5 sm:h-5 border-2 border-red-500 border-t-transparent rounded-full"></span>
                                             ) : (
-                                                <Trash2Icon className="w-5 h-5" />
+                                                <Trash2Icon className="w-4 h-4 sm:w-5 sm:h-5" />
                                             )}
                                         </button>
                                     </motion.div>

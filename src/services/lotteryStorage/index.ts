@@ -3,7 +3,7 @@ import * as fileImpl from './file';
 import * as mysqlImpl from './mysql';
 
 const storageType = process.env.LOTTERY_STORAGE || 'mongo';
-
+console.log('[LOTTERY_STORAGE]', process.env.LOTTERY_STORAGE);
 let impl: any;
 switch (storageType) {
   case 'file':
@@ -21,4 +21,5 @@ export const getAllRounds = impl.getAllRounds;
 export const addRound = impl.addRound;
 export const updateRound = impl.updateRound;
 export const getUserRecord = impl.getUserRecord;
-export const updateUserRecord = impl.updateUserRecord; 
+export const updateUserRecord = impl.updateUserRecord;
+export const deleteAllRounds = impl.deleteAllRounds; 

@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useLottery } from '../hooks/useLottery';
 import { useAuth } from '../hooks/useAuth';
 import { LotteryRound, LotteryWinner } from '../types/lottery';
-import { toast } from 'react-toastify';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { useNotification } from './Notification';
@@ -343,11 +342,10 @@ const LotteryPage: React.FC = () => {
     try {
       const result = await participateInLottery(roundId);
       setWinner(result);
-      toast.success(`恭喜获得 ${result.prizeName}！`);
+      setNotification({ message: `恭喜获得 ${result.prizeName}！`, type: 'success' });
     } catch (err) {
       const msg = err instanceof Error ? err.message : '参与抽奖失败';
       setNotification({ message: msg, type: 'error' });
-      toast.error(msg);
     }
   };
 

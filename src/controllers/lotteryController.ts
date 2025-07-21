@@ -22,17 +22,21 @@ export class LotteryController {
 
   // 创建抽奖轮次
   public async createLotteryRound(req: Request, res: Response): Promise<void> {
+    logger.info('收到创建轮次请求', req.body);
     try {
-      const { name, description, startTime, endTime, prizes } = req.body;
-
-      if (!name || !description || !startTime || !endTime || !prizes) {
-        res.status(400).json({
-          success: false,
-          error: '缺少必要参数'
-        });
-        return;
+      let { name, description, startTime, endTime, prizes } = req.body;
+      let warning = '';
+      // 强制修正：开始时间不能晚于结束时间
+      if (new Date(startTime).getTime() > new Date(endTime).getTime()) {
+        [startTime, endTime] = [endTime, startTime];
+        warning += '开始时间和结束时间已自动调整。';
       }
-
+      // 强制修正：奖品概率和不能大于1
+      const totalProb = prizes.reduce((sum: number, p: any) => sum + Number(p.probability), 0);
+      if (totalProb > 1) {
+        prizes = prizes.map((p: any) => ({ ...p, probability: Number(p.probability) / totalProb }));
+        warning += '奖品概率已自动归一化。';
+      }
       const roundData = {
         name,
         description,
@@ -41,12 +45,11 @@ export class LotteryController {
         isActive: true,
         prizes: prizes as LotteryPrize[]
       };
-
       const round = await lotteryService.createLotteryRound(roundData);
-      
       res.json({
         success: true,
-        data: round
+        data: round,
+        ...(warning ? { warning } : {})
       });
     } catch (error) {
       logger.error('创建抽奖轮次失败:', error);
@@ -60,7 +63,7 @@ export class LotteryController {
   // 获取所有抽奖轮次
   public async getLotteryRounds(req: Request, res: Response): Promise<void> {
     try {
-      const rounds = lotteryService.getLotteryRounds();
+      const rounds = await lotteryService.getLotteryRounds();
       res.json({
         success: true,
         data: rounds
@@ -77,7 +80,7 @@ export class LotteryController {
   // 获取活跃的抽奖轮次
   public async getActiveRounds(req: Request, res: Response): Promise<void> {
     try {
-      const rounds = lotteryService.getActiveRounds();
+      const rounds = await lotteryService.getActiveRounds();
       res.json({
         success: true,
         data: rounds
@@ -125,7 +128,7 @@ export class LotteryController {
   public async getRoundDetails(req: Request, res: Response): Promise<void> {
     try {
       const { roundId } = req.params;
-      const round = lotteryService.getRoundDetails(roundId);
+      const round = await lotteryService.getRoundDetails(roundId);
 
       if (!round) {
         res.status(404).json({
@@ -160,7 +163,7 @@ export class LotteryController {
         return;
       }
 
-      const record = lotteryService.getUserRecord(userId);
+      const record = await lotteryService.getUserRecord(userId);
       res.json({
         success: true,
         data: record
@@ -178,7 +181,7 @@ export class LotteryController {
   public async getLeaderboard(req: Request, res: Response): Promise<void> {
     try {
       const limit = parseInt(req.query.limit as string) || 10;
-      const leaderboard = lotteryService.getLeaderboard(limit);
+      const leaderboard = await lotteryService.getLeaderboard(limit);
       
       res.json({
         success: true,
@@ -196,7 +199,7 @@ export class LotteryController {
   // 获取统计信息
   public async getStatistics(req: Request, res: Response): Promise<void> {
     try {
-      const stats = lotteryService.getStatistics();
+      const stats = await lotteryService.getStatistics();
       res.json({
         success: true,
         data: stats
@@ -265,6 +268,22 @@ export class LotteryController {
         success: false,
         error: error instanceof Error ? error.message : '服务器错误'
       });
+    }
+  }
+
+  // 删除所有抽奖轮次
+  public async deleteAllRounds(req: Request, res: Response): Promise<void> {
+    try {
+      // 仅管理员可操作
+      if (req.user?.role !== 'admin') {
+        res.status(403).json({ success: false, error: '权限不足' });
+        return;
+      }
+      await lotteryService.deleteAllRounds();
+      res.json({ success: true, message: '所有轮次已删除' });
+    } catch (error) {
+      logger.error('删除所有轮次失败:', error);
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : '服务器错误' });
     }
   }
 }
