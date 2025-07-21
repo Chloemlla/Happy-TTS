@@ -50,6 +50,6 @@ router.put('/rounds/:roundId/status', authenticateToken, lotteryLimiter, lottery
 // 涉及数据库写入：重置轮次
 router.post('/rounds/:roundId/reset', authenticateToken, lotteryLimiter, lotteryController.resetRound.bind(lotteryController));
 // 删除所有轮次（仅管理员）
-router.delete('/rounds', authenticateToken, lotteryController.deleteAllRounds.bind(lotteryController));
+router.delete('/rounds', authenticateToken, lotteryLimiter, lotteryController.deleteAllRounds.bind(lotteryController));
 
 export default router; 
