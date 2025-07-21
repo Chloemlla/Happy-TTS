@@ -62,7 +62,7 @@
     "@fingerprintjs/fingerprintjs": "^4.6.2",
     "@simplewebauthn/browser": "^13.1.2",
     "@simplewebauthn/server": "^13.1.2",
-    "@types/bcrypt": "^5.0.2",
+    "@types/bcrypt": "^6.0.0",
     "@types/dompurify": "^3.2.0",
     "@types/express-rate-limit": "^6.0.2",
     "@types/form-data": "^2.5.2",
