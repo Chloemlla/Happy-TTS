@@ -7,6 +7,7 @@ import {
   LotteryApiResponse 
 } from '../types/lottery';
 
+// 修正API_BASE，确保所有请求都指向 /api/lottery
 const API_BASE = '/api/lottery';
 
 // 通用API请求函数
@@ -18,7 +19,15 @@ async function apiRequest<T>(endpoint: string, options?: RequestInit): Promise<T
     ...options?.headers,
   };
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
+  // 修正：如果 endpoint 不是以 / 开头，自动补/
+  const url = endpoint.startsWith('/') ? `${API_BASE}${endpoint}` : `${API_BASE}/${endpoint}`;
+
+  // 调试日志
+  if (typeof window !== 'undefined') {
+    console.log('[lottery-api] fetch', url, options);
+  }
+
+  const response = await fetch(url, {
     ...options,
     headers,
   });

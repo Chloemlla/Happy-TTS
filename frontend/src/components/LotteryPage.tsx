@@ -137,77 +137,88 @@ const LotteryRoundCard: React.FC<{
 };
 
 // 用户记录组件
-const UserRecordCard: React.FC<{ record: any }> = ({ record }) => (
-  <motion.div
-    initial={{ opacity: 0, x: -20 }}
-    animate={{ opacity: 1, x: 0 }}
-    className="bg-white rounded-lg shadow-lg p-6 border border-gray-200"
-  >
-    <h3 className="text-xl font-bold text-gray-800 mb-4">我的抽奖记录</h3>
-    
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-      <div className="text-center">
-        <div className="text-2xl font-bold text-blue-600">{record.participationCount}</div>
-        <div className="text-sm text-gray-600">参与次数</div>
-      </div>
-      <div className="text-center">
-        <div className="text-2xl font-bold text-green-600">{record.winCount}</div>
-        <div className="text-sm text-gray-600">中奖次数</div>
-      </div>
-      <div className="text-center">
-        <div className="text-2xl font-bold text-purple-600">¥{record.totalValue}</div>
-        <div className="text-sm text-gray-600">总价值</div>
-      </div>
-      <div className="text-center">
-        <div className="text-2xl font-bold text-orange-600">
-          {record.participationCount > 0 ? ((record.winCount / record.participationCount) * 100).toFixed(1) : 0}%
+const UserRecordCard: React.FC<{ record: any }> = ({ record }) => {
+  // 防御性处理，确保 record 存在且 history 为数组
+  if (!record || typeof record !== 'object') {
+    return (
+      <motion.div className="bg-white rounded-lg shadow-lg p-6 border border-gray-200 text-center">
+        <h3 className="text-xl font-bold text-gray-800 mb-4">我的抽奖记录</h3>
+        <div className="text-gray-400">暂无抽奖记录</div>
+      </motion.div>
+    );
+  }
+  const safeHistory = Array.isArray(record.history) ? record.history : [];
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      className="bg-white rounded-lg shadow-lg p-6 border border-gray-200"
+    >
+      <h3 className="text-xl font-bold text-gray-800 mb-4">我的抽奖记录</h3>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="text-center">
+          <div className="text-2xl font-bold text-blue-600">{record.participationCount}</div>
+          <div className="text-sm text-gray-600">参与次数</div>
         </div>
-        <div className="text-sm text-gray-600">中奖率</div>
+        <div className="text-center">
+          <div className="text-2xl font-bold text-green-600">{record.winCount}</div>
+          <div className="text-sm text-gray-600">中奖次数</div>
+        </div>
+        <div className="text-center">
+          <div className="text-2xl font-bold text-purple-600">¥{record.totalValue}</div>
+          <div className="text-sm text-gray-600">总价值</div>
+        </div>
+        <div className="text-center">
+          <div className="text-2xl font-bold text-orange-600">
+            {record.participationCount > 0 ? ((record.winCount / record.participationCount) * 100).toFixed(1) : 0}%
+          </div>
+          <div className="text-sm text-gray-600">中奖率</div>
+        </div>
       </div>
-    </div>
-
-    {record.history.length > 0 && (
-      <div>
-        <h4 className="font-semibold text-gray-700 mb-3">最近中奖记录</h4>
-        <div className="space-y-2 max-h-40 overflow-y-auto">
-          {record.history.slice(0, 5).map((item: any, index: number) => (
-            <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-              <div>
-                <div className="font-medium">{item.prizeName}</div>
-                <div className="text-sm text-gray-500">
-                  {formatDistanceToNow(item.drawTime, { addSuffix: true, locale: zhCN })}
+      {safeHistory.length > 0 && (
+        <div>
+          <h4 className="font-semibold text-gray-700 mb-3">最近中奖记录</h4>
+          <div className="space-y-2 max-h-40 overflow-y-auto">
+            {safeHistory.slice(0, 5).map((item: any, index: number) => (
+              <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                <div>
+                  <div className="font-medium">{item.prizeName}</div>
+                  <div className="text-sm text-gray-500">
+                    {formatDistanceToNow(item.drawTime, { addSuffix: true, locale: zhCN })}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="font-bold text-green-600">¥{item.value}</div>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="font-bold text-green-600">¥{item.value}</div>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
-    )}
-  </motion.div>
-);
+      )}
+    </motion.div>
+  );
+};
 
 // 排行榜组件
-const LeaderboardCard: React.FC<{ leaderboard: any[] }> = ({ leaderboard }) => (
-  <motion.div
-    initial={{ opacity: 0, x: 20 }}
-    animate={{ opacity: 1, x: 0 }}
-    className="bg-white rounded-lg shadow-lg p-6 border border-gray-200"
-  >
-    <h3 className="text-xl font-bold text-gray-800 mb-4">排行榜</h3>
-    
-    <div className="space-y-3">
-      {leaderboard.map((user, index) => (
-        <motion.div
-          key={user.userId}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: index * 0.1 }}
-          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-        >
-          <div className="flex items-center space-x-3">
+const LeaderboardCard: React.FC<{ leaderboard: any[] }> = ({ leaderboard }) => {
+  // 修复：防御性处理，确保 leaderboard 一定为数组
+  const safeLeaderboard = Array.isArray(leaderboard) ? leaderboard : [];
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      className="bg-white rounded-lg shadow-lg p-6 border border-gray-200"
+    >
+      <h3 className="text-xl font-bold text-gray-800 mb-4">排行榜</h3>
+      <div className="space-y-3">
+        {safeLeaderboard.map((user, index) => (
+          <motion.div
+            key={user.userId}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
+            className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+          >
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${
               index === 0 ? 'bg-yellow-500' : 
               index === 1 ? 'bg-gray-400' : 
@@ -221,15 +232,18 @@ const LeaderboardCard: React.FC<{ leaderboard: any[] }> = ({ leaderboard }) => (
                 参与 {user.participationCount} 次 | 中奖 {user.winCount} 次
               </div>
             </div>
-          </div>
-          <div className="text-right">
-            <div className="font-bold text-green-600">¥{user.totalValue}</div>
-          </div>
-        </motion.div>
-      ))}
-    </div>
-  </motion.div>
-);
+            <div className="text-right">
+              <div className="font-bold text-green-600">¥{user.totalValue}</div>
+            </div>
+          </motion.div>
+        ))}
+        {safeLeaderboard.length === 0 && (
+          <div className="text-center text-gray-400">暂无排行榜数据</div>
+        )}
+      </div>
+    </motion.div>
+  );
+};
 
 // 统计信息组件
 const StatisticsCard: React.FC<{ stats: any }> = ({ stats }) => (
@@ -373,7 +387,7 @@ const LotteryPage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* 用户记录 */}
           <div className="lg:col-span-1">
-            {user && userRecord ? (
+            {user ? (
               <UserRecordCard record={userRecord} />
             ) : (
               <div className="bg-white rounded-lg shadow-lg p-6 border border-gray-200 text-center">

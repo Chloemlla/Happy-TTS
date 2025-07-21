@@ -259,6 +259,9 @@ const CreateRoundForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => 
 const RoundManagement: React.FC<{ rounds: LotteryRound[]; onRefresh: () => void }> = ({ rounds, onRefresh }) => {
   const [loading, setLoading] = useState<string | null>(null);
 
+  // 防御性处理，确保 rounds 一定为数组
+  const safeRounds = Array.isArray(rounds) ? rounds : [];
+
   const handleResetRound = async (roundId: string) => {
     if (!confirm('确定要重置这个轮次吗？这将清空所有参与者和获奖者记录。')) {
       return;
@@ -298,7 +301,7 @@ const RoundManagement: React.FC<{ rounds: LotteryRound[]; onRefresh: () => void 
       <h3 className="text-xl font-bold text-gray-800 mb-4">轮次管理</h3>
       
       <div className="space-y-4">
-        {rounds.map((round) => (
+        {safeRounds.map((round) => (
           <div key={round.id} className="border border-gray-200 rounded-lg p-4">
             <div className="flex justify-between items-start mb-3">
               <div>
@@ -338,7 +341,7 @@ const RoundManagement: React.FC<{ rounds: LotteryRound[]; onRefresh: () => void 
           </div>
         ))}
         
-        {rounds.length === 0 && (
+        {safeRounds.length === 0 && (
           <div className="text-center text-gray-500 py-8">
             暂无抽奖轮次
           </div>
