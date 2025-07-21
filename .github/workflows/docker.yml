@@ -14,7 +14,7 @@ permissions:
 jobs:
   docker:
     runs-on: ubuntu-latest
-    if: github.actor == 'happy-clo' || github.actor == 'actions-user' || 'hapxscom' # 只允许 happy-clo 和 actions-user 触发
+    if: (github.actor == 'happy-clo' || github.actor == 'actions-user' || 'hapxscom') && !contains(github.event.head_commit.message, 'npm(deps):') # 只允许 happy-clo 和 actions-user 触发，且提交信息不含npm(deps):
     steps:
       - name: Checkout
         uses: actions/checkout@main
