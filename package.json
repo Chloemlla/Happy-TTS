@@ -112,7 +112,7 @@
     "@types/jest": "^30.0.0",
     "@types/morgan": "^1.9.4",
     "@types/multer": "^2.0.0",
-    "@types/node": "^24.0.14",
+    "@types/node": "^24.0.15",
     "@types/qrcode": "^1.5.5",
     "@types/react-syntax-highlighter": "^15.5.13",
     "@types/speakeasy": "^2.0.10",
