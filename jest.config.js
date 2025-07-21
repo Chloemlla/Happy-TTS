@@ -15,7 +15,16 @@ module.exports = {
     '^.+\\.ts$': ['ts-jest', {
       tsconfig: 'tsconfig.json',
     }],
+    '^.+\\.mjs$': 'babel-jest',
+    '^.+\\.js$': 'babel-jest',
   },
+  transformIgnorePatterns: [
+    '/node_modules/(?!marked/).*',
+    '/dist/',
+    '/coverage/',
+    '/test-data/',
+    '.test.ts',
+  ],
   // 性能测试配置
   testTimeout: 30000,
   maxConcurrency: 1, // 串行运行性能测试
