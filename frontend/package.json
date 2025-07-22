@@ -47,6 +47,7 @@
     "date-fns": "^4.1.0",
     "dompurify": "^3.2.6",
     "express-rate-limit": "^7.5.0",
+    "form-data": "^4.0.4",
     "framer-motion": "^12.23.6",
     "synapse-frontend": "file:",
     "javascript-obfuscator": "^4.0.0",
