@@ -268,8 +268,8 @@ app.use(helmet({
     crossOriginEmbedderPolicy: false
 }));
 app.use(morgan('combined'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(isLocalIp); // 添加本地 IP 检查中间件
 
 // 立即注册 emailRoutes，确保 /api/email/outemail 无需 token 验证

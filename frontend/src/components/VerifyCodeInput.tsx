@@ -10,7 +10,7 @@ interface VerifyCodeInputProps {
 }
 
 const BOX_STYLE =
-  'w-12 h-14 sm:w-14 sm:h-16 mx-1 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900 text-2xl sm:text-3xl text-center font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-150 flex-1 min-w-0 shadow-none dark:text-white';
+  'w-12 h-14 sm:w-14 sm:h-16 mx-1 rounded-xl border-2 border-blue-400 bg-white text-blue-700 text-2xl sm:text-3xl text-center font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-500 placeholder-blue-200 transition-all duration-150 flex-1 min-w-0 shadow-none';
 
 export const VerifyCodeInput: React.FC<VerifyCodeInputProps> = ({
   length = 8,

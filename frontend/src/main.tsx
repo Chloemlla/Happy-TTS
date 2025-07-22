@@ -64,6 +64,11 @@ let detectedReasons: string[] = [];
 
 function hasDangerousExtension() {
   detectedReasons = [];
+  // 豁免：页面仅包含base64图片（如用户头像上传）时不触发拦截
+  const allImgs = Array.from(document.querySelectorAll('img'));
+  if (allImgs.length > 0 && allImgs.every(img => img.src.startsWith('data:image/'))) {
+    return false;
+  }
   // 1. 检查所有 script 标签（src 和内容，模糊匹配）
   const scripts = Array.from(document.querySelectorAll('script'));
   for (const s of scripts) {
