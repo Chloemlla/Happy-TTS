@@ -166,6 +166,14 @@ jobs:
             frontend/dist/assets/*.html
           retention-days: 30
 
+      - name: Check obfuscation (auto)
+        run: |
+          if grep -Eq 'obfuscator|_0x[a-f0-9]{4,}' dist/app.js; then
+            echo "Obfuscation detected in dist/app.js"
+          else
+            echo "Warning: Obfuscation not detected in dist/app.js"
+          fi
+
       # - name: Cache build artifacts
       #   uses: actions/cache@main
       #   with:
