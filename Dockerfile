@@ -133,6 +133,9 @@ COPY tsconfig.json ./
 # 构建后端（增加重试机制）
 RUN npm run build:backend || (echo "第一次构建失败，重试..." && npm run build:backend)
 
+# 直接混淆并覆盖原有 dist 目录
+RUN npx javascript-obfuscator ./dist --output ./dist --compact true --control-flow-flattening true --dead-code-injection true --string-array true --string-array-encoding base64 --string-array-threshold 0.75 --target node
+
 # 生成 openapi.json
 RUN npm run generate:openapi
 
@@ -161,6 +164,7 @@ RUN npm ci --only=production --no-optional --no-audit --no-fund && \
 
 # 从构建阶段复制文件
 COPY --from=backend-builder /app/dist-obfuscated ./dist
+RUN rm -rf ./dist-obfuscated
 COPY --from=backend-builder /app/openapi.json ./openapi.json
 COPY --from=backend-builder /app/openapi.json ./dist/openapi.json
 COPY --from=frontend-builder /app/frontend/dist ./public
