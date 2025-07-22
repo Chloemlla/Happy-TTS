@@ -10,6 +10,9 @@ import DesktopNav from './components/DesktopNav';
 import ModListPage from './components/ModListPage';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import AnnouncementModal from './components/AnnouncementModal';
+import md5 from 'md5';
+import getApiBaseUrl from './api';
 
 // 懒加载组件
 const WelcomePage = React.lazy(() => import('./components/WelcomePage').then(module => ({ default: module.WelcomePage })));
@@ -199,6 +202,90 @@ const App: React.FC = () => {
     setTotpStatus(status);
   };
 
+  // 公告弹窗相关状态
+  const [announcement, setAnnouncement] = useState<{ content: string; format: 'markdown' | 'html'; updatedAt: string } | null>(null);
+  const [showAnnouncement, setShowAnnouncement] = useState(false);
+  // 公告hash
+  const [announcementHash, setAnnouncementHash] = useState('');
+
+  // 公告弹窗关闭逻辑
+  useEffect(() => {
+    // 获取公告内容
+    const fetchAnnouncement = async () => {
+      try {
+        const res = await fetch(getApiBaseUrl() + '/api/admin/announcement');
+        const data = await res.json();
+        if (data.success && data.announcement && data.announcement.content) {
+          setAnnouncement({
+            content: data.announcement.content,
+            format: data.announcement.format || 'markdown',
+            updatedAt: data.announcement.updatedAt || ''
+          });
+          // 计算hash
+          const hash = md5((data.announcement.content || '') + (data.announcement.updatedAt || ''));
+          setAnnouncementHash(hash);
+        } else {
+          setAnnouncement(null);
+          setAnnouncementHash('');
+        }
+      } catch {
+        setAnnouncement(null);
+        setAnnouncementHash('');
+      }
+    };
+    fetchAnnouncement();
+  }, []);
+
+  // 判断是否需要弹窗
+  useEffect(() => {
+    if (!announcement || !announcementHash) return;
+    const key = `announcement_closed_${announcementHash}`;
+    const closeInfo = localStorage.getItem(key);
+    if (!closeInfo) {
+      setShowAnnouncement(true);
+      return;
+    }
+    try {
+      const info = JSON.parse(closeInfo);
+      if (info.type === 'permanent') {
+        setShowAnnouncement(false);
+      } else if (info.type === 'date') {
+        const today = new Date().toISOString().slice(0, 10);
+        if (info.date !== today) {
+          setShowAnnouncement(true);
+        } else {
+          setShowAnnouncement(false);
+        }
+      } else {
+        setShowAnnouncement(true);
+      }
+    } catch {
+      setShowAnnouncement(true);
+    }
+  }, [announcement, announcementHash]);
+
+  // 公告弹窗关闭操作
+  const handleCloseAnnouncement = () => {
+    setShowAnnouncement(false);
+  };
+  const handleCloseToday = () => {
+    if (!announcementHash) return;
+    const today = new Date().toISOString().slice(0, 10);
+    localStorage.setItem(
+      `announcement_closed_${announcementHash}`,
+      JSON.stringify({ type: 'date', date: today })
+    );
+    setShowAnnouncement(false);
+  };
+  const handleCloseForever = () => {
+    if (!announcementHash) return;
+    localStorage.setItem(
+      `announcement_closed_${announcementHash}`,
+      JSON.stringify({ type: 'permanent' })
+    );
+    setShowAnnouncement(false);
+  };
+
   if (loading || !isInitialized) {
     let scale = 1;
     if (typeof window !== 'undefined') {
@@ -216,6 +303,15 @@ const App: React.FC = () => {
   return (
     <NotificationProvider>
       <ToastContainer position="top-center" autoClose={2000} hideProgressBar newestOnTop />
+      {/* 公告弹窗 */}
+      <AnnouncementModal
+        open={showAnnouncement && !!announcement}
+        onClose={handleCloseAnnouncement}
+        onCloseToday={handleCloseToday}
+        onCloseForever={handleCloseForever}
+        content={announcement?.content || ''}
+        format={announcement?.format || 'markdown'}
+      />
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
         <BackgroundParticles />
         <motion.nav
