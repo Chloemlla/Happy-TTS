@@ -28,6 +28,19 @@ const AnnouncementSchema = new mongoose.Schema({
   format: { type: String, enum: ['markdown', 'html'], default: 'markdown' },
   updatedAt: { type: Date, default: Date.now },
 }, { collection: 'announcements' });
+
+// 自动初始化公告集合（仅 mongo）
+async function ensureMongoAnnouncementCollection() {
+  if (mongoose.connection.readyState === 1) {
+    const db = (mongoose.connection.db ?? undefined) as typeof mongoose.connection.db | undefined;
+    if (!db) return;
+    const collections = await db.listCollections().toArray();
+    if (!collections.find(c => c.name === 'announcements')) {
+      await db.createCollection('announcements');
+    }
+  }
+}
+
 const AnnouncementModel = mongoose.models.Announcement || mongoose.model('Announcement', AnnouncementSchema);
 
 // MySQL建表
@@ -38,6 +51,11 @@ async function ensureMysqlTable(conn: any) {
     format VARCHAR(16) DEFAULT 'markdown',
     updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
+}
+
+// XSS 过滤简单实现
+function sanitizeInput(str: string) {
+  return str.replace(/[<>]/g, '');
 }
 
 export const adminController = {
@@ -116,6 +134,7 @@ export const adminController = {
   async getAnnouncement(req: Request, res: Response) {
     try {
       if (STORAGE_MODE === 'mongo' && mongoose.connection.readyState === 1) {
+        await ensureMongoAnnouncementCollection();
         const ann = await AnnouncementModel.findOne().sort({ updatedAt: -1 }).lean();
         return res.json({ success: true, announcement: ann });
       } else if (STORAGE_MODE === 'mysql' && process.env.MYSQL_URI) {
@@ -141,20 +160,25 @@ export const adminController = {
     try {
       if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: '无权限' });
       const { content, format } = req.body;
-      if (!content) return res.status(400).json({ error: '公告内容不能为空' });
+      if (typeof content !== 'string' || !content.trim() || content.length > 2000) return res.status(400).json({ error: '公告内容不能为空且不超过2000字' });
+      const safeContent = sanitizeInput(content);
       if (STORAGE_MODE === 'mongo' && mongoose.connection.readyState === 1) {
-        const ann = await AnnouncementModel.create({ content, format: format || 'markdown', updatedAt: new Date() });
+        await ensureMongoAnnouncementCollection();
+        const ann = await AnnouncementModel.create({ content: safeContent, format: format || 'markdown', updatedAt: new Date() });
+        console.log(`[公告] 管理员${req.user.username} 更新公告`);
         return res.json({ success: true, announcement: ann });
       } else if (STORAGE_MODE === 'mysql' && process.env.MYSQL_URI) {
         const conn = await mysql.createConnection(process.env.MYSQL_URI);
         await ensureMysqlTable(conn);
-        await conn.execute('INSERT INTO announcements (content, format, updatedAt) VALUES (?, ?, NOW())', [content, format || 'markdown']);
+        await conn.execute('INSERT INTO announcements (content, format, updatedAt) VALUES (?, ?, NOW())', [safeContent, format || 'markdown']);
         const [rows] = await conn.execute('SELECT * FROM announcements ORDER BY updatedAt DESC LIMIT 1');
         await conn.end();
+        console.log(`[公告] 管理员${req.user.username} 更新公告`);
         return res.json({ success: true, announcement: (rows as any[])[0] });
       } else {
-        const data = { content, format: format || 'markdown', updatedAt: new Date().toISOString() };
+        const data = { content: safeContent, format: format || 'markdown', updatedAt: new Date().toISOString() };
         fs.writeFileSync(ANNOUNCEMENT_FILE, JSON.stringify(data, null, 2));
+        console.log(`[公告] 管理员${req.user.username} 更新公告`);
         return res.json({ success: true, announcement: data });
       }
     } catch (e) {
@@ -167,6 +191,7 @@ export const adminController = {
     try {
       if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: '无权限' });
       if (STORAGE_MODE === 'mongo' && mongoose.connection.readyState === 1) {
+        await ensureMongoAnnouncementCollection();
         await AnnouncementModel.deleteMany({});
         return res.json({ success: true });
       } else if (STORAGE_MODE === 'mysql' && process.env.MYSQL_URI) {
@@ -194,11 +219,13 @@ export const adminController = {
     }
   },
 
-  // 新增/更新环境变量
+  // 新增/更新环境变量（仅管理员）
   async setEnv(req: Request, res: Response) {
     try {
+      if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: '无权限' });
       const { key, value, desc } = req.body;
-      if (!key) return res.status(400).json({ error: 'key不能为空' });
+      if (typeof key !== 'string' || !key.trim() || key.length > 64 || /[<>\s]/.test(key)) return res.status(400).json({ error: 'key不能为空，不能包含空格/<>，且不超过64字' });
+      if (typeof value !== 'string' || !value.trim() || value.length > 1024) return res.status(400).json({ error: 'value不能为空且不超过1024字' });
       let envs = readEnvFile();
       const idx = envs.findIndex((e: any) => e.key === key);
       const now = new Date().toISOString();
@@ -208,20 +235,25 @@ export const adminController = {
         envs.push({ key, value, desc, updatedAt: now });
       }
       writeEnvFile(envs);
+      console.log(`[环境变量] 管理员${req.user.username} 设置/更新 key=${key}`);
       res.json({ success: true, envs });
     } catch (e) {
       res.status(500).json({ success: false, error: '保存环境变量失败' });
     }
   },
 
-  // 删除环境变量
+  // 删除环境变量（仅管理员）
   async deleteEnv(req: Request, res: Response) {
     try {
+      if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: '无权限' });
       const { key } = req.body;
-      if (!key) return res.status(400).json({ error: 'key不能为空' });
+      if (typeof key !== 'string' || !key.trim()) return res.status(400).json({ error: 'key不能为空' });
       let envs = readEnvFile();
-      envs = envs.filter((e: any) => e.key !== key);
+      const idx = envs.findIndex((e: any) => e.key === key);
+      if (idx === -1) return res.status(404).json({ error: 'key不存在' });
+      envs.splice(idx, 1);
       writeEnvFile(envs);
+      console.log(`[环境变量] 管理员${req.user.username} 删除 key=${key}`);
       res.json({ success: true, envs });
     } catch (e) {
       res.status(500).json({ success: false, error: '删除环境变量失败' });

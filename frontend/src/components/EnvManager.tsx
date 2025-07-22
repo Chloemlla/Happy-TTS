@@ -1,8 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import getApiBaseUrl from '../api';
+import { useNotification } from './Notification';
 
 const API_URL = getApiBaseUrl() + '/api/admin/envs';
+
+function getAuthHeaders(): Record<string, string> {
+  const token = localStorage.getItem('token');
+  if (token) return { Authorization: `Bearer ${token}` };
+  return {};
+}
 
 interface EnvItem {
   key: string;
@@ -16,44 +23,41 @@ const EnvManager: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<EnvItem>>({});
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const { setNotification } = useNotification();
 
   const fetchEnvs = async () => {
     setLoading(true);
-    setError('');
-    setSuccess('');
     try {
-      const res = await fetch(API_URL, { credentials: 'include' });
+      const res = await fetch(API_URL, { headers: getAuthHeaders() });
       const data = await res.json();
       if (!res.ok) {
         switch (data.error) {
           case '未携带Token，请先登录':
-            setError('请先登录后再操作');
+            setNotification({ message: '请先登录后再操作', type: 'error' });
             break;
           case 'Token格式错误，需以Bearer开头':
           case 'Token为空':
           case '无效的认证令牌':
           case '认证令牌已过期':
-            setError('登录状态已失效，请重新登录');
+            setNotification({ message: '登录状态已失效，请重新登录', type: 'error' });
             break;
           case '用户不存在':
-            setError('用户不存在，请重新登录');
+            setNotification({ message: '用户不存在，请重新登录', type: 'error' });
             break;
           case '需要管理员权限':
           case '无权限':
-            setError('需要管理员权限');
+            setNotification({ message: '需要管理员权限', type: 'error' });
             break;
           default:
-            setError(data.error || '获取失败');
+            setNotification({ message: data.error || '获取失败', type: 'error' });
         }
         setLoading(false);
         return;
       }
       if (data.success) setEnvs(data.envs || []);
-      else setError(data.error || '获取失败');
+      else setNotification({ message: data.error || '获取失败', type: 'error' });
     } catch (e) {
-      setError('获取失败：' + (e instanceof Error ? e.message : (e && e.toString ? e.toString() : '未知错误')));
+      setNotification({ message: '获取失败：' + (e instanceof Error ? e.message : (e && e.toString ? e.toString() : '未知错误')), type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -64,14 +68,10 @@ const EnvManager: React.FC = () => {
   const handleEdit = (item: EnvItem) => {
     setEditingKey(item.key);
     setForm({ ...item });
-    setError('');
-    setSuccess('');
   };
   const handleAdd = () => {
     setEditingKey('');
     setForm({ key: '', value: '', desc: '' });
-    setError('');
-    setSuccess('');
   };
   const handleCancel = () => {
     setEditingKey(null);
@@ -81,90 +81,86 @@ const EnvManager: React.FC = () => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
   const handleSave = async () => {
-    setError(''); setSuccess('');
-    if (!form.key || !form.value) { setError('key和value不能为空'); return; }
+    if (!form.key || !form.value) { setNotification({ message: 'key和value不能为空', type: 'error' }); return; }
     try {
       const res = await fetch(API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(form),
       });
       const data = await res.json();
       if (!res.ok) {
         switch (data.error) {
           case '未携带Token，请先登录':
-            setError('请先登录后再操作');
+            setNotification({ message: '请先登录后再操作', type: 'error' });
             break;
           case 'Token格式错误，需以Bearer开头':
           case 'Token为空':
           case '无效的认证令牌':
           case '认证令牌已过期':
-            setError('登录状态已失效，请重新登录');
+            setNotification({ message: '登录状态已失效，请重新登录', type: 'error' });
             break;
           case '用户不存在':
-            setError('用户不存在，请重新登录');
+            setNotification({ message: '用户不存在，请重新登录', type: 'error' });
             break;
           case '需要管理员权限':
           case '无权限':
-            setError('需要管理员权限');
+            setNotification({ message: '需要管理员权限', type: 'error' });
             break;
           default:
-            setError(data.error || '保存失败');
+            setNotification({ message: data.error || '保存失败', type: 'error' });
         }
         return;
       }
       if (data.success) {
-        setSuccess('保存成功');
+        setNotification({ message: '保存成功', type: 'success' });
         setEditingKey(null);
         setForm({});
         setEnvs(data.envs || []);
-      } else setError(data.error || '保存失败');
+      } else setNotification({ message: data.error || '保存失败', type: 'error' });
     } catch (e) {
-      setError('保存失败：' + (e instanceof Error ? e.message : (e && e.toString ? e.toString() : '未知错误')));
+      setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : (e && e.toString ? e.toString() : '未知错误')), type: 'error' });
     }
   };
   const handleDelete = async (key: string) => {
     if (!window.confirm('确定要删除该环境变量吗？')) return;
-    setError(''); setSuccess('');
     try {
       const res = await fetch(API_URL, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ key }),
       });
       const data = await res.json();
       if (!res.ok) {
         switch (data.error) {
           case '未携带Token，请先登录':
-            setError('请先登录后再操作');
+            setNotification({ message: '请先登录后再操作', type: 'error' });
             break;
           case 'Token格式错误，需以Bearer开头':
           case 'Token为空':
           case '无效的认证令牌':
           case '认证令牌已过期':
-            setError('登录状态已失效，请重新登录');
+            setNotification({ message: '登录状态已失效，请重新登录', type: 'error' });
             break;
           case '用户不存在':
-            setError('用户不存在，请重新登录');
+            setNotification({ message: '用户不存在，请重新登录', type: 'error' });
             break;
           case '需要管理员权限':
           case '无权限':
-            setError('需要管理员权限');
+            setNotification({ message: '需要管理员权限', type: 'error' });
             break;
           default:
-            setError(data.error || '删除失败');
+            setNotification({ message: data.error || '删除失败', type: 'error' });
         }
         return;
       }
       if (data.success) {
-        setSuccess('已删除');
+        setNotification({ message: '已删除', type: 'success' });
         setEnvs(data.envs || []);
         if (editingKey === key) handleCancel();
-      } else setError(data.error || '删除失败');
+      } else setNotification({ message: data.error || '删除失败', type: 'error' });
     } catch (e) {
-      setError('删除失败：' + (e instanceof Error ? e.message : (e && e.toString ? e.toString() : '未知错误')));
+      setNotification({ message: '删除失败：' + (e instanceof Error ? e.message : (e && e.toString ? e.toString() : '未知错误')), type: 'error' });
     }
   };
 
@@ -175,8 +171,6 @@ const EnvManager: React.FC = () => {
         <div className="text-gray-400">加载中…</div>
       ) : (
         <>
-          {error && <div className="text-red-500 mb-2">{error}</div>}
-          {success && <div className="text-green-600 mb-2">{success}</div>}
           <div className="mb-4 flex justify-end">
             <button
               className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold shadow hover:bg-indigo-700 transition"

@@ -6,6 +6,7 @@ import JavaScriptObfuscator from 'javascript-obfuscator'
 // 在 build 结束后自动混淆 dist 目录下的 JS 文件
 import { execSync } from 'child_process';
 import fs from 'fs';
+import { visualizer } from 'rollup-plugin-visualizer';
 
 function obfuscateDistJs() {
   const distDir = path.resolve(__dirname, 'dist/assets');
@@ -75,7 +76,12 @@ export default defineConfig(({ mode }) => {
             };
           }
         }
-      }
+      },
+      visualizer({
+        open: false,
+        gzipSize: true,
+        brotliSize: true
+      })
     ],
     server: {
       host: '0.0.0.0',

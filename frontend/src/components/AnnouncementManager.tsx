@@ -3,8 +3,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import getApiBaseUrl from '../api';
+import { useNotification } from './Notification';
 
 const API_URL = getApiBaseUrl() + '/api/admin/announcement';
+
+function getAuthHeaders(): Record<string, string> {
+  const token = localStorage.getItem('token');
+  if (token) return { Authorization: `Bearer ${token}` };
+  return {};
+}
 
 function renderMarkdownSafe(md: string) {
   let html: string;
@@ -21,37 +28,34 @@ const AnnouncementManager: React.FC = () => {
   const [format, setFormat] = useState<'markdown' | 'html'>('markdown');
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const { setNotification } = useNotification();
 
   // 获取公告
   const fetchAnnouncement = async () => {
     setLoading(true);
-    setError('');
-    setSuccess('');
     try {
-      const res = await fetch(API_URL, { credentials: 'include' });
+      const res = await fetch(API_URL, { headers: getAuthHeaders() });
       const data = await res.json();
       if (!res.ok) {
         switch (data.error) {
           case '未携带Token，请先登录':
-            setError('请先登录后再操作');
+            setNotification({ message: '请先登录后再操作', type: 'error' });
             break;
           case 'Token格式错误，需以Bearer开头':
           case 'Token为空':
           case '无效的认证令牌':
           case '认证令牌已过期':
-            setError('登录状态已失效，请重新登录');
+            setNotification({ message: '登录状态已失效，请重新登录', type: 'error' });
             break;
           case '用户不存在':
-            setError('用户不存在，请重新登录');
+            setNotification({ message: '用户不存在，请重新登录', type: 'error' });
             break;
           case '需要管理员权限':
           case '无权限':
-            setError('需要管理员权限');
+            setNotification({ message: '需要管理员权限', type: 'error' });
             break;
           default:
-            setError(data.error || '获取公告失败');
+            setNotification({ message: data.error || '获取公告失败', type: 'error' });
         }
         setContent('');
         setFormat('markdown');
@@ -65,7 +69,7 @@ const AnnouncementManager: React.FC = () => {
         setContent('');
       }
     } catch (e) {
-      setError('获取公告失败：' + (e instanceof Error ? e.message : (e && e.toString ? e.toString() : '未知错误')));
+      setNotification({ message: '获取公告失败：' + (e instanceof Error ? e.message : (e && e.toString ? e.toString() : '未知错误')), type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -77,93 +81,88 @@ const AnnouncementManager: React.FC = () => {
 
   // 保存公告
   const saveAnnouncement = async () => {
-    setError('');
-    setSuccess('');
     try {
       const res = await fetch(API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ content, format }),
       });
       const data = await res.json();
       if (!res.ok) {
         switch (data.error) {
           case '未携带Token，请先登录':
-            setError('请先登录后再操作');
+            setNotification({ message: '请先登录后再操作', type: 'error' });
             break;
           case 'Token格式错误，需以Bearer开头':
           case 'Token为空':
           case '无效的认证令牌':
           case '认证令牌已过期':
-            setError('登录状态已失效，请重新登录');
+            setNotification({ message: '登录状态已失效，请重新登录', type: 'error' });
             break;
           case '用户不存在':
-            setError('用户不存在，请重新登录');
+            setNotification({ message: '用户不存在，请重新登录', type: 'error' });
             break;
           case '需要管理员权限':
           case '无权限':
-            setError('需要管理员权限');
+            setNotification({ message: '需要管理员权限', type: 'error' });
             break;
           default:
-            setError(data.error || '保存失败');
+            setNotification({ message: data.error || '保存失败', type: 'error' });
         }
         return;
       }
       if (data.success) {
-        setSuccess('保存成功');
+        setNotification({ message: '保存成功', type: 'success' });
         setEditing(false);
         fetchAnnouncement();
       } else {
-        setError(data.error || '保存失败');
+        setNotification({ message: data.error || '保存失败', type: 'error' });
       }
     } catch (e) {
-      setError('保存失败：' + (e instanceof Error ? e.message : (e && e.toString ? e.toString() : '未知错误')));
+      setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : (e && e.toString ? e.toString() : '未知错误')), type: 'error' });
     }
   };
 
   // 删除公告
   const deleteAnnouncement = async () => {
     if (!window.confirm('确定要删除所有公告吗？')) return;
-    setError('');
-    setSuccess('');
     try {
       const res = await fetch(API_URL, {
         method: 'DELETE',
-        credentials: 'include',
+        headers: getAuthHeaders(),
       });
       const data = await res.json();
       if (!res.ok) {
         switch (data.error) {
           case '未携带Token，请先登录':
-            setError('请先登录后再操作');
+            setNotification({ message: '请先登录后再操作', type: 'error' });
             break;
           case 'Token格式错误，需以Bearer开头':
           case 'Token为空':
           case '无效的认证令牌':
           case '认证令牌已过期':
-            setError('登录状态已失效，请重新登录');
+            setNotification({ message: '登录状态已失效，请重新登录', type: 'error' });
             break;
           case '用户不存在':
-            setError('用户不存在，请重新登录');
+            setNotification({ message: '用户不存在，请重新登录', type: 'error' });
             break;
           case '需要管理员权限':
           case '无权限':
-            setError('需要管理员权限');
+            setNotification({ message: '需要管理员权限', type: 'error' });
             break;
           default:
-            setError(data.error || '删除失败');
+            setNotification({ message: data.error || '删除失败', type: 'error' });
         }
         return;
       }
       if (data.success) {
         setContent('');
-        setSuccess('已删除');
+        setNotification({ message: '已删除', type: 'success' });
       } else {
-        setError(data.error || '删除失败');
+        setNotification({ message: data.error || '删除失败', type: 'error' });
       }
     } catch (e) {
-      setError('删除失败：' + (e instanceof Error ? e.message : (e && e.toString ? e.toString() : '未知错误')));
+      setNotification({ message: '删除失败：' + (e instanceof Error ? e.message : (e && e.toString ? e.toString() : '未知错误')), type: 'error' });
     }
   };
 
@@ -183,8 +182,8 @@ const AnnouncementManager: React.FC = () => {
               transition={{ duration: 0.25 }}
               className="mb-4"
             >
-              {error && <div className="text-red-500 mb-2">{error}</div>}
-              {success && <div className="text-green-600 mb-2">{success}</div>}
+              {/* {error && <div className="text-red-500 mb-2">{error}</div>} */}
+              {/* {success && <div className="text-green-600 mb-2">{success}</div>} */}
               <textarea
                 className="w-full h-40 border rounded-lg p-3 mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
                 value={content}
@@ -234,8 +233,8 @@ const AnnouncementManager: React.FC = () => {
               transition={{ duration: 0.25 }}
               className="mb-4"
             >
-              {error && <div className="text-red-500 mb-2">{error}</div>}
-              {success && <div className="text-green-600 mb-2">{success}</div>}
+              {/* {error && <div className="text-red-500 mb-2">{error}</div>} */}
+              {/* {success && <div className="text-green-600 mb-2">{success}</div>} */}
               <div className="prose mb-4 border rounded-lg p-4 min-h-[80px] bg-gray-50">
                 {content ? (
                   format === 'markdown' ? (

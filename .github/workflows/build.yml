@@ -162,6 +162,8 @@ jobs:
             dist/
             frontend/dist/
             frontend/docs/build/
+            frontend/dist/*.html
+            frontend/dist/assets/*.html
           retention-days: 30
 
       # - name: Cache build artifacts

@@ -205,4 +205,24 @@ router.post('/envs', adminController.setEnv);
  */
 router.delete('/envs', adminController.deleteEnv);
 
+/**
+ * @openapi
+ * /admin/envs/delete:
+ *   post:
++ *     summary: 删除环境变量
++ *     requestBody:
++ *       required: true
++ *       content:
++ *         application/json:
++ *           schema:
++ *             type: object
++ *             properties:
++ *               key:
++ *                 type: string
++ *     responses:
++ *       200:
++ *         description: 删除结果
+ */
+router.post('/envs/delete', adminController.deleteEnv);
+
 export default router; 

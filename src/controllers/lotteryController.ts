@@ -2,6 +2,15 @@ import { Request, Response } from 'express';
 import { lotteryService, LotteryPrize, LotteryRound } from '../services/lotteryService';
 import logger from '../utils/logger';
 
+// 简单WAF校验函数
+function wafCheck(str: string, maxLen = 128): boolean {
+  if (typeof str !== 'string') return false;
+  if (!str.trim() || str.length > maxLen) return false;
+  if (/[<>{}"'`;\\]/.test(str)) return false;
+  if (/\b(select|update|delete|insert|drop|union|script|alert|onerror|onload)\b/i.test(str)) return false;
+  return true;
+}
+
 export class LotteryController {
   // 获取区块链数据
   public async getBlockchainData(req: Request, res: Response): Promise<void> {
@@ -25,6 +34,25 @@ export class LotteryController {
     logger.info('收到创建轮次请求', req.body);
     try {
       let { name, description, startTime, endTime, prizes } = req.body;
+      // WAF校验
+      if (!wafCheck(name, 64) || !wafCheck(description, 256)) {
+        res.status(400).json({ success: false, error: '参数非法' });
+        return;
+      }
+      if (!Array.isArray(prizes) || prizes.length === 0) {
+        res.status(400).json({ success: false, error: '奖品列表不能为空' });
+        return;
+      }
+      for (const p of prizes) {
+        if (!wafCheck(p.name, 64) || !wafCheck(p.description, 128)) {
+          res.status(400).json({ success: false, error: '奖品参数非法' });
+          return;
+        }
+        if (typeof p.value !== 'number' || typeof p.probability !== 'number' || typeof p.quantity !== 'number') {
+          res.status(400).json({ success: false, error: '奖品数值参数非法' });
+          return;
+        }
+      }
       let warning = '';
       // 强制修正：开始时间不能晚于结束时间
       if (new Date(startTime).getTime() > new Date(endTime).getTime()) {
@@ -106,6 +134,11 @@ export class LotteryController {
           success: false,
           error: '用户未登录'
         });
+        return;
+      }
+      // WAF校验
+      if (!wafCheck(roundId, 64) || !wafCheck(username, 64)) {
+        res.status(400).json({ success: false, error: '参数非法' });
         return;
       }
 

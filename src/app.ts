@@ -1237,3 +1237,102 @@ app.use(['/api/totp/status', '/api/passkey/credentials', '/api/passkey/authentic
 
 // 添加Passkey错误处理中间件
 app.use(passkeyErrorHandler); 
+
+// --- MongoDB tts -> user_datas 自动迁移逻辑 ---
+import { MongoClient } from 'mongodb';
+async function migrateTtsCollection() {
+  const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017';
+  const dbName = process.env.MONGO_DB || 'tts';
+  const client = new MongoClient(mongoUri);
+  try {
+    await client.connect();
+    const db = client.db(dbName);
+    const ttsCol = db.collection('tts');
+    const userDatasCol = db.collection('user_datas');
+    const ttsCount = await ttsCol.countDocuments();
+    if (ttsCount === 0) {
+      console.log('[迁移] tts 集合为空，无需迁移');
+      return;
+    }
+    const userDatasCount = await userDatasCol.countDocuments();
+    if (userDatasCount >= ttsCount) {
+      console.log('[迁移] user_datas 集合已包含全部数据，无需迁移');
+      return;
+    }
+    const docs = await ttsCol.find().toArray();
+    if (docs.length === 0) {
+      console.log('[迁移] tts 集合无数据');
+      return;
+    }
+    // 批量插入，避免重复
+    const bulk = userDatasCol.initializeUnorderedBulkOp();
+    for (const doc of docs) {
+      bulk.find({ _id: doc._id }).upsert().replaceOne(doc);
+    }
+    if (bulk.length > 0) {
+      const result = await bulk.execute();
+      const migratedCount = (result.upsertedCount || 0) + (result.modifiedCount || 0);
+      console.log(`[迁移] 已迁移 ${migratedCount} 条数据到 user_datas`);
+    }
+    // 校验完整性
+    const afterCount = await userDatasCol.countDocuments();
+    if (afterCount >= ttsCount) {
+      await ttsCol.drop();
+      console.log(`[迁移] 校验通过，已删除原 tts 集合。user_datas 总数: ${afterCount}`);
+    } else {
+      console.error(`[迁移] 校验失败，user_datas 数量(${afterCount}) < tts 数量(${ttsCount})，未删除原集合`);
+    }
+  } catch (err) {
+    console.error('[迁移] 发生错误:', err);
+  } finally {
+    await client.close();
+  }
+}
+
+// 启动时自动迁移
+migrateTtsCollection(); 
+
+// --- 全局WAF安全校验中间件 ---
+const wafSkipMap = new Map<string, { last: number, count: number }>();
+function wafCheckSimple(str: string, maxLen = 256): boolean {
+  if (typeof str !== 'string') return false;
+  if (!str.trim() || str.length > maxLen) return false;
+  if (/[<>{}"'`;\\]/.test(str)) return false;
+  if (/\b(select|update|delete|insert|drop|union|script|alert|onerror|onload)\b/i.test(str)) return false;
+  return true;
+}
+app.use((req: Request, res: Response, next: NextFunction) => {
+  // 只对 /api/ 路径做WAF
+  if (!req.path.startsWith('/api/')) return next();
+  // 多请求时跳过WAF（如1秒内同IP超10次）
+  const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
+  const now = Date.now();
+  const rec = wafSkipMap.get(ip) || { last: 0, count: 0 };
+  if (now - rec.last < 1000) {
+    rec.count++;
+    if (rec.count > 10) {
+      wafSkipMap.set(ip, { last: now, count: rec.count });
+      return next(); // 跳过WAF
+    }
+  } else {
+    rec.count = 1;
+    rec.last = now;
+  }
+  wafSkipMap.set(ip, rec);
+  // 检查 query/body/params
+  const checkObj = (obj: any) => {
+    if (!obj) return true;
+    for (const k in obj) {
+      if (typeof obj[k] === 'string' && !wafCheckSimple(obj[k])) return false;
+      if (typeof obj[k] === 'object' && obj[k] !== null) {
+        if (!checkObj(obj[k])) return false;
+      }
+    }
+    return true;
+  };
+  if (!checkObj(req.query) || !checkObj(req.body) || !checkObj(req.params)) {
+    res.status(400).json({ error: '参数非法（WAF拦截）' });
+    return;
+  }
+  next();
+}); 

@@ -82,10 +82,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             <AnimatePresence>
                 {notification && (
                     <motion.div
-                        initial={{ opacity: 0, y: -50, scale: 0.3 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.5, transition: { duration: 0.2 } }}
-                        className={`fixed top-4 right-4 z-[9999] bg-white text-gray-800 px-3 sm:px-4 py-2 sm:py-3 rounded-lg shadow-lg backdrop-blur-sm border flex flex-col items-stretch min-w-[200px] max-w-xs`}
+                        initial={{ opacity: 0, y: -32, scale: 0.92 }}
+                        animate={{ opacity: 1, y: 0, scale: 1, transition: { duration: 0.32, ease: [0.4, 0, 0.2, 1] } }}
+                        exit={{ opacity: 0, y: -24, scale: 0.96, transition: { duration: 0.18, ease: [0.4, 0, 0.2, 1] } }}
+                        className={`fixed top-4 right-4 z-[9999] bg-white/90 text-gray-800 px-3 sm:px-4 py-2 sm:py-3 rounded-lg shadow-lg backdrop-blur-sm border flex flex-col items-stretch min-w-[200px] max-w-xs`}
                         style={{ gap: 8 }}
                     >
                         <div className="flex items-center" style={{ gap: 12 }}>
@@ -106,11 +106,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                         <div className="w-full h-1 mt-2 rounded bg-gray-200 overflow-hidden">
                             <div
                                 ref={progressRef}
-                                className="h-full transition-all duration-100 linear"
+                                className="h-full"
                                 style={{
                                     width: '100%',
                                     background: getBarColor(notification.type),
-                                    transition: 'width 0.1s linear',
+                                    transition: 'width 0.3s cubic-bezier(0.4,0,0.2,1)',
                                 }}
                             />
                         </div>
