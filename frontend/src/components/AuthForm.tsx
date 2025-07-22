@@ -14,8 +14,10 @@ import api from '../api/index';
 import { useNotification } from './Notification';
 import VerifyCodeInput from './VerifyCodeInput';
 import { AnimatePresence, motion } from 'framer-motion';
-
+import { NotificationData } from './Notification';
+import getApiBaseUrl from '../api';
 interface AuthFormProps {
+  setNotification?: (data: NotificationData) => void;
 }
 
 interface PasswordStrength {
@@ -40,7 +42,9 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
     }
 }
 
-export const AuthForm: React.FC<AuthFormProps> = () => {
+export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNotification }) => {
+    const { setNotification: contextSetNotification } = useNotification();
+    const setNotify = propSetNotification || contextSetNotification;
     const { login, register, pending2FA, setPending2FA, verifyTOTP } = useAuth();
     const { 
         authenticateWithPasskey, 
@@ -69,7 +73,6 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
     const [verifyCode, setVerifyCode] = useState('');
     const [verifyError, setVerifyError] = useState('');
     const [verifyLoading, setVerifyLoading] = useState(false);
-    const { setNotification } = useNotification();
 
     // 支持的主流邮箱后缀
     const allowedDomains = [
@@ -202,7 +205,7 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
         }
 
         if (!agreed) {
-            setNotification({ message: '请勾选服务条款与隐私政策', type: 'warning' });
+            setNotify({ message: '请勾选服务条款与隐私政策', type: 'warning' });
             return;
         }
 
@@ -216,6 +219,7 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
             if (isLogin) {
                 const result = await login(sanitizedUsername, sanitizedPassword);
                 if (result && result.requires2FA && result.twoFactorType) {
+                    setNotify({ message: '需要二次验证，请选择验证方式', type: 'info' });
                     setPendingUser(result.user);
                     setPendingUserId(result.user.id);
                     setPendingToken(result.token);
@@ -258,21 +262,29 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
                 }
                 // 登录成功且不需要2FA，强制刷新页面
                 if (typeof window !== 'undefined') {
+                    setNotify({ message: '登录成功', type: 'success' });
                     window.location.reload();
                 }
                 return;
             } else {
                 // 注册后进入邮箱验证码界面
-                const res = await api.post('/api/auth/register', {
-                    username: sanitizedUsername,
-                    email: sanitizedEmail,
-                    password: sanitizedPassword
+                const res = await fetch(getApiBaseUrl() + '/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: sanitizedUsername,
+                        email: sanitizedEmail,
+                        password: sanitizedPassword
+                    })
                 });
-                if (res.data && res.data.needVerify) {
+                const data = await res.json();
+                if (data && data.needVerify) {
                     setShowEmailVerify(true);
                     setPendingEmail(sanitizedEmail);
+                    setNotify({ message: '验证码已发送到邮箱，请查收', type: 'info' });
                 } else {
                     setError('注册失败，未收到验证码发送指示');
+                    setNotify({ message: '注册失败，未收到验证码发送指示', type: 'error' });
                 }
             }
             // 登录成功后强制刷新页面，不需要回调函数
@@ -285,6 +297,7 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
                 timestamp: new Date().toISOString()
             };
             setError(err.message || '操作失败');
+            setNotify({ message: err.message || '操作失败', type: 'error' });
         } finally {
             setLoading(false);
         }
@@ -344,6 +357,7 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
             
             const success = await authenticateWithPasskey(currentUsername);
             if (success) {
+                setNotify({ message: 'Passkey 验证成功', type: 'success' });
                 startTransition(() => {
                     setShowPasskeyVerification(false);
                     setPending2FA(null);
@@ -354,6 +368,7 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
                 });
             } else {
                 setError('Passkey 验证失败');
+                setNotify({ message: 'Passkey 验证失败', type: 'error' });
             }
         } catch (e: any) {
             setError(e.message || 'Passkey 验证失败');
@@ -381,6 +396,7 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
                     });
                 } else {
                     setError('Passkey 验证失败');
+                    setNotify({ message: 'Passkey 验证失败', type: 'error' });
                 }
             } else if (method === 'totp') {
                 // 选择TOTP验证方式，设置pending2FA并显示TOTP验证弹窗
@@ -392,6 +408,7 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
                         type: ['TOTP']
                     });
                     setShowTOTPVerification(true);
+                    setNotify({ message: '请进行 TOTP 验证', type: 'info' });
                 });
             }
         } catch (e: any) {
@@ -414,11 +431,16 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
         setVerifyLoading(true);
         setVerifyError('');
         try {
-            const res = await api.post('/api/auth/verify-email', {
-                email: pendingEmail,
-                code: code || verifyCode
+            const res = await fetch(getApiBaseUrl() + '/api/auth/verify-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: pendingEmail,
+                    code: code || verifyCode
+                })
             });
-            if (res.data && res.data.success) {
+            const data = await res.json();
+            if (data && data.success) {
                 setShowEmailVerify(false);
                 setPendingEmail('');
                 setVerifyCode('');
@@ -426,11 +448,14 @@ export const AuthForm: React.FC<AuthFormProps> = () => {
                 // 邮箱验证通过后允许登录
                 setIsLogin(true);
                 setError('邮箱验证成功，请登录');
+                setNotify({ message: '邮箱验证成功，请登录', type: 'success' });
             } else {
-                setVerifyError(res.data.error || '验证码错误');
+                setVerifyError(data.error || '验证码错误');
+                setNotify({ message: data.error || '验证码错误', type: 'error' });
             }
         } catch (err: any) {
-            setVerifyError(err.response?.data?.error || err.message || '验证码校验失败');
+            setVerifyError(err.message || '验证码校验失败');
+            setNotify({ message: err.message || '验证码校验失败', type: 'error' });
         } finally {
             setVerifyLoading(false);
         }

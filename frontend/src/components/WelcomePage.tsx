@@ -2,8 +2,10 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { AuthForm } from './AuthForm';
 import Footer from './Footer';
+import { useNotification } from './Notification';
 
 export const WelcomePage: React.FC = () => {
+  const { setNotification } = useNotification();
   return (
     <div className="min-h-screen bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -37,7 +39,7 @@ export const WelcomePage: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.3, type: 'spring', stiffness: 120 }}
         >
-          <AuthForm />
+          <AuthForm setNotification={setNotification} />
         </motion.div>
 
         <motion.div

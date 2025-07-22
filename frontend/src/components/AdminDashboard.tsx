@@ -3,11 +3,13 @@ import UserManagement from './UserManagement';
 const AnnouncementManager = React.lazy(() => import('./AnnouncementManager'));
 const EnvManager = React.lazy(() => import('./EnvManager'));
 import { motion, AnimatePresence } from 'framer-motion';
+const LotteryAdmin = React.lazy(() => import('./LotteryAdmin'));
 
 const TABS = [
   { key: 'users', label: '用户管理' },
   { key: 'announcement', label: '公告管理' },
   { key: 'env', label: '环境变量' },
+  { key: 'lottery', label: '抽奖管理' },
 ];
 
 const AdminDashboard: React.FC = () => {
@@ -64,6 +66,19 @@ const AdminDashboard: React.FC = () => {
             >
               <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
                 <EnvManager />
+              </Suspense>
+            </motion.div>
+          )}
+          {tab === 'lottery' && (
+            <motion.div
+              key="lottery"
+              initial={{ opacity: 0, x: 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -40 }}
+              transition={{ duration: 0.25 }}
+            >
+              <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
+                <LotteryAdmin />
               </Suspense>
             </motion.div>
           )}

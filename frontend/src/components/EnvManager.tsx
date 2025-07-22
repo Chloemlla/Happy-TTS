@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import getApiBaseUrl from '../api';
 
-const API_URL = '/api/admin/envs';
+const API_URL = getApiBaseUrl() + '/api/admin/envs';
 
 interface EnvItem {
   key: string;

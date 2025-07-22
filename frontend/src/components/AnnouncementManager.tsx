@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
+import getApiBaseUrl from '../api';
 
-const API_URL = '/api/admin/announcement';
+const API_URL = getApiBaseUrl() + '/api/admin/announcement';
 
 function renderMarkdownSafe(md: string) {
   let html: string;

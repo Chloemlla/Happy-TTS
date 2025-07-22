@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-interface NotificationData {
+export interface NotificationData {
     message: string;
     type: 'success' | 'error' | 'warning' | 'info';
 }
