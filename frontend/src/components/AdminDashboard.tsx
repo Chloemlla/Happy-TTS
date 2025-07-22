@@ -25,12 +25,13 @@ const AdminDashboard: React.FC = () => {
         {TABS.map(t => (
           <motion.button
             key={t.key}
-            className={`px-4 py-2 rounded-lg font-semibold transition-all duration-150 shadow whitespace-nowrap ${tab === t.key ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-indigo-50'}`}
+            className={`flex items-center justify-center px-4 py-2 rounded-lg font-semibold transition-all duration-150 shadow whitespace-nowrap min-w-[3.5rem] max-w-xs text-center ${tab === t.key ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-indigo-50'}`}
+            style={{ width: 'auto', minWidth: 'max-content' }}
             onClick={() => setTab(t.key)}
             whileTap={{ scale: 0.96 }}
             whileHover={tab !== t.key ? { scale: 1.05 } : {}}
           >
-            {t.label}
+            <span className="w-full text-center block">{t.label}</span>
           </motion.button>
         ))}
       </div>

@@ -3,6 +3,8 @@ import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import EmailSender from './EmailSender';
+import getApiBaseUrl from '../api';
+import { useNotification } from './Notification';
 
 interface EmailSenderProps {
   to: string;
@@ -35,10 +37,11 @@ const OutEmail: React.FC = () => {
   const [domains, setDomains] = useState<string[]>([OUTEMAIL_DOMAIN]);
   const [selectedDomain, setSelectedDomain] = useState(OUTEMAIL_DOMAIN);
   const [outemailStatus, setOutemailStatus] = useState<{ available: boolean; error?: string } | null>(null);
+  const { setNotification } = useNotification();
 
   // 获取后端支持的所有域名
   useEffect(() => {
-    fetch('/api/email/domains')
+    fetch(getApiBaseUrl() + '/api/email/domains')
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data.domains) && data.domains.length > 0) {
@@ -50,7 +53,7 @@ const OutEmail: React.FC = () => {
 
   // 获取对外邮件服务状态
   useEffect(() => {
-    fetch('/api/email/outemail-status')
+    fetch(getApiBaseUrl() + '/api/email/outemail-status')
       .then(res => res.json())
       .then(data => {
         if (data.success) {
@@ -58,10 +61,14 @@ const OutEmail: React.FC = () => {
             available: data.available,
             error: data.error
           });
+          if (!data.available) {
+            setNotification({ message: data.error || '对外邮件服务异常', type: 'error' });
+          }
         }
       })
       .catch(() => {
         setOutemailStatus({ available: false, error: '无法获取服务状态' });
+        setNotification({ message: '无法获取对外邮件服务状态', type: 'error' });
       });
   }, []);
 
@@ -69,17 +76,19 @@ const OutEmail: React.FC = () => {
     setError(''); setSuccess('');
     if (!displayName.trim() || !fromUser.trim() || !to.trim() || !subject.trim() || !content.trim() || !code.trim()) {
       setError('请填写所有字段');
+      setNotification({ message: '请填写所有字段', type: 'warning' });
       return;
     }
     const from = fromUser.trim();
     const domain = selectedDomain;
     if (!emailRegex.test(to.trim())) {
       setError('收件人邮箱格式无效');
+      setNotification({ message: '收件人邮箱格式无效', type: 'warning' });
       return;
     }
     setLoading(true);
     try {
-      const res = await fetch('/api/email/outemail', {
+      const res = await fetch(getApiBaseUrl() + '/api/email/outemail', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ from, displayName, to, subject, content, code, domain })
@@ -89,11 +98,13 @@ const OutEmail: React.FC = () => {
         data = await res.json();
       } catch (e) {
         setError('服务器响应异常，请联系管理员');
+        setNotification({ message: '服务器响应异常，请联系管理员', type: 'error' });
         setLoading(false);
         return;
       }
       if (data.success) {
         setSuccess('邮件发送成功！');
+        setNotification({ message: '邮件发送成功！', type: 'success' });
         setTo('');
         setSubject('');
         setContent('');
@@ -103,9 +114,11 @@ const OutEmail: React.FC = () => {
         setSelectedDomain(domains[0] || '');
       } else {
         setError(data.error || '发送失败');
+        setNotification({ message: data.error || '发送失败', type: 'error' });
       }
     } catch (e: any) {
       setError(e.message || '发送失败');
+      setNotification({ message: e.message || '发送失败', type: 'error' });
     } finally {
       setLoading(false);
     }
