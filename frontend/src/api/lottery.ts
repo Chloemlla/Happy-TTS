@@ -6,9 +6,10 @@ import {
   LotteryStatistics,
   LotteryApiResponse 
 } from '../types/lottery';
+import getApiBaseUrl, { getApiBaseUrl as namedGetApiBaseUrl } from '../api';
 
 // 修正API_BASE，确保所有请求都指向 /api/lottery
-const API_BASE = '/api/lottery';
+const API_BASE = getApiBaseUrl() + '/api/lottery';
 
 // 通用API请求函数
 async function apiRequest<T>(endpoint: string, options?: RequestInit): Promise<T> {

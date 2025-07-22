@@ -4,16 +4,10 @@ import { useAuth } from '../hooks/useAuth';
 import { useLottery } from '../hooks/useLottery';
 import { LotteryPrize, LotteryRound } from '../types/lottery';
 import * as lotteryApi from '../api/lottery';
+import getApiBaseUrl, { getApiBaseUrl as namedGetApiBaseUrl } from '../api';
 import { useNotification } from './Notification';
 import { AnimatePresence } from 'framer-motion';
 import { deleteAllRounds } from '../api/lottery';
-
-// 获取 API 基础地址（适配本地/生产环境）
-const getApiBaseUrl = () => {
-  if (import.meta.env.DEV) return '';
-  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-  return 'https://tts-api.hapxs.com';
-};
 
 // 创建轮次表单组件
 const CreateRoundForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {

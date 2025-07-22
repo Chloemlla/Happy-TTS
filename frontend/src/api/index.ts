@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const getApiBaseUrl = () => {
+export const getApiBaseUrl = () => {
   if (import.meta.env.DEV) return '';
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
   return 'https://tts-api.hapxs.com';
@@ -14,4 +14,4 @@ const api = axios.create({
   }
 });
 
-export default api; 
+export default getApiBaseUrl; 

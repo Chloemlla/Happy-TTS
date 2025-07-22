@@ -3,6 +3,7 @@ import { useNotification } from './Notification';
 import { motion } from 'framer-motion';
 import VerifyCodeInput from './VerifyCodeInput';
 import { LoadingSpinner } from './LoadingSpinner';
+import getApiBaseUrl, { getApiBaseUrl as namedGetApiBaseUrl } from '../api';
 
 interface UserProfileData {
   id: string;
@@ -16,7 +17,7 @@ const fetchProfile = async (): Promise<UserProfileData | null> => {
   try {
     const token = localStorage.getItem('token');
     if (!token) return null;
-    const res = await fetch('/api/user/profile', {
+    const res = await fetch(getApiBaseUrl() + '/api/user/profile', {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) return null;
@@ -29,7 +30,7 @@ const fetchProfile = async (): Promise<UserProfileData | null> => {
 
 const updateProfile = async (data: Partial<UserProfileData> & { password?: string; newPassword?: string; verificationCode?: string }) => {
   const token = localStorage.getItem('token');
-  const res = await fetch('/api/user/profile', {
+  const res = await fetch(getApiBaseUrl() + '/api/user/profile', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -45,7 +46,7 @@ const verifyUser = async (verificationCode: string) => {
   const token = localStorage.getItem('token');
   const user = await fetchProfile();
   if (!user) return { success: false };
-  const res = await fetch('/api/user/verify', {
+  const res = await fetch(getApiBaseUrl() + '/api/user/verify', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -152,7 +153,12 @@ const UserProfile: React.FC = () => {
     return <div className="p-8 text-center text-red-500">未登录或会话已过期，请重新登录。</div>;
   }
   if (loadError) {
-    return <div className="p-8 text-center text-red-500">{loadError}</div>;
+    return (
+      <div className="p-8 text-center text-red-500 whitespace-pre-line">
+        加载失败，请刷新页面或重新登录。
+        {typeof loadError === 'string' && loadError !== '加载失败，请刷新页面或重新登录' ? `\n详细信息：${loadError}` : ''}
+      </div>
+    );
   }
   if (loading || !profile) {
     if (loadTimeout) {

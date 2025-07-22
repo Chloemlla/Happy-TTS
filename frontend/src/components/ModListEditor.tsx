@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence, HTMLMotionProps } from 'framer-motion';
 import { useNotification } from './Notification';
+import getApiBaseUrl, { getApiBaseUrl as namedGetApiBaseUrl } from '../api';
 
 // Mod 类型扩展
 interface Mod {
