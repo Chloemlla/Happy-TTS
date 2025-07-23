@@ -228,6 +228,8 @@ const ModListEditor: React.FC = () => {
   const [pendingBatchAction, setPendingBatchAction] = useState<'add' | 'delete' | null>(null);
   const [pendingBatchData, setPendingBatchData] = useState<any>(null);
   const { setNotification } = useNotification();
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteCode, setDeleteCode] = useState('');
 
   const loadMods = async () => {
     if (jsonMode) {
@@ -333,16 +335,9 @@ const ModListEditor: React.FC = () => {
                 <li key={mod.id} style={{ display: 'flex', alignItems: 'center', marginBottom: 10, borderBottom: '1px solid #f0f0f0', padding: '8px 0' }}>
                   <span style={{ flex: 1, fontSize: 16 }}>{mod.name}</span>
                   <MyButton style={{ fontSize: 14, padding: '4px 14px', marginRight: 8 }} onClick={() => { setEditId(mod.id); setEditName(mod.name); setEditCode(''); }}>修改</MyButton>
-                  <MyButton style={{ fontSize: 14, padding: '4px 14px', background: '#e11d48' }} onClick={async () => {
-                    if (window.confirm('确定要删除该MOD吗？')) {
-                      const res = await deleteMod(mod.id);
-                      if (res.success) {
-                        setNotification({ message: '删除成功', type: 'success' });
-                        loadMods();
-                      } else {
-                        setNotification({ message: res.error || '删除失败', type: 'error' });
-                      }
-                    }
+                  <MyButton style={{ fontSize: 14, padding: '4px 14px', background: '#e11d48' }} onClick={() => {
+                    setDeleteId(mod.id);
+                    setDeleteCode('');
                   }}>删除</MyButton>
                 </li>
               ))}
@@ -411,6 +406,36 @@ const ModListEditor: React.FC = () => {
         />
         <div style={{ textAlign: 'right' }}>
           <MyButton onClick={handleBatchAddSubmit} style={{ minWidth: 80 }}>确定</MyButton>
+        </div>
+      </Modal>
+      {/* 删除MOD弹窗 */}
+      <Modal open={!!deleteId} onClose={() => setDeleteId(null)} title="删除MOD">
+        <div style={{ marginBottom: 12 }}>请输入该MOD的修改码以确认删除：</div>
+        <MyInput placeholder="修改码" value={deleteCode} onChange={e => setDeleteCode(e.target.value)} type="password" />
+        <div style={{ marginTop: 16, textAlign: 'right' }}>
+          <MyButton
+            style={{ background: '#e11d48', minWidth: 80 }}
+            onClick={async () => {
+              if (!deleteCode) {
+                setNotification({ message: '请输入修改码', type: 'error' });
+                return;
+              }
+              // 调用后端删除接口，带上修改码
+              const res = await fetch(getApiBaseUrl() + `/api/modlist/${deleteId}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: deleteCode })
+              }).then(r => r.json());
+              if (res.success) {
+                setNotification({ message: '删除成功', type: 'success' });
+                setDeleteId(null);
+                setDeleteCode('');
+                loadMods();
+              } else {
+                setNotification({ message: res.error || '删除失败', type: 'error' });
+              }
+            }}
+          >确定删除</MyButton>
         </div>
       </Modal>
     </div>

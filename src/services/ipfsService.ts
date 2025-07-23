@@ -29,71 +29,67 @@ export class IPFSService {
         filename: string,
         mimetype: string
     ): Promise<IPFSUploadResponse> {
-        try {
-            // 检查文件大小
-            if (fileBuffer.length > this.MAX_FILE_SIZE) {
-                throw new Error(`文件大小不能超过 ${this.MAX_FILE_SIZE / 1024 / 1024}MB`);
-            }
-
-            // 检查文件类型（只允许图片）
-            const allowedMimeTypes = [
-                'image/jpeg',
-                'image/jpg',
-                'image/png',
-                'image/gif',
-                'image/webp',
-                'image/bmp',
-                'image/svg+xml'
-            ];
-
-            if (!allowedMimeTypes.includes(mimetype.toLowerCase())) {
-                throw new Error('只支持图片文件格式：JPEG, PNG, GIF, WebP, BMP, SVG');
-            }
-
-            // 创建FormData
-            const formData = new FormData();
-            formData.append('file', fileBuffer, {
-                filename,
-                contentType: mimetype
-            });
-
-            // 发送请求到IPFS
-            const response = await axios.post<IPFSUploadResponse>(
-                this.IPFS_UPLOAD_URL,
-                formData,
-                {
-                    headers: {
-                        ...formData.getHeaders(),
-                    },
-                    timeout: 30000, // 30秒超时
+        const MAX_RETRIES = 2;
+        let lastError: any = null;
+        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                // 检查文件大小
+                if (fileBuffer.length > this.MAX_FILE_SIZE) {
+                    throw new Error(`文件大小不能超过 ${this.MAX_FILE_SIZE / 1024 / 1024}MB`);
                 }
-            );
-
-            logger.info('IPFS上传成功', {
-                filename,
-                fileSize: fileBuffer.length,
-                cid: response.data.cid,
-                web2url: response.data.web2url
-            });
-
-            return response.data;
-        } catch (error) {
-            logger.error('IPFS上传失败', {
-                filename,
-                fileSize: fileBuffer.length,
-                error: error instanceof Error ? error.message : '未知错误'
-            });
-
-            if (axios.isAxiosError(error)) {
-                if (error.response) {
-                    throw new Error(`IPFS上传失败: ${error.response.status} - ${error.response.data?.message || '服务器错误'}`);
-                } else if (error.request) {
-                    throw new Error('IPFS服务无响应，请稍后重试');
+                // 检查文件类型（只允许图片）
+                const allowedMimeTypes = [
+                    'image/jpeg',
+                    'image/jpg',
+                    'image/png',
+                    'image/gif',
+                    'image/webp',
+                    'image/bmp',
+                    'image/svg+xml'
+                ];
+                if (!allowedMimeTypes.includes(mimetype.toLowerCase())) {
+                    throw new Error('只支持图片文件格式：JPEG, PNG, GIF, WebP, BMP, SVG');
+                }
+                // 创建FormData
+                const formData = new FormData();
+                formData.append('file', fileBuffer, {
+                    filename,
+                    contentType: mimetype
+                });
+                // 发送请求到IPFS
+                const response = await axios.post<IPFSUploadResponse>(
+                    this.IPFS_UPLOAD_URL,
+                    formData,
+                    {
+                        headers: {
+                            ...formData.getHeaders(),
+                        },
+                        timeout: 30000, // 30秒超时
+                    }
+                );
+                logger.info('IPFS上传成功', {
+                    filename,
+                    fileSize: fileBuffer.length,
+                    cid: response.data.cid,
+                    web2url: response.data.web2url
+                });
+                return response.data;
+            } catch (error) {
+                lastError = error;
+                logger.error('IPFS上传失败', {
+                    filename,
+                    fileSize: fileBuffer.length,
+                    error: error instanceof Error ? error.message : '未知错误',
+                    attempt: attempt + 1
+                });
+                if (attempt < MAX_RETRIES) {
+                    // 等待1秒后重试
+                    await new Promise(res => setTimeout(res, 1000));
                 }
             }
-
-            throw error;
         }
+        // 全部重试失败后抛出最后一次错误
+        throw lastError;
     }
 
     /**

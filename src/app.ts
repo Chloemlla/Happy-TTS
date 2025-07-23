@@ -1211,9 +1211,10 @@ if (process.env.NODE_ENV !== 'test') {
         }
       }
       
-      logger.info('[启动] 开始自动修复Passkey数据...');
-      await PasskeyDataRepairService.repairAllUsersPasskeyData();
-      logger.info('[启动] Passkey数据自动修复完成');
+      // 移除自动修复Passkey数据
+      // logger.info('[启动] 开始自动修复Passkey数据...');
+      // await PasskeyDataRepairService.repairAllUsersPasskeyData();
+      // logger.info('[启动] Passkey数据自动修复完成');
     } catch (error) {
       logger.error('[启动] 数据库初始化和Passkey数据修复失败', { 
         error: error instanceof Error ? error.message : String(error) 
@@ -1290,49 +1291,49 @@ async function migrateTtsCollection() {
 }
 
 // 启动时自动迁移
-migrateTtsCollection(); 
+migrateTtsCollection();
 
 // --- 全局WAF安全校验中间件 ---
-const wafSkipMap = new Map<string, { last: number, count: number }>();
-function wafCheckSimple(str: string, maxLen = 256): boolean {
-  if (typeof str !== 'string') return false;
-  if (!str.trim() || str.length > maxLen) return false;
-  if (/[<>{}"'`;\\]/.test(str)) return false;
-  if (/\b(select|update|delete|insert|drop|union|script|alert|onerror|onload)\b/i.test(str)) return false;
-  return true;
-}
-app.use((req: Request, res: Response, next: NextFunction) => {
-  // 只对 /api/ 路径做WAF
-  if (!req.path.startsWith('/api/')) return next();
-  // 多请求时跳过WAF（如1秒内同IP超10次）
-  const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
-  const now = Date.now();
-  const rec = wafSkipMap.get(ip) || { last: 0, count: 0 };
-  if (now - rec.last < 1000) {
-    rec.count++;
-    if (rec.count > 10) {
-      wafSkipMap.set(ip, { last: now, count: rec.count });
-      return next(); // 跳过WAF
-    }
-  } else {
-    rec.count = 1;
-    rec.last = now;
-  }
-  wafSkipMap.set(ip, rec);
-  // 检查 query/body/params
-  const checkObj = (obj: any) => {
-    if (!obj) return true;
-    for (const k in obj) {
-      if (typeof obj[k] === 'string' && !wafCheckSimple(obj[k])) return false;
-      if (typeof obj[k] === 'object' && obj[k] !== null) {
-        if (!checkObj(obj[k])) return false;
-      }
-    }
-    return true;
-  };
-  if (!checkObj(req.query) || !checkObj(req.body) || !checkObj(req.params)) {
-    res.status(400).json({ error: '参数非法（WAF拦截）' });
-    return;
-  }
-  next();
-}); 
+// const wafSkipMap = new Map<string, { last: number, count: number }>();
+// function wafCheckSimple(str: string, maxLen = 256): boolean {
+//   if (typeof str !== 'string') return false;
+//   if (!str.trim() || str.length > maxLen) return false;
+//   if (/[<>{}"'`;\\]/.test(str)) return false;
+//   if (/\b(select|update|delete|insert|drop|union|script|alert|onerror|onload)\b/i.test(str)) return false;
+//   return true;
+// }
+// app.use((req: Request, res: Response, next: NextFunction) => {
+//   // 只对 /api/ 路径做WAF，豁免 /api/auth/login 和 /api/auth/register
+//   if (!req.path.startsWith('/api/') || req.path === '/api/auth/login' || req.path === '/api/auth/register') return next();
+//   // 多请求时跳过WAF（如1秒内同IP超10次）
+//   const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
+//   const now = Date.now();
+//   const rec = wafSkipMap.get(ip) || { last: 0, count: 0 };
+//   if (now - rec.last < 1000) {
+//     rec.count++;
+//     if (rec.count > 10) {
+//       wafSkipMap.set(ip, { last: now, count: rec.count });
+//       return next(); // 跳过WAF 
+//     }
+//   } else {
+//     rec.count = 1;
+//     rec.last = now;
+//   }
+//   wafSkipMap.set(ip, rec);
+//   // 检查 query/body/params
+//   const checkObj = (obj: any) => {
+//     if (!obj) return true;
+//     for (const k in obj) {
+//       if (typeof obj[k] === 'string' && !wafCheckSimple(obj[k])) return false;
+//       if (typeof obj[k] === 'object' && obj[k] !== null) {
+//         if (!checkObj(obj[k])) return false;
+//       }
+//     }
+//     return true;
+//   };
+//   if (!checkObj(req.query) || !checkObj(req.body) || !checkObj(req.params)) {
+//     res.status(400).json({ error: '参数非法（WAF拦截）' });
+//     return;
+//   }
+//   next();
+// }); 

@@ -9,6 +9,7 @@ import { JSDOM } from 'jsdom';
 import * as userService from '../services/userService';
 // MySQL 相关依赖
 import mysql from 'mysql2/promise';
+import bcrypt from 'bcrypt';
 
 const STORAGE_MODE = process.env.USER_STORAGE_MODE || 'file'; // 'file' 或 'mongo'
 
@@ -59,12 +60,21 @@ export interface User {
     pendingChallenge?: string;
     currentChallenge?: string;
     passkeyVerified?: boolean;
+    avatarUrl?: string; // 新增头像URL字段
 }
 
 // 获取 MySQL 连接
 async function getMysqlConnection() {
     const { host, port, user, password, database } = config.mysql;
     return await mysql.createConnection({ host, port: Number(port), user, password, database });
+}
+
+// 工具函数：彻底删除对象中的avatarBase64字段
+function removeAvatarBase64(obj: any) {
+  if (obj && typeof obj === 'object' && 'avatarBase64' in obj) {
+    delete obj.avatarBase64;
+  }
+  return obj;
 }
 
 export class UserStorage {
@@ -214,7 +224,7 @@ export class UserStorage {
         return errors;
     }
 
-    // 明文密码校验（如有加密可扩展）
+    // 只做明文密码比对（不再支持 hash），用于个人主页修改时直接验证明文密码
     public static checkPassword(user: User, password: string): boolean {
         return user && user.password === password;
     }
@@ -607,7 +617,8 @@ export class UserStorage {
         try {
             if (STORAGE_MODE === 'mongo') {
                 try {
-                    return await userService.getAllUsers();
+                    const users = await userService.getAllUsers();
+                    return users.map(removeAvatarBase64);
                 } catch (error) {
                     logger.error(`[UserStorage] MongoDB 查询所有用户失败，尝试切换到文件模式`, {
                         error,
@@ -617,28 +628,23 @@ export class UserStorage {
                     });
                     // MongoDB 连接失败时，自动切换到文件模式
                     logger.info(`[UserStorage] 自动切换到文件存储模式`);
-                    return this.readUsers();
+                    const users = this.readUsers();
+                    return users.map(removeAvatarBase64);
                 }
             } else if (STORAGE_MODE === 'mysql') {
+                const conn = await getMysqlConnection();
                 try {
-                    const conn = await getMysqlConnection();
-                    try {
-                        const [rows] = await conn.execute('SELECT * FROM users');
-                        return rows as User[];
-                    } catch (error) {
-                        logger.error(`[UserStorage] MySQL 查询所有用户失败`, { error });
-                        throw error;
-                    } finally {
-                        await conn.end();
-                    }
+                    const [rows] = await conn.execute('SELECT * FROM users');
+                    return (rows as User[]).map(removeAvatarBase64);
                 } catch (error) {
-                    logger.error(`[UserStorage] MySQL 连接失败，尝试切换到文件模式`, { error });
-                    // MySQL 连接失败时，自动切换到文件模式
-                    logger.info(`[UserStorage] 自动切换到文件存储模式`);
-                    return this.readUsers();
+                    logger.error(`[UserStorage] MySQL 查询所有用户失败`, { error });
+                    throw error;
+                } finally {
+                    await conn.end();
                 }
             } else {
-                return this.readUsers();
+                const users = this.readUsers();
+                return users.map(removeAvatarBase64);
             }
         } catch (error) {
             logger.error(`[UserStorage] getAllUsers 失败`, { error });
@@ -734,6 +740,19 @@ export class UserStorage {
                     if (!user) {
                         user = await userService.getUserByEmail(sanitizedIdentifier);
                     }
+                    // 调试：打印输入和查找到的用户
+                    if (!user || user.password !== password) {
+                        console.warn('[DEBUG][Mongo] 登录认证失败', {
+                            identifier,
+                            inputPassword: password,
+                            foundUser: user,
+                            userPassword: user?.password,
+                            passwordEqual: user ? user.password === password : false,
+                            passwordType: typeof user?.password,
+                            inputType: typeof password,
+                            storageMode: STORAGE_MODE
+                        });
+                    }
                     if (user && user.password === password) {
                         return user;
                     }
@@ -749,35 +768,33 @@ export class UserStorage {
                     // MongoDB 连接失败时，自动切换到文件模式
                     logger.info(`[UserStorage] 自动切换到文件存储模式进行认证`);
                     const users = this.readUsers();
-                    return users.find(u => 
+                    const user = users.find(u => 
                         (u.username === sanitizedIdentifier || u.email === sanitizedIdentifier) && 
                         u.password === password
                     ) || null;
+                    // 调试：打印输入和查找到的用户
+                    if (!user) {
+                        console.warn('[DEBUG][File] 登录认证失败', {
+                            identifier,
+                            inputPassword: password,
+                            storageMode: STORAGE_MODE
+                        });
+                    }
+                    return user;
                 }
             } else if (STORAGE_MODE === 'mysql') {
+                const conn = await getMysqlConnection();
                 try {
-                    const conn = await getMysqlConnection();
-                    try {
-                        const [rows] = await conn.execute(
-                            'SELECT * FROM users WHERE (username = ? OR email = ?) AND password = ?',
-                            [sanitizedIdentifier, sanitizedIdentifier, password]
-                        );
-                        return (rows as User[])[0] || null;
-                    } catch (error) {
-                        logger.error(`[UserStorage] MySQL 用户认证失败`, { error, identifier });
-                        throw error;
-                    } finally {
-                        await conn.end();
-                    }
+                    const [rows] = await conn.execute(
+                        'SELECT * FROM users WHERE (username = ? OR email = ?) AND password = ?',
+                        [sanitizedIdentifier, sanitizedIdentifier, password]
+                    );
+                    return (rows as User[])[0] || null;
                 } catch (error) {
-                    logger.error(`[UserStorage] MySQL 连接失败，尝试切换到文件模式`, { error, identifier });
-                    // MySQL 连接失败时，自动切换到文件模式
-                    logger.info(`[UserStorage] 自动切换到文件存储模式进行认证`);
-                    const users = this.readUsers();
-                    return users.find(u => 
-                        (u.username === sanitizedIdentifier || u.email === sanitizedIdentifier) && 
-                        u.password === password
-                    ) || null;
+                    logger.error(`[UserStorage] MySQL 用户认证失败`, { error, identifier });
+                    throw error;
+                } finally {
+                    await conn.end();
                 }
             } else {
                 const users = this.readUsers();
@@ -799,7 +816,8 @@ export class UserStorage {
         try {
             if (STORAGE_MODE === 'mongo') {
                 try {
-                    return await userService.getUserById(id);
+                    const user = await userService.getUserById(id);
+                    return removeAvatarBase64(user);
                 } catch (error) {
                     logger.error(`[UserStorage] MongoDB getUserById 失败，尝试切换到文件模式`, {
                         error,
@@ -828,7 +846,7 @@ export class UserStorage {
                             });
                         }
                     }
-                    return user;
+                    return removeAvatarBase64(user);
                 }
             } else if (STORAGE_MODE === 'mysql') {
                 const conn = await getMysqlConnection();
@@ -851,7 +869,7 @@ export class UserStorage {
                         totalUsers: users.length 
                     });
                 }
-                return user;
+                return removeAvatarBase64(user);
             }
         } catch (error) {
             logger.error(`[UserStorage] getUserById 失败`, { error, id });
@@ -863,7 +881,8 @@ export class UserStorage {
         try {
             if (STORAGE_MODE === 'mongo') {
                 try {
-                    return await userService.getUserByEmail(email);
+                    const user = await userService.getUserByEmail(email);
+                    return removeAvatarBase64(user);
                 } catch (error) {
                     logger.error(`[UserStorage] MongoDB getUserByEmail 失败，尝试切换到文件模式`, {
                         error,
@@ -899,7 +918,8 @@ export class UserStorage {
         try {
             if (STORAGE_MODE === 'mongo') {
                 try {
-                    return await userService.getUserByUsername(username);
+                    const user = await userService.getUserByUsername(username);
+                    return removeAvatarBase64(user);
                 } catch (error) {
                     logger.error(`[UserStorage] MongoDB getUserByUsername 失败，尝试切换到文件模式`, {
                         error,
@@ -933,7 +953,7 @@ export class UserStorage {
                     credentialsCount: user?.passkeyCredentials?.length || 0,
                     totalUsers: users.length
                 });
-                return user;
+                return removeAvatarBase64(user);
             }
         } catch (error) {
             logger.error(`[UserStorage] getUserByUsername 失败`, { error, username });
@@ -949,7 +969,8 @@ export class UserStorage {
         try {
             if (STORAGE_MODE === 'mongo') {
                 try {
-                    return await userService.updateUser(userId, updates);
+                    const updatedUser = await userService.updateUser(userId, updates);
+                    return removeAvatarBase64(updatedUser);
                 } catch (error) {
                     logger.error(`[UserStorage] MongoDB updateUser 失败，尝试切换到文件模式`, {
                         error,

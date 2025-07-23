@@ -3,6 +3,10 @@ import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { User } from '../types/auth';
 
+// 登录、鉴权、用户信息等只用JWT
+// 本地只存储JWT，所有API请求都带JWT，后端只解析JWT
+// 不再兼容userId作为token的任何逻辑
+
 // 获取API基础URL
 const getApiBaseUrl = () => {
     if (import.meta.env.DEV) return '';
@@ -18,7 +22,7 @@ const api = axios.create({
         'Content-Type': 'application/json',
         'Accept': 'application/json'
     },
-    timeout: 7500 // 7.5秒超时
+    timeout: 5000 // 5秒超时
 });
 
 api.interceptors.request.use(config => {
@@ -43,8 +47,9 @@ api.interceptors.response.use(
 export const useAuth = () => {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
-    const [pendingTOTP, setPendingTOTP] = useState<{ userId: string; token: string } | null>(null);
-    const [pending2FA, setPending2FA] = useState<{ userId: string; token: string; type: string[]; username?: string } | null>(null);
+    // 只用JWT，不再存pendingTOTP.token等
+    const [pendingTOTP, setPendingTOTP] = useState<{ userId: string } | null>(null);
+    const [pending2FA, setPending2FA] = useState<{ userId: string; type: string[]; username?: string } | null>(null);
     const navigate = useNavigate();
     const location = useLocation();
     const [isChecking, setIsChecking] = useState(false);
@@ -66,7 +71,7 @@ export const useAuth = () => {
     locationPathRef.current = location.pathname;
 
     const checkAuth = useCallback(async () => {
-        // 使用ref来防止重复请求
+        // 只检查JWT
         if (checkingRef.current) return;
         
         const now = Date.now();
@@ -91,6 +96,7 @@ export const useAuth = () => {
             
             console.log('检查认证状态，token:', token);
             
+            // 只用JWT
             const response = await api.get<User>('/api/auth/me', {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -157,30 +163,32 @@ export const useAuth = () => {
                 password
             });
             const { user, token, requires2FA, twoFactorType } = response.data;
+            if (token) {
+                localStorage.setItem('token', token);
+            }
             if (requires2FA && twoFactorType && twoFactorType.length > 0) {
-                // 记录二次验证信息（不输出到控制台）
-                const twoFactorInfo = {
-                    action: '登录需要二次验证',
-                    userId: user.id,
-                    username: user.username,
-                    twoFactorType,
-                    requires2FA,
-                    timestamp: new Date().toISOString()
-                };
-                
-                setPending2FA({ userId: user.id, token, type: twoFactorType, username: user.username });
+                setPending2FA({ userId: user.id, type: twoFactorType, username: user.username });
                 return { requires2FA: true, user, token, twoFactorType };
             } else {
-                localStorage.setItem('token', token);
                 setUser(user);
                 lastCheckRef.current = Date.now();
                 setLastCheckTime(Date.now());
-                // 添加调试日志
-                console.log('登录成功，保存token:', token);
-                console.log('用户信息:', user);
+                navigate('/', { replace: true });
                 return { requires2FA: false };
             }
         } catch (error: any) {
+            // 增强调试：详细打印error对象
+            console.error('[login error]', error);
+            if (error && error.response) {
+                console.error('[login error.response]', error.response);
+                console.error('[login error.response.data]', error.response.data);
+            }
+            if (error && error.message) {
+                console.error('[login error.message]', error.message);
+            }
+            if (error && error.code) {
+                console.error('[login error.code]', error.code);
+            }
             const msg = error.response?.data?.error || error.message || '登录失败，请检查网络或稍后重试';
             throw new Error(msg);
         }
@@ -188,33 +196,36 @@ export const useAuth = () => {
 
     // 新增：使用 token 和用户信息直接登录（用于 Passkey 认证）
     const loginWithToken = async (token: string, user: User) => {
-        localStorage.setItem('token', token);
+        // 只存JWT
+        if (token) {
+            localStorage.setItem('token', token);
+        }
         setUser(user);
         lastCheckRef.current = Date.now();
         setLastCheckTime(Date.now());
+        navigate('/', { replace: true });
     };
 
-    const verifyTOTP = async (token: string, backupCode?: string) => {
+    const verifyTOTP = async (code: string, backupCode?: string) => {
         if (!pendingTOTP) {
             throw new Error('没有待验证的TOTP请求');
         }
-
         try {
+            // 只用localStorage中的JWT
+            const token = localStorage.getItem('token');
+            if (!token) throw new Error('未登录');
             const response = await api.post('/api/totp/verify-token', {
                 userId: pendingTOTP.userId,
-                token: backupCode ? undefined : token,
+                token: backupCode ? undefined : code,
                 backupCode
             }, {
-                headers: { Authorization: `Bearer ${pendingTOTP.token}` }
+                headers: { Authorization: `Bearer ${token}` }
             });
-
-            if (response.data.verified) {
-                // TOTP验证成功，完成登录
-                localStorage.setItem('token', pendingTOTP.token);
+            if (response.data.verified && response.data.token) {
+                localStorage.setItem('token', response.data.token);
                 const userData = await getUserById(pendingTOTP.userId);
                 setUser(userData);
                 setPendingTOTP(null);
-                // 登录成功后立即更新检查时间，避免重复请求
                 lastCheckRef.current = Date.now();
                 setLastCheckTime(Date.now());
                 return true;
@@ -222,7 +233,6 @@ export const useAuth = () => {
                 throw new Error('TOTP验证失败');
             }
         } catch (error: any) {
-            // TOTP验证失败时清理pendingTOTP状态
             setPendingTOTP(null);
             
             const errorData = error.response?.data;
@@ -249,7 +259,7 @@ export const useAuth = () => {
 
     const getUserById = useCallback(async (userId: string): Promise<User> => {
         try {
-            // 使用正确的token而不是userId
+            // 只用JWT
             const token = localStorage.getItem('token');
             if (!token) {
                 throw new Error('没有有效的认证token');
@@ -272,6 +282,7 @@ export const useAuth = () => {
 
     const register = async (username: string, email: string, password: string) => {
         try {
+            // 注册成功后只存JWT
             const response = await api.post<{ user: User; token: string }>('/api/auth/register', {
                 username,
                 email,
@@ -280,7 +291,6 @@ export const useAuth = () => {
             const { user, token } = response.data;
             localStorage.setItem('token', token);
             setUser(user);
-            // 注册成功后立即更新检查时间，避免重复请求
             lastCheckRef.current = Date.now();
             setLastCheckTime(Date.now());
         } catch (error: any) {
@@ -290,7 +300,7 @@ export const useAuth = () => {
     };
 
     const logout = async () => {
-        // 只清除本地 token 和用户状态，不请求后端接口
+        // 只清除本地JWT
         localStorage.removeItem('token');
         setUser(null);
         setPendingTOTP(null);

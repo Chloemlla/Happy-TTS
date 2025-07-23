@@ -56,6 +56,10 @@ export const updateMod = async (req: Request, res: Response) => {
 
 export const deleteMod = async (req: Request, res: Response) => {
   const { id } = req.params;
+  const { code } = req.body;
+  if (code !== MODIFY_CODE) {
+    return res.status(403).json({ error: '修改码错误' });
+  }
   try {
     await deleteModStorage(id);
     res.json({ success: true });
