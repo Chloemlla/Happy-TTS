@@ -24,6 +24,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.USER_PAT }}
         run: |
+          echo "[LOG] 开始 Dependabot Rebase All 脚本"
           node <<'EOF'
           const https = require('https');
 
@@ -51,23 +52,31 @@ jobs:
                   if (res.statusCode >= 200 && res.statusCode < 300) {
                     resolve(JSON.parse(body));
                   } else {
+                    console.error(`[LOG] GitHub API error: ${res.statusCode} ${body}`);
                     reject(new Error(`GitHub API error: ${res.statusCode} ${body}`));
                   }
                 });
               });
-              req.on('error', reject);
+              req.on('error', (err) => {
+                console.error('[LOG] HTTPS request error:', err);
+                reject(err);
+              });
               if (data) req.write(JSON.stringify(data));
               req.end();
             });
           }
 
           (async () => {
-            // 获取所有open PR
+            console.log('[LOG] 获取所有 open PR...');
             const prs = await githubRequest(`/repos/${owner}/${repo}/pulls?state=open&per_page=100`);
+            console.log(`[LOG] 获取到 open PR 数量: ${prs.length}`);
             const dependabotPRs = prs.filter(pr => pr.user && pr.user.login === 'dependabot[bot]');
+            console.log(`[LOG] 过滤出 dependabot PR 数量: ${dependabotPRs.length}`);
             for (const pr of dependabotPRs) {
+              console.log(`[LOG] 正在评论 PR #${pr.number} ...`);
               await githubRequest(`/repos/${owner}/${repo}/issues/${pr.number}/comments`, 'POST', { body: '@dependabot rebase' });
-              console.log(`Commented on PR #${pr.number}`);
+              console.log(`[LOG] 已评论 PR #${pr.number}`);
             }
-          })().catch(e => { console.error(e); process.exit(1); });
+            console.log('[LOG] Dependabot rebase 评论全部完成');
+          })().catch(e => { console.error('[LOG] 脚本异常:', e); process.exit(1); });
           EOF
