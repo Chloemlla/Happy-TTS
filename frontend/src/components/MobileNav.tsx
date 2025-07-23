@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { User } from '../types/auth';
 import ReactDOM from 'react-dom';
 import { useTwoFactorStatus } from '../hooks/useTwoFactorStatus';
+import getApiBaseUrl from '../api';
 
 interface MobileNavProps {
   user: User | null;
@@ -24,6 +25,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
   const [isOverflow, setIsOverflow] = useState(false);
   const location = useLocation();
   const twoFactorStatus = useTwoFactorStatus();
+  const [hasAvatar, setHasAvatar] = useState<boolean>(false);
 
   // 检测是否为移动设备或溢出
   useEffect(() => {
@@ -58,6 +60,17 @@ const MobileNav: React.FC<MobileNavProps> = ({
   useEffect(() => {
     setIsMenuOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (user) {
+      fetch(getApiBaseUrl() + '/api/admin/user/avatar/exist', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      })
+        .then(res => res.json())
+        .then(data => setHasAvatar(!!data.hasAvatar))
+        .catch(() => setHasAvatar(false));
+    }
+  }, [user]);
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -396,17 +409,26 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   transition={{ duration: 0.5, delay: 0.2, type: "spring", stiffness: 200 }}
                   whileHover={{ scale: 1.1, rotate: 5 }}
                 >
-                  <motion.svg 
-                    className="w-6 h-6 text-white drop-shadow" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.3, delay: 0.4 }}
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </motion.svg>
+                  {hasAvatar && user?.avatarUrl ? (
+                    <img
+                      src={user.avatarUrl}
+                      alt="头像"
+                      className="w-full h-full object-cover rounded-full"
+                      onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  ) : (
+                    <motion.svg 
+                      className="w-6 h-6 text-white drop-shadow" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.3, delay: 0.4 }}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </motion.svg>
+                  )}
                 </motion.div>
                 <motion.div
                   initial={{ opacity: 0, x: -10 }}

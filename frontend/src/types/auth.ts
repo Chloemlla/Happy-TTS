@@ -12,6 +12,7 @@ export interface User {
   backupCodes?: string[];
   token?: string;
   tokenExpiresAt?: number;
+  avatarUrl?: string; // 新增头像URL字段
 }
 
 export interface TOTPStatus {

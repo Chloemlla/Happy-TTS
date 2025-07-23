@@ -334,4 +334,20 @@ router.post('/user/avatar', authMiddleware, upload.single('avatar'), async (req,
   }
 });
 
+// 用户头像是否存在接口（需登录）
+// 逻辑：如果数据库中 avatarUrl 字段不存在或为空，返回 hasAvatar: false，前端可回退到默认 SVG
+router.get('/user/avatar/exist', authMiddleware, async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user) return res.status(401).json({ error: '未登录' });
+    const { UserStorage } = require('../utils/userStorage');
+    const dbUser = await UserStorage.getUserById(user.id);
+    // avatarUrl 不存在或为空字符串时，hasAvatar 为 false
+    const hasAvatar = !!(dbUser && typeof dbUser.avatarUrl === 'string' && dbUser.avatarUrl.length > 0);
+    res.json({ hasAvatar });
+  } catch (e) {
+    res.status(500).json({ error: '查询头像状态失败' });
+  }
+});
+
 export default router; 
