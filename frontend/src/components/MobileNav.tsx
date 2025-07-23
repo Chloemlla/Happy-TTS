@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
 import { User } from '../types/auth';
 import ReactDOM from 'react-dom';
 import { useTwoFactorStatus } from '../hooks/useTwoFactorStatus';
 import getApiBaseUrl from '../api';
+import { openDB } from 'idb';
 
 interface MobileNavProps {
   user: User | null;
@@ -26,6 +27,36 @@ const MobileNav: React.FC<MobileNavProps> = ({
   const location = useLocation();
   const twoFactorStatus = useTwoFactorStatus();
   const [hasAvatar, setHasAvatar] = useState<boolean>(false);
+  const [avatarImg, setAvatarImg] = useState<string | undefined>(undefined);
+  const lastAvatarUrl = useRef<string | undefined>(undefined);
+  const lastObjectUrl = useRef<string | undefined>(undefined);
+
+  const AVATAR_DB = 'avatar-store';
+  const AVATAR_STORE = 'avatars';
+
+  async function getCachedAvatar(userId: string, avatarUrl: string): Promise<string | undefined> {
+    const db = await openDB(AVATAR_DB, 1, {
+      upgrade(db) {
+        if (!db.objectStoreNames.contains(AVATAR_STORE)) {
+          db.createObjectStore(AVATAR_STORE);
+        }
+      },
+    });
+    const key = `${userId}:${avatarUrl}`;
+    return await db.get(AVATAR_STORE, key);
+  }
+
+  async function setCachedAvatar(userId: string, avatarUrl: string, blobUrl: string) {
+    const db = await openDB(AVATAR_DB, 1, {
+      upgrade(db) {
+        if (!db.objectStoreNames.contains(AVATAR_STORE)) {
+          db.createObjectStore(AVATAR_STORE);
+        }
+      },
+    });
+    const key = `${userId}:${avatarUrl}`;
+    await db.put(AVATAR_STORE, blobUrl, key);
+  }
 
   // 检测是否为移动设备或溢出
   useEffect(() => {
@@ -71,6 +102,48 @@ const MobileNav: React.FC<MobileNavProps> = ({
         .catch(() => setHasAvatar(false));
     }
   }, [user]);
+
+  // 头像图片本地缓存逻辑
+  useEffect(() => {
+    let cancelled = false;
+    async function loadAvatar() {
+      if (hasAvatar && typeof user?.avatarUrl === 'string' && typeof user?.id === 'string') {
+        if (lastAvatarUrl.current === user.avatarUrl && avatarImg) {
+          return;
+        }
+        // 先查IndexedDB
+        const cached = await getCachedAvatar(user.id as string, user.avatarUrl as string);
+        if (cached) {
+          setAvatarImg(cached);
+          lastAvatarUrl.current = user.avatarUrl;
+          return;
+        }
+        // 下载图片
+        fetch(user.avatarUrl)
+          .then(res => res.blob())
+          .then(async blob => {
+            if (cancelled) return;
+            const url = URL.createObjectURL(blob);
+            setAvatarImg(url);
+            lastAvatarUrl.current = user.avatarUrl;
+            lastObjectUrl.current = url;
+            await setCachedAvatar(user.id as string, user.avatarUrl as string, url);
+          })
+          .catch(() => setAvatarImg(undefined));
+      } else {
+        setAvatarImg(undefined);
+        lastAvatarUrl.current = undefined;
+      }
+    }
+    loadAvatar();
+    return () => {
+      cancelled = true;
+      if (lastObjectUrl.current) {
+        URL.revokeObjectURL(lastObjectUrl.current);
+        lastObjectUrl.current = undefined;
+      }
+    };
+  }, [hasAvatar, user?.avatarUrl, user?.id]);
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -409,9 +482,9 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   transition={{ duration: 0.5, delay: 0.2, type: "spring", stiffness: 200 }}
                   whileHover={{ scale: 1.1, rotate: 5 }}
                 >
-                  {hasAvatar && user?.avatarUrl ? (
+                  {hasAvatar && avatarImg ? (
                     <img
-                      src={user.avatarUrl}
+                      src={avatarImg}
                       alt="头像"
                       className="w-full h-full object-cover rounded-full"
                       onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}

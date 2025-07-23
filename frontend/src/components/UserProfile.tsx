@@ -1,9 +1,10 @@
-import React, { useEffect, useState, ChangeEvent } from 'react';
+import React, { useEffect, useState, ChangeEvent, useRef } from 'react';
 import { useNotification } from './Notification';
 import { motion } from 'framer-motion';
 import VerifyCodeInput from './VerifyCodeInput';
 import { LoadingSpinner } from './LoadingSpinner';
 import getApiBaseUrl, { getApiBaseUrl as namedGetApiBaseUrl } from '../api';
+import { openDB } from 'idb';
 
 interface UserProfileData {
   id: string;
@@ -58,6 +59,33 @@ const verifyUser = async (verificationCode: string) => {
   return result;
 };
 
+const AVATAR_DB = 'avatar-store';
+const AVATAR_STORE = 'avatars';
+
+async function getCachedAvatar(userId: string, avatarUrl: string): Promise<string | undefined> {
+  const db = await openDB(AVATAR_DB, 1, {
+    upgrade(db) {
+      if (!db.objectStoreNames.contains(AVATAR_STORE)) {
+        db.createObjectStore(AVATAR_STORE);
+      }
+    },
+  });
+  const key = `${userId}:${avatarUrl}`;
+  return await db.get(AVATAR_STORE, key);
+}
+
+async function setCachedAvatar(userId: string, avatarUrl: string, blobUrl: string) {
+  const db = await openDB(AVATAR_DB, 1, {
+    upgrade(db) {
+      if (!db.objectStoreNames.contains(AVATAR_STORE)) {
+        db.createObjectStore(AVATAR_STORE);
+      }
+    },
+  });
+  const key = `${userId}:${avatarUrl}`;
+  await db.put(AVATAR_STORE, blobUrl, key);
+}
+
 const UserProfile: React.FC = () => {
   const { setNotification } = useNotification();
   const [profile, setProfile] = useState<UserProfileData | null>(null);
@@ -75,6 +103,9 @@ const UserProfile: React.FC = () => {
   const [newPwd, setNewPwd] = useState('');
   // 上传头像后本地预览并暂存，保存时一并提交
   const [pendingAvatar, setPendingAvatar] = useState<string | undefined>('');
+  const [avatarImg, setAvatarImg] = useState<string | undefined>(undefined);
+  const lastAvatarUrl = useRef<string | undefined>(undefined);
+  const lastObjectUrl = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     let timeoutId: any = null;
@@ -130,6 +161,47 @@ const UserProfile: React.FC = () => {
       });
     }
   }, [verified]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadAvatar() {
+      if (typeof profile?.avatarUrl === 'string' && typeof profile?.id === 'string') {
+        if (lastAvatarUrl.current === profile.avatarUrl && avatarImg) {
+          return;
+        }
+        // 先查IndexedDB
+        const cached = await getCachedAvatar(profile.id as string, profile.avatarUrl as string);
+        if (cached) {
+          setAvatarImg(cached);
+          lastAvatarUrl.current = profile.avatarUrl;
+          return;
+        }
+        // 下载图片
+        fetch(profile.avatarUrl)
+          .then(res => res.blob())
+          .then(async blob => {
+            if (cancelled) return;
+            const url = URL.createObjectURL(blob);
+            setAvatarImg(url);
+            lastAvatarUrl.current = profile.avatarUrl;
+            lastObjectUrl.current = url;
+            await setCachedAvatar(profile.id as string, profile.avatarUrl as string, url);
+          })
+          .catch(() => setAvatarImg(undefined));
+      } else {
+        setAvatarImg(undefined);
+        lastAvatarUrl.current = undefined;
+      }
+    }
+    loadAvatar();
+    return () => {
+      cancelled = true;
+      if (lastObjectUrl.current) {
+        URL.revokeObjectURL(lastObjectUrl.current);
+        lastObjectUrl.current = undefined;
+      }
+    };
+  }, [profile?.avatarUrl, profile?.id]);
 
   // 新增头像上传限制
   const MAX_AVATAR_SIZE = 2 * 1024 * 1024; // 2MB
@@ -304,7 +376,7 @@ const UserProfile: React.FC = () => {
           whileHover={{ scale: 1.05, rotate: 2 }}
           whileTap={{ scale: 0.97, rotate: -2 }}
         >
-          <Avatar src={profile?.avatarUrl} />
+          <Avatar src={avatarImg || profile?.avatarUrl} />
         </motion.div>
         <input
           type="file"
