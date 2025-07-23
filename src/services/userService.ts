@@ -44,7 +44,11 @@ export const getUserById = async (id: string): Promise<UserType | null> => {
   if (typeof id !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(id)) {
     throw new Error('非法的用户ID');
   }
-  const doc = await UserModel.findOne({ id }).lean();
+  // 调试日志：记录查询条件和耗时
+  const start = Date.now();
+  const doc = await UserModel.findOne({ id }).select('id username email role').lean();
+  const duration = Date.now() - start;
+  console.log('[MongoDB getUserById] 查询条件:', { id }, '耗时:', duration + 'ms', '返回字段:', doc ? Object.keys(doc) : 'null');
   if (!doc) return null;
   return doc as unknown as UserType;
 };
