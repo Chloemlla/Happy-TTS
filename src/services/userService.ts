@@ -77,7 +77,7 @@ export const createUser = async (user: UserType): Promise<UserType> => {
 const ALLOWED_UPDATE_FIELDS = [
   'username', 'email', 'password', 'role', 'dailyUsage', 'lastUsageDate', 'token', 'tokenExpiresAt',
   'totpSecret', 'totpEnabled', 'backupCodes', 'passkeyEnabled', 'passkeyCredentials',
-  'pendingChallenge', 'currentChallenge', 'passkeyVerified'
+  'pendingChallenge', 'currentChallenge', 'passkeyVerified', 'avatarBase64'
 ];
 
 export const updateUser = async (id: string, updates: Partial<UserType>): Promise<UserType | null> => {

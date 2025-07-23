@@ -18,7 +18,7 @@ const api = axios.create({
         'Content-Type': 'application/json',
         'Accept': 'application/json'
     },
-    timeout: 5000 // 5秒超时
+    timeout: 7500 // 7.5秒超时
 });
 
 api.interceptors.request.use(config => {

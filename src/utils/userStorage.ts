@@ -214,6 +214,10 @@ export class UserStorage {
         return errors;
     }
 
+    // 明文密码校验（如有加密可扩展）
+    public static checkPassword(user: User, password: string): boolean {
+        return user && user.password === password;
+    }
     // 自动重试工具
     private static withRetry<T>(fn: () => T, maxRetry = 2, label = ''): T {
         let lastErr;

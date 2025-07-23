@@ -176,16 +176,17 @@ export class AuthController {
                 // 必须通过TOTP或Passkey二次验证接口后，才发放正式token
                 const tempToken = user.id;
                 await updateUserToken(user.id, tempToken, 5 * 60 * 1000); // 5分钟过期
-                const { password: _, ...userWithoutPassword } = user;
+                // 只返回必要字段
+                const { id, username, email, role } = user;
                 return res.json({
-                    user: userWithoutPassword,
+                    user: { id, username, email, role },
                     token: tempToken,
                     requires2FA: true,
                     twoFactorType: [hasTOTP ? 'TOTP' : null, hasPasskey ? 'Passkey' : null].filter(Boolean)
                 });
-            }
+            } 
 
-            // 记录登录成功
+            // 登录成功
             logger.info('登录成功', {
                 userId: user.id,
                 username: user.username,
@@ -196,12 +197,9 @@ export class AuthController {
             const token = user.id;
             // 写入token到users.json
             await updateUserToken(user.id, token);
-            // 不返回密码
-            const { password: _, ...userWithoutPassword } = user;
-            res.json({
-                user: userWithoutPassword,
-                token
-            });
+            // 只返回必要字段
+            const { id, username, email, role } = user;
+            res.json({ user: { id, username, email, role }, token });
         } catch (error) {
             logger.error('登录流程发生未知错误', {
                 error: error instanceof Error ? error.message : String(error),

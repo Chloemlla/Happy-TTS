@@ -74,6 +74,8 @@ const UserProfile: React.FC = () => {
   const [changePwdMode, setChangePwdMode] = useState(false);
   const [oldPwd, setOldPwd] = useState('');
   const [newPwd, setNewPwd] = useState('');
+  // 上传头像后本地预览并暂存，保存时一并提交
+  const [pendingAvatar, setPendingAvatar] = useState<string | undefined>('');
 
   useEffect(() => {
     let timeoutId: any = null;
@@ -83,7 +85,7 @@ const UserProfile: React.FC = () => {
     timeoutId = setTimeout(() => {
       setLoadTimeout(true);
       setLoading(false);
-    }, 5000); // 5秒超时
+    }, 7500); // 7.5秒超时
     fetchProfile().then((data) => {
       clearTimeout(timeoutId);
       setLoading(false);
@@ -119,11 +121,27 @@ const UserProfile: React.FC = () => {
     fetchStatus();
   }, []);
 
-  const handleAvatarChange = (e: ChangeEvent<HTMLInputElement>) => {
+  // 登录/认证成功后自动刷新用户信息
+  useEffect(() => {
+    if (verified) {
+      fetchProfile().then((data) => {
+        if (data) {
+          setProfile(data);
+          setEmail(data.email);
+          setAvatarBase64(data.avatarBase64);
+        }
+      });
+    }
+  }, [verified]);
+
+  // 上传头像后本地预览并暂存，保存时一并提交
+  const handleAvatarChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // 预览
     const reader = new FileReader();
     reader.onload = () => {
+      setPendingAvatar(reader.result as string);
       setAvatarBase64(reader.result as string);
     };
     reader.readAsDataURL(file);
@@ -145,15 +163,14 @@ const UserProfile: React.FC = () => {
     }
   };
 
+  // 头像上传后只本地setAvatarBase64，保存profile时不再传avatarBase64，避免超大json
   const handleUpdate = async () => {
     if (totpStatus && !totpStatus.enabled && !totpStatus.hasPasskey) {
-      // 只需密码校验
       if (!password) {
         setNotification({ message: '请输入当前密码', type: 'warning' });
         return;
       }
     } else {
-      // 需要二次认证
       if (!verified) {
         setNotification({ message: '请先通过二次验证', type: 'warning' });
         return;
@@ -164,7 +181,7 @@ const UserProfile: React.FC = () => {
       email,
       password: totpStatus && !totpStatus.enabled && !totpStatus.hasPasskey ? password : undefined,
       newPassword: newPassword || undefined,
-      avatarBase64,
+      avatarBase64: pendingAvatar || undefined,
       verificationCode: totpStatus && (totpStatus.enabled || totpStatus.hasPasskey) ? verificationCode : undefined,
     });
     setLoading(false);
@@ -177,6 +194,7 @@ const UserProfile: React.FC = () => {
       setNewPassword('');
       setVerified(false);
       setVerificationCode('');
+      setPendingAvatar('');
     }
   };
 
@@ -246,8 +264,10 @@ const UserProfile: React.FC = () => {
           whileHover={{ scale: 1.05, rotate: 2 }}
           whileTap={{ scale: 0.97, rotate: -2 }}
         >
-          {avatarBase64 ? (
-            <img src={avatarBase64} alt="头像" className="w-full h-full object-cover" />
+          {pendingAvatar ? (
+            <img src={pendingAvatar} alt="头像" className="w-full h-full object-cover" />
+          ) : profile?.avatarBase64 ? (
+            <img src={profile.avatarBase64} alt="头像" className="w-full h-full object-cover" />
           ) : (
             <span className="text-4xl text-gray-400 flex items-center justify-center h-full">👤</span>
           )}

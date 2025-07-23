@@ -2,6 +2,8 @@ import express from 'express';
 import { adminController } from '../controllers/adminController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import rateLimit from 'express-rate-limit';
+import multer from 'multer';
+const upload = multer({ limits: { fileSize: 5 * 1024 * 1024 } }); // 5MB限制
 
 const router = express.Router();
 
@@ -230,7 +232,7 @@ router.get('/user/profile', authMiddleware, async (req, res) => {
     const dbUser = await UserStorage.getUserById(id);
     if (dbUser) {
       email = dbUser.email;
-      avatarBase64 = dbUser.avatarBase64;
+      avatarBase64 = dbUser.avatarBase64 || '';
     }
     res.json({ id, username, email, avatarBase64, role });
   } catch (e) {
@@ -264,14 +266,36 @@ router.post('/user/profile', authMiddleware, async (req, res) => {
     // 更新信息
     const updateData: any = {};
     if (email) updateData.email = email;
-    if (avatarBase64) updateData.avatarBase64 = avatarBase64;
+    if (avatarBase64 && typeof avatarBase64 === 'string' && avatarBase64.length < 2 * 1024 * 1024) {
+      updateData.avatarBase64 = avatarBase64;
+    }
     if (newPassword) updateData.password = newPassword;
     await UserStorage.updateUser(user.id, updateData);
     const updated = await UserStorage.getUserById(user.id);
     const { password: _, ...safeUser } = updated;
     res.json(safeUser);
   } catch (e) {
+    console.error('用户信息更新接口异常:', e);
     res.status(500).json({ error: '信息修改失败' });
+  }
+});
+
+// 用户头像上传接口（支持base64和文件）
+router.post('/user/avatar', authMiddleware, upload.single('avatar'), async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user) return res.status(401).json({ error: '未登录' });
+    let avatarBase64 = req.body.avatarBase64;
+    if (!avatarBase64 && req.file) {
+      // 文件转base64
+      avatarBase64 = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    }
+    if (!avatarBase64) return res.status(400).json({ error: '未上传头像' });
+    const { UserStorage } = require('../utils/userStorage');
+    await UserStorage.updateUser(user.id, { avatarBase64 });
+    res.json({ success: true, avatarBase64 });
+  } catch (e) {
+    res.status(500).json({ error: '头像上传失败' });
   }
 });
 
