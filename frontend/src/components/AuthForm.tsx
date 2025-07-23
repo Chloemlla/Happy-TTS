@@ -241,21 +241,11 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                         startTransition(() => setShowVerificationSelector(true));
                     } else if (hasPasskey) {
                         // 只启用Passkey，直接显示Passkey验证弹窗
-                        setPending2FA({
-                            userId: result.user.id,
-                            token: result.token,
-                            username: sanitizedUsername,
-                            type: ['Passkey']
-                        });
+                        setPending2FA({ userId: result.user.id, username: sanitizedUsername, type: ['Passkey'] });
                         startTransition(() => setShowPasskeyVerification(true));
                     } else if (hasTOTP) {
                         // 只启用TOTP，直接显示TOTP验证弹窗
-                        setPending2FA({
-                            userId: result.user.id,
-                            token: result.token,
-                            username: sanitizedUsername,
-                            type: ['TOTP']
-                        });
+                        setPending2FA({ userId: result.user.id, username: sanitizedUsername, type: ['TOTP'] });
                         startTransition(() => setShowTOTPVerification(true));
                     }
                     return;
@@ -401,12 +391,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
             } else if (method === 'totp') {
                 // 选择TOTP验证方式，设置pending2FA并显示TOTP验证弹窗
                 startTransition(() => {
-                    setPending2FA({
-                        userId: pendingVerificationData.userId,
-                        token: pendingVerificationData.token,
-                        username: pendingVerificationData.username,
-                        type: ['TOTP']
-                    });
+                    setPending2FA({ userId: pendingVerificationData.userId, username: pendingVerificationData.username, type: ['TOTP'] });
                     setShowTOTPVerification(true);
                     setNotify({ message: '请进行 TOTP 验证', type: 'info' });
                 });
@@ -646,7 +631,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                             });
                         }}
                         userId={pending2FA?.userId || ''}
-                        token={pending2FA?.token || ''}
+                        token={pendingToken || ''}
                     />
                 </ErrorBoundary>
             )}

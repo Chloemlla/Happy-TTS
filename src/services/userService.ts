@@ -115,11 +115,12 @@ export const updateUser = async (id: string, updates: Partial<UserType>): Promis
   const doc = await UserModel.findOneAndUpdate({ id }, updateOps, { new: true }).lean();
   // 调试日志：输出更新后文档
   if (process.env.NODE_ENV !== 'production') {
-    console.log('[updateUser] 更新后文档:', doc);
+    console.log('[updateUser] 更新后文档:', removeAvatarBase64(doc));
   } else if (doc) {
     // 生产环境只输出前20行
-    const lines = JSON.stringify(doc, null, 2).split('\n').slice(0, 20).join('\n');
-    console.log('[updateUser] 更新后文档(前20行):\n' + lines + (lines.length < JSON.stringify(doc, null, 2).length ? '\n...（已截断）' : ''));
+    const safeDoc = removeAvatarBase64(doc);
+    const lines = JSON.stringify(safeDoc, null, 2).split('\n').slice(0, 20).join('\n');
+    console.log('[updateUser] 更新后文档(前20行):\n' + lines + (lines.length < JSON.stringify(safeDoc, null, 2).length ? '\n...（已截断）' : ''));
   }
   return doc ? removeAvatarBase64(doc) as unknown as UserType : null;
 };
