@@ -56,7 +56,7 @@ const OutEmail: React.FC = () => {
     fetch(getApiBaseUrl() + '/api/email/outemail-status')
       .then(res => res.json())
       .then(data => {
-        if (data.success) {
+        if (typeof data.available === 'boolean') {
           setOutemailStatus({
             available: data.available,
             error: data.error

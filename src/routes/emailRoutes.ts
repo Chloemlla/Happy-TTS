@@ -344,11 +344,11 @@ router.get('/status', statusQueryLimiter, EmailController.getServiceStatus);
 router.get('/outemail-status', statusQueryLimiter, (req, res) => {
   try {
     const outemailStatus = (globalThis as any).OUTEMAIL_SERVICE_STATUS;
-    if (outemailStatus) {
+    if (outemailStatus && typeof outemailStatus.available === 'boolean') {
       res.json({
         success: true,
         available: outemailStatus.available,
-        error: outemailStatus.error
+        error: outemailStatus.error || ''
       });
     } else {
       res.json({
@@ -366,6 +366,7 @@ router.get('/outemail-status', statusQueryLimiter, (req, res) => {
     });
     res.status(500).json({ 
       success: false,
+      available: false,
       error: '服务状态查询失败' 
     });
   }
