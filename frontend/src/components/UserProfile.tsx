@@ -62,7 +62,7 @@ const verifyUser = async (verificationCode: string) => {
 const AVATAR_DB = 'avatar-store';
 const AVATAR_STORE = 'avatars';
 
-async function getCachedAvatar(userId: string, avatarUrl: string): Promise<string | undefined> {
+async function getCachedAvatar(userId: string, avatarHash: string): Promise<string | undefined> {
   const db = await openDB(AVATAR_DB, 1, {
     upgrade(db) {
       if (!db.objectStoreNames.contains(AVATAR_STORE)) {
@@ -70,11 +70,11 @@ async function getCachedAvatar(userId: string, avatarUrl: string): Promise<strin
       }
     },
   });
-  const key = `${userId}:${avatarUrl}`;
+  const key = `${userId}:${avatarHash}`;
   return await db.get(AVATAR_STORE, key);
 }
 
-async function setCachedAvatar(userId: string, avatarUrl: string, blobUrl: string) {
+async function setCachedAvatar(userId: string, avatarHash: string, blobUrl: string) {
   const db = await openDB(AVATAR_DB, 1, {
     upgrade(db) {
       if (!db.objectStoreNames.contains(AVATAR_STORE)) {
@@ -82,7 +82,7 @@ async function setCachedAvatar(userId: string, avatarUrl: string, blobUrl: strin
       }
     },
   });
-  const key = `${userId}:${avatarUrl}`;
+  const key = `${userId}:${avatarHash}`;
   await db.put(AVATAR_STORE, blobUrl, key);
 }
 
@@ -106,6 +106,7 @@ const UserProfile: React.FC = () => {
   const [avatarImg, setAvatarImg] = useState<string | undefined>(undefined);
   const lastAvatarUrl = useRef<string | undefined>(undefined);
   const lastObjectUrl = useRef<string | undefined>(undefined);
+  const [avatarHash, setAvatarHash] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     let timeoutId: any = null;
@@ -162,18 +163,30 @@ const UserProfile: React.FC = () => {
     }
   }, [verified]);
 
+  // 在 useEffect 里获取 profile 时，保存 avatarHash 到 state
+  useEffect(() => {
+    if (profile?.id) {
+      fetch(getApiBaseUrl() + '/api/admin/user/profile', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      })
+        .then(res => res.json())
+        .then(data => setAvatarHash(data.avatarHash))
+        .catch(() => setAvatarHash(undefined));
+    }
+  }, [profile?.id]);
+
   useEffect(() => {
     let cancelled = false;
     async function loadAvatar() {
-      if (typeof profile?.avatarUrl === 'string' && typeof profile?.id === 'string') {
-        if (lastAvatarUrl.current === profile.avatarUrl && avatarImg) {
+      if (typeof profile?.avatarUrl === 'string' && typeof profile?.id === 'string' && typeof avatarHash === 'string') {
+        if (lastAvatarUrl.current === avatarHash && avatarImg) {
           return;
         }
         // 先查IndexedDB
-        const cached = await getCachedAvatar(profile.id as string, profile.avatarUrl as string);
+        const cached = await getCachedAvatar(profile.id as string, avatarHash as string);
         if (cached) {
           setAvatarImg(cached);
-          lastAvatarUrl.current = profile.avatarUrl;
+          lastAvatarUrl.current = avatarHash;
           return;
         }
         // 下载图片
@@ -183,9 +196,9 @@ const UserProfile: React.FC = () => {
             if (cancelled) return;
             const url = URL.createObjectURL(blob);
             setAvatarImg(url);
-            lastAvatarUrl.current = profile.avatarUrl;
+            lastAvatarUrl.current = avatarHash;
             lastObjectUrl.current = url;
-            await setCachedAvatar(profile.id as string, profile.avatarUrl as string, url);
+            await setCachedAvatar(profile.id as string, avatarHash as string, url);
           })
           .catch(() => setAvatarImg(undefined));
       } else {
@@ -201,7 +214,7 @@ const UserProfile: React.FC = () => {
         lastObjectUrl.current = undefined;
       }
     };
-  }, [profile?.avatarUrl, profile?.id]);
+  }, [profile?.avatarUrl, profile?.id, avatarHash]);
 
   // 新增头像上传限制
   const MAX_AVATAR_SIZE = 2 * 1024 * 1024; // 2MB

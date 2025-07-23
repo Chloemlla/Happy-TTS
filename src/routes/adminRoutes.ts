@@ -243,16 +243,29 @@ router.get('/user/profile', authMiddleware, async (req, res) => {
     const { id, username, role } = user;
     let email = undefined;
     let avatarUrl = undefined;
+    let avatarHash = undefined;
     const { UserStorage } = require('../utils/userStorage');
     const dbUser = await UserStorage.getUserById(id);
     if (dbUser) {
       email = dbUser.email;
       if (dbUser.avatarUrl && typeof dbUser.avatarUrl === 'string' && dbUser.avatarUrl.length > 0) {
         avatarUrl = dbUser.avatarUrl;
+        // 尝试从URL中提取hash（如文件名带hash），否则可用md5等生成
+        const match = dbUser.avatarUrl.match(/([a-fA-F0-9]{8,})\.(jpg|jpeg|png|webp|gif)$/);
+        if (match) {
+          avatarHash = match[1];
+        } else {
+          // 若URL不带hash，可用URL整体md5
+          const crypto = require('crypto');
+          avatarHash = crypto.createHash('md5').update(dbUser.avatarUrl).digest('hex');
+        }
       }
     }
     const resp = { id, username, email, role };
-    if (avatarUrl) (resp as any).avatarUrl = avatarUrl;
+    if (avatarUrl) {
+      (resp as any).avatarUrl = avatarUrl;
+      (resp as any).avatarHash = avatarHash;
+    }
     res.json(resp);
   } catch (e) {
     res.status(500).json({ error: '获取用户信息失败' });

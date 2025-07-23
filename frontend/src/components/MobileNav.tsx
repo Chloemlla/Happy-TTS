@@ -30,6 +30,8 @@ const MobileNav: React.FC<MobileNavProps> = ({
   const [avatarImg, setAvatarImg] = useState<string | undefined>(undefined);
   const lastAvatarUrl = useRef<string | undefined>(undefined);
   const lastObjectUrl = useRef<string | undefined>(undefined);
+  // 1. 在 useEffect 里获取 profile 时，保存 avatarHash 到 state
+  const [avatarHash, setAvatarHash] = useState<string | undefined>(undefined);
 
   const AVATAR_DB = 'avatar-store';
   const AVATAR_STORE = 'avatars';
@@ -103,19 +105,31 @@ const MobileNav: React.FC<MobileNavProps> = ({
     }
   }, [user]);
 
-  // 头像图片本地缓存逻辑
+  // 1. 在 useEffect 里获取 profile 时，保存 avatarHash 到 state
+  useEffect(() => {
+    if (user) {
+      fetch(getApiBaseUrl() + '/api/admin/user/profile', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      })
+        .then(res => res.json())
+        .then(data => setAvatarHash(data.avatarHash))
+        .catch(() => setAvatarHash(undefined));
+    }
+  }, [user]);
+
+  // 2. 缓存key用 user.id:avatarHash
   useEffect(() => {
     let cancelled = false;
     async function loadAvatar() {
-      if (hasAvatar && typeof user?.avatarUrl === 'string' && typeof user?.id === 'string') {
-        if (lastAvatarUrl.current === user.avatarUrl && avatarImg) {
+      if (hasAvatar && typeof user?.avatarUrl === 'string' && typeof user?.id === 'string' && typeof avatarHash === 'string') {
+        if (lastAvatarUrl.current === avatarHash && avatarImg) {
           return;
         }
         // 先查IndexedDB
-        const cached = await getCachedAvatar(user.id as string, user.avatarUrl as string);
+        const cached = await getCachedAvatar(user.id as string, avatarHash as string);
         if (cached) {
           setAvatarImg(cached);
-          lastAvatarUrl.current = user.avatarUrl;
+          lastAvatarUrl.current = avatarHash;
           return;
         }
         // 下载图片
@@ -125,9 +139,9 @@ const MobileNav: React.FC<MobileNavProps> = ({
             if (cancelled) return;
             const url = URL.createObjectURL(blob);
             setAvatarImg(url);
-            lastAvatarUrl.current = user.avatarUrl;
+            lastAvatarUrl.current = avatarHash;
             lastObjectUrl.current = url;
-            await setCachedAvatar(user.id as string, user.avatarUrl as string, url);
+            await setCachedAvatar(user.id as string, avatarHash as string, url);
           })
           .catch(() => setAvatarImg(undefined));
       } else {
@@ -143,7 +157,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
         lastObjectUrl.current = undefined;
       }
     };
-  }, [hasAvatar, user?.avatarUrl, user?.id]);
+  }, [hasAvatar, user?.avatarUrl, user?.id, avatarHash]);
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
