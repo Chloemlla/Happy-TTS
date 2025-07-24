@@ -64,9 +64,9 @@ let detectedReasons: string[] = [];
 
 function hasDangerousExtension() {
   detectedReasons = [];
-  // 豁免：页面仅包含base64图片（如用户头像上传）时不触发拦截
+  // 豁免：页面仅包含base64图片或blob图片（如用户头像上传、图片预览）时不触发拦截
   const allImgs = Array.from(document.querySelectorAll('img'));
-  if (allImgs.length > 0 && allImgs.every(img => img.src.startsWith('data:image/'))) {
+  if (allImgs.length > 0 && allImgs.every(img => img.src.startsWith('data:image/') || img.src.startsWith('blob:'))) {
     return false;
   }
   // 1. 检查所有 script 标签（src 和内容，模糊匹配）
@@ -465,11 +465,19 @@ function blockDangerousExtension() {
       </div>
     </div>
   `;
-  throw new Error('检测到危险扩展，已阻止渲染');
+  // throw new Error('检测到危险扩展，已阻止渲染');
+  // 只弹窗警告，不抛出异常，保证页面不中断
+  // eslint-disable-next-line no-console
+  console.error('检测到危险扩展，已弹窗警告，但未阻断页面渲染');
 }
 
 // 检测执行时机和多重保险
 function runDangerousExtensionCheck() {
+  // 图片预览豁免：如果页面所有 img 都是 blob: 或 data:image/，则不弹窗
+  const allImgs = Array.from(document.querySelectorAll('img'));
+  if (allImgs.length > 0 && allImgs.every(img => img.src.startsWith('data:image/') || img.src.startsWith('blob:'))) {
+    return;
+  }
   if (hasDangerousExtension()) {
     blockDangerousExtension();
   }

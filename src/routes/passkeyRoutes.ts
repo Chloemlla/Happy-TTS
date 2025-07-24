@@ -96,7 +96,9 @@ router.post('/register/finish', authenticateToken, rateLimitMiddleware, async (r
         // 自动获取请求origin
         const requestOrigin = req.headers.origin || req.headers.referer || 'http://localhost:3001';
         const verification = await PasskeyService.verifyRegistration(user, response, credentialName, requestOrigin);
-        res.json(verification);
+        // 注册成功后，返回最新的passkeyCredentials
+        const updatedUser = await UserStorage.getUserById(userId);
+        res.json({ ...verification, passkeyCredentials: updatedUser?.passkeyCredentials || [] });
     } catch (error) {
         console.error('完成 Passkey 注册失败:', error);
         res.status(500).json({ error: '完成 Passkey 注册失败' });

@@ -79,7 +79,7 @@ export const usePasskey = (): UsePasskeyReturn & {
                 return;
             }
             // 完成注册
-            await passkeyApi.finishRegistration(credentialName, attResp);
+            const finishResp = await passkeyApi.finishRegistration(credentialName, attResp);
             // 注册成功后弹窗显示 credentialID
             if (attResp && attResp.id) {
                 setCurrentCredentialId(attResp.id);
@@ -91,8 +91,13 @@ export const usePasskey = (): UsePasskeyReturn & {
                     timestamp: new Date().toISOString()
                 };
             }
+            // 优先使用后端返回的passkeyCredentials
+            if (finishResp?.data?.passkeyCredentials) {
+                setCredentials(finishResp.data.passkeyCredentials);
+            } else {
+                await loadCredentials();
+            }
             // 成功提示交由外部 setNotification 统一管理
-            await loadCredentials();
         } catch (error: any) {
             if (attResp && attResp.id) {
                 setCurrentCredentialId(attResp.id);

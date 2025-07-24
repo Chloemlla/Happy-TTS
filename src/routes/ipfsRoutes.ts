@@ -1,6 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import { IPFSController } from '../controllers/ipfsController';
+import mongoose from 'mongoose';
 
 const router = express.Router();
 
@@ -105,5 +106,15 @@ const upload = multer({
  *                   description: 错误信息
  */
 router.post('/upload', upload.single('file'), IPFSController.uploadImage);
+
+// 短链跳转路由
+router.get('/s/:code', async (req, res) => {
+  const code = req.params.code;
+  if (!code) return res.status(400).send('缺少短链码');
+  const ShortUrlModel = mongoose.models.ShortUrl || mongoose.model('ShortUrl');
+  const record = await ShortUrlModel.findOne({ code });
+  if (!record) return res.status(404).send('短链不存在');
+  res.redirect(record.target);
+});
 
 export default router; 

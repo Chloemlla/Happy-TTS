@@ -2,6 +2,16 @@ import axios from 'axios';
 import FormData from 'form-data';
 import { Request } from 'express';
 import logger from '../utils/logger';
+const nanoid = require('nanoid').nanoid;
+import mongoose from 'mongoose';
+
+// 短链映射Schema
+const ShortUrlSchema = new mongoose.Schema({
+  code: { type: String, required: true, unique: true },
+  target: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now }
+}, { collection: 'short_urls' });
+const ShortUrlModel = mongoose.models.ShortUrl || mongoose.model('ShortUrl', ShortUrlSchema);
 
 export interface IPFSUploadResponse {
     status: string;
@@ -11,6 +21,14 @@ export interface IPFSUploadResponse {
     fileSize: string;
     gnfd_id: string | null;
     gnfd_txn: string | null;
+    shortUrl?: string;
+}
+
+// 确保 mongoose 连接已建立
+async function ensureMongoConnected() {
+  if (mongoose.connection.readyState !== 1) {
+    await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/tts');
+  }
 }
 
 export class IPFSService {
@@ -27,7 +45,8 @@ export class IPFSService {
     public static async uploadFile(
         fileBuffer: Buffer,
         filename: string,
-        mimetype: string
+        mimetype: string,
+        options?: { shortLink?: boolean }
     ): Promise<IPFSUploadResponse> {
         const MAX_RETRIES = 2;
         let lastError: any = null;
@@ -51,13 +70,13 @@ export class IPFSService {
                     throw new Error('只支持图片文件格式：JPEG, PNG, GIF, WebP, BMP, SVG');
                 }
                 // 创建FormData
-                const formData = new FormData();
+                const formData = new (require('form-data'))();
                 formData.append('file', fileBuffer, {
                     filename,
                     contentType: mimetype
                 });
                 // 发送请求到IPFS
-                const response = await axios.post<IPFSUploadResponse>(
+                const response = await (require('axios')).post(
                     this.IPFS_UPLOAD_URL,
                     formData,
                     {
@@ -67,28 +86,25 @@ export class IPFSService {
                         timeout: 30000, // 30秒超时
                     }
                 );
-                logger.info('IPFS上传成功', {
-                    filename,
-                    fileSize: fileBuffer.length,
-                    cid: response.data.cid,
-                    web2url: response.data.web2url
-                });
-                return response.data;
+                // 上传成功后生成短链（仅当 options.shortLink 为 true 时）
+                let shortUrl = '';
+                if (options && options.shortLink && response.data.web2url) {
+                  await ensureMongoConnected();
+                  let code = nanoid(6);
+                  while (await ShortUrlModel.findOne({ code })) {
+                    code = nanoid(6);
+                  }
+                  await ShortUrlModel.create({ code, target: response.data.web2url });
+                  shortUrl = `${process.env.VITE_API_URL || process.env.BASE_URL || 'https://tts-api.hapxs.com'}/s/${code}`;
+                }
+                return { ...response.data, shortUrl };
             } catch (error) {
                 lastError = error;
-                logger.error('IPFS上传失败', {
-                    filename,
-                    fileSize: fileBuffer.length,
-                    error: error instanceof Error ? error.message : '未知错误',
-                    attempt: attempt + 1
-                });
                 if (attempt < MAX_RETRIES) {
-                    // 等待1秒后重试
                     await new Promise(res => setTimeout(res, 1000));
                 }
             }
         }
-        // 全部重试失败后抛出最后一次错误
         throw lastError;
     }
 

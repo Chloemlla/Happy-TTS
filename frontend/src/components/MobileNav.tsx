@@ -292,6 +292,30 @@ const MobileNav: React.FC<MobileNavProps> = ({
             <span className="hidden sm:inline">抽奖系统</span>
           </Link>
         </motion.div>
+        <motion.div
+            whileHover={{ scale: 1.05, y: -2 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Link 
+              to="/image-upload" 
+              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${
+                location.pathname === '/image-upload'
+                  ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg'
+                  : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-blue-600 border border-gray-200/50'
+              }`}
+            >
+              <motion.svg 
+                className="w-4 h-4" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+                whileHover={{ rotate: 5 }}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v-4a4 4 0 014-4h8a4 4 0 014 4v4M4 16l4-4a4 4 0 015.656 0L20 16" />
+              </motion.svg>
+              <span className="hidden sm:inline">图片上传</span>
+            </Link>
+          </motion.div>
         </div>
 
         {/* 管理员功能组 */}
@@ -832,6 +856,40 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   {location.pathname === '/lottery' && (
                     <motion.span 
                       className="ml-auto text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full"
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                    >
+                      当前
+                    </motion.span>
+                  )}
+                </Link>
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.48 }}
+              >
+                <Link
+                  to="/image-upload"
+                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
+                    location.pathname === '/image-upload' ? 'bg-blue-50 text-blue-700 font-semibold shadow-sm' : 'hover:bg-blue-50'
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <motion.svg 
+                    className={`w-5 h-5 ${location.pathname === '/image-upload' ? 'text-blue-500' : 'text-gray-400'}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v-4a4 4 0 014-4h8a4 4 0 014 4v4M4 16l4-4a4 4 0 015.656 0L20 16" />
+                  </motion.svg>
+                  <span>图片上传</span>
+                  {location.pathname === '/image-upload' && (
+                    <motion.span 
+                      className="ml-auto text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full"
                       initial={{ scale: 0, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
                       transition={{ type: "spring", stiffness: 500, damping: 15 }}

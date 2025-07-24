@@ -303,9 +303,10 @@ router.post('/user/profile', authMiddleware, async (req, res) => {
       updateData.avatarUrl = avatarUrl;
     }
     if (newPassword) updateData.password = newPassword;
-    if (!Array.isArray(dbUser.passkeyCredentials)) {
-      updateData.passkeyCredentials = [];
-    }
+    // 只有明确需要重置passkeyCredentials时才设置，避免误清空
+    // if (!Array.isArray(dbUser.passkeyCredentials)) {
+    //   updateData.passkeyCredentials = [];
+    // }
     await UserStorage.updateUser(user.id, updateData);
     const updated = await UserStorage.getUserById(user.id);
     const { password: _, ...safeUser } = updated;

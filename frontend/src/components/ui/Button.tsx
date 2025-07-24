@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '../../utils/cn';
+import { motion } from 'framer-motion';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     variant?: 'default' | 'destructive' | 'outline' | 'ghost' | 'link';
@@ -33,3 +34,5 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         );
     }
 );
+
+export const MotionButton = motion.create(Button);
