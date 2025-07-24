@@ -146,7 +146,7 @@ const ImageUploadPage: React.FC = () => {
         {file && previewUrl && (
           <div className="mb-4 flex flex-col items-center">
             <img src={previewUrl} alt="预览" className="w-48 h-48 object-contain rounded-xl border border-gray-200 shadow" />
-            <div className="text-sm text-gray-600 mt-2">{file.name} ({(file.size / 1024).toFixed(1)} KB)</div>
+            <div className="text-sm text-gray-600 mt-2">{String(file.name)} ({(file.size / 1024).toFixed(1)} KB)</div>
             <Button className="mt-2" variant="outline" onClick={handleRemove} disabled={uploading}>移除</Button>
           </div>
         )}
