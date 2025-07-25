@@ -14,8 +14,8 @@ const emailPattern = new RegExp(
   `^[\\w.-]+@(${allowedDomains.map(d => d.replace('.', '\\.')).join('|')})$`
 );
 
-// 临时存储验证码（生产建议用redis等持久化）
-const emailCodeMap = new Map();
+// 临时存储验证码和注册信息
+const emailCodeMap = new Map(); // email -> { code, time, regInfo }
 
 // 顶部 import 后添加类型声明
 type UserWithVerified = User & { verified?: boolean };
@@ -25,70 +25,40 @@ export class AuthController {
     public static async register(req: Request, res: Response) {
         try {
             const { username, email, password } = req.body;
-
             if (!username || !email || !password) {
-                return res.status(400).json({
-                    error: '请提供所有必需的注册信息'
-                });
+                return res.status(400).json({ error: '请提供所有必需的注册信息' });
             }
-
             // 只允许主流邮箱
             if (!emailPattern.test(email)) {
                 return res.status(400).json({ error: '只支持主流邮箱（如gmail、outlook、qq、163、126、hotmail、yahoo、icloud、foxmail等）' });
             }
-
             // 验证邮箱格式
             const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
             if (!emailRegex.test(email)) {
-                return res.status(400).json({
-                    error: '邮箱格式不正确'
-                });
+                return res.status(400).json({ error: '邮箱格式不正确' });
             }
-
-            const user = await UserStorage.createUser(username, email, password);
-            if (!user) {
-                return res.status(400).json({
-                    error: '用户名或邮箱已被使用'
-                });
+            // 禁止用户名为admin
+            if (username && username.toLowerCase() === 'admin') {
+                return res.status(400).json({ error: '用户名不能为admin' });
             }
-
-            // 生成8位数字+大小写字母验证码
-            const chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            // 检查用户名或邮箱是否已注册
+            const existUser = await UserStorage.getUserByUsername(username);
+            const existEmail = await UserStorage.getUserByEmail(email);
+            if (existUser || existEmail) {
+                return res.status(400).json({ error: '用户名或邮箱已被使用' });
+            }
+            // 生成8位数字验证码
             let code = '';
             for (let i = 0; i < 8; i++) {
-              code += chars.charAt(Math.floor(Math.random() * chars.length));
+              code += Math.floor(Math.random() * 10);
             }
-            emailCodeMap.set(email, code);
-            // 精美HTML邮件内容
-            const html = `
-              <div style="max-width:420px;margin:32px auto;padding:32px 24px;background:linear-gradient(135deg,#6366f1 0%,#a5b4fc 100%);border-radius:20px;box-shadow:0 4px 24px 0 rgba(99,102,241,0.08);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Oxygen','Ubuntu','Cantarell',sans-serif;">
-                <div style="text-align:center;margin-bottom:24px;">
-                  <div style="font-size:38px;color:#6366f1;">🔐</div>
-                  <h2 style="margin:0 0 8px 0;color:#fff;font-size:1.8rem;font-weight:700;letter-spacing:1px;">邮箱验证</h2>
-                  <p style="color:#e0e7ff;font-size:1.1rem;margin:0;">欢迎注册 Synapse</p>
-                </div>
-                <div style="background:#fff;border-radius:16px;padding:24px 16px;margin-bottom:24px;box-shadow:0 2px 8px rgba(99,102,241,0.06);">
-                  <div style="text-align:center;font-size:1.1rem;color:#6366f1;font-weight:600;letter-spacing:2px;">您的验证码</div>
-                  <div style="font-size:2.2rem;font-weight:700;color:#4f46e5;letter-spacing:6px;margin:18px 0 8px 0;">${code}</div>
-                  <div style="color:#64748b;font-size:0.95rem;">有效期：5分钟。请勿泄露验证码。</div>
-                </div>
-                <div style="text-align:center;color:#64748b;font-size:0.95rem;">如非本人操作，请忽略此邮件。</div>
-                <div style="margin-top:32px;text-align:center;">
-                  <span style="color:#818cf8;font-size:1.1rem;font-weight:600;">Synapse 团队</span>
-                </div>
-              </div>
-            `;
-            await EmailService.sendEmail({
-              from: 'noreply@hapxs.com',
-              to: [email],
-              subject: 'Synapse 注册验证码',
-              html,
-              text: `您的注册验证码为：${code}，5分钟内有效。`
-            });
-            // 返回需验证
-            res.status(200).json({ needVerify: true });
+            const now = Date.now();
+            // 缓存注册信息和验证码
+            emailCodeMap.set(email, { code, time: now, regInfo: { username, email, password } });
+            // TODO: 实际发送邮件逻辑
+            logger.info(`[邮箱验证码] 发送到: ${email}, code: ${code}`);
+            res.json({ needVerify: true });
         } catch (error) {
-            logger.error('注册失败:', error);
             res.status(500).json({ error: '注册失败' });
         }
     }
@@ -99,20 +69,59 @@ export class AuthController {
             if (!email || !code) {
                 return res.status(400).json({ error: '参数缺失' });
             }
-            const realCode = emailCodeMap.get(email);
-            if (!realCode) {
+            if (!/^[0-9]{8}$/.test(code)) {
+                return res.status(400).json({ error: '验证码仅为八位数字' });
+            }
+            const entry = emailCodeMap.get(email);
+            if (!entry) {
                 return res.status(400).json({ error: '请先注册获取验证码' });
             }
-            if (realCode !== code) {
+            if (entry.code !== code) {
                 return res.status(400).json({ error: '验证码错误' });
             }
-            // 验证通过，正式创建用户
-            // 这里假设注册信息已暂存，实际可用redis等存储注册信息
-            // 简化：直接允许登录
+            // 校验通过，正式创建用户
+            const { regInfo } = entry;
+            if (!regInfo) {
+                return res.status(400).json({ error: '注册信息已过期或无效' });
+            }
+            // 再次检查用户名/邮箱是否被注册（防止并发）
+            const existUser = await UserStorage.getUserByUsername(regInfo.username);
+            const existEmail = await UserStorage.getUserByEmail(regInfo.email);
+            if (existUser || existEmail) {
+                emailCodeMap.delete(email);
+                return res.status(400).json({ error: '用户名或邮箱已被使用' });
+            }
+            await UserStorage.createUser(regInfo.username, regInfo.email, regInfo.password);
             emailCodeMap.delete(email);
             res.json({ success: true });
         } catch (error) {
             res.status(500).json({ error: '邮箱验证失败' });
+        }
+    }
+
+    // 新增：重发验证码接口
+    public static async sendVerifyEmail(req: Request, res: Response) {
+        try {
+            const { email } = req.body;
+            if (!email || !emailPattern.test(email)) {
+                return res.status(400).json({ error: '邮箱格式不正确' });
+            }
+            const entry = emailCodeMap.get(email);
+            const now = Date.now();
+            if (entry && now - entry.time < 60000) {
+                return res.status(429).json({ error: '请60秒后再试' });
+            }
+            // 生成8位数字验证码
+            let code = '';
+            for (let i = 0; i < 8; i++) {
+              code += Math.floor(Math.random() * 10);
+            }
+            emailCodeMap.set(email, { code, time: now });
+            // TODO: 实际发送邮件逻辑
+            logger.info(`[邮箱验证码] 发送到: ${email}, code: ${code}`);
+            res.json({ success: true });
+        } catch (error) {
+            res.status(500).json({ error: '验证码发送失败' });
         }
     }
 

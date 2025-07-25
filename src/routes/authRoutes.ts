@@ -114,4 +114,25 @@ router.post('/passkey-verify', AuthController.passkeyVerify);
  */
 router.post('/verify-email', AuthController.verifyEmail);
 
+/**
+ * @openapi
+ * /auth/send-verify-email:
+ *   post:
+ *     summary: 发送验证邮箱
+ *     description: 发送验证邮箱接口
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 发送成功
+ */
+router.post('/send-verify-email', AuthController.sendVerifyEmail);
+
 export default router; 

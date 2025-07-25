@@ -71,6 +71,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
     const [verifyCode, setVerifyCode] = useState('');
     const [verifyError, setVerifyError] = useState('');
     const [verifyLoading, setVerifyLoading] = useState(false);
+    const [verifyResendTimer, setVerifyResendTimer] = useState(0);
 
     // 支持的主流邮箱后缀
     const allowedDomains = [
@@ -80,6 +81,9 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
     const emailPattern = new RegExp(
       `^[\\w.-]+@(${allowedDomains.map(d => d.replace('.', '\\.')).join('|')})$`
     );
+
+    // 保留用户名列表
+    const reservedUsernames = ['admin', 'root', 'system', 'test', 'administrator'];
 
     // 密码复杂度检查
     const checkPasswordStrength = (pwd: string): PasswordStrength => {
@@ -149,6 +153,10 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                 // 用户名：3-20个字符，只允许字母、数字、下划线
                 if (!/^[a-zA-Z0-9_]{3,20}$/.test(sanitizedValue)) {
                     return '用户名只能包含字母、数字和下划线，长度3-20个字符';
+                }
+                // 保留用户名校验
+                if (reservedUsernames.includes(sanitizedValue.toLowerCase())) {
+                    return '该用户名为保留字段，不能注册';
                 }
                 // 防止SQL注入相关字符
                 if (/[';"]/.test(sanitizedValue)) {
@@ -271,8 +279,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                     setPendingEmail(sanitizedEmail);
                     setNotify({ message: '验证码已发送到邮箱，请查收', type: 'info' });
                 } else {
-                    setError('注册失败，未收到验证码发送指示');
-                    setNotify({ message: '注册失败，未收到验证码发送指示', type: 'error' });
+                    setError(data?.error || '注册失败，未收到验证码发送指示');
+                    setNotify({ message: data?.error || '注册失败，未收到验证码发送指示', type: 'error' });
                 }
             }
             // 登录成功后强制刷新页面，不需要回调函数
@@ -303,13 +311,17 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
 
     // 实时密码强度检查
     useEffect(() => {
+        if (!isLogin && (!username || !email)) {
+            setPasswordStrength({ score: 0, feedback: '' });
+            return;
+        }
         if (password) {
             const strength = checkPasswordStrength(password);
             setPasswordStrength(strength);
         } else {
             setPasswordStrength({ score: 0, feedback: '' });
         }
-    }, [password, username]);
+    }, [password, username, email, isLogin]);
 
     // 修改useEffect逻辑，避免在显示验证方式选择器时自动弹出验证弹窗
     useEffect(() => {
@@ -410,17 +422,57 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
         });
     };
 
+    // 邮箱验证码倒计时
+    useEffect(() => {
+        if (!showEmailVerify) return;
+        if (verifyResendTimer <= 0) return;
+        const timer = setInterval(() => {
+            setVerifyResendTimer(t => t > 0 ? t - 1 : 0);
+        }, 1000);
+        return () => clearInterval(timer);
+    }, [verifyResendTimer, showEmailVerify]);
+
+    // 发送验证码（重发）
+    const handleResendVerifyCode = async () => {
+        if (verifyResendTimer > 0) return;
+        setVerifyLoading(true);
+        setVerifyError('');
+        try {
+            const res = await fetch(getApiBaseUrl() + '/api/auth/send-verify-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: pendingEmail })
+            });
+            const data = await res.json();
+            if (data && data.success) {
+                setNotify({ message: '验证码已重新发送', type: 'success' });
+                setVerifyResendTimer(60);
+            } else {
+                setVerifyError(data.error || '验证码发送失败');
+                setNotify({ message: data.error || '验证码发送失败', type: 'error' });
+            }
+        } catch (err: any) {
+            setVerifyError(err.message || '验证码发送失败');
+            setNotify({ message: err.message || '验证码发送失败', type: 'error' });
+        } finally {
+            setVerifyLoading(false);
+        }
+    };
+
     const handleVerifyCode = async (code?: string) => {
         setVerifyLoading(true);
         setVerifyError('');
+        const finalCode = code || verifyCode;
+        if (!/^[0-9]{8}$/.test(finalCode)) {
+            setVerifyError('验证码必须为8位数字');
+            setVerifyLoading(false);
+            return;
+        }
         try {
             const res = await fetch(getApiBaseUrl() + '/api/auth/verify-email', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    email: pendingEmail,
-                    code: code || verifyCode
-                })
+                body: JSON.stringify({ email: pendingEmail, code: finalCode })
             });
             const data = await res.json();
             if (data && data.success) {
@@ -428,7 +480,6 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                 setPendingEmail('');
                 setVerifyCode('');
                 setVerifyError('');
-                // 邮箱验证通过后允许登录
                 setIsLogin(true);
                 setError('邮箱验证成功，请登录');
                 setNotify({ message: '邮箱验证成功，请登录', type: 'success' });
@@ -445,15 +496,18 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
     };
 
     return (
-        <div className="w-full">
-            <div className="max-w-md w-full space-y-6 p-6 bg-white rounded-lg shadow-lg">
+        <div className="w-full min-h-screen flex items-center justify-center bg-gray-50 py-8 px-2">
+            <div className="max-w-md w-full space-y-6 p-8 bg-white rounded-3xl shadow-2xl border border-blue-100 mx-auto animate-fade-in">
                 <div>
-                    <h2 className="text-center text-3xl font-extrabold text-gray-900">
+                    <h2 className="text-center text-4xl font-extrabold text-indigo-700 mb-2 drop-shadow-lg tracking-wide">
                         {isLogin ? '登录' : '注册'}
                     </h2>
+                    <div className="text-center text-gray-500 text-base mb-4">
+                        欢迎使用 Synapse
+                    </div>
                 </div>
                 <form className="space-y-6" onSubmit={handleSubmit}>
-                    <div className="rounded-md shadow-sm -space-y-px">
+                    <div className="rounded-2xl shadow-sm -space-y-px bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
                         <div>
                             <label htmlFor="username" className="sr-only">用户名</label>
                             <input
@@ -461,7 +515,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                                 name="username"
                                 type="text"
                                 required
-                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                                className="appearance-none rounded-xl relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:z-10 sm:text-base bg-white mb-3 transition-all duration-200"
                                 placeholder="用户名 (3-20个字符，只允许字母、数字、下划线)"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
@@ -477,7 +531,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                                     name="email"
                                     type="email"
                                     required
-                                    className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                                    className="appearance-none rounded-xl relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:z-10 sm:text-base bg-white mb-3 transition-all duration-200"
                                     placeholder="邮箱"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
@@ -491,7 +545,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                                 name="password"
                                 type="password"
                                 required
-                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                                className="appearance-none rounded-xl relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:z-10 sm:text-base bg-white mb-3 transition-all duration-200"
                                 placeholder={isLogin ? "请输入密码" : "密码 (至少8位，包含大小写字母、数字和特殊字符)"}
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
@@ -507,13 +561,14 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                                                 passwordStrength.score >= 2 ? 'text-yellow-600' :
                                                 'text-red-600'
                                             }`}>
-                                                {passwordStrength.score >= 4 ? '很强' :
-                                                 passwordStrength.score >= 3 ? '强' :
-                                                 passwordStrength.score >= 2 ? '中等' :
-                                                 '弱'}
+                                                {(!username || !email) ? '请先填写用户名和邮箱' :
+                                                passwordStrength.score >= 4 ? '很强' :
+                                                passwordStrength.score >= 3 ? '强' :
+                                                passwordStrength.score >= 2 ? '中等' :
+                                                '弱'}
                                             </span>
                                         </div>
-                                        {passwordStrength.feedback && (
+                                        {passwordStrength.feedback && !!username && !!email && (
                                             <div className="text-xs text-gray-500">
                                                 {passwordStrength.feedback}
                                             </div>
@@ -530,7 +585,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                                     name="confirmPassword"
                                     type="password"
                                     required
-                                    className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                                    className="appearance-none rounded-xl relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:z-10 sm:text-base bg-white mb-3 transition-all duration-200"
                                     placeholder="确认密码"
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
@@ -558,7 +613,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                     </div>
 
                     {error && (
-                        <div className="text-red-500 text-sm text-center">
+                        <div className="text-red-500 text-base text-center font-bold bg-red-50 border border-red-200 rounded-lg py-2 px-3 mb-2 animate-pulse">
                             {error}
                         </div>
                     )}
@@ -567,13 +622,13 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                         <button
                             type="submit"
                             disabled={loading || (!isLogin && password !== confirmPassword)}
-                            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                            className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-lg font-bold rounded-2xl text-white bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-indigo-600 hover:to-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 disabled:opacity-50 shadow-lg transition-all duration-200"
                         >
                             {loading ? '处理中...' : isLogin ? '登录' : '注册'}
                         </button>
                     </div>
 
-                    <div className="text-sm text-center">
+                    <div className="text-sm text-center mt-2">
                         <button
                             type="button"
                             onClick={handleModeSwitch}
@@ -688,7 +743,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                         <p className="mb-2 text-gray-600 text-center">我们已向 <span className="font-semibold">{pendingEmail}</span> 发送了验证码，请输入收到的验证码完成注册。</p>
                         <VerifyCodeInput
                             length={8}
-                            inputClassName="bg-blue-50 focus:bg-blue-100 border-blue-200 text-blue-900" // 新增：淡蓝色背景
+                            inputClassName="bg-blue-50 focus:bg-blue-100 border-blue-200 text-blue-900"
                             onComplete={async (code) => {
                                 setVerifyCode(code);
                                 // 自动触发验证
@@ -705,6 +760,13 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                             disabled={verifyLoading || verifyCode.length !== 8}
                         >
                             {verifyLoading ? '验证中...' : '提交验证'}
+                        </button>
+                        <button
+                            className="w-full py-2 px-4 bg-gray-200 text-gray-700 rounded-md font-semibold hover:bg-gray-300 transition-all mb-2"
+                            onClick={handleResendVerifyCode}
+                            disabled={verifyLoading || verifyResendTimer > 0}
+                        >
+                            {verifyResendTimer > 0 ? `重新发送（${verifyResendTimer}s）` : '重新发送验证码'}
                         </button>
                         <button
                             className="w-full py-2 px-4 bg-gray-200 text-gray-700 rounded-md font-semibold hover:bg-gray-300 transition-all"

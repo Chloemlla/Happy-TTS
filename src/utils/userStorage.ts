@@ -1101,7 +1101,13 @@ export class UserStorage {
             if (!user) return 0;
             if (user.role === 'admin') return Infinity;
             const today = new Date().toISOString().split('T')[0];
-            const lastUsageDate = new Date(user.lastUsageDate).toISOString().split('T')[0];
+            let lastUsageDate = '';
+            try {
+                lastUsageDate = new Date(user.lastUsageDate).toISOString().split('T')[0];
+            } catch {
+                return this.DAILY_LIMIT;
+            }
+            if (!user.lastUsageDate || lastUsageDate === 'Invalid Date') return this.DAILY_LIMIT;
             if (today !== lastUsageDate) return this.DAILY_LIMIT;
             return this.DAILY_LIMIT - user.dailyUsage;
         } else if (STORAGE_MODE === 'mysql') {
@@ -1112,7 +1118,13 @@ export class UserStorage {
                 if (!user) return 0;
                 if (user.role === 'admin') return Infinity;
                 const today = new Date().toISOString().split('T')[0];
-                const lastUsageDate = new Date(user.lastUsageDate).toISOString().split('T')[0];
+                let lastUsageDate = '';
+                try {
+                    lastUsageDate = new Date(user.lastUsageDate).toISOString().split('T')[0];
+                } catch {
+                    return this.DAILY_LIMIT;
+                }
+                if (!user.lastUsageDate || lastUsageDate === 'Invalid Date') return this.DAILY_LIMIT;
                 if (today !== lastUsageDate) return this.DAILY_LIMIT;
                 return this.DAILY_LIMIT - user.dailyUsage;
             } finally {
@@ -1123,7 +1135,13 @@ export class UserStorage {
             if (!user) return 0;
             if (user.role === 'admin') return Infinity;
             const today = new Date().toISOString().split('T')[0];
-            const lastUsageDate = new Date(user.lastUsageDate).toISOString().split('T')[0];
+            let lastUsageDate = '';
+            try {
+                lastUsageDate = new Date(user.lastUsageDate).toISOString().split('T')[0];
+            } catch {
+                return this.DAILY_LIMIT;
+            }
+            if (!user.lastUsageDate || lastUsageDate === 'Invalid Date') return this.DAILY_LIMIT;
             if (today !== lastUsageDate) return this.DAILY_LIMIT;
             return this.DAILY_LIMIT - user.dailyUsage;
         }
