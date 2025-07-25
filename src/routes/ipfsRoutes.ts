@@ -45,6 +45,16 @@ const uploadLimiter = rateLimit({
   keyGenerator: (req) => req.ip || (req.socket?.remoteAddress) || 'unknown',
 });
 
+// 短链跳转限速：每IP每分钟最多60次
+const shortlinkLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  message: { error: '访问过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.ip || (req.socket?.remoteAddress) || 'unknown',
+});
+
 /**
  * @openapi
  * /api/ipfs/upload:
@@ -121,7 +131,7 @@ const uploadLimiter = rateLimit({
 router.post('/upload', uploadLimiter, upload.single('file'), IPFSController.uploadImage);
 
 // 短链跳转路由
-router.get('/:code', async (req, res) => {
+router.get('/:code', shortlinkLimiter, async (req, res) => {
   const code = req.params.code;
   const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
   if (!code) {
