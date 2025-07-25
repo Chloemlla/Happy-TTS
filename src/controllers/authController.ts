@@ -28,6 +28,10 @@ export class AuthController {
             if (!username || !email || !password) {
                 return res.status(400).json({ error: '请提供所有必需的注册信息' });
             }
+            // 禁止用户名为admin等保留字段，仅注册时校验
+            if (username && ['admin', 'root', 'system', 'test', 'administrator'].includes(username.toLowerCase())) {
+                return res.status(400).json({ error: '用户名不能为保留字段' });
+            }
             // 只允许主流邮箱
             if (!emailPattern.test(email)) {
                 return res.status(400).json({ error: '只支持主流邮箱（如gmail、outlook、qq、163、126、hotmail、yahoo、icloud、foxmail等）' });
@@ -36,10 +40,6 @@ export class AuthController {
             const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
             if (!emailRegex.test(email)) {
                 return res.status(400).json({ error: '邮箱格式不正确' });
-            }
-            // 禁止用户名为admin
-            if (username && username.toLowerCase() === 'admin') {
-                return res.status(400).json({ error: '用户名不能为admin' });
             }
             // 检查用户名或邮箱是否已注册
             const existUser = await UserStorage.getUserByUsername(username);

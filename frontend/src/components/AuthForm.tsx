@@ -154,12 +154,12 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                 if (!/^[a-zA-Z0-9_]{3,20}$/.test(sanitizedValue)) {
                     return '用户名只能包含字母、数字和下划线，长度3-20个字符';
                 }
-                // 保留用户名校验
-                if (reservedUsernames.includes(sanitizedValue.toLowerCase())) {
+                // 仅注册时校验保留用户名
+                if (!isLogin && reservedUsernames.includes(sanitizedValue.toLowerCase())) {
                     return '该用户名为保留字段，不能注册';
                 }
                 // 防止SQL注入相关字符
-                if (/[';"]/.test(sanitizedValue)) {
+                if (/[\'\;"]/.test(sanitizedValue)) {
                     return '用户名包含非法字符';
                 }
                 break;
@@ -762,7 +762,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                             {verifyLoading ? '验证中...' : '提交验证'}
                         </button>
                         <button
-                            className="w-full py-2 px-4 bg-gray-200 text-gray-700 rounded-md font-semibold hover:bg-gray-300 transition-all mb-2"
+                            className={`w-full py-2 px-4 rounded-md font-semibold mb-2 transition-all ${verifyResendTimer > 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                             onClick={handleResendVerifyCode}
                             disabled={verifyLoading || verifyResendTimer > 0}
                         >
