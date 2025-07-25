@@ -285,7 +285,7 @@ const UserProfile: React.FC = () => {
   // 验证方式选择
   const handleVerify = async () => {
     if (totpStatus?.hasPasskey && !totpStatus?.enabled) {
-      // 只设置了Passkey
+      // 只设置了Passkey，直接调用 usePasskey 验证
       setLoading(true);
       try {
         const username = profile?.username;
@@ -305,7 +305,7 @@ const UserProfile: React.FC = () => {
       return;
     }
     if (!totpStatus?.hasPasskey && totpStatus?.enabled) {
-      // 只设置了TOTP
+      // 只设置了TOTP，直接调用 verifyUser
       if (!verificationCode) {
         setNotification({ message: '请输入验证码', type: 'warning' });
         return;
@@ -325,6 +325,23 @@ const UserProfile: React.FC = () => {
       // 两种都设置了，可扩展弹窗选择
       setNotification({ message: '已同时设置 Passkey 和 TOTP，请在安全设置中选择验证方式。', type: 'info' });
       // 可扩展弹窗选择逻辑
+      return;
+    }
+    // 新增：未设置任何二次认证方式时，校验当前密码
+    if (!totpStatus?.hasPasskey && !totpStatus?.enabled) {
+      if (!password) {
+        setNotification({ message: '请输入当前密码', type: 'warning' });
+        return;
+      }
+      setLoading(true);
+      const res = await updateProfile({ password });
+      setLoading(false);
+      if (res && !res.error) {
+        setVerified(true);
+        setNotification({ message: '密码验证成功，请继续修改', type: 'success' });
+      } else {
+        setNotification({ message: res?.error || '密码验证失败', type: 'error' });
+      }
       return;
     }
     setNotification({ message: '未检测到二次验证方式', type: 'error' });
