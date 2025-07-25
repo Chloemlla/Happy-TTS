@@ -27,7 +27,9 @@ export class IPFSController {
 
             // 使用IPFS服务上传文件
             const shortLinkFlag = req.body && req.body.source === 'imgupload';
-            const result = await IPFSService.uploadFile(buffer, originalname, mimetype, { shortLink: !!shortLinkFlag });
+            const userId = (req as any).user?.id || 'admin';
+            const username = (req as any).user?.username || 'admin';
+            const result = await IPFSService.uploadFile(buffer, originalname, mimetype, { shortLink: !!shortLinkFlag, userId, username });
 
             logger.info('IPFS上传成功', {
                 ip,

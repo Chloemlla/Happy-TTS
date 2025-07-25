@@ -3,6 +3,8 @@ import { adminController } from '../controllers/adminController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import rateLimit from 'express-rate-limit';
 import multer from 'multer';
+import { authenticateToken } from '../middleware/authenticateToken';
+import logger from '../utils/logger';
 const upload = multer({ limits: { fileSize: 5 * 1024 * 1024 } }); // 5MB限制
 
 const router = express.Router();
@@ -47,7 +49,7 @@ router.get('/announcement', adminController.getAnnouncement);
 // 其余路由依然加auth
 router.use(authMiddleware);
 router.use(adminAuthMiddleware);
-router.use(adminLimiter);
+router.use(adminLimiter); // 已登录管理员不再限速
 
 /**
  * @openapi
@@ -234,6 +236,59 @@ router.delete('/envs', adminController.deleteEnv);
  *         description: 删除结果
  */
 router.post('/envs/delete', adminController.deleteEnv);
+
+// 短链管理API
+router.get('/shortlinks', authenticateToken, async (req, res) => {
+  const { search = '', page = 1, pageSize = 10 } = req.query;
+  const ShortUrlModel = require('mongoose').models.ShortUrl || require('mongoose').model('ShortUrl');
+  const query = search
+    ? {
+        $or: [
+          { code: { $regex: search, $options: 'i' } },
+          { target: { $regex: search, $options: 'i' } }
+        ]
+      }
+    : {};
+  const total = await ShortUrlModel.countDocuments(query);
+  const items = await ShortUrlModel.find(query)
+    .sort({ createdAt: -1 })
+    .skip((Number(page) - 1) * Number(pageSize))
+    .limit(Number(pageSize));
+  res.json({ total, items });
+});
+
+router.delete('/shortlinks/:id', authenticateToken, async (req, res) => {
+  const ShortUrlModel = require('mongoose').models.ShortUrl || require('mongoose').model('ShortUrl');
+  const link = await ShortUrlModel.findById(req.params.id);
+  await ShortUrlModel.findByIdAndDelete(req.params.id);
+  logger.info('[ShortLink] 管理员删除短链', {
+    admin: req.user?.username || req.user?.id,
+    code: link?.code,
+    target: link?.target,
+    id: req.params.id,
+    time: new Date().toISOString()
+  });
+  res.json({ success: true });
+});
+
+// 创建短链
+router.post('/shortlinks', authenticateToken, async (req, res) => {
+  const { target } = req.body;
+  if (!target || typeof target !== 'string') {
+    return res.status(400).json({ error: '目标地址不能为空' });
+  }
+  const mongoose = require('mongoose');
+  const ShortUrlModel = mongoose.models.ShortUrl || mongoose.model('ShortUrl');
+  const nanoid = require('nanoid').nanoid;
+  let code = nanoid(6);
+  while (await ShortUrlModel.findOne({ code })) {
+    code = nanoid(6);
+  }
+  const userId = req.user?.id || 'admin';
+  const username = req.user?.username || 'admin';
+  const doc = await ShortUrlModel.create({ code, target, userId, username });
+  res.json({ success: true, code, shortUrl: `/s/${code}`, doc });
+});
 
 // 用户信息获取接口（需登录）
 router.get('/user/profile', authMiddleware, async (req, res) => {

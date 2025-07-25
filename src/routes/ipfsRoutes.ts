@@ -4,6 +4,7 @@ import { IPFSController } from '../controllers/ipfsController';
 import mongoose from 'mongoose';
 import logger from '../utils/logger';
 import { connectMongo } from '../services/mongoService';
+import rateLimit from 'express-rate-limit';
 
 const router = express.Router();
 
@@ -32,6 +33,16 @@ const upload = multer({
             cb(new Error('只支持图片文件格式：JPEG, PNG, GIF, WebP, BMP, SVG'));
         }
     }
+});
+
+// 图片上传限速：每IP每分钟最多10次
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: { error: '上传过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.ip || (req.socket?.remoteAddress) || 'unknown',
 });
 
 /**
@@ -107,7 +118,7 @@ const upload = multer({
  *                   type: string
  *                   description: 错误信息
  */
-router.post('/upload', upload.single('file'), IPFSController.uploadImage);
+router.post('/upload', uploadLimiter, upload.single('file'), IPFSController.uploadImage);
 
 // 短链跳转路由
 router.get('/:code', async (req, res) => {

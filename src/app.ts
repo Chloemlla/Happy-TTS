@@ -1297,46 +1297,83 @@ async function migrateTtsCollection() {
 migrateTtsCollection();
 
 // --- 全局WAF安全校验中间件 ---
-// const wafSkipMap = new Map<string, { last: number, count: number }>();
-// function wafCheckSimple(str: string, maxLen = 256): boolean {
-//   if (typeof str !== 'string') return false;
-//   if (!str.trim() || str.length > maxLen) return false;
-//   if (/[<>{}"'`;\\]/.test(str)) return false;
-//   if (/\b(select|update|delete|insert|drop|union|script|alert|onerror|onload)\b/i.test(str)) return false;
-//   return true;
-// }
-// app.use((req: Request, res: Response, next: NextFunction) => {
-//   // 只对 /api/ 路径做WAF，豁免 /api/auth/login 和 /api/auth/register
-//   if (!req.path.startsWith('/api/') || req.path === '/api/auth/login' || req.path === '/api/auth/register') return next();
-//   // 多请求时跳过WAF（如1秒内同IP超10次）
-//   const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
-//   const now = Date.now();
-//   const rec = wafSkipMap.get(ip) || { last: 0, count: 0 };
-//   if (now - rec.last < 1000) {
-//     rec.count++;
-//     if (rec.count > 10) {
-//       wafSkipMap.set(ip, { last: now, count: rec.count });
-//       return next(); // 跳过WAF 
-//     }
-//   } else {
-//     rec.count = 1;
-//     rec.last = now;
-//   }
-//   wafSkipMap.set(ip, rec);
-//   // 检查 query/body/params
-//   const checkObj = (obj: any) => {
-//     if (!obj) return true;
-//     for (const k in obj) {
-//       if (typeof obj[k] === 'string' && !wafCheckSimple(obj[k])) return false;
-//       if (typeof obj[k] === 'object' && obj[k] !== null) {
-//         if (!checkObj(obj[k])) return false;
-//       }
-//     }
-//     return true;
-//   };
-//   if (!checkObj(req.query) || !checkObj(req.body) || !checkObj(req.params)) {
-//     res.status(400).json({ error: '参数非法（WAF拦截）' });
-//     return;
-//   }
-//   next();
-// }); 
+const wafSkipMap = new Map<string, { last: number, count: number }>();
+function wafCheckSimple(str: string, maxLen = 256): boolean {
+  if (typeof str !== 'string') return false;
+  if (!str.trim() || str.length > maxLen) return false;
+  if (/[<>{}"'`;\\]/.test(str)) return false;
+  if (/\b(select|update|delete|insert|drop|union|script|alert|onerror|onload)\b/i.test(str)) return false;
+  return true;
+}
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (!req.path.startsWith('/api/') || req.path === '/api/auth/login' || req.path === '/api/auth/register') return next();
+  const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
+  const now = Date.now();
+  const rec = wafSkipMap.get(ip) || { last: 0, count: 0 };
+  if (now - rec.last < 1000) {
+    rec.count++;
+    if (rec.count > 10) {
+      wafSkipMap.set(ip, { last: now, count: rec.count });
+      return next();
+    }
+  } else {
+    rec.count = 1;
+    rec.last = now;
+  }
+  wafSkipMap.set(ip, rec);
+  // 异步参数检查，分片递归优化，避免大对象阻塞主线程
+  function checkObjAsync(obj: any, batchSize = 100): Promise<boolean> {
+    return new Promise((resolve) => {
+      const keys = Object.keys(obj || {});
+      let idx = 0;
+      function nextBatch() {
+        for (let i = 0; i < batchSize && idx < keys.length; i++, idx++) {
+          const k = keys[idx];
+          if (typeof obj[k] === 'string' && !wafCheckSimple(obj[k])) return resolve(false);
+          if (typeof obj[k] === 'object' && obj[k] !== null) {
+            checkObjAsync(obj[k], batchSize).then(ok => { if (!ok) resolve(false); });
+          }
+        }
+        if (idx < keys.length) {
+          setImmediate(nextBatch);
+        } else {
+          resolve(true);
+        }
+      }
+      nextBatch();
+    });
+  }
+  setImmediate(async () => {
+    try {
+      const [queryOk, bodyOk, paramsOk] = await Promise.all([
+        checkObjAsync(req.query),
+        checkObjAsync(req.body),
+        checkObjAsync(req.params)
+      ]);
+      if (!queryOk || !bodyOk || !paramsOk) {
+        res.status(400).json({ error: '参数非法（WAF拦截）' });
+        return;
+      }
+      next();
+    } catch {
+      res.status(400).json({ error: '参数非法（WAF拦截）' });
+    }
+  });
+}); 
+
+// 启动时异步修复短链表中无 userId/username 的数据
+(async () => {
+  try {
+    const mongoose = require('mongoose');
+    const ShortUrlModel = mongoose.models.ShortUrl || mongoose.model('ShortUrl');
+    const cursor = ShortUrlModel.find({ $or: [ { userId: { $exists: false } }, { username: { $exists: false } } ] }).cursor();
+    for await (const doc of cursor) {
+      await ShortUrlModel.updateOne({ _id: doc._id }, {
+        $set: { userId: 'admin', username: 'admin' }
+      });
+    }
+    logger.info('[ShortLink] 启动时已修复所有无用户信息的短链');
+  } catch (e) {
+    logger.warn('[ShortLink] 启动时修复短链用户信息失败', e);
+  }
+})(); 

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 const LotteryAdmin = React.lazy(() => import('./LotteryAdmin'));
 const ModListEditor = React.lazy(() => import('./ModListEditor'));
 const OutEmail = React.lazy(() => import('./OutEmail'));
+const ShortLinkManager = React.lazy(() => import('./ShortLinkManager'));
 
 const TABS = [
   { key: 'users', label: '用户管理' },
@@ -14,6 +15,7 @@ const TABS = [
   { key: 'lottery', label: '抽奖管理' },
   { key: 'modlist', label: 'Mod管理' },
   { key: 'outemail', label: '外部邮件' },
+  { key: 'shortlink', label: '短链管理' }, // 新增短链管理
 ];
 
 const AdminDashboard: React.FC = () => {
@@ -110,6 +112,19 @@ const AdminDashboard: React.FC = () => {
             >
               <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
                 <OutEmail />
+              </Suspense>
+            </motion.div>
+          )}
+          {tab === 'shortlink' && (
+            <motion.div
+              key="shortlink"
+              initial={{ opacity: 0, x: 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -40 }}
+              transition={{ duration: 0.25 }}
+            >
+              <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
+                <ShortLinkManager />
               </Suspense>
             </motion.div>
           )}
