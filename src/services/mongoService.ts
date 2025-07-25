@@ -18,14 +18,17 @@ export const connectMongo = async () => {
     try {
       // 解析 URI，若无 database，强制加上 tts
       let uri = MONGO_URI;
-      if (/mongodb\+srv:\/\/.+\/?(\?.*)?$/.test(uri)) {
+      // 只在没有指定数据库名时自动补全
+      if (/^mongodb\+srv:\/\//.test(uri)) {
         // Atlas URI 没有指定 db，自动加 /tts
-        if (!/\/[a-zA-Z0-9_-]+(\?|$)/.test(uri.replace('mongodb+srv://', ''))) {
+        if (!/\/[^/?]+(\?|$)/.test(uri.replace('mongodb+srv://', ''))) {
           uri = uri.replace(/\/?(\?.*)?$/, '/tts$1');
         }
-      } else if (/mongodb:\/\/.+\/?(\?.*)?$/.test(uri)) {
+      } else if (/^mongodb:\/\//.test(uri)) {
         // 普通 URI 没有指定 db，自动加 /tts
-        if (!/\/[a-zA-Z0-9_-]+(\?|$)/.test(uri.replace('mongodb://', ''))) {
+        // 允许 mongodb://host:port/tts 这种格式，只有没有 /db 时才补全
+        const afterHost = uri.replace('mongodb://', '').replace(/^[^/]+/, '');
+        if (!/^\/[^/?]+(\?|$)/.test(afterHost)) {
           uri = uri.replace(/\/?(\?.*)?$/, '/tts$1');
         }
       }

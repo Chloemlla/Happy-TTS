@@ -3,6 +3,8 @@ node_modules/
 frontend/node_modules/
 .pnp
 .pnp.js
+scripts/mongo_sync_remote_to_local.js
+scripts/create_mongo_user.js
 
 # 构建输出
 dist/
