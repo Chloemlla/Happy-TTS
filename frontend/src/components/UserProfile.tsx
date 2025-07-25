@@ -5,6 +5,7 @@ import VerifyCodeInput from './VerifyCodeInput';
 import { LoadingSpinner } from './LoadingSpinner';
 import getApiBaseUrl, { getApiBaseUrl as namedGetApiBaseUrl } from '../api';
 import { openDB } from 'idb';
+import { usePasskey } from '../hooks/usePasskey';
 
 interface UserProfileData {
   id: string;
@@ -88,6 +89,7 @@ async function setCachedAvatar(userId: string, avatarHash: string, blobUrl: stri
 
 const UserProfile: React.FC = () => {
   const { setNotification } = useNotification();
+  const { authenticateWithPasskey } = usePasskey();
   const [profile, setProfile] = useState<UserProfileData | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadTimeout, setLoadTimeout] = useState(false);
@@ -267,20 +269,52 @@ const UserProfile: React.FC = () => {
     );
   };
 
+  // 验证方式选择
   const handleVerify = async () => {
-    if (!verificationCode) {
-      setNotification({ message: '请输入验证码', type: 'warning' });
+    if (totpStatus?.hasPasskey && !totpStatus?.enabled) {
+      // 只设置了Passkey
+      setLoading(true);
+      try {
+        const username = profile?.username;
+        if (!username) throw new Error('无法获取用户名');
+        const success = await authenticateWithPasskey(username);
+        setLoading(false);
+        if (success) {
+          setVerified(true);
+          setNotification({ message: 'Passkey 验证成功', type: 'success' });
+        } else {
+          setNotification({ message: 'Passkey 验证失败', type: 'error' });
+        }
+      } catch (e: any) {
+        setLoading(false);
+        setNotification({ message: e?.message || 'Passkey 验证失败', type: 'error' });
+      }
       return;
     }
-    setLoading(true);
-    const res = await verifyUser(verificationCode);
-    setLoading(false);
-    if (res.success) {
-      setVerified(true);
-      setNotification({ message: '验证成功，请继续修改', type: 'success' });
-    } else {
-      setNotification({ message: res.error || '验证失败', type: 'error' });
+    if (!totpStatus?.hasPasskey && totpStatus?.enabled) {
+      // 只设置了TOTP
+      if (!verificationCode) {
+        setNotification({ message: '请输入验证码', type: 'warning' });
+        return;
+      }
+      setLoading(true);
+      const res = await verifyUser(verificationCode);
+      setLoading(false);
+      if (res.success) {
+        setVerified(true);
+        setNotification({ message: '验证成功，请继续修改', type: 'success' });
+      } else {
+        setNotification({ message: res.error || '验证失败', type: 'error' });
+      }
+      return;
     }
+    if (totpStatus?.hasPasskey && totpStatus?.enabled) {
+      // 两种都设置了，可扩展弹窗选择
+      setNotification({ message: '已同时设置 Passkey 和 TOTP，请在安全设置中选择验证方式。', type: 'info' });
+      // 可扩展弹窗选择逻辑
+      return;
+    }
+    setNotification({ message: '未检测到二次验证方式', type: 'error' });
   };
 
   // 头像上传后只本地setAvatarBase64，保存profile时不再传avatarBase64，避免超大json

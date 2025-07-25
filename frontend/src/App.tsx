@@ -312,6 +312,8 @@ const App: React.FC = () => {
         onCloseForever={handleCloseForever}
         content={announcement?.content || ''}
         format={announcement?.format || 'markdown'}
+        // 新增：内容区自适应高度，超出可滚动
+        contentClassName="max-h-[60vh] sm:max-h-[50vh] overflow-y-auto px-2 sm:px-4"
       />
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
         <BackgroundParticles />

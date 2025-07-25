@@ -6,8 +6,6 @@ import AlertModal from './AlertModal';
 import TOTPVerification from './TOTPVerification';
 import { usePasskey } from '../hooks/usePasskey';
 import { DebugInfoModal } from './DebugInfoModal';
-import { Dialog } from './ui/Dialog';
-import { Button } from './ui/Button';
 import VerificationMethodSelector from './VerificationMethodSelector';
 import PasskeyVerifyModal from './PasskeyVerifyModal';
 import api from '../api/index';

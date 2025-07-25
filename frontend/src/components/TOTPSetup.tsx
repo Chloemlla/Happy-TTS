@@ -4,7 +4,6 @@ import { QRCodeSVG } from 'qrcode.react';
 import { api } from '../api/api';
 import { TOTPSetupData } from '../types/auth';
 import { handleTOTPError, cleanTOTPToken, validateTOTPToken } from '../utils/totpUtils';
-import { Input } from './ui/Input';
 import { PasskeySetup } from './PasskeySetup';
 import { useNotification } from './Notification';
 

@@ -1,14 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { usePasskey } from '../hooks/usePasskey';
-import { Button } from './ui/Button';
-import { Input } from './ui/Input';
-import { Card } from './ui/Card';
-import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from './ui/Dialog';
 import { formatDate } from '../utils/date';
 import { KeyRoundIcon, PlusIcon, Trash2Icon, AlertTriangle } from 'lucide-react';
 import { useNotification } from './Notification';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CredentialIdModal } from './ui/CredentialIdModal';
+import { renderCredentialIdModal } from './ui/CredentialIdModal';
 
 export const PasskeySetup: React.FC = () => {
     const {
@@ -163,114 +159,111 @@ export const PasskeySetup: React.FC = () => {
                             >
                                 <KeyRoundIcon className="w-14 h-14 mb-3" />
                                 <div className="mb-2 text-lg">还没有添加任何 Passkey</div>
-                                <Button onClick={() => setIsOpen(true)} className="mt-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg px-6 py-2 shadow-lg flex items-center gap-2 font-semibold">
+                                <motion.button
+                                    onClick={() => setIsOpen(true)}
+                                    className="mt-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg px-6 py-2 shadow-lg flex items-center gap-2 font-semibold"
+                                    whileTap={{ scale: 0.97 }}
+                                >
                                     <PlusIcon className="w-5 h-5" /> 立即添加 Passkey
-                                </Button>
+                                </motion.button>
                             </motion.div>
                         )}
                     </AnimatePresence>
                 </div>
                 {/* 删除确认弹窗 */}
-                <Dialog open={!!confirmDeleteId} onOpenChange={v => !v && setConfirmDeleteId(null)}>
-                    <AnimatePresence>
-                        {confirmDeleteId && (
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.95 }}
-                                transition={{ duration: 0.3 }}
-                            >
-                                <DialogContent>
-                                    <DialogHeader>
-                                        <div className="flex items-center gap-2">
-                                            <AlertTriangle className="text-red-500 w-6 h-6" />
-                                            <DialogTitle>确认删除</DialogTitle>
-                                        </div>
-                                        <DialogDescription>确定要删除这个 Passkey 吗？此操作不可恢复。</DialogDescription>
-                                    </DialogHeader>
-                                    <DialogFooter>
-                                        <Button variant="outline" onClick={() => setConfirmDeleteId(null)} className="border-indigo-200 text-indigo-600 hover:bg-indigo-50">取消</Button>
-                                        <Button onClick={handleRemoveConfirm} disabled={isLoading} className="bg-red-600 hover:bg-red-700 text-white">
-                                            {isLoading ? (
-                                                <span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></span>
-                                            ) : null}
-                                            确认删除
-                                        </Button>
-                                    </DialogFooter>
-                                </DialogContent>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </Dialog>
+                {confirmDeleteId && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ duration: 0.3 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+                    >
+                        <motion.div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-2">
+                            <div className="flex items-center gap-2 mb-4">
+                                <AlertTriangle className="text-red-500 w-6 h-6" />
+                                <span className="font-bold text-lg">确认删除</span>
+                            </div>
+                            <div className="text-gray-600 mb-6">确定要删除这个 Passkey 吗？此操作不可恢复。</div>
+                            <div className="flex justify-end gap-2">
+                                <motion.button
+                                    onClick={() => setConfirmDeleteId(null)}
+                                    disabled={isLoading}
+                                    className="border border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded-lg px-4 py-2 transition disabled:opacity-50"
+                                    whileTap={{ scale: 0.97 }}
+                                >取消</motion.button>
+                                <motion.button
+                                    onClick={handleRemoveConfirm}
+                                    disabled={isLoading}
+                                    className="bg-red-600 hover:bg-red-700 text-white rounded-lg px-4 py-2 transition disabled:opacity-50"
+                                    whileTap={{ scale: 0.97 }}
+                                >
+                                    {isLoading ? (
+                                        <span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></span>
+                                    ) : null}
+                                    确认删除
+                                </motion.button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
                 {/* 添加 Passkey 弹窗 */}
-                <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                    <AnimatePresence>
-                        {isOpen && (
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.95 }}
-                                transition={{ duration: 0.3 }}
-                            >
-                                <DialogContent>
-                                    <DialogHeader>
-                                        <div className="flex items-center gap-2">
-                                            <KeyRoundIcon className="text-indigo-500 w-6 h-6" />
-                                            <DialogTitle>注册新的 Passkey</DialogTitle>
-                                        </div>
-                                        <DialogDescription>
-                                            <div className="mb-2">Passkey 支持指纹、面容、Windows Hello、手机等安全认证方式。</div>
-                                            <div className="text-sm text-blue-700 bg-blue-50 rounded px-2 py-1 mt-2">
-                                                <strong>注意：</strong>每个账户<strong>只能设置一个</strong>Passkey，注册新Passkey会覆盖旧的。<br/>
-                                                建议在常用且安全的设备上设置。若设备丢失或更换，请及时删除原有Passkey并重新注册。
-                                            </div>
-                                        </DialogDescription>
-                                    </DialogHeader>
-                                    <div className="space-y-4 py-4">
-                                        <div className="space-y-2">
-                                            <label htmlFor="name" className="text-sm font-medium">
-                                                Passkey 名称
-                                            </label>
-                                            <Input
-                                                id="name"
-                                                placeholder="例如：Google Password Manager"
-                                                value={credentialName}
-                                                onChange={(e) => setCredentialName(e.target.value)}
-                                                autoFocus
-                                            />
-                                        </div>
-                                    </div>
-                                    <DialogFooter>
-                                        <Button
-                                            variant="outline"
-                                            onClick={() => setIsOpen(false)}
-                                            disabled={isLoading}
-                                            className="border-indigo-200 text-indigo-600 hover:bg-indigo-50"
-                                        >
-                                            取消
-                                        </Button>
-                                        <Button
-                                            onClick={handleRegister}
-                                            disabled={isLoading || !credentialName.trim()}
-                                            className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                                        >
-                                            {isLoading ? (
-                                                <span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></span>
-                                            ) : null}
-                                            注册
-                                        </Button>
-                                    </DialogFooter>
-                                </DialogContent>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </Dialog>
+                {isOpen && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ duration: 0.3 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+                    >
+                        <motion.div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-2">
+                            <div className="flex items-center gap-2 mb-4">
+                                <KeyRoundIcon className="text-indigo-500 w-6 h-6" />
+                                <span className="font-bold text-lg">注册新的 Passkey</span>
+                            </div>
+                            <div className="mb-4 text-gray-700">
+                                <div className="mb-2">Passkey 支持指纹、面容、Windows Hello、手机等安全认证方式。</div>
+                                <div className="text-sm text-blue-700 bg-blue-50 rounded px-2 py-1 mt-2">
+                                    <strong>注意：</strong>每个账户<strong>只能设置一个</strong>Passkey，注册新Passkey会覆盖旧的。<br/>
+                                    建议在常用且安全的设备上设置。若设备丢失或更换，请及时删除原有Passkey并重新注册。
+                                </div>
+                            </div>
+                            <div className="space-y-2 mb-6">
+                                <label htmlFor="name" className="text-sm font-medium">Passkey 名称</label>
+                                <input
+                                    id="name"
+                                    placeholder="例如：Google Password Manager"
+                                    value={credentialName}
+                                    onChange={(e) => setCredentialName(e.target.value)}
+                                    autoFocus
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all"
+                                />
+                            </div>
+                            <div className="flex justify-end gap-2">
+                                <motion.button
+                                    onClick={() => setIsOpen(false)}
+                                    disabled={isLoading}
+                                    className="border border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded-lg px-4 py-2 transition disabled:opacity-50"
+                                    whileTap={{ scale: 0.97 }}
+                                >取消</motion.button>
+                                <motion.button
+                                    onClick={handleRegister}
+                                    disabled={isLoading || !credentialName.trim()}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2 transition disabled:opacity-50"
+                                    whileTap={{ scale: 0.97 }}
+                                >
+                                    {isLoading ? (
+                                        <span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></span>
+                                    ) : null}
+                                    注册
+                                </motion.button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
             </motion.div>
-            <CredentialIdModal
-                open={showModal}
-                credentialId={currentCredentialId}
-                onClose={() => setShowModal(false)}
-            />
+            {/* 替换 CredentialIdModal 为 renderCredentialIdModal 渲染 */}
+            {renderCredentialIdModal({ open: showModal, credentialId: currentCredentialId, onClose: () => setShowModal(false) })}
         </>
     );
 }; 

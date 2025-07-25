@@ -10,6 +10,7 @@ interface AnnouncementModalProps {
   onCloseForever: () => void;
   content: string;
   format: 'markdown' | 'html';
+  contentClassName?: string;
 }
 
 function renderMarkdownSafe(md: string) {
@@ -29,6 +30,7 @@ const AnnouncementModal: React.FC<AnnouncementModalProps> = ({
   onCloseForever,
   content,
   format,
+  contentClassName,
 }) => {
   const [closing, setClosing] = useState(false);
 
@@ -65,7 +67,7 @@ const AnnouncementModal: React.FC<AnnouncementModalProps> = ({
               <span className="text-3xl mr-2">📢</span>
               <h2 className="text-xl font-bold">最新公告</h2>
             </div>
-            <div className="prose max-w-none mb-6 min-h-[60px]">
+            <div className={`prose max-w-none mb-6 min-h-[60px] ${contentClassName || ''}`}>
               {content ? (
                 format === 'markdown' ? (
                   <span dangerouslySetInnerHTML={{ __html: renderMarkdownSafe(content) }} />
