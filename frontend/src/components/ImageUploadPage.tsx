@@ -163,7 +163,7 @@ const ImageUploadPage: React.FC = () => {
             whileHover={{ scale: 1.03, boxShadow: '0 8px 32px 0 rgba(99,102,241,0.12)' }}
           >
             <img src={previewUrl} alt="预览" className="w-48 h-48 object-contain rounded-xl border border-gray-200 shadow" />
-            <div className="text-sm text-gray-600 mt-2">{escapeHtml(String(file.name))} ({(file.size / 1024).toFixed(1)} KB)</div> // 文件名已做 HTML 转义，防止 XSS
+            <div className="text-sm text-gray-600 mt-2">{escapeHtml(String(file.name))} ({(file.size / 1024).toFixed(1)} KB)</div>
             <motion.button
               className="mt-2 px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 hover:bg-gray-100 transition disabled:opacity-50 font-semibold"
               onClick={handleRemove}

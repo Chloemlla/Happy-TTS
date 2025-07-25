@@ -6,6 +6,7 @@ import { LoadingSpinner } from './LoadingSpinner';
 import getApiBaseUrl, { getApiBaseUrl as namedGetApiBaseUrl } from '../api';
 import { openDB } from 'idb';
 import { usePasskey } from '../hooks/usePasskey';
+import { useAuth } from '../hooks/useAuth';
 
 interface UserProfileData {
   id: string;
@@ -90,6 +91,7 @@ async function setCachedAvatar(userId: string, avatarHash: string, blobUrl: stri
 const UserProfile: React.FC = () => {
   const { setNotification } = useNotification();
   const { authenticateWithPasskey } = usePasskey();
+  const { updateUserAvatar } = useAuth();
   const [profile, setProfile] = useState<UserProfileData | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadTimeout, setLoadTimeout] = useState(false);
@@ -241,6 +243,17 @@ const UserProfile: React.FC = () => {
       if (result.success && result.avatarUrl) {
         setProfile((p) => p ? { ...p, avatarUrl: result.avatarUrl } : p);
         setNotification({ message: '头像上传成功', type: 'success' });
+        await updateUserAvatar(); // 全局刷新
+        // 新增：上传成功后立即刷新 avatarHash，确保缓存和依赖一致
+        if (profile?.id) {
+          try {
+            const res = await fetch(getApiBaseUrl() + '/api/admin/user/profile', {
+              headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            const data = await res.json();
+            setAvatarHash(data.avatarHash);
+          } catch {}
+        }
       } else {
         setNotification({ message: result.error || '头像上传失败', type: 'error' });
       }

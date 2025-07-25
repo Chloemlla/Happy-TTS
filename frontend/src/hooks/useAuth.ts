@@ -173,7 +173,6 @@ export const useAuth = () => {
                 setUser(user);
                 lastCheckRef.current = Date.now();
                 setLastCheckTime(Date.now());
-                navigate('/', { replace: true });
                 return { requires2FA: false };
             }
         } catch (error: any) {
@@ -203,7 +202,6 @@ export const useAuth = () => {
         setUser(user);
         lastCheckRef.current = Date.now();
         setLastCheckTime(Date.now());
-        navigate('/', { replace: true });
     };
 
     const verifyTOTP = async (code: string, backupCode?: string) => {
@@ -309,6 +307,22 @@ export const useAuth = () => {
         navigate('/welcome');
     };
 
+    // 新增：全局刷新用户头像
+    const updateUserAvatar = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            const response = await api.get<User>('/api/auth/me', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (response.data) {
+                setUser(response.data);
+            }
+        } catch (e) {
+            // 忽略错误
+        }
+    };
+
     return {
         user,
         loading,
@@ -320,6 +334,7 @@ export const useAuth = () => {
         verifyTOTP,
         register,
         logout,
-        api
+        api,
+        updateUserAvatar // 新增导出
     };
 }; 

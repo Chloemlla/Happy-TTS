@@ -71,6 +71,9 @@ var OUTEMAIL_SERVICE_STATUS: { available: boolean; error?: string };
 const app = express();
 const execAsync = promisify(exec);
 
+// 最高优先级，短链跳转
+app.use('/s', ipfsRoutes);
+
 // 设置信任代理 - 只信任第一个代理（安全）
 app.set('trust proxy', 1);
 
@@ -1064,11 +1067,11 @@ if (!process.env.RESEND_API_KEY) {
       const { EmailService } = require('./services/emailService');
       // 只检查配置，不发测试邮件
       (globalThis as any).EMAIL_SERVICE_STATUS = { available: true };
-      console.log('[邮件服务] 配置检查完成：已启用');
+      logger.info('[邮件服务] 配置检查完成：已启用');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '未知错误';
       (globalThis as any).EMAIL_SERVICE_STATUS = { available: false, error: errorMessage };
-      console.warn('[邮件服务] 配置检查失败：', errorMessage);
+      logger.warn('[邮件服务] 配置检查失败：', errorMessage);
     }
   })();
   // 对外邮件服务同理
@@ -1077,26 +1080,26 @@ if (!process.env.RESEND_API_KEY) {
       const config = require('./config').default;
       if (!config.email?.outemail?.enabled) {
         (globalThis as any).OUTEMAIL_SERVICE_STATUS = { available: false, error: '对外邮件服务未启用' };
-        console.warn('[对外邮件服务] 服务未启用');
+        logger.warn('[对外邮件服务] 服务未启用');
         return;
       }
       if (!config.email?.outemail?.domain) {
         (globalThis as any).OUTEMAIL_SERVICE_STATUS = { available: false, error: '对外邮件服务未配置域名' };
-        console.warn('[对外邮件服务] 未配置域名');
+        logger.warn('[对外邮件服务] 未配置域名');
         return;
       }
       const key = config.email.outemail.apiKey;
       if (!key || !/^re_\w{8,}/.test(key)) {
         (globalThis as any).OUTEMAIL_SERVICE_STATUS = { available: false, error: '未配置有效的对外邮件API密钥（re_ 开头）' };
-        console.warn('[对外邮件服务] 未配置有效API密钥');
+        logger.warn('[对外邮件服务] 未配置有效API密钥');
         return;
       }
       (globalThis as any).OUTEMAIL_SERVICE_STATUS = { available: true };
-      console.log('[对外邮件服务] 配置检查完成：已启用');
+      logger.info('[对外邮件服务] 配置检查完成：已启用');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '未知错误';
       (globalThis as any).OUTEMAIL_SERVICE_STATUS = { available: false, error: errorMessage };
-      console.warn('[对外邮件服务] 配置检查失败：', errorMessage);
+      logger.warn('[对外邮件服务] 配置检查失败：', errorMessage);
     }
   })();
 }
@@ -1252,12 +1255,12 @@ async function migrateTtsCollection() {
     const userDatasCol = db.collection('user_datas');
     const ttsCount = await ttsCol.countDocuments();
     if (ttsCount === 0) {
-      console.log('[迁移] tts 集合为空，无需迁移');
+      logger.info('[迁移] tts 集合为空，无需迁移');
       return;
     }
     const userDatasCount = await userDatasCol.countDocuments();
     if (userDatasCount >= ttsCount) {
-      console.log('[迁移] user_datas 集合已包含全部数据，无需迁移');
+      logger.info('[迁移] user_datas 集合已包含全部数据，无需迁移');
       return;
     }
     const docs = await ttsCol.find().toArray();

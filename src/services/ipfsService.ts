@@ -94,7 +94,12 @@ export class IPFSService {
                   while (await ShortUrlModel.findOne({ code })) {
                     code = nanoid(6);
                   }
-                  await ShortUrlModel.create({ code, target: response.data.web2url });
+                  try {
+                    const doc = await ShortUrlModel.create({ code, target: response.data.web2url });
+                    logger.info('[ShortLink] 短链已写入数据库', { code, target: response.data.web2url, doc });
+                  } catch (err) {
+                    logger.error('[ShortLink] 短链写入数据库失败', { code, target: response.data.web2url, error: err });
+                  }
                   shortUrl = `${process.env.VITE_API_URL || process.env.BASE_URL || 'https://tts-api.hapxs.com'}/s/${code}`;
                 }
                 return { ...response.data, shortUrl };
