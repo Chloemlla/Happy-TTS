@@ -6,6 +6,8 @@ import { mongoose } from '../services/mongoService';
 import mysql from 'mysql2/promise';
 import fs from 'fs';
 import path from 'path';
+import { env as startupEnv } from '../config/env';
+import * as envModule from '../config/env';
 const STORAGE_MODE = process.env.STORAGE_MODE || 'mongo';
 const ANNOUNCEMENT_FILE = path.join(__dirname, '../../data/announcement.json');
 const ENV_FILE = path.join(__dirname, '../../data/env.admin.json');
@@ -212,8 +214,15 @@ export const adminController = {
   // 获取所有环境变量
   async getEnvs(req: Request, res: Response) {
     try {
-      const envs = readEnvFile();
-      res.json({ success: true, envs });
+      // 合并env对象和所有导出常量
+      let allEnvs: Record<string, any> = {};
+      if (envModule.env && typeof envModule.env === 'object') {
+        allEnvs = { ...envModule.env };
+      }
+      for (const [k, v] of Object.entries(envModule)) {
+        if (k !== 'env') allEnvs[k] = v;
+      }
+      res.json({ success: true, envs: allEnvs });
     } catch (e) {
       res.status(500).json({ success: false, error: '获取环境变量失败' });
     }
