@@ -859,3 +859,10 @@ html,
   overflow-x: hidden;
   max-width: 100vw;
 }
+
+/* 维基百科风格中文宋体标题 */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'SimSun', '宋体', serif !important;
+}
+/* 可选：正文也可加宋体，若只需标题则无需此行 */
+/* p, li, td, th { font-family: 'SimSun', '宋体', serif; } */
