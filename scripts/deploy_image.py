@@ -210,6 +210,7 @@ def cleanup_unused_images(ssh):
 def upload_log_file(log_path, admin_password):
     """
     上传日志/文件到 https://tts-api.hapxs.com/api/sharelog，返回短链。
+    支持新版logshare接口，文本日志可直接用短链在前端预览和下载。
     """
     if not os.path.exists(log_path):
         logging.warning(f"日志文件 {log_path} 不存在，跳过上传。")
@@ -224,10 +225,17 @@ def upload_log_file(log_path, admin_password):
         data = {"adminPassword": admin_password}
         try:
             resp = requests.post(url, files=files, data=data, timeout=15)
-            if resp.ok and "link" in resp.json():
-                link = resp.json()["link"]
-                logging.info(f"日志已上传: {link}")
-                return link
+            if resp.ok:
+                j = resp.json()
+                link = j.get("link")
+                if not link and "id" in j:
+                    # 兼容只返回id的情况
+                    link = f"https://tts-api.hapxs.com/logshare?id={j['id']}"
+                if link:
+                    logging.info(f"日志已上传: {link} (可直接预览/下载)")
+                    return link
+                else:
+                    logging.warning(f"API响应异常: {resp.text}")
             else:
                 logging.warning(f"API响应异常: {resp.text}")
         except Exception as e:

@@ -371,14 +371,13 @@ const LotteryAdmin: React.FC = () => {
   const { setNotification } = useNotification();
 
   // 检查管理员权限
-  if (user?.role !== 'admin') {
+  if (!user || user.role !== 'admin') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-            <strong>权限不足:</strong> 只有管理员可以访问此页面
-          </div>
-        </div>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+        <span style={{ fontSize: 120, lineHeight: 1 }}>🤡</span>
+        <div className="text-3xl font-bold mt-6 mb-2 text-rose-600 drop-shadow-lg">你不是管理员，禁止访问！</div>
+        <div className="text-lg text-gray-500 mb-8">请用管理员账号登录后再来玩哦~<br/><span className="text-rose-400">（小丑竟是你自己）</span></div>
+        <div className="text-base text-gray-400 italic mt-4">仅限管理员使用，恶搞界面仅供娱乐。</div>
       </div>
     );
   }

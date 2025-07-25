@@ -120,19 +120,28 @@ const MobileNav: React.FC<MobileNavProps> = ({
   // 2. 缓存key用 user.id:avatarHash
   useEffect(() => {
     let cancelled = false;
+    let currentObjectUrl: string | undefined;
     async function loadAvatar() {
       if (hasAvatar && typeof user?.avatarUrl === 'string' && typeof user?.id === 'string' && typeof avatarHash === 'string') {
-        if (lastAvatarUrl.current === avatarHash && avatarImg) {
+        // 优先使用远程 http/https 链接
+        if (/^https?:\/\//.test(user.avatarUrl)) {
+          setAvatarImg(user.avatarUrl);
+          lastAvatarUrl.current = avatarHash;
+          // 释放旧 blob
+          if (currentObjectUrl && currentObjectUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(currentObjectUrl);
+            currentObjectUrl = undefined;
+          }
           return;
         }
-        // 先查IndexedDB
+        // 查IndexedDB缓存
         const cached = await getCachedAvatar(user.id as string, avatarHash as string);
-        if (cached) {
+        if (cached && cached.startsWith('blob:')) {
           setAvatarImg(cached);
           lastAvatarUrl.current = avatarHash;
           return;
         }
-        // 下载图片
+        // 极端兜底：下载并生成 blob（不再写入缓存）
         fetch(user.avatarUrl)
           .then(res => res.blob())
           .then(async blob => {
@@ -140,11 +149,19 @@ const MobileNav: React.FC<MobileNavProps> = ({
             const url = URL.createObjectURL(blob);
             setAvatarImg(url);
             lastAvatarUrl.current = avatarHash;
+            if (currentObjectUrl && currentObjectUrl.startsWith('blob:') && currentObjectUrl !== url) {
+              URL.revokeObjectURL(currentObjectUrl);
+            }
+            currentObjectUrl = url;
             lastObjectUrl.current = url;
-            await setCachedAvatar(user.id as string, avatarHash as string, url);
           })
           .catch(() => setAvatarImg(undefined));
       } else {
+        // 释放旧 blob
+        if (currentObjectUrl && currentObjectUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(currentObjectUrl);
+          currentObjectUrl = undefined;
+        }
         setAvatarImg(undefined);
         lastAvatarUrl.current = undefined;
       }
@@ -152,9 +169,9 @@ const MobileNav: React.FC<MobileNavProps> = ({
     loadAvatar();
     return () => {
       cancelled = true;
-      if (lastObjectUrl.current) {
-        URL.revokeObjectURL(lastObjectUrl.current);
-        lastObjectUrl.current = undefined;
+      if (currentObjectUrl && currentObjectUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(currentObjectUrl);
+        currentObjectUrl = undefined;
       }
     };
   }, [hasAvatar, user?.avatarUrl, user?.id, avatarHash]);

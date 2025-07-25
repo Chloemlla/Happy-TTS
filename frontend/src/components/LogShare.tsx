@@ -2,10 +2,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { useNotification } from './Notification';
+import getApiBaseUrl from '../api';
+import { useAuth } from '../hooks/useAuth';
 
 const isTextExt = (ext: string) => ['.txt', '.log', '.json', '.md'].includes(ext);
 
 const LogShare: React.FC = () => {
+  const { user } = useAuth();
   const [adminPassword, setAdminPassword] = useState('');
   const [logContent, setLogContent] = useState('');
   const [uploadResult, setUploadResult] = useState<{ link: string, ext: string } | null>(null);
@@ -47,7 +50,7 @@ const LogShare: React.FC = () => {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('adminPassword', adminPassword);
-        res = await axios.post('/api/sharelog', formData, {
+        res = await axios.post(getApiBaseUrl() + '/api/sharelog', formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
       } else {
@@ -56,7 +59,7 @@ const LogShare: React.FC = () => {
         const formData = new FormData();
         formData.append('file', blob, 'log.txt');
         formData.append('adminPassword', adminPassword);
-        res = await axios.post('/api/sharelog', formData, {
+        res = await axios.post(getApiBaseUrl() + '/api/sharelog', formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
       }
@@ -84,7 +87,7 @@ const LogShare: React.FC = () => {
     setQueryResult(null);
     setLoading(true);
     try {
-      const res = await axios.post(`/api/sharelog/${queryId}`, {
+      const res = await axios.post(getApiBaseUrl() + `/api/sharelog/${queryId}`, {
         adminPassword,
         id: queryId
       });
@@ -141,6 +144,32 @@ const LogShare: React.FC = () => {
       setSuccess('');
     }
   }, [success, setNotification]);
+
+  // 管理员校验
+  if (!user || user.role !== 'admin') {
+    return (
+      <motion.div
+        className="flex flex-col items-center justify-center min-h-[60vh] text-center"
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.6 }}
+      >
+        <span style={{ fontSize: 120, lineHeight: 1 }}>
+          🤡
+        </span>
+        <div className="text-3xl font-bold mt-6 mb-2 text-rose-600 drop-shadow-lg">
+          你不是管理员，禁止访问！
+        </div>
+        <div className="text-lg text-gray-500 mb-8">
+          请用管理员账号登录后再来玩哦~<br/>
+          <span className="text-rose-400">（小丑竟是你自己）</span>
+        </div>
+        <div className="text-base text-gray-400 italic mt-4">
+          LogShare 仅限管理员使用，恶搞界面仅供娱乐。
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div 
@@ -441,14 +470,35 @@ const LogShare: React.FC = () => {
                 类型: {queryResult.ext ? queryResult.ext : '未知'} {queryResult.encoding && <span>({queryResult.encoding})</span>}
               </motion.div>
               {isTextExt(queryResult.ext) ? (
-                <motion.pre 
-                  className="bg-gray-100 p-2 rounded text-sm whitespace-pre-wrap max-h-64 overflow-auto border border-gray-200"
+                <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: 0.2 }}
                 >
-                  {queryResult.content}
-                </motion.pre>
+                  <motion.div 
+                    className="mb-2 text-yellow-700"
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: 0.3 }}
+                  >
+                    文本文件预览：
+                  </motion.div>
+                  <pre className="bg-gray-100 p-2 rounded text-sm whitespace-pre-wrap max-h-64 overflow-auto border border-gray-200 mb-3">
+                    {queryResult.content}
+                  </pre>
+                  <motion.button 
+                    className="bg-gradient-to-r from-blue-600 to-blue-500 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-blue-600 transition-all duration-200 shadow-lg" 
+                    onClick={handleDownload}
+                    whileHover={{ scale: 1.05, y: -1 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <motion.i 
+                      className="fas fa-download mr-2"
+                      whileHover={{ scale: 1.1 }}
+                    />
+                    下载文本文件
+                  </motion.button>
+                </motion.div>
               ) : (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}

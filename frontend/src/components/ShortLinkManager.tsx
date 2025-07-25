@@ -4,6 +4,7 @@ import { FaTrash, FaCopy, FaSearch, FaSync } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import { useNotification } from './Notification';
 import getApiBaseUrl from '../api';
+import { useAuth } from '../hooks/useAuth';
 
 interface ShortLink {
   _id: string;
@@ -17,6 +18,7 @@ interface ShortLink {
 const PAGE_SIZE = 10;
 
 const ShortLinkManager: React.FC = () => {
+  const { user } = useAuth();
   const [links, setLinks] = useState<ShortLink[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
@@ -107,6 +109,17 @@ const ShortLinkManager: React.FC = () => {
   };
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  if (!user || user.role !== 'admin') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+        <span style={{ fontSize: 120, lineHeight: 1 }}>🤡</span>
+        <div className="text-3xl font-bold mt-6 mb-2 text-rose-600 drop-shadow-lg">你不是管理员，禁止访问！</div>
+        <div className="text-lg text-gray-500 mb-8">请用管理员账号登录后再来玩哦~<br/><span className="text-rose-400">（小丑竟是你自己）</span></div>
+        <div className="text-base text-gray-400 italic mt-4">仅限管理员使用，恶搞界面仅供娱乐。</div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">

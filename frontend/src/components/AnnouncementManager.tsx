@@ -4,6 +4,7 @@ import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import getApiBaseUrl from '../api';
 import { useNotification } from './Notification';
+import { useAuth } from '../hooks/useAuth';
 
 const API_URL = getApiBaseUrl() + '/api/admin/announcement';
 
@@ -24,6 +25,7 @@ function renderMarkdownSafe(md: string) {
 }
 
 const AnnouncementManager: React.FC = () => {
+  const { user } = useAuth();
   const [content, setContent] = useState('');
   const [format, setFormat] = useState<'markdown' | 'html'>('markdown');
   const [loading, setLoading] = useState(true);
@@ -165,6 +167,17 @@ const AnnouncementManager: React.FC = () => {
       setNotification({ message: '删除失败：' + (e instanceof Error ? e.message : (e && e.toString ? e.toString() : '未知错误')), type: 'error' });
     }
   };
+
+  if (!user || user.role !== 'admin') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+        <span style={{ fontSize: 120, lineHeight: 1 }}>🤡</span>
+        <div className="text-3xl font-bold mt-6 mb-2 text-rose-600 drop-shadow-lg">你不是管理员，禁止访问！</div>
+        <div className="text-lg text-gray-500 mb-8">请用管理员账号登录后再来玩哦~<br/><span className="text-rose-400">（小丑竟是你自己）</span></div>
+        <div className="text-base text-gray-400 italic mt-4">仅限管理员使用，恶搞界面仅供娱乐。</div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl mx-auto p-6 bg-white rounded-xl shadow-lg">

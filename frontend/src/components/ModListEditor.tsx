@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence, HTMLMotionProps } from 'framer-motion';
 import { useNotification } from './Notification';
 import getApiBaseUrl, { getApiBaseUrl as namedGetApiBaseUrl } from '../api';
+import { useAuth } from '../hooks/useAuth';
 
 // Mod 类型扩展
 interface Mod {
@@ -210,6 +211,7 @@ const batchAddExample = `[
 `;
 
 const ModListEditor: React.FC = () => {
+  const { user } = useAuth();
   const [mods, setMods] = useState<Mod[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [addName, setAddName] = useState('');
@@ -318,6 +320,17 @@ const ModListEditor: React.FC = () => {
       setBatchCode('');
     }
   };
+
+  if (!user || user.role !== 'admin') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+        <span style={{ fontSize: 120, lineHeight: 1 }}>🤡</span>
+        <div className="text-3xl font-bold mt-6 mb-2 text-rose-600 drop-shadow-lg">你不是管理员，禁止访问！</div>
+        <div className="text-lg text-gray-500 mb-8">请用管理员账号登录后再来玩哦~<br/><span className="text-rose-400">（小丑竟是你自己）</span></div>
+        <div className="text-base text-gray-400 italic mt-4">仅限管理员使用，恶搞界面仅供娱乐。</div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ maxWidth: 700, width: '95vw', margin: '40px auto', padding: '0 8px' }}>
