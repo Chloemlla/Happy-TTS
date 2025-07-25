@@ -181,19 +181,26 @@ const UserProfile: React.FC = () => {
 
   useEffect(() => {
     let cancelled = false;
+    let currentObjectUrl: string | undefined;
     async function loadAvatar() {
       if (typeof profile?.avatarUrl === 'string' && typeof profile?.id === 'string' && typeof avatarHash === 'string') {
         if (lastAvatarUrl.current === avatarHash && avatarImg) {
           return;
         }
-        // 先查IndexedDB
+        // 优先直接用远程URL（http/https），不再缓存blob到IndexedDB
+        if (/^https?:\/\//.test(profile.avatarUrl)) {
+          setAvatarImg(profile.avatarUrl);
+          lastAvatarUrl.current = avatarHash;
+          return;
+        }
+        // 兼容历史缓存逻辑：如果IndexedDB有blob，兜底用
         const cached = await getCachedAvatar(profile.id as string, avatarHash as string);
-        if (cached) {
+        if (cached && cached.startsWith('blob:')) {
           setAvatarImg(cached);
           lastAvatarUrl.current = avatarHash;
           return;
         }
-        // 下载图片
+        // 下载图片（极端兜底，理论上不会走到）
         fetch(profile.avatarUrl)
           .then(res => res.blob())
           .then(async blob => {
@@ -201,11 +208,19 @@ const UserProfile: React.FC = () => {
             const url = URL.createObjectURL(blob);
             setAvatarImg(url);
             lastAvatarUrl.current = avatarHash;
+            if (currentObjectUrl && currentObjectUrl.startsWith('blob:') && currentObjectUrl !== url) {
+              URL.revokeObjectURL(currentObjectUrl);
+            }
+            currentObjectUrl = url;
             lastObjectUrl.current = url;
-            await setCachedAvatar(profile.id as string, avatarHash as string, url);
+            // 不再setCachedAvatar，避免IndexedDB存blob
           })
           .catch(() => setAvatarImg(undefined));
       } else {
+        if (currentObjectUrl && currentObjectUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(currentObjectUrl);
+          currentObjectUrl = undefined;
+        }
         setAvatarImg(undefined);
         lastAvatarUrl.current = undefined;
       }
@@ -213,9 +228,9 @@ const UserProfile: React.FC = () => {
     loadAvatar();
     return () => {
       cancelled = true;
-      if (lastObjectUrl.current) {
-        URL.revokeObjectURL(lastObjectUrl.current);
-        lastObjectUrl.current = undefined;
+      if (currentObjectUrl && currentObjectUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(currentObjectUrl);
+        currentObjectUrl = undefined;
       }
     };
   }, [profile?.avatarUrl, profile?.id, avatarHash]);
@@ -243,17 +258,20 @@ const UserProfile: React.FC = () => {
       if (result.success && result.avatarUrl) {
         setProfile((p) => p ? { ...p, avatarUrl: result.avatarUrl } : p);
         setNotification({ message: '头像上传成功', type: 'success' });
-        // await updateUserAvatar(); // 全局刷新
-        // // 新增：上传成功后立即刷新 avatarHash，确保缓存和依赖一致
-        // if (profile?.id) {
-        //   try {
-        //     const res = await fetch(getApiBaseUrl() + '/api/admin/user/profile', {
-        //       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-        //     });
-        //     const data = await res.json();
-        //     setAvatarHash(data.avatarHash);
-        //   } catch {}
-        // }
+        // 上传成功后立即刷新 avatarHash 并重新加载头像，确保本地缓存和页面同步
+        if (profile?.id) {
+          try {
+            console.log('[UserProfile] 上传头像后刷新avatarHash，用户ID:', profile.id);
+            const res = await fetch(getApiBaseUrl() + '/api/admin/user/profile', {
+              headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            const data = await res.json();
+            console.log('[UserProfile] 获取到最新avatarHash:', data.avatarHash);
+            setAvatarHash(data.avatarHash);
+          } catch (err) {
+            console.warn('[UserProfile] 刷新avatarHash失败', err);
+          }
+        }
       } else {
         setNotification({ message: result.error || '头像上传失败', type: 'error' });
       }
