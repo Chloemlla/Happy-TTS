@@ -63,4 +63,6 @@ export function renderCredentialIdModal({ open, credentialId, onClose }: { open:
       )}
     </AnimatePresence>
   );
-} 
+}
+
+export const CredentialIdModal = renderCredentialIdModal; 

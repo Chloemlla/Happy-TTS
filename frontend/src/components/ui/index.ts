@@ -1,1 +1,2 @@
-export { renderCredentialIdModal } from './CredentialIdModal'; 
+export { renderCredentialIdModal as CredentialIdModal } from './CredentialIdModal';
+export { Input } from './Input'; 
