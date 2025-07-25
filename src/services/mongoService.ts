@@ -23,9 +23,11 @@ export const connectMongo = async () => {
         if (!/\/[a-zA-Z0-9_-]+(\?|$)/.test(uri.replace('mongodb+srv://', ''))) {
           uri = uri.replace(/\/?(\?.*)?$/, '/tts$1');
         }
-      } else if (/mongodb:\/\/.+\/?(\?.*)?$/.test(uri)) {
+      } else if (/^mongodb:\/\//.test(uri)) {
         // 普通 URI 没有指定 db，自动加 /tts
-        if (!/\/[a-zA-Z0-9_-]+(\?|$)/.test(uri.replace('mongodb://', ''))) {
+        // 允许 mongodb://host:port/tts 这种格式，只有没有 /db 时才补全
+        const afterHost = uri.replace('mongodb://', '').replace(/^[^/]+/, '');
+        if (!/^\/[^/?]+(\?|$)/.test(afterHost)) {
           uri = uri.replace(/\/?(\?.*)?$/, '/tts$1');
         }
       }
