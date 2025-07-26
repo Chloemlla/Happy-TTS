@@ -1,7 +1,7 @@
 {
-  "name": "synapse-gradio",
+  "name": "synapse",
   "version": "1.0.0",
-  "description": "Synapse with Gradio-like interface",
+  "description": "Synapse with Node.js",
   "main": "dist/app.js",
   "sideEffects": true,
   "scripts": {
@@ -81,7 +81,7 @@
     "express": "^4.18.3",
     "express-rate-limit": "^7.5.0",
     "form-data": "^4.0.4",
-    "synapse-gradio": "file:",
+    "synapse": "file:",
     "helmet": "^8.1.0",
     "http-proxy-agent": "^7.0.2",
     "jsdom": "^26.1.0",
