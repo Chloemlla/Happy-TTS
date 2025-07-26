@@ -5,6 +5,7 @@ import { useNotification } from './Notification';
 import getApiBaseUrl from '../api';
 import { useAuth } from '../hooks/useAuth';
 import { useLocation } from 'react-router-dom';
+import CryptoJS from 'crypto-js';
 
 const isTextExt = (ext: string) => ['.txt', '.log', '.json', '.md'].includes(ext);
 
@@ -33,6 +34,9 @@ const LogShare: React.FC = () => {
   const { setNotification } = useNotification();
   const [showPwdModal, setShowPwdModal] = useState(false);
   const [autoQueryId, setAutoQueryId] = useState<string | null>(null);
+  const [allLogs, setAllLogs] = useState<{ id: string, ext: string, uploadTime: string, size: number }[]>([]);
+  const [isLoadingAllLogs, setIsLoadingAllLogs] = useState(false);
+  const [selectedLogIndex, setSelectedLogIndex] = useState<number | null>(null);
 
   // 检查URL参数
   useEffect(() => {
@@ -122,14 +126,178 @@ const LogShare: React.FC = () => {
         adminPassword,
         id: queryId
       });
-      setQueryResult(res.data);
+      
+      // 检查是否为加密数据
+      if (res.data.data && res.data.iv) {
+        console.log('🔓 [LogShare] 检测到加密数据，开始解密...');
+        console.log('    数据类型:', typeof res.data);
+        console.log('    数据字段:', Object.keys(res.data));
+        
+        if (!adminPassword) {
+          throw new Error('管理员密码不存在，无法解密');
+        }
+        
+        try {
+          const keyHash = CryptoJS.SHA256(adminPassword).toString(CryptoJS.enc.Hex);
+          const key = CryptoJS.enc.Hex.parse(keyHash);
+          const iv = CryptoJS.enc.Hex.parse(res.data.iv);
+          const encryptedData = CryptoJS.enc.Hex.parse(res.data.data);
+          
+          const decrypted = CryptoJS.AES.decrypt(
+            { ciphertext: encryptedData },
+            key,
+            { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }
+          );
+          
+          const decryptedString = decrypted.toString(CryptoJS.enc.Utf8);
+          const decryptedData = JSON.parse(decryptedString);
+          
+          console.log('🔓 [LogShare] 解密成功');
+          console.log('    解密数据长度:', decryptedString.length);
+          console.log('    文件类型:', decryptedData.ext);
+          
+          setQueryResult(decryptedData);
+        } catch (decryptError) {
+          console.error('🔓 [LogShare] 解密失败:', decryptError);
+          setError('数据解密失败');
+          return;
+        }
+      } else {
+        // 未加密数据
+        console.log('🔓 [LogShare] 未加密数据，直接使用');
+        setQueryResult(res.data);
+      }
+      
       setSuccess('查询成功！');
-      const newItem = { id: queryId, ext: res.data.ext, time: new Date().toLocaleString() };
+      // 使用解密后的数据或原始数据来获取扩展名
+      const ext = (res.data.data && res.data.iv) ? 
+        (queryResult?.ext || 'unknown') : 
+        (res.data.ext || 'unknown');
+      const newItem = { id: queryId, ext: ext, time: new Date().toLocaleString() };
       const newHistory = [newItem, ...queryHistory].slice(0, 10);
       setQueryHistory(newHistory);
       localStorage.setItem('queryHistory', JSON.stringify(newHistory));
     } catch (e: any) {
       setError(e.response?.data?.error || '查询失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 获取所有日志列表
+  const loadAllLogs = async () => {
+    setIsLoadingAllLogs(true);
+    try {
+      const res = await axios.get(getApiBaseUrl() + '/api/sharelog/all', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      // 检查是否为加密数据
+      if (res.data.data && res.data.iv) {
+        console.log('🔓 [LogShare] 检测到加密数据，开始解密...');
+        console.log('    数据类型:', typeof res.data);
+        console.log('    数据字段:', Object.keys(res.data));
+        
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error('Token不存在，无法解密');
+        }
+        
+        try {
+          const keyHash = CryptoJS.SHA256(token).toString(CryptoJS.enc.Hex);
+          const key = CryptoJS.enc.Hex.parse(keyHash);
+          const iv = CryptoJS.enc.Hex.parse(res.data.iv);
+          const encryptedData = CryptoJS.enc.Hex.parse(res.data.data);
+          
+          const decrypted = CryptoJS.AES.decrypt(
+            { ciphertext: encryptedData },
+            key,
+            { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }
+          );
+          
+          const decryptedString = decrypted.toString(CryptoJS.enc.Utf8);
+          const decryptedData = JSON.parse(decryptedString);
+          
+          console.log('🔓 [LogShare] 解密成功');
+          console.log('    解密数据长度:', decryptedString.length);
+          console.log('    日志数量:', decryptedData.logs?.length || 0);
+          
+          setAllLogs(decryptedData.logs || []);
+        } catch (decryptError) {
+          console.error('🔓 [LogShare] 解密失败:', decryptError);
+          setNotification({ message: '数据解密失败', type: 'error' });
+          return;
+        }
+      } else {
+        // 未加密数据
+        console.log('🔓 [LogShare] 未加密数据，直接使用');
+        setAllLogs(res.data.logs || []);
+      }
+      
+      setNotification({ message: '日志列表加载成功', type: 'success' });
+    } catch (e: any) {
+      setNotification({ message: e.response?.data?.error || '加载日志列表失败', type: 'error' });
+    } finally {
+      setIsLoadingAllLogs(false);
+    }
+  };
+
+  // 查看指定日志
+  const viewLog = async (logId: string) => {
+    setLoading(true);
+    try {
+      const res = await axios.post(getApiBaseUrl() + `/api/sharelog/${logId}`, {
+        adminPassword,
+        id: logId
+      });
+      
+      // 检查是否为加密数据
+      if (res.data.data && res.data.iv) {
+        console.log('🔓 [LogShare] 检测到加密数据，开始解密...');
+        console.log('    数据类型:', typeof res.data);
+        console.log('    数据字段:', Object.keys(res.data));
+        
+        if (!adminPassword) {
+          throw new Error('管理员密码不存在，无法解密');
+        }
+        
+        try {
+          const keyHash = CryptoJS.SHA256(adminPassword).toString(CryptoJS.enc.Hex);
+          const key = CryptoJS.enc.Hex.parse(keyHash);
+          const iv = CryptoJS.enc.Hex.parse(res.data.iv);
+          const encryptedData = CryptoJS.enc.Hex.parse(res.data.data);
+          
+          const decrypted = CryptoJS.AES.decrypt(
+            { ciphertext: encryptedData },
+            key,
+            { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }
+          );
+          
+          const decryptedString = decrypted.toString(CryptoJS.enc.Utf8);
+          const decryptedData = JSON.parse(decryptedString);
+          
+          console.log('🔓 [LogShare] 解密成功');
+          console.log('    解密数据长度:', decryptedString.length);
+          console.log('    文件类型:', decryptedData.ext);
+          
+          setQueryResult(decryptedData);
+        } catch (decryptError) {
+          console.error('🔓 [LogShare] 解密失败:', decryptError);
+          setNotification({ message: '数据解密失败', type: 'error' });
+          return;
+        }
+      } else {
+        // 未加密数据
+        console.log('🔓 [LogShare] 未加密数据，直接使用');
+        setQueryResult(res.data);
+      }
+      
+      setQueryId(logId);
+      setSuccess('查看成功！');
+    } catch (e: any) {
+      setNotification({ message: e.response?.data?.error || '查看日志失败', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -460,6 +628,70 @@ const LogShare: React.FC = () => {
             />
             查询日志/文件内容
           </motion.div>
+          
+          <div className="flex gap-2 mb-4">
+            <motion.button
+              onClick={loadAllLogs}
+              disabled={isLoadingAllLogs}
+              className="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg hover:from-blue-600 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm font-medium shadow-md hover:shadow-lg flex items-center justify-center"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              {isLoadingAllLogs ? (
+                <svg className="animate-spin h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : (
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              )}
+              {isLoadingAllLogs ? '加载中...' : '查看所有日志'}
+            </motion.button>
+          </div>
+
+          {/* 所有日志列表 */}
+          {allLogs.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-4"
+            >
+              <h4 className="text-sm font-semibold text-gray-700 mb-2">所有日志列表 ({allLogs.length})</h4>
+              <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg">
+                {allLogs.map((log, index) => (
+                  <motion.div
+                    key={log.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className={`flex items-center justify-between p-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 ${
+                      selectedLogIndex === index ? 'bg-blue-50 border-blue-200' : ''
+                    }`}
+                    onClick={() => {
+                      setSelectedLogIndex(index);
+                      viewLog(log.id);
+                    }}
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-gray-900 truncate">
+                        {log.id}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {log.ext} • {new Date(log.uploadTime).toLocaleString()} • {(log.size / 1024).toFixed(1)}KB
+                      </div>
+                    </div>
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
           
           <motion.label 
             className="block mb-2 font-semibold"

@@ -8,6 +8,7 @@ const ModListEditor = React.lazy(() => import('./ModListEditor'));
 const OutEmail = React.lazy(() => import('./OutEmail'));
 const ShortLinkManager = React.lazy(() => import('./ShortLinkManager'));
 const CommandManager = React.lazy(() => import('./CommandManager'));
+const LogShare = React.lazy(() => import('./LogShare'));
 
 const TABS = [
   { key: 'users', label: '用户管理' },
@@ -18,6 +19,7 @@ const TABS = [
   { key: 'outemail', label: '外部邮件' },
   { key: 'shortlink', label: '短链管理' },
   { key: 'command', label: '命令管理' }, // 新增命令管理
+  { key: 'logshare', label: '日志分享' }, // 新增日志分享
 ];
 
 const AdminDashboard: React.FC = () => {
@@ -140,6 +142,19 @@ const AdminDashboard: React.FC = () => {
             >
               <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
                 <CommandManager />
+              </Suspense>
+            </motion.div>
+          )}
+          {tab === 'logshare' && (
+            <motion.div
+              key="logshare"
+              initial={{ opacity: 0, x: 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -40 }}
+              transition={{ duration: 0.25 }}
+            >
+              <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
+                <LogShare />
               </Suspense>
             </motion.div>
           )}

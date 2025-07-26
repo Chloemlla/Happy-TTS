@@ -7,6 +7,8 @@ import multer from 'multer';
 import rateLimit from 'express-rate-limit';
 import logger from '../utils/logger';
 import { connectMongo, mongoose } from '../services/mongoService';
+import { authenticateToken } from '../middleware/authenticateToken';
+import { config } from '../config/config';
 
 const router = express.Router();
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -45,6 +47,30 @@ async function checkAdminPassword(password: string) {
   const users = await UserStorage.getAllUsers();
   const admin = users.find(u => u.role === 'admin');
   return admin && admin.password === password;
+}
+
+// AES-256加密函数
+function encryptData(data: any, key: string): { data: string, iv: string } {
+  console.log('🔐 [LogShare] 开始加密数据...');
+  console.log('    数据类型:', typeof data);
+  console.log('    数据长度:', JSON.stringify(data).length);
+  
+  const jsonString = JSON.stringify(data);
+  const iv = crypto.randomBytes(16);
+  const keyHash = crypto.createHash('sha256').update(key).digest();
+  const cipher = crypto.createCipheriv('aes-256-cbc', keyHash, iv);
+  
+  let encrypted = cipher.update(jsonString, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  
+  console.log('🔐 [LogShare] 加密完成');
+  console.log('    IV长度:', iv.length);
+  console.log('    加密数据长度:', encrypted.length);
+  
+  return {
+    data: encrypted,
+    iv: iv.toString('hex')
+  };
 }
 
 // 每次上传都会生成唯一 fileId，文件名为 `${fileId}${ext}`，所有上传结果均保留在 data/sharelogs/ 目录下，支持多次上传和历史回查。
@@ -117,6 +143,82 @@ router.post('/sharelog', logLimiter, upload.single('file'), async (req, res) => 
   }
 });
 
+// 获取所有日志列表（GET，需要管理员权限）
+router.get('/sharelog/all', logLimiter, authenticateToken, async (req, res) => {
+  const ip = req.ip;
+  
+  try {
+    // 检查管理员权限
+    // @ts-ignore
+    if (!req.user || req.user.role !== 'admin') {
+      logger.warn(`获取日志列表 | IP:${ip} | 结果:失败 | 原因:非管理员用户`);
+      return res.status(403).json({ error: '需要管理员权限' });
+    }
+
+    // 获取MongoDB中的文本类型日志
+    const LogShareSchema = new mongoose.Schema({
+      fileId: { type: String, required: true, unique: true },
+      ext: String,
+      content: String,
+      fileName: String,
+      createdAt: { type: Date, default: Date.now }
+    }, { collection: 'logshare_files' });
+    const LogShareModel = mongoose.models.LogShareFile || mongoose.model('LogShareFile', LogShareSchema);
+    
+    const mongoLogs = await LogShareModel.find({}, { fileId: 1, ext: 1, createdAt: 1, content: 1 }).sort({ createdAt: -1 });
+    
+    // 获取本地文件系统中的非文本类型日志
+    const localFiles = await fs.promises.readdir(SHARELOGS_DIR);
+    const localLogs = localFiles
+      .filter(file => {
+        const ext = path.extname(file).toLowerCase();
+        return ![".txt", ".log", ".json", ".md"].includes(ext);
+      })
+      .map(file => {
+        const fileId = path.basename(file, path.extname(file));
+        const ext = path.extname(file);
+        const filePath = path.join(SHARELOGS_DIR, file);
+        const stats = fs.statSync(filePath);
+        return {
+          id: fileId,
+          ext: ext,
+          uploadTime: stats.mtime.toISOString(),
+          size: stats.size
+        };
+      })
+      .sort((a, b) => new Date(b.uploadTime).getTime() - new Date(a.uploadTime).getTime());
+
+    // 合并MongoDB和本地文件
+    const allLogs = [
+      ...mongoLogs.map(log => ({
+        id: log.fileId,
+        ext: log.ext,
+        uploadTime: log.createdAt.toISOString(),
+        size: log.content ? log.content.length : 0
+      })),
+      ...localLogs
+    ];
+
+    // 使用管理员token加密数据
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.split(' ')[1];
+    if (token) {
+      const encrypted = encryptData({ logs: allLogs }, token);
+      logger.info(`获取日志列表 | IP:${ip} | 结果:成功 | 数量:${allLogs.length} | 已加密`);
+      return res.json({
+        data: encrypted.data,
+        iv: encrypted.iv
+      });
+    } else {
+      logger.info(`获取日志列表 | IP:${ip} | 结果:成功 | 数量:${allLogs.length} | 未加密`);
+      return res.json({ logs: allLogs });
+    }
+  } catch (e: any) {
+    logger.error(`获取日志列表 | IP:${ip} | 结果:异常 | 错误:${e?.message}`, e);
+    return res.status(500).json({ error: '获取日志列表失败' });
+  }
+});
+
 // 查询日志/文件内容（POST，密码在body）
 router.post('/sharelog/:id', logLimiter, async (req, res) => {
   const ip = req.ip;
@@ -143,7 +245,15 @@ router.post('/sharelog/:id', logLimiter, async (req, res) => {
     const doc = await LogShareModel.findOne({ fileId: id });
     if (doc && [".txt", ".log", ".json", ".md"].includes(doc.ext)) {
       logger.info(`[logshare] MongoDB命中: fileId=${id}, ext=${doc.ext}, fileName=${doc.fileName}`);
-      return res.json({ content: doc.content, ext: doc.ext });
+      const result = { content: doc.content, ext: doc.ext };
+      
+      // 使用管理员密码加密数据
+      const encrypted = encryptData(result, adminPassword);
+      logger.info(`查询 | IP:${ip} | 文件ID:${id} | 结果:成功 | 类型:文本 | 已加密`);
+      return res.json({
+        data: encrypted.data,
+        iv: encrypted.iv
+      });
     }
     // 非文本类型查本地
     const files = await fs.promises.readdir(SHARELOGS_DIR);
@@ -159,8 +269,15 @@ router.post('/sharelog/:id', logLimiter, async (req, res) => {
     // 只处理二进制
     const content = await fs.promises.readFile(filePath);
     logger.info(`[调试] 读取二进制内容长度: ${content.length}`);
-    logger.info(`查询 | IP:${ip} | 文件ID:${id} | 文件:${fileName} | 结果:成功 | 类型:二进制`);
-    return res.json({ content: content.toString('base64'), ext, encoding: 'base64' });
+    
+    const result = { content: content.toString('base64'), ext, encoding: 'base64' };
+    // 使用管理员密码加密数据
+    const encrypted = encryptData(result, adminPassword);
+    logger.info(`查询 | IP:${ip} | 文件ID:${id} | 文件:${fileName} | 结果:成功 | 类型:二进制 | 已加密`);
+    return res.json({
+      data: encrypted.data,
+      iv: encrypted.iv
+    });
   } catch (e: any) {
     logger.error(`查询 | IP:${ip} | 文件ID:${id} | 结果:异常 | 错误:${e?.message}`);
     return res.status(500).json({ error: '日志查询失败' });

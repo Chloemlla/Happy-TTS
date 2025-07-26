@@ -323,7 +323,7 @@ def main():
         ssh.close()
 
         # 自动生成并上传日志
-        time.sleep(10)  # 等待2秒，确保日志文件已生成
+        time.sleep(15)  # 等待15秒，确保日志文件已生成
         log_path = write_deploy_log(
             server_address, username, container_names, image_url
         )

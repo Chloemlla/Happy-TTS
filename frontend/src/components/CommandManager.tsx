@@ -80,6 +80,10 @@ const CommandManager: React.FC = () => {
   const [serverStatus, setServerStatus] = useState<ServerStatus | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [commandQueue, setCommandQueue] = useState<CommandQueueItem[]>([]);
+  const [isLoadingQueue, setIsLoadingQueue] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [queueLoaded, setQueueLoaded] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
 
   // 检查管理员权限
   if (!user || user.role !== 'admin') {
@@ -232,7 +236,73 @@ const CommandManager: React.FC = () => {
     }
   };
 
-  // 获取下一个命令
+  // 加载命令队列
+  const loadCommandQueue = async () => {
+    if (isLoadingQueue || queueLoaded) return;
+    
+    setIsLoadingQueue(true);
+    try {
+      const response = await api.get('/api/command/q');
+      
+      // 检查是否为加密数据
+      if (response.data.data && response.data.iv && typeof response.data.data === 'string' && typeof response.data.iv === 'string') {
+        try {
+          console.log('🔐 开始解密命令队列数据...');
+          console.log('   加密数据长度:', response.data.data.length);
+          console.log('   IV:', response.data.iv);
+          
+          const token = localStorage.getItem('token');
+          if (!token) {
+            console.error('❌ Token不存在，无法解密数据');
+            setNotification({ message: 'Token不存在，无法解密数据', type: 'error' });
+            return;
+          }
+          
+          console.log('   使用Token进行解密，Token长度:', token.length);
+          
+          // 解密数据
+          const decryptedJson = decryptAES256(response.data.data, response.data.iv, token);
+          const decryptedData = JSON.parse(decryptedJson);
+          
+          console.log('✅ 解密成功，获取到命令队列数据');
+          
+          if (Array.isArray(decryptedData)) {
+            setCommandQueue(decryptedData);
+          } else if (decryptedData.command) {
+            setCommandQueue([decryptedData]);
+          } else {
+            setCommandQueue([]);
+          }
+          setQueueLoaded(true);
+          setNotification({ message: '命令队列加载成功', type: 'success' });
+        } catch (decryptError) {
+          console.error('❌ 解密失败:', decryptError);
+          setNotification({ message: '数据解密失败，请检查登录状态', type: 'error' });
+        }
+      } else {
+        // 兼容未加密格式
+        console.log('📝 使用未加密格式数据');
+        if (Array.isArray(response.data)) {
+          setCommandQueue(response.data);
+        } else if (response.data.command) {
+          setCommandQueue([response.data]);
+        } else {
+          setCommandQueue([]);
+        }
+        setQueueLoaded(true);
+        setNotification({ message: '命令队列加载成功', type: 'success' });
+      }
+    } catch (error: any) {
+      setNotification({ 
+        message: error.response?.data?.error || '加载命令队列失败', 
+        type: 'error' 
+      });
+    } finally {
+      setIsLoadingQueue(false);
+    }
+  };
+
+  // 获取下一个命令（保持原有功能）
   const getNextCommand = async () => {
     try {
       const response = await api.get('/api/command/q');
@@ -305,10 +375,81 @@ const CommandManager: React.FC = () => {
     }
   };
 
+  // 加载执行历史
+  const loadExecutionHistory = async () => {
+    if (isLoadingHistory || historyLoaded) return;
+    
+    setIsLoadingHistory(true);
+    try {
+      const response = await api.get('/api/command/history');
+      
+      // 检查是否为加密数据
+      if (response.data.data && response.data.iv && typeof response.data.data === 'string' && typeof response.data.iv === 'string') {
+        try {
+          console.log('🔐 开始解密执行历史数据...');
+          console.log('   加密数据长度:', response.data.data.length);
+          console.log('   IV:', response.data.iv);
+          
+          const token = localStorage.getItem('token');
+          if (!token) {
+            console.error('❌ Token不存在，无法解密数据');
+            setNotification({ message: 'Token不存在，无法解密数据', type: 'error' });
+            return;
+          }
+          
+          console.log('   使用Token进行解密，Token长度:', token.length);
+          
+          // 解密数据
+          const decryptedJson = decryptAES256(response.data.data, response.data.iv, token);
+          const decryptedData = JSON.parse(decryptedJson);
+          
+          console.log('✅ 解密成功，获取到执行历史数据');
+          
+          if (Array.isArray(decryptedData)) {
+            setCommandHistory(decryptedData);
+          } else {
+            setCommandHistory([]);
+          }
+          setHistoryLoaded(true);
+          setNotification({ message: '执行历史加载成功', type: 'success' });
+        } catch (decryptError) {
+          console.error('❌ 解密失败:', decryptError);
+          setNotification({ message: '数据解密失败，请检查登录状态', type: 'error' });
+        }
+      } else {
+        // 兼容未加密格式
+        console.log('📝 使用未加密格式数据');
+        if (Array.isArray(response.data)) {
+          setCommandHistory(response.data);
+        } else {
+          setCommandHistory([]);
+        }
+        setHistoryLoaded(true);
+        setNotification({ message: '执行历史加载成功', type: 'success' });
+      }
+    } catch (error: any) {
+      setNotification({ 
+        message: error.response?.data?.error || '加载执行历史失败', 
+        type: 'error' 
+      });
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
   // 清空历史记录
-  const clearHistory = () => {
-    setCommandHistory([]);
-    setNotification({ message: '历史记录已清空', type: 'success' });
+  const clearHistory = async () => {
+    try {
+      await api.post('/api/command/clear-history', { password });
+      setCommandHistory([]);
+      setHistoryLoaded(false);
+      setNotification({ message: '历史记录已清空', type: 'success' });
+    } catch (error: any) {
+      setNotification({ 
+        message: error.response?.data?.error || '清空历史记录失败', 
+        type: 'error' 
+      });
+    }
   };
 
   // 格式化内存使用量
@@ -502,21 +643,51 @@ const CommandManager: React.FC = () => {
             </svg>
             命令队列
           </h3>
-          <motion.button
-            onClick={getNextCommand}
-            className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all duration-200 text-sm font-medium shadow-md hover:shadow-lg flex items-center justify-center"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-            查看下一个
-          </motion.button>
+          <div className="flex gap-2">
+            {!queueLoaded && (
+              <motion.button
+                onClick={loadCommandQueue}
+                disabled={isLoadingQueue}
+                className="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg hover:from-blue-600 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm font-medium shadow-md hover:shadow-lg flex items-center justify-center"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                {isLoadingQueue ? (
+                  <svg className="animate-spin h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                )}
+                {isLoadingQueue ? '加载中...' : '加载队列'}
+              </motion.button>
+            )}
+            <motion.button
+              onClick={getNextCommand}
+              className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all duration-200 text-sm font-medium shadow-md hover:shadow-lg flex items-center justify-center"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              查看下一个
+            </motion.button>
+          </div>
         </div>
         
-        {commandQueue.length > 0 ? (
+        {!queueLoaded ? (
+          <div className="text-center text-gray-500 py-8">
+            <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+            </svg>
+            <p>点击"加载队列"查看命令队列</p>
+          </div>
+        ) : commandQueue.length > 0 ? (
           <div className="space-y-2">
             {commandQueue.map((cmd, index) => (
               <motion.div
@@ -563,21 +734,51 @@ const CommandManager: React.FC = () => {
             </svg>
             执行历史
           </h3>
-          <motion.button
-            onClick={clearHistory}
-            className="px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-lg hover:from-red-600 hover:to-pink-700 transition-all duration-200 text-sm font-medium shadow-md hover:shadow-lg flex items-center justify-center"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-            清空历史
-          </motion.button>
+          <div className="flex gap-2">
+            {!historyLoaded && (
+              <motion.button
+                onClick={loadExecutionHistory}
+                disabled={isLoadingHistory}
+                className="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg hover:from-blue-600 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm font-medium shadow-md hover:shadow-lg flex items-center justify-center"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                {isLoadingHistory ? (
+                  <svg className="animate-spin h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                )}
+                {isLoadingHistory ? '加载中...' : '加载历史'}
+              </motion.button>
+            )}
+            <motion.button
+              onClick={clearHistory}
+              className="px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-lg hover:from-red-600 hover:to-pink-700 transition-all duration-200 text-sm font-medium shadow-md hover:shadow-lg flex items-center justify-center"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              清空历史
+            </motion.button>
+          </div>
         </div>
         
         <AnimatePresence>
-          {commandHistory.length > 0 ? (
+          {!historyLoaded ? (
+            <div className="text-center text-gray-500 py-8">
+              <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p>点击"加载历史"查看执行历史</p>
+            </div>
+          ) : commandHistory.length > 0 ? (
             <div className="space-y-4">
               {commandHistory.map((item) => (
                 <motion.div

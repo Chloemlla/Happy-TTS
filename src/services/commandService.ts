@@ -136,6 +136,7 @@ class CommandService {
       if (isWindows) {
         // Windows内置命令映射
         const windowsBuiltinCommands: Record<string, string> = {
+          // Windows原生命令
           'dir': 'cmd',
           'cd': 'cmd',
           'cls': 'cmd',
@@ -143,7 +144,17 @@ class CommandService {
           'hostname': 'hostname',
           'ipconfig': 'ipconfig',
           'tasklist': 'tasklist',
-          'systeminfo': 'systeminfo'
+          'systeminfo': 'systeminfo',
+          // Linux/Unix命令映射到Windows等效命令
+          'pwd': 'cmd',      // pwd -> cd (不带参数显示当前目录)
+          'ls': 'cmd',       // ls -> dir
+          'whoami': 'whoami', // whoami在Windows上存在
+          'date': 'cmd',     // date -> date
+          'uptime': 'cmd',   // uptime -> systeminfo (部分信息)
+          'free': 'cmd',     // free -> systeminfo (内存信息)
+          'df': 'cmd',       // df -> dir (磁盘信息)
+          'ps': 'cmd',       // ps -> tasklist
+          'top': 'cmd'       // top -> tasklist /v
         };
 
         const builtinCommand = windowsBuiltinCommands[command];
@@ -152,7 +163,43 @@ class CommandService {
         if (builtinCommand === 'cmd') {
           // 对于cmd内置命令，使用cmd /c执行
           console.log('   使用cmd /c执行内置命令');
-          const childProcess = spawn('cmd', ['/c', command, ...args], {
+          
+          // 特殊处理Linux/Unix命令映射
+          let actualCommand = command;
+          let actualArgs = args;
+          
+          if (command === 'pwd') {
+            // pwd -> cd (不带参数显示当前目录)
+            actualCommand = 'cd';
+            actualArgs = [];
+          } else if (command === 'ls') {
+            // ls -> dir
+            actualCommand = 'dir';
+          } else if (command === 'date') {
+            // date -> date /t
+            actualCommand = 'date';
+            actualArgs = ['/t'];
+          } else if (command === 'uptime') {
+            // uptime -> systeminfo | findstr "启动时间"
+            actualCommand = 'systeminfo';
+            actualArgs = [];
+          } else if (command === 'free') {
+            // free -> systeminfo | findstr "内存"
+            actualCommand = 'systeminfo';
+            actualArgs = [];
+          } else if (command === 'df') {
+            // df -> dir
+            actualCommand = 'dir';
+          } else if (command === 'ps') {
+            // ps -> tasklist
+            actualCommand = 'tasklist';
+          } else if (command === 'top') {
+            // top -> tasklist /v
+            actualCommand = 'tasklist';
+            actualArgs = ['/v'];
+          }
+          
+          const childProcess = spawn('cmd', ['/c', actualCommand, ...actualArgs], {
             stdio: ['pipe', 'pipe', 'pipe'],
             shell: false,
             timeout: 30000
