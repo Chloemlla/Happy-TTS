@@ -205,7 +205,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 const allowedOrigins = [
   'https://tts.hapx.one',
   'https://tts.hapxs.com',
-  'https://tts-api.hapxs.com',
+  'https://api.hapxs.com',
   'http://localhost:3000',
   'http://localhost:3001',
   'http://127.0.0.1:3001',

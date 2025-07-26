@@ -150,7 +150,7 @@ function getOptimalFormat(useCase) {
 ```bash
 # .env 文件
 TTS_API_KEY=your_api_key_here
-TTS_API_URL=https://tts-api.hapxs.com
+TTS_API_URL=https://api.hapxs.com
 ```
 
 ```javascript
@@ -468,7 +468,7 @@ class TTSConfig {
   constructor() {
     this.config = {
       api: {
-        url: process.env.TTS_API_URL || "https://tts-api.hapxs.com",
+        url: process.env.TTS_API_URL || "https://api.hapxs.com",
         key: process.env.TTS_API_KEY,
         timeout: parseInt(process.env.TTS_TIMEOUT) || 30000,
       },

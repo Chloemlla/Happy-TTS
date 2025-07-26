@@ -11,7 +11,7 @@ import { User } from '../types/auth';
 const getApiBaseUrl = () => {
     if (import.meta.env.DEV) return '';
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-    return 'https://tts-api.hapxs.com';
+    return 'https://api.hapxs.com';
 };
 
 // 创建axios实例

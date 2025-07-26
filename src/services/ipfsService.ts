@@ -107,7 +107,7 @@ export class IPFSService {
                   } catch (err) {
                     logger.error('[ShortLink] 短链写入数据库失败', { code, target: response.data.web2url, error: err });
                   }
-                  shortUrl = `${process.env.VITE_API_URL || process.env.BASE_URL || 'https://tts-api.hapxs.com'}/s/${code}`;
+                  shortUrl = `${process.env.VITE_API_URL || process.env.BASE_URL || 'https://api.hapxs.com'}/s/${code}`;
                 }
                 return { ...response.data, shortUrl };
             } catch (error) {

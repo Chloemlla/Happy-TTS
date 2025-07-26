@@ -13,7 +13,7 @@ Synapse API 使用 JWT (JSON Web Token) 进行身份认证。本文档详细介�
 首先需要注册一个账户：
 
 ```bash
-curl -X POST https://tts-api.hapxs.com/api/auth/register \
+curl -X POST https://api.hapxs.com/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "username": "your_username",
@@ -45,7 +45,7 @@ curl -X POST https://tts-api.hapxs.com/api/auth/register \
 使用注册的凭据登录获取访问令牌：
 
 ```bash
-curl -X POST https://tts-api.hapxs.com/api/auth/login \
+curl -X POST https://api.hapxs.com/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "username": "your_username",
@@ -70,7 +70,7 @@ curl -X POST https://tts-api.hapxs.com/api/auth/login \
 在后续的 API 请求中，将令牌添加到请求头：
 
 ```bash
-curl -X POST https://tts-api.hapxs.com/api/tts/generate \
+curl -X POST https://api.hapxs.com/api/tts/generate \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -112,7 +112,7 @@ function isTokenExpired(token) {
 
 // 重新登录获取新令牌
 async function refreshToken(username, password) {
-  const response = await fetch("https://tts-api.hapxs.com/api/auth/login", {
+  const response = await fetch("https://api.hapxs.com/api/auth/login", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -264,7 +264,7 @@ function handleAuthError(error) {
 管理员使用相同的登录接口，但需要管理员凭据：
 
 ```bash
-curl -X POST https://tts-api.hapxs.com/api/auth/login \
+curl -X POST https://api.hapxs.com/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "username": "admin",

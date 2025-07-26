@@ -195,7 +195,7 @@ app.post("/api/tts/generate", async (req, res) => {
 
     // 调用 Synapse API
     const response = await axios.post(
-      "https://tts-api.hapxs.com/api/tts/generate",
+      "https://api.hapxs.com/api/tts/generate",
       {
         text,
         model,
@@ -225,7 +225,7 @@ app.post("/api/tts/batch-generate", async (req, res) => {
 
     for (const text of texts) {
       const response = await axios.post(
-        "https://tts-api.hapxs.com/api/tts/generate",
+        "https://api.hapxs.com/api/tts/generate",
         {
           text,
           model: "tts-1",
@@ -274,7 +274,7 @@ def generate_tts():
 
         # 调用 Synapse API
         response = requests.post(
-            'https://tts-api.hapxs.com/api/tts/generate',
+            'https://api.hapxs.com/api/tts/generate',
             json={
                 'text': text,
                 'model': model,
@@ -301,7 +301,7 @@ def batch_generate_tts():
 
         for text in texts:
             response = requests.post(
-                'https://tts-api.hapxs.com/api/tts/generate',
+                'https://api.hapxs.com/api/tts/generate',
                 json={
                     'text': text,
                     'model': 'tts-1',
@@ -344,7 +344,7 @@ const TTSComponent = () => {
     setLoading(true);
     try {
       const response = await fetch(
-        "https://tts-api.hapxs.com/api/tts/generate",
+        "https://api.hapxs.com/api/tts/generate",
         {
           method: "POST",
           headers: {
@@ -438,7 +438,7 @@ function createWindow() {
 ipcMain.handle("generate-tts", async (event, text) => {
   try {
     const response = await axios.post(
-      "https://tts-api.hapxs.com/api/tts/generate",
+      "https://api.hapxs.com/api/tts/generate",
       {
         text,
         model: "tts-1",

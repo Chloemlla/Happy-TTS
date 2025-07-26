@@ -41,7 +41,7 @@ const Footer: React.FC = () => {
     const fetchIPInfo = async () => {
       try {
         setIpLoading(true);
-        const response = await fetch('https://tts-api.hapxs.com/ip');
+        const response = await fetch('https://api.hapxs.com/ip');
         
         // 检查响应状态
         if (!response.ok) {

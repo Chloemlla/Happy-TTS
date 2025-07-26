@@ -92,7 +92,7 @@ python quick_api_test.py --single "服务状态"
 from batch_api_test import ApiBatchTester
 
 # 创建测试器
-tester = ApiBatchTester("https://tts-api.hapxs.com")
+tester = ApiBatchTester("https://api.hapxs.com")
 
 # 执行批量测试
 results = tester.batch_test(rounds=2, delay_between_rounds=5)
@@ -116,7 +116,7 @@ python test_fix.py
 ### 基础配置
 
 ```python
-BASE_URL = "https://tts-api.hapxs.com"  # API基础URL
+BASE_URL = "https://api.hapxs.com"  # API基础URL
 DELAY_RANGE = (1, 2)  # 请求间隔范围（秒）
 ```
 
@@ -132,14 +132,14 @@ DELAY_RANGE = (1, 2)  # 请求间隔范围（秒）
 
 ```
 开始批量测试API接口
-基础URL: https://tts-api.hapxs.com
+基础URL: https://api.hapxs.com
 测试轮次: 1
 端点数量: 12
 ============================================================
 
 === 第 1 轮测试 ===
 测试: 服务状态
-URL: https://tts-api.hapxs.com/api/status
+URL: https://api.hapxs.com/api/status
 ✓ 成功 (状态码: 200)
   响应: {"status": "ok", "timestamp": "2024-01-01T12:00:00Z"}...
   耗时: 0.15秒
@@ -196,7 +196,7 @@ URL: https://tts-api.hapxs.com/api/status
 
    ```bash
    # 检查网络连接
-   curl https://tts-api.hapxs.com/api/status
+   curl https://api.hapxs.com/api/status
    ```
 
 2. **权限问题**

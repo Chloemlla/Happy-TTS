@@ -57,7 +57,7 @@ Synapse 提供完整的文本转语音 API 接口，支持多种语音模型和�
 ### 请求示例
 
 ```bash
-curl -X POST https://tts-api.hapxs.com/api/tts/generate \
+curl -X POST https://api.hapxs.com/api/tts/generate \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -74,7 +74,7 @@ curl -X POST https://tts-api.hapxs.com/api/tts/generate \
 
 ```json
 {
-  "audioUrl": "https://tts-api.hapxs.com/static/audio/abc123def456.mp3",
+  "audioUrl": "https://api.hapxs.com/static/audio/abc123def456.mp3",
   "fileName": "abc123def456.mp3",
   "signature": "signed_content_hash_for_verification"
 }
@@ -108,7 +108,7 @@ curl -X POST https://tts-api.hapxs.com/api/tts/generate \
 ### 请求示例
 
 ```bash
-curl -X GET https://tts-api.hapxs.com/api/tts/history \
+curl -X GET https://api.hapxs.com/api/tts/history \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json"
 ```

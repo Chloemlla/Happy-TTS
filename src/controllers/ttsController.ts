@@ -170,7 +170,7 @@ export class TtsController {
                         success: true,
                         isDuplicate: true,
                         fileName: duplicate.fileName,
-                        audioUrl: `${process.env.VITE_API_URL || process.env.BASE_URL || 'https://tts-api.hapxs.com'}/static/audio/${duplicate.fileName}`,
+                        audioUrl: `${process.env.VITE_API_URL || process.env.BASE_URL || 'https://api.hapxs.com'}/static/audio/${duplicate.fileName}`,
                         message: '检测到重复内容，已返回已有音频。请注意：重复提交相同内容可能导致账号被封禁。'
                     });
                 }

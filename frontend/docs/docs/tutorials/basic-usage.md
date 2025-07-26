@@ -16,7 +16,7 @@ sidebar_position: 1
 
 ### 2. 获取 API 信息
 
-- **基础 URL**: `https://tts-api.hapxs.com`
+- **基础 URL**: `https://api.hapxs.com`
 - **生成码**: `wmy` (固定值)
 - **认证方式**: JWT Bearer Token
 
@@ -30,7 +30,7 @@ sidebar_position: 1
 async function registerUser(username, password) {
   try {
     const response = await fetch(
-      "https://tts-api.hapxs.com/api/auth/register",
+      "https://api.hapxs.com/api/auth/register",
       {
         method: "POST",
         headers: {
@@ -86,7 +86,7 @@ registerUser("myusername", "mypassword123")
 ```javascript
 async function loginUser(username, password) {
   try {
-    const response = await fetch("https://tts-api.hapxs.com/api/auth/login", {
+    const response = await fetch("https://api.hapxs.com/api/auth/login", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -171,7 +171,7 @@ async function generateSpeech(text, options = {}) {
   };
 
   try {
-    const response = await fetch("https://tts-api.hapxs.com/api/tts/generate", {
+    const response = await fetch("https://api.hapxs.com/api/tts/generate", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -243,7 +243,7 @@ async function getHistory() {
   }
 
   try {
-    const response = await fetch("https://tts-api.hapxs.com/api/tts/history", {
+    const response = await fetch("https://api.hapxs.com/api/tts/history", {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -284,7 +284,7 @@ getHistory()
 // 完整的 Synapse 使用流程
 class SynapseClient {
   constructor() {
-    this.baseUrl = "https://tts-api.hapxs.com";
+    this.baseUrl = "https://api.hapxs.com";
     this.token = localStorage.getItem("auth_token");
   }
 

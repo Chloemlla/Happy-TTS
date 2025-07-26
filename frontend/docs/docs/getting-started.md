@@ -22,7 +22,7 @@ sidebar_position: 2
 - **请求示例**：
 
   ```bash
-  curl -X POST https://tts-api.hapxs.com/api/auth/register \
+  curl -X POST https://api.hapxs.com/api/auth/register \
     -H "Content-Type: application/json" \
     -d '{"username": "your_username", "password": "your_password"}'
   ```
@@ -56,7 +56,7 @@ sidebar_position: 2
 - **请求示例**：
 
   ```bash
-  curl -X POST https://tts-api.hapxs.com/api/auth/login \
+  curl -X POST https://api.hapxs.com/api/auth/login \
     -H "Content-Type: application/json" \
     -d '{"username": "your_username", "password": "your_password"}'
   ```
@@ -122,7 +122,7 @@ sidebar_position: 2
 - **请求示例**：
 
   ```bash
-  curl -X POST https://tts-api.hapxs.com/api/tts/generate \
+  curl -X POST https://api.hapxs.com/api/tts/generate \
     -H "Authorization: Bearer YOUR_TOKEN" \
     -H "Content-Type: application/json" \
     -d '{

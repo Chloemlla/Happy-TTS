@@ -18,7 +18,7 @@ sidebar_position: 2
 ```bash
 # .env 文件（不要提交到版本控制）
 TTS_API_KEY=your_secret_api_key_here
-TTS_API_URL=https://tts-api.hapxs.com
+TTS_API_URL=https://api.hapxs.com
 TTS_ENVIRONMENT=production
 ```
 
