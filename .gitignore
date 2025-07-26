@@ -5,6 +5,9 @@ frontend/node_modules/
 .pnp.js
 scripts/mongo_sync_remote_to_local.js
 scripts/create_mongo_user.js
+scripts/quick-mongo-test.js
+scripts/test-mongo-simple.js
+scripts/test-mongo-connection.js
 
 # 构建输出
 dist/

@@ -362,17 +362,47 @@ router.delete('/shortlinks/:id', authenticateToken, async (req, res) => {
 
 // 创建短链
 router.post('/shortlinks', authenticateToken, async (req, res) => {
-  const { target } = req.body;
+  const { target, customCode } = req.body;
   if (!target || typeof target !== 'string') {
     return res.status(400).json({ error: '目标地址不能为空' });
   }
+  
   const mongoose = require('mongoose');
   const ShortUrlModel = mongoose.models.ShortUrl || mongoose.model('ShortUrl');
   const nanoid = require('nanoid').nanoid;
-  let code = nanoid(6);
-  while (await ShortUrlModel.findOne({ code })) {
-    code = nanoid(6);
+  
+  let code: string;
+  
+  // 如果提供了自定义短链接码
+  if (customCode && typeof customCode === 'string') {
+    const trimmedCode = customCode.trim();
+    
+    // 验证自定义短链接码格式
+    if (trimmedCode.length < 1 || trimmedCode.length > 200) {
+      return res.status(400).json({ error: '自定义短链接码长度必须在1-200个字符之间' });
+    }
+    
+    // 验证字符格式（只允许字母、数字、连字符和下划线）
+    if (!/^[a-zA-Z0-9_-]+$/.test(trimmedCode)) {
+      return res.status(400).json({ error: '自定义短链接码只能包含字母、数字、连字符和下划线' });
+    }
+    
+    // 检查是否已存在
+    const existingShortUrl = await ShortUrlModel.findOne({ code: trimmedCode });
+    if (existingShortUrl) {
+      return res.status(400).json({ error: '该短链接码已被使用，请选择其他短链接码' });
+    }
+    
+    code = trimmedCode;
+  } else {
+    // 生成随机短链接码
+    let randomCode = nanoid(6);
+    while (await ShortUrlModel.findOne({ code: randomCode })) {
+      randomCode = nanoid(6);
+    }
+    code = randomCode;
   }
+  
   const userId = req.user?.id || 'admin';
   const username = req.user?.username || 'admin';
   const doc = await ShortUrlModel.create({ code, target, userId, username });

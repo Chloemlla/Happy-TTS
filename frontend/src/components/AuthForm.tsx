@@ -496,7 +496,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
     };
 
     return (
-        <div className="w-full min-h-screen flex items-center justify-center bg-gray-50 py-8 px-2">
+        <div className="w-full min-h-screen flex items-center justify-center py-8 px-2">
             <div className="max-w-md w-full space-y-6 p-8 bg-white rounded-3xl shadow-2xl border border-blue-100 mx-auto animate-fade-in">
                 <div>
                     <h2 className="text-center text-4xl font-extrabold text-indigo-700 mb-2 drop-shadow-lg tracking-wide">
