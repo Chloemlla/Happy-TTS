@@ -104,8 +104,8 @@ const ShortLinkManager: React.FC = () => {
       } else {
         // 兼容旧的未加密格式
         console.log('📝 使用未加密格式数据');
-        setLinks(data.items || []);
-        setTotal(data.total || 0);
+      setLinks(data.items || []);
+      setTotal(data.total || 0);
       }
     } catch {
       setLinks([]);
@@ -277,15 +277,15 @@ const ShortLinkManager: React.FC = () => {
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
       >
-                  <motion.input
+        <motion.input
             className="border border-gray-300 rounded-lg px-4 py-3 w-full focus:ring-2 focus:ring-blue-400 focus:border-blue-400 text-base bg-white shadow-sm"
-            placeholder="搜索短链码或目标地址"
-            value={search}
-            onChange={e => { setSearch(e.target.value); setPage(1); }}
+          placeholder="搜索短链码或目标地址"
+          value={search}
+          onChange={e => { setSearch(e.target.value); setPage(1); }}
             whileFocus={{ scale: 1.01, borderColor: '#3b82f6' }}
             whileHover={{ scale: 1.005, borderColor: '#60a5fa' }}
             transition={{ type: "spring", stiffness: 300, damping: 20 }}
-          />
+        />
         <motion.button
           className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 hover:shadow-lg transition-all duration-150 text-base font-medium relative overflow-hidden min-w-[100px]"
           onClick={handleRefresh}
@@ -297,7 +297,7 @@ const ShortLinkManager: React.FC = () => {
           <motion.div
             animate={{ rotate: refreshing ? 360 : 0 }}
             transition={{ duration: 1, repeat: refreshing ? Infinity : 0, ease: "linear" }}
-          >
+        >
             <FaSync className="text-lg" />
           </motion.div>
           <span>刷新</span>
@@ -325,12 +325,12 @@ const ShortLinkManager: React.FC = () => {
           transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
         >
           {/* 目标地址输入 */}
-          <motion.input
+        <motion.input
             className="border border-gray-300 rounded-lg px-4 py-3 w-full focus:ring-2 focus:ring-green-400 focus:border-green-400 text-base bg-white"
-            placeholder="请输入要生成短链的目标地址（如 https://...）"
-            value={createTarget}
-            onChange={e => setCreateTarget(e.target.value)}
-            disabled={creating}
+          placeholder="请输入要生成短链的目标地址（如 https://...）"
+          value={createTarget}
+          onChange={e => setCreateTarget(e.target.value)}
+          disabled={creating}
             whileFocus={{ scale: 1.01, borderColor: '#22c55e' }}
             whileHover={{ scale: 1.005, borderColor: '#4ade80' }}
             transition={{ type: "spring", stiffness: 300, damping: 20 }}
@@ -356,8 +356,8 @@ const ShortLinkManager: React.FC = () => {
                 whileFocus={{ scale: 1.01, borderColor: codeValidation?.isValid ? '#22c55e' : codeValidation?.isValid === false ? '#ef4444' : '#f59e0b' }}
                 whileHover={{ scale: 1.005, borderColor: '#fb923c' }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              />
-              <motion.button
+        />
+        <motion.button
                 className="border border-l-0 border-gray-300 rounded-r-lg px-4 py-3 bg-orange-100 hover:bg-orange-200 text-orange-700 transition-colors relative overflow-hidden shadow-sm"
                 onClick={generateRandomCode}
                 disabled={creating}
@@ -383,8 +383,8 @@ const ShortLinkManager: React.FC = () => {
             {/* 创建按钮 */}
             <motion.button
               className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg shadow-md hover:from-purple-600 hover:to-pink-600 hover:shadow-lg transition-all duration-150 text-base font-medium relative overflow-hidden min-w-[120px]"
-              onClick={handleCreate}
-              disabled={creating}
+          onClick={handleCreate}
+          disabled={creating}
               whileHover={{ scale: 1.02, y: -1 }}
               whileTap={{ scale: 0.98 }}
               transition={{ type: "spring", stiffness: 300, damping: 20 }}
@@ -392,8 +392,8 @@ const ShortLinkManager: React.FC = () => {
               <motion.span
                 animate={{ opacity: creating ? 0.7 : 1 }}
                 transition={{ duration: 0.3 }}
-              >
-                {creating ? '创建中…' : '创建短链'}
+        >
+          {creating ? '创建中…' : '创建短链'}
               </motion.span>
                           {creating && (
               <motion.div
@@ -442,7 +442,7 @@ const ShortLinkManager: React.FC = () => {
                 >
                   清除
                 </motion.span>
-              </motion.button>
+        </motion.button>
             </motion.div>
           )}
         </AnimatePresence>
@@ -724,16 +724,16 @@ const ShortLinkManager: React.FC = () => {
                 <div>
                   <span className="text-gray-400">用户:</span>
                   <span className="ml-1">{link.username || 'admin'}</span>
-                </div>
+      </div>
                 <div>
                   <span className="text-gray-400">时间:</span>
                   <span className="ml-1">{new Date(link.createdAt).toLocaleDateString()}</span>
-                </div>
-              </div>
+        </div>
+      </div>
               <div className="text-gray-400">
                 {new Date(link.createdAt).toLocaleTimeString()}
               </div>
-            </div>
+    </div>
           </motion.div>
         ))}
       </motion.div>

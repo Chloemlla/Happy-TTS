@@ -173,10 +173,10 @@ export class LotteryController {
       } else {
         // 普通用户或未登录用户，返回未加密数据
         console.log('📝 [Lottery] 普通用户，返回未加密数据');
-        res.json({
-          success: true,
-          data: rounds
-        });
+      res.json({
+        success: true,
+        data: rounds
+      });
         console.log('✅ [Lottery] 普通用户抽奖轮次请求处理完成');
       }
       

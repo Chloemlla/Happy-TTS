@@ -12,11 +12,11 @@ export const getModList = async (req: Request, res: Response) => {
     console.log('   用户角色:', req.user?.role);
     console.log('   请求IP:', req.ip);
 
-    const { withHash, withMd5 } = req.query;
-    const mods = await getAllMods({
-      withHash: withHash === '1' || withHash === 'true',
-      withMd5: withMd5 === '1' || withMd5 === 'true',
-    });
+  const { withHash, withMd5 } = req.query;
+  const mods = await getAllMods({
+    withHash: withHash === '1' || withHash === 'true',
+    withMd5: withMd5 === '1' || withMd5 === 'true',
+  });
 
     console.log('📊 [ModList] 获取到MOD数量:', mods.length);
 
@@ -93,7 +93,7 @@ export const getModList = async (req: Request, res: Response) => {
     } else {
       // 普通用户或未登录用户，返回未加密数据
       console.log('📝 [ModList] 普通用户，返回未加密数据');
-      res.json({ mods });
+  res.json({ mods });
       console.log('✅ [ModList] 普通用户MOD列表请求处理完成');
     }
     

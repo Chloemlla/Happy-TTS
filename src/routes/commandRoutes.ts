@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { commandService } from '../services/commandService';
 import { config } from '../config/config';
+import * as crypto from 'crypto';
+import { authenticateToken } from '../middleware/authenticateToken';
 
 const router = Router();
 
@@ -24,15 +26,32 @@ const router = Router();
  *       200:
  *         description: 添加命令结果
  */
-router.post('/y', (req, res) => {
+router.post('/y', async (req, res) => {
   const { command, password } = req.body;
-  const result = commandService.addCommand(command as string, password as string);
   
-  if (result.status === 'error') {
-    return res.status(403).json(result);
+  console.log('🔐 [CommandManager] 密码验证请求:');
+  console.log('   接收到的密码:', password);
+  console.log('   期望的密码:', config.adminPassword);
+  console.log('   密码匹配:', password === config.adminPassword);
+  
+  // 验证密码
+  if (password !== config.adminPassword) {
+    console.log('❌ [CommandManager] 密码验证失败');
+    return res.status(403).json({ error: '密码错误' });
   }
   
-  return res.json(result);
+  try {
+    const result = await commandService.addCommand(command as string, password as string);
+    
+    if (result.status === 'error') {
+      return res.status(403).json(result);
+    }
+    
+    return res.json(result);
+  } catch (error) {
+    console.error('❌ [CommandManager] 添加命令失败:', error);
+    return res.status(500).json({ error: '添加命令失败' });
+  }
 });
 
 /**
@@ -44,9 +63,80 @@ router.post('/y', (req, res) => {
  *       200:
  *         description: 下一个命令
  */
-router.get('/q', (req, res) => {
-  const result = commandService.getNextCommand();
-  return res.json(result);
+router.get('/q', authenticateToken, async (req, res) => {
+  try {
+    // 检查管理员权限
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ error: '需要管理员权限' });
+    }
+
+    const result = await commandService.getNextCommand();
+    
+    // 获取管理员token作为加密密钥
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: '未携带Token，请先登录' });
+    }
+    
+    const token = authHeader.substring(7); // 移除 'Bearer ' 前缀
+    if (!token) {
+      return res.status(401).json({ error: 'Token为空' });
+    }
+
+    console.log('✅ [CommandManager] Token获取成功，长度:', token.length);
+
+    // 准备加密数据
+    const jsonData = JSON.stringify(result);
+    console.log('📝 [CommandManager] JSON数据准备完成，长度:', jsonData.length);
+
+    // 使用AES-256-CBC加密数据
+    console.log('🔐 [CommandManager] 开始AES-256-CBC加密...');
+    const algorithm = 'aes-256-cbc';
+    
+    // 生成密钥
+    console.log('   生成密钥...');
+    const key = crypto.createHash('sha256').update(token).digest();
+    console.log('   密钥生成完成，长度:', key.length);
+    
+    // 生成IV
+    console.log('   生成初始化向量(IV)...');
+    const iv = crypto.randomBytes(16);
+    console.log('   IV生成完成，长度:', iv.length);
+    console.log('   IV (hex):', iv.toString('hex'));
+    
+    // 创建加密器
+    console.log('   创建加密器...');
+    const cipher = crypto.createCipheriv(algorithm, key, iv);
+    
+    // 执行加密
+    console.log('   开始加密数据...');
+    let encrypted = cipher.update(jsonData, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    
+    console.log('✅ [CommandManager] 加密完成');
+    console.log('   原始数据长度:', jsonData.length);
+    console.log('   加密后数据长度:', encrypted.length);
+    console.log('   加密算法:', algorithm);
+    console.log('   密钥长度:', key.length);
+    console.log('   IV长度:', iv.length);
+
+    // 返回加密后的数据
+    const response = { 
+      success: true, 
+      data: encrypted,
+      iv: iv.toString('hex')
+    };
+    
+    console.log('📤 [CommandManager] 准备返回加密数据');
+    console.log('   响应数据大小:', JSON.stringify(response).length);
+    
+    res.json(response);
+    
+    console.log('✅ [CommandManager] 命令队列加密请求处理完成');
+  } catch (error) {
+    console.error('❌ [CommandManager] 获取命令失败:', error);
+    res.status(500).json({ error: '获取命令失败' });
+  }
 });
 
 /**
@@ -157,7 +247,7 @@ router.post('/execute', async (req, res) => {
  *       403:
  *         description: 密码错误
  */
-router.post('/status', (req, res) => {
+router.post('/status', authenticateToken, (req, res) => {
   try {
     const { password } = req.body;
 
@@ -166,12 +256,214 @@ router.post('/status', (req, res) => {
       return res.status(403).json({ error: '密码错误' });
     }
 
+    // 检查管理员权限
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ error: '需要管理员权限' });
+    }
+
     // 获取服务器状态
     const status = commandService.getServerStatus();
-    res.json(status);
+    
+    // 获取管理员token作为加密密钥
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: '未携带Token，请先登录' });
+    }
+    
+    const token = authHeader.substring(7); // 移除 'Bearer ' 前缀
+    if (!token) {
+      return res.status(401).json({ error: 'Token为空' });
+    }
+
+    console.log('✅ [CommandManager] Token获取成功，长度:', token.length);
+
+    // 准备加密数据
+    const jsonData = JSON.stringify(status);
+    console.log('📝 [CommandManager] JSON数据准备完成，长度:', jsonData.length);
+
+    // 使用AES-256-CBC加密数据
+    console.log('🔐 [CommandManager] 开始AES-256-CBC加密...');
+    const algorithm = 'aes-256-cbc';
+    
+    // 生成密钥
+    console.log('   生成密钥...');
+    const key = crypto.createHash('sha256').update(token).digest();
+    console.log('   密钥生成完成，长度:', key.length);
+    
+    // 生成IV
+    console.log('   生成初始化向量(IV)...');
+    const iv = crypto.randomBytes(16);
+    console.log('   IV生成完成，长度:', iv.length);
+    console.log('   IV (hex):', iv.toString('hex'));
+    
+    // 创建加密器
+    console.log('   创建加密器...');
+    const cipher = crypto.createCipheriv(algorithm, key, iv);
+    
+    // 执行加密
+    console.log('   开始加密数据...');
+    let encrypted = cipher.update(jsonData, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    
+    console.log('✅ [CommandManager] 加密完成');
+    console.log('   原始数据长度:', jsonData.length);
+    console.log('   加密后数据长度:', encrypted.length);
+    console.log('   加密算法:', algorithm);
+    console.log('   密钥长度:', key.length);
+    console.log('   IV长度:', iv.length);
+
+    // 返回加密后的数据
+    const response = { 
+      success: true, 
+      data: encrypted,
+      iv: iv.toString('hex')
+    };
+    
+    console.log('📤 [CommandManager] 准备返回加密数据');
+    console.log('   响应数据大小:', JSON.stringify(response).length);
+    
+    res.json(response);
+    
+    console.log('✅ [CommandManager] 服务器状态加密请求处理完成');
   } catch (error) {
-    console.error('获取状态错误:', error);
+    console.error('❌ [CommandManager] 获取状态错误:', error);
     res.status(500).json({ error: '获取服务器状态失败' });
+  }
+});
+
+/**
+ * @openapi
+ * /command/history:
+ *   get:
+ *     summary: 获取执行历史
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *         description: 返回历史记录数量限制
+ *     responses:
+ *       200:
+ *         description: 执行历史列表
+ */
+router.get('/history', authenticateToken, async (req, res) => {
+  try {
+    // 检查管理员权限
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ error: '需要管理员权限' });
+    }
+
+    const limit = parseInt(req.query.limit as string) || 50;
+    const history = await commandService.getExecutionHistory(limit);
+    
+    // 获取管理员token作为加密密钥
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: '未携带Token，请先登录' });
+    }
+    
+    const token = authHeader.substring(7);
+    if (!token) {
+      return res.status(401).json({ error: 'Token为空' });
+    }
+
+    // 使用AES-256-CBC加密数据
+    const key = crypto.createHash('sha256').update(token).digest();
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+    
+    let encrypted = cipher.update(JSON.stringify(history), 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+
+    res.json({ success: true, data: encrypted, iv: iv.toString('hex') });
+  } catch (error) {
+    console.error('❌ [CommandManager] 获取历史失败:', error);
+    res.status(500).json({ error: '获取执行历史失败' });
+  }
+});
+
+/**
+ * @openapi
+ * /command/clear-history:
+ *   post:
+ *     summary: 清空执行历史
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [password]
+ *             properties:
+ *               password:
+ *                 type: string
+ *                 description: 管理员密码
+ *     responses:
+ *       200:
+ *         description: 清空结果
+ */
+router.post('/clear-history', authenticateToken, async (req, res) => {
+  try {
+    const { password } = req.body;
+
+    // 验证密码
+    if (password !== config.adminPassword) {
+      return res.status(403).json({ error: '密码错误' });
+    }
+
+    // 检查管理员权限
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ error: '需要管理员权限' });
+    }
+
+    const result = await commandService.clearExecutionHistory();
+    res.json(result);
+  } catch (error) {
+    console.error('❌ [CommandManager] 清空历史失败:', error);
+    res.status(500).json({ error: '清空执行历史失败' });
+  }
+});
+
+/**
+ * @openapi
+ * /command/clear-queue:
+ *   post:
+ *     summary: 清空命令队列
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [password]
+ *             properties:
+ *               password:
+ *                 type: string
+ *                 description: 管理员密码
+ *     responses:
+ *       200:
+ *         description: 清空结果
+ */
+router.post('/clear-queue', authenticateToken, async (req, res) => {
+  try {
+    const { password } = req.body;
+
+    // 验证密码
+    if (password !== config.adminPassword) {
+      return res.status(403).json({ error: '密码错误' });
+    }
+
+    // 检查管理员权限
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ error: '需要管理员权限' });
+    }
+
+    const result = await commandService.clearCommandQueue();
+    res.json(result);
+  } catch (error) {
+    console.error('❌ [CommandManager] 清空队列失败:', error);
+    res.status(500).json({ error: '清空命令队列失败' });
   }
 });
 

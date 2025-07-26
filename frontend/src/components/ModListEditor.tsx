@@ -49,11 +49,11 @@ interface Mod {
 
 const fetchMods = async (withHash = false, withMd5 = false) => {
   try {
-    let url = getApiBaseUrl() + '/api/modlist';
-    const params = [];
-    if (withHash) params.push('withHash=1');
-    if (withMd5) params.push('withMd5=1');
-    if (params.length) url += '?' + params.join('&');
+  let url = getApiBaseUrl() + '/api/modlist';
+  const params = [];
+  if (withHash) params.push('withHash=1');
+  if (withMd5) params.push('withMd5=1');
+  if (params.length) url += '?' + params.join('&');
     
     const token = localStorage.getItem('token');
     const res = await fetch(url, {
@@ -111,11 +111,11 @@ const fetchMods = async (withHash = false, withMd5 = false) => {
 
 const fetchModsJson = async (withHash = false, withMd5 = false) => {
   try {
-    let url = getApiBaseUrl() + '/api/modlist/json';
-    const params = [];
-    if (withHash) params.push('withHash=1');
-    if (withMd5) params.push('withMd5=1');
-    if (params.length) url += '?' + params.join('&');
+  let url = getApiBaseUrl() + '/api/modlist/json';
+  const params = [];
+  if (withHash) params.push('withHash=1');
+  if (withMd5) params.push('withMd5=1');
+  if (params.length) url += '?' + params.join('&');
     
     const token = localStorage.getItem('token');
     const res = await fetch(url, {
@@ -364,10 +364,10 @@ const ModListEditor: React.FC = () => {
 
   const loadMods = async () => {
     try {
-      if (jsonMode) {
-        const data = await fetchModsJson();
-        setJsonValue(JSON.stringify(data, null, 2));
-      } else {
+    if (jsonMode) {
+      const data = await fetchModsJson();
+      setJsonValue(JSON.stringify(data, null, 2));
+    } else {
         const modsData = await fetchMods();
         setMods(Array.isArray(modsData) ? modsData : []);
       }

@@ -133,11 +133,11 @@ const EnvManager: React.FC = () => {
           }
         } else {
           // 兼容旧的未加密格式
-          if (Array.isArray(data.envs)) {
-            envArr = data.envs;
-          } else if (data.envs && typeof data.envs === 'object') {
-            envArr = Object.entries(data.envs).map(([key, value]) => ({ key, value: String(value) }));
-          }
+        if (Array.isArray(data.envs)) {
+          envArr = data.envs;
+        } else if (data.envs && typeof data.envs === 'object') {
+          envArr = Object.entries(data.envs).map(([key, value]) => ({ key, value: String(value) }));
+        }
         }
         
         setEnvs(envArr);

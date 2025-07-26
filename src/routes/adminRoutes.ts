@@ -270,22 +270,22 @@ router.get('/shortlinks', authenticateToken, async (req, res) => {
 
     console.log('✅ [ShortLinkManager] Token获取成功，长度:', token.length);
 
-    const { search = '', page = 1, pageSize = 10 } = req.query;
-    const ShortUrlModel = require('mongoose').models.ShortUrl || require('mongoose').model('ShortUrl');
-    const query = search
-      ? {
-          $or: [
-            { code: { $regex: search, $options: 'i' } },
-            { target: { $regex: search, $options: 'i' } }
-          ]
-        }
-      : {};
+  const { search = '', page = 1, pageSize = 10 } = req.query;
+  const ShortUrlModel = require('mongoose').models.ShortUrl || require('mongoose').model('ShortUrl');
+  const query = search
+    ? {
+        $or: [
+          { code: { $regex: search, $options: 'i' } },
+          { target: { $regex: search, $options: 'i' } }
+        ]
+      }
+    : {};
     
-    const total = await ShortUrlModel.countDocuments(query);
-    const items = await ShortUrlModel.find(query)
-      .sort({ createdAt: -1 })
-      .skip((Number(page) - 1) * Number(pageSize))
-      .limit(Number(pageSize));
+  const total = await ShortUrlModel.countDocuments(query);
+  const items = await ShortUrlModel.find(query)
+    .sort({ createdAt: -1 })
+    .skip((Number(page) - 1) * Number(pageSize))
+    .limit(Number(pageSize));
 
     console.log('📊 [ShortLinkManager] 获取到短链数量:', items.length);
     console.log('   总数:', total);
@@ -399,7 +399,7 @@ router.post('/shortlinks', authenticateToken, async (req, res) => {
     let randomCode = nanoid(6);
     while (await ShortUrlModel.findOne({ code: randomCode })) {
       randomCode = nanoid(6);
-    }
+  }
     code = randomCode;
   }
   

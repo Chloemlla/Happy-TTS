@@ -327,25 +327,209 @@ export const adminController = {
 
       console.log('✅ [EnvManager] Token获取成功，长度:', token.length);
 
-      // 合并env对象和所有导出常量
+      // 收集所有环境变量
       let allEnvs: Record<string, any> = {};
+
+      // 1. 读取本地.env文件
+      console.log('📁 [EnvManager] 开始读取本地.env文件...');
+      const envFiles = [
+        '.env',
+        '.env.local',
+        '.env.development',
+        '.env.production',
+        '.env.test'
+      ];
+      
+      for (const envFile of envFiles) {
+        const envPath = path.join(process.cwd(), envFile);
+        if (fs.existsSync(envPath)) {
+          try {
+            const envContent = fs.readFileSync(envPath, 'utf-8');
+            const envLines = envContent.split('\n');
+            for (const line of envLines) {
+              const trimmedLine = line.trim();
+              if (trimmedLine && !trimmedLine.startsWith('#') && trimmedLine.includes('=')) {
+                const [key, ...valueParts] = trimmedLine.split('=');
+                const value = valueParts.join('=');
+                if (key && value !== undefined) {
+                  allEnvs[`${envFile}:${key}`] = value;
+                }
+              }
+            }
+            console.log(`   ✅ 成功读取 ${envFile} 文件`);
+          } catch (error) {
+            console.log(`   ❌ 读取 ${envFile} 文件失败:`, error);
+          }
+        }
+      }
+
+      // 2. 读取Docker环境变量
+      console.log('🐳 [EnvManager] 开始读取Docker环境变量...');
+      const dockerEnvVars = [
+        'DOCKER_HOST',
+        'DOCKER_TLS_VERIFY',
+        'DOCKER_CERT_PATH',
+        'COMPOSE_PROJECT_NAME',
+        'COMPOSE_FILE',
+        'DOCKER_BUILDKIT',
+        'DOCKER_DEFAULT_PLATFORM'
+      ];
+      
+      for (const dockerVar of dockerEnvVars) {
+        if (process.env[dockerVar]) {
+          allEnvs[`DOCKER:${dockerVar}`] = process.env[dockerVar];
+        }
+      }
+
+      // 3. 读取Node.js相关环境变量
+      console.log('🟢 [EnvManager] 开始读取Node.js环境变量...');
+      const nodeEnvVars = [
+        'NODE_ENV',
+        'NODE_VERSION',
+        'NODE_PATH',
+        'NODE_OPTIONS',
+        'NPM_CONFIG_PREFIX',
+        'NPM_CONFIG_CACHE',
+        'YARN_CACHE_FOLDER'
+      ];
+      
+      for (const nodeVar of nodeEnvVars) {
+        if (process.env[nodeVar]) {
+          allEnvs[`NODE:${nodeVar}`] = process.env[nodeVar];
+        }
+      }
+
+      // 4. 读取系统环境变量
+      console.log('💻 [EnvManager] 开始读取系统环境变量...');
+      const systemEnvVars = [
+        'PATH',
+        'HOME',
+        'USER',
+        'SHELL',
+        'LANG',
+        'LC_ALL',
+        'TZ',
+        'PWD',
+        'HOSTNAME',
+        'OSTYPE',
+        'PLATFORM'
+      ];
+      
+      for (const sysVar of systemEnvVars) {
+        if (process.env[sysVar]) {
+          allEnvs[`SYSTEM:${sysVar}`] = process.env[sysVar];
+        }
+      }
+
+      // 5. 读取数据库相关环境变量
+      console.log('🗄️ [EnvManager] 开始读取数据库环境变量...');
+      const dbEnvVars = [
+        'MONGO_URI',
+        'MYSQL_URI',
+        'REDIS_URL',
+        'POSTGRES_URL',
+        'DB_HOST',
+        'DB_PORT',
+        'DB_NAME',
+        'DB_USER',
+        'DB_PASSWORD'
+      ];
+      
+      for (const dbVar of dbEnvVars) {
+        if (process.env[dbVar]) {
+          // 对于包含敏感信息的变量，只显示部分内容
+          const value = process.env[dbVar];
+          if (dbVar.includes('PASSWORD') || dbVar.includes('URI') || dbVar.includes('URL')) {
+            const maskedValue = adminController.maskSensitiveValue(value);
+            allEnvs[`DB:${dbVar}`] = maskedValue;
+          } else {
+            allEnvs[`DB:${dbVar}`] = value;
+          }
+        }
+      }
+
+      // 6. 读取应用配置环境变量
+      console.log('⚙️ [EnvManager] 开始读取应用配置环境变量...');
+      const appEnvVars = [
+        'PORT',
+        'HOST',
+        'API_BASE_URL',
+        'JWT_SECRET',
+        'ADMIN_PASSWORD',
+        'STORAGE_MODE',
+        'LOG_LEVEL',
+        'CORS_ORIGIN',
+        'RATE_LIMIT_WINDOW',
+        'RATE_LIMIT_MAX'
+      ];
+      
+      for (const appVar of appEnvVars) {
+        if (process.env[appVar]) {
+          // 对于敏感信息进行脱敏处理
+          const value = process.env[appVar];
+          if (appVar.includes('SECRET') || appVar.includes('PASSWORD') || appVar.includes('KEY')) {
+            const maskedValue = adminController.maskSensitiveValue(value);
+            allEnvs[`APP:${appVar}`] = maskedValue;
+          } else {
+            allEnvs[`APP:${appVar}`] = value;
+          }
+        }
+      }
+
+      // 7. 合并env模块的导出
+      console.log('📦 [EnvManager] 开始合并env模块导出...');
       if (envModule.env && typeof envModule.env === 'object') {
-        allEnvs = { ...envModule.env };
+        allEnvs = { ...allEnvs, ...envModule.env };
       }
       for (const [k, v] of Object.entries(envModule)) {
-        if (k !== 'env') allEnvs[k] = v;
+        if (k !== 'env') {
+          allEnvs[`MODULE:${k}`] = v;
+        }
+      }
+
+      // 8. 读取所有process.env变量（排除已处理的）
+      console.log('🌐 [EnvManager] 开始读取所有process.env变量...');
+      const processedKeys = new Set(Object.keys(allEnvs).map(key => {
+        const parts = key.split(':');
+        return parts.length > 1 ? parts[1] : key;
+      }));
+      
+      for (const [key, value] of Object.entries(process.env)) {
+        if (!processedKeys.has(key) && value !== undefined) {
+          // 跳过一些系统内部变量
+          if (!key.startsWith('npm_') && !key.startsWith('npm_config_')) {
+            allEnvs[`ENV:${key}`] = value;
+          }
+        }
       }
 
       console.log('📊 [EnvManager] 收集到环境变量数量:', Object.keys(allEnvs).length);
 
-      // 将环境变量转换为数组格式
-      const envArray = Object.entries(allEnvs).map(([key, value]) => ({
-        key,
-        value: String(value)
-      }));
+      // 将环境变量转换为数组格式并按类别排序
+      const envArray = Object.entries(allEnvs)
+        .map(([key, value]) => ({
+          key,
+          value: String(value),
+          category: key.split(':')[0] || 'OTHER'
+        }))
+        .sort((a, b) => {
+          // 按类别排序
+          const categoryOrder = ['APP', 'DB', 'DOCKER', 'NODE', 'SYSTEM', 'MODULE', 'ENV'];
+          const aIndex = categoryOrder.indexOf(a.category);
+          const bIndex = categoryOrder.indexOf(b.category);
+          if (aIndex !== bIndex) {
+            return aIndex - bIndex;
+          }
+          // 同类别内按key排序
+          return a.key.localeCompare(b.key);
+        });
 
       console.log('🔄 [EnvManager] 环境变量转换为数组格式完成');
       console.log('   数组长度:', envArray.length);
+      console.log('   类别统计:', envArray.reduce((acc, item) => {
+        acc[item.category] = (acc[item.category] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>));
 
       // 准备加密数据
       const jsonData = JSON.stringify(envArray);
@@ -401,6 +585,16 @@ export const adminController = {
       logger.error('获取环境变量失败:', e);
       res.status(500).json({ success: false, error: '获取环境变量失败' });
     }
+  },
+
+  // 脱敏敏感信息
+  maskSensitiveValue(value: string): string {
+    if (!value || value.length < 8) {
+      return '***';
+    }
+    const visibleChars = Math.min(4, Math.floor(value.length * 0.2));
+    const maskedChars = value.length - visibleChars * 2;
+    return value.substring(0, visibleChars) + '*'.repeat(maskedChars) + value.substring(value.length - visibleChars);
   },
 
   // 新增/更新环境变量（仅管理员）
