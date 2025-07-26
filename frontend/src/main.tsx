@@ -498,8 +498,8 @@ document.addEventListener('DOMContentLoaded', () => {
   setInterval(runDangerousExtensionCheck, 20000);
 });
 
-// 禁止右键和常见调试快捷键
-if (typeof window !== 'undefined') {
+// 禁止右键和常见调试快捷键（仅生产环境生效）
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
   window.addEventListener('contextmenu', e => e.preventDefault());
   window.addEventListener('keydown', e => {
     // F12

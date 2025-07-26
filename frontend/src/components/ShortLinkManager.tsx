@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaTrash, FaCopy, FaSearch, FaSync } from 'react-icons/fa';
-import { toast } from 'react-toastify';
 import { useNotification } from './Notification';
 import getApiBaseUrl from '../api';
 import { useAuth } from '../hooks/useAuth';
+import CryptoJS from 'crypto-js';
 
 interface ShortLink {
   _id: string;
@@ -16,6 +16,40 @@ interface ShortLink {
 }
 
 const PAGE_SIZE = 10;
+
+// AES-256解密函数
+function decryptAES256(encryptedData: string, iv: string, key: string): string {
+  try {
+    console.log('   开始AES-256解密...');
+    console.log('   密钥长度:', key.length);
+    console.log('   加密数据长度:', encryptedData.length);
+    console.log('   IV长度:', iv.length);
+    
+    const keyBytes = CryptoJS.SHA256(key);
+    const ivBytes = CryptoJS.enc.Hex.parse(iv);
+    const encryptedBytes = CryptoJS.enc.Hex.parse(encryptedData);
+    
+    console.log('   密钥哈希完成，开始解密...');
+    
+    const decrypted = CryptoJS.AES.decrypt(
+      { ciphertext: encryptedBytes },
+      keyBytes,
+      {
+        iv: ivBytes,
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7
+      }
+    );
+    
+    const result = decrypted.toString(CryptoJS.enc.Utf8);
+    console.log('   解密完成，结果长度:', result.length);
+    
+    return result;
+  } catch (error) {
+    console.error('❌ AES-256解密失败:', error);
+    throw new Error('解密失败');
+  }
+}
 
 const ShortLinkManager: React.FC = () => {
   const { user } = useAuth();
@@ -38,8 +72,39 @@ const ShortLinkManager: React.FC = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      setLinks(data.items || []);
-      setTotal(data.total || 0);
+      
+      // 检查是否为加密数据
+      if (data.data && data.iv && typeof data.data === 'string' && typeof data.iv === 'string') {
+        try {
+          console.log('🔐 开始解密短链列表数据...');
+          console.log('   加密数据长度:', data.data.length);
+          console.log('   IV:', data.iv);
+          console.log('   使用Token进行解密，Token长度:', token?.length || 0);
+          
+          // 解密数据
+          const decryptedJson = decryptAES256(data.data, data.iv, token || '');
+          const decryptedData = JSON.parse(decryptedJson);
+          
+          if (decryptedData.items && Array.isArray(decryptedData.items)) {
+            console.log('✅ 解密成功，获取到', decryptedData.items.length, '个短链');
+            setLinks(decryptedData.items);
+            setTotal(decryptedData.total || 0);
+          } else {
+            console.error('❌ 解密数据格式错误，期望包含items数组');
+            setLinks([]);
+            setTotal(0);
+          }
+        } catch (decryptError) {
+          console.error('❌ 解密失败:', decryptError);
+          setLinks([]);
+          setTotal(0);
+        }
+      } else {
+        // 兼容旧的未加密格式
+        console.log('📝 使用未加密格式数据');
+        setLinks(data.items || []);
+        setTotal(data.total || 0);
+      }
     } catch {
       setLinks([]);
       setTotal(0);

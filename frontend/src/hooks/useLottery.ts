@@ -8,6 +8,42 @@ import {
 } from '../types/lottery';
 import * as lotteryApi from '../api/lottery';
 import { useAuth } from './useAuth';
+import CryptoJS from 'crypto-js';
+import getApiBaseUrl from '../api';
+
+// AES-256解密函数
+function decryptAES256(encryptedData: string, iv: string, key: string): string {
+  try {
+    console.log('   开始AES-256解密...');
+    console.log('   密钥长度:', key.length);
+    console.log('   加密数据长度:', encryptedData.length);
+    console.log('   IV长度:', iv.length);
+    
+    const keyBytes = CryptoJS.SHA256(key);
+    const ivBytes = CryptoJS.enc.Hex.parse(iv);
+    const encryptedBytes = CryptoJS.enc.Hex.parse(encryptedData);
+    
+    console.log('   密钥哈希完成，开始解密...');
+    
+    const decrypted = CryptoJS.AES.decrypt(
+      { ciphertext: encryptedBytes },
+      keyBytes,
+      {
+        iv: ivBytes,
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7
+      }
+    );
+    
+    const result = decrypted.toString(CryptoJS.enc.Utf8);
+    console.log('   解密完成，结果长度:', result.length);
+    
+    return result;
+  } catch (error) {
+    console.error('❌ AES-256解密失败:', error);
+    throw new Error('解密失败');
+  }
+}
 
 export function useLottery() {
   const { user } = useAuth();
@@ -46,8 +82,55 @@ export function useLottery() {
   const fetchAllRounds = useCallback(async () => {
     try {
       setError(null);
-      const rounds = await lotteryApi.getLotteryRounds();
-      setAllRounds(rounds);
+      const token = localStorage.getItem('token');
+      
+      // 直接调用API并处理加密响应
+      const response = await fetch(getApiBaseUrl() + '/api/lottery/rounds', {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // 检查是否为加密数据
+      if (data.data && data.iv && typeof data.data === 'string' && typeof data.iv === 'string') {
+        try {
+          console.log('🔐 开始解密抽奖轮次数据...');
+          console.log('   加密数据长度:', data.data.length);
+          console.log('   IV:', data.iv);
+          console.log('   使用Token进行解密，Token长度:', token?.length || 0);
+          
+          // 解密数据
+          const decryptedJson = decryptAES256(data.data, data.iv, token || '');
+          const decryptedData = JSON.parse(decryptedJson);
+          
+          if (Array.isArray(decryptedData)) {
+            console.log('✅ 解密成功，获取到', decryptedData.length, '个抽奖轮次');
+            setAllRounds(decryptedData);
+          } else {
+            console.error('❌ 解密数据格式错误，期望数组格式');
+            setError('解密数据格式错误');
+          }
+        } catch (decryptError) {
+          console.error('❌ 解密失败:', decryptError);
+          setError('数据解密失败，请检查登录状态');
+        }
+      } else {
+        // 兼容未加密格式（普通用户或未登录用户）
+        console.log('📝 使用未加密格式数据');
+        if (Array.isArray(data.data)) {
+          setAllRounds(data.data);
+        } else {
+          console.error('❌ 响应数据格式错误，期望数组格式');
+          setError('响应数据格式错误');
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '获取所有轮次失败');
     }

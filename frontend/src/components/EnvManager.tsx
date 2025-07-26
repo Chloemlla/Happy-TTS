@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import getApiBaseUrl from '../api';
 import { useNotification } from './Notification';
 import { useAuth } from '../hooks/useAuth';
+import CryptoJS from 'crypto-js';
 
 const API_URL = getApiBaseUrl() + '/api/admin/envs';
 
@@ -17,6 +18,40 @@ interface EnvItem {
   value: string;
   desc?: string;
   updatedAt?: string;
+}
+
+// AES-256解密函数
+function decryptAES256(encryptedData: string, iv: string, key: string): string {
+  try {
+    console.log('   开始AES-256解密...');
+    console.log('   密钥长度:', key.length);
+    console.log('   加密数据长度:', encryptedData.length);
+    console.log('   IV长度:', iv.length);
+    
+    const keyBytes = CryptoJS.SHA256(key);
+    const ivBytes = CryptoJS.enc.Hex.parse(iv);
+    const encryptedBytes = CryptoJS.enc.Hex.parse(encryptedData);
+    
+    console.log('   密钥哈希完成，开始解密...');
+    
+    const decrypted = CryptoJS.AES.decrypt(
+      { ciphertext: encryptedBytes },
+      keyBytes,
+      {
+        iv: ivBytes,
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7
+      }
+    );
+    
+    const result = decrypted.toString(CryptoJS.enc.Utf8);
+    console.log('   解密完成，结果长度:', result.length);
+    
+    return result;
+  } catch (error) {
+    console.error('❌ AES-256解密失败:', error);
+    throw new Error('解密失败');
+  }
 }
 
 const EnvManager: React.FC = () => {
@@ -56,16 +91,59 @@ const EnvManager: React.FC = () => {
         setLoading(false);
         return;
       }
+      
       if (data.success) {
-        // 兼容对象格式
         let envArr: EnvItem[] = [];
-        if (Array.isArray(data.envs)) {
-          envArr = data.envs;
-        } else if (data.envs && typeof data.envs === 'object') {
-          envArr = Object.entries(data.envs).map(([key, value]) => ({ key, value: String(value) }));
+        
+        // 检查是否为加密数据（通过检测data和iv字段来判断）
+        if (data.data && data.iv && typeof data.data === 'string' && typeof data.iv === 'string') {
+          try {
+            console.log('🔐 开始解密环境变量数据...');
+            console.log('   加密数据长度:', data.data.length);
+            console.log('   IV:', data.iv);
+            
+            const token = localStorage.getItem('token');
+            if (!token) {
+              console.error('❌ Token不存在，无法解密数据');
+              setNotification({ message: 'Token不存在，无法解密数据', type: 'error' });
+              setLoading(false);
+              return;
+            }
+            
+            console.log('   使用Token进行解密，Token长度:', token.length);
+            
+            // 解密数据
+            const decryptedJson = decryptAES256(data.data, data.iv, token);
+            const decryptedData = JSON.parse(decryptedJson);
+            
+            if (Array.isArray(decryptedData)) {
+              console.log('✅ 解密成功，获取到', decryptedData.length, '个环境变量');
+              envArr = decryptedData;
+            } else {
+              console.error('❌ 解密数据格式错误，期望数组格式');
+              setNotification({ message: '解密数据格式错误', type: 'error' });
+              setLoading(false);
+              return;
+            }
+          } catch (decryptError) {
+            console.error('❌ 解密失败:', decryptError);
+            setNotification({ message: '数据解密失败，请检查登录状态', type: 'error' });
+            setLoading(false);
+            return;
+          }
+        } else {
+          // 兼容旧的未加密格式
+          if (Array.isArray(data.envs)) {
+            envArr = data.envs;
+          } else if (data.envs && typeof data.envs === 'object') {
+            envArr = Object.entries(data.envs).map(([key, value]) => ({ key, value: String(value) }));
+          }
         }
+        
         setEnvs(envArr);
-      } else setNotification({ message: data.error || '获取失败', type: 'error' });
+      } else {
+        setNotification({ message: data.error || '获取失败', type: 'error' });
+      }
     } catch (e) {
       setNotification({ message: '获取失败：' + (e instanceof Error ? e.message : (e && e.toString ? e.toString() : '未知错误')), type: 'error' });
     } finally {

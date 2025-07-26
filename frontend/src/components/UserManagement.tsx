@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import CryptoJS from 'crypto-js';
 
 interface User {
   id: string;
@@ -28,6 +29,40 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' }
 });
 
+// AES-256解密函数
+function decryptAES256(encryptedData: string, iv: string, key: string): string {
+  try {
+    console.log('   开始AES-256解密...');
+    console.log('   密钥长度:', key.length);
+    console.log('   加密数据长度:', encryptedData.length);
+    console.log('   IV长度:', iv.length);
+    
+    const keyBytes = CryptoJS.SHA256(key);
+    const ivBytes = CryptoJS.enc.Hex.parse(iv);
+    const encryptedBytes = CryptoJS.enc.Hex.parse(encryptedData);
+    
+    console.log('   密钥哈希完成，开始解密...');
+    
+    const decrypted = CryptoJS.AES.decrypt(
+      { ciphertext: encryptedBytes },
+      keyBytes,
+      {
+        iv: ivBytes,
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7
+      }
+    );
+    
+    const result = decrypted.toString(CryptoJS.enc.Utf8);
+    console.log('   解密完成，结果长度:', result.length);
+    
+    return result;
+  } catch (error) {
+    console.error('❌ AES-256解密失败:', error);
+    throw new Error('解密失败');
+  }
+}
+
 const UserManagement: React.FC = () => {
   const { user } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
@@ -49,10 +84,38 @@ const UserManagement: React.FC = () => {
         return;
       }
       
-      const res = await api.get<User[]>('/api/admin/users', {
+      const res = await api.get('/api/admin/users', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setUsers(res.data);
+      
+      // 检查是否为加密数据
+      if (res.data.data && res.data.iv && typeof res.data.data === 'string' && typeof res.data.iv === 'string') {
+        try {
+          console.log('🔐 开始解密用户列表数据...');
+          console.log('   加密数据长度:', res.data.data.length);
+          console.log('   IV:', res.data.iv);
+          console.log('   使用Token进行解密，Token长度:', token.length);
+          
+          // 解密数据
+          const decryptedJson = decryptAES256(res.data.data, res.data.iv, token);
+          const decryptedData = JSON.parse(decryptedJson);
+          
+          if (Array.isArray(decryptedData)) {
+            console.log('✅ 解密成功，获取到', decryptedData.length, '个用户');
+            setUsers(decryptedData);
+          } else {
+            console.error('❌ 解密数据格式错误，期望数组格式');
+            setError('解密数据格式错误');
+          }
+        } catch (decryptError) {
+          console.error('❌ 解密失败:', decryptError);
+          setError('数据解密失败，请检查登录状态');
+        }
+      } else {
+        // 兼容旧的未加密格式
+        console.log('📝 使用未加密格式数据');
+        setUsers(res.data);
+      }
     } catch (e: any) {
       console.error('获取用户列表失败:', e);
       if (e.response?.status === 401) {

@@ -8,6 +8,8 @@ import fs from 'fs';
 import path from 'path';
 import { env as startupEnv } from '../config/env';
 import * as envModule from '../config/env';
+import crypto from 'crypto';
+
 const STORAGE_MODE = process.env.STORAGE_MODE || 'mongo';
 const ANNOUNCEMENT_FILE = path.join(__dirname, '../../data/announcement.json');
 const ENV_FILE = path.join(__dirname, '../../data/env.admin.json');
@@ -63,13 +65,95 @@ function sanitizeInput(str: string) {
 export const adminController = {
     getUsers: async (req: Request, res: Response) => {
         try {
+            console.log('🔐 [UserManagement] 开始处理用户列表加密请求...');
+            console.log('   用户ID:', req.user?.id);
+            console.log('   用户名:', req.user?.username);
+            console.log('   用户角色:', req.user?.role);
+            console.log('   请求IP:', req.ip);
+            
+            // 检查管理员权限
+            if (!req.user || req.user.role !== 'admin') {
+                console.log('❌ [UserManagement] 权限检查失败：非管理员用户');
+                return res.status(403).json({ error: '需要管理员权限' });
+            }
+
+            console.log('✅ [UserManagement] 权限检查通过');
+
+            // 获取管理员token作为加密密钥
+            const authHeader = req.headers.authorization;
+            if (!authHeader || !authHeader.startsWith('Bearer ')) {
+                console.log('❌ [UserManagement] Token格式错误：未携带Token或格式不正确');
+                return res.status(401).json({ error: '未携带Token，请先登录' });
+            }
+            
+            const token = authHeader.substring(7); // 移除 'Bearer ' 前缀
+            if (!token) {
+                console.log('❌ [UserManagement] Token为空');
+                return res.status(401).json({ error: 'Token为空' });
+            }
+
+            console.log('✅ [UserManagement] Token获取成功，长度:', token.length);
+
+            // 获取用户数据
             const users = await UserStorage.getAllUsers();
             const usersWithoutPassword = users.map(user => {
                 const { password, ...userWithoutPassword } = user;
                 return userWithoutPassword;
             });
-            res.json(usersWithoutPassword);
+
+            console.log('📊 [UserManagement] 获取到用户数量:', usersWithoutPassword.length);
+
+            // 准备加密数据
+            const jsonData = JSON.stringify(usersWithoutPassword);
+            console.log('📝 [UserManagement] JSON数据准备完成，长度:', jsonData.length);
+
+            // 使用AES-256-CBC加密数据
+            console.log('🔐 [UserManagement] 开始AES-256-CBC加密...');
+            const algorithm = 'aes-256-cbc';
+            
+            // 生成密钥
+            console.log('   生成密钥...');
+            const key = crypto.createHash('sha256').update(token).digest();
+            console.log('   密钥生成完成，长度:', key.length);
+            
+            // 生成IV
+            console.log('   生成初始化向量(IV)...');
+            const iv = crypto.randomBytes(16);
+            console.log('   IV生成完成，长度:', iv.length);
+            console.log('   IV (hex):', iv.toString('hex'));
+            
+            // 创建加密器
+            console.log('   创建加密器...');
+            const cipher = crypto.createCipheriv(algorithm, key, iv);
+            
+            // 执行加密
+            console.log('   开始加密数据...');
+            let encrypted = cipher.update(jsonData, 'utf8', 'hex');
+            encrypted += cipher.final('hex');
+            
+            console.log('✅ [UserManagement] 加密完成');
+            console.log('   原始数据长度:', jsonData.length);
+            console.log('   加密后数据长度:', encrypted.length);
+            console.log('   加密算法:', algorithm);
+            console.log('   密钥长度:', key.length);
+            console.log('   IV长度:', iv.length);
+
+            // 返回加密后的数据
+            const response = { 
+                success: true, 
+                data: encrypted,
+                iv: iv.toString('hex')
+            };
+            
+            console.log('📤 [UserManagement] 准备返回加密数据');
+            console.log('   响应数据大小:', JSON.stringify(response).length);
+            
+            res.json(response);
+            
+            console.log('✅ [UserManagement] 用户列表加密请求处理完成');
+            
         } catch (error) {
+            console.error('❌ [UserManagement] 获取用户列表失败:', error);
             logger.error('获取用户列表失败:', error);
             res.status(500).json({ error: '获取用户列表失败' });
         }
@@ -214,6 +298,35 @@ export const adminController = {
   // 获取所有环境变量
   async getEnvs(req: Request, res: Response) {
     try {
+      console.log('🔐 [EnvManager] 开始处理环境变量加密请求...');
+      console.log('   用户ID:', req.user?.id);
+      console.log('   用户名:', req.user?.username);
+      console.log('   用户角色:', req.user?.role);
+      console.log('   请求IP:', req.ip);
+      
+      // 检查管理员权限
+      if (!req.user || req.user.role !== 'admin') {
+        console.log('❌ [EnvManager] 权限检查失败：非管理员用户');
+        return res.status(403).json({ error: '需要管理员权限' });
+      }
+
+      console.log('✅ [EnvManager] 权限检查通过');
+
+      // 获取管理员token作为加密密钥
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        console.log('❌ [EnvManager] Token格式错误：未携带Token或格式不正确');
+        return res.status(401).json({ error: '未携带Token，请先登录' });
+      }
+      
+      const token = authHeader.substring(7); // 移除 'Bearer ' 前缀
+      if (!token) {
+        console.log('❌ [EnvManager] Token为空');
+        return res.status(401).json({ error: 'Token为空' });
+      }
+
+      console.log('✅ [EnvManager] Token获取成功，长度:', token.length);
+
       // 合并env对象和所有导出常量
       let allEnvs: Record<string, any> = {};
       if (envModule.env && typeof envModule.env === 'object') {
@@ -222,8 +335,70 @@ export const adminController = {
       for (const [k, v] of Object.entries(envModule)) {
         if (k !== 'env') allEnvs[k] = v;
       }
-      res.json({ success: true, envs: allEnvs });
+
+      console.log('📊 [EnvManager] 收集到环境变量数量:', Object.keys(allEnvs).length);
+
+      // 将环境变量转换为数组格式
+      const envArray = Object.entries(allEnvs).map(([key, value]) => ({
+        key,
+        value: String(value)
+      }));
+
+      console.log('🔄 [EnvManager] 环境变量转换为数组格式完成');
+      console.log('   数组长度:', envArray.length);
+
+      // 准备加密数据
+      const jsonData = JSON.stringify(envArray);
+      console.log('📝 [EnvManager] JSON数据准备完成，长度:', jsonData.length);
+
+      // 使用AES-256-CBC加密数据
+      console.log('🔐 [EnvManager] 开始AES-256-CBC加密...');
+      const algorithm = 'aes-256-cbc';
+      
+      // 生成密钥
+      console.log('   生成密钥...');
+      const key = crypto.createHash('sha256').update(token).digest();
+      console.log('   密钥生成完成，长度:', key.length);
+      
+      // 生成IV
+      console.log('   生成初始化向量(IV)...');
+      const iv = crypto.randomBytes(16);
+      console.log('   IV生成完成，长度:', iv.length);
+      console.log('   IV (hex):', iv.toString('hex'));
+      
+      // 创建加密器
+      console.log('   创建加密器...');
+      const cipher = crypto.createCipheriv(algorithm, key, iv);
+      
+      // 执行加密
+      console.log('   开始加密数据...');
+      let encrypted = cipher.update(jsonData, 'utf8', 'hex');
+      encrypted += cipher.final('hex');
+      
+      console.log('✅ [EnvManager] 加密完成');
+      console.log('   原始数据长度:', jsonData.length);
+      console.log('   加密后数据长度:', encrypted.length);
+      console.log('   加密算法:', algorithm);
+      console.log('   密钥长度:', key.length);
+      console.log('   IV长度:', iv.length);
+
+      // 返回加密后的数据
+      const response = { 
+        success: true, 
+        data: encrypted,
+        iv: iv.toString('hex')
+      };
+      
+      console.log('📤 [EnvManager] 准备返回加密数据');
+      console.log('   响应数据大小:', JSON.stringify(response).length);
+      
+      res.json(response);
+      
+      console.log('✅ [EnvManager] 环境变量加密请求处理完成');
+      
     } catch (e) {
+      console.error('❌ [EnvManager] 获取环境变量失败:', e);
+      logger.error('获取环境变量失败:', e);
       res.status(500).json({ success: false, error: '获取环境变量失败' });
     }
   },

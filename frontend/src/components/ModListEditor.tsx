@@ -3,6 +3,41 @@ import { motion, AnimatePresence, HTMLMotionProps } from 'framer-motion';
 import { useNotification } from './Notification';
 import getApiBaseUrl, { getApiBaseUrl as namedGetApiBaseUrl } from '../api';
 import { useAuth } from '../hooks/useAuth';
+import CryptoJS from 'crypto-js';
+
+// AES-256解密函数
+function decryptAES256(encryptedData: string, iv: string, key: string): string {
+  try {
+    console.log('   开始AES-256解密...');
+    console.log('   密钥长度:', key.length);
+    console.log('   加密数据长度:', encryptedData.length);
+    console.log('   IV长度:', iv.length);
+    
+    const keyBytes = CryptoJS.SHA256(key);
+    const ivBytes = CryptoJS.enc.Hex.parse(iv);
+    const encryptedBytes = CryptoJS.enc.Hex.parse(encryptedData);
+    
+    console.log('   密钥哈希完成，开始解密...');
+    
+    const decrypted = CryptoJS.AES.decrypt(
+      { ciphertext: encryptedBytes },
+      keyBytes,
+      {
+        iv: ivBytes,
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7
+      }
+    );
+    
+    const result = decrypted.toString(CryptoJS.enc.Utf8);
+    console.log('   解密完成，结果长度:', result.length);
+    
+    return result;
+  } catch (error) {
+    console.error('❌ AES-256解密失败:', error);
+    throw new Error('解密失败');
+  }
+}
 
 // Mod 类型扩展
 interface Mod {
@@ -13,23 +48,117 @@ interface Mod {
 }
 
 const fetchMods = async (withHash = false, withMd5 = false) => {
-  let url = getApiBaseUrl() + '/api/modlist';
-  const params = [];
-  if (withHash) params.push('withHash=1');
-  if (withMd5) params.push('withMd5=1');
-  if (params.length) url += '?' + params.join('&');
-  const res = await fetch(url);
-  return (await res.json()).mods as Mod[];
+  try {
+    let url = getApiBaseUrl() + '/api/modlist';
+    const params = [];
+    if (withHash) params.push('withHash=1');
+    if (withMd5) params.push('withMd5=1');
+    if (params.length) url += '?' + params.join('&');
+    
+    const token = localStorage.getItem('token');
+    const res = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` }),
+      },
+    });
+    
+    if (!res.ok) {
+      console.error('API请求失败:', res.status, res.statusText);
+      return [];
+    }
+    
+    const data = await res.json();
+    
+    // 检查是否为加密数据
+    if (data.data && data.iv && typeof data.data === 'string' && typeof data.iv === 'string') {
+      try {
+        console.log('🔐 开始解密MOD列表数据...');
+        console.log('   加密数据长度:', data.data.length);
+        console.log('   IV:', data.iv);
+        console.log('   使用Token进行解密，Token长度:', token?.length || 0);
+        
+        // 解密数据
+        const decryptedJson = decryptAES256(data.data, data.iv, token || '');
+        const decryptedData = JSON.parse(decryptedJson);
+        
+        if (decryptedData.mods && Array.isArray(decryptedData.mods)) {
+          console.log('✅ 解密成功，获取到', decryptedData.mods.length, '个MOD');
+          return decryptedData.mods as Mod[];
+        } else {
+          console.error('❌ 解密数据格式错误，期望包含mods数组');
+          return [];
+        }
+      } catch (decryptError) {
+        console.error('❌ 解密失败:', decryptError);
+        return [];
+      }
+    } else {
+      // 兼容未加密格式（普通用户或未登录用户）
+      console.log('📝 使用未加密格式数据');
+      if (data.mods && Array.isArray(data.mods)) {
+        return data.mods as Mod[];
+      } else {
+        console.error('❌ 响应数据格式错误，期望包含mods数组');
+        return [];
+      }
+    }
+  } catch (error) {
+    console.error('获取MOD列表失败:', error);
+    return [];
+  }
 };
 
 const fetchModsJson = async (withHash = false, withMd5 = false) => {
-  let url = getApiBaseUrl() + '/api/modlist/json';
-  const params = [];
-  if (withHash) params.push('withHash=1');
-  if (withMd5) params.push('withMd5=1');
-  if (params.length) url += '?' + params.join('&');
-  const res = await fetch(url);
-  return await res.json();
+  try {
+    let url = getApiBaseUrl() + '/api/modlist/json';
+    const params = [];
+    if (withHash) params.push('withHash=1');
+    if (withMd5) params.push('withMd5=1');
+    if (params.length) url += '?' + params.join('&');
+    
+    const token = localStorage.getItem('token');
+    const res = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` }),
+      },
+    });
+    
+    if (!res.ok) {
+      console.error('API请求失败:', res.status, res.statusText);
+      return [];
+    }
+    
+    const data = await res.json();
+    
+    // 检查是否为加密数据
+    if (data.data && data.iv && typeof data.data === 'string' && typeof data.iv === 'string') {
+      try {
+        console.log('🔐 开始解密MOD JSON数据...');
+        console.log('   加密数据长度:', data.data.length);
+        console.log('   IV:', data.iv);
+        console.log('   使用Token进行解密，Token长度:', token?.length || 0);
+        
+        // 解密数据
+        const decryptedJson = decryptAES256(data.data, data.iv, token || '');
+        const decryptedData = JSON.parse(decryptedJson);
+        
+        console.log('✅ 解密成功，获取到MOD JSON数据');
+        return decryptedData;
+      } catch (decryptError) {
+        console.error('❌ 解密失败:', decryptError);
+        return [];
+      }
+    } else {
+      // 兼容未加密格式（普通用户或未登录用户）
+      console.log('📝 使用未加密格式JSON数据');
+      return data;
+    }
+  } catch (error) {
+    console.error('获取MOD JSON数据失败:', error);
+    return [];
+  }
 };
 
 const addMod = async (name: string, code: string, hash?: string, md5?: string) => {
@@ -234,11 +363,18 @@ const ModListEditor: React.FC = () => {
   const [deleteCode, setDeleteCode] = useState('');
 
   const loadMods = async () => {
-    if (jsonMode) {
-      const data = await fetchModsJson();
-      setJsonValue(JSON.stringify(data, null, 2));
-    } else {
-      setMods(await fetchMods());
+    try {
+      if (jsonMode) {
+        const data = await fetchModsJson();
+        setJsonValue(JSON.stringify(data, null, 2));
+      } else {
+        const modsData = await fetchMods();
+        setMods(Array.isArray(modsData) ? modsData : []);
+      }
+    } catch (error) {
+      console.error('加载MOD列表失败:', error);
+      setMods([]);
+      setJsonValue('[]');
     }
   };
 
@@ -344,7 +480,7 @@ const ModListEditor: React.FC = () => {
             <MyButton onClick={() => setShowAdd(true)} style={{ margin: '18px 0 16px 0' }}>添加MOD</MyButton>
             <MyButton style={{ marginLeft: 12, background: '#f1f5fa', color: '#2563eb', fontWeight: 500 }} onClick={() => setShowExample(true)}>批量添加示例</MyButton>
             <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              {mods.map(mod => (
+              {(mods || []).map(mod => (
                 <li key={mod.id} style={{ display: 'flex', alignItems: 'center', marginBottom: 10, borderBottom: '1px solid #f0f0f0', padding: '8px 0' }}>
                   <span style={{ flex: 1, fontSize: 16 }}>{mod.name}</span>
                   <MyButton style={{ fontSize: 14, padding: '4px 14px', marginRight: 8 }} onClick={() => { setEditId(mod.id); setEditName(mod.name); setEditCode(''); }}>修改</MyButton>

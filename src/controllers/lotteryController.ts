@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { lotteryService, LotteryPrize, LotteryRound } from '../services/lotteryService';
 import logger from '../utils/logger';
+import * as crypto from 'crypto';
 
 // 简单WAF校验函数
 function wafCheck(str: string, maxLen = 128): boolean {
@@ -91,12 +92,96 @@ export class LotteryController {
   // 获取所有抽奖轮次
   public async getLotteryRounds(req: Request, res: Response): Promise<void> {
     try {
+      console.log('🔐 [Lottery] 开始处理抽奖轮次请求...');
+      console.log('   用户ID:', req.user?.id);
+      console.log('   用户名:', req.user?.username);
+      console.log('   用户角色:', req.user?.role);
+      console.log('   请求IP:', req.ip);
+
       const rounds = await lotteryService.getLotteryRounds();
-      res.json({
-        success: true,
-        data: rounds
-      });
+      console.log('📊 [Lottery] 获取到抽奖轮次数量:', rounds.length);
+
+      // 检查是否为管理员用户
+      if (req.user && req.user.role === 'admin') {
+        console.log('✅ [Lottery] 管理员用户，返回加密数据');
+
+        // 获取管理员token作为加密密钥
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          console.log('❌ [Lottery] Token格式错误：未携带Token或格式不正确');
+          res.status(401).json({ error: '未携带Token，请先登录' });
+          return;
+        }
+        
+        const token = authHeader.substring(7); // 移除 'Bearer ' 前缀
+        if (!token) {
+          console.log('❌ [Lottery] Token为空');
+          res.status(401).json({ error: 'Token为空' });
+          return;
+        }
+
+        console.log('✅ [Lottery] Token获取成功，长度:', token.length);
+
+        // 准备加密数据
+        const jsonData = JSON.stringify(rounds);
+        console.log('📝 [Lottery] JSON数据准备完成，长度:', jsonData.length);
+
+        // 使用AES-256-CBC加密数据
+        console.log('🔐 [Lottery] 开始AES-256-CBC加密...');
+        const algorithm = 'aes-256-cbc';
+        
+        // 生成密钥
+        console.log('   生成密钥...');
+        const key = crypto.createHash('sha256').update(token).digest();
+        console.log('   密钥生成完成，长度:', key.length);
+        
+        // 生成IV
+        console.log('   生成初始化向量(IV)...');
+        const iv = crypto.randomBytes(16);
+        console.log('   IV生成完成，长度:', iv.length);
+        console.log('   IV (hex):', iv.toString('hex'));
+        
+        // 创建加密器
+        console.log('   创建加密器...');
+        const cipher = crypto.createCipheriv(algorithm, key, iv);
+        
+        // 执行加密
+        console.log('   开始加密数据...');
+        let encrypted = cipher.update(jsonData, 'utf8', 'hex');
+        encrypted += cipher.final('hex');
+        
+        console.log('✅ [Lottery] 加密完成');
+        console.log('   原始数据长度:', jsonData.length);
+        console.log('   加密后数据长度:', encrypted.length);
+        console.log('   加密算法:', algorithm);
+        console.log('   密钥长度:', key.length);
+        console.log('   IV长度:', iv.length);
+
+        // 返回加密后的数据
+        const response = { 
+          success: true, 
+          data: encrypted,
+          iv: iv.toString('hex')
+        };
+        
+        console.log('📤 [Lottery] 准备返回加密数据');
+        console.log('   响应数据大小:', JSON.stringify(response).length);
+        
+        res.json(response);
+        
+        console.log('✅ [Lottery] 管理员抽奖轮次加密请求处理完成');
+      } else {
+        // 普通用户或未登录用户，返回未加密数据
+        console.log('📝 [Lottery] 普通用户，返回未加密数据');
+        res.json({
+          success: true,
+          data: rounds
+        });
+        console.log('✅ [Lottery] 普通用户抽奖轮次请求处理完成');
+      }
+      
     } catch (error) {
+      console.error('❌ [Lottery] 获取抽奖轮次失败:', error);
       logger.error('获取抽奖轮次失败:', error);
       res.status(500).json({
         success: false,
