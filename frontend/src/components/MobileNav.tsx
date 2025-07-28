@@ -882,6 +882,42 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   )}
                 </Link>
               </motion.div>
+
+              {/* 老虎冒险 */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.5 }}
+              >
+                <Link
+                  to="/tiger-adventure"
+                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
+                    location.pathname === '/tiger-adventure' ? 'bg-orange-50 text-orange-700 font-semibold shadow-sm' : 'hover:bg-orange-50'
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <motion.svg 
+                    className={`w-5 h-5 ${location.pathname === '/tiger-adventure' ? 'text-orange-500' : 'text-gray-400'}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2m-9 0h10m-10 0a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2" />
+                  </motion.svg>
+                  <span>老虎冒险</span>
+                  {location.pathname === '/tiger-adventure' && (
+                    <motion.span 
+                      className="ml-auto text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full"
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                    >
+                      当前
+                    </motion.span>
+                  )}
+                </Link>
+              </motion.div>
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}

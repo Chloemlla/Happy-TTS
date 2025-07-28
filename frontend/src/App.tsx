@@ -32,6 +32,7 @@ const OutEmail = React.lazy(() => import('./components/OutEmail'));
 const LotteryPage = React.lazy(() => import('./components/LotteryPage'));
 const LotteryAdmin = React.lazy(() => import('./components/LotteryAdmin'));
 const ImageUploadPage = React.lazy(() => import('./components/ImageUploadPage'));
+const TigerAdventure = React.lazy(() => import('./components/TigerAdventure'));
 
 // 恢复 EmailSender 懒加载
 const EmailSenderPage: React.FC = () => {
@@ -580,6 +581,19 @@ const App: React.FC = () => {
                 ) : (
                   <Navigate to="/welcome" replace state={{ from: location.pathname }} />
                 )
+              } />
+              <Route path="/tiger-adventure" element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <motion.div
+                    variants={pageVariants}
+                    initial="initial"
+                    animate="in"
+                    exit="out"
+                    transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                  >
+                    <TigerAdventure />
+                  </motion.div>
+                </Suspense>
               } />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
