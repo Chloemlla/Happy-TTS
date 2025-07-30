@@ -139,7 +139,7 @@ const ShortLinkManager: React.FC = () => {
   };
 
   const handleCopy = (code: string) => {
-    const url = `${window.location.origin}/s/${code}`;
+    const url = `${getApiBaseUrl()}/s/${code}`;
     navigator.clipboard.writeText(url);
     setNotification({ message: '短链已复制到剪贴板', type: 'info' });
     
