@@ -1315,7 +1315,7 @@ const CommandManager: React.FC = () => {
                   </div>
                   {autoRefresh && (
                     <div className="mt-2 text-xs text-gray-600">
-                      💡 每2秒自动刷新一次，实时监控系统资源使用情况
+                      💡 每6秒自动刷新一次，实时监控系统资源使用情况
                     </div>
                   )}
                 </div>
