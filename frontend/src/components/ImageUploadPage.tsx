@@ -260,6 +260,11 @@ function generateMD5Hash(fileContent: ArrayBuffer): string {
   }
 }
 
+// 工具函数：替换旧域名为新域名
+function fixIpfsDomain(url: string) {
+  return url.replace(/ipfs\.crossbell\.io/gi, 'ipfs.hapxs.com');
+}
+
 const ImageUploadPage: React.FC = () => {
   const { setNotification } = useNotification();
   const [file, setFile] = useState<File | null>(null);
@@ -742,8 +747,9 @@ const ImageUploadPage: React.FC = () => {
                 <div className="text-xs sm:text-sm text-gray-800 mb-1 truncate">{img.fileName}</div>
                 <div className="text-xs text-gray-400 mb-2">{formatFileSize(img.fileSize)} • {formatDate(img.uploadTime)}</div>
                 <div className="flex flex-col sm:flex-row gap-1 mt-auto">
-                  <button className="flex-1 px-2 py-2 rounded bg-green-100 text-green-700 text-xs font-semibold hover:bg-green-200 min-h-[36px]" onClick={() => handleCopy(img.web2url)}>复制链接</button>
-                  <a className="flex-1 px-2 py-2 rounded bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200 text-center min-h-[36px] flex items-center justify-center" href={img.web2url} target="_blank" rel="noopener noreferrer">预览</a>
+                  <button className="flex-1 px-2 py-2 rounded bg-green-100 text-green-700 text-xs font-semibold hover:bg-green-200 min-h-[36px]" onClick={() => handleCopy(fixIpfsDomain(img.web2url))}>复制链接</button>
+                  {/* 预览按钮始终使用后端返回的 web2url，确保域名和路径与后端一致 */}
+                  <a className="flex-1 px-2 py-2 rounded bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200 text-center min-h-[36px] flex items-center justify-center" href={fixIpfsDomain(img.web2url)} target="_blank" rel="noopener noreferrer">预览</a>
                   <button className="flex-1 px-2 py-2 rounded bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 min-h-[36px]" onClick={() => handleDelete(idx)}>删除</button>
                 </div>
               </div>
