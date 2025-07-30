@@ -38,8 +38,10 @@ class ShortUrlMigrationService {
       logger.info('[ShortUrlMigration] 开始检测和修正旧域名短链...');
       
       // 查找所有包含旧域名的记录
+      // 修正：主机名正则应完整匹配域名（支持子域、端口、路径等）
+      const oldDomainPattern = new RegExp(`(^|[\s/:;,.])${this.OLD_DOMAIN.replace('.', '\.')}([\s/:;,.]|$)`, 'i');
       const oldDomainRecords = await ShortUrlModel.find({
-        target: { $regex: new RegExp(`\\b${this.OLD_DOMAIN.replace('.', '\\.') }\\b`, 'i') }
+        target: { $regex: oldDomainPattern }
       });
 
       logger.info(`[ShortUrlMigration] 找到 ${oldDomainRecords.length} 条包含旧域名的记录`);

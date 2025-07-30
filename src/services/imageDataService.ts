@@ -57,6 +57,7 @@ class ImageDataService {
       };
 
       // 检查是否已存在相同的imageId
+      if (!isValidImageId(data.imageId)) throw new Error('非法 imageId');
       const existing = await ImageDataModel.findOne({ imageId: data.imageId });
       if (existing) {
         // 更新现有记录

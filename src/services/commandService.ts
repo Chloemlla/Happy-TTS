@@ -172,6 +172,19 @@ class CommandService {
             actualArgs = ['/v'];
           }
           
+          // 仅允许白名单命令，防止命令注入
+          if (!this.ALLOWED_COMMANDS.has(actualCommand)) {
+            return reject(new Error('命令未被允许'));
+          }
+          // 参数仅允许安全字符
+          if (actualArgs && actualArgs.length > 0) {
+            const argPattern = /^[a-zA-Z0-9_\-\.\/]{0,64}$/;
+            for (const arg of actualArgs) {
+              if (!argPattern.test(arg)) {
+                return reject(new Error('参数包含非法字符'));
+              }
+            }
+          }
           const childProcess = spawn('cmd', ['/c', actualCommand, ...actualArgs], {
             stdio: ['pipe', 'pipe', 'pipe'],
             shell: false,
@@ -288,7 +301,7 @@ class CommandService {
   public async addCommand(command: string, password: string): Promise<{ status: string; message?: string; command?: string; commandId?: string }> {
     console.log('🔐 [CommandService] 添加命令请求:');
     console.log('   命令:', command);
-    console.log('   密码:', password);
+    console.log('   密码: [已隐藏]');
     
     if (!command) {
       console.log('❌ [CommandService] 命令为空');
