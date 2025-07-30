@@ -4,6 +4,7 @@ import { authMiddleware } from '../middleware/authMiddleware';
 import { createLimiter } from '../middleware/rateLimiter';
 import logger from '../utils/logger';
 import { sendOutEmail } from '../services/outEmailService';
+import { domainExemptionService } from '../services/domainExemptionService';
 
 const router = express.Router();
 
@@ -563,5 +564,37 @@ router.get('/quota', authMiddleware, adminAuthMiddleware, EmailController.getQuo
  *         description: 服务器错误
  */
 router.get('/domains', authMiddleware, EmailController.getDomains);
+
+// 检查域名豁免状态
+router.post('/check-domain-exemption', async (req, res) => {
+  try {
+    const { domain } = req.body;
+    
+    if (!domain) {
+      return res.status(400).json({
+        success: false,
+        error: '域名参数不能为空'
+      });
+    }
+
+    const result = domainExemptionService.checkDomainExemption(domain);
+
+    res.json({
+      success: true,
+      exempted: result.exempted,
+      message: result.message,
+      domain: result.domain,
+      isInternal: result.isInternal,
+      isExempted: result.isExempted
+    });
+
+  } catch (error) {
+    console.error('[EmailRoutes] 检查域名豁免状态失败:', error);
+    res.status(500).json({
+      success: false,
+      error: '服务器内部错误'
+    });
+  }
+});
 
 export default router; 

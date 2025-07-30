@@ -4,6 +4,7 @@ import { Request } from 'express';
 import logger from '../utils/logger';
 const nanoid = require('nanoid').nanoid;
 import mongoose from 'mongoose';
+import { shortUrlMigrationService } from './shortUrlMigrationService';
 
 // 短链映射Schema
 const ShortUrlSchema = new mongoose.Schema({
@@ -97,13 +98,16 @@ export class IPFSService {
                     code = nanoid(6);
                   }
                   try {
+                    // 使用迁移服务自动修正目标URL
+                    const fixedTarget = shortUrlMigrationService.fixTargetUrlBeforeSave(response.data.web2url);
+                    
                     const doc = await ShortUrlModel.create({
                       code,
-                      target: response.data.web2url,
+                      target: fixedTarget,
                       userId: options.userId || 'admin',
                       username: options.username || 'admin'
                     });
-                    logger.info('[ShortLink] 短链已写入数据库', { code, target: response.data.web2url, userId: options.userId, username: options.username, doc });
+                    logger.info('[ShortLink] 短链已写入数据库', { code, target: fixedTarget, userId: options.userId, username: options.username, doc });
                   } catch (err) {
                     logger.error('[ShortLink] 短链写入数据库失败', { code, target: response.data.web2url, error: err });
                   }

@@ -46,6 +46,7 @@ import miniapiRoutes from './routes/miniapiRoutes';
 import lotteryRoutes from './routes/lotteryRoutes';
 import { connectMongo } from './services/mongoService';
 import modlistRoutes from './routes/modlistRoutes';
+import imageDataRoutes from './routes/imageDataRoutes';
 
 import emailRoutes from './routes/emailRoutes';
 
@@ -641,6 +642,7 @@ app.use('/api/passkey', passkeyRoutes);
 app.use('/api/email', emailRoutes);
 app.use('/api/miniapi', miniapiLimiter, miniapiRoutes);
 app.use('/api/modlist', modlistRoutes);
+app.use('/api/image-data', imageDataRoutes);
 
 // 完整性检测相关兜底接口限速
 const integrityLimiter = rateLimit({
@@ -1375,5 +1377,15 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     logger.info('[ShortLink] 启动时已修复所有无用户信息的短链');
   } catch (e) {
     logger.warn('[ShortLink] 启动时修复短链用户信息失败', e);
+  }
+})();
+
+// 启动时自动检测和修正短链中的旧域名
+(async () => {
+  try {
+    const { shortUrlMigrationService } = require('./services/shortUrlMigrationService');
+    await shortUrlMigrationService.autoFixOnStartup();
+  } catch (e) {
+    logger.warn('[ShortUrlMigration] 启动时自动修正短链域名失败', e);
   }
 })(); 

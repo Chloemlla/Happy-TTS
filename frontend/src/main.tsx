@@ -7,7 +7,7 @@ import { disableSelection } from './utils/disableSelection'
 
 // 统一危险关键字 - 扩展更多关键词
 const DANGEROUS_KEYWORDS = [
-  'supercopy', 'fatkun', 'downloader', 'capture',
+  'supercopy', 'fatkun', 'downloader',
   'copyy', 'copycat', 'copyhelper', 'copyall', 'copytext', 'copycontent', 'copyweb',
   'supercopy', 'supercopyy', 'supercopycat', 'supercopyhelper',
   'fatkun', 'fatkundownloader', 'fatkunbatch', 'fatkunimage',
@@ -19,6 +19,26 @@ const DANGEROUS_KEYWORDS = [
   'userscripts', 'scriptmonkey',  'grease',
   'violent', 'userjs', 'user.js', 'gm_', 'GM_', 'unsafeWindow',
   'grant', 'namespace'
+];
+
+// CSS类名白名单 - 豁免常见的无害CSS类名
+const CSS_CLASS_WHITELIST = [
+  'object-cover', 'object-contain', 'object-fill', 'object-none', 'object-scale-down',
+  'bg-cover', 'bg-contain', 'bg-fill', 'bg-none', 'bg-scale-down',
+  'cover', 'contain', 'fill', 'none', 'scale-down',
+  'text-center', 'text-left', 'text-right', 'text-justify',
+  'flex', 'grid', 'block', 'inline', 'inline-block',
+  'relative', 'absolute', 'fixed', 'sticky', 'static',
+  'overflow-hidden', 'overflow-auto', 'overflow-scroll', 'overflow-visible',
+  'rounded', 'rounded-lg', 'rounded-xl', 'rounded-2xl', 'rounded-3xl',
+  'shadow', 'shadow-sm', 'shadow-md', 'shadow-lg', 'shadow-xl', 'shadow-2xl',
+  'border', 'border-t', 'border-b', 'border-l', 'border-r',
+  'p-1', 'p-2', 'p-3', 'p-4', 'p-5', 'p-6', 'p-8', 'p-10', 'p-12',
+  'm-1', 'm-2', 'm-3', 'm-4', 'm-5', 'm-6', 'm-8', 'm-10', 'm-12',
+  'w-full', 'h-full', 'w-auto', 'h-auto', 'w-screen', 'h-screen',
+  'max-w', 'max-h', 'min-w', 'min-h',
+  'opacity', 'transition', 'transform', 'scale', 'rotate', 'translate',
+  'hover', 'focus', 'active', 'disabled', 'group', 'peer'
 ];
 
 // 扩展特定的检测模式
@@ -64,11 +84,31 @@ let detectedReasons: string[] = [];
 
 function hasDangerousExtension() {
   detectedReasons = [];
+  
   // 豁免：页面仅包含base64图片或blob图片（如用户头像上传、图片预览）时不触发拦截
   const allImgs = Array.from(document.querySelectorAll('img'));
-  if (allImgs.length > 0 && allImgs.every(img => img.src.startsWith('data:image/') || img.src.startsWith('blob:'))) {
+  if (allImgs.length > 0) {
+    const hasExternalImages = allImgs.some(img => 
+      !img.src.startsWith('data:image/') && 
+      !img.src.startsWith('blob:') && 
+      !img.src.startsWith('http://localhost') &&
+      !img.src.startsWith('https://localhost')
+    );
+    
+    // 如果所有图片都是本地图片（data:、blob:、localhost），则豁免检测
+    if (!hasExternalImages) {
+      return false;
+    }
+  }
+  
+  // 豁免：图片上传页面特殊处理
+  const isImageUploadPage = window.location.pathname.includes('image-upload') || 
+                           document.title.includes('图片上传') ||
+                           document.querySelector('[data-page="image-upload"]');
+  if (isImageUploadPage) {
     return false;
   }
+
   // 1. 检查所有 script 标签（src 和内容，模糊匹配）
   const scripts = Array.from(document.querySelectorAll('script'));
   for (const s of scripts) {
@@ -83,17 +123,31 @@ function hasDangerousExtension() {
 
   // 2. 检查已知扩展注入的 DOM 元素
   for (const kw of DANGEROUS_KEYWORDS) {
-    if (document.querySelector(`[id*="${kw}"], [class*="${kw}"], [data-*="${kw}"]`)) {
+    // 只检查 id 和 data-* 属性，避免误报 CSS 类名
+    if (document.querySelector(`[id*="${kw}"], [data-*="${kw}"]`)) {
       detectedReasons.push(`DOM节点属性命中关键词：${kw}`);
       return true;
     }
-    if (document.querySelector(`[id*="${kw}-drop-panel"], [class*="${kw}-drop-panel"]`)) {
+    if (document.querySelector(`[id*="${kw}-drop-panel"], [data-*="${kw}-drop-panel"]`)) {
       detectedReasons.push(`扩展面板命中关键词：${kw}`);
       return true;
     }
-    if (document.querySelector(`[id*="${kw}-float"], [class*="${kw}-float"]`)) {
+    if (document.querySelector(`[id*="${kw}-float"], [data-*="${kw}-float"]`)) {
       detectedReasons.push(`扩展浮动元素命中关键词：${kw}`);
       return true;
+    }
+    
+    // 检查 class 属性，但排除白名单中的类名
+    const elementsWithClass = document.querySelectorAll(`[class*="${kw}"]`);
+    for (const element of elementsWithClass) {
+      const classList = element.className.split(' ');
+      const hasDangerousClass = classList.some(cls => 
+        cls.includes(kw) && !CSS_CLASS_WHITELIST.includes(cls)
+      );
+      if (hasDangerousClass) {
+        detectedReasons.push(`DOM节点class属性命中关键词：${kw}`);
+        return true;
+      }
     }
   }
 

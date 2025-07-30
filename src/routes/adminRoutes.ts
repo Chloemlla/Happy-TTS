@@ -370,6 +370,7 @@ router.post('/shortlinks', authenticateToken, async (req, res) => {
   const mongoose = require('mongoose');
   const ShortUrlModel = mongoose.models.ShortUrl || mongoose.model('ShortUrl');
   const nanoid = require('nanoid').nanoid;
+  const { shortUrlMigrationService } = require('../services/shortUrlMigrationService');
   
   let code: string;
   
@@ -403,10 +404,152 @@ router.post('/shortlinks', authenticateToken, async (req, res) => {
     code = randomCode;
   }
   
+  // 使用迁移服务自动修正目标URL
+  const fixedTarget = shortUrlMigrationService.fixTargetUrlBeforeSave(target);
+  
   const userId = req.user?.id || 'admin';
   const username = req.user?.username || 'admin';
-  const doc = await ShortUrlModel.create({ code, target, userId, username });
+  const doc = await ShortUrlModel.create({ code, target: fixedTarget, userId, username });
   res.json({ success: true, code, shortUrl: `/s/${code}`, doc });
+});
+
+// 短链迁移管理API
+router.post('/shortlinks/migrate', authenticateToken, async (req, res) => {
+  try {
+    console.log('🔐 [ShortUrlMigration] 开始处理短链迁移请求...');
+    console.log('   用户ID:', req.user?.id);
+    console.log('   用户名:', req.user?.username);
+    console.log('   用户角色:', req.user?.role);
+    console.log('   请求IP:', req.ip);
+    
+    // 检查管理员权限
+    if (!req.user || req.user.role !== 'admin') {
+      console.log('❌ [ShortUrlMigration] 权限检查失败：非管理员用户');
+      return res.status(403).json({ error: '需要管理员权限' });
+    }
+
+    console.log('✅ [ShortUrlMigration] 权限检查通过');
+
+    const { shortUrlMigrationService } = require('../services/shortUrlMigrationService');
+    
+    // 执行迁移
+    const result = await shortUrlMigrationService.detectAndFixOldDomainUrls();
+    
+    console.log('📊 [ShortUrlMigration] 迁移完成');
+    console.log('   检查记录数:', result.totalChecked);
+    console.log('   修正记录数:', result.totalFixed);
+    
+    res.json({
+      success: true,
+      message: `迁移完成，共修正 ${result.totalFixed} 条记录`,
+      data: result
+    });
+    
+  } catch (error) {
+    console.error('❌ [ShortUrlMigration] 短链迁移失败:', error);
+    res.status(500).json({ error: '短链迁移失败' });
+  }
+});
+
+// 获取短链迁移统计信息
+router.get('/shortlinks/migration-stats', authenticateToken, async (req, res) => {
+  try {
+    console.log('🔐 [ShortUrlMigration] 开始处理迁移统计请求...');
+    console.log('   用户ID:', req.user?.id);
+    console.log('   用户名:', req.user?.username);
+    console.log('   用户角色:', req.user?.role);
+    
+    // 检查管理员权限
+    if (!req.user || req.user.role !== 'admin') {
+      console.log('❌ [ShortUrlMigration] 权限检查失败：非管理员用户');
+      return res.status(403).json({ error: '需要管理员权限' });
+    }
+
+    console.log('✅ [ShortUrlMigration] 权限检查通过');
+
+    const { shortUrlMigrationService } = require('../services/shortUrlMigrationService');
+    
+    // 获取统计信息
+    const stats = await shortUrlMigrationService.getMigrationStats();
+    
+    console.log('📊 [ShortUrlMigration] 统计信息获取完成');
+    console.log('   总记录数:', stats.totalRecords);
+    console.log('   旧域名记录数:', stats.oldDomainRecords);
+    console.log('   新域名记录数:', stats.newDomainRecords);
+    
+    res.json({
+      success: true,
+      data: stats
+    });
+    
+  } catch (error) {
+    console.error('❌ [ShortUrlMigration] 获取迁移统计失败:', error);
+    res.status(500).json({ error: '获取迁移统计失败' });
+  }
+});
+
+// 管理员权限验证API
+router.post('/verify-access', authenticateToken, async (req, res) => {
+  try {
+    console.log('🔐 [AdminAccess] 开始验证管理员访问权限...');
+    console.log('   用户ID:', req.user?.id);
+    console.log('   用户名:', req.user?.username);
+    console.log('   用户角色:', req.user?.role);
+    console.log('   请求IP:', req.ip);
+    
+    // 检查用户是否存在
+    if (!req.user) {
+      console.log('❌ [AdminAccess] 权限验证失败：用户不存在');
+      return res.status(401).json({ 
+        success: false, 
+        message: '用户不存在' 
+      });
+    }
+
+    // 检查用户角色
+    if (req.user.role !== 'admin') {
+      console.log('❌ [AdminAccess] 权限验证失败：非管理员用户', { 
+        userId: req.user.id, 
+        role: req.user.role 
+      });
+      return res.status(403).json({ 
+        success: false, 
+        message: '权限不足，仅限管理员访问' 
+      });
+    }
+
+    // 验证请求体中的用户信息
+    const { userId, username, role } = req.body;
+    if (userId !== req.user.id || username !== req.user.username || role !== req.user.role) {
+      console.log('❌ [AdminAccess] 权限验证失败：用户信息不匹配', {
+        requestBody: { userId, username, role },
+        tokenUser: { id: req.user.id, username: req.user.username, role: req.user.role }
+      });
+      return res.status(403).json({ 
+        success: false, 
+        message: '用户信息不匹配' 
+      });
+    }
+
+    console.log('✅ [AdminAccess] 管理员权限验证通过');
+    
+    res.json({
+      success: true,
+      message: '权限验证通过',
+      user: {
+        id: req.user.id,
+        username: req.user.username,
+        role: req.user.role
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ [AdminAccess] 权限验证过程中发生错误:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: '权限验证失败' 
+    });
+  }
 });
 
 // 用户信息获取接口（需登录）

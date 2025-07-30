@@ -18,6 +18,7 @@ interface EnvItem {
   value: string;
   desc?: string;
   updatedAt?: string;
+  source?: string; // 数据来源
 }
 
 // AES-256解密函数
@@ -54,12 +55,56 @@ function decryptAES256(encryptedData: string, iv: string, key: string): string {
   }
 }
 
+// 根据环境变量名判断数据来源
+function getEnvSource(key: string): string | undefined {
+  const keyLower = key.toLowerCase();
+  
+  // 数据库相关
+  if (keyLower.includes('db_') || keyLower.includes('database_') || keyLower.includes('mongo')) {
+    return '数据库配置';
+  }
+  
+  // 邮件相关
+  if (keyLower.includes('email_') || keyLower.includes('mail_') || keyLower.includes('smtp')) {
+    return '邮件服务配置';
+  }
+  
+  // API相关
+  if (keyLower.includes('api_') || keyLower.includes('openai') || keyLower.includes('token')) {
+    return 'API配置';
+  }
+  
+  // 安全相关
+  if (keyLower.includes('secret_') || keyLower.includes('key_') || keyLower.includes('password')) {
+    return '安全配置';
+  }
+  
+  // 服务器相关
+  if (keyLower.includes('port') || keyLower.includes('host') || keyLower.includes('url')) {
+    return '服务器配置';
+  }
+  
+  // 管理员相关
+  if (keyLower.includes('admin_')) {
+    return '管理员配置';
+  }
+  
+  // 环境相关
+  if (keyLower.includes('env') || keyLower.includes('node_env')) {
+    return '环境配置';
+  }
+  
+  return undefined; // 没有明确来源
+}
+
 const EnvManager: React.FC = () => {
   const { user } = useAuth();
   const [envs, setEnvs] = useState<EnvItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<EnvItem>>({});
+  const [showSourceModal, setShowSourceModal] = useState(false);
+  const [selectedSource, setSelectedSource] = useState<string>('');
   const { setNotification } = useNotification();
 
   const fetchEnvs = async () => {
@@ -125,6 +170,12 @@ const EnvManager: React.FC = () => {
               setLoading(false);
               return;
             }
+            
+            // 为环境变量添加数据来源信息
+            envArr = envArr.map(item => {
+              const source = getEnvSource(item.key);
+              return { ...item, source };
+            });
           } catch (decryptError) {
             console.error('❌ 解密失败:', decryptError);
             setNotification({ message: '数据解密失败，请检查登录状态', type: 'error' });
@@ -153,33 +204,225 @@ const EnvManager: React.FC = () => {
 
   useEffect(() => { fetchEnvs(); }, []);
 
-  // 删除所有编辑、添加、删除相关UI和逻辑，只保留只读表格
+  // 管理员校验
+  if (!user || user.role !== 'admin') {
+    return (
+      <motion.div 
+        className="space-y-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <motion.div 
+          className="bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-6 border border-red-100"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <h2 className="text-2xl font-bold text-red-700 mb-3 flex items-center gap-2">
+            🔒
+            访问被拒绝
+          </h2>
+          <div className="text-gray-600 space-y-2">
+            <p>你不是管理员，禁止访问！请用管理员账号登录后再来。</p>
+            <div className="text-sm text-red-500 italic">
+              环境变量管理仅限管理员使用
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
+    );
+  }
+
   return (
-    <div className="max-w-3xl mx-auto p-6 bg-white rounded-xl shadow-lg">
-      <h2 className="text-2xl font-bold mb-6">环境变量（只读）</h2>
-      {loading ? (
-        <div className="text-gray-400">加载中…</div>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full border rounded-xl overflow-hidden shadow-md">
-            <thead>
-              <tr className="bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800">
-                <th className="p-3 whitespace-pre-wrap break-all">变量名</th>
-                <th className="p-3 whitespace-pre-wrap break-all">值</th>
-              </tr>
-            </thead>
-            <tbody>
-              {envs.map((item, idx) => (
-                <tr key={item.key} className={idx % 2 === 0 ? 'bg-white' : 'bg-blue-50'}>
-                  <td className="p-3 font-mono font-bold whitespace-pre-wrap break-all max-w-xs md:max-w-md">{item.key}</td>
-                  <td className="p-3 font-mono break-all whitespace-pre-wrap max-w-xs md:max-w-lg">{item.value}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+    <motion.div 
+      className="space-y-6"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6 }}
+    >
+      {/* 标题和说明 */}
+      <motion.div 
+        className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <h2 className="text-2xl font-bold text-blue-700 mb-3 flex items-center gap-2">
+          ⚙️
+          环境变量管理
+        </h2>
+        <div className="text-gray-600 space-y-2">
+          <p>查看系统环境变量配置，支持加密存储和传输。</p>
+          <div className="flex items-start gap-2 text-sm">
+            <div>
+              <p className="font-semibold text-blue-700">功能说明：</p>
+              <ul className="list-disc list-inside space-y-1 mt-1">
+                <li>实时查看系统环境变量</li>
+                <li>支持AES-256加密传输</li>
+                <li>自动解密显示数据</li>
+                <li>仅管理员可访问</li>
+              </ul>
+            </div>
+          </div>
         </div>
-      )}
-    </div>
+      </motion.div>
+
+      {/* 环境变量表格 */}
+      <motion.div 
+        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            📋
+            环境变量列表
+          </h3>
+          <motion.button
+            onClick={fetchEnvs}
+            disabled={loading}
+            className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
+            whileTap={{ scale: 0.95 }}
+          >
+            <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            刷新
+          </motion.button>
+        </div>
+
+        {/* 数据来源图例 */}
+        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center gap-3 text-base text-blue-700">
+            <svg className="w-5 h-5 text-blue-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+            </svg>
+            <span className="font-medium leading-relaxed">带蓝色感叹号图标的变量表示有明确的数据来源信息</span>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="text-center py-8 text-gray-500">
+            <svg className="animate-spin h-8 w-8 mx-auto mb-4 text-blue-500" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            加载中...
+          </div>
+        ) : envs.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            <svg className="w-12 h-12 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            暂无环境变量数据
+          </div>
+        ) : (
+          <div className="overflow-x-auto border border-gray-200 rounded-lg">
+            <table className="min-w-full">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-[200px] w-1/3">变量名</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-[300px] w-2/3">值</th>
+                </tr>
+              </thead>
+              <tbody>
+                {envs.map((item, idx) => (
+                  <motion.tr 
+                    key={item.key} 
+                    className={`border-b border-gray-100 last:border-b-0 ${
+                      idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                    }`}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: idx * 0.05 }}
+                    whileHover={{ backgroundColor: '#f8fafc' }}
+                  >
+                    <td className="px-4 py-3 font-mono text-sm font-medium text-gray-900 align-top">
+                      <div className="break-words whitespace-normal leading-relaxed flex items-start gap-1">
+                        {item.source && (
+                          <button
+                            onClick={() => {
+                              setSelectedSource(item.source!);
+                              setShowSourceModal(true);
+                            }}
+                            className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0 hover:text-blue-600 transition-colors cursor-pointer"
+                          >
+                            <svg fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+                        )}
+                        <span>{item.key.split(':').pop() || item.key}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 font-mono text-sm text-gray-700 align-top">
+                      <div className="break-words whitespace-pre-wrap leading-relaxed">
+                        {item.value}
+                      </div>
+                    </td>
+                  </motion.tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* 统计信息 */}
+        {!loading && envs.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-4 pt-4 border-t border-gray-200"
+          >
+            <div className="flex items-center justify-between text-sm text-gray-600">
+              <span>总计 {envs.length} 个环境变量</span>
+              <span>最后更新: {new Date().toLocaleString()}</span>
+            </div>
+          </motion.div>
+        )}
+      </motion.div>
+
+      {/* 数据来源弹窗 */}
+      <AnimatePresence>
+        {showSourceModal && (
+          <motion.div
+            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-[9999]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.1 }}
+            onClick={() => setShowSourceModal(false)}
+          >
+            <motion.div
+              className="bg-white rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] p-8 w-full max-w-md mx-4 relative z-[10000] border border-gray-100"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.1 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">数据来源</h3>
+                <p className="text-gray-600 mb-6">{selectedSource}</p>
+                <button
+                  onClick={() => setShowSourceModal(false)}
+                  className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+                >
+                  确定
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 };
 
