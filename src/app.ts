@@ -1,7 +1,7 @@
 // 设置时区为上海
 process.env.TZ = 'Asia/Shanghai';
 
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Request, Response, NextFunction, RequestHandler } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -49,6 +49,9 @@ import modlistRoutes from './routes/modlistRoutes';
 import imageDataRoutes from './routes/imageDataRoutes';
 
 import emailRoutes from './routes/emailRoutes';
+import { commandStatusHandler } from './routes/commandRoutes';
+import { authenticateToken } from './middleware/authenticateToken';
+import { totpStatusHandler } from './routes/totpRoutes';
 
 // 扩展 Request 类型
 declare global {
@@ -618,6 +621,7 @@ ensureAudioDir().catch(console.error);
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/totp', totpRoutes);
+app.use('/api/totp/status', authenticateToken, totpStatusHandler as RequestHandler);
 app.use('/api/admin', adminLimiter, adminRoutes);
 app.use('/api/status', statusRouter);
 
@@ -837,7 +841,14 @@ const globalDefaultLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req: Request) => req.ip || (req.socket?.remoteAddress) || 'unknown',
-  skip: (req: Request): boolean => req.isLocalIp || false
+  skip: (req: Request): boolean => {
+    if (req.originalUrl && req.originalUrl.startsWith('/api/command/status')) return true;
+    return req.isLocalIp || false;
+  },
+  handler: (req, res, next) => {
+    logger.warn(`[限流][globalDefaultLimiter] 429 Too Many Requests: ${req.method} ${req.originalUrl} IP: ${req.ip}`);
+    res.status(429).json({ error: '请求过于频繁，请稍后再试' });
+  }
 });
 
 // 404处理限流器
@@ -1389,3 +1400,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     logger.warn('[ShortUrlMigration] 启动时自动修正短链域名失败', e);
   }
 })(); 
+
+// 单独注册 /api/command/status，确保不受限流影响
+app.post('/api/command/status', authenticateToken, commandStatusHandler as RequestHandler);
+app.use('/api/command', commandRoutes); 

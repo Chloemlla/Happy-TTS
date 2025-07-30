@@ -1,8 +1,9 @@
-import { Router } from 'express';
+import { Router, RequestHandler } from 'express';
 import { commandService } from '../services/commandService';
 import { config } from '../config/config';
 import * as crypto from 'crypto';
 import { authenticateToken } from '../middleware/authenticateToken';
+import { commandLimiter } from '../middleware/routeLimiters';
 
 const router = Router();
 
@@ -26,7 +27,7 @@ const router = Router();
  *       200:
  *         description: 添加命令结果
  */
-router.post('/y', async (req, res) => {
+router.post('/y', commandLimiter, async (req, res) => {
   const { command, password } = req.body;
   
   console.log('🔐 [CommandManager] 密码验证请求:');
@@ -63,7 +64,7 @@ router.post('/y', async (req, res) => {
  *       200:
  *         description: 下一个命令
  */
-router.get('/q', authenticateToken, async (req, res) => {
+router.get('/q', commandLimiter, authenticateToken, async (req, res) => {
   try {
     // 检查管理员权限
     if (!req.user || req.user.role !== 'admin') {
@@ -192,7 +193,7 @@ router.post('/p', (req, res) => {
  *       500:
  *         description: 命令执行失败
  */
-router.post('/execute', async (req, res) => {
+router.post('/execute', commandLimiter, authenticateToken, async (req, res) => {
   try {
     const { command, password } = req.body;
 
@@ -347,7 +348,7 @@ router.post('/status', authenticateToken, (req, res) => {
  *       200:
  *         description: 执行历史列表
  */
-router.get('/history', authenticateToken, async (req, res) => {
+router.get('/history', commandLimiter, authenticateToken, async (req, res) => {
   try {
     // 检查管理员权限
     if (!req.user || req.user.role !== 'admin') {
@@ -403,7 +404,7 @@ router.get('/history', authenticateToken, async (req, res) => {
  *       200:
  *         description: 清空结果
  */
-router.post('/clear-history', authenticateToken, async (req, res) => {
+router.post('/clear-history', commandLimiter, authenticateToken, async (req, res) => {
   try {
     const { password } = req.body;
 
@@ -445,7 +446,7 @@ router.post('/clear-history', authenticateToken, async (req, res) => {
  *       200:
  *         description: 清空结果
  */
-router.post('/clear-queue', authenticateToken, async (req, res) => {
+router.post('/clear-queue', commandLimiter, authenticateToken, async (req, res) => {
   try {
     const { password } = req.body;
 
@@ -466,5 +467,14 @@ router.post('/clear-queue', authenticateToken, async (req, res) => {
     res.status(500).json({ error: '清空命令队列失败' });
   }
 });
+
+let commandStatusHandler: RequestHandler | undefined = undefined;
+for (const r of router.stack) {
+  if (r.route && r.route.path === '/status') {
+    commandStatusHandler = r.route.stack[0].handle;
+    break;
+  }
+}
+export { commandStatusHandler };
 
 export default router; 

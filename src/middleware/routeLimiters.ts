@@ -1,5 +1,6 @@
 import { Request } from 'express';
 import rateLimit from 'express-rate-limit';
+import logger from '../utils/logger';
 
 // 通用限流器配置生成函数
 const createLimiter = (options: {
@@ -26,10 +27,21 @@ export const tamperLimiter = createLimiter({
 });
 
 // 命令路由限流器
-export const commandLimiter = createLimiter({
+export const commandLimiter = rateLimit({
     windowMs: 60 * 1000, // 1分钟
     max: 10, // 限制每个IP每分钟10次请求
-    message: '命令执行请求过于频繁，请稍后再试'
+    message: { error: '命令执行请求过于频繁，请稍后再试' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req: Request) => req.ip || req.socket.remoteAddress || 'unknown',
+    skip: (req: Request): boolean => {
+        if (req.originalUrl && req.originalUrl.startsWith('/api/command/status')) return true;
+        return req.isLocalIp || false;
+    },
+    handler: (req, res, next) => {
+        logger.warn(`[限流][commandLimiter] 429 Too Many Requests: ${req.method} ${req.originalUrl} IP: ${req.ip}`);
+        res.status(429).json({ error: '命令执行请求过于频繁，请稍后再试' });
+    }
 });
 
 // LibreChat路由限流器

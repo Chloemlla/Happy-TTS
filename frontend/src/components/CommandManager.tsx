@@ -1,11 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaTerminal, FaServer, FaList, FaHistory, FaPlay, FaPlus, FaEye, FaTrash, FaSync, FaEyeSlash, FaArrowLeft, FaInfoCircle } from 'react-icons/fa';
+import { FaTerminal, FaServer, FaList, FaHistory, FaPlay, FaPlus, FaEye, FaTrash, FaSync, FaEyeSlash, FaArrowLeft, FaInfoCircle, FaChartLine } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import { useNotification } from './Notification';
 import { api } from '../api/index';
 import { useAuth } from '../hooks/useAuth';
 import CryptoJS from 'crypto-js';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+} from 'chart.js';
+import { Line } from 'react-chartjs-2';
+
+// 注册Chart.js组件
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+);
 
 // AES-256解密函数
 function decryptAES256(encryptedData: string, iv: string, key: string): string {
@@ -112,53 +136,24 @@ const CommandManager: React.FC = () => {
     memoryUsage: number;
     cpuUsage: number;
   }>>([]);
+  const [showCharts, setShowCharts] = useState(false);
 
-  // 自动刷新效果
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    
-    if (autoRefresh && password) {
-      interval = setInterval(() => {
-        fetchServerStatus();
-      }, 30000); // 每30秒刷新一次
-    }
-    
-    return () => {
-      if (interval) {
-        clearInterval(interval);
-      }
-    };
-  }, [autoRefresh, password]);
-
-  // 获取服务器状态
-  const fetchServerStatus = async () => {
+  // 获取服务器状态（支持是否弹出成功提示）
+  const fetchServerStatus = async (showSuccess = true) => {
     try {
       const response = await api.post('/api/command/status', { password });
-      
       // 检查是否为加密数据
       if (response.data.data && response.data.iv && typeof response.data.data === 'string' && typeof response.data.iv === 'string') {
         try {
-          console.log('🔐 开始解密服务器状态数据...');
-          console.log('   加密数据长度:', response.data.data.length);
-          console.log('   IV:', response.data.iv);
-          
           const token = localStorage.getItem('token');
           if (!token) {
-            console.error('❌ Token不存在，无法解密数据');
             setNotification({ message: 'Token不存在，无法解密数据', type: 'error' });
             return;
           }
-          
-          console.log('   使用Token进行解密，Token长度:', token.length);
-          
-          // 解密数据
           const decryptedJson = decryptAES256(response.data.data, response.data.iv, token);
           const decryptedData = JSON.parse(decryptedJson);
-          
-          console.log('✅ 解密成功，获取到服务器状态数据');
           setServerStatus(decryptedData);
           setLastUpdateTime(new Date());
-          
           // 添加资源使用历史记录
           const currentTime = new Date();
           const memoryUsagePercent = (decryptedData.memory_usage.heapUsed / decryptedData.memory_usage.heapTotal) * 100;
@@ -168,21 +163,16 @@ const CommandManager: React.FC = () => {
               memoryUsage: memoryUsagePercent,
               cpuUsage: decryptedData.cpu_usage_percent
             }];
-            // 保留最近20个数据点
             return newHistory.slice(-20);
           });
-          
-          setNotification({ message: '服务器状态获取成功', type: 'success' });
+          if (showSuccess) setNotification({ message: '服务器状态获取成功', type: 'success' });
         } catch (decryptError) {
-          console.error('❌ 解密失败:', decryptError);
           setNotification({ message: '数据解密失败，请检查登录状态', type: 'error' });
         }
       } else {
-        // 兼容未加密格式
-        console.log('📝 使用未加密格式数据');
         setServerStatus(response.data);
         setLastUpdateTime(new Date());
-        setNotification({ message: '服务器状态获取成功', type: 'success' });
+        if (showSuccess) setNotification({ message: '服务器状态获取成功', type: 'success' });
       }
     } catch (error: any) {
       setNotification({ 
@@ -192,7 +182,20 @@ const CommandManager: React.FC = () => {
     }
   };
 
-  // 检查管理员权限 - 移到所有Hooks之后
+  // 自动刷新效果
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (autoRefresh && password) {
+      interval = setInterval(() => {
+        fetchServerStatus(false); // 自动刷新时不弹出成功提示
+      }, 6000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [autoRefresh, password]);
+
+  // 检查管理员权限
   if (!user || user.role !== 'admin') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
@@ -258,8 +261,6 @@ const CommandManager: React.FC = () => {
 
     try {
       await api.post('/api/command/y', { command, password });
-      // 这里暂时不更新本地队列，因为现在队列数据来自后端
-      // setCommandQueue(prev => [...prev, command]);
       setCommand('');
       setNotification({ message: '命令已添加到队列', type: 'success' });
     } catch (error: any) {
@@ -727,6 +728,107 @@ const CommandManager: React.FC = () => {
     };
   };
 
+  // 图表配置
+  const getChartData = () => {
+    if (resourceHistory.length === 0) {
+      return {
+        labels: [],
+        datasets: []
+      };
+    }
+
+    const labels = resourceHistory.map(item => 
+      item.timestamp.toLocaleTimeString('zh-CN', { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit' 
+      })
+    );
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: '内存使用率 (%)',
+          data: resourceHistory.map(item => item.memoryUsage),
+          borderColor: 'rgb(59, 130, 246)',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 3,
+          pointHoverRadius: 6,
+          yAxisID: 'y'
+        },
+        {
+          label: 'CPU使用率 (%)',
+          data: resourceHistory.map(item => item.cpuUsage),
+          borderColor: 'rgb(239, 68, 68)',
+          backgroundColor: 'rgba(239, 68, 68, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 3,
+          pointHoverRadius: 6,
+          yAxisID: 'y'
+        }
+      ]
+    };
+  };
+
+  const getChartOptions = () => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top' as const,
+        labels: {
+          usePointStyle: true,
+          padding: 20
+        }
+      },
+      title: {
+        display: true,
+        text: '系统资源使用趋势图'
+      },
+      tooltip: {
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleColor: 'white',
+        bodyColor: 'white',
+        displayColors: true
+      }
+    },
+    scales: {
+      x: {
+        display: true,
+        title: {
+          display: true,
+          text: '时间'
+        },
+        grid: {
+          color: 'rgba(0, 0, 0, 0.1)'
+        }
+      },
+      y: {
+        type: 'linear' as const,
+        display: true,
+        position: 'left' as const,
+        title: {
+          display: true,
+          text: '使用率 (%)'
+        },
+        min: 0,
+        max: 100,
+        grid: {
+          color: 'rgba(0, 0, 0, 0.1)'
+        },
+        ticks: {
+          callback: (value: any) => `${value}%`
+        }
+      }
+    }
+  });
+
   return (
     <div className="space-y-6">
       {/* 标题和说明 */}
@@ -868,7 +970,7 @@ const CommandManager: React.FC = () => {
           </h3>
           <div className="flex gap-2">
             <motion.button
-              onClick={fetchServerStatus}
+              onClick={() => fetchServerStatus()}
               className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm font-medium flex items-center gap-2"
               whileTap={{ scale: 0.95 }}
             >
@@ -886,6 +988,18 @@ const CommandManager: React.FC = () => {
             >
               <FaSync className={`w-4 h-4 ${autoRefresh ? 'animate-spin' : ''}`} />
               {autoRefresh ? '停止自动刷新' : '开启自动刷新'}
+            </motion.button>
+            <motion.button
+              onClick={() => setShowCharts(!showCharts)}
+              className={`px-3 py-2 rounded-lg transition text-sm font-medium flex items-center gap-2 ${
+                showCharts 
+                  ? 'bg-purple-500 text-white hover:bg-purple-600' 
+                  : 'bg-gray-500 text-white hover:bg-gray-600'
+              }`}
+              whileTap={{ scale: 0.95 }}
+            >
+              <FaChartLine className="w-4 h-4" />
+              {showCharts ? '隐藏图表' : '显示图表'}
             </motion.button>
           </div>
         </div>
@@ -1209,10 +1323,74 @@ const CommandManager: React.FC = () => {
                   </div>
                   {autoRefresh && (
                     <div className="mt-2 text-xs text-gray-600">
-                      💡 每30秒自动刷新一次，实时监控系统资源使用情况
+                      💡 每2秒自动刷新一次，实时监控系统资源使用情况
                     </div>
                   )}
                 </div>
+
+                {/* 资源使用趋势图表 */}
+                {showCharts && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="bg-white rounded-lg p-4 border border-gray-200"
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                        <FaChartLine className="w-5 h-5 text-purple-500" />
+                        资源使用趋势图
+                      </h4>
+                      <div className="text-sm text-gray-500">
+                        数据点: {resourceHistory.length}
+                      </div>
+                    </div>
+                    
+                    {resourceHistory.length > 0 ? (
+                      <div className="h-80">
+                        <Line data={getChartData()} options={getChartOptions()} />
+                      </div>
+                    ) : (
+                      <div className="h-80 flex items-center justify-center text-gray-500">
+                        <div className="text-center">
+                          <FaChartLine className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                          <p>暂无数据，请开启自动刷新或手动刷新获取数据</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="mt-4 text-xs text-gray-600 bg-gray-50 p-3 rounded-lg">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                        <div>
+                          <span className="font-medium">内存趋势:</span>
+                          <span className={`ml-1 ${
+                            analyzeResourceTrend(resourceHistory).memoryTrend === 'increasing' ? 'text-red-600' :
+                            analyzeResourceTrend(resourceHistory).memoryTrend === 'decreasing' ? 'text-green-600' : 'text-gray-600'
+                          }`}>
+                            {analyzeResourceTrend(resourceHistory).memoryTrend === 'increasing' ? '↗️ 上升' :
+                             analyzeResourceTrend(resourceHistory).memoryTrend === 'decreasing' ? '↘️ 下降' : '→ 稳定'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="font-medium">CPU趋势:</span>
+                          <span className={`ml-1 ${
+                            analyzeResourceTrend(resourceHistory).cpuTrend === 'increasing' ? 'text-red-600' :
+                            analyzeResourceTrend(resourceHistory).cpuTrend === 'decreasing' ? 'text-green-600' : 'text-gray-600'
+                          }`}>
+                            {analyzeResourceTrend(resourceHistory).cpuTrend === 'increasing' ? '↗️ 上升' :
+                             analyzeResourceTrend(resourceHistory).cpuTrend === 'decreasing' ? '↘️ 下降' : '→ 稳定'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="font-medium">监控状态:</span>
+                          <span className={`ml-1 ${autoRefresh ? 'text-green-600' : 'text-gray-600'}`}>
+                            {autoRefresh ? '🟢 实时监控' : '⚪ 静态分析'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
 
                 {/* 内存使用分析 */}
                 <div className={`rounded-lg p-4 border ${getStatusLevelStyle(analyzeMemoryUsage(serverStatus.memory_usage).level)}`}>
