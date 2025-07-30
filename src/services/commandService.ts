@@ -60,61 +60,34 @@ class CommandService {
       return { isValid: false, error: '命令包含危险字符' };
     }
 
-    // 检查路径遍历攻击
-    const pathTraversalPatterns = [
-      /\.\.\//g,  // ../
-      /\.\.\\/g,  // ..\
-      /\/etc\//g, // /etc/
-      /\/root\//g, // /root/
-      /\/tmp\//g,  // /tmp/
-      /\/var\//g,  // /var/
-      /\/home\//g, // /home/
-      /\/usr\//g,  // /usr/
-      /\/bin\//g,  // /bin/
-      /\/sbin\//g, // /sbin/
-      /\/lib\//g,  // /lib/
-      /\/opt\//g,  // /opt/
-      /\/mnt\//g,  // /mnt/
-      /\/media\//g, // /media/
-      /\/dev\//g,  // /dev/
-      /\/proc\//g  // /proc/
-    ];
-    
-    if (pathTraversalPatterns.some(pattern => pattern.test(command))) {
-      return { isValid: false, error: '参数包含危险字符' };
-    }
-
     // 解析命令和参数
     const parts = command.trim().split(/\s+/);
     const baseCommand = parts[0];
     const args = parts.slice(1);
 
-    // 检查命令是否在黑名单中
-    if (this.DANGEROUS_COMMANDS.has(baseCommand)) {
-      console.log('❌ [CommandService] 命令在黑名单中:', baseCommand);
-      return { isValid: false, error: `不允许执行命令: ${baseCommand}` };
+    // 只允许白名单命令
+    if (!this.ALLOWED_COMMANDS.has(baseCommand) || this.DANGEROUS_COMMANDS.has(baseCommand)) {
+      console.log('❌ [CommandService] 命令不在允许列表');
+      return { isValid: false, error: '命令不在允许列表' };
     }
 
-    // 检查命令是否在白名单中
-    if (!this.ALLOWED_COMMANDS.has(baseCommand)) {
-      console.log('❌ [CommandService] 命令不在白名单中:', baseCommand);
-      console.log('   允许的命令:', Array.from(this.ALLOWED_COMMANDS));
-      return { isValid: false, error: `不允许执行命令: ${baseCommand}` };
+    // 参数仅允许安全字符
+    const argPattern = /^[a-zA-Z0-9_\-\.\/]{0,64}$/;
+    for (const arg of args) {
+      if (!argPattern.test(arg)) {
+        console.log('❌ [CommandService] 参数包含非法字符');
+        return { isValid: false, error: '参数包含非法字符' };
+      }
+    }
+
+    // 路径遍历检测
+    const pathTraversalPatterns = [/\.\./g, /\/etc\//g, /\/root\//g, /\/tmp\//g, /\/var\//g, /\/home\//g, /\/usr\//g, /\/bin\//g, /\/sbin\//g, /\/lib\//g, /\/opt\//g, /\/mnt\//g, /\/media\//g, /\/dev\//g, /\/proc\//g];
+    if (pathTraversalPatterns.some(pattern => pattern.test(command))) {
+      console.log('❌ [CommandService] 参数包含危险字符');
+      return { isValid: false, error: '参数包含危险字符' };
     }
     
     console.log('✅ [CommandService] 命令验证通过:', baseCommand);
-
-    // 验证参数安全性
-    for (const arg of args) {
-      if (dangerousChars.some(char => arg.includes(char))) {
-        return { isValid: false, error: `参数包含危险字符: ${arg}` };
-      }
-      
-      // 检查参数中的路径遍历
-      if (pathTraversalPatterns.some(pattern => pattern.test(arg))) {
-        return { isValid: false, error: `参数包含危险字符: ${arg}` };
-      }
-    }
 
     return { isValid: true, command: baseCommand, args };
   }

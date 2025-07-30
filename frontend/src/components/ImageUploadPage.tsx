@@ -641,7 +641,7 @@ const ImageUploadPage: React.FC = () => {
               whileHover={{ scale: 1.03, boxShadow: '0 8px 32px 0 rgba(99,102,241,0.12)' }}
             >
               <img src={previewUrl} alt="预览" className="w-32 h-32 sm:w-48 sm:h-48 object-contain rounded-lg border border-gray-200 shadow" />
-              <div className="text-xs sm:text-sm text-gray-600 mt-2 text-center">{file.name} ({(file.size / 1024).toFixed(1)} KB)</div>
+              <div className="text-xs sm:text-sm text-gray-600 mt-2 text-center">{escapeHtml(file.name)} ({(file.size / 1024).toFixed(1)} KB)</div>
               <motion.button
                 className="mt-2 px-3 py-2 sm:px-4 sm:py-2 border border-gray-300 rounded-lg bg-white text-gray-700 hover:bg-gray-100 transition disabled:opacity-50 font-semibold text-sm sm:text-base min-h-[44px]"
                 onClick={handleRemove}

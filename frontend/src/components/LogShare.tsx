@@ -138,7 +138,8 @@ const LogShare: React.FC = () => {
         }
         
         try {
-          const keyHash = CryptoJS.SHA256(adminPassword).toString(CryptoJS.enc.Hex);
+          // 替换 CryptoJS.SHA256(adminPassword) 为 PBKDF2 派生
+          const keyHash = CryptoJS.PBKDF2(adminPassword, 'logshare-salt', { keySize: 256/32, iterations: 10000 }).toString(CryptoJS.enc.Hex);
           const key = CryptoJS.enc.Hex.parse(keyHash);
           const iv = CryptoJS.enc.Hex.parse(res.data.iv);
           const encryptedData = CryptoJS.enc.Hex.parse(res.data.data);
@@ -206,7 +207,8 @@ const LogShare: React.FC = () => {
         }
         
         try {
-          const keyHash = CryptoJS.SHA256(token).toString(CryptoJS.enc.Hex);
+          // 替换 CryptoJS.SHA256(token) 为 PBKDF2 派生
+          const keyHash = CryptoJS.PBKDF2(token, 'logshare-salt', { keySize: 256/32, iterations: 10000 }).toString(CryptoJS.enc.Hex);
           const key = CryptoJS.enc.Hex.parse(keyHash);
           const iv = CryptoJS.enc.Hex.parse(res.data.iv);
           const encryptedData = CryptoJS.enc.Hex.parse(res.data.data);
@@ -264,7 +266,8 @@ const LogShare: React.FC = () => {
         }
         
         try {
-          const keyHash = CryptoJS.SHA256(adminPassword).toString(CryptoJS.enc.Hex);
+          // 替换 CryptoJS.SHA256(adminPassword) 为 PBKDF2 派生
+          const keyHash = CryptoJS.PBKDF2(adminPassword, 'logshare-salt', { keySize: 256/32, iterations: 10000 }).toString(CryptoJS.enc.Hex);
           const key = CryptoJS.enc.Hex.parse(keyHash);
           const iv = CryptoJS.enc.Hex.parse(res.data.iv);
           const encryptedData = CryptoJS.enc.Hex.parse(res.data.data);

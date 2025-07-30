@@ -36,6 +36,10 @@ const ImageDataSchema = new mongoose.Schema({
 
 const ImageDataModel = mongoose.models.ImageData || mongoose.model('ImageData', ImageDataSchema);
 
+function isValidImageId(imageId: string) {
+  return /^[a-zA-Z0-9_-]{8,64}$/.test(imageId);
+}
+
 class ImageDataService {
   constructor() {
     // 使用已存在的mongoose连接，不需要初始化数据库
@@ -45,6 +49,7 @@ class ImageDataService {
   // 记录图片数据到数据库
   async recordImageData(data: Omit<ImageDataRecord, 'createdAt' | 'updatedAt'>): Promise<ImageDataRecord> {
     try {
+      if (!isValidImageId(data.imageId)) throw new Error('非法 imageId');
       const record: ImageDataRecord = {
         ...data,
         createdAt: new Date(),
@@ -80,6 +85,7 @@ class ImageDataService {
   // 验证单个图片数据
   async validateImageData(imageId: string, fileHash: string, md5Hash: string): Promise<ValidationResult> {
     try {
+      if (!isValidImageId(imageId)) throw new Error('非法 imageId');
       const imageData = await ImageDataModel.findOne({ imageId });
       
       if (!imageData) {
@@ -136,6 +142,7 @@ class ImageDataService {
   // 获取图片数据信息
   async getImageDataInfo(imageId: string): Promise<ImageDataRecord | null> {
     try {
+      if (!isValidImageId(imageId)) throw new Error('非法 imageId');
       const imageData = await ImageDataModel.findOne({ imageId });
       return imageData ? imageData.toObject() : null;
     } catch (error) {

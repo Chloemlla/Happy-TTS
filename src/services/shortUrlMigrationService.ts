@@ -39,7 +39,7 @@ class ShortUrlMigrationService {
       
       // 查找所有包含旧域名的记录
       const oldDomainRecords = await ShortUrlModel.find({
-        target: { $regex: this.OLD_DOMAIN, $options: 'i' }
+        target: { $regex: new RegExp(`\\b${this.OLD_DOMAIN.replace('.', '\\.') }\\b`, 'i') }
       });
 
       logger.info(`[ShortUrlMigration] 找到 ${oldDomainRecords.length} 条包含旧域名的记录`);

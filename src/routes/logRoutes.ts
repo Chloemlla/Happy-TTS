@@ -9,6 +9,7 @@ import logger from '../utils/logger';
 import { connectMongo, mongoose } from '../services/mongoService';
 import { authenticateToken } from '../middleware/authenticateToken';
 import { config } from '../config/config';
+import bcrypt from 'bcrypt';
 
 const router = express.Router();
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -46,7 +47,8 @@ const logLimiter = rateLimit({
 async function checkAdminPassword(password: string) {
   const users = await UserStorage.getAllUsers();
   const admin = users.find(u => u.role === 'admin');
-  return admin && admin.password === password;
+  if (!admin) return false;
+  return await bcrypt.compare(password, admin.password);
 }
 
 // AES-256加密函数
