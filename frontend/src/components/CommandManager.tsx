@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { FaTerminal, FaServer, FaList, FaHistory, FaPlay, FaPlus, FaEye, FaTrash, FaSync, FaEyeSlash, FaArrowLeft, FaInfoCircle } from 'react-icons/fa';
+import { Link } from 'react-router-dom';
 import { useNotification } from './Notification';
 import { api } from '../api/index';
 import { useAuth } from '../hooks/useAuth';
@@ -68,6 +70,25 @@ interface ServerStatus {
   platform: string;
   arch: string;
   node_version: string;
+  pid?: number;
+  startTime?: number;
+  version?: string;
+  versions?: {
+    node: string;
+    v8: string;
+    uv: string;
+    zlib: string;
+    ares: string;
+    modules: string;
+    nghttp2: string;
+    napi: string;
+    llhttp: string;
+    openssl: string;
+    cldr: string;
+    icu: string;
+    tz: string;
+    unicode: string;
+  };
 }
 
 const CommandManager: React.FC = () => {
@@ -84,45 +105,30 @@ const CommandManager: React.FC = () => {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [queueLoaded, setQueueLoaded] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
+  const [resourceHistory, setResourceHistory] = useState<Array<{
+    timestamp: Date;
+    memoryUsage: number;
+    cpuUsage: number;
+  }>>([]);
 
-  // 检查管理员权限
-  if (!user || user.role !== 'admin') {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-pink-900 to-red-900 flex items-center justify-center p-4">
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.5 }}
-          className="text-center text-white"
-        >
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-            className="text-8xl mb-6"
-          >
-            🚀
-          </motion.div>
-          <h1 className="text-4xl font-bold mb-4">🚀 火箭发射中心 🚀</h1>
-          <p className="text-xl mb-6">正在准备发射到火星...</p>
-          <motion.div
-            animate={{ y: [0, -10, 0] }}
-            transition={{ duration: 1, repeat: Infinity }}
-            className="text-6xl mb-4"
-          >
-            🌌
-          </motion.div>
-          <p className="text-lg opacity-75">只有管理员才能访问命令控制台</p>
-          <motion.div
-            animate={{ scale: [1, 1.1, 1] }}
-            transition={{ duration: 2, repeat: Infinity }}
-            className="mt-8 text-2xl"
-          >
-            🛸 👾 🎮
-          </motion.div>
-        </motion.div>
-      </div>
-    );
-  }
+  // 自动刷新效果
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
+    if (autoRefresh && password) {
+      interval = setInterval(() => {
+        fetchServerStatus();
+      }, 30000); // 每30秒刷新一次
+    }
+    
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [autoRefresh, password]);
 
   // 获取服务器状态
   const fetchServerStatus = async () => {
@@ -151,6 +157,21 @@ const CommandManager: React.FC = () => {
           
           console.log('✅ 解密成功，获取到服务器状态数据');
           setServerStatus(decryptedData);
+          setLastUpdateTime(new Date());
+          
+          // 添加资源使用历史记录
+          const currentTime = new Date();
+          const memoryUsagePercent = (decryptedData.memory_usage.heapUsed / decryptedData.memory_usage.heapTotal) * 100;
+          setResourceHistory(prev => {
+            const newHistory = [...prev, {
+              timestamp: currentTime,
+              memoryUsage: memoryUsagePercent,
+              cpuUsage: decryptedData.cpu_usage_percent
+            }];
+            // 保留最近20个数据点
+            return newHistory.slice(-20);
+          });
+          
           setNotification({ message: '服务器状态获取成功', type: 'success' });
         } catch (decryptError) {
           console.error('❌ 解密失败:', decryptError);
@@ -160,6 +181,7 @@ const CommandManager: React.FC = () => {
         // 兼容未加密格式
         console.log('📝 使用未加密格式数据');
         setServerStatus(response.data);
+        setLastUpdateTime(new Date());
         setNotification({ message: '服务器状态获取成功', type: 'success' });
       }
     } catch (error: any) {
@@ -169,6 +191,18 @@ const CommandManager: React.FC = () => {
       });
     }
   };
+
+  // 检查管理员权限 - 移到所有Hooks之后
+  if (!user || user.role !== 'admin') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+        <span style={{ fontSize: 120, lineHeight: 1 }}>🚀</span>
+        <div className="text-3xl font-bold mt-6 mb-2 text-rose-600 drop-shadow-lg">你不是管理员，禁止访问！</div>
+        <div className="text-lg text-gray-500 mb-8">请用管理员账号登录后再来玩哦~<br/><span className="text-rose-400">（火箭发射中心需要管理员权限）</span></div>
+        <div className="text-base text-gray-400 italic mt-4">仅限管理员使用，命令控制台仅供娱乐。</div>
+      </div>
+    );
+  }
 
   // 执行命令
   const executeCommand = async () => {
@@ -466,181 +500,919 @@ const CommandManager: React.FC = () => {
     return `${days}天 ${hours}小时 ${minutes}分钟`;
   };
 
+  // 格式化内存使用率
+  const formatMemoryUsage = (used: number, total: number) => {
+    const percentage = (used / total) * 100;
+    return {
+      percentage: percentage.toFixed(1),
+      used: formatMemory(used),
+      total: formatMemory(total),
+      free: formatMemory(total - used)
+    };
+  };
+
+  // 获取内存使用状态颜色
+  const getMemoryStatusColor = (percentage: number) => {
+    if (percentage < 50) return 'text-green-600';
+    if (percentage < 80) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  // 获取CPU使用状态颜色
+  const getCPUStatusColor = (percentage: number) => {
+    if (percentage < 30) return 'text-green-600';
+    if (percentage < 70) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  // 内存使用情况分析
+  const analyzeMemoryUsage = (memoryUsage: any) => {
+    const heapUsed = memoryUsage.heapUsed;
+    const heapTotal = memoryUsage.heapTotal;
+    const rss = memoryUsage.rss;
+    const external = memoryUsage.external;
+    
+    const heapUsagePercent = (heapUsed / heapTotal) * 100;
+    const rssToHeapRatio = rss / heapTotal;
+    
+    let status = '';
+    let level = '';
+    let suggestions: string[] = [];
+    
+    // 分析堆内存使用情况
+    if (heapUsagePercent < 30) {
+      status = '内存使用情况良好';
+      level = 'excellent';
+      suggestions.push('系统运行稳定，内存资源充足');
+    } else if (heapUsagePercent < 60) {
+      status = '内存使用情况正常';
+      level = 'good';
+      suggestions.push('内存使用在合理范围内');
+    } else if (heapUsagePercent < 80) {
+      status = '内存使用较高，需要关注';
+      level = 'warning';
+      suggestions.push('建议监控内存使用趋势');
+      suggestions.push('考虑优化内存密集型操作');
+    } else if (heapUsagePercent < 90) {
+      status = '内存使用过高，需要优化';
+      level = 'critical';
+      suggestions.push('立即检查内存泄漏');
+      suggestions.push('考虑重启服务释放内存');
+      suggestions.push('优化代码中的内存使用');
+    } else {
+      status = '内存使用严重超载';
+      level = 'danger';
+      suggestions.push('立即重启服务');
+      suggestions.push('检查内存泄漏问题');
+      suggestions.push('考虑增加服务器内存');
+    }
+    
+    // 分析RSS内存情况
+    if (rssToHeapRatio > 3) {
+      status += '，RSS内存占用过高';
+      suggestions.push('检查是否有大量外部内存占用');
+      suggestions.push('考虑优化第三方库使用');
+    }
+    
+    // 分析外部内存情况
+    if (external > heapTotal * 0.5) {
+      status += '，外部内存占用较多';
+      suggestions.push('检查Buffer和Stream使用情况');
+      suggestions.push('优化文件操作和网络请求');
+    }
+    
+    return {
+      status,
+      level,
+      suggestions,
+      heapUsagePercent: heapUsagePercent.toFixed(1),
+      rssToHeapRatio: rssToHeapRatio.toFixed(2),
+      externalRatio: ((external / heapTotal) * 100).toFixed(1)
+    };
+  };
+
+  // CPU使用情况分析
+  const analyzeCPUUsage = (cpuUsage: number) => {
+    let status = '';
+    let level = '';
+    let suggestions: string[] = [];
+    
+    if (cpuUsage < 20) {
+      status = 'CPU使用率很低，系统负载轻松';
+      level = 'excellent';
+      suggestions.push('系统运行非常稳定');
+      suggestions.push('可以处理更多并发请求');
+    } else if (cpuUsage < 50) {
+      status = 'CPU使用率正常，系统运行良好';
+      level = 'good';
+      suggestions.push('系统负载在合理范围内');
+    } else if (cpuUsage < 80) {
+      status = 'CPU使用率较高，需要注意';
+      level = 'warning';
+      suggestions.push('监控CPU使用趋势');
+      suggestions.push('检查是否有CPU密集型操作');
+    } else if (cpuUsage < 95) {
+      status = 'CPU使用率过高，需要优化';
+      level = 'critical';
+      suggestions.push('检查CPU密集型任务');
+      suggestions.push('考虑负载均衡');
+      suggestions.push('优化代码性能');
+    } else {
+      status = 'CPU使用率严重超载';
+      level = 'danger';
+      suggestions.push('立即检查系统负载');
+      suggestions.push('考虑重启服务');
+      suggestions.push('检查是否有死循环或异常进程');
+    }
+    
+    return {
+      status,
+      level,
+      suggestions,
+      usage: cpuUsage.toFixed(1)
+    };
+  };
+
+  // 获取状态等级对应的样式
+  const getStatusLevelStyle = (level: string) => {
+    switch (level) {
+      case 'excellent':
+        return 'bg-green-100 border-green-300 text-green-800';
+      case 'good':
+        return 'bg-blue-100 border-blue-300 text-blue-800';
+      case 'warning':
+        return 'bg-yellow-100 border-yellow-300 text-yellow-800';
+      case 'critical':
+        return 'bg-orange-100 border-orange-300 text-orange-800';
+      case 'danger':
+        return 'bg-red-100 border-red-300 text-red-800';
+      default:
+        return 'bg-gray-100 border-gray-300 text-gray-800';
+    }
+  };
+
+  // 获取状态等级对应的图标
+  const getStatusLevelIcon = (level: string) => {
+    switch (level) {
+      case 'excellent':
+        return '🟢';
+      case 'good':
+        return '🔵';
+      case 'warning':
+        return '🟡';
+      case 'critical':
+        return '🟠';
+      case 'danger':
+        return '🔴';
+      default:
+        return '⚪';
+    }
+  };
+
+  // 分析资源使用趋势
+  const analyzeResourceTrend = (history: Array<{timestamp: Date; memoryUsage: number; cpuUsage: number}>) => {
+    if (history.length < 2) {
+      return {
+        memoryTrend: 'stable',
+        cpuTrend: 'stable',
+        memoryChange: 0,
+        cpuChange: 0,
+        trendDescription: '数据不足，无法分析趋势'
+      };
+    }
+
+    const recent = history.slice(-3); // 最近3个数据点
+    const older = history.slice(-6, -3); // 前3个数据点
+
+    const recentMemoryAvg = recent.reduce((sum, item) => sum + item.memoryUsage, 0) / recent.length;
+    const olderMemoryAvg = older.reduce((sum, item) => sum + item.memoryUsage, 0) / older.length;
+    const memoryChange = recentMemoryAvg - olderMemoryAvg;
+
+    const recentCpuAvg = recent.reduce((sum, item) => sum + item.cpuUsage, 0) / recent.length;
+    const olderCpuAvg = older.reduce((sum, item) => sum + item.cpuUsage, 0) / older.length;
+    const cpuChange = recentCpuAvg - olderCpuAvg;
+
+    let memoryTrend = 'stable';
+    let cpuTrend = 'stable';
+    let trendDescription = '';
+
+    // 分析内存趋势
+    if (memoryChange > 5) {
+      memoryTrend = 'increasing';
+      trendDescription += '内存使用呈上升趋势，';
+    } else if (memoryChange < -5) {
+      memoryTrend = 'decreasing';
+      trendDescription += '内存使用呈下降趋势，';
+    }
+
+    // 分析CPU趋势
+    if (cpuChange > 10) {
+      cpuTrend = 'increasing';
+      trendDescription += 'CPU使用呈上升趋势';
+    } else if (cpuChange < -10) {
+      cpuTrend = 'decreasing';
+      trendDescription += 'CPU使用呈下降趋势';
+    }
+
+    if (!trendDescription) {
+      trendDescription = '资源使用相对稳定';
+    }
+
+    return {
+      memoryTrend,
+      cpuTrend,
+      memoryChange: memoryChange.toFixed(1),
+      cpuChange: cpuChange.toFixed(1),
+      trendDescription
+    };
+  };
+
   return (
     <div className="space-y-6">
+      {/* 标题和说明 */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold text-blue-700 flex items-center gap-2">
+            <FaTerminal className="w-6 h-6" />
+            命令执行管理
+          </h2>
+          <Link 
+            to="/"
+            className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm font-medium flex items-center gap-2"
+          >
+            <FaArrowLeft className="w-4 h-4" />
+            返回主页
+          </Link>
+        </div>
+        <div className="text-gray-600 space-y-2">
+          <p>此功能用于执行系统命令和管理命令队列，支持实时命令执行、队列管理和执行历史查看。</p>
+          <div className="flex items-start gap-2 text-sm">
+            <FaInfoCircle className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-semibold text-blue-700">功能说明：</p>
+              <ul className="list-disc list-inside space-y-1 mt-1">
+                <li>支持实时命令执行</li>
+                <li>命令队列管理</li>
+                <li>执行历史记录</li>
+                <li>服务器状态监控</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 命令执行 */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
       >
-        <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <svg className="w-8 h-8 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          命令执行管理
-        </h2>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* 命令执行区域 */}
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                命令输入
-              </label>
-              <textarea
-                value={command}
-                onChange={(e) => setCommand(e.target.value)}
-                placeholder="输入要执行的命令..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
-                rows={3}
-              />
-            </div>
-            
-            <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                管理员密码
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="输入管理员密码"
-                  className="w-full px-3 py-2 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1.5 rounded-full hover:bg-gray-100 transition-colors duration-200 flex items-center justify-center w-8 h-8"
-                >
-                  {showPassword ? (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-                    </svg>
-                  ) : (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-              <div className="mt-1 text-xs text-gray-500">
-                💡 默认管理员密码: <code className="bg-gray-100 px-1 rounded">admin</code>
-              </div>
-            </div>
-            
-            <div className="flex flex-col sm:flex-row gap-3">
-              <motion.button
-                onClick={executeCommand}
-                disabled={isExecuting}
-                className="flex-1 bg-gradient-to-r from-indigo-600 to-blue-600 text-white px-4 sm:px-6 py-3 rounded-lg hover:from-indigo-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-lg hover:shadow-xl"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                {isExecuting ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    执行中...
-                  </span>
-                ) : (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    执行命令
-                  </span>
-                )}
-              </motion.button>
-              
-              <motion.button
-                onClick={addToQueue}
-                className="px-4 sm:px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl flex items-center justify-center"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-              </motion.button>
-            </div>
+        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          <FaPlay className="w-5 h-5 text-green-500" />
+          命令执行
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* 命令输入 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              命令输入
+            </label>
+            <textarea
+              value={command}
+              onChange={(e) => setCommand(e.target.value)}
+              placeholder="输入要执行的命令..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
+              rows={3}
+            />
           </div>
 
-          {/* 服务器状态区域 */}
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <h3 className="text-lg font-semibold text-gray-900">服务器状态</h3>
-              <motion.button
-                onClick={fetchServerStatus}
-                className="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg hover:from-blue-600 hover:to-cyan-700 transition-all duration-200 text-sm font-medium shadow-md hover:shadow-lg flex items-center justify-center"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+          {/* 管理员密码 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              管理员密码
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="输入管理员密码"
+                className="w-full px-3 py-2 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1.5 rounded-full hover:bg-gray-100 transition-colors duration-200 flex items-center justify-center w-8 h-8"
               >
-                <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                刷新
-              </motion.button>
+                {showPassword ? (
+                  <FaEyeSlash className="w-4 h-4" />
+                ) : (
+                  <FaEye className="w-4 h-4" />
+                )}
+              </button>
             </div>
-            
-            {serverStatus ? (
-              <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-gray-600">运行时间:</span>
-                    <div className="font-medium">{formatUptime(serverStatus.uptime)}</div>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">平台:</span>
-                    <div className="font-medium">{serverStatus.platform}</div>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">架构:</span>
-                    <div className="font-medium">{serverStatus.arch}</div>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Node版本:</span>
-                    <div className="font-medium">{serverStatus.node_version}</div>
-                  </div>
-                </div>
-                
-                <div>
-                  <span className="text-gray-600 text-sm">内存使用:</span>
-                  <div className="grid grid-cols-2 gap-2 mt-1 text-xs">
-                    <div>RSS: {formatMemory(serverStatus.memory_usage.rss)}</div>
-                    <div>堆内存: {formatMemory(serverStatus.memory_usage.heapUsed)}</div>
-                  </div>
-                </div>
-                
-                <div>
-                  <span className="text-gray-600 text-sm">CPU使用率:</span>
-                  <div className="font-medium">{serverStatus.cpu_usage_percent.toFixed(2)}%</div>
-                </div>
+            <div className="mt-1 text-xs text-gray-500">
+              💡 默认管理员密码: <code className="bg-gray-100 px-1 rounded">admin</code>
+            </div>
+          </div>
+        </div>
+
+        {/* 操作按钮 */}
+        <div className="mt-4 flex flex-col sm:flex-row gap-3">
+          <motion.button
+            onClick={executeCommand}
+            disabled={isExecuting}
+            className={`flex-1 py-3 px-6 rounded-lg font-semibold text-white transition-all duration-200 ${
+              isExecuting
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-600 hover:to-blue-700 shadow-lg hover:shadow-xl'
+            }`}
+            whileHover={!isExecuting ? { scale: 1.02 } : {}}
+            whileTap={!isExecuting ? { scale: 0.98 } : {}}
+          >
+            {isExecuting ? (
+              <div className="flex items-center justify-center space-x-2">
+                <FaSync className="animate-spin w-5 h-5" />
+                <span>执行中...</span>
               </div>
             ) : (
-              <div className="bg-gray-50 rounded-lg p-4 text-center text-gray-500">
-                点击刷新获取服务器状态
+              <div className="flex items-center justify-center space-x-2">
+                <FaPlay className="w-5 h-5" />
+                <span>执行命令</span>
               </div>
             )}
-          </div>
+          </motion.button>
+          
+          <motion.button
+            onClick={addToQueue}
+            className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl flex items-center justify-center"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <FaPlus className="w-5 h-5" />
+          </motion.button>
         </div>
       </motion.div>
 
-      {/* 命令队列管理 */}
+      {/* 服务器状态 */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
         className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
       >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
-          <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-            <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <FaServer className="w-5 h-5 text-blue-500" />
+            服务器状态
+          </h3>
+          <div className="flex gap-2">
+            <motion.button
+              onClick={fetchServerStatus}
+              className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm font-medium flex items-center gap-2"
+              whileTap={{ scale: 0.95 }}
+            >
+              <FaSync className="w-4 h-4" />
+              刷新
+            </motion.button>
+            <motion.button
+              onClick={() => setAutoRefresh(!autoRefresh)}
+              className={`px-3 py-2 rounded-lg transition text-sm font-medium flex items-center gap-2 ${
+                autoRefresh 
+                  ? 'bg-green-500 text-white hover:bg-green-600' 
+                  : 'bg-gray-500 text-white hover:bg-gray-600'
+              }`}
+              whileTap={{ scale: 0.95 }}
+            >
+              <FaSync className={`w-4 h-4 ${autoRefresh ? 'animate-spin' : ''}`} />
+              {autoRefresh ? '停止自动刷新' : '开启自动刷新'}
+            </motion.button>
+          </div>
+        </div>
+        
+        {serverStatus ? (
+          <div className="space-y-4">
+            {/* 系统信息摘要 */}
+            <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg p-4 text-white">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-lg font-semibold flex items-center gap-2">
+                  <FaServer className="w-5 h-5" />
+                  系统信息摘要
+                </h4>
+                <div className="text-sm opacity-90">
+                  最后更新: {lastUpdateTime ? new Date(lastUpdateTime).toLocaleTimeString('zh-CN') : 'N/A'}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold">{serverStatus.platform}</div>
+                  <div className="text-sm opacity-90">操作系统</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold">{serverStatus.arch}</div>
+                  <div className="text-sm opacity-90">架构</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold">{serverStatus.node_version}</div>
+                  <div className="text-sm opacity-90">Node.js</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold">{formatUptime(serverStatus.uptime).split(' ')[0]}</div>
+                  <div className="text-sm opacity-90">运行天数</div>
+                </div>
+              </div>
+            </div>
+
+            {/* 基础状态信息 */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-blue-50 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-blue-700">{formatUptime(serverStatus.uptime)}</div>
+                <div className="text-sm text-gray-600">运行时间</div>
+              </div>
+              <div className="bg-green-50 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-green-700">{serverStatus.platform}</div>
+                <div className="text-sm text-gray-600">平台</div>
+              </div>
+              <div className="bg-purple-50 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-purple-700">{formatMemory(serverStatus.memory_usage.heapUsed)}</div>
+                <div className="text-sm text-gray-600">内存使用</div>
+              </div>
+              <div className="bg-orange-50 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-orange-700">{serverStatus.cpu_usage_percent.toFixed(1)}%</div>
+                <div className="text-sm text-gray-600">CPU使用率</div>
+              </div>
+            </div>
+
+            {/* 架构和版本信息 */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-indigo-50 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-indigo-700">系统架构</span>
+                  <span className="text-xs text-indigo-500">Architecture</span>
+                </div>
+                <div className="text-lg font-bold text-indigo-800">{serverStatus.arch}</div>
+                <div className="text-xs text-indigo-600 mt-1">处理器架构</div>
+              </div>
+              
+              <div className="bg-teal-50 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-teal-700">Node.js版本</span>
+                  <span className="text-xs text-teal-500">Version</span>
+                </div>
+                <div className="text-lg font-bold text-teal-800">{serverStatus.node_version}</div>
+                <div className="text-xs text-teal-600 mt-1">运行时版本</div>
+              </div>
+              
+              <div className="bg-cyan-50 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-cyan-700">运行平台</span>
+                  <span className="text-xs text-cyan-500">Platform</span>
+                </div>
+                <div className="text-lg font-bold text-cyan-800">{serverStatus.platform}</div>
+                <div className="text-xs text-cyan-600 mt-1">操作系统</div>
+              </div>
+            </div>
+
+            {/* 进程信息 */}
+            {(serverStatus.pid || serverStatus.startTime) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {serverStatus.pid && (
+                  <div className="bg-yellow-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-yellow-700">进程ID</span>
+                      <span className="text-xs text-yellow-500">PID</span>
+                    </div>
+                    <div className="text-lg font-bold text-yellow-800">{serverStatus.pid}</div>
+                    <div className="text-xs text-yellow-600 mt-1">当前进程标识符</div>
+                  </div>
+                )}
+                
+                {serverStatus.startTime && (
+                  <div className="bg-pink-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-pink-700">启动时间</span>
+                      <span className="text-xs text-pink-500">Start Time</span>
+                    </div>
+                    <div className="text-lg font-bold text-pink-800">
+                      {new Date(serverStatus.startTime).toLocaleString('zh-CN')}
+                    </div>
+                    <div className="text-xs text-pink-600 mt-1">进程启动时间戳</div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 详细版本信息 */}
+            {serverStatus.versions && (
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                  <FaInfoCircle className="w-4 h-4 text-gray-500" />
+                  详细版本信息
+                </h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                  <div className="bg-white rounded-lg p-3 border border-gray-200">
+                    <div className="text-xs font-medium text-gray-600 mb-1">V8引擎</div>
+                    <div className="text-sm font-bold text-blue-600">{serverStatus.versions.v8}</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 border border-gray-200">
+                    <div className="text-xs font-medium text-gray-600 mb-1">libuv</div>
+                    <div className="text-sm font-bold text-green-600">{serverStatus.versions.uv}</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 border border-gray-200">
+                    <div className="text-xs font-medium text-gray-600 mb-1">OpenSSL</div>
+                    <div className="text-sm font-bold text-purple-600">{serverStatus.versions.openssl}</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 border border-gray-200">
+                    <div className="text-xs font-medium text-gray-600 mb-1">zlib</div>
+                    <div className="text-sm font-bold text-orange-600">{serverStatus.versions.zlib}</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 border border-gray-200">
+                    <div className="text-xs font-medium text-gray-600 mb-1">HTTP/2</div>
+                    <div className="text-sm font-bold text-red-600">{serverStatus.versions.nghttp2}</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 border border-gray-200">
+                    <div className="text-xs font-medium text-gray-600 mb-1">ICU</div>
+                    <div className="text-sm font-bold text-indigo-600">{serverStatus.versions.icu}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 详细内存信息 */}
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <FaServer className="w-4 h-4 text-gray-500" />
+                详细内存使用情况
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-white rounded-lg p-3 border border-gray-200">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium text-gray-600">堆内存使用</span>
+                    <span className="text-xs text-gray-500">Heap Used</span>
+                  </div>
+                  <div className="text-lg font-bold text-blue-600">{formatMemory(serverStatus.memory_usage.heapUsed)}</div>
+                  <div className="text-xs text-gray-500 mt-1">已分配堆内存</div>
+                </div>
+                
+                <div className="bg-white rounded-lg p-3 border border-gray-200">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium text-gray-600">堆内存总量</span>
+                    <span className="text-xs text-gray-500">Heap Total</span>
+                  </div>
+                  <div className="text-lg font-bold text-green-600">{formatMemory(serverStatus.memory_usage.heapTotal)}</div>
+                  <div className="text-xs text-gray-500 mt-1">总堆内存大小</div>
+                </div>
+                
+                <div className="bg-white rounded-lg p-3 border border-gray-200">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium text-gray-600">RSS内存</span>
+                    <span className="text-xs text-gray-500">RSS</span>
+                  </div>
+                  <div className="text-lg font-bold text-purple-600">{formatMemory(serverStatus.memory_usage.rss)}</div>
+                  <div className="text-xs text-gray-500 mt-1">常驻集大小</div>
+                </div>
+                
+                <div className="bg-white rounded-lg p-3 border border-gray-200">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium text-gray-600">外部内存</span>
+                    <span className="text-xs text-gray-500">External</span>
+                  </div>
+                  <div className="text-lg font-bold text-orange-600">{formatMemory(serverStatus.memory_usage.external)}</div>
+                  <div className="text-xs text-gray-500 mt-1">外部内存使用</div>
+                </div>
+              </div>
+              
+              {/* 内存使用率进度条 */}
+              <div className="mt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-700">堆内存使用率</span>
+                  <span className="text-sm text-gray-600">
+                    {((serverStatus.memory_usage.heapUsed / serverStatus.memory_usage.heapTotal) * 100).toFixed(1)}%
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+                    style={{ 
+                      width: `${Math.min(100, (serverStatus.memory_usage.heapUsed / serverStatus.memory_usage.heapTotal) * 100)}%` 
+                    }}
+                  ></div>
+                </div>
+                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                  <span>0 MB</span>
+                  <span>{formatMemory(serverStatus.memory_usage.heapTotal)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 系统资源概览 */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
+              <h4 className="text-sm font-semibold text-blue-700 mb-3 flex items-center gap-2">
+                <FaServer className="w-4 h-4 text-blue-500" />
+                系统资源概览
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white rounded-lg p-3 border border-blue-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-700">堆内存使用率</span>
+                    <span className={`text-sm font-bold ${getMemoryStatusColor((serverStatus.memory_usage.heapUsed / serverStatus.memory_usage.heapTotal) * 100)}`}>
+                      {formatMemoryUsage(serverStatus.memory_usage.heapUsed, serverStatus.memory_usage.heapTotal).percentage}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2 mb-1">
+                    <div
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        (serverStatus.memory_usage.heapUsed / serverStatus.memory_usage.heapTotal) * 100 < 50 ? 'bg-green-500' :
+                        (serverStatus.memory_usage.heapUsed / serverStatus.memory_usage.heapTotal) * 100 < 80 ? 'bg-yellow-500' : 'bg-red-500'
+                      }`}
+                      style={{ 
+                        width: `${Math.min(100, (serverStatus.memory_usage.heapUsed / serverStatus.memory_usage.heapTotal) * 100)}%` 
+                      }}
+                    ></div>
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {formatMemoryUsage(serverStatus.memory_usage.heapUsed, serverStatus.memory_usage.heapTotal).used} / {formatMemoryUsage(serverStatus.memory_usage.heapUsed, serverStatus.memory_usage.heapTotal).total}
+                  </div>
+                  <div className="text-xs text-gray-400 mt-1">
+                    可用: {formatMemoryUsage(serverStatus.memory_usage.heapUsed, serverStatus.memory_usage.heapTotal).free}
+                  </div>
+                </div>
+                
+                <div className="bg-white rounded-lg p-3 border border-blue-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-700">CPU使用率</span>
+                    <span className={`text-sm font-bold ${getCPUStatusColor(serverStatus.cpu_usage_percent)}`}>
+                      {serverStatus.cpu_usage_percent.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2 mb-1">
+                    <div
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        serverStatus.cpu_usage_percent < 30 ? 'bg-green-500' :
+                        serverStatus.cpu_usage_percent < 70 ? 'bg-yellow-500' : 'bg-red-500'
+                      }`}
+                      style={{ 
+                        width: `${Math.min(100, serverStatus.cpu_usage_percent)}%` 
+                      }}
+                    ></div>
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    当前CPU负载
+                  </div>
+                  <div className="text-xs text-gray-400 mt-1">
+                    架构: {serverStatus.arch}
+                  </div>
+                </div>
+                
+                <div className="bg-white rounded-lg p-3 border border-blue-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-700">RSS内存</span>
+                    <span className="text-sm font-bold text-purple-600">
+                      {formatMemory(serverStatus.memory_usage.rss)}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2 mb-1">
+                    <div
+                      className="bg-purple-500 h-2 rounded-full transition-all duration-300"
+                      style={{ 
+                        width: `${Math.min(100, (serverStatus.memory_usage.rss / (serverStatus.memory_usage.heapTotal * 2)) * 100)}%` 
+                      }}
+                    ></div>
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    常驻内存使用
+                  </div>
+                  <div className="text-xs text-gray-400 mt-1">
+                    外部: {formatMemory(serverStatus.memory_usage.external)}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 实时分析结果 */}
+            {serverStatus && (
+              <div className="space-y-4">
+                {/* 分析状态指示器 */}
+                <div className="bg-white rounded-lg p-3 border border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-3 h-3 rounded-full ${
+                        autoRefresh ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+                      }`}></div>
+                      <span className="text-sm font-medium text-gray-700">
+                        {autoRefresh ? '实时监控中' : '静态分析'}
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {lastUpdateTime && `最后更新: ${lastUpdateTime.toLocaleTimeString('zh-CN')}`}
+                    </div>
+                  </div>
+                  {autoRefresh && (
+                    <div className="mt-2 text-xs text-gray-600">
+                      💡 每30秒自动刷新一次，实时监控系统资源使用情况
+                    </div>
+                  )}
+                </div>
+
+                {/* 内存使用分析 */}
+                <div className={`rounded-lg p-4 border ${getStatusLevelStyle(analyzeMemoryUsage(serverStatus.memory_usage).level)}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-lg font-semibold flex items-center gap-2">
+                      <span className="text-2xl">{getStatusLevelIcon(analyzeMemoryUsage(serverStatus.memory_usage).level)}</span>
+                      内存使用分析
+                    </h4>
+                    <div className="text-sm font-medium">
+                      堆内存使用率: {analyzeMemoryUsage(serverStatus.memory_usage).heapUsagePercent}%
+                    </div>
+                  </div>
+                  
+                  <div className="mb-3">
+                    <p className="text-base font-medium mb-2">
+                      {analyzeMemoryUsage(serverStatus.memory_usage).status}
+                    </p>
+                    <div className="text-sm opacity-90">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
+                        <div>RSS/堆内存比例: {analyzeMemoryUsage(serverStatus.memory_usage).rssToHeapRatio}</div>
+                        <div>外部内存占比: {analyzeMemoryUsage(serverStatus.memory_usage).externalRatio}%</div>
+                        <div>可用内存: {formatMemoryUsage(serverStatus.memory_usage.heapUsed, serverStatus.memory_usage.heapTotal).free}</div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white bg-opacity-50 rounded-lg p-3">
+                    <h5 className="text-sm font-semibold mb-2 flex items-center gap-1">
+                      💡 优化建议
+                    </h5>
+                    <ul className="text-sm space-y-1">
+                      {analyzeMemoryUsage(serverStatus.memory_usage).suggestions.map((suggestion, index) => (
+                        <li key={index} className="flex items-start gap-2">
+                          <span className="text-xs mt-1">•</span>
+                          <span>{suggestion}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                {/* CPU使用分析 */}
+                <div className={`rounded-lg p-4 border ${getStatusLevelStyle(analyzeCPUUsage(serverStatus.cpu_usage_percent).level)}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-lg font-semibold flex items-center gap-2">
+                      <span className="text-2xl">{getStatusLevelIcon(analyzeCPUUsage(serverStatus.cpu_usage_percent).level)}</span>
+                      CPU使用分析
+                    </h4>
+                    <div className="text-sm font-medium">
+                      CPU使用率: {analyzeCPUUsage(serverStatus.cpu_usage_percent).usage}%
+                    </div>
+                  </div>
+                  
+                  <div className="mb-3">
+                    <p className="text-base font-medium mb-2">
+                      {analyzeCPUUsage(serverStatus.cpu_usage_percent).status}
+                    </p>
+                    <div className="text-sm opacity-90">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                        <div>系统架构: {serverStatus.arch}</div>
+                        <div>运行平台: {serverStatus.platform}</div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white bg-opacity-50 rounded-lg p-3">
+                    <h5 className="text-sm font-semibold mb-2 flex items-center gap-1">
+                      💡 优化建议
+                    </h5>
+                    <ul className="text-sm space-y-1">
+                      {analyzeCPUUsage(serverStatus.cpu_usage_percent).suggestions.map((suggestion, index) => (
+                        <li key={index} className="flex items-start gap-2">
+                          <span className="text-xs mt-1">•</span>
+                          <span>{suggestion}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                {/* 系统健康度评估 */}
+                <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg p-4 border border-gray-200">
+                  <h4 className="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                    📊 系统健康度评估
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-white rounded-lg p-3 border border-gray-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-gray-700">内存健康度</span>
+                        <span className={`text-sm font-bold ${getMemoryStatusColor((serverStatus.memory_usage.heapUsed / serverStatus.memory_usage.heapTotal) * 100)}`}>
+                          {analyzeMemoryUsage(serverStatus.memory_usage).level === 'excellent' ? '优秀' :
+                           analyzeMemoryUsage(serverStatus.memory_usage).level === 'good' ? '良好' :
+                           analyzeMemoryUsage(serverStatus.memory_usage).level === 'warning' ? '注意' :
+                           analyzeMemoryUsage(serverStatus.memory_usage).level === 'critical' ? '警告' : '危险'}
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full transition-all duration-300 ${
+                            analyzeMemoryUsage(serverStatus.memory_usage).level === 'excellent' ? 'bg-green-500' :
+                            analyzeMemoryUsage(serverStatus.memory_usage).level === 'good' ? 'bg-blue-500' :
+                            analyzeMemoryUsage(serverStatus.memory_usage).level === 'warning' ? 'bg-yellow-500' :
+                            analyzeMemoryUsage(serverStatus.memory_usage).level === 'critical' ? 'bg-orange-500' : 'bg-red-500'
+                          }`}
+                          style={{ 
+                            width: `${Math.min(100, (serverStatus.memory_usage.heapUsed / serverStatus.memory_usage.heapTotal) * 100)}%` 
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-white rounded-lg p-3 border border-gray-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-gray-700">CPU健康度</span>
+                        <span className={`text-sm font-bold ${getCPUStatusColor(serverStatus.cpu_usage_percent)}`}>
+                          {analyzeCPUUsage(serverStatus.cpu_usage_percent).level === 'excellent' ? '优秀' :
+                           analyzeCPUUsage(serverStatus.cpu_usage_percent).level === 'good' ? '良好' :
+                           analyzeCPUUsage(serverStatus.cpu_usage_percent).level === 'warning' ? '注意' :
+                           analyzeCPUUsage(serverStatus.cpu_usage_percent).level === 'critical' ? '警告' : '危险'}
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full transition-all duration-300 ${
+                            analyzeCPUUsage(serverStatus.cpu_usage_percent).level === 'excellent' ? 'bg-green-500' :
+                            analyzeCPUUsage(serverStatus.cpu_usage_percent).level === 'good' ? 'bg-blue-500' :
+                            analyzeCPUUsage(serverStatus.cpu_usage_percent).level === 'warning' ? 'bg-yellow-500' :
+                            analyzeCPUUsage(serverStatus.cpu_usage_percent).level === 'critical' ? 'bg-orange-500' : 'bg-red-500'
+                          }`}
+                          style={{ 
+                            width: `${Math.min(100, serverStatus.cpu_usage_percent)}%` 
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-3 text-sm text-gray-600">
+                    <p className="font-medium mb-1">📈 系统状态总结:</p>
+                    <p>
+                      {analyzeMemoryUsage(serverStatus.memory_usage).level === 'excellent' && analyzeCPUUsage(serverStatus.cpu_usage_percent).level === 'excellent' 
+                        ? '系统运行状态优秀，资源充足，可以稳定处理大量请求。'
+                        : analyzeMemoryUsage(serverStatus.memory_usage).level === 'danger' || analyzeCPUUsage(serverStatus.cpu_usage_percent).level === 'danger'
+                        ? '系统资源严重不足，建议立即采取措施优化或重启服务。'
+                        : '系统运行状态一般，建议关注资源使用趋势，必要时进行优化。'
+                      }
+                    </p>
+                    
+                    {/* 趋势分析 */}
+                    {resourceHistory.length >= 2 && (
+                      <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <h5 className="text-sm font-semibold text-blue-700 mb-2 flex items-center gap-1">
+                          📊 趋势分析
+                        </h5>
+                        <div className="text-sm text-blue-800">
+                          <p className="mb-2">{analyzeResourceTrend(resourceHistory).trendDescription}</p>
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="flex items-center gap-1">
+                              <span>内存变化:</span>
+                              <span className={`font-medium ${
+                                analyzeResourceTrend(resourceHistory).memoryTrend === 'increasing' ? 'text-red-600' :
+                                analyzeResourceTrend(resourceHistory).memoryTrend === 'decreasing' ? 'text-green-600' : 'text-gray-600'
+                              }`}>
+                                {analyzeResourceTrend(resourceHistory).memoryChange}%
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span>CPU变化:</span>
+                              <span className={`font-medium ${
+                                analyzeResourceTrend(resourceHistory).cpuTrend === 'increasing' ? 'text-red-600' :
+                                analyzeResourceTrend(resourceHistory).cpuTrend === 'decreasing' ? 'text-green-600' : 'text-gray-600'
+                              }`}>
+                                {analyzeResourceTrend(resourceHistory).cpuChange}%
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="bg-gray-50 rounded-lg p-4 text-center text-gray-500">
+            点击刷新获取服务器状态
+          </div>
+        )}
+      </motion.div>
+
+      {/* 命令队列 */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <FaList className="w-5 h-5 text-green-500" />
             命令队列
           </h3>
           <div className="flex gap-2">
@@ -648,33 +1420,19 @@ const CommandManager: React.FC = () => {
               <motion.button
                 onClick={loadCommandQueue}
                 disabled={isLoadingQueue}
-                className="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg hover:from-blue-600 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm font-medium shadow-md hover:shadow-lg flex items-center justify-center"
-                whileHover={{ scale: 1.05 }}
+                className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
                 whileTap={{ scale: 0.95 }}
               >
-                {isLoadingQueue ? (
-                  <svg className="animate-spin h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                ) : (
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                )}
+                <FaSync className={`w-4 h-4 ${isLoadingQueue ? 'animate-spin' : ''}`} />
                 {isLoadingQueue ? '加载中...' : '加载队列'}
               </motion.button>
             )}
             <motion.button
               onClick={getNextCommand}
-              className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all duration-200 text-sm font-medium shadow-md hover:shadow-lg flex items-center justify-center"
-              whileHover={{ scale: 1.05 }}
+              className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition text-sm font-medium flex items-center gap-2"
               whileTap={{ scale: 0.95 }}
             >
-              <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
+              <FaEye className="w-4 h-4" />
               查看下一个
             </motion.button>
           </div>
@@ -682,18 +1440,14 @@ const CommandManager: React.FC = () => {
         
         {!queueLoaded ? (
           <div className="text-center text-gray-500 py-8">
-            <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-            </svg>
+            <FaList className="w-12 h-12 mx-auto mb-3 text-gray-300" />
             <p>点击"加载队列"查看命令队列</p>
           </div>
         ) : commandQueue.length > 0 ? (
           <div className="space-y-2">
             {commandQueue.map((cmd, index) => (
-              <motion.div
+              <div
                 key={index}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
                 className="flex items-center justify-between bg-gray-50 rounded-lg p-3 gap-3"
               >
                 <span className="font-mono text-sm text-gray-700 break-all flex-1">{cmd.command}</span>
@@ -703,18 +1457,14 @@ const CommandManager: React.FC = () => {
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
+                  <FaTrash className="w-4 h-4" />
                 </motion.button>
-              </motion.div>
+              </div>
             ))}
           </div>
         ) : (
           <div className="text-center text-gray-500 py-8">
-            <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-            </svg>
+            <FaList className="w-12 h-12 mx-auto mb-3 text-gray-300" />
             <p>命令队列为空</p>
           </div>
         )}
@@ -724,14 +1474,11 @@ const CommandManager: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
         className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
       >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
-          <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-            <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <FaHistory className="w-5 h-5 text-blue-500" />
             执行历史
           </h3>
           <div className="flex gap-2">
@@ -739,32 +1486,19 @@ const CommandManager: React.FC = () => {
               <motion.button
                 onClick={loadExecutionHistory}
                 disabled={isLoadingHistory}
-                className="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg hover:from-blue-600 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm font-medium shadow-md hover:shadow-lg flex items-center justify-center"
-                whileHover={{ scale: 1.05 }}
+                className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
                 whileTap={{ scale: 0.95 }}
               >
-                {isLoadingHistory ? (
-                  <svg className="animate-spin h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                ) : (
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                )}
+                <FaSync className={`w-4 h-4 ${isLoadingHistory ? 'animate-spin' : ''}`} />
                 {isLoadingHistory ? '加载中...' : '加载历史'}
               </motion.button>
             )}
             <motion.button
               onClick={clearHistory}
-              className="px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-lg hover:from-red-600 hover:to-pink-700 transition-all duration-200 text-sm font-medium shadow-md hover:shadow-lg flex items-center justify-center"
-              whileHover={{ scale: 1.05 }}
+              className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition text-sm font-medium flex items-center gap-2"
               whileTap={{ scale: 0.95 }}
             >
-              <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
+              <FaTrash className="w-4 h-4" />
               清空历史
             </motion.button>
           </div>
@@ -773,19 +1507,14 @@ const CommandManager: React.FC = () => {
         <AnimatePresence>
           {!historyLoaded ? (
             <div className="text-center text-gray-500 py-8">
-              <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <FaHistory className="w-12 h-12 mx-auto mb-3 text-gray-300" />
               <p>点击"加载历史"查看执行历史</p>
             </div>
           ) : commandHistory.length > 0 ? (
             <div className="space-y-4">
               {commandHistory.map((item) => (
-                <motion.div
+                <div
                   key={item.historyId}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
                   className={`border rounded-lg p-4 ${
                     item.status === 'success' 
                       ? 'border-green-200 bg-green-50' 
@@ -794,11 +1523,9 @@ const CommandManager: React.FC = () => {
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <svg className={`w-4 h-4 ${
+                      <FaTerminal className={`w-4 h-4 ${
                         item.status === 'success' ? 'text-green-600' : 'text-red-600'
-                      }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
+                      }`} />
                       <span className="font-mono text-sm font-medium">{item.command}</span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -817,14 +1544,12 @@ const CommandManager: React.FC = () => {
                       {item.result}
                     </pre>
                   </div>
-                </motion.div>
+                </div>
               ))}
             </div>
           ) : (
             <div className="text-center text-gray-500 py-8">
-              <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <FaHistory className="w-12 h-12 mx-auto mb-3 text-gray-300" />
               <p>暂无执行历史</p>
             </div>
           )}

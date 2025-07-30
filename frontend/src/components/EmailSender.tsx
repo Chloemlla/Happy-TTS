@@ -61,6 +61,11 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
   const { setNotification } = useNotification();
   const [quota, setQuota] = useState<EmailQuota>({ used: 0, total: 100, resetAt: '' });
   const [senderDomains, setSenderDomains] = useState<string[]>([]);
+  const [domainExemptionStatus, setDomainExemptionStatus] = useState<{ exempted: boolean; message?: string; isInternal?: boolean; isExempted?: boolean } | null>(null);
+  const [checkingExemption, setCheckingExemption] = useState(false);
+  const [recipientWhitelistStatus, setRecipientWhitelistStatus] = useState<{ whitelisted: boolean; message?: string; isWhitelisted?: boolean } | null>(null);
+  const [checkingRecipientWhitelist, setCheckingRecipientWhitelist] = useState(false);
+  const [skipWhitelistCheck, setSkipWhitelistCheck] = useState(false);
 
   // 获取API基础URL
   const getApiBaseUrl = () => {
@@ -127,6 +132,100 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
     } catch (error) {
       console.error('检查邮件服务状态失败:', error);
       setServiceStatus({ available: false, error: '无法连接邮件服务' });
+    }
+  };
+
+  // 检查域名豁免状态
+  const checkDomainExemption = async () => {
+    const currentDomain = form.from.split('@')[1];
+    if (!currentDomain) {
+      setNotification({ message: '请先选择发件人域名', type: 'warning' });
+      return;
+    }
+
+    setCheckingExemption(true);
+    try {
+      const response = await api.post('/api/email/check-domain-exemption', {
+        domain: currentDomain
+      });
+
+      if (response.data.success) {
+        setDomainExemptionStatus({
+          exempted: response.data.exempted,
+          message: response.data.message,
+          isInternal: response.data.isInternal,
+          isExempted: response.data.isExempted
+        });
+        setNotification({ 
+          message: response.data.exempted ? '域名已豁免检查' : '域名需要安全检查', 
+          type: response.data.exempted ? 'success' : 'info' 
+        });
+      } else {
+        setDomainExemptionStatus({
+          exempted: false,
+          message: response.data.error || '检查失败'
+        });
+        setNotification({ message: response.data.error || '检查失败', type: 'error' });
+      }
+    } catch (error: any) {
+      console.error('域名豁免检查失败:', error);
+      setDomainExemptionStatus({
+        exempted: false,
+        message: '网络错误，请重试'
+      });
+      setNotification({ message: '网络错误，请重试', type: 'error' });
+    } finally {
+      setCheckingExemption(false);
+    }
+  };
+
+  // 检查收件人域名白名单状态
+  const checkRecipientWhitelist = async () => {
+    // 获取第一个收件人邮箱的域名
+    const firstRecipient = form.to.find(email => email.trim());
+    if (!firstRecipient) {
+      setNotification({ message: '请先添加收件人邮箱', type: 'warning' });
+      return;
+    }
+
+    const recipientDomain = firstRecipient.split('@')[1];
+    if (!recipientDomain) {
+      setNotification({ message: '收件人邮箱格式无效', type: 'warning' });
+      return;
+    }
+
+    setCheckingRecipientWhitelist(true);
+    try {
+      const response = await api.post('/api/email/check-recipient-whitelist', {
+        domain: recipientDomain
+      });
+
+      if (response.data.success) {
+        setRecipientWhitelistStatus({
+          whitelisted: response.data.whitelisted,
+          message: response.data.message,
+          isWhitelisted: response.data.isWhitelisted
+        });
+        setNotification({ 
+          message: response.data.whitelisted ? '收件人域名在白名单中' : '收件人域名需要检查', 
+          type: response.data.whitelisted ? 'success' : 'info' 
+        });
+      } else {
+        setRecipientWhitelistStatus({
+          whitelisted: false,
+          message: response.data.error || '检查失败'
+        });
+        setNotification({ message: response.data.error || '检查失败', type: 'error' });
+      }
+    } catch (error: any) {
+      console.error('收件人域名白名单检查失败:', error);
+      setRecipientWhitelistStatus({
+        whitelisted: false,
+        message: '网络错误，请重试'
+      });
+      setNotification({ message: '网络错误，请重试', type: 'error' });
+    } finally {
+      setCheckingRecipientWhitelist(false);
     }
   };
 
@@ -220,7 +319,8 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
           to: validRecipients,
           subject: form.subject,
           html: form.html,
-          text: form.text
+          text: form.text,
+          skipWhitelist: skipWhitelistCheck
         });
 
         if (response.data.success) {
@@ -240,7 +340,8 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
           from: form.from,
           to: validRecipients,
           subject: form.subject,
-          content: simpleContent
+          content: simpleContent,
+          skipWhitelist: skipWhitelistCheck
         });
 
         if (response.data.success) {
@@ -260,7 +361,8 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
           from: form.from,
           to: validRecipients,
           subject: form.subject,
-          markdown: markdownContent
+          markdown: markdownContent,
+          skipWhitelist: skipWhitelistCheck
         });
         if (response.data.success) {
           setNotification({ message: '邮件发送成功！', type: 'success' });
@@ -547,7 +649,7 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     发件人邮箱 *
                   </label>
-                  <div className="flex items-center">
+                  <div className="flex items-center space-x-2">
                     <div className="flex-1 flex">
                       <input
                         type="text"
@@ -576,7 +678,81 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                         </select>
                       )}
                     </div>
+                    <motion.button
+                      onClick={checkDomainExemption}
+                      disabled={checkingExemption}
+                      className={`px-4 py-3 rounded-lg font-medium text-sm transition-all duration-200 ${
+                        checkingExemption
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          : 'bg-blue-500 hover:bg-blue-600 text-white shadow-md hover:shadow-lg'
+                      }`}
+                      whileHover={!checkingExemption ? { scale: 1.02 } : {}}
+                      whileTap={!checkingExemption ? { scale: 0.98 } : {}}
+                    >
+                      {checkingExemption ? (
+                        <div className="flex items-center space-x-2">
+                          <motion.div
+                            className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          />
+                          <span>检查中...</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center space-x-2">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span>豁免检查</span>
+                        </div>
+                      )}
+                    </motion.button>
                   </div>
+                  
+                  {/* 域名豁免状态显示 */}
+                  <AnimatePresence>
+                    {domainExemptionStatus && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className={`mt-3 p-3 rounded-lg border ${
+                          domainExemptionStatus.exempted
+                            ? 'bg-green-50 border-green-200 text-green-800'
+                            : 'bg-yellow-50 border-yellow-200 text-yellow-800'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <motion.svg 
+                            className={`w-5 h-5 ${
+                              domainExemptionStatus.exempted ? 'text-green-500' : 'text-yellow-500'
+                            }`}
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                            animate={{ scale: [1, 1.1, 1] }}
+                            transition={{ duration: 2, repeat: Infinity }}
+                          >
+                            {domainExemptionStatus.exempted ? (
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            ) : (
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                            )}
+                          </motion.svg>
+                          <div>
+                            <div className="font-medium">
+                              {domainExemptionStatus.exempted ? '域名已豁免' : '域名需要检查'}
+                            </div>
+                            <div className="text-sm opacity-90">
+                              {domainExemptionStatus.message}
+                              {domainExemptionStatus.isInternal && ' (内部域名)'}
+                              {domainExemptionStatus.isExempted && ' (豁免域名)'}
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
 
                 {/* 收件人 */}
@@ -624,6 +800,83 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                       </motion.button>
                     )}
                   </div>
+                  
+                  {/* 收件人域名白名单检查按钮 */}
+                  <div className="mt-3">
+                    <motion.button
+                      onClick={checkRecipientWhitelist}
+                      disabled={checkingRecipientWhitelist || !form.to.find(email => email.trim())}
+                      className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                        checkingRecipientWhitelist || !form.to.find(email => email.trim())
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          : 'bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg'
+                      }`}
+                      whileHover={!checkingRecipientWhitelist && form.to.find(email => email.trim()) ? { scale: 1.02 } : {}}
+                      whileTap={!checkingRecipientWhitelist && form.to.find(email => email.trim()) ? { scale: 0.98 } : {}}
+                    >
+                      {checkingRecipientWhitelist ? (
+                        <div className="flex items-center space-x-2">
+                          <motion.div
+                            className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          />
+                          <span>检查中...</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center space-x-2">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                          </svg>
+                          <span>白名单检查</span>
+                        </div>
+                      )}
+                    </motion.button>
+                  </div>
+                  
+                  {/* 收件人域名白名单状态显示 */}
+                  <AnimatePresence>
+                    {recipientWhitelistStatus && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className={`mt-3 p-3 rounded-lg border ${
+                          recipientWhitelistStatus.whitelisted
+                            ? 'bg-green-50 border-green-200 text-green-800'
+                            : 'bg-orange-50 border-orange-200 text-orange-800'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <motion.svg 
+                            className={`w-5 h-5 ${
+                              recipientWhitelistStatus.whitelisted ? 'text-green-500' : 'text-orange-500'
+                            }`}
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                            animate={{ scale: [1, 1.1, 1] }}
+                            transition={{ duration: 2, repeat: Infinity }}
+                          >
+                            {recipientWhitelistStatus.whitelisted ? (
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                            ) : (
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                            )}
+                          </motion.svg>
+                          <div>
+                            <div className="font-medium">
+                              {recipientWhitelistStatus.whitelisted ? '收件人域名在白名单中' : '收件人域名需要检查'}
+                            </div>
+                            <div className="text-sm opacity-90">
+                              {recipientWhitelistStatus.message}
+                              {recipientWhitelistStatus.isWhitelisted && ' (白名单域名)'}
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
 
                 {/* 邮件主题 */}
@@ -725,6 +978,40 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                   )}
                 </div>
 
+                {/* 跳过白名单检查选项 */}
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="flex items-center space-x-3">
+                    <motion.svg 
+                      className="w-6 h-6 text-yellow-600" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                      animate={{ scale: [1, 1.1, 1] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </motion.svg>
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3">
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={skipWhitelistCheck}
+                            onChange={(e) => setSkipWhitelistCheck(e.target.checked)}
+                            className="w-4 h-4 text-yellow-600 border-yellow-300 rounded focus:ring-yellow-500 focus:ring-2"
+                          />
+                          <span className="text-sm font-medium text-yellow-800">
+                            跳过收件人域名白名单检查
+                          </span>
+                        </label>
+                      </div>
+                      <p className="text-xs text-yellow-700 mt-1">
+                        启用此选项将跳过收件人域名的白名单验证和邮箱格式验证，直接发送邮件。仅管理员可用。
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 {/* 发送按钮 */}
                 <motion.button
                   onClick={handleSendEmail}
@@ -816,6 +1103,22 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                     <div className="flex items-start space-x-2">
                       <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
                       <p>每分钟最多发送5封邮件</p>
+                    </div>
+                    <div className="flex items-start space-x-2">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                      <p>点击"豁免检查"按钮可检查域名安全状态</p>
+                    </div>
+                    <div className="flex items-start space-x-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
+                      <p>点击"白名单检查"按钮可检查收件人域名安全状态</p>
+                    </div>
+                    <div className="flex items-start space-x-2">
+                      <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2 flex-shrink-0"></div>
+                      <p>可勾选"跳过白名单检查"选项直接发送邮件</p>
+                    </div>
+                    <div className="flex items-start space-x-2">
+                      <div className="w-2 h-2 bg-red-500 rounded-full mt-2 flex-shrink-0"></div>
+                      <p>跳过白名单检查时将绕过收件人邮箱格式验证</p>
                     </div>
                   </div>
                 </div>

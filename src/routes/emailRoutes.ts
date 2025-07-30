@@ -46,6 +46,14 @@ const statusQueryLimiter = createLimiter({
     routeName: 'email.status'
 });
 
+// 域名豁免检查速率限制（每管理员每分钟最多20次检查）
+const domainExemptionLimiter = createLimiter({
+    windowMs: 60 * 1000, // 1分钟
+    max: 20, // 最多20次
+    message: '域名豁免检查过于频繁，请稍后再试',
+    routeName: 'email.domain-exemption'
+});
+
 // 对外邮件发送限流（每分钟20封，每天100封，独立于管理员邮件）
 const outEmailLimiter = createLimiter({
     windowMs: 60 * 1000,
@@ -112,8 +120,8 @@ router.use(adminAuthMiddleware);
  * @openapi
  * /api/email/send:
  *   post:
- *     summary: 发送邮件
- *     description: 管理员发送邮件接口
+ *     summary: 发送HTML格式邮件
+ *     description: 管理员发送HTML格式邮件接口
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -133,11 +141,11 @@ router.use(adminAuthMiddleware);
  *                 items:
  *                   type: string
  *                 description: 收件人邮箱列表
- *                 example: ["recipient1@example.com", "recipient2@example.com"]
+ *                 example: ["recipient@example.com"]
  *               subject:
  *                 type: string
  *                 description: 邮件主题
- *                 example: "重要通知"
+ *                 example: "HTML通知"
  *               html:
  *                 type: string
  *                 description: HTML格式的邮件内容
@@ -146,27 +154,15 @@ router.use(adminAuthMiddleware);
  *                 type: string
  *                 description: 纯文本格式的邮件内容（可选）
  *                 example: "Hello World\n这是一封测试邮件。"
+ *               skipWhitelist:
+ *                 type: boolean
+ *                 description: 是否跳过收件人域名白名单检查（仅管理员可用）
+ *                 example: false
  *     responses:
  *       200:
  *         description: 邮件发送成功
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "邮件发送成功"
- *                 messageId:
- *                   type: string
- *                   example: "abc123def456"
- *                 data:
- *                   type: object
  *       400:
- *         description: 请求参数错误（邮箱格式无效、发件人域名不允许等）
+ *         description: 请求参数错误
  *       401:
  *         description: 未授权
  *       403:
@@ -176,7 +172,7 @@ router.use(adminAuthMiddleware);
  *       500:
  *         description: 服务器错误
  */
-router.post('/send', EmailController.sendEmail);
+router.post('/send', emailSendLimiter, authMiddleware, adminAuthMiddleware, EmailController.sendEmail);
 
 /**
  * @openapi
@@ -212,6 +208,10 @@ router.post('/send', EmailController.sendEmail);
  *                 type: string
  *                 description: 发件人邮箱（可选，必须是 @hapxs.com 域名）
  *                 example: "noreply@hapxs.com"
+ *               skipWhitelist:
+ *                 type: boolean
+ *                 description: 是否跳过收件人域名白名单检查（仅管理员可用）
+ *                 example: false
  *     responses:
  *       200:
  *         description: 邮件发送成功
@@ -226,7 +226,7 @@ router.post('/send', EmailController.sendEmail);
  *       500:
  *         description: 服务器错误
  */
-router.post('/send-simple', EmailController.sendSimpleEmail);
+router.post('/send-simple', emailSendLimiter, authMiddleware, adminAuthMiddleware, EmailController.sendSimpleEmail);
 
 /**
  * @openapi
@@ -262,6 +262,10 @@ router.post('/send-simple', EmailController.sendSimpleEmail);
  *                 type: string
  *                 description: Markdown格式的邮件内容
  *                 example: "# Hello World\n这是一封测试邮件。"
+ *               skipWhitelist:
+ *                 type: boolean
+ *                 description: 是否跳过收件人域名白名单检查（仅管理员可用）
+ *                 example: false
  *     responses:
  *       200:
  *         description: 邮件发送成功
@@ -276,7 +280,7 @@ router.post('/send-simple', EmailController.sendSimpleEmail);
  *       500:
  *         description: 服务器错误
  */
-router.post('/send-markdown', EmailController.sendMarkdownEmail);
+router.post('/send-markdown', emailSendLimiter, authMiddleware, adminAuthMiddleware, EmailController.sendMarkdownEmail);
 
 /**
  * @openapi
@@ -565,8 +569,71 @@ router.get('/quota', authMiddleware, adminAuthMiddleware, EmailController.getQuo
  */
 router.get('/domains', authMiddleware, EmailController.getDomains);
 
+/**
+ * @openapi
+ * /api/email/check-domain-exemption:
+ *   post:
+ *     summary: 检查域名豁免状态
+ *     description: 检查指定域名是否在豁免列表中
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - domain
+ *             properties:
+ *               domain:
+ *                 type: string
+ *                 description: 要检查的域名
+ *                 example: "hapxs.com"
+ *     responses:
+ *       200:
+ *         description: 检查成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 exempted:
+ *                   type: boolean
+ *                   description: 是否豁免
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   description: 检查结果消息
+ *                   example: "域名在豁免列表中，无需额外检查"
+ *                 domain:
+ *                   type: string
+ *                   description: 检查的域名
+ *                   example: "hapxs.com"
+ *                 isInternal:
+ *                   type: boolean
+ *                   description: 是否为内部域名
+ *                   example: false
+ *                 isExempted:
+ *                   type: boolean
+ *                   description: 是否为豁免域名
+ *                   example: true
+ *       400:
+ *         description: 请求参数错误
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 权限不足
+ *       429:
+ *         description: 请求过于频繁
+ *       500:
+ *         description: 服务器错误
+ */
 // 检查域名豁免状态
-router.post('/check-domain-exemption', async (req, res) => {
+router.post('/check-domain-exemption', domainExemptionLimiter, authMiddleware, adminAuthMiddleware, async (req, res) => {
   try {
     const { domain } = req.body;
     
@@ -590,6 +657,96 @@ router.post('/check-domain-exemption', async (req, res) => {
 
   } catch (error) {
     console.error('[EmailRoutes] 检查域名豁免状态失败:', error);
+    res.status(500).json({
+      success: false,
+      error: '服务器内部错误'
+    });
+  }
+});
+
+/**
+ * @openapi
+ * /api/email/check-recipient-whitelist:
+ *   post:
+ *     summary: 检查收件人域名白名单状态
+ *     description: 检查指定域名是否在收件人白名单中
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - domain
+ *             properties:
+ *               domain:
+ *                 type: string
+ *                 description: 要检查的收件人域名
+ *                 example: "gmail.com"
+ *     responses:
+ *       200:
+ *         description: 检查成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 whitelisted:
+ *                   type: boolean
+ *                   description: 是否在白名单中
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   description: 检查结果消息
+ *                   example: "域名在白名单中，无需额外检查"
+ *                 domain:
+ *                   type: string
+ *                   description: 检查的域名
+ *                   example: "gmail.com"
+ *                 isWhitelisted:
+ *                   type: boolean
+ *                   description: 是否为白名单域名
+ *                   example: true
+ *       400:
+ *         description: 请求参数错误
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 权限不足
+ *       429:
+ *         description: 请求过于频繁
+ *       500:
+ *         description: 服务器错误
+ */
+// 检查收件人域名白名单状态
+router.post('/check-recipient-whitelist', domainExemptionLimiter, authMiddleware, adminAuthMiddleware, async (req, res) => {
+  try {
+    const { domain } = req.body;
+    
+    if (!domain) {
+      return res.status(400).json({
+        success: false,
+        error: '域名参数不能为空'
+      });
+    }
+
+    const result = domainExemptionService.checkRecipientWhitelist(domain);
+
+    res.json({
+      success: true,
+      whitelisted: result.whitelisted,
+      message: result.message,
+      domain: result.domain,
+      isWhitelisted: result.isWhitelisted
+    });
+
+  } catch (error) {
+    console.error('[EmailRoutes] 检查收件人域名白名单状态失败:', error);
     res.status(500).json({
       success: false,
       error: '服务器内部错误'

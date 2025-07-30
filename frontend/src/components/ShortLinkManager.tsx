@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaTrash, FaCopy, FaSearch, FaSync, FaDice } from 'react-icons/fa';
+import { FaTrash, FaCopy, FaSearch, FaSync, FaDice, FaLink, FaPlus, FaInfoCircle, FaExclamationTriangle, FaCheckCircle, FaArrowLeft } from 'react-icons/fa';
+import { Link } from 'react-router-dom';
 import { useNotification } from './Notification';
 import getApiBaseUrl from '../api';
 import { useAuth } from '../hooks/useAuth';
@@ -265,529 +266,402 @@ const ShortLinkManager: React.FC = () => {
   }
 
   return (
-    <motion.div 
-      className="p-6"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, ease: "easeOut" }}
-    >
-      <motion.div 
-        className="flex flex-col sm:flex-row sm:items-center mb-4 gap-3"
-        initial={{ opacity: 0, x: -30 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
-      >
-        <motion.input
-            className="border border-gray-300 rounded-lg px-4 py-3 w-full focus:ring-2 focus:ring-blue-400 focus:border-blue-400 text-base bg-white shadow-sm"
-          placeholder="搜索短链码或目标地址"
-          value={search}
-          onChange={e => { setSearch(e.target.value); setPage(1); }}
-            whileFocus={{ scale: 1.01, borderColor: '#3b82f6' }}
-            whileHover={{ scale: 1.005, borderColor: '#60a5fa' }}
-            transition={{ type: "spring", stiffness: 300, damping: 20 }}
-        />
-        <motion.button
-          className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 hover:shadow-lg transition-all duration-150 text-base font-medium relative overflow-hidden min-w-[100px]"
-          onClick={handleRefresh}
-          disabled={refreshing}
-          whileHover={{ scale: 1.02, y: -1 }}
-          whileTap={{ scale: 0.98 }}
-          transition={{ type: "spring", stiffness: 300, damping: 20 }}
-        >
-          <motion.div
-            animate={{ rotate: refreshing ? 360 : 0 }}
-            transition={{ duration: 1, repeat: refreshing ? Infinity : 0, ease: "linear" }}
-        >
-            <FaSync className="text-lg" />
-          </motion.div>
-          <span>刷新</span>
-          {refreshing && (
-            <motion.div
-              className="absolute inset-0 bg-blue-400"
-              initial={{ scaleX: 0 }}
-              animate={{ scaleX: 1 }}
-              transition={{ duration: 0.5, ease: "easeInOut" }}
-              style={{ transformOrigin: "left" }}
-            />
-          )}
-        </motion.button>
-      </motion.div>
-      <motion.div 
-        className="flex flex-col gap-2 mb-4"
+    <div className="space-y-6">
+      {/* 标题和说明 */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold text-blue-700 flex items-center gap-2">
+            <FaLink className="w-6 h-6" />
+            短链管理
+          </h2>
+          <Link 
+            to="/"
+            className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm font-medium flex items-center gap-2"
+          >
+            <FaArrowLeft className="w-4 h-4" />
+            返回主页
+          </Link>
+        </div>
+        <div className="text-gray-600 space-y-2">
+          <p>此功能用于管理短链接，支持创建、搜索、复制和删除短链，提供完整的短链生命周期管理。</p>
+          <div className="flex items-start gap-2 text-sm">
+            <FaInfoCircle className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-semibold text-blue-700">功能说明：</p>
+              <ul className="list-disc list-inside space-y-1 mt-1">
+                <li>支持创建自定义或随机短链</li>
+                <li>实时搜索和筛选短链</li>
+                <li>一键复制短链到剪贴板</li>
+                <li>安全的删除确认机制</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 搜索和刷新 */}
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
       >
-        <motion.div 
-          className="flex flex-col gap-3"
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
-        >
-          {/* 目标地址输入 */}
-        <motion.input
-            className="border border-gray-300 rounded-lg px-4 py-3 w-full focus:ring-2 focus:ring-green-400 focus:border-green-400 text-base bg-white"
-          placeholder="请输入要生成短链的目标地址（如 https://...）"
-          value={createTarget}
-          onChange={e => setCreateTarget(e.target.value)}
-          disabled={creating}
-            whileFocus={{ scale: 1.01, borderColor: '#22c55e' }}
-            whileHover={{ scale: 1.005, borderColor: '#4ade80' }}
-            transition={{ type: "spring", stiffness: 300, damping: 20 }}
-          />
-          
-          {/* 自定义码输入区域 */}
-          <motion.div 
-            className="flex flex-col sm:flex-row gap-2"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <FaSearch className="w-5 h-5 text-blue-500" />
+            搜索和刷新
+          </h3>
+          <motion.button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
+            whileTap={{ scale: 0.95 }}
           >
-            <div className="flex flex-1">
-              <motion.input
-                className="border border-gray-300 rounded-l-lg px-4 py-3 w-full focus:ring-2 focus:ring-orange-400 focus:border-orange-400 text-base bg-white"
-                placeholder="自定义短链接码（可选）"
+            <FaSync className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            刷新
+          </motion.button>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3">
+          <input
+            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+            placeholder="搜索短链码或目标地址"
+            value={search}
+            onChange={e => { setSearch(e.target.value); setPage(1); }}
+          />
+        </div>
+      </motion.div>
+
+      {/* 创建短链 */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+      >
+        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          <FaPlus className="w-5 h-5 text-green-500" />
+          创建短链
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* 目标地址输入 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              目标地址 *
+            </label>
+            <input
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
+              placeholder="请输入要生成短链的目标地址（如 https://...）"
+              value={createTarget}
+              onChange={e => setCreateTarget(e.target.value)}
+              disabled={creating}
+            />
+          </div>
+
+          {/* 自定义码输入 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              自定义短链码（可选）
+            </label>
+            <div className="flex items-center space-x-2">
+              <input
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200"
+                placeholder="自定义短链接码"
                 value={customCode}
                 onChange={e => {
                   setCustomCode(e.target.value);
                   validateCustomCode(e.target.value);
                 }}
                 disabled={creating}
-                whileFocus={{ scale: 1.01, borderColor: codeValidation?.isValid ? '#22c55e' : codeValidation?.isValid === false ? '#ef4444' : '#f59e0b' }}
-                whileHover={{ scale: 1.005, borderColor: '#fb923c' }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
-        />
-        <motion.button
-                className="border border-l-0 border-gray-300 rounded-r-lg px-4 py-3 bg-orange-100 hover:bg-orange-200 text-orange-700 transition-colors relative overflow-hidden shadow-sm"
+              />
+              <motion.button
+                className="px-3 py-2 bg-orange-500 text-white rounded-r-lg hover:bg-orange-600 transition disabled:opacity-50 flex items-center gap-2"
                 onClick={generateRandomCode}
                 disabled={creating}
                 title="生成随机短链接码"
-                whileHover={{ scale: 1.02, backgroundColor: '#fed7aa' }}
-                whileTap={{ scale: 0.98 }}
-                transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                whileTap={{ scale: 0.95 }}
               >
-                <motion.div
-                  animate={{ rotate: customCode ? 360 : 0 }}
-                  transition={{ duration: 0.6, ease: "easeInOut" }}
-                >
-                  <FaDice className="text-lg" />
-                </motion.div>
-                <motion.div
-                  className="absolute inset-0 bg-orange-300 opacity-0"
-                  whileHover={{ opacity: 0.2 }}
-                  transition={{ duration: 0.2 }}
-                />
+                <FaDice className="w-4 h-4" />
               </motion.button>
             </div>
-            
-            {/* 创建按钮 */}
-            <motion.button
-              className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg shadow-md hover:from-purple-600 hover:to-pink-600 hover:shadow-lg transition-all duration-150 text-base font-medium relative overflow-hidden min-w-[120px]"
-          onClick={handleCreate}
-          disabled={creating}
-              whileHover={{ scale: 1.02, y: -1 }}
-              whileTap={{ scale: 0.98 }}
-              transition={{ type: "spring", stiffness: 300, damping: 20 }}
-            >
-              <motion.span
-                animate={{ opacity: creating ? 0.7 : 1 }}
-                transition={{ duration: 0.3 }}
-        >
-          {creating ? '创建中…' : '创建短链'}
-              </motion.span>
-                          {creating && (
-              <motion.div
-                className="absolute inset-0 bg-gradient-to-r from-purple-400 to-pink-400"
-                initial={{ scaleX: 0 }}
-                animate={{ scaleX: 1 }}
-                transition={{ duration: 0.5, ease: "easeInOut" }}
-                style={{ transformOrigin: "left" }}
-              />
-            )}
-            </motion.button>
-          </motion.div>
-        </motion.div>
-        
+          </div>
+        </div>
+
+        {/* 验证提示 */}
         <AnimatePresence>
           {customCode.trim() && (
             <motion.div 
-              className="flex items-center justify-between text-sm text-gray-600 bg-yellow-50 p-2 rounded border border-yellow-200"
-              initial={{ opacity: 0, height: 0, scale: 0.95 }}
-              animate={{ opacity: 1, height: "auto", scale: 1 }}
-              exit={{ opacity: 0, height: 0, scale: 0.95 }}
-              transition={{ 
-                duration: 0.4, 
-                ease: "easeInOut",
-                opacity: { duration: 0.3 },
-                height: { duration: 0.4 }
-              }}
+              className="mt-3 flex items-center justify-between text-sm text-gray-600 bg-yellow-50 p-3 rounded-lg border border-yellow-200"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
             >
-              <motion.span
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1, duration: 0.3 }}
-              >
+              <span>
                 💡 自定义短链接码提示：只能包含字母、数字、连字符(-)和下划线(_)，长度1-200个字符。留空则自动生成随机短链接码。
-              </motion.span>
-              <motion.button
-                className="text-orange-600 hover:text-orange-800 text-xs underline relative"
+              </span>
+              <button
+                className="text-orange-600 hover:text-orange-800 text-xs underline"
                 onClick={clearCustomCode}
-                whileHover={{ scale: 1.1, color: '#ea580c' }}
-                whileTap={{ scale: 0.9 }}
-                transition={{ type: "spring", stiffness: 400, damping: 25 }}
               >
-                <motion.span
-                  whileHover={{ x: 2 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                >
-                  清除
-                </motion.span>
-        </motion.button>
+                清除
+              </button>
             </motion.div>
           )}
         </AnimatePresence>
-        
+
+        {/* 验证状态 */}
         <AnimatePresence>
           {codeValidation && (
             <motion.div 
-              className={`flex items-center gap-2 text-xs p-2 rounded border ${
+              className={`mt-3 flex items-center gap-2 text-sm p-3 rounded-lg border ${
                 codeValidation.isValid 
                   ? 'bg-green-50 text-green-700 border-green-200' 
                   : 'bg-red-50 text-red-700 border-red-200'
               }`}
-              initial={{ opacity: 0, y: -10, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -10, scale: 0.95 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
             >
-              <motion.div
-                animate={{ rotate: codeValidation.isValid ? 0 : 180 }}
-                transition={{ duration: 0.3 }}
-              >
-                {codeValidation.isValid ? '✅' : '❌'}
-              </motion.div>
-              <span>{codeValidation.message}</span>
-              {codeValidation.isValid && (
-                <motion.div
-                  className="flex-1 h-1 bg-green-200 rounded-full overflow-hidden"
-                  initial={{ scaleX: 0 }}
-                  animate={{ scaleX: 1 }}
-                  transition={{ duration: 0.5, delay: 0.2 }}
-                >
-                  <motion.div
-                    className="h-full bg-green-500"
-                    initial={{ scaleX: 0 }}
-                    animate={{ scaleX: 1 }}
-                    transition={{ duration: 0.8, delay: 0.3 }}
-                  />
-                </motion.div>
+              {codeValidation.isValid ? (
+                <FaCheckCircle className="w-4 h-4 text-green-500" />
+              ) : (
+                <FaExclamationTriangle className="w-4 h-4 text-red-500" />
               )}
+              <span>{codeValidation.message}</span>
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* 创建按钮 */}
+        <div className="mt-4">
+          <motion.button
+            onClick={handleCreate}
+            disabled={creating}
+            className={`w-full py-3 px-6 rounded-lg font-semibold text-white transition-all duration-200 ${
+              creating
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 shadow-lg hover:shadow-xl'
+            }`}
+            whileHover={!creating ? { scale: 1.02 } : {}}
+            whileTap={!creating ? { scale: 0.98 } : {}}
+          >
+            {creating ? (
+              <div className="flex items-center justify-center space-x-2">
+                <FaSync className="animate-spin w-5 h-5" />
+                <span>创建中...</span>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center space-x-2">
+                <FaPlus className="w-5 h-5" />
+                <span>创建短链</span>
+              </div>
+            )}
+          </motion.button>
+        </div>
       </motion.div>
-      {/* 桌面端表格视图 */}
-      <motion.div 
-        className="hidden md:block overflow-x-auto rounded shadow bg-white"
+      {/* 短链列表 */}
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.3, ease: "easeOut" }}
+        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
       >
-        <table className="min-w-full text-sm text-gray-700 bg-white rounded-lg shadow-sm">
-          <motion.thead
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, delay: 0.4 }}
-          >
-            <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
-                              <th className="py-3 px-3 text-left font-semibold text-gray-700">短链码</th>
+        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          <FaLink className="w-5 h-5 text-indigo-500" />
+          短链列表
+        </h3>
+
+        {/* 桌面端表格视图 */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="min-w-full text-sm text-gray-700">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="py-3 px-3 text-left font-semibold text-gray-700">短链码</th>
                 <th className="py-3 px-3 text-left font-semibold text-gray-700">目标地址</th>
                 <th className="py-3 px-3 text-left font-semibold text-gray-700">创建时间</th>
                 <th className="py-3 px-3 text-left font-semibold text-gray-700">用户</th>
                 <th className="py-3 px-3 text-left font-semibold text-gray-700">用户ID</th>
                 <th className="py-3 px-3 text-center font-semibold text-gray-700">操作</th>
-            </tr>
-          </motion.thead>
-          <motion.tbody
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, delay: 0.5 }}
-          >
-            {loading ? (
-              <motion.tr
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
-              >
-                <td colSpan={6} className="text-center py-12">
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    className="inline-block mr-3 text-2xl"
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-12">
+                    <div className="flex items-center justify-center gap-2">
+                      <FaSync className="animate-spin w-5 h-5 text-blue-500" />
+                      <span className="text-lg font-medium text-gray-600">加载中…</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : links.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-12 text-gray-400">
+                    <div className="flex flex-col items-center gap-2">
+                      <span className="text-3xl">📝</span>
+                      <div className="text-lg font-medium text-gray-500">暂无短链</div>
+                      <div className="text-sm text-gray-400">快去生成吧！</div>
+                    </div>
+                  </td>
+                </tr>
+              ) : links.map((link, index) => (
+                <tr
+                  key={link._id}
+                  className={`border-b border-gray-100 hover:bg-gray-50 ${highlightedId === link._id ? 'bg-green-100' : ''}`}
+                >
+                  <td 
+                    className="py-3 px-3 font-mono text-blue-600 break-all max-w-[120px] cursor-pointer hover:text-blue-800 transition font-semibold"
+                    onClick={() => window.open(`${getApiBaseUrl()}/s/${link.code}`, '_blank')}
                   >
-                    ⏳
-                  </motion.div>
-                  <div className="text-lg font-medium text-gray-600">加载中…</div>
-                </td>
-              </motion.tr>
-            ) : links.length === 0 ? (
-              <motion.tr
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4 }}
-              >
-                <td colSpan={6} className="text-center py-12 text-gray-400">
-                  <motion.div
-                    animate={{ scale: [1, 1.1, 1] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                    className="inline-block mr-3 text-3xl"
-                  >
-                    📝
-                  </motion.div>
-                  <div className="text-lg font-medium text-gray-500">暂无短链</div>
-                  <div className="text-sm text-gray-400 mt-1">快去生成吧！</div>
-                </td>
-              </motion.tr>
-            ) : links.map((link, index) => (
-              <motion.tr
-                key={link._id}
-                className={`border-b border-gray-100 hover:bg-gray-50 ${highlightedId === link._id ? 'bg-green-100' : ''}`}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ 
-                  duration: 0.4, 
-                  delay: index * 0.05,
-                  type: "spring",
-                  stiffness: 200,
-                  damping: 20
-                }}
-                whileHover={{ y: -2, scale: 1.01, backgroundColor: highlightedId === link._id ? '#dcfce7' : '#f8fafc' }}
-              >
-                <motion.td 
-                  className="py-3 px-3 font-mono text-blue-600 break-all max-w-[120px] sm:max-w-xs cursor-pointer hover:text-blue-800 transition font-semibold"
+                    {link.code}
+                  </td>
+                  <td className="py-3 px-3 break-all max-w-[180px] text-gray-700">{link.target}</td>
+                  <td className="py-3 px-3 whitespace-nowrap text-gray-600">{new Date(link.createdAt).toLocaleString()}</td>
+                  <td className="py-3 px-3 break-all max-w-[80px] text-gray-700 font-medium">{link.username || 'admin'}</td>
+                  <td className="py-3 px-3 break-all max-w-[80px] text-gray-500 text-xs">{link.userId || 'admin'}</td>
+                  <td className="py-3 px-3 text-center">
+                    <div className="flex gap-2 justify-center">
+                      <motion.button
+                        className="flex items-center justify-center bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg px-2 py-1 shadow-sm hover:shadow-md transition-all duration-150"
+                        title="复制短链"
+                        onClick={() => handleCopy(link.code)}
+                        data-copy-code={link.code}
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                      >
+                        <FaCopy className="w-4 h-4" />
+                      </motion.button>
+                      <motion.button
+                        className="flex items-center justify-center bg-red-100 hover:bg-red-200 text-red-600 rounded-lg px-2 py-1 shadow-sm hover:shadow-md transition-all duration-150"
+                        title="删除"
+                        onClick={() => handleDelete(link._id)}
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                      >
+                        <FaTrash className="w-4 h-4" />
+                      </motion.button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+              {/* 移动端卡片列表视图 */}
+        <div className="md:hidden space-y-3">
+          {loading ? (
+            <div className="bg-white rounded-lg shadow p-6 text-center">
+              <div className="flex items-center justify-center gap-2">
+                <FaSync className="animate-spin w-5 h-5 text-blue-500" />
+                <span className="text-lg font-medium text-gray-600">加载中…</span>
+              </div>
+            </div>
+          ) : links.length === 0 ? (
+            <div className="bg-white rounded-lg shadow p-6 text-center">
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-3xl">📝</span>
+                <div className="text-lg font-medium text-gray-500">暂无短链</div>
+                <div className="text-sm text-gray-400">快去生成吧！</div>
+              </div>
+            </div>
+          ) : links.map((link, index) => (
+            <div
+              key={link._id}
+              className={`bg-white rounded-lg shadow-sm border border-gray-100 p-4 ${highlightedId === link._id ? 'ring-2 ring-green-200 bg-green-50' : ''}`}
+            >
+              {/* 短链码区域 */}
+              <div className="flex items-center justify-between mb-3">
+                <div
+                  className="font-mono text-lg font-bold text-blue-600 cursor-pointer"
                   onClick={() => window.open(`${getApiBaseUrl()}/s/${link.code}`, '_blank')}
-                  whileHover={{ scale: 1.02 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
                 >
                   {link.code}
-                </motion.td>
-                <td className="py-3 px-3 break-all max-w-[180px] sm:max-w-xs text-gray-700">{link.target}</td>
-                <td className="py-3 px-3 whitespace-nowrap text-gray-600">{new Date(link.createdAt).toLocaleString()}</td>
-                <td className="py-3 px-3 break-all max-w-[80px] sm:max-w-[120px] text-gray-700 font-medium">{link.username || 'admin'}</td>
-                <td className="py-3 px-3 break-all max-w-[80px] sm:max-w-[120px] text-gray-500 text-xs">{link.userId || 'admin'}</td>
-                <td className="py-3 px-3 text-center flex gap-2 justify-center">
+                </div>
+                <div className="flex gap-2">
                   <motion.button
-                    className="flex items-center justify-center bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg px-2 py-1 sm:px-2 sm:py-1 text-lg sm:text-base shadow-sm hover:shadow-md transition-all duration-150 relative group"
+                    className="flex items-center justify-center bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg p-2 shadow-sm hover:shadow-md transition-all duration-150"
                     title="复制短链"
                     onClick={() => handleCopy(link.code)}
                     data-copy-code={link.code}
-                    whileHover={{ scale: 1.1, y: -1 }}
+                    whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
                   >
-                    <FaCopy />
-                    <motion.span 
-                      className="hidden lg:block absolute left-1/2 -translate-x-1/2 top-full mt-1 px-2 py-1 text-xs bg-black text-white rounded opacity-0 group-hover:opacity-100 pointer-events-none transition whitespace-nowrap z-20"
-                      initial={{ opacity: 0, y: 5 }}
-                      whileHover={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      复制
-                    </motion.span>
+                    <FaCopy className="w-4 h-4" />
                   </motion.button>
                   <motion.button
-                    className="flex items-center justify-center bg-red-100 hover:bg-red-200 text-red-600 rounded-lg px-2 py-1 sm:px-2 sm:py-1 text-lg sm:text-base shadow-sm hover:shadow-md transition-all duration-150 relative group"
+                    className="flex items-center justify-center bg-red-100 hover:bg-red-200 text-red-600 rounded-lg p-2 shadow-sm hover:shadow-md transition-all duration-150"
                     title="删除"
                     onClick={() => handleDelete(link._id)}
-                    whileHover={{ scale: 1.1, y: -1 }}
+                    whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
                   >
-                    <FaTrash />
-                    <motion.span 
-                      className="hidden lg:block absolute left-1/2 -translate-x-1/2 top-full mt-1 px-2 py-1 text-xs bg-black text-white rounded opacity-0 group-hover:opacity-100 pointer-events-none transition whitespace-nowrap z-20"
-                      initial={{ opacity: 0, y: 5 }}
-                      whileHover={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      删除
-                    </motion.span>
+                    <FaTrash className="w-4 h-4" />
                   </motion.button>
-                </td>
-              </motion.tr>
-            ))}
-          </motion.tbody>
-        </table>
-      </motion.div>
+                </div>
+              </div>
 
-      {/* 移动端卡片列表视图 */}
-      <motion.div 
-        className="md:hidden space-y-3"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.3, ease: "easeOut" }}
-      >
-        {loading ? (
-          <motion.div
-            className="bg-white rounded-lg shadow p-6 text-center"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
-          >
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-              className="inline-block mr-2 text-2xl"
-            >
-              ⏳
-            </motion.div>
-            <div className="text-lg font-medium text-gray-600">加载中…</div>
-          </motion.div>
-        ) : links.length === 0 ? (
-          <motion.div
-            className="bg-white rounded-lg shadow p-6 text-center"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-          >
-            <motion.div
-              animate={{ scale: [1, 1.1, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="inline-block mr-2 text-3xl"
-            >
-              📝
-            </motion.div>
-            <div className="text-lg font-medium text-gray-500">暂无短链</div>
-            <div className="text-sm text-gray-400 mt-1">快去生成吧！</div>
-          </motion.div>
-        ) : links.map((link, index) => (
-          <motion.div
-            key={link._id}
-            className={`bg-white rounded-lg shadow-sm border border-gray-100 p-4 ${highlightedId === link._id ? 'ring-2 ring-green-200 bg-green-50' : ''}`}
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ 
-              duration: 0.4, 
-              delay: index * 0.05,
-              type: "spring",
-              stiffness: 200,
-              damping: 20
-            }}
-            whileHover={{ y: -2, scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            {/* 短链码区域 */}
-            <div className="flex items-center justify-between mb-3">
-              <motion.div
-                className="font-mono text-lg font-bold text-blue-600 cursor-pointer"
-                onClick={() => window.open(`${getApiBaseUrl()}/s/${link.code}`, '_blank')}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              >
-                {link.code}
-              </motion.div>
-              <div className="flex gap-2">
-                <motion.button
-                  className="flex items-center justify-center bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg p-2 shadow-sm hover:shadow-md transition-all duration-150"
-                  title="复制短链"
-                  onClick={() => handleCopy(link.code)}
-                  data-copy-code={link.code}
-                  whileHover={{ scale: 1.1, y: -1 }}
-                  whileTap={{ scale: 0.9 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                >
-                  <FaCopy className="text-sm" />
-                </motion.button>
-                <motion.button
-                  className="flex items-center justify-center bg-red-100 hover:bg-red-200 text-red-600 rounded-lg p-2 shadow-sm hover:shadow-md transition-all duration-150"
-                  title="删除"
-                  onClick={() => handleDelete(link._id)}
-                  whileHover={{ scale: 1.1, y: -1 }}
-                  whileTap={{ scale: 0.9 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                >
-                  <FaTrash className="text-sm" />
-                </motion.button>
+              {/* 目标地址 */}
+              <div className="mb-3">
+                <div className="text-xs text-gray-500 mb-1">目标地址</div>
+                <div className="text-sm text-gray-700 break-all line-clamp-2">{link.target}</div>
+              </div>
+
+              {/* 底部信息 */}
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <div className="flex items-center gap-3">
+                  <div>
+                    <span className="text-gray-400">用户:</span>
+                    <span className="ml-1">{link.username || 'admin'}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">时间:</span>
+                    <span className="ml-1">{new Date(link.createdAt).toLocaleDateString()}</span>
+                  </div>
+                </div>
+                <div className="text-gray-400">
+                  {new Date(link.createdAt).toLocaleTimeString()}
+                </div>
               </div>
             </div>
-
-            {/* 目标地址 */}
-            <div className="mb-3">
-              <div className="text-xs text-gray-500 mb-1">目标地址</div>
-              <div className="text-sm text-gray-700 break-all line-clamp-2">{link.target}</div>
-            </div>
-
-            {/* 底部信息 */}
-            <div className="flex items-center justify-between text-xs text-gray-500">
-              <div className="flex items-center gap-3">
-                <div>
-                  <span className="text-gray-400">用户:</span>
-                  <span className="ml-1">{link.username || 'admin'}</span>
-      </div>
-                <div>
-                  <span className="text-gray-400">时间:</span>
-                  <span className="ml-1">{new Date(link.createdAt).toLocaleDateString()}</span>
+          ))}
         </div>
-      </div>
-              <div className="text-gray-400">
-                {new Date(link.createdAt).toLocaleTimeString()}
-              </div>
-    </div>
-          </motion.div>
-        ))}
       </motion.div>
-      <motion.div 
-        className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4"
+
+      {/* 分页 */}
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.6, ease: "easeOut" }}
+        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
       >
-        <motion.span 
-          className="text-gray-500 text-base text-center sm:text-left"
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.4, delay: 0.7 }}
-        >
-          共 {total} 条短链
-        </motion.span>
-        <motion.div 
-          className="flex flex-row gap-3 w-full sm:w-auto justify-center items-center"
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.4, delay: 0.8 }}
-        >
-          <motion.button 
-            disabled={page <= 1} 
-            onClick={() => setPage(page - 1)} 
-            className="flex-1 sm:flex-none px-6 py-3 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-base font-medium min-w-[80px] shadow-sm hover:shadow-md transition-all duration-150"
-            whileHover={{ scale: 1.02, y: -1 }}
-            whileTap={{ scale: 0.98 }}
-            transition={{ type: "spring", stiffness: 300, damping: 20 }}
-          >
-            上一页
-          </motion.button>
-          <motion.span 
-            className="px-4 py-3 text-base font-medium flex items-center justify-center min-w-[80px] text-center bg-white border border-gray-300 rounded-lg shadow-sm"
-            initial={{ scale: 0.8 }}
-            animate={{ scale: 1 }}
-            transition={{ duration: 0.3, delay: 0.9 }}
-          >
-            {page} / {totalPages || 1}
-          </motion.span>
-          <motion.button 
-            disabled={page >= totalPages} 
-            onClick={() => setPage(page + 1)} 
-            className="flex-1 sm:flex-none px-6 py-3 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-base font-medium min-w-[80px] shadow-sm hover:shadow-md transition-all duration-150"
-            whileHover={{ scale: 1.02, y: -1 }}
-            whileTap={{ scale: 0.98 }}
-            transition={{ type: "spring", stiffness: 300, damping: 20 }}
-          >
-            下一页
-          </motion.button>
-        </motion.div>
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+          <span className="text-gray-500 text-base text-center sm:text-left">
+            共 {total} 条短链
+          </span>
+          <div className="flex flex-row gap-3 w-full sm:w-auto justify-center items-center">
+            <motion.button 
+              disabled={page <= 1} 
+              onClick={() => setPage(page - 1)} 
+              className="flex-1 sm:flex-none px-6 py-3 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-base font-medium min-w-[80px] shadow-sm hover:shadow-md transition-all duration-150"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              上一页
+            </motion.button>
+            <span className="px-4 py-3 text-base font-medium flex items-center justify-center min-w-[80px] text-center bg-white border border-gray-300 rounded-lg shadow-sm">
+              {page} / {totalPages || 1}
+            </span>
+            <motion.button 
+              disabled={page >= totalPages} 
+              onClick={() => setPage(page + 1)} 
+              className="flex-1 sm:flex-none px-6 py-3 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-base font-medium min-w-[80px] shadow-sm hover:shadow-md transition-all duration-150"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              下一页
+            </motion.button>
+          </div>
+        </div>
       </motion.div>
-    </motion.div>
+    </div>
   );
 };
 

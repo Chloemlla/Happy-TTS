@@ -202,135 +202,6 @@ const batchDeleteMods = async (ids: string[]) => {
   return await res.json();
 };
 
-// 自定义Textarea
-const Textarea = (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
-  <textarea
-    {...props}
-    style={{
-      width: '100%',
-      border: '1px solid #ddd',
-      borderRadius: 6,
-      padding: 8,
-      fontFamily: 'monospace',
-      fontSize: 14,
-      boxSizing: 'border-box',
-      ...props.style
-    }}
-  />
-);
-
-// 自定义Switch
-const Switch: React.FC<{ checked: boolean; onChange: (v: boolean) => void; label?: string }> = ({ checked, onChange, label }) => (
-  <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', fontSize: 15 }}>
-    <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} style={{ marginRight: 6 }} />
-    {label}
-  </label>
-);
-
-// 自定义按钮
-const MyButton: React.FC<HTMLMotionProps<'button'>> = ({ children, style, ...props }) => (
-  <motion.button
-    whileTap={{ scale: 0.96 }}
-    style={{
-      background: '#2563eb',
-      color: '#fff',
-      border: 'none',
-      borderRadius: 6,
-      padding: '8px 18px',
-      fontSize: 15,
-      cursor: 'pointer',
-      margin: 0,
-      transition: 'background 0.2s',
-      ...style
-    }}
-    {...props}
-  >
-    {children}
-  </motion.button>
-);
-
-// 自定义输入框
-const MyInput: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = (props) => (
-  <input
-    {...props}
-    style={{
-      width: '100%',
-      padding: '8px 10px',
-      border: '1px solid #ddd',
-      borderRadius: 6,
-      fontSize: 15,
-      marginBottom: 10,
-      boxSizing: 'border-box',
-      ...props.style
-    }}
-  />
-);
-
-// 卡片容器
-const Card: React.FC<{ children: React.ReactNode; style?: React.CSSProperties }> = ({ children, style }) => (
-  <div
-    style={{
-      background: '#fff',
-      borderRadius: 12,
-      boxShadow: '0 2px 16px 0 rgba(0,0,0,0.07)',
-      padding: 24,
-      margin: '0 auto',
-      width: '100%',
-      maxWidth: 600,
-      ...style
-    }}
-  >
-    {children}
-  </div>
-);
-
-// 弹窗组件
-const Modal: React.FC<{ open: boolean; onClose: () => void; children: React.ReactNode; title?: string }> = ({ open, onClose, children, title }) => (
-  <AnimatePresence>
-    {open && (
-      <motion.div
-        className="modal-backdrop"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.18)',
-          zIndex: 1000,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-        onClick={onClose}
-      >
-        <motion.div
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.95, opacity: 0 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-          style={{
-            background: '#fff',
-            borderRadius: 12,
-            boxShadow: '0 4px 32px 0 rgba(0,0,0,0.13)',
-            padding: 24,
-            minWidth: 260,
-            maxWidth: '90vw',
-            width: 380,
-            position: 'relative',
-            zIndex: 1001,
-          }}
-          onClick={e => e.stopPropagation()}
-        >
-          {title && <div style={{ fontWeight: 600, fontSize: 18, marginBottom: 16 }}>{title}</div>}
-          {children}
-          <MyButton style={{ position: 'absolute', top: 12, right: 12, background: '#eee', color: '#333', padding: '2px 10px', fontSize: 18 }} onClick={onClose}>×</MyButton>
-        </motion.div>
-      </motion.div>
-    )}
-  </AnimatePresence>
-);
-
 // 批量添加示例JSON
 const batchAddExample = `[
   { "name": "mod1", "hash": "abc123", "md5": "d41d8cd98f00b204e9800998ecf8427e" },
@@ -459,135 +330,508 @@ const ModListEditor: React.FC = () => {
 
   if (!user || user.role !== 'admin') {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-        <span style={{ fontSize: 120, lineHeight: 1 }}>🤡</span>
-        <div className="text-3xl font-bold mt-6 mb-2 text-rose-600 drop-shadow-lg">你不是管理员，禁止访问！</div>
-        <div className="text-lg text-gray-500 mb-8">请用管理员账号登录后再来玩哦~<br/><span className="text-rose-400">（小丑竟是你自己）</span></div>
-        <div className="text-base text-gray-400 italic mt-4">仅限管理员使用，恶搞界面仅供娱乐。</div>
-      </div>
+      <motion.div 
+        className="space-y-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <motion.div 
+          className="bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-6 border border-red-100"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <h2 className="text-2xl font-bold text-red-700 mb-3 flex items-center gap-2">
+            🔒
+            访问被拒绝
+          </h2>
+          <div className="text-gray-600 space-y-2">
+            <p>你不是管理员，禁止访问！请用管理员账号登录后再来。</p>
+            <div className="text-sm text-red-500 italic">
+              MOD列表管理仅限管理员使用
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
     );
   }
 
   return (
-    <div style={{ maxWidth: 700, width: '95vw', margin: '40px auto', padding: '0 8px' }}>
-      <Card>
-        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-          <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>MOD列表管理</h2>
-          <Switch checked={jsonMode} onChange={setJsonMode} label="JSON模式" />
+    <motion.div 
+      className="space-y-6"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6 }}
+    >
+      {/* 标题和说明 */}
+      <motion.div 
+        className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <h2 className="text-2xl font-bold text-blue-700 mb-3 flex items-center gap-2">
+          🎮
+          MOD列表管理
+        </h2>
+        <div className="text-gray-600 space-y-2">
+          <p>管理系统MOD列表，支持添加、编辑、删除和批量操作。</p>
+          <div className="flex items-start gap-2 text-sm">
+            <div>
+              <p className="font-semibold text-blue-700">功能说明：</p>
+              <ul className="list-disc list-inside space-y-1 mt-1">
+                <li>添加和编辑MOD信息</li>
+                <li>支持Hash和MD5验证</li>
+                <li>批量添加和删除操作</li>
+                <li>JSON模式查看和编辑</li>
+                <li>数据加密传输保护</li>
+              </ul>
+            </div>
+          </div>
         </div>
+      </motion.div>
+
+      {/* 主要功能区域 */}
+      <motion.div 
+        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            📋
+            MOD列表
+          </h3>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={jsonMode}
+                onChange={(e) => setJsonMode(e.target.checked)}
+                className="mr-2 text-blue-500"
+              />
+              <span className="text-sm font-medium text-gray-700">JSON模式</span>
+            </label>
+          </div>
+        </div>
+
         {!jsonMode ? (
-          <>
-            <MyButton onClick={() => setShowAdd(true)} style={{ margin: '18px 0 16px 0' }}>添加MOD</MyButton>
-            <MyButton style={{ marginLeft: 12, background: '#f1f5fa', color: '#2563eb', fontWeight: 500 }} onClick={() => setShowExample(true)}>批量添加示例</MyButton>
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              {(mods || []).map(mod => (
-                <li key={mod.id} style={{ display: 'flex', alignItems: 'center', marginBottom: 10, borderBottom: '1px solid #f0f0f0', padding: '8px 0' }}>
-                  <span style={{ flex: 1, fontSize: 16 }}>{mod.name}</span>
-                  <MyButton style={{ fontSize: 14, padding: '4px 14px', marginRight: 8 }} onClick={() => { setEditId(mod.id); setEditName(mod.name); setEditCode(''); }}>修改</MyButton>
-                  <MyButton style={{ fontSize: 14, padding: '4px 14px', background: '#e11d48' }} onClick={() => {
-                    setDeleteId(mod.id);
-                    setDeleteCode('');
-                  }}>删除</MyButton>
-                </li>
+          <div className="space-y-4">
+            <div className="flex gap-3">
+              <motion.button
+                onClick={() => setShowAdd(true)}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium flex items-center gap-2"
+                whileTap={{ scale: 0.95 }}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                添加MOD
+              </motion.button>
+              <motion.button
+                onClick={() => setShowExample(true)}
+                className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium"
+                whileTap={{ scale: 0.95 }}
+              >
+                批量添加示例
+              </motion.button>
+            </div>
+
+            <div className="space-y-2">
+              {(mods || []).map((mod, idx) => (
+                <motion.div 
+                  key={mod.id} 
+                  className="flex items-center justify-between p-3 border-2 border-gray-200 rounded-lg bg-gray-50"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3, delay: idx * 0.05 }}
+                  whileHover={{ backgroundColor: '#f0f9ff' }}
+                >
+                  <span className="font-medium text-gray-800">{mod.name}</span>
+                  <div className="flex gap-2">
+                    <motion.button
+                      onClick={() => { setEditId(mod.id); setEditName(mod.name); setEditCode(''); }}
+                      className="px-3 py-1 bg-yellow-500 text-white rounded text-sm hover:bg-yellow-600 transition font-medium"
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      修改
+                    </motion.button>
+                    <motion.button
+                      onClick={() => {
+                        setDeleteId(mod.id);
+                        setDeleteCode('');
+                      }}
+                      className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600 transition font-medium"
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      删除
+                    </motion.button>
+                  </div>
+                </motion.div>
               ))}
-            </ul>
-          </>
+              
+              {mods.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  <svg className="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  暂无MOD数据
+                </div>
+              )}
+            </div>
+          </div>
         ) : (
-          <>
-            <Textarea
+          <div className="space-y-4">
+            <textarea
               value={jsonValue}
-              onChange={e => setJsonValue((e.target as HTMLTextAreaElement).value)}
+              onChange={e => setJsonValue(e.target.value)}
               rows={12}
               readOnly={!jsonEdit}
-              style={{ fontSize: 15, minHeight: 180, marginTop: 16 } as React.CSSProperties}
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all font-mono text-sm"
+              style={{ minHeight: '180px' }}
             />
-            <div style={{ marginTop: 8, display: 'flex', gap: 10 }}>
-              <MyButton onClick={handleBatchAddClick} disabled={!jsonEdit}>保存</MyButton>
-              <MyButton onClick={() => setJsonEdit(e => !e)} style={{ background: jsonEdit ? '#eee' : '#2563eb', color: jsonEdit ? '#333' : '#fff' }}>{jsonEdit ? '取消编辑' : '编辑JSON'}</MyButton>
+            <div className="flex gap-3">
+              <motion.button
+                onClick={handleBatchAddClick}
+                disabled={!jsonEdit}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium disabled:opacity-50"
+                whileTap={{ scale: 0.95 }}
+              >
+                保存
+              </motion.button>
+              <motion.button
+                onClick={() => setJsonEdit(e => !e)}
+                className={`px-4 py-2 rounded-lg transition font-medium ${
+                  jsonEdit 
+                    ? 'bg-gray-500 text-white hover:bg-gray-600' 
+                    : 'bg-blue-500 text-white hover:bg-blue-600'
+                }`}
+                whileTap={{ scale: 0.95 }}
+              >
+                {jsonEdit ? '取消编辑' : '编辑JSON'}
+              </motion.button>
             </div>
-          </>
+          </div>
         )}
-      </Card>
+      </motion.div>
+
       {/* 添加MOD弹窗 */}
-      <Modal open={showAdd} onClose={() => setShowAdd(false)} title="添加MOD">
-        <MyInput placeholder="MOD名" value={addName} onChange={e => setAddName(e.target.value)} />
-        <MyInput placeholder="修改码" value={addCode} onChange={e => setAddCode(e.target.value)} type="password" />
-        <MyInput placeholder="Hash (必填)" value={addHash} onChange={e => setAddHash(e.target.value)} />
-        <MyInput placeholder="MD5 (可选)" value={addMd5} onChange={e => setAddMd5(e.target.value)} />
-        <div style={{ marginTop: 16, textAlign: 'right' }}>
-          <MyButton onClick={handleAdd}>确定</MyButton>
-        </div>
-      </Modal>
-      {/* 修改MOD弹窗 */}
-      <Modal open={!!editId} onClose={() => setEditId(null)} title="修改MOD名">
-        <MyInput placeholder="新MOD名" value={editName} onChange={e => setEditName(e.target.value)} />
-        <MyInput placeholder="修改码" value={editCode} onChange={e => setEditCode(e.target.value)} type="password" />
-        <div style={{ marginTop: 16, textAlign: 'right' }}>
-          <MyButton onClick={handleEdit}>确定</MyButton>
-        </div>
-      </Modal>
-      {/* 批量添加示例弹窗 */}
-      <Modal open={showExample} onClose={() => setShowExample(false)} title="批量添加示例">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, type: 'spring', stiffness: 120 }}
-          style={{ color: '#888', fontSize: 15 }}
-        >
-          <div style={{ fontWeight: 500, marginBottom: 8 }}>JSON格式：</div>
-          <motion.pre
-            whileHover={{ scale: 1.02, boxShadow: '0 4px 24px 0 rgba(37,99,235,0.10)' }}
-            style={{ background: '#f8f8f8', padding: 14, borderRadius: 10, whiteSpace: 'pre-wrap', boxShadow: '0 2px 12px 0 rgba(0,0,0,0.04)', transition: 'box-shadow 0.2s', fontSize: 15 }}
+      <AnimatePresence>
+        {showAdd && (
+          <motion.div
+            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-[99999]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.1 }}
+            onClick={() => setShowAdd(false)}
           >
-            {batchAddExample}
-          </motion.pre>
-          <div style={{ marginTop: 8 }}>说明：<span style={{ color: '#2563eb' }}>id 可省略，系统自动生成。</span></div>
-        </motion.div>
-      </Modal>
+            <motion.div
+              className="bg-white rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] p-8 w-full max-w-md mx-4 relative z-[100000] border border-gray-100"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.1 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold text-gray-900 mb-6">添加MOD</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">MOD名</label>
+                  <input
+                    type="text"
+                    placeholder="请输入MOD名"
+                    value={addName}
+                    onChange={e => setAddName(e.target.value)}
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">修改码</label>
+                  <input
+                    type="password"
+                    placeholder="请输入修改码"
+                    value={addCode}
+                    onChange={e => setAddCode(e.target.value)}
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Hash (必填)</label>
+                  <input
+                    type="text"
+                    placeholder="请输入Hash"
+                    value={addHash}
+                    onChange={e => setAddHash(e.target.value)}
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">MD5 (可选)</label>
+                  <input
+                    type="text"
+                    placeholder="请输入MD5"
+                    value={addMd5}
+                    onChange={e => setAddMd5(e.target.value)}
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <motion.button
+                  onClick={() => setShowAdd(false)}
+                  className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium"
+                  whileTap={{ scale: 0.95 }}
+                >
+                  取消
+                </motion.button>
+                <motion.button
+                  onClick={handleAdd}
+                  className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium"
+                  whileTap={{ scale: 0.95 }}
+                >
+                  确定
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 修改MOD弹窗 */}
+      <AnimatePresence>
+        {editId && (
+          <motion.div
+            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-[99999]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.1 }}
+            onClick={() => setEditId(null)}
+          >
+            <motion.div
+              className="bg-white rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] p-8 w-full max-w-md mx-4 relative z-[100000] border border-gray-100"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.1 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold text-gray-900 mb-6">修改MOD名</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">新MOD名</label>
+                  <input
+                    type="text"
+                    placeholder="请输入新MOD名"
+                    value={editName}
+                    onChange={e => setEditName(e.target.value)}
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">修改码</label>
+                  <input
+                    type="password"
+                    placeholder="请输入修改码"
+                    value={editCode}
+                    onChange={e => setEditCode(e.target.value)}
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <motion.button
+                  onClick={() => setEditId(null)}
+                  className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium"
+                  whileTap={{ scale: 0.95 }}
+                >
+                  取消
+                </motion.button>
+                <motion.button
+                  onClick={handleEdit}
+                  className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium"
+                  whileTap={{ scale: 0.95 }}
+                >
+                  确定
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 批量添加示例弹窗 */}
+      <AnimatePresence>
+        {showExample && (
+          <motion.div
+            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-[99999]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.1 }}
+            onClick={() => setShowExample(false)}
+          >
+            <motion.div
+              className="bg-white rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] p-8 w-full max-w-2xl mx-4 relative z-[100000] border border-gray-100"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.1 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold text-gray-900 mb-6">批量添加示例</h3>
+              <div className="space-y-4">
+                <div className="font-medium text-gray-700">JSON格式：</div>
+                <pre className="bg-gray-50 p-4 rounded-lg border border-gray-200 text-sm font-mono overflow-x-auto">
+                  {batchAddExample}
+                </pre>
+                <div className="text-sm text-gray-600">
+                  说明：<span className="text-blue-500">id 可省略，系统自动生成。</span>
+                </div>
+              </div>
+              <div className="mt-6 text-right">
+                <motion.button
+                  onClick={() => setShowExample(false)}
+                  className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium"
+                  whileTap={{ scale: 0.95 }}
+                >
+                  确定
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* 批量操作修改码弹窗 */}
-      <Modal open={showBatchCode} onClose={() => setShowBatchCode(false)} title="请输入修改码">
-        <MyInput
-          placeholder="请输入修改码"
-          value={batchCode}
-          onChange={e => setBatchCode(e.target.value)}
-          type="password"
-          style={{ marginBottom: 16 }}
-        />
-        <div style={{ textAlign: 'right' }}>
-          <MyButton onClick={handleBatchAddSubmit} style={{ minWidth: 80 }}>确定</MyButton>
-        </div>
-      </Modal>
+      <AnimatePresence>
+        {showBatchCode && (
+          <motion.div
+            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-[99999]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.1 }}
+            onClick={() => setShowBatchCode(false)}
+          >
+            <motion.div
+              className="bg-white rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] p-8 w-full max-w-md mx-4 relative z-[100000] border border-gray-100"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.1 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold text-gray-900 mb-6">请输入修改码</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">修改码</label>
+                  <input
+                    type="password"
+                    placeholder="请输入修改码"
+                    value={batchCode}
+                    onChange={e => setBatchCode(e.target.value)}
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <motion.button
+                  onClick={() => setShowBatchCode(false)}
+                  className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium"
+                  whileTap={{ scale: 0.95 }}
+                >
+                  取消
+                </motion.button>
+                <motion.button
+                  onClick={handleBatchAddSubmit}
+                  className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium"
+                  whileTap={{ scale: 0.95 }}
+                >
+                  确定
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* 删除MOD弹窗 */}
-      <Modal open={!!deleteId} onClose={() => setDeleteId(null)} title="删除MOD">
-        <div style={{ marginBottom: 12 }}>请输入该MOD的修改码以确认删除：</div>
-        <MyInput placeholder="修改码" value={deleteCode} onChange={e => setDeleteCode(e.target.value)} type="password" />
-        <div style={{ marginTop: 16, textAlign: 'right' }}>
-          <MyButton
-            style={{ background: '#e11d48', minWidth: 80 }}
-            onClick={async () => {
-              if (!deleteCode) {
-                setNotification({ message: '请输入修改码', type: 'error' });
-                return;
-              }
-              // 调用后端删除接口，带上修改码
-              const res = await fetch(getApiBaseUrl() + `/api/modlist/${deleteId}`, {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ code: deleteCode })
-              }).then(r => r.json());
-              if (res.success) {
-                setNotification({ message: '删除成功', type: 'success' });
-                setDeleteId(null);
-                setDeleteCode('');
-                loadMods();
-              } else {
-                setNotification({ message: res.error || '删除失败', type: 'error' });
-              }
-            }}
-          >确定删除</MyButton>
-        </div>
-      </Modal>
-    </div>
+      <AnimatePresence>
+        {deleteId && (
+          <motion.div
+            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-[99999]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.1 }}
+            onClick={() => setDeleteId(null)}
+          >
+            <motion.div
+              className="bg-white rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] p-8 w-full max-w-md mx-4 relative z-[100000] border border-gray-100"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.1 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold text-gray-900 mb-6">删除MOD</h3>
+              <div className="space-y-4">
+                <p className="text-gray-600">请输入该MOD的修改码以确认删除：</p>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">修改码</label>
+                  <input
+                    type="password"
+                    placeholder="请输入修改码"
+                    value={deleteCode}
+                    onChange={e => setDeleteCode(e.target.value)}
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <motion.button
+                  onClick={() => setDeleteId(null)}
+                  className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium"
+                  whileTap={{ scale: 0.95 }}
+                >
+                  取消
+                </motion.button>
+                <motion.button
+                  onClick={async () => {
+                    if (!deleteCode) {
+                      setNotification({ message: '请输入修改码', type: 'error' });
+                      return;
+                    }
+                    // 调用后端删除接口，带上修改码
+                    const res = await fetch(getApiBaseUrl() + `/api/modlist/${deleteId}`, {
+                      method: 'DELETE',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ code: deleteCode })
+                    }).then(r => r.json());
+                    if (res.success) {
+                      setNotification({ message: '删除成功', type: 'success' });
+                      setDeleteId(null);
+                      setDeleteCode('');
+                      loadMods();
+                    } else {
+                      setNotification({ message: res.error || '删除失败', type: 'error' });
+                    }
+                  }}
+                  className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-medium"
+                  whileTap={{ scale: 0.95 }}
+                >
+                  确定删除
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 };
 

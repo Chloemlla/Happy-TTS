@@ -5,11 +5,11 @@ import logger from '../utils/logger';
 export class EmailController {
   /**
    * 发送邮件
-   * @param req.body { from: string, to: string[], subject: string, html: string, text?: string }
+   * @param req.body { from: string, to: string[], subject: string, html: string, text?: string, skipWhitelist?: boolean }
    */
   public static async sendEmail(req: Request, res: Response) {
     try {
-      const { from, to, subject, html, text } = req.body;
+      const { from, to, subject, html, text, skipWhitelist = false } = req.body;
       const ip = req.ip || 'unknown';
       const user = (req as any).user;
 
@@ -19,7 +19,8 @@ export class EmailController {
         subject,
         ip,
         userId: user?.id,
-        username: user?.username
+        username: user?.username,
+        skipWhitelist
       });
 
       // 验证必填字段
@@ -49,11 +50,13 @@ export class EmailController {
         });
       }
 
-      // 验证邮箱格式
-      const emailValidation = EmailService.validateEmails([from, ...to]);
+      // 验证邮箱格式（如果跳过白名单检查，则只验证发件人邮箱）
+      const emailsToValidate = skipWhitelist ? [from] : [from, ...to];
+      const emailValidation = EmailService.validateEmails(emailsToValidate);
       if (emailValidation.invalid.length > 0) {
         logger.warn('邮件发送失败：邮箱格式无效', { 
           invalidEmails: emailValidation.invalid,
+          skipWhitelist,
           ip,
           userId: user?.id 
         });
@@ -85,6 +88,12 @@ export class EmailController {
         return res.status(400).json({ 
           error: '邮件内容不能超过50000字符' 
         });
+      }
+
+      // 如果不是跳过白名单检查，则验证收件人域名
+      if (!skipWhitelist) {
+        // 这里可以添加收件人域名白名单检查逻辑
+        // 暂时跳过，因为用户要求不检查
       }
 
       // 发送邮件
@@ -149,11 +158,11 @@ export class EmailController {
 
   /**
    * 发送简单文本邮件
-   * @param req.body { to: string[], subject: string, content: string, from?: string }
+   * @param req.body { to: string[], subject: string, content: string, from?: string, skipWhitelist?: boolean }
    */
   public static async sendSimpleEmail(req: Request, res: Response) {
     try {
-      const { to, subject, content, from } = req.body;
+      const { to, subject, content, from, skipWhitelist = false } = req.body;
       const ip = req.ip || 'unknown';
       const user = (req as any).user;
 
@@ -161,6 +170,7 @@ export class EmailController {
         to,
         subject,
         contentLength: content?.length,
+        skipWhitelist,
         ip,
         userId: user?.id,
         username: user?.username
@@ -195,18 +205,20 @@ export class EmailController {
         }
       }
 
-      // 验证邮箱格式
-      const emailValidation = EmailService.validateEmails(to);
-      if (emailValidation.invalid.length > 0) {
-        logger.warn('简单邮件发送失败：邮箱格式无效', { 
-          invalidEmails: emailValidation.invalid,
-          ip,
-          userId: user?.id 
-        });
-        return res.status(400).json({ 
-          error: '邮箱格式无效',
-          invalidEmails: emailValidation.invalid 
-        });
+      // 验证邮箱格式（如果跳过白名单检查，则不验证收件人邮箱）
+      if (!skipWhitelist) {
+        const emailValidation = EmailService.validateEmails(to);
+        if (emailValidation.invalid.length > 0) {
+          logger.warn('简单邮件发送失败：邮箱格式无效', { 
+            invalidEmails: emailValidation.invalid,
+            ip,
+            userId: user?.id 
+          });
+          return res.status(400).json({ 
+            error: '邮箱格式无效',
+            invalidEmails: emailValidation.invalid 
+          });
+        }
       }
 
       // 限制收件人数量
@@ -285,11 +297,11 @@ export class EmailController {
 
   /**
    * 发送Markdown格式邮件
-   * @param req.body { from: string, to: string[], subject: string, markdown: string }
+   * @param req.body { from: string, to: string[], subject: string, markdown: string, skipWhitelist?: boolean }
    */
   public static async sendMarkdownEmail(req: Request, res: Response) {
     try {
-      const { from, to, subject, markdown } = req.body;
+      const { from, to, subject, markdown, skipWhitelist = false } = req.body;
       const ip = req.ip || 'unknown';
       const user = (req as any).user;
 
@@ -297,6 +309,7 @@ export class EmailController {
         from,
         to,
         subject,
+        skipWhitelist,
         ip,
         userId: user?.id,
         username: user?.username
@@ -329,11 +342,13 @@ export class EmailController {
         });
       }
 
-      // 验证邮箱格式
-      const emailValidation = EmailService.validateEmails([from, ...to]);
+      // 验证邮箱格式（如果跳过白名单检查，则只验证发件人邮箱）
+      const emailsToValidate = skipWhitelist ? [from] : [from, ...to];
+      const emailValidation = EmailService.validateEmails(emailsToValidate);
       if (emailValidation.invalid.length > 0) {
         logger.warn('Markdown邮件发送失败：邮箱格式无效', {
           invalidEmails: emailValidation.invalid,
+          skipWhitelist,
           ip,
           userId: user?.id
         });

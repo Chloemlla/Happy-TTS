@@ -183,278 +183,291 @@ const UserManagement: React.FC = () => {
 
   if (!user || user.role !== 'admin') {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-        <span style={{ fontSize: 120, lineHeight: 1 }}>🤡</span>
-        <div className="text-3xl font-bold mt-6 mb-2 text-rose-600 drop-shadow-lg">你不是管理员，禁止访问！</div>
-        <div className="text-lg text-gray-500 mb-8">请用管理员账号登录后再来玩哦~<br/><span className="text-rose-400">（小丑竟是你自己）</span></div>
-        <div className="text-base text-gray-400 italic mt-4">仅限管理员使用，恶搞界面仅供娱乐。</div>
-      </div>
+      <motion.div 
+        className="space-y-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <motion.div 
+          className="bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-6 border border-red-100"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <h2 className="text-2xl font-bold text-red-700 mb-3 flex items-center gap-2">
+            🔒
+            访问被拒绝
+          </h2>
+          <div className="text-gray-600 space-y-2">
+            <p>你不是管理员，禁止访问！请用管理员账号登录后再来。</p>
+            <div className="text-sm text-red-500 italic">
+              用户管理仅限管理员使用
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
     );
   }
 
   return (
     <motion.div 
-      className="max-w-4xl mx-auto bg-white rounded-2xl shadow-2xl p-10 mt-10 border border-blue-100"
-      initial={{ opacity: 0, y: 30 }}
+      className="space-y-6"
+      initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, ease: "easeOut" }}
+      transition={{ duration: 0.6 }}
     >
-      <motion.h2 
-        className="text-3xl font-extrabold mb-6 text-blue-700 flex items-center gap-2"
-        initial={{ opacity: 0, y: -20 }}
+      {/* 标题和说明 */}
+      <motion.div 
+        className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100"
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
+        transition={{ duration: 0.6 }}
       >
-        <motion.i 
-          className="fas fa-users-cog text-blue-500 text-2xl"
-          initial={{ scale: 0, rotate: -180 }}
-          animate={{ scale: 1, rotate: 0 }}
-          transition={{ duration: 0.6, delay: 0.2, type: "spring", stiffness: 200 }}
-          whileHover={{ scale: 1.1, rotate: 5 }}
-        />
-        用户管理
-      </motion.h2>
-      
-      <motion.hr 
-        className="mb-6 border-blue-200"
-        initial={{ scaleX: 0 }}
-        animate={{ scaleX: 1 }}
-        transition={{ duration: 0.5, delay: 0.3 }}
-      />
-      
+        <h2 className="text-2xl font-bold text-blue-700 mb-3 flex items-center gap-2">
+          👥
+          用户管理
+        </h2>
+        <div className="text-gray-600 space-y-2">
+          <p>管理系统用户账户，包括添加、编辑、删除用户和权限管理。</p>
+          <div className="flex items-start gap-2 text-sm">
+            <div>
+              <p className="font-semibold text-blue-700">功能说明：</p>
+              <ul className="list-disc list-inside space-y-1 mt-1">
+                <li>查看所有用户账户信息</li>
+                <li>添加新用户账户</li>
+                <li>编辑用户信息和权限</li>
+                <li>删除用户账户</li>
+                <li>数据加密传输保护</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* 错误提示 */}
       <AnimatePresence>
         {error && (
           <motion.div 
-            className="text-red-500 mb-4 font-semibold bg-red-50 border border-red-200 rounded-lg p-4 text-center"
-            initial={{ opacity: 0, scale: 0.95, y: -10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -10 }}
+            className="bg-red-50 border border-red-200 rounded-xl p-4"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.3 }}
           >
-            <div className="flex items-center justify-center gap-2">
-              <i className="fas fa-exclamation-triangle text-red-500"></i>
-              <span>{error}</span>
+            <div className="flex items-center gap-2 text-red-700">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="font-medium">{error}</span>
             </div>
             {error.includes('认证失败') && (
-              <div className="mt-2">
-                <button 
+              <div className="mt-3">
+                <motion.button 
                   onClick={() => navigate('/welcome')}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
+                  whileTap={{ scale: 0.95 }}
                 >
                   重新登录
-                </button>
+                </motion.button>
               </div>
             )}
           </motion.div>
         )}
       </AnimatePresence>
-      
-      <motion.button
-        className="mb-6 px-6 py-2 bg-gradient-to-r from-blue-500 to-blue-400 text-white rounded-lg shadow hover:from-blue-600 hover:to-blue-500 transition-all font-bold"
-        onClick={() => { setShowForm(true); setEditingUser(null); setForm(emptyUser); }}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.4 }}
-        whileHover={{ scale: 1.05, y: -2 }}
-        whileTap={{ scale: 0.95 }}
-      >
-        <motion.i 
-          className="fas fa-user-plus mr-2"
-          whileHover={{ scale: 1.1, rotate: 5 }}
-        />
-        添加用户
-      </motion.button>
-      
-      <AnimatePresence>
-        {showForm && (
-          <motion.form 
-            onSubmit={handleSubmit} 
-            className="mb-8 space-y-3 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl shadow-inner border border-blue-200"
-            initial={{ opacity: 0, height: 0, scale: 0.95 }}
-            animate={{ opacity: 1, height: "auto", scale: 1 }}
-            exit={{ opacity: 0, height: 0, scale: 0.95 }}
-            transition={{ duration: 0.4, type: "spring", stiffness: 100 }}
-          >
-            <motion.input 
-              name="username" 
-              value={form.username} 
-              onChange={handleChange} 
-              placeholder="用户名" 
-              required 
-              className="border-2 border-gray-200 p-3 rounded-lg w-full focus:ring-2 focus:ring-blue-300 focus:border-transparent transition-all duration-200 hover:border-gray-300"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, delay: 0.1 }}
-              whileFocus={{ scale: 1.02 }}
-            />
-            <motion.input 
-              name="email" 
-              value={form.email} 
-              onChange={handleChange} 
-              placeholder="邮箱" 
-              required 
-              className="border-2 border-gray-200 p-3 rounded-lg w-full focus:ring-2 focus:ring-blue-300 focus:border-transparent transition-all duration-200 hover:border-gray-300"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, delay: 0.2 }}
-              whileFocus={{ scale: 1.02 }}
-            />
-            <motion.input 
-              name="password" 
-              value={form.password} 
-              onChange={handleChange} 
-              placeholder="密码" 
-              required 
-              className="border-2 border-gray-200 p-3 rounded-lg w-full focus:ring-2 focus:ring-blue-300 focus:border-transparent transition-all duration-200 hover:border-gray-300"
-              type="text"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, delay: 0.3 }}
-              whileFocus={{ scale: 1.02 }}
-            />
-            <motion.select 
-              name="role" 
-              value={form.role} 
-              onChange={handleChange} 
-              className="border-2 border-gray-200 p-3 rounded-lg w-full focus:ring-2 focus:ring-blue-300 focus:border-transparent transition-all duration-200 hover:border-gray-300 appearance-none bg-white bg-no-repeat bg-right pr-10"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236B7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
-                backgroundSize: '1.5em 1.5em'
-              }}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, delay: 0.4 }}
-              whileFocus={{ scale: 1.02 }}
-            >
-              <option value="user">普通用户</option>
-              <option value="admin">管理员</option>
-            </motion.select>
-            <motion.div 
-              className="flex gap-3 mt-2"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.5 }}
-            >
-              <motion.button 
-                type="submit" 
-                className="px-5 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg font-bold shadow hover:from-green-600 hover:to-green-700 transition-all duration-200"
-                whileHover={{ scale: 1.05, y: -1 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                {editingUser ? '保存修改' : '添加'}
-              </motion.button>
-              <motion.button 
-                type="button" 
-                className="px-5 py-2 bg-gray-300 rounded-lg font-bold hover:bg-gray-400 transition-all duration-200" 
-                onClick={() => { setShowForm(false); setEditingUser(null); }}
-                whileHover={{ scale: 1.05, y: -1 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                取消
-              </motion.button>
-            </motion.div>
-          </motion.form>
-        )}
-      </AnimatePresence>
-      
+
+      {/* 添加用户按钮 */}
       <motion.div 
-        className="overflow-x-auto"
+        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.5 }}
+        transition={{ duration: 0.6 }}
       >
-        <table className="w-full border mt-4 rounded-xl overflow-hidden shadow-md">
-          <thead>
-            <motion.tr 
-              className="bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800"
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.6 }}
-            >
-              <th className="p-3">用户名</th>
-              <th className="p-3">邮箱</th>
-              <th className="p-3">角色</th>
-              <th className="p-3">创建时间</th>
-              <th className="p-3">操作</th>
-            </motion.tr>
-          </thead>
-          <tbody>
-            {users.map((u, idx) => (
-              <motion.tr 
-                key={u.id} 
-                className={idx % 2 === 0 ? 'bg-white' : 'bg-blue-50'}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.1 * idx }}
-                whileHover={{ scale: 1.01, backgroundColor: '#f0f9ff' }}
-              >
-                <td className="p-3 font-medium">{u.username}</td>
-                <td className="p-3">{u.email}</td>
-                <td className="p-3">
-                  {u.role === 'admin' ? (
-                    <motion.span 
-                      className="text-red-500 font-bold bg-red-50 px-2 py-1 rounded-full text-sm"
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: "spring", stiffness: 300 }}
-                    >
-                      管理员
-                    </motion.span>
-                  ) : (
-                    <span className="text-gray-600">普通用户</span>
-                  )}
-                </td>
-                <td className="p-3">{new Date(u.createdAt).toLocaleString()}</td>
-                <td className="p-3 flex gap-2">
-                  <motion.button 
-                    className="px-3 py-1 bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-lg font-bold shadow hover:from-yellow-500 hover:to-yellow-600 transition-all duration-200" 
-                    onClick={() => { setEditingUser(u); setForm(u); setShowForm(true); }}
-                    whileHover={{ scale: 1.05, y: -1 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <motion.i 
-                      className="fas fa-edit mr-1"
-                      whileHover={{ rotate: 5 }}
-                    />
-                    编辑
-                  </motion.button>
-                  <motion.button 
-                    className="px-3 py-1 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg font-bold shadow hover:from-red-600 hover:to-red-700 transition-all duration-200" 
-                    onClick={() => handleDelete(u.id)}
-                    whileHover={{ scale: 1.05, y: -1 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <motion.i 
-                      className="fas fa-trash-alt mr-1"
-                      whileHover={{ rotate: 5 }}
-                    />
-                    删除
-                  </motion.button>
-                </td>
-              </motion.tr>
-            ))}
-          </tbody>
-        </table>
-      </motion.div>
-      
-      <AnimatePresence>
-        {loading && (
-          <motion.div 
-            className="mt-4 text-blue-500 font-semibold flex items-center gap-2"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ duration: 0.3 }}
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            📋
+            用户列表
+          </h3>
+          <motion.button
+            onClick={() => { setShowForm(true); setEditingUser(null); setForm(emptyUser); }}
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium flex items-center gap-2"
+            whileTap={{ scale: 0.95 }}
           >
-            <motion.i 
-              className="fas fa-spinner"
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            />
-            操作中...
-          </motion.div>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            添加用户
+          </motion.button>
+        </div>
+
+        {/* 添加用户表单 */}
+        <AnimatePresence>
+          {showForm && (
+            <motion.form 
+              onSubmit={handleSubmit} 
+              className="mb-6 space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-200"
+              initial={{ opacity: 0, height: 0, scale: 0.95 }}
+              animate={{ opacity: 1, height: "auto", scale: 1 }}
+              exit={{ opacity: 0, height: 0, scale: 0.95 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    用户名
+                  </label>
+                  <input 
+                    name="username" 
+                    value={form.username} 
+                    onChange={handleChange} 
+                    placeholder="请输入用户名" 
+                    required 
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    邮箱
+                  </label>
+                  <input 
+                    name="email" 
+                    value={form.email} 
+                    onChange={handleChange} 
+                    placeholder="请输入邮箱" 
+                    required 
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    密码
+                  </label>
+                  <input 
+                    name="password" 
+                    value={form.password} 
+                    onChange={handleChange} 
+                    placeholder="请输入密码" 
+                    required 
+                    type="text"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    角色
+                  </label>
+                  <select 
+                    name="role" 
+                    value={form.role} 
+                    onChange={handleChange} 
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all appearance-none bg-white"
+                  >
+                    <option value="user">普通用户</option>
+                    <option value="admin">管理员</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <motion.button 
+                  type="submit" 
+                  className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium"
+                  whileTap={{ scale: 0.95 }}
+                >
+                  {editingUser ? '保存修改' : '添加用户'}
+                </motion.button>
+                <motion.button 
+                  type="button" 
+                  className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium" 
+                  onClick={() => { setShowForm(false); setEditingUser(null); }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  取消
+                </motion.button>
+              </div>
+            </motion.form>
+          )}
+        </AnimatePresence>
+
+        {/* 用户列表 */}
+        {loading ? (
+          <div className="text-center py-8 text-gray-500">
+            <svg className="animate-spin h-8 w-8 mx-auto mb-4 text-blue-500" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            加载中...
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full border border-gray-200 rounded-lg overflow-hidden">
+              <thead>
+                <tr className="bg-gray-50 text-gray-700">
+                  <th className="px-4 py-3 text-left font-semibold">用户名</th>
+                  <th className="px-4 py-3 text-left font-semibold">邮箱</th>
+                  <th className="px-4 py-3 text-left font-semibold">角色</th>
+                  <th className="px-4 py-3 text-left font-semibold">创建时间</th>
+                  <th className="px-4 py-3 text-left font-semibold">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((u, idx) => (
+                  <motion.tr 
+                    key={u.id} 
+                    className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: 0.1 * idx }}
+                    whileHover={{ backgroundColor: '#f0f9ff' }}
+                  >
+                    <td className="px-4 py-3 font-medium">{u.username}</td>
+                    <td className="px-4 py-3 text-gray-600">{u.email}</td>
+                    <td className="px-4 py-3">
+                      {u.role === 'admin' ? (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          管理员
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                          普通用户
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 text-sm">
+                      {new Date(u.createdAt).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        <motion.button 
+                          className="px-3 py-1 bg-yellow-500 text-white rounded text-sm hover:bg-yellow-600 transition" 
+                          onClick={() => { setEditingUser(u); setForm(u); setShowForm(true); }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          编辑
+                        </motion.button>
+                        <motion.button 
+                          className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600 transition" 
+                          onClick={() => handleDelete(u.id)}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          删除
+                        </motion.button>
+                      </div>
+                    </td>
+                  </motion.tr>
+                ))}
+              </tbody>
+            </table>
+            {users.length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                <svg className="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                </svg>
+                暂无用户数据
+              </div>
+            )}
+          </div>
         )}
-      </AnimatePresence>
+      </motion.div>
     </motion.div>
   );
 };
