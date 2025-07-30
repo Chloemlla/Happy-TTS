@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaTerminal, FaServer, FaList, FaHistory, FaPlay, FaPlus, FaEye, FaTrash, FaSync, FaEyeSlash, FaArrowLeft, FaInfoCircle, FaChartLine } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
@@ -114,6 +114,9 @@ interface ServerStatus {
     unicode: string;
   };
 }
+
+const ResourceTrendChart = React.lazy(() => import('./CommandManager/ResourceTrendChart'));
+const ResourceAnalysisPanel = React.lazy(() => import('./CommandManager/ResourceAnalysisPanel'));
 
 const CommandManager: React.FC = () => {
   const { setNotification } = useNotification();
@@ -499,17 +502,6 @@ const CommandManager: React.FC = () => {
     const hours = Math.floor((seconds % 86400) / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     return `${days}天 ${hours}小时 ${minutes}分钟`;
-  };
-
-  // 格式化内存使用率
-  const formatMemoryUsage = (used: number, total: number) => {
-    const percentage = (used / total) * 100;
-    return {
-      percentage: percentage.toFixed(1),
-      used: formatMemory(used),
-      total: formatMemory(total),
-      free: formatMemory(total - used)
-    };
   };
 
   // 获取内存使用状态颜色
@@ -1230,7 +1222,7 @@ const CommandManager: React.FC = () => {
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-gray-700">堆内存使用率</span>
                     <span className={`text-sm font-bold ${getMemoryStatusColor((serverStatus.memory_usage.heapUsed / serverStatus.memory_usage.heapTotal) * 100)}`}>
-                      {formatMemoryUsage(serverStatus.memory_usage.heapUsed, serverStatus.memory_usage.heapTotal).percentage}%
+                      {formatMemory(serverStatus.memory_usage.heapUsed)} / {formatMemory(serverStatus.memory_usage.heapTotal)}
                     </span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2 mb-1">
@@ -1245,10 +1237,10 @@ const CommandManager: React.FC = () => {
                     ></div>
                   </div>
                   <div className="text-xs text-gray-500">
-                    {formatMemoryUsage(serverStatus.memory_usage.heapUsed, serverStatus.memory_usage.heapTotal).used} / {formatMemoryUsage(serverStatus.memory_usage.heapUsed, serverStatus.memory_usage.heapTotal).total}
+                    {formatMemory(serverStatus.memory_usage.heapUsed)} / {formatMemory(serverStatus.memory_usage.heapTotal)}
                   </div>
                   <div className="text-xs text-gray-400 mt-1">
-                    可用: {formatMemoryUsage(serverStatus.memory_usage.heapUsed, serverStatus.memory_usage.heapTotal).free}
+                    可用: {formatMemory(serverStatus.memory_usage.heapUsed)}
                   </div>
                 </div>
                 
@@ -1330,66 +1322,9 @@ const CommandManager: React.FC = () => {
 
                 {/* 资源使用趋势图表 */}
                 {showCharts && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="bg-white rounded-lg p-4 border border-gray-200"
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                        <FaChartLine className="w-5 h-5 text-purple-500" />
-                        资源使用趋势图
-                      </h4>
-                      <div className="text-sm text-gray-500">
-                        数据点: {resourceHistory.length}
-                      </div>
-                    </div>
-                    
-                    {resourceHistory.length > 0 ? (
-                      <div className="h-80">
-                        <Line data={getChartData()} options={getChartOptions()} />
-                      </div>
-                    ) : (
-                      <div className="h-80 flex items-center justify-center text-gray-500">
-                        <div className="text-center">
-                          <FaChartLine className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                          <p>暂无数据，请开启自动刷新或手动刷新获取数据</p>
-                        </div>
-                      </div>
-                    )}
-                    
-                    <div className="mt-4 text-xs text-gray-600 bg-gray-50 p-3 rounded-lg">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                        <div>
-                          <span className="font-medium">内存趋势:</span>
-                          <span className={`ml-1 ${
-                            analyzeResourceTrend(resourceHistory).memoryTrend === 'increasing' ? 'text-red-600' :
-                            analyzeResourceTrend(resourceHistory).memoryTrend === 'decreasing' ? 'text-green-600' : 'text-gray-600'
-                          }`}>
-                            {analyzeResourceTrend(resourceHistory).memoryTrend === 'increasing' ? '↗️ 上升' :
-                             analyzeResourceTrend(resourceHistory).memoryTrend === 'decreasing' ? '↘️ 下降' : '→ 稳定'}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="font-medium">CPU趋势:</span>
-                          <span className={`ml-1 ${
-                            analyzeResourceTrend(resourceHistory).cpuTrend === 'increasing' ? 'text-red-600' :
-                            analyzeResourceTrend(resourceHistory).cpuTrend === 'decreasing' ? 'text-green-600' : 'text-gray-600'
-                          }`}>
-                            {analyzeResourceTrend(resourceHistory).cpuTrend === 'increasing' ? '↗️ 上升' :
-                             analyzeResourceTrend(resourceHistory).cpuTrend === 'decreasing' ? '↘️ 下降' : '→ 稳定'}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="font-medium">监控状态:</span>
-                          <span className={`ml-1 ${autoRefresh ? 'text-green-600' : 'text-gray-600'}`}>
-                            {autoRefresh ? '🟢 实时监控' : '⚪ 静态分析'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
+                  <Suspense fallback={<div className="h-80 flex items-center justify-center text-gray-400">图表加载中...</div>}>
+                    <ResourceTrendChart resourceHistory={resourceHistory} autoRefresh={autoRefresh} />
+                  </Suspense>
                 )}
 
                 {/* 内存使用分析 */}
@@ -1412,7 +1347,7 @@ const CommandManager: React.FC = () => {
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
                         <div>RSS/堆内存比例: {analyzeMemoryUsage(serverStatus.memory_usage).rssToHeapRatio}</div>
                         <div>外部内存占比: {analyzeMemoryUsage(serverStatus.memory_usage).externalRatio}%</div>
-                        <div>可用内存: {formatMemoryUsage(serverStatus.memory_usage.heapUsed, serverStatus.memory_usage.heapTotal).free}</div>
+                        <div>可用内存: {formatMemory(serverStatus.memory_usage.heapUsed)}</div>
                       </div>
                     </div>
                   </div>
