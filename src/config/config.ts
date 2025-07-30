@@ -14,15 +14,20 @@ export const config = {
   openaiSpeed: process.env.OPENAI_SPEED || '1.0',
   audioDir: path.join(process.cwd(), 'finish'),
   adminUsername: process.env.ADMIN_USERNAME || 'admin',
-  adminPassword: process.env.ADMIN_PASSWORD || 'admin',
+  // 生产环境强制要求管理员密码
+  adminPassword: process.env.NODE_ENV === 'production' 
+    ? (process.env.ADMIN_PASSWORD || (() => { throw new Error('生产环境必须设置 ADMIN_PASSWORD 环境变量') })())
+    : (process.env.ADMIN_PASSWORD || 'admin'),
   // 添加本地 IP 配置
   localIps: ['127.0.0.1', 'localhost', '::1'],
   // 添加基础URL配置
   baseUrl: process.env.VITE_API_URL || process.env.BASE_URL || 'https://api.hapxs.com',
   // 添加生成码配置
   generationCode: process.env.GENERATION_CODE || 'admin',
-  // JWT 配置
-  jwtSecret: process.env.JWT_SECRET || 'yb56beb12b35ab636b66c4f9fc168646785a8e85a',
+  // 生产环境强制要求 JWT 密钥
+  jwtSecret: process.env.NODE_ENV === 'production'
+    ? (process.env.JWT_SECRET || (() => { throw new Error('生产环境必须设置 JWT_SECRET 环境变量') })())
+    : (process.env.JWT_SECRET || 'yb56beb12b35ab636b66c4f9fc168646785a8e85a'),
   jwtExpiresIn: '24h',
   // 密码加密配置
   bcryptSaltRounds: 12,

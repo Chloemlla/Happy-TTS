@@ -38,4 +38,29 @@ const logger = winston.createLogger({
     ]
 });
 
+// 敏感信息过滤
+const sensitiveFields = ['password', 'token', 'secret', 'key', 'adminPassword', 'jwt', 'apiKey'];
+const maskSensitiveData = (obj: any): any => {
+  if (typeof obj !== 'object' || obj === null) return obj;
+  
+  const masked: { [key: string]: any } = Array.isArray(obj) ? [] : {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (sensitiveFields.some(field => key.toLowerCase().includes(field))) {
+      masked[key] = typeof value === 'string' ? '***' : '***';
+    } else if (typeof value === 'object') {
+      masked[key] = maskSensitiveData(value);
+    } else {
+      masked[key] = value;
+    }
+  }
+  return masked;
+};
+
+// 安全日志记录
+const safeLog = (level: string, message: string, meta?: any) => {
+  const safeMeta = meta ? maskSensitiveData(meta) : undefined;
+  (logger as any)[level](message, safeMeta);
+};
+
+export { safeLog, maskSensitiveData };
 export default logger; 

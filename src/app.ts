@@ -244,36 +244,38 @@ app.use(cors({
   exposedHeaders: ['Content-Length', 'X-RateLimit-Limit', 'X-RateLimit-Remaining'],
   maxAge: 86400 // 预检请求的结果可以缓存24小时
 }));
+// 安全头配置
 app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-            fontSrc: ["'self'", "https://fonts.gstatic.com"],
-            connectSrc: [
-                "'self'",
-                "https://*.hapxs.com",
-                "https://api.ipify.org",
-                "https://ipapi.co",
-                "https://ipinfo.io",
-                "https://api.ip.sb",
-                "https://cdn.shopimgs.com"
-            ],
-            imgSrc: [
-                "'self'",
-                "data:",
-                "https://api.ipify.org",
-                "https://ipapi.co",
-                "https://ipinfo.io",
-                "https://api.ip.sb"
-            ],
-            scriptSrc: ["'self'", "'unsafe-inline'"],
-            frameSrc: ["'self'", "https://tts.hapx.one",'https://tts-api-docs.hapxs.com']
-        }
-    },
-    crossOriginResourcePolicy: { policy: "cross-origin" },
-    crossOriginEmbedderPolicy: false
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "blob:", "https:"],
+      scriptSrc: ["'self'"],
+      connectSrc: ["'self'", "https://api.openai.com", "https://api.hapxs.com"],
+      frameSrc: ["'none'"],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: []
+    }
+  },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  },
+  noSniff: true,
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  xssFilter: true,
+  frameguard: { action: 'deny' }
 }));
+
+// 移除可能泄露信息的响应头
+app.use((req, res, next) => {
+  res.removeHeader('X-Powered-By');
+  res.removeHeader('Server');
+  next();
+});
 app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));

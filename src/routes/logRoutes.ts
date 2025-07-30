@@ -32,6 +32,27 @@ ensureDirectories().catch(console.error);
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 25600 * 2 }, // 50KB以内
+  fileFilter: (req, file, cb) => {
+    // 文件类型白名单
+    const allowedMimeTypes = [
+      'text/plain',
+      'text/markdown',
+      'application/json',
+      'text/x-log',
+      'text/xml',
+      'application/xml'
+    ];
+    
+    // 文件扩展名白名单
+    const allowedExtensions = ['.txt', '.log', '.json', '.md', '.xml', '.csv'];
+    const fileExtension = path.extname(file.originalname).toLowerCase();
+    
+    if (allowedMimeTypes.includes(file.mimetype) && allowedExtensions.includes(fileExtension)) {
+      cb(null, true);
+    } else {
+      cb(new Error('不支持的文件类型，仅允许：txt, log, json, md, xml, csv'));
+    }
+  }
 });
 
 // 简单速率限制（每IP每分钟最多10次上传/查询）
@@ -82,16 +103,14 @@ router.post('/sharelog', logLimiter, upload.single('file'), async (req, res) => 
   const adminPassword = req.body.adminPassword;
   const fileName = req.file?.originalname;
   try {
-    // 检查目录存在和写权限
-    try {
-      await fs.promises.mkdir(SHARELOGS_DIR, { recursive: true });
-      await fs.promises.access(SHARELOGS_DIR, fs.constants.W_OK);
-    } catch (dirErr) {
-      logger.error(`[logshare] 目录不可写: ${SHARELOGS_DIR}`, dirErr);
-      return res.status(500).json({ error: '服务器日志目录不可写，请联系管理员' });
+    // 验证文件名安全性
+    if (fileName && (fileName.includes('..') || fileName.includes('/') || fileName.includes('\\'))) {
+      logger.warn(`上传 | IP:${ip} | 文件:${fileName} | 结果:失败 | 原因:文件名包含危险字符`);
+      return res.status(400).json({ error: '文件名包含危险字符' });
     }
+    
     if (!req.file || !adminPassword) {
-      logger.warn(`上传 | IP:${ip} | 文件:${fileName} | 结果:失败 | 原因:缺少参数 | req.file=${!!req.file} req.body=${JSON.stringify(req.body)}`);
+      logger.warn(`上传 | IP:${ip} | 文件:${fileName} | 结果:失败 | 原因:缺少参数`);
       return res.status(400).json({ error: '缺少参数' });
     }
     if (req.file.size > 25600) {
@@ -102,38 +121,42 @@ router.post('/sharelog', logLimiter, upload.single('file'), async (req, res) => 
       logger.warn(`上传 | IP:${ip} | 文件:${fileName} | 结果:失败 | 原因:管理员密码错误`);
       return res.status(403).json({ error: '管理员密码错误' });
     }
+    
     // 生成随机文件名，保留原扩展名
     const ext = path.extname(req.file.originalname) || '.txt';
     const fileId = crypto.randomBytes(8).toString('hex');
-    // 文本类型只存MongoDB
-    if ([".txt", ".log", ".json", ".md"].includes(ext)) {
-      const LogShareSchema = new mongoose.Schema({
-        fileId: { type: String, required: true, unique: true },
-        ext: String,
-        content: String,
-        fileName: String,
-        createdAt: { type: Date, default: Date.now }
-      }, { collection: 'logshare_files' });
-      const LogShareModel = mongoose.models.LogShareFile || mongoose.model('LogShareFile', LogShareSchema);
-      let content = '';
-      try {
-        content = req.file.buffer.toString('utf-8');
-      } catch (e) {
-        content = '';
-      }
-      await LogShareModel.create({ fileId, ext, content, fileName, createdAt: new Date() });
-      logger.info(`[logshare] 已存入MongoDB: fileId=${fileId}, ext=${ext}, fileName=${fileName}, contentPreview=${content.slice(0, 100)}`);
-    } else {
-      // 非文本类型仍写本地
-      const filePath = path.join(SHARELOGS_DIR, `${fileId}${ext}`);
-      logger.info(`[logshare] 上传写入文件: filePath=${filePath}, ext=${ext}, fileName=${fileName}, size=${req.file.size}`);
-      try {
-        await fs.promises.writeFile(filePath, req.file.buffer);
-      } catch (writeErr) {
-        logger.error(`[logshare] 写入文件失败: ${filePath}`, writeErr);
-        return res.status(500).json({ error: '服务器写入日志文件失败，请联系管理员' });
-      }
+    
+    // 所有文件都存储到MongoDB，避免本地文件系统风险
+    const LogShareSchema = new mongoose.Schema({
+      fileId: { type: String, required: true, unique: true },
+      ext: String,
+      content: String,
+      fileName: String,
+      mimeType: String,
+      fileSize: Number,
+      createdAt: { type: Date, default: Date.now }
+    }, { collection: 'logshare_files' });
+    
+    const LogShareModel = mongoose.models.LogShareFile || mongoose.model('LogShareFile', LogShareSchema);
+    let content = '';
+    try {
+      content = req.file.buffer.toString('utf-8');
+    } catch (e) {
+      content = '';
     }
+    
+    await LogShareModel.create({ 
+      fileId, 
+      ext, 
+      content, 
+      fileName: fileName || 'unknown',
+      mimeType: req.file.mimetype,
+      fileSize: req.file.size,
+      createdAt: new Date() 
+    });
+    
+    logger.info(`[logshare] 已存入MongoDB: fileId=${fileId}, ext=${ext}, fileName=${fileName}, contentPreview=${content.slice(0, 100)}`);
+    
     // 构造前端访问链接
     const baseUrl = 'https://tts.hapx.one';
     const link = `${baseUrl}/logshare?id=${fileId}`;
