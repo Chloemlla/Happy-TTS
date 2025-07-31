@@ -66,13 +66,38 @@ const logLimiter = rateLimit({
 
 // 工具：校验管理员密码
 async function checkAdminPassword(password: string) {
+  console.log('🔐 [LogShare] 验证管理员密码...');
+  console.log('    输入密码长度:', password ? password.length : 0);
+  console.log('    输入密码预览:', password ? password.substring(0, 3) + '***' : 'undefined');
+  
   const users = await UserStorage.getAllUsers();
+  console.log('    用户总数:', users.length);
+  
   const admin = users.find(u => u.role === 'admin');
-  if (!admin) return false;
-  return await bcrypt.compare(password, admin.password);
+  if (!admin) {
+    console.log('    ❌ 未找到管理员用户');
+    return false;
+  }
+  
+  console.log('    ✅ 找到管理员用户:', admin.username);
+  console.log('    管理员密码长度:', admin.password ? admin.password.length : 0);
+  console.log('    管理员密码预览:', admin.password ? admin.password.substring(0, 3) + '***' : 'undefined');
+  
+  // 检查密码是否是 bcrypt 哈希格式（以 $2b$ 开头）
+  if (admin.password.startsWith('$2b$')) {
+    // 使用 bcrypt 验证
+    const isValid = await bcrypt.compare(password, admin.password);
+    console.log('    🔐 bcrypt 密码验证结果:', isValid ? '✅ 正确' : '❌ 错误');
+    return isValid;
+  } else {
+    // 使用明文密码比较（兼容旧版本）
+    const isValid = admin.password === password;
+    console.log('    🔐 明文密码验证结果:', isValid ? '✅ 正确' : '❌ 错误');
+    return isValid;
+  }
 }
 
-// AES-256加密函数
+// AES-256加密函数，使用PBKDF2密钥派生
 function encryptData(data: any, key: string): { data: string, iv: string } {
   console.log('🔐 [LogShare] 开始加密数据...');
   console.log('    数据类型:', typeof data);
@@ -80,7 +105,13 @@ function encryptData(data: any, key: string): { data: string, iv: string } {
   
   const jsonString = JSON.stringify(data);
   const iv = crypto.randomBytes(16);
-  const keyHash = crypto.createHash('sha256').update(key).digest();
+  
+  // 使用PBKDF2密钥派生，与前端保持一致
+  const salt = 'logshare-salt';
+  const iterations = 10000;
+  const keyLength = 32; // 256位
+  
+  const keyHash = crypto.pbkdf2Sync(key, salt, iterations, keyLength, 'sha512');
   const cipher = crypto.createCipheriv('aes-256-cbc', keyHash, iv);
   
   let encrypted = cipher.update(jsonString, 'utf8', 'hex');

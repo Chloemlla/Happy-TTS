@@ -9,6 +9,66 @@ import CryptoJS from 'crypto-js';
 
 const isTextExt = (ext: string) => ['.txt', '.log', '.json', '.md'].includes(ext);
 
+// 安全的解码函数，支持多种编码格式
+const safeDecode = (decrypted: any): any => {
+  console.log('🔓 [LogShare] 开始解码解密数据...');
+  console.log('    解密数据类型:', typeof decrypted);
+  console.log('    解密数据长度:', decrypted ? decrypted.length : 'undefined');
+  
+  // 首先尝试直接转换为UTF-8字符串
+  try {
+    const utf8String = decrypted.toString(CryptoJS.enc.Utf8);
+    console.log('🔓 [LogShare] UTF-8解码结果:', utf8String.substring(0, 100) + '...');
+    const parsedData = JSON.parse(utf8String);
+    console.log('🔓 [LogShare] JSON解析成功');
+    return parsedData;
+  } catch (error) {
+    console.log('🔓 [LogShare] UTF-8解码失败:', error);
+  }
+  
+  // 如果UTF-8失败，尝试其他编码
+  const encodings = [
+    { name: 'Base64', decoder: () => {
+      const base64 = decrypted.toString(CryptoJS.enc.Base64);
+      return atob(base64);
+    }},
+    { name: 'Hex', decoder: () => {
+      const hex = decrypted.toString(CryptoJS.enc.Hex);
+      const hexBytes = new Uint8Array(hex.match(/.{1,2}/g)?.map((byte: string) => parseInt(byte, 16)) || []);
+      return new TextDecoder().decode(hexBytes);
+    }},
+    { name: 'Latin1', decoder: () => {
+      return decrypted.toString(CryptoJS.enc.Latin1);
+    }}
+  ];
+
+  for (const encoding of encodings) {
+    try {
+      console.log(`🔓 [LogShare] 尝试${encoding.name}解码...`);
+      const decodedString = encoding.decoder();
+      console.log(`🔓 [LogShare] ${encoding.name}解码结果:`, decodedString.substring(0, 100) + '...');
+      const parsedData = JSON.parse(decodedString);
+      console.log(`🔓 [LogShare] ${encoding.name}解码成功`);
+      return parsedData;
+    } catch (error) {
+      console.log(`🔓 [LogShare] ${encoding.name}解码失败:`, error);
+      continue;
+    }
+  }
+  
+  // 如果所有编码都失败，尝试直接返回原始数据
+  console.log('🔓 [LogShare] 所有编码方式都失败，尝试直接使用原始数据');
+  try {
+    if (typeof decrypted === 'object' && decrypted !== null) {
+      return decrypted;
+    }
+  } catch (error) {
+    console.log('🔓 [LogShare] 直接使用原始数据也失败:', error);
+  }
+  
+  throw new Error('所有解码方式都失败，无法处理解密后的数据');
+};
+
 const LogShare: React.FC = () => {
   const { user } = useAuth();
   const location = useLocation();
@@ -121,6 +181,12 @@ const LogShare: React.FC = () => {
     setSuccess('');
     setQueryResult(null);
     setLoading(true);
+    
+    console.log('🔓 [LogShare] 发送查询请求...');
+    console.log('    查询ID:', queryId);
+    console.log('    管理员密码长度:', adminPassword ? adminPassword.length : 0);
+    console.log('    管理员密码预览:', adminPassword ? adminPassword.substring(0, 3) + '***' : 'undefined');
+    
     try {
       const res = await axios.post(getApiBaseUrl() + `/api/sharelog/${queryId}`, {
         adminPassword,
@@ -139,7 +205,7 @@ const LogShare: React.FC = () => {
         
         try {
           // 替换 CryptoJS.SHA256(adminPassword) 为 PBKDF2 派生
-          const keyHash = CryptoJS.PBKDF2(adminPassword, 'logshare-salt', { keySize: 256/32, iterations: 10000 }).toString(CryptoJS.enc.Hex);
+          const keyHash = CryptoJS.PBKDF2(adminPassword, 'logshare-salt', { keySize: 256/32, iterations: 10000, hasher: CryptoJS.algo.SHA512 }).toString(CryptoJS.enc.Hex);
           const key = CryptoJS.enc.Hex.parse(keyHash);
           const iv = CryptoJS.enc.Hex.parse(res.data.iv);
           const encryptedData = CryptoJS.enc.Hex.parse(res.data.data);
@@ -150,17 +216,20 @@ const LogShare: React.FC = () => {
             { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }
           );
           
-          const decryptedString = decrypted.toString(CryptoJS.enc.Utf8);
-          const decryptedData = JSON.parse(decryptedString);
+          console.log('🔓 [LogShare] CryptoJS解密结果:', decrypted);
+          console.log('    解密结果类型:', typeof decrypted);
+          console.log('    解密结果toString:', decrypted.toString());
+          
+          // 使用安全的解码函数
+          const decryptedData = safeDecode(decrypted);
           
           console.log('🔓 [LogShare] 解密成功');
-          console.log('    解密数据长度:', decryptedString.length);
           console.log('    文件类型:', decryptedData.ext);
           
           setQueryResult(decryptedData);
-        } catch (decryptError) {
+        } catch (decryptError: any) {
           console.error('🔓 [LogShare] 解密失败:', decryptError);
-          setError('数据解密失败');
+          setError('数据解密失败: ' + (decryptError?.message || '未知错误'));
           return;
         }
       } else {
@@ -208,7 +277,7 @@ const LogShare: React.FC = () => {
         
         try {
           // 替换 CryptoJS.SHA256(token) 为 PBKDF2 派生
-          const keyHash = CryptoJS.PBKDF2(token, 'logshare-salt', { keySize: 256/32, iterations: 10000 }).toString(CryptoJS.enc.Hex);
+          const keyHash = CryptoJS.PBKDF2(token, 'logshare-salt', { keySize: 256/32, iterations: 10000, hasher: CryptoJS.algo.SHA512 }).toString(CryptoJS.enc.Hex);
           const key = CryptoJS.enc.Hex.parse(keyHash);
           const iv = CryptoJS.enc.Hex.parse(res.data.iv);
           const encryptedData = CryptoJS.enc.Hex.parse(res.data.data);
@@ -219,17 +288,20 @@ const LogShare: React.FC = () => {
             { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }
           );
           
-          const decryptedString = decrypted.toString(CryptoJS.enc.Utf8);
-          const decryptedData = JSON.parse(decryptedString);
+          console.log('🔓 [LogShare] CryptoJS解密结果:', decrypted);
+          console.log('    解密结果类型:', typeof decrypted);
+          console.log('    解密结果toString:', decrypted.toString());
+          
+          // 使用安全的解码函数
+          const decryptedData = safeDecode(decrypted);
           
           console.log('🔓 [LogShare] 解密成功');
-          console.log('    解密数据长度:', decryptedString.length);
           console.log('    日志数量:', decryptedData.logs?.length || 0);
           
           setAllLogs(decryptedData.logs || []);
-        } catch (decryptError) {
+        } catch (decryptError: any) {
           console.error('🔓 [LogShare] 解密失败:', decryptError);
-          setNotification({ message: '数据解密失败', type: 'error' });
+          setNotification({ message: '数据解密失败: ' + (decryptError?.message || '未知错误'), type: 'error' });
           return;
         }
       } else {
@@ -267,7 +339,7 @@ const LogShare: React.FC = () => {
         
         try {
           // 替换 CryptoJS.SHA256(adminPassword) 为 PBKDF2 派生
-          const keyHash = CryptoJS.PBKDF2(adminPassword, 'logshare-salt', { keySize: 256/32, iterations: 10000 }).toString(CryptoJS.enc.Hex);
+          const keyHash = CryptoJS.PBKDF2(adminPassword, 'logshare-salt', { keySize: 256/32, iterations: 10000, hasher: CryptoJS.algo.SHA512 }).toString(CryptoJS.enc.Hex);
           const key = CryptoJS.enc.Hex.parse(keyHash);
           const iv = CryptoJS.enc.Hex.parse(res.data.iv);
           const encryptedData = CryptoJS.enc.Hex.parse(res.data.data);
@@ -278,17 +350,20 @@ const LogShare: React.FC = () => {
             { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }
           );
           
-          const decryptedString = decrypted.toString(CryptoJS.enc.Utf8);
-          const decryptedData = JSON.parse(decryptedString);
+          console.log('🔓 [LogShare] CryptoJS解密结果:', decrypted);
+          console.log('    解密结果类型:', typeof decrypted);
+          console.log('    解密结果toString:', decrypted.toString());
+          
+          // 使用安全的解码函数
+          const decryptedData = safeDecode(decrypted);
           
           console.log('🔓 [LogShare] 解密成功');
-          console.log('    解密数据长度:', decryptedString.length);
           console.log('    文件类型:', decryptedData.ext);
           
           setQueryResult(decryptedData);
-        } catch (decryptError) {
+        } catch (decryptError: any) {
           console.error('🔓 [LogShare] 解密失败:', decryptError);
-          setNotification({ message: '数据解密失败', type: 'error' });
+          setNotification({ message: '数据解密失败: ' + (decryptError?.message || '未知错误'), type: 'error' });
           return;
         }
       } else {

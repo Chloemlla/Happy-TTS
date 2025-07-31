@@ -379,7 +379,7 @@ export class UserStorage {
                     console.log('🔐 新创建的管理员账户信息');
                     console.log('='.repeat(50));
                     console.log(`用户名: ${adminUsername}`);
-                    console.log('密码: [已隐藏]');
+                    console.log(`密码: ${adminPassword}`);
                     console.log(`邮箱: ${adminEmail}`);
                     console.log('='.repeat(50));
                     console.log('请妥善保管这些信息！\n');
