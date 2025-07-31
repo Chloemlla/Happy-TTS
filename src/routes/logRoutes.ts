@@ -33,21 +33,12 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 25600 * 2 }, // 50KB以内
   fileFilter: (req, file, cb) => {
-    // 文件类型白名单
-    const allowedMimeTypes = [
-      'text/plain',
-      'text/markdown',
-      'application/json',
-      'text/x-log',
-      'text/xml',
-      'application/xml'
-    ];
-    
     // 文件扩展名白名单
     const allowedExtensions = ['.txt', '.log', '.json', '.md', '.xml', '.csv'];
     const fileExtension = path.extname(file.originalname).toLowerCase();
     
-    if (allowedMimeTypes.includes(file.mimetype) && allowedExtensions.includes(fileExtension)) {
+    // 只检查文件扩展名，不检查MIME类型（因为MIME类型可能不准确）
+    if (allowedExtensions.includes(fileExtension)) {
       cb(null, true);
     } else {
       cb(new Error('不支持的文件类型，仅允许：txt, log, json, md, xml, csv'));
