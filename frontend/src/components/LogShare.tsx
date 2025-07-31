@@ -127,8 +127,12 @@ const LogShare: React.FC = () => {
 
   useEffect(() => {
     if (uploadResult && uploadResult.link) {
+      // 安全地复制到剪贴板，处理焦点问题
       navigator.clipboard.writeText(uploadResult.link).then(() => {
         setNotification({ message: '上传成功，链接已复制', type: 'success' });
+      }).catch((error) => {
+        console.log('剪贴板复制失败:', error);
+        setNotification({ message: '上传成功，但链接复制失败', type: 'success' });
       });
     }
   }, [uploadResult, setNotification]);
