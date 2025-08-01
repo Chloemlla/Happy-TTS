@@ -209,7 +209,7 @@ def cleanup_unused_images(ssh):
 
 def upload_log_file(log_path, admin_password):
     """
-    上传日志/文件到 https://tts-api.hapxs.com/api/sharelog，返回短链。
+    上传日志/文件到 https://api.hapxs.com/api/sharelog，返回短链。
     支持新版logshare接口，文本日志可直接用短链在前端预览和下载。
     """
     if not os.path.exists(log_path):
@@ -219,7 +219,7 @@ def upload_log_file(log_path, admin_password):
     if file_size >= 25600:
         logging.warning(f"日志文件大于25KB（{file_size}字节），不上传。")
         return None
-    url = "https://tts-api.hapxs.com/api/sharelog"
+    url = "https://api.hapxs.com/api/sharelog"
     with open(log_path, "rb") as f:
         files = {"file": (os.path.basename(log_path), f)}
         data = {"adminPassword": admin_password}
@@ -230,7 +230,7 @@ def upload_log_file(log_path, admin_password):
                 link = j.get("link")
                 if not link and "id" in j:
                     # 兼容只返回id的情况
-                    link = f"https://tts-api.hapxs.com/logshare?id={j['id']}"
+                    link = f"https://api.hapxs.com/logshare?id={j['id']}"
                 if link:
                     logging.info(f"日志已上传: {link} (可直接预览/下载)")
                     return link
@@ -245,9 +245,9 @@ def upload_log_file(log_path, admin_password):
 
 def query_log_file(log_id, admin_password):
     """
-    查询日志内容，POST到 https://tts-api.hapxs.com/api/sharelog/{id}，body为{adminPassword}
+    查询日志内容，POST到 https://api.hapxs.com/api/sharelog/{id}，body为{adminPassword}
     """
-    url = f"https://tts-api.hapxs.com/api/sharelog/{log_id}"
+    url = f"https://api.hapxs.com/api/sharelog/{log_id}"
     data = {"adminPassword": admin_password}
     try:
         resp = requests.post(url, json=data, timeout=10)
