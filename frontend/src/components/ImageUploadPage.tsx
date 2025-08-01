@@ -467,6 +467,24 @@ const ImageUploadPage: React.FC = () => {
   const [exportType, setExportType] = useState<'plain'|'base64'|'aes256'>('plain');
   const [showExportMenu, setShowExportMenu] = useState(false);
 
+  // 点击外部关闭导出菜单
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.export-menu-container')) {
+        setShowExportMenu(false);
+      }
+    };
+
+    if (showExportMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showExportMenu]);
+
   const handleExport = async () => {
     const images = await exportImagesFromDB();
     if (images.length === 0) {
@@ -593,21 +611,52 @@ const ImageUploadPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-8" data-page="image-upload">
+    <motion.div 
+      className="space-y-6"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6 }}
+    >
+      {/* 标题和说明 */}
+      <motion.div 
+        className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <h2 className="text-2xl font-bold text-blue-700 mb-3 flex items-center gap-2">
+          🖼️
+          图片上传系统
+        </h2>
+        <div className="text-gray-600 space-y-2">
+          <p>支持 JPEG, PNG, GIF, WebP, BMP, SVG 格式，最大5MB。上传后将返回可直接访问的图片链接。</p>
+          <div className="flex items-start gap-2 text-sm">
+            <div>
+              <p className="font-semibold text-blue-700">功能特点：</p>
+              <ul className="list-disc list-inside space-y-1 mt-1">
+                <li>支持多种图片格式上传</li>
+                <li>自动生成IPFS链接</li>
+                <li>本地存储管理</li>
+                <li>图片预览和分享</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+      
       {/* 上传图片分区 */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-xl p-4 sm:p-8 shadow-sm border border-blue-100"
+        transition={{ duration: 0.6 }}
+        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
       >
-        <h2 className="text-xl sm:text-2xl font-bold text-blue-700 mb-3 sm:mb-4 flex items-center gap-2">
-          <svg className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-          </svg>
-          图片上传
-        </h2>
-        <div className="text-sm sm:text-base text-gray-500 mb-4 sm:mb-6">支持 JPEG, PNG, GIF, WebP, BMP, SVG 格式，最大5MB。上传后将返回可直接访问的图片链接。</div>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            📤
+            上传图片
+          </h3>
+        </div>
         <motion.div
           className={`mb-6 sm:mb-8 p-4 sm:p-6 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 shadow ${dragActive ? 'ring-4 ring-indigo-200' : ''}`}
           initial={{ opacity: 0, x: -30 }}
@@ -668,28 +717,28 @@ const ImageUploadPage: React.FC = () => {
         <AnimatePresence>
           {uploadedUrl && (
             <motion.div
-              className="mt-4 sm:mt-6 p-4 sm:p-6 bg-green-50 border border-green-200 rounded-xl text-green-700 text-center shadow"
+              className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700 text-center"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
               transition={{ duration: 0.4, type: 'spring', stiffness: 100 }}
             >
-              <div className="mb-2 text-base sm:text-lg font-bold flex items-center justify-center gap-2">
+              <div className="mb-2 text-base font-bold flex items-center justify-center gap-2">
                 <span>上传成功</span>
-                <motion.svg className="w-5 h-5 sm:w-6 sm:h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 300, delay: 0.2 }}>
+                <motion.svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 300, delay: 0.2 }}>
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </motion.svg>
               </div>
-              <div className="mb-2 text-gray-700 text-xs sm:text-sm">图片链接：</div>
+              <div className="mb-2 text-gray-700 text-sm">图片链接：</div>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
                 <a
                   href={uploadedShortUrl || uploadedUrl}
-                  className="underline break-all text-blue-700 hover:text-blue-900 text-xs sm:text-sm"
+                  className="underline break-all text-blue-700 hover:text-blue-900 text-sm"
                   target="_blank"
                   rel="noopener noreferrer"
                 >{uploadedShortUrl || uploadedUrl}</a>
                 <motion.button
-                  className="mt-2 sm:mt-0 sm:ml-2 px-3 py-2 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 text-xs font-semibold min-h-[36px]"
+                  className="mt-2 sm:mt-0 sm:ml-2 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm font-medium min-h-[36px] transition-colors"
                   onClick={() => handleCopy(uploadedShortUrl || uploadedUrl || '')}
                   whileTap={{ scale: 0.95 }}
                 >复制</motion.button>
@@ -703,61 +752,176 @@ const ImageUploadPage: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-xl p-4 sm:p-8 shadow-sm border border-blue-100"
+        transition={{ duration: 0.6 }}
+        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
       >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
-          <h3 className="text-lg sm:text-xl font-semibold text-blue-700 flex items-center gap-2">
-            <svg className="w-5 h-5 sm:w-6 sm:h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            🗂️
             本地存储管理
           </h3>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            {/* 导入按钮 */}
             <div className="relative">
-              <button className="px-3 py-2 sm:px-4 sm:py-2 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg hover:from-blue-600 hover:to-cyan-700 transition-all duration-200 text-xs sm:text-sm font-medium shadow-md hover:shadow-lg min-h-[36px]" onClick={() => setShowExportMenu(v => !v)}>
-                📤 导出数据
-              </button>
-              {showExportMenu && (
-                <div className="absolute z-10 mt-2 w-32 sm:w-36 bg-white border border-gray-200 rounded shadow-lg">
-                  <button className={`block w-full text-left px-3 py-2 sm:px-4 sm:py-2 hover:bg-blue-50 text-xs sm:text-sm ${exportType==='plain'?'font-bold text-blue-700':''}`} onClick={() => {setExportType('plain'); handleExport();}}>明文导出</button>
-                  <button className={`block w-full text-left px-3 py-2 sm:px-4 sm:py-2 hover:bg-blue-50 text-xs sm:text-sm ${exportType==='base64'?'font-bold text-blue-700':''}`} onClick={() => {setExportType('base64'); handleExport();}}>Base64导出</button>
-                  <button className={`block w-full text-left px-3 py-2 sm:px-4 sm:py-2 hover:bg-blue-50 text-xs sm:text-sm ${exportType==='aes256'?'font-bold text-blue-700':''}`} onClick={() => {setExportType('aes256'); handleExport();}}>AES-256加密导出</button>
-                </div>
-              )}
+              <input
+                type="file"
+                accept=".json"
+                onChange={handleImport}
+                className="hidden"
+                id="image-import-file-input"
+              />
+              <motion.button
+                className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition text-sm font-medium flex items-center gap-2 cursor-pointer"
+                whileTap={{ scale: 0.95 }}
+                onClick={() => document.getElementById('image-import-file-input')?.click()}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                导入
+              </motion.button>
             </div>
-            <label className="px-3 py-2 sm:px-4 sm:py-2 bg-gray-400 text-white rounded-lg shadow hover:bg-gray-500 transition cursor-pointer text-xs sm:text-sm font-medium min-h-[36px] flex items-center">
-              📥 导入数据
-              <input type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
-            </label>
-            <button className="px-3 py-2 sm:px-4 sm:py-2 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-lg hover:from-red-600 hover:to-pink-700 transition-all duration-200 text-xs sm:text-sm font-medium shadow-md hover:shadow-lg min-h-[36px] flex items-center" onClick={handleClear}>🗑️ 清空数据</button>
+            
+            {/* 导出菜单 */}
+            <div className="relative export-menu-container">
+              <motion.button
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm font-medium flex items-center gap-2"
+                whileTap={{ scale: 0.95 }}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                导出
+              </motion.button>
+              
+              <AnimatePresence>
+                {showExportMenu && (
+                  <motion.div
+                    className="absolute right-0 top-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[200px]"
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                  >
+                    <div className="p-2">
+                      <label className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded cursor-pointer">
+                        <input
+                          type="radio"
+                          value="plain"
+                          checked={exportType === 'plain'}
+                          onChange={(e) => setExportType(e.target.value as any)}
+                        />
+                        <span className="text-sm">明文导出</span>
+                      </label>
+                      <label className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded cursor-pointer">
+                        <input
+                          type="radio"
+                          value="base64"
+                          checked={exportType === 'base64'}
+                          onChange={(e) => setExportType(e.target.value as any)}
+                        />
+                        <span className="text-sm">Base64编码</span>
+                      </label>
+                      <label className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded cursor-pointer">
+                        <input
+                          type="radio"
+                          value="aes256"
+                          checked={exportType === 'aes256'}
+                          onChange={(e) => setExportType(e.target.value as any)}
+                        />
+                        <span className="text-sm">AES-256加密</span>
+                      </label>
+                      <button
+                        onClick={handleExport}
+                        className="w-full mt-2 px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-sm"
+                      >
+                        确认导出
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+            
+            {/* 清除按钮 */}
+            <motion.button
+              onClick={handleClear}
+              className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition text-sm font-medium flex items-center gap-2"
+              whileTap={{ scale: 0.95 }}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              清除
+            </motion.button>
           </div>
         </div>
-        <div className="bg-blue-50 rounded-lg p-3 sm:p-4 mb-4 text-center">
+        <motion.div 
+          className="bg-blue-50 rounded-lg p-3 sm:p-4 mb-4 text-center"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
           <span className="text-xl sm:text-2xl font-bold text-blue-700">{storedImages.length}</span>
           <span className="ml-2 text-sm sm:text-base text-gray-600">已保存图片</span>
-        </div>
+        </motion.div>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
           {storedImages.length === 0 ? (
-            <div className="col-span-full text-gray-400 text-center py-8 sm:py-10 text-sm sm:text-base">暂无上传的图片</div>
+            <motion.div 
+              className="col-span-full text-gray-400 text-center py-8 sm:py-10 text-sm sm:text-base"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+            >
+              暂无上传的图片
+            </motion.div>
           ) : (
             storedImages.map((img, idx) => (
-              <div key={img.cid} className="bg-white rounded-lg shadow p-3 flex flex-col border border-gray-100">
+              <motion.div 
+                key={img.cid} 
+                className="bg-white rounded-xl p-3 flex flex-col border border-gray-200 shadow-sm"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3, delay: idx * 0.1 }}
+                whileHover={{ scale: 1.02, y: -2, boxShadow: '0 8px 32px 0 rgba(0,0,0,0.12)' }}
+                whileTap={{ scale: 0.98 }}
+              >
                 <img src={img.web2url} alt={img.fileName} className="w-full h-32 sm:h-40 object-cover rounded mb-2 border" loading="lazy" />
                 <div className="text-xs text-gray-500 break-all mb-1">CID: {img.cid}</div>
                 <div className="text-xs sm:text-sm text-gray-800 mb-1 truncate">{img.fileName}</div>
                 <div className="text-xs text-gray-400 mb-2">{formatFileSize(img.fileSize)} • {formatDate(img.uploadTime)}</div>
                 <div className="flex flex-col sm:flex-row gap-1 mt-auto">
-                  <button className="flex-1 px-2 py-2 rounded bg-green-100 text-green-700 text-xs font-semibold hover:bg-green-200 min-h-[36px]" onClick={() => handleCopy(fixIpfsDomain(img.web2url))}>复制链接</button>
+                  <motion.button 
+                    className="flex-1 px-2 py-2 rounded-lg bg-green-100 text-green-700 text-xs font-semibold hover:bg-green-200 min-h-[36px] transition-colors" 
+                    onClick={() => handleCopy(fixIpfsDomain(img.web2url))}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    复制链接
+                  </motion.button>
                   {/* 预览按钮始终使用后端返回的 web2url，确保域名和路径与后端一致 */}
-                  <a className="flex-1 px-2 py-2 rounded bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200 text-center min-h-[36px] flex items-center justify-center" href={fixIpfsDomain(img.web2url)} target="_blank" rel="noopener noreferrer">预览</a>
-                  <button className="flex-1 px-2 py-2 rounded bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 min-h-[36px]" onClick={() => handleDelete(idx)}>删除</button>
+                  <motion.a 
+                    className="flex-1 px-2 py-2 rounded-lg bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200 text-center min-h-[36px] flex items-center justify-center transition-colors" 
+                    href={fixIpfsDomain(img.web2url)} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    预览
+                  </motion.a>
+                  <motion.button 
+                    className="flex-1 px-2 py-2 rounded-lg bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 min-h-[36px] transition-colors" 
+                    onClick={() => handleDelete(idx)}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    删除
+                  </motion.button>
                 </div>
-              </div>
+              </motion.div>
             ))
           )}
         </div>
       </motion.div>
-    </div>
+    </motion.div>
   );
 };
 

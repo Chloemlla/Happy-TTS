@@ -6,6 +6,17 @@ import getApiBaseUrl from '../api';
 import { useAuth } from '../hooks/useAuth';
 import { useLocation } from 'react-router-dom';
 import CryptoJS from 'crypto-js';
+import {
+  getStoredHistory,
+  saveHistoryToStorage,
+  deleteHistoryFromStorage,
+  clearAllHistory,
+  exportHistoryData,
+  importHistoryData,
+  checkAndFixLogShareDB,
+  generateHistoryId,
+  LogShareHistory
+} from '../utils/logShareStorage';
 
 const isTextExt = (ext: string) => ['.txt', '.log', '.json', '.md'].includes(ext);
 
@@ -83,20 +94,70 @@ const LogShare: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [copied, setCopied] = useState(false);
-  const [uploadHistory, setUploadHistory] = useState<{ link: string, ext: string, time: string }[]>(() => {
-    const saved = localStorage.getItem('uploadHistory');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [queryHistory, setQueryHistory] = useState<{ id: string, ext: string, time: string }[]>(() => {
-    const saved = localStorage.getItem('queryHistory');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [uploadHistory, setUploadHistory] = useState<{ link: string, ext: string, time: string }[]>([]);
+  const [queryHistory, setQueryHistory] = useState<{ id: string, ext: string, time: string }[]>([]);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [exportType, setExportType] = useState<'plain' | 'base64' | 'aes256'>('plain');
   const { setNotification } = useNotification();
   const [showPwdModal, setShowPwdModal] = useState(false);
   const [autoQueryId, setAutoQueryId] = useState<string | null>(null);
   const [allLogs, setAllLogs] = useState<{ id: string, ext: string, uploadTime: string, size: number }[]>([]);
   const [isLoadingAllLogs, setIsLoadingAllLogs] = useState(false);
   const [selectedLogIndex, setSelectedLogIndex] = useState<number | null>(null);
+
+  // 加载历史记录
+  const loadHistory = async () => {
+    try {
+      await checkAndFixLogShareDB();
+      const history = await getStoredHistory();
+      
+      const uploadItems = history
+        .filter(item => item.type === 'upload' && item.data.link && item.data.ext)
+        .map(item => ({
+          link: item.data.link!,
+          ext: item.data.ext!,
+          time: item.data.time
+        }))
+        .slice(0, 10);
+      
+      const queryItems = history
+        .filter(item => item.type === 'query' && item.data.queryId)
+        .map(item => ({
+          id: item.data.queryId!,
+          ext: item.data.ext || '',
+          time: item.data.time
+        }))
+        .slice(0, 10);
+      
+      setUploadHistory(uploadItems);
+      setQueryHistory(queryItems);
+    } catch (error) {
+      console.error('加载历史记录失败:', error);
+    }
+  };
+
+  // 初始化时加载历史记录
+  useEffect(() => {
+    loadHistory();
+  }, []);
+
+  // 点击外部关闭导出菜单
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.export-menu-container')) {
+        setShowExportMenu(false);
+      }
+    };
+
+    if (showExportMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showExportMenu]);
 
   // 检查URL参数
   useEffect(() => {
@@ -165,10 +226,21 @@ const LogShare: React.FC = () => {
       if (res.data.link) {
         setUploadResult({ link: res.data.link, ext: res.data.ext });
         setSuccess('上传成功！');
-        const newItem = { link: res.data.link, ext: res.data.ext, time: new Date().toLocaleString() };
-        const newHistory = [newItem, ...uploadHistory].slice(0, 10);
-        setUploadHistory(newHistory);
-        localStorage.setItem('uploadHistory', JSON.stringify(newHistory));
+        
+        // 保存到 IndexedDB
+        const historyItem: LogShareHistory = {
+          id: generateHistoryId(),
+          type: 'upload',
+          data: {
+            link: res.data.link,
+            ext: res.data.ext,
+            time: new Date().toLocaleString()
+          },
+          createdAt: new Date().toISOString()
+        };
+        
+        await saveHistoryToStorage(historyItem);
+        await loadHistory(); // 重新加载历史记录
       } else {
         setError('上传失败');
       }
@@ -243,14 +315,25 @@ const LogShare: React.FC = () => {
       }
       
       setSuccess('查询成功！');
-      // 使用解密后的数据或原始数据来获取扩展名
+      
+      // 保存到 IndexedDB
       const ext = (res.data.data && res.data.iv) ? 
         (queryResult?.ext || 'unknown') : 
         (res.data.ext || 'unknown');
-      const newItem = { id: queryId, ext: ext, time: new Date().toLocaleString() };
-      const newHistory = [newItem, ...queryHistory].slice(0, 10);
-      setQueryHistory(newHistory);
-      localStorage.setItem('queryHistory', JSON.stringify(newHistory));
+      
+      const historyItem: LogShareHistory = {
+        id: generateHistoryId(),
+        type: 'query',
+        data: {
+          queryId: queryId,
+          ext: ext,
+          time: new Date().toLocaleString()
+        },
+        createdAt: new Date().toISOString()
+      };
+      
+      await saveHistoryToStorage(historyItem);
+      await loadHistory(); // 重新加载历史记录
     } catch (e: any) {
       setError(e.response?.data?.error || '查询失败');
     } finally {
@@ -382,6 +465,47 @@ const LogShare: React.FC = () => {
       setNotification({ message: e.response?.data?.error || '查看日志失败', type: 'error' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 导出历史记录
+  const handleExport = async () => {
+    try {
+      await exportHistoryData(exportType);
+      setNotification({ message: '导出成功', type: 'success' });
+      setShowExportMenu(false);
+    } catch (error: any) {
+      setNotification({ message: error.message, type: 'error' });
+    }
+  };
+
+  // 导入历史记录
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    try {
+      const newCount = await importHistoryData(file);
+      await loadHistory();
+      setNotification({ message: `导入成功！新增 ${newCount} 条记录`, type: 'success' });
+    } catch (error: any) {
+      setNotification({ message: error.message, type: 'error' });
+    }
+    
+    e.target.value = '';
+  };
+
+  // 清除所有历史记录
+  const handleClear = async () => {
+    if (window.confirm('确定要清空所有历史记录吗？此操作不可恢复！')) {
+      try {
+        await clearAllHistory();
+        setUploadHistory([]);
+        setQueryHistory([]);
+        setNotification({ message: '历史记录已清空', type: 'success' });
+      } catch (error: any) {
+        setNotification({ message: '清空失败: ' + error.message, type: 'error' });
+      }
     }
   };
 
@@ -843,10 +967,107 @@ const LogShare: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-            📋
-            历史记录
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+              📋
+              历史记录
+            </h3>
+            <div className="flex items-center gap-2">
+              {/* 导入按钮 */}
+              <div className="relative">
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleImport}
+                  className="hidden"
+                  id="import-file-input"
+                />
+                <motion.button
+                  className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition text-sm font-medium flex items-center gap-2 cursor-pointer"
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => document.getElementById('import-file-input')?.click()}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  导入
+                </motion.button>
+              </div>
+              
+              {/* 导出菜单 */}
+              <div className="relative export-menu-container">
+                <motion.button
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm font-medium flex items-center gap-2"
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  导出
+                </motion.button>
+                
+                <AnimatePresence>
+                  {showExportMenu && (
+                    <motion.div
+                      className="absolute right-0 top-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[200px]"
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                    >
+                      <div className="p-2">
+                        <label className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded cursor-pointer">
+                          <input
+                            type="radio"
+                            value="plain"
+                            checked={exportType === 'plain'}
+                            onChange={(e) => setExportType(e.target.value as any)}
+                          />
+                          <span className="text-sm">明文导出</span>
+                        </label>
+                        <label className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded cursor-pointer">
+                          <input
+                            type="radio"
+                            value="base64"
+                            checked={exportType === 'base64'}
+                            onChange={(e) => setExportType(e.target.value as any)}
+                          />
+                          <span className="text-sm">Base64编码</span>
+                        </label>
+                        <label className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded cursor-pointer">
+                          <input
+                            type="radio"
+                            value="aes256"
+                            checked={exportType === 'aes256'}
+                            onChange={(e) => setExportType(e.target.value as any)}
+                          />
+                          <span className="text-sm">AES-256加密</span>
+                        </label>
+                        <button
+                          onClick={handleExport}
+                          className="w-full mt-2 px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-sm"
+                        >
+                          确认导出
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+              
+              {/* 清除按钮 */}
+              <motion.button
+                onClick={handleClear}
+                className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition text-sm font-medium flex items-center gap-2"
+                whileTap={{ scale: 0.95 }}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                清除
+              </motion.button>
+            </div>
+          </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* 上传历史 */}
