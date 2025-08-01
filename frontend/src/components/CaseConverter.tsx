@@ -10,20 +10,47 @@ import {
   FaCut, 
   FaTrash, 
   FaArrowLeft,
-  FaLanguage,
   FaMagic,
   FaCode,
   FaLink,
   FaHashtag,
   FaAt,
-  FaFileCode,
-  FaHandSparkles,
-  FaTextHeight,
-  FaExclamationTriangle,
-  FaCheck,
   FaTimes,
   FaSync,
-  FaLightbulb
+  FaLightbulb,
+  FaArrowUp,
+  FaArrowDown,
+  FaSortAlphaDown,
+  FaSortAlphaUp,
+  FaParagraph,
+  FaHeading,
+  FaBrain,
+  FaRandom,
+  FaSmile,
+  FaKeyboard,
+  FaMinus,
+  FaDotCircle,
+  FaExchangeAlt,
+  FaArrowsAltH,
+  FaArrowsAltV,
+  FaBroom,
+  FaEraser,
+  FaFilter,
+  FaSort,
+  FaTrashAlt,
+  FaCog,
+  FaLock,
+  FaUnlock,
+  FaGlobe,
+  FaNetworkWired,
+  FaWrench,
+  FaEye,
+  FaLanguage,
+  FaStar,
+  FaMobile,
+  FaInfoCircle,
+  FaFileCode,
+  FaPlay
 } from 'react-icons/fa';
 
 interface CaseConverterProps {}
@@ -39,7 +66,125 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
   const [isMobile, setIsMobile] = useState(false);
   const { setNotification } = useNotification();
 
+  // 功能图标映射
+  const functionIcons = useMemo(() => ({
+    // 基础大小写转换
+    uppercase: FaArrowUp,
+    lowercase: FaArrowDown,
+    firstUpper: FaSortAlphaUp,
+    firstLower: FaSortAlphaDown,
+    sentenceCase: FaParagraph,
+    titleCase: FaHeading,
+    
+    // 智能转换
+    smartCase: FaBrain,
+    alternatingCase: FaRandom,
+    spongebobCase: FaSmile,
+    leetspeak: FaKeyboard,
+    
+    // 分隔符转换
+    spaceToUnderscore: FaExchangeAlt,
+    underscoreToCamel: FaArrowsAltH,
+    camelToUnderscore: FaArrowsAltH,
+    camelToSpace: FaArrowsAltH,
+    spaceToDash: FaMinus,
+    underscoreToDash: FaExchangeAlt,
+    dashToUnderscore: FaExchangeAlt,
+    underscoreToSpace: FaArrowsAltH,
+    underscoreToDot: FaDotCircle,
+    dotToUnderscore: FaDotCircle,
+    
+    // 格式转换
+    spaceToNewline: FaArrowsAltV,
+    newlineToSpace: FaArrowsAltH,
+    singleLine: FaArrowsAltH,
+    properLineBreaks: FaArrowsAltV,
+    
+    // 清理功能
+    removeSymbols: FaBroom,
+    removeSpaces: FaEraser,
+    removeNewlines: FaFilter,
+    removeDuplicates: FaSort,
+    trimWhitespace: FaTrashAlt,
+    
+    // 编码转换
+    toBase64: FaLock,
+    fromBase64: FaUnlock,
+    toUrlEncode: FaGlobe,
+    fromUrlEncode: FaNetworkWired,
+    
+    // 特殊格式
+    toSlug: FaLink,
+    toHashtag: FaHashtag,
+    toMention: FaAt,
+    toCodeBlock: FaCode,
+    
+    // 智能处理
+    autoFormat: FaMagic,
+    normalizeText: FaCog,
+    fixCommonErrors: FaWrench,
+    enhanceReadability: FaEye
+  }), []);
 
+  // 功能按钮颜色映射
+  const functionColors = useMemo(() => ({
+    // 基础大小写转换 - 蓝色
+    uppercase: 'bg-blue-500 hover:bg-blue-600',
+    lowercase: 'bg-blue-500 hover:bg-blue-600',
+    firstUpper: 'bg-blue-500 hover:bg-blue-600',
+    firstLower: 'bg-blue-500 hover:bg-blue-600',
+    sentenceCase: 'bg-blue-500 hover:bg-blue-600',
+    titleCase: 'bg-blue-500 hover:bg-blue-600',
+    
+    // 智能转换 - 紫色
+    smartCase: 'bg-purple-500 hover:bg-purple-600',
+    alternatingCase: 'bg-purple-500 hover:bg-purple-600',
+    spongebobCase: 'bg-purple-500 hover:bg-purple-600',
+    leetspeak: 'bg-purple-500 hover:bg-purple-600',
+    
+    // 分隔符转换 - 绿色
+    spaceToUnderscore: 'bg-green-500 hover:bg-green-600',
+    underscoreToCamel: 'bg-green-500 hover:bg-green-600',
+    camelToUnderscore: 'bg-green-500 hover:bg-green-600',
+    camelToSpace: 'bg-green-500 hover:bg-green-600',
+    spaceToDash: 'bg-green-500 hover:bg-green-600',
+    underscoreToDash: 'bg-green-500 hover:bg-green-600',
+    dashToUnderscore: 'bg-green-500 hover:bg-green-600',
+    underscoreToSpace: 'bg-green-500 hover:bg-green-600',
+    underscoreToDot: 'bg-green-500 hover:bg-green-600',
+    dotToUnderscore: 'bg-green-500 hover:bg-green-600',
+    
+    // 格式转换 - 青色
+    spaceToNewline: 'bg-cyan-500 hover:bg-cyan-600',
+    newlineToSpace: 'bg-cyan-500 hover:bg-cyan-600',
+    singleLine: 'bg-cyan-500 hover:bg-cyan-600',
+    properLineBreaks: 'bg-cyan-500 hover:bg-cyan-600',
+    
+    // 清理功能 - 橙色
+    removeSymbols: 'bg-orange-500 hover:bg-orange-600',
+    removeSpaces: 'bg-orange-500 hover:bg-orange-600',
+    removeNewlines: 'bg-orange-500 hover:bg-orange-600',
+    removeDuplicates: 'bg-orange-500 hover:bg-orange-600',
+    trimWhitespace: 'bg-orange-500 hover:bg-orange-600',
+    
+    // 编码转换 - 红色
+    toBase64: 'bg-red-500 hover:bg-red-600',
+    fromBase64: 'bg-red-500 hover:bg-red-600',
+    toUrlEncode: 'bg-red-500 hover:bg-red-600',
+    fromUrlEncode: 'bg-red-500 hover:bg-red-600',
+    
+    // 特殊格式 - 靛蓝色
+    toSlug: 'bg-indigo-500 hover:bg-indigo-600',
+    toHashtag: 'bg-indigo-500 hover:bg-indigo-600',
+    toMention: 'bg-indigo-500 hover:bg-indigo-600',
+    toCodeBlock: 'bg-indigo-500 hover:bg-indigo-600',
+    
+    // 智能处理 - 粉色
+    autoFormat: 'bg-pink-500 hover:bg-pink-600',
+    normalizeText: 'bg-pink-500 hover:bg-pink-600',
+    fixCommonErrors: 'bg-pink-500 hover:bg-pink-600',
+    enhanceReadability: 'bg-pink-500 hover:bg-pink-600'
+  }), []);
 
   // 检测是否为移动设备
   React.useEffect(() => {
@@ -1026,10 +1171,22 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
             <div>
               <p className="font-semibold text-blue-700">{isEnglish ? 'Features:' : '功能说明：'}</p>
               <ul className="list-disc list-inside space-y-1 mt-1">
-                <li>{isEnglish ? 'Convert text case formats easily' : '轻松转换文本大小写格式'}</li>
-                <li>{isEnglish ? 'Support multiple conversion types' : '支持多种转换类型'}</li>
-                <li>{isEnglish ? 'Copy and paste functionality' : '复制粘贴功能'}</li>
-                <li>{isEnglish ? 'Bilingual interface support' : '双语界面支持'}</li>
+                <li className="flex items-center gap-2">
+                  <FaFont className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                  {isEnglish ? 'Convert text case formats easily' : '轻松转换文本大小写格式'}
+                </li>
+                <li className="flex items-center gap-2">
+                  <FaSync className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                  {isEnglish ? 'Support multiple conversion types' : '支持多种转换类型'}
+                </li>
+                <li className="flex items-center gap-2">
+                  <FaCopy className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                  {isEnglish ? 'Copy and paste functionality' : '复制粘贴功能'}
+                </li>
+                <li className="flex items-center gap-2">
+                  <FaLanguage className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                  {isEnglish ? 'Bilingual interface support' : '双语界面支持'}
+                </li>
               </ul>
             </div>
           </div>
@@ -1053,6 +1210,7 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
             className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm font-medium flex items-center gap-2"
             whileTap={{ scale: 0.95 }}
           >
+            <FaLanguage className="w-4 h-4" />
             {t.language}
           </motion.button>
         </div>
@@ -1210,40 +1368,45 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
         </div>
             
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-              {Object.entries(t.functions).map(([key, label], index) => (
-            <div key={key} className="relative">
-                <motion.button
-                  onClick={(e) => {
-                    if (isMobile) {
-                      handleMobileClick(e, key);
-                    } else {
-                      convertCase(key);
-                    }
-                  }}
-                className="w-full px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium text-sm"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: index * 0.02 }}
-                onMouseEnter={(e) => !isMobile && calculateTooltipPosition(e, key)}
-                onMouseLeave={handleMouseLeave}
-                onTouchStart={(e) => handleTouchStart(e, key)}
-                onTouchEnd={handleTouchEnd}
-                onTouchMove={(e) => {
-                  // 防止触摸移动时触发其他事件
-                  e.preventDefault();
-                }}
-                onFocus={(e) => !isMobile && calculateTooltipPosition(e, key)}
-                onBlur={handleMouseLeave}
-                aria-label={`${label} - ${t.functionDetails[key as keyof typeof t.functionDetails]?.description || ''}`}
-                data-testid={`convert-${key}`}
-                >
-                  {label}
-                </motion.button>
-              </div>
-          ))}
-          </div>
+              {Object.entries(t.functions).map(([key, label], index) => {
+                const IconComponent = functionIcons[key as keyof typeof functionIcons];
+                const buttonColor = functionColors[key as keyof typeof functionColors] || 'bg-blue-500 hover:bg-blue-600';
+                return (
+                  <div key={key} className="relative">
+                    <motion.button
+                      onClick={(e) => {
+                        if (isMobile) {
+                          handleMobileClick(e, key);
+                        } else {
+                          convertCase(key);
+                        }
+                      }}
+                      className={`w-full px-4 py-3 text-white rounded-lg transition font-medium text-sm flex items-center justify-center gap-2 ${buttonColor}`}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.02 }}
+                      onMouseEnter={(e) => !isMobile && calculateTooltipPosition(e, key)}
+                      onMouseLeave={handleMouseLeave}
+                      onTouchStart={(e) => handleTouchStart(e, key)}
+                      onTouchEnd={handleTouchEnd}
+                      onTouchMove={(e) => {
+                        // 防止触摸移动时触发其他事件
+                        e.preventDefault();
+                      }}
+                      onFocus={(e) => !isMobile && calculateTooltipPosition(e, key)}
+                      onBlur={handleMouseLeave}
+                      aria-label={`${label} - ${t.functionDetails[key as keyof typeof t.functionDetails]?.description || ''}`}
+                      data-testid={`convert-${key}`}
+                    >
+                      {IconComponent && <IconComponent className="w-4 h-4 flex-shrink-0" />}
+                      <span className="truncate">{label}</span>
+                    </motion.button>
+                  </div>
+                );
+              })}
+            </div>
 
           {/* 移动端背景遮罩 */}
           {hoveredFunction && isMobile && (
@@ -1315,7 +1478,8 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
               <div className="space-y-3 pr-2">
                 {/* 功能描述 */}
                 <div>
-                  <h4 className="font-semibold text-blue-300 mb-1">
+                  <h4 className="font-semibold text-blue-300 mb-1 flex items-center gap-2">
+                    <FaInfoCircle className="w-4 h-4" />
                     {isEnglish ? 'Description' : '功能描述'}
                   </h4>
                   <div className="text-sm text-gray-200 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent hover:scrollbar-thumb-gray-500 max-h-24 overflow-y-auto">
@@ -1327,7 +1491,8 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
                 
                 {/* 代码示例 */}
                 <div>
-                  <h4 className="font-semibold text-green-300 mb-1">
+                  <h4 className="font-semibold text-green-300 mb-1 flex items-center gap-2">
+                    <FaFileCode className="w-4 h-4" />
                     {isEnglish ? 'Code' : '代码'}
                   </h4>
                   <div className="bg-gray-800 rounded p-2 text-xs font-mono text-green-200 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent hover:scrollbar-thumb-gray-500 max-h-32 overflow-y-auto">
@@ -1339,7 +1504,8 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
                 
                 {/* 示例 */}
                 <div>
-                  <h4 className="font-semibold text-yellow-300 mb-1">
+                  <h4 className="font-semibold text-yellow-300 mb-1 flex items-center gap-2">
+                    <FaPlay className="w-4 h-4" />
                     {isEnglish ? 'Example' : '示例'}
                   </h4>
                   <div className="bg-gray-800 rounded p-2 text-xs font-mono text-yellow-200 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent hover:scrollbar-thumb-gray-500 max-h-32 overflow-y-auto">
@@ -1365,15 +1531,42 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
             {isEnglish ? 'Tips' : '提示'}
           </h4>
           <ul className="space-y-2 text-sm text-blue-800">
-            <li>• {t.tips.firstLetterTip}</li>
-            <li>• {t.tips.sentenceTip}</li>
-            <li>• {t.tips.titleTip}</li>
-          <li>• {t.tips.smartCaseTip}</li>
-          <li>• {t.tips.autoFormatTip}</li>
-          <li>• {isEnglish ? 'Keyboard shortcuts: Ctrl+Enter (UPPERCASE), Ctrl+Shift+Enter (lowercase), Ctrl+K (Clear), Ctrl+S (Smart), Ctrl+A (Auto), Ctrl+N (Normalize), Ctrl+F (Fix), Ctrl+R (Readable)' : '键盘快捷键：Ctrl+Enter (全大写)，Ctrl+Shift+Enter (全小写)，Ctrl+K (清空)，Ctrl+S (智能)，Ctrl+A (自动)，Ctrl+N (标准化)，Ctrl+F (修复)，Ctrl+R (可读性)'}</li>
-          <li>• {isEnglish ? 'New features: Smart case detection, Auto formatting, Text normalization, Error fixing' : '新功能：智能大小写检测、自动格式化、文本标准化、错误修复'}</li>
-          <li>• {isEnglish ? 'Enhanced tooltip: Auto-adaptive positioning, scrollable content, mobile-friendly design' : '增强提示框：自动适配定位、可滚动内容、移动端友好设计'}</li>
-          <li>• {isEnglish ? 'Mobile support: Touch-friendly interface, responsive design, background overlay' : '移动端支持：触摸友好界面、响应式设计、背景遮罩'}</li>
+            <li className="flex items-start gap-2">
+              <FaFont className="w-3 h-3 text-blue-600 flex-shrink-0 mt-0.5" />
+              {t.tips.firstLetterTip}
+            </li>
+            <li className="flex items-start gap-2">
+              <FaParagraph className="w-3 h-3 text-blue-600 flex-shrink-0 mt-0.5" />
+              {t.tips.sentenceTip}
+            </li>
+            <li className="flex items-start gap-2">
+              <FaHeading className="w-3 h-3 text-blue-600 flex-shrink-0 mt-0.5" />
+              {t.tips.titleTip}
+            </li>
+            <li className="flex items-start gap-2">
+              <FaBrain className="w-3 h-3 text-blue-600 flex-shrink-0 mt-0.5" />
+              {t.tips.smartCaseTip}
+            </li>
+            <li className="flex items-start gap-2">
+              <FaMagic className="w-3 h-3 text-blue-600 flex-shrink-0 mt-0.5" />
+              {t.tips.autoFormatTip}
+            </li>
+            <li className="flex items-start gap-2">
+              <FaKeyboard className="w-3 h-3 text-blue-600 flex-shrink-0 mt-0.5" />
+              {isEnglish ? 'Keyboard shortcuts: Ctrl+Enter (UPPERCASE), Ctrl+Shift+Enter (lowercase), Ctrl+K (Clear), Ctrl+S (Smart), Ctrl+A (Auto), Ctrl+N (Normalize), Ctrl+F (Fix), Ctrl+R (Readable)' : '键盘快捷键：Ctrl+Enter (全大写)，Ctrl+Shift+Enter (全小写)，Ctrl+K (清空)，Ctrl+S (智能)，Ctrl+A (自动)，Ctrl+N (标准化)，Ctrl+F (修复)，Ctrl+R (可读性)'}
+            </li>
+            <li className="flex items-start gap-2">
+              <FaStar className="w-3 h-3 text-blue-600 flex-shrink-0 mt-0.5" />
+              {isEnglish ? 'New features: Smart case detection, Auto formatting, Text normalization, Error fixing' : '新功能：智能大小写检测、自动格式化、文本标准化、错误修复'}
+            </li>
+            <li className="flex items-start gap-2">
+              <FaEye className="w-3 h-3 text-blue-600 flex-shrink-0 mt-0.5" />
+              {isEnglish ? 'Enhanced tooltip: Auto-adaptive positioning, scrollable content, mobile-friendly design' : '增强提示框：自动适配定位、可滚动内容、移动端友好设计'}
+            </li>
+            <li className="flex items-start gap-2">
+              <FaMobile className="w-3 h-3 text-blue-600 flex-shrink-0 mt-0.5" />
+              {isEnglish ? 'Mobile support: Touch-friendly interface, responsive design, background overlay' : '移动端支持：触摸友好界面、响应式设计、背景遮罩'}
+            </li>
           </ul>
         </motion.div>
     </motion.div>
