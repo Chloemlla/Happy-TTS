@@ -4,6 +4,19 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import CryptoJS from 'crypto-js';
+import { 
+  FaUsers, 
+  FaUserPlus, 
+  FaEdit, 
+  FaTrash, 
+  FaSave, 
+  FaTimes, 
+  FaUser, 
+  FaEnvelope, 
+  FaKey, 
+  FaUserTag,
+  FaList
+} from 'react-icons/fa';
 
 interface User {
   id: string;
@@ -285,7 +298,7 @@ const UserManagement: React.FC = () => {
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            📋
+            <FaList className="text-lg text-blue-500" />
             用户列表
           </h3>
           <motion.button

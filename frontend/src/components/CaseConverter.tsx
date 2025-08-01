@@ -2,6 +2,27 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { 
+  FaFont, 
+  FaCopy, 
+  FaCut, 
+  FaTrash, 
+  FaArrowLeft,
+  FaLanguage,
+  FaMagic,
+  FaCode,
+  FaLink,
+  FaHashtag,
+  FaAt,
+  FaFileCode,
+  FaHandSparkles,
+  FaTextHeight,
+  FaExclamationTriangle,
+  FaCheck,
+  FaTimes,
+  FaSync,
+  FaLightbulb
+} from 'react-icons/fa';
 
 interface CaseConverterProps {}
 
@@ -474,19 +495,16 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
       >
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-2xl font-bold text-blue-700 flex items-center gap-2">
-            🔤
+            <FaFont className="text-2xl text-blue-600" />
             {t.title}
           </h2>
           <Link 
             to="/"
             className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors duration-200"
           >
-            <motion.span 
+            <FaArrowLeft 
               className="text-lg"
-              whileHover={{ scale: 1.1, rotate: -5 }}
-            >
-              ←
-            </motion.span>
+            />
             <span className="font-medium">{t.backToHome}</span>
           </Link>
         </div>
@@ -515,7 +533,7 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            📝
+            <FaFont className="text-lg text-blue-500" />
             {isEnglish ? 'Input Text' : '输入文本'}
           </h3>
           <motion.button
@@ -562,7 +580,7 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
               className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium flex items-center gap-2"
               whileTap={{ scale: 0.95 }}
             >
-              📋
+              <FaCopy className="w-4 h-4" />
               {t.copy}
             </motion.button>
             <motion.button
@@ -573,7 +591,7 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
               className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition font-medium flex items-center gap-2"
               whileTap={{ scale: 0.95 }}
             >
-              ✂️
+              <FaCut className="w-4 h-4" />
               {t.cut}
             </motion.button>
             <motion.button
@@ -581,7 +599,7 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
               className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-medium flex items-center gap-2"
               whileTap={{ scale: 0.95 }}
             >
-              🗑️
+              <FaTrash className="w-4 h-4" />
               {t.clear}
             </motion.button>
           </div>
@@ -597,7 +615,7 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            📋
+            <FaCopy className="text-lg text-green-500" />
             {t.outputLabel}
           </h3>
           <div className="flex items-center space-x-4 text-sm">
@@ -643,7 +661,7 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
               className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-medium flex items-center gap-2"
               whileTap={{ scale: 0.95 }}
             >
-              📋
+              <FaCopy className="w-4 h-4" />
               {t.copy}
             </motion.button>
             <motion.button
@@ -651,7 +669,7 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
               className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium flex items-center gap-2"
               whileTap={{ scale: 0.95 }}
             >
-              🗑️
+              <FaTrash className="w-4 h-4" />
               {t.clear}
             </motion.button>
           </div>
@@ -667,7 +685,7 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            🔄
+            <FaSync className="text-lg text-blue-500" />
             {isEnglish ? 'Conversion Functions' : '转换功能'}
           </h3>
         </div>
@@ -698,7 +716,7 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
         transition={{ duration: 0.6 }}
       >
         <h4 className="text-lg font-semibold text-blue-900 mb-3 flex items-center gap-2">
-          💡
+          <FaLightbulb className="text-lg text-blue-600" />
           {isEnglish ? 'Tips' : '提示'}
         </h4>
         <ul className="space-y-2 text-sm text-blue-800">

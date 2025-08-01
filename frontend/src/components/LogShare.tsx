@@ -6,6 +6,16 @@ import getApiBaseUrl from '../api';
 import { useAuth } from '../hooks/useAuth';
 import { useLocation } from 'react-router-dom';
 import CryptoJS from 'crypto-js';
+import { 
+  FaClipboard, 
+  FaUpload, 
+  FaDownload,
+  FaTrash,
+  FaCopy,
+  FaEye,
+  FaEyeSlash,
+  FaSync
+} from 'react-icons/fa';
 import {
   getStoredHistory,
   saveHistoryToStorage,
@@ -639,7 +649,7 @@ const LogShare: React.FC = () => {
           transition={{ duration: 0.6 }}
         >
           <h2 className="text-2xl font-bold text-blue-700 mb-3 flex items-center gap-2">
-            📋
+            <FaClipboard className="text-2xl text-blue-600" />
             日志/文件剪贴板上传 & 查询
           </h2>
           <div className="text-gray-600 space-y-2">
@@ -667,7 +677,7 @@ const LogShare: React.FC = () => {
         >
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-              📤
+              <FaUpload className="text-lg text-blue-500" />
               上传日志/文件
             </h3>
           </div>
@@ -969,7 +979,7 @@ const LogShare: React.FC = () => {
         >
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-              📋
+              <FaClipboard className="text-lg text-blue-500" />
               历史记录
             </h3>
             <div className="flex items-center gap-2">

@@ -6,6 +6,19 @@ import { escapeHtml } from '../utils/escapeHtml';
 import CryptoJS from 'crypto-js';
 import { imageDataApi } from '../api/imageData';
 import { openDB, deleteDB } from 'idb';
+import { 
+  FaImage, 
+  FaUpload, 
+  FaFolder, 
+  FaDatabase, 
+  FaDownload, 
+  FaUpload as FaImport, 
+  FaTrash,
+  FaCheck,
+  FaCopy,
+  FaEye,
+  FaLink
+} from 'react-icons/fa';
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = [
@@ -625,7 +638,7 @@ const ImageUploadPage: React.FC = () => {
         transition={{ duration: 0.6 }}
       >
         <h2 className="text-2xl font-bold text-blue-700 mb-3 flex items-center gap-2">
-          🖼️
+          <FaImage className="text-2xl text-blue-600" />
           图片上传系统
         </h2>
         <div className="text-gray-600 space-y-2">
@@ -653,7 +666,7 @@ const ImageUploadPage: React.FC = () => {
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            📤
+            <FaUpload className="text-lg text-blue-500" />
             上传图片
           </h3>
         </div>
@@ -681,7 +694,7 @@ const ImageUploadPage: React.FC = () => {
             onClick={() => !uploading && !file && fileInputRef.current?.click()}
             style={{ cursor: (uploading || file) ? 'not-allowed' : 'pointer' }}
           >
-            <div className="text-3xl sm:text-4xl mb-3 sm:mb-4">📁</div>
+            <FaFolder className="text-3xl sm:text-4xl mb-3 sm:mb-4 text-gray-400" />
             <div className="text-sm sm:text-base text-gray-600 mb-2 sm:mb-3 text-center">
               {uploading ? '上传中...' : file ? '已选择文件' : '点击选择图片或拖拽图片到此处'}
             </div>
@@ -725,9 +738,7 @@ const ImageUploadPage: React.FC = () => {
             >
               <div className="mb-2 text-base font-bold flex items-center justify-center gap-2">
                 <span>上传成功</span>
-                <motion.svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 300, delay: 0.2 }}>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </motion.svg>
+                <FaCheck className="w-5 h-5 text-green-500" />
               </div>
               <div className="mb-2 text-gray-700 text-sm">图片链接：</div>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
@@ -757,7 +768,7 @@ const ImageUploadPage: React.FC = () => {
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            🗂️
+            <FaDatabase className="text-lg text-green-500" />
             本地存储管理
           </h3>
           <div className="flex items-center gap-2">
@@ -775,9 +786,7 @@ const ImageUploadPage: React.FC = () => {
                 whileTap={{ scale: 0.95 }}
                 onClick={() => document.getElementById('image-import-file-input')?.click()}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
+                <FaImport className="w-4 h-4" />
                 导入
               </motion.button>
             </div>
@@ -789,9 +798,7 @@ const ImageUploadPage: React.FC = () => {
                 className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm font-medium flex items-center gap-2"
                 whileTap={{ scale: 0.95 }}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
+                <FaDownload className="w-4 h-4" />
                 导出
               </motion.button>
               
@@ -836,10 +843,10 @@ const ImageUploadPage: React.FC = () => {
                         className="w-full mt-2 px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-sm"
                       >
                         确认导出
-                      </button>
-                    </div>
+              </button>
+                </div>
                   </motion.div>
-                )}
+              )}
               </AnimatePresence>
             </div>
             
@@ -849,9 +856,7 @@ const ImageUploadPage: React.FC = () => {
               className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition text-sm font-medium flex items-center gap-2"
               whileTap={{ scale: 0.95 }}
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
+                              <FaTrash className="w-4 h-4" />
               清除
             </motion.button>
           </div>
@@ -892,27 +897,30 @@ const ImageUploadPage: React.FC = () => {
                 <div className="text-xs text-gray-400 mb-2">{formatFileSize(img.fileSize)} • {formatDate(img.uploadTime)}</div>
                 <div className="flex flex-col sm:flex-row gap-1 mt-auto">
                   <motion.button 
-                    className="flex-1 px-2 py-2 rounded-lg bg-green-100 text-green-700 text-xs font-semibold hover:bg-green-200 min-h-[36px] transition-colors" 
+                    className="flex-1 px-2 py-2 rounded-lg bg-green-100 text-green-700 text-xs font-semibold hover:bg-green-200 min-h-[36px] transition-colors flex items-center justify-center gap-1" 
                     onClick={() => handleCopy(fixIpfsDomain(img.web2url))}
                     whileTap={{ scale: 0.95 }}
                   >
+                    <FaCopy className="w-3 h-3" />
                     复制链接
                   </motion.button>
                   {/* 预览按钮始终使用后端返回的 web2url，确保域名和路径与后端一致 */}
                   <motion.a 
-                    className="flex-1 px-2 py-2 rounded-lg bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200 text-center min-h-[36px] flex items-center justify-center transition-colors" 
+                    className="flex-1 px-2 py-2 rounded-lg bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200 text-center min-h-[36px] flex items-center justify-center gap-1 transition-colors" 
                     href={fixIpfsDomain(img.web2url)} 
                     target="_blank" 
                     rel="noopener noreferrer"
                     whileTap={{ scale: 0.95 }}
                   >
+                    <FaEye className="w-3 h-3" />
                     预览
                   </motion.a>
                   <motion.button 
-                    className="flex-1 px-2 py-2 rounded-lg bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 min-h-[36px] transition-colors" 
+                    className="flex-1 px-2 py-2 rounded-lg bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 min-h-[36px] transition-colors flex items-center justify-center gap-1" 
                     onClick={() => handleDelete(idx)}
                     whileTap={{ scale: 0.95 }}
                   >
+                    <FaTrash className="w-3 h-3" />
                     删除
                   </motion.button>
                 </div>

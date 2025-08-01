@@ -7,6 +7,17 @@ import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { useNotification } from './Notification';
 import getApiBaseUrl, { getApiBaseUrl as namedGetApiBaseUrl } from '../api';
+import { 
+  FaLink, 
+  FaChartBar, 
+  FaTrophy, 
+  FaUsers, 
+  FaCrosshairs, 
+  FaDice,
+  FaGift,
+  FaCrown,
+  FaMedal
+} from 'react-icons/fa';
 
 // 区块链数据展示组件
 const BlockchainDisplay: React.FC<{ data: any }> = ({ data }) => (
@@ -17,10 +28,10 @@ const BlockchainDisplay: React.FC<{ data: any }> = ({ data }) => (
     className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
   >
     <div className="flex items-center justify-between mb-4">
-      <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-        🔗
-        区块链数据
-      </h3>
+              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+          <FaLink className="text-lg text-blue-500" />
+          区块链数据
+        </h3>
     </div>
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       <div className="text-center p-3 bg-blue-50 rounded-lg">
@@ -174,10 +185,10 @@ const UserRecordCard: React.FC<{ record: any }> = ({ record }) => {
     >
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-          📊
+          <FaChartBar className="text-lg text-blue-500" />
           我的抽奖记录
         </h3>
-      </div>
+        </div>
       
       {/* 统计信息 */}
       <motion.div 
@@ -252,14 +263,14 @@ const LeaderboardCard: React.FC<{ leaderboard: any[] }> = ({ leaderboard }) => {
     >
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-          🏆
+          <FaTrophy className="text-lg text-yellow-500" />
           排行榜
         </h3>
       </div>
       
       <div className="space-y-2">
         {safeLeaderboard.length === 0 ? (
-          <motion.div 
+          <motion.div
             className="text-center text-gray-400 py-8"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -276,24 +287,27 @@ const LeaderboardCard: React.FC<{ leaderboard: any[] }> = ({ leaderboard }) => {
               transition={{ duration: 0.3, delay: 0.1 * index }}
               className="text-sm flex items-center gap-2 p-2 hover:bg-gray-50 rounded-lg"
               whileHover={{ scale: 1.02, x: -5 }}
-            >
+          >
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white font-bold text-xs ${
-                index === 0 ? 'bg-yellow-500' : 
-                index === 1 ? 'bg-gray-400' : 
-                index === 2 ? 'bg-orange-500' : 'bg-blue-500'
-              }`}>
-                {index + 1}
-              </div>
+              index === 0 ? 'bg-yellow-500' : 
+              index === 1 ? 'bg-gray-400' : 
+              index === 2 ? 'bg-orange-500' : 'bg-blue-500'
+            }`}>
+              {index === 0 ? <FaCrown className="w-3 h-3" /> : 
+               index === 1 ? <FaMedal className="w-3 h-3" /> : 
+               index === 2 ? <FaMedal className="w-3 h-3" /> : 
+               index + 1}
+            </div>
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-gray-900 truncate">{user.username}</div>
                 <div className="text-xs text-gray-500">
-                  参与 {user.participationCount} 次 | 中奖 {user.winCount} 次
-                </div>
+                参与 {user.participationCount} 次 | 中奖 {user.winCount} 次
               </div>
-              <div className="text-right">
-                <div className="font-bold text-green-600">¥{user.totalValue}</div>
-              </div>
-            </motion.div>
+            </div>
+            <div className="text-right">
+              <div className="font-bold text-green-600">¥{user.totalValue}</div>
+            </div>
+          </motion.div>
           ))
         )}
       </div>
@@ -310,10 +324,10 @@ const StatisticsCard: React.FC<{ stats: any }> = ({ stats }) => (
     className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
   >
     <div className="flex items-center justify-between mb-4">
-      <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-        📊
-        统计信息
-      </h3>
+              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+          <FaChartBar className="text-lg text-blue-500" />
+          统计信息
+        </h3>
     </div>
     <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
       <div className="text-center p-3 bg-blue-50 rounded-lg">
@@ -363,7 +377,7 @@ const WinnerModal: React.FC<{
           className="bg-white rounded-xl p-8 max-w-md w-full text-center shadow-lg"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="text-6xl mb-4">🎉</div>
+          <FaGift className="text-6xl mb-4 text-yellow-500" />
           <h2 className="text-2xl font-bold text-gray-800 mb-2">恭喜中奖！</h2>
           <p className="text-lg text-gray-600 mb-4">{winner.prizeName}</p>
           <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg mb-4">
@@ -434,7 +448,7 @@ const LotteryPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4">
       <div className="max-w-7xl mx-auto">
-        <motion.div 
+        <motion.div
           className="space-y-6"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -446,9 +460,9 @@ const LotteryPage: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-          >
+        >
             <h2 className="text-2xl font-bold text-blue-700 mb-3 flex items-center gap-2">
-              🎰
+              <FaDice className="text-2xl text-blue-600" />
               区块链抽奖系统
             </h2>
             <div className="text-gray-600 space-y-2">
@@ -465,7 +479,7 @@ const LotteryPage: React.FC = () => {
                 </div>
               </div>
             </div>
-          </motion.div>
+        </motion.div>
 
         {/* 区块链数据 */}
         {blockchainData && <BlockchainDisplay data={blockchainData} />}
@@ -475,20 +489,20 @@ const LotteryPage: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* 用户记录 */}
-                  <div className="lg:col-span-1">
-          {user ? (
-            <UserRecordCard record={userRecord} />
-          ) : (
+          <div className="lg:col-span-1">
+            {user ? (
+              <UserRecordCard record={userRecord} />
+            ) : (
             <motion.div 
               className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 text-center"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              <p className="text-gray-600">请登录查看个人记录</p>
+                <p className="text-gray-600">请登录查看个人记录</p>
             </motion.div>
-          )}
-        </div>
+            )}
+          </div>
 
           {/* 排行榜 */}
           <div className="lg:col-span-1">
@@ -504,10 +518,10 @@ const LotteryPage: React.FC = () => {
           className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
         >
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-              🎯
-              活跃抽奖轮次
-            </h3>
+                      <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <FaCrosshairs className="text-lg text-red-500" />
+            活跃抽奖轮次
+          </h3>
           </div>
           {loading ? (
             <div className="text-center py-8">

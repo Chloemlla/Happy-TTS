@@ -248,7 +248,10 @@ const ShortUrlMigrationManager: React.FC = () => {
             <div className="flex items-start gap-2">
               <FaExclamationTriangle className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0" />
               <div className="text-sm text-orange-800">
-                <p className="font-semibold mb-1">⚠️ 注意事项：</p>
+                <p className="font-semibold mb-1 flex items-center gap-2">
+                  <FaExclamationTriangle className="text-yellow-500" />
+                  注意事项：
+                </p>
                 <ul className="list-disc list-inside space-y-1">
                   <li>迁移操作不可逆，请谨慎执行</li>
                   <li>建议在执行前备份数据库</li>

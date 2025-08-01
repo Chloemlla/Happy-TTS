@@ -7,6 +7,7 @@ import getApiBaseUrl, { getApiBaseUrl as namedGetApiBaseUrl } from '../api';
 import { openDB } from 'idb';
 import { usePasskey } from '../hooks/usePasskey';
 import { useAuth } from '../hooks/useAuth';
+import { FaUser } from 'react-icons/fa';
 
 interface UserProfileData {
   id: string;
@@ -286,7 +287,7 @@ const UserProfile: React.FC = () => {
     const [error, setError] = useState(false);
     if (!src || error) {
       return (
-        <span className="text-4xl text-gray-400 flex items-center justify-center h-full">👤</span>
+        <FaUser className="text-4xl text-gray-400 flex items-center justify-center h-full" />
       );
     }
     return (

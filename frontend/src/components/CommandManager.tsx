@@ -1,6 +1,6 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaTerminal, FaServer, FaList, FaHistory, FaPlay, FaPlus, FaEye, FaTrash, FaSync, FaEyeSlash, FaArrowLeft, FaInfoCircle, FaChartLine } from 'react-icons/fa';
+import { FaTerminal, FaServer, FaList, FaHistory, FaPlay, FaPlus, FaEye, FaTrash, FaSync, FaEyeSlash, FaArrowLeft, FaInfoCircle, FaChartLine, FaSpaceShuttle } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import { useNotification } from './Notification';
 import { api } from '../api/index';
@@ -202,7 +202,7 @@ const CommandManager: React.FC = () => {
   if (!user || user.role !== 'admin') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-        <span style={{ fontSize: 120, lineHeight: 1 }}>🚀</span>
+        <FaSpaceShuttle style={{ fontSize: 120, lineHeight: 1 }} className="text-blue-500" />
         <div className="text-3xl font-bold mt-6 mb-2 text-rose-600 drop-shadow-lg">你不是管理员，禁止访问！</div>
         <div className="text-lg text-gray-500 mb-8">请用管理员账号登录后再来玩哦~<br/><span className="text-rose-400">（火箭发射中心需要管理员权限）</span></div>
         <div className="text-base text-gray-400 italic mt-4">仅限管理员使用，命令控制台仅供娱乐。</div>
@@ -906,8 +906,9 @@ const CommandManager: React.FC = () => {
                 )}
               </button>
             </div>
-            <div className="mt-1 text-xs text-gray-500">
-              💡 默认管理员密码: <code className="bg-gray-100 px-1 rounded">admin</code>
+            <div className="mt-1 text-xs text-gray-500 flex items-center gap-1">
+              <FaInfoCircle className="text-blue-500" />
+              默认管理员密码: <code className="bg-gray-100 px-1 rounded">admin</code>
             </div>
           </div>
         </div>
@@ -1314,8 +1315,9 @@ const CommandManager: React.FC = () => {
                     </div>
                   </div>
                   {autoRefresh && (
-                    <div className="mt-2 text-xs text-gray-600">
-                      💡 每6秒自动刷新一次，实时监控系统资源使用情况
+                    <div className="mt-2 text-xs text-gray-600 flex items-center gap-1">
+                      <FaInfoCircle className="text-blue-500" />
+                      每6秒自动刷新一次，实时监控系统资源使用情况
                     </div>
                   )}
                 </div>
@@ -1354,7 +1356,8 @@ const CommandManager: React.FC = () => {
                   
                   <div className="bg-white bg-opacity-50 rounded-lg p-3">
                     <h5 className="text-sm font-semibold mb-2 flex items-center gap-1">
-                      💡 优化建议
+                      <FaInfoCircle className="text-blue-500" />
+                      优化建议
                     </h5>
                     <ul className="text-sm space-y-1">
                       {analyzeMemoryUsage(serverStatus.memory_usage).suggestions.map((suggestion, index) => (
@@ -1393,7 +1396,8 @@ const CommandManager: React.FC = () => {
                   
                   <div className="bg-white bg-opacity-50 rounded-lg p-3">
                     <h5 className="text-sm font-semibold mb-2 flex items-center gap-1">
-                      💡 优化建议
+                      <FaInfoCircle className="text-blue-500" />
+                      优化建议
                     </h5>
                     <ul className="text-sm space-y-1">
                       {analyzeCPUUsage(serverStatus.cpu_usage_percent).suggestions.map((suggestion, index) => (
@@ -1409,7 +1413,8 @@ const CommandManager: React.FC = () => {
                 {/* 系统健康度评估 */}
                 <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg p-4 border border-gray-200">
                   <h4 className="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                    📊 系统健康度评估
+                    <FaChartLine className="text-lg text-blue-500" />
+                    系统健康度评估
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="bg-white rounded-lg p-3 border border-gray-200">
@@ -1478,7 +1483,8 @@ const CommandManager: React.FC = () => {
                     {resourceHistory.length >= 2 && (
                       <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
                         <h5 className="text-sm font-semibold text-blue-700 mb-2 flex items-center gap-1">
-                          📊 趋势分析
+                          <FaChartLine className="text-sm text-blue-600" />
+                          趋势分析
                         </h5>
                         <div className="text-sm text-blue-800">
                           <p className="mb-2">{analyzeResourceTrend(resourceHistory).trendDescription}</p>

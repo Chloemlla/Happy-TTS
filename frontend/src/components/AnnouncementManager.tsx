@@ -5,6 +5,17 @@ import { marked } from 'marked';
 import getApiBaseUrl from '../api';
 import { useNotification } from './Notification';
 import { useAuth } from '../hooks/useAuth';
+import { 
+  FaBullhorn, 
+  FaEdit, 
+  FaSave, 
+  FaTrash, 
+  FaTimes,
+  FaEye,
+  FaEyeSlash,
+  FaMarkdown,
+  FaCode
+} from 'react-icons/fa';
 
 const API_URL = getApiBaseUrl() + '/api/admin/announcement';
 
@@ -212,7 +223,7 @@ const AnnouncementManager: React.FC = () => {
         transition={{ duration: 0.6 }}
       >
         <h2 className="text-2xl font-bold text-blue-700 mb-3 flex items-center gap-2">
-          📢
+          <FaBullhorn className="text-2xl text-blue-600" />
           公告管理
         </h2>
         <div className="text-gray-600 space-y-2">
@@ -240,7 +251,7 @@ const AnnouncementManager: React.FC = () => {
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            📋
+            <FaEdit className="text-lg text-blue-500" />
             公告内容
           </h3>
           <motion.button

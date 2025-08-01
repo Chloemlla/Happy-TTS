@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
+import { FaBullhorn } from 'react-icons/fa';
 
 interface AnnouncementModalProps {
   open: boolean;
@@ -64,7 +65,7 @@ const AnnouncementModal: React.FC<AnnouncementModalProps> = ({
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center mb-4">
-              <span className="text-3xl mr-2">📢</span>
+              <FaBullhorn className="text-3xl mr-2 text-blue-600" />
               <h2 className="text-xl font-bold">最新公告</h2>
             </div>
             <div className={`prose max-w-none mb-6 min-h-[60px] ${contentClassName || ''}`}>

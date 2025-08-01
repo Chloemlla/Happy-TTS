@@ -6,13 +6,13 @@ import { TOTPStatus } from './types/auth';
 import { LoadingSpinner, SimpleLoadingSpinner } from './components/LoadingSpinner';
 import TOTPManager from './components/TOTPManager';
 import { NotificationProvider } from './components/Notification';
-import DesktopNav from './components/DesktopNav';
 import ModListPage from './components/ModListPage';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import AnnouncementModal from './components/AnnouncementModal';
 import md5 from 'md5';
 import getApiBaseUrl from './api';
+import DOMPurify from 'dompurify';
 
 // 懒加载组件
 const WelcomePage = React.lazy(() => import('./components/WelcomePage').then(module => ({ default: module.WelcomePage })));
@@ -33,6 +33,7 @@ const LotteryPage = React.lazy(() => import('./components/LotteryPage'));
 const LotteryAdmin = React.lazy(() => import('./components/LotteryAdmin'));
 const ImageUploadPage = React.lazy(() => import('./components/ImageUploadPage'));
 const TigerAdventure = React.lazy(() => import('./components/TigerAdventure'));
+const CoinFlip = React.lazy(() => import('./components/CoinFlip'));
 
 // 恢复 EmailSender 懒加载
 const EmailSenderPage: React.FC = () => {
@@ -83,22 +84,35 @@ const pageVariants = {
 
 // 背景粒子组件
 const BackgroundParticles: React.FC = () => {
+  const [particles, setParticles] = React.useState<Array<{id: number, x: number, y: number, duration: number}>>([]);
+
+  React.useEffect(() => {
+    // 预生成粒子位置，避免每次渲染都重新计算
+    const generatedParticles = Array.from({ length: 20 }, (_, i) => ({
+      id: i,
+      x: Math.random() * (typeof window !== 'undefined' ? window.innerWidth : 1200),
+      y: Math.random() * (typeof window !== 'undefined' ? window.innerHeight : 800),
+      duration: Math.random() * 20 + 10
+    }));
+    setParticles(generatedParticles);
+  }, []);
+
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-      {[...Array(20)].map((_, i) => (
+      {particles.map((particle) => (
         <motion.div
-          key={i}
+          key={particle.id}
           className="absolute w-2 h-2 bg-indigo-200 rounded-full opacity-30"
           initial={{
-            x: Math.random() * window.innerWidth,
-            y: Math.random() * window.innerHeight,
+            x: particle.x,
+            y: particle.y,
           }}
           animate={{
-            x: Math.random() * window.innerWidth,
-            y: Math.random() * window.innerHeight,
+            x: Math.random() * (typeof window !== 'undefined' ? window.innerWidth : 1200),
+            y: Math.random() * (typeof window !== 'undefined' ? window.innerHeight : 800),
           }}
           transition={{
-            duration: Math.random() * 20 + 10,
+            duration: particle.duration,
             repeat: Infinity,
             ease: "linear"
           }}
@@ -110,17 +124,31 @@ const BackgroundParticles: React.FC = () => {
 
 // 水印组件
 const WatermarkOverlay: React.FC = () => {
+  const [watermarks, setWatermarks] = React.useState<Array<{id: number, left: string, top: string, transform: string, fontSize: string}>>([]);
+
+  React.useEffect(() => {
+    // 预生成水印位置和样式，避免每次渲染都重新计算
+    const generatedWatermarks = Array.from({ length: 50 }, (_, i) => ({
+      id: i,
+      left: `${(i % 10) * 10}%`,
+      top: `${Math.floor(i / 10) * 10}%`,
+      transform: `rotate(${Math.random() * 30 - 15}deg)`,
+      fontSize: `${Math.random() * 20 + 16}px`,
+    }));
+    setWatermarks(generatedWatermarks);
+  }, []);
+
   return (
     <div className="fixed inset-0 z-[99999] pointer-events-none overflow-hidden">
-      {[...Array(50)].map((_, i) => (
+      {watermarks.map((watermark) => (
         <div
-          key={i}
+          key={watermark.id}
           className="absolute text-red-500/20 font-bold text-lg select-none"
           style={{
-            left: `${(i % 10) * 10}%`,
-            top: `${Math.floor(i / 10) * 10}%`,
-            transform: `rotate(${Math.random() * 30 - 15}deg)`,
-            fontSize: `${Math.random() * 20 + 16}px`,
+            left: watermark.left,
+            top: watermark.top,
+            transform: watermark.transform,
+            fontSize: watermark.fontSize,
           }}
         >
           Synapse
@@ -181,19 +209,35 @@ const App: React.FC = () => {
         return;
       }
       try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          setTotpStatus(null);
+          return;
+        }
+        
         const response = await fetch('/api/totp/status', {
+          method: 'GET',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'Content-Type': 'application/json'
-          }
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          credentials: 'same-origin'
         });
+        
         if (response.ok) {
           const data = await response.json();
-          setTotpStatus(data);
+          // 验证响应数据结构
+          if (data && typeof data === 'object') {
+            setTotpStatus(data);
+          } else {
+            setTotpStatus(null);
+          }
         } else {
           setTotpStatus(null);
         }
       } catch (e) {
+        console.error('TOTP状态获取失败:', e);
         setTotpStatus(null);
       }
     };
@@ -215,22 +259,51 @@ const App: React.FC = () => {
     // 获取公告内容
     const fetchAnnouncement = async () => {
       try {
-        const res = await fetch(getApiBaseUrl() + '/api/admin/announcement');
+        const res = await fetch(getApiBaseUrl() + '/api/admin/announcement', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          credentials: 'same-origin'
+        });
+        
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        
         const data = await res.json();
-        if (data.success && data.announcement && data.announcement.content) {
+        
+        // 验证响应数据结构
+        if (data && 
+            typeof data === 'object' && 
+            data.success && 
+            data.announcement && 
+            typeof data.announcement === 'object' &&
+            data.announcement.content &&
+            typeof data.announcement.content === 'string') {
+          
+          // 限制内容长度，防止过大的内容影响性能
+          const maxContentLength = 10000; // 10KB
+          const content = data.announcement.content.length > maxContentLength 
+            ? data.announcement.content.substring(0, maxContentLength) + '...'
+            : data.announcement.content;
+          
           setAnnouncement({
-            content: data.announcement.content,
-            format: data.announcement.format || 'markdown',
+            content: content,
+            format: data.announcement.format === 'html' ? 'html' : 'markdown',
             updatedAt: data.announcement.updatedAt || ''
           });
+          
           // 计算hash
-          const hash = md5((data.announcement.content || '') + (data.announcement.updatedAt || ''));
+          const hash = md5(content + (data.announcement.updatedAt || ''));
           setAnnouncementHash(hash);
         } else {
           setAnnouncement(null);
           setAnnouncementHash('');
         }
-      } catch {
+      } catch (error) {
+        console.error('公告获取失败:', error);
         setAnnouncement(null);
         setAnnouncementHash('');
       }
@@ -241,17 +314,35 @@ const App: React.FC = () => {
   // 判断是否需要弹窗
   useEffect(() => {
     if (!announcement || !announcementHash) return;
+    
     const key = `announcement_closed_${announcementHash}`;
-    const closeInfo = localStorage.getItem(key);
+    let closeInfo: string | null = null;
+    
+    try {
+      closeInfo = localStorage.getItem(key);
+    } catch (error) {
+      console.error('localStorage访问失败:', error);
+      setShowAnnouncement(true);
+      return;
+    }
+    
     if (!closeInfo) {
       setShowAnnouncement(true);
       return;
     }
+    
     try {
       const info = JSON.parse(closeInfo);
+      
+      // 验证数据结构
+      if (!info || typeof info !== 'object') {
+        setShowAnnouncement(true);
+        return;
+      }
+      
       if (info.type === 'permanent') {
         setShowAnnouncement(false);
-      } else if (info.type === 'date') {
+      } else if (info.type === 'date' && typeof info.date === 'string') {
         const today = new Date().toISOString().slice(0, 10);
         if (info.date !== today) {
           setShowAnnouncement(true);
@@ -261,7 +352,8 @@ const App: React.FC = () => {
       } else {
         setShowAnnouncement(true);
       }
-    } catch {
+    } catch (error) {
+      console.error('公告关闭信息解析失败:', error);
       setShowAnnouncement(true);
     }
   }, [announcement, announcementHash]);
@@ -270,22 +362,30 @@ const App: React.FC = () => {
   const handleCloseAnnouncement = () => {
     setShowAnnouncement(false);
   };
+  
   const handleCloseToday = () => {
     if (!announcementHash) return;
-    const today = new Date().toISOString().slice(0, 10);
-    localStorage.setItem(
-      `announcement_closed_${announcementHash}`,
-      JSON.stringify({ type: 'date', date: today })
-    );
-    setShowAnnouncement(false);
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const closeInfo = JSON.stringify({ type: 'date', date: today });
+      localStorage.setItem(`announcement_closed_${announcementHash}`, closeInfo);
+      setShowAnnouncement(false);
+    } catch (error) {
+      console.error('保存公告关闭信息失败:', error);
+      setShowAnnouncement(false);
+    }
   };
+  
   const handleCloseForever = () => {
     if (!announcementHash) return;
-    localStorage.setItem(
-      `announcement_closed_${announcementHash}`,
-      JSON.stringify({ type: 'permanent' })
-    );
-    setShowAnnouncement(false);
+    try {
+      const closeInfo = JSON.stringify({ type: 'permanent' });
+      localStorage.setItem(`announcement_closed_${announcementHash}`, closeInfo);
+      setShowAnnouncement(false);
+    } catch (error) {
+      console.error('保存公告关闭信息失败:', error);
+      setShowAnnouncement(false);
+    }
   };
 
   if (loading || !isInitialized) {
@@ -311,7 +411,7 @@ const App: React.FC = () => {
         onClose={handleCloseAnnouncement}
         onCloseToday={handleCloseToday}
         onCloseForever={handleCloseForever}
-        content={announcement?.content || ''}
+        content={announcement?.content ? DOMPurify.sanitize(announcement.content) : ''}
         format={announcement?.format || 'markdown'}
         // 新增：内容区自适应高度，超出可滚动
         contentClassName="max-h-[60vh] sm:max-h-[50vh] overflow-y-auto px-2 sm:px-4"
@@ -595,6 +695,19 @@ const App: React.FC = () => {
                   </motion.div>
                 </Suspense>
               } />
+              <Route path="/coin-flip" element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <motion.div
+                    variants={pageVariants}
+                    initial="initial"
+                    animate="in"
+                    exit="out"
+                    transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                  >
+                    <CoinFlip />
+                  </motion.div>
+                </Suspense>
+              } />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </AnimatePresence>
@@ -658,14 +771,23 @@ const App: React.FC = () => {
 };
 
 // ErrorBoundary 组件
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error?: Error }> {
     constructor(props: { children: React.ReactNode }) {
         super(props);
         this.state = { hasError: false };
     }
-    static getDerivedStateFromError(error: any) {
-        return { hasError: true };
+    
+    static getDerivedStateFromError(error: Error) {
+        // 记录错误但不暴露敏感信息
+        console.error('React Error Boundary caught an error:', error);
+        return { hasError: true, error };
     }
+    
+    componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+        // 可以在这里发送错误报告到监控服务
+        console.error('Error caught by boundary:', error, errorInfo);
+    }
+    
     render() {
         if (this.state.hasError) {
             return (
@@ -708,7 +830,15 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
                             transition={{ delay: 0.5 }}
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => window.location.reload()}
+                            onClick={() => {
+                                try {
+                                    window.location.reload();
+                                } catch (error) {
+                                    console.error('页面刷新失败:', error);
+                                    // 备用方案：清除错误状态
+                                    this.setState({ hasError: false });
+                                }
+                            }}
                             className="w-full py-3 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-300"
                         >
                             刷新页面

@@ -918,6 +918,43 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   )}
                 </Link>
               </motion.div>
+
+              {/* 抛硬币工具 */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.52 }}
+              >
+                <Link
+                  to="/coin-flip"
+                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
+                    location.pathname === '/coin-flip' ? 'bg-yellow-50 text-yellow-700 font-semibold shadow-sm' : 'hover:bg-yellow-50'
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <motion.svg 
+                    className={`w-5 h-5 ${location.pathname === '/coin-flip' ? 'text-yellow-500' : 'text-gray-400'}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                  >
+                    <circle cx="12" cy="12" r="10" strokeWidth="2" />
+                    <path d="M12 2v20M2 12h20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </motion.svg>
+                  <span>抛硬币</span>
+                  {location.pathname === '/coin-flip' && (
+                    <motion.span 
+                      className="ml-auto text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full"
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                    >
+                      当前
+                    </motion.span>
+                  )}
+                </Link>
+              </motion.div>
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}

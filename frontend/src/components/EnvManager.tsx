@@ -4,6 +4,14 @@ import getApiBaseUrl from '../api';
 import { useNotification } from './Notification';
 import { useAuth } from '../hooks/useAuth';
 import CryptoJS from 'crypto-js';
+import { 
+  FaCog, 
+  FaLock, 
+  FaList, 
+  FaSync, 
+  FaInfoCircle,
+  FaTimes
+} from 'react-icons/fa';
 
 const API_URL = getApiBaseUrl() + '/api/admin/envs';
 
@@ -220,7 +228,7 @@ const EnvManager: React.FC = () => {
           transition={{ duration: 0.6 }}
         >
           <h2 className="text-2xl font-bold text-red-700 mb-3 flex items-center gap-2">
-            🔒
+            <FaLock className="text-2xl text-red-600" />
             访问被拒绝
           </h2>
           <div className="text-gray-600 space-y-2">
@@ -249,7 +257,7 @@ const EnvManager: React.FC = () => {
         transition={{ duration: 0.6 }}
       >
         <h2 className="text-2xl font-bold text-blue-700 mb-3 flex items-center gap-2">
-          ⚙️
+          <FaCog className="text-2xl text-blue-600" />
           环境变量管理
         </h2>
         <div className="text-gray-600 space-y-2">
@@ -277,7 +285,7 @@ const EnvManager: React.FC = () => {
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            📋
+            <FaList className="text-lg text-blue-500" />
             环境变量列表
           </h3>
           <motion.button
@@ -286,9 +294,7 @@ const EnvManager: React.FC = () => {
             className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
             whileTap={{ scale: 0.95 }}
           >
-            <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
+            <FaSync className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             刷新
           </motion.button>
         </div>
@@ -296,9 +302,7 @@ const EnvManager: React.FC = () => {
         {/* 数据来源图例 */}
         <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <div className="flex items-center gap-3 text-base text-blue-700">
-            <svg className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-            </svg>
+            <FaInfoCircle className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 flex-shrink-0" />
             <span className="font-medium leading-relaxed">带蓝色感叹号图标的变量表示有明确的数据来源信息</span>
           </div>
         </div>
@@ -313,9 +317,7 @@ const EnvManager: React.FC = () => {
           </div>
         ) : envs.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
-            <svg className="w-12 h-12 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
+            <FaList className="w-12 h-12 mx-auto mb-4 text-gray-400" />
             暂无环境变量数据
           </div>
         ) : (
@@ -349,9 +351,7 @@ const EnvManager: React.FC = () => {
                             }}
                             className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 mt-0.5 flex-shrink-0 hover:text-blue-600 transition-colors cursor-pointer"
                           >
-                            <svg fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                            </svg>
+                            <FaInfoCircle />
                           </button>
                         )}
                         <span>{item.key.split(':').pop() || item.key}</span>
@@ -405,9 +405,7 @@ const EnvManager: React.FC = () => {
             >
               <div className="text-center">
                 <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                  </svg>
+                  <FaInfoCircle className="w-8 h-8 text-blue-500" />
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">数据来源</h3>
                 <p className="text-gray-600 mb-6">{selectedSource}</p>

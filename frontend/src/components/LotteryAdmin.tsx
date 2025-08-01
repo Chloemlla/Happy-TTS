@@ -9,6 +9,18 @@ import { useNotification } from './Notification';
 import { AnimatePresence } from 'framer-motion';
 import { deleteAllRounds } from '../api/lottery';
 import CryptoJS from 'crypto-js';
+import { 
+  FaChartBar, 
+  FaList,
+  FaDice,
+  FaTrophy,
+  FaEdit,
+  FaTrash,
+  FaPlay,
+  FaPause,
+  FaRedo,
+  FaExclamationTriangle
+} from 'react-icons/fa';
 
 // AES-256解密函数
 function decryptAES256(encryptedData: string, iv: string, key: string): string {
@@ -360,7 +372,7 @@ const RoundManagement: React.FC<{ rounds: LotteryRound[]; onRefresh: () => void 
       transition={{ duration: 0.6 }}
     >
       <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-        📊
+        <FaChartBar className="text-lg text-blue-500" />
         轮次管理
       </h3>
       
@@ -490,7 +502,7 @@ const LotteryAdmin: React.FC = () => {
         transition={{ duration: 0.6 }}
       >
         <h2 className="text-2xl font-bold text-blue-700 mb-3 flex items-center gap-2">
-          🎰
+          <FaDice className="text-2xl text-blue-600" />
           抽奖管理
         </h2>
         <div className="text-gray-600 space-y-2">
@@ -519,7 +531,7 @@ const LotteryAdmin: React.FC = () => {
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            📋
+            <FaList className="text-lg text-blue-500" />
             功能面板
           </h3>
           {activeTab === 'manage' && (

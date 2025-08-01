@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaTrash, FaCopy, FaSearch, FaSync, FaDice, FaLink, FaPlus, FaInfoCircle, FaExclamationTriangle, FaCheckCircle, FaArrowLeft } from 'react-icons/fa';
+import { FaTrash, FaCopy, FaSearch, FaSync, FaDice, FaLink, FaPlus, FaInfoCircle, FaExclamationTriangle, FaCheckCircle, FaArrowLeft, FaList } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import { useNotification } from './Notification';
 import getApiBaseUrl from '../api';
@@ -395,8 +395,9 @@ const ShortLinkManager: React.FC = () => {
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
             >
-              <span>
-                💡 自定义短链接码提示：只能包含字母、数字、连字符(-)和下划线(_)，长度1-200个字符。留空则自动生成随机短链接码。
+              <span className="flex items-center gap-2">
+                <FaInfoCircle className="text-blue-500" />
+                自定义短链接码提示：只能包含字母、数字、连字符(-)和下划线(_)，长度1-200个字符。留空则自动生成随机短链接码。
               </span>
               <button
                 className="text-orange-600 hover:text-orange-800 text-xs underline"
@@ -496,7 +497,7 @@ const ShortLinkManager: React.FC = () => {
                 <tr>
                   <td colSpan={6} className="text-center py-12 text-gray-400">
                     <div className="flex flex-col items-center gap-2">
-                      <span className="text-3xl">📝</span>
+                      <FaList className="text-3xl text-gray-300" />
                       <div className="text-lg font-medium text-gray-500">暂无短链</div>
                       <div className="text-sm text-gray-400">快去生成吧！</div>
                     </div>
@@ -558,7 +559,7 @@ const ShortLinkManager: React.FC = () => {
           ) : links.length === 0 ? (
             <div className="bg-white rounded-lg shadow p-6 text-center">
               <div className="flex flex-col items-center gap-2">
-                <span className="text-3xl">📝</span>
+                <FaList className="text-3xl text-gray-300" />
                 <div className="text-lg font-medium text-gray-500">暂无短链</div>
                 <div className="text-sm text-gray-400">快去生成吧！</div>
               </div>
