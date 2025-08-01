@@ -1077,12 +1077,11 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
                   }
                 }}
                 onKeyDown={handleKeyDown}
-                className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all" 
+                className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent hover:scrollbar-thumb-gray-500" 
                 rows={8} 
                 placeholder={t.inputPlaceholder}
                 maxLength={10000}
                 aria-label={t.inputPlaceholder}
-
               />
             {inputText.length > 9000 && (
               <div className="text-sm text-orange-600 mt-1">
@@ -1163,7 +1162,7 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
               <textarea
                 value={outputText}
                 readOnly
-                className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 bg-gray-50 text-gray-700" 
+                className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 bg-gray-50 text-gray-700 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent hover:scrollbar-thumb-gray-500" 
                 rows={8}
                 placeholder="转换结果将显示在这里..."
                 aria-label={isEnglish ? 'Conversion result' : '转换结果'}
@@ -1262,7 +1261,7 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
           {/* 全局悬停提示框 */}
           {hoveredFunction && (
             <motion.div
-              className={`fixed z-50 bg-gray-900 text-white rounded-lg p-4 shadow-xl border border-gray-700 tooltip-container ${
+              className={`fixed z-50 bg-gray-900 text-white rounded-lg p-4 shadow-xl border border-gray-700 tooltip-container scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent hover:scrollbar-thumb-gray-500 ${
                 isMobile ? 'w-70 max-w-[calc(100vw-40px)]' : 'w-80'
               }`}
               style={{
@@ -1319,9 +1318,11 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
                   <h4 className="font-semibold text-blue-300 mb-1">
                     {isEnglish ? 'Description' : '功能描述'}
                   </h4>
-                  <p className="text-sm text-gray-200">
-                    {DOMPurify.sanitize(t.functionDetails[hoveredFunction as keyof typeof t.functionDetails]?.description || '')}
-                  </p>
+                  <div className="text-sm text-gray-200 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent hover:scrollbar-thumb-gray-500 max-h-24 overflow-y-auto">
+                    <p>
+                      {DOMPurify.sanitize(t.functionDetails[hoveredFunction as keyof typeof t.functionDetails]?.description || '')}
+                    </p>
+                  </div>
                 </div>
                 
                 {/* 代码示例 */}
@@ -1329,7 +1330,7 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
                   <h4 className="font-semibold text-green-300 mb-1">
                     {isEnglish ? 'Code' : '代码'}
                   </h4>
-                  <div className="bg-gray-800 rounded p-2 text-xs font-mono text-green-200">
+                  <div className="bg-gray-800 rounded p-2 text-xs font-mono text-green-200 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent hover:scrollbar-thumb-gray-500 max-h-32 overflow-y-auto">
                     <pre className="whitespace-pre-wrap break-words">
                       {DOMPurify.sanitize(t.functionDetails[hoveredFunction as keyof typeof t.functionDetails]?.code || '')}
                     </pre>
@@ -1341,7 +1342,7 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
                   <h4 className="font-semibold text-yellow-300 mb-1">
                     {isEnglish ? 'Example' : '示例'}
                   </h4>
-                  <div className="bg-gray-800 rounded p-2 text-xs font-mono text-yellow-200">
+                  <div className="bg-gray-800 rounded p-2 text-xs font-mono text-yellow-200 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent hover:scrollbar-thumb-gray-500 max-h-32 overflow-y-auto">
                     <pre className="whitespace-pre-wrap break-words">
                       {DOMPurify.sanitize(t.functionDetails[hoveredFunction as keyof typeof t.functionDetails]?.example || '')}
                     </pre>
@@ -1354,7 +1355,7 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
 
         {/* 提示信息 */}
         <motion.div 
-        className="bg-blue-50 border border-blue-200 rounded-xl p-6"
+        className="bg-blue-50 border border-blue-200 rounded-xl p-6 scrollbar-thin scrollbar-thumb-blue-300 scrollbar-track-transparent hover:scrollbar-thumb-blue-400"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
