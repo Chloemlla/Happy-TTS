@@ -35,7 +35,57 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
   const [showOriginalOutput, setShowOriginalOutput] = useState(false);
   const [addOriginalToDict, setAddOriginalToDict] = useState(false);
   const [hoveredFunction, setHoveredFunction] = useState<string | null>(null);
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0, direction: 'bottom' });
+  const [isMobile, setIsMobile] = useState(false);
   const { setNotification } = useNotification();
+
+
+
+  // 检测是否为移动设备
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // 全局点击事件监听器，点击外部关闭提示框
+  React.useEffect(() => {
+    const handleClickOutside = (event: Event) => {
+      if (hoveredFunction && !(event.target as Element).closest('.tooltip-container')) {
+        setHoveredFunction(null);
+      }
+    };
+
+    const handleScroll = () => {
+      if (hoveredFunction && isMobile) {
+        setHoveredFunction(null);
+      }
+    };
+
+    if (hoveredFunction) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+      if (isMobile) {
+        document.addEventListener('scroll', handleScroll, { passive: true });
+        // 防止背景滚动
+        document.body.style.overflow = 'hidden';
+      }
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      if (isMobile) {
+        document.removeEventListener('scroll', handleScroll);
+        document.body.style.overflow = '';
+      }
+    };
+  }, [hoveredFunction, isMobile]);
 
   // 使用 useMemo 优化文案计算，避免每次渲染都重新创建对象
   const t = useMemo(() => ({
@@ -704,6 +754,199 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
     });
   }, [t.tips.cleared, setNotification]);
 
+  // 计算提示框位置
+  const calculateTooltipPosition = useCallback((event: React.MouseEvent<HTMLButtonElement> | React.FocusEvent<HTMLButtonElement>, key: string) => {
+    const button = event.currentTarget;
+    const rect = button.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    // 提示框的预估尺寸
+    const tooltipWidth = isMobile ? 280 : 320;
+    const tooltipHeight = 200;
+    
+    let direction = 'bottom';
+    let x = rect.left + rect.width / 2 - tooltipWidth / 2;
+    let y = rect.bottom + 8;
+    
+    // 检查右边界
+    if (x + tooltipWidth > viewportWidth - 20) {
+      x = viewportWidth - tooltipWidth - 20;
+    }
+    
+    // 检查左边界
+    if (x < 20) {
+      x = 20;
+    }
+    
+    // 检查下边界，如果超出则显示在上方
+    if (y + tooltipHeight > viewportHeight - 20) {
+      direction = 'top';
+      y = rect.top - tooltipHeight - 8;
+    }
+    
+    // 检查上边界
+    if (y < 20) {
+      y = 20;
+    }
+    
+    setTooltipPosition({ x, y, direction });
+    setHoveredFunction(key);
+  }, [isMobile]);
+
+  // 处理鼠标离开
+  const handleMouseLeave = useCallback(() => {
+    setHoveredFunction(null);
+  }, []);
+
+  // 处理触摸事件（移动端）
+  const handleTouchStart = useCallback((event: React.TouchEvent<HTMLButtonElement>, key: string) => {
+    if (isMobile) {
+      event.preventDefault();
+      const button = event.currentTarget;
+      const rect = button.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      
+      // 提示框的预估尺寸
+      const tooltipWidth = 280;
+      const tooltipHeight = 200;
+      
+      let direction = 'bottom';
+      let x = rect.left + rect.width / 2 - tooltipWidth / 2;
+      let y = rect.bottom + 8;
+      
+      // 检查右边界
+      if (x + tooltipWidth > viewportWidth - 20) {
+        x = viewportWidth - tooltipWidth - 20;
+      }
+      
+      // 检查左边界
+      if (x < 20) {
+        x = 20;
+      }
+      
+      // 检查下边界，如果超出则显示在上方
+      if (y + tooltipHeight > viewportHeight - 20) {
+        direction = 'top';
+        y = rect.top - tooltipHeight - 8;
+      }
+      
+      // 检查上边界
+      if (y < 20) {
+        y = 20;
+      }
+      
+      setTooltipPosition({ x, y, direction });
+      setHoveredFunction(key);
+    }
+  }, [isMobile]);
+
+  // 处理触摸结束事件（移动端）
+  const handleTouchEnd = useCallback((event: React.TouchEvent<HTMLButtonElement>) => {
+    if (isMobile) {
+      // 延迟隐藏，给用户时间查看提示框
+      setTimeout(() => {
+        setHoveredFunction(null);
+      }, 3000); // 3秒后自动隐藏
+    }
+  }, [isMobile]);
+
+  // 处理长按事件（移动端）
+  const handleLongPress = useCallback((event: React.TouchEvent<HTMLButtonElement>, key: string) => {
+    if (isMobile) {
+      event.preventDefault();
+      // 长按时显示提示框，但不执行转换
+      const button = event.currentTarget;
+      const rect = button.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      
+      // 提示框的预估尺寸
+      const tooltipWidth = 280;
+      const tooltipHeight = 200;
+      
+      let direction = 'bottom';
+      let x = rect.left + rect.width / 2 - tooltipWidth / 2;
+      let y = rect.bottom + 8;
+      
+      // 检查右边界
+      if (x + tooltipWidth > viewportWidth - 20) {
+        x = viewportWidth - tooltipWidth - 20;
+      }
+      
+      // 检查左边界
+      if (x < 20) {
+        x = 20;
+      }
+      
+      // 检查下边界，如果超出则显示在上方
+      if (y + tooltipHeight > viewportHeight - 20) {
+        direction = 'top';
+        y = rect.top - tooltipHeight - 8;
+      }
+      
+      // 检查上边界
+      if (y < 20) {
+        y = 20;
+      }
+      
+      setTooltipPosition({ x, y, direction });
+      setHoveredFunction(key);
+    }
+  }, [isMobile]);
+
+  // 处理移动端点击事件
+  const handleMobileClick = useCallback((event: React.MouseEvent<HTMLButtonElement>, key: string) => {
+    if (isMobile) {
+      event.preventDefault();
+      event.stopPropagation();
+      
+      // 执行转换功能
+      convertCase(key);
+      
+      // 如果提示框没有显示，则显示它
+      if (hoveredFunction !== key) {
+        const button = event.currentTarget;
+        const rect = button.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        
+        // 提示框的预估尺寸
+        const tooltipWidth = 280;
+        const tooltipHeight = 200;
+        
+        let direction = 'bottom';
+        let x = rect.left + rect.width / 2 - tooltipWidth / 2;
+        let y = rect.bottom + 8;
+        
+        // 检查右边界
+        if (x + tooltipWidth > viewportWidth - 20) {
+          x = viewportWidth - tooltipWidth - 20;
+        }
+        
+        // 检查左边界
+        if (x < 20) {
+          x = 20;
+        }
+        
+        // 检查下边界，如果超出则显示在上方
+        if (y + tooltipHeight > viewportHeight - 20) {
+          direction = 'top';
+          y = rect.top - tooltipHeight - 8;
+        }
+        
+        // 检查上边界
+        if (y < 20) {
+          y = 20;
+        }
+        
+        setTooltipPosition({ x, y, direction });
+        setHoveredFunction(key);
+      }
+    }
+  }, [isMobile, hoveredFunction, convertCase]);
+
   // 键盘快捷键处理
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     // Ctrl/Cmd + Enter: 转换为大写
@@ -971,75 +1214,142 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
               {Object.entries(t.functions).map(([key, label], index) => (
             <div key={key} className="relative">
                 <motion.button
-                  onClick={() => convertCase(key)}
+                  onClick={(e) => {
+                    if (isMobile) {
+                      handleMobileClick(e, key);
+                    } else {
+                      convertCase(key);
+                    }
+                  }}
                 className="w-full px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium text-sm"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: index * 0.02 }}
-                onMouseEnter={() => setHoveredFunction(key)}
-                onMouseLeave={() => setHoveredFunction(null)}
+                onMouseEnter={(e) => !isMobile && calculateTooltipPosition(e, key)}
+                onMouseLeave={handleMouseLeave}
+                onTouchStart={(e) => handleTouchStart(e, key)}
+                onTouchEnd={handleTouchEnd}
+                onTouchMove={(e) => {
+                  // 防止触摸移动时触发其他事件
+                  e.preventDefault();
+                }}
+                onFocus={(e) => !isMobile && calculateTooltipPosition(e, key)}
+                onBlur={handleMouseLeave}
                 aria-label={`${label} - ${t.functionDetails[key as keyof typeof t.functionDetails]?.description || ''}`}
                 data-testid={`convert-${key}`}
                 >
                   {label}
                 </motion.button>
-              
-              {/* 悬停提示框 */}
-              {hoveredFunction === key && (
-                <motion.div
-                  className="absolute z-50 w-80 bg-gray-900 text-white rounded-lg p-4 shadow-xl border border-gray-700"
-                  style={{
-                    top: '100%',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    marginTop: '8px'
-                  }}
-                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  {/* 箭头 */}
-                  <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-gray-900"></div>
-                  
-                  <div className="space-y-3">
-                    {/* 功能描述 */}
-                    <div>
-                      <h4 className="font-semibold text-blue-300 mb-1">
-                        {isEnglish ? 'Description' : '功能描述'}
-                      </h4>
-                      <p className="text-sm text-gray-200">
-                        {DOMPurify.sanitize(t.functionDetails[key as keyof typeof t.functionDetails]?.description || '')}
-                      </p>
-                    </div>
-                    
-                    {/* 代码示例 */}
-                    <div>
-                      <h4 className="font-semibold text-green-300 mb-1">
-                        {isEnglish ? 'Code' : '代码'}
-                      </h4>
-                      <div className="bg-gray-800 rounded p-2 text-xs font-mono text-green-200 overflow-x-auto">
-                        {DOMPurify.sanitize(t.functionDetails[key as keyof typeof t.functionDetails]?.code || '')}
-                      </div>
-                    </div>
-                    
-                    {/* 示例 */}
-                    <div>
-                      <h4 className="font-semibold text-yellow-300 mb-1">
-                        {isEnglish ? 'Example' : '示例'}
-                      </h4>
-                      <div className="bg-gray-800 rounded p-2 text-xs font-mono text-yellow-200">
-                        {DOMPurify.sanitize(t.functionDetails[key as keyof typeof t.functionDetails]?.example || '')}
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </div>
+              </div>
           ))}
           </div>
+
+          {/* 移动端背景遮罩 */}
+          {hoveredFunction && isMobile && (
+            <motion.div
+              className="fixed inset-0 bg-black bg-opacity-50 z-40"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={handleMouseLeave}
+              onTouchStart={handleMouseLeave}
+            />
+          )}
+          
+          {/* 全局悬停提示框 */}
+          {hoveredFunction && (
+            <motion.div
+              className={`fixed z-50 bg-gray-900 text-white rounded-lg p-4 shadow-xl border border-gray-700 tooltip-container ${
+                isMobile ? 'w-70 max-w-[calc(100vw-40px)]' : 'w-80'
+              }`}
+              style={{
+                left: tooltipPosition.x,
+                top: tooltipPosition.y,
+                maxHeight: isMobile ? '60vh' : '300px',
+                overflowY: 'auto',
+                ...(isMobile && {
+                  left: '20px',
+                  right: '20px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: 'auto',
+                  zIndex: 9999
+                })
+              }}
+              initial={{ opacity: 0, y: tooltipPosition.direction === 'top' ? 10 : -10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: tooltipPosition.direction === 'top' ? 10 : -10, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+              onMouseEnter={() => !isMobile && setHoveredFunction(hoveredFunction)}
+              onMouseLeave={() => !isMobile && handleMouseLeave()}
+              onTouchMove={(e) => e.stopPropagation()}
+            >
+              {/* 箭头 - 仅在桌面端显示 */}
+              {!isMobile && (
+                <div 
+                  className={`absolute w-0 h-0 border-l-4 border-r-4 border-transparent ${
+                    tooltipPosition.direction === 'top' 
+                      ? 'border-t-4 border-t-gray-900 -bottom-2' 
+                      : 'border-b-4 border-b-gray-900 -top-2'
+                  }`}
+                  style={{
+                    left: '50%',
+                    transform: 'translateX(-50%)'
+                  }}
+                ></div>
+              )}
+              
+              {/* 关闭按钮（移动端） */}
+              {isMobile && (
+                <button
+                  onClick={handleMouseLeave}
+                  className="absolute top-2 right-2 text-gray-400 hover:text-white transition-colors"
+                  aria-label={isEnglish ? 'Close tooltip' : '关闭提示'}
+                >
+                  <FaTimes className="w-4 h-4" />
+                </button>
+              )}
+              
+              <div className="space-y-3 pr-2">
+                {/* 功能描述 */}
+                <div>
+                  <h4 className="font-semibold text-blue-300 mb-1">
+                    {isEnglish ? 'Description' : '功能描述'}
+                  </h4>
+                  <p className="text-sm text-gray-200">
+                    {DOMPurify.sanitize(t.functionDetails[hoveredFunction as keyof typeof t.functionDetails]?.description || '')}
+                  </p>
+                </div>
+                
+                {/* 代码示例 */}
+                <div>
+                  <h4 className="font-semibold text-green-300 mb-1">
+                    {isEnglish ? 'Code' : '代码'}
+                  </h4>
+                  <div className="bg-gray-800 rounded p-2 text-xs font-mono text-green-200">
+                    <pre className="whitespace-pre-wrap break-words">
+                      {DOMPurify.sanitize(t.functionDetails[hoveredFunction as keyof typeof t.functionDetails]?.code || '')}
+                    </pre>
+                  </div>
+                </div>
+                
+                {/* 示例 */}
+                <div>
+                  <h4 className="font-semibold text-yellow-300 mb-1">
+                    {isEnglish ? 'Example' : '示例'}
+                  </h4>
+                  <div className="bg-gray-800 rounded p-2 text-xs font-mono text-yellow-200">
+                    <pre className="whitespace-pre-wrap break-words">
+                      {DOMPurify.sanitize(t.functionDetails[hoveredFunction as keyof typeof t.functionDetails]?.example || '')}
+                    </pre>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
         </motion.div>
 
         {/* 提示信息 */}
@@ -1061,6 +1371,8 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
           <li>• {t.tips.autoFormatTip}</li>
           <li>• {isEnglish ? 'Keyboard shortcuts: Ctrl+Enter (UPPERCASE), Ctrl+Shift+Enter (lowercase), Ctrl+K (Clear), Ctrl+S (Smart), Ctrl+A (Auto), Ctrl+N (Normalize), Ctrl+F (Fix), Ctrl+R (Readable)' : '键盘快捷键：Ctrl+Enter (全大写)，Ctrl+Shift+Enter (全小写)，Ctrl+K (清空)，Ctrl+S (智能)，Ctrl+A (自动)，Ctrl+N (标准化)，Ctrl+F (修复)，Ctrl+R (可读性)'}</li>
           <li>• {isEnglish ? 'New features: Smart case detection, Auto formatting, Text normalization, Error fixing' : '新功能：智能大小写检测、自动格式化、文本标准化、错误修复'}</li>
+          <li>• {isEnglish ? 'Enhanced tooltip: Auto-adaptive positioning, scrollable content, mobile-friendly design' : '增强提示框：自动适配定位、可滚动内容、移动端友好设计'}</li>
+          <li>• {isEnglish ? 'Mobile support: Touch-friendly interface, responsive design, background overlay' : '移动端支持：触摸友好界面、响应式设计、背景遮罩'}</li>
           </ul>
         </motion.div>
     </motion.div>
