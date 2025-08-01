@@ -6,7 +6,7 @@ import getApiBaseUrl from '../api';
 import { useAuth } from '../hooks/useAuth';
 import { useLocation } from 'react-router-dom';
 import CryptoJS from 'crypto-js';
-import { 
+import {
   FaClipboard, 
   FaUpload, 
   FaDownload,

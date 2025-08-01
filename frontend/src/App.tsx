@@ -229,7 +229,7 @@ const App: React.FC = () => {
           const data = await response.json();
           // 验证响应数据结构
           if (data && typeof data === 'object') {
-            setTotpStatus(data);
+          setTotpStatus(data);
           } else {
             setTotpStatus(null);
           }
@@ -366,13 +366,13 @@ const App: React.FC = () => {
   const handleCloseToday = () => {
     if (!announcementHash) return;
     try {
-      const today = new Date().toISOString().slice(0, 10);
+    const today = new Date().toISOString().slice(0, 10);
       const closeInfo = JSON.stringify({ type: 'date', date: today });
       localStorage.setItem(`announcement_closed_${announcementHash}`, closeInfo);
       setShowAnnouncement(false);
     } catch (error) {
       console.error('保存公告关闭信息失败:', error);
-      setShowAnnouncement(false);
+    setShowAnnouncement(false);
     }
   };
   
@@ -384,7 +384,7 @@ const App: React.FC = () => {
       setShowAnnouncement(false);
     } catch (error) {
       console.error('保存公告关闭信息失败:', error);
-      setShowAnnouncement(false);
+    setShowAnnouncement(false);
     }
   };
 

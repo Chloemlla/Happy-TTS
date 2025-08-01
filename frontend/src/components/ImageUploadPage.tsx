@@ -624,10 +624,10 @@ const ImageUploadPage: React.FC = () => {
   };
 
   return (
-    <motion.div 
+      <motion.div
       className="space-y-6"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
     >
       {/* 标题和说明 */}
@@ -803,7 +803,7 @@ const ImageUploadPage: React.FC = () => {
               </motion.button>
               
               <AnimatePresence>
-                {showExportMenu && (
+              {showExportMenu && (
                   <motion.div
                     className="absolute right-0 top-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[200px]"
                     initial={{ opacity: 0, y: -10 }}
