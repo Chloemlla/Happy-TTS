@@ -8,6 +8,7 @@ import { handleTOTPError, cleanTOTPToken, validateTOTPToken } from '../utils/tot
 import { Input } from './ui';
 import { useTwoFactorStatus } from '../hooks/useTwoFactorStatus';
 import { PasskeySetup } from './PasskeySetup';
+import { FaLock, FaCheck, FaClock, FaEye, FaKey } from 'react-icons/fa';
 
 interface TOTPManagerProps {
   onStatusChange?: (status: TOTPStatus) => void;
@@ -121,14 +122,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
         >
           <div className="flex items-center space-x-3">
             <span className="w-10 h-10 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-lg flex items-center justify-center shadow-sm">
-              <motion.svg 
-                className="w-5 h-5 text-indigo-600" 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </motion.svg>
+              <FaLock className="w-5 h-5 text-indigo-600" />
             </span>
             <div>
               <div className="text-lg font-semibold text-gray-900">二次验证</div>
@@ -138,26 +132,12 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
           <div className="flex items-center space-x-2 mt-2">
             {twoFactor.enabled ? (
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                <motion.svg 
-                  className="w-3 h-3 mr-1" 
-                  fill="currentColor" 
-                  viewBox="0 0 20 20"
-                >
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </motion.svg>
+                <FaCheck className="w-3 h-3 mr-1" />
                 已启用（{twoFactor.type.join(' + ')}）
               </span>
             ) : (
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 ml-2 align-middle">
-                <motion.svg 
-                  className="w-3 h-3 mr-1" 
-                  fill="currentColor" 
-                  viewBox="0 0 20 20"
-                >
-                  <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="2" fill="none" />
-                  <rect x="9" y="5" width="2" height="6" rx="1" fill="currentColor" />
-                  <rect x="9" y="13" width="2" height="2" rx="1" fill="currentColor" />
-                </motion.svg>
+                <FaClock className="w-3 h-3 mr-1" />
                 未启用
               </span>
             )}
@@ -180,14 +160,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
                 whileHover={{ scale: 1.02, y: -1 }}
               >
                 <div className="flex items-start">
-                  <motion.svg 
-                    className="w-5 h-5 text-green-600 mt-0.5 mr-2" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </motion.svg>
+                  <FaCheck className="w-5 h-5 text-green-600 mt-0.5 mr-2" />
                   <div>
                     <motion.p 
                       className="text-sm font-medium text-green-800"
@@ -218,14 +191,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
                   whileHover={{ scale: 1.02, y: -1 }}
                 >
                   <div className="flex items-start">
-                    <motion.svg 
-                      className="w-5 h-5 text-blue-600 mt-0.5 mr-2" 
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </motion.svg>
+                    <FaLock className="w-5 h-5 text-blue-600 mt-0.5 mr-2" />
                     <div>
                       <motion.p 
                         className="text-sm font-medium text-blue-800"
@@ -261,15 +227,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
                     whileTap={{ scale: 0.98 }}
                     className="w-full px-4 py-2 border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 transition-all duration-200 flex items-center justify-center"
                   >
-                    <motion.svg 
-                      className="w-4 h-4 mr-2" 
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </motion.svg>
+                    <FaEye className="w-4 h-4 mr-2" />
                     查看备用恢复码
                   </motion.button>
                 )}
@@ -294,14 +252,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
                 whileHover={{ scale: 1.02, y: -1 }}
               >
                 <div className="flex items-start">
-                  <motion.svg 
-                    className="w-5 h-5 text-yellow-600 mt-0.5 mr-2" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </motion.svg>
+                  <FaClock className="w-5 h-5 text-yellow-600 mt-0.5 mr-2" />
                   <div>
                     <motion.p 
                       className="text-sm font-medium text-yellow-800"
@@ -332,10 +283,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
                   className="inline-flex items-center"
                 >
                   {/* 锁图标 */}
-                  <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="text-white">
-                    <rect x="5" y="11" width="14" height="8" rx="2"/>
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                  </svg>
+                  <FaLock className="w-5 h-5 text-white" />
                 </motion.span>
                 <span>设置二次验证</span>
               </motion.button>
@@ -500,10 +448,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
               whileTap={{ scale: 0.98 }}
               className="w-full px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 text-base font-medium"
             >
-              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="text-white mr-2">
-                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                <rect x="5" y="11" width="14" height="8" rx="2" />
-              </svg>
+              <FaKey className="w-5 h-5 text-white mr-2" />
               <span>管理 Passkey 无密码认证</span>
             </motion.button>
           </motion.div>

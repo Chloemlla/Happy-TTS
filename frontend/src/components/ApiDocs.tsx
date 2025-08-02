@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { FaFileAlt, FaInfoCircle, FaExternalLinkAlt, FaLink, FaQuestionCircle } from 'react-icons/fa';
 
 const MAIN_DOC_URL = 'https://tts-api-docs.hapx.one';
 const BACKUP_DOC_URL = 'https://tts-api-docs.hapxs.com';
@@ -53,37 +54,51 @@ const ApiDocs: React.FC = () => {
       transition={{ duration: 0.6, ease: "easeOut" }}
     >
       <div className="max-w-4xl mx-auto px-4 py-8">
+        {/* 标题和语言切换 */}
         <motion.div 
-          className="flex justify-between items-center mb-6"
+          className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100 mb-6"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
+          transition={{ duration: 0.6 }}
         >
-          <h1 className="text-3xl font-bold text-indigo-700">API 文档 / API Documentation</h1>
-          <div className="flex gap-2 items-center">
-            <motion.button 
-              className={`px-3 py-1 rounded-lg transition-all duration-200 ${lang==='zh' ? 'font-bold bg-indigo-100 text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-indigo-600'}`} 
-              onClick={()=>setLang('zh')}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              中文
-            </motion.button>
-            <span className="text-gray-400">/</span>
-            <motion.button 
-              className={`px-3 py-1 rounded-lg transition-all duration-200 ${lang==='en' ? 'font-bold bg-indigo-100 text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-indigo-600'}`} 
-              onClick={()=>setLang('en')}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              EN
-            </motion.button>
+          <div className="flex justify-between items-center">
+            <h1 className="text-3xl font-bold text-blue-700 flex items-center gap-3">
+              <FaFileAlt className="text-3xl text-blue-600" />
+              API 文档 / API Documentation
+            </h1>
+            <div className="flex gap-2 items-center">
+              <motion.button 
+                className={`px-4 py-2 rounded-lg transition-all duration-200 font-medium ${
+                  lang==='zh' 
+                    ? 'bg-blue-600 text-white shadow-lg' 
+                    : 'bg-white text-gray-600 hover:bg-blue-50 border border-blue-200'
+                }`} 
+                onClick={()=>setLang('zh')}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                中文
+              </motion.button>
+              <span className="text-gray-400">/</span>
+              <motion.button 
+                className={`px-4 py-2 rounded-lg transition-all duration-200 font-medium ${
+                  lang==='en' 
+                    ? 'bg-blue-600 text-white shadow-lg' 
+                    : 'bg-white text-gray-600 hover:bg-blue-50 border border-blue-200'
+                }`} 
+                onClick={()=>setLang('en')}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                EN
+              </motion.button>
+            </div>
           </div>
         </motion.div>
         
         {/* 主要内容区域 */}
         <motion.div 
-          className="bg-white rounded-2xl shadow-2xl p-8 text-center border border-gray-100"
+          className="bg-white rounded-xl shadow-lg p-8 text-center border border-gray-200"
           initial={{ opacity: 0, scale: 0.9, y: 30 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.3, type: "spring", stiffness: 100 }}
@@ -101,9 +116,7 @@ const ApiDocs: React.FC = () => {
               transition={{ duration: 0.6, delay: 0.6, type: "spring", stiffness: 200 }}
               whileHover={{ scale: 1.1, rotate: 5 }}
             >
-              <svg className="w-10 h-10 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+              <FaFileAlt className="w-10 h-10 text-indigo-600" />
             </motion.div>
             <motion.h2 
               className="text-2xl font-bold text-gray-900 mb-4"
@@ -140,9 +153,7 @@ const ApiDocs: React.FC = () => {
                 animate={{ scale: 1 }}
                 transition={{ duration: 0.4, delay: 1.0, type: "spring", stiffness: 300 }}
               >
-                <svg className="h-6 w-6 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
+                <FaInfoCircle className="h-6 w-6 text-blue-500" />
               </motion.div>
               <motion.h3 
                 className="text-sm font-semibold text-blue-800 mb-2"
@@ -173,13 +184,13 @@ const ApiDocs: React.FC = () => {
                 </p>
                 <ul className="text-left text-xs md:text-sm mt-2 ml-4 list-disc">
                   <li>
-                    <span className="font-semibold text-indigo-700">{lang==='zh' ? '主站点：' : 'Main: '}</span>
-                    <a href={MAIN_DOC_URL} target="_blank" rel="noopener noreferrer" className="underline hover:text-indigo-900 font-bold">tts-api-docs.hapx.one</a>
+                    <span className="font-semibold text-blue-700">{lang==='zh' ? '主站点：' : 'Main: '}</span>
+                    <a href={MAIN_DOC_URL} target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-900 font-bold">tts-api-docs.hapx.one</a>
                     <span className="ml-1 text-gray-500">{lang==='zh' ? '（推荐，速度快，优先访问）' : ' (Recommended, fast, preferred)'} </span>
                   </li>
                   <li>
-                    <span className="font-semibold text-indigo-700">{lang==='zh' ? '备用站点：' : 'Backup: '}</span>
-                    <a href={BACKUP_DOC_URL} target="_blank" rel="noopener noreferrer" className="underline hover:text-indigo-900">tts-api-docs.hapxs.com</a>
+                    <span className="font-semibold text-blue-700">{lang==='zh' ? '备用站点：' : 'Backup: '}</span>
+                    <a href={BACKUP_DOC_URL} target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-900">tts-api-docs.hapxs.com</a>
                     <span className="ml-1 text-gray-500">{lang==='zh' ? '（如主站点无法访问时使用）' : ' (Use if main is unavailable)'}</span>
                   </li>
                 </ul>
@@ -192,24 +203,20 @@ const ApiDocs: React.FC = () => {
 
           <motion.button
             onClick={handleRedirect}
-            className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold py-4 px-10 rounded-xl transition-all duration-300 flex items-center mx-auto shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-4 px-10 rounded-xl transition-all duration-300 flex items-center mx-auto shadow-lg hover:shadow-xl transform hover:-translate-y-1"
             initial={{ opacity: 0, scale: 0.8, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 1.0, type: "spring", stiffness: 100 }}
             whileHover={{ scale: 1.05, y: -2 }}
             whileTap={{ scale: 0.95 }}
           >
-            <motion.svg 
-              className="w-5 h-5 mr-3" 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
+            <motion.div
               initial={{ x: -5, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               transition={{ duration: 0.3, delay: 1.2 }}
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-            </motion.svg>
+              <FaExternalLinkAlt className="w-5 h-5 mr-3" />
+            </motion.div>
             {lang==='zh' ? '查看 API 文档' : 'View API Documentation'}
           </motion.button>
         </motion.div>
@@ -226,7 +233,7 @@ const ApiDocs: React.FC = () => {
               onClick={cancelRedirect}
             >
               <motion.div 
-                className="bg-white rounded-2xl p-6 max-w-lg w-full mx-4 shadow-2xl border border-gray-100 relative my-8 max-h-[90vh] overflow-y-auto"
+                className="bg-white rounded-xl p-6 max-w-lg w-full mx-4 shadow-xl border border-gray-200 relative my-8 max-h-[90vh] overflow-y-auto"
                 initial={{ opacity: 0, scale: 0.8, y: 50 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.8, y: 50 }}
@@ -239,10 +246,8 @@ const ApiDocs: React.FC = () => {
                   transition={{ duration: 0.3, delay: 0.1 }}
                 >
                   <div className="flex items-center mb-4">
-                    <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center mr-3">
-                      <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                      <FaInfoCircle className="w-5 h-5 text-blue-600" />
                     </div>
                     <h3 className="text-xl font-bold text-gray-900">
                       {lang==='zh' ? '请选择 API 文档站点' : 'Select API Documentation Site'}
@@ -258,7 +263,7 @@ const ApiDocs: React.FC = () => {
                   {lang==='zh' 
                     ? (
                       <>
-                        <span className="block mb-1 font-semibold text-indigo-700">官方 API 文档站点</span>
+                        <span className="block mb-1 font-semibold text-blue-700">官方 API 文档站点</span>
                         <span className="block mb-1">Synapse 致力于为开发者提供权威、详尽、持续更新的 API 文档，助力高效集成与创新应用。</span>
                         <span className="block mb-1 text-blue-700">主站点响应速度快，稳定性高，推荐优先访问。</span>
                         <span className="block mb-1 text-gray-500">如遇网络问题，可选择备用站点，内容完全一致。</span>
@@ -266,7 +271,7 @@ const ApiDocs: React.FC = () => {
                       </>
                     ) : (
                       <>
-                        <span className="block mb-1 font-semibold text-indigo-700">Official API Documentation Sites</span>
+                        <span className="block mb-1 font-semibold text-blue-700">Official API Documentation Sites</span>
                         <span className="block mb-1">Synapse is committed to providing developers with authoritative, detailed, and continuously updated API docs for efficient integration and innovation.</span>
                         <span className="block mb-1 text-blue-700">The main site is fast and highly stable. Recommended for most users.</span>
                         <span className="block mb-1 text-gray-500">If you have network issues, use the backup site. Content is identical.</span>
@@ -278,23 +283,23 @@ const ApiDocs: React.FC = () => {
                 <motion.div className="flex flex-col gap-3 mb-4">
                   <motion.button
                     onClick={() => confirmRedirect(MAIN_DOC_URL)}
-                    className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl text-lg flex items-center justify-center gap-2 border-2 border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl text-lg flex items-center justify-center gap-2 border-2 border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
                     whileHover={{ scale: 1.04 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 4h6m0 0v6m0-6L10 14" /></svg>
+                    <FaExternalLinkAlt className="w-5 h-5" />
                     {lang==='zh' ? '主站点：hapx.one（推荐）' : 'Main: hapx.one (Recommended)'}
                     {autoRedirect && (
-                      <span className="ml-2 text-xs bg-white bg-opacity-80 text-indigo-700 rounded px-2 py-0.5 font-mono animate-pulse">{lang==='zh' ? `（${countdown}秒后自动跳转）` : `(Auto in ${countdown}s)`}</span>
+                      <span className="ml-2 text-xs bg-white bg-opacity-80 text-blue-700 rounded px-2 py-0.5 font-mono animate-pulse">{lang==='zh' ? `（${countdown}秒后自动跳转）` : `(Auto in ${countdown}s)`}</span>
                     )}
                   </motion.button>
                   <motion.button
                     onClick={() => confirmRedirect(BACKUP_DOC_URL)}
-                    className="flex-1 bg-gradient-to-r from-blue-100 to-indigo-50 hover:from-blue-200 hover:to-indigo-100 text-indigo-700 font-semibold py-3 px-4 rounded-xl transition-all duration-200 border-2 border-indigo-200 text-lg flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                    className="flex-1 bg-gradient-to-r from-blue-100 to-indigo-50 hover:from-blue-200 hover:to-indigo-100 text-blue-700 font-semibold py-3 px-4 rounded-xl transition-all duration-200 border-2 border-blue-200 text-lg flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-blue-200"
                     whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4" /></svg>
+                    <FaLink className="w-5 h-5" />
                     {lang==='zh' ? '备用站点：hapxs.com' : 'Backup: hapxs.com'}
                   </motion.button>
                 </motion.div>
@@ -331,8 +336,8 @@ const ApiDocs: React.FC = () => {
                 </div>
                 {/* FAQ 区域 */}
                 <div className="mt-8 p-4 bg-gray-50 rounded-xl border border-gray-200 text-left">
-                  <div className="font-bold text-indigo-700 mb-2 text-base flex items-center gap-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 14h.01M16 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  <div className="font-bold text-blue-700 mb-2 text-base flex items-center gap-2">
+                    <FaQuestionCircle className="w-4 h-4" />
                     {lang==='zh' ? '常见问题 FAQ' : 'Frequently Asked Questions'}
                   </div>
                   <div className="mb-2">

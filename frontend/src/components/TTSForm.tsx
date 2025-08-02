@@ -5,6 +5,7 @@ import { TtsRequest, TtsResponse } from '../types/tts';
 import { AudioPreview } from './AudioPreview';
 import { Input } from './ui';
 import { useNotification } from './Notification';
+import { FaLock, FaDownload, FaTimes } from 'react-icons/fa';
 
 interface TtsFormProps {
     onSuccess?: (result: TtsResponse) => void;
@@ -545,9 +546,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                                     <div className="flex flex-col items-center space-y-2">
                                         <div className="flex items-center space-x-2">
                                             <div className="w-6 h-6 bg-gradient-to-r from-red-400 to-pink-500 rounded-full flex items-center justify-center">
-                                                <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                                                </svg>
+                                                <FaTimes className="w-4 h-4 text-white" />
                                             </div>
                                             <span className="text-red-700 font-medium">验证失败，请重试</span>
                                             <button
@@ -580,9 +579,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                             animate={{ opacity: 1 }}
                             transition={{ duration: 0.3, delay: 1.3 }}
                         >
-                            <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                            </svg>
+                            <FaLock className="w-4 h-4 text-blue-500" />
                             <span>请完成人机验证以证明您是人类用户，保护系统免受自动化攻击</span>
                         </motion.div>
                     </div>
@@ -647,15 +644,9 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                                 whileHover={{ scale: 1.05, y: -1 }}
                                 whileTap={{ scale: 0.95 }}
                             >
-                                <motion.svg 
-                                    className="w-5 h-5 mr-2" 
-                                    fill="none" 
-                                    stroke="currentColor" 
-                                    viewBox="0 0 24 24"
-                                    whileHover={{ scale: 1.1 }}
-                                >
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                </motion.svg>
+                                <motion.div whileHover={{ scale: 1.1 }}>
+                                    <FaDownload className="w-5 h-5 mr-2" />
+                                </motion.div>
                                 下载
                             </motion.button>
                         )}

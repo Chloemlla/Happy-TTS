@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { validateTOTPToken, validateBackupCode, cleanTOTPToken, cleanBackupCode } from '../utils/totpUtils';
+import { FaLock, FaInfoCircle } from 'react-icons/fa';
 interface TOTPVerificationProps {
   isOpen: boolean;
   onClose: () => void;
@@ -142,18 +143,14 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
             >
               <div className="flex flex-col items-center">
                 <div className="w-16 h-16 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-                  <motion.svg 
-                    className="w-8 h-8 text-indigo-600" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
+                  <motion.div
                     initial={{ opacity: 0, rotate: -180 }}
                     animate={{ opacity: 1, rotate: 0 }}
                     transition={{ duration: 0.6, delay: 0.2, type: "spring", stiffness: 200 }}
                     whileHover={{ rotate: 5 }}
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </motion.svg>
+                    <FaLock className="w-8 h-8 text-indigo-600" />
+                  </motion.div>
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">二次验证</h2>
                 <div className="text-gray-600">请输入验证码完成登录</div>
@@ -327,15 +324,11 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
               whileHover={{ scale: 1.02, y: -2 }}
             >
               <div className="flex items-start">
-                <motion.svg 
-                  className="w-5 h-5 text-blue-600 mt-0.5 mr-2 flex-shrink-0" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
+                <motion.div
                   whileHover={{ scale: 1.1, rotate: 5 }}
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </motion.svg>
+                  <FaInfoCircle className="w-5 h-5 text-blue-600 mt-0.5 mr-2 flex-shrink-0" />
+                </motion.div>
                 <div>
                   <motion.p 
                     className="text-sm font-medium text-blue-800"

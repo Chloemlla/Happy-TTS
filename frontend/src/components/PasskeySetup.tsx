@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { usePasskey } from '../hooks/usePasskey';
 import { formatDate } from '../utils/date';
-import { KeyRoundIcon, PlusIcon, Trash2Icon, AlertTriangle } from 'lucide-react';
+import { FaKey, FaPlus, FaTrash, FaExclamationTriangle } from 'react-icons/fa';
 import { useNotification } from './Notification';
 import { motion, AnimatePresence } from 'framer-motion';
 import { renderCredentialIdModal } from './ui/CredentialIdModal';
@@ -82,7 +82,7 @@ export const PasskeySetup: React.FC = () => {
         <>
             {isPasskeySupported === false && (
                 <div className="bg-yellow-100 border border-yellow-300 text-yellow-800 rounded-lg p-4 mb-4 flex items-center gap-2">
-                    <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                    <FaExclamationTriangle className="w-5 h-5 text-yellow-500" />
                     <span>当前浏览器不支持 Passkey（无密码认证）。请使用最新版 Chrome、Edge、Safari，且确保使用 HTTPS 访问。</span>
                 </div>
             )}
@@ -96,7 +96,7 @@ export const PasskeySetup: React.FC = () => {
                 {/* 新增：Passkey唯一性提示 */}
                 <div className="mb-4">
                     <div className="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg px-4 py-3 flex items-center gap-2">
-                        <KeyRoundIcon className="w-5 h-5 text-blue-400" />
+                        <FaKey className="w-5 h-5 text-blue-400" />
                         <div>
                             <span className="font-semibold block">每个账户仅允许设置<strong>一个</strong>Passkey作为无密码验证方式。</span>
                             <span className="text-xs text-blue-600 mt-1 block">如需更换设备或认证方式，请先删除原有Passkey后再注册新Passkey。</span>
@@ -105,7 +105,7 @@ export const PasskeySetup: React.FC = () => {
                 </div>
                 <div className="flex justify-between items-center mb-2">
                     <h2 className="text-2xl font-bold flex items-center gap-2">
-                        <KeyRoundIcon className="w-7 h-7 text-indigo-500" />
+                        <FaKey className="w-7 h-7 text-indigo-500" />
                         Passkey 无密码认证
                     </h2>
                     {/* 删除右侧添加按钮 */}
@@ -125,7 +125,7 @@ export const PasskeySetup: React.FC = () => {
                                         whileHover={{ scale: 1.03, boxShadow: '0 8px 32px 0 rgba(99,102,241,0.15)' }}
                                     >
                                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                                            <KeyRoundIcon className="w-5 h-5 text-indigo-500 flex-shrink-0" />
+                                            <FaKey className="w-5 h-5 text-indigo-500 flex-shrink-0" />
                                             <div className="min-w-0">
                                                 <div className="font-semibold text-base truncate">{credential.name}</div>
                                                 <div className="text-xs text-gray-400 mt-1 truncate">添加时间：{formatDate(credential.createdAt)}</div>
@@ -140,7 +140,7 @@ export const PasskeySetup: React.FC = () => {
                                             {removingId === credential.id ? (
                                                 <span className="animate-spin w-4 h-4 sm:w-5 sm:h-5 border-2 border-red-500 border-t-transparent rounded-full"></span>
                                             ) : (
-                                                <Trash2Icon className="w-4 h-4 sm:w-5 sm:h-5" />
+                                                <FaTrash className="w-4 h-4 sm:w-5 sm:h-5" />
                                             )}
                                         </button>
                                     </motion.div>
@@ -157,14 +157,14 @@ export const PasskeySetup: React.FC = () => {
                                 transition={{ duration: 0.5 }}
                                 className="flex flex-col items-center py-12 text-gray-400"
                             >
-                                <KeyRoundIcon className="w-14 h-14 mb-3" />
+                                <FaKey className="w-14 h-14 mb-3" />
                                 <div className="mb-2 text-lg">还没有添加任何 Passkey</div>
                                 <motion.button
                                     onClick={() => setIsOpen(true)}
                                     className="mt-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg px-6 py-2 shadow-lg flex items-center gap-2 font-semibold"
                                     whileTap={{ scale: 0.97 }}
                                 >
-                                    <PlusIcon className="w-5 h-5" /> 立即添加 Passkey
+                                    <FaPlus className="w-5 h-5" /> 立即添加 Passkey
                                 </motion.button>
                             </motion.div>
                         )}
@@ -181,7 +181,7 @@ export const PasskeySetup: React.FC = () => {
                     >
                         <motion.div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-2">
                             <div className="flex items-center gap-2 mb-4">
-                                <AlertTriangle className="text-red-500 w-6 h-6" />
+                                <FaExclamationTriangle className="text-red-500 w-6 h-6" />
                                 <span className="font-bold text-lg">确认删除</span>
                             </div>
                             <div className="text-gray-600 mb-6">确定要删除这个 Passkey 吗？此操作不可恢复。</div>
@@ -218,7 +218,7 @@ export const PasskeySetup: React.FC = () => {
                     >
                         <motion.div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-2">
                             <div className="flex items-center gap-2 mb-4">
-                                <KeyRoundIcon className="text-indigo-500 w-6 h-6" />
+                                <FaKey className="text-indigo-500 w-6 h-6" />
                                 <span className="font-bold text-lg">注册新的 Passkey</span>
                             </div>
                             <div className="mb-4 text-gray-700">

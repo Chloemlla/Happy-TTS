@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
 import { usePasskey } from '../hooks/usePasskey';
-import { ShieldCheckIcon, ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { FaShieldAlt, FaExclamationTriangle, FaSync } from 'react-icons/fa';
 
 interface PasskeyVerifyModalProps {
   open: boolean;
@@ -75,7 +75,7 @@ const PasskeyVerifyModal: React.FC<PasskeyVerifyModalProps> = ({ open, username,
                   animate={{ scale: 1 }}
                   transition={{ delay: 0.2, type: "spring", damping: 15 }}
                 >
-                  <ShieldCheckIcon className="w-8 h-8 text-blue-600" />
+                  <FaShieldAlt className="w-8 h-8 text-blue-600" />
                 </motion.div>
               </div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Passkey 二次校验</h2>
@@ -131,7 +131,7 @@ const PasskeyVerifyModal: React.FC<PasskeyVerifyModalProps> = ({ open, username,
                     animate={{ rotate: 360 }}
                     transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                   >
-                    <ArrowPathIcon className="w-8 h-8 text-blue-500" />
+                    <FaSync className="w-8 h-8 text-blue-500" />
                   </motion.div>
                   <div className="space-y-2">
                     <div className="text-gray-700 font-medium">正在进行 Passkey 认证</div>
@@ -148,7 +148,7 @@ const PasskeyVerifyModal: React.FC<PasskeyVerifyModalProps> = ({ open, username,
                   animate={{ opacity: 1, scale: 1 }}
                 >
                   <div className="flex justify-center">
-                    <ExclamationTriangleIcon className="w-8 h-8 text-red-500" />
+                    <FaExclamationTriangle className="w-8 h-8 text-red-500" />
                   </div>
                   <div className="bg-red-50 border border-red-200 rounded-xl p-4">
                     <div className="text-red-700 text-sm font-medium">{error}</div>
@@ -196,7 +196,7 @@ const PasskeyVerifyModal: React.FC<PasskeyVerifyModalProps> = ({ open, username,
                 transition={{ delay: 0.2 }}
               >
                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-2">
-                  <ShieldCheckIcon className="w-7 h-7 text-green-600" />
+                  <FaShieldAlt className="w-7 h-7 text-green-600" />
                 </div>
                 <div className="text-green-700 font-semibold">认证成功，已安全登录！</div>
               </motion.div>

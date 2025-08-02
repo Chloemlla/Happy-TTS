@@ -6,6 +6,7 @@ import { TOTPSetupData } from '../types/auth';
 import { handleTOTPError, cleanTOTPToken, validateTOTPToken } from '../utils/totpUtils';
 import { PasskeySetup } from './PasskeySetup';
 import { useNotification } from './Notification';
+import { FaLock } from 'react-icons/fa';
 
 interface TOTPSetupProps {
   isOpen: boolean;
@@ -132,16 +133,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                     transition={{ type: "spring", stiffness: 200, damping: 20 }}
                     className="flex items-center"
                   >
-                    <svg
-                      className="w-6 h-6 text-indigo-500"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      viewBox="0 0 24 24"
-                    >
-                      <rect x="5" y="11" width="14" height="8" rx="2"/>
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                    </svg>
+                    <FaLock className="w-6 h-6 text-indigo-500" />
                   </motion.div>
                   <span className="text-lg sm:text-2xl font-bold text-gray-900 leading-normal select-none">二次验证</span>
                 </div>
