@@ -8,6 +8,7 @@ scripts/create_mongo_user.js
 scripts/quick-mongo-test.js
 scripts/test-mongo-simple.js
 scripts/test-mongo-connection.js
+LogPaste/
 
 # 构建输出
 dist/
