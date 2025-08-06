@@ -29,7 +29,8 @@
     "listEmittedFiles": false,
     "listFiles": false,
     "traceResolution": false,
-    "useDefineForClassFields": true
+    "useDefineForClassFields": true,
+    "allowSyntheticDefaultImports": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "dist-obfuscated", "tests", "**/*.test.ts", "**/*.spec.ts", "scripts/test-totp-url.ts", "scripts/test-totp-url.js"]

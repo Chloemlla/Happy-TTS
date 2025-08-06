@@ -6,7 +6,7 @@ import session from 'express-session';
 import mongoStore from 'connect-mongo';
 import dotenv from 'dotenv';
 import path from 'path';
-import csurf from 'csurf';
+import * as csurf from 'csurf';
 
 // 导入路由
 import adminRoutes from '@/routes/admin';
@@ -73,11 +73,15 @@ app.use(session({
     collectionName: 'sessions',
     ttl: 24 * 60 * 60, // 24小时
   }),
-  cookie: config.session.cookie,
+  // 修正 sameSite 类型，避免类型错误
+  cookie: {
+    ...config.session.cookie,
+    sameSite: config.session.cookie.sameSite as boolean | 'lax' | 'strict' | 'none' | undefined,
+  },
 }));
 
 // 在 session 之后注册 CSRF 中间件
-app.use(csurf({ cookie: true }));
+app.use(csurf.default({ cookie: true }));
 
 // 健康检查
 app.get('/health', (req, res) => {

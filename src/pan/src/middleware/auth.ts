@@ -2,10 +2,10 @@ import { Request, Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '@/types';
 import { logger } from '@/utils/logger';
 
-export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+export const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
   try {
     // 检查会话是否存在
-    if (!req.session || !req.session.adminId) {
+    if (!req.session || !(req.session as any).adminId) {
       return res.status(401).json({
         success: false,
         error: 'Unauthorized',
@@ -16,7 +16,7 @@ export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: N
     // 这里可以添加额外的验证逻辑，比如检查管理员是否仍然有效
     // 暂时直接通过，后续可以添加数据库验证
 
-    logger.info(`Admin ${req.session.username} accessed ${req.method} ${req.path}`);
+    logger.info(`Admin ${(req.session as any).username} accessed ${req.method} ${req.path}`);
     next();
   } catch (error) {
     logger.error('Auth middleware error:', error);
@@ -28,9 +28,9 @@ export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: N
   }
 };
 
-export const adminRoleMiddleware = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+export const adminRoleMiddleware = (req: Request, res: Response, next: NextFunction) => {
   try {
-    if (!req.session || req.session.role !== 'admin') {
+    if (!req.session || (req.session as any).role !== 'admin') {
       return res.status(403).json({
         success: false,
         error: 'Forbidden',
@@ -48,9 +48,9 @@ export const adminRoleMiddleware = (req: AuthenticatedRequest, res: Response, ne
   }
 };
 
-export const superAdminMiddleware = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+export const superAdminMiddleware = (req: Request, res: Response, next: NextFunction) => {
   try {
-    if (!req.session || req.session.role !== 'super_admin') {
+    if (!req.session || (req.session as any).role !== 'super_admin') {
       return res.status(403).json({
         success: false,
         error: 'Forbidden',
