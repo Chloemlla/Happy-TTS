@@ -172,7 +172,7 @@ def recreate_container(ssh, old_container_name, new_image_url):
         create_command += f"--cpu-shares {host_config['CpuShares']} "
 
     # 继承设备映射
-    devices = host_config.get("Devices", [])
+    devices = host_config.get("Devices") or []
     for device in devices:
         path_on_host = device.get("PathOnHost", "")
         path_in_container = device.get("PathInContainer", "")
