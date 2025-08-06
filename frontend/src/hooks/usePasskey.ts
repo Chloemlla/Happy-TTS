@@ -136,7 +136,25 @@ export const usePasskey = (): UsePasskeyReturn & {
             });
             
             // 获取认证选项
-            const optionsResponse = await passkeyApi.startAuthentication(username);
+            let optionsResponse;
+            try {
+                optionsResponse = await passkeyApi.startAuthentication(username);
+            } catch (error: any) {
+                // 处理 400 错误（未启用 Passkey 或无凭证）
+                if (error.response && error.response.status === 400) {
+                    addDebugInfo({
+                        action: 'Passkey认证API 400 错误',
+                        error: error.response.data?.error || error.message,
+                        timestamp: new Date().toISOString()
+                    });
+                    // 弹窗提示
+                    window.alert('未启用 Passkey，请用其他方式登录或先注册 Passkey。');
+                    setIsLoading(false);
+                    return false;
+                }
+                // 其他错误抛出
+                throw error;
+            }
             
             // 记录API响应信息
             addDebugInfo({

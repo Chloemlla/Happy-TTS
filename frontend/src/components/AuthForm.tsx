@@ -232,6 +232,14 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                     
                     // 检查是否同时启用了多种验证方式
                     const verificationTypes = result.twoFactorType;
+                    
+                    // 新增：检查是否启用了任何二次验证方式
+                    if (!verificationTypes || verificationTypes.length === 0) {
+                        setNotify({ message: '未启用任何二次验证方式，请联系管理员', type: 'error' });
+                        setLoading(false);
+                        return;
+                    }
+                    
                     const hasPasskey = verificationTypes.includes('Passkey');
                     const hasTOTP = verificationTypes.includes('TOTP');
                     
@@ -697,6 +705,9 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                     onSelectMethod={handleVerificationMethodSelect}
                     username={pendingVerificationData.username}
                     loading={loading}
+                    availableMethods={pendingVerificationData.user.twoFactorType?.map((type: string) => 
+                        type === 'Passkey' ? 'passkey' : type === 'TOTP' ? 'totp' : null
+                    ).filter(Boolean) as ('passkey' | 'totp')[] || []}
                 />
             )}
 
