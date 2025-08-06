@@ -28,7 +28,7 @@ const adminSchema = new Schema<IAdmin>({
     unique: true,
     trim: true,
     lowercase: true,
-    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, '请输入有效的邮箱地址']
+    match: [/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/, '请输入有效的邮箱地址']
   },
   password: {
     type: String,
