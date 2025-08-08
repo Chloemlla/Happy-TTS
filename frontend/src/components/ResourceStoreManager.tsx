@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { resourcesApi, Resource } from '../api/resources';
+import { UnifiedLoadingSpinner } from './LoadingSpinner';
 
 export default function ResourceStoreManager() {
   const [resources, setResources] = useState<Resource[]>([]);
@@ -23,7 +24,7 @@ export default function ResourceStoreManager() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <UnifiedLoadingSpinner size="lg" text="加载资源列表..." />
       </div>
     );
   }

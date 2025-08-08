@@ -35,6 +35,15 @@ const ImageUploadPage = React.lazy(() => import('./components/ImageUploadPage'))
 const TigerAdventure = React.lazy(() => import('./components/TigerAdventure'));
 const CoinFlip = React.lazy(() => import('./components/CoinFlip'));
 
+// 资源商店相关组件懒加载
+const AdminLogin = React.lazy(() => import('./components/AdminLogin'));
+const AdminStoreDashboard = React.lazy(() => import('./components/AdminStoreDashboard'));
+const ResourceStoreApp = React.lazy(() => import('./components/ResourceStoreApp'));
+const ResourceStoreDetail = React.lazy(() => import('./components/ResourceStoreDetail'));
+const ResourceStoreList = React.lazy(() => import('./components/ResourceStoreList'));
+const ResourceStoreManager = React.lazy(() => import('./components/ResourceStoreManager'));
+const CDKStoreManager = React.lazy(() => import('./components/CDKStoreManager'));
+
 // 恢复 EmailSender 懒加载
 const EmailSenderPage: React.FC = () => {
   const [to, setTo] = React.useState('');
@@ -707,6 +716,98 @@ const App: React.FC = () => {
                     <CoinFlip />
                   </motion.div>
                 </Suspense>
+              } />
+              
+              {/* 资源商店相关路由 */}
+              <Route path="/store" element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <motion.div
+                    variants={pageVariants}
+                    initial="initial"
+                    animate="in"
+                    exit="out"
+                    transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                  >
+                    <ResourceStoreList />
+                  </motion.div>
+                </Suspense>
+              } />
+              <Route path="/store/resources/:id" element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <motion.div
+                    variants={pageVariants}
+                    initial="initial"
+                    animate="in"
+                    exit="out"
+                    transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                  >
+                    <ResourceStoreDetail />
+                  </motion.div>
+                </Suspense>
+              } />
+              <Route path="/admin/login" element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <motion.div
+                    variants={pageVariants}
+                    initial="initial"
+                    animate="in"
+                    exit="out"
+                    transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                  >
+                    <AdminLogin />
+                  </motion.div>
+                </Suspense>
+              } />
+              <Route path="/admin/store" element={
+                user?.role === 'admin' ? (
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <motion.div
+                      variants={pageVariants}
+                      initial="initial"
+                      animate="in"
+                      exit="out"
+                      transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                    >
+                      <AdminStoreDashboard />
+                    </motion.div>
+                  </Suspense>
+                ) : (
+                  <Navigate to="/admin/login" replace />
+                )
+              } />
+              <Route path="/admin/store/resources" element={
+                user?.role === 'admin' ? (
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <motion.div
+                      variants={pageVariants}
+                      initial="initial"
+                      animate="in"
+                      exit="out"
+                      transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                    >
+                      <ResourceStoreManager />
+                    </motion.div>
+                  </Suspense>
+                ) : (
+                  <Navigate to="/admin/login" replace />
+                )
+              } />
+              <Route path="/admin/store/cdks" element={
+                user?.role === 'admin' ? (
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <motion.div
+                      variants={pageVariants}
+                      initial="initial"
+                      animate="in"
+                      exit="out"
+                      transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                    >
+                      <CDKStoreManager />
+                    </motion.div>
+                  </Suspense>
+                ) : (
+                  <Navigate to="/admin/login" replace />
+                )
               } />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

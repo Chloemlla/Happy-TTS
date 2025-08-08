@@ -1,6 +1,7 @@
 import React, { Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { UnifiedLoadingSpinner } from './LoadingSpinner';
 
 // 受保护的路由组件
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -22,7 +23,7 @@ const CDKStoreManager = React.lazy(() => import('./CDKStoreManager'));
 // 简单加载组件
 const SimpleLoadingSpinner = () => (
   <div className="flex items-center justify-center min-h-screen">
-    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+    <UnifiedLoadingSpinner size="lg" text="加载中..." />
   </div>
 );
 

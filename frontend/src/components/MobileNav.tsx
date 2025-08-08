@@ -658,6 +658,41 @@ const MobileNav: React.FC<MobileNavProps> = ({
                       )}
                     </Link>
                   </motion.div>
+                  {/* 资源商店管理 */}
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.4, delay: 0.27 }}
+                  >
+                    <Link
+                      to="/admin/store"
+                      className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
+                        location.pathname.startsWith('/admin/store') ? 'bg-blue-50 text-blue-700 font-semibold shadow-sm' : 'hover:bg-blue-50'
+                      }`}
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <motion.svg 
+                        className={`w-5 h-5 ${location.pathname.startsWith('/admin/store') ? 'text-blue-500' : 'text-gray-400'}`} 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                        whileHover={{ scale: 1.1, rotate: 5 }}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                      </motion.svg>
+                      <span>资源商店管理</span>
+                      {location.pathname.startsWith('/admin/store') && (
+                        <motion.span 
+                          className="ml-auto text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full"
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                        >
+                          当前
+                        </motion.span>
+                      )}
+                    </Link>
+                  </motion.div>
                   {/* 邮件发送 */}
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
@@ -811,11 +846,47 @@ const MobileNav: React.FC<MobileNavProps> = ({
                 </Link>
               </motion.div>
 
+              {/* 资源商店 */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.42 }}
+              >
+                <Link
+                  to="/store"
+                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
+                    location.pathname.startsWith('/store') ? 'bg-orange-50 text-orange-700 font-semibold shadow-sm' : 'hover:bg-orange-50'
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <motion.svg 
+                    className={`w-5 h-5 ${location.pathname.startsWith('/store') ? 'text-orange-500' : 'text-gray-400'}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                  </motion.svg>
+                  <span>资源商店</span>
+                  {location.pathname.startsWith('/store') && (
+                    <motion.span 
+                      className="ml-auto text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full"
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                    >
+                      当前
+                    </motion.span>
+                  )}
+                </Link>
+              </motion.div>
+
               {/* API 文档 */}
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.45 }}
+                transition={{ duration: 0.4, delay: 0.47 }}
               >
                 <Link
                   to="/api-docs"
@@ -850,7 +921,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.48 }}
+                transition={{ duration: 0.4, delay: 0.5 }}
               >
                 <Link
                   to="/lottery"
@@ -923,7 +994,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.52 }}
+                transition={{ duration: 0.4, delay: 0.54 }}
               >
                 <Link
                   to="/coin-flip"
@@ -1002,7 +1073,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.55 }}
+                transition={{ duration: 0.4, delay: 0.57 }}
               >
                 <motion.button
                   onClick={handleLogout}
