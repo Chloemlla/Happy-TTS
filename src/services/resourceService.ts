@@ -8,12 +8,18 @@ export class ResourceService {
 
   async getResources(page: number, category?: string) {
     try {
+      // 验证和清理输入参数
+      const validatedPage = Math.max(1, Math.floor(Number(page) || 1));
       const pageSize = 10;
-      const skip = (page - 1) * pageSize;
+      const skip = (validatedPage - 1) * pageSize;
+      
+      // 验证category参数，只允许预定义的类别
+      const validCategories = this.categories;
+      const validatedCategory = category && validCategories.includes(category) ? category : undefined;
       
       let query = ResourceModel.find({ isActive: true });
-      if (category) {
-        query = query.where('category', category);
+      if (validatedCategory) {
+        query = query.where('category', validatedCategory);
       }
       
       const [resources, total] = await Promise.all([
@@ -21,12 +27,12 @@ export class ResourceService {
         query.countDocuments()
       ]);
       
-      logger.info('获取资源列表成功', { page, category, total });
+      logger.info('获取资源列表成功', { page: validatedPage, category: validatedCategory, total });
       
       return {
         resources: resources.map(r => r.toObject()),
         total,
-        page,
+        page: validatedPage,
         pageSize
       };
     } catch (error) {
@@ -37,6 +43,12 @@ export class ResourceService {
 
   async getResourceById(id: string) {
     try {
+      // 验证ID格式，确保是有效的MongoDB ObjectId
+      if (!id || typeof id !== 'string' || id.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(id)) {
+        logger.warn('无效的资源ID格式', { id });
+        return null;
+      }
+      
       const resource = await ResourceModel.findById(id);
       if (!resource) {
         logger.warn('资源不存在', { id });

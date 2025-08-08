@@ -9,6 +9,12 @@ export class CDKService {
 
   async redeemCDK(code: string) {
     try {
+      // 验证CDK代码格式
+      if (!code || typeof code !== 'string' || code.length !== 16 || !/^[A-Z0-9]{16}$/.test(code)) {
+        logger.warn('无效的CDK代码格式', { code });
+        throw new Error('无效的CDK代码格式');
+      }
+      
       // 使用findOneAndUpdate确保原子性操作，避免并发问题
       const cdk = await CDKModel.findOneAndUpdate(
         { 
@@ -53,12 +59,20 @@ export class CDKService {
 
   async getCDKs(page: number, resourceId?: string) {
     try {
+      // 验证和清理输入参数
+      const validatedPage = Math.max(1, Math.floor(Number(page) || 1));
       const pageSize = 10;
-      const skip = (page - 1) * pageSize;
+      const skip = (validatedPage - 1) * pageSize;
+      
+      // 验证resourceId格式
+      const validatedResourceId = resourceId && 
+        typeof resourceId === 'string' && 
+        resourceId.length === 24 && 
+        /^[0-9a-fA-F]{24}$/.test(resourceId) ? resourceId : undefined;
       
       let query = CDKModel.find();
-      if (resourceId) {
-        query = query.where('resourceId', resourceId);
+      if (validatedResourceId) {
+        query = query.where('resourceId', validatedResourceId);
       }
       
       const [cdks, total] = await Promise.all([
@@ -66,11 +80,11 @@ export class CDKService {
         query.countDocuments()
       ]);
 
-      logger.info('获取CDK列表成功', { page, resourceId, total });
+      logger.info('获取CDK列表成功', { page: validatedPage, resourceId: validatedResourceId, total });
       return {
         cdks: cdks.map(c => c.toObject()),
         total,
-        page,
+        page: validatedPage,
         pageSize
       };
     } catch (error) {

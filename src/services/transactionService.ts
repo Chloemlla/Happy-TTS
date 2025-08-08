@@ -33,6 +33,15 @@ export class TransactionService {
     count: number, 
     expiresAt?: Date
   ) {
+    // 验证输入参数
+    if (!resourceId || typeof resourceId !== 'string' || resourceId.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(resourceId)) {
+      throw new Error('无效的资源ID格式');
+    }
+    
+    if (!count || typeof count !== 'number' || count <= 0 || count > 1000) {
+      throw new Error('无效的生成数量，必须在1-1000之间');
+    }
+    
     return this.executeTransaction(async (session) => {
       // 验证资源存在
       const ResourceModel = mongoose.model('Resource');
@@ -67,6 +76,11 @@ export class TransactionService {
    * 删除资源及其相关CDK的事务操作
    */
   static async deleteResourceWithCDKs(resourceId: string) {
+    // 验证输入参数
+    if (!resourceId || typeof resourceId !== 'string' || resourceId.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(resourceId)) {
+      throw new Error('无效的资源ID格式');
+    }
+    
     return this.executeTransaction(async (session) => {
       const ResourceModel = mongoose.model('Resource');
       const CDKModel = mongoose.model('CDK');
