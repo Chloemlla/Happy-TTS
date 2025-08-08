@@ -566,15 +566,16 @@ router.get('/user/profile', authMiddleware, async (req, res) => {
     if (dbUser) {
       email = dbUser.email;
       if (dbUser.avatarUrl && typeof dbUser.avatarUrl === 'string' && dbUser.avatarUrl.length > 0) {
-        avatarUrl = dbUser.avatarUrl;
+        // 将 ipfs.crossbell.io 替换为 ipfs.hapxs.com
+        avatarUrl = dbUser.avatarUrl.replace('ipfs.crossbell.io', 'ipfs.hapxs.com');
         // 尝试从URL中提取hash（如文件名带hash），否则可用md5等生成
-        const match = dbUser.avatarUrl.match(/([a-fA-F0-9]{8,})\.(jpg|jpeg|png|webp|gif)$/);
+        const match = avatarUrl.match(/([a-fA-F0-9]{8,})\.(jpg|jpeg|png|webp|gif)$/);
         if (match) {
           avatarHash = match[1];
         } else {
           // 若URL不带hash，可用URL整体md5
           const crypto = require('crypto');
-          avatarHash = crypto.createHash('md5').update(dbUser.avatarUrl).digest('hex');
+          avatarHash = crypto.createHash('md5').update(avatarUrl).digest('hex');
         }
       }
     }
