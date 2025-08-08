@@ -89,6 +89,7 @@ export const useAuth = () => {
         try {
             const token = localStorage.getItem('token');
             if (!token) {
+                console.log('没有找到token，设置用户为null');
                 setUser(null);
                 setLoading(false);
                 return;
@@ -112,17 +113,23 @@ export const useAuth = () => {
             }
             
             const data = response.data;
+            console.log('认证检查成功，用户数据:', data);
             if (data) {
                 setUser(data);
                 if (data.role === 'admin' && !isAdminCheckedRef.current) {
+                    console.log('检测到管理员用户，当前路径:', locationPathRef.current);
                     setIsAdminChecked(true);
                     // 只在访问根路径/时才重定向到首页，其他页面不跳转
-                    const excludedPaths = ['/policy', '/welcome', '/admin/users'];
+                    const excludedPaths = ['/policy', '/welcome', '/admin/users', '/admin/store', '/admin/resources', '/admin/cdks'];
                     if (locationPathRef.current === '/' && !excludedPaths.includes(locationPathRef.current)) {
+                        console.log('重定向到首页');
                         navigate('/', { replace: true });
+                    } else {
+                        console.log('不重定向，当前路径:', locationPathRef.current);
                     }
                 }
             } else {
+                console.log('认证检查返回空数据，清除用户状态');
                 setUser(null);
                 localStorage.removeItem('token');
             }

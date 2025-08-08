@@ -6,6 +6,16 @@ import logger from '../utils/logger';
 export class ResourceService {
   private categories = ['软件', '游戏', '教程', '素材', '其他'];
 
+  // 辅助方法：确保资源对象有id字段
+  private normalizeResource(resource: any) {
+    const obj = typeof resource.toObject === 'function' ? resource.toObject() : resource;
+    // 确保id字段存在
+    if (obj._id && !obj.id) {
+      obj.id = obj._id.toString();
+    }
+    return obj;
+  }
+
   async getResources(page: number, category?: string) {
     try {
       // 验证和清理输入参数
@@ -26,17 +36,15 @@ export class ResourceService {
         queryFilter.category = validatedCategory;
       }
       
-      let query = ResourceModel.find(queryFilter);
-      
       const [resources, total] = await Promise.all([
-        query.skip(skip).limit(pageSize).sort({ createdAt: -1 }),
-        query.countDocuments()
+        ResourceModel.find(queryFilter).skip(skip).limit(pageSize).sort({ createdAt: -1 }),
+        ResourceModel.countDocuments(queryFilter)
       ]);
       
       logger.info('获取资源列表成功', { page: validatedPage, category: validatedCategory, total });
       
       return {
-        resources: resources.map(r => r.toObject()),
+        resources: resources.map(r => this.normalizeResource(r)),
         total,
         page: validatedPage,
         pageSize
@@ -50,7 +58,7 @@ export class ResourceService {
   async getResourceById(id: string) {
     try {
       // 验证ID格式，确保是有效的MongoDB ObjectId
-      if (!id || typeof id !== 'string' || id.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(id)) {
+      if (!id || typeof id !== 'string' || id.trim() === '' || id.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(id)) {
         logger.warn('无效的资源ID格式', { id });
         return null;
       }
@@ -61,7 +69,7 @@ export class ResourceService {
         return null;
       }
       logger.info('获取资源详情成功', { id });
-      return resource.toObject();
+      return this.normalizeResource(resource);
     } catch (error) {
       logger.error('获取资源详情失败:', error);
       throw error;
@@ -119,7 +127,7 @@ export class ResourceService {
       const resource = new ResourceModel(validatedData);
       await resource.save();
       logger.info('创建资源成功', { id: resource._id, title: resource.title });
-      return resource.toObject();
+      return this.normalizeResource(resource);
     } catch (error) {
       logger.error('创建资源失败:', error);
       throw error;
@@ -129,7 +137,7 @@ export class ResourceService {
   async updateResource(id: string, data: Partial<IResource>) {
     try {
       // 验证ID格式，确保是有效的MongoDB ObjectId
-      if (!id || typeof id !== 'string' || id.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(id)) {
+      if (!id || typeof id !== 'string' || id.trim() === '' || id.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(id)) {
         logger.warn('无效的资源ID格式', { id });
         return null;
       }
@@ -188,7 +196,7 @@ export class ResourceService {
         return null;
       }
       logger.info('更新资源成功', { id, title: resource.title });
-      return resource.toObject();
+      return this.normalizeResource(resource);
     } catch (error) {
       logger.error('更新资源失败:', error);
       throw error;
@@ -198,7 +206,7 @@ export class ResourceService {
   async deleteResource(id: string) {
     try {
       // 验证ID格式，确保是有效的MongoDB ObjectId
-      if (!id || typeof id !== 'string' || id.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(id)) {
+      if (!id || typeof id !== 'string' || id.trim() === '' || id.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(id)) {
         logger.warn('无效的资源ID格式', { id });
         throw new Error('无效的资源ID格式');
       }
@@ -223,6 +231,65 @@ export class ResourceService {
       return { total };
     } catch (error) {
       logger.error('获取资源统计失败:', error);
+      throw error;
+    }
+  }
+
+  // 初始化测试资源（仅用于开发和测试）
+  async initializeTestResources() {
+    try {
+      // 清理无效的资源数据（title为'resources'的数据）
+      const deleteResult = await ResourceModel.deleteMany({ title: 'resources' });
+      if (deleteResult.deletedCount > 0) {
+        logger.info('清理了无效资源数据', { deletedCount: deleteResult.deletedCount });
+      }
+      
+      const existingCount = await ResourceModel.countDocuments();
+      if (existingCount > 0) {
+        logger.info('资源已存在，跳过初始化', { existingCount });
+        return { message: '资源已存在，跳过初始化', count: existingCount };
+      }
+
+      const testResources = [
+        {
+          title: '测试软件资源',
+          description: '这是一个测试软件资源包，包含常用开发工具',
+          downloadUrl: 'https://example.com/software-pack.zip',
+          price: 0,
+          category: '软件',
+          imageUrl: '',
+          isActive: true
+        },
+        {
+          title: '测试游戏资源',
+          description: '游戏开发资源包，包含游戏素材和工具',
+          downloadUrl: 'https://example.com/game-pack.zip',
+          price: 15,
+          category: '游戏',
+          imageUrl: '',
+          isActive: true
+        },
+        {
+          title: '测试教程资源',
+          description: '学习教程集合，包含视频和文档',
+          downloadUrl: 'https://example.com/tutorial-pack.zip',
+          price: 5,
+          category: '教程',
+          imageUrl: '',
+          isActive: true
+        }
+      ];
+
+      const createdResources = await ResourceModel.insertMany(testResources);
+      logger.info('测试资源初始化成功', { count: createdResources.length });
+      
+      return { 
+        message: '测试资源初始化成功', 
+        count: createdResources.length,
+        resources: createdResources.map(r => ({ id: r._id.toString(), title: r.title }))
+      };
+    } catch (error) {
+      logger.error('初始化测试资源失败:', error);
       throw error;
     }
   }

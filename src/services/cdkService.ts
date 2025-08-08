@@ -1,5 +1,7 @@
+import mongoose from 'mongoose';
 import { ICDK } from '../models/cdkModel';
 import CDKModel from '../models/cdkModel';
+import ResourceModel from '../models/resourceModel';
 import { ResourceService } from './resourceService';
 import { TransactionService } from './transactionService';
 import logger from '../utils/logger';
@@ -67,17 +69,18 @@ export class CDKService {
       // 验证resourceId格式
       const validatedResourceId = resourceId && 
         typeof resourceId === 'string' && 
+        resourceId.trim() !== '' &&
         resourceId.length === 24 && 
         /^[0-9a-fA-F]{24}$/.test(resourceId) ? resourceId : undefined;
       
-      let query = CDKModel.find();
+      const queryFilter: any = {};
       if (validatedResourceId) {
-        query = query.where('resourceId', validatedResourceId);
+        queryFilter.resourceId = validatedResourceId;
       }
       
       const [cdks, total] = await Promise.all([
-        query.skip(skip).limit(pageSize).sort({ createdAt: -1 }),
-        query.countDocuments()
+        CDKModel.find(queryFilter).skip(skip).limit(pageSize).sort({ createdAt: -1 }),
+        CDKModel.countDocuments(queryFilter)
       ]);
 
       logger.info('获取CDK列表成功', { page: validatedPage, resourceId: validatedResourceId, total });
@@ -139,6 +142,50 @@ export class CDKService {
       logger.info('删除CDK成功', { id, code: cdk.code });
     } catch (error) {
       logger.error('删除CDK失败:', error);
+      throw error;
+    }
+  }
+
+  // 获取用户已兑换的资源
+  async getUserRedeemedResources(userIp: string) {
+    try {
+      // 查找该IP地址兑换过的CDK
+      const redeemedCDKs = await CDKModel.find({ 
+        isUsed: true, 
+        usedIp: userIp 
+      }).sort({ usedAt: -1 });
+
+      if (redeemedCDKs.length === 0) {
+        return { resources: [], total: 0 };
+      }
+
+      // 获取资源详情
+      const resourceIds = [...new Set(redeemedCDKs.map(cdk => cdk.resourceId))];
+      const resources = await ResourceModel.find({ _id: { $in: resourceIds } });
+
+      // 合并CDK信息和资源信息
+      const result = resources.map((resource: any) => {
+        const relatedCDKs = redeemedCDKs.filter(cdk => cdk.resourceId === resource._id.toString());
+        const latestRedemption = relatedCDKs[0]; // 已按时间排序
+        
+        return {
+          id: resource._id.toString(),
+          title: resource.title,
+          description: resource.description,
+          downloadUrl: resource.downloadUrl,
+          price: resource.price,
+          category: resource.category,
+          imageUrl: resource.imageUrl,
+          redeemedAt: latestRedemption.usedAt,
+          cdkCode: latestRedemption.code,
+          redemptionCount: relatedCDKs.length
+        };
+      });
+
+      logger.info('获取用户已兑换资源成功', { userIp, total: result.length });
+      return { resources: result, total: result.length };
+    } catch (error) {
+      logger.error('获取用户已兑换资源失败:', error);
       throw error;
     }
   }

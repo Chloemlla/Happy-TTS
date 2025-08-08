@@ -4,7 +4,7 @@ import { ShortUrlController } from '../controllers/shortUrlController';
 const router = Router();
 
 // 短链重定向（公开访问）
-router.get('/s/:code', ShortUrlController.redirectToTarget);
+router.get('/:code', ShortUrlController.redirectToTarget);
 
 // 用户短链管理（需要登录）
 router.get('/shorturls', ShortUrlController.getUserShortUrls);

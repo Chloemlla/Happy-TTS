@@ -5,13 +5,15 @@ import {
   generateCDKs,
   deleteCDK,
   getCDKs,
-  getCDKStats
+  getCDKStats,
+  getUserRedeemedResources
 } from '../controllers/cdkController';
 
 const router = Router();
 
 // 公共API
 router.post('/redeem', redeemCDK);
+router.get('/redeemed', getUserRedeemedResources);
 
 // 管理员API
 router.get('/cdks', authenticateAdmin, getCDKs);

@@ -87,4 +87,15 @@ export const getResourceStats = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     res.status(500).json({ message: '获取资源统计信息失败' });
   }
+};
+
+// 初始化测试资源（仅用于开发和测试）
+export const initializeTestResources = async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await resourceService.initializeTestResources();
+    res.json(result);
+  } catch (error) {
+    logger.error('初始化测试资源失败:', error);
+    res.status(500).json({ message: '初始化测试资源失败' });
+  }
 }; 

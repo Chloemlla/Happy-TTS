@@ -2,7 +2,7 @@ import axios, { AxiosInstance } from 'axios';
 
 // 获取API基础URL
 const getApiBaseUrl = () => {
-    if (import.meta.env.DEV) return '';
+    if (import.meta.env.DEV) return 'http://localhost:3000';
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
     return 'https://api.hapxs.com';
 };

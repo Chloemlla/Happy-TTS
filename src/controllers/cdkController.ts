@@ -65,4 +65,16 @@ export const deleteCDK = async (req: AuthRequest, res: Response) => {
     logger.error('删除CDK失败:', error);
     res.status(500).json({ message: '删除CDK失败' });
   }
+};
+
+// 获取用户已兑换的资源
+export const getUserRedeemedResources = async (req: Request, res: Response) => {
+  try {
+    const userIp = req.ip || req.connection.remoteAddress || req.socket.remoteAddress || '127.0.0.1';
+    const result = await cdkService.getUserRedeemedResources(userIp);
+    res.json(result);
+  } catch (error) {
+    logger.error('获取用户已兑换资源失败:', error);
+    res.status(500).json({ message: '获取已兑换资源失败' });
+  }
 }; 

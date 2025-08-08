@@ -1,4 +1,4 @@
-import { api } from './api';
+import { api, getApiBaseUrl } from './api';
 import { Resource } from './resources';
 
 export interface CDK {
@@ -30,10 +30,28 @@ export interface RedeemResult {
   cdk: CDK;
 }
 
+export interface RedeemedResource {
+  id: string;
+  title: string;
+  description: string;
+  downloadUrl: string;
+  price: number;
+  category: string;
+  imageUrl: string;
+  redeemedAt: Date;
+  cdkCode: string;
+  redemptionCount: number;
+}
+
+export interface RedeemedResourcesResponse {
+  resources: RedeemedResource[];
+  total: number;
+}
+
 export const cdksApi = {
   // CDK兑换
   redeemCDK: async (code: string): Promise<RedeemResult> => {
-    const response = await api.post('/api/redeem', { code });
+    const response = await api.post(`${getApiBaseUrl()}/api/redeem`, { code });
     return response.data;
   },
 
@@ -43,19 +61,19 @@ export const cdksApi = {
     params.append('page', page.toString());
     if (resourceId) params.append('resourceId', resourceId);
     
-    const response = await api.get(`/api/cdks?${params}`);
+    const response = await api.get(`${getApiBaseUrl()}/api/cdks?${params}`);
     return response.data;
   },
 
   // 获取CDK统计
   getCDKStats: async (): Promise<CDKStats> => {
-    const response = await api.get('/api/cdks/stats');
+    const response = await api.get(`${getApiBaseUrl()}/api/cdks/stats`);
     return response.data;
   },
 
   // 生成CDK
   generateCDKs: async (resourceId: string, count: number, expiresAt?: Date): Promise<CDK[]> => {
-    const response = await api.post('/api/cdks/generate', {
+    const response = await api.post(`${getApiBaseUrl()}/api/cdks/generate`, {
       resourceId,
       count,
       expiresAt
@@ -63,8 +81,20 @@ export const cdksApi = {
     return response.data;
   },
 
+  // 更新CDK
+  updateCDK: async (id: string, cdk: Partial<CDK>): Promise<CDK> => {
+    const response = await api.put(`${getApiBaseUrl()}/api/cdks/${id}`, cdk);
+    return response.data;
+  },
+
   // 删除CDK
   deleteCDK: async (id: string): Promise<void> => {
-    await api.delete(`/api/cdks/${id}`);
+    await api.delete(`${getApiBaseUrl()}/api/cdks/${id}`);
+  },
+
+  // 获取用户已兑换的资源
+  getUserRedeemedResources: async (): Promise<RedeemedResourcesResponse> => {
+    const response = await api.get(`${getApiBaseUrl()}/api/redeemed`);
+    return response.data;
   }
 }; 

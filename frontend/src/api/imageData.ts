@@ -1,4 +1,4 @@
-import { api } from './index';
+import { api, getApiBaseUrl } from './api';
 
 export interface ImageDataRecord {
   imageId: string;
@@ -20,7 +20,7 @@ export interface ValidationResult {
 export const imageDataApi = {
   // 验证单个图片数据
   async validateImageData(imageId: string, fileHash: string, md5Hash: string): Promise<ValidationResult> {
-    const response = await api.post('/api/image-data/validate', {
+    const response = await api.post(`${getApiBaseUrl()}/api/image-data/validate`, {
       imageId,
       fileHash,
       md5Hash
@@ -30,7 +30,7 @@ export const imageDataApi = {
 
   // 批量验证图片数据
   async validateBatchImageData(imageDataList: Array<{imageId: string, fileHash: string, md5Hash: string}>): Promise<ValidationResult[]> {
-    const response = await api.post('/api/image-data/validate-batch', {
+    const response = await api.post(`${getApiBaseUrl()}/api/image-data/validate-batch`, {
       imageDataList
     });
     return response.data.data;
@@ -38,13 +38,13 @@ export const imageDataApi = {
 
   // 获取图片数据信息
   async getImageDataInfo(imageId: string): Promise<ImageDataRecord | null> {
-    const response = await api.get(`/api/image-data/info/${imageId}`);
+    const response = await api.get(`${getApiBaseUrl()}/api/image-data/info/${imageId}`);
     return response.data.data;
   },
 
   // 记录图片数据到数据库
   async recordImageData(data: Omit<ImageDataRecord, 'createdAt' | 'updatedAt'>): Promise<ImageDataRecord> {
-    const response = await api.post('/api/image-data/record', data);
+    const response = await api.post(`${getApiBaseUrl()}/api/image-data/record`, data);
     return response.data.data;
   }
 }; 

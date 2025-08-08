@@ -80,7 +80,7 @@ const app = express();
 const execAsync = promisify(exec);
 
 // 最高优先级，短链跳转
-// app.use('/s', ipfsRoutes);
+app.use('/s', shortUrlRoutes);
 
 // 设置信任代理 - 只信任第一个代理（安全）
 app.set('trust proxy', 1);
@@ -653,9 +653,11 @@ app.use('/api/email', emailRoutes);
 app.use('/api/miniapi', miniapiLimiter, miniapiRoutes);
 app.use('/api/modlist', modlistRoutes);
 app.use('/api/image-data', imageDataRoutes);
+// 资源路由 - 部分需要认证
 app.use('/api', resourceRoutes);
-app.use('/api', cdkRoutes);
-app.use('/api', shortUrlRoutes);
+// CDK路由 - 需要认证
+app.use('/api', authenticateToken, cdkRoutes);
+// app.use('/api', shortUrlRoutes);
 
 // 完整性检测相关兜底接口限速
 const integrityLimiter = rateLimit({
