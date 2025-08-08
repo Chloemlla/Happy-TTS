@@ -50,6 +50,18 @@ export const connectMongo = async () => {
       let mongooseOptions: any = {
         serverSelectionTimeoutMS: 5000, // 5秒超时
         socketTimeoutMS: 45000, // 45秒超时
+        // 连接池配置
+        maxPoolSize: 10, // 最大连接池大小
+        minPoolSize: 2,  // 最小连接池大小
+        maxIdleTimeMS: 30000, // 最大空闲时间
+        // 重试配置
+        retryWrites: true,
+        retryReads: true,
+        // 写入关注点
+        w: 'majority',
+        // 超时配置
+        connectTimeoutMS: 10000,
+        heartbeatFrequencyMS: 10000,
       };
       if (MONGO_PROXY_URL) {
         // 仅支持 http/socks5 代理，需安装 mongodb-connection-string-url 和 socks-proxy-agent/http-proxy-agent

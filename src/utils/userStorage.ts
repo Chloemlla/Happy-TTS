@@ -10,6 +10,7 @@ import * as userService from '../services/userService';
 // MySQL 相关依赖
 import mysql from 'mysql2/promise';
 import bcrypt from 'bcrypt';
+import mongoose from 'mongoose';
 
 const STORAGE_MODE = process.env.USER_STORAGE_MODE || 'file'; // 'file' 或 'mongo'
 
@@ -80,6 +81,8 @@ function removeAvatarBase64(obj: any) {
 export class UserStorage {
     private static readonly USERS_FILE = path.join(process.cwd(), 'data', 'users.json');
     private static readonly DAILY_LIMIT = 5;
+    private static mongoConnected = false;
+    private static autoSwitchEnabled = true;
 
     // 输入净化
     private static sanitizeInput(input: string | undefined): string {
@@ -1202,6 +1205,122 @@ export class UserStorage {
     }
 
     /**
+     * 初始化MongoDB连接监听
+     */
+    public static initializeMongoListener(): void {
+        if (!this.autoSwitchEnabled) {
+            logger.info('[UserStorage] 自动切换已禁用');
+            return;
+        }
+
+        // 监听MongoDB连接状态
+        mongoose.connection.on('connected', () => {
+            logger.info('[UserStorage] MongoDB连接成功，准备切换到MongoDB模式');
+            this.mongoConnected = true;
+            this.switchToMongoMode();
+        });
+
+        mongoose.connection.on('disconnected', () => {
+            logger.warn('[UserStorage] MongoDB连接断开，切换到文件模式');
+            this.mongoConnected = false;
+            this.switchToFileMode();
+        });
+
+        mongoose.connection.on('error', (error) => {
+            logger.error('[UserStorage] MongoDB连接错误:', error);
+            this.mongoConnected = false;
+            this.switchToFileMode();
+        });
+
+        logger.info('[UserStorage] MongoDB连接监听器已初始化');
+    }
+
+    /**
+     * 切换到MongoDB模式
+     */
+    private static async switchToMongoMode(): Promise<void> {
+        if (!this.autoSwitchEnabled) return;
+
+        try {
+            // 检查MongoDB用户数据
+            const users = await userService.getAllUsers();
+            logger.info(`[UserStorage] MongoDB模式激活，现有用户数量: ${users.length}`);
+            
+            // 如果MongoDB中没有用户数据，从文件导入
+            if (users.length === 0) {
+                logger.info('[UserStorage] MongoDB中没有用户数据，尝试从文件导入');
+                await this.migrateFromFileToMongo();
+            }
+            
+            // 更新环境变量
+            process.env.USER_STORAGE_MODE = 'mongo';
+            logger.info('[UserStorage] 已切换到MongoDB模式');
+        } catch (error) {
+            logger.error('[UserStorage] 切换到MongoDB模式失败:', error);
+        }
+    }
+
+    /**
+     * 切换到文件模式
+     */
+    private static switchToFileMode(): void {
+        if (!this.autoSwitchEnabled) return;
+
+        process.env.USER_STORAGE_MODE = 'file';
+        logger.info('[UserStorage] 已切换到文件模式');
+    }
+
+    /**
+     * 从文件迁移数据到MongoDB
+     */
+    private static async migrateFromFileToMongo(): Promise<void> {
+        try {
+            const fileUsers = this.readUsers();
+            if (fileUsers.length === 0) {
+                logger.info('[UserStorage] 文件存储中没有用户数据，跳过迁移');
+                return;
+            }
+
+            logger.info(`[UserStorage] 开始从文件迁移 ${fileUsers.length} 个用户到MongoDB`);
+            
+                            for (const user of fileUsers) {
+                    try {
+                        // 检查用户是否已存在
+                        const existingUser = await userService.getUserByUsername(user.username);
+                        if (!existingUser) {
+                            await userService.createUser(user);
+                            logger.info(`[UserStorage] 用户迁移成功: ${user.username}`);
+                        } else {
+                            logger.info(`[UserStorage] 用户已存在，跳过: ${user.username}`);
+                        }
+                    } catch (error) {
+                        logger.error(`[UserStorage] 用户迁移失败: ${user.username}`, error);
+                    }
+                }
+            
+            logger.info('[UserStorage] 文件到MongoDB迁移完成');
+        } catch (error) {
+            logger.error('[UserStorage] 文件到MongoDB迁移失败:', error);
+        }
+    }
+
+    /**
+     * 禁用自动切换
+     */
+    public static disableAutoSwitch(): void {
+        this.autoSwitchEnabled = false;
+        logger.info('[UserStorage] 自动切换已禁用');
+    }
+
+    /**
+     * 启用自动切换
+     */
+    public static enableAutoSwitch(): void {
+        this.autoSwitchEnabled = true;
+        logger.info('[UserStorage] 自动切换已启用');
+    }
+
+    /**
      * 自动检查并修复本地、MongoDB 或 MySQL 用户数据健康状况
      * @returns {Promise<{ healthy: boolean, fixed: boolean, mode: string, message: string }>}
      */
@@ -1209,7 +1328,8 @@ export class UserStorage {
         let healthy = false;
         let fixed = false;
         let message = '';
-        const mode = STORAGE_MODE;
+        const mode = process.env.USER_STORAGE_MODE || STORAGE_MODE;
+        
         if (mode === 'file') {
             healthy = await this.isHealthy();
             if (!healthy) {

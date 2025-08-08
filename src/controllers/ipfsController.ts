@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { IPFSService } from '../services/ipfsService';
 import logger from '../utils/logger';
+import { TransactionService } from '../services/transactionService';
 
 export class IPFSController {
     /**
@@ -25,18 +26,28 @@ export class IPFSController {
 
             const { buffer, originalname, mimetype } = req.file;
 
-            // 使用IPFS服务上传文件
-            const shortLinkFlag = req.body && req.body.source === 'imgupload';
-            const userId = (req as any).user?.id || 'admin';
-            const username = (req as any).user?.username || 'admin';
-            const result = await IPFSService.uploadFile(buffer, originalname, mimetype, { shortLink: !!shortLinkFlag, userId, username });
+            // 使用事务包装整个上传过程，确保数据一致性
+            const result = await TransactionService.executeTransaction(async (session) => {
+                const shortLinkFlag = req.body && req.body.source === 'imgupload';
+                const userId = (req as any).user?.id || 'admin';
+                const username = (req as any).user?.username || 'admin';
+                
+                // 使用IPFS服务上传文件
+                const uploadResult = await IPFSService.uploadFile(buffer, originalname, mimetype, { 
+                    shortLink: !!shortLinkFlag, 
+                    userId, 
+                    username 
+                });
 
-            logger.info('IPFS上传成功', {
-                ip,
-                filename: originalname,
-                fileSize: buffer.length,
-                cid: result.cid,
-                web2url: result.web2url
+                logger.info('IPFS上传成功', {
+                    ip,
+                    filename: originalname,
+                    fileSize: buffer.length,
+                    cid: uploadResult.cid,
+                    web2url: uploadResult.web2url
+                });
+
+                return uploadResult;
             });
 
             // 返回成功响应
@@ -49,7 +60,7 @@ export class IPFSController {
                     web2url: result.web2url,
                     fileSize: result.fileSize,
                     filename: originalname,
-                    shortUrl: result.shortUrl // 新增短链字段
+                    shortUrl: result.shortUrl
                 }
             });
 

@@ -5,16 +5,9 @@ import logger from '../utils/logger';
 const nanoid = require('nanoid').nanoid;
 import mongoose from 'mongoose';
 import { shortUrlMigrationService } from './shortUrlMigrationService';
-
-// 短链映射Schema
-const ShortUrlSchema = new mongoose.Schema({
-  code: { type: String, required: true, unique: true },
-  target: { type: String, required: true },
-  userId: { type: String, default: 'admin' },
-  username: { type: String, default: 'admin' },
-  createdAt: { type: Date, default: Date.now }
-}, { collection: 'short_urls' });
-const ShortUrlModel = mongoose.models.ShortUrl || mongoose.model('ShortUrl', ShortUrlSchema);
+import ShortUrlModel from '../models/shortUrlModel';
+import { TransactionService } from './transactionService';
+import { ShortUrlService } from './shortUrlService';
 
 export interface IPFSUploadResponse {
     status: string;
@@ -92,26 +85,29 @@ export class IPFSService {
                 // 上传成功后生成短链（仅当 options.shortLink 为 true 时）
                 let shortUrl = '';
                 if (options && options.shortLink && response.data.web2url) {
-                  await ensureMongoConnected();
-                  let code = nanoid(6);
-                  while (await ShortUrlModel.findOne({ code })) {
-                    code = nanoid(6);
-                  }
                   try {
                     // 使用迁移服务自动修正目标URL
                     const fixedTarget = shortUrlMigrationService.fixTargetUrlBeforeSave(response.data.web2url);
                     
-                    const doc = await ShortUrlModel.create({
-                      code,
-                      target: fixedTarget,
-                      userId: options.userId || 'admin',
-                      username: options.username || 'admin'
+                    // 使用短链服务创建短链，确保并发安全
+                    shortUrl = await ShortUrlService.createShortUrl(
+                      fixedTarget,
+                      options.userId || 'admin',
+                      options.username || 'admin'
+                    );
+                    
+                    logger.info('[ShortLink] 短链创建成功', { 
+                      target: fixedTarget, 
+                      userId: options.userId, 
+                      username: options.username 
                     });
-                    logger.info('[ShortLink] 短链已写入数据库', { code, target: fixedTarget, userId: options.userId, username: options.username, doc });
                   } catch (err) {
-                    logger.error('[ShortLink] 短链写入数据库失败', { code, target: response.data.web2url, error: err });
+                    logger.error('[ShortLink] 短链创建失败', { 
+                      target: response.data.web2url, 
+                      error: err instanceof Error ? err.message : String(err) 
+                    });
+                    // 不抛出错误，继续返回IPFS上传结果
                   }
-                  shortUrl = `${process.env.VITE_API_URL || process.env.BASE_URL || 'https://api.hapxs.com'}/s/${code}`;
                 }
                 return { ...response.data, shortUrl };
             } catch (error) {

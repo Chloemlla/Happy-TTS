@@ -45,8 +45,12 @@ import { PasskeyDataRepairService } from './services/passkeyDataRepairService';
 import miniapiRoutes from './routes/miniapiRoutes';
 import lotteryRoutes from './routes/lotteryRoutes';
 import { connectMongo } from './services/mongoService';
+import { UserStorage } from './utils/userStorage';
 import modlistRoutes from './routes/modlistRoutes';
 import imageDataRoutes from './routes/imageDataRoutes';
+import resourceRoutes from './routes/resourceRoutes';
+import cdkRoutes from './routes/cdkRoutes';
+import shortUrlRoutes from './routes/shortUrlRoutes';
 
 import emailRoutes from './routes/emailRoutes';
 import { commandStatusHandler } from './routes/commandRoutes';
@@ -76,7 +80,7 @@ const app = express();
 const execAsync = promisify(exec);
 
 // 最高优先级，短链跳转
-app.use('/s', ipfsRoutes);
+// app.use('/s', ipfsRoutes);
 
 // 设置信任代理 - 只信任第一个代理（安全）
 app.set('trust proxy', 1);
@@ -649,6 +653,9 @@ app.use('/api/email', emailRoutes);
 app.use('/api/miniapi', miniapiLimiter, miniapiRoutes);
 app.use('/api/modlist', modlistRoutes);
 app.use('/api/image-data', imageDataRoutes);
+app.use('/api', resourceRoutes);
+app.use('/api', cdkRoutes);
+app.use('/api', shortUrlRoutes);
 
 // 完整性检测相关兜底接口限速
 const integrityLimiter = rateLimit({
@@ -1178,7 +1185,6 @@ if (process.env.NODE_ENV !== 'test') {
           logger.info('[启动] MongoDB 连接成功');
           
           // 初始化 MongoDB 数据库
-          const { UserStorage } = require('./utils/userStorage');
           const initResult = await UserStorage.initializeDatabase();
           if (initResult.initialized) {
             logger.info(`[启动] ${initResult.message}`);
@@ -1200,7 +1206,6 @@ if (process.env.NODE_ENV !== 'test') {
           logger.info('[启动] MySQL 连接成功');
           
           // 初始化 MySQL 数据库
-          const { UserStorage } = require('./utils/userStorage');
           const initResult = await UserStorage.initializeDatabase();
           if (initResult.initialized) {
             logger.info(`[启动] ${initResult.message}`);
@@ -1215,7 +1220,6 @@ if (process.env.NODE_ENV !== 'test') {
       } else {
         // 文件存储模式初始化
         try {
-          const { UserStorage } = require('./utils/userStorage');
           const initResult = await UserStorage.initializeDatabase();
           if (initResult.initialized) {
             logger.info(`[启动] ${initResult.message}`);
@@ -1228,6 +1232,9 @@ if (process.env.NODE_ENV !== 'test') {
           });
         }
       }
+      
+      // 初始化 UserStorage MongoDB 监听器（所有模式都需要）
+      UserStorage.initializeMongoListener();
       
       // 移除自动修复Passkey数据
       // logger.info('[启动] 开始自动修复Passkey数据...');
