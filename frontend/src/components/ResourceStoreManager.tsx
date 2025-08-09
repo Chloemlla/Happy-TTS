@@ -732,30 +732,30 @@ export default function ResourceStoreManager() {
                     />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-lg font-semibold text-gray-900 mb-1">
+                    <div className="text-lg font-semibold text-gray-900 mb-1 truncate">
                       {resource.title}
                     </div>
-                    <div className="text-sm text-gray-600 line-clamp-2">
+                    <div className="text-sm text-gray-600 break-all line-clamp-2">
                       {resource.description}
                     </div>
                   </div>
                 </div>
 
                 {/* 分类和价格 */}
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex flex-col gap-2 mb-3">
                   <div className="flex items-center gap-2 text-sm text-gray-500">
-                    <FaTag className="w-4 h-4 text-blue-500" />
-                    {resource.category}
+                    <FaTag className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                    <span className="truncate">{resource.category}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm font-semibold text-green-600">
-                    <FaDollarSign className="w-4 h-4" />
-                    ¥{resource.price}
+                    <FaDollarSign className="w-4 h-4 flex-shrink-0" />
+                    <span>¥{resource.price}</span>
                   </div>
                 </div>
 
                 {/* 状态和操作 */}
-                <div className="flex items-center justify-between">
-                  <span className={`inline-flex items-center gap-2 rounded-full px-2 text-xs font-semibold leading-5 ${
+                <div className="flex flex-col gap-3">
+                  <span className={`inline-flex items-center gap-2 rounded-full px-2 text-xs font-semibold leading-5 w-fit ${
                     resource.isActive 
                       ? 'bg-green-100 text-green-800' 
                       : 'bg-red-100 text-red-800'
@@ -775,7 +775,7 @@ export default function ResourceStoreManager() {
                   <div className="flex gap-2">
                     <motion.button 
                       onClick={() => handleEdit(resource)}
-                      className="text-indigo-600 hover:text-indigo-900 bg-indigo-100 hover:bg-indigo-200 rounded-lg px-3 py-1 text-sm transition-all duration-150"
+                      className="text-indigo-600 hover:text-indigo-900 bg-indigo-100 hover:bg-indigo-200 rounded-lg px-3 py-1 text-sm transition-all duration-150 whitespace-nowrap"
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                     >
@@ -783,7 +783,7 @@ export default function ResourceStoreManager() {
                     </motion.button>
                     <motion.button 
                       onClick={() => handleDelete(resource)}
-                      className="text-red-600 hover:text-red-900 bg-red-100 hover:bg-red-200 rounded-lg px-3 py-1 text-sm transition-all duration-150"
+                      className="text-red-600 hover:text-red-900 bg-red-100 hover:bg-red-200 rounded-lg px-3 py-1 text-sm transition-all duration-150 whitespace-nowrap"
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                     >

@@ -999,100 +999,104 @@ export default function CDKStoreManager() {
                   <motion.div
                     key={`mobile-cdk-${cdk.id}`}
                     className="bg-white rounded-lg shadow-sm border border-gray-100 p-4"
-                    style={{ height: `${itemHeight}px`, minHeight: `${itemHeight}px` }}
+                    style={{ minHeight: `${itemHeight}px` }}
                     whileHover={{ scale: 1.02 }}
                     transition={{ duration: 0.2 }}
                   >
-              {/* CDK代码 */}
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  {/* 批量选择复选框 */}
-                  {isSelectMode && (
-                    <input
-                      type="checkbox"
-                      checked={selectedCDKs.has(cdk.id)}
-                      onChange={() => toggleSelectCDK(cdk.id)}
-                      disabled={cdk.isUsed}
-                      className={`rounded border-gray-300 text-purple-600 focus:ring-purple-500 mr-2 ${
-                        cdk.isUsed ? 'opacity-50 cursor-not-allowed' : ''
-                      }`}
-                    />
-                  )}
-                  <FaKey className="w-5 h-5 text-purple-500" />
-                  <div className="font-mono text-lg font-bold text-gray-900">
-                    {cdk.code}
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <motion.button
-                    onClick={() => handleEdit(cdk)}
-                    className="text-blue-600 hover:text-blue-900 bg-blue-100 hover:bg-blue-200 rounded-lg px-3 py-1 text-sm transition-all duration-150"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    查看
-                  </motion.button>
-                  {!cdk.isUsed && (
-                    <motion.button
-                      onClick={() => handleDelete(cdk)}
-                      className="text-red-600 hover:text-red-900 bg-red-100 hover:bg-red-200 rounded-lg px-3 py-1 text-sm transition-all duration-150"
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      删除
-                    </motion.button>
-                  )}
-                </div>
-              </div>
+                    {/* CDK代码 */}
+                    <div className="flex items-center justify-between mb-3 gap-2">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        {/* 批量选择复选框 */}
+                        {isSelectMode && (
+                          <input
+                            type="checkbox"
+                            checked={selectedCDKs.has(cdk.id)}
+                            onChange={() => toggleSelectCDK(cdk.id)}
+                            disabled={cdk.isUsed}
+                            className={`rounded border-gray-300 text-purple-600 focus:ring-purple-500 mr-2 flex-shrink-0 ${
+                              cdk.isUsed ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
+                          />
+                        )}
+                        <FaKey className="w-5 h-5 text-purple-500 flex-shrink-0" />
+                        <div className="font-mono text-lg font-bold text-gray-900 truncate">
+                          {cdk.code}
+                        </div>
+                      </div>
+                      <div className="flex gap-1 flex-shrink-0">
+                        <motion.button
+                          onClick={() => handleEdit(cdk)}
+                          className="text-blue-600 hover:text-blue-900 bg-blue-100 hover:bg-blue-200 rounded-lg px-2 py-1 text-xs transition-all duration-150 whitespace-nowrap"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          查看
+                        </motion.button>
+                        {!cdk.isUsed && (
+                          <motion.button
+                            onClick={() => handleDelete(cdk)}
+                            className="text-red-600 hover:text-red-900 bg-red-100 hover:bg-red-200 rounded-lg px-2 py-1 text-xs transition-all duration-150 whitespace-nowrap"
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                          >
+                            删除
+                          </motion.button>
+                        )}
+                      </div>
+                    </div>
 
-              {/* 资源ID */}
-              <div className="mb-3">
-                <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
-                  <FaBox className="w-3 h-3" />
-                  资源ID
-                </div>
-                <div className="text-sm text-gray-700 break-all">{cdk.resourceId}</div>
-              </div>
+                    {/* 资源ID */}
+                    <div className="mb-3">
+                      <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                        <FaBox className="w-3 h-3 flex-shrink-0" />
+                        资源ID
+                      </div>
+                      <div className="text-sm text-gray-700 break-all font-mono">{cdk.resourceId}</div>
+                    </div>
 
-              {/* 状态和时间信息 */}
-              <div className="flex items-center justify-between text-xs text-gray-500">
-                <div className="flex items-center gap-3">
-                  <span className={`inline-flex items-center gap-1 rounded-full px-2 text-xs font-semibold leading-5 ${
-                    cdk.isUsed 
-                      ? 'bg-red-100 text-red-800' 
-                      : 'bg-green-100 text-green-800'
-                  }`}>
-                    {cdk.isUsed ? (
-                      <React.Fragment key={`used-mobile-${cdk.id}`}>
-                        <FaToggleOff className="w-3 h-3" />
-                        已使用
-                      </React.Fragment>
-                    ) : (
-                      <React.Fragment key={`available-mobile-${cdk.id}`}>
-                        <FaToggleOn className="w-3 h-3" />
-                        可用
-                      </React.Fragment>
-                    )}
-                  </span>
-                  <div>
-                    <span className="text-gray-400">使用时间:</span>
-                    <span className="ml-1">{cdk.usedAt ? new Date(cdk.usedAt).toLocaleDateString() : '-'}</span>
-                  </div>
-                </div>
-                <div className="text-gray-400">
-                  {cdk.usedAt ? new Date(cdk.usedAt).toLocaleTimeString() : ''}
-                </div>
-              </div>
+                    {/* 状态和时间信息 */}
+                    <div className="flex flex-col gap-2 text-xs text-gray-500">
+                      <div className="flex flex-col gap-2">
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2 text-xs font-semibold leading-5 w-fit ${
+                          cdk.isUsed 
+                            ? 'bg-red-100 text-red-800' 
+                            : 'bg-green-100 text-green-800'
+                        }`}>
+                          {cdk.isUsed ? (
+                            <React.Fragment key={`used-mobile-${cdk.id}`}>
+                              <FaToggleOff className="w-3 h-3" />
+                              已使用
+                            </React.Fragment>
+                          ) : (
+                            <React.Fragment key={`available-mobile-${cdk.id}`}>
+                              <FaToggleOn className="w-3 h-3" />
+                              可用
+                            </React.Fragment>
+                          )}
+                        </span>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-1">
+                            <span className="text-gray-400">使用时间:</span>
+                            <span className="text-gray-700">{cdk.usedAt ? new Date(cdk.usedAt).toLocaleDateString() : '-'}</span>
+                          </div>
+                          {cdk.usedAt && (
+                            <div className="text-gray-400">
+                              {new Date(cdk.usedAt).toLocaleTimeString()}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
 
-              {/* 过期时间 */}
-              <div className="mt-2 text-xs text-gray-500">
-                <div className="flex items-center gap-1">
-                  <FaClock className="w-3 h-3" />
-                  过期时间: {cdk.expiresAt ? new Date(cdk.expiresAt).toLocaleString() : '永不过期'}
-                </div>
-              </div>
-            </motion.div>
-          ))}
+                    {/* 过期时间 */}
+                    <div className="mt-2 text-xs text-gray-500">
+                      <div className="flex items-start gap-1">
+                        <FaClock className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                        <span className="break-words">过期时间: {cdk.expiresAt ? new Date(cdk.expiresAt).toLocaleString() : '永不过期'}</span>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
               </div>
             </div>
           </div>

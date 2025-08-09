@@ -844,28 +844,28 @@ const ShortLinkManager: React.FC = () => {
                   <div
                     key={link._id}
                     className={`bg-white rounded-lg shadow-sm border border-gray-100 p-4 ${highlightedId === link._id ? 'ring-2 ring-green-200 bg-green-50' : ''}`}
-                    style={{ height: `${itemHeight}px`, minHeight: `${itemHeight}px` }}
+                    style={{ minHeight: `${itemHeight}px` }}
                   >
                     {/* 短链码区域 */}
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-between mb-3 gap-2">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
                         {/* 批量选择复选框 */}
                         {isSelectMode && (
                           <input
                             type="checkbox"
                             checked={selectedLinks.has(link._id)}
                             onChange={() => toggleSelectLink(link._id)}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2 flex-shrink-0"
                           />
                         )}
                         <div
-                          className="font-mono text-lg font-bold text-blue-600 cursor-pointer"
+                          className="font-mono text-lg font-bold text-blue-600 cursor-pointer truncate"
                           onClick={() => window.open(`${getApiBaseUrl()}/s/${link.code}`, '_blank')}
                         >
                           {link.code}
                         </div>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-1 flex-shrink-0">
                         <motion.button
                           className="flex items-center justify-center bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg p-2 shadow-sm hover:shadow-md transition-all duration-150"
                           title="复制短链"
@@ -891,19 +891,19 @@ const ShortLinkManager: React.FC = () => {
                     {/* 目标地址 */}
                     <div className="mb-3">
                       <div className="text-xs text-gray-500 mb-1">目标地址</div>
-                      <div className="text-sm text-gray-700 break-all line-clamp-2">{link.target}</div>
+                      <div className="text-sm text-gray-700 break-all">{link.target}</div>
                     </div>
 
                     {/* 底部信息 */}
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      <div className="flex items-center gap-3">
-                        <div>
+                    <div className="flex flex-col gap-2 text-xs text-gray-500">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-1">
                           <span className="text-gray-400">用户:</span>
-                          <span className="ml-1">{link.username || 'admin'}</span>
+                          <span className="text-gray-700">{link.username || 'admin'}</span>
                         </div>
-                        <div>
+                        <div className="flex items-center gap-1">
                           <span className="text-gray-400">时间:</span>
-                          <span className="ml-1">{new Date(link.createdAt).toLocaleDateString()}</span>
+                          <span className="text-gray-700">{new Date(link.createdAt).toLocaleDateString()}</span>
                         </div>
                       </div>
                       <div className="text-gray-400">
