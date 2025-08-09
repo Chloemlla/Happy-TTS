@@ -85,7 +85,14 @@ export class CDKService {
 
       logger.info('获取CDK列表成功', { page: validatedPage, resourceId: validatedResourceId, total });
       return {
-        cdks: cdks.map(c => c.toObject()),
+        cdks: cdks.map(c => {
+          const obj = c.toObject();
+          // 确保id字段存在，将_id转换为id
+          obj.id = obj._id.toString();
+          delete obj._id;
+          delete obj.__v;
+          return obj;
+        }),
         total,
         page: validatedPage,
         pageSize
