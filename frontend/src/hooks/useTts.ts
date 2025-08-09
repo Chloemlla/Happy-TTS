@@ -5,19 +5,19 @@ import { verifyContent } from '../utils/sign';
 
 // 获取API基础URL
 const getApiBaseUrl = () => {
-    if (import.meta.env.DEV) return '';
-    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-    return 'https://api.hapxs.com';
+  if (import.meta.env.DEV) return 'http://localhost:3000';
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  return 'https://api.hapxs.com';
 };
 
 // 创建axios实例
 const api = axios.create({
-    baseURL: getApiBaseUrl(),
-    withCredentials: true,
-    headers: {
-        'Content-Type': 'application/json'
-    },
-    timeout: 30000 // 设置30秒超时
+  baseURL: getApiBaseUrl(),
+  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  timeout: 30000 // 设置30秒超时
 });
 
 export const useTts = () => {
@@ -46,7 +46,7 @@ export const useTts = () => {
         }
       });
       console.log('收到TTS响应:', response.data);
-      
+
       if (response.data) {
         if (!response.data.success) {
           console.error('生成失败:', response.data);
@@ -79,10 +79,10 @@ export const useTts = () => {
         }
 
         // 确保音频URL是完整的
-        const finalAudioUrl = audioUrl.startsWith('http') 
-          ? audioUrl 
+        const finalAudioUrl = audioUrl.startsWith('http')
+          ? audioUrl
           : `${api.defaults.baseURL}/static/audio/${audioUrl}`;
-        
+
         console.log('设置音频URL:', finalAudioUrl);
         setAudioUrl(finalAudioUrl);
         return {
@@ -95,13 +95,13 @@ export const useTts = () => {
       }
     } catch (error) {
       console.error('TTS请求错误:', error);
-      
+
       if (axios.isAxiosError(error)) {
         const axiosError = error as AxiosError;
         if (axiosError.response) {
           // 服务器返回错误响应
-          const errorData = axiosError.response.data as { 
-            message?: string; 
+          const errorData = axiosError.response.data as {
+            message?: string;
             error?: string;
             details?: {
               provided?: string;

@@ -69,7 +69,7 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
 
   // 获取API基础URL
   const getApiBaseUrl = () => {
-    if (import.meta.env.DEV) return '';
+    if (import.meta.env.DEV) return 'http://localhost:3000';
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
     return 'https://api.hapxs.com';
   };
@@ -97,7 +97,7 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.data.domains) setSenderDomains(res.data.domains);
-      } catch {}
+      } catch { }
     })();
   }, []);
 
@@ -110,7 +110,7 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
         total: response.data.quotaTotal || response.data.total,
         resetAt: response.data.resetAt
       });
-    } catch {}
+    } catch { }
   };
 
   // 监听发件人域名变化自动刷新配额
@@ -156,9 +156,9 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
           isInternal: response.data.isInternal,
           isExempted: response.data.isExempted
         });
-        setNotification({ 
-          message: response.data.exempted ? '域名已豁免检查' : '域名需要安全检查', 
-          type: response.data.exempted ? 'success' : 'info' 
+        setNotification({
+          message: response.data.exempted ? '域名已豁免检查' : '域名需要安全检查',
+          type: response.data.exempted ? 'success' : 'info'
         });
       } else {
         setDomainExemptionStatus({
@@ -206,9 +206,9 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
           message: response.data.message,
           isWhitelisted: response.data.isWhitelisted
         });
-        setNotification({ 
-          message: response.data.whitelisted ? '收件人域名在白名单中' : '收件人域名需要检查', 
-          type: response.data.whitelisted ? 'success' : 'info' 
+        setNotification({
+          message: response.data.whitelisted ? '收件人域名在白名单中' : '收件人域名需要检查',
+          type: response.data.whitelisted ? 'success' : 'info'
         });
       } else {
         setRecipientWhitelistStatus({
@@ -295,7 +295,7 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
     // 验证邮箱格式
     const allEmails = [...validRecipients]; // 发件人邮箱固定为hapxs.com，无需验证
     const validation = await validateEmails(allEmails);
-    
+
     if (validation.invalid.length > 0) {
       setValidationErrors([`以下邮箱格式无效: ${validation.invalid.join(', ')}`]);
       return false;
@@ -312,7 +312,7 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
     setLoading(true);
     try {
       const validRecipients = form.to.filter(email => email.trim());
-      
+
       if (emailMode === 'html') {
         const response = await api.post('/api/email/send', {
           from: form.from,
@@ -398,12 +398,12 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
       const text = textarea.value;
       const before = text.substring(0, start);
       const after = text.substring(end);
-      
+
       setForm({
         ...form,
         html: before + template + after
       });
-      
+
       // 设置光标位置
       setTimeout(() => {
         textarea.focus();
@@ -413,7 +413,8 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
   };
 
   const htmlTemplates = [
-    { name: '现代卡片', code: `<div style="max-width:420px;margin:0 auto;background:#fff;border-radius:1.2rem;box-shadow:0 4px 24px rgba(80,80,180,0.08);padding:2.2rem 2rem 1.5rem 2rem;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;text-align:center;">
+    {
+      name: '现代卡片', code: `<div style="max-width:420px;margin:0 auto;background:#fff;border-radius:1.2rem;box-shadow:0 4px 24px rgba(80,80,180,0.08);padding:2.2rem 2rem 1.5rem 2rem;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;text-align:center;">
   <div style="font-size:2rem;font-weight:700;color:#6366f1;margin-bottom:1.2rem;">您的验证码</div>
   <div style="font-size:2.4rem;letter-spacing:0.4rem;font-family:monospace;background:#f3f4f6;padding:1rem 0;border-radius:0.8rem;color:#111;font-weight:600;box-shadow:0 2px 8px rgba(99,102,241,0.08);margin-bottom:1.2rem;">12345678</div>
   <div style="color:#555;font-size:1.1rem;margin-bottom:1.2rem;">请在页面输入上方验证码完成验证。验证码有效期10分钟，请勿泄露。</div>
@@ -439,7 +440,7 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
   }, []);
 
   return (
-    <motion.div 
+    <motion.div
       className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -461,7 +462,7 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
         </div>
       </div>
       {/* 顶部导航栏 */}
-      <motion.div 
+      <motion.div
         className="bg-white shadow-sm border-b border-gray-100"
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -469,20 +470,20 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <motion.div 
+            <motion.div
               className="flex items-center space-x-4"
               initial={{ x: -20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               transition={{ duration: 0.6, delay: 0.2 }}
             >
-              <Link 
+              <Link
                 to="/"
                 className="flex items-center space-x-2 text-gray-600 hover:text-indigo-600 transition-colors duration-200"
               >
-                <motion.svg 
-                  className="w-5 h-5" 
-                  fill="none" 
-                  stroke="currentColor" 
+                <motion.svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
                   viewBox="0 0 24 24"
                   whileHover={{ scale: 1.1, rotate: -5 }}
                 >
@@ -498,10 +499,10 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
               animate={{ x: 0, opacity: 1 }}
               transition={{ duration: 0.6, delay: 0.3 }}
             >
-              <motion.svg 
-                className="w-6 h-6 text-indigo-600" 
-                fill="none" 
-                stroke="currentColor" 
+              <motion.svg
+                className="w-6 h-6 text-indigo-600"
+                fill="none"
+                stroke="currentColor"
                 viewBox="0 0 24 24"
                 animate={{ rotate: [0, 5, -5, 0] }}
                 transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
@@ -524,7 +525,7 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
         >
           {/* 左侧表单 */}
           <div className="lg:col-span-2">
-            <motion.div 
+            <motion.div
               className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -537,11 +538,10 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                   <div className="flex items-center space-x-2">
                     <motion.button
                       onClick={() => setEmailMode('simple')}
-                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 ${
-                        emailMode === 'simple' 
-                          ? 'bg-white text-indigo-600 shadow-md' 
+                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 ${emailMode === 'simple'
+                          ? 'bg-white text-indigo-600 shadow-md'
                           : 'text-white/80 hover:text-white hover:bg-white/10'
-                      }`}
+                        }`}
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                     >
@@ -549,11 +549,10 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                     </motion.button>
                     <motion.button
                       onClick={() => setEmailMode('html')}
-                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 ${
-                        emailMode === 'html' 
-                          ? 'bg-white text-indigo-600 shadow-md' 
+                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 ${emailMode === 'html'
+                          ? 'bg-white text-indigo-600 shadow-md'
                           : 'text-white/80 hover:text-white hover:bg-white/10'
-                      }`}
+                        }`}
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                     >
@@ -561,11 +560,10 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                     </motion.button>
                     <motion.button
                       onClick={() => setEmailMode('markdown')}
-                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 ${
-                        emailMode === 'markdown' 
-                          ? 'bg-white text-indigo-600 shadow-md' 
+                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 ${emailMode === 'markdown'
+                          ? 'bg-white text-indigo-600 shadow-md'
                           : 'text-white/80 hover:text-white hover:bg-white/10'
-                      }`}
+                        }`}
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                     >
@@ -582,17 +580,16 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className={`p-3 rounded-lg border ${
-                      serviceStatus.available 
-                        ? 'bg-green-50 border-green-200 text-green-800' 
+                    className={`p-3 rounded-lg border ${serviceStatus.available
+                        ? 'bg-green-50 border-green-200 text-green-800'
                         : 'bg-red-50 border-red-200 text-red-800'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center space-x-2">
-                      <motion.svg 
+                      <motion.svg
                         className={`w-5 h-5 ${serviceStatus.available ? 'text-green-500' : 'text-red-500'}`}
-                        fill="none" 
-                        stroke="currentColor" 
+                        fill="none"
+                        stroke="currentColor"
                         viewBox="0 0 24 24"
                         animate={{ scale: [1, 1.1, 1] }}
                         transition={{ duration: 2, repeat: Infinity }}
@@ -623,10 +620,10 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                       className="bg-red-50 border border-red-200 rounded-lg p-4"
                     >
                       <div className="flex items-center space-x-2 mb-2">
-                        <motion.svg 
-                          className="w-5 h-5 text-red-500" 
-                          fill="none" 
-                          stroke="currentColor" 
+                        <motion.svg
+                          className="w-5 h-5 text-red-500"
+                          fill="none"
+                          stroke="currentColor"
                           viewBox="0 0 24 24"
                           animate={{ rotate: [0, 10, -10, 0] }}
                           transition={{ duration: 0.5 }}
@@ -681,11 +678,10 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                     <motion.button
                       onClick={checkDomainExemption}
                       disabled={checkingExemption}
-                      className={`px-4 py-3 rounded-lg font-medium text-sm transition-all duration-200 ${
-                        checkingExemption
+                      className={`px-4 py-3 rounded-lg font-medium text-sm transition-all duration-200 ${checkingExemption
                           ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                           : 'bg-blue-500 hover:bg-blue-600 text-white shadow-md hover:shadow-lg'
-                      }`}
+                        }`}
                       whileHover={!checkingExemption ? { scale: 1.02 } : {}}
                       whileTap={!checkingExemption ? { scale: 0.98 } : {}}
                     >
@@ -708,7 +704,7 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                       )}
                     </motion.button>
                   </div>
-                  
+
                   {/* 域名豁免状态显示 */}
                   <AnimatePresence>
                     {domainExemptionStatus && (
@@ -716,19 +712,17 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
-                        className={`mt-3 p-3 rounded-lg border ${
-                          domainExemptionStatus.exempted
+                        className={`mt-3 p-3 rounded-lg border ${domainExemptionStatus.exempted
                             ? 'bg-green-50 border-green-200 text-green-800'
                             : 'bg-yellow-50 border-yellow-200 text-yellow-800'
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center space-x-2">
-                          <motion.svg 
-                            className={`w-5 h-5 ${
-                              domainExemptionStatus.exempted ? 'text-green-500' : 'text-yellow-500'
-                            }`}
-                            fill="none" 
-                            stroke="currentColor" 
+                          <motion.svg
+                            className={`w-5 h-5 ${domainExemptionStatus.exempted ? 'text-green-500' : 'text-yellow-500'
+                              }`}
+                            fill="none"
+                            stroke="currentColor"
                             viewBox="0 0 24 24"
                             animate={{ scale: [1, 1.1, 1] }}
                             transition={{ duration: 2, repeat: Infinity }}
@@ -800,17 +794,16 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                       </motion.button>
                     )}
                   </div>
-                  
+
                   {/* 收件人域名白名单检查按钮 */}
                   <div className="mt-3">
                     <motion.button
                       onClick={checkRecipientWhitelist}
                       disabled={checkingRecipientWhitelist || !form.to.find(email => email.trim())}
-                      className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
-                        checkingRecipientWhitelist || !form.to.find(email => email.trim())
+                      className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${checkingRecipientWhitelist || !form.to.find(email => email.trim())
                           ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                           : 'bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg'
-                      }`}
+                        }`}
                       whileHover={!checkingRecipientWhitelist && form.to.find(email => email.trim()) ? { scale: 1.02 } : {}}
                       whileTap={!checkingRecipientWhitelist && form.to.find(email => email.trim()) ? { scale: 0.98 } : {}}
                     >
@@ -833,7 +826,7 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                       )}
                     </motion.button>
                   </div>
-                  
+
                   {/* 收件人域名白名单状态显示 */}
                   <AnimatePresence>
                     {recipientWhitelistStatus && (
@@ -841,19 +834,17 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
-                        className={`mt-3 p-3 rounded-lg border ${
-                          recipientWhitelistStatus.whitelisted
+                        className={`mt-3 p-3 rounded-lg border ${recipientWhitelistStatus.whitelisted
                             ? 'bg-green-50 border-green-200 text-green-800'
                             : 'bg-orange-50 border-orange-200 text-orange-800'
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center space-x-2">
-                          <motion.svg 
-                            className={`w-5 h-5 ${
-                              recipientWhitelistStatus.whitelisted ? 'text-green-500' : 'text-orange-500'
-                            }`}
-                            fill="none" 
-                            stroke="currentColor" 
+                          <motion.svg
+                            className={`w-5 h-5 ${recipientWhitelistStatus.whitelisted ? 'text-green-500' : 'text-orange-500'
+                              }`}
+                            fill="none"
+                            stroke="currentColor"
                             viewBox="0 0 24 24"
                             animate={{ scale: [1, 1.1, 1] }}
                             transition={{ duration: 2, repeat: Infinity }}
@@ -947,7 +938,7 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                             className="border border-gray-300 rounded-lg p-4 bg-gray-50"
                           >
                             <h4 className="text-sm font-medium text-gray-700 mb-2">预览效果：</h4>
-                            <div 
+                            <div
                               className="prose prose-sm max-w-none"
                               dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(form.html) }}
                             />
@@ -981,10 +972,10 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                 {/* 跳过白名单检查选项 */}
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                   <div className="flex items-center space-x-3">
-                    <motion.svg 
-                      className="w-6 h-6 text-yellow-600" 
-                      fill="none" 
-                      stroke="currentColor" 
+                    <motion.svg
+                      className="w-6 h-6 text-yellow-600"
+                      fill="none"
+                      stroke="currentColor"
                       viewBox="0 0 24 24"
                       animate={{ scale: [1, 1.1, 1] }}
                       transition={{ duration: 2, repeat: Infinity }}
@@ -1016,11 +1007,10 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                 <motion.button
                   onClick={handleSendEmail}
                   disabled={loading || !serviceStatus?.available}
-                  className={`w-full py-4 px-6 rounded-lg font-semibold text-white transition-all duration-200 ${
-                    loading || !serviceStatus?.available
+                  className={`w-full py-4 px-6 rounded-lg font-semibold text-white transition-all duration-200 ${loading || !serviceStatus?.available
                       ? 'bg-gray-400 cursor-not-allowed'
                       : 'bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 shadow-lg hover:shadow-xl'
-                  }`}
+                    }`}
                   whileHover={!loading && serviceStatus?.available ? { scale: 1.02 } : {}}
                   whileTap={!loading && serviceStatus?.available ? { scale: 0.98 } : {}}
                 >
@@ -1048,7 +1038,7 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
 
           {/* 右侧帮助面板 */}
           <div className="lg:col-span-1">
-            <motion.div 
+            <motion.div
               className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}

@@ -9,7 +9,7 @@ import { User } from '../types/auth';
 
 // 获取API基础URL
 const getApiBaseUrl = () => {
-    if (import.meta.env.DEV) return '';
+    if (import.meta.env.DEV) return 'http://localhost:3000';
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
     return 'https://api.hapxs.com';
 };
@@ -58,7 +58,7 @@ export const useAuth = () => {
     const [lastErrorTime, setLastErrorTime] = useState(0);
     const CHECK_INTERVAL = 30000; // 30秒检查一次
     const ERROR_RETRY_INTERVAL = 60000; // 错误后60秒再重试
-    
+
     // 使用ref来跟踪检查状态，避免闭包问题
     const checkingRef = useRef(false);
     const lastCheckRef = useRef(0);
@@ -73,19 +73,19 @@ export const useAuth = () => {
     const checkAuth = useCallback(async () => {
         // 只检查JWT
         if (checkingRef.current) return;
-        
+
         const now = Date.now();
         const timeSinceLastCheck = now - lastCheckRef.current;
         const timeSinceLastError = now - lastErrorRef.current;
-        
+
         // 检查时间间隔
         if (timeSinceLastCheck < CHECK_INTERVAL || timeSinceLastError < ERROR_RETRY_INTERVAL) {
             return;
         }
-        
+
         checkingRef.current = true;
         setIsChecking(true);
-        
+
         try {
             const token = localStorage.getItem('token');
             if (!token) {
@@ -94,16 +94,16 @@ export const useAuth = () => {
                 setLoading(false);
                 return;
             }
-            
+
             console.log('检查认证状态，token:', token);
-            
+
             // 只用JWT
             const response = await api.get<User>('/api/auth/me', {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            
+
             console.log('认证检查响应:', response.status, response.data);
-            
+
             if (response.status === 401 || response.status === 403) {
                 // 清除无效token
                 localStorage.removeItem('token');
@@ -111,7 +111,7 @@ export const useAuth = () => {
                 setLoading(false);
                 return;
             }
-            
+
             const data = response.data;
             console.log('认证检查成功，用户数据:', data);
             if (data) {
@@ -133,16 +133,16 @@ export const useAuth = () => {
                 setUser(null);
                 localStorage.removeItem('token');
             }
-            
+
             // 更新最后检查时间
             lastCheckRef.current = now;
             setLastCheckTime(now);
-            
+
         } catch (error: any) {
             // 记录错误时间
             lastErrorRef.current = now;
             setLastErrorTime(now);
-            
+
             if (error.response?.status === 429) {
                 // 429错误不清理用户状态，只是记录错误时间
                 console.warn('认证检查被限流，将在60秒后重试');
@@ -239,9 +239,9 @@ export const useAuth = () => {
             }
         } catch (error: any) {
             setPendingTOTP(null);
-            
+
             const errorData = error.response?.data;
-            
+
             if (error.response?.status === 429) {
                 // 验证尝试次数过多
                 const remainingTime = Math.ceil((errorData.lockedUntil - Date.now()) / 1000 / 60);
@@ -269,7 +269,7 @@ export const useAuth = () => {
             if (!token) {
                 throw new Error('没有有效的认证token');
             }
-            
+
             const response = await api.get<User>(`/api/auth/me`, {
                 headers: { Authorization: `Bearer ${token}` }
             });

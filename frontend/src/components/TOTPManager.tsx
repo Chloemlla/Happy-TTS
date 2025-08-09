@@ -28,7 +28,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
 
   // 获取API基础URL
   const getApiBaseUrl = () => {
-    if (import.meta.env.DEV) return '';
+    if (import.meta.env.DEV) return 'http://localhost:3000';
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
     return 'https://api.hapxs.com';
   };
@@ -65,7 +65,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
   const handleDisable = async () => {
     // 清理输入
     const cleanCode = cleanTOTPToken(disableCode);
-    
+
     if (!cleanCode.trim()) {
       setError('请输入验证码');
       return;
@@ -81,7 +81,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
       await api.post('/api/totp/disable', {
         token: cleanCode
       });
-      
+
       setShowDisable(false);
       setDisableCode('');
       fetchStatus();
@@ -92,13 +92,13 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
 
   if (loading) {
     return (
-      <motion.div 
+      <motion.div
         className="flex items-center justify-center p-4"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
       >
-        <motion.div 
+        <motion.div
           className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-indigo-500"
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
         />
@@ -108,13 +108,13 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
 
   return (
     <>
-      <motion.div 
+      <motion.div
         className="bg-white rounded-lg shadow-sm border p-4"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
       >
-        <motion.div 
+        <motion.div
           className="flex items-center justify-between mb-4"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -144,7 +144,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
           </div>
         </motion.div>
 
-        <motion.div 
+        <motion.div
           className="space-y-3"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -152,7 +152,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
         >
           {status?.enabled ? (
             <div className="space-y-3">
-              <motion.div 
+              <motion.div
                 className="bg-green-50 border border-green-200 rounded-lg p-3"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -162,7 +162,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
                 <div className="flex items-start">
                   <FaCheck className="w-5 h-5 text-green-600 mt-0.5 mr-2" />
                   <div>
-                    <motion.p 
+                    <motion.p
                       className="text-sm font-medium text-green-800"
                       initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -170,7 +170,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
                     >
                       二次验证已启用
                     </motion.p>
-                    <motion.p 
+                    <motion.p
                       className="text-sm text-green-700 mt-1"
                       initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -183,7 +183,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
               </motion.div>
 
               {status.hasBackupCodes && (
-                <motion.div 
+                <motion.div
                   className="bg-blue-50 border border-blue-200 rounded-lg p-3"
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -193,7 +193,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
                   <div className="flex items-start">
                     <FaLock className="w-5 h-5 text-blue-600 mt-0.5 mr-2" />
                     <div>
-                      <motion.p 
+                      <motion.p
                         className="text-sm font-medium text-blue-800"
                         initial={{ opacity: 0, y: 5 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -201,7 +201,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
                       >
                         备用恢复码可用
                       </motion.p>
-                      <motion.p 
+                      <motion.p
                         className="text-sm text-blue-700 mt-1"
                         initial={{ opacity: 0, y: 5 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -214,7 +214,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
                 </motion.div>
               )}
 
-              <motion.div 
+              <motion.div
                 className="space-y-2"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -244,7 +244,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
             </div>
           ) : (
             <div className="space-y-3">
-              <motion.div 
+              <motion.div
                 className="bg-yellow-50 border border-yellow-200 rounded-lg p-3"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -254,7 +254,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
                 <div className="flex items-start">
                   <FaClock className="w-5 h-5 text-yellow-600 mt-0.5 mr-2" />
                   <div>
-                    <motion.p 
+                    <motion.p
                       className="text-sm font-medium text-yellow-800"
                       initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -262,7 +262,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
                     >
                       建议启用二次验证
                     </motion.p>
-                    <motion.p 
+                    <motion.p
                       className="text-sm text-yellow-700 mt-1"
                       initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -326,13 +326,13 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
             >
               {/* 可滚动的内容容器 */}
               <div className="p-6 max-h-[90vh] overflow-y-auto">
-                <motion.div 
+                <motion.div
                   className="text-center mb-6"
                   initial={{ opacity: 0, y: -20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.1 }}
                 >
-                  <motion.h2 
+                  <motion.h2
                     className="text-2xl font-bold text-gray-900 mb-2"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -340,7 +340,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
                   >
                     禁用二次验证
                   </motion.h2>
-                  <motion.p 
+                  <motion.p
                     className="text-gray-600"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -350,7 +350,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
                   </motion.p>
                 </motion.div>
 
-                <motion.div 
+                <motion.div
                   className="space-y-4"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -361,7 +361,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4, delay: 0.3 }}
                   >
-                    <motion.label 
+                    <motion.label
                       className="block text-sm font-medium text-gray-700 mb-2"
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
@@ -382,14 +382,14 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
 
                   <AnimatePresence>
                     {error && (
-                      <motion.div 
+                      <motion.div
                         className="bg-red-50 border border-red-200 rounded-lg p-3"
                         initial={{ opacity: 0, scale: 0.95, y: -10 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: -10 }}
                         transition={{ duration: 0.3 }}
                       >
-                        <motion.p 
+                        <motion.p
                           className="text-red-700 text-sm"
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
@@ -401,7 +401,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
                     )}
                   </AnimatePresence>
 
-                  <motion.div 
+                  <motion.div
                     className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}

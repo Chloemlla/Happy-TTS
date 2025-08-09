@@ -4,16 +4,16 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import CryptoJS from 'crypto-js';
-import { 
-  FaUsers, 
-  FaUserPlus, 
-  FaEdit, 
-  FaTrash, 
-  FaSave, 
-  FaTimes, 
-  FaUser, 
-  FaEnvelope, 
-  FaKey, 
+import {
+  FaUsers,
+  FaUserPlus,
+  FaEdit,
+  FaTrash,
+  FaSave,
+  FaTimes,
+  FaUser,
+  FaEnvelope,
+  FaKey,
   FaUserTag,
   FaList
 } from 'react-icons/fa';
@@ -31,9 +31,9 @@ const emptyUser = { id: '', username: '', email: '', password: '', role: 'user',
 
 // 获取API基础URL
 const getApiBaseUrl = () => {
-    if (import.meta.env.DEV) return '';
-    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-    return 'https://api.hapxs.com';
+  if (import.meta.env.DEV) return 'http://localhost:3000';
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  return 'https://api.hapxs.com';
 };
 
 const api = axios.create({
@@ -49,13 +49,13 @@ function decryptAES256(encryptedData: string, iv: string, key: string): string {
     console.log('   密钥长度:', key.length);
     console.log('   加密数据长度:', encryptedData.length);
     console.log('   IV长度:', iv.length);
-    
+
     const keyBytes = CryptoJS.SHA256(key);
     const ivBytes = CryptoJS.enc.Hex.parse(iv);
     const encryptedBytes = CryptoJS.enc.Hex.parse(encryptedData);
-    
+
     console.log('   密钥哈希完成，开始解密...');
-    
+
     const decrypted = CryptoJS.AES.decrypt(
       { ciphertext: encryptedBytes },
       keyBytes,
@@ -65,10 +65,10 @@ function decryptAES256(encryptedData: string, iv: string, key: string): string {
         padding: CryptoJS.pad.Pkcs7
       }
     );
-    
+
     const result = decrypted.toString(CryptoJS.enc.Utf8);
     console.log('   解密完成，结果长度:', result.length);
-    
+
     return result;
   } catch (error) {
     console.error('❌ AES-256解密失败:', error);
@@ -96,11 +96,11 @@ const UserManagement: React.FC = () => {
         setError('未找到有效的认证令牌，请重新登录');
         return;
       }
-      
+
       const res = await api.get('/api/admin/users', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       // 检查是否为加密数据
       if (res.data.data && res.data.iv && typeof res.data.data === 'string' && typeof res.data.iv === 'string') {
         try {
@@ -108,11 +108,11 @@ const UserManagement: React.FC = () => {
           console.log('   加密数据长度:', res.data.data.length);
           console.log('   IV:', res.data.iv);
           console.log('   使用Token进行解密，Token长度:', token.length);
-          
+
           // 解密数据
           const decryptedJson = decryptAES256(res.data.data, res.data.iv, token);
           const decryptedData = JSON.parse(decryptedJson);
-          
+
           if (Array.isArray(decryptedData)) {
             console.log('✅ 解密成功，获取到', decryptedData.length, '个用户');
             setUsers(decryptedData);
@@ -196,13 +196,13 @@ const UserManagement: React.FC = () => {
 
   if (!user || user.role !== 'admin') {
     return (
-      <motion.div 
+      <motion.div
         className="space-y-6"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <motion.div 
+        <motion.div
           className="bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-6 border border-red-100"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -224,14 +224,14 @@ const UserManagement: React.FC = () => {
   }
 
   return (
-    <motion.div 
+    <motion.div
       className="space-y-6"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
     >
       {/* 标题和说明 */}
-      <motion.div 
+      <motion.div
         className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -261,7 +261,7 @@ const UserManagement: React.FC = () => {
       {/* 错误提示 */}
       <AnimatePresence>
         {error && (
-          <motion.div 
+          <motion.div
             className="bg-red-50 border border-red-200 rounded-xl p-4"
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -276,7 +276,7 @@ const UserManagement: React.FC = () => {
             </div>
             {error.includes('认证失败') && (
               <div className="mt-3">
-                <motion.button 
+                <motion.button
                   onClick={() => navigate('/welcome')}
                   className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
                   whileTap={{ scale: 0.95 }}
@@ -290,7 +290,7 @@ const UserManagement: React.FC = () => {
       </AnimatePresence>
 
       {/* 添加用户按钮 */}
-      <motion.div 
+      <motion.div
         className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -316,8 +316,8 @@ const UserManagement: React.FC = () => {
         {/* 添加用户表单 */}
         <AnimatePresence>
           {showForm && (
-            <motion.form 
-              onSubmit={handleSubmit} 
+            <motion.form
+              onSubmit={handleSubmit}
               className="mb-6 space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-200"
               initial={{ opacity: 0, height: 0, scale: 0.95 }}
               animate={{ opacity: 1, height: "auto", scale: 1 }}
@@ -329,12 +329,12 @@ const UserManagement: React.FC = () => {
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     用户名
                   </label>
-                  <input 
-                    name="username" 
-                    value={form.username} 
-                    onChange={handleChange} 
-                    placeholder="请输入用户名" 
-                    required 
+                  <input
+                    name="username"
+                    value={form.username}
+                    onChange={handleChange}
+                    placeholder="请输入用户名"
+                    required
                     className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
                   />
                 </div>
@@ -342,12 +342,12 @@ const UserManagement: React.FC = () => {
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     邮箱
                   </label>
-                  <input 
-                    name="email" 
-                    value={form.email} 
-                    onChange={handleChange} 
-                    placeholder="请输入邮箱" 
-                    required 
+                  <input
+                    name="email"
+                    value={form.email}
+                    onChange={handleChange}
+                    placeholder="请输入邮箱"
+                    required
                     className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
                   />
                 </div>
@@ -355,12 +355,12 @@ const UserManagement: React.FC = () => {
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     密码
                   </label>
-                  <input 
-                    name="password" 
-                    value={form.password} 
-                    onChange={handleChange} 
-                    placeholder="请输入密码" 
-                    required 
+                  <input
+                    name="password"
+                    value={form.password}
+                    onChange={handleChange}
+                    placeholder="请输入密码"
+                    required
                     type="text"
                     className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
                   />
@@ -369,10 +369,10 @@ const UserManagement: React.FC = () => {
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     角色
                   </label>
-                  <select 
-                    name="role" 
-                    value={form.role} 
-                    onChange={handleChange} 
+                  <select
+                    name="role"
+                    value={form.role}
+                    onChange={handleChange}
                     className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all appearance-none bg-white"
                   >
                     <option value="user">普通用户</option>
@@ -381,16 +381,16 @@ const UserManagement: React.FC = () => {
                 </div>
               </div>
               <div className="flex gap-3 pt-2">
-                <motion.button 
-                  type="submit" 
+                <motion.button
+                  type="submit"
                   className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium"
                   whileTap={{ scale: 0.95 }}
                 >
                   {editingUser ? '保存修改' : '添加用户'}
                 </motion.button>
-                <motion.button 
-                  type="button" 
-                  className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium" 
+                <motion.button
+                  type="button"
+                  className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium"
                   onClick={() => { setShowForm(false); setEditingUser(null); }}
                   whileTap={{ scale: 0.95 }}
                 >
@@ -424,8 +424,8 @@ const UserManagement: React.FC = () => {
               </thead>
               <tbody>
                 {users.map((u, idx) => (
-                  <motion.tr 
-                    key={u.id} 
+                  <motion.tr
+                    key={u.id}
                     className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -450,15 +450,15 @@ const UserManagement: React.FC = () => {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
-                        <motion.button 
-                          className="px-3 py-1 bg-yellow-500 text-white rounded text-sm hover:bg-yellow-600 transition" 
+                        <motion.button
+                          className="px-3 py-1 bg-yellow-500 text-white rounded text-sm hover:bg-yellow-600 transition"
                           onClick={() => { setEditingUser(u); setForm(u); setShowForm(true); }}
                           whileTap={{ scale: 0.95 }}
                         >
                           编辑
                         </motion.button>
-                        <motion.button 
-                          className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600 transition" 
+                        <motion.button
+                          className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600 transition"
                           onClick={() => handleDelete(u.id)}
                           whileTap={{ scale: 0.95 }}
                         >

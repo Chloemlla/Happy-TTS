@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 export const getApiBaseUrl = () => {
-  if (import.meta.env.DEV) return '';
+  if (import.meta.env.DEV) return 'http://localhost:3000';
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
   return 'https://api.hapxs.com';
 };

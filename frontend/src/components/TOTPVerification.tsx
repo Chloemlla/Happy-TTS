@@ -11,9 +11,9 @@ interface TOTPVerificationProps {
   token: string;
 }
 
-const TOTPVerification: React.FC<TOTPVerificationProps> = ({ 
-  isOpen, 
-  onClose, 
+const TOTPVerification: React.FC<TOTPVerificationProps> = ({
+  isOpen,
+  onClose,
   onSuccess,
   userId,
   token
@@ -26,7 +26,7 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
 
   // 获取API基础URL
   const getApiBaseUrl = () => {
-    if (import.meta.env.DEV) return '';
+    if (import.meta.env.DEV) return 'http://localhost:3000';
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
     return 'https://api.hapxs.com';
   };
@@ -64,7 +64,7 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
     try {
       setLoading(true);
       setError('');
-      
+
       const response = await api.post('/api/totp/verify-token', {
         userId: userId,
         token: useBackupCode ? undefined : verificationCode,
@@ -82,7 +82,7 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
       }
     } catch (error: any) {
       const errorData = error.response?.data;
-      
+
       if (error.response?.status === 429) {
         // 验证尝试次数过多
         const remainingTime = Math.ceil((errorData.lockedUntil - Date.now()) / 1000 / 60);
@@ -135,7 +135,7 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
           {/* 可滚动的内容容器 */}
           <div className="p-6 max-h-[90vh] overflow-y-auto">
             {/* 标题 */}
-            <motion.div 
+            <motion.div
               className="text-center mb-6"
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -158,7 +158,7 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
             </motion.div>
 
             {/* 切换按钮 */}
-            <motion.div 
+            <motion.div
               className="flex mb-6"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -166,11 +166,10 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
             >
               <motion.button
                 onClick={() => setUseBackupCode(false)}
-                className={`flex-1 py-2 px-4 rounded-l-lg text-sm font-medium transition-all duration-200 ${
-                  !useBackupCode
+                className={`flex-1 py-2 px-4 rounded-l-lg text-sm font-medium transition-all duration-200 ${!useBackupCode
                     ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                  }`}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
@@ -178,11 +177,10 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
               </motion.button>
               <motion.button
                 onClick={() => setUseBackupCode(true)}
-                className={`flex-1 py-2 px-4 rounded-r-lg text-sm font-medium transition-all duration-200 ${
-                  useBackupCode
+                className={`flex-1 py-2 px-4 rounded-r-lg text-sm font-medium transition-all duration-200 ${useBackupCode
                     ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                  }`}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
@@ -191,7 +189,7 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
             </motion.div>
 
             {/* 输入区域 */}
-            <motion.div 
+            <motion.div
               className="space-y-4"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -216,7 +214,7 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
                     autoFocus
                     whileFocus={{ scale: 1.02 }}
                   />
-                  <motion.p 
+                  <motion.p
                     className="text-xs text-gray-500 mt-1"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -244,7 +242,7 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
                     autoFocus
                     whileFocus={{ scale: 1.02 }}
                   />
-                  <motion.p 
+                  <motion.p
                     className="text-xs text-gray-500 mt-1"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -258,14 +256,14 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
               {/* 错误信息 */}
               <AnimatePresence>
                 {error && (
-                  <motion.div 
+                  <motion.div
                     className="bg-red-50 border border-red-200 rounded-lg p-3"
                     initial={{ opacity: 0, scale: 0.95, y: -10 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: -10 }}
                     transition={{ duration: 0.3 }}
                   >
-                    <motion.p 
+                    <motion.p
                       className="text-red-700 text-sm"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
@@ -278,7 +276,7 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
               </AnimatePresence>
 
               {/* 操作按钮 */}
-              <motion.div 
+              <motion.div
                 className="flex space-x-3"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -301,7 +299,7 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
                 >
                   {loading ? (
                     <motion.div className="flex items-center justify-center">
-                      <motion.div 
+                      <motion.div
                         className="w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"
                         animate={{ rotate: 360 }}
                         transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
@@ -316,7 +314,7 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
             </motion.div>
 
             {/* 帮助信息 */}
-            <motion.div 
+            <motion.div
               className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -330,7 +328,7 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
                   <FaInfoCircle className="w-5 h-5 text-blue-600 mt-0.5 mr-2 flex-shrink-0" />
                 </motion.div>
                 <div>
-                  <motion.p 
+                  <motion.p
                     className="text-sm font-medium text-blue-800"
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -338,7 +336,7 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
                   >
                     需要帮助？
                   </motion.p>
-                  <motion.p 
+                  <motion.p
                     className="text-sm text-blue-700 mt-1"
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}

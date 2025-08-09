@@ -25,7 +25,7 @@ const BackupCodesModal: React.FC<BackupCodesModalProps> = ({ isOpen, onClose }) 
 
   // 获取API基础URL
   const getApiBaseUrl = () => {
-    if (import.meta.env.DEV) return '';
+    if (import.meta.env.DEV) return 'http://localhost:3000';
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
     return 'https://api.hapxs.com';
   };
@@ -327,12 +327,12 @@ ${backupCodes.map((code, index) => `${index + 1}. ${code}`).join('\n')}
                         </svg>
                         <h3 className="text-lg font-semibold text-gray-900">重新生成恢复码</h3>
                       </div>
-                      
+
                       <p className="text-gray-600 mb-6">
                         重新生成将替换所有现有的备用恢复码。旧的恢复码将无法再使用。
                         确定要继续吗？
                       </p>
-                      
+
                       <div className="flex gap-3">
                         <button
                           onClick={() => setShowRegenerateConfirm(false)}
