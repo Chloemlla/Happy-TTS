@@ -9,13 +9,44 @@ import { CDKService } from '../services/cdkService';
 const cdkService = new CDKService();
 
 // CDK兑换
-export const redeemCDK = async (req: Request, res: Response) => {
+export const redeemCDK = async (req: AuthRequest, res: Response) => {
   try {
-    const { code } = req.body;
-    const result = await cdkService.redeemCDK(code);
+    const { code, userId, username, forceRedeem } = req.body;
+    
+    // 构建用户信息对象
+    let userInfo: { userId: string; username: string } | undefined;
+    if (userId && username) {
+      userInfo = { userId, username };
+    } else if (req.user) {
+      // 如果请求中有用户信息，使用认证用户信息
+      userInfo = {
+        userId: req.user.id || req.user._id || 'unknown',
+        username: req.user.username || req.user.name || 'unknown'
+      };
+    }
+    
+    const result = await cdkService.redeemCDK(code, userInfo, forceRedeem);
+    
+    logger.info('CDK兑换成功', { 
+      code, 
+      userInfo,
+      resourceId: result.resource.id,
+      forceRedeem 
+    });
+    
     res.json(result);
-  } catch (error) {
+  } catch (error: any) {
     logger.error('CDK兑换失败:', error);
+    
+    // 处理重复资源的特殊情况
+    if (error.message === 'DUPLICATE_RESOURCE') {
+      return res.status(409).json({ 
+        message: 'DUPLICATE_RESOURCE',
+        resourceTitle: error.resourceTitle,
+        resourceId: error.resourceId
+      });
+    }
+    
     res.status(400).json({ message: '兑换失败：无效或已使用的CDK' });
   }
 };
@@ -93,6 +124,49 @@ export const batchDeleteCDKs = async (req: AuthRequest, res: Response) => {
     logger.error('批量删除CDK失败:', error);
     res.status(500).json({ 
       message: error instanceof Error ? error.message : '批量删除CDK失败' 
+    });
+  }
+};
+
+// 获取CDK总数量
+export const getTotalCDKCount = async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await cdkService.getTotalCDKCount();
+    
+    logger.info('获取CDK总数量成功', { 
+      userId: req.user?.id,
+      username: req.user?.username,
+      totalCount: result.totalCount 
+    });
+    
+    res.json(result);
+  } catch (error) {
+    logger.error('获取CDK总数量失败:', error);
+    res.status(500).json({ 
+      message: error instanceof Error ? error.message : '获取CDK总数量失败' 
+    });
+  }
+};
+
+// 删除所有CDK
+export const deleteAllCDKs = async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await cdkService.deleteAllCDKs();
+    
+    logger.info('删除所有CDK成功', { 
+      userId: req.user?.id,
+      username: req.user?.username,
+      deletedCount: result.deletedCount 
+    });
+    
+    res.json({
+      message: '成功删除所有CDK',
+      deletedCount: result.deletedCount
+    });
+  } catch (error) {
+    logger.error('删除所有CDK失败:', error);
+    res.status(500).json({ 
+      message: error instanceof Error ? error.message : '删除所有CDK失败' 
     });
   }
 };

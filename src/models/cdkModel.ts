@@ -6,6 +6,10 @@ export interface ICDK extends Document {
   isUsed: boolean;
   usedAt?: Date;
   usedIp?: string;
+  usedBy?: {
+    userId: string;
+    username: string;
+  };
   expiresAt?: Date;
   createdAt: Date;
 }
@@ -17,6 +21,10 @@ const CDKSchema: Schema<ICDK> = new Schema<ICDK>(
     isUsed: { type: Boolean, default: false },
     usedAt: Date,
     usedIp: String,
+    usedBy: {
+      userId: { type: String },
+      username: { type: String }
+    },
     expiresAt: Date,
   },
   { timestamps: { createdAt: true, updatedAt: false } }

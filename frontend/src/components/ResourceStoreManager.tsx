@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaPlus, FaEdit, FaTrash, FaSearch, FaSync, FaInfoCircle, FaExclamationTriangle, FaCheckCircle, FaArrowLeft, FaList, FaBox, FaTag, FaDollarSign, FaToggleOn, FaToggleOff } from 'react-icons/fa';
+import { FaPlus, FaEdit, FaTrash, FaSearch, FaSync, FaInfoCircle, FaExclamationTriangle, FaCheckCircle, FaArrowLeft, FaList, FaBox, FaTag, FaDollarSign, FaToggleOn, FaToggleOff, FaChevronLeft, FaChevronRight, FaAngleDoubleLeft, FaAngleDoubleRight } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import { resourcesApi, Resource } from '../api/resources';
 import { UnifiedLoadingSpinner } from './LoadingSpinner';
@@ -426,20 +426,38 @@ export default function ResourceStoreManager() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingResource, setEditingResource] = useState<Resource | null>(null);
   const [search, setSearch] = useState('');
+  // 分页相关状态
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [pageSize, setPageSize] = useState(20);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchResources();
   }, []);
 
-  const fetchResources = async () => {
+  // 当页码变化时重新获取数据
+  useEffect(() => {
+    if (currentPage > 1) {
+      fetchResources();
+    }
+  }, [currentPage]);
+
+  const fetchResources = async (page = currentPage) => {
     try {
-      const response = await resourcesApi.getResources();
+      setLoading(true);
+      const response = await resourcesApi.getResources(page);
       setResources(response.resources);
+      setTotalItems(response.total);
+      setCurrentPage(response.page);
+      setPageSize(response.pageSize);
+      setTotalPages(Math.ceil(response.total / response.pageSize));
     } catch (error) {
       console.error('获取资源列表失败:', error);
-      // 设置默认值，防止组件崩溃
       setResources([]);
+      setTotalItems(0);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
@@ -451,6 +469,37 @@ export default function ResourceStoreManager() {
 
   const handleEditSuccess = () => {
     fetchResources(); // 重新获取资源列表
+  };
+
+  // 分页控制函数
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages && page !== currentPage) {
+      setCurrentPage(page);
+    }
+  };
+
+  const handleFirstPage = () => handlePageChange(1);
+  const handlePrevPage = () => handlePageChange(currentPage - 1);
+  const handleNextPage = () => handlePageChange(currentPage + 1);
+  const handleLastPage = () => handlePageChange(totalPages);
+
+  // 生成页码按钮数组
+  const generatePageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    
+    // 调整起始页，确保显示足够的页码
+    if (endPage - startPage + 1 < maxVisiblePages) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+    
+    return pages;
   };
 
   const handleEdit = (resource: Resource) => {
@@ -795,6 +844,101 @@ export default function ResourceStoreManager() {
             ))
           )}
         </div>
+
+        {/* 分页控件 */}
+        {totalPages > 1 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-6 flex items-center justify-center gap-2"
+          >
+            <div className="flex items-center gap-1">
+              {/* 首页按钮 */}
+              <motion.button
+                onClick={handleFirstPage}
+                disabled={currentPage === 1}
+                className={`p-2 rounded-lg transition-all duration-200 ${
+                  currentPage === 1
+                    ? 'text-gray-400 cursor-not-allowed'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-green-600'
+                }`}
+                whileHover={currentPage !== 1 ? { scale: 1.05 } : {}}
+                whileTap={currentPage !== 1 ? { scale: 0.95 } : {}}
+              >
+                <FaAngleDoubleLeft className="w-4 h-4" />
+              </motion.button>
+
+              {/* 上一页按钮 */}
+              <motion.button
+                onClick={handlePrevPage}
+                disabled={currentPage === 1}
+                className={`p-2 rounded-lg transition-all duration-200 ${
+                  currentPage === 1
+                    ? 'text-gray-400 cursor-not-allowed'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-green-600'
+                }`}
+                whileHover={currentPage !== 1 ? { scale: 1.05 } : {}}
+                whileTap={currentPage !== 1 ? { scale: 0.95 } : {}}
+              >
+                <FaChevronLeft className="w-4 h-4" />
+              </motion.button>
+
+              {/* 页码按钮 */}
+              <div className="flex items-center gap-1 mx-2">
+                {generatePageNumbers().map((page) => (
+                  <motion.button
+                    key={page}
+                    onClick={() => handlePageChange(page)}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      page === currentPage
+                        ? 'bg-green-500 text-white shadow-md'
+                        : 'text-gray-600 hover:bg-gray-100 hover:text-green-600'
+                    }`}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    {page}
+                  </motion.button>
+                ))}
+              </div>
+
+              {/* 下一页按钮 */}
+              <motion.button
+                onClick={handleNextPage}
+                disabled={currentPage === totalPages}
+                className={`p-2 rounded-lg transition-all duration-200 ${
+                  currentPage === totalPages
+                    ? 'text-gray-400 cursor-not-allowed'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-green-600'
+                }`}
+                whileHover={currentPage !== totalPages ? { scale: 1.05 } : {}}
+                whileTap={currentPage !== totalPages ? { scale: 0.95 } : {}}
+              >
+                <FaChevronRight className="w-4 h-4" />
+              </motion.button>
+
+              {/* 末页按钮 */}
+              <motion.button
+                onClick={handleLastPage}
+                disabled={currentPage === totalPages}
+                className={`p-2 rounded-lg transition-all duration-200 ${
+                  currentPage === totalPages
+                    ? 'text-gray-400 cursor-not-allowed'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-green-600'
+                }`}
+                whileHover={currentPage !== totalPages ? { scale: 1.05 } : {}}
+                whileTap={currentPage !== totalPages ? { scale: 0.95 } : {}}
+              >
+                <FaAngleDoubleRight className="w-4 h-4" />
+              </motion.button>
+            </div>
+
+            {/* 页面信息 */}
+            <div className="ml-4 text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">
+              第 {currentPage} / {totalPages} 页，共 {totalItems} 条记录
+            </div>
+          </motion.div>
+        )}
       </motion.div>
 
       <AddResourceModal

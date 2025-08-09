@@ -9,7 +9,7 @@ import logger from '../utils/logger';
 export class CDKService {
   private resourceService = new ResourceService();
 
-  async redeemCDK(code: string) {
+  async redeemCDK(code: string, userInfo?: { userId: string; username: string }, forceRedeem?: boolean) {
     try {
       // 验证CDK代码格式
       if (!code || typeof code !== 'string' || code.length !== 16 || !/^[A-Z0-9]{16}$/.test(code)) {
@@ -17,7 +17,53 @@ export class CDKService {
         throw new Error('无效的CDK代码格式');
       }
       
-      // 使用findOneAndUpdate确保原子性操作，避免并发问题
+      // 首先查找CDK以获取资源ID
+      const cdkToRedeem = await CDKModel.findOne({
+        code,
+        isUsed: false,
+        $or: [
+          { expiresAt: { $exists: false } },
+          { expiresAt: { $gt: new Date() } }
+        ]
+      });
+      
+      if (!cdkToRedeem) {
+        logger.warn('CDK兑换失败：无效或已使用', { code });
+        throw new Error('无效或已使用的CDK');
+      }
+
+      // 如果提供了用户信息且未强制兑换，检查用户是否已拥有该资源
+      if (userInfo && !forceRedeem) {
+        const existingCDK = await CDKModel.findOne({
+          resourceId: cdkToRedeem.resourceId,
+          isUsed: true,
+          'usedBy.userId': userInfo.userId
+        });
+
+        if (existingCDK) {
+          // 用户已拥有该资源，返回特殊错误以触发前端确认对话框
+          const resource = await this.resourceService.getResourceById(cdkToRedeem.resourceId);
+          const error = new Error('DUPLICATE_RESOURCE') as any;
+          error.resourceTitle = resource?.title || '未知资源';
+          error.resourceId = cdkToRedeem.resourceId;
+          throw error;
+        }
+      }
+      
+      const updateData: any = {
+        isUsed: true,
+        usedAt: new Date(),
+        usedIp: '127.0.0.1' // 实际应用中需要获取真实IP
+      };
+
+      // 如果提供了用户信息，则记录用户信息
+      if (userInfo) {
+        updateData.usedBy = {
+          userId: userInfo.userId,
+          username: userInfo.username
+        };
+      }
+
       const cdk = await CDKModel.findOneAndUpdate(
         { 
           code, 
@@ -27,13 +73,7 @@ export class CDKService {
             { expiresAt: { $gt: new Date() } }
           ]
         },
-        {
-          $set: {
-            isUsed: true,
-            usedAt: new Date(),
-            usedIp: '127.0.0.1' // 实际应用中需要获取真实IP
-          }
-        },
+        { $set: updateData },
         { new: true }
       );
       
@@ -48,7 +88,7 @@ export class CDKService {
         throw new Error('资源不存在');
       }
 
-      logger.info('CDK兑换成功', { code, resourceId: cdk.resourceId, resourceTitle: resource.title });
+      logger.info('CDK兑换成功', { code, resourceId: cdk.resourceId, resourceTitle: resource.title, forceRedeem });
       return {
         resource,
         cdk: cdk.toObject()
@@ -251,6 +291,30 @@ export class CDKService {
       return { resources: result, total: result.length };
     } catch (error) {
       logger.error('获取用户已兑换资源失败:', error);
+      throw error;
+    }
+  }
+
+  // 获取CDK总数量
+  async getTotalCDKCount() {
+    try {
+      const count = await CDKModel.countDocuments({});
+      logger.info('获取CDK总数量成功', { totalCount: count });
+      return { totalCount: count };
+    } catch (error) {
+      logger.error('获取CDK总数量失败:', error);
+      throw error;
+    }
+  }
+
+  // 删除所有CDK
+  async deleteAllCDKs() {
+    try {
+      const result = await CDKModel.deleteMany({});
+      logger.info('删除所有CDK成功', { deletedCount: result.deletedCount });
+      return { deletedCount: result.deletedCount };
+    } catch (error) {
+      logger.error('删除所有CDK失败:', error);
       throw error;
     }
   }

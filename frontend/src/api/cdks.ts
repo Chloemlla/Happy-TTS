@@ -8,6 +8,10 @@ export interface CDK {
   isUsed: boolean;
   usedAt?: Date;
   usedIp?: string;
+  usedBy?: {
+    userId: string;
+    username: string;
+  };
   expiresAt?: Date;
   createdAt: Date;
 }
@@ -50,8 +54,12 @@ export interface RedeemedResourcesResponse {
 
 export const cdksApi = {
   // CDK兑换
-  redeemCDK: async (code: string): Promise<RedeemResult> => {
-    const response = await api.post(`${getApiBaseUrl()}/api/redeem`, { code });
+  redeemCDK: async (code: string, userInfo?: { userId: string; username: string }, forceRedeem?: boolean) => {
+    const response = await api.post(`${getApiBaseUrl()}/api/redeem`, { 
+      code,
+      ...(userInfo && { userId: userInfo.userId, username: userInfo.username }),
+      ...(forceRedeem && { forceRedeem })
+    });
     return response.data;
   },
 
@@ -101,6 +109,23 @@ export const cdksApi = {
     deletedCodes: string[];
   }> => {
     const response = await api.post(`${getApiBaseUrl()}/api/cdks/batch-delete`, { ids });
+    return response.data;
+  },
+
+  // 获取CDK总数量
+  getTotalCDKCount: async (): Promise<{
+    totalCount: number;
+  }> => {
+    const response = await api.get(`${getApiBaseUrl()}/api/cdks/total-count`);
+    return response.data;
+  },
+
+  // 删除所有CDK
+  deleteAllCDKs: async (): Promise<{
+    message: string;
+    deletedCount: number;
+  }> => {
+    const response = await api.delete(`${getApiBaseUrl()}/api/cdks/all`);
     return response.data;
   },
 

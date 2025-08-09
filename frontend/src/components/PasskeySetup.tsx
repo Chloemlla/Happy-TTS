@@ -1,12 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { usePasskey } from '../hooks/usePasskey';
 import { formatDate } from '../utils/date';
-import { FaKey, FaPlus, FaTrash, FaExclamationTriangle } from 'react-icons/fa';
+import { FaKey, FaPlus, FaTrash, FaExclamationTriangle, FaTimes } from 'react-icons/fa';
 import { useNotification } from './Notification';
 import { motion, AnimatePresence } from 'framer-motion';
 import { renderCredentialIdModal } from './ui/CredentialIdModal';
 
-export const PasskeySetup: React.FC = () => {
+interface PasskeySetupProps {
+    onClose?: () => void;
+}
+
+export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
     const {
         credentials,
         isLoading,
@@ -81,9 +85,9 @@ export const PasskeySetup: React.FC = () => {
     return (
         <>
             {isPasskeySupported === false && (
-                <div className="bg-yellow-100 border border-yellow-300 text-yellow-800 rounded-lg p-4 mb-4 flex items-center gap-2">
-                    <FaExclamationTriangle className="w-5 h-5 text-yellow-500" />
-                    <span>当前浏览器不支持 Passkey（无密码认证）。请使用最新版 Chrome、Edge、Safari，且确保使用 HTTPS 访问。</span>
+                <div className="bg-yellow-100 border border-yellow-300 text-yellow-800 rounded-lg p-4 mb-4 flex items-start gap-3">
+                    <FaExclamationTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+                    <span className="text-sm sm:text-base leading-relaxed">当前浏览器不支持 Passkey（无密码认证）。请使用最新版 Chrome、Edge、Safari，且确保使用 HTTPS 访问。</span>
                 </div>
             )}
             <motion.div
@@ -95,11 +99,11 @@ export const PasskeySetup: React.FC = () => {
             >
                 {/* 新增：Passkey唯一性提示 */}
                 <div className="mb-4">
-                    <div className="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg px-4 py-3 flex items-center gap-2">
-                        <FaKey className="w-5 h-5 text-blue-400" />
-                        <div>
-                            <span className="font-semibold block">每个账户仅允许设置<strong>一个</strong>Passkey作为无密码验证方式。</span>
-                            <span className="text-xs text-blue-600 mt-1 block">如需更换设备或认证方式，请先删除原有Passkey后再注册新Passkey。</span>
+                    <div className="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg px-4 py-3 flex items-start gap-3">
+                        <FaKey className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                            <span className="font-semibold block text-sm sm:text-base leading-relaxed">每个账户仅允许设置<strong>一个</strong>Passkey作为无密码验证方式。</span>
+                            <span className="text-xs sm:text-sm text-blue-600 mt-1 block leading-relaxed">如需更换设备或认证方式，请先删除原有Passkey后再注册新Passkey。</span>
                         </div>
                     </div>
                 </div>
@@ -108,11 +112,21 @@ export const PasskeySetup: React.FC = () => {
                         <FaKey className="w-7 h-7 text-indigo-500" />
                         Passkey 无密码认证
                     </h2>
-                    {/* 删除右侧添加按钮 */}
+                    {onClose && (
+                        <motion.button
+                            onClick={onClose}
+                            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all duration-200"
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            title="关闭页面"
+                        >
+                            <FaTimes className="w-5 h-5" />
+                        </motion.button>
+                    )}
                 </div>
                 <div className="w-full flex flex-col items-center justify-center">
-                    <div className="w-full flex justify-center">
-                        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 w-full max-w-2xl justify-center items-center">
+                    <div className="w-full flex justify-center px-4">
+                        <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 w-full max-w-7xl place-items-center">
                             <AnimatePresence>
                                 {Array.isArray(credentials) && credentials.length > 0 && credentials.map((credential) => (
                                     <motion.div
@@ -121,14 +135,14 @@ export const PasskeySetup: React.FC = () => {
                                         animate={{ opacity: 1, scale: 1 }}
                                         exit={{ opacity: 0, scale: 0.95 }}
                                         transition={{ duration: 0.3 }}
-                                        className="group bg-white rounded-xl shadow-md border hover:shadow-2xl transition-all p-5 flex flex-row justify-between items-start gap-2 min-h-[120px] mx-auto w-full max-w-xs"
+                                        className="group bg-white rounded-xl shadow-md border hover:shadow-2xl transition-all p-4 sm:p-5 flex flex-row justify-between items-center gap-3 min-h-[80px] sm:min-h-[90px] w-full max-w-sm"
                                         whileHover={{ scale: 1.03, boxShadow: '0 8px 32px 0 rgba(99,102,241,0.15)' }}
                                     >
                                         <div className="flex items-center gap-2 flex-1 min-w-0">
                                             <FaKey className="w-5 h-5 text-indigo-500 flex-shrink-0" />
-                                            <div className="min-w-0">
-                                                <div className="font-semibold text-base truncate">{credential.name}</div>
-                                                <div className="text-xs text-gray-400 mt-1 truncate">添加时间：{formatDate(credential.createdAt)}</div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="font-semibold text-sm sm:text-base whitespace-nowrap overflow-hidden text-ellipsis">{credential.name}</div>
+                                                <div className="text-xs text-gray-400 mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis">添加时间：{formatDate(credential.createdAt)}</div>
                                             </div>
                                         </div>
                                         <button
@@ -138,7 +152,7 @@ export const PasskeySetup: React.FC = () => {
                                             title="删除"
                                         >
                                             {removingId === credential.id ? (
-                                                <span className="animate-spin w-4 h-4 sm:w-5 sm:h-5 border-2 border-red-500 border-t-transparent rounded-full"></span>
+                                                <span className="animate-spin w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full"></span>
                                             ) : (
                                                 <FaTrash className="w-4 h-4 sm:w-5 sm:h-5" />
                                             )}
@@ -179,7 +193,7 @@ export const PasskeySetup: React.FC = () => {
                         transition={{ duration: 0.3 }}
                         className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
                     >
-                        <motion.div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-2">
+                        <motion.div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 max-w-sm sm:max-w-md lg:max-w-lg w-full mx-4">
                             <div className="flex items-center gap-2 mb-4">
                                 <FaExclamationTriangle className="text-red-500 w-6 h-6" />
                                 <span className="font-bold text-lg">确认删除</span>
@@ -216,15 +230,15 @@ export const PasskeySetup: React.FC = () => {
                         transition={{ duration: 0.3 }}
                         className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
                     >
-                        <motion.div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-2">
+                        <motion.div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 max-w-sm sm:max-w-md lg:max-w-lg w-full mx-4">
                             <div className="flex items-center gap-2 mb-4">
                                 <FaKey className="text-indigo-500 w-6 h-6" />
                                 <span className="font-bold text-lg">注册新的 Passkey</span>
                             </div>
                             <div className="mb-4 text-gray-700">
-                                <div className="mb-2">Passkey 支持指纹、面容、Windows Hello、手机等安全认证方式。</div>
-                                <div className="text-sm text-blue-700 bg-blue-50 rounded px-2 py-1 mt-2">
-                                    <strong>注意：</strong>每个账户<strong>只能设置一个</strong>Passkey，注册新Passkey会覆盖旧的。<br/>
+                                <div className="mb-2 text-sm sm:text-base leading-relaxed">Passkey 支持指纹、面容、Windows Hello、手机等安全认证方式。</div>
+                                <div className="text-xs sm:text-sm text-blue-700 bg-blue-50 rounded px-3 py-2 mt-2 leading-relaxed">
+                                    <strong>注意：</strong>每个账户<strong>只能设置一个</strong>Passkey，注册新Passkey会覆盖旧的。<br />
                                     建议在常用且安全的设备上设置。若设备丢失或更换，请及时删除原有Passkey并重新注册。
                                 </div>
                             </div>

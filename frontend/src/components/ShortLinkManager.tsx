@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaTrash, FaCopy, FaSearch, FaSync, FaDice, FaLink, FaPlus, FaInfoCircle, FaExclamationTriangle, FaCheckCircle, FaArrowLeft, FaList, FaToggleOn, FaToggleOff } from 'react-icons/fa';
+import { FaTrash, FaCopy, FaSearch, FaSync, FaDice, FaLink, FaPlus, FaInfoCircle, FaExclamationTriangle, FaCheckCircle, FaArrowLeft, FaList, FaToggleOn, FaToggleOff, FaChevronLeft, FaChevronRight, FaAngleDoubleLeft, FaAngleDoubleRight } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import { useNotification } from './Notification';
 import getApiBaseUrl from '../api';
@@ -59,6 +59,7 @@ const ShortLinkManager: React.FC = () => {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [refreshing, setRefreshing] = useState(false);
   const [createTarget, setCreateTarget] = useState('');
   const [customCode, setCustomCode] = useState('');
@@ -102,15 +103,13 @@ const ShortLinkManager: React.FC = () => {
           if (decryptedData.items && Array.isArray(decryptedData.items)) {
             console.log('✅ 解密成功，获取到', decryptedData.items.length, '个短链');
             setLinks(decryptedData.items);
-            setTotal(decryptedData.total || 0);
+            setTotal(decryptedData.total || decryptedData.items.length);
+            setTotalPages(Math.ceil((decryptedData.total || decryptedData.items.length) / PAGE_SIZE));
           } else {
-            console.error('❌ 解密数据格式错误，期望包含items数组');
+            console.error('解密数据格式错误:', decryptedData);
             setLinks([]);
             setTotal(0);
-            setNotification({ 
-              message: '数据格式错误，请重试', 
-              type: 'error' 
-            });
+            setTotalPages(1);
           }
         } catch (decryptError) {
           console.error('❌ 解密失败:', decryptError);
@@ -398,7 +397,36 @@ const ShortLinkManager: React.FC = () => {
     }
   };
 
-  const totalPages = Math.ceil(total / PAGE_SIZE);
+  // 分页控制函数
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages && newPage !== page) {
+      setPage(newPage);
+    }
+  };
+
+  const handleFirstPage = () => handlePageChange(1);
+  const handlePrevPage = () => handlePageChange(page - 1);
+  const handleNextPage = () => handlePageChange(page + 1);
+  const handleLastPage = () => handlePageChange(totalPages);
+
+  // 生成页码按钮数组
+  const generatePageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, page - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    
+    // 调整起始页，确保显示足够的页码
+    if (endPage - startPage + 1 < maxVisiblePages) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+    
+    return pages;
+  };
 
   if (!user || user.role !== 'admin') {
     return (
@@ -918,41 +946,102 @@ const ShortLinkManager: React.FC = () => {
         </div>
       </motion.div>
 
-      {/* 分页 */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
-      >
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-          <span className="text-gray-500 text-base text-center sm:text-left">
-            共 {total} 条短链
-          </span>
-          <div className="flex flex-row gap-3 w-full sm:w-auto justify-center items-center">
-            <motion.button 
-              disabled={page <= 1} 
-              onClick={() => setPage(page - 1)} 
-              className="flex-1 sm:flex-none px-6 py-3 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-base font-medium min-w-[80px] shadow-sm hover:shadow-md transition-all duration-150"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              上一页
-            </motion.button>
-            <span className="px-4 py-3 text-base font-medium flex items-center justify-center min-w-[80px] text-center bg-white border border-gray-300 rounded-lg shadow-sm">
-              {page} / {totalPages || 1}
-            </span>
-            <motion.button 
-              disabled={page >= totalPages} 
-              onClick={() => setPage(page + 1)} 
-              className="flex-1 sm:flex-none px-6 py-3 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-base font-medium min-w-[80px] shadow-sm hover:shadow-md transition-all duration-150"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              下一页
-            </motion.button>
+      {/* 分页控件 */}
+      {totalPages > 1 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+        >
+          <div className="flex items-center justify-center gap-2">
+            <div className="flex items-center gap-1">
+              {/* 首页按钮 */}
+              <motion.button
+                onClick={handleFirstPage}
+                disabled={page === 1}
+                className={`p-2 rounded-lg transition-all duration-200 ${
+                  page === 1
+                    ? 'text-gray-400 cursor-not-allowed'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
+                }`}
+                whileHover={page !== 1 ? { scale: 1.05 } : {}}
+                whileTap={page !== 1 ? { scale: 0.95 } : {}}
+              >
+                <FaAngleDoubleLeft className="w-4 h-4" />
+              </motion.button>
+
+              {/* 上一页按钮 */}
+              <motion.button
+                onClick={handlePrevPage}
+                disabled={page === 1}
+                className={`p-2 rounded-lg transition-all duration-200 ${
+                  page === 1
+                    ? 'text-gray-400 cursor-not-allowed'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
+                }`}
+                whileHover={page !== 1 ? { scale: 1.05 } : {}}
+                whileTap={page !== 1 ? { scale: 0.95 } : {}}
+              >
+                <FaChevronLeft className="w-4 h-4" />
+              </motion.button>
+
+              {/* 页码按钮 */}
+              <div className="flex items-center gap-1 mx-2">
+                {generatePageNumbers().map((pageNum) => (
+                  <motion.button
+                    key={pageNum}
+                    onClick={() => handlePageChange(pageNum)}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      pageNum === page
+                        ? 'bg-blue-500 text-white shadow-md'
+                        : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
+                    }`}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    {pageNum}
+                  </motion.button>
+                ))}
+              </div>
+
+              {/* 下一页按钮 */}
+              <motion.button
+                onClick={handleNextPage}
+                disabled={page === totalPages}
+                className={`p-2 rounded-lg transition-all duration-200 ${
+                  page === totalPages
+                    ? 'text-gray-400 cursor-not-allowed'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
+                }`}
+                whileHover={page !== totalPages ? { scale: 1.05 } : {}}
+                whileTap={page !== totalPages ? { scale: 0.95 } : {}}
+              >
+                <FaChevronRight className="w-4 h-4" />
+              </motion.button>
+
+              {/* 末页按钮 */}
+              <motion.button
+                onClick={handleLastPage}
+                disabled={page === totalPages}
+                className={`p-2 rounded-lg transition-all duration-200 ${
+                  page === totalPages
+                    ? 'text-gray-400 cursor-not-allowed'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
+                }`}
+                whileHover={page !== totalPages ? { scale: 1.05 } : {}}
+                whileTap={page !== totalPages ? { scale: 0.95 } : {}}
+              >
+                <FaAngleDoubleRight className="w-4 h-4" />
+              </motion.button>
+            </div>
+
+            {/* 页面信息 */}
+            <div className="ml-4 text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">
+              第 {page} / {totalPages} 页，共 {total} 条记录
+            </div>
           </div>
-        </div>
-      </motion.div>
+        </motion.div>
+      )}
     </div>
   );
 };

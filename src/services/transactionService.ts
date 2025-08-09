@@ -10,7 +10,7 @@ export class TransactionService {
   static async executeTransaction<T>(callback: (session: mongoose.ClientSession | null) => Promise<T>): Promise<T> {
     // 检查是否支持事务
     const supportsTransactions = await this.checkTransactionSupport();
-    
+
     if (!supportsTransactions) {
       // 如果不支持事务，直接执行操作而不使用session
       logger.info('数据库不支持事务，直接执行操作');
@@ -19,7 +19,7 @@ export class TransactionService {
 
     const session = await mongoose.startSession();
     session.startTransaction();
-    
+
     try {
       const result = await callback(session);
       await session.commitTransaction();
@@ -41,7 +41,7 @@ export class TransactionService {
         logger.warn('数据库连接不可用，假设不支持事务');
         return false;
       }
-      
+
       const admin = mongoose.connection.db.admin();
       const result = await admin.command({ ismaster: 1 });
       // 检查是否是副本集或分片集群
@@ -56,8 +56,8 @@ export class TransactionService {
    * 批量生成CDK的事务操作
    */
   static async generateCDKsWithTransaction(
-    resourceId: string, 
-    count: number, 
+    resourceId: string,
+    count: number,
     expiresAt?: Date
   ) {
     // 验证输入参数
@@ -65,25 +65,25 @@ export class TransactionService {
       logger.error('资源ID验证失败：资源ID为空', { resourceId, type: typeof resourceId });
       throw new Error('资源ID不能为空');
     }
-    
+
     // 验证资源ID格式（MongoDB ObjectId格式）
     if (resourceId.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(resourceId)) {
-      logger.error('资源ID格式验证失败', { 
-        resourceId, 
-        length: resourceId.length, 
-        isValidHex: /^[0-9a-fA-F]{24}$/.test(resourceId) 
+      logger.error('资源ID格式验证失败', {
+        resourceId,
+        length: resourceId.length,
+        isValidHex: /^[0-9a-fA-F]{24}$/.test(resourceId)
       });
       throw new Error('无效的资源ID格式，必须是24位十六进制字符串');
     }
-    
-    if (!count || typeof count !== 'number' || count <= 0 || count > 1000) {
-      throw new Error('无效的生成数量，必须在1-1000之间');
+
+    if (!count || typeof count !== 'number' || count <= 0 || count > 5000) {
+      throw new Error('无效的生成数量，必须在1-5000之间');
     }
-    
+
     return this.executeTransaction(async (session) => {
       // 验证资源存在
       const ResourceModel = mongoose.model('Resource');
-      const resource = session 
+      const resource = session
         ? await ResourceModel.findById(resourceId).session(session)
         : await ResourceModel.findById(resourceId);
       if (!resource) {
@@ -93,7 +93,7 @@ export class TransactionService {
       // 生成CDK
       const CDKModel = mongoose.model('CDK');
       const cdks = [];
-      
+
       for (let i = 0; i < count; i++) {
         const code = this.generateUniqueCode();
         const cdk = new CDKModel({
@@ -109,7 +109,7 @@ export class TransactionService {
       const insertOptions = session ? { session } : {};
       await CDKModel.insertMany(cdks, insertOptions);
       logger.info('批量生成CDK成功', { resourceId, count });
-      
+
       return cdks.map(cdk => cdk.toObject());
     });
   }
@@ -122,12 +122,12 @@ export class TransactionService {
     if (!resourceId || typeof resourceId !== 'string' || resourceId.trim() === '') {
       throw new Error('资源ID不能为空');
     }
-    
+
     // 验证资源ID格式（MongoDB ObjectId格式）
     if (resourceId.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(resourceId)) {
       throw new Error('无效的资源ID格式，必须是24位十六进制字符串');
     }
-    
+
     return this.executeTransaction(async (session) => {
       const ResourceModel = mongoose.model('Resource');
       const CDKModel = mongoose.model('CDK');
@@ -144,13 +144,13 @@ export class TransactionService {
       const deleteResult = session
         ? await CDKModel.deleteMany({ resourceId }).session(session)
         : await CDKModel.deleteMany({ resourceId });
-      
-      logger.info('删除资源及相关CDK成功', { 
-        resourceId, 
+
+      logger.info('删除资源及相关CDK成功', {
+        resourceId,
         resourceTitle: resource.title,
-        deletedCDKs: deleteResult.deletedCount 
+        deletedCDKs: deleteResult.deletedCount
       });
-      
+
       return { resource: resource.toObject(), deletedCDKs: deleteResult.deletedCount };
     });
   }

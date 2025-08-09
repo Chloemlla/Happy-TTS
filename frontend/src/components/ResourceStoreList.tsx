@@ -19,10 +19,16 @@ export default function ResourceStoreList() {
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'store' | 'owned'>('store');
   const [redeemedLoading, setRedeemedLoading] = useState(false);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [duplicateResourceInfo, setDuplicateResourceInfo] = useState<{ title: string, id: string } | null>(null);
+  const [pendingCDKCode, setPendingCDKCode] = useState('');
+  const [redeemedCount, setRedeemedCount] = useState(0);
 
   useEffect(() => {
     fetchResources();
     fetchCategories();
+    // 初始化时获取已兑换资源数量
+    fetchRedeemedResourcesCount();
   }, [selectedCategory]);
 
   useEffect(() => {
@@ -56,20 +62,33 @@ export default function ResourceStoreList() {
   };
 
   const fetchRedeemedResources = async () => {
+    setRedeemedLoading(true);
     try {
-      setRedeemedLoading(true);
       const response = await cdksApi.getUserRedeemedResources();
       setRedeemedResources(response.resources);
+      setRedeemedCount(response.resources.length);
     } catch (error) {
-      console.error('获取已兑换资源失败:', error);
+      setError('获取已兑换资源失败');
       setRedeemedResources([]);
+      setRedeemedCount(0);
     } finally {
       setRedeemedLoading(false);
     }
   };
 
-  const handleRedeemCDK = async () => {
-    if (!cdkCode.trim()) {
+  const fetchRedeemedResourcesCount = async () => {
+    try {
+      const response = await cdksApi.getUserRedeemedResources();
+      setRedeemedCount(response.resources.length);
+    } catch (error) {
+      setRedeemedCount(0);
+    }
+  };
+
+  const handleRedeemCDK = async (forceRedeem = false) => {
+    const codeToRedeem = forceRedeem ? pendingCDKCode : cdkCode;
+
+    if (!codeToRedeem.trim()) {
       setError('请输入CDK兑换码');
       return;
     }
@@ -79,26 +98,55 @@ export default function ResourceStoreList() {
     setSuccess('');
 
     try {
-      const result = await cdksApi.redeemCDK(cdkCode);
+      // 生成或获取用户信息
+      const userInfo = {
+        userId: `user_${Date.now()}`, // 简单的用户ID生成
+        username: `用户${Math.floor(Math.random() * 1000)}` // 随机用户名
+      };
+
+      const result = await cdksApi.redeemCDK(codeToRedeem, userInfo, forceRedeem);
       setSuccess(`兑换成功！获得资源：${result.resource.title}`);
       setCdkCode('');
-      
-      // 刷新已兑换资源列表
+      setPendingCDKCode('');
+      setShowDuplicateDialog(false);
+
+      // 刷新已兑换资源列表和数量
+      fetchRedeemedResourcesCount();
       if (activeTab === 'owned') {
         fetchRedeemedResources();
       }
-      
+
       // 显示下载链接
       if (result.resource.downloadUrl) {
         setTimeout(() => {
           window.open(result.resource.downloadUrl, '_blank');
         }, 1000);
       }
-    } catch (error) {
-      setError('兑换失败：CDK无效或已使用');
+    } catch (error: any) {
+      if (error.response?.status === 409 && error.response?.data?.message === 'DUPLICATE_RESOURCE') {
+        // 显示重复资源确认对话框
+        setDuplicateResourceInfo({
+          title: error.response.data.resourceTitle,
+          id: error.response.data.resourceId
+        });
+        setPendingCDKCode(codeToRedeem);
+        setShowDuplicateDialog(true);
+      } else {
+        setError('兑换失败：CDK无效或已使用');
+      }
     } finally {
       setCdkLoading(false);
     }
+  };
+
+  const handleConfirmDuplicate = () => {
+    handleRedeemCDK(true);
+  };
+
+  const handleCancelDuplicate = () => {
+    setShowDuplicateDialog(false);
+    setPendingCDKCode('');
+    setDuplicateResourceInfo(null);
   };
 
   const handleRefresh = () => {
@@ -174,7 +222,7 @@ export default function ResourceStoreList() {
               onChange={(e) => setCdkCode(e.target.value)}
             />
             <motion.button
-              onClick={handleRedeemCDK}
+              onClick={() => handleRedeemCDK()}
               disabled={cdkLoading}
               className="px-6 py-2 bg-gradient-to-r from-green-500 to-blue-600 text-white rounded-lg hover:from-green-600 hover:to-blue-700 disabled:opacity-50 transition-all duration-200 font-medium flex items-center justify-center gap-2"
               whileHover={!cdkLoading ? { scale: 1.02 } : {}}
@@ -229,11 +277,10 @@ export default function ResourceStoreList() {
             <div className="flex gap-2">
               <motion.button
                 onClick={() => setActiveTab('store')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
-                  activeTab === 'store' 
-                    ? 'bg-indigo-600 text-white shadow-md' 
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 ${activeTab === 'store'
+                    ? 'bg-indigo-600 text-white shadow-md'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                  }`}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
@@ -242,16 +289,15 @@ export default function ResourceStoreList() {
               </motion.button>
               <motion.button
                 onClick={() => setActiveTab('owned')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
-                  activeTab === 'owned' 
-                    ? 'bg-green-600 text-white shadow-md' 
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 ${activeTab === 'owned'
+                    ? 'bg-green-600 text-white shadow-md'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                  }`}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
                 <FaUser className="w-4 h-4" />
-                我的资源 ({redeemedResources.length})
+                我的资源 ({redeemedCount})
               </motion.button>
             </div>
           </div>
@@ -271,11 +317,10 @@ export default function ResourceStoreList() {
             <div className="flex flex-wrap gap-2">
               <motion.button
                 onClick={() => setSelectedCategory('')}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                  selectedCategory === '' 
-                    ? 'bg-indigo-600 text-white shadow-md' 
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${selectedCategory === ''
+                    ? 'bg-indigo-600 text-white shadow-md'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                  }`}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
@@ -285,11 +330,10 @@ export default function ResourceStoreList() {
                 <motion.button
                   key={category}
                   onClick={() => setSelectedCategory(category)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                    selectedCategory === category 
-                      ? 'bg-indigo-600 text-white shadow-md' 
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${selectedCategory === category
+                      ? 'bg-indigo-600 text-white shadow-md'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                    }`}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
@@ -437,21 +481,66 @@ export default function ResourceStoreList() {
                           {resource.description}
                         </p>
                         <div className="space-y-3">
-                          <div className="flex items-center justify-between text-sm">
-                            <div className="flex items-center gap-1 text-gray-500">
-                              <FaCalendarAlt className="w-4 h-4" />
-                              兑换时间:
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between text-sm">
+                              <div className="flex items-center gap-1 text-gray-500">
+                                <FaCalendarAlt className="w-4 h-4" />
+                                兑换日期:
+                              </div>
+                              <span className="text-gray-700 font-medium">
+                                {new Date(resource.redeemedAt).toLocaleDateString('zh-CN', {
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric'
+                                })}
+                              </span>
                             </div>
-                            <span className="text-gray-700">
-                              {new Date(resource.redeemedAt).toLocaleDateString()}
-                            </span>
+                            <div className="flex items-center justify-between text-sm">
+                              <div className="flex items-center gap-1 text-gray-500">
+                                <FaHistory className="w-4 h-4" />
+                                兑换时间:
+                              </div>
+                              <span className="text-gray-700">
+                                {new Date(resource.redeemedAt).toLocaleTimeString('zh-CN', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  second: '2-digit'
+                                })}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                              <div className="flex items-center gap-1 text-gray-500">
+                                <FaUser className="w-4 h-4" />
+                                使用时长:
+                              </div>
+                              <span className="text-gray-700">
+                                {(() => {
+                                  const now = new Date();
+                                  const redeemTime = new Date(resource.redeemedAt);
+                                  const diffMs = now.getTime() - redeemTime.getTime();
+                                  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                                  const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                                  const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+                                  if (diffDays > 0) {
+                                    return `${diffDays}天${diffHours}小时前`;
+                                  } else if (diffHours > 0) {
+                                    return `${diffHours}小时${diffMinutes}分钟前`;
+                                  } else if (diffMinutes > 0) {
+                                    return `${diffMinutes}分钟前`;
+                                  } else {
+                                    return '刚刚';
+                                  }
+                                })()}
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-100">
                             <div className="flex items-center gap-1 text-gray-500">
                               <FaKey className="w-4 h-4" />
                               CDK代码:
                             </div>
-                            <span className="text-gray-700 font-mono text-xs">
+                            <span className="text-gray-700 font-mono text-xs bg-gray-50 px-2 py-1 rounded">
                               {resource.cdkCode}
                             </span>
                           </div>
@@ -500,6 +589,74 @@ export default function ResourceStoreList() {
           </>
         )}
       </div>
+
+      {/* 重复资源确认对话框 */}
+      <AnimatePresence>
+        {showDuplicateDialog && duplicateResourceInfo && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onClick={handleCancelDuplicate}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex-shrink-0">
+                  <FaExclamationTriangle className="w-8 h-8 text-yellow-500" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    重复资源提醒
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    您已拥有此资源
+                  </p>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <p className="text-gray-700 mb-2">
+                    您已经拥有资源：
+                    <span className="font-semibold text-gray-900">
+                      {duplicateResourceInfo.title}
+                    </span>
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    继续兑换将消耗一个CDK，但不会获得新的资源访问权限。
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <motion.button
+                  onClick={handleCancelDuplicate}
+                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all duration-200 font-medium"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  取消兑换
+                </motion.button>
+                <motion.button
+                  onClick={handleConfirmDuplicate}
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-600 text-white rounded-lg hover:from-yellow-600 hover:to-orange-700 transition-all duration-200 font-medium"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  继续兑换
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 } 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaPlus, FaEdit, FaTrash, FaSearch, FaSync, FaInfoCircle, FaExclamationTriangle, FaCheckCircle, FaArrowLeft, FaList, FaKey, FaBox, FaClock, FaUser, FaToggleOn, FaToggleOff } from 'react-icons/fa';
+import { FaPlus, FaEdit, FaTrash, FaSearch, FaSync, FaInfoCircle, FaExclamationTriangle, FaCheckCircle, FaArrowLeft, FaList, FaKey, FaBox, FaClock, FaUser, FaToggleOn, FaToggleOff, FaChevronLeft, FaChevronRight, FaAngleDoubleLeft, FaAngleDoubleRight } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import { cdksApi, CDK } from '../api/cdks';
 import { resourcesApi, Resource } from '../api/resources';
@@ -51,30 +51,30 @@ function GenerateCDKModal({ isOpen, onClose, onSuccess }: GenerateCDKModalProps)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // 验证资源ID不为空
     if (!formData.resourceId || formData.resourceId.trim() === '') {
       setError('请选择要生成CDK的资源');
       return;
     }
-    
+
     setLoading(true);
     setError('');
 
     try {
-      console.log('准备生成CDK，参数:', { 
-        resourceId: formData.resourceId, 
-        count: formData.count, 
-        expiresAt: formData.expiresAt 
+      console.log('准备生成CDK，参数:', {
+        resourceId: formData.resourceId,
+        count: formData.count,
+        expiresAt: formData.expiresAt
       });
       const expiresAt = formData.expiresAt ? new Date(formData.expiresAt) : undefined;
       await cdksApi.generateCDKs(formData.resourceId, formData.count, expiresAt);
-      
-      setNotification({ 
-        message: `成功生成 ${formData.count} 个CDK`, 
-        type: 'success' 
+
+      setNotification({
+        message: `成功生成 ${formData.count} 个CDK`,
+        type: 'success'
       });
-      
+
       onSuccess();
       onClose();
       // 重置表单
@@ -86,9 +86,9 @@ function GenerateCDKModal({ isOpen, onClose, onSuccess }: GenerateCDKModalProps)
     } catch (error) {
       console.error('生成CDK失败:', error);
       setError('生成CDK失败，请重试');
-      setNotification({ 
-        message: '生成CDK失败，请重试', 
-        type: 'error' 
+      setNotification({
+        message: '生成CDK失败，请重试',
+        type: 'error'
       });
     } finally {
       setLoading(false);
@@ -174,20 +174,21 @@ function GenerateCDKModal({ isOpen, onClose, onSuccess }: GenerateCDKModalProps)
                   </div>
                 )}
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700">生成数量</label>
                 <input
                   type="number"
                   min="1"
-                  max="100"
+                  max="5000"
                   required
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200"
                   value={formData.count}
                   onChange={(e) => setFormData({ ...formData, count: parseInt(e.target.value) || 1 })}
                 />
+                <p className="mt-1 text-xs text-gray-500">单次最多可生成5000个CDK，数据库最多支持10万个CDK</p>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700">过期时间（可选）</label>
                 <input
@@ -200,7 +201,7 @@ function GenerateCDKModal({ isOpen, onClose, onSuccess }: GenerateCDKModalProps)
               </div>
 
               {error && (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="text-red-600 text-sm bg-red-50 p-3 rounded-lg border border-red-200 flex items-center gap-2"
@@ -289,13 +290,13 @@ function EditCDKModal({ isOpen, onClose, onSuccess, cdk }: EditCDKModalProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!cdk) return;
-    
+
     // 验证资源ID不为空
     if (!formData.resourceId || formData.resourceId.trim() === '') {
       setError('请选择要关联的资源');
       return;
     }
-    
+
     setLoading(true);
     setError('');
 
@@ -305,22 +306,22 @@ function EditCDKModal({ isOpen, onClose, onSuccess, cdk }: EditCDKModalProps) {
         resourceId: formData.resourceId,
         expiresAt: formData.expiresAt ? new Date(formData.expiresAt) : undefined
       };
-      
+
       await cdksApi.updateCDK(cdk.id, updateData);
-      
-      setNotification({ 
-        message: 'CDK更新成功', 
-        type: 'success' 
+
+      setNotification({
+        message: 'CDK更新成功',
+        type: 'success'
       });
-      
+
       onSuccess();
       onClose();
     } catch (error) {
       console.error('更新CDK失败:', error);
       setError('更新CDK失败，请重试');
-      setNotification({ 
-        message: '更新CDK失败，请重试', 
-        type: 'error' 
+      setNotification({
+        message: '更新CDK失败，请重试',
+        type: 'error'
       });
     } finally {
       setLoading(false);
@@ -359,7 +360,7 @@ function EditCDKModal({ isOpen, onClose, onSuccess, cdk }: EditCDKModalProps) {
                   onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700">选择资源</label>
                 <select
@@ -383,7 +384,7 @@ function EditCDKModal({ isOpen, onClose, onSuccess, cdk }: EditCDKModalProps) {
                   </p>
                 )}
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700">过期时间（可选）</label>
                 <input
@@ -396,7 +397,7 @@ function EditCDKModal({ isOpen, onClose, onSuccess, cdk }: EditCDKModalProps) {
               </div>
 
               {error && (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="text-red-600 text-sm bg-red-50 p-3 rounded-lg border border-red-200 flex items-center gap-2"
@@ -452,10 +453,18 @@ export default function CDKStoreManager() {
   const [editingCDK, setEditingCDK] = useState<CDK | null>(null);
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  // 分页相关状态
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [pageSize, setPageSize] = useState(20);
   // 批量选择相关状态
   const [selectedCDKs, setSelectedCDKs] = useState<Set<string>>(new Set());
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [batchDeleting, setBatchDeleting] = useState(false);
+  const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
+  const [deleteAllLoading, setDeleteAllLoading] = useState(false);
+  const [totalCDKCount, setTotalCDKCount] = useState(0);
   const { setNotification } = useNotification();
 
   // 虚拟滚动相关状态
@@ -469,18 +478,32 @@ export default function CDKStoreManager() {
     fetchCDKs();
   }, []);
 
-  const fetchCDKs = async () => {
+  // 当页码变化时重新获取数据
+  useEffect(() => {
+    if (currentPage > 1) {
+      fetchCDKs();
+    }
+  }, [currentPage]);
+
+  const fetchCDKs = async (page = currentPage) => {
     try {
-      const response = await cdksApi.getCDKs();
+      setLoading(true);
+      const response = await cdksApi.getCDKs(page);
       setCdks(response.cdks);
+      setTotalItems(response.total);
+      setCurrentPage(response.page);
+      setPageSize(response.pageSize);
+      setTotalPages(Math.ceil(response.total / response.pageSize));
     } catch (error) {
       console.error('获取CDK列表失败:', error);
-      setNotification({ 
-        message: '获取CDK列表失败，请重试', 
-        type: 'error' 
+      setNotification({
+        message: '获取CDK列表失败，请重试',
+        type: 'error'
       });
       // 设置默认值，防止组件崩溃
       setCdks([]);
+      setTotalItems(0);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
@@ -494,6 +517,37 @@ export default function CDKStoreManager() {
     fetchCDKs(); // 重新获取CDK列表
   };
 
+  // 分页控制函数
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages && page !== currentPage) {
+      setCurrentPage(page);
+    }
+  };
+
+  const handleFirstPage = () => handlePageChange(1);
+  const handlePrevPage = () => handlePageChange(currentPage - 1);
+  const handleNextPage = () => handlePageChange(currentPage + 1);
+  const handleLastPage = () => handlePageChange(totalPages);
+
+  // 生成页码按钮数组
+  const generatePageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    
+    // 调整起始页，确保显示足够的页码
+    if (endPage - startPage + 1 < maxVisiblePages) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+    
+    return pages;
+  };
+
   const handleEdit = (cdk: CDK) => {
     setEditingCDK(cdk);
     setShowEditModal(true);
@@ -504,16 +558,16 @@ export default function CDKStoreManager() {
     if (window.confirm(`确定要删除CDK"${cdk.code}"吗？此操作不可撤销。`)) {
       try {
         await cdksApi.deleteCDK(cdk.id);
-        setNotification({ 
-          message: `成功删除CDK: ${cdk.code}`, 
-          type: 'success' 
+        setNotification({
+          message: `成功删除CDK: ${cdk.code}`,
+          type: 'success'
         });
         fetchCDKs(); // 重新获取CDK列表
       } catch (error) {
         console.error('删除CDK失败:', error);
-        setNotification({ 
-          message: '删除CDK失败，请重试', 
-          type: 'error' 
+        setNotification({
+          message: '删除CDK失败，请重试',
+          type: 'error'
         });
       }
     }
@@ -523,9 +577,9 @@ export default function CDKStoreManager() {
     setRefreshing(true);
     fetchCDKs().then(() => {
       setRefreshing(false);
-      setNotification({ 
-        message: 'CDK列表已刷新', 
-        type: 'success' 
+      setNotification({
+        message: 'CDK列表已刷新',
+        type: 'success'
       });
     }).catch(() => {
       setRefreshing(false);
@@ -561,9 +615,9 @@ export default function CDKStoreManager() {
 
   const handleBatchDelete = async () => {
     if (selectedCDKs.size === 0) {
-      setNotification({ 
-        message: '请选择要删除的CDK', 
-        type: 'warning' 
+      setNotification({
+        message: '请选择要删除的CDK',
+        type: 'warning'
       });
       return;
     }
@@ -571,33 +625,80 @@ export default function CDKStoreManager() {
     const selectedArray = Array.from(selectedCDKs);
     const selectedCDKObjects = cdks.filter(cdk => selectedArray.includes(cdk.id));
     const cdkCodes = selectedCDKObjects.map(cdk => cdk.code).join(', ');
-    
+
     // 使用浏览器原生确认对话框，因为这是关键操作
     if (window.confirm(`确定要删除以下${selectedCDKs.size}个CDK吗？\n${cdkCodes}\n\n此操作不可撤销。`)) {
       setBatchDeleting(true);
       try {
         const result = await cdksApi.batchDeleteCDKs(selectedArray);
-        setNotification({ 
-          message: `批量删除成功！删除了 ${result.deletedCount} 个CDK`, 
-          type: 'success' 
+        setNotification({
+          message: `批量删除成功！删除了 ${result.deletedCount} 个CDK`,
+          type: 'success'
         });
-        
+
         // 清空选择并退出选择模式
         setSelectedCDKs(new Set());
         setIsSelectMode(false);
-        
+
         // 重新获取CDK列表
         fetchCDKs();
       } catch (error) {
         console.error('批量删除CDK失败:', error);
-        setNotification({ 
-          message: `批量删除失败：${error instanceof Error ? error.message : '请重试'}`, 
-          type: 'error' 
+        setNotification({
+          message: `批量删除失败：${error instanceof Error ? error.message : '请重试'}`,
+          type: 'error'
         });
       } finally {
         setBatchDeleting(false);
       }
     }
+  };
+
+  // 删除所有CDK
+  const handleDeleteAll = async () => {
+    try {
+      // 获取数据库中的真实CDK总数量
+      const result = await cdksApi.getTotalCDKCount();
+      setTotalCDKCount(result.totalCount);
+      setShowDeleteAllDialog(true);
+    } catch (error) {
+      console.error('获取CDK总数量失败:', error);
+      setNotification({
+        message: '获取CDK总数量失败，请重试',
+        type: 'error'
+      });
+    }
+  };
+
+  const handleConfirmDeleteAll = async () => {
+    setDeleteAllLoading(true);
+    try {
+      const result = await cdksApi.deleteAllCDKs();
+      setNotification({
+        message: `成功删除所有CDK！共删除了 ${result.deletedCount} 个CDK`,
+        type: 'success'
+      });
+
+      // 清空选择并退出选择模式
+      setSelectedCDKs(new Set());
+      setIsSelectMode(false);
+      setShowDeleteAllDialog(false);
+
+      // 重新获取CDK列表
+      fetchCDKs();
+    } catch (error) {
+      console.error('删除所有CDK失败:', error);
+      setNotification({
+        message: `删除所有CDK失败：${error instanceof Error ? error.message : '请重试'}`,
+        type: 'error'
+      });
+    } finally {
+      setDeleteAllLoading(false);
+    }
+  };
+
+  const handleCancelDeleteAll = () => {
+    setShowDeleteAllDialog(false);
   };
 
   const filteredCDKs = cdks.filter(cdk =>
@@ -606,10 +707,10 @@ export default function CDKStoreManager() {
   );
 
   // 虚拟滚动计算
-  const totalItems = filteredCDKs.length;
+  const filteredItemsCount = filteredCDKs.length;
   const visibleCount = Math.ceil(containerHeight / itemHeight);
   const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan);
-  const endIndex = Math.min(totalItems, startIndex + visibleCount + overscan * 2);
+  const endIndex = Math.min(filteredItemsCount, startIndex + visibleCount + overscan * 2);
   const visibleItems = filteredCDKs.slice(startIndex, endIndex);
   const offsetY = startIndex * itemHeight;
 
@@ -619,7 +720,7 @@ export default function CDKStoreManager() {
   // 监听容器大小变化
   const containerRef = React.useRef<HTMLDivElement>(null);
   const mobileContainerRef = React.useRef<HTMLDivElement>(null);
-  
+
   React.useEffect(() => {
     const updateContainerHeight = () => {
       const ref = window.innerWidth >= 768 ? containerRef.current : mobileContainerRef.current;
@@ -659,7 +760,7 @@ export default function CDKStoreManager() {
             <FaKey className="w-6 h-6" />
             CDK管理
           </h2>
-          <Link 
+          <Link
             to="/admin/store"
             className="px-3 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition text-sm font-medium flex items-center gap-2"
           >
@@ -732,18 +833,28 @@ export default function CDKStoreManager() {
             {/* 批量操作按钮 */}
             <motion.button
               onClick={toggleSelectMode}
-              className={`px-4 py-2 rounded-lg transition-all duration-200 font-medium flex items-center gap-2 ${
-                isSelectMode 
-                  ? 'bg-orange-500 text-white hover:bg-orange-600' 
+              className={`px-4 py-2 rounded-lg transition-all duration-200 font-medium flex items-center gap-2 ${isSelectMode
+                  ? 'bg-orange-500 text-white hover:bg-orange-600'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+                }`}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
               {isSelectMode ? <FaToggleOn className="w-4 h-4" /> : <FaToggleOff className="w-4 h-4" />}
               {isSelectMode ? '退出选择' : '批量选择'}
             </motion.button>
-            
+
+            <motion.button
+              onClick={handleDeleteAll}
+              disabled={cdks.length === 0}
+              className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium flex items-center gap-2"
+              whileHover={cdks.length > 0 ? { scale: 1.02 } : {}}
+              whileTap={cdks.length > 0 ? { scale: 0.98 } : {}}
+            >
+              <FaTrash className="w-4 h-4" />
+              删除全部
+            </motion.button>
+
             <motion.button
               onClick={() => setShowGenerateModal(true)}
               className="px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-600 text-white rounded-lg hover:from-purple-600 hover:to-blue-700 transition-all duration-200 font-medium flex items-center gap-2"
@@ -787,7 +898,7 @@ export default function CDKStoreManager() {
                     </motion.button>
                   </div>
                 </div>
-                
+
                 {selectedCDKs.size > 0 && (
                   <motion.button
                     onClick={handleBatchDelete}
@@ -812,16 +923,22 @@ export default function CDKStoreManager() {
         animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
       >
-        <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-          <FaList className="w-5 h-5 text-purple-500" />
-          CDK列表 
-          {totalItems > 0 && (
-            <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-              共 {totalItems} 个
-              {search && ` (筛选后)`}
-            </span>
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <FaList className="w-5 h-5 text-purple-500" />
+            CDK列表
+            {totalItems > 0 && (
+              <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                共 {totalItems} 个
+              </span>
+            )}
+          </h3>
+          {totalPages > 1 && (
+            <div className="text-sm text-gray-600">
+              第 {currentPage} 页，共 {totalPages} 页
+            </div>
           )}
-        </h3>
+        </div>
 
         {/* 桌面端表格视图 */}
         <div className="hidden md:block">
@@ -834,8 +951,8 @@ export default function CDKStoreManager() {
                     <th className="py-3 px-3 text-center font-semibold text-gray-700 w-12">
                       <input
                         type="checkbox"
-                        checked={filteredCDKs.filter(cdk => !cdk.isUsed).length > 0 && 
-                                 filteredCDKs.filter(cdk => !cdk.isUsed).every(cdk => selectedCDKs.has(cdk.id))}
+                        checked={filteredCDKs.filter(cdk => !cdk.isUsed).length > 0 &&
+                          filteredCDKs.filter(cdk => !cdk.isUsed).every(cdk => selectedCDKs.has(cdk.id))}
                         onChange={(e) => {
                           if (e.target.checked) {
                             selectAllCDKs();
@@ -851,15 +968,16 @@ export default function CDKStoreManager() {
                   <th className="py-3 px-3 text-left font-semibold text-gray-700">资源ID</th>
                   <th className="py-3 px-3 text-left font-semibold text-gray-700">状态</th>
                   <th className="py-3 px-3 text-left font-semibold text-gray-700">使用时间</th>
+                  <th className="py-3 px-3 text-left font-semibold text-gray-700">使用用户</th>
                   <th className="py-3 px-3 text-left font-semibold text-gray-700">过期时间</th>
                   <th className="py-3 px-3 text-center font-semibold text-gray-700">操作</th>
                 </tr>
               </thead>
             </table>
           </div>
-          
+
           {/* 虚拟滚动容器 */}
-          <div 
+          <div
             ref={containerRef}
             className="overflow-auto border border-gray-200 rounded-b-lg"
             style={{ height: useVirtualScrolling ? `${containerHeight}px` : 'auto', maxHeight: `${containerHeight}px` }}
@@ -871,7 +989,7 @@ export default function CDKStoreManager() {
                   <tbody>
                     {totalItems === 0 ? (
                       <tr>
-                        <td colSpan={isSelectMode ? 7 : 6} className="text-center py-12 text-gray-400">
+                        <td colSpan={isSelectMode ? 8 : 7} className="text-center py-12 text-gray-400">
                           <div className="flex flex-col items-center gap-2">
                             <FaList className="text-3xl text-gray-300" />
                             <div className="text-lg font-medium text-gray-500">
@@ -893,9 +1011,8 @@ export default function CDKStoreManager() {
                               checked={selectedCDKs.has(cdk.id)}
                               onChange={() => toggleSelectCDK(cdk.id)}
                               disabled={cdk.isUsed}
-                              className={`rounded border-gray-300 text-purple-600 focus:ring-purple-500 ${
-                                cdk.isUsed ? 'opacity-50 cursor-not-allowed' : ''
-                              }`}
+                              className={`rounded border-gray-300 text-purple-600 focus:ring-purple-500 ${cdk.isUsed ? 'opacity-50 cursor-not-allowed' : ''
+                                }`}
                             />
                           </td>
                         )}
@@ -912,11 +1029,10 @@ export default function CDKStoreManager() {
                           </div>
                         </td>
                         <td className="whitespace-nowrap px-6 py-4">
-                          <span className={`inline-flex items-center gap-2 rounded-full px-2 text-xs font-semibold leading-5 ${
-                            cdk.isUsed 
-                              ? 'bg-red-100 text-red-800' 
+                          <span className={`inline-flex items-center gap-2 rounded-full px-2 text-xs font-semibold leading-5 ${cdk.isUsed
+                              ? 'bg-red-100 text-red-800'
                               : 'bg-green-100 text-green-800'
-                          }`}>
+                            }`}>
                             {cdk.isUsed ? (
                               <React.Fragment key={`used-${cdk.id}`}>
                                 <FaToggleOff className="w-3 h-3" />
@@ -937,6 +1053,19 @@ export default function CDKStoreManager() {
                           </div>
                         </td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                          {cdk.isUsed && cdk.usedBy ? (
+                            <div className="flex items-center gap-2">
+                              <FaUser className="w-4 h-4 text-blue-500" />
+                              <div className="flex flex-col">
+                                <div className="text-xs text-gray-700">ID: {cdk.usedBy.userId}</div>
+                                <div className="text-xs text-gray-600">{cdk.usedBy.username}</div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-gray-400">-</div>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                           <div className="flex items-center gap-2">
                             <FaClock className="w-4 h-4 text-orange-400" />
                             {cdk.expiresAt ? new Date(cdk.expiresAt).toLocaleString() : '永不过期'}
@@ -953,7 +1082,7 @@ export default function CDKStoreManager() {
                               查看
                             </motion.button>
                             {!cdk.isUsed && (
-                              <motion.button 
+                              <motion.button
                                 onClick={() => handleDelete(cdk)}
                                 className="text-red-600 hover:text-red-900 bg-red-100 hover:bg-red-200 rounded-lg px-3 py-1 transition-all duration-150"
                                 whileHover={{ scale: 1.05 }}
@@ -975,7 +1104,7 @@ export default function CDKStoreManager() {
 
         {/* 移动端卡片列表视图 */}
         <div className="md:hidden">
-          <div 
+          <div
             ref={mobileContainerRef}
             className="overflow-auto"
             style={{ height: useVirtualScrolling ? `${containerHeight}px` : 'auto', maxHeight: `${containerHeight}px` }}
@@ -1013,9 +1142,8 @@ export default function CDKStoreManager() {
                             checked={selectedCDKs.has(cdk.id)}
                             onChange={() => toggleSelectCDK(cdk.id)}
                             disabled={cdk.isUsed}
-                            className={`rounded border-gray-300 text-purple-600 focus:ring-purple-500 mr-2 flex-shrink-0 ${
-                              cdk.isUsed ? 'opacity-50 cursor-not-allowed' : ''
-                            }`}
+                            className={`rounded border-gray-300 text-purple-600 focus:ring-purple-500 mr-2 flex-shrink-0 ${cdk.isUsed ? 'opacity-50 cursor-not-allowed' : ''
+                              }`}
                           />
                         )}
                         <FaKey className="w-5 h-5 text-purple-500 flex-shrink-0" />
@@ -1057,11 +1185,10 @@ export default function CDKStoreManager() {
                     {/* 状态和时间信息 */}
                     <div className="flex flex-col gap-2 text-xs text-gray-500">
                       <div className="flex flex-col gap-2">
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2 text-xs font-semibold leading-5 w-fit ${
-                          cdk.isUsed 
-                            ? 'bg-red-100 text-red-800' 
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2 text-xs font-semibold leading-5 w-fit ${cdk.isUsed
+                            ? 'bg-red-100 text-red-800'
                             : 'bg-green-100 text-green-800'
-                        }`}>
+                          }`}>
                           {cdk.isUsed ? (
                             <React.Fragment key={`used-mobile-${cdk.id}`}>
                               <FaToggleOff className="w-3 h-3" />
@@ -1084,6 +1211,18 @@ export default function CDKStoreManager() {
                               {new Date(cdk.usedAt).toLocaleTimeString()}
                             </div>
                           )}
+                          {cdk.isUsed && cdk.usedBy && (
+                            <div className="flex flex-col gap-1 mt-2 p-2 bg-blue-50 rounded">
+                              <div className="flex items-center gap-1">
+                                <FaUser className="w-3 h-3 text-blue-500" />
+                                <span className="text-gray-400">使用用户:</span>
+                              </div>
+                              <div className="text-xs text-gray-700 ml-4">
+                                <div>用户ID: {cdk.usedBy.userId}</div>
+                                <div>用户名: {cdk.usedBy.username}</div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1101,6 +1240,101 @@ export default function CDKStoreManager() {
             </div>
           </div>
         </div>
+
+        {/* 分页控件 */}
+        {totalPages > 1 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-6 flex items-center justify-center gap-2"
+          >
+            <div className="flex items-center gap-1">
+              {/* 首页按钮 */}
+              <motion.button
+                onClick={handleFirstPage}
+                disabled={currentPage === 1}
+                className={`p-2 rounded-lg transition-all duration-200 ${
+                  currentPage === 1
+                    ? 'text-gray-400 cursor-not-allowed'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-purple-600'
+                }`}
+                whileHover={currentPage !== 1 ? { scale: 1.05 } : {}}
+                whileTap={currentPage !== 1 ? { scale: 0.95 } : {}}
+              >
+                <FaAngleDoubleLeft className="w-4 h-4" />
+              </motion.button>
+
+              {/* 上一页按钮 */}
+              <motion.button
+                onClick={handlePrevPage}
+                disabled={currentPage === 1}
+                className={`p-2 rounded-lg transition-all duration-200 ${
+                  currentPage === 1
+                    ? 'text-gray-400 cursor-not-allowed'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-purple-600'
+                }`}
+                whileHover={currentPage !== 1 ? { scale: 1.05 } : {}}
+                whileTap={currentPage !== 1 ? { scale: 0.95 } : {}}
+              >
+                <FaChevronLeft className="w-4 h-4" />
+              </motion.button>
+
+              {/* 页码按钮 */}
+              <div className="flex items-center gap-1 mx-2">
+                {generatePageNumbers().map((page) => (
+                  <motion.button
+                    key={page}
+                    onClick={() => handlePageChange(page)}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      page === currentPage
+                        ? 'bg-purple-500 text-white shadow-md'
+                        : 'text-gray-600 hover:bg-gray-100 hover:text-purple-600'
+                    }`}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    {page}
+                  </motion.button>
+                ))}
+              </div>
+
+              {/* 下一页按钮 */}
+              <motion.button
+                onClick={handleNextPage}
+                disabled={currentPage === totalPages}
+                className={`p-2 rounded-lg transition-all duration-200 ${
+                  currentPage === totalPages
+                    ? 'text-gray-400 cursor-not-allowed'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-purple-600'
+                }`}
+                whileHover={currentPage !== totalPages ? { scale: 1.05 } : {}}
+                whileTap={currentPage !== totalPages ? { scale: 0.95 } : {}}
+              >
+                <FaChevronRight className="w-4 h-4" />
+              </motion.button>
+
+              {/* 末页按钮 */}
+              <motion.button
+                onClick={handleLastPage}
+                disabled={currentPage === totalPages}
+                className={`p-2 rounded-lg transition-all duration-200 ${
+                  currentPage === totalPages
+                    ? 'text-gray-400 cursor-not-allowed'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-purple-600'
+                }`}
+                whileHover={currentPage !== totalPages ? { scale: 1.05 } : {}}
+                whileTap={currentPage !== totalPages ? { scale: 0.95 } : {}}
+              >
+                <FaAngleDoubleRight className="w-4 h-4" />
+              </motion.button>
+            </div>
+
+            {/* 页面信息 */}
+            <div className="ml-4 text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">
+              第 {currentPage} / {totalPages} 页，共 {totalItems} 条记录
+            </div>
+          </motion.div>
+        )}
       </motion.div>
 
       <GenerateCDKModal
@@ -1108,7 +1342,7 @@ export default function CDKStoreManager() {
         onClose={() => setShowGenerateModal(false)}
         onSuccess={handleGenerateSuccess}
       />
-      
+
       <EditCDKModal
         isOpen={showEditModal}
         onClose={() => {
@@ -1118,6 +1352,86 @@ export default function CDKStoreManager() {
         onSuccess={handleEditSuccess}
         cdk={editingCDK}
       />
+
+      {/* 删除所有CDK确认对话框 */}
+      <AnimatePresence>
+        {showDeleteAllDialog && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onClick={handleCancelDeleteAll}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex-shrink-0">
+                  <FaExclamationTriangle className="w-8 h-8 text-red-500" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    危险操作确认
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    此操作将删除所有CDK
+                  </p>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <p className="text-gray-700 mb-2">
+                    您即将删除
+                    <span className="font-semibold text-red-600">
+                      数据库中所有 {totalCDKCount} 个CDK
+                    </span>
+                    （包括已使用和未使用的CDK）
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    <strong>此操作不可撤销！</strong>删除后将无法恢复任何CDK数据。
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <motion.button
+                  onClick={handleCancelDeleteAll}
+                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all duration-200 font-medium"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  取消
+                </motion.button>
+                <motion.button
+                  onClick={handleConfirmDeleteAll}
+                  disabled={deleteAllLoading}
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 disabled:opacity-50 transition-all duration-200 font-medium flex items-center justify-center gap-2"
+                  whileHover={!deleteAllLoading ? { scale: 1.02 } : {}}
+                  whileTap={!deleteAllLoading ? { scale: 0.98 } : {}}
+                >
+                  {deleteAllLoading ? (
+                    <>
+                      <FaSync className="animate-spin w-4 h-4" />
+                      删除中...
+                    </>
+                  ) : (
+                    <>
+                      <FaTrash className="w-4 h-4" />
+                      确认删除全部
+                    </>
+                  )}
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 } 
