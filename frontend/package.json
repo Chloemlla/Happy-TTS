@@ -54,7 +54,7 @@
     "idb": "^8.0.3",
     "javascript-obfuscator": "^4.0.0",
     "jsonwebtoken": "^9.0.2",
-    "lucide-react": "^0.525.0",
+    "lucide-react": "^0.539.0",
     "marked": "^16.1.1",
     "md5": "^2.3.0",
     "prismjs": "^1.30.0",
