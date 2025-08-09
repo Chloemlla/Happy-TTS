@@ -270,22 +270,31 @@ router.get('/shortlinks', authenticateToken, async (req, res) => {
 
     console.log('✅ [ShortLinkManager] Token获取成功，长度:', token.length);
 
-  const { search = '', page = 1, pageSize = 10 } = req.query;
-  const ShortUrlModel = require('mongoose').models.ShortUrl || require('mongoose').model('ShortUrl');
-  const query = search
-    ? {
-        $or: [
-          { code: { $regex: search, $options: 'i' } },
-          { target: { $regex: search, $options: 'i' } }
-        ]
-      }
-    : {};
+    // 输入验证和清理
+    const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
+    const page = Math.max(1, parseInt(String(req.query.page || '1')) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(String(req.query.pageSize || '10')) || 10));
     
-  const total = await ShortUrlModel.countDocuments(query);
-  const items = await ShortUrlModel.find(query)
-    .sort({ createdAt: -1 })
-    .skip((Number(page) - 1) * Number(pageSize))
-    .limit(Number(pageSize));
+    const ShortUrlModel = require('mongoose').models.ShortUrl || require('mongoose').model('ShortUrl');
+    
+    // 安全的查询构建
+    let query: any = {};
+    if (search && search.length > 0) {
+      // 防止正则表达式注入：转义特殊字符
+      const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      query = {
+        $or: [
+          { code: { $regex: escapedSearch, $options: 'i' } },
+          { target: { $regex: escapedSearch, $options: 'i' } }
+        ]
+      };
+    }
+    
+    const total = await ShortUrlModel.countDocuments(query);
+    const items = await ShortUrlModel.find(query)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * pageSize)
+      .limit(pageSize);
 
     console.log('📊 [ShortLinkManager] 获取到短链数量:', items.length);
     console.log('   总数:', total);
@@ -347,70 +356,200 @@ router.get('/shortlinks', authenticateToken, async (req, res) => {
 });
 
 router.delete('/shortlinks/:id', authenticateToken, async (req, res) => {
-  const ShortUrlModel = require('mongoose').models.ShortUrl || require('mongoose').model('ShortUrl');
-  const link = await ShortUrlModel.findById(req.params.id);
-  await ShortUrlModel.findByIdAndDelete(req.params.id);
-  logger.info('[ShortLink] 管理员删除短链', {
-    admin: req.user?.username || req.user?.id,
-    code: link?.code,
-    target: link?.target,
-    id: req.params.id,
-    time: new Date().toISOString()
-  });
-  res.json({ success: true });
+  try {
+    // 检查管理员权限
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ error: '需要管理员权限' });
+    }
+
+    const { id } = req.params;
+    
+    // 验证ID格式，防止NoSQL注入
+    if (!id || typeof id !== 'string' || id.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(id)) {
+      return res.status(400).json({ error: '无效的短链ID格式' });
+    }
+
+    const ShortUrlModel = require('mongoose').models.ShortUrl || require('mongoose').model('ShortUrl');
+    const link = await ShortUrlModel.findById(id);
+    
+    if (!link) {
+      return res.status(404).json({ error: '短链不存在' });
+    }
+    
+    await ShortUrlModel.findByIdAndDelete(id);
+    logger.info('[ShortLink] 管理员删除短链', {
+      admin: req.user?.username || req.user?.id,
+      code: link?.code,
+      target: link?.target,
+      id: id,
+      time: new Date().toISOString()
+    });
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('[ShortLink] 删除短链失败:', error);
+    res.status(500).json({ error: '删除短链失败' });
+  }
+});
+
+// 批量删除短链
+router.post('/shortlinks/batch-delete', authenticateToken, async (req, res) => {
+  try {
+    const { ids } = req.body;
+    
+    // 验证请求体
+    if (!ids || !Array.isArray(ids)) {
+      return res.status(400).json({ error: '请提供有效的短链ID列表' });
+    }
+
+    // 检查管理员权限
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ error: '需要管理员权限' });
+    }
+
+    const ShortUrlModel = require('mongoose').models.ShortUrl || require('mongoose').model('ShortUrl');
+    
+    // 验证每个ID的格式，防止NoSQL注入
+    const validIds = ids.filter(id => 
+      typeof id === 'string' && 
+      id.length === 24 && 
+      /^[0-9a-fA-F]{24}$/.test(id)
+    );
+
+    if (validIds.length === 0) {
+      return res.status(400).json({ error: '没有有效的短链ID' });
+    }
+
+    // 限制批量删除的数量，防止DoS攻击
+    if (validIds.length > 100) {
+      return res.status(400).json({ error: '批量删除数量不能超过100个' });
+    }
+
+    // 查找所有要删除的短链
+    const links = await ShortUrlModel.find({ _id: { $in: validIds } });
+    
+    if (links.length === 0) {
+      return res.status(404).json({ error: '没有找到要删除的短链' });
+    }
+
+    // 执行批量删除
+    const deleteResult = await ShortUrlModel.deleteMany({ _id: { $in: validIds } });
+
+    logger.info('[ShortLink] 管理员批量删除短链', {
+      admin: req.user?.username || req.user?.id,
+      requestedCount: ids.length,
+      validCount: validIds.length,
+      deletedCount: deleteResult.deletedCount,
+      deletedCodes: links.map((link: any) => link.code),
+      time: new Date().toISOString()
+    });
+
+    res.json({
+      success: true,
+      message: '批量删除成功',
+      data: {
+        requestedCount: ids.length,
+        validCount: validIds.length,
+        deletedCount: deleteResult.deletedCount,
+        deletedCodes: links.map((link: any) => link.code)
+      }
+    });
+  } catch (error) {
+    logger.error('[ShortLink] 批量删除短链失败:', error);
+    res.status(500).json({ 
+      error: error instanceof Error ? error.message : '批量删除短链失败' 
+    });
+  }
 });
 
 // 创建短链
 router.post('/shortlinks', authenticateToken, async (req, res) => {
-  const { target, customCode } = req.body;
-  if (!target || typeof target !== 'string') {
-    return res.status(400).json({ error: '目标地址不能为空' });
-  }
-  
-  const mongoose = require('mongoose');
-  const ShortUrlModel = mongoose.models.ShortUrl || mongoose.model('ShortUrl');
-  const nanoid = require('nanoid').nanoid;
-  const { shortUrlMigrationService } = require('../services/shortUrlMigrationService');
-  
-  let code: string;
-  
-  // 如果提供了自定义短链接码
-  if (customCode && typeof customCode === 'string') {
-    const trimmedCode = customCode.trim();
+  try {
+    // 检查管理员权限
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ error: '需要管理员权限' });
+    }
+
+    const { target, customCode } = req.body;
     
-    // 验证自定义短链接码格式
-    if (trimmedCode.length < 1 || trimmedCode.length > 200) {
-      return res.status(400).json({ error: '自定义短链接码长度必须在1-200个字符之间' });
+    // 输入验证
+    if (!target || typeof target !== 'string') {
+      return res.status(400).json({ error: '目标地址不能为空' });
     }
     
-    // 验证字符格式（只允许字母、数字、连字符和下划线）
-    if (!/^[a-zA-Z0-9_-]+$/.test(trimmedCode)) {
-      return res.status(400).json({ error: '自定义短链接码只能包含字母、数字、连字符和下划线' });
+    // 验证目标URL格式
+    const trimmedTarget = target.trim();
+    if (trimmedTarget.length === 0 || trimmedTarget.length > 2000) {
+      return res.status(400).json({ error: '目标地址长度必须在1-2000个字符之间' });
     }
     
-    // 检查是否已存在
-    const existingShortUrl = await ShortUrlModel.findOne({ code: trimmedCode });
-    if (existingShortUrl) {
-      return res.status(400).json({ error: '该短链接码已被使用，请选择其他短链接码' });
+    // 验证URL格式
+    try {
+      new URL(trimmedTarget);
+    } catch {
+      return res.status(400).json({ error: '目标地址必须是有效的URL格式' });
     }
     
-    code = trimmedCode;
-  } else {
-    // 生成随机短链接码
-    let randomCode = nanoid(6);
-    while (await ShortUrlModel.findOne({ code: randomCode })) {
-      randomCode = nanoid(6);
+    const mongoose = require('mongoose');
+    const ShortUrlModel = mongoose.models.ShortUrl || mongoose.model('ShortUrl');
+    const nanoid = require('nanoid').nanoid;
+    const { shortUrlMigrationService } = require('../services/shortUrlMigrationService');
+    
+    let code: string;
+    
+    // 如果提供了自定义短链接码
+    if (customCode && typeof customCode === 'string') {
+      const trimmedCode = customCode.trim();
+      
+      // 验证自定义短链接码格式
+      if (trimmedCode.length < 1 || trimmedCode.length > 200) {
+        return res.status(400).json({ error: '自定义短链接码长度必须在1-200个字符之间' });
+      }
+      
+      // 验证字符格式（只允许字母、数字、连字符和下划线）
+      if (!/^[a-zA-Z0-9_-]+$/.test(trimmedCode)) {
+        return res.status(400).json({ error: '自定义短链接码只能包含字母、数字、连字符和下划线' });
+      }
+      
+      // 检查是否已存在
+      const existingShortUrl = await ShortUrlModel.findOne({ code: trimmedCode });
+      if (existingShortUrl) {
+        return res.status(400).json({ error: '该短链接码已被使用，请选择其他短链接码' });
+      }
+      
+      code = trimmedCode;
+    } else {
+      // 生成随机短链接码
+      let randomCode = nanoid(6);
+      let retries = 0;
+      const maxRetries = 10;
+      
+      while (retries < maxRetries) {
+        const existingCode = await ShortUrlModel.findOne({ code: randomCode });
+        if (!existingCode) {
+          break;
+        }
+        randomCode = nanoid(6);
+        retries++;
+      }
+      
+      if (retries >= maxRetries) {
+        return res.status(500).json({ error: '无法生成唯一的短链代码，请重试' });
+      }
+      
+      code = randomCode;
+    }
+    
+    // 使用迁移服务自动修正目标URL
+    const fixedTarget = shortUrlMigrationService.fixTargetUrlBeforeSave(trimmedTarget);
+    
+    const userId = req.user?.id || 'admin';
+    const username = req.user?.username || 'admin';
+    const doc = await ShortUrlModel.create({ code, target: fixedTarget, userId, username });
+    res.json({ success: true, code, shortUrl: `/s/${code}`, doc });
+  } catch (error) {
+    logger.error('[ShortLink] 创建短链失败:', error);
+    res.status(500).json({ error: '创建短链失败' });
   }
-    code = randomCode;
-  }
-  
-  // 使用迁移服务自动修正目标URL
-  const fixedTarget = shortUrlMigrationService.fixTargetUrlBeforeSave(target);
-  
-  const userId = req.user?.id || 'admin';
-  const username = req.user?.username || 'admin';
-  const doc = await ShortUrlModel.create({ code, target: fixedTarget, userId, username });
-  res.json({ success: true, code, shortUrl: `/s/${code}`, doc });
 });
 
 // 短链迁移管理API

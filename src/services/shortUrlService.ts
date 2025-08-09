@@ -57,13 +57,27 @@ export class ShortUrlService {
    */
   static async getShortUrlByCode(code: string) {
     try {
-      const shortUrl = await ShortUrlModel.findOne({ code });
-      if (!shortUrl) {
-        logger.warn('短链不存在', { code });
+      // 输入验证
+      if (!code || typeof code !== 'string' || code.trim().length === 0) {
+        logger.warn('无效的短链代码', { code });
         return null;
       }
       
-      logger.info('获取短链成功', { code, target: shortUrl.target });
+      const trimmedCode = code.trim();
+      
+      // 验证代码格式（只允许字母、数字、连字符和下划线）
+      if (!/^[a-zA-Z0-9_-]+$/.test(trimmedCode)) {
+        logger.warn('短链代码格式无效', { code: trimmedCode });
+        return null;
+      }
+      
+      const shortUrl = await ShortUrlModel.findOne({ code: trimmedCode });
+      if (!shortUrl) {
+        logger.warn('短链不存在', { code: trimmedCode });
+        return null;
+      }
+      
+      logger.info('获取短链成功', { code: trimmedCode, target: shortUrl.target });
       return shortUrl.toObject();
     } catch (error) {
       logger.error('获取短链失败:', error);
@@ -76,18 +90,32 @@ export class ShortUrlService {
    */
   static async deleteShortUrl(code: string, userId?: string) {
     try {
-      const query: any = { code };
-      if (userId) {
-        query.userId = userId; // 只能删除自己的短链
+      // 输入验证
+      if (!code || typeof code !== 'string' || code.trim().length === 0) {
+        logger.warn('无效的短链代码', { code });
+        return false;
+      }
+      
+      const trimmedCode = code.trim();
+      
+      // 验证代码格式
+      if (!/^[a-zA-Z0-9_-]+$/.test(trimmedCode)) {
+        logger.warn('短链代码格式无效', { code: trimmedCode });
+        return false;
+      }
+      
+      const query: any = { code: trimmedCode };
+      if (userId && typeof userId === 'string' && userId.trim().length > 0) {
+        query.userId = userId.trim(); // 只能删除自己的短链
       }
       
       const result = await ShortUrlModel.findOneAndDelete(query);
       if (!result) {
-        logger.warn('删除短链失败：短链不存在或无权限', { code, userId });
+        logger.warn('删除短链失败：短链不存在或无权限', { code: trimmedCode, userId });
         return false;
       }
       
-      logger.info('删除短链成功', { code, userId });
+      logger.info('删除短链成功', { code: trimmedCode, userId });
       return true;
     } catch (error) {
       logger.error('删除短链失败:', error);
@@ -100,23 +128,31 @@ export class ShortUrlService {
    */
   static async getUserShortUrls(userId: string, page: number = 1, limit: number = 10) {
     try {
-      const skip = (page - 1) * limit;
+      // 输入验证
+      if (!userId || typeof userId !== 'string' || userId.trim().length === 0) {
+        throw new Error('无效的用户ID');
+      }
+      
+      const trimmedUserId = userId.trim();
+      const validatedPage = Math.max(1, parseInt(String(page)) || 1);
+      const validatedLimit = Math.min(100, Math.max(1, parseInt(String(limit)) || 10));
+      const skip = (validatedPage - 1) * validatedLimit;
       
       const [shortUrls, total] = await Promise.all([
-        ShortUrlModel.find({ userId })
+        ShortUrlModel.find({ userId: trimmedUserId })
           .sort({ createdAt: -1 })
           .skip(skip)
-          .limit(limit),
-        ShortUrlModel.countDocuments({ userId })
+          .limit(validatedLimit),
+        ShortUrlModel.countDocuments({ userId: trimmedUserId })
       ]);
       
-      logger.info('获取用户短链列表成功', { userId, page, total });
+      logger.info('获取用户短链列表成功', { userId: trimmedUserId, page: validatedPage, total });
       
       return {
         shortUrls: shortUrls.map(url => url.toObject()),
         total,
-        page,
-        limit
+        page: validatedPage,
+        limit: validatedLimit
       };
     } catch (error) {
       logger.error('获取用户短链列表失败:', error);
@@ -129,15 +165,36 @@ export class ShortUrlService {
    */
   static async batchDeleteShortUrls(codes: string[], userId?: string) {
     try {
-      const query: any = { code: { $in: codes } };
-      if (userId) {
-        query.userId = userId;
+      // 输入验证
+      if (!Array.isArray(codes) || codes.length === 0) {
+        throw new Error('请提供有效的短链代码列表');
+      }
+      
+      // 验证和清理代码列表
+      const validCodes = codes.filter(code => 
+        typeof code === 'string' && 
+        code.trim().length > 0 && 
+        /^[a-zA-Z0-9_-]+$/.test(code.trim())
+      ).map(code => code.trim());
+      
+      if (validCodes.length === 0) {
+        throw new Error('没有有效的短链代码');
+      }
+      
+      // 限制批量删除的数量，防止DoS攻击
+      if (validCodes.length > 100) {
+        throw new Error('批量删除数量不能超过100个');
+      }
+      
+      const query: any = { code: { $in: validCodes } };
+      if (userId && typeof userId === 'string' && userId.trim().length > 0) {
+        query.userId = userId.trim();
       }
       
       const result = await ShortUrlModel.deleteMany(query);
       
       logger.info('批量删除短链成功', { 
-        codes, 
+        codes: validCodes, 
         userId, 
         deletedCount: result.deletedCount 
       });

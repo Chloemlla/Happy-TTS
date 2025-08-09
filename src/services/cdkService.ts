@@ -153,6 +153,64 @@ export class CDKService {
     }
   }
 
+  // 批量删除CDK
+  async batchDeleteCDKs(ids: string[]) {
+    try {
+      // 验证输入参数
+      if (!Array.isArray(ids) || ids.length === 0) {
+        throw new Error('请提供有效的CDK ID列表');
+      }
+
+      // 验证每个ID的格式
+      const validIds = ids.filter(id => 
+        typeof id === 'string' && 
+        id.length === 24 && 
+        /^[0-9a-fA-F]{24}$/.test(id)
+      );
+
+      if (validIds.length === 0) {
+        throw new Error('没有有效的CDK ID');
+      }
+
+      // 查找所有要删除的CDK
+      const cdks = await CDKModel.find({ _id: { $in: validIds } });
+      
+      if (cdks.length === 0) {
+        throw new Error('没有找到要删除的CDK');
+      }
+
+      // 检查是否有已使用的CDK
+      const usedCDKs = cdks.filter(cdk => cdk.isUsed);
+      if (usedCDKs.length > 0) {
+        const usedCodes = usedCDKs.map(cdk => cdk.code).join(', ');
+        throw new Error(`以下CDK已被使用，无法删除：${usedCodes}`);
+      }
+
+      // 执行批量删除
+      const deleteResult = await CDKModel.deleteMany({ 
+        _id: { $in: validIds },
+        isUsed: false // 双重保险，确保不删除已使用的CDK
+      });
+
+      logger.info('批量删除CDK成功', { 
+        requestedCount: ids.length,
+        validCount: validIds.length,
+        deletedCount: deleteResult.deletedCount,
+        deletedCodes: cdks.map(cdk => cdk.code)
+      });
+
+      return {
+        requestedCount: ids.length,
+        validCount: validIds.length,
+        deletedCount: deleteResult.deletedCount,
+        deletedCodes: cdks.map(cdk => cdk.code)
+      };
+    } catch (error) {
+      logger.error('批量删除CDK失败:', error);
+      throw error;
+    }
+  }
+
   // 获取用户已兑换的资源
   async getUserRedeemedResources(userIp: string) {
     try {

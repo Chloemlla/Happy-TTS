@@ -4,6 +4,7 @@ import {
   redeemCDK,
   generateCDKs,
   deleteCDK,
+  batchDeleteCDKs,
   getCDKs,
   getCDKStats,
   getUserRedeemedResources
@@ -20,5 +21,6 @@ router.get('/cdks', authenticateAdmin, getCDKs);
 router.get('/cdks/stats', authenticateAdmin, getCDKStats);
 router.post('/cdks/generate', authenticateAdmin, generateCDKs);
 router.delete('/cdks/:id', authenticateAdmin, deleteCDK);
+router.post('/cdks/batch-delete', authenticateAdmin, batchDeleteCDKs);
 
 export default router; 

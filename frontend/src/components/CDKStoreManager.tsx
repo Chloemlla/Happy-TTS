@@ -6,6 +6,7 @@ import { cdksApi, CDK } from '../api/cdks';
 import { resourcesApi, Resource } from '../api/resources';
 import { getApiBaseUrl } from '../api/api';
 import { UnifiedLoadingSpinner } from './LoadingSpinner';
+import { useNotification } from './Notification';
 
 interface GenerateCDKModalProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ function GenerateCDKModal({ isOpen, onClose, onSuccess }: GenerateCDKModalProps)
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const { setNotification } = useNotification();
 
   useEffect(() => {
     if (isOpen) {
@@ -67,6 +69,12 @@ function GenerateCDKModal({ isOpen, onClose, onSuccess }: GenerateCDKModalProps)
       });
       const expiresAt = formData.expiresAt ? new Date(formData.expiresAt) : undefined;
       await cdksApi.generateCDKs(formData.resourceId, formData.count, expiresAt);
+      
+      setNotification({ 
+        message: `成功生成 ${formData.count} 个CDK`, 
+        type: 'success' 
+      });
+      
       onSuccess();
       onClose();
       // 重置表单
@@ -78,6 +86,10 @@ function GenerateCDKModal({ isOpen, onClose, onSuccess }: GenerateCDKModalProps)
     } catch (error) {
       console.error('生成CDK失败:', error);
       setError('生成CDK失败，请重试');
+      setNotification({ 
+        message: '生成CDK失败，请重试', 
+        type: 'error' 
+      });
     } finally {
       setLoading(false);
     }
@@ -146,13 +158,13 @@ function GenerateCDKModal({ isOpen, onClose, onSuccess }: GenerateCDKModalProps)
                           });
                           if (response.ok) {
                             fetchResources(); // 重新获取资源列表
-                            alert('测试资源初始化成功！');
+                            setNotification({ message: '测试资源初始化成功！', type: 'success' });
                           } else {
-                            alert('初始化失败，请检查权限');
+                            setNotification({ message: '初始化失败，请检查权限', type: 'error' });
                           }
                         } catch (error) {
                           console.error('初始化测试资源失败:', error);
-                          alert('初始化失败');
+                          setNotification({ message: '初始化失败', type: 'error' });
                         }
                       }}
                       className="px-3 py-1 bg-yellow-500 text-white text-xs rounded hover:bg-yellow-600 transition"
@@ -245,6 +257,7 @@ function EditCDKModal({ isOpen, onClose, onSuccess, cdk }: EditCDKModalProps) {
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const { setNotification } = useNotification();
 
   // 当cdk变化时，更新表单数据
   useEffect(() => {
@@ -294,11 +307,21 @@ function EditCDKModal({ isOpen, onClose, onSuccess, cdk }: EditCDKModalProps) {
       };
       
       await cdksApi.updateCDK(cdk.id, updateData);
+      
+      setNotification({ 
+        message: 'CDK更新成功', 
+        type: 'success' 
+      });
+      
       onSuccess();
       onClose();
     } catch (error) {
       console.error('更新CDK失败:', error);
       setError('更新CDK失败，请重试');
+      setNotification({ 
+        message: '更新CDK失败，请重试', 
+        type: 'error' 
+      });
     } finally {
       setLoading(false);
     }
@@ -429,6 +452,17 @@ export default function CDKStoreManager() {
   const [editingCDK, setEditingCDK] = useState<CDK | null>(null);
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  // 批量选择相关状态
+  const [selectedCDKs, setSelectedCDKs] = useState<Set<string>>(new Set());
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [batchDeleting, setBatchDeleting] = useState(false);
+  const { setNotification } = useNotification();
+
+  // 虚拟滚动相关状态
+  const [containerHeight, setContainerHeight] = useState(600);
+  const [scrollTop, setScrollTop] = useState(0);
+  const itemHeight = 120; // 每个CDK项目的预估高度
+  const overscan = 5; // 额外渲染的项目数量，确保平滑滚动
 
   useEffect(() => {
     console.log('CDKStoreManager: 组件已加载');
@@ -441,6 +475,10 @@ export default function CDKStoreManager() {
       setCdks(response.cdks);
     } catch (error) {
       console.error('获取CDK列表失败:', error);
+      setNotification({ 
+        message: '获取CDK列表失败，请重试', 
+        type: 'error' 
+      });
       // 设置默认值，防止组件崩溃
       setCdks([]);
     } finally {
@@ -462,26 +500,143 @@ export default function CDKStoreManager() {
   };
 
   const handleDelete = async (cdk: CDK) => {
+    // 使用浏览器原生确认对话框，因为这是关键操作
     if (window.confirm(`确定要删除CDK"${cdk.code}"吗？此操作不可撤销。`)) {
       try {
         await cdksApi.deleteCDK(cdk.id);
+        setNotification({ 
+          message: `成功删除CDK: ${cdk.code}`, 
+          type: 'success' 
+        });
         fetchCDKs(); // 重新获取CDK列表
       } catch (error) {
         console.error('删除CDK失败:', error);
-        alert('删除CDK失败，请重试');
+        setNotification({ 
+          message: '删除CDK失败，请重试', 
+          type: 'error' 
+        });
       }
     }
   };
 
   const handleRefresh = () => {
     setRefreshing(true);
-    fetchCDKs().then(() => setRefreshing(false));
+    fetchCDKs().then(() => {
+      setRefreshing(false);
+      setNotification({ 
+        message: 'CDK列表已刷新', 
+        type: 'success' 
+      });
+    }).catch(() => {
+      setRefreshing(false);
+    });
+  };
+
+  // 批量选择相关函数
+  const toggleSelectMode = () => {
+    setIsSelectMode(!isSelectMode);
+    if (isSelectMode) {
+      setSelectedCDKs(new Set());
+    }
+  };
+
+  const toggleSelectCDK = (cdkId: string) => {
+    const newSelected = new Set(selectedCDKs);
+    if (newSelected.has(cdkId)) {
+      newSelected.delete(cdkId);
+    } else {
+      newSelected.add(cdkId);
+    }
+    setSelectedCDKs(newSelected);
+  };
+
+  const selectAllCDKs = () => {
+    const unusedCDKs = filteredCDKs.filter(cdk => !cdk.isUsed);
+    setSelectedCDKs(new Set(unusedCDKs.map(cdk => cdk.id)));
+  };
+
+  const clearSelection = () => {
+    setSelectedCDKs(new Set());
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedCDKs.size === 0) {
+      setNotification({ 
+        message: '请选择要删除的CDK', 
+        type: 'warning' 
+      });
+      return;
+    }
+
+    const selectedArray = Array.from(selectedCDKs);
+    const selectedCDKObjects = cdks.filter(cdk => selectedArray.includes(cdk.id));
+    const cdkCodes = selectedCDKObjects.map(cdk => cdk.code).join(', ');
+    
+    // 使用浏览器原生确认对话框，因为这是关键操作
+    if (window.confirm(`确定要删除以下${selectedCDKs.size}个CDK吗？\n${cdkCodes}\n\n此操作不可撤销。`)) {
+      setBatchDeleting(true);
+      try {
+        const result = await cdksApi.batchDeleteCDKs(selectedArray);
+        setNotification({ 
+          message: `批量删除成功！删除了 ${result.deletedCount} 个CDK`, 
+          type: 'success' 
+        });
+        
+        // 清空选择并退出选择模式
+        setSelectedCDKs(new Set());
+        setIsSelectMode(false);
+        
+        // 重新获取CDK列表
+        fetchCDKs();
+      } catch (error) {
+        console.error('批量删除CDK失败:', error);
+        setNotification({ 
+          message: `批量删除失败：${error instanceof Error ? error.message : '请重试'}`, 
+          type: 'error' 
+        });
+      } finally {
+        setBatchDeleting(false);
+      }
+    }
   };
 
   const filteredCDKs = cdks.filter(cdk =>
     cdk.code.toLowerCase().includes(search.toLowerCase()) ||
     cdk.resourceId.toLowerCase().includes(search.toLowerCase())
   );
+
+  // 虚拟滚动计算
+  const totalItems = filteredCDKs.length;
+  const visibleCount = Math.ceil(containerHeight / itemHeight);
+  const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan);
+  const endIndex = Math.min(totalItems, startIndex + visibleCount + overscan * 2);
+  const visibleItems = filteredCDKs.slice(startIndex, endIndex);
+  const offsetY = startIndex * itemHeight;
+
+  // 性能优化：当列表项较少时，不使用虚拟滚动
+  const useVirtualScrolling = totalItems > 20;
+
+  // 监听容器大小变化
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const mobileContainerRef = React.useRef<HTMLDivElement>(null);
+  
+  React.useEffect(() => {
+    const updateContainerHeight = () => {
+      const ref = window.innerWidth >= 768 ? containerRef.current : mobileContainerRef.current;
+      if (ref) {
+        const rect = ref.getBoundingClientRect();
+        setContainerHeight(Math.max(400, window.innerHeight - rect.top - 100));
+      }
+    };
+
+    updateContainerHeight();
+    window.addEventListener('resize', updateContainerHeight);
+    return () => window.removeEventListener('resize', updateContainerHeight);
+  }, []);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    setScrollTop(e.currentTarget.scrollTop);
+  };
 
   if (loading) {
     return (
@@ -523,6 +678,7 @@ export default function CDKStoreManager() {
                 <li>实时搜索和筛选CDK</li>
                 <li>查看CDK使用状态和时间</li>
                 <li>删除未使用的CDK</li>
+                <li>批量选择和删除多个未使用的CDK</li>
               </ul>
             </div>
           </div>
@@ -572,16 +728,82 @@ export default function CDKStoreManager() {
             <FaPlus className="w-5 h-5 text-purple-500" />
             生成CDK
           </h3>
-          <motion.button
-            onClick={() => setShowGenerateModal(true)}
-            className="px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-600 text-white rounded-lg hover:from-purple-600 hover:to-blue-700 transition-all duration-200 font-medium flex items-center gap-2"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <FaPlus className="w-4 h-4" />
-            生成CDK
-          </motion.button>
+          <div className="flex items-center gap-3">
+            {/* 批量操作按钮 */}
+            <motion.button
+              onClick={toggleSelectMode}
+              className={`px-4 py-2 rounded-lg transition-all duration-200 font-medium flex items-center gap-2 ${
+                isSelectMode 
+                  ? 'bg-orange-500 text-white hover:bg-orange-600' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              {isSelectMode ? <FaToggleOn className="w-4 h-4" /> : <FaToggleOff className="w-4 h-4" />}
+              {isSelectMode ? '退出选择' : '批量选择'}
+            </motion.button>
+            
+            <motion.button
+              onClick={() => setShowGenerateModal(true)}
+              className="px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-600 text-white rounded-lg hover:from-purple-600 hover:to-blue-700 transition-all duration-200 font-medium flex items-center gap-2"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <FaPlus className="w-4 h-4" />
+              生成CDK
+            </motion.button>
+          </div>
         </div>
+
+        {/* 批量操作控制栏 */}
+        <AnimatePresence>
+          {isSelectMode && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-4 pt-4 border-t border-gray-200"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-gray-600">
+                    已选择 {selectedCDKs.size} 个CDK
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <motion.button
+                      onClick={selectAllCDKs}
+                      className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition"
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      全选未使用
+                    </motion.button>
+                    <motion.button
+                      onClick={clearSelection}
+                      className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition"
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      清空选择
+                    </motion.button>
+                  </div>
+                </div>
+                
+                {selectedCDKs.size > 0 && (
+                  <motion.button
+                    onClick={handleBatchDelete}
+                    disabled={batchDeleting}
+                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 font-medium flex items-center gap-2"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <FaTrash className="w-4 h-4" />
+                    {batchDeleting ? '删除中...' : `删除 ${selectedCDKs.size} 个`}
+                  </motion.button>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
 
       {/* CDK列表 */}
@@ -590,28 +812,179 @@ export default function CDKStoreManager() {
         animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
       >
-        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-          <FaList className="w-5 h-5 text-indigo-500" />
-          CDK列表
+        <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+          <FaList className="w-5 h-5 text-purple-500" />
+          CDK列表 
+          {totalItems > 0 && (
+            <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+              共 {totalItems} 个
+              {search && ` (筛选后)`}
+            </span>
+          )}
         </h3>
 
         {/* 桌面端表格视图 */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="min-w-full text-sm text-gray-700">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="py-3 px-3 text-left font-semibold text-gray-700">CDK代码</th>
-                <th className="py-3 px-3 text-left font-semibold text-gray-700">资源ID</th>
-                <th className="py-3 px-3 text-left font-semibold text-gray-700">状态</th>
-                <th className="py-3 px-3 text-left font-semibold text-gray-700">使用时间</th>
-                <th className="py-3 px-3 text-left font-semibold text-gray-700">过期时间</th>
-                <th className="py-3 px-3 text-center font-semibold text-gray-700">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredCDKs.length === 0 ? (
-                <tr key="empty-state-row">
-                  <td colSpan={6} className="text-center py-12 text-gray-400">
+        <div className="hidden md:block">
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm text-gray-700">
+              <thead className="sticky top-0 z-10 bg-white">
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  {/* 批量选择复选框列 */}
+                  {isSelectMode && (
+                    <th className="py-3 px-3 text-center font-semibold text-gray-700 w-12">
+                      <input
+                        type="checkbox"
+                        checked={filteredCDKs.filter(cdk => !cdk.isUsed).length > 0 && 
+                                 filteredCDKs.filter(cdk => !cdk.isUsed).every(cdk => selectedCDKs.has(cdk.id))}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            selectAllCDKs();
+                          } else {
+                            clearSelection();
+                          }
+                        }}
+                        className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                      />
+                    </th>
+                  )}
+                  <th className="py-3 px-3 text-left font-semibold text-gray-700">CDK代码</th>
+                  <th className="py-3 px-3 text-left font-semibold text-gray-700">资源ID</th>
+                  <th className="py-3 px-3 text-left font-semibold text-gray-700">状态</th>
+                  <th className="py-3 px-3 text-left font-semibold text-gray-700">使用时间</th>
+                  <th className="py-3 px-3 text-left font-semibold text-gray-700">过期时间</th>
+                  <th className="py-3 px-3 text-center font-semibold text-gray-700">操作</th>
+                </tr>
+              </thead>
+            </table>
+          </div>
+          
+          {/* 虚拟滚动容器 */}
+          <div 
+            ref={containerRef}
+            className="overflow-auto border border-gray-200 rounded-b-lg"
+            style={{ height: useVirtualScrolling ? `${containerHeight}px` : 'auto', maxHeight: `${containerHeight}px` }}
+            onScroll={useVirtualScrolling ? handleScroll : undefined}
+          >
+            <div style={{ height: useVirtualScrolling ? `${totalItems * itemHeight}px` : 'auto', position: 'relative' }}>
+              <div style={{ transform: useVirtualScrolling ? `translateY(${offsetY}px)` : 'none' }}>
+                <table className="min-w-full text-sm text-gray-700">
+                  <tbody>
+                    {totalItems === 0 ? (
+                      <tr>
+                        <td colSpan={isSelectMode ? 7 : 6} className="text-center py-12 text-gray-400">
+                          <div className="flex flex-col items-center gap-2">
+                            <FaList className="text-3xl text-gray-300" />
+                            <div className="text-lg font-medium text-gray-500">
+                              {search ? '没有找到匹配的CDK' : '暂无CDK'}
+                            </div>
+                            <div className="text-sm text-gray-400">
+                              {search ? '尝试调整搜索条件' : '快去生成第一个CDK吧！'}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (useVirtualScrolling ? visibleItems : filteredCDKs).map((cdk) => (
+                      <tr key={`cdk-${cdk.id}`} className="border-b border-gray-100 hover:bg-gray-50" style={{ height: `${itemHeight}px` }}>
+                        {/* 批量选择复选框 */}
+                        {isSelectMode && (
+                          <td className="whitespace-nowrap px-6 py-4 text-center">
+                            <input
+                              type="checkbox"
+                              checked={selectedCDKs.has(cdk.id)}
+                              onChange={() => toggleSelectCDK(cdk.id)}
+                              disabled={cdk.isUsed}
+                              className={`rounded border-gray-300 text-purple-600 focus:ring-purple-500 ${
+                                cdk.isUsed ? 'opacity-50 cursor-not-allowed' : ''
+                              }`}
+                            />
+                          </td>
+                        )}
+                        <td className="whitespace-nowrap px-6 py-4 text-sm font-mono text-gray-900">
+                          <div className="flex items-center gap-2">
+                            <FaKey className="w-4 h-4 text-purple-500" />
+                            {cdk.code}
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                          <div className="flex items-center gap-2">
+                            <FaBox className="w-4 h-4 text-blue-500" />
+                            {cdk.resourceId}
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4">
+                          <span className={`inline-flex items-center gap-2 rounded-full px-2 text-xs font-semibold leading-5 ${
+                            cdk.isUsed 
+                              ? 'bg-red-100 text-red-800' 
+                              : 'bg-green-100 text-green-800'
+                          }`}>
+                            {cdk.isUsed ? (
+                              <React.Fragment key={`used-${cdk.id}`}>
+                                <FaToggleOff className="w-3 h-3" />
+                                已使用
+                              </React.Fragment>
+                            ) : (
+                              <React.Fragment key={`available-${cdk.id}`}>
+                                <FaToggleOn className="w-3 h-3" />
+                                可用
+                              </React.Fragment>
+                            )}
+                          </span>
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                          <div className="flex items-center gap-2">
+                            <FaClock className="w-4 h-4 text-gray-400" />
+                            {cdk.usedAt ? new Date(cdk.usedAt).toLocaleString() : '-'}
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                          <div className="flex items-center gap-2">
+                            <FaClock className="w-4 h-4 text-orange-400" />
+                            {cdk.expiresAt ? new Date(cdk.expiresAt).toLocaleString() : '永不过期'}
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-center">
+                          <div className="flex justify-center space-x-2">
+                            <motion.button
+                              onClick={() => handleEdit(cdk)}
+                              className="text-blue-600 hover:text-blue-900 bg-blue-100 hover:bg-blue-200 rounded-lg px-3 py-1 transition-all duration-150"
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                            >
+                              查看
+                            </motion.button>
+                            {!cdk.isUsed && (
+                              <motion.button 
+                                onClick={() => handleDelete(cdk)}
+                                className="text-red-600 hover:text-red-900 bg-red-100 hover:bg-red-200 rounded-lg px-3 py-1 transition-all duration-150"
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                              >
+                                删除
+                              </motion.button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 移动端卡片列表视图 */}
+        <div className="md:hidden">
+          <div 
+            ref={mobileContainerRef}
+            className="overflow-auto"
+            style={{ height: useVirtualScrolling ? `${containerHeight}px` : 'auto', maxHeight: `${containerHeight}px` }}
+            onScroll={useVirtualScrolling ? handleScroll : undefined}
+          >
+            <div style={{ height: useVirtualScrolling ? `${totalItems * itemHeight}px` : 'auto', position: 'relative' }}>
+              <div style={{ transform: useVirtualScrolling ? `translateY(${offsetY}px)` : 'none' }} className="space-y-3">
+                {totalItems === 0 ? (
+                  <div className="bg-white rounded-lg shadow p-6 text-center">
                     <div className="flex flex-col items-center gap-2">
                       <FaList className="text-3xl text-gray-300" />
                       <div className="text-lg font-medium text-gray-500">
@@ -621,105 +994,30 @@ export default function CDKStoreManager() {
                         {search ? '尝试调整搜索条件' : '快去生成第一个CDK吧！'}
                       </div>
                     </div>
-                  </td>
-                </tr>
-              ) : filteredCDKs.map((cdk) => (
-                <tr key={`cdk-${cdk.id}`} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="whitespace-nowrap px-6 py-4 text-sm font-mono text-gray-900">
-                    <div className="flex items-center gap-2">
-                      <FaKey className="w-4 h-4 text-purple-500" />
-                      {cdk.code}
-                    </div>
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                    <div className="flex items-center gap-2">
-                      <FaBox className="w-4 h-4 text-blue-500" />
-                      {cdk.resourceId}
-                    </div>
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4">
-                    <span className={`inline-flex items-center gap-2 rounded-full px-2 text-xs font-semibold leading-5 ${
-                      cdk.isUsed 
-                        ? 'bg-red-100 text-red-800' 
-                        : 'bg-green-100 text-green-800'
-                    }`}>
-                      {cdk.isUsed ? (
-                        <React.Fragment key={`used-${cdk.id}`}>
-                          <FaToggleOff className="w-3 h-3" />
-                          已使用
-                        </React.Fragment>
-                      ) : (
-                        <React.Fragment key={`available-${cdk.id}`}>
-                          <FaToggleOn className="w-3 h-3" />
-                          可用
-                        </React.Fragment>
-                      )}
-                    </span>
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                    <div className="flex items-center gap-2">
-                      <FaClock className="w-4 h-4 text-orange-500" />
-                      {cdk.usedAt ? new Date(cdk.usedAt).toLocaleString() : '-'}
-                    </div>
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                    <div className="flex items-center gap-2">
-                      <FaClock className="w-4 h-4 text-gray-500" />
-                      {cdk.expiresAt ? new Date(cdk.expiresAt).toLocaleString() : '永不过期'}
-                    </div>
-                  </td>
-                  <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                    <div className="flex gap-2 justify-center">
-                      <motion.button 
-                        onClick={() => handleEdit(cdk)}
-                        className="text-blue-600 hover:text-blue-900 bg-blue-100 hover:bg-blue-200 rounded-lg px-3 py-1 transition-all duration-150"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        查看
-                      </motion.button>
-                      {!cdk.isUsed && (
-                        <motion.button 
-                          onClick={() => handleDelete(cdk)}
-                          className="text-red-600 hover:text-red-900 bg-red-100 hover:bg-red-200 rounded-lg px-3 py-1 transition-all duration-150"
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                        >
-                          删除
-                        </motion.button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* 移动端卡片列表视图 */}
-        <div className="md:hidden space-y-3">
-          {filteredCDKs.length === 0 ? (
-            <div key="empty-state-mobile" className="bg-white rounded-lg shadow p-6 text-center">
-              <div className="flex flex-col items-center gap-2">
-                <FaList className="text-3xl text-gray-300" />
-                <div className="text-lg font-medium text-gray-500">
-                  {search ? '没有找到匹配的CDK' : '暂无CDK'}
-                </div>
-                <div className="text-sm text-gray-400">
-                  {search ? '尝试调整搜索条件' : '快去生成第一个CDK吧！'}
-                </div>
-              </div>
-            </div>
-          ) : filteredCDKs.map((cdk) => (
-            <motion.div
-              key={`mobile-cdk-${cdk.id}`}
-              className="bg-white rounded-lg shadow-sm border border-gray-100 p-4"
-              whileHover={{ scale: 1.02 }}
-              transition={{ duration: 0.2 }}
-            >
+                  </div>
+                ) : (useVirtualScrolling ? visibleItems : filteredCDKs).map((cdk) => (
+                  <motion.div
+                    key={`mobile-cdk-${cdk.id}`}
+                    className="bg-white rounded-lg shadow-sm border border-gray-100 p-4"
+                    style={{ height: `${itemHeight}px`, minHeight: `${itemHeight}px` }}
+                    whileHover={{ scale: 1.02 }}
+                    transition={{ duration: 0.2 }}
+                  >
               {/* CDK代码 */}
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
+                  {/* 批量选择复选框 */}
+                  {isSelectMode && (
+                    <input
+                      type="checkbox"
+                      checked={selectedCDKs.has(cdk.id)}
+                      onChange={() => toggleSelectCDK(cdk.id)}
+                      disabled={cdk.isUsed}
+                      className={`rounded border-gray-300 text-purple-600 focus:ring-purple-500 mr-2 ${
+                        cdk.isUsed ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
+                    />
+                  )}
                   <FaKey className="w-5 h-5 text-purple-500" />
                   <div className="font-mono text-lg font-bold text-gray-900">
                     {cdk.code}
@@ -795,6 +1093,9 @@ export default function CDKStoreManager() {
               </div>
             </motion.div>
           ))}
+              </div>
+            </div>
+          </div>
         </div>
       </motion.div>
 

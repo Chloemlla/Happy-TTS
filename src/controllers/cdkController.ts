@@ -67,6 +67,36 @@ export const deleteCDK = async (req: AuthRequest, res: Response) => {
   }
 };
 
+// 批量删除CDK
+export const batchDeleteCDKs = async (req: AuthRequest, res: Response) => {
+  try {
+    const { ids } = req.body;
+    
+    // 验证请求体
+    if (!ids || !Array.isArray(ids)) {
+      return res.status(400).json({ message: '请提供有效的CDK ID列表' });
+    }
+    
+    const result = await cdkService.batchDeleteCDKs(ids);
+    
+    logger.info('批量删除CDK成功', { 
+      userId: req.user?.id,
+      username: req.user?.username,
+      result 
+    });
+    
+    res.json({
+      message: '批量删除成功',
+      ...result
+    });
+  } catch (error) {
+    logger.error('批量删除CDK失败:', error);
+    res.status(500).json({ 
+      message: error instanceof Error ? error.message : '批量删除CDK失败' 
+    });
+  }
+};
+
 // 获取用户已兑换的资源
 export const getUserRedeemedResources = async (req: Request, res: Response) => {
   try {

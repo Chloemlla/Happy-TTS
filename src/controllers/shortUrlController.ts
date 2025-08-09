@@ -10,15 +10,29 @@ export class ShortUrlController {
     try {
       const { code } = req.params;
       
-      logger.info('收到短链访问请求', { code, ip: req.ip });
+      // 输入验证
+      if (!code || typeof code !== 'string' || code.trim().length === 0) {
+        logger.warn('无效的短链代码', { code });
+        return res.status(400).json({ error: '无效的短链代码' });
+      }
       
-      const shortUrl = await ShortUrlService.getShortUrlByCode(code);
+      const trimmedCode = code.trim();
+      
+      // 验证代码格式
+      if (!/^[a-zA-Z0-9_-]+$/.test(trimmedCode)) {
+        logger.warn('短链代码格式无效', { code: trimmedCode });
+        return res.status(400).json({ error: '无效的短链代码格式' });
+      }
+      
+      logger.info('收到短链访问请求', { code: trimmedCode, ip: req.ip });
+      
+      const shortUrl = await ShortUrlService.getShortUrlByCode(trimmedCode);
       if (!shortUrl) {
-        logger.warn('短链不存在', { code });
+        logger.warn('短链不存在', { code: trimmedCode });
         return res.status(404).json({ error: '短链不存在' });
       }
       
-      logger.info('短链重定向成功', { code, target: shortUrl.target });
+      logger.info('短链重定向成功', { code: trimmedCode, target: shortUrl.target });
       res.redirect(shortUrl.target);
     } catch (error) {
       logger.error('短链重定向失败:', error);
@@ -32,14 +46,15 @@ export class ShortUrlController {
   static async getUserShortUrls(req: Request, res: Response) {
     try {
       const userId = (req as any).user?.id;
-      if (!userId) {
-        return res.status(401).json({ error: '未登录' });
+      if (!userId || typeof userId !== 'string' || userId.trim().length === 0) {
+        return res.status(401).json({ error: '未登录或用户ID无效' });
       }
 
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 10;
+      // 输入验证和清理
+      const page = Math.max(1, parseInt(String(req.query.page || '1')) || 1);
+      const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit || '10')) || 10));
 
-      const result = await ShortUrlService.getUserShortUrls(userId, page, limit);
+      const result = await ShortUrlService.getUserShortUrls(userId.trim(), page, limit);
       
       res.json({
         success: true,
@@ -59,7 +74,19 @@ export class ShortUrlController {
       const { code } = req.params;
       const userId = (req as any).user?.id;
 
-      const success = await ShortUrlService.deleteShortUrl(code, userId);
+      // 输入验证
+      if (!code || typeof code !== 'string' || code.trim().length === 0) {
+        return res.status(400).json({ error: '无效的短链代码' });
+      }
+      
+      const trimmedCode = code.trim();
+      
+      // 验证代码格式
+      if (!/^[a-zA-Z0-9_-]+$/.test(trimmedCode)) {
+        return res.status(400).json({ error: '无效的短链代码格式' });
+      }
+
+      const success = await ShortUrlService.deleteShortUrl(trimmedCode, userId);
       if (!success) {
         return res.status(404).json({ error: '短链不存在或无权限删除' });
       }
@@ -82,11 +109,28 @@ export class ShortUrlController {
       const { codes } = req.body;
       const userId = (req as any).user?.id;
 
+      // 输入验证
       if (!Array.isArray(codes) || codes.length === 0) {
         return res.status(400).json({ error: '请提供要删除的短链代码列表' });
       }
 
-      const deletedCount = await ShortUrlService.batchDeleteShortUrls(codes, userId);
+      // 验证代码列表
+      const validCodes = codes.filter(code => 
+        typeof code === 'string' && 
+        code.trim().length > 0 && 
+        /^[a-zA-Z0-9_-]+$/.test(code.trim())
+      );
+
+      if (validCodes.length === 0) {
+        return res.status(400).json({ error: '没有有效的短链代码' });
+      }
+
+      // 限制批量删除的数量
+      if (validCodes.length > 100) {
+        return res.status(400).json({ error: '批量删除数量不能超过100个' });
+      }
+
+      const deletedCount = await ShortUrlService.batchDeleteShortUrls(validCodes, userId);
       
       res.json({
         success: true,

@@ -92,6 +92,18 @@ export const cdksApi = {
     await api.delete(`${getApiBaseUrl()}/api/cdks/${id}`);
   },
 
+  // 批量删除CDK
+  batchDeleteCDKs: async (ids: string[]): Promise<{
+    message: string;
+    requestedCount: number;
+    validCount: number;
+    deletedCount: number;
+    deletedCodes: string[];
+  }> => {
+    const response = await api.post(`${getApiBaseUrl()}/api/cdks/batch-delete`, { ids });
+    return response.data;
+  },
+
   // 获取用户已兑换的资源
   getUserRedeemedResources: async (): Promise<RedeemedResourcesResponse> => {
     const response = await api.get(`${getApiBaseUrl()}/api/redeemed`);
