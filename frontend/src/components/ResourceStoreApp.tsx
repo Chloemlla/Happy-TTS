@@ -15,7 +15,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 // 懒加载组件
 const ResourceStoreList = React.lazy(() => import('./ResourceStoreList'));
 const ResourceStoreDetail = React.lazy(() => import('./ResourceStoreDetail'));
-const AdminLogin = React.lazy(() => import('./AdminLogin'));
+const AuthForm = React.lazy(() => import('./AuthForm').then(module => ({ default: module.AuthForm })));
 const AdminStoreDashboard = React.lazy(() => import('./AdminStoreDashboard'));
 const ResourceStoreManager = React.lazy(() => import('./ResourceStoreManager'));
 const CDKStoreManager = React.lazy(() => import('./CDKStoreManager'));
@@ -44,7 +44,7 @@ export default function ResourceStoreApp() {
         } />
         <Route path="/admin/login" element={
           <Suspense fallback={<SimpleLoadingSpinner />}>
-            <AdminLogin />
+            <AuthForm />
           </Suspense>
         } />
 

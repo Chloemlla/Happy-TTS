@@ -36,7 +36,6 @@ const TigerAdventure = React.lazy(() => import('./components/TigerAdventure'));
 const CoinFlip = React.lazy(() => import('./components/CoinFlip'));
 
 // 资源商店相关组件懒加载
-const AdminLogin = React.lazy(() => import('./components/AdminLogin'));
 const AdminStoreDashboard = React.lazy(() => import('./components/AdminStoreDashboard'));
 const ResourceStoreApp = React.lazy(() => import('./components/ResourceStoreApp'));
 const ResourceStoreDetail = React.lazy(() => import('./components/ResourceStoreDetail'));
@@ -53,7 +52,7 @@ const EmailSenderPage: React.FC = () => {
   const [loading, setLoading] = React.useState(false);
   const [success, setSuccess] = React.useState('');
   const [error, setError] = React.useState('');
-  const handleSend = () => {};
+  const handleSend = () => { };
   return (
     <EmailSender
       to={to}
@@ -93,7 +92,7 @@ const pageVariants = {
 
 // 背景粒子组件
 const BackgroundParticles: React.FC = () => {
-  const [particles, setParticles] = React.useState<Array<{id: number, x: number, y: number, duration: number}>>([]);
+  const [particles, setParticles] = React.useState<Array<{ id: number, x: number, y: number, duration: number }>>([]);
 
   React.useEffect(() => {
     // 预生成粒子位置，避免每次渲染都重新计算
@@ -133,7 +132,7 @@ const BackgroundParticles: React.FC = () => {
 
 // 水印组件
 const WatermarkOverlay: React.FC = () => {
-  const [watermarks, setWatermarks] = React.useState<Array<{id: number, left: string, top: string, transform: string, fontSize: string}>>([]);
+  const [watermarks, setWatermarks] = React.useState<Array<{ id: number, left: string, top: string, transform: string, fontSize: string }>>([]);
 
   React.useEffect(() => {
     // 预生成水印位置和样式，避免每次渲染都重新计算
@@ -205,7 +204,7 @@ const App: React.FC = () => {
     };
 
     window.addEventListener('show-synapse-watermark', handleShowWatermark);
-    
+
     return () => {
       window.removeEventListener('show-synapse-watermark', handleShowWatermark);
     };
@@ -223,7 +222,7 @@ const App: React.FC = () => {
           setTotpStatus(null);
           return;
         }
-        
+
         const response = await fetch('/api/totp/status', {
           method: 'GET',
           headers: {
@@ -233,12 +232,12 @@ const App: React.FC = () => {
           },
           credentials: 'same-origin'
         });
-        
+
         if (response.ok) {
           const data = await response.json();
           // 验证响应数据结构
           if (data && typeof data === 'object') {
-          setTotpStatus(data);
+            setTotpStatus(data);
           } else {
             setTotpStatus(null);
           }
@@ -276,34 +275,34 @@ const App: React.FC = () => {
           },
           credentials: 'same-origin'
         });
-        
+
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}`);
         }
-        
+
         const data = await res.json();
-        
+
         // 验证响应数据结构
-        if (data && 
-            typeof data === 'object' && 
-            data.success && 
-            data.announcement && 
-            typeof data.announcement === 'object' &&
-            data.announcement.content &&
-            typeof data.announcement.content === 'string') {
-          
+        if (data &&
+          typeof data === 'object' &&
+          data.success &&
+          data.announcement &&
+          typeof data.announcement === 'object' &&
+          data.announcement.content &&
+          typeof data.announcement.content === 'string') {
+
           // 限制内容长度，防止过大的内容影响性能
           const maxContentLength = 10000; // 10KB
-          const content = data.announcement.content.length > maxContentLength 
+          const content = data.announcement.content.length > maxContentLength
             ? data.announcement.content.substring(0, maxContentLength) + '...'
             : data.announcement.content;
-          
+
           setAnnouncement({
             content: content,
             format: data.announcement.format === 'html' ? 'html' : 'markdown',
             updatedAt: data.announcement.updatedAt || ''
           });
-          
+
           // 计算hash
           const hash = md5(content + (data.announcement.updatedAt || ''));
           setAnnouncementHash(hash);
@@ -323,10 +322,10 @@ const App: React.FC = () => {
   // 判断是否需要弹窗
   useEffect(() => {
     if (!announcement || !announcementHash) return;
-    
+
     const key = `announcement_closed_${announcementHash}`;
     let closeInfo: string | null = null;
-    
+
     try {
       closeInfo = localStorage.getItem(key);
     } catch (error) {
@@ -334,21 +333,21 @@ const App: React.FC = () => {
       setShowAnnouncement(true);
       return;
     }
-    
+
     if (!closeInfo) {
       setShowAnnouncement(true);
       return;
     }
-    
+
     try {
       const info = JSON.parse(closeInfo);
-      
+
       // 验证数据结构
       if (!info || typeof info !== 'object') {
         setShowAnnouncement(true);
         return;
       }
-      
+
       if (info.type === 'permanent') {
         setShowAnnouncement(false);
       } else if (info.type === 'date' && typeof info.date === 'string') {
@@ -371,20 +370,20 @@ const App: React.FC = () => {
   const handleCloseAnnouncement = () => {
     setShowAnnouncement(false);
   };
-  
+
   const handleCloseToday = () => {
     if (!announcementHash) return;
     try {
-    const today = new Date().toISOString().slice(0, 10);
+      const today = new Date().toISOString().slice(0, 10);
       const closeInfo = JSON.stringify({ type: 'date', date: today });
       localStorage.setItem(`announcement_closed_${announcementHash}`, closeInfo);
       setShowAnnouncement(false);
     } catch (error) {
       console.error('保存公告关闭信息失败:', error);
-    setShowAnnouncement(false);
+      setShowAnnouncement(false);
     }
   };
-  
+
   const handleCloseForever = () => {
     if (!announcementHash) return;
     try {
@@ -393,7 +392,7 @@ const App: React.FC = () => {
       setShowAnnouncement(false);
     } catch (error) {
       console.error('保存公告关闭信息失败:', error);
-    setShowAnnouncement(false);
+      setShowAnnouncement(false);
     }
   };
 
@@ -441,10 +440,10 @@ const App: React.FC = () => {
                 whileTap={{ scale: 0.95 }}
                 transition={{ type: "spring", stiffness: 400, damping: 10 }}
               >
-                <motion.svg 
-                  className="w-8 h-8 text-indigo-600" 
-                  fill="none" 
-                  stroke="currentColor" 
+                <motion.svg
+                  className="w-8 h-8 text-indigo-600"
+                  fill="none"
+                  stroke="currentColor"
                   viewBox="0 0 24 24"
                   animate={{ rotate: [0, 10, -10, 0] }}
                   transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
@@ -453,7 +452,7 @@ const App: React.FC = () => {
                 </motion.svg>
                 <Link to="/" className="text-xl font-bold text-gray-900 hover:text-indigo-600 transition-colors">Synapse</Link>
               </motion.div>
-              
+
               {/* 导航栏自适应切换 - 只在用户登录时显示 */}
               {user && (
                 <div ref={navRef} className="flex-1 flex justify-end">
@@ -717,7 +716,7 @@ const App: React.FC = () => {
                   </motion.div>
                 </Suspense>
               } />
-              
+
               {/* 资源商店相关路由 */}
               <Route path="/store" element={
                 <Suspense fallback={<LoadingSpinner />}>
@@ -742,19 +741,6 @@ const App: React.FC = () => {
                     transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
                   >
                     <ResourceStoreDetail />
-                  </motion.div>
-                </Suspense>
-              } />
-              <Route path="/admin/login" element={
-                <Suspense fallback={<LoadingSpinner />}>
-                  <motion.div
-                    variants={pageVariants}
-                    initial="initial"
-                    animate="in"
-                    exit="out"
-                    transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
-                  >
-                    <AdminLogin />
                   </motion.div>
                 </Suspense>
               } />
@@ -852,7 +838,7 @@ const App: React.FC = () => {
             </motion.div>
           )}
         </AnimatePresence>
-        
+
         {/* 水印覆盖层 */}
         <AnimatePresence>
           {showWatermark && (
@@ -873,83 +859,83 @@ const App: React.FC = () => {
 
 // ErrorBoundary 组件
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error?: Error }> {
-    constructor(props: { children: React.ReactNode }) {
-        super(props);
-        this.state = { hasError: false };
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    // 记录错误但不暴露敏感信息
+    console.error('React Error Boundary caught an error:', error);
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    // 可以在这里发送错误报告到监控服务
+    console.error('Error caught by boundary:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="min-h-screen flex items-center justify-center bg-gray-50"
+        >
+          <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.2 }}
+              className="w-20 h-20 mx-auto mb-6 bg-red-100 rounded-full flex items-center justify-center"
+            >
+              <svg className="w-12 h-12 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </motion.div>
+            <motion.h2
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="text-2xl font-bold text-center text-gray-800 mb-4"
+            >
+              页面加载失败
+            </motion.h2>
+            <motion.p
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              className="text-gray-600 text-center mb-8"
+            >
+              抱歉，页面出现了一些问题。请尝试刷新页面或稍后重试。
+            </motion.p>
+            <motion.button
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                try {
+                  window.location.reload();
+                } catch (error) {
+                  console.error('页面刷新失败:', error);
+                  // 备用方案：清除错误状态
+                  this.setState({ hasError: false });
+                }
+              }}
+              className="w-full py-3 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-300"
+            >
+              刷新页面
+            </motion.button>
+          </div>
+        </motion.div>
+      );
     }
-    
-    static getDerivedStateFromError(error: Error) {
-        // 记录错误但不暴露敏感信息
-        console.error('React Error Boundary caught an error:', error);
-        return { hasError: true, error };
-    }
-    
-    componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-        // 可以在这里发送错误报告到监控服务
-        console.error('Error caught by boundary:', error, errorInfo);
-    }
-    
-    render() {
-        if (this.state.hasError) {
-            return (
-                <motion.div
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5 }}
-                    className="min-h-screen flex items-center justify-center bg-gray-50"
-                >
-                    <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full">
-                        <motion.div
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            transition={{ delay: 0.2 }}
-                            className="w-20 h-20 mx-auto mb-6 bg-red-100 rounded-full flex items-center justify-center"
-                        >
-                            <svg className="w-12 h-12 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                            </svg>
-                        </motion.div>
-                        <motion.h2 
-                            initial={{ y: 20, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            transition={{ delay: 0.3 }}
-                            className="text-2xl font-bold text-center text-gray-800 mb-4"
-                        >
-                            页面加载失败
-                        </motion.h2>
-                        <motion.p
-                            initial={{ y: 20, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            transition={{ delay: 0.4 }}
-                            className="text-gray-600 text-center mb-8"
-                        >
-                            抱歉，页面出现了一些问题。请尝试刷新页面或稍后重试。
-                        </motion.p>
-                        <motion.button
-                            initial={{ y: 20, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            transition={{ delay: 0.5 }}
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => {
-                                try {
-                                    window.location.reload();
-                                } catch (error) {
-                                    console.error('页面刷新失败:', error);
-                                    // 备用方案：清除错误状态
-                                    this.setState({ hasError: false });
-                                }
-                            }}
-                            className="w-full py-3 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-300"
-                        >
-                            刷新页面
-                        </motion.button>
-                    </div>
-                </motion.div>
-            );
-        }
-        return this.props.children;
-    }
+    return this.props.children;
+  }
 }
 
 // 包装 App 组件以使用 useLocation
