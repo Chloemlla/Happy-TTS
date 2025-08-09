@@ -16,6 +16,22 @@ export class CDKService {
         logger.warn('无效的CDK代码格式', { code });
         throw new Error('无效的CDK代码格式');
       }
+
+      // 验证和清理用户信息以防止NoSQL注入
+      if (userInfo) {
+        if (!userInfo.userId || typeof userInfo.userId !== 'string' || userInfo.userId.length > 100) {
+          logger.warn('无效的用户ID格式', { userId: userInfo.userId });
+          throw new Error('无效的用户ID格式');
+        }
+        if (!userInfo.username || typeof userInfo.username !== 'string' || userInfo.username.length > 50) {
+          logger.warn('无效的用户名格式', { username: userInfo.username });
+          throw new Error('无效的用户名格式');
+        }
+        
+        // 清理用户输入，移除潜在的NoSQL注入字符
+        userInfo.userId = userInfo.userId.replace(/[{}$]/g, '');
+        userInfo.username = userInfo.username.replace(/[{}$]/g, '');
+      }
       
       // 首先查找CDK以获取资源ID
       const cdkToRedeem = await CDKModel.findOne({
@@ -34,10 +50,11 @@ export class CDKService {
 
       // 如果提供了用户信息且未强制兑换，检查用户是否已拥有该资源
       if (userInfo && !forceRedeem) {
+        // 使用参数化查询防止NoSQL注入
         const existingCDK = await CDKModel.findOne({
-          resourceId: cdkToRedeem.resourceId,
+          resourceId: new mongoose.Types.ObjectId(cdkToRedeem.resourceId),
           isUsed: true,
-          'usedBy.userId': userInfo.userId
+          'usedBy.userId': { $eq: userInfo.userId } // 使用$eq操作符确保精确匹配
         });
 
         if (existingCDK) {

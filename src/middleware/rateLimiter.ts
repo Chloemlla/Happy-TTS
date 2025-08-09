@@ -176,4 +176,71 @@ export const apiLimiter = {
         routeName: 'api.userManagement',
         message: '用户管理操作过于频繁，请稍后再试'
     }),
-}; 
+};
+
+// 资源管理相关的速率限制器
+export const resourceLimiter = {
+    // 获取资源统计
+    stats: createLimiter({
+        windowMs: 1 * 60 * 1000, // 1分钟
+        max: 30,
+        routeName: 'resource.stats',
+        message: '资源统计查询过于频繁，请稍后再试'
+    }),
+
+    // 创建资源
+    create: createLimiter({
+        windowMs: 5 * 60 * 1000, // 5分钟
+        max: 20,
+        routeName: 'resource.create',
+        message: '资源创建请求过于频繁，请稍后再试'
+    }),
+
+    // 初始化测试资源
+    initTest: createLimiter({
+        windowMs: 10 * 60 * 1000, // 10分钟
+        max: 5,
+        routeName: 'resource.initTest',
+        message: '测试资源初始化请求过于频繁，请稍后再试'
+    }),
+
+    // 获取单个资源
+    getById: createLimiter({
+        windowMs: 1 * 60 * 1000, // 1分钟
+        max: 60,
+        routeName: 'resource.getById',
+        message: '资源查询请求过于频繁，请稍后再试'
+    }),
+
+    // 更新资源
+    update: createLimiter({
+        windowMs: 5 * 60 * 1000, // 5分钟
+        max: 30,
+        routeName: 'resource.update',
+        message: '资源更新请求过于频繁，请稍后再试'
+    }),
+
+    // 删除资源
+    delete: createLimiter({
+        windowMs: 5 * 60 * 1000, // 5分钟
+        max: 20,
+        routeName: 'resource.delete',
+        message: '资源删除请求过于频繁，请稍后再试'
+    }),
+
+    // 获取资源列表
+    getResources: createLimiter({
+        windowMs: 1 * 60 * 1000, // 1分钟
+        max: 100,
+        routeName: 'resource.getResources',
+        message: '资源列表查询过于频繁，请稍后再试'
+    }),
+
+    // 获取分类列表
+    getCategories: createLimiter({
+        windowMs: 1 * 60 * 1000, // 1分钟
+        max: 60,
+        routeName: 'resource.getCategories',
+        message: '分类查询过于频繁，请稍后再试'
+    }),
+};

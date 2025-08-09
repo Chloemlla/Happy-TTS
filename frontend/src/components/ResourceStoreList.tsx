@@ -98,10 +98,22 @@ export default function ResourceStoreList() {
     setSuccess('');
 
     try {
-      // 生成或获取用户信息
+      // 生成或获取用户信息 - 使用加密安全的随机数生成
+      const generateSecureId = () => {
+        const array = new Uint32Array(2);
+        crypto.getRandomValues(array);
+        return array[0].toString(36) + array[1].toString(36);
+      };
+      
+      const generateSecureNumber = () => {
+        const array = new Uint32Array(1);
+        crypto.getRandomValues(array);
+        return array[0] % 10000; // 0-9999 范围内的安全随机数
+      };
+
       const userInfo = {
-        userId: `user_${Date.now()}`, // 简单的用户ID生成
-        username: `用户${Math.floor(Math.random() * 1000)}` // 随机用户名
+        userId: `user_${Date.now()}_${generateSecureId()}`, // 使用加密安全的ID生成
+        username: `用户${generateSecureNumber()}` // 使用加密安全的随机用户名
       };
 
       const result = await cdksApi.redeemCDK(codeToRedeem, userInfo, forceRedeem);
