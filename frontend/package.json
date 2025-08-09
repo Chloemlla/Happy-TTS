@@ -87,7 +87,7 @@
     "@vitejs/plugin-react": "^4.7.0",
     "@vitest/ui": "^3.2.4",
     "autoprefixer": "^10.4.16",
-    "cross-env": "^7.0.3",
+    "cross-env": "^10.0.0",
     "javascript-obfuscator": "^4.1.1",
     "jest-environment-jsdom": "^30.0.4",
     "jsdom": "^26.1.0",
