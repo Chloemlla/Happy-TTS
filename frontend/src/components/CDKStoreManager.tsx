@@ -983,7 +983,7 @@ export default function CDKStoreManager() {
             style={{ height: useVirtualScrolling ? `${containerHeight}px` : 'auto', maxHeight: `${containerHeight}px` }}
             onScroll={useVirtualScrolling ? handleScroll : undefined}
           >
-            <div style={{ height: useVirtualScrolling ? `${totalItems * itemHeight}px` : 'auto', position: 'relative' }}>
+            <div style={{ height: useVirtualScrolling ? `${filteredItemsCount * itemHeight}px` : 'auto', position: 'relative' }}>
               <div style={{ transform: useVirtualScrolling ? `translateY(${offsetY}px)` : 'none' }}>
                 <table className="min-w-full text-sm text-gray-700">
                   <tbody>
