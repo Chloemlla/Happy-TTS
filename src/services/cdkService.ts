@@ -336,6 +336,18 @@ export class CDKService {
     }
   }
 
+  // 删除所有未使用的CDK
+  async deleteUnusedCDKs() {
+    try {
+      const result = await CDKModel.deleteMany({ isUsed: false });
+      logger.info('删除所有未使用CDK成功', { deletedCount: result.deletedCount });
+      return { deletedCount: result.deletedCount };
+    } catch (error) {
+      logger.error('删除所有未使用CDK失败:', error);
+      throw error;
+    }
+  }
+
   private generateUniqueCode(): string {
     // 生成16位随机字符串
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';

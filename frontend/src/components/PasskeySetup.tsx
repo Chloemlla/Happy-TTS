@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { usePasskey } from '../hooks/usePasskey';
 import { formatDate } from '../utils/date';
-import { FaKey, FaPlus, FaTrash, FaExclamationTriangle, FaTimes } from 'react-icons/fa';
+import { FaKey, FaPlus, FaTrash, FaExclamationTriangle, FaTimes, FaBan, FaUserPlus } from 'react-icons/fa';
 import { useNotification } from './Notification';
 import { motion, AnimatePresence } from 'framer-motion';
 import { renderCredentialIdModal } from './ui/CredentialIdModal';
@@ -17,11 +17,9 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
         loadCredentials,
         registerAuthenticator,
         removeAuthenticator,
-        authenticateWithPasskey,
         showModal,
         setShowModal,
-        currentCredentialId,
-        setCurrentCredentialId
+        currentCredentialId
     } = usePasskey();
     const { setNotification } = useNotification();
 
@@ -57,7 +55,8 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
         try {
             await registerAuthenticator(credentialName);
             setNotification({ message: 'Passkey 注册成功', type: 'success' });
-        } catch {
+        } catch (error) {
+            console.error('Passkey registration failed:', error);
             setNotification({ message: 'Passkey 注册失败', type: 'error' });
         }
         setCredentialName('');
@@ -75,7 +74,8 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
         try {
             await removeAuthenticator(confirmDeleteId);
             setNotification({ message: 'Passkey 已删除', type: 'success' });
-        } catch {
+        } catch (error) {
+            console.error('Passkey removal failed:', error);
             setNotification({ message: '删除失败', type: 'error' });
         }
         setRemovingId(null);
@@ -128,7 +128,7 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
                     <div className="w-full flex justify-center px-4">
                         <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 w-full max-w-7xl place-items-center">
                             <AnimatePresence>
-                                {Array.isArray(credentials) && credentials.length > 0 && credentials.map((credential) => (
+                                {Array.isArray(credentials) && credentials.length > 0 ? credentials.map((credential) => (
                                     <motion.div
                                         key={credential.id}
                                         initial={{ opacity: 0, scale: 0.95 }}
@@ -158,12 +158,12 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
                                             )}
                                         </button>
                                     </motion.div>
-                                ))}
+                                )) : null}
                             </AnimatePresence>
                         </div>
                     </div>
                     <AnimatePresence>
-                        {credentials.length === 0 && !isLoading && (
+                        {Array.isArray(credentials) && credentials.length === 0 && !isLoading && (
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
@@ -203,18 +203,23 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
                                 <motion.button
                                     onClick={() => setConfirmDeleteId(null)}
                                     disabled={isLoading}
-                                    className="border border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded-lg px-4 py-2 transition disabled:opacity-50"
+                                    className="border border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded-lg px-4 py-2 transition disabled:opacity-50 flex items-center gap-2"
                                     whileTap={{ scale: 0.97 }}
-                                >取消</motion.button>
+                                >
+                                    <FaBan className="w-4 h-4" />
+                                    取消
+                                </motion.button>
                                 <motion.button
                                     onClick={handleRemoveConfirm}
                                     disabled={isLoading}
-                                    className="bg-red-600 hover:bg-red-700 text-white rounded-lg px-4 py-2 transition disabled:opacity-50"
+                                    className="bg-red-600 hover:bg-red-700 text-white rounded-lg px-4 py-2 transition disabled:opacity-50 flex items-center gap-2"
                                     whileTap={{ scale: 0.97 }}
                                 >
                                     {isLoading ? (
-                                        <span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></span>
-                                    ) : null}
+                                        <span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+                                    ) : (
+                                        <FaTrash className="w-4 h-4" />
+                                    )}
                                     确认删除
                                 </motion.button>
                             </div>
@@ -246,29 +251,41 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
                                 <label htmlFor="name" className="text-sm font-medium">Passkey 名称</label>
                                 <input
                                     id="name"
+                                    type="text"
                                     placeholder="例如：Google Password Manager"
                                     value={credentialName}
                                     onChange={(e) => setCredentialName(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !isLoading && credentialName.trim()) {
+                                            handleRegister();
+                                        }
+                                    }}
                                     autoFocus
                                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all"
+                                    maxLength={50}
                                 />
                             </div>
                             <div className="flex justify-end gap-2">
                                 <motion.button
                                     onClick={() => setIsOpen(false)}
                                     disabled={isLoading}
-                                    className="border border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded-lg px-4 py-2 transition disabled:opacity-50"
+                                    className="border border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded-lg px-4 py-2 transition disabled:opacity-50 flex items-center gap-2"
                                     whileTap={{ scale: 0.97 }}
-                                >取消</motion.button>
+                                >
+                                    <FaBan className="w-4 h-4" />
+                                    取消
+                                </motion.button>
                                 <motion.button
                                     onClick={handleRegister}
                                     disabled={isLoading || !credentialName.trim()}
-                                    className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2 transition disabled:opacity-50"
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2 transition disabled:opacity-50 flex items-center gap-2"
                                     whileTap={{ scale: 0.97 }}
                                 >
                                     {isLoading ? (
-                                        <span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></span>
-                                    ) : null}
+                                        <span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+                                    ) : (
+                                        <FaUserPlus className="w-4 h-4" />
+                                    )}
                                     注册
                                 </motion.button>
                             </div>

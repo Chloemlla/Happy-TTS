@@ -129,6 +129,15 @@ export const cdksApi = {
     return response.data;
   },
 
+  // 删除所有未使用的CDK
+  deleteUnusedCDKs: async (): Promise<{
+    message: string;
+    deletedCount: number;
+  }> => {
+    const response = await api.delete(`${getApiBaseUrl()}/api/cdks/unused`);
+    return response.data;
+  },
+
   // 获取用户已兑换的资源
   getUserRedeemedResources: async (): Promise<RedeemedResourcesResponse> => {
     const response = await api.get(`${getApiBaseUrl()}/api/redeemed`);

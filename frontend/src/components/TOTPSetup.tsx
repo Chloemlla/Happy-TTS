@@ -6,7 +6,7 @@ import { TOTPSetupData } from '../types/auth';
 import { handleTOTPError, cleanTOTPToken, validateTOTPToken } from '../utils/totpUtils';
 import { PasskeySetup } from './PasskeySetup';
 import { useNotification } from './Notification';
-import { FaLock } from 'react-icons/fa';
+import { FaLock, FaQrcode, FaKey, FaCheck, FaTimes, FaExclamationTriangle } from 'react-icons/fa';
 
 interface TOTPSetupProps {
   isOpen: boolean;
@@ -22,26 +22,19 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
   const [loading, setLoading] = useState(false);
   const [showBackupCodes, setShowBackupCodes] = useState(false);
   const [rotation, setRotation] = useState(0);
-      const [activeTab, setActiveTab] = useState<'totp' | 'passkey'>('totp');
+  const [activeTab, setActiveTab] = useState<'totp' | 'passkey'>('totp');
   const { setNotification } = useNotification();
 
   useEffect(() => {
     if (isOpen) {
       setRotation(0);
+      generateSetup();
     }
   }, [isOpen]);
 
   useEffect(() => {
     setRotation(0);
-  }, [isOpen, activeTab, step]);
-
-
-
-  useEffect(() => {
-    if (isOpen) {
-      generateSetup();
-    }
-  }, [isOpen]);
+  }, [activeTab, step]);
 
   const generateSetup = async () => {
     try {
@@ -52,6 +45,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
       setSetupData(response.data);
       setStep('setup');
     } catch (error: any) {
+      console.error('TOTP setup generation failed:', error);
       setError(error.response?.data?.error || '生成TOTP设置失败');
       setStep('setup');
     }
@@ -96,6 +90,8 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
     setVerificationCode('');
     setError('');
     setShowBackupCodes(false);
+    setSetupData(null);
+    setActiveTab('totp');
     onClose();
   };
 
@@ -138,18 +134,24 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                   <span className="text-lg sm:text-2xl font-bold text-gray-900 leading-normal select-none">二次验证</span>
                 </div>
                 <div className="flex mb-4 gap-2">
-                  <button
-                    className={`px-4 py-1 rounded-t-lg font-medium text-sm transition-all duration-200 ${activeTab === 'totp' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                  <motion.button
+                    className={`px-4 py-2 rounded-t-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 ${activeTab === 'totp' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                     onClick={() => setActiveTab('totp')}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                   >
+                    <FaQrcode className="w-4 h-4" />
                     动态口令（TOTP）
-                  </button>
-                                  <button
-                    className={`px-4 py-1 rounded-t-lg font-medium text-sm transition-all duration-200 ${activeTab === 'passkey' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                  </motion.button>
+                  <motion.button
+                    className={`px-4 py-2 rounded-t-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 ${activeTab === 'passkey' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                     onClick={() => setActiveTab('passkey')}
-                >
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <FaKey className="w-4 h-4" />
                     Passkey 无密码认证
-                </button>
+                  </motion.button>
                 </div>
                 {activeTab === 'totp' && (
                   <span className="text-sm sm:text-base text-gray-600 leading-normal select-none">使用认证器应用扫描QR码</span>
@@ -235,11 +237,15 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                           {setupData.secret}
                         </motion.code>
                         <motion.button
-                          onClick={() => navigator.clipboard.writeText(setupData.secret)}
-                          className="px-3 py-2 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 transition-colors whitespace-nowrap"
+                          onClick={() => {
+                            navigator.clipboard.writeText(setupData.secret);
+                            setNotification({ message: '密钥已复制到剪贴板', type: 'success' });
+                          }}
+                          className="px-3 py-2 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 transition-colors whitespace-nowrap flex items-center gap-2"
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                         >
+                          <FaKey className="w-3 h-3" />
                           复制
                         </motion.button>
                       </div>
@@ -264,11 +270,21 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                         </motion.p>
                         <motion.button
                           onClick={() => setShowBackupCodes(!showBackupCodes)}
-                          className="text-sm text-yellow-700 hover:text-yellow-800"
+                          className="text-sm text-yellow-700 hover:text-yellow-800 flex items-center gap-1"
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                         >
-                          {showBackupCodes ? '隐藏' : '显示'}
+                          {showBackupCodes ? (
+                            <>
+                              <FaExclamationTriangle className="w-3 h-3" />
+                              隐藏
+                            </>
+                          ) : (
+                            <>
+                              <FaKey className="w-3 h-3" />
+                              显示
+                            </>
+                          )}
                         </motion.button>
                       </div>
                       <motion.p 
@@ -324,9 +340,15 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                         type="text"
                         value={verificationCode}
                         onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !loading && verificationCode.length === 6) {
+                            handleVerify();
+                          }
+                        }}
                         className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-center text-lg font-mono transition-all duration-200 hover:border-gray-300"
                         placeholder="000000"
                         maxLength={6}
+                        autoComplete="one-time-code"
                         whileFocus={{ scale: 1.02 }}
                       />
                     </motion.div>
@@ -362,30 +384,34 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                     >
                       <motion.button
                         onClick={handleClose}
-                        className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all duration-200 w-full"
+                        className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all duration-200 w-full flex items-center justify-center gap-2"
                         whileHover={{ scale: 1.02, y: -1 }}
                         whileTap={{ scale: 0.98 }}
                       >
+                        <FaTimes className="w-4 h-4" />
                         取消
                       </motion.button>
                       <motion.button
                         onClick={handleVerify}
                         disabled={loading || verificationCode.length !== 6}
-                        className="flex-1 px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl w-full"
+                        className="flex-1 px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl w-full flex items-center justify-center gap-2"
                         whileHover={{ scale: 1.02, y: -1 }}
                         whileTap={{ scale: 0.98 }}
                       >
                         {loading ? (
-                          <motion.div className="flex items-center justify-center">
+                          <>
                             <motion.div 
-                              className="w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"
+                              className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
                               animate={{ rotate: 360 }}
                               transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                             />
                             验证中...
-                          </motion.div>
+                          </>
                         ) : (
-                          '验证并启用'
+                          <>
+                            <FaCheck className="w-4 h-4" />
+                            验证并启用
+                          </>
                         )}
                       </motion.button>
                     </motion.div>

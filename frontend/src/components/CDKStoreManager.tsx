@@ -464,6 +464,8 @@ export default function CDKStoreManager() {
   const [batchDeleting, setBatchDeleting] = useState(false);
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   const [deleteAllLoading, setDeleteAllLoading] = useState(false);
+  const [showDeleteUnusedDialog, setShowDeleteUnusedDialog] = useState(false);
+  const [deleteUnusedLoading, setDeleteUnusedLoading] = useState(false);
   const [totalCDKCount, setTotalCDKCount] = useState(0);
   const { setNotification } = useNotification();
 
@@ -701,6 +703,53 @@ export default function CDKStoreManager() {
     setShowDeleteAllDialog(false);
   };
 
+  // 删除所有未使用的CDK
+  const handleDeleteUnused = async () => {
+    try {
+      // 获取CDK统计信息以显示未使用CDK数量
+      const stats = await cdksApi.getCDKStats();
+      setTotalCDKCount(stats.available); // available表示未使用的CDK数量
+      setShowDeleteUnusedDialog(true);
+    } catch (error) {
+      console.error('获取CDK统计信息失败:', error);
+      setNotification({
+        message: '获取CDK统计信息失败，请重试',
+        type: 'error'
+      });
+    }
+  };
+
+  const handleConfirmDeleteUnused = async () => {
+    setDeleteUnusedLoading(true);
+    try {
+      const result = await cdksApi.deleteUnusedCDKs();
+      setNotification({
+        message: `成功删除所有未使用的CDK！共删除了 ${result.deletedCount} 个CDK`,
+        type: 'success'
+      });
+
+      // 清空选择并退出选择模式
+      setSelectedCDKs(new Set());
+      setIsSelectMode(false);
+      setShowDeleteUnusedDialog(false);
+
+      // 重新获取CDK列表
+      fetchCDKs();
+    } catch (error) {
+      console.error('删除所有未使用CDK失败:', error);
+      setNotification({
+        message: `删除所有未使用CDK失败：${error instanceof Error ? error.message : '请重试'}`,
+        type: 'error'
+      });
+    } finally {
+      setDeleteUnusedLoading(false);
+    }
+  };
+
+  const handleCancelDeleteUnused = () => {
+    setShowDeleteUnusedDialog(false);
+  };
+
   const filteredCDKs = cdks.filter(cdk =>
     cdk.code.toLowerCase().includes(search.toLowerCase()) ||
     cdk.resourceId.toLowerCase().includes(search.toLowerCase())
@@ -853,6 +902,17 @@ export default function CDKStoreManager() {
             >
               <FaTrash className="w-4 h-4" />
               删除全部
+            </motion.button>
+
+            <motion.button
+              onClick={handleDeleteUnused}
+              disabled={cdks.length === 0}
+              className="px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium flex items-center gap-2"
+              whileHover={cdks.length > 0 ? { scale: 1.02 } : {}}
+              whileTap={cdks.length > 0 ? { scale: 0.98 } : {}}
+            >
+              <FaTrash className="w-4 h-4" />
+              删除未使用
             </motion.button>
 
             <motion.button
@@ -1424,6 +1484,86 @@ export default function CDKStoreManager() {
                     <>
                       <FaTrash className="w-4 h-4" />
                       确认删除全部
+                    </>
+                  )}
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 删除所有未使用CDK确认对话框 */}
+      <AnimatePresence>
+        {showDeleteUnusedDialog && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onClick={handleCancelDeleteUnused}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex-shrink-0">
+                  <FaExclamationTriangle className="w-8 h-8 text-orange-500" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    删除未使用CDK确认
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    此操作将删除所有未使用的CDK
+                  </p>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                  <p className="text-gray-700 mb-2">
+                    您即将删除
+                    <span className="font-semibold text-orange-600">
+                      所有 {totalCDKCount} 个未使用的CDK
+                    </span>
+                    （仅删除未使用的CDK，已使用的CDK将保留）
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    <strong>此操作不可撤销！</strong>删除后将无法恢复这些未使用的CDK数据。
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <motion.button
+                  onClick={handleCancelDeleteUnused}
+                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all duration-200 font-medium"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  取消
+                </motion.button>
+                <motion.button
+                  onClick={handleConfirmDeleteUnused}
+                  disabled={deleteUnusedLoading}
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 transition-all duration-200 font-medium flex items-center justify-center gap-2"
+                  whileHover={!deleteUnusedLoading ? { scale: 1.02 } : {}}
+                  whileTap={!deleteUnusedLoading ? { scale: 0.98 } : {}}
+                >
+                  {deleteUnusedLoading ? (
+                    <>
+                      <FaSync className="animate-spin w-4 h-4" />
+                      删除中...
+                    </>
+                  ) : (
+                    <>
+                      <FaTrash className="w-4 h-4" />
+                      确认删除未使用
                     </>
                   )}
                 </motion.button>

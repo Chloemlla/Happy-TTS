@@ -6,6 +6,7 @@ import {
   deleteCDK,
   batchDeleteCDKs,
   deleteAllCDKs,
+  deleteUnusedCDKs,
   getTotalCDKCount,
   getCDKs,
   getCDKStats,
@@ -24,6 +25,7 @@ router.get('/cdks/stats', authenticateAdmin, getCDKStats);
 router.get('/cdks/total-count', authenticateAdmin, getTotalCDKCount);
 router.post('/cdks/generate', authenticateAdmin, generateCDKs);
 router.delete('/cdks/all', authenticateAdmin, deleteAllCDKs);
+router.delete('/cdks/unused', authenticateAdmin, deleteUnusedCDKs);
 router.delete('/cdks/:id', authenticateAdmin, deleteCDK);
 router.post('/cdks/batch-delete', authenticateAdmin, batchDeleteCDKs);
 

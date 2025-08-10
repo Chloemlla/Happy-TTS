@@ -171,6 +171,29 @@ export const deleteAllCDKs = async (req: AuthRequest, res: Response) => {
   }
 };
 
+// 删除所有未使用的CDK
+export const deleteUnusedCDKs = async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await cdkService.deleteUnusedCDKs();
+    
+    logger.info('删除所有未使用CDK成功', { 
+      userId: req.user?.id,
+      username: req.user?.username,
+      deletedCount: result.deletedCount 
+    });
+    
+    res.json({
+      message: '成功删除所有未使用的CDK',
+      deletedCount: result.deletedCount
+    });
+  } catch (error) {
+    logger.error('删除所有未使用CDK失败:', error);
+    res.status(500).json({ 
+      message: error instanceof Error ? error.message : '删除所有未使用CDK失败' 
+    });
+  }
+};
+
 // 获取用户已兑换的资源
 export const getUserRedeemedResources = async (req: Request, res: Response) => {
   try {
