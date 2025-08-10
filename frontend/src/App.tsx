@@ -34,6 +34,7 @@ const LotteryAdmin = React.lazy(() => import('./components/LotteryAdmin'));
 const ImageUploadPage = React.lazy(() => import('./components/ImageUploadPage'));
 const TigerAdventure = React.lazy(() => import('./components/TigerAdventure'));
 const CoinFlip = React.lazy(() => import('./components/CoinFlip'));
+const MarkdownExportPage = React.lazy(() => import('./components/MarkdownExportPage'));
 
 // 资源商店相关组件懒加载
 const AdminStoreDashboard = React.lazy(() => import('./components/AdminStoreDashboard'));
@@ -715,6 +716,23 @@ const App: React.FC = () => {
                     <CoinFlip />
                   </motion.div>
                 </Suspense>
+              } />
+              <Route path="/markdown-export" element={
+                user ? (
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <motion.div
+                      variants={pageVariants}
+                      initial="initial"
+                      animate="in"
+                      exit="out"
+                      transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                    >
+                      <MarkdownExportPage />
+                    </motion.div>
+                  </Suspense>
+                ) : (
+                  <Navigate to="/welcome" replace state={{ from: location.pathname }} />
+                )
               } />
 
               {/* 资源商店相关路由 */}
