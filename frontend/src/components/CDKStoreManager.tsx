@@ -111,11 +111,21 @@ function GenerateCDKModal({ isOpen, onClose, onSuccess }: GenerateCDKModalProps)
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
           className="relative top-0 sm:top-20 mx-auto my-4 sm:my-0 p-4 sm:p-5 border w-full max-w-md sm:w-96 shadow-lg rounded-lg bg-white max-h-[95vh] overflow-y-auto"
         >
-          <div className="mt-1 sm:mt-3">
-            <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
-              <FaPlus className="w-5 h-5 text-purple-500" />
-              生成CDK
-            </h3>
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                <FaPlus className="w-5 h-5 text-purple-500" />
+                生成CDK
+              </h3>
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
             <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">选择资源</label>
@@ -344,11 +354,21 @@ function EditCDKModal({ isOpen, onClose, onSuccess, cdk }: EditCDKModalProps) {
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
           className="relative top-0 sm:top-20 mx-auto my-4 sm:my-0 p-4 sm:p-5 border w-full max-w-md sm:w-96 shadow-lg rounded-lg bg-white max-h-[95vh] overflow-y-auto"
         >
-          <div className="mt-1 sm:mt-3">
-            <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
-              <FaEdit className="w-5 h-5 text-blue-500" />
-              编辑CDK
-            </h3>
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                <FaEdit className="w-5 h-5 text-blue-500" />
+                编辑CDK
+              </h3>
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
             <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">CDK代码</label>
@@ -804,14 +824,14 @@ export default function CDKStoreManager() {
         animate={{ opacity: 1, y: 0 }}
         className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-6 border border-purple-100"
       >
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-purple-700 flex items-center gap-2">
-            <FaKey className="w-6 h-6" />
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+          <h2 className="text-xl sm:text-2xl font-bold text-purple-700 flex items-center gap-2">
+            <FaKey className="w-5 h-5 sm:w-6 sm:h-6" />
             CDK管理
           </h2>
           <Link
             to="/admin/store"
-            className="px-3 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition text-sm font-medium flex items-center gap-2"
+            className="px-3 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition text-sm font-medium flex items-center justify-center gap-2 w-full sm:w-auto"
           >
             <FaArrowLeft className="w-4 h-4" />
             返回仪表板
@@ -841,15 +861,15 @@ export default function CDKStoreManager() {
         animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
       >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <FaSearch className="w-5 h-5 text-purple-500" />
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <FaSearch className="w-4 h-4 sm:w-5 sm:h-5 text-purple-500" />
             搜索和刷新
           </h3>
           <motion.button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="px-3 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
+            className="px-3 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-2 w-full sm:w-auto"
             whileTap={{ scale: 0.95 }}
           >
             <FaSync className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
@@ -873,16 +893,30 @@ export default function CDKStoreManager() {
         animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
       >
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <FaPlus className="w-5 h-5 text-purple-500" />
+        <div className="space-y-4">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <FaPlus className="w-4 h-4 sm:w-5 sm:h-5 text-purple-500" />
             生成CDK
           </h3>
-          <div className="flex items-center gap-3">
-            {/* 批量操作按钮 */}
+          
+          {/* 主要操作按钮 - 移动端优化布局 */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            {/* 第一行：生成CDK按钮（移动端全宽） */}
+            <motion.button
+              onClick={() => setShowGenerateModal(true)}
+              className="w-full sm:flex-1 px-4 py-3 sm:py-2 bg-gradient-to-r from-purple-500 to-blue-600 text-white rounded-lg hover:from-purple-600 hover:to-blue-700 transition-all duration-200 font-medium flex items-center justify-center gap-2 text-base sm:text-sm"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <FaPlus className="w-4 h-4" />
+              生成CDK
+            </motion.button>
+            
+            {/* 批量选择按钮 */}
             <motion.button
               onClick={toggleSelectMode}
-              className={`px-4 py-2 rounded-lg transition-all duration-200 font-medium flex items-center gap-2 ${isSelectMode
+              className={`w-full sm:w-auto px-4 py-3 sm:py-2 rounded-lg transition-all duration-200 font-medium flex items-center justify-center gap-2 text-base sm:text-sm ${
+                isSelectMode
                   ? 'bg-orange-500 text-white hover:bg-orange-600'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
@@ -890,39 +924,35 @@ export default function CDKStoreManager() {
               whileTap={{ scale: 0.98 }}
             >
               {isSelectMode ? <FaToggleOn className="w-4 h-4" /> : <FaToggleOff className="w-4 h-4" />}
-              {isSelectMode ? '退出选择' : '批量选择'}
+              <span className="sm:hidden">{isSelectMode ? '退出批量选择' : '开启批量选择'}</span>
+              <span className="hidden sm:inline">{isSelectMode ? '退出选择' : '批量选择'}</span>
+            </motion.button>
+          </div>
+          
+          {/* 第二行：删除操作按钮 */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <motion.button
+              onClick={handleDeleteUnused}
+              disabled={cdks.length === 0}
+              className="w-full sm:flex-1 px-4 py-3 sm:py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium flex items-center justify-center gap-2 text-base sm:text-sm"
+              whileHover={cdks.length > 0 ? { scale: 1.02 } : {}}
+              whileTap={cdks.length > 0 ? { scale: 0.98 } : {}}
+            >
+              <FaTrash className="w-4 h-4" />
+              <span className="sm:hidden">删除所有未使用CDK</span>
+              <span className="hidden sm:inline">删除未使用</span>
             </motion.button>
 
             <motion.button
               onClick={handleDeleteAll}
               disabled={cdks.length === 0}
-              className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium flex items-center gap-2"
+              className="w-full sm:flex-1 px-4 py-3 sm:py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium flex items-center justify-center gap-2 text-base sm:text-sm"
               whileHover={cdks.length > 0 ? { scale: 1.02 } : {}}
               whileTap={cdks.length > 0 ? { scale: 0.98 } : {}}
             >
               <FaTrash className="w-4 h-4" />
-              删除全部
-            </motion.button>
-
-            <motion.button
-              onClick={handleDeleteUnused}
-              disabled={cdks.length === 0}
-              className="px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium flex items-center gap-2"
-              whileHover={cdks.length > 0 ? { scale: 1.02 } : {}}
-              whileTap={cdks.length > 0 ? { scale: 0.98 } : {}}
-            >
-              <FaTrash className="w-4 h-4" />
-              删除未使用
-            </motion.button>
-
-            <motion.button
-              onClick={() => setShowGenerateModal(true)}
-              className="px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-600 text-white rounded-lg hover:from-purple-600 hover:to-blue-700 transition-all duration-200 font-medium flex items-center gap-2"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <FaPlus className="w-4 h-4" />
-              生成CDK
+              <span className="sm:hidden">删除所有CDK</span>
+              <span className="hidden sm:inline">删除全部</span>
             </motion.button>
           </div>
         </div>
@@ -936,22 +966,23 @@ export default function CDKStoreManager() {
               exit={{ opacity: 0, height: 0 }}
               className="mt-4 pt-4 border-t border-gray-200"
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-600">
+              <div className="space-y-3">
+                {/* 选择状态和控制按钮 */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <span className="text-sm text-gray-600 text-center sm:text-left">
                     已选择 {selectedCDKs.size} 个CDK
                   </span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row items-center gap-2">
                     <motion.button
                       onClick={selectAllCDKs}
-                      className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition"
+                      className="w-full sm:w-auto px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition"
                       whileTap={{ scale: 0.95 }}
                     >
                       全选未使用
                     </motion.button>
                     <motion.button
                       onClick={clearSelection}
-                      className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition"
+                      className="w-full sm:w-auto px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition"
                       whileTap={{ scale: 0.95 }}
                     >
                       清空选择
@@ -959,16 +990,17 @@ export default function CDKStoreManager() {
                   </div>
                 </div>
 
+                {/* 批量删除按钮 */}
                 {selectedCDKs.size > 0 && (
                   <motion.button
                     onClick={handleBatchDelete}
                     disabled={batchDeleting}
-                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 font-medium flex items-center gap-2"
+                    className="w-full px-4 py-3 sm:py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 font-medium flex items-center justify-center gap-2"
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
                     <FaTrash className="w-4 h-4" />
-                    {batchDeleting ? '删除中...' : `删除 ${selectedCDKs.size} 个`}
+                    {batchDeleting ? '删除中...' : `删除选中的 ${selectedCDKs.size} 个CDK`}
                   </motion.button>
                 )}
               </div>
@@ -983,9 +1015,9 @@ export default function CDKStoreManager() {
         animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
       >
-        <div className="flex justify-between items-center">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <FaList className="w-5 h-5 text-purple-500" />
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <FaList className="w-4 h-4 sm:w-5 sm:h-5 text-purple-500" />
             CDK列表
             {totalItems > 0 && (
               <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
