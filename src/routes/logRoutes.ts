@@ -31,7 +31,7 @@ ensureDirectories().catch(console.error);
 // 配置multer用于多文件类型上传
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 25600 * 2 }, // 50KB以内
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB以内
   fileFilter: (req, file, cb) => {
     // 文件扩展名白名单
     const allowedExtensions = ['.txt', '.log', '.json', '.md', '.xml', '.csv'];
@@ -135,9 +135,9 @@ router.post('/sharelog', logLimiter, upload.single('file'), async (req, res) => 
       logger.warn(`上传 | IP:${ip} | 文件:${fileName} | 结果:失败 | 原因:缺少参数`);
       return res.status(400).json({ error: '缺少参数' });
     }
-    if (req.file.size > 25600) {
+    if (req.file.size > 10 * 1024 * 1024) {
       logger.warn(`上传 | IP:${ip} | 文件:${fileName} | 结果:失败 | 原因:文件过大 | size=${req.file.size}`);
-      return res.status(400).json({ error: '文件内容过大' });
+      return res.status(400).json({ error: '文件内容过大，最大支持10MB' });
     }
     if (!(await checkAdminPassword(adminPassword))) {
       logger.warn(`上传 | IP:${ip} | 文件:${fileName} | 结果:失败 | 原因:管理员密码错误`);

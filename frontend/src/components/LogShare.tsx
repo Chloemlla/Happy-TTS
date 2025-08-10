@@ -208,11 +208,41 @@ const LogShare: React.FC = () => {
     }
   }, [uploadResult, setNotification]);
 
+  // 计算文本大小（UTF-8字节数）
+  const getTextSizeInBytes = (text: string): number => {
+    return new Blob([text]).size;
+  };
+
+  // 格式化文件大小显示
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes}B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+    return `${(bytes / 1024 / 1024).toFixed(2)}MB`;
+  };
+
+  // 获取当前文本大小
+  const currentTextSize = logContent ? getTextSizeInBytes(logContent) : 0;
+  const maxSize = 10 * 1024 * 1024; // 10MB
+  const isTextTooLarge = currentTextSize > maxSize;
+
   // 上传日志/文件
   const handleUpload = async () => {
     setError('');
     setSuccess('');
     setUploadResult(null);
+    
+    // 客户端文件大小验证
+    if (file && file.size > 10 * 1024 * 1024) {
+      setError(`文件过大！当前文件大小：${(file.size / 1024 / 1024).toFixed(2)}MB，最大支持10MB`);
+      return;
+    }
+    
+    // 客户端文本大小验证
+    if (!file && logContent && isTextTooLarge) {
+      setError(`文本内容过大！当前大小：${formatFileSize(currentTextSize)}，最大支持10MB`);
+      return;
+    }
+    
     setLoading(true);
     try {
       let res;
@@ -653,7 +683,7 @@ const LogShare: React.FC = () => {
             日志/文件剪贴板上传 & 查询
           </h2>
           <div className="text-gray-600 space-y-2">
-            <p>支持文本、日志、json、压缩包等类型，单文件最大25KB。仅管理员可操作。</p>
+            <p>支持文本、日志、json等类型，单文件最大10MB。仅管理员可操作。</p>
             <div className="flex items-start gap-2 text-sm">
               <div>
                 <p className="font-semibold text-blue-700">功能说明：</p>
@@ -697,17 +727,52 @@ const LogShare: React.FC = () => {
             </div>
             
             <div>
-              <label className="block mb-2 font-semibold text-gray-700">
-                日志内容（粘贴或输入）或选择文件
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="font-semibold text-gray-700">
+                  日志内容（粘贴或输入）或选择文件
+                </label>
+                {logContent && (
+                  <div className={`text-xs px-2 py-1 rounded-full ${
+                    isTextTooLarge 
+                      ? 'bg-red-100 text-red-700 border border-red-200' 
+                      : currentTextSize > maxSize * 0.8 
+                        ? 'bg-yellow-100 text-yellow-700 border border-yellow-200'
+                        : 'bg-green-100 text-green-700 border border-green-200'
+                  }`}>
+                    {formatFileSize(currentTextSize)} / 10MB
+                  </div>
+                )}
+              </div>
               <textarea 
-                className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all" 
+                className={`w-full border-2 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 transition-all ${
+                  isTextTooLarge 
+                    ? 'border-red-300 focus:ring-red-400 bg-red-50' 
+                    : currentTextSize > maxSize * 0.8
+                      ? 'border-yellow-300 focus:ring-yellow-400 bg-yellow-50'
+                      : 'border-gray-200 focus:ring-blue-400'
+                }`}
                 rows={6} 
                 value={logContent} 
                 onChange={e => setLogContent(e.target.value)} 
                 disabled={!!file} 
                 placeholder="可直接粘贴日志内容，或选择文件上传"
               />
+              {isTextTooLarge && (
+                <div className="mt-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2 flex items-center gap-2">
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                  <span>⚠️ 文本内容超出10MB限制，请删减内容或使用文件上传</span>
+                </div>
+              )}
+              {!isTextTooLarge && currentTextSize > maxSize * 0.8 && (
+                <div className="mt-2 text-sm text-yellow-600 bg-yellow-50 border border-yellow-200 rounded-lg p-2 flex items-center gap-2">
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>💡 文本内容接近10MB限制，建议考虑使用文件上传</span>
+                </div>
+              )}
             </div>
             
             <div>
@@ -717,8 +782,13 @@ const LogShare: React.FC = () => {
                 className="mb-2" 
                 onChange={e => setFile(e.target.files?.[0] || null)}
               />
-              <div className="text-xs text-gray-400 mb-2">
-                支持 .txt .log .json .md .zip .tar.gz 等，最大25KB
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-2">
+                <div className="text-sm text-blue-800 font-medium mb-1">📁 文件上传说明</div>
+                <div className="text-xs text-blue-600 space-y-1">
+                  <div>• <strong>支持格式：</strong>.txt, .log, .json, .md, .xml, .csv</div>
+                  <div>• <strong>文件大小：</strong>最大支持 10MB</div>
+                  <div>• <strong>上传方式：</strong>可直接拖拽文件或点击选择</div>
+                </div>
               </div>
             </div>
             
