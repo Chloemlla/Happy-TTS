@@ -7,7 +7,7 @@ import getApiBaseUrl, { getApiBaseUrl as namedGetApiBaseUrl } from '../api';
 import { openDB } from 'idb';
 import { usePasskey } from '../hooks/usePasskey';
 import { useAuth } from '../hooks/useAuth';
-import { FaUser } from 'react-icons/fa';
+import { FaUser, FaUserCircle, FaShieldAlt, FaLock, FaEnvelope } from 'react-icons/fa';
 
 interface UserProfileData {
   id: string;
@@ -428,142 +428,230 @@ const UserProfile: React.FC = () => {
   };
 
   if (!localStorage.getItem('token')) {
-    return <div className="p-8 text-center text-red-500">未登录或会话已过期，请重新登录。</div>;
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8">
+            <div className="p-8 text-center text-red-500">未登录或会话已过期，请重新登录。</div>
+          </div>
+        </div>
+      </div>
+    );
   }
   if (loadError) {
     return (
-      <div className="p-8 text-center text-red-500 whitespace-pre-line">
-        加载失败，请刷新页面或重新登录。
-        {typeof loadError === 'string' && loadError !== '加载失败，请刷新页面或重新登录' ? `\n详细信息：${loadError}` : ''}
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8">
+            <div className="p-8 text-center text-red-500 whitespace-pre-line">
+              加载失败，请刷新页面或重新登录。
+              {typeof loadError === 'string' && loadError !== '加载失败，请刷新页面或重新登录' ? `\n详细信息：${loadError}` : ''}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
   if (loading || !profile) {
     if (loadTimeout) {
-      return <div className="p-8 text-center text-red-500">加载超时，请检查网络或刷新页面</div>;
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8">
+              <div className="p-8 text-center text-red-500">加载超时，请检查网络或刷新页面</div>
+            </div>
+          </div>
+        </div>
+      );
     }
     const scale = typeof window !== 'undefined' ? Math.max(0.7, Math.min(1.2, window.innerWidth / 1200)) : 1;
-    return <LoadingSpinner size={scale} />;
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8">
+            <LoadingSpinner size={scale} />
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <motion.div
-      className="max-w-lg mx-auto bg-white rounded-xl shadow-lg p-8 mt-8"
-      initial={{ opacity: 0, y: 30, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.6, type: 'spring', stiffness: 120 }}
-    >
-      <motion.h2
-        className="text-2xl font-bold mb-6"
-        initial={{ opacity: 0, y: 20, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.5, delay: 0.1, type: 'spring', stiffness: 200 }}
-      >
-        个人主页
-      </motion.h2>
-      <motion.div
-        className="flex flex-col items-center mb-6"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-      >
-        <motion.div
-          className="w-24 h-24 rounded-full bg-gray-200 overflow-hidden mb-2 shadow-lg"
-          whileHover={{ scale: 1.05, rotate: 2 }}
-          whileTap={{ scale: 0.97, rotate: -2 }}
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8">
+      <div className="max-w-7xl mx-auto px-4 space-y-8">
+        {/* 统一的标题部分 */}
+        <motion.div 
+          className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
         >
-          <Avatar src={avatarImg || profile?.avatarUrl} />
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
+            <div className="text-center">
+              <motion.div 
+                className="flex items-center justify-center gap-3 mb-4"
+                initial={{ scale: 0.9 }}
+                animate={{ scale: 1 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+              >
+                <FaUserCircle className="text-4xl" />
+                <h1 className="text-4xl font-bold">个人主页</h1>
+              </motion.div>
+              <motion.p 
+                className="text-blue-100 text-lg"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5, delay: 0.4 }}
+              >
+                管理您的个人信息和账户设置
+              </motion.p>
+            </div>
+          </div>
         </motion.div>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={handleAvatarChange}
-          className="mb-2"
-          disabled={loading}
-        />
-        <div className="text-lg font-semibold">{profile.username}</div>
-        <div className="text-gray-500 text-sm">{profile.role === 'admin' ? '管理员' : '普通用户'}</div>
-      </motion.div>
-      <motion.div className="mb-4" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: 0.15 }}>
-        <label className="block text-gray-700 mb-1">邮箱</label>
-        <motion.input
-          type="email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          className="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all"
-          whileFocus={{ scale: 1.03, borderColor: '#6366f1' }}
-        />
-      </motion.div>
-      {totpStatus && !totpStatus.enabled && !totpStatus.hasPasskey ? (
-        <motion.div className="mb-4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: 0.24 }}>
-          <label className="block text-gray-700 mb-1">当前密码（未绑定二次认证时用于身份校验）</label>
-          <motion.input
-            type="password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            className="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all"
-            whileFocus={{ scale: 1.03, borderColor: '#6366f1' }}
-          />
+
+        {/* 个人信息区域 */}
+        <motion.div 
+          className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
+          <div className="p-6">
+            <div className="flex items-center gap-2 mb-6 p-3 bg-gray-50 rounded-lg">
+              <FaUser className="text-blue-600" />
+              <span className="font-semibold text-gray-800">个人信息</span>
+            </div>
+            <motion.div
+              className="flex flex-col items-center mb-6"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <motion.div
+                className="w-24 h-24 rounded-full bg-gray-200 overflow-hidden mb-4 shadow-lg"
+                whileHover={{ scale: 1.05, rotate: 2 }}
+                whileTap={{ scale: 0.97, rotate: -2 }}
+              >
+                <Avatar src={avatarImg || profile?.avatarUrl} />
+              </motion.div>
+              <motion.input
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarChange}
+                className="mb-4 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gradient-to-r file:from-blue-50 file:to-purple-50 file:text-blue-700 hover:file:bg-gradient-to-r hover:file:from-blue-100 hover:file:to-purple-100"
+                disabled={loading}
+              />
+              <div className="text-lg font-semibold text-gray-800">{profile.username}</div>
+              <div className="text-gray-500 text-sm px-3 py-1 bg-gray-100 rounded-full">
+                {profile.role === 'admin' ? '管理员' : '普通用户'}
+              </div>
+            </motion.div>
+            <motion.div className="mb-6" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: 0.15 }}>
+              <label className="flex items-center gap-2 text-gray-700 mb-2 font-medium">
+                <FaEnvelope className="text-blue-600" />
+                邮箱地址
+              </label>
+              <motion.input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all bg-white/50 backdrop-blur-sm"
+                whileFocus={{ scale: 1.02 }}
+              />
+            </motion.div>
+            {totpStatus && !totpStatus.enabled && !totpStatus.hasPasskey ? (
+              <motion.div className="mb-6" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: 0.24 }}>
+                <label className="flex items-center gap-2 text-gray-700 mb-2 font-medium">
+                  <FaLock className="text-blue-600" />
+                  当前密码（未绑定二次认证时用于身份校验）
+                </label>
+                <motion.input
+                  type="password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all bg-white/50 backdrop-blur-sm"
+                  whileFocus={{ scale: 1.02 }}
+                />
+              </motion.div>
+            ) : (
+              <motion.div className="mb-6" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: 0.24 }}>
+                <label className="flex items-center gap-2 text-gray-700 mb-2 font-medium">
+                  <FaShieldAlt className="text-blue-600" />
+                  二次验证（TOTP/Passkey）
+                </label>
+                <VerifyCodeInput
+                  length={8}
+                  onComplete={setVerificationCode}
+                  loading={loading}
+                  error={undefined}
+                  inputClassName="bg-white/50 backdrop-blur-sm border-2 border-blue-400 text-blue-700 focus:ring-2 focus:ring-blue-400 focus:border-blue-500 placeholder-blue-200 rounded-lg px-3 py-2 text-lg transition-all outline-none mx-1"
+                />
+                <motion.button
+                  onClick={handleVerify}
+                  className="mt-3 px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 shadow-lg font-medium"
+                  disabled={loading || verificationCode.length !== 8}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  验证
+                </motion.button>
+              </motion.div>
+            )}
+            <div className="mb-6">
+              <motion.button
+                className="px-6 py-2 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-lg hover:from-gray-600 hover:to-gray-700 transition font-medium shadow-lg"
+                onClick={() => setChangePwdMode(v => !v)}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                {changePwdMode ? '取消修改密码' : '修改密码'}
+              </motion.button>
+            </div>
+            {changePwdMode && (
+              <motion.div className="mb-6 p-4 bg-gray-50 rounded-lg" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4 }}>
+                <div className="flex items-center gap-2 mb-4">
+                  <FaLock className="text-blue-600" />
+                  <span className="font-semibold text-gray-800">修改密码</span>
+                </div>
+                <label className="block text-gray-700 mb-2 font-medium">旧密码</label>
+                <input
+                  type="password"
+                  value={oldPwd}
+                  onChange={e => setOldPwd(e.target.value)}
+                  className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all mb-4 bg-white/50 backdrop-blur-sm"
+                />
+                <label className="block text-gray-700 mb-2 font-medium">新密码</label>
+                <input
+                  type="password"
+                  value={newPwd}
+                  onChange={e => setNewPwd(e.target.value)}
+                  className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all mb-4 bg-white/50 backdrop-blur-sm"
+                />
+                <motion.button
+                  className="w-full py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 font-medium shadow-lg"
+                  onClick={handleChangePassword}
+                  disabled={loading}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  保存新密码
+                </motion.button>
+              </motion.div>
+            )}
+            <motion.button
+              onClick={handleUpdate}
+              className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 font-medium shadow-lg"
+              disabled={loading}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              保存修改
+            </motion.button>
+          </div>
         </motion.div>
-      ) : (
-        <motion.div className="mb-4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: 0.24 }}>
-          <label className="block text-gray-700 mb-1">二次验证（TOTP/Passkey）</label>
-          <VerifyCodeInput
-            length={8}
-            onComplete={setVerificationCode}
-            loading={loading}
-            error={undefined}
-            inputClassName="bg-white border-2 border-blue-400 text-blue-700 focus:ring-2 focus:ring-blue-400 focus:border-blue-500 placeholder-blue-200 rounded-md px-3 py-2 text-lg transition-all outline-none mx-1"
-          />
-          <motion.button
-            onClick={handleVerify}
-            className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 shadow"
-            disabled={loading || verificationCode.length !== 8}
-            whileTap={{ scale: 0.97 }}
-          >
-            验证
-          </motion.button>
-        </motion.div>
-      )}
-      <div className="mb-6">
-        <button
-          className="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 transition font-semibold shadow mr-2"
-          onClick={() => setChangePwdMode(v => !v)}
-        >{changePwdMode ? '取消修改密码' : '修改密码'}</button>
       </div>
-      {changePwdMode && (
-        <motion.div className="mb-4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4 }}>
-          <label className="block text-gray-700 mb-1">旧密码</label>
-          <input
-            type="password"
-            value={oldPwd}
-            onChange={e => setOldPwd(e.target.value)}
-            className="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all mb-2"
-          />
-          <label className="block text-gray-700 mb-1">新密码</label>
-          <input
-            type="password"
-            value={newPwd}
-            onChange={e => setNewPwd(e.target.value)}
-            className="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all mb-2"
-          />
-          <button
-            className="w-full py-2 bg-green-600 text-white rounded hover:bg-green-700 font-bold shadow-lg mt-2"
-            onClick={handleChangePassword}
-            disabled={loading}
-          >保存新密码</button>
-        </motion.div>
-      )}
-      <motion.button
-        onClick={handleUpdate}
-        className="w-full py-2 bg-green-600 text-white rounded hover:bg-green-700 font-bold shadow-lg mt-2"
-        disabled={loading}
-        whileTap={{ scale: 0.97 }}
-      >
-        保存修改
-      </motion.button>
-    </motion.div>
+    </div>
   );
 };
 
-export default UserProfile; 
+export default UserProfile;

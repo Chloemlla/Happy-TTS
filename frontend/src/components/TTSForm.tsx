@@ -304,7 +304,12 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                                     : 'border-gray-200 focus:ring-blue-500 focus:border-transparent hover:border-gray-300'
                         }`}
                         rows={4}
-                        placeholder="请输入要转换的文本...\n\n💡 提示：\n• 支持中英文混合\n• 标点符号会影响语音节奏\n• 建议使用完整句子获得更好效果"
+                        placeholder={`请输入要转换的文本...
+
+💡 提示：
+• 支持中英文混合
+• 标点符号会影响语音节奏
+• 建议使用完整句子获得更好效果`}
                         whileFocus={{ scale: 1.005 }}
                     />
                     {text.length > MAX_TEXT_LENGTH * 0.8 && (
