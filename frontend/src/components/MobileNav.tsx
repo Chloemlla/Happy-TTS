@@ -1112,12 +1112,84 @@ const MobileNav: React.FC<MobileNavProps> = ({
                 </Link>
               </motion.div>
 
+              {/* FBI通缉犯 */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.49 }}
+              >
+                <Link
+                  to="/fbi-wanted"
+                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
+                    location.pathname === '/fbi-wanted' ? 'bg-red-50 text-red-700 font-semibold shadow-sm' : 'hover:bg-red-50'
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <motion.svg 
+                    className={`w-5 h-5 ${location.pathname === '/fbi-wanted' ? 'text-red-500' : 'text-gray-400'}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </motion.svg>
+                  <span>FBI通缉犯</span>
+                  {location.pathname === '/fbi-wanted' && (
+                    <motion.span 
+                      className="ml-auto text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full"
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                    >
+                      当前
+                    </motion.span>
+                  )}
+                </Link>
+              </motion.div>
+
+              {/* Markdown导出 */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.51 }}
+              >
+                <Link
+                  to="/markdown-export"
+                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
+                    location.pathname === '/markdown-export' ? 'bg-purple-50 text-purple-700 font-semibold shadow-sm' : 'hover:bg-purple-50'
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <motion.svg 
+                    className={`w-5 h-5 ${location.pathname === '/markdown-export' ? 'text-purple-500' : 'text-gray-400'}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </motion.svg>
+                  <span>Markdown导出</span>
+                  {location.pathname === '/markdown-export' && (
+                    <motion.span 
+                      className="ml-auto text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full"
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                    >
+                      当前
+                    </motion.span>
+                  )}
+                </Link>
+              </motion.div>
+
               {/* 分割线 */}
               <motion.div 
                 className="border-t border-gray-200 my-2"
                 initial={{ scaleX: 0 }}
                 animate={{ scaleX: 1 }}
-                transition={{ duration: 0.3, delay: 0.5 }}
+                transition={{ duration: 0.3, delay: 0.53 }}
               />
 
               {/* 退出登录 */}
