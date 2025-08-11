@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, ChangeEvent, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaSearch, FaPlus, FaEye, FaEdit, FaTrash, FaFilter, FaUser, FaTimes, FaExclamationTriangle, FaImage, FaUpload, FaShieldAlt, FaUserSecret, FaSpinner, FaSave } from 'react-icons/fa';
+import { FaSearch, FaPlus, FaEye, FaEdit, FaTrash, FaExclamationTriangle, FaFilter, FaUser, FaTimes, FaImage, FaUpload, FaShieldAlt, FaUserSecret, FaSpinner, FaSave } from 'react-icons/fa';
 import { useNotification } from './Notification';
 import getApiBaseUrl from '../api';
 import { openDB } from 'idb';
@@ -75,7 +75,7 @@ const FBIWantedManager: React.FC = () => {
     const [statistics, setStatistics] = useState<Statistics | null>(null);
     const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState('ACTIVE');
+    const [statusFilter, setStatusFilter] = useState('ALL');
     const [dangerFilter, setDangerFilter] = useState('ALL');
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
@@ -95,7 +95,7 @@ const FBIWantedManager: React.FC = () => {
             const params = new URLSearchParams({
                 page: currentPage.toString(),
                 limit: '20',
-                status: statusFilter,
+                ...(statusFilter !== 'ALL' && { status: statusFilter }),
                 ...(dangerFilter !== 'ALL' && { dangerLevel: dangerFilter }),
                 ...(searchTerm && { search: searchTerm })
             });
@@ -235,6 +235,40 @@ const FBIWantedManager: React.FC = () => {
         }
     };
 
+    // 根据条件批量删除
+    const handleBatchDelete = async (filter: object, confirmationMessage: string) => {
+        if (!confirm(confirmationMessage)) {
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const response = await fetch(`${getApiBaseUrl()}/api/fbi-wanted/multiple`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ filter })
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                setNotification({ message: result.message || '批量删除成功！', type: 'success' });
+                fetchWantedList();
+                fetchStatistics();
+            } else {
+                setNotification({ message: result.message || '批量删除失败', type: 'error' });
+            }
+        } catch (error) {
+            console.error('批量删除失败:', error);
+            setNotification({ message: '操作失败，请检查网络连接', type: 'error' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // 删除通缉犯
     const handleDeleteWanted = async (id: string) => {
         try {
@@ -353,7 +387,7 @@ const FBIWantedManager: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8">
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8 px-4 rounded-lg">
             <div className="max-w-7xl mx-auto px-4 space-y-8">
                 {/* 标题和统计信息部分 */}
                 <motion.div
@@ -471,13 +505,29 @@ const FBIWantedManager: React.FC = () => {
                             </select>
                         </div>
 
-                        <button
-                            onClick={() => setShowCreateModal(true)}
-                            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 font-semibold"
-                        >
-                            <FaPlus />
-                            添加通缉犯
-                        </button>
+                        <div className="flex flex-col sm:flex-row gap-4">
+                            <button
+                                onClick={() => handleBatchDelete({ status: 'DECEASED' }, '确定要删除所有已死亡的通缉犯记录吗？此操作不可逆！')}
+                                className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-yellow-500 to-orange-600 text-white rounded-xl hover:from-yellow-600 hover:to-orange-700 transition-all duration-200 font-semibold"
+                            >
+                                <FaTrash />
+                                <span>删除死亡记录</span>
+                            </button>
+                            <button
+                                onClick={() => handleBatchDelete({}, '警告：确定要删除所有的通缉犯记录吗？此操作将清空数据库，不可逆！')}
+                                className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-red-600 to-pink-700 text-white rounded-xl hover:from-red-700 hover:to-pink-800 transition-all duration-200 font-semibold"
+                            >
+                                <FaExclamationTriangle />
+                                <span>删除所有记录</span>
+                            </button>
+                            <button
+                                onClick={() => setShowCreateModal(true)}
+                                className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 font-semibold"
+                            >
+                                <FaPlus />
+                                <span>添加通缉犯</span>
+                            </button>
+                        </div>
                     </div>
                 </motion.div>
 
@@ -667,8 +717,6 @@ const FBIWantedManager: React.FC = () => {
                                             />
                                         </div>
 
-                                        {/* FBI编号由后端自动生成，创建时无需填写 */}
-
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-2">年龄</label>
                                             <input
@@ -677,6 +725,72 @@ const FBIWantedManager: React.FC = () => {
                                                 onChange={(e) => setFormData({ ...formData, age: parseInt(e.target.value) || 0 })}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                                 placeholder="输入年龄"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">身高</label>
+                                            <input
+                                                type="text"
+                                                value={formData.height || ''}
+                                                onChange={(e) => setFormData({ ...formData, height: e.target.value })}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                placeholder="例如：180cm 或 未知"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">体重</label>
+                                            <input
+                                                type="text"
+                                                value={formData.weight || ''}
+                                                onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                placeholder="例如：75kg 或 未知"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">眼睛颜色</label>
+                                            <input
+                                                type="text"
+                                                value={formData.eyes || ''}
+                                                onChange={(e) => setFormData({ ...formData, eyes: e.target.value })}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                placeholder="例如：棕色/蓝色/未知"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">头发颜色</label>
+                                            <input
+                                                type="text"
+                                                value={formData.hair || ''}
+                                                onChange={(e) => setFormData({ ...formData, hair: e.target.value })}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                placeholder="例如：黑色/金色/未知"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">种族</label>
+                                            <input
+                                                type="text"
+                                                value={formData.race || ''}
+                                                onChange={(e) => setFormData({ ...formData, race: e.target.value })}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                placeholder="例如：亚洲人/白人/未知"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">国籍</label>
+                                            <input
+                                                type="text"
+                                                value={formData.nationality || ''}
+                                                onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                placeholder="例如：中国/美国/未知"
                                             />
                                         </div>
 
@@ -834,17 +948,6 @@ const FBIWantedManager: React.FC = () => {
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">FBI编号 *</label>
-                                            <input
-                                                type="text"
-                                                value={formData.fbiNumber || ''}
-                                                onChange={(e) => setFormData({ ...formData, fbiNumber: e.target.value })}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                placeholder="输入FBI编号"
-                                            />
-                                        </div>
-
-                                        <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-2">年龄</label>
                                             <input
                                                 type="number"
@@ -977,40 +1080,70 @@ const FBIWantedManager: React.FC = () => {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">姓名</label>
-                                            <p className="text-lg font-semibold">{selectedWanted.name}</p>
+                                            <p className="text-lg font-semibold">{selectedWanted?.name}</p>
                                         </div>
 
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">FBI编号</label>
-                                            <p className="text-lg font-semibold">{selectedWanted.fbiNumber}</p>
+                                            <p className="text-lg">{selectedWanted?.fbiNumber}</p>
                                         </div>
 
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">年龄</label>
-                                            <p className="text-lg">{selectedWanted.age}</p>
+                                            <p className="text-lg">{selectedWanted?.age || '未知'}</p>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">身高</label>
+                                            <p className="text-lg">{selectedWanted?.height || '未知'}</p>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">体重</label>
+                                            <p className="text-lg">{selectedWanted?.weight || '未知'}</p>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">眼睛颜色</label>
+                                            <p className="text-lg">{selectedWanted?.eyes || '未知'}</p>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">头发颜色</label>
+                                            <p className="text-lg">{selectedWanted?.hair || '未知'}</p>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">种族</label>
+                                            <p className="text-lg">{selectedWanted?.race || '未知'}</p>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">国籍</label>
+                                            <p className="text-lg">{selectedWanted?.nationality || '未知'}</p>
                                         </div>
 
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">危险等级</label>
-                                            <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getDangerLevelColor(selectedWanted.dangerLevel)}`}>
-                                                {selectedWanted.dangerLevel}
+                                            <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getDangerLevelColor(selectedWanted?.dangerLevel || '')}`}>
+                                                {selectedWanted?.dangerLevel}
                                             </span>
                                         </div>
 
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">状态</label>
-                                            <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getStatusColor(selectedWanted.status)}`}>
-                                                {selectedWanted.status}
+                                            <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getStatusColor(selectedWanted?.status || '')}`}>
+                                                {selectedWanted?.status}
                                             </span>
                                         </div>
 
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">奖金</label>
-                                            <p className="text-lg font-semibold text-green-600">${selectedWanted.reward.toLocaleString()}</p>
+                                            <p className="text-lg font-semibold text-green-600">${(selectedWanted?.reward || 0).toLocaleString()}</p>
                                         </div>
                                     </div>
 
-                                    {selectedWanted.charges && selectedWanted.charges.length > 0 && (
+                                    {selectedWanted?.charges && selectedWanted.charges.length > 0 && (
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">罪名</label>
                                             <div className="flex flex-wrap gap-2">
@@ -1023,22 +1156,60 @@ const FBIWantedManager: React.FC = () => {
                                         </div>
                                     )}
 
-                                    {selectedWanted.description && (
-                                        <div>
+                                    {selectedWanted?.description && (
+                                        <div className="mt-4 pt-4 border-t">
                                             <label className="block text-sm font-medium text-gray-700 mb-1">描述</label>
                                             <p className="text-gray-800 bg-gray-50 p-3 rounded-lg">{selectedWanted.description}</p>
                                         </div>
                                     )}
 
+                                    <div className="mt-4 pt-4 border-t grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">FBI 编号</label>
+                                            <p className="text-gray-800 font-mono bg-gray-100 p-2 rounded">{selectedWanted?.fbiNumber}</p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">NCIC 编号</label>
+                                            <p className="text-gray-800 font-mono bg-gray-100 p-2 rounded">{selectedWanted?.ncicNumber || 'N/A'}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">身高</label>
+                                            <p className="text-gray-800">{selectedWanted?.height || '未知'}</p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">体重</label>
+                                            <p className="text-gray-800">{selectedWanted?.weight || '未知'}</p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">眼睛颜色</label>
+                                            <p className="text-gray-800">{selectedWanted?.eyes || '未知'}</p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">头发颜色</label>
+                                            <p className="text-gray-800">{selectedWanted?.hair || '未知'}</p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">种族</label>
+                                            <p className="text-gray-800">{selectedWanted?.race || '未知'}</p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">国籍</label>
+                                            <p className="text-gray-800">{selectedWanted?.nationality || '未知'}</p>
+                                        </div>
+                                    </div>
+
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
                                         <div>
                                             <label className="block font-medium mb-1">添加时间</label>
-                                            <p>{new Date(selectedWanted.dateAdded).toLocaleString()}</p>
+                                            <p>{new Date(selectedWanted?.dateAdded || '').toLocaleString()}</p>
                                         </div>
 
                                         <div>
                                             <label className="block font-medium mb-1">最后更新</label>
-                                            <p>{new Date(selectedWanted.lastUpdated).toLocaleString()}</p>
+                                            <p>{new Date(selectedWanted?.lastUpdated || '').toLocaleString()}</p>
                                         </div>
                                     </div>
                                 </div>

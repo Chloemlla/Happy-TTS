@@ -19,6 +19,7 @@ router.get('/:id', authenticateToken, authenticateAdmin, fbiWantedController.get
 router.post('/', authenticateToken, authenticateAdmin, fbiWantedController.createWanted);
 router.put('/:id', authenticateToken, authenticateAdmin, fbiWantedController.updateWanted);
 router.patch('/:id/status', authenticateToken, authenticateAdmin, fbiWantedController.updateWantedStatus);
+router.delete('/multiple', authenticateToken, authenticateAdmin, fbiWantedController.deleteMultiple);
 router.delete('/:id', authenticateToken, authenticateAdmin, fbiWantedController.deleteWanted);
 router.post('/batch-delete', authenticateToken, authenticateAdmin, fbiWantedController.batchDeleteWanted);
 

@@ -1,0 +1,102 @@
+/* KaTeX Font Optimization - Preload and fallback fonts */
+
+/* Preload KaTeX fonts to avoid slow network warnings */
+@font-face {
+  font-family: 'KaTeX_Main';
+  src: url('https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/fonts/KaTeX_Main-Regular.woff2') format('woff2'),
+       url('https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/fonts/KaTeX_Main-Regular.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'KaTeX_Math';
+  src: url('https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/fonts/KaTeX_Math-Italic.woff2') format('woff2'),
+       url('https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/fonts/KaTeX_Math-Italic.woff') format('woff');
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'KaTeX_Size1';
+  src: url('https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/fonts/KaTeX_Size1-Regular.woff2') format('woff2'),
+       url('https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/fonts/KaTeX_Size1-Regular.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'KaTeX_Size2';
+  src: url('https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/fonts/KaTeX_Size2-Regular.woff2') format('woff2'),
+       url('https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/fonts/KaTeX_Size2-Regular.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'KaTeX_Size3';
+  src: url('https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/fonts/KaTeX_Size3-Regular.woff2') format('woff2'),
+       url('https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/fonts/KaTeX_Size3-Regular.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'KaTeX_Size4';
+  src: url('https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/fonts/KaTeX_Size4-Regular.woff2') format('woff2'),
+       url('https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/fonts/KaTeX_Size4-Regular.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Fallback fonts for better performance */
+.katex {
+  font-family: 'KaTeX_Main', 'Times New Roman', serif !important;
+}
+
+.katex .mathit {
+  font-family: 'KaTeX_Math', 'Times New Roman', serif !important;
+}
+
+/* Optimize rendering performance */
+.katex-display {
+  text-align: center;
+  margin: 1em 0;
+}
+
+.katex-display > .katex {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+/* Prevent layout shift during font loading */
+.katex .base {
+  position: relative;
+  display: inline-block;
+}
+
+/* Loading state styles */
+.katex-loading {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+  border-radius: 4px;
+  height: 1.2em;
+  display: inline-block;
+  min-width: 2em;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

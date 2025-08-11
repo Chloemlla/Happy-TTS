@@ -163,7 +163,7 @@ const AdminDashboard: React.FC = () => {
   // 加载状态
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8 px-4 rounded-lg">
         <div className="max-w-7xl mx-auto px-4">
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8">
             <div className="flex items-center justify-center py-20">
@@ -181,7 +181,7 @@ const AdminDashboard: React.FC = () => {
   // 未授权状态
   if (!isAuthorized) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8 px-4 rounded-lg">
         <div className="max-w-7xl mx-auto px-4">
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8">
             <div className="flex items-center justify-center py-20">
@@ -206,7 +206,7 @@ const AdminDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8 px-4 rounded-lg">
       <div className="max-w-7xl mx-auto px-4 space-y-8">
         {/* 统一的标题和管理员信息部分 */}
         <motion.div
@@ -281,8 +281,8 @@ const AdminDashboard: React.FC = () => {
                 <motion.button
                   key={t.key}
                   className={`flex items-center justify-center px-4 py-2 rounded-lg font-semibold transition-all duration-150 shadow whitespace-nowrap min-w-[3.5rem] max-w-xs text-center ${tab === t.key
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700'
+                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700'
                     }`}
                   style={{ width: 'auto', minWidth: 'max-content' }}
                   onClick={() => setTab(t.key)}

@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  FaCoins, 
-  FaBullseye, 
-  FaChartBar, 
-  FaLightbulb, 
-  FaDice, 
-  FaVolumeUp, 
-  FaVolumeMute, 
-  FaDownload, 
-  FaUpload, 
+import {
+  FaCoins,
+  FaBullseye,
+  FaChartBar,
+  FaLightbulb,
+  FaDice,
+  FaVolumeUp,
+  FaVolumeMute,
+  FaDownload,
+  FaUpload,
   FaRedo,
   FaEye,
   FaEyeSlash,
@@ -81,7 +81,7 @@ const CoinFlip: React.FC = () => {
   // 清理结果定时器
   useEffect(() => {
     let resultTimeout: NodeJS.Timeout | null = null;
-    
+
     if (result && !isFlipping) {
       resultTimeout = setTimeout(() => {
         setResult(null);
@@ -122,7 +122,7 @@ const CoinFlip: React.FC = () => {
   // 播放音效
   const playSound = (type: 'flip' | 'result' | 'shake') => {
     if (!audioEnabled) return;
-    
+
     try {
       // 初始化音频上下文
       const ctx = initAudioContext();
@@ -139,10 +139,10 @@ const CoinFlip: React.FC = () => {
 
       const oscillator = ctx.createOscillator();
       const gainNode = ctx.createGain();
-      
+
       oscillator.connect(gainNode);
       gainNode.connect(ctx.destination);
-      
+
       if (type === 'flip') {
         // 抛硬币音效 - 快速上升的音调
         oscillator.frequency.setValueAtTime(200, ctx.currentTime);
@@ -255,18 +255,18 @@ const CoinFlip: React.FC = () => {
     let method = '';
     let values: number[] = [];
     let finalResult = 0;
-    
+
     // 尝试使用加密安全的随机数生成器
     if (window.crypto && window.crypto.getRandomValues) {
       try {
         const array = new Uint32Array(1);
         window.crypto.getRandomValues(array);
         const cryptoRandom = array[0] / (0xffffffff + 1);
-        
+
         method = '加密安全随机数 (Crypto API)';
         values = [cryptoRandom];
         finalResult = cryptoRandom;
-        
+
         const result = cryptoRandom < 0.5 ? 'heads' : 'tails';
         setLastRandomData({ method, values, finalResult, result });
         return result;
@@ -274,27 +274,27 @@ const CoinFlip: React.FC = () => {
         console.log('加密随机数生成失败，使用备用方案');
       }
     }
-    
+
     // 备用方案：使用多个随机源确保完全随机
     const random1 = Math.random();
     const random2 = Math.random();
     const random3 = Math.random();
-    
+
     // 结合多个随机值
     const combinedRandom = (random1 + random2 + random3) / 3;
-    
+
     // 使用当前时间戳作为额外随机源
     const timeRandom = (Date.now() % 1000) / 1000;
-    
+
     // 使用鼠标位置（如果可用）作为额外随机源
     const mouseRandom = ((Math.random() * 1000) % 1000) / 1000;
-    
+
     // 最终随机值 - 结合多个随机源
     finalResult = (combinedRandom + timeRandom + mouseRandom) / 3;
-    
+
     method = '多重随机源组合';
     values = [random1, random2, random3, timeRandom, mouseRandom, combinedRandom];
-    
+
     const result = finalResult < 0.5 ? 'heads' : 'tails';
     setLastRandomData({ method, values, finalResult, result });
     return result;
@@ -303,7 +303,7 @@ const CoinFlip: React.FC = () => {
   // 跳过动画
   const skipAnimationHandler = () => {
     if (!isFlipping) return;
-    
+
     // 清除定时器
     if (animationTimeout) {
       clearTimeout(animationTimeout);
@@ -311,7 +311,7 @@ const CoinFlip: React.FC = () => {
     if (shakeInterval) {
       clearInterval(shakeInterval);
     }
-    
+
     // 立即生成结果
     const newResult = generateRandomResult();
     setResult(newResult);
@@ -366,7 +366,7 @@ const CoinFlip: React.FC = () => {
       setStats(newStats);
       saveStats(newStats);
     }, skipAnimation ? 100 : 2000); // 如果跳过动画，只等待100ms
-    
+
     setAnimationTimeout(timeout);
   };
 
@@ -405,10 +405,10 @@ const CoinFlip: React.FC = () => {
       try {
         const content = e.target?.result as string;
         const importedStats = JSON.parse(content);
-        if (importedStats && typeof importedStats === 'object' && 
-            typeof importedStats.heads === 'number' && 
-            typeof importedStats.tails === 'number' && 
-            typeof importedStats.total === 'number') {
+        if (importedStats && typeof importedStats === 'object' &&
+          typeof importedStats.heads === 'number' &&
+          typeof importedStats.tails === 'number' &&
+          typeof importedStats.total === 'number') {
           setStats(importedStats);
           saveStats(importedStats);
         }
@@ -420,283 +420,285 @@ const CoinFlip: React.FC = () => {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6 }}
-      className="space-y-6"
-    >
-      {/* 页面标题和描述 */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100"
-      >
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center justify-center gap-3">
-            <FaCoins className="text-4xl text-yellow-500" />
-            抛硬币工具
-          </h1>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            想要快速做决定？试试在线抛硬币工具吧！简单、快速、无需下载。只需点击按钮，就能随机生成"正面"或"反面"的结果，帮助您轻松做出选择。
-          </p>
-        </div>
-      </motion.div>
-
-      {/* 主要抛硬币区域 */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.3 }}
-        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
-      >
-        <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
-          <FaBullseye className="text-2xl text-red-500" />
-          抛硬币
-        </h3>
-
-        {/* 硬币显示区域 */}
-        <div className="flex justify-center mb-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8 px-4 rounded-lg">
+      <div className="max-w-7xl mx-auto space-y-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="space-y-6"
+        >
+          {/* 页面标题和描述 */}
           <motion.div
-            className="relative w-32 h-32 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full border-4 border-yellow-300 shadow-lg flex items-center justify-center"
-            animate={isFlipping ? {
-              rotateX: [0, 360, 720, 1080, 1440],
-              rotateY: [0, 180, 360, 540, 720],
-              scale: [1, 1.1, 0.9, 1.1, 1],
-              x: [-5, 5, -5, 5, 0],
-              y: [-3, 3, -3, 3, 0]
-            } : {
-              rotateX: 0,
-              rotateY: 0,
-              scale: 1,
-              x: 0,
-              y: 0
-            }}
-            transition={isFlipping ? {
-              duration: 2,
-              ease: "easeInOut",
-              times: [0, 0.2, 0.4, 0.6, 0.8, 1]
-            } : {
-              duration: 0.3,
-              ease: "easeOut"
-            }}
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden"
           >
-            <motion.div
-              key={result || 'default'}
-              initial={{ opacity: 0, scale: 0.5 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.5 }}
-              transition={{ duration: 0.3 }}
-              className="text-6xl font-bold text-white"
-            >
-              <FaCoins className="text-6xl" />
-            </motion.div>
-          </motion.div>
-        </div>
-
-        {/* 结果显示 */}
-        <AnimatePresence mode="wait">
-          {result && !isFlipping && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="text-center mb-6"
-            >
-              <div className={`inline-block px-6 py-3 rounded-lg text-lg font-semibold flex items-center gap-2 ${
-                result === 'heads' 
-                  ? 'bg-green-100 text-green-800 border border-green-200' 
-                  : 'bg-blue-100 text-blue-800 border border-blue-200'
-              }`}>
-                {result === 'heads' ? (
-                  <FaCheckCircle className="text-green-600" />
-                ) : (
-                  <FaTimesCircle className="text-blue-600" />
-                )}
-                结果: {result === 'heads' ? '正面' : '反面'}
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6">
+              <div className="text-center">
+                <h1 className="text-3xl font-bold text-white mb-2 flex items-center justify-center gap-3">
+                  <FaCoins className="text-4xl text-yellow-300" />
+                  抛硬币工具
+                </h1>
+                <p className="text-blue-100 max-w-2xl mx-auto">
+                  想要快速做决定？试试在线抛硬币工具吧！简单、快速、无需下载。只需点击按钮，就能随机生成"正面"或"反面"的结果，帮助您轻松做出选择。
+                </p>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
+          </motion.div>
 
-        {/* 控制按钮 */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <motion.button
-            onClick={flipCoin}
-            disabled={isFlipping}
-            className="px-8 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all duration-300 font-medium shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+          {/* 主要抛硬币区域 */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.3 }}
+            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
           >
-            <FaDice className="text-xl" />
-            {isFlipping ? '抛硬币中...' : '抛硬币'}
-          </motion.button>
+            <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
+              <FaBullseye className="text-2xl text-red-500" />
+              抛硬币
+            </h3>
 
-          {isFlipping && (
-            <motion.button
-              onClick={skipAnimationHandler}
-              className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-all duration-300 font-medium flex items-center gap-2"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-            >
-              <FaRedo className="text-lg" />
-              跳过动画
-            </motion.button>
-          )}
+            {/* 硬币显示区域 */}
+            <div className="flex justify-center mb-8">
+              <motion.div
+                className="relative w-32 h-32 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full border-4 border-yellow-300 shadow-lg flex items-center justify-center"
+                animate={isFlipping ? {
+                  rotateX: [0, 360, 720, 1080, 1440],
+                  rotateY: [0, 180, 360, 540, 720],
+                  scale: [1, 1.1, 0.9, 1.1, 1],
+                  x: [-5, 5, -5, 5, 0],
+                  y: [-3, 3, -3, 3, 0]
+                } : {
+                  rotateX: 0,
+                  rotateY: 0,
+                  scale: 1,
+                  x: 0,
+                  y: 0
+                }}
+                transition={isFlipping ? {
+                  duration: 2,
+                  ease: "easeInOut",
+                  times: [0, 0.2, 0.4, 0.6, 0.8, 1]
+                } : {
+                  duration: 0.3,
+                  ease: "easeOut"
+                }}
+              >
+                <motion.div
+                  key={result || 'default'}
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.5 }}
+                  transition={{ duration: 0.3 }}
+                  className="text-6xl font-bold text-white"
+                >
+                  <FaCoins className="text-6xl" />
+                </motion.div>
+              </motion.div>
+            </div>
 
-          <motion.button
-            onClick={() => setAudioEnabled(!audioEnabled)}
-            className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 flex items-center gap-2 ${
-              audioEnabled 
-                ? 'bg-green-500 text-white hover:bg-green-600' 
-                : 'bg-gray-500 text-white hover:bg-gray-600'
-            }`}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            {audioEnabled ? <FaVolumeUp className="text-lg" /> : <FaVolumeMute className="text-lg" />}
-            {audioEnabled ? '关闭音效' : '开启音效'}
-          </motion.button>
-        </div>
+            {/* 结果显示 */}
+            <AnimatePresence mode="wait">
+              {result && !isFlipping && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="text-center mb-6"
+                >
+                  <div className={`inline-block px-6 py-3 rounded-lg text-lg font-semibold flex items-center gap-2 ${result === 'heads'
+                      ? 'bg-green-100 text-green-800 border border-green-200'
+                      : 'bg-blue-100 text-blue-800 border border-blue-200'
+                    }`}>
+                    {result === 'heads' ? (
+                      <FaCheckCircle className="text-green-600" />
+                    ) : (
+                      <FaTimesCircle className="text-blue-600" />
+                    )}
+                    结果: {result === 'heads' ? '正面' : '反面'}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-        {/* 动画设置 */}
-        <div className="flex justify-center mt-4">
-          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={skipAnimation}
-              onChange={(e) => setSkipAnimation(e.target.checked)}
-              className="rounded text-indigo-600 focus:ring-indigo-500"
-            />
-            <span>默认跳过动画（快速模式）</span>
-          </label>
-        </div>
-      </motion.div>
-
-      {/* 统计信息 */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-            <FaChartBar className="text-2xl text-blue-500" />
-            统计信息
-          </h3>
-          <div className="flex gap-2">
-            {lastRandomData && (
+            {/* 控制按钮 */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <motion.button
-                onClick={() => setShowRandomAlgorithm(!showRandomAlgorithm)}
-                className="text-green-600 hover:text-green-800 transition-colors flex items-center gap-2"
+                onClick={flipCoin}
+                disabled={isFlipping}
+                className="px-8 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all duration-300 font-medium shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
               >
-                <FaCode className="text-sm" />
-                {showRandomAlgorithm ? '隐藏算法' : '查看算法'}
+                <FaDice className="text-xl" />
+                {isFlipping ? '抛硬币中...' : '抛硬币'}
               </motion.button>
-            )}
-            <motion.button
-              onClick={() => setShowStats(!showStats)}
-              className="text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-2"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              {showStats ? <FaEyeSlash className="text-sm" /> : <FaEye className="text-sm" />}
-              {showStats ? '隐藏详情' : '显示详情'}
-            </motion.button>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-          <div className="bg-blue-50 rounded-lg p-4 text-center">
-            <div className="text-2xl font-bold text-blue-600">{stats.heads}</div>
-            <div className="text-sm text-blue-700">正面</div>
-          </div>
-          <div className="bg-green-50 rounded-lg p-4 text-center">
-            <div className="text-2xl font-bold text-green-600">{stats.tails}</div>
-            <div className="text-sm text-green-700">反面</div>
-          </div>
-          <div className="bg-purple-50 rounded-lg p-4 text-center">
-            <div className="text-2xl font-bold text-purple-600">{stats.total}</div>
-            <div className="text-sm text-purple-700">总计</div>
-          </div>
-        </div>
+              {isFlipping && (
+                <motion.button
+                  onClick={skipAnimationHandler}
+                  className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-all duration-300 font-medium flex items-center gap-2"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                >
+                  <FaRedo className="text-lg" />
+                  跳过动画
+                </motion.button>
+              )}
 
-        {showRandomAlgorithm && lastRandomData && (
+              <motion.button
+                onClick={() => setAudioEnabled(!audioEnabled)}
+                className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 flex items-center gap-2 ${audioEnabled
+                    ? 'bg-green-500 text-white hover:bg-green-600'
+                    : 'bg-gray-500 text-white hover:bg-gray-600'
+                  }`}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                {audioEnabled ? <FaVolumeUp className="text-lg" /> : <FaVolumeMute className="text-lg" />}
+                {audioEnabled ? '关闭音效' : '开启音效'}
+              </motion.button>
+            </div>
+
+            {/* 动画设置 */}
+            <div className="flex justify-center mt-4">
+              <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={skipAnimation}
+                  onChange={(e) => setSkipAnimation(e.target.checked)}
+                  className="rounded text-indigo-600 focus:ring-indigo-500"
+                />
+                <span>默认跳过动画（快速模式）</span>
+              </label>
+            </div>
+          </motion.div>
+
+          {/* 统计信息 */}
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="space-y-4 mb-4"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
           >
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <h4 className="font-semibold text-green-900 mb-3 flex items-center gap-2">
-                <FaCode className="text-lg" />
-                随机算法详情
-              </h4>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-green-700">使用算法:</span>
-                  <span className="font-mono text-green-800">{lastRandomData.method}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-green-700">最终随机值:</span>
-                  <span className="font-mono text-green-800">{lastRandomData.finalResult.toFixed(6)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-green-700">判定结果:</span>
-                  <span className="font-mono text-green-800">
-                    {lastRandomData.finalResult < 0.5 ? '正面 (≤0.5)' : '反面 (>0.5)'}
-                  </span>
-                </div>
-                {lastRandomData.values.length > 1 && (
-                  <div>
-                    <span className="text-green-700">随机源值:</span>
-                    <div className="mt-1 font-mono text-xs bg-green-100 p-2 rounded">
-                      {lastRandomData.values.map((value, index) => (
-                        <div key={index} className="flex justify-between">
-                          <span>随机源 {index + 1}:</span>
-                          <span>{value.toFixed(6)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                <FaChartBar className="text-2xl text-blue-500" />
+                统计信息
+              </h3>
+              <div className="flex gap-2">
+                {lastRandomData && (
+                  <motion.button
+                    onClick={() => setShowRandomAlgorithm(!showRandomAlgorithm)}
+                    className="text-green-600 hover:text-green-800 transition-colors flex items-center gap-2"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                  >
+                    <FaCode className="text-sm" />
+                    {showRandomAlgorithm ? '隐藏算法' : '查看算法'}
+                  </motion.button>
                 )}
+                <motion.button
+                  onClick={() => setShowStats(!showStats)}
+                  className="text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-2"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  {showStats ? <FaEyeSlash className="text-sm" /> : <FaEye className="text-sm" />}
+                  {showStats ? '隐藏详情' : '显示详情'}
+                </motion.button>
               </div>
             </div>
 
-            {/* 算法代码示例 */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
-                <FaCode className="text-lg" />
-                算法实现代码
-              </h4>
-              <div className="space-y-3">
-                <div>
-                  <h5 className="font-medium text-blue-800 mb-2">加密安全随机数算法:</h5>
-                  <pre className="bg-blue-100 p-3 rounded text-xs font-mono text-blue-900 overflow-x-auto">
-{`// 使用 Web Crypto API
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+              <div className="bg-blue-50 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-blue-600">{stats.heads}</div>
+                <div className="text-sm text-blue-700">正面</div>
+              </div>
+              <div className="bg-green-50 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-green-600">{stats.tails}</div>
+                <div className="text-sm text-green-700">反面</div>
+              </div>
+              <div className="bg-purple-50 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-purple-600">{stats.total}</div>
+                <div className="text-sm text-purple-700">总计</div>
+              </div>
+            </div>
+
+            {showRandomAlgorithm && lastRandomData && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="space-y-4 mb-4"
+              >
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-green-900 mb-3 flex items-center gap-2">
+                    <FaCode className="text-lg" />
+                    随机算法详情
+                  </h4>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-green-700">使用算法:</span>
+                      <span className="font-mono text-green-800">{lastRandomData.method}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-green-700">最终随机值:</span>
+                      <span className="font-mono text-green-800">{lastRandomData.finalResult.toFixed(6)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-green-700">判定结果:</span>
+                      <span className="font-mono text-green-800">
+                        {lastRandomData.finalResult < 0.5 ? '正面 (≤0.5)' : '反面 (>0.5)'}
+                      </span>
+                    </div>
+                    {lastRandomData.values.length > 1 && (
+                      <div>
+                        <span className="text-green-700">随机源值:</span>
+                        <div className="mt-1 font-mono text-xs bg-green-100 p-2 rounded">
+                          {lastRandomData.values.map((value, index) => (
+                            <div key={index} className="flex justify-between">
+                              <span>随机源 {index + 1}:</span>
+                              <span>{value.toFixed(6)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 算法代码示例 */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
+                    <FaCode className="text-lg" />
+                    算法实现代码
+                  </h4>
+                  <div className="space-y-3">
+                    <div>
+                      <h5 className="font-medium text-blue-800 mb-2">加密安全随机数算法:</h5>
+                      <pre className="bg-blue-100 p-3 rounded text-xs font-mono text-blue-900 overflow-x-auto">
+                        {`// 使用 Web Crypto API
 if (window.crypto && window.crypto.getRandomValues) {
   const array = new Uint32Array(1);
   window.crypto.getRandomValues(array);
   const cryptoRandom = array[0] / (0xffffffff + 1);
   return cryptoRandom < 0.5 ? 'heads' : 'tails';
 }`}
-                  </pre>
-                </div>
-                <div>
-                  <h5 className="font-medium text-blue-800 mb-2">多重随机源组合算法:</h5>
-                  <pre className="bg-blue-100 p-3 rounded text-xs font-mono text-blue-900 overflow-x-auto">
-{`// 组合多个随机源
+                      </pre>
+                    </div>
+                    <div>
+                      <h5 className="font-medium text-blue-800 mb-2">多重随机源组合算法:</h5>
+                      <pre className="bg-blue-100 p-3 rounded text-xs font-mono text-blue-900 overflow-x-auto">
+                        {`// 组合多个随机源
 const random1 = Math.random();        // Math.random()
 const random2 = Math.random();        // Math.random()
 const random3 = Math.random();        // Math.random()
@@ -708,267 +710,269 @@ const combinedRandom = (random1 + random2 + random3) / 3;
 const finalRandom = (combinedRandom + timeRandom + mouseRandom) / 3;
 
 return finalRandom < 0.5 ? 'heads' : 'tails';`}
-                  </pre>
+                      </pre>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            {/* 算法原理说明 */}
-            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-              <h4 className="font-semibold text-purple-900 mb-3 flex items-center gap-2">
-                <FaCode className="text-lg" />
-                算法原理说明
-              </h4>
-              <div className="space-y-2 text-sm text-purple-800">
-                <div>
-                  <h5 className="font-medium mb-1 flex items-center gap-2">
-                    <FaShieldAlt className="text-blue-600" />
-                    加密安全随机数 (Crypto API):
-                  </h5>
-                  <ul className="list-disc list-inside space-y-1 text-xs">
-                    <li className="flex items-center gap-1">
-                      <FaCog className="text-blue-500" />
-                      使用浏览器内置的 Web Crypto API
-                    </li>
-                    <li className="flex items-center gap-1">
-                      <FaShieldAlt className="text-blue-500" />
-                      生成密码学安全的随机数
-                    </li>
-                    <li className="flex items-center gap-1">
-                      <FaRandom className="text-blue-500" />
-                      基于硬件随机数生成器
-                    </li>
-                    <li className="flex items-center gap-1">
-                      <FaCheckCircle className="text-blue-500" />
-                      适用于需要高安全性的场景
-                    </li>
-                  </ul>
+                {/* 算法原理说明 */}
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-purple-900 mb-3 flex items-center gap-2">
+                    <FaCode className="text-lg" />
+                    算法原理说明
+                  </h4>
+                  <div className="space-y-2 text-sm text-purple-800">
+                    <div>
+                      <h5 className="font-medium mb-1 flex items-center gap-2">
+                        <FaShieldAlt className="text-blue-600" />
+                        加密安全随机数 (Crypto API):
+                      </h5>
+                      <ul className="list-disc list-inside space-y-1 text-xs">
+                        <li className="flex items-center gap-1">
+                          <FaCog className="text-blue-500" />
+                          使用浏览器内置的 Web Crypto API
+                        </li>
+                        <li className="flex items-center gap-1">
+                          <FaShieldAlt className="text-blue-500" />
+                          生成密码学安全的随机数
+                        </li>
+                        <li className="flex items-center gap-1">
+                          <FaRandom className="text-blue-500" />
+                          基于硬件随机数生成器
+                        </li>
+                        <li className="flex items-center gap-1">
+                          <FaCheckCircle className="text-blue-500" />
+                          适用于需要高安全性的场景
+                        </li>
+                      </ul>
+                    </div>
+                    <div>
+                      <h5 className="font-medium mb-1 flex items-center gap-2">
+                        <FaRandom className="text-purple-600" />
+                        多重随机源组合:
+                      </h5>
+                      <ul className="list-disc list-inside space-y-1 text-xs">
+                        <li className="flex items-center gap-1">
+                          <FaCalculator className="text-purple-500" />
+                          Math.random(): 伪随机数生成器
+                        </li>
+                        <li className="flex items-center gap-1">
+                          <FaClock className="text-purple-500" />
+                          时间戳: 当前时间的毫秒数
+                        </li>
+                        <li className="flex items-center gap-1">
+                          <FaMousePointer className="text-purple-500" />
+                          鼠标位置: 基于用户交互的随机性
+                        </li>
+                        <li className="flex items-center gap-1">
+                          <FaRandom className="text-purple-500" />
+                          多重组合: 提高随机性和不可预测性
+                        </li>
+                      </ul>
+                    </div>
+                    <div>
+                      <h5 className="font-medium mb-1 flex items-center gap-2">
+                        <FaCheckCircle className="text-green-600" />
+                        公平性保证:
+                      </h5>
+                      <ul className="list-disc list-inside space-y-1 text-xs">
+                        <li className="flex items-center gap-1">
+                          <FaCalculator className="text-green-500" />
+                          所有随机值都在 0-1 范围内
+                        </li>
+                        <li className="flex items-center gap-1">
+                          <FaBullseye className="text-green-500" />
+                          0.5 作为正反面的分界线
+                        </li>
+                        <li className="flex items-center gap-1">
+                          <FaChartBar className="text-green-500" />
+                          理论上正反面概率各为 50%
+                        </li>
+                        <li className="flex items-center gap-1">
+                          <FaEye className="text-green-500" />
+                          算法完全透明，可验证公平性
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <h5 className="font-medium mb-1 flex items-center gap-2">
-                    <FaRandom className="text-purple-600" />
-                    多重随机源组合:
-                  </h5>
-                  <ul className="list-disc list-inside space-y-1 text-xs">
-                    <li className="flex items-center gap-1">
-                      <FaCalculator className="text-purple-500" />
-                      Math.random(): 伪随机数生成器
-                    </li>
-                    <li className="flex items-center gap-1">
-                      <FaClock className="text-purple-500" />
-                      时间戳: 当前时间的毫秒数
-                    </li>
-                    <li className="flex items-center gap-1">
-                      <FaMousePointer className="text-purple-500" />
-                      鼠标位置: 基于用户交互的随机性
-                    </li>
-                    <li className="flex items-center gap-1">
-                      <FaRandom className="text-purple-500" />
-                      多重组合: 提高随机性和不可预测性
-                    </li>
-                  </ul>
-                </div>
-                <div>
-                  <h5 className="font-medium mb-1 flex items-center gap-2">
-                    <FaCheckCircle className="text-green-600" />
-                    公平性保证:
-                  </h5>
-                  <ul className="list-disc list-inside space-y-1 text-xs">
-                    <li className="flex items-center gap-1">
-                      <FaCalculator className="text-green-500" />
-                      所有随机值都在 0-1 范围内
-                    </li>
-                    <li className="flex items-center gap-1">
-                      <FaBullseye className="text-green-500" />
-                      0.5 作为正反面的分界线
-                    </li>
-                    <li className="flex items-center gap-1">
-                      <FaChartBar className="text-green-500" />
-                      理论上正反面概率各为 50%
-                    </li>
-                    <li className="flex items-center gap-1">
-                      <FaEye className="text-green-500" />
-                      算法完全透明，可验证公平性
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
 
-            {/* 技术细节 */}
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-              <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                <FaCode className="text-lg" />
-                技术细节
-              </h4>
-              <div className="space-y-2 text-sm text-gray-700">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <h5 className="font-medium mb-1 flex items-center gap-2">
-                      <FaShieldAlt className="text-gray-600" />
-                      随机数质量:
-                    </h5>
-                    <ul className="list-disc list-inside space-y-1 text-xs">
-                      <li className="flex items-center gap-1">
-                        <FaShieldAlt className="text-gray-500" />
-                        加密API: 密码学安全级别
-                      </li>
-                      <li className="flex items-center gap-1">
-                        <FaRandom className="text-gray-500" />
-                        多重组合: 高随机性
-                      </li>
-                      <li className="flex items-center gap-1">
-                        <FaClock className="text-gray-500" />
-                        时间熵: 基于系统时间
-                      </li>
-                      <li className="flex items-center gap-1">
-                        <FaMousePointer className="text-gray-500" />
-                        用户熵: 基于用户交互
-                      </li>
-                    </ul>
-                  </div>
-                  <div>
-                    <h5 className="font-medium mb-1 flex items-center gap-2">
-                      <FaCog className="text-gray-600" />
-                      性能特点:
-                    </h5>
-                    <ul className="list-disc list-inside space-y-1 text-xs">
-                      <li className="flex items-center gap-1">
-                        <FaShieldAlt className="text-gray-500" />
-                        加密API: 硬件加速
-                      </li>
-                      <li className="flex items-center gap-1">
-                        <FaCalculator className="text-gray-500" />
-                        多重组合: 计算开销小
-                      </li>
-                      <li className="flex items-center gap-1">
-                        <FaPlay className="text-gray-500" />
-                        实时生成: 无延迟
-                      </li>
-                      <li className="flex items-center gap-1">
-                        <FaCheckCircle className="text-gray-500" />
-                        浏览器兼容: 广泛支持
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-                <div className="text-xs text-gray-600 mt-3 p-2 bg-gray-100 rounded flex items-start gap-2">
-                  <FaInfoCircle className="text-blue-500 mt-0.5 flex-shrink-0" />
-                  <p><strong>注意:</strong> 本实现使用完全透明的随机算法，所有随机数生成过程都可以在浏览器开发者工具中查看和验证。</p>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {showStats && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="space-y-4"
-          >
-            {stats.total > 0 && (
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h4 className="font-semibold text-gray-900 mb-2">概率分析</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span>正面概率:</span>
-                    <span className="font-medium">{(stats.heads / stats.total * 100).toFixed(1)}%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>反面概率:</span>
-                    <span className="font-medium">{(stats.tails / stats.total * 100).toFixed(1)}%</span>
+                {/* 技术细节 */}
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <FaCode className="text-lg" />
+                    技术细节
+                  </h4>
+                  <div className="space-y-2 text-sm text-gray-700">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <h5 className="font-medium mb-1 flex items-center gap-2">
+                          <FaShieldAlt className="text-gray-600" />
+                          随机数质量:
+                        </h5>
+                        <ul className="list-disc list-inside space-y-1 text-xs">
+                          <li className="flex items-center gap-1">
+                            <FaShieldAlt className="text-gray-500" />
+                            加密API: 密码学安全级别
+                          </li>
+                          <li className="flex items-center gap-1">
+                            <FaRandom className="text-gray-500" />
+                            多重组合: 高随机性
+                          </li>
+                          <li className="flex items-center gap-1">
+                            <FaClock className="text-gray-500" />
+                            时间熵: 基于系统时间
+                          </li>
+                          <li className="flex items-center gap-1">
+                            <FaMousePointer className="text-gray-500" />
+                            用户熵: 基于用户交互
+                          </li>
+                        </ul>
+                      </div>
+                      <div>
+                        <h5 className="font-medium mb-1 flex items-center gap-2">
+                          <FaCog className="text-gray-600" />
+                          性能特点:
+                        </h5>
+                        <ul className="list-disc list-inside space-y-1 text-xs">
+                          <li className="flex items-center gap-1">
+                            <FaShieldAlt className="text-gray-500" />
+                            加密API: 硬件加速
+                          </li>
+                          <li className="flex items-center gap-1">
+                            <FaCalculator className="text-gray-500" />
+                            多重组合: 计算开销小
+                          </li>
+                          <li className="flex items-center gap-1">
+                            <FaPlay className="text-gray-500" />
+                            实时生成: 无延迟
+                          </li>
+                          <li className="flex items-center gap-1">
+                            <FaCheckCircle className="text-gray-500" />
+                            浏览器兼容: 广泛支持
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-600 mt-3 p-2 bg-gray-100 rounded flex items-start gap-2">
+                      <FaInfoCircle className="text-blue-500 mt-0.5 flex-shrink-0" />
+                      <p><strong>注意:</strong> 本实现使用完全透明的随机算法，所有随机数生成过程都可以在浏览器开发者工具中查看和验证。</p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             )}
 
-            {/* 数据管理 */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <motion.button
-                onClick={exportStats}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium flex items-center gap-2"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+            {showStats && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="space-y-4"
               >
-                <FaDownload />
-                导出数据
-              </motion.button>
+                {stats.total > 0 && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h4 className="font-semibold text-gray-900 mb-2">概率分析</h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span>正面概率:</span>
+                        <span className="font-medium">{(stats.heads / stats.total * 100).toFixed(1)}%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>反面概率:</span>
+                        <span className="font-medium">{(stats.tails / stats.total * 100).toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-              <label className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium flex items-center gap-2 cursor-pointer">
-                <FaUpload />
-                导入数据
-                <input
-                  type="file"
-                  accept=".json"
-                  onChange={importStats}
-                  className="hidden"
-                />
-              </label>
+                {/* 数据管理 */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <motion.button
+                    onClick={exportStats}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium flex items-center gap-2"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <FaDownload />
+                    导出数据
+                  </motion.button>
 
-              <motion.button
-                onClick={resetStats}
-                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium flex items-center gap-2"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <FaRedo />
-                重置统计
-              </motion.button>
+                  <label className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium flex items-center gap-2 cursor-pointer">
+                    <FaUpload />
+                    导入数据
+                    <input
+                      type="file"
+                      accept=".json"
+                      onChange={importStats}
+                      className="hidden"
+                    />
+                  </label>
+
+                  <motion.button
+                    onClick={resetStats}
+                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium flex items-center gap-2"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <FaRedo />
+                    重置统计
+                  </motion.button>
+                </div>
+              </motion.div>
+            )}
+          </motion.div>
+
+          {/* 使用说明 */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+          >
+            <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <FaLightbulb className="text-2xl text-yellow-500" />
+              使用说明
+            </h3>
+            <div className="space-y-3 text-gray-600">
+              <div className="flex items-start gap-3">
+                <FaPlay className="text-blue-500 mt-0.5 flex-shrink-0" />
+                <span>点击"抛硬币"按钮开始随机抛硬币</span>
+              </div>
+              <div className="flex items-start gap-3">
+                <FaClock className="text-blue-500 mt-0.5 flex-shrink-0" />
+                <span>等待动画完成后查看结果</span>
+              </div>
+              <div className="flex items-start gap-3">
+                <FaChartBar className="text-blue-500 mt-0.5 flex-shrink-0" />
+                <span>系统会自动记录每次抛硬币的结果</span>
+              </div>
+              <div className="flex items-start gap-3">
+                <FaDownload className="text-blue-500 mt-0.5 flex-shrink-0" />
+                <span>可以导出或导入统计数据</span>
+              </div>
+              <div className="flex items-start gap-3">
+                <FaCode className="text-blue-500 mt-0.5 flex-shrink-0" />
+                <span>点击"查看算法"可以查看随机数生成过程</span>
+              </div>
+              <div className="flex items-start gap-3">
+                <FaShieldAlt className="text-blue-500 mt-0.5 flex-shrink-0" />
+                <span>使用加密安全随机数确保结果完全随机</span>
+              </div>
+              <div className="flex items-start gap-3">
+                <FaPause className="text-blue-500 mt-0.5 flex-shrink-0" />
+                <span>动画过程中可以点击"跳过动画"立即查看结果</span>
+              </div>
+              <div className="flex items-start gap-3">
+                <FaCog className="text-blue-500 mt-0.5 flex-shrink-0" />
+                <span>勾选"快速模式"可以默认跳过动画</span>
+              </div>
             </div>
           </motion.div>
-        )}
-      </motion.div>
-
-      {/* 使用说明 */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
-        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
-      >
-        <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <FaLightbulb className="text-2xl text-yellow-500" />
-          使用说明
-        </h3>
-        <div className="space-y-3 text-gray-600">
-          <div className="flex items-start gap-3">
-            <FaPlay className="text-blue-500 mt-0.5 flex-shrink-0" />
-            <span>点击"抛硬币"按钮开始随机抛硬币</span>
-          </div>
-          <div className="flex items-start gap-3">
-            <FaClock className="text-blue-500 mt-0.5 flex-shrink-0" />
-            <span>等待动画完成后查看结果</span>
-          </div>
-          <div className="flex items-start gap-3">
-            <FaChartBar className="text-blue-500 mt-0.5 flex-shrink-0" />
-            <span>系统会自动记录每次抛硬币的结果</span>
-          </div>
-          <div className="flex items-start gap-3">
-            <FaDownload className="text-blue-500 mt-0.5 flex-shrink-0" />
-            <span>可以导出或导入统计数据</span>
-          </div>
-          <div className="flex items-start gap-3">
-            <FaCode className="text-blue-500 mt-0.5 flex-shrink-0" />
-            <span>点击"查看算法"可以查看随机数生成过程</span>
-          </div>
-          <div className="flex items-start gap-3">
-            <FaShieldAlt className="text-blue-500 mt-0.5 flex-shrink-0" />
-            <span>使用加密安全随机数确保结果完全随机</span>
-          </div>
-          <div className="flex items-start gap-3">
-            <FaPause className="text-blue-500 mt-0.5 flex-shrink-0" />
-            <span>动画过程中可以点击"跳过动画"立即查看结果</span>
-          </div>
-          <div className="flex items-start gap-3">
-            <FaCog className="text-blue-500 mt-0.5 flex-shrink-0" />
-            <span>勾选"快速模式"可以默认跳过动画</span>
-          </div>
-        </div>
-      </motion.div>
-    </motion.div>
+        </motion.div>
+      </div>
+    </div>
   );
 };
 
-export default CoinFlip; 
+export default CoinFlip;

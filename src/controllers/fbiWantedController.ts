@@ -3,6 +3,16 @@ import FBIWantedModel, { IFBIWanted } from '../models/fbiWantedModel';
 import logger from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 
+// 生成NCIC编号
+function generateNCICNumber(): string {
+    const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let result = 'N'; // NCIC numbers often start with a letter
+    for (let i = 0; i < 9; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+}
+
 // 生成FBI编号
 function generateFBINumber(): string {
     const timestamp = Date.now().toString().slice(-8);
@@ -11,7 +21,10 @@ function generateFBINumber(): string {
 }
 
 // 输入验证和清理
-function sanitizeInput(str: string): string {
+function sanitizeInput(str: string | undefined | null): string {
+    if (typeof str !== 'string' || !str) {
+        return '';
+    }
     return str.replace(/[<>]/g, '').trim();
 }
 
@@ -120,7 +133,6 @@ export const fbiWantedController = {
                 fingerprints = [],
                 lastKnownLocation = '',
                 dangerLevel = 'MEDIUM',
-                ncicNumber = '',
                 occupation = '',
                 scarsAndMarks = [],
                 languages = [],
@@ -132,14 +144,13 @@ export const fbiWantedController = {
             if (!name || !charges.length || reward === undefined) {
                 return res.status(400).json({
                     success: false,
-                    message: '缺少必填字段：姓名、罪名和奖金是必需的'
+                    message: '姓名、指控和悬赏金额是必填项'
                 });
             }
 
-            // 生成FBI编号
-            const fbiNumber = generateFBINumber();
-
             const newWanted = new FBIWantedModel({
+                fbiNumber: generateFBINumber(),
+                ncicNumber: generateNCICNumber(),
                 name: sanitizeInput(name),
                 aliases: aliases.map((alias: string) => sanitizeInput(alias)),
                 age: age ? Number(age) : 0,
@@ -149,27 +160,29 @@ export const fbiWantedController = {
                 hair: hair ? sanitizeInput(hair) : '未知',
                 race: race ? sanitizeInput(race) : '未知',
                 nationality: nationality ? sanitizeInput(nationality) : '未知',
-                dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : new Date(),
-                placeOfBirth: placeOfBirth ? sanitizeInput(placeOfBirth) : '未知',
+                dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+                placeOfBirth: sanitizeInput(placeOfBirth),
                 charges: charges.map((charge: string) => sanitizeInput(charge)),
-                description: description ? sanitizeInput(description) : '',
+                description: sanitizeInput(description),
                 reward: Number(reward),
                 photoUrl: sanitizeInput(photoUrl),
                 fingerprints: fingerprints.map((fp: string) => sanitizeInput(fp)),
                 lastKnownLocation: sanitizeInput(lastKnownLocation),
                 dangerLevel,
-                fbiNumber, // 使用自动生成的FBI编号
-                ncicNumber: sanitizeInput(ncicNumber),
+                status: 'ACTIVE',
+                dateAdded: new Date(),
+                lastUpdated: new Date(),
                 occupation: sanitizeInput(occupation),
                 scarsAndMarks: scarsAndMarks.map((mark: string) => sanitizeInput(mark)),
                 languages: languages.map((lang: string) => sanitizeInput(lang)),
                 caution: sanitizeInput(caution),
-                remarks: sanitizeInput(remarks)
+                remarks: sanitizeInput(remarks),
+                isActive: true
             });
 
             const savedWanted = await newWanted.save();
 
-            logger.info(`新增通缉犯记录: ${name} (${fbiNumber})`);
+            logger.info(`创建新的通缉犯记录: ${savedWanted.name} (FBI: ${savedWanted.fbiNumber})`);
 
             res.status(201).json({
                 success: true,
@@ -254,6 +267,35 @@ export const fbiWantedController = {
             res.status(500).json({
                 success: false,
                 message: '删除通缉犯记录失败'
+            });
+        }
+    },
+
+    // 根据条件批量删除通缉犯记录（管理员）
+    async deleteMultiple(req: Request, res: Response) {
+        try {
+            const { filter } = req.body;
+
+            if (!filter || typeof filter !== 'object') {
+                return res.status(400).json({
+                    success: false,
+                    message: '请提供有效的过滤条件'
+                });
+            }
+
+            const result = await FBIWantedModel.deleteMany(filter);
+
+            logger.info(`根据条件批量删除通缉犯记录: ${result.deletedCount} 条`);
+
+            res.json({
+                success: true,
+                message: `成功删除 ${result.deletedCount} 条通缉犯记录`
+            });
+        } catch (error) {
+            logger.error('根据条件批量删除通缉犯记录失败:', error);
+            res.status(500).json({
+                success: false,
+                message: '根据条件批量删除通缉犯记录失败'
             });
         }
     },

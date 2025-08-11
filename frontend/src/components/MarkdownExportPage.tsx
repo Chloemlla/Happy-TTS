@@ -1,13 +1,36 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FaFileAlt, FaDownload, FaEye, FaFileWord, FaFilePdf, FaUpload, FaCopy, FaTrash } from 'react-icons/fa';
 import { marked } from 'marked';
 import markedKatex from 'marked-katex-extension';
 import 'katex/dist/katex.min.css';
+import '../styles/katex-fonts.css';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 // 简单的DOCX导出实现（使用RTF格式作为替代）
+
+// 预加载KaTeX字体以避免慢网络警告
+const preloadKatexFonts = () => {
+    const fonts = [
+        'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/fonts/KaTeX_Main-Regular.woff2',
+        'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/fonts/KaTeX_Math-Italic.woff2',
+        'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/fonts/KaTeX_Size1-Regular.woff2',
+        'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/fonts/KaTeX_Size2-Regular.woff2'
+    ];
+    
+    fonts.forEach(fontUrl => {
+        if (!document.querySelector(`link[href="${fontUrl}"]`)) {
+            const link = document.createElement('link');
+            link.rel = 'preload';
+            link.as = 'font';
+            link.type = 'font/woff2';
+            link.crossOrigin = 'anonymous';
+            link.href = fontUrl;
+            document.head.appendChild(link);
+        }
+    });
+};
 
 // 配置marked以支持KaTeX
 marked.use(markedKatex({
@@ -15,6 +38,7 @@ marked.use(markedKatex({
 }));
 
 const MarkdownExportPage: React.FC = () => {
+    const [isKatexLoaded, setIsKatexLoaded] = useState(false);
     const [markdownContent, setMarkdownContent] = useState(`# 示例文档
 
 ## 介绍
@@ -69,9 +93,36 @@ c & d
     const [isExporting, setIsExporting] = useState(false);
     const previewRef = useRef<HTMLDivElement>(null);
 
+    // 组件挂载时预加载KaTeX字体
+    useEffect(() => {
+        preloadKatexFonts();
+        
+        // 检查字体是否已加载
+        const checkFontsLoaded = () => {
+            if (document.fonts && document.fonts.ready) {
+                document.fonts.ready.then(() => {
+                    setIsKatexLoaded(true);
+                });
+            } else {
+                // 降级方案：等待一段时间后假设字体已加载
+                setTimeout(() => {
+                    setIsKatexLoaded(true);
+                }, 300);
+            }
+        };
+        
+        checkFontsLoaded();
+    }, []);
+
     // 渲染Markdown为HTML
     const renderMarkdown = (markdown: string) => {
-        return marked.parse(markdown);
+        try {
+            return marked.parse(markdown);
+        } catch (error) {
+            console.warn('Markdown parsing error:', error);
+            // 如果解析失败，返回纯文本
+            return `<pre>${markdown}</pre>`;
+        }
     };
 
     // 导出为DOCX（使用RTF格式作为替代）
@@ -464,8 +515,21 @@ c & d
                             <div
                                 ref={previewRef}
                                 className="h-96 overflow-y-auto border border-gray-300 rounded-xl p-4 bg-white prose prose-sm max-w-none"
-                                dangerouslySetInnerHTML={{ __html: renderMarkdown(markdownContent) }}
-                            />
+                                style={{
+                                    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                                } as React.CSSProperties}
+                            >
+                                {isKatexLoaded ? (
+                                    <div dangerouslySetInnerHTML={{ __html: renderMarkdown(markdownContent) }} />
+                                ) : (
+                                    <div className="flex items-center justify-center h-full text-gray-500">
+                                        <div className="text-center">
+                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                                            <p>正在加载数学公式渲染器...</p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </motion.div>
