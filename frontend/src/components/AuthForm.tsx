@@ -737,55 +737,101 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
             <AnimatePresence>
             {showEmailVerify && (
                 <motion.div
-                    className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50"
+                    className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm z-50 p-4"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    transition={{ duration: 0.25 }}
+                    transition={{ duration: 0.3 }}
                 >
                     <motion.div
-                        className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm relative"
-                        initial={{ scale: 0.95, opacity: 0, y: 40 }}
+                        className="bg-white rounded-3xl shadow-2xl w-full max-w-md relative overflow-hidden"
+                        initial={{ scale: 0.9, opacity: 0, y: 50 }}
                         animate={{ scale: 1, opacity: 1, y: 0 }}
-                        exit={{ scale: 0.95, opacity: 0, y: 40 }}
-                        transition={{ duration: 0.28 }}
+                        exit={{ scale: 0.9, opacity: 0, y: 50 }}
+                        transition={{ duration: 0.3, type: "spring", damping: 25, stiffness: 300 }}
                     >
-                        <h3 className="text-lg font-bold mb-4 text-center">邮箱验证</h3>
-                        <p className="mb-2 text-gray-600 text-center">我们已向 <span className="font-semibold">{pendingEmail}</span> 发送了验证码，请输入收到的验证码完成注册。</p>
-                        <VerifyCodeInput
-                            length={8}
-                            inputClassName="bg-blue-50 focus:bg-blue-100 border-blue-200 text-blue-900"
-                            onComplete={async (code) => {
-                                setVerifyCode(code);
-                                // 自动触发验证
-                                if (code.length === 8 && !verifyLoading) {
-                                    await handleVerifyCode(code);
-                                }
-                            }}
-                            loading={verifyLoading}
-                            error={verifyError}
-                        />
-                        <button
-                            className="w-full py-2 px-4 bg-indigo-600 text-white rounded-md font-semibold hover:bg-indigo-700 transition-all mb-2 mt-2"
-                            onClick={() => handleVerifyCode()}
-                            disabled={verifyLoading || verifyCode.length !== 8}
-                        >
-                            {verifyLoading ? '验证中...' : '提交验证'}
-                        </button>
-                        <button
-                            className={`w-full py-2 px-4 rounded-md font-semibold mb-2 transition-all ${verifyResendTimer > 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-                            onClick={handleResendVerifyCode}
-                            disabled={verifyLoading || verifyResendTimer > 0}
-                        >
-                            {verifyResendTimer > 0 ? `重新发送（${verifyResendTimer}s）` : '重新发送验证码'}
-                        </button>
-                        <button
-                            className="w-full py-2 px-4 bg-gray-200 text-gray-700 rounded-md font-semibold hover:bg-gray-300 transition-all"
-                            onClick={() => setShowEmailVerify(false)}
-                            disabled={verifyLoading}
-                        >
-                            取消
-                        </button>
+                        {/* 顶部装饰条 */}
+                        <div className="h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
+                        
+                        <div className="p-8">
+                            {/* 标题区域 */}
+                            <div className="text-center mb-8">
+                                <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                    </svg>
+                                </div>
+                                <h3 className="text-2xl font-bold text-gray-900 mb-2">创建账户</h3>
+                                <p className="text-gray-600 leading-relaxed">
+                                    请输入发送到 <br />
+                                    <span className="font-semibold text-gray-900">{pendingEmail}</span> <br />
+                                    的验证码
+                                </p>
+                            </div>
+
+                            {/* 验证码输入区域 */}
+                            <div className="mb-8">
+                                <VerifyCodeInput
+                                    length={8}
+                                    inputClassName="w-12 h-12 text-center text-xl font-bold border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-gray-50 focus:bg-white"
+                                    onComplete={async (code) => {
+                                        setVerifyCode(code);
+                                        // 自动触发验证
+                                        if (code.length === 8 && !verifyLoading) {
+                                            await handleVerifyCode(code);
+                                        }
+                                    }}
+                                    loading={verifyLoading}
+                                    error={verifyError}
+                                />
+                            </div>
+
+                            {/* 按钮区域 */}
+                            <div className="space-y-3">
+                                <button
+                                    className={`w-full py-4 px-6 rounded-2xl font-semibold text-lg transition-all duration-200 ${
+                                        verifyCode.length === 8 && !verifyLoading
+                                            ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
+                                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                    }`}
+                                    onClick={() => handleVerifyCode()}
+                                    disabled={verifyLoading || verifyCode.length !== 8}
+                                >
+                                    {verifyLoading ? (
+                                        <div className="flex items-center justify-center space-x-2">
+                                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                            <span>验证中...</span>
+                                        </div>
+                                    ) : '创建账户'}
+                                </button>
+                                
+                                <button
+                                    className={`w-full py-3 px-6 rounded-2xl font-medium transition-all duration-200 ${
+                                        verifyResendTimer > 0 
+                                            ? 'bg-gray-50 text-gray-400 cursor-not-allowed' 
+                                            : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                                    }`}
+                                    onClick={handleResendVerifyCode}
+                                    disabled={verifyLoading || verifyResendTimer > 0}
+                                >
+                                    {verifyResendTimer > 0 ? `重新发送验证码 (${verifyResendTimer}s)` : '重新发送验证码'}
+                                </button>
+                            </div>
+
+                            {/* 底部提示 */}
+                            <div className="mt-6 text-center">
+                                <p className="text-sm text-gray-500">
+                                    没有收到验证码？请检查垃圾邮件文件夹
+                                </p>
+                                <button
+                                    className="mt-2 text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                                    onClick={() => setShowEmailVerify(false)}
+                                    disabled={verifyLoading}
+                                >
+                                    返回修改邮箱
+                                </button>
+                            </div>
+                        </div>
                     </motion.div>
                 </motion.div>
             )}
