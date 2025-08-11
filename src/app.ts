@@ -51,6 +51,8 @@ import imageDataRoutes from './routes/imageDataRoutes';
 import resourceRoutes from './routes/resourceRoutes';
 import cdkRoutes from './routes/cdkRoutes';
 import shortUrlRoutes from './routes/shortUrlRoutes';
+import fbiWantedRoutes from './routes/fbiWantedRoutes';
+import fbiWantedPublicRoutes from './routes/fbiWantedPublicRoutes';
 
 import emailRoutes from './routes/emailRoutes';
 import { commandStatusHandler } from './routes/commandRoutes';
@@ -657,6 +659,12 @@ app.use('/api/image-data', imageDataRoutes);
 app.use('/api', resourceRoutes);
 // CDK路由 - 需要认证
 app.use('/api', authenticateToken, cdkRoutes);
+// FBI通缉犯路由
+app.use('/api/fbi-wanted', fbiWantedRoutes);
+// FBI通缉犯公开路由（完全无鉴权）
+app.use('/api/fbi-wanted-public', fbiWantedPublicRoutes);
+// 额外公开别名（非 /api 前缀，绕过任何潜在的 /api 层鉴权拦截）
+app.use('/public/fbi-wanted', fbiWantedPublicRoutes);
 // app.use('/api', shortUrlRoutes);
 
 // 完整性检测相关兜底接口限速

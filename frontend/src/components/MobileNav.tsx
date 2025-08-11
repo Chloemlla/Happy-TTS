@@ -335,7 +335,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
             <span className="hidden sm:inline">抽奖系统</span>
           </Link>
         </motion.div>
-        <motion.div
+          <motion.div
             whileHover={{ scale: 1.05, y: -2 }}
             whileTap={{ scale: 0.95 }}
           >
@@ -357,6 +357,31 @@ const MobileNav: React.FC<MobileNavProps> = ({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v-4a4 4 0 014-4h8a4 4 0 014 4v4M4 16l4-4a4 4 0 015.656 0L20 16" />
               </motion.svg>
               <span className="hidden sm:inline">图片上传</span>
+            </Link>
+          </motion.div>
+
+          <motion.div
+            whileHover={{ scale: 1.05, y: -2 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Link 
+              to="/fbi-wanted" 
+              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${
+                location.pathname === '/fbi-wanted'
+                  ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-lg'
+                  : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-red-600 border border-gray-200/50'
+              }`}
+            >
+              <motion.svg 
+                className="w-4 h-4" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+                whileHover={{ rotate: 5 }}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </motion.svg>
+              <span className="hidden sm:inline">FBI通缉犯</span>
             </Link>
           </motion.div>
         </div>

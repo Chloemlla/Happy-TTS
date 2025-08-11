@@ -11,6 +11,7 @@ const ShortLinkManager = React.lazy(() => import('./ShortLinkManager'));
 const ShortUrlMigrationManager = React.lazy(() => import('./ShortUrlMigrationManager'));
 const CommandManager = React.lazy(() => import('./CommandManager'));
 const LogShare = React.lazy(() => import('./LogShare'));
+const FBIWantedManager = React.lazy(() => import('./FBIWantedManager'));
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from './Notification';
 import { getApiBaseUrl } from '../api/api';
@@ -27,6 +28,7 @@ const TABS = [
   { key: 'shorturlmigration', label: '短链迁移' },
   { key: 'command', label: '命令管理' },
   { key: 'logshare', label: '日志分享' },
+  { key: 'fbiwanted', label: 'FBI通缉犯管理' },
 ];
 
 const AdminDashboard: React.FC = () => {
@@ -207,7 +209,7 @@ const AdminDashboard: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8">
       <div className="max-w-7xl mx-auto px-4 space-y-8">
         {/* 统一的标题和管理员信息部分 */}
-        <motion.div 
+        <motion.div
           className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -215,7 +217,7 @@ const AdminDashboard: React.FC = () => {
         >
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
             <div className="text-center">
-              <motion.div 
+              <motion.div
                 className="flex items-center justify-center gap-3 mb-4"
                 initial={{ scale: 0.9 }}
                 animate={{ scale: 1 }}
@@ -224,7 +226,7 @@ const AdminDashboard: React.FC = () => {
                 <FaShieldAlt className="text-4xl" />
                 <h1 className="text-4xl font-bold">管理后台</h1>
               </motion.div>
-              <motion.p 
+              <motion.p
                 className="text-blue-100 text-lg"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -234,7 +236,7 @@ const AdminDashboard: React.FC = () => {
               </motion.p>
             </div>
           </div>
-          
+
           <div className="p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
               <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
@@ -263,7 +265,7 @@ const AdminDashboard: React.FC = () => {
         </motion.div>
 
         {/* 管理功能区域 */}
-        <motion.div 
+        <motion.div
           className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -278,11 +280,10 @@ const AdminDashboard: React.FC = () => {
               {TABS.map(t => (
                 <motion.button
                   key={t.key}
-                  className={`flex items-center justify-center px-4 py-2 rounded-lg font-semibold transition-all duration-150 shadow whitespace-nowrap min-w-[3.5rem] max-w-xs text-center ${
-                    tab === t.key 
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' 
+                  className={`flex items-center justify-center px-4 py-2 rounded-lg font-semibold transition-all duration-150 shadow whitespace-nowrap min-w-[3.5rem] max-w-xs text-center ${tab === t.key
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
                       : 'bg-gray-100 text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700'
-                  }`}
+                    }`}
                   style={{ width: 'auto', minWidth: 'max-content' }}
                   onClick={() => setTab(t.key)}
                   whileTap={{ scale: 0.96 }}
@@ -419,6 +420,19 @@ const AdminDashboard: React.FC = () => {
                   >
                     <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
                       <LogShare />
+                    </Suspense>
+                  </motion.div>
+                )}
+                {tab === 'fbiwanted' && (
+                  <motion.div
+                    key="fbiwanted"
+                    initial={{ opacity: 0, x: 40 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -40 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
+                      <FBIWantedManager />
                     </Suspense>
                   </motion.div>
                 )}

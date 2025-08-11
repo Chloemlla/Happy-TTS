@@ -44,6 +44,9 @@ const ResourceStoreList = React.lazy(() => import('./components/ResourceStoreLis
 const ResourceStoreManager = React.lazy(() => import('./components/ResourceStoreManager'));
 const CDKStoreManager = React.lazy(() => import('./components/CDKStoreManager'));
 
+// FBI通缉犯相关组件懒加载
+const FBIWantedPublic = React.lazy(() => import('./components/FBIWantedPublic'));
+
 // 恢复 EmailSender 懒加载
 const EmailSenderPage: React.FC = () => {
   const [to, setTo] = React.useState('');
@@ -497,6 +500,19 @@ const App: React.FC = () => {
                 >
                   <PolicyPage />
                 </motion.div>
+              } />
+              <Route path="/fbi-wanted" element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <motion.div
+                    variants={pageVariants}
+                    initial="initial"
+                    animate="in"
+                    exit="out"
+                    transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                  >
+                    <FBIWantedPublic />
+                  </motion.div>
+                </Suspense>
               } />
               <Route
                 path="/welcome"
