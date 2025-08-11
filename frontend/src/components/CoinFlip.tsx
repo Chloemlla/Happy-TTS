@@ -20,13 +20,11 @@ import {
   FaMousePointer,
   FaCalculator,
   FaInfoCircle,
-  FaExclamationTriangle,
   FaCheckCircle,
   FaTimesCircle,
   FaPlay,
   FaPause,
-  FaCog,
-  FaQuestionCircle
+  FaCog
 } from 'react-icons/fa';
 
 interface CoinFlipStats {

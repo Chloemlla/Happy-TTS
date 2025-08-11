@@ -9,6 +9,7 @@ scripts/quick-mongo-test.js
 scripts/test-mongo-simple.js
 scripts/test-mongo-connection.js
 LogPaste/
+.windsurf/
 
 # 构建输出
 dist/
