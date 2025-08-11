@@ -111,6 +111,12 @@ const FBIWantedManager: React.FC = () => {
                 const data = await response.json();
                 setWantedList(data.data);
                 setTotalPages(data.pagination.pages);
+                // DEBUG: log ages from list to observe any unexpected adjustments
+                try {
+                    console.log('[FBIWanted][List] Ages:', Array.isArray(data?.data) ? data.data.map((w: any) => w?.age) : 'N/A');
+                } catch (e) {
+                    // ignore
+                }
             }
         } catch (error) {
             console.error('获取通缉犯列表失败:', error);
@@ -174,6 +180,9 @@ const FBIWantedManager: React.FC = () => {
                 photoUrl: pendingPhoto || formData.photoUrl || ''
             };
 
+            // DEBUG: log submitted age and related fields
+            console.log('[FBIWanted][Create] Submitting payload age:', (dataToSubmit as any).age, 'DOB:', (dataToSubmit as any).dateOfBirth, dataToSubmit);
+
             const response = await fetch(`${getApiBaseUrl()}/api/fbi-wanted`, {
                 method: 'POST',
                 headers: {
@@ -184,6 +193,14 @@ const FBIWantedManager: React.FC = () => {
             });
 
             if (response.ok) {
+                // DEBUG: attempt to read response json to inspect returned age
+                try {
+                    const created = await response.json();
+                    const returnedAge = created?.data?.age ?? created?.age;
+                    console.log('[FBIWanted][Create] Response age:', returnedAge, created);
+                } catch (e) {
+                    console.log('[FBIWanted][Create] No JSON body in create response or parse failed');
+                }
                 setShowCreateModal(false);
                 setFormData({});
                 fetchWantedList();
@@ -207,6 +224,8 @@ const FBIWantedManager: React.FC = () => {
 
         try {
             setLoading(true);
+            // DEBUG: log updated payload age before sending
+            console.log('[FBIWanted][Update] Submitting payload age:', (formData as any).age, 'DOB:', (formData as any).dateOfBirth, formData);
             const response = await fetch(`${getApiBaseUrl()}/api/fbi-wanted/${selectedWanted._id}`, {
                 method: 'PUT',
                 headers: {
@@ -217,6 +236,14 @@ const FBIWantedManager: React.FC = () => {
             });
 
             if (response.ok) {
+                // DEBUG: attempt to read response json to inspect returned age after update
+                try {
+                    const updated = await response.json();
+                    const returnedAge = updated?.data?.age ?? updated?.age;
+                    console.log('[FBIWanted][Update] Response age:', returnedAge, updated);
+                } catch (e) {
+                    console.log('[FBIWanted][Update] No JSON body in update response or parse failed');
+                }
                 setShowEditModal(false);
                 setSelectedWanted(null);
                 setFormData({});

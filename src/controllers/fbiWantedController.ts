@@ -28,6 +28,27 @@ function sanitizeInput(str: string | undefined | null): string {
     return str.replace(/[<>]/g, '').trim();
 }
 
+// 使用UTC逻辑根据出生日期计算年龄，避免时区导致的偏差
+function computeAgeFromDOB(dob: Date | string | null | undefined, now: Date = new Date()): number | null {
+    if (!dob) return null;
+    const birth = typeof dob === 'string' ? new Date(dob) : dob;
+    if (isNaN(birth.getTime())) return null;
+
+    const yearNow = now.getUTCFullYear();
+    const monthNow = now.getUTCMonth();
+    const dayNow = now.getUTCDate();
+
+    const yearBirth = birth.getUTCFullYear();
+    const monthBirth = birth.getUTCMonth();
+    const dayBirth = birth.getUTCDate();
+
+    let age = yearNow - yearBirth;
+    if (monthNow < monthBirth || (monthNow === monthBirth && dayNow < dayBirth)) {
+        age--;
+    }
+    return Math.max(0, age);
+}
+
 export const fbiWantedController = {
     // 获取所有通缉犯列表
     async getAllWanted(req: Request, res: Response) {
@@ -148,12 +169,19 @@ export const fbiWantedController = {
                 });
             }
 
+            // 计算最终年龄：优先使用传入的 age；若未提供且提供了 DOB，则根据 DOB 计算
+            let finalAge: number = (age !== undefined && age !== null && age !== '') ? Number(age) : NaN;
+            if (!Number.isFinite(finalAge)) {
+                const computed = computeAgeFromDOB(dateOfBirth ?? null);
+                finalAge = computed ?? 0;
+            }
+
             const newWanted = new FBIWantedModel({
                 fbiNumber: generateFBINumber(),
                 ncicNumber: generateNCICNumber(),
                 name: sanitizeInput(name),
                 aliases: aliases.map((alias: string) => sanitizeInput(alias)),
-                age: age ? Number(age) : 0,
+                age: finalAge,
                 height: height ? sanitizeInput(height) : '未知',
                 weight: weight ? sanitizeInput(weight) : '未知',
                 eyes: eyes ? sanitizeInput(eyes) : '未知',
@@ -202,13 +230,26 @@ export const fbiWantedController = {
     async updateWanted(req: Request, res: Response) {
         try {
             const { id } = req.params;
-            const updateData = { ...req.body };
+            const updateData: any = { ...req.body };
 
             // 清理输入数据
             if (updateData.name) updateData.name = sanitizeInput(updateData.name);
             if (updateData.description) updateData.description = sanitizeInput(updateData.description);
             if (updateData.aliases) updateData.aliases = updateData.aliases.map((alias: string) => sanitizeInput(alias));
             if (updateData.charges) updateData.charges = updateData.charges.map((charge: string) => sanitizeInput(charge));
+
+            // 如果更新了 dateOfBirth 而未明确提供 age，则基于 DOB 重新计算 age
+            if ('dateOfBirth' in updateData && !('age' in updateData)) {
+                const computed = computeAgeFromDOB(updateData.dateOfBirth ?? null);
+                if (computed !== null) {
+                    updateData.age = computed;
+                }
+            }
+
+            // 若提供了 age，统一转为数字类型
+            if ('age' in updateData && updateData.age !== undefined && updateData.age !== null && updateData.age !== '') {
+                updateData.age = Number(updateData.age);
+            }
 
             // 更新时间戳
             updateData.lastUpdated = new Date();
