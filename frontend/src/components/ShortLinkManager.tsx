@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaTrash, FaCopy, FaSearch, FaSync, FaDice, FaLink, FaPlus, FaInfoCircle, FaExclamationTriangle, FaCheckCircle, FaArrowLeft, FaList, FaToggleOn, FaToggleOff, FaChevronLeft, FaChevronRight, FaAngleDoubleLeft, FaAngleDoubleRight } from 'react-icons/fa';
+import { FaTrash, FaCopy, FaSearch, FaSync, FaDice, FaLink, FaPlus, FaInfoCircle, FaExclamationTriangle, FaCheckCircle, FaArrowLeft, FaList, FaToggleOn, FaToggleOff, FaChevronLeft, FaChevronRight, FaAngleDoubleLeft, FaAngleDoubleRight, FaDownload, FaFileAlt, FaUpload } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import { useNotification } from './Notification';
 import getApiBaseUrl from '../api';
@@ -78,6 +78,17 @@ const ShortLinkManager: React.FC = () => {
   const [selectedLinks, setSelectedLinks] = useState<Set<string>>(new Set());
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [batchDeleting, setBatchDeleting] = useState(false);
+  
+  // 导出相关状态
+  const [exportingAll, setExportingAll] = useState(false);
+  
+  // 导入相关状态
+  const [importingData, setImportingData] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [importContent, setImportContent] = useState('');
+  
+  // 删除全部相关状态
+  const [deletingAll, setDeletingAll] = useState(false);
 
   const fetchLinks = async () => {
     setLoading(true);
@@ -409,6 +420,279 @@ const ShortLinkManager: React.FC = () => {
   const handleNextPage = () => handlePageChange(page + 1);
   const handleLastPage = () => handlePageChange(totalPages);
 
+  // 导出所有短链数据（后端导出）
+  const handleExportAll = async () => {
+    setExportingAll(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${getApiBaseUrl()}/s/admin/export`, {
+        method: 'GET',
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          setNotification({
+            message: '没有短链数据可以导出',
+            type: 'warning'
+          });
+          return;
+        } else if (response.status === 403) {
+          setNotification({
+            message: '权限不足，只有管理员可以导出短链数据',
+            type: 'error'
+          });
+          return;
+        }
+        throw new Error(`导出失败: ${response.status}`);
+      }
+      
+      // 获取文件内容
+      const textContent = await response.text();
+      
+      // 从响应头获取文件名，如果没有则使用默认名称
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `短链数据_${new Date().toISOString().split('T')[0]}.txt`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (filenameMatch) {
+          filename = decodeURIComponent(filenameMatch[1].replace(/['"]/g, ''));
+        }
+      }
+      
+      // 创建下载链接
+      const blob = new Blob([textContent], { type: 'text/plain; charset=utf-8' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      // 从文件内容中提取导出数量（如果可能）
+      const countMatch = textContent.match(/总数量:\s*(\d+)\s*个短链/);
+      const exportCount = countMatch ? parseInt(countMatch[1]) : '未知数量';
+      
+      setNotification({
+        message: `成功导出 ${exportCount} 个短链数据`,
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('导出短链数据失败:', error);
+      setNotification({
+        message: '导出短链数据失败，请重试',
+        type: 'error'
+      });
+    } finally {
+      setExportingAll(false);
+      fetchLinks();
+    }
+  };
+
+  // 删除所有短链数据
+  const handleDeleteAll = async () => {
+    if (links.length === 0) {
+      setNotification({
+        message: '没有短链数据可以删除',
+        type: 'warning'
+      });
+      return;
+    }
+
+    const confirmMessage = `确定要删除所有 ${links.length} 个短链吗？\n\n此操作不可撤销！`;
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    setDeletingAll(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${getApiBaseUrl()}/s/admin/deleteall`, {
+        method: 'DELETE',
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        if (response.status === 403) {
+          setNotification({
+            message: '权限不足，只有管理员可以删除所有短链数据',
+            type: 'error'
+          });
+          return;
+        }
+        throw new Error(`删除失败: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      setNotification({
+        message: `成功删除 ${data.deletedCount} 个短链数据`,
+        type: 'success'
+      });
+      
+      // 重新获取短链列表
+      fetchLinks();
+    } catch (error) {
+      console.error('删除所有短链数据失败:', error);
+      setNotification({
+        message: '删除所有短链数据失败，请重试',
+        type: 'error'
+      });
+    } finally {
+      setDeletingAll(false);
+    }
+  };
+
+  // 处理文件选择
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // 检查文件类型
+    if (!file.name.endsWith('.txt')) {
+      setNotification({
+        message: '请选择 .txt 格式的文件',
+        type: 'warning'
+      });
+      event.target.value = ''; // 清空文件选择
+      return;
+    }
+
+    // 检查文件大小（限制为10MB）
+    if (file.size > 10 * 1024 * 1024) {
+      setNotification({
+        message: '文件大小不能超过10MB',
+        type: 'warning'
+      });
+      event.target.value = ''; // 清空文件选择
+      return;
+    }
+
+    setImportingData(true);
+    try {
+      // 读取文件内容
+      const fileContent = await file.text();
+      
+      // 调用导入API
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${getApiBaseUrl()}/s/admin/import`, {
+        method: 'POST',
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ content: fileContent })
+      });
+      
+      if (!response.ok) {
+        if (response.status === 403) {
+          setNotification({
+            message: '权限不足，只有管理员可以导入短链数据',
+            type: 'error'
+          });
+          return;
+        }
+        throw new Error(`导入失败: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      let message = `导入完成！成功导入 ${data.importedCount} 个短链`;
+      if (data.errorCount > 0) {
+        message += `，跳过 ${data.errorCount} 个错误项`;
+      }
+      
+      setNotification({
+        message,
+        type: 'success'
+      });
+      
+      // 重新获取短链列表
+      fetchLinks();
+    } catch (error) {
+      console.error('导入短链数据失败:', error);
+      setNotification({
+        message: '导入短链数据失败，请重试',
+        type: 'error'
+      });
+    } finally {
+      setImportingData(false);
+      event.target.value = ''; // 清空文件选择，允许重复选择同一文件
+    }
+  };
+
+  // 导入短链数据（保留原有的文本导入功能，以备后用）
+  const handleImportData = async (content: string) => {
+    if (!content.trim()) {
+      setNotification({
+        message: '请输入要导入的数据',
+        type: 'warning'
+      });
+      return;
+    }
+
+    setImportingData(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${getApiBaseUrl()}/s/admin/import`, {
+        method: 'POST',
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ content: content.trim() })
+      });
+      
+      if (!response.ok) {
+        if (response.status === 403) {
+          setNotification({
+            message: '权限不足，只有管理员可以导入短链数据',
+            type: 'error'
+          });
+          return;
+        }
+        throw new Error(`导入失败: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      let message = `导入完成！成功导入 ${data.importedCount} 个短链`;
+      if (data.errorCount > 0) {
+        message += `，跳过 ${data.errorCount} 个错误项`;
+      }
+      
+      setNotification({
+        message,
+        type: 'success'
+      });
+      
+      // 清空导入内容并关闭对话框
+      setImportContent('');
+      setShowImportDialog(false);
+      
+      // 重新获取短链列表
+      fetchLinks();
+    } catch (error) {
+      console.error('导入短链数据失败:', error);
+      setNotification({
+        message: '导入短链数据失败，请重试',
+        type: 'error'
+      });
+    } finally {
+      setImportingData(false);
+    }
+  };
+
+
+
   // 生成页码按钮数组
   const generatePageNumbers = () => {
     const pages = [];
@@ -450,10 +734,11 @@ const ShortLinkManager: React.FC = () => {
           </h2>
           <Link 
             to="/"
-            className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm font-medium flex items-center gap-2"
+            className="w-full sm:w-auto px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium flex items-center justify-center gap-1 sm:gap-2"
           >
-            <FaArrowLeft className="w-4 h-4" />
-            返回主页
+            <FaArrowLeft className="w-3 h-3 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">返回主页</span>
+            <span className="sm:hidden">返回</span>
           </Link>
         </div>
         <div className="text-gray-600 space-y-2">
@@ -468,6 +753,7 @@ const ShortLinkManager: React.FC = () => {
                 <li>一键复制短链到剪贴板</li>
                 <li>安全的删除确认机制</li>
                 <li>批量选择和删除多个短链</li>
+                <li>一键导出所有短链数据到txt文件</li>
               </ul>
             </div>
           </div>
@@ -517,13 +803,90 @@ const ShortLinkManager: React.FC = () => {
           创建短链
         </h3>
 
-        <div className="flex items-center justify-between mb-4">
-          <div></div>
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-0 mb-4">
+          <div className="hidden sm:block"></div>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+            {/* 导出按钮 */}
+            <motion.button
+              onClick={handleExportAll}
+              disabled={exportingAll || links.length === 0}
+              className="w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-2 text-sm sm:text-base bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium flex items-center justify-center gap-2"
+              whileHover={!exportingAll && links.length > 0 ? { scale: 1.02 } : {}}
+              whileTap={!exportingAll && links.length > 0 ? { scale: 0.98 } : {}}
+            >
+              {exportingAll ? (
+                <>
+                  <FaSync className="animate-spin w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">导出中...</span>
+                  <span className="sm:hidden">导出中</span>
+                </>
+              ) : (
+                <>
+                  <FaDownload className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">导出短链</span>
+                  <span className="sm:hidden">导出</span>
+                </>
+              )}
+            </motion.button>
+
+            {/* 导入按钮 */}
+            <div className="relative">
+              <input
+                type="file"
+                accept=".txt"
+                onChange={handleFileSelect}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                disabled={importingData}
+              />
+              <motion.button
+                disabled={importingData}
+                className="w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-2 text-sm sm:text-base bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium flex items-center justify-center gap-2"
+                whileHover={!importingData ? { scale: 1.02 } : {}}
+                whileTap={!importingData ? { scale: 0.98 } : {}}
+              >
+                {importingData ? (
+                  <>
+                    <FaSync className="animate-spin w-3 h-3 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">导入中...</span>
+                    <span className="sm:hidden">导入中</span>
+                  </>
+                ) : (
+                  <>
+                    <FaUpload className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">导入短链</span>
+                    <span className="sm:hidden">导入</span>
+                  </>
+                )}
+              </motion.button>
+            </div>
+
+            {/* 删除全部按钮 */}
+            <motion.button
+              onClick={handleDeleteAll}
+              disabled={deletingAll || links.length === 0}
+              className="w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-2 text-sm sm:text-base bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium flex items-center justify-center gap-2"
+              whileHover={!deletingAll && links.length > 0 ? { scale: 1.02 } : {}}
+              whileTap={!deletingAll && links.length > 0 ? { scale: 0.98 } : {}}
+            >
+              {deletingAll ? (
+                <>
+                  <FaSync className="animate-spin w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">删除中...</span>
+                  <span className="sm:hidden">删除中</span>
+                </>
+              ) : (
+                <>
+                  <FaTrash className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">删除全部</span>
+                  <span className="sm:hidden">删除全部</span>
+                </>
+              )}
+            </motion.button>
+            
             {/* 批量操作按钮 */}
             <motion.button
               onClick={toggleSelectMode}
-              className={`px-4 py-2 rounded-lg transition-all duration-200 font-medium flex items-center gap-2 ${
+              className={`w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-2 text-sm sm:text-base rounded-lg transition-all duration-200 font-medium flex items-center justify-center gap-2 ${
                 isSelectMode 
                   ? 'bg-orange-500 text-white hover:bg-orange-600' 
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -531,8 +894,9 @@ const ShortLinkManager: React.FC = () => {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              {isSelectMode ? <FaToggleOn className="w-4 h-4" /> : <FaToggleOff className="w-4 h-4" />}
-              {isSelectMode ? '退出选择' : '批量选择'}
+              {isSelectMode ? <FaToggleOn className="w-3 h-3 sm:w-4 sm:h-4" /> : <FaToggleOff className="w-3 h-3 sm:w-4 sm:h-4" />}
+              <span className="hidden sm:inline">{isSelectMode ? '退出选择' : '批量选择'}</span>
+              <span className="sm:hidden">{isSelectMode ? '退出' : '批量'}</span>
             </motion.button>
           </div>
         </div>
@@ -551,17 +915,17 @@ const ShortLinkManager: React.FC = () => {
                   <span className="text-sm text-gray-600">
                     已选择 {selectedLinks.size} 个短链
                   </span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                     <motion.button
                       onClick={selectAllLinks}
-                      className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition"
+                      className="w-full sm:w-auto px-2 sm:px-3 py-1 text-xs sm:text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition"
                       whileTap={{ scale: 0.95 }}
                     >
                       全选
                     </motion.button>
                     <motion.button
                       onClick={clearSelection}
-                      className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition"
+                      className="w-full sm:w-auto px-2 sm:px-3 py-1 text-xs sm:text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition"
                       whileTap={{ scale: 0.95 }}
                     >
                       清空选择
@@ -573,12 +937,13 @@ const ShortLinkManager: React.FC = () => {
                   <motion.button
                     onClick={handleBatchDelete}
                     disabled={batchDeleting}
-                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 font-medium flex items-center gap-2"
+                    className="w-full sm:w-auto px-3 sm:px-4 py-2 text-sm sm:text-base bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 font-medium flex items-center justify-center gap-2"
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    <FaTrash className="w-4 h-4" />
-                    {batchDeleting ? '删除中...' : `删除 ${selectedLinks.size} 个`}
+                    <FaTrash className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">{batchDeleting ? '删除中...' : `删除 ${selectedLinks.size} 个`}</span>
+                    <span className="sm:hidden">{batchDeleting ? '删除中' : `删除${selectedLinks.size}个`}</span>
                   </motion.button>
                 )}
               </div>
@@ -644,7 +1009,7 @@ const ShortLinkManager: React.FC = () => {
                 自定义短链接码提示：只能包含字母、数字、连字符(-)和下划线(_)，长度1-200个字符。留空则自动生成随机短链接码。
               </span>
               <button
-                className="text-orange-600 hover:text-orange-800 text-xs underline"
+                className="w-full sm:w-auto px-2 sm:px-3 py-1 text-xs sm:text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition flex items-center justify-center gap-1"
                 onClick={clearCustomCode}
               >
                 清除
@@ -681,7 +1046,7 @@ const ShortLinkManager: React.FC = () => {
           <motion.button
             onClick={handleCreate}
             disabled={creating}
-            className={`w-full py-3 px-6 rounded-lg font-semibold text-white transition-all duration-200 ${
+            className={`w-full py-2 sm:py-3 px-4 sm:px-6 text-sm sm:text-base rounded-lg font-semibold text-white transition-all duration-200 ${
               creating
                 ? 'bg-gray-400 cursor-not-allowed'
                 : 'bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 shadow-lg hover:shadow-xl'
@@ -691,13 +1056,15 @@ const ShortLinkManager: React.FC = () => {
           >
             {creating ? (
               <div className="flex items-center justify-center space-x-2">
-                <FaSync className="animate-spin w-5 h-5" />
-                <span>创建中...</span>
+                <FaSync className="animate-spin w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="hidden sm:inline">创建中...</span>
+                <span className="sm:hidden">创建中</span>
               </div>
             ) : (
               <div className="flex items-center justify-center space-x-2">
-                <FaPlus className="w-5 h-5" />
-                <span>创建短链</span>
+                <FaPlus className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="hidden sm:inline">创建短链</span>
+                <span className="sm:hidden">创建</span>
               </div>
             )}
           </motion.button>
@@ -895,23 +1262,23 @@ const ShortLinkManager: React.FC = () => {
                       </div>
                       <div className="flex gap-1 flex-shrink-0">
                         <motion.button
-                          className="flex items-center justify-center bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg p-2 shadow-sm hover:shadow-md transition-all duration-150"
+                          className="flex items-center justify-center bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg p-1.5 sm:p-2 shadow-sm hover:shadow-md transition-all duration-150"
                           title="复制短链"
                           onClick={() => handleCopy(link.code)}
                           data-copy-code={link.code}
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.9 }}
                         >
-                          <FaCopy className="w-4 h-4" />
+                          <FaCopy className="w-3 h-3 sm:w-4 sm:h-4" />
                         </motion.button>
                         <motion.button
-                          className="flex items-center justify-center bg-red-100 hover:bg-red-200 text-red-600 rounded-lg p-2 shadow-sm hover:shadow-md transition-all duration-150"
+                          className="flex items-center justify-center bg-red-100 hover:bg-red-200 text-red-600 rounded-lg p-1.5 sm:p-2 shadow-sm hover:shadow-md transition-all duration-150"
                           title="删除"
                           onClick={() => handleDelete(link._id)}
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.9 }}
                         >
-                          <FaTrash className="w-4 h-4" />
+                          <FaTrash className="w-3 h-3 sm:w-4 sm:h-4" />
                         </motion.button>
                       </div>
                     </div>
@@ -953,13 +1320,13 @@ const ShortLinkManager: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
         >
-          <div className="flex items-center justify-center gap-2">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-2">
             <div className="flex items-center gap-1">
               {/* 首页按钮 */}
               <motion.button
                 onClick={handleFirstPage}
                 disabled={page === 1}
-                className={`p-2 rounded-lg transition-all duration-200 ${
+                className={`p-1.5 sm:p-2 rounded-lg transition-all duration-200 ${
                   page === 1
                     ? 'text-gray-400 cursor-not-allowed'
                     : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
@@ -967,14 +1334,14 @@ const ShortLinkManager: React.FC = () => {
                 whileHover={page !== 1 ? { scale: 1.05 } : {}}
                 whileTap={page !== 1 ? { scale: 0.95 } : {}}
               >
-                <FaAngleDoubleLeft className="w-4 h-4" />
+                <FaAngleDoubleLeft className="w-3 h-3 sm:w-4 sm:h-4" />
               </motion.button>
 
               {/* 上一页按钮 */}
               <motion.button
                 onClick={handlePrevPage}
                 disabled={page === 1}
-                className={`p-2 rounded-lg transition-all duration-200 ${
+                className={`p-1.5 sm:p-2 rounded-lg transition-all duration-200 ${
                   page === 1
                     ? 'text-gray-400 cursor-not-allowed'
                     : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
@@ -982,16 +1349,16 @@ const ShortLinkManager: React.FC = () => {
                 whileHover={page !== 1 ? { scale: 1.05 } : {}}
                 whileTap={page !== 1 ? { scale: 0.95 } : {}}
               >
-                <FaChevronLeft className="w-4 h-4" />
+                <FaChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" />
               </motion.button>
 
               {/* 页码按钮 */}
-              <div className="flex items-center gap-1 mx-2">
+              <div className="flex items-center gap-1 mx-1 sm:mx-2">
                 {generatePageNumbers().map((pageNum) => (
                   <motion.button
                     key={pageNum}
                     onClick={() => handlePageChange(pageNum)}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    className={`px-2 sm:px-3 py-1 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
                       pageNum === page
                         ? 'bg-blue-500 text-white shadow-md'
                         : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
@@ -1008,7 +1375,7 @@ const ShortLinkManager: React.FC = () => {
               <motion.button
                 onClick={handleNextPage}
                 disabled={page === totalPages}
-                className={`p-2 rounded-lg transition-all duration-200 ${
+                className={`p-1.5 sm:p-2 rounded-lg transition-all duration-200 ${
                   page === totalPages
                     ? 'text-gray-400 cursor-not-allowed'
                     : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
@@ -1016,14 +1383,14 @@ const ShortLinkManager: React.FC = () => {
                 whileHover={page !== totalPages ? { scale: 1.05 } : {}}
                 whileTap={page !== totalPages ? { scale: 0.95 } : {}}
               >
-                <FaChevronRight className="w-4 h-4" />
+                <FaChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
               </motion.button>
 
               {/* 末页按钮 */}
               <motion.button
                 onClick={handleLastPage}
                 disabled={page === totalPages}
-                className={`p-2 rounded-lg transition-all duration-200 ${
+                className={`p-1.5 sm:p-2 rounded-lg transition-all duration-200 ${
                   page === totalPages
                     ? 'text-gray-400 cursor-not-allowed'
                     : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
@@ -1031,13 +1398,14 @@ const ShortLinkManager: React.FC = () => {
                 whileHover={page !== totalPages ? { scale: 1.05 } : {}}
                 whileTap={page !== totalPages ? { scale: 0.95 } : {}}
               >
-                <FaAngleDoubleRight className="w-4 h-4" />
+                <FaAngleDoubleRight className="w-3 h-3 sm:w-4 sm:h-4" />
               </motion.button>
             </div>
 
             {/* 页面信息 */}
-            <div className="ml-4 text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">
-              第 {page} / {totalPages} 页，共 {total} 条记录
+            <div className="text-xs sm:text-sm text-gray-600 bg-gray-50 px-2 sm:px-3 py-1 sm:py-2 rounded-lg">
+              <span className="hidden sm:inline">第 {page} / {totalPages} 页，共 {total} 条记录</span>
+              <span className="sm:hidden">{page}/{totalPages} ({total}条)</span>
             </div>
           </div>
         </motion.div>

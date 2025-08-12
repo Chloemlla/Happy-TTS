@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  FaSearch, 
+import {
+  FaSearch,
   FaExclamationTriangle,
   FaShieldAlt,
   FaUserSecret,
@@ -17,7 +17,8 @@ import {
   FaMapMarkerAlt,
   FaWeight,
   FaRuler,
-  FaUser
+  FaUser,
+  FaBullhorn
 } from 'react-icons/fa';
 import getApiBaseUrl from '../api';
 import { openDB } from 'idb';
@@ -83,7 +84,7 @@ const getCachedImage = async (imageId: string, imageHash: string): Promise<strin
         }
       },
     });
-    
+
     const cached = await db.get('images', imageId);
     if (cached && cached.hash === imageHash && cached.blob) {
       return URL.createObjectURL(cached.blob);
@@ -110,11 +111,11 @@ const setCachedImage = async (imageId: string, imageHash: string, blob: Blob): P
 };
 
 // 图片组件，支持缓存和错误处理
-const CachedImage: React.FC<{ src?: string; alt?: string; className?: string; imageId?: string }> = ({ 
-  src, 
-  alt = '通缉犯照片', 
+const CachedImage: React.FC<{ src?: string; alt?: string; className?: string; imageId?: string }> = ({
+  src,
+  alt = '通缉犯照片',
   className = '',
-  imageId 
+  imageId
 }) => {
   const [imageSrc, setImageSrc] = useState<string>('');
   const [error, setError] = useState(false);
@@ -123,7 +124,7 @@ const CachedImage: React.FC<{ src?: string; alt?: string; className?: string; im
 
   useEffect(() => {
     let mounted = true;
-    
+
     const loadImage = async () => {
       if (!src) {
         setLoading(false);
@@ -153,15 +154,15 @@ const CachedImage: React.FC<{ src?: string; alt?: string; className?: string; im
         const response = await fetch(src, {
           signal: abortControllerRef.current.signal
         });
-        
+
         if (response.ok) {
           const blob = await response.blob();
           const objectUrl = URL.createObjectURL(blob);
-          
+
           if (mounted) {
             setImageSrc(objectUrl);
             setLoading(false);
-            
+
             // 缓存图片
             if (imageId) {
               setCachedImage(imageId, src, blob);
@@ -222,14 +223,25 @@ const CachedImage: React.FC<{ src?: string; alt?: string; className?: string; im
 
 const FBIWantedPublic: React.FC = () => {
   const [wantedList, setWantedList] = useState<FBIWanted[]>([]);
-  const [statistics, setStatistics] = useState<Statistics | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [filteredList, setFilteredList] = useState<FBIWanted[]>([]);
+  const [selectedWanted, setSelectedWanted] = useState<FBIWanted | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [dangerFilter, setDangerFilter] = useState('ALL');
+  const [dangerFilter, setDangerFilter] = useState<string>('ALL');
+  const [statusFilter, setStatusFilter] = useState<string>('ACTIVE');
+  const [statistics, setStatistics] = useState<Statistics | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [pageSize] = useState(12);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 免责声明弹窗状态
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
+  const [disclaimerClosed, setDisclaimerClosed] = useState(false);
+
+  // 详情模态框状态
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [selectedWanted, setSelectedWanted] = useState<FBIWanted | null>(null);
 
   // 获取通缉犯列表（公开接口）
   const fetchWantedList = useCallback(async () => {
@@ -300,6 +312,40 @@ const FBIWantedPublic: React.FC = () => {
     fetchStatistics();
   }, [fetchWantedList, fetchStatistics]);
 
+  // 免责声明弹窗逻辑
+  useEffect(() => {
+    const disclaimerKey = 'fbi_wanted_disclaimer_closed';
+    const disclaimerClosedPermanently = localStorage.getItem(disclaimerKey + '_forever');
+    const disclaimerClosedToday = localStorage.getItem(disclaimerKey + '_today');
+    const today = new Date().toDateString();
+
+    if (!disclaimerClosedPermanently && (!disclaimerClosedToday || disclaimerClosedToday !== today)) {
+      // 延迟1秒显示免责声明，让页面先加载
+      const timer = setTimeout(() => {
+        setShowDisclaimer(true);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  // 免责声明弹窗处理函数
+  const handleCloseDisclaimer = () => {
+    setShowDisclaimer(false);
+  };
+
+  const handleCloseDisclaimerToday = () => {
+    const disclaimerKey = 'fbi_wanted_disclaimer_closed';
+    const today = new Date().toDateString();
+    localStorage.setItem(disclaimerKey + '_today', today);
+    setShowDisclaimer(false);
+  };
+
+  const handleCloseDisclaimerForever = () => {
+    const disclaimerKey = 'fbi_wanted_disclaimer_closed';
+    localStorage.setItem(disclaimerKey + '_forever', 'true');
+    setShowDisclaimer(false);
+  };
+
   // 危险等级颜色映射
   const getDangerLevelColor = (level: string) => {
     switch (level) {
@@ -326,7 +372,7 @@ const FBIWantedPublic: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8">
       <div className="max-w-7xl mx-auto px-4 space-y-8">
         {/* 标题和警告信息部分 */}
-        <motion.div 
+        <motion.div
           className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -334,7 +380,7 @@ const FBIWantedPublic: React.FC = () => {
         >
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
             <div className="text-center">
-              <motion.div 
+              <motion.div
                 className="flex items-center justify-center gap-3 mb-4"
                 initial={{ scale: 0.9 }}
                 animate={{ scale: 1 }}
@@ -343,7 +389,7 @@ const FBIWantedPublic: React.FC = () => {
                 <FaUserSecret className="text-4xl" />
                 <h1 className="text-4xl font-bold">FBI通缉犯公示</h1>
               </motion.div>
-              <motion.p 
+              <motion.p
                 className="text-blue-100 text-lg"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -353,7 +399,7 @@ const FBIWantedPublic: React.FC = () => {
               </motion.p>
             </div>
           </div>
-          
+
           <div className="p-6">
             {/* 重要提示 */}
             <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
@@ -379,7 +425,7 @@ const FBIWantedPublic: React.FC = () => {
                   </div>
                   <p className="text-2xl font-bold text-red-600">{statistics.active}</p>
                 </div>
-                
+
                 <div className="bg-green-50 border border-green-200 rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <FaShieldAlt className="text-green-600" />
@@ -387,7 +433,7 @@ const FBIWantedPublic: React.FC = () => {
                   </div>
                   <p className="text-2xl font-bold text-green-600">{statistics.captured}</p>
                 </div>
-                
+
                 <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <FaExclamationTriangle className="text-purple-600" />
@@ -397,7 +443,7 @@ const FBIWantedPublic: React.FC = () => {
                     {statistics.dangerLevels.EXTREME || 0}
                   </p>
                 </div>
-                
+
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <FaUserSecret className="text-blue-600" />
@@ -411,7 +457,7 @@ const FBIWantedPublic: React.FC = () => {
         </motion.div>
 
         {/* 搜索和过滤部分 */}
-        <motion.div 
+        <motion.div
           className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -428,7 +474,7 @@ const FBIWantedPublic: React.FC = () => {
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
-            
+
             <select
               value={dangerFilter}
               onChange={(e) => setDangerFilter(e.target.value)}
@@ -444,7 +490,7 @@ const FBIWantedPublic: React.FC = () => {
         </motion.div>
 
         {/* 通缉犯卡片网格 */}
-        <motion.div 
+        <motion.div
           className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -482,17 +528,17 @@ const FBIWantedPublic: React.FC = () => {
                           </span>
                         </div>
                       </div>
-                      
+
                       <div className="p-4">
                         <h3 className="text-lg font-bold text-gray-900 mb-2">{wanted.name}</h3>
                         <p className="text-sm text-gray-600 mb-2">FBI: {wanted.fbiNumber}</p>
-                        
+
                         <div className="space-y-1 text-sm text-gray-600 mb-3">
                           <p>年龄: {wanted.age}岁</p>
                           <p>身高: {wanted.height}</p>
                           <p>体重: {wanted.weight}</p>
                         </div>
-                        
+
                         <div className="mb-3">
                           <p className="text-sm font-semibold text-gray-700 mb-1">主要罪名:</p>
                           <div className="flex flex-wrap gap-1">
@@ -508,7 +554,7 @@ const FBIWantedPublic: React.FC = () => {
                             )}
                           </div>
                         </div>
-                        
+
                         <div className="flex items-center justify-between">
                           <div className="text-lg font-bold text-green-600">
                             悬赏: ${wanted.reward.toLocaleString()}
@@ -523,7 +569,7 @@ const FBIWantedPublic: React.FC = () => {
                   ))}
                 </div>
               </div>
-              
+
               {/* 分页 */}
               {totalPages > 1 && (
                 <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
@@ -555,7 +601,7 @@ const FBIWantedPublic: React.FC = () => {
         </motion.div>
 
         {/* 联系信息 */}
-        <motion.div 
+        <motion.div
           className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -571,7 +617,7 @@ const FBIWantedPublic: React.FC = () => {
                   <p className="text-red-600">110</p>
                 </div>
               </div>
-              
+
               <div className="flex items-center justify-center gap-2 p-4 bg-blue-50 rounded-xl">
                 <FaPhone className="text-blue-600" />
                 <div>
@@ -579,7 +625,7 @@ const FBIWantedPublic: React.FC = () => {
                   <p className="text-blue-600">1-800-CALL-FBI</p>
                 </div>
               </div>
-              
+
               <div className="flex items-center justify-center gap-2 p-4 bg-green-50 rounded-xl">
                 <FaEnvelope className="text-green-600" />
                 <div>
@@ -620,15 +666,15 @@ const FBIWantedPublic: React.FC = () => {
                   </button>
                 </div>
               </div>
-              
+
               <div className="p-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* 左侧：照片和基本信息 */}
                   <div>
                     <div className="mb-6">
                       {selectedWanted.photoUrl ? (
-                        <img 
-                          src={selectedWanted.photoUrl} 
+                        <img
+                          src={selectedWanted.photoUrl}
                           alt={selectedWanted.name}
                           className="w-full max-w-sm mx-auto rounded-xl shadow-lg"
                         />
@@ -638,7 +684,7 @@ const FBIWantedPublic: React.FC = () => {
                         </div>
                       )}
                     </div>
-                    
+
                     <div className="space-y-4">
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900 mb-2">基本信息</h3>
@@ -656,7 +702,7 @@ const FBIWantedPublic: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  
+
                   {/* 右侧：详细信息 */}
                   <div className="space-y-6">
                     <div>
@@ -673,7 +719,7 @@ const FBIWantedPublic: React.FC = () => {
                         <p><span className="font-medium">悬赏金额:</span> <span className="text-green-600 font-bold">${selectedWanted.reward.toLocaleString()}</span></p>
                       </div>
                     </div>
-                    
+
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-2">罪名</h3>
                       <div className="flex flex-wrap gap-2">
@@ -684,19 +730,19 @@ const FBIWantedPublic: React.FC = () => {
                         ))}
                       </div>
                     </div>
-                    
+
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-2">案件描述</h3>
                       <p className="text-sm text-gray-700 leading-relaxed">{selectedWanted.description}</p>
                     </div>
-                    
+
                     {selectedWanted.lastKnownLocation && (
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900 mb-2">最后已知位置</h3>
                         <p className="text-sm text-gray-700">{selectedWanted.lastKnownLocation}</p>
                       </div>
                     )}
-                    
+
                     {selectedWanted.caution && (
                       <div className="bg-red-50 border border-red-200 rounded-xl p-4">
                         <h3 className="text-lg font-semibold text-red-700 mb-2 flex items-center gap-2">
@@ -706,7 +752,7 @@ const FBIWantedPublic: React.FC = () => {
                         <p className="text-sm text-red-700">{selectedWanted.caution}</p>
                       </div>
                     )}
-                    
+
                     {selectedWanted.scarsAndMarks.length > 0 && (
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900 mb-2">疤痕和标记</h3>
@@ -719,7 +765,7 @@ const FBIWantedPublic: React.FC = () => {
                     )}
                   </div>
                 </div>
-                
+
                 {/* 举报提示 */}
                 <div className="mt-8 bg-blue-50 border border-blue-200 rounded-xl p-6">
                   <div className="text-center">
@@ -732,7 +778,7 @@ const FBIWantedPublic: React.FC = () => {
                           <p className="text-red-600">110</p>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center justify-center gap-2 p-3 bg-blue-100 rounded-lg">
                         <FaPhone className="text-blue-600" />
                         <div>
@@ -740,7 +786,7 @@ const FBIWantedPublic: React.FC = () => {
                           <p className="text-blue-600">1-800-CALL-FBI</p>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center justify-center gap-2 p-3 bg-green-100 rounded-lg">
                         <FaEnvelope className="text-green-600" />
                         <div>
@@ -752,6 +798,94 @@ const FBIWantedPublic: React.FC = () => {
                   </div>
                 </div>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 免责声明弹窗 */}
+      <AnimatePresence>
+        {showDisclaimer && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            onClick={handleCloseDisclaimer}
+          >
+            <motion.div
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl mx-4 p-4 sm:p-6 md:p-8 relative max-h-[90vh] overflow-y-auto"
+              initial={{ scale: 0.95, y: 40, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 40, opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center mb-3 sm:mb-4">
+                <FaBullhorn className="text-2xl sm:text-3xl mr-2 text-red-600" />
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">重要免责声明</h2>
+              </div>
+
+              <div className="prose max-w-none mb-4 sm:mb-6">
+                <div className="bg-red-50 border border-red-200 rounded-xl p-3 sm:p-4 mb-3 sm:mb-4">
+                  <div className="flex items-center gap-2 mb-2 sm:mb-3">
+                    <FaExclamationTriangle className="text-red-600 text-sm sm:text-base" />
+                    <h3 className="text-red-700 font-semibold text-sm sm:text-base">法律免责声明</h3>
+                  </div>
+                  <div className="space-y-1 sm:space-y-2 text-xs sm:text-sm text-red-700">
+                    <p><strong>本网站不负责关于以下页面任何法律责任，仅娱乐为主。</strong></p>
+                    <p>• 本页面展示的FBI通缉犯信息仅供参考和娱乐目的</p>
+                    <p>• 所有信息来源于公开渠道，本站不保证信息的准确性和时效性</p>
+                    <p>• 如需官方权威信息，请访问FBI官方网站</p>
+                    <p>• 发现可疑人员请联系当地执法部门，切勿私自行动</p>
+                  </div>
+                </div>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 sm:p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FaInfoCircle className="text-blue-600 text-sm sm:text-base" />
+                    <h3 className="text-blue-700 font-semibold text-sm sm:text-base">使用须知</h3>
+                  </div>
+                  <div className="space-y-1 text-xs sm:text-sm text-blue-700">
+                    <p>• 继续使用本页面即表示您已阅读并同意本免责声明</p>
+                    <p>• 本站仅提供信息展示服务，不承担任何法律责任</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col xs:flex-row gap-2 sm:gap-3 mt-4 sm:mt-6">
+                <button
+                  className="flex-1 px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg font-semibold shadow hover:bg-red-700 transition text-sm sm:text-base"
+                  onClick={handleCloseDisclaimerToday}
+                >
+                  <span className="hidden sm:inline">我已了解，今日不再提示</span>
+                  <span className="sm:hidden">今日不再提示</span>
+                </button>
+                <button
+                  className="flex-1 px-3 sm:px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-semibold shadow hover:bg-gray-200 transition text-sm sm:text-base"
+                  onClick={handleCloseDisclaimer}
+                >
+                  关闭
+                </button>
+                <button
+                  className="flex-1 px-3 sm:px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-semibold shadow hover:bg-gray-400 transition text-sm sm:text-base"
+                  onClick={handleCloseDisclaimerForever}
+                >
+                  <span className="hidden sm:inline">永久不再提示</span>
+                  <span className="sm:hidden">永不提示</span>
+                </button>
+              </div>
+
+              <button
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+                onClick={handleCloseDisclaimer}
+                aria-label="关闭免责声明"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </motion.div>
           </motion.div>
         )}

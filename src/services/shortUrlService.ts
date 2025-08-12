@@ -205,4 +205,207 @@ export class ShortUrlService {
       throw error;
     }
   }
-} 
+
+  /**
+   * 导出所有短链数据（管理员功能）
+   */
+  static async exportAllShortUrls() {
+    try {
+      const shortUrls = await ShortUrlModel.find({})
+        .sort({ createdAt: -1 })
+        .lean();
+      
+      if (shortUrls.length === 0) {
+        return {
+          content: '',
+          count: 0
+        };
+      }
+      
+      // 生成导出内容
+      const baseUrl = process.env.VITE_API_URL || process.env.BASE_URL || 'https://api.hapxs.com';
+      const exportTime = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+      
+      let content = `短链数据导出报告\n`;
+      content += `导出时间: ${exportTime}\n`;
+      content += `总数量: ${shortUrls.length} 个短链\n`;
+      content += `${'='.repeat(50)}\n\n`;
+      
+      shortUrls.forEach((link, index) => {
+        content += `${index + 1}. 短链信息\n`;
+        content += `   短链码: ${link.code}\n`;
+        content += `   完整短链: ${baseUrl}/s/${link.code}\n`;
+        content += `   目标地址: ${link.target}\n`;
+        content += `   创建时间: ${new Date(link.createdAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}\n`;
+        if (link.username) {
+          content += `   创建用户: ${link.username}\n`;
+        }
+        if (link.userId) {
+          content += `   用户ID: ${link.userId}\n`;
+        }
+        content += `\n`;
+      });
+      
+      content += `${'='.repeat(50)}\n`;
+      content += `导出完成 - 共 ${shortUrls.length} 个短链\n`;
+      
+      logger.info('导出所有短链数据成功', { count: shortUrls.length });
+      
+      return {
+        content,
+        count: shortUrls.length
+      };
+    } catch (error) {
+      logger.error('导出所有短链数据失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 删除所有短链数据（管理员功能）
+   */
+  static async deleteAllShortUrls() {
+    try {
+      const result = await ShortUrlModel.deleteMany({});
+      
+      logger.info('删除所有短链数据成功', { deletedCount: result.deletedCount });
+      
+      return {
+        deletedCount: result.deletedCount
+      };
+    } catch (error) {
+      logger.error('删除所有短链数据失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 导入短链数据（管理员功能）
+   */
+  static async importShortUrls(content: string) {
+    try {
+      const lines = content.split('\n');
+      const importedUrls: any[] = [];
+      const errors: string[] = [];
+      let currentLink: any = {};
+      let importedCount = 0;
+      let skippedCount = 0;
+      let errorCount = 0;
+
+      // 解析导出格式的数据
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        
+        if (!line) continue;
+        
+        // 匹配短链信息的开始
+        if (line.match(/^\d+\.\s*短链信息$/)) {
+          // 保存上一个链接（如果有的话）
+          if (currentLink.code && currentLink.target) {
+            try {
+              const result = await this.processImportLink(currentLink);
+              if (result.skipped) {
+                skippedCount++;
+              } else {
+                importedCount++;
+              }
+            } catch (error) {
+              errors.push(`短链码 ${currentLink.code}: ${error}`);
+              errorCount++;
+            }
+          }
+          currentLink = {};
+          continue;
+        }
+        
+        // 解析各个字段
+        if (line.startsWith('短链码: ')) {
+          currentLink.code = line.replace('短链码: ', '').trim();
+        } else if (line.startsWith('目标地址: ')) {
+          currentLink.target = line.replace('目标地址: ', '').trim();
+        } else if (line.startsWith('创建用户: ')) {
+          currentLink.username = line.replace('创建用户: ', '').trim();
+        } else if (line.startsWith('用户ID: ')) {
+          currentLink.userId = line.replace('用户ID: ', '').trim();
+        }
+      }
+      
+      // 处理最后一个链接
+      if (currentLink.code && currentLink.target) {
+        try {
+          const result = await this.processImportLink(currentLink);
+          if (result.skipped) {
+            skippedCount++;
+          } else {
+            importedCount++;
+          }
+        } catch (error) {
+          errors.push(`短链码 ${currentLink.code}: ${error}`);
+          errorCount++;
+        }
+      }
+      
+      logger.info('导入短链数据完成', { 
+        importedCount, 
+        skippedCount, 
+        errorCount 
+      });
+      
+      return {
+        importedCount,
+        skippedCount,
+        errorCount,
+        errors: errors.slice(0, 10) // 只返回前10个错误
+      };
+    } catch (error) {
+      logger.error('导入短链数据失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 处理单个导入链接
+   */
+  private static async processImportLink(linkData: any): Promise<{ skipped: boolean }> {
+    // 验证必需字段
+    if (!linkData.code || !linkData.target) {
+      throw new Error('缺少必需的短链码或目标地址');
+    }
+    
+    // 过滤掉 undefined 或空值
+    if (linkData.code === 'undefined' || linkData.target === 'undefined' || 
+        !linkData.code.trim() || !linkData.target.trim()) {
+      throw new Error('短链码或目标地址包含无效值');
+    }
+    
+    // 验证短链码格式
+    if (!/^[a-zA-Z0-9_-]+$/.test(linkData.code)) {
+      throw new Error('短链码格式无效');
+    }
+    
+    // 验证目标地址格式
+    try {
+      new URL(linkData.target);
+    } catch {
+      throw new Error('目标地址格式无效');
+    }
+    
+    // 检查是否已存在 - 如果存在则跳过，不抛出错误
+    const existing = await ShortUrlModel.findOne({ code: linkData.code });
+    if (existing) {
+      logger.info(`跳过重复短链: ${linkData.code}`);
+      return { skipped: true };
+    }
+    
+    // 创建新的短链记录
+    await ShortUrlModel.create({
+      code: linkData.code,
+      target: linkData.target,
+      userId: linkData.userId || 'admin',
+      username: linkData.username || 'admin',
+      createdAt: new Date()
+    });
+    
+    return { skipped: false };
+  }
+}

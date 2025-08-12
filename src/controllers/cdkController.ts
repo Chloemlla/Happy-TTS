@@ -86,6 +86,36 @@ export const generateCDKs = async (req: AuthRequest, res: Response) => {
   }
 };
 
+// 编辑CDK
+export const updateCDK = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { code, resourceId, expiresAt } = req.body;
+    
+    const updateData: { code?: string; resourceId?: string; expiresAt?: Date } = {};
+    
+    if (code !== undefined) updateData.code = code;
+    if (resourceId !== undefined) updateData.resourceId = resourceId;
+    if (expiresAt !== undefined) updateData.expiresAt = expiresAt ? new Date(expiresAt) : undefined;
+    
+    const updatedCDK = await cdkService.updateCDK(id, updateData);
+    
+    logger.info('编辑CDK成功', { 
+      id, 
+      userId: req.user?.id,
+      username: req.user?.username,
+      updateData 
+    });
+    
+    res.json(updatedCDK);
+  } catch (error) {
+    logger.error('编辑CDK失败:', error);
+    res.status(400).json({ 
+      message: error instanceof Error ? error.message : '编辑CDK失败' 
+    });
+  }
+};
+
 // 删除CDK
 export const deleteCDK = async (req: AuthRequest, res: Response) => {
   try {

@@ -3,6 +3,7 @@ import { authenticateAdmin } from '../middleware/auth';
 import { 
   redeemCDK,
   generateCDKs,
+  updateCDK,
   deleteCDK,
   batchDeleteCDKs,
   deleteAllCDKs,
@@ -24,6 +25,7 @@ router.get('/cdks', authenticateAdmin, getCDKs);
 router.get('/cdks/stats', authenticateAdmin, getCDKStats);
 router.get('/cdks/total-count', authenticateAdmin, getTotalCDKCount);
 router.post('/cdks/generate', authenticateAdmin, generateCDKs);
+router.put('/cdks/:id', authenticateAdmin, updateCDK);
 router.delete('/cdks/all', authenticateAdmin, deleteAllCDKs);
 router.delete('/cdks/unused', authenticateAdmin, deleteUnusedCDKs);
 router.delete('/cdks/:id', authenticateAdmin, deleteCDK);

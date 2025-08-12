@@ -189,19 +189,95 @@ export class CDKService {
     }
   }
 
-  async deleteCDK(id: string) {
+  async updateCDK(id: string, updateData: { code?: string; resourceId?: string; expiresAt?: Date }) {
     try {
+      // 验证ID格式
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new Error('无效的CDK ID格式');
+      }
+
       const cdk = await CDKModel.findById(id);
       if (!cdk) {
-        logger.warn('删除CDK失败：CDK不存在', { id });
         throw new Error('CDK不存在');
       }
-      
+
       if (cdk.isUsed) {
-        logger.warn('删除CDK失败：CDK已被使用', { id, code: cdk.code });
-        throw new Error('CDK已被使用，无法删除');
+        throw new Error('已使用的CDK无法编辑');
       }
-      
+
+      // 验证更新数据
+      const validatedData: any = {};
+
+      if (updateData.code !== undefined) {
+        // 验证CDK代码格式
+        if (!updateData.code || typeof updateData.code !== 'string' || updateData.code.length !== 16 || !/^[A-Z0-9]{16}$/.test(updateData.code)) {
+          throw new Error('无效的CDK代码格式');
+        }
+        
+        // 检查代码是否已存在（排除当前CDK）
+        const existingCDK = await CDKModel.findOne({ 
+          code: updateData.code, 
+          _id: { $ne: id } 
+        });
+        if (existingCDK) {
+          throw new Error('CDK代码已存在');
+        }
+        
+        validatedData.code = updateData.code;
+      }
+
+      if (updateData.resourceId !== undefined) {
+        // 验证资源ID格式
+        if (!mongoose.Types.ObjectId.isValid(updateData.resourceId)) {
+          throw new Error('无效的资源ID格式');
+        }
+        
+        // 验证资源是否存在
+        const resource = await this.resourceService.getResourceById(updateData.resourceId);
+        if (!resource) {
+          throw new Error('资源不存在');
+        }
+        
+        validatedData.resourceId = updateData.resourceId;
+      }
+
+      if (updateData.expiresAt !== undefined) {
+        if (updateData.expiresAt && new Date(updateData.expiresAt) <= new Date()) {
+          throw new Error('过期时间必须晚于当前时间');
+        }
+        validatedData.expiresAt = updateData.expiresAt;
+      }
+
+      const updatedCDK = await CDKModel.findByIdAndUpdate(
+        id,
+        { $set: validatedData },
+        { new: true }
+      );
+
+      logger.info('更新CDK成功', { id, updateData: validatedData });
+      return updatedCDK;
+    } catch (error) {
+      logger.error('更新CDK失败:', error);
+      throw error;
+    }
+  }
+
+  async deleteCDK(id: string) {
+    try {
+      // 验证ID格式
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new Error('无效的CDK ID格式');
+      }
+
+      const cdk = await CDKModel.findById(id);
+      if (!cdk) {
+        throw new Error('CDK不存在');
+      }
+
+      if (cdk.isUsed) {
+        throw new Error('已使用的CDK无法删除');
+      }
+
       await CDKModel.findByIdAndDelete(id);
       logger.info('删除CDK成功', { id, code: cdk.code });
     } catch (error) {

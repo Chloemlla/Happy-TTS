@@ -81,6 +81,50 @@ var OUTEMAIL_SERVICE_STATUS: { available: boolean; error?: string };
 const app = express();
 const execAsync = promisify(exec);
 
+// 允许的域名 - 必须在使用之前定义
+const allowedOrigins = [
+  'https://tts.hapx.one',
+  'https://tts.hapxs.com',
+  'https://api.hapxs.com',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://127.0.0.1:3001',
+  'http://192.168.137.1:3001',
+  'http://192.168.10.7:3001'
+];
+
+// 为所有 /s/* 路由添加 OPTIONS 处理器 - 必须在路由挂载之前
+app.options('/s/*', (req: Request, res: Response) => {
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  } else if (!origin) {
+    res.header('Access-Control-Allow-Origin', '*');
+  }
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Access-Control-Request-Method, Access-Control-Request-Headers, Cache-Control');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Max-Age', '86400');
+  res.status(200).end();
+});
+
+// JSON body parser middleware - 必须在短链路由之前
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// 为所有 /s/* 路由添加 CORS 响应头中间件 - 必须在路由挂载之前
+app.use('/s/*', (req: Request, res: Response, next: NextFunction) => {
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  } else if (!origin) {
+    res.header('Access-Control-Allow-Origin', '*');
+  }
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Expose-Headers', 'Content-Length, X-RateLimit-Limit, X-RateLimit-Remaining, Content-Disposition, Content-Type, Cache-Control');
+  next();
+});
+
 // 最高优先级，短链跳转
 app.use('/s', shortUrlRoutes);
 
@@ -211,17 +255,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     next();
 });
 
-// 允许的域名
-const allowedOrigins = [
-  'https://tts.hapx.one',
-  'https://tts.hapxs.com',
-  'https://api.hapxs.com',
-  'http://localhost:3000',
-  'http://localhost:3001',
-  'http://127.0.0.1:3001',
-  'http://192.168.137.1:3001',
-  'http://192.168.10.7:3001'
-];
+// 允许的域名 (已在文件顶部定义)
 
 app.use(cors({
   origin: function(origin, callback) {
@@ -245,10 +279,20 @@ app.use(cors({
     'Accept',
     'Origin',
     'Access-Control-Request-Method',
-    'Access-Control-Request-Headers'
+    'Access-Control-Request-Headers',
+    'Cache-Control'
   ],
-  exposedHeaders: ['Content-Length', 'X-RateLimit-Limit', 'X-RateLimit-Remaining'],
-  maxAge: 86400 // 预检请求的结果可以缓存24小时
+  exposedHeaders: [
+    'Content-Length', 
+    'X-RateLimit-Limit', 
+    'X-RateLimit-Remaining', 
+    'Content-Disposition',
+    'Content-Type',
+    'Cache-Control'
+  ],
+  maxAge: 86400, // 预检请求的结果可以缓存24小时
+  preflightContinue: false,
+  optionsSuccessStatus: 200
 }));
 // 安全头配置
 app.use(helmet({
@@ -259,7 +303,7 @@ app.use(helmet({
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "blob:", "https:"],
       scriptSrc: ["'self'"],
-      connectSrc: ["'self'", "https://api.openai.com", "https://api.hapxs.com"],
+      connectSrc: ["'self'", "https://api.openai.com", "https://api.hapxs.com", "http://localhost:3000", "http://localhost:3001"],
       frameSrc: ["'none'"],
       objectSrc: ["'none'"],
       upgradeInsecureRequests: []
@@ -283,8 +327,6 @@ app.use((req, res, next) => {
   next();
 });
 app.use(morgan('combined'));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(isLocalIp); // 添加本地 IP 检查中间件
 
 // 立即注册 emailRoutes，确保 /api/email/outemail 无需 token 验证
