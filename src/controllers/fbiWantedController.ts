@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import FBIWantedModel, { IFBIWanted } from '../models/fbiWantedModel';
 import logger from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
+import { isValidObjectId, Types } from 'mongoose';
 
 // 生成NCIC编号
 function generateNCICNumber(): string {
@@ -63,25 +64,33 @@ export const fbiWantedController = {
 
             const query: any = { isActive: true };
 
-            if (status && status !== 'ALL') {
+            // 仅允许白名单状态
+            const allowedStatus = ['ACTIVE', 'CAPTURED', 'DECEASED', 'REMOVED', 'ALL'];
+            if (typeof status === 'string' && allowedStatus.includes(status) && status !== 'ALL') {
                 query.status = status;
             }
 
-            if (dangerLevel && dangerLevel !== 'ALL') {
+            // 仅允许白名单危险等级
+            const allowedDanger = ['LOW', 'MEDIUM', 'HIGH', 'EXTREME', 'ALL'];
+            if (typeof dangerLevel === 'string' && allowedDanger.includes(dangerLevel) && dangerLevel !== 'ALL') {
                 query.dangerLevel = dangerLevel;
             }
 
-            if (search) {
-                query.$text = { $search: search as string };
+            if (typeof search === 'string' && search.trim()) {
+                const safeSearch = search.substring(0, 100);
+                query.$text = { $search: safeSearch };
             }
 
-            const skip = (Number(page) - 1) * Number(limit);
+            // 分页参数约束
+            const pageNum = Math.max(1, Math.min(1000, Number(page) || 1));
+            const limitNum = Math.max(1, Math.min(100, Number(limit) || 20));
+            const skip = (pageNum - 1) * limitNum;
 
             const [wanted, total] = await Promise.all([
                 FBIWantedModel.find(query)
                     .sort({ dateAdded: -1 })
                     .skip(skip)
-                    .limit(Number(limit))
+                    .limit(limitNum)
                     .lean(),
                 FBIWantedModel.countDocuments(query)
             ]);
@@ -90,10 +99,10 @@ export const fbiWantedController = {
                 success: true,
                 data: wanted,
                 pagination: {
-                    page: Number(page),
-                    limit: Number(limit),
+                    page: pageNum,
+                    limit: limitNum,
                     total,
-                    pages: Math.ceil(total / Number(limit))
+                    pages: Math.ceil(total / limitNum)
                 }
             });
         } catch (error) {
@@ -109,6 +118,9 @@ export const fbiWantedController = {
     async getWantedById(req: Request, res: Response) {
         try {
             const { id } = req.params;
+            if (!isValidObjectId(id)) {
+                return res.status(400).json({ success: false, message: '无效的ID' });
+            }
 
             const wanted = await FBIWantedModel.findById(id).lean();
 
@@ -230,6 +242,9 @@ export const fbiWantedController = {
     async updateWanted(req: Request, res: Response) {
         try {
             const { id } = req.params;
+            if (!isValidObjectId(id)) {
+                return res.status(400).json({ success: false, message: '无效的ID' });
+            }
             const updateData: any = { ...req.body };
 
             // 清理输入数据
@@ -287,6 +302,9 @@ export const fbiWantedController = {
     async deleteWanted(req: Request, res: Response) {
         try {
             const { id } = req.params;
+            if (!isValidObjectId(id)) {
+                return res.status(400).json({ success: false, message: '无效的ID' });
+            }
 
             const deletedWanted = await FBIWantedModel.findByIdAndDelete(id);
 
@@ -316,15 +334,39 @@ export const fbiWantedController = {
     async deleteMultiple(req: Request, res: Response) {
         try {
             const { filter } = req.body;
-
             if (!filter || typeof filter !== 'object') {
-                return res.status(400).json({
-                    success: false,
-                    message: '请提供有效的过滤条件'
-                });
+                return res.status(400).json({ success: false, message: '请提供有效的过滤条件' });
             }
 
-            const result = await FBIWantedModel.deleteMany(filter);
+            // 白名单过滤，防止注入危险操作符
+            const safeFilter: any = {};
+            const { status, dangerLevel, isActive, beforeDate, afterDate } = filter as Record<string, any>;
+            const allowedStatus = ['ACTIVE', 'CAPTURED', 'DECEASED', 'REMOVED'];
+            const allowedDanger = ['LOW', 'MEDIUM', 'HIGH', 'EXTREME'];
+            if (typeof status === 'string' && allowedStatus.includes(status)) {
+                safeFilter.status = status;
+            }
+            if (typeof dangerLevel === 'string' && allowedDanger.includes(dangerLevel)) {
+                safeFilter.dangerLevel = dangerLevel;
+            }
+            if (typeof isActive === 'boolean') {
+                safeFilter.isActive = isActive;
+            }
+            // 日期范围
+            const dateFilter: any = {};
+            if (beforeDate) {
+                const d = new Date(beforeDate);
+                if (!isNaN(d.getTime())) dateFilter.$lte = d;
+            }
+            if (afterDate) {
+                const d = new Date(afterDate);
+                if (!isNaN(d.getTime())) dateFilter.$gte = d;
+            }
+            if (Object.keys(dateFilter).length) {
+                safeFilter.dateAdded = dateFilter;
+            }
+
+            const result = await FBIWantedModel.deleteMany(safeFilter);
 
             logger.info(`根据条件批量删除通缉犯记录: ${result.deletedCount} 条`);
 
@@ -353,8 +395,13 @@ export const fbiWantedController = {
                 });
             }
 
+            // 仅删除有效的ObjectId
+            const validIds = ids.filter((id: any) => typeof id === 'string' && isValidObjectId(id));
+            if (validIds.length === 0) {
+                return res.status(400).json({ success: false, message: 'ID列表无效' });
+            }
             const result = await FBIWantedModel.deleteMany({
-                _id: { $in: ids }
+                _id: { $in: validIds.map((id: string) => new Types.ObjectId(id)) }
             });
 
             logger.info(`批量删除通缉犯记录: ${result.deletedCount} 条`);
@@ -377,6 +424,9 @@ export const fbiWantedController = {
         try {
             const { id } = req.params;
             const { status } = req.body;
+            if (!isValidObjectId(id)) {
+                return res.status(400).json({ success: false, message: '无效的ID' });
+            }
 
             if (!['ACTIVE', 'CAPTURED', 'DECEASED', 'REMOVED'].includes(status)) {
                 return res.status(400).json({

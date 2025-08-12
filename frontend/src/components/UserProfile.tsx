@@ -244,9 +244,28 @@ const UserProfile: React.FC = () => {
   const handleAvatarChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    
+    // 前端文件验证
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setNotification({ 
+        message: '不支持的文件格式，请上传图片文件（JPEG、PNG、WebP、GIF）', 
+        type: 'error' 
+      });
+      return;
+    }
+    
+    if (file.size > MAX_AVATAR_SIZE) {
+      setNotification({ 
+        message: `文件大小不能超过 ${MAX_AVATAR_SIZE / 1024 / 1024}MB`, 
+        type: 'error' 
+      });
+      return;
+    }
+    
     const formData = new FormData();
     formData.append('avatar', file);
     setLoading(true);
+    
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(getApiBaseUrl() + '/api/admin/user/avatar', {
@@ -254,11 +273,14 @@ const UserProfile: React.FC = () => {
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       } as any);
+      
       const result = await res.json();
       setLoading(false);
+      
       if (result.success && result.avatarUrl) {
         setProfile((p) => p ? { ...p, avatarUrl: result.avatarUrl } : p);
         setNotification({ message: '头像上传成功', type: 'success' });
+        
         // 上传成功后立即刷新 avatarHash 并重新加载头像，确保本地缓存和页面同步
         if (profile?.id) {
           try {
@@ -274,11 +296,36 @@ const UserProfile: React.FC = () => {
           }
         }
       } else {
-        setNotification({ message: result.error || '头像上传失败', type: 'error' });
+        // 处理服务器返回的错误
+        const errorMessage = result.error || '头像上传失败';
+        setNotification({ 
+          message: errorMessage, 
+          type: 'error' 
+        });
+        
+        // 如果是可重试的错误，提供重试建议
+        if (result.retryable) {
+          console.warn('[UserProfile] 头像上传失败，可重试:', result.detail);
+        }
       }
     } catch (err) {
       setLoading(false);
-      setNotification({ message: '头像上传失败，图床服务不可用或网络异常，请稍后重试。', type: 'error' });
+      console.error('[UserProfile] 头像上传网络错误:', err);
+      
+      // 根据错误类型提供不同的错误信息
+      let errorMessage = '头像上传失败，请稍后重试';
+      if (err instanceof Error) {
+        if (err.name === 'TypeError' && err.message.includes('fetch')) {
+          errorMessage = '网络连接失败，请检查网络后重试';
+        } else if (err.message.includes('timeout')) {
+          errorMessage = '上传超时，请稍后重试';
+        }
+      }
+      
+      setNotification({ 
+        message: errorMessage, 
+        type: 'error' 
+      });
     }
   };
 
@@ -287,7 +334,9 @@ const UserProfile: React.FC = () => {
     const [error, setError] = useState(false);
     if (!src || error) {
       return (
-        <FaUser className="text-4xl text-gray-400 flex items-center justify-center h-full" />
+        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+          <FaUser className="text-3xl text-gray-500" />
+        </div>
       );
     }
     return (
@@ -296,7 +345,6 @@ const UserProfile: React.FC = () => {
         alt="头像"
         className="w-full h-full object-cover"
         onError={() => setError(true)}
-        style={{ borderRadius: '50%' }}
       />
     );
   };

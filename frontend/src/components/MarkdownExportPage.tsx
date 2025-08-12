@@ -7,6 +7,7 @@ import 'katex/dist/katex.min.css';
 import '../styles/katex-fonts.css';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import DOMPurify from 'dompurify';
 
 // 简单的DOCX导出实现（使用RTF格式作为替代）
 
@@ -114,14 +115,33 @@ c & d
         checkFontsLoaded();
     }, []);
 
-    // 渲染Markdown为HTML
-    const renderMarkdown = (markdown: string) => {
+    // 简单转义函数，避免将纯文本解释为HTML
+    const escapeHtml = (text: string) =>
+        text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+
+    // 渲染Markdown为安全的HTML
+    const renderMarkdown = (markdown: string): string => {
         try {
-            return marked.parse(markdown);
+            const rawHtml = marked.parse(markdown, { async: false } as any) as unknown as string;
+            // 仅允许安全标签与必要属性（包含KaTeX渲染所需class）
+            return DOMPurify.sanitize(rawHtml, {
+                ALLOWED_TAGS: [
+                    'p','br','pre','code','span','div','h1','h2','h3','h4','h5','h6',
+                    'ul','ol','li','strong','em','table','thead','tbody','tr','th','td',
+                    'a','img','blockquote'
+                ],
+                ALLOWED_ATTR: ['href','title','alt','src','class','id','target','rel']
+            });
         } catch (error) {
             console.warn('Markdown parsing error:', error);
-            // 如果解析失败，返回纯文本
-            return `<pre>${markdown}</pre>`;
+            // 如果解析失败，返回转义后的纯文本包裹在<pre>
+            const safeText = escapeHtml(markdown);
+            return `<pre>${safeText}</pre>`;
         }
     };
 
@@ -142,12 +162,20 @@ c & d
                 return `[BLOCK_MATH]${formula}[/BLOCK_MATH]`;
             });
             
-            // 将处理后的Markdown转换为HTML
+            // 将处理后的Markdown转换为HTML（已消毒）
             const htmlContent = await renderMarkdown(processedMarkdown);
             
             // 创建一个临时div来解析HTML并提取文本
             const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = htmlContent;
+            // 再次确保赋值到DOM前进行消毒
+            tempDiv.innerHTML = DOMPurify.sanitize(htmlContent, {
+                ALLOWED_TAGS: [
+                    'p','br','pre','code','span','div','h1','h2','h3','h4','h5','h6',
+                    'ul','ol','li','strong','em','table','thead','tbody','tr','th','td',
+                    'a','img','blockquote'
+                ],
+                ALLOWED_ATTR: ['href','title','alt','src','class','id','target','rel']
+            });
             
             // 简单的RTF格式转换
             let rtfContent = '{\\rtf1\\ansi\\deff0 {\\fonttbl {\\f0 Times New Roman;}{\\f1 Courier New;}}\\f0\\fs24';

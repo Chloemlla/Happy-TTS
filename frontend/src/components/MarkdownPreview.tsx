@@ -3,6 +3,7 @@ import { marked } from 'marked';
 import markedKatex from 'marked-katex-extension';
 import 'katex/dist/katex.min.css';
 import '../styles/katex-fonts.css';
+import DOMPurify from 'dompurify';
 
 // 预加载KaTeX字体以避免慢网络警告
 const preloadKatexFonts = () => {
@@ -59,13 +60,31 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ markdown }) => {
     checkFontsLoaded();
   }, []);
 
-  const renderMarkdown = (content: string) => {
+  // 简单转义，作为回退时防止HTML注入
+  const escapeHtml = (text: string) =>
+    (text || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
+  const renderMarkdown = (content: string): string => {
     try {
-      return marked.parse(content || '');
+      const rawHtml = marked.parse(content || '', { async: false } as any) as unknown as string;
+      return DOMPurify.sanitize(rawHtml, {
+        ALLOWED_TAGS: [
+          'p','br','pre','code','span','div','h1','h2','h3','h4','h5','h6',
+          'ul','ol','li','strong','em','table','thead','tbody','tr','th','td',
+          'a','img','blockquote'
+        ],
+        ALLOWED_ATTR: ['href','title','alt','src','class','id','target','rel']
+      });
     } catch (error) {
       console.warn('Markdown parsing error:', error);
-      // 如果解析失败，返回纯文本
-      return `<pre>${content}</pre>`;
+      // 如果解析失败，返回转义后的纯文本
+      const safeText = escapeHtml(content || '');
+      return `<pre>${safeText}</pre>`;
     }
   };
 
