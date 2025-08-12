@@ -280,19 +280,15 @@ export class ShortUrlService {
   }
 
   /**
-   * 导入短链数据（管理员功能）
+   * 导入短链数据（管理员功能）- 异步并发处理
    */
   static async importShortUrls(content: string) {
     try {
       const lines = content.split('\n');
-      const importedUrls: any[] = [];
-      const errors: string[] = [];
+      const linksToImport: any[] = [];
       let currentLink: any = {};
-      let importedCount = 0;
-      let skippedCount = 0;
-      let errorCount = 0;
 
-      // 解析导出格式的数据
+      // 解析导出格式的数据，收集所有链接
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
         
@@ -302,17 +298,7 @@ export class ShortUrlService {
         if (line.match(/^\d+\.\s*短链信息$/)) {
           // 保存上一个链接（如果有的话）
           if (currentLink.code && currentLink.target) {
-            try {
-              const result = await this.processImportLink(currentLink);
-              if (result.skipped) {
-                skippedCount++;
-              } else {
-                importedCount++;
-              }
-            } catch (error) {
-              errors.push(`短链码 ${currentLink.code}: ${error}`);
-              errorCount++;
-            }
+            linksToImport.push({ ...currentLink });
           }
           currentLink = {};
           continue;
@@ -332,31 +318,20 @@ export class ShortUrlService {
       
       // 处理最后一个链接
       if (currentLink.code && currentLink.target) {
-        try {
-          const result = await this.processImportLink(currentLink);
-          if (result.skipped) {
-            skippedCount++;
-          } else {
-            importedCount++;
-          }
-        } catch (error) {
-          errors.push(`短链码 ${currentLink.code}: ${error}`);
-          errorCount++;
-        }
+        linksToImport.push({ ...currentLink });
       }
+
+      // 异步并发处理所有链接
+      const results = await this.processLinksAsync(linksToImport);
       
       logger.info('导入短链数据完成', { 
-        importedCount, 
-        skippedCount, 
-        errorCount 
+        importedCount: results.importedCount, 
+        skippedCount: results.skippedCount, 
+        errorCount: results.errorCount,
+        totalLinks: linksToImport.length
       });
       
-      return {
-        importedCount,
-        skippedCount,
-        errorCount,
-        errors: errors.slice(0, 10) // 只返回前10个错误
-      };
+      return results;
     } catch (error) {
       logger.error('导入短链数据失败:', error);
       throw error;
@@ -364,7 +339,126 @@ export class ShortUrlService {
   }
 
   /**
-   * 处理单个导入链接
+   * 异步并发处理多个链接
+   */
+  private static async processLinksAsync(links: any[]): Promise<{
+    importedCount: number;
+    skippedCount: number;
+    errorCount: number;
+    errors: string[];
+  }> {
+    const batchSize = 10; // 每批处理10个链接，避免过载
+    const errors: string[] = [];
+    let importedCount = 0;
+    let skippedCount = 0;
+    let errorCount = 0;
+
+    // 分批处理链接
+    for (let i = 0; i < links.length; i += batchSize) {
+      const batch = links.slice(i, i + batchSize);
+      
+      // 并发处理当前批次
+      const batchPromises = batch.map(async (linkData) => {
+        try {
+          const result = await this.processImportLinkAsync(linkData);
+          return result;
+        } catch (error) {
+          return {
+            skipped: false,
+            error: `短链码 ${linkData.code}: ${error instanceof Error ? error.message : String(error)}`
+          };
+        }
+      });
+
+      // 等待当前批次完成
+      const batchResults = await Promise.all(batchPromises);
+      
+      // 统计结果
+      batchResults.forEach(result => {
+        if (result.error) {
+          errors.push(result.error);
+          errorCount++;
+        } else if (result.skipped) {
+          skippedCount++;
+        } else {
+          importedCount++;
+        }
+      });
+
+      // 记录批次进度
+      logger.info(`处理批次 ${Math.floor(i / batchSize) + 1}/${Math.ceil(links.length / batchSize)}`, {
+        batchSize: batch.length,
+        processed: i + batch.length,
+        total: links.length
+      });
+    }
+
+    return {
+      importedCount,
+      skippedCount,
+      errorCount,
+      errors: errors.slice(0, 10) // 只返回前10个错误
+    };
+  }
+
+  /**
+   * 处理单个导入链接 - 异步版本
+   */
+  private static async processImportLinkAsync(linkData: any): Promise<{ skipped: boolean; error?: string }> {
+    return new Promise(async (resolve) => {
+      try {
+        // 验证必需字段
+        if (!linkData.code || !linkData.target) {
+          throw new Error('缺少必需的短链码或目标地址');
+        }
+        
+        // 过滤掉 undefined 或空值
+        if (linkData.code === 'undefined' || linkData.target === 'undefined' || 
+            !linkData.code.trim() || !linkData.target.trim()) {
+          throw new Error('短链码或目标地址包含无效值');
+        }
+        
+        // 验证短链码格式
+        if (!/^[a-zA-Z0-9_-]+$/.test(linkData.code)) {
+          throw new Error('短链码格式无效');
+        }
+        
+        // 验证目标地址格式
+        try {
+          new URL(linkData.target);
+        } catch {
+          throw new Error('目标地址格式无效');
+        }
+        
+        // 异步检查是否已存在 - 如果存在则跳过，不抛出错误
+        const existing = await ShortUrlModel.findOne({ code: linkData.code });
+        if (existing) {
+          logger.info(`跳过重复短链: ${linkData.code}`);
+          resolve({ skipped: true });
+          return;
+        }
+        
+        // 异步创建新的短链记录
+        await ShortUrlModel.create({
+          code: linkData.code,
+          target: linkData.target,
+          userId: linkData.userId || 'admin',
+          username: linkData.username || 'admin',
+          createdAt: new Date()
+        });
+        
+        logger.debug(`成功导入短链: ${linkData.code}`);
+        resolve({ skipped: false });
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.warn(`导入链接失败 ${linkData.code}: ${errorMessage}`);
+        resolve({ skipped: false, error: errorMessage });
+      }
+    });
+  }
+
+  /**
+   * 处理单个导入链接 - 保留原有同步版本用于兼容
    */
   private static async processImportLink(linkData: any): Promise<{ skipped: boolean }> {
     // 验证必需字段
