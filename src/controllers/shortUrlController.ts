@@ -157,7 +157,18 @@ export class ShortUrlController {
         });
       }
 
-      // 设置响应头，让浏览器下载文件
+      // 如果服务层启用了加密，则返回JSON以便前端解密
+      if ((result as any).encrypted) {
+        logger.info('导出所有短链数据（加密）成功', { count: result.count });
+        return res.json({
+          encrypted: true,
+          iv: (result as any).iv,
+          content: result.content,
+          count: result.count
+        });
+      }
+
+      // 未加密：返回可下载的明文文件
       const filename = `短链数据_${new Date().toISOString().split('T')[0]}.txt`;
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);

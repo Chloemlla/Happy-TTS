@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaPlus, FaEdit, FaTrash, FaSearch, FaSync, FaInfoCircle, FaExclamationTriangle, FaCheckCircle, FaArrowLeft, FaList, FaKey, FaBox, FaClock, FaUser, FaToggleOn, FaToggleOff, FaChevronLeft, FaChevronRight, FaAngleDoubleLeft, FaAngleDoubleRight, FaDownload, FaFileAlt } from 'react-icons/fa';
+import { FaPlus, FaEdit, FaTrash, FaSearch, FaSync, FaInfoCircle, FaExclamationTriangle, FaCheckCircle, FaArrowLeft, FaList, FaKey, FaBox, FaClock, FaUser, FaToggleOn, FaToggleOff, FaChevronLeft, FaChevronRight, FaAngleDoubleLeft, FaAngleDoubleRight, FaDownload, FaFileAlt, FaUpload } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import { cdksApi, CDK } from '../api/cdks';
 import { resourcesApi, Resource } from '../api/resources';
@@ -14,11 +14,190 @@ interface GenerateCDKModalProps {
   onSuccess: () => void;
 }
 
+function ImportCDKModal({ isOpen, onClose, onSuccess }: ImportCDKModalProps) {
+  const [content, setContent] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [result, setResult] = useState<null | {
+    importedCount: number;
+    skippedCount: number;
+    errorCount: number;
+    errors: string[];
+  }>(null);
+  const { setNotification } = useNotification();
+
+  useEffect(() => {
+    if (isOpen) {
+      // reset state on open
+      setContent('');
+      setError('');
+      setResult(null);
+      setLoading(false);
+    }
+  }, [isOpen]);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      setContent((prev) => (prev ? prev + '\n' + text : text));
+    } catch (err) {
+      console.error('读取文件失败:', err);
+      setNotification({ message: '读取文件失败', type: 'error' });
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!content || content.trim() === '') {
+      setError('请输入或上传要导入的内容');
+      return;
+    }
+    setError('');
+    setLoading(true);
+    try {
+      const res = await cdksApi.importCDKs(content);
+      setResult(res);
+      setNotification({
+        message: `导入完成：成功 ${res.importedCount}，跳过 ${res.skippedCount}，错误 ${res.errorCount}`,
+        type: res.errorCount > 0 ? 'warning' : 'success'
+      });
+      onSuccess();
+    } catch (err: any) {
+      console.error('导入CDK失败:', err);
+      const msg = err?.response?.data?.message || '导入失败，请重试';
+      setError(msg);
+      setNotification({ message: msg, type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 p-4 sm:p-0"
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.9, y: 20 }}
+          className="relative top-0 sm:top-16 mx-auto my-4 sm:my-0 p-4 sm:p-5 border w-full max-w-2xl shadow-lg rounded-lg bg-white max-h-[95vh] overflow-y-auto"
+        >
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                <FaUpload className="w-5 h-5 text-purple-500" />
+                导入CDK
+              </h3>
+              <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors p-1">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">导入内容</label>
+                <textarea
+                  className="w-full h-48 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 font-mono text-sm"
+                  placeholder="粘贴要导入的CDK文本。支持每行一个或JSON字段组合，字段名可为 code/resourceId/expiresAt 的变体。"
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                />
+                <div className="flex items-center gap-3">
+                  <label className="inline-flex items-center px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-sm cursor-pointer">
+                    <input type="file" accept=".txt,.csv,.json" className="hidden" onChange={handleFileChange} />
+                    <FaUpload className="w-4 h-4 mr-2" /> 从文件添加
+                  </label>
+                  <span className="text-xs text-gray-500">已输入 {content ? content.split('\n').filter(l=>l.trim()).length : 0} 行</span>
+                </div>
+              </div>
+
+              {error && (
+                <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="text-red-600 text-sm bg-red-50 p-3 rounded-lg border border-red-200 flex items-center gap-2">
+                  <FaExclamationTriangle className="w-4 h-4" />
+                  {error}
+                </motion.div>
+              )}
+
+              {result && (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm">
+                  <div className="font-medium mb-2">导入结果</div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+                    <div className="text-green-700">成功: {result.importedCount}</div>
+                    <div className="text-yellow-700">跳过: {result.skippedCount}</div>
+                    <div className="text-red-700">错误: {result.errorCount}</div>
+                  </div>
+                  {result.errors && result.errors.length > 0 && (
+                    <div className="mt-2">
+                      <div className="text-gray-700 mb-1">错误详情(最多10条):</div>
+                      <ul className="list-disc list-inside space-y-1 text-red-700">
+                        {result.errors.map((errMsg, idx) => (
+                          <li key={`import-error-${idx}`}>{errMsg}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row justify-end gap-3">
+                <motion.button
+                  type="button"
+                  onClick={onClose}
+                  className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  关闭
+                </motion.button>
+                <motion.button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-purple-500 to-blue-600 rounded-md hover:from-purple-600 hover:to-blue-700 disabled:opacity-50"
+                  whileHover={!loading ? { scale: 1.02 } : {}}
+                  whileTap={!loading ? { scale: 0.98 } : {}}
+                >
+                  {loading ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <FaSync className="animate-spin w-4 h-4" />
+                      导入中...
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-2">
+                      <FaUpload className="w-4 h-4" />
+                      开始导入
+                    </div>
+                  )}
+                </motion.button>
+              </div>
+            </form>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
 interface EditCDKModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
   cdk: CDK | null;
+}
+
+interface ImportCDKModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
 }
 
 function GenerateCDKModal({ isOpen, onClose, onSuccess }: GenerateCDKModalProps) {
@@ -492,6 +671,7 @@ export default function CDKStoreManager() {
   const [loading, setLoading] = useState(true);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [editingCDK, setEditingCDK] = useState<CDK | null>(null);
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -561,6 +741,10 @@ export default function CDKStoreManager() {
 
   const handleEditSuccess = () => {
     fetchCDKs(); // 重新获取CDK列表
+  };
+
+  const handleImportSuccess = () => {
+    fetchCDKs();
   };
 
   // 分页控制函数
@@ -1095,6 +1279,17 @@ export default function CDKStoreManager() {
               <FaPlus className="w-4 h-4" />
               生成CDK
             </motion.button>
+
+            {/* 导入CDK按钮 */}
+            <motion.button
+              onClick={() => setShowImportModal(true)}
+              className="w-full sm:w-auto px-4 py-3 sm:py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 font-medium flex items-center justify-center gap-2 text-base sm:text-sm"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <FaUpload className="w-4 h-4" />
+              导入CDK
+            </motion.button>
             
             {/* 批量选择按钮 */}
             <motion.button
@@ -1239,6 +1434,13 @@ export default function CDKStoreManager() {
           )}
         </AnimatePresence>
       </motion.div>
+
+      {/* 导入CDK 模态框 */}
+      <ImportCDKModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onSuccess={handleImportSuccess}
+      />
 
       {/* CDK列表 */}
       <motion.div

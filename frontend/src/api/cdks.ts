@@ -52,6 +52,14 @@ export interface RedeemedResourcesResponse {
   total: number;
 }
 
+// 导入结果类型
+export interface ImportCDKResult {
+  importedCount: number;
+  skippedCount: number;
+  errorCount: number;
+  errors: string[];
+}
+
 export const cdksApi = {
   // CDK兑换
   redeemCDK: async (code: string, userInfo?: { userId: string; username: string }, forceRedeem?: boolean) => {
@@ -141,6 +149,12 @@ export const cdksApi = {
   // 获取用户已兑换的资源
   getUserRedeemedResources: async (): Promise<RedeemedResourcesResponse> => {
     const response = await api.get(`${getApiBaseUrl()}/api/redeemed`);
+    return response.data;
+  },
+
+  // 导入CDK
+  importCDKs: async (content: string): Promise<ImportCDKResult> => {
+    const response = await api.post(`${getApiBaseUrl()}/api/cdks/import`, { content });
     return response.data;
   }
 }; 

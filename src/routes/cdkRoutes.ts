@@ -11,7 +11,8 @@ import {
   getTotalCDKCount,
   getCDKs,
   getCDKStats,
-  getUserRedeemedResources
+  getUserRedeemedResources,
+  importCDKs
 } from '../controllers/cdkController';
 
 const router = Router();
@@ -30,5 +31,6 @@ router.delete('/cdks/all', authenticateAdmin, deleteAllCDKs);
 router.delete('/cdks/unused', authenticateAdmin, deleteUnusedCDKs);
 router.delete('/cdks/:id', authenticateAdmin, deleteCDK);
 router.post('/cdks/batch-delete', authenticateAdmin, batchDeleteCDKs);
+router.post('/cdks/import', authenticateAdmin, importCDKs);
 
 export default router; 

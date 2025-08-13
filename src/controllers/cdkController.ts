@@ -224,6 +224,34 @@ export const deleteUnusedCDKs = async (req: AuthRequest, res: Response) => {
   }
 };
 
+// 导入CDK数据（管理员）
+export const importCDKs = async (req: AuthRequest, res: Response) => {
+  try {
+    const { content } = req.body || {};
+    if (!content || typeof content !== 'string') {
+      return res.status(400).json({ message: '请提供要导入的文本内容' });
+    }
+
+    const results = await cdkService.importCDKs(content);
+
+    logger.info('导入CDK数据成功', {
+      userId: req.user?.id,
+      username: req.user?.username,
+      ...results
+    });
+
+    res.json({
+      message: `成功导入 ${results.importedCount} 个，跳过重复 ${results.skippedCount} 个，错误 ${results.errorCount} 个`,
+      ...results
+    });
+  } catch (error) {
+    logger.error('导入CDK数据失败:', error);
+    res.status(500).json({ 
+      message: error instanceof Error ? error.message : '导入CDK数据失败' 
+    });
+  }
+};
+
 // 获取用户已兑换的资源
 export const getUserRedeemedResources = async (req: Request, res: Response) => {
   try {
