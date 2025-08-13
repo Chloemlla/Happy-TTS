@@ -369,7 +369,7 @@ const FBIWantedPublic: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8 px-4 rounded-lg">
       <div className="max-w-7xl mx-auto px-4 space-y-8">
         {/* 标题和警告信息部分 */}
         <motion.div

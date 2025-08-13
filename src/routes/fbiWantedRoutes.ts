@@ -3,8 +3,12 @@ import { fbiWantedController } from '../controllers/fbiWantedController';
 import { authenticateToken } from '../middleware/authenticateToken';
 import { authenticateAdmin } from '../middleware/auth';
 import { createLimiter } from '../middleware/rateLimiter';
+import multer from 'multer';
 
 const router = express.Router();
+
+// 文件上传中间件（内存存储，限制5MB）
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 // 公开路由 - 获取通缉犯列表和详情（供公众查看）
 const publicListLimiter = createLimiter({
@@ -46,6 +50,7 @@ router.get('/:id', authenticateToken, authenticateAdmin, adminLimiter, fbiWanted
 router.post('/', authenticateToken, authenticateAdmin, adminLimiter, fbiWantedController.createWanted);
 router.put('/:id', authenticateToken, authenticateAdmin, adminLimiter, fbiWantedController.updateWanted);
 router.patch('/:id/status', authenticateToken, authenticateAdmin, adminLimiter, fbiWantedController.updateWantedStatus);
+router.patch('/:id/photo', authenticateToken, authenticateAdmin, adminLimiter, upload.single('photo'), fbiWantedController.updateWantedPhoto);
 router.delete('/multiple', authenticateToken, authenticateAdmin, adminLimiter, fbiWantedController.deleteMultiple);
 router.delete('/:id', authenticateToken, authenticateAdmin, adminLimiter, fbiWantedController.deleteWanted);
 router.post('/batch-delete', authenticateToken, authenticateAdmin, adminLimiter, fbiWantedController.batchDeleteWanted);

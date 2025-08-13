@@ -3,6 +3,7 @@ import FBIWantedModel, { IFBIWanted } from '../models/fbiWantedModel';
 import logger from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { isValidObjectId, Types } from 'mongoose';
+import { IPFSService } from '../services/ipfsService';
 
 // 生成NCIC编号
 function generateNCICNumber(): string {
@@ -115,6 +116,55 @@ export const fbiWantedController = {
                 success: false,
                 message: '获取通缉犯列表失败'
             });
+        }
+    },
+
+    // 更新通缉犯头像图片（管理员）
+    async updateWantedPhoto(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+            if (!isValidObjectId(id)) {
+                return res.status(400).json({ success: false, message: '无效的ID' });
+            }
+
+            // 需要 multer 解析后的单文件，字段名为 photo
+            const file = (req as any).file as Express.Multer.File | undefined;
+            if (!file) {
+                return res.status(400).json({ success: false, message: '未找到上传的文件（字段名应为 photo）' });
+            }
+
+            // 上传到 IPFS（仅允许图片，大小上限在服务内校验）
+            const uploadRes = await IPFSService.uploadFile(
+                file.buffer,
+                file.originalname || 'avatar.jpg',
+                file.mimetype,
+                { shortLink: false }
+            );
+
+            const photoUrl = uploadRes.web2url || uploadRes.url; // 优先使用可直接访问的 Web2 URL
+
+            const updated = await FBIWantedModel.findByIdAndUpdate(
+                id,
+                { $set: { photoUrl, lastUpdated: new Date() } },
+                { new: true, runValidators: true }
+            );
+
+            if (!updated) {
+                return res.status(404).json({ success: false, message: '未找到该通缉犯记录' });
+            }
+
+            logger.info(`更新通缉犯头像成功: ${updated.name} (${updated.fbiNumber}) -> ${photoUrl}`);
+
+            return res.json({
+                success: true,
+                message: '头像更新成功',
+                data: updated,
+                ipfs: uploadRes
+            });
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            logger.error('更新通缉犯头像失败:', msg);
+            return res.status(500).json({ success: false, message: '更新通缉犯头像失败', error: msg });
         }
     },
 
@@ -305,7 +355,7 @@ export const fbiWantedController = {
                     case 'age': {
                         if (value !== undefined && value !== null && value !== '') {
                             const num = Number(value);
-                            if (!Number.isNaN(num) && Number.isFinite(num) && num >= 0 && num <= 150) {
+                            if (!Number.isNaN(num) && Number.isFinite(num) && num >= 0 && num <= 1500) {
                                 updateData.age = num;
                             }
                         }
@@ -489,19 +539,22 @@ export const fbiWantedController = {
                 return res.status(400).json({ success: false, message: '无效的ID' });
             }
 
-            if (!['ACTIVE', 'CAPTURED', 'DECEASED', 'REMOVED'].includes(status)) {
+            // 严格校验并白名单限制状态，防止注入恶意更新键
+            const allowedStatuses = ['ACTIVE', 'CAPTURED', 'DECEASED', 'REMOVED'] as const;
+            if (typeof status !== 'string' || !allowedStatuses.includes(status as any)) {
                 return res.status(400).json({
                     success: false,
                     message: '无效的状态值'
                 });
             }
 
+            // 使用$set并显式字段，避免将用户输入直接作为更新对象传入
+            type SafeStatus = typeof allowedStatuses[number];
+            const safeStatus: SafeStatus = status as SafeStatus;
+
             const updatedWanted = await FBIWantedModel.findByIdAndUpdate(
                 id,
-                {
-                    status,
-                    lastUpdated: new Date()
-                },
+                { $set: { status: safeStatus, lastUpdated: new Date() } },
                 { new: true, runValidators: true }
             );
 
