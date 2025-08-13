@@ -245,13 +245,70 @@ export const fbiWantedController = {
             if (!isValidObjectId(id)) {
                 return res.status(400).json({ success: false, message: '无效的ID' });
             }
-            const updateData: any = { ...req.body };
+            // 仅允许白名单字段被更新，避免批量赋值和操作符注入
+            const allowedFields = new Set([
+                'name',
+                'description',
+                'aliases',
+                'charges',
+                'dateOfBirth',
+                'age',
+                'dangerLevel',
+                'status',
+                'photoUrl',
+                'fbiNumber',
+                'ncicNumber',
+            ]);
 
-            // 清理输入数据
-            if (updateData.name) updateData.name = sanitizeInput(updateData.name);
-            if (updateData.description) updateData.description = sanitizeInput(updateData.description);
-            if (updateData.aliases) updateData.aliases = updateData.aliases.map((alias: string) => sanitizeInput(alias));
-            if (updateData.charges) updateData.charges = updateData.charges.map((charge: string) => sanitizeInput(charge));
+            const body = req.body && typeof req.body === 'object' ? req.body : {};
+            const updateData: any = {};
+
+            for (const [key, value] of Object.entries(body)) {
+                // 拒绝以 $ 开头或包含点号的键，防止操作符注入/路径注入
+                if (key.startsWith('$') || key.includes('.')) continue;
+                if (!allowedFields.has(key)) continue;
+                switch (key) {
+                    case 'name':
+                    case 'description':
+                    case 'photoUrl':
+                    case 'fbiNumber':
+                    case 'ncicNumber':
+                        updateData[key] = sanitizeInput(String(value));
+                        break;
+                    case 'aliases':
+                    case 'charges':
+                        if (Array.isArray(value)) {
+                            updateData[key] = value.map((v) => sanitizeInput(String(v))).filter(Boolean);
+                        }
+                        break;
+                    case 'dateOfBirth':
+                        if (value) updateData.dateOfBirth = new Date(value as any);
+                        break;
+                    case 'dangerLevel': {
+                        const allowedDanger = ['LOW', 'MEDIUM', 'HIGH', 'EXTREME'];
+                        if (typeof value === 'string' && allowedDanger.includes(value)) {
+                            updateData.dangerLevel = value;
+                        }
+                        break;
+                    }
+                    case 'status': {
+                        const allowedStatus = ['ACTIVE', 'CAPTURED', 'DECEASED', 'REMOVED'];
+                        if (typeof value === 'string' && allowedStatus.includes(value)) {
+                            updateData.status = value;
+                        }
+                        break;
+                    }
+                    case 'age': {
+                        if (value !== undefined && value !== null && value !== '') {
+                            const num = Number(value);
+                            if (!Number.isNaN(num) && Number.isFinite(num) && num >= 0 && num <= 150) {
+                                updateData.age = num;
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
 
             // 如果更新了 dateOfBirth 而未明确提供 age，则基于 DOB 重新计算 age
             if ('dateOfBirth' in updateData && !('age' in updateData)) {
