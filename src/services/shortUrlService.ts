@@ -354,12 +354,12 @@ export class ShortUrlService {
 
             // 尝试头部标记格式
             // 可能包含："IV: <base64>" 与 "Ciphertext-Base64:"（多行）或 "Cipher:"/"Content:"/"Data:"（单行）
-            const ivMatch = raw.match(/^\s*(IV|Iv|iv)\s*:\s*([^\r\n]+)\s*$/m);
+            const ivMatch = raw.match(/^\s*iv\s*:\s*(\S.*?)\s*$/im);
             // 先尝试单行 data
-            const singleLineDataMatch = raw.match(/^\s*(Ciphertext|Cipher|Content|Data)(?:-Base64)?\s*:\s*([^\r\n]+)\s*$/mi);
+            const singleLineDataMatch = raw.match(/^\s*(?:cipher(?:text)?|content|data)(?:-base64)?\s*:\s*(\S.*?)\s*$/im);
             if (ivMatch && singleLineDataMatch) {
-              const ivB64 = ivMatch[2].trim();
-              const dataB64 = singleLineDataMatch[2].trim();
+              const ivB64 = ivMatch[1].trim();
+              const dataB64 = singleLineDataMatch[1].trim();
               const key = crypto.createHash('sha256').update(aesKeyEnv!, 'utf8').digest();
               const iv = Buffer.from(ivB64, 'base64');
               const encrypted = Buffer.from(dataB64, 'base64');
@@ -373,7 +373,7 @@ export class ShortUrlService {
               const lines = raw.split(/\r?\n/);
               let dataStart = -1;
               for (let i = 0; i < lines.length; i++) {
-                if (/^\s*(Ciphertext|Cipher)(?:-Base64)?\s*:\s*$/i.test(lines[i])) {
+                if (/^\s*cipher(?:text)?(?:-base64)?\s*:\s*$/i.test(lines[i])) {
                   dataStart = i + 1;
                   break;
                 }
@@ -388,7 +388,7 @@ export class ShortUrlService {
                   b64Parts.push(l.trim());
                 }
                 if (b64Parts.length > 0) {
-                  const ivB64 = ivMatch[2].trim();
+                  const ivB64 = ivMatch[1].trim();
                   const dataB64 = b64Parts.join('');
                   const key = crypto.createHash('sha256').update(aesKeyEnv!, 'utf8').digest();
                   const iv = Buffer.from(ivB64, 'base64');
@@ -460,19 +460,19 @@ export class ShortUrlService {
           }
 
           // 解析各个字段（宽松匹配：允许不同语言/空格）
-          const codeMatch = line.match(/^(短链码|code|Code)\s*:\s*(.+)$/i);
-          const targetMatch = line.match(/^(目标地址|target|Target|URL)\s*:\s*(.+)$/i);
-          const userMatch = line.match(/^(创建用户|username|user|User(Name)?)\s*:\s*(.+)$/i);
-          const userIdMatch = line.match(/^(用户ID|userId|UserId|UID)\s*:\s*(.+)$/i);
+          const codeMatch = line.match(/^(?:短链码|code)\s*:\s*(\S.*)$/i);
+          const targetMatch = line.match(/^(?:目标地址|target|url)\s*:\s*(\S.*)$/i);
+          const userMatch = line.match(/^(?:创建用户|username|user)\s*:\s*(\S.*)$/i);
+          const userIdMatch = line.match(/^(?:用户ID|userId|uid)\s*:\s*(\S.*)$/i);
 
           if (codeMatch) {
-            currentLink.code = codeMatch[2].trim();
+            currentLink.code = codeMatch[1].trim();
           } else if (targetMatch) {
-            currentLink.target = targetMatch[2].trim();
+            currentLink.target = targetMatch[1].trim();
           } else if (userMatch) {
-            currentLink.username = (userMatch[3] || userMatch[2]).trim();
+            currentLink.username = userMatch[1].trim();
           } else if (userIdMatch) {
-            currentLink.userId = userIdMatch[2].trim();
+            currentLink.userId = userIdMatch[1].trim();
           }
         }
 
@@ -486,15 +486,15 @@ export class ShortUrlService {
         const lines = content.split('\n').map(l => l.trim()).filter(Boolean);
         let pending: any = {};
         for (const line of lines) {
-          const codeMatch = line.match(/^(短链码|code|Code)\s*:\s*(.+)$/i);
-          const targetMatch = line.match(/^(目标地址|target|Target|URL)\s*:\s*(.+)$/i);
-          const userMatch = line.match(/^(创建用户|username|user|User(Name)?)\s*:\s*(.+)$/i);
-          const userIdMatch = line.match(/^(用户ID|userId|UserId|UID)\s*:\s*(.+)$/i);
+          const codeMatch = line.match(/^(?:短链码|code)\s*:\s*(\S.*)$/i);
+          const targetMatch = line.match(/^(?:目标地址|target|url)\s*:\s*(\S.*)$/i);
+          const userMatch = line.match(/^(?:创建用户|username|user)\s*:\s*(\S.*)$/i);
+          const userIdMatch = line.match(/^(?:用户ID|userId|uid)\s*:\s*(\S.*)$/i);
 
-          if (codeMatch) pending.code = codeMatch[2].trim();
-          if (targetMatch) pending.target = targetMatch[2].trim();
-          if (userMatch) pending.username = (userMatch[3] || userMatch[2]).trim();
-          if (userIdMatch) pending.userId = userIdMatch[2].trim();
+          if (codeMatch) pending.code = codeMatch[1].trim();
+          if (targetMatch) pending.target = targetMatch[1].trim();
+          if (userMatch) pending.username = userMatch[1].trim();
+          if (userIdMatch) pending.userId = userIdMatch[1].trim();
 
           if (pending.code && pending.target) {
             linksToImport.push({ ...pending });

@@ -12,16 +12,34 @@ interface ImageUploadSectionProps {
   onPreviewChange: (url: string) => void;
 }
 
+// 规范化用户输入的图片 URL：
+// - 去除首尾空格
+// - 支持以 // 开头的协议相对 URL（视为 https）
+// - 对于无协议且像域名/路径的，默认补全为 https://
+const sanitizeImageUrl = (raw?: string) => {
+  const input = (raw || '').trim();
+  if (!input) return '';
+  if (input.startsWith('data:image/')) return input; // 直接允许 data:image/*
+  if (input.startsWith('blob:')) return input;
+  if (input.startsWith('//')) return `https:${input}`;
+  // 粗略判断是否缺少协议：不含 '://' 且不以 'data:'/'blob:' 开头
+  if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(input)) {
+    return `https://${input}`;
+  }
+  return input;
+};
+
 // 仅允许 http/https/blob/data:image 协议，避免不安全的 URL 被解释
 const isSafeImageUrl = (url?: string) => {
-  if (!url) return false;
+  const candidate = sanitizeImageUrl(url);
+  if (!candidate) return false;
   try {
-    const u = new URL(url, window.location.origin);
+    const u = new URL(candidate, window.location.origin);
     const protocol = u.protocol.toLowerCase();
     if (protocol === 'http:' || protocol === 'https:' || protocol === 'blob:') return true;
     // 允许 data:image/*
     if (protocol === 'data:') {
-      return /^data:image\//i.test(url);
+      return /^data:image\//i.test(candidate);
     }
     return false;
   } catch {
@@ -69,7 +87,7 @@ const ImageUploadSection: React.FC<ImageUploadSectionProps> = ({
       <div className="space-y-4">
         {/* 图片预览 */}
         <div className="w-full">
-          <ImagePreview src={photoPreview || pendingPhoto || photoUrl} />
+          <ImagePreview src={sanitizeImageUrl(photoPreview || pendingPhoto || photoUrl)} />
         </div>
 
         {/* 上传按钮和URL输入 */}
@@ -97,8 +115,9 @@ const ImageUploadSection: React.FC<ImageUploadSectionProps> = ({
               type="url"
               value={photoUrl || ''}
               onChange={(e) => {
-                onUrlChange(e.target.value);
-                onPreviewChange(e.target.value);
+                const normalized = sanitizeImageUrl(e.target.value);
+                onUrlChange(normalized);
+                onPreviewChange(normalized);
               }}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="或输入图片URL"
