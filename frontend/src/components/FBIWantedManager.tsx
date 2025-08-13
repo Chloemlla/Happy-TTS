@@ -224,15 +224,24 @@ const FBIWantedManager: React.FC = () => {
 
         try {
             setLoading(true);
-            // DEBUG: log updated payload age before sending
-            console.log('[FBIWanted][Update] Submitting payload age:', (formData as any).age, 'DOB:', (formData as any).dateOfBirth, formData);
+            // 构建提交数据，确保包含照片更新
+            const dataToSubmit = {
+                ...formData,
+                photoUrl: pendingPhoto || (formData as any).photoUrl || selectedWanted?.photoUrl || ''
+            } as any;
+            // DEBUG: log updated payload before sending
+            console.log('[FBIWanted][Update] Submitting payload:', {
+                age: (dataToSubmit as any).age,
+                DOB: (dataToSubmit as any).dateOfBirth,
+                photoUrl: (dataToSubmit as any).photoUrl
+            }, dataToSubmit);
             const response = await fetch(`${getApiBaseUrl()}/api/fbi-wanted/${selectedWanted._id}`, {
                 method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(dataToSubmit)
             });
 
             if (response.ok) {
@@ -247,6 +256,8 @@ const FBIWantedManager: React.FC = () => {
                 setShowEditModal(false);
                 setSelectedWanted(null);
                 setFormData({});
+                setPendingPhoto('');
+                setPhotoPreview('');
                 fetchWantedList();
                 fetchStatistics();
                 setNotification({ message: '通缉犯信息更新成功！', type: 'success' });
