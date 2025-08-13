@@ -44,13 +44,21 @@ const adminLimiter = createLimiter({
     message: '管理员操作过于频繁，请稍后再试'
 });
 
+// 针对头像上传的更严格限流（避免文件上传被滥用）
+const uploadPhotoLimiter = createLimiter({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    routeName: 'fbi.admin.photo_upload',
+    message: '头像上传过于频繁，请稍后再试'
+});
+
 router.get('/', authenticateToken, authenticateAdmin, adminLimiter, fbiWantedController.getAllWanted);
 router.get('/statistics', authenticateToken, authenticateAdmin, adminLimiter, fbiWantedController.getStatistics);
 router.get('/:id', authenticateToken, authenticateAdmin, adminLimiter, fbiWantedController.getWantedById);
 router.post('/', authenticateToken, authenticateAdmin, adminLimiter, fbiWantedController.createWanted);
 router.put('/:id', authenticateToken, authenticateAdmin, adminLimiter, fbiWantedController.updateWanted);
 router.patch('/:id/status', authenticateToken, authenticateAdmin, adminLimiter, fbiWantedController.updateWantedStatus);
-router.patch('/:id/photo', authenticateToken, authenticateAdmin, adminLimiter, upload.single('photo'), fbiWantedController.updateWantedPhoto);
+router.patch('/:id/photo', authenticateToken, authenticateAdmin, uploadPhotoLimiter, upload.single('photo'), fbiWantedController.updateWantedPhoto);
 router.delete('/multiple', authenticateToken, authenticateAdmin, adminLimiter, fbiWantedController.deleteMultiple);
 router.delete('/:id', authenticateToken, authenticateAdmin, adminLimiter, fbiWantedController.deleteWanted);
 router.post('/batch-delete', authenticateToken, authenticateAdmin, adminLimiter, fbiWantedController.batchDeleteWanted);
