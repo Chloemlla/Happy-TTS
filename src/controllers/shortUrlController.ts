@@ -157,15 +157,26 @@ export class ShortUrlController {
         });
       }
 
-      // 如果服务层启用了加密，则返回JSON以便前端解密
+      // 如果服务层启用了加密：返回可下载的加密文本附件（包含 IV 与 Base64 密文）
       if ((result as any).encrypted) {
-        logger.info('导出所有短链数据（加密）成功', { count: result.count });
-        return res.json({
-          encrypted: true,
-          iv: (result as any).iv,
-          content: result.content,
-          count: result.count
-        });
+        const fileNameEnc = `短链数据_${new Date().toISOString().split('T')[0]}.enc.txt`;
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileNameEnc)}"`);
+        res.setHeader('Cache-Control', 'no-cache');
+
+        // 生成一个简单的离线解密所需信息文件（文本格式）
+        const iv = (result as any).iv;
+        const cipher = result.content; // base64
+        const body = [
+          '# ShortUrl Export (Encrypted)',
+          'Algorithm: AES-256-CBC',
+          `IV: ${iv}`,
+          'Ciphertext-Base64:',
+          cipher
+        ].join('\n');
+
+        logger.info('导出所有短链数据（加密附件）成功', { count: result.count });
+        return res.send(body);
       }
 
       // 未加密：返回可下载的明文文件
