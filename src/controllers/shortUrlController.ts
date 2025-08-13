@@ -9,29 +9,29 @@ export class ShortUrlController {
   static async redirectToTarget(req: Request, res: Response) {
     try {
       const { code } = req.params;
-      
+
       // 输入验证
       if (!code || typeof code !== 'string' || code.trim().length === 0) {
         logger.warn('无效的短链代码', { code });
         return res.status(400).json({ error: '无效的短链代码' });
       }
-      
+
       const trimmedCode = code.trim();
-      
+
       // 验证代码格式
       if (!/^[a-zA-Z0-9_-]+$/.test(trimmedCode)) {
         logger.warn('短链代码格式无效', { code: trimmedCode });
         return res.status(400).json({ error: '无效的短链代码格式' });
       }
-      
+
       logger.info('收到短链访问请求', { code: trimmedCode, ip: req.ip });
-      
+
       const shortUrl = await ShortUrlService.getShortUrlByCode(trimmedCode);
       if (!shortUrl) {
         logger.warn('短链不存在', { code: trimmedCode });
         return res.status(404).json({ error: '短链不存在' });
       }
-      
+
       logger.info('短链重定向成功', { code: trimmedCode, target: shortUrl.target });
       res.redirect(shortUrl.target);
     } catch (error) {
@@ -55,7 +55,7 @@ export class ShortUrlController {
       const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit || '10')) || 10));
 
       const result = await ShortUrlService.getUserShortUrls(userId.trim(), page, limit);
-      
+
       res.json({
         success: true,
         data: result
@@ -78,9 +78,9 @@ export class ShortUrlController {
       if (!code || typeof code !== 'string' || code.trim().length === 0) {
         return res.status(400).json({ error: '无效的短链代码' });
       }
-      
+
       const trimmedCode = code.trim();
-      
+
       // 验证代码格式
       if (!/^[a-zA-Z0-9_-]+$/.test(trimmedCode)) {
         return res.status(400).json({ error: '无效的短链代码格式' });
@@ -115,9 +115,9 @@ export class ShortUrlController {
       }
 
       // 验证代码列表
-      const validCodes = codes.filter(code => 
-        typeof code === 'string' && 
-        code.trim().length > 0 && 
+      const validCodes = codes.filter(code =>
+        typeof code === 'string' &&
+        code.trim().length > 0 &&
         /^[a-zA-Z0-9_-]+$/.test(code.trim())
       );
 
@@ -131,7 +131,7 @@ export class ShortUrlController {
       }
 
       const deletedCount = await ShortUrlService.batchDeleteShortUrls(validCodes, userId);
-      
+
       res.json({
         success: true,
         message: `成功删除 ${deletedCount} 个短链`,
@@ -149,11 +149,11 @@ export class ShortUrlController {
   static async exportAllShortUrls(req: Request, res: Response) {
     try {
       const result = await ShortUrlService.exportAllShortUrls();
-      
+
       if (result.count === 0) {
-        return res.status(404).json({ 
+        return res.status(404).json({
           success: false,
-          error: '没有短链数据可以导出' 
+          error: '没有短链数据可以导出'
         });
       }
 
@@ -169,7 +169,6 @@ export class ShortUrlController {
         const cipher = result.content; // base64
         const body = [
           '# ShortUrl Export (Encrypted)',
-          'Algorithm: AES-256-CBC',
           `IV: ${iv}`,
           'Ciphertext-Base64:',
           cipher
@@ -184,9 +183,9 @@ export class ShortUrlController {
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
       res.setHeader('Cache-Control', 'no-cache');
-      
+
       logger.info('导出所有短链数据成功', { count: result.count });
-      
+
       res.send(result.content);
     } catch (error) {
       logger.error('导出所有短链数据失败:', error);
@@ -200,9 +199,9 @@ export class ShortUrlController {
   static async deleteAllShortUrls(req: Request, res: Response) {
     try {
       const result = await ShortUrlService.deleteAllShortUrls();
-      
+
       logger.info('删除所有短链数据成功', { count: result.deletedCount });
-      
+
       res.json({
         success: true,
         message: `成功删除 ${result.deletedCount} 个短链`,
@@ -220,20 +219,20 @@ export class ShortUrlController {
   static async importShortUrls(req: Request, res: Response) {
     try {
       const { content } = req.body;
-      
+
       // 输入验证
       if (!content || typeof content !== 'string' || content.trim().length === 0) {
         return res.status(400).json({ error: '请提供要导入的数据内容' });
       }
 
       const result = await ShortUrlService.importShortUrls(content.trim());
-      
-      logger.info('导入短链数据成功', { 
+
+      logger.info('导入短链数据成功', {
         importedCount: result.importedCount,
         skippedCount: result.skippedCount,
         errorCount: result.errorCount
       });
-      
+
       res.json({
         success: true,
         message: `导入完成：成功导入 ${result.importedCount} 个，跳过重复 ${result.skippedCount} 个，错误 ${result.errorCount} 个`,

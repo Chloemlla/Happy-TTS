@@ -25,13 +25,13 @@ function decryptAES256(encryptedData: string, iv: string, key: string): string {
     console.log('   密钥长度:', key.length);
     console.log('   加密数据长度:', encryptedData.length);
     console.log('   IV长度:', iv.length);
-    
+
     const keyBytes = CryptoJS.SHA256(key);
     const ivBytes = CryptoJS.enc.Hex.parse(iv);
     const encryptedBytes = CryptoJS.enc.Hex.parse(encryptedData);
-    
+
     console.log('   密钥哈希完成，开始解密...');
-    
+
     const decrypted = CryptoJS.AES.decrypt(
       { ciphertext: encryptedBytes },
       keyBytes,
@@ -41,10 +41,10 @@ function decryptAES256(encryptedData: string, iv: string, key: string): string {
         padding: CryptoJS.pad.Pkcs7
       }
     );
-    
+
     const result = decrypted.toString(CryptoJS.enc.Utf8);
     console.log('   解密完成，结果长度:', result.length);
-    
+
     return result;
   } catch (error) {
     console.error('❌ AES-256解密失败:', error);
@@ -78,15 +78,15 @@ const ShortLinkManager: React.FC = () => {
   const [selectedLinks, setSelectedLinks] = useState<Set<string>>(new Set());
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [batchDeleting, setBatchDeleting] = useState(false);
-  
+
   // 导出相关状态
   const [exportingAll, setExportingAll] = useState(false);
-  
+
   // 导入相关状态
   const [importingData, setImportingData] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [importContent, setImportContent] = useState('');
-  
+
   // 删除全部相关状态
   const [deletingAll, setDeletingAll] = useState(false);
 
@@ -98,7 +98,7 @@ const ShortLinkManager: React.FC = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      
+
       // 检查是否为加密数据
       if (data.data && data.iv && typeof data.data === 'string' && typeof data.iv === 'string') {
         try {
@@ -106,11 +106,11 @@ const ShortLinkManager: React.FC = () => {
           console.log('   加密数据长度:', data.data.length);
           console.log('   IV:', data.iv);
           console.log('   使用Token进行解密，Token长度:', token?.length || 0);
-          
+
           // 解密数据
           const decryptedJson = decryptAES256(data.data, data.iv, token || '');
           const decryptedData = JSON.parse(decryptedJson);
-          
+
           if (decryptedData.items && Array.isArray(decryptedData.items)) {
             console.log('✅ 解密成功，获取到', decryptedData.items.length, '个短链');
             setLinks(decryptedData.items);
@@ -126,9 +126,9 @@ const ShortLinkManager: React.FC = () => {
           console.error('❌ 解密失败:', decryptError);
           setLinks([]);
           setTotal(0);
-          setNotification({ 
-            message: '数据解密失败，请重试', 
-            type: 'error' 
+          setNotification({
+            message: '数据解密失败，请重试',
+            type: 'error'
           });
         }
       } else {
@@ -141,9 +141,9 @@ const ShortLinkManager: React.FC = () => {
       console.error('获取短链列表失败:', error);
       setLinks([]);
       setTotal(0);
-      setNotification({ 
-        message: '获取短链列表失败，请重试', 
-        type: 'error' 
+      setNotification({
+        message: '获取短链列表失败，请重试',
+        type: 'error'
       });
     }
     setLoading(false);
@@ -156,16 +156,16 @@ const ShortLinkManager: React.FC = () => {
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('确定要删除该短链吗？')) return;
-    
+
     // 添加删除前的视觉反馈
     setHighlightedId(id);
-    
+
     const token = localStorage.getItem('token');
     await fetch(`${getApiBaseUrl()}/api/admin/shortlinks/${id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` }
     });
-    
+
     // 删除成功后的动效
     setTimeout(() => setHighlightedId(null), 800);
     fetchLinks();
@@ -176,7 +176,7 @@ const ShortLinkManager: React.FC = () => {
     const url = `${getApiBaseUrl()}/s/${code}`;
     navigator.clipboard.writeText(url);
     setNotification({ message: '短链已复制到剪贴板', type: 'info' });
-    
+
     // 添加复制成功的视觉反馈
     const button = document.querySelector(`[data-copy-code="${code}"]`);
     if (button) {
@@ -191,9 +191,9 @@ const ShortLinkManager: React.FC = () => {
     setRefreshing(true);
     fetchLinks().then(() => {
       setRefreshing(false);
-      setNotification({ 
-        message: '短链列表已刷新', 
-        type: 'success' 
+      setNotification({
+        message: '短链列表已刷新',
+        type: 'success'
       });
     }).catch(() => {
       setRefreshing(false);
@@ -207,7 +207,7 @@ const ShortLinkManager: React.FC = () => {
     for (let i = 0; i < 6; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    
+
     // 添加生成动画效果
     setCustomCode('');
     setTimeout(() => {
@@ -227,18 +227,18 @@ const ShortLinkManager: React.FC = () => {
       setCodeValidation(null);
       return;
     }
-    
+
     const trimmedCode = code.trim();
     if (trimmedCode.length < 1 || trimmedCode.length > 200) {
       setCodeValidation({ isValid: false, message: '长度必须在1-200个字符之间' });
       return;
     }
-    
+
     if (!/^[a-zA-Z0-9_-]+$/.test(trimmedCode)) {
       setCodeValidation({ isValid: false, message: '只能包含字母、数字、连字符和下划线' });
       return;
     }
-    
+
     setCodeValidation({ isValid: true, message: '格式正确' });
   };
 
@@ -247,7 +247,7 @@ const ShortLinkManager: React.FC = () => {
       setNotification({ message: '请输入目标地址', type: 'warning' });
       return;
     }
-    
+
     // 验证自定义短链接码格式
     if (customCode.trim()) {
       const trimmedCode = customCode.trim();
@@ -260,7 +260,7 @@ const ShortLinkManager: React.FC = () => {
         return;
       }
     }
-    
+
     setCreating(true);
     try {
       const token = localStorage.getItem('token');
@@ -268,7 +268,7 @@ const ShortLinkManager: React.FC = () => {
       if (customCode.trim()) {
         requestBody.customCode = customCode.trim();
       }
-      
+
       const res = await fetch(`${getApiBaseUrl()}/api/admin/shortlinks`, {
         method: 'POST',
         headers: {
@@ -308,7 +308,7 @@ const ShortLinkManager: React.FC = () => {
   // 监听容器大小变化
   const containerRef = React.useRef<HTMLDivElement>(null);
   const mobileContainerRef = React.useRef<HTMLDivElement>(null);
-  
+
   React.useEffect(() => {
     const updateContainerHeight = () => {
       const ref = window.innerWidth >= 768 ? containerRef.current : mobileContainerRef.current;
@@ -355,9 +355,9 @@ const ShortLinkManager: React.FC = () => {
 
   const handleBatchDelete = async () => {
     if (selectedLinks.size === 0) {
-      setNotification({ 
-        message: '请选择要删除的短链', 
-        type: 'warning' 
+      setNotification({
+        message: '请选择要删除的短链',
+        type: 'warning'
       });
       return;
     }
@@ -365,7 +365,7 @@ const ShortLinkManager: React.FC = () => {
     const selectedArray = Array.from(selectedLinks);
     const selectedLinkObjects = links.filter(link => selectedArray.includes(link._id));
     const linkCodes = selectedLinkObjects.map(link => link.code).join(', ');
-    
+
     if (window.confirm(`确定要删除以下${selectedLinks.size}个短链吗？\n${linkCodes}\n\n此操作不可撤销。`)) {
       setBatchDeleting(true);
       try {
@@ -380,27 +380,27 @@ const ShortLinkManager: React.FC = () => {
         });
 
         const data = await response.json();
-        
+
         if (!response.ok) {
           throw new Error(data.error || '批量删除失败');
         }
-        
-        setNotification({ 
-          message: `批量删除成功！删除了 ${data.data?.deletedCount || selectedLinks.size} 个短链`, 
-          type: 'success' 
+
+        setNotification({
+          message: `批量删除成功！删除了 ${data.data?.deletedCount || selectedLinks.size} 个短链`,
+          type: 'success'
         });
-        
+
         // 清空选择并退出选择模式
         setSelectedLinks(new Set());
         setIsSelectMode(false);
-        
+
         // 重新获取短链列表
         fetchLinks();
       } catch (error) {
         console.error('批量删除短链失败:', error);
-        setNotification({ 
-          message: `批量删除失败：${error instanceof Error ? error.message : '请重试'}`, 
-          type: 'error' 
+        setNotification({
+          message: `批量删除失败：${error instanceof Error ? error.message : '请重试'}`,
+          type: 'error'
         });
       } finally {
         setBatchDeleting(false);
@@ -427,12 +427,12 @@ const ShortLinkManager: React.FC = () => {
       const token = localStorage.getItem('token');
       const response = await fetch(`${getApiBaseUrl()}/s/admin/export`, {
         method: 'GET',
-        headers: { 
+        headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (!response.ok) {
         if (response.status === 404) {
           setNotification({
@@ -449,10 +449,10 @@ const ShortLinkManager: React.FC = () => {
         }
         throw new Error(`导出失败: ${response.status}`);
       }
-      
+
       // 获取文件内容
       const textContent = await response.text();
-      
+
       // 从响应头获取文件名，如果没有则使用默认名称
       const contentDisposition = response.headers.get('Content-Disposition');
       let filename = `短链数据_${new Date().toISOString().split('T')[0]}.txt`;
@@ -462,7 +462,12 @@ const ShortLinkManager: React.FC = () => {
           filename = decodeURIComponent(filenameMatch[1].replace(/['"]/g, ''));
         }
       }
-      
+      // 判断是否为加密导出内容（后端返回的加密附件包含固定头部）
+      const isEncrypted = textContent.startsWith('# ShortUrl Export (Encrypted)') || /Algorithm:\s*AES-256-CBC/.test(textContent) || filename.endsWith('.enc.txt');
+      if (!contentDisposition && isEncrypted) {
+        filename = `短链数据_${new Date().toISOString().split('T')[0]}.enc.txt`;
+      }
+
       // 创建下载链接
       const blob = new Blob([textContent], { type: 'text/plain; charset=utf-8' });
       const url = window.URL.createObjectURL(blob);
@@ -473,15 +478,21 @@ const ShortLinkManager: React.FC = () => {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      
-      // 从文件内容中提取导出数量（如果可能）
-      const countMatch = textContent.match(/总数量:\s*(\d+)\s*个短链/);
-      const exportCount = countMatch ? parseInt(countMatch[1]) : '未知数量';
-      
-      setNotification({
-        message: `成功导出 ${exportCount} 个短链数据`,
-        type: 'success'
-      });
+
+      if (isEncrypted) {
+        setNotification({
+          message: '已导出加密短链数据文件，请使用 AES_KEY 离线解密',
+          type: 'success'
+        });
+      } else {
+        // 从文件内容中提取导出数量（如果可能）
+        const countMatch = textContent.match(/总数量:\s*(\d+)\s*个短链/);
+        const exportCount = countMatch ? parseInt(countMatch[1]) : '未知数量';
+        setNotification({
+          message: `成功导出 ${exportCount} 个短链数据`,
+          type: 'success'
+        });
+      }
     } catch (error) {
       console.error('导出短链数据失败:', error);
       setNotification({
@@ -514,12 +525,12 @@ const ShortLinkManager: React.FC = () => {
       const token = localStorage.getItem('token');
       const response = await fetch(`${getApiBaseUrl()}/s/admin/deleteall`, {
         method: 'DELETE',
-        headers: { 
+        headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (!response.ok) {
         if (response.status === 403) {
           setNotification({
@@ -530,14 +541,14 @@ const ShortLinkManager: React.FC = () => {
         }
         throw new Error(`删除失败: ${response.status}`);
       }
-      
+
       const data = await response.json();
-      
+
       setNotification({
         message: `成功删除 ${data.deletedCount} 个短链数据`,
         type: 'success'
       });
-      
+
       // 重新获取短链列表
       fetchLinks();
     } catch (error) {
@@ -580,18 +591,18 @@ const ShortLinkManager: React.FC = () => {
     try {
       // 读取文件内容
       const fileContent = await file.text();
-      
+
       // 调用导入API
       const token = localStorage.getItem('token');
       const response = await fetch(`${getApiBaseUrl()}/s/admin/import`, {
         method: 'POST',
-        headers: { 
+        headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ content: fileContent })
       });
-      
+
       if (!response.ok) {
         if (response.status === 403) {
           setNotification({
@@ -602,19 +613,19 @@ const ShortLinkManager: React.FC = () => {
         }
         throw new Error(`导入失败: ${response.status}`);
       }
-      
+
       const data = await response.json();
-      
+
       let message = `导入完成！成功导入 ${data.importedCount} 个短链`;
       if (data.errorCount > 0) {
         message += `，跳过 ${data.errorCount} 个错误项`;
       }
-      
+
       setNotification({
         message,
         type: 'success'
       });
-      
+
       // 重新获取短链列表
       fetchLinks();
     } catch (error) {
@@ -644,13 +655,13 @@ const ShortLinkManager: React.FC = () => {
       const token = localStorage.getItem('token');
       const response = await fetch(`${getApiBaseUrl()}/s/admin/import`, {
         method: 'POST',
-        headers: { 
+        headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ content: content.trim() })
       });
-      
+
       if (!response.ok) {
         if (response.status === 403) {
           setNotification({
@@ -661,23 +672,23 @@ const ShortLinkManager: React.FC = () => {
         }
         throw new Error(`导入失败: ${response.status}`);
       }
-      
+
       const data = await response.json();
-      
+
       let message = `导入完成！成功导入 ${data.importedCount} 个短链`;
       if (data.errorCount > 0) {
         message += `，跳过 ${data.errorCount} 个错误项`;
       }
-      
+
       setNotification({
         message,
         type: 'success'
       });
-      
+
       // 清空导入内容并关闭对话框
       setImportContent('');
       setShowImportDialog(false);
-      
+
       // 重新获取短链列表
       fetchLinks();
     } catch (error) {
@@ -699,16 +710,16 @@ const ShortLinkManager: React.FC = () => {
     const maxVisiblePages = 5;
     let startPage = Math.max(1, page - Math.floor(maxVisiblePages / 2));
     let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-    
+
     // 调整起始页，确保显示足够的页码
     if (endPage - startPage + 1 < maxVisiblePages) {
       startPage = Math.max(1, endPage - maxVisiblePages + 1);
     }
-    
+
     for (let i = startPage; i <= endPage; i++) {
       pages.push(i);
     }
-    
+
     return pages;
   };
 
@@ -717,7 +728,7 @@ const ShortLinkManager: React.FC = () => {
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
         <span style={{ fontSize: 120, lineHeight: 1 }}>🤡</span>
         <div className="text-3xl font-bold mt-6 mb-2 text-rose-600 drop-shadow-lg">你不是管理员，禁止访问！</div>
-        <div className="text-lg text-gray-500 mb-8">请用管理员账号登录后再来玩哦~<br/><span className="text-rose-400">（小丑竟是你自己）</span></div>
+        <div className="text-lg text-gray-500 mb-8">请用管理员账号登录后再来玩哦~<br /><span className="text-rose-400">（小丑竟是你自己）</span></div>
         <div className="text-base text-gray-400 italic mt-4">仅限管理员使用，恶搞界面仅供娱乐。</div>
       </div>
     );
@@ -732,7 +743,7 @@ const ShortLinkManager: React.FC = () => {
             <FaLink className="w-6 h-6" />
             短链管理
           </h2>
-          <Link 
+          <Link
             to="/"
             className="w-full sm:w-auto px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium flex items-center justify-center gap-1 sm:gap-2"
           >
@@ -882,15 +893,14 @@ const ShortLinkManager: React.FC = () => {
                 </>
               )}
             </motion.button>
-            
+
             {/* 批量操作按钮 */}
             <motion.button
               onClick={toggleSelectMode}
-              className={`w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-2 text-sm sm:text-base rounded-lg transition-all duration-200 font-medium flex items-center justify-center gap-2 ${
-                isSelectMode 
-                  ? 'bg-orange-500 text-white hover:bg-orange-600' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-2 text-sm sm:text-base rounded-lg transition-all duration-200 font-medium flex items-center justify-center gap-2 ${isSelectMode
+                ? 'bg-orange-500 text-white hover:bg-orange-600'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
@@ -932,7 +942,7 @@ const ShortLinkManager: React.FC = () => {
                     </motion.button>
                   </div>
                 </div>
-                
+
                 {selectedLinks.size > 0 && (
                   <motion.button
                     onClick={handleBatchDelete}
@@ -998,7 +1008,7 @@ const ShortLinkManager: React.FC = () => {
         {/* 验证提示 */}
         <AnimatePresence>
           {customCode.trim() && (
-            <motion.div 
+            <motion.div
               className="mt-3 flex items-center justify-between text-sm text-gray-600 bg-yellow-50 p-3 rounded-lg border border-yellow-200"
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
@@ -1021,12 +1031,11 @@ const ShortLinkManager: React.FC = () => {
         {/* 验证状态 */}
         <AnimatePresence>
           {codeValidation && (
-            <motion.div 
-              className={`mt-3 flex items-center gap-2 text-sm p-3 rounded-lg border ${
-                codeValidation.isValid 
-                  ? 'bg-green-50 text-green-700 border-green-200' 
-                  : 'bg-red-50 text-red-700 border-red-200'
-              }`}
+            <motion.div
+              className={`mt-3 flex items-center gap-2 text-sm p-3 rounded-lg border ${codeValidation.isValid
+                ? 'bg-green-50 text-green-700 border-green-200'
+                : 'bg-red-50 text-red-700 border-red-200'
+                }`}
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
@@ -1046,11 +1055,10 @@ const ShortLinkManager: React.FC = () => {
           <motion.button
             onClick={handleCreate}
             disabled={creating}
-            className={`w-full py-2 sm:py-3 px-4 sm:px-6 text-sm sm:text-base rounded-lg font-semibold text-white transition-all duration-200 ${
-              creating
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 shadow-lg hover:shadow-xl'
-            }`}
+            className={`w-full py-2 sm:py-3 px-4 sm:px-6 text-sm sm:text-base rounded-lg font-semibold text-white transition-all duration-200 ${creating
+              ? 'bg-gray-400 cursor-not-allowed'
+              : 'bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 shadow-lg hover:shadow-xl'
+              }`}
             whileHover={!creating ? { scale: 1.02 } : {}}
             whileTap={!creating ? { scale: 0.98 } : {}}
           >
@@ -1120,9 +1128,9 @@ const ShortLinkManager: React.FC = () => {
               </thead>
             </table>
           </div>
-          
+
           {/* 虚拟滚动容器 */}
-          <div 
+          <div
             ref={containerRef}
             className="overflow-auto border border-gray-200 rounded-b-lg"
             style={{ height: useVirtualScrolling ? `${containerHeight}px` : 'auto', maxHeight: `${containerHeight}px` }}
@@ -1168,7 +1176,7 @@ const ShortLinkManager: React.FC = () => {
                             />
                           </td>
                         )}
-                        <td 
+                        <td
                           className="py-3 px-3 font-mono text-blue-600 break-all max-w-[120px] cursor-pointer hover:text-blue-800 transition font-semibold"
                           onClick={() => window.open(`${getApiBaseUrl()}/s/${link.code}`, '_blank')}
                         >
@@ -1210,9 +1218,9 @@ const ShortLinkManager: React.FC = () => {
           </div>
         </div>
 
-              {/* 移动端卡片列表视图 */}
+        {/* 移动端卡片列表视图 */}
         <div className="md:hidden">
-          <div 
+          <div
             ref={mobileContainerRef}
             className="overflow-auto"
             style={{ height: useVirtualScrolling ? `${containerHeight}px` : 'auto', maxHeight: `${containerHeight}px` }}
@@ -1326,11 +1334,10 @@ const ShortLinkManager: React.FC = () => {
               <motion.button
                 onClick={handleFirstPage}
                 disabled={page === 1}
-                className={`p-1.5 sm:p-2 rounded-lg transition-all duration-200 ${
-                  page === 1
-                    ? 'text-gray-400 cursor-not-allowed'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
-                }`}
+                className={`p-1.5 sm:p-2 rounded-lg transition-all duration-200 ${page === 1
+                  ? 'text-gray-400 cursor-not-allowed'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
+                  }`}
                 whileHover={page !== 1 ? { scale: 1.05 } : {}}
                 whileTap={page !== 1 ? { scale: 0.95 } : {}}
               >
@@ -1341,11 +1348,10 @@ const ShortLinkManager: React.FC = () => {
               <motion.button
                 onClick={handlePrevPage}
                 disabled={page === 1}
-                className={`p-1.5 sm:p-2 rounded-lg transition-all duration-200 ${
-                  page === 1
-                    ? 'text-gray-400 cursor-not-allowed'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
-                }`}
+                className={`p-1.5 sm:p-2 rounded-lg transition-all duration-200 ${page === 1
+                  ? 'text-gray-400 cursor-not-allowed'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
+                  }`}
                 whileHover={page !== 1 ? { scale: 1.05 } : {}}
                 whileTap={page !== 1 ? { scale: 0.95 } : {}}
               >
@@ -1358,11 +1364,10 @@ const ShortLinkManager: React.FC = () => {
                   <motion.button
                     key={pageNum}
                     onClick={() => handlePageChange(pageNum)}
-                    className={`px-2 sm:px-3 py-1 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
-                      pageNum === page
-                        ? 'bg-blue-500 text-white shadow-md'
-                        : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
-                    }`}
+                    className={`px-2 sm:px-3 py-1 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${pageNum === page
+                      ? 'bg-blue-500 text-white shadow-md'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
+                      }`}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                   >
@@ -1375,11 +1380,10 @@ const ShortLinkManager: React.FC = () => {
               <motion.button
                 onClick={handleNextPage}
                 disabled={page === totalPages}
-                className={`p-1.5 sm:p-2 rounded-lg transition-all duration-200 ${
-                  page === totalPages
-                    ? 'text-gray-400 cursor-not-allowed'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
-                }`}
+                className={`p-1.5 sm:p-2 rounded-lg transition-all duration-200 ${page === totalPages
+                  ? 'text-gray-400 cursor-not-allowed'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
+                  }`}
                 whileHover={page !== totalPages ? { scale: 1.05 } : {}}
                 whileTap={page !== totalPages ? { scale: 0.95 } : {}}
               >
@@ -1390,11 +1394,10 @@ const ShortLinkManager: React.FC = () => {
               <motion.button
                 onClick={handleLastPage}
                 disabled={page === totalPages}
-                className={`p-1.5 sm:p-2 rounded-lg transition-all duration-200 ${
-                  page === totalPages
-                    ? 'text-gray-400 cursor-not-allowed'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
-                }`}
+                className={`p-1.5 sm:p-2 rounded-lg transition-all duration-200 ${page === totalPages
+                  ? 'text-gray-400 cursor-not-allowed'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
+                  }`}
                 whileHover={page !== totalPages ? { scale: 1.05 } : {}}
                 whileTap={page !== totalPages ? { scale: 0.95 } : {}}
               >

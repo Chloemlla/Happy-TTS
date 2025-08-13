@@ -319,44 +319,206 @@ export class ShortUrlService {
    */
   static async importShortUrls(content: string) {
     try {
-      const lines = content.split('\n');
-      const linksToImport: any[] = [];
-      let currentLink: any = {};
+      // 1) 如果检测到加密导出，尝试使用 AES_KEY 自动解密
+      const trimmed = content.trim();
+      const looksEncryptedHeader = trimmed.startsWith('# ShortUrl Export (Encrypted)');
+      const looksEncryptedJson = (() => {
+        try {
+          const obj = JSON.parse(trimmed);
+          return !!(obj && (obj.encrypted || (obj.iv && (obj.content || obj.cipher || obj.cipherText))));
+        } catch { return false; }
+      })();
 
-      // 解析导出格式的数据，收集所有链接
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
+      if (looksEncryptedHeader || looksEncryptedJson) {
+        const aesKeyEnv = process.env.AES_KEY?.trim();
+        if (!aesKeyEnv) {
+          throw new Error('检测到加密导出文件，但未配置 AES_KEY，无法自动解密。请设置环境变量 AES_KEY 或离线解密后再导入');
+        }
 
-        if (!line) continue;
+        const tryDecrypt = (raw: string): string | null => {
+          try {
+            // 尝试 JSON 包装格式 { encrypted: true, iv, content|cipher|cipherText }
+            try {
+              const obj = JSON.parse(raw);
+              const ivB64 = (obj.iv || obj.IV || '').toString();
+              const dataB64 = (obj.content || obj.cipher || obj.cipherText || '').toString();
+              if (ivB64 && dataB64) {
+                const key = crypto.createHash('sha256').update(aesKeyEnv!, 'utf8').digest();
+                const iv = Buffer.from(ivB64, 'base64');
+                const encrypted = Buffer.from(dataB64, 'base64');
+                const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+                const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
+                return decrypted;
+              }
+            } catch {/* 不是JSON，继续其他格式解析 */ }
 
-        // 匹配短链信息的开始
-        if (line.match(/^\d+\.\s*短链信息$/)) {
-          // 保存上一个链接（如果有的话）
-          if (currentLink.code && currentLink.target) {
-            linksToImport.push({ ...currentLink });
+            // 尝试头部标记格式
+            // 可能包含："IV: <base64>" 与 "Ciphertext-Base64:"（多行）或 "Cipher:"/"Content:"/"Data:"（单行）
+            const ivMatch = raw.match(/^\s*(IV|Iv|iv)\s*:\s*([^\r\n]+)\s*$/m);
+            // 先尝试单行 data
+            const singleLineDataMatch = raw.match(/^\s*(Ciphertext|Cipher|Content|Data)(?:-Base64)?\s*:\s*([^\r\n]+)\s*$/mi);
+            if (ivMatch && singleLineDataMatch) {
+              const ivB64 = ivMatch[2].trim();
+              const dataB64 = singleLineDataMatch[2].trim();
+              const key = crypto.createHash('sha256').update(aesKeyEnv!, 'utf8').digest();
+              const iv = Buffer.from(ivB64, 'base64');
+              const encrypted = Buffer.from(dataB64, 'base64');
+              const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+              const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
+              return decrypted;
+            }
+
+            // 若为多行 Ciphertext-Base64: 形式，则收集该行之后的所有非空行作为 Base64 拼接
+            if (ivMatch) {
+              const lines = raw.split(/\r?\n/);
+              let dataStart = -1;
+              for (let i = 0; i < lines.length; i++) {
+                if (/^\s*(Ciphertext|Cipher)(?:-Base64)?\s*:\s*$/i.test(lines[i])) {
+                  dataStart = i + 1;
+                  break;
+                }
+              }
+              if (dataStart !== -1) {
+                const b64Parts: string[] = [];
+                for (let i = dataStart; i < lines.length; i++) {
+                  const l = lines[i];
+                  // 遇到看起来像新的键:值头或文件结尾则停止
+                  if (/^\s*\w[\w\- ]*\s*:\s*\S*/.test(l)) break;
+                  if (l.trim().length === 0) continue;
+                  b64Parts.push(l.trim());
+                }
+                if (b64Parts.length > 0) {
+                  const ivB64 = ivMatch[2].trim();
+                  const dataB64 = b64Parts.join('');
+                  const key = crypto.createHash('sha256').update(aesKeyEnv!, 'utf8').digest();
+                  const iv = Buffer.from(ivB64, 'base64');
+                  const encrypted = Buffer.from(dataB64, 'base64');
+                  const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+                  const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
+                  return decrypted;
+                }
+              }
+            }
+
+            return null;
+          } catch (e) {
+            logger.error('自动解密短链导出内容失败', e);
+            return null;
           }
-          currentLink = {};
-          continue;
+        };
+
+        const decrypted = tryDecrypt(trimmed);
+        if (!decrypted) {
+          throw new Error('检测到加密导出文件，自动解密失败。请确认 AES_KEY 是否正确或离线解密后再导入');
         }
 
-        // 解析各个字段
-        if (line.startsWith('短链码: ')) {
-          currentLink.code = line.replace('短链码: ', '').trim();
-        } else if (line.startsWith('目标地址: ')) {
-          currentLink.target = line.replace('目标地址: ', '').trim();
-        } else if (line.startsWith('创建用户: ')) {
-          currentLink.username = line.replace('创建用户: ', '').trim();
-        } else if (line.startsWith('用户ID: ')) {
-          currentLink.userId = line.replace('用户ID: ', '').trim();
+        logger.info('已自动解密加密的短链导出内容，继续解析导入');
+        content = decrypted;
+      }
+
+      const linksToImport: any[] = [];
+
+      // 2) 优先尝试 JSON 数组导入 [{ code, target, ... }]
+      const tryJson = content.trim().startsWith('[') || content.trim().startsWith('{');
+      if (tryJson) {
+        try {
+          const parsed = JSON.parse(content);
+          const arr = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.items) ? parsed.items : null);
+          if (Array.isArray(arr)) {
+            for (const item of arr) {
+              if (item && typeof item === 'object' && item.code && item.target) {
+                linksToImport.push({
+                  code: String(item.code).trim(),
+                  target: String(item.target).trim(),
+                  userId: item.userId ? String(item.userId).trim() : undefined,
+                  username: item.username ? String(item.username).trim() : undefined,
+                });
+              }
+            }
+          }
+        } catch {
+          // 不是有效JSON，继续走文本解析
         }
       }
 
-      // 处理最后一个链接
-      if (currentLink.code && currentLink.target) {
-        linksToImport.push({ ...currentLink });
+      // 3) 按照“导出报告”文本格式解析（原有格式）
+      if (linksToImport.length === 0) {
+        const lines = content.split('\n');
+        let currentLink: any = {};
+
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+
+          // 匹配短链信息的开始
+          if (line.match(/^\d+\.\s*短链信息$/)) {
+            if (currentLink.code && currentLink.target) {
+              linksToImport.push({ ...currentLink });
+            }
+            currentLink = {};
+            continue;
+          }
+
+          // 解析各个字段（宽松匹配：允许不同语言/空格）
+          const codeMatch = line.match(/^(短链码|code|Code)\s*:\s*(.+)$/i);
+          const targetMatch = line.match(/^(目标地址|target|Target|URL)\s*:\s*(.+)$/i);
+          const userMatch = line.match(/^(创建用户|username|user|User(Name)?)\s*:\s*(.+)$/i);
+          const userIdMatch = line.match(/^(用户ID|userId|UserId|UID)\s*:\s*(.+)$/i);
+
+          if (codeMatch) {
+            currentLink.code = codeMatch[2].trim();
+          } else if (targetMatch) {
+            currentLink.target = targetMatch[2].trim();
+          } else if (userMatch) {
+            currentLink.username = (userMatch[3] || userMatch[2]).trim();
+          } else if (userIdMatch) {
+            currentLink.userId = userIdMatch[2].trim();
+          }
+        }
+
+        if (currentLink.code && currentLink.target) {
+          linksToImport.push({ ...currentLink });
+        }
       }
 
-      // 异步并发处理所有链接
+      // 4) 回退：成对提取“短链码/目标地址”或“code/target”，即使没有分块标题
+      if (linksToImport.length === 0) {
+        const lines = content.split('\n').map(l => l.trim()).filter(Boolean);
+        let pending: any = {};
+        for (const line of lines) {
+          const codeMatch = line.match(/^(短链码|code|Code)\s*:\s*(.+)$/i);
+          const targetMatch = line.match(/^(目标地址|target|Target|URL)\s*:\s*(.+)$/i);
+          const userMatch = line.match(/^(创建用户|username|user|User(Name)?)\s*:\s*(.+)$/i);
+          const userIdMatch = line.match(/^(用户ID|userId|UserId|UID)\s*:\s*(.+)$/i);
+
+          if (codeMatch) pending.code = codeMatch[2].trim();
+          if (targetMatch) pending.target = targetMatch[2].trim();
+          if (userMatch) pending.username = (userMatch[3] || userMatch[2]).trim();
+          if (userIdMatch) pending.userId = userIdMatch[2].trim();
+
+          if (pending.code && pending.target) {
+            linksToImport.push({ ...pending });
+            pending = {};
+          }
+        }
+      }
+
+      // 5) 没有解析出任何有效链接时，尝试解析 CSV/TSV（header 包含 code/target）
+      if (linksToImport.length === 0) {
+        const firstLine = content.split('\n')[0] || '';
+        if (/code\s*[,\t]\s*target/i.test(firstLine)) {
+          const rows = content.split(/\r?\n/).filter(Boolean);
+          // 跳过表头
+          for (let i = 1; i < rows.length; i++) {
+            const cols = rows[i].split(/[\t,]/).map(v => v.trim());
+            if (cols.length >= 2 && cols[0] && cols[1]) {
+              linksToImport.push({ code: cols[0], target: cols[1] });
+            }
+          }
+        }
+      }
+
+      // 6) 异步并发处理所有链接
       const results = await this.processLinksAsync(linksToImport);
 
       logger.info('导入短链数据完成', {

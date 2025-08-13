@@ -61,11 +61,11 @@ import { totpStatusHandler } from './routes/totpRoutes';
 
 // 扩展 Request 类型
 declare global {
-    namespace Express {
-        interface Request {
-            isLocalIp?: boolean;
-        }
+  namespace Express {
+    interface Request {
+      isLocalIp?: boolean;
     }
+  }
 }
 
 // 邮件服务全局开关
@@ -133,132 +133,132 @@ app.set('trust proxy', 1);
 
 // 检查是否是本地 IP 的中间件
 const isLocalIp = (req: Request, res: Response, next: NextFunction) => {
-    const ip = req.ip || req.socket.remoteAddress || 'unknown';
-    // DEV环境下不跳过二次校验，isLocalIp始终为false
-    if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev') {
-        req.isLocalIp = false;
-    } else {
-        req.isLocalIp = config.localIps.includes(ip);
-    }
-    next();
+  const ip = req.ip || req.socket.remoteAddress || 'unknown';
+  // DEV环境下不跳过二次校验，isLocalIp始终为false
+  if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev') {
+    req.isLocalIp = false;
+  } else {
+    req.isLocalIp = config.localIps.includes(ip);
+  }
+  next();
 };
 
 // 创建限流器
 const ttsLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1分钟
-    max: 10, // 限制每个IP每分钟10次请求
-    message: { error: '请求过于频繁，请稍后再试' },
-    standardHeaders: true,
-    legacyHeaders: false,
-    // 添加 IP 地址获取方法
-    keyGenerator: (req: Request) => {
-        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
-        return ip;
-    },
-    // 跳过本地 IP 的限制
-    skip: (req: Request): boolean => {
-        return req.isLocalIp || false;
-    }
+  windowMs: 60 * 1000, // 1分钟
+  max: 10, // 限制每个IP每分钟10次请求
+  message: { error: '请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  // 添加 IP 地址获取方法
+  keyGenerator: (req: Request) => {
+    const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
+    return ip;
+  },
+  // 跳过本地 IP 的限制
+  skip: (req: Request): boolean => {
+    return req.isLocalIp || false;
+  }
 });
 
 const authLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1分钟
-    max: 30, // 限制每个IP每分钟30次请求
-    message: { error: '请求过于频繁，请稍后再试' },
-    standardHeaders: true,
-    legacyHeaders: false,
-    // 添加 IP 地址获取方法
-    keyGenerator: (req: Request) => {
-        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
-        return ip;
-    },
-    // 跳过本地 IP 的限制
-    skip: (req: Request): boolean => {
-        return req.isLocalIp || false;
-    }
+  windowMs: 60 * 1000, // 1分钟
+  max: 30, // 限制每个IP每分钟30次请求
+  message: { error: '请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  // 添加 IP 地址获取方法
+  keyGenerator: (req: Request) => {
+    const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
+    return ip;
+  },
+  // 跳过本地 IP 的限制
+  skip: (req: Request): boolean => {
+    return req.isLocalIp || false;
+  }
 });
 
 const historyLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1分钟
-    max: 20, // 限制每个IP每分钟20次请求
-    message: { error: '请求过于频繁，请稍后再试' },
-    standardHeaders: true,
-    legacyHeaders: false,
-    // 添加 IP 地址获取方法
-    keyGenerator: (req: Request) => {
-        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
-        return ip;
-    },
-    // 跳过本地 IP 的限制
-    skip: (req: Request): boolean => {
-        return req.isLocalIp || false;
-    }
+  windowMs: 60 * 1000, // 1分钟
+  max: 20, // 限制每个IP每分钟20次请求
+  message: { error: '请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  // 添加 IP 地址获取方法
+  keyGenerator: (req: Request) => {
+    const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
+    return ip;
+  },
+  // 跳过本地 IP 的限制
+  skip: (req: Request): boolean => {
+    return req.isLocalIp || false;
+  }
 });
 
 // 为 /api/auth/me 创建特殊的限流器
 const meEndpointLimiter = rateLimit({
-    windowMs: 5 * 60 * 1000, // 5分钟
-    max: 300, // 限制每个IP每5分钟300次请求（平均每分钟60次）
-    message: { error: '请求过于频繁，请稍后再试' },
-    standardHeaders: true,
-    legacyHeaders: false,
-    // 添加 IP 地址获取方法
-    keyGenerator: (req: Request) => {
-        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
-        return ip;
-    },
-    // 跳过本地 IP 的限制
-    skip: (req: Request): boolean => {
-        return req.isLocalIp || false;
-    }
+  windowMs: 5 * 60 * 1000, // 5分钟
+  max: 300, // 限制每个IP每5分钟300次请求（平均每分钟60次）
+  message: { error: '请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  // 添加 IP 地址获取方法
+  keyGenerator: (req: Request) => {
+    const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
+    return ip;
+  },
+  // 跳过本地 IP 的限制
+  skip: (req: Request): boolean => {
+    return req.isLocalIp || false;
+  }
 });
 
 // 管理员路由限流器
 const adminLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1分钟
-    max: 50, // 限制每个IP每分钟50次请求
-    message: { error: '管理员操作过于频繁，请稍后再试' },
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req: Request) => {
-        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
-        return ip;
-    },
-    skip: (req: Request): boolean => {
-        return req.isLocalIp || false;
-    }
+  windowMs: 60 * 1000, // 1分钟
+  max: 50, // 限制每个IP每分钟50次请求
+  message: { error: '管理员操作过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
+    return ip;
+  },
+  skip: (req: Request): boolean => {
+    return req.isLocalIp || false;
+  }
 });
 
 // 前端路由限流器
 const frontendLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1分钟
-    max: 150, // 限制每个IP每分钟150次请求
-    message: { error: '请求过于频繁，请稍后再试' },
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req: Request) => {
-        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
-        return ip;
-    },
-    skip: (req: Request): boolean => {
-        return req.isLocalIp || false;
-    }
+  windowMs: 60 * 1000, // 1分钟
+  max: 150, // 限制每个IP每分钟150次请求
+  message: { error: '请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
+    return ip;
+  },
+  skip: (req: Request): boolean => {
+    return req.isLocalIp || false;
+  }
 });
 
 // 请求日志中间件
 app.use((req: Request, res: Response, next: NextFunction) => {
-    logger.info(`收到请求: ${req.method} ${req.url}`, {
-        ip: req.ip,
-        headers: req.headers,
-        body: req.body
-    });
-    next();
+  logger.info(`收到请求: ${req.method} ${req.url}`, {
+    ip: req.ip,
+    headers: req.headers,
+    body: req.body
+  });
+  next();
 });
 
 // 允许的域名 (已在文件顶部定义)
 
 app.use(cors({
-  origin: function(origin, callback) {
+  origin: function (origin, callback) {
     // 允许本地无origin的情况（如curl、postman等）
     if (!origin) return callback(null, true);
     // 允许所有 *.hapxs.com
@@ -283,9 +283,9 @@ app.use(cors({
     'Cache-Control'
   ],
   exposedHeaders: [
-    'Content-Length', 
-    'X-RateLimit-Limit', 
-    'X-RateLimit-Remaining', 
+    'Content-Length',
+    'X-RateLimit-Limit',
+    'X-RateLimit-Remaining',
     'Content-Disposition',
     'Content-Type',
     'Cache-Control'
@@ -344,237 +344,237 @@ app.use('/api/tts', ttsRoutes);
 
 // TOTP路由限流器
 const totpLimiter = rateLimit({
-    windowMs: 5 * 60 * 1000, // 5分钟
-    max: 20, // 限制每个IP每5分钟20次请求
-    message: { error: 'TOTP操作过于频繁，请稍后再试' },
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req: Request) => {
-        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
-        return ip;
-    },
-    skip: (req: Request): boolean => {
-        return req.isLocalIp || false;
-    }
+  windowMs: 5 * 60 * 1000, // 5分钟
+  max: 20, // 限制每个IP每5分钟20次请求
+  message: { error: 'TOTP操作过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
+    return ip;
+  },
+  skip: (req: Request): boolean => {
+    return req.isLocalIp || false;
+  }
 });
 
 // Passkey路由限流器
 const passkeyLimiter = rateLimit({
-    windowMs: 5 * 60 * 1000, // 5分钟
-    max: 30, // 限制每个IP每5分钟30次请求
-    message: { error: 'Passkey操作过于频繁，请稍后再试' },
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req: Request) => {
-        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
-        return ip;
-    },
-    skip: (req: Request): boolean => {
-        return req.isLocalIp || false;
-    }
+  windowMs: 5 * 60 * 1000, // 5分钟
+  max: 30, // 限制每个IP每5分钟30次请求
+  message: { error: 'Passkey操作过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
+    return ip;
+  },
+  skip: (req: Request): boolean => {
+    return req.isLocalIp || false;
+  }
 });
 
 // 防篡改路由限流器
 const tamperLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1分钟
-    max: 30, // 限制每个IP每分钟30次请求
-    message: { error: '防篡改验证请求过于频繁，请稍后再试' },
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req: Request) => {
-        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
-        return ip;
-    },
-    skip: (req: Request): boolean => {
-        return req.isLocalIp || false;
-    }
+  windowMs: 60 * 1000, // 1分钟
+  max: 30, // 限制每个IP每分钟30次请求
+  message: { error: '防篡改验证请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
+    return ip;
+  },
+  skip: (req: Request): boolean => {
+    return req.isLocalIp || false;
+  }
 });
 
 // 命令路由限流器
 const commandLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1分钟
-    max: 10, // 限制每个IP每分钟10次请求
-    message: { error: '命令执行请求过于频繁，请稍后再试' },
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req: Request) => {
-        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
-        return ip;
-    },
-    skip: (req: Request): boolean => {
-        return req.isLocalIp || false;
-    }
+  windowMs: 60 * 1000, // 1分钟
+  max: 10, // 限制每个IP每分钟10次请求
+  message: { error: '命令执行请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
+    return ip;
+  },
+  skip: (req: Request): boolean => {
+    return req.isLocalIp || false;
+  }
 });
 
 // LibreChat路由限流器
 const libreChatLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1分钟
-    max: 60, // 限制每个IP每分钟60次请求
-    message: { error: 'LibreChat请求过于频繁，请稍后再试' },
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req: Request) => {
-        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
-        return ip;
-    },
-    skip: (req: Request): boolean => {
-        return req.isLocalIp || false;
-    }
+  windowMs: 60 * 1000, // 1分钟
+  max: 60, // 限制每个IP每分钟60次请求
+  message: { error: 'LibreChat请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
+    return ip;
+  },
+  skip: (req: Request): boolean => {
+    return req.isLocalIp || false;
+  }
 });
 
 // 数据收集路由限流器
 const dataCollectionLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1分钟
-    max: 30, // 限制每个IP每分钟30次请求
-    message: { error: '数据收集请求过于频繁，请稍后再试' },
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req: Request) => {
-        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
-        return ip;
-    },
-    skip: (req: Request): boolean => {
-        return req.isLocalIp || false;
-    }
+  windowMs: 60 * 1000, // 1分钟
+  max: 30, // 限制每个IP每分钟30次请求
+  message: { error: '数据收集请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
+    return ip;
+  },
+  skip: (req: Request): boolean => {
+    return req.isLocalIp || false;
+  }
 });
 
 // 日志路由限流器
 const logsLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1分钟
-    max: 20, // 限制每个IP每分钟20次请求
-    message: { error: '日志请求过于频繁，请稍后再试' },
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req: Request) => {
-        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
-        return ip;
-    },
-    skip: (req: Request): boolean => {
-        return req.isLocalIp || false;
-    }
+  windowMs: 60 * 1000, // 1分钟
+  max: 20, // 限制每个IP每分钟20次请求
+  message: { error: '日志请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
+    return ip;
+  },
+  skip: (req: Request): boolean => {
+    return req.isLocalIp || false;
+  }
 });
 
 // IPFS上传路由限流器
 const ipfsLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1分钟
-    max: 10, // 限制每个IP每分钟10次上传请求
-    message: { error: '上传请求过于频繁，请稍后再试' },
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req: Request) => {
-        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
-        return ip;
-    },
-    skip: (req: Request): boolean => {
-        return req.isLocalIp || false;
-    }
+  windowMs: 60 * 1000, // 1分钟
+  max: 10, // 限制每个IP每分钟10次上传请求
+  message: { error: '上传请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
+    return ip;
+  },
+  skip: (req: Request): boolean => {
+    return req.isLocalIp || false;
+  }
 });
 
 // 网络检测路由限流器
 const networkLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1分钟
-    max: 30, // 限制每个IP每分钟30次网络检测请求
-    message: { error: '网络检测请求过于频繁，请稍后再试' },
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req: Request) => {
-        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
-        return ip;
-    },
-    skip: (req: Request): boolean => {
-        return req.isLocalIp || false;
-    }
+  windowMs: 60 * 1000, // 1分钟
+  max: 30, // 限制每个IP每分钟30次网络检测请求
+  message: { error: '网络检测请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
+    return ip;
+  },
+  skip: (req: Request): boolean => {
+    return req.isLocalIp || false;
+  }
 });
 
 // 数据处理路由限流器
 const dataProcessLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1分钟
-    max: 50, // 限制每个IP每分钟50次数据处理请求
-    message: { error: '数据处理请求过于频繁，请稍后再试' },
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req: Request) => {
-        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
-        return ip;
-    },
-    skip: (req: Request): boolean => {
-        return req.isLocalIp || false;
-    }
+  windowMs: 60 * 1000, // 1分钟
+  max: 50, // 限制每个IP每分钟50次数据处理请求
+  message: { error: '数据处理请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
+    return ip;
+  },
+  skip: (req: Request): boolean => {
+    return req.isLocalIp || false;
+  }
 });
 
 // 媒体解析路由限流器
 const mediaLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1分钟
-    max: 20, // 限制每个IP每分钟20次媒体解析请求
-    message: { error: '媒体解析请求过于频繁，请稍后再试' },
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req: Request) => {
-        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
-        return ip;
-    },
-    skip: (req: Request): boolean => {
-        return req.isLocalIp || false;
-    }
+  windowMs: 60 * 1000, // 1分钟
+  max: 20, // 限制每个IP每分钟20次媒体解析请求
+  message: { error: '媒体解析请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
+    return ip;
+  },
+  skip: (req: Request): boolean => {
+    return req.isLocalIp || false;
+  }
 });
 
 // 社交媒体路由限流器
 const socialLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1分钟
-    max: 30, // 限制每个IP每分钟30次社交媒体请求
-    message: { error: '社交媒体请求过于频繁，请稍后再试' },
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req: Request) => {
-        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
-        return ip;
-    },
-    skip: (req: Request): boolean => {
-        return req.isLocalIp || false;
-    }
+  windowMs: 60 * 1000, // 1分钟
+  max: 30, // 限制每个IP每分钟30次社交媒体请求
+  message: { error: '社交媒体请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
+    return ip;
+  },
+  skip: (req: Request): boolean => {
+    return req.isLocalIp || false;
+  }
 });
 
 // 生活信息路由限流器
 const lifeLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1分钟
-    max: 40, // 限制每个IP每分钟40次生活信息请求
-    message: { error: '生活信息请求过于频繁，请稍后再试' },
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req: Request) => {
-        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
-        return ip;
-    },
-    skip: (req: Request): boolean => {
-        return req.isLocalIp || false;
-    }
+  windowMs: 60 * 1000, // 1分钟
+  max: 40, // 限制每个IP每分钟40次生活信息请求
+  message: { error: '生活信息请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
+    return ip;
+  },
+  skip: (req: Request): boolean => {
+    return req.isLocalIp || false;
+  }
 });
 
 // MiniAPI路由限流器
 const miniapiLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1分钟
-    max: 30, // 限制每个IP每分钟30次MiniAPI请求
-    message: { error: 'MiniAPI请求过于频繁，请稍后再试' },
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req: Request) => req.ip || (req.socket?.remoteAddress) || 'unknown',
-    skip: (req: Request): boolean => req.isLocalIp || false
+  windowMs: 60 * 1000, // 1分钟
+  max: 30, // 限制每个IP每分钟30次MiniAPI请求
+  message: { error: 'MiniAPI请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => req.ip || (req.socket?.remoteAddress) || 'unknown',
+  skip: (req: Request): boolean => req.isLocalIp || false
 });
 
 // 状态路由限流器
 const statusLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1分钟
-    max: 60, // 限制每个IP每分钟60次请求
-    message: { error: '状态检查请求过于频繁，请稍后再试' },
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req: Request) => {
-        const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
-        return ip;
-    },
-    skip: (req: Request): boolean => {
-        return req.isLocalIp || false;
-    }
+  windowMs: 60 * 1000, // 1分钟
+  max: 60, // 限制每个IP每分钟60次请求
+  message: { error: '状态检查请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
+    return ip;
+  },
+  skip: (req: Request): boolean => {
+    return req.isLocalIp || false;
+  }
 });
 app.use('/api/totp', totpLimiter);
 app.use('/api/passkey', passkeyLimiter);
@@ -711,13 +711,13 @@ app.use('/public/fbi-wanted', fbiWantedPublicRoutes);
 
 // 完整性检测相关兜底接口限速
 const integrityLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1分钟
-    max: 10, // 每分钟最多10次
-    message: { error: '请求过于频繁，请稍后再试' },
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req: Request) => req.ip || (req.socket?.remoteAddress) || 'unknown',
-    skip: (req: Request): boolean => req.isLocalIp || false
+  windowMs: 60 * 1000, // 1分钟
+  max: 10, // 每分钟最多10次
+  message: { error: '请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => req.ip || (req.socket?.remoteAddress) || 'unknown',
+  skip: (req: Request): boolean => req.isLocalIp || false
 });
 
 app.head('/api/proxy-test', integrityLimiter, (req, res) => res.sendStatus(200));
@@ -756,18 +756,18 @@ app.get('/ip', ipQueryLimiter, async (req, res) => {
   try {
     const ip = (req.headers['x-real-ip'] as string) || req.ip || '127.0.0.1';
     logger.info('收到IP信息查询请求', { ip, userAgent: req.headers['user-agent'] });
-    
+
     const ipInfo = await getIPInfo(ip);
     logger.info('IP信息查询成功', { ip, ipInfo });
     res.json(ipInfo);
   } catch (error) {
-    logger.error('IP信息查询失败', { 
+    logger.error('IP信息查询失败', {
       ip: (req.headers['x-real-ip'] as string) || req.ip || '127.0.0.1',
       error: error instanceof Error ? error.message : String(error)
     });
-    
+
     // 确保返回JSON格式的错误响应
-    res.status(500).json({ 
+    res.status(500).json({
       error: '获取IP信息失败',
       ip: (req.headers['x-real-ip'] as string) || req.ip || '127.0.0.1',
       message: error instanceof Error ? error.message : '未知错误'
@@ -953,7 +953,7 @@ const openai = new OpenAI({
 // 限流器类
 class RateLimiter {
   private calls: number[] = [];
-  constructor(private maxCalls: number, private period: number) {}
+  constructor(private maxCalls: number, private period: number) { }
 
   attempt(): boolean {
     const now = Date.now();
@@ -999,7 +999,7 @@ async function readIpData(): Promise<Record<string, string>> {
 
   const content = await readFile(IP_DATA_FILE, 'utf-8');
   const ipData: Record<string, string> = {};
-  
+
   content.split('\n').forEach(line => {
     if (line.trim()) {
       const [ip, location] = line.split(', ', 2);
@@ -1058,7 +1058,7 @@ app.get('/ip-location', ipLocationLimiter, async (req, res) => {
 
   const locationInfo = await getIpLocation(ip);
   await logIpData(ip, locationInfo);
-  
+
   return res.json({
     ip,
     location: locationInfo,
@@ -1084,7 +1084,7 @@ app.post('/server_status', serverStatusLimiter, (req, res) => {
   if (password === PASSWORD) {
     const bootTime = process.uptime();
     const memoryUsage = process.memoryUsage();
-    
+
     const statusInfo = {
       boot_time: new Date(Date.now() - bootTime * 1000).toISOString(),
       uptime: bootTime,
@@ -1095,7 +1095,7 @@ app.post('/server_status', serverStatusLimiter, (req, res) => {
         percent: (memoryUsage.heapUsed / memoryUsage.heapTotal) * 100
       }
     };
-    
+
     return res.json(statusInfo);
   }
 
@@ -1186,7 +1186,7 @@ if (process.env.NODE_ENV !== 'test') {
     logger.info(`服务器运行在 http://0.0.0.0:${PORT}`);
     logger.info(`生成音频目录: ${audioDir}`);
     logger.info(`当前生成码: ${config.generationCode}`);
-    
+
     // 启动时检查文件权限
     try {
       // 尝试多个可能的路径
@@ -1197,7 +1197,7 @@ if (process.env.NODE_ENV !== 'test') {
         './scripts/check-file-permissions.js',
         path.join(process.cwd(), 'scripts', 'check-file-permissions.js')
       ];
-      
+
       for (const scriptPath of possiblePaths) {
         try {
           const scriptModule = require(scriptPath);
@@ -1210,24 +1210,24 @@ if (process.env.NODE_ENV !== 'test') {
           // 继续尝试下一个路径
         }
       }
-      
+
       if (checkFilePermissions) {
         checkFilePermissions();
       } else {
         logger.warn('[启动] 未找到文件权限检查脚本，跳过检查');
       }
     } catch (error) {
-      logger.warn('[启动] 文件权限检查失败，继续启动', { 
-        error: error instanceof Error ? error.message : String(error) 
+      logger.warn('[启动] 文件权限检查失败，继续启动', {
+        error: error instanceof Error ? error.message : String(error)
       });
     }
-    
+
     // 启动时检查存储模式并初始化数据库
     try {
       logger.info('[启动] 检查用户存储模式...');
       const storageMode = process.env.USER_STORAGE_MODE || 'file';
       logger.info(`[启动] 当前存储模式: ${storageMode}`);
-      
+
       // 检查存储模式是否可用并初始化数据库
       if (storageMode === 'mongo') {
         try {
@@ -1235,7 +1235,7 @@ if (process.env.NODE_ENV !== 'test') {
           const { connectMongo } = require('./services/mongoService');
           await connectMongo();
           logger.info('[启动] MongoDB 连接成功');
-          
+
           // 初始化 MongoDB 数据库
           const initResult = await UserStorage.initializeDatabase();
           if (initResult.initialized) {
@@ -1244,8 +1244,8 @@ if (process.env.NODE_ENV !== 'test') {
             logger.error(`[启动] MongoDB 初始化失败: ${initResult.message}`);
           }
         } catch (error) {
-          logger.warn('[启动] MongoDB 连接失败，建议切换到文件模式', { 
-            error: error instanceof Error ? error.message : String(error) 
+          logger.warn('[启动] MongoDB 连接失败，建议切换到文件模式', {
+            error: error instanceof Error ? error.message : String(error)
           });
         }
       } else if (storageMode === 'mysql') {
@@ -1256,7 +1256,7 @@ if (process.env.NODE_ENV !== 'test') {
           await conn.execute('SELECT 1');
           await conn.end();
           logger.info('[启动] MySQL 连接成功');
-          
+
           // 初始化 MySQL 数据库
           const initResult = await UserStorage.initializeDatabase();
           if (initResult.initialized) {
@@ -1265,8 +1265,8 @@ if (process.env.NODE_ENV !== 'test') {
             logger.error(`[启动] MySQL 初始化失败: ${initResult.message}`);
           }
         } catch (error) {
-          logger.warn('[启动] MySQL 连接失败，建议切换到文件模式', { 
-            error: error instanceof Error ? error.message : String(error) 
+          logger.warn('[启动] MySQL 连接失败，建议切换到文件模式', {
+            error: error instanceof Error ? error.message : String(error)
           });
         }
       } else {
@@ -1279,22 +1279,22 @@ if (process.env.NODE_ENV !== 'test') {
             logger.error(`[启动] 文件存储初始化失败: ${initResult.message}`);
           }
         } catch (error) {
-          logger.error('[启动] 文件存储初始化失败', { 
-            error: error instanceof Error ? error.message : String(error) 
+          logger.error('[启动] 文件存储初始化失败', {
+            error: error instanceof Error ? error.message : String(error)
           });
         }
       }
-      
+
       // 初始化 UserStorage MongoDB 监听器（所有模式都需要）
       UserStorage.initializeMongoListener();
-      
+
       // 移除自动修复Passkey数据
       // logger.info('[启动] 开始自动修复Passkey数据...');
       // await PasskeyDataRepairService.repairAllUsersPasskeyData();
       // logger.info('[启动] Passkey数据自动修复完成');
     } catch (error) {
-      logger.error('[启动] 数据库初始化和Passkey数据修复失败', { 
-        error: error instanceof Error ? error.message : String(error) 
+      logger.error('[启动] 数据库初始化和Passkey数据修复失败', {
+        error: error instanceof Error ? error.message : String(error)
       });
       // 不阻止服务器启动，只记录错误
     }
@@ -1314,7 +1314,7 @@ app.use(['/api/totp/status', '/api/passkey/credentials', '/api/passkey/authentic
 });
 
 // 添加Passkey错误处理中间件
-app.use(passkeyErrorHandler); 
+app.use(passkeyErrorHandler);
 
 // --- MongoDB tts -> user_datas 自动迁移逻辑 ---
 import { MongoClient } from 'mongodb';
@@ -1433,14 +1433,14 @@ app.use((req: Request, res: Response, next: NextFunction) => {
       res.status(400).json({ error: '参数非法（WAF拦截）' });
     }
   });
-}); 
+});
 
 // 启动时异步修复短链表中无 userId/username 的数据
 (async () => {
   try {
     const mongoose = require('mongoose');
     const ShortUrlModel = mongoose.models.ShortUrl || mongoose.model('ShortUrl');
-    const cursor = ShortUrlModel.find({ $or: [ { userId: { $exists: false } }, { username: { $exists: false } } ] }).cursor();
+    const cursor = ShortUrlModel.find({ $or: [{ userId: { $exists: false } }, { username: { $exists: false } }] }).cursor();
     for await (const doc of cursor) {
       await ShortUrlModel.updateOne({ _id: doc._id }, {
         $set: { userId: 'admin', username: 'admin' }
@@ -1460,7 +1460,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   } catch (e) {
     logger.warn('[ShortUrlMigration] 启动时自动修正短链域名失败', e);
   }
-})(); 
+})();
 
 // 单独注册 /api/command/status，确保不受限流影响
 app.post('/api/command/status', authenticateToken, commandStatusHandler as RequestHandler);
