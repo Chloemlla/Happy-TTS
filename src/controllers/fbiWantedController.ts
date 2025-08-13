@@ -77,8 +77,12 @@ export const fbiWantedController = {
             }
 
             if (typeof search === 'string' && search.trim()) {
-                const safeSearch = search.substring(0, 100);
-                query.$text = { $search: safeSearch };
+                // 严格限制搜索字符串，移除潜在危险字符，仅保留字母/数字/空格/引号/连字符
+                const trimmed = search.substring(0, 100);
+                const safeSearch = trimmed.replace(/[^\w\s'"-]/g, ' ').replace(/\s+/g, ' ').trim();
+                if (safeSearch) {
+                    query.$text = { $search: safeSearch };
+                }
             }
 
             // 分页参数约束
@@ -498,7 +502,7 @@ export const fbiWantedController = {
                     status,
                     lastUpdated: new Date()
                 },
-                { new: true }
+                { new: true, runValidators: true }
             );
 
             if (!updatedWanted) {

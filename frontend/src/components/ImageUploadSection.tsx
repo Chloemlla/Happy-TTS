@@ -29,7 +29,7 @@ const sanitizeImageUrl = (raw?: string) => {
   return input;
 };
 
-// 仅允许 http/https/blob/data:image 协议，避免不安全的 URL 被解释
+// 仅允许 http/https/blob/data:image(raster) 协议，避免不安全的 URL 被解释
 const isSafeImageUrl = (url?: string) => {
   const candidate = sanitizeImageUrl(url);
   if (!candidate) return false;
@@ -37,9 +37,9 @@ const isSafeImageUrl = (url?: string) => {
     const u = new URL(candidate, window.location.origin);
     const protocol = u.protocol.toLowerCase();
     if (protocol === 'http:' || protocol === 'https:' || protocol === 'blob:') return true;
-    // 允许 data:image/*
+    // 仅允许 data:image 的常见位图类型，拒绝 svg+xml 等可能被误解释为可执行内容的类型
     if (protocol === 'data:') {
-      return /^data:image\//i.test(candidate);
+      return /^data:image\/(png|jpe?g|webp|gif|bmp);/i.test(candidate);
     }
     return false;
   } catch {
