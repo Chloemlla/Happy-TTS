@@ -1,3 +1,4 @@
+import '../lang/index.js' // 自动生成的语言配置，需置于入口第一行
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'

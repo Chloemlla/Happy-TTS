@@ -3,34 +3,29 @@ import { motion } from 'framer-motion';
 import { FaFileAlt, FaDownload, FaEye, FaFileWord, FaFilePdf, FaUpload, FaCopy, FaTrash } from 'react-icons/fa';
 import { marked } from 'marked';
 import markedKatex from 'marked-katex-extension';
-import 'katex/dist/katex.min.css';
-import '../styles/katex-fonts.css';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import DOMPurify from 'dompurify';
 
 // 简单的DOCX导出实现（使用RTF格式作为替代）
 
-// 预加载KaTeX字体以避免慢网络警告
-const preloadKatexFonts = () => {
-    const fonts = [
-        'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/fonts/KaTeX_Main-Regular.woff2',
-        'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/fonts/KaTeX_Math-Italic.woff2',
-        'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/fonts/KaTeX_Size1-Regular.woff2',
-        'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/fonts/KaTeX_Size2-Regular.woff2'
-    ];
-    
-    fonts.forEach(fontUrl => {
-        if (!document.querySelector(`link[href="${fontUrl}"]`)) {
-            const link = document.createElement('link');
-            link.rel = 'preload';
-            link.as = 'font';
-            link.type = 'font/woff2';
-            link.crossOrigin = 'anonymous';
-            link.href = fontUrl;
-            document.head.appendChild(link);
-        }
-    });
+// 按需加载 KaTeX 样式，浏览器会根据需要自动下载使用到的字体文件
+let katexCssLoaded = false;
+const ensureKatexStylesLoaded = async () => {
+    if (katexCssLoaded) return;
+    try {
+        await import('katex/dist/katex.min.css');
+        katexCssLoaded = true;
+    } catch {
+        // 忽略样式加载错误，降级渲染
+    }
+};
+
+// 简单判断是否包含数学公式
+const hasMath = (md: string): boolean => {
+    if (!md) return false;
+    // $$...$$, $...$, \\(...\\), \\[...\\]
+    return /\$\$[\s\S]*?\$\$/.test(md) || /(^|\s)\$[^$\n]+\$(?=\s|$)/.test(md) || /\\\([\s\S]*?\\\)/.test(md) || /\\\[[\s\S]*?\\\]/.test(md);
 };
 
 // 配置marked以支持KaTeX
@@ -94,26 +89,35 @@ c & d
     const [isExporting, setIsExporting] = useState(false);
     const previewRef = useRef<HTMLDivElement>(null);
 
-    // 组件挂载时预加载KaTeX字体
+    // 当内容包含公式时，按需加载 KaTeX 样式，并在字体就绪后标记为已加载
     useEffect(() => {
-        preloadKatexFonts();
-        
-        // 检查字体是否已加载
-        const checkFontsLoaded = () => {
-            if (document.fonts && document.fonts.ready) {
-                document.fonts.ready.then(() => {
-                    setIsKatexLoaded(true);
-                });
-            } else {
-                // 降级方案：等待一段时间后假设字体已加载
-                setTimeout(() => {
-                    setIsKatexLoaded(true);
-                }, 300);
+        let mounted = true;
+        const loadIfNeeded = async () => {
+            if (!hasMath(markdownContent)) {
+                if (mounted) setIsKatexLoaded(true); // 不需要KaTeX也视为就绪
+                return;
             }
+            await ensureKatexStylesLoaded();
+            // 等待字体就绪（特性检测，避免在不支持 document.fonts 的环境报错）
+            try {
+                const fontsReady = (typeof document !== 'undefined') &&
+                    (document as any).fonts &&
+                    (document as any).fonts.ready &&
+                    typeof (document as any).fonts.ready.then === 'function';
+                if (fontsReady) {
+                    await (document as any).fonts.ready;
+                } else {
+                    // 轻微延时，给样式与字体异步加载一些时间
+                    await new Promise(res => setTimeout(res, 200));
+                }
+            } catch {
+                // 忽略可能的字体就绪异常，继续渲染
+            }
+            if (mounted) setIsKatexLoaded(true);
         };
-        
-        checkFontsLoaded();
-    }, []);
+        loadIfNeeded();
+        return () => { mounted = false; };
+    }, [markdownContent]);
 
     // 简单转义函数，避免将纯文本解释为HTML
     const escapeHtml = (text: string) =>

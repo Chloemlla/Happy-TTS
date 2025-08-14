@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import vitePluginsAutoI18n, { GoogleTranslator } from 'vite-auto-i18n-plugin'
 import path from 'path'
 import JavaScriptObfuscator from 'javascript-obfuscator'
 
@@ -23,6 +24,7 @@ function obfuscateDistJs() {
       stringArrayThreshold: 0.75,
       selfDefending: true,
       disableConsoleOutput: true,
+      unicodeEscapeSequence: true,
     }).getObfuscatedCode();
     fs.writeFileSync(filePath, obfuscated, 'utf-8');
   }
@@ -33,6 +35,36 @@ export default defineConfig(({ mode }) => {
   const config = {
     plugins: [
       react(),
+      // 自动多语言翻译插件（默认使用 Google 翻译）
+      vitePluginsAutoI18n({
+        enabled: true,
+        deepScan: true,
+        translateType: 'full-auto',
+        translateKey: '$t',
+        // 默认只扫描 src 目录
+        includePath: [/src\//],
+        // 生成语言文件的目录（相对项目根目录），入口需引入 ../lang/index.js
+        globalPath: './lang',
+        // 基础语言与目标语言
+        originLang: 'zh-cn', // 源语言（简体中文）
+        // 支持 en、zhcn(=zh-cn)、zhtw(=zh-tw)
+        targetLangList: ['en', 'zh-cn', 'zh-tw'],
+        // 构建行为
+        buildToDist: true,
+        rewriteConfig: true,
+        // 使用默认 Google 翻译（生产环境不走代理）
+        translator: new GoogleTranslator(
+          process.env.NODE_ENV === 'production'
+            ? {}
+            : {
+                proxyOption: {
+                  host: '127.0.0.1',
+                  port: 7890,
+                  headers: { 'User-Agent': 'Node' }
+                }
+              }
+        ),
+      }),
       {
         name: 'obfuscator',
         enforce: 'post' as const,
@@ -67,7 +99,7 @@ export default defineConfig(({ mode }) => {
               stringArrayWrappersType: 'function',
               stringArrayThreshold: 0.75,
               transformObjectKeys: true,
-              unicodeEscapeSequence: false
+              unicodeEscapeSequence: true
             });
             return {
               code: obfuscationResult.getObfuscatedCode(),
@@ -146,10 +178,10 @@ export default defineConfig(({ mode }) => {
         external: (id: string) => {
           // 避免 Rollup 尝试处理可选依赖
           if (process.env.VITE_SKIP_ROLLUP_NATIVE === 'true') {
-            return id.includes('@rollup/rollup-linux-x64-gnu') || 
-                   id.includes('@rollup/rollup-darwin-x64') ||
-                   id.includes('@rollup/rollup-win32-x64-msvc') ||
-                   id.includes('@rollup/rollup-win32-x64-gnu');
+            return id.includes('@rollup/rollup-linux-x64-gnu') ||
+              id.includes('@rollup/rollup-darwin-x64') ||
+              id.includes('@rollup/rollup-win32-x64-msvc') ||
+              id.includes('@rollup/rollup-win32-x64-gnu');
           }
           return false;
         },
