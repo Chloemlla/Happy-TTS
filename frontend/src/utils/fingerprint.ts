@@ -227,11 +227,27 @@ return fallback || 'unknown';
 // 将指纹上报到后端（幂等、带限频）
 export const reportFingerprintOnce = async (): Promise<void> => {
   try {
-    const lastKey = 'hapx_fp_report_ts_v1';
+    const lastKey = 'hapx_fp_report_ts_v2';
     const now = Date.now();
-    const last = Number(localStorage.getItem(lastKey) || '0');
-    // 5分钟内不重复上报，避免频繁写库
-    if (now - last < 5 * 60 * 1000) return;
+    const localLast = Number(localStorage.getItem(lastKey) || '0');
+    // 本地兜底：5分钟内不重复上报，避免频繁写库
+    if (now - localLast < 5 * 60 * 1000) return;
+
+    // 优先从后端查询最近一次的指纹时间与数量，服务端有真实来源
+    try {
+      const statusRes = await api.get('/api/admin/user/fingerprint/status', { withCredentials: true });
+      if (statusRes?.data?.success) {
+        const { lastTs, ipChanged, uaChanged } = statusRes.data as { success: boolean; lastTs: number; count: number; ipChanged?: boolean; uaChanged?: boolean };
+        if (!ipChanged && !uaChanged) {
+          if (typeof lastTs === 'number' && lastTs > 0) {
+            // 若距离上次采集 < 5 分钟，则不再上报
+            if (now - lastTs < 5 * 60 * 1000) return;
+          }
+        }
+      }
+    } catch {
+      // 查询失败则继续走本地节流逻辑
+    }
 
     const id = await getFingerprint();
     if (!id) return;

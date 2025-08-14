@@ -135,36 +135,43 @@ const BackgroundParticles: React.FC = () => {
   );
 };
 
-// 水印组件
+// 水印组件（满屏铺满）
 const WatermarkOverlay: React.FC = () => {
-  const [watermarks, setWatermarks] = React.useState<Array<{ id: number, left: string, top: string, transform: string, fontSize: string }>>([]);
+  const [watermarks, setWatermarks] = React.useState<Array<{ id: number, left: string, top: string, rotate: number }>>([]);
 
   React.useEffect(() => {
-    // 预生成水印位置和样式，避免每次渲染都重新计算
-    const generatedWatermarks = Array.from({ length: 50 }, (_, i) => ({
-      id: i,
-      left: `${(i % 10) * 10}%`,
-      top: `${Math.floor(i / 10) * 10}%`,
-      transform: `rotate(${Math.random() * 30 - 15}deg)`,
-      fontSize: `${Math.random() * 20 + 16}px`,
-    }));
-    setWatermarks(generatedWatermarks);
+    // 极高密度，降低页面可读性
+    const cols = 20;
+    const rows = 14;
+    const items: Array<{ id: number, left: string, top: string, rotate: number }> = [];
+    let id = 0;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        items.push({
+          id: id++,
+          left: `${(c + 0.5) * (100 / cols)}%`,
+          top: `${(r + 0.5) * (100 / rows)}%`,
+          rotate: Math.random() * 20 - 10,
+        });
+      }
+    }
+    setWatermarks(items);
   }, []);
 
   return (
     <div className="fixed inset-0 z-[99999] pointer-events-none overflow-hidden">
-      {watermarks.map((watermark) => (
+      {watermarks.map((wm) => (
         <div
-          key={watermark.id}
-          className="absolute text-red-500/20 font-bold text-lg select-none"
+          key={wm.id}
+          className="absolute text-red-500/40 font-bold select-none whitespace-nowrap"
           style={{
-            left: watermark.left,
-            top: watermark.top,
-            transform: watermark.transform,
-            fontSize: watermark.fontSize,
+            left: wm.left,
+            top: wm.top,
+            transform: `translate(-50%, -50%) rotate(${wm.rotate}deg)`,
+            fontSize: '16px',
           }}
         >
-          Synapse
+          Copyright © Individual Developer Happy-clo
         </div>
       ))}
     </div>
@@ -204,7 +211,36 @@ const App: React.FC = () => {
 
   // 上报用户指纹（内部自带节流与鉴权判断）
   useEffect(() => {
-    reportFingerprintOnce().catch(() => {});
+    reportFingerprintOnce().catch(() => { });
+  }, []);
+
+  // 登录完成后尝试采集（依赖后端/本地2分钟节流，且支持IP/UA变化强制上报）
+  useEffect(() => {
+    if (user) {
+      reportFingerprintOnce().catch(() => { });
+    }
+  }, [user]);
+
+  // 路由变化时尝试采集（多方式触发，仍受5分钟限制与IP/UA变化规则约束）
+  useEffect(() => {
+    reportFingerprintOnce().catch(() => { });
+  }, [location.pathname, location.search]);
+
+  // 页面可见性/窗口聚焦/网络恢复时尝试采集（多方式触发）
+  useEffect(() => {
+    const onFocus = () => reportFingerprintOnce().catch(() => { });
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') reportFingerprintOnce().catch(() => { });
+    };
+    const onOnline = () => reportFingerprintOnce().catch(() => { });
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('online', onOnline);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('online', onOnline);
+    };
   }, []);
 
   // 监听水印事件

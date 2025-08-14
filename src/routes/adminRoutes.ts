@@ -889,13 +889,40 @@ router.post('/user/fingerprint', authMiddleware, async (req, res) => {
     const { updateUser, getUserById } = require('../services/userService');
     const current = await getUserById(user.id);
     const existing = (current && (current as any).fingerprints) || [];
-    const next = [fingerprintRecord, ...existing].slice(0, 10);
+    // 保留最新的150条指纹记录
+    const next = [fingerprintRecord, ...existing].slice(0, 150);
 
     await updateUser(user.id, { fingerprints: next } as any);
     res.json({ success: true });
   } catch (e) {
     console.error('保存指纹失败', e);
     res.status(500).json({ error: '保存指纹失败' });
+  }
+});
+
+// 查询用户指纹状态（需登录）：返回最近一次指纹时间与总数量及IP变更情况
+router.get('/user/fingerprint/status', authMiddleware, async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user) return res.status(401).json({ error: '未登录' });
+
+    const { getUserById } = require('../services/userService');
+    const current = await getUserById(user.id);
+    const fps = (current && (current as any).fingerprints) || [];
+    const count = Array.isArray(fps) ? fps.length : 0;
+    const lastTs = count > 0 && fps[0] && typeof fps[0].ts === 'number' ? fps[0].ts : 0;
+    const lastIp = count > 0 && fps[0] && typeof fps[0].ip === 'string' ? fps[0].ip : '';
+    const currentIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket?.remoteAddress || req.ip || '';
+    const ipChanged = !!(lastIp && currentIp && lastIp !== currentIp);
+
+    const lastUa = count > 0 && fps[0] && typeof fps[0].ua === 'string' ? fps[0].ua : '';
+    const currentUa = String(req.headers['user-agent'] || '');
+    const uaChanged = !!(lastUa && currentUa && lastUa !== currentUa);
+
+    res.json({ success: true, count, lastTs, lastIp, ipChanged, uaChanged });
+  } catch (e) {
+    console.error('查询指纹状态失败', e);
+    res.status(500).json({ error: '查询指纹状态失败' });
   }
 });
 
