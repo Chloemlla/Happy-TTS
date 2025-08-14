@@ -13,6 +13,7 @@ import AnnouncementModal from './components/AnnouncementModal';
 import md5 from 'md5';
 import getApiBaseUrl from './api';
 import DOMPurify from 'dompurify';
+import { reportFingerprintOnce } from './utils/fingerprint';
 
 // 懒加载组件
 const WelcomePage = React.lazy(() => import('./components/WelcomePage').then(module => ({ default: module.WelcomePage })));
@@ -200,6 +201,11 @@ const App: React.FC = () => {
       setIsInitialized(true);
     }
   }, [loading]);
+
+  // 上报用户指纹（内部自带节流与鉴权判断）
+  useEffect(() => {
+    reportFingerprintOnce().catch(() => {});
+  }, []);
 
   // 监听水印事件
   useEffect(() => {

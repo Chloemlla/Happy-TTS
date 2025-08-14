@@ -82,6 +82,8 @@ const UserManagement: React.FC = () => {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [form, setForm] = useState<User>(emptyUser);
   const [showForm, setShowForm] = useState(false);
+  const [fpUser, setFpUser] = useState<User | null>(null);
+  const [showFpModal, setShowFpModal] = useState(false);
   const navigate = useNavigate();
 
   // 获取用户列表
@@ -446,11 +448,15 @@ const UserManagement: React.FC = () => {
                       {u.fingerprints && u.fingerprints.length > 0 ? (
                         <div className="space-y-1">
                           <div>
-                            最新: <span className="font-mono">{u.fingerprints[0].id.slice(0, 12)}{u.fingerprints[0].id.length > 12 ? '…' : ''}</span>
+                            最新: <span className="font-mono" title={u.fingerprints[0].id}>{u.fingerprints[0].id.slice(0, 12)}{u.fingerprints[0].id.length > 12 ? '…' : ''}</span>
                           </div>
                           <div className="text-[10px] text-gray-500">
                             {new Date(u.fingerprints[0].ts).toLocaleString()} · {u.fingerprints.length} 条
                           </div>
+                          <button
+                            className="text-blue-600 hover:underline text-[11px]"
+                            onClick={() => { setFpUser(u); setShowFpModal(true); }}
+                          >查看全部</button>
                         </div>
                       ) : (
                         <span className="text-gray-400">—</span>
@@ -489,6 +495,51 @@ const UserManagement: React.FC = () => {
           </div>
         )}
       </motion.div>
+      {/* 指纹详情弹窗 */}
+      <AnimatePresence>
+        {showFpModal && fpUser && (
+          <motion.div
+            className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6"
+              initial={{ scale: 0.95, y: 20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 20, opacity: 0 }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-800">指纹详情 - {fpUser.username}</h3>
+                <button className="text-gray-500 hover:text-gray-700" onClick={() => setShowFpModal(false)}>✕</button>
+              </div>
+              {fpUser.fingerprints && fpUser.fingerprints.length > 0 ? (
+                <div className="max-h-96 overflow-auto space-y-3">
+                  {fpUser.fingerprints.map((fp, i) => (
+                    <div key={i} className="p-3 border border-gray-200 rounded-lg">
+                      <div className="text-xs text-gray-500 mb-1">{new Date(fp.ts).toLocaleString()} · IP {fp.ip || '-'} </div>
+                      <div className="font-mono break-all text-sm">{fp.id}</div>
+                      {fp.ua && <div className="text-[11px] text-gray-500 mt-1 break-all">{fp.ua}</div>}
+                      <div className="mt-2">
+                        <button
+                          className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
+                          onClick={() => { navigator.clipboard?.writeText(fp.id).catch(() => {}); }}
+                        >复制ID</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center text-gray-500">暂无指纹数据</div>
+              )}
+              <div className="mt-4 text-right">
+                <button className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600" onClick={() => setShowFpModal(false)}>关闭</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };
