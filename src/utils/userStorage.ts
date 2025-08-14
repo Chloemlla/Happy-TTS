@@ -62,6 +62,13 @@ export interface User {
     currentChallenge?: string;
     passkeyVerified?: boolean;
     avatarUrl?: string; // 新增头像URL字段
+    // 新增：指纹记录（历史）
+    fingerprints?: {
+        id: string;
+        ts: number;
+        ua?: string;
+        ip?: string;
+    }[];
 }
 
 // 获取 MySQL 连接

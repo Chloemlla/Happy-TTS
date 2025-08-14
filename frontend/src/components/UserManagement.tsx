@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import axios from 'axios';
+import { api } from '../api/api';
+
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import CryptoJS from 'crypto-js';
@@ -18,6 +19,13 @@ import {
   FaList
 } from 'react-icons/fa';
 
+interface FingerprintRecord {
+  id: string;
+  ts: number;
+  ua?: string;
+  ip?: string;
+}
+
 interface User {
   id: string;
   username: string;
@@ -25,22 +33,12 @@ interface User {
   password: string;
   role: string;
   createdAt: string;
+  fingerprints?: FingerprintRecord[];
 }
 
 const emptyUser = { id: '', username: '', email: '', password: '', role: 'user', createdAt: '' };
 
-// 获取API基础URL
-const getApiBaseUrl = () => {
-  if (import.meta.env.DEV) return 'http://localhost:3000';
-  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-  return 'https://api.hapxs.com';
-};
-
-const api = axios.create({
-  baseURL: getApiBaseUrl(),
-  withCredentials: true,
-  headers: { 'Content-Type': 'application/json' }
-});
+// 使用全局 API 实例，统一 baseURL/拦截器
 
 // AES-256解密函数
 function decryptAES256(encryptedData: string, iv: string, key: string): string {
@@ -97,9 +95,7 @@ const UserManagement: React.FC = () => {
         return;
       }
 
-      const res = await api.get('/api/admin/users', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await api.get('/api/admin/users', { params: { includeFingerprints: 1 } });
 
       // 检查是否为加密数据
       if (res.data.data && res.data.iv && typeof res.data.data === 'string' && typeof res.data.iv === 'string') {
@@ -162,7 +158,6 @@ const UserManagement: React.FC = () => {
       const res = await api.request({
         url,
         method,
-        headers: { Authorization: `Bearer ${token}` },
         data: form
       });
       setShowForm(false);
@@ -183,9 +178,7 @@ const UserManagement: React.FC = () => {
     setError('');
     try {
       const token = localStorage.getItem('token') || '';
-      await api.delete(`/api/admin/users/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.delete(`/api/admin/users/${id}`);
       fetchUsers();
     } catch (e: any) {
       setError(e.response?.data?.error || e.message || '删除失败');
@@ -404,7 +397,7 @@ const UserManagement: React.FC = () => {
         {/* 用户列表 */}
         {loading ? (
           <div className="text-center py-8 text-gray-500">
-            <svg className="animate-spin h-8 w-8 mx-auto mb-4 text-blue-500" fill="none" viewBox="0 0 24 24">
+            <svg className="animate-spin h-8 w-8 mx-auto mb-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
@@ -419,6 +412,7 @@ const UserManagement: React.FC = () => {
                   <th className="px-4 py-3 text-left font-semibold">邮箱</th>
                   <th className="px-4 py-3 text-left font-semibold">角色</th>
                   <th className="px-4 py-3 text-left font-semibold">创建时间</th>
+                  <th className="px-4 py-3 text-left font-semibold">指纹</th>
                   <th className="px-4 py-3 text-left font-semibold">操作</th>
                 </tr>
               </thead>
@@ -447,6 +441,20 @@ const UserManagement: React.FC = () => {
                     </td>
                     <td className="px-4 py-3 text-gray-600 text-sm">
                       {new Date(u.createdAt).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 text-xs">
+                      {u.fingerprints && u.fingerprints.length > 0 ? (
+                        <div className="space-y-1">
+                          <div>
+                            最新: <span className="font-mono">{u.fingerprints[0].id.slice(0, 12)}{u.fingerprints[0].id.length > 12 ? '…' : ''}</span>
+                          </div>
+                          <div className="text-[10px] text-gray-500">
+                            {new Date(u.fingerprints[0].ts).toLocaleString()} · {u.fingerprints.length} 条
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">

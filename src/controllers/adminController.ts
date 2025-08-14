@@ -94,17 +94,29 @@ export const adminController = {
 
             console.log('✅ [UserManagement] Token获取成功，长度:', token.length);
 
+            // 是否包含指纹信息（默认不返回）
+            const includeFingerprints = ['1','true','yes'].includes(String((req.query as any).includeFingerprints || '').toLowerCase());
+            if (!includeFingerprints) {
+              console.log('🛡️ [UserManagement] 将从响应中排除 fingerprints 字段');
+            } else {
+              console.log('🔎 [UserManagement] 管理端请求包含 fingerprints 字段');
+            }
+
             // 获取用户数据
             const users = await UserStorage.getAllUsers();
-            const usersWithoutPassword = users.map(user => {
-                const { password, ...userWithoutPassword } = user;
-                return userWithoutPassword;
+            const usersSanitized = users.map(user => {
+                const { password, ...rest } = (user as any);
+                if (!includeFingerprints) {
+                  const { fingerprints, ...restNoFp } = rest as any;
+                  return restNoFp;
+                }
+                return rest;
             });
 
-            console.log('📊 [UserManagement] 获取到用户数量:', usersWithoutPassword.length);
+            console.log('📊 [UserManagement] 获取到用户数量:', usersSanitized.length);
 
             // 准备加密数据
-            const jsonData = JSON.stringify(usersWithoutPassword);
+            const jsonData = JSON.stringify(usersSanitized);
             console.log('📝 [UserManagement] JSON数据准备完成，长度:', jsonData.length);
 
             // 使用AES-256-CBC加密数据

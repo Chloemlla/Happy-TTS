@@ -58,6 +58,25 @@ class IntegrityChecker {
   private readonly MAX_ERRORS = 10; // 最大错误数量
   private lastErrorTime = 0;
   private readonly ERROR_COOLDOWN = 5000; // 错误冷却时间（毫秒）
+  // 与前端危险扩展检测保持一致的可信域名与页面标记豁免
+  private readonly TRUSTED_HOST_PREFIXES: string[] = [
+    'http://localhost',
+    'https://localhost',
+    'https://ipfs.hapxs.com',
+    'https://cdn.jsdelivr.net',
+    'https://tts-api-docs.hapx.one',
+    'https://tts-api-docs.hapxs.com',
+    'https://api.hapxs.com',
+    'https://tts.hapxs.com'
+  ];
+  private readonly COMPONENT_EXEMPT_MARKERS: string[] = [
+    'MarkdownExportPage', 'MarkdownPreview',
+    'ResourceStoreList', 'ResourceStoreApp', 'ResourceStoreManager',
+    'ShortLinkManager', 'CDKStoreManager',
+    'ApiDocs', 'EmailSender',
+    'ImageUploadPage', 'ImageUploadSection',
+    'FBIWantedManager', 'FBIWantedPublic'
+  ];
 
   private constructor() {
     // 设置全局错误拦截器
@@ -76,6 +95,66 @@ class IntegrityChecker {
         this.safeLog('log', '🔒 完整性检查器已初始化，调试模式已启用');
       }
     }, this.initializationDelay);
+  }
+
+  // 检查是否为可信任的URL（用于网络完整性豁免）
+  private isTrustedUrl(url?: string): boolean {
+    try {
+      if (!url) return false;
+      const u = new URL(url, window.location.origin);
+      const href = u.href;
+      const origin = `${u.protocol}//${u.host}`;
+      return this.TRUSTED_HOST_PREFIXES.some(prefix =>
+        href.startsWith(prefix) || origin.startsWith(prefix)
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  // 检查是否为豁免的页面（根据路径/标题/组件标记）
+  private isExemptPage(): boolean {
+    try {
+      const href = window.location.href;
+      const pathname = window.location.pathname || '';
+      const title = (document.title || '').toLowerCase();
+
+      // 路径/关键字豁免（与前端启发式一致的常见页面）
+      const exemptPathKeywords = [
+        '/upload', '/image', '/images', '/img',
+        '/fbi', '/wanted', '/public', '/docs', '/api-docs',
+        '/resource', '/resources', '/short', '/shortlink', '/short-links',
+        '/cdk', '/cdk-store'
+      ];
+      if (exemptPathKeywords.some(k => pathname.toLowerCase().includes(k))) return true;
+
+      // 标题豁免
+      const exemptTitleKeywords = [
+        'upload', 'image', 'markdown', 'api', 'docs', 'documentation',
+        'fbi', 'wanted', 'shortlink', 'short link', 'cdk', 'store'
+      ];
+      if (exemptTitleKeywords.some(k => title.includes(k))) return true;
+
+      // 组件/页面标记豁免：检查常见的标记方式
+      for (const marker of this.COMPONENT_EXEMPT_MARKERS) {
+        const sel = [
+          `[data-component="${marker}"]`,
+          `[data-page="${marker}"]`,
+          `[data-view="${marker}"]`,
+          `#${CSS.escape(marker)}`,
+          `[id*="${marker}"]`,
+          `[class*="${marker}"]`
+        ];
+        if (document.querySelector(sel.join(', '))) return true;
+      }
+
+      // 可信来源的整页资源（如受信任CDN/域名提供的页面片段）
+      if (this.TRUSTED_HOST_PREFIXES.some(prefix => href.startsWith(prefix))) return true;
+
+      return false;
+    } catch {
+      return false;
+    }
   }
 
   public static getInstance(): IntegrityChecker {
@@ -244,6 +323,8 @@ class IntegrityChecker {
   }
 
   private analyzeResponse(response: Response, url: string): void {
+    // 信任域名与页面豁免：直接跳过网络完整性分析，减少误报
+    if (this.isTrustedUrl(url) || this.isExemptPage()) return;
     if (response.headers.get('content-type')?.includes('text/html')) {
       response.text().then(text => {
         this.checkResponseIntegrity(text, url);
@@ -254,11 +335,14 @@ class IntegrityChecker {
   private analyzeXHRResponse(xhr: XMLHttpRequest): void {
     const contentType = xhr.getResponseHeader('content-type');
     if (contentType?.includes('text/html') && xhr._integrityUrl) {
+      if (this.isTrustedUrl(xhr._integrityUrl) || this.isExemptPage()) return;
       this.checkResponseIntegrity(xhr.responseText, xhr._integrityUrl);
     }
   }
 
   private checkResponseIntegrity(content: string, url: string): void {
+    // 页面或URL豁免：跳过严格对比，避免动态页面误报
+    if (this.isTrustedUrl(url) || this.isExemptPage()) return;
     const currentHash = this.calculateNetworkHash(content);
     const storedData = this.networkIntegrityMap.get(url);
     

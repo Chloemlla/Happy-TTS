@@ -28,7 +28,8 @@ const adminAuthMiddleware = (req: any, res: any, next: any) => {
   const userSelfServicePaths = new Set<string>([
     '/user/profile',
     '/user/avatar',
-    '/user/avatar/exist'
+    '/user/avatar/exist',
+    '/user/fingerprint'
   ]);
 
   if (userSelfServicePaths.has(req.path)) {
@@ -868,4 +869,34 @@ router.get('/user/avatar/exist', authMiddleware, async (req, res) => {
   }
 });
 
-export default router; 
+// 用户指纹信息接口（需登录）
+router.post('/user/fingerprint', authMiddleware, async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user) return res.status(401).json({ error: '未登录' });
+
+    const { id } = req.body || {};
+    if (!id || typeof id !== 'string') {
+      return res.status(400).json({ error: '缺少指纹id' });
+    }
+
+    const ua = req.headers['user-agent'] || '';
+    const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket?.remoteAddress || req.ip || '';
+    const ts = Date.now();
+
+    const fingerprintRecord = { id, ts, ua: String(ua), ip: String(ip) };
+
+    const { updateUser, getUserById } = require('../services/userService');
+    const current = await getUserById(user.id);
+    const existing = (current && (current as any).fingerprints) || [];
+    const next = [fingerprintRecord, ...existing].slice(0, 10);
+
+    await updateUser(user.id, { fingerprints: next } as any);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('保存指纹失败', e);
+    res.status(500).json({ error: '保存指纹失败' });
+  }
+});
+
+export default router;

@@ -16,7 +16,7 @@ const DANGEROUS_KEYWORDS = [
   'batchdownload', 'bulkdownload', 'massdownload', 'clipboardmanager', 'clipboardhelper', 'textselection', 'contentselection',
   // 油猴相关关键词
   'tampermonkey', 'greasemonkey', 'violentmonkey', 'userscript',
-  'userscripts', 'scriptmonkey',  'grease',
+  'userscripts', 'scriptmonkey', 'grease',
   'violent', 'userjs', 'user.js', 'gm_', 'GM_', 'unsafeWindow',
   'grant', 'namespace'
 ];
@@ -47,23 +47,23 @@ const EXTENSION_PATTERNS = [
   { pattern: /supercopy/i, name: 'SuperCopy' },
   { pattern: /copyy/i, name: 'CopyY' },
   { pattern: /copycat/i, name: 'CopyCat' },
-  
+
   // Fatkun 相关
   { pattern: /fatkun/i, name: 'Fatkun批量下载' },
   { pattern: /batch.*download/i, name: '批量下载工具' },
-  
+
   // OCR 相关
   { pattern: /ocr.*tool/i, name: 'OCR识别工具' },
   { pattern: /text.*recognizer/i, name: '文字识别工具' },
-  
+
   // 截图相关
   { pattern: /screenshot/i, name: '截图工具' },
   { pattern: /screen.*capture/i, name: '屏幕捕获工具' },
-  
+
   // 抓取相关
   { pattern: /scraper/i, name: '内容抓取工具' },
   { pattern: /data.*extractor/i, name: '数据提取工具' },
-  
+
   // 油猴相关
   { pattern: /tampermonkey/i, name: 'Tampermonkey' },
   { pattern: /greasemonkey/i, name: 'Greasemonkey' },
@@ -84,39 +84,50 @@ let detectedReasons: string[] = [];
 
 function hasDangerousExtension() {
   detectedReasons = [];
-  
+  let confidence = 0; // 累积分数，弱信号需要叠加
+
   // 豁免：页面仅包含base64图片或blob图片（如用户头像上传、图片预览）时不触发拦截
+  const TRUSTED_HOST_PREFIXES = [
+    'http://localhost',
+    'https://localhost',
+    'https://ipfs.hapxs.com',
+    'https://cdn.jsdelivr.net',
+    'https://tts-api-docs.hapx.one',
+    'https://tts-api-docs.hapxs.com',
+    'https://api.hapxs.com',
+    'https://tts.hapxs.com'
+  ];
   const allImgs = Array.from(document.querySelectorAll('img'));
   if (allImgs.length > 0) {
-    const hasExternalImages = allImgs.some(img => 
-      !img.src.startsWith('data:image/') && 
-      !img.src.startsWith('blob:') && 
-      !img.src.startsWith('http://localhost') &&
-      !img.src.startsWith('https://localhost')
+    const hasExternalImages = allImgs.some(img =>
+      !img.src.startsWith('data:image/') &&
+      !img.src.startsWith('blob:') &&
+      !TRUSTED_HOST_PREFIXES.some(prefix => img.src.startsWith(prefix))
     );
-    
+
     // 如果所有图片都是本地图片（data:、blob:、localhost），则豁免检测
     if (!hasExternalImages) {
       return false;
     }
   }
-  
-  // 豁免：图片上传页面特殊处理
-  const isImageUploadPage = window.location.pathname.includes('image-upload') || 
-                           document.title.includes('图片上传') ||
-                           document.querySelector('[data-page="image-upload"]');
+
+  // 页面级豁免：特定上传/管理页面易出现可疑关键词但属于正常功能
+  const isImageUploadPage =
+    window.location.pathname.includes('image-upload') ||
+    document.title.includes('图片上传') ||
+    !!document.querySelector('[data-page="image-upload"]');
   if (isImageUploadPage) {
     return false;
   }
 
-  // 豁免：FBI通缉犯管理页面特殊处理
-  const isFBIWantedPage = window.location.pathname.includes('fbi-wanted') || 
-                         window.location.pathname.includes('admin') ||
-                         document.title.includes('FBI') ||
-                         document.querySelector('[data-component="FBIWantedManager"]') ||
-                         document.querySelector('[data-component="FBIWantedPublic"]') ||
-                         document.body.innerHTML.includes('FBIWantedManager') ||
-                         document.body.innerHTML.includes('FBIWantedPublic');
+  const isFBIWantedPage =
+    window.location.pathname.includes('fbi-wanted') ||
+    window.location.pathname.includes('admin') ||
+    document.title.includes('FBI') ||
+    !!document.querySelector('[data-component="FBIWantedManager"]') ||
+    !!document.querySelector('[data-component="FBIWantedPublic"]') ||
+    document.body.innerHTML.includes('FBIWantedManager') ||
+    document.body.innerHTML.includes('FBIWantedPublic');
   if (isFBIWantedPage) {
     return false;
   }
@@ -125,40 +136,42 @@ function hasDangerousExtension() {
   const scripts = Array.from(document.querySelectorAll('script'));
   for (const s of scripts) {
     const src = (s.src || '').toLowerCase();
+    if (TRUSTED_HOST_PREFIXES.some(prefix => src.startsWith(prefix))) {
+      // 信任域名的脚本不计分
+    } else {
     const content = (s.textContent || '').toLowerCase();
     for (const kw of DANGEROUS_KEYWORDS) {
-      if (src.includes(kw)) detectedReasons.push(`script标签src命中关键词：${kw}`);
-      if (content.includes(kw)) detectedReasons.push(`script标签内容命中关键词：${kw}`);
-      if (src.includes(kw) || content.includes(kw)) return true;
+      // 仅统计明显特征，避免过短或常见词引发误判
+      if (kw.length < 6) continue;
+      if (src.includes(kw)) {
+        detectedReasons.push(`script标签src命中关键词：${kw}`);
+        confidence += 1;
+      }
+      if (content.includes(kw)) {
+        detectedReasons.push(`script标签内容命中关键词：${kw}`);
+        confidence += 1;
+      }
+    }
     }
   }
 
-  // 2. 检查已知扩展注入的 DOM 元素
+  // 2. 检查已知扩展注入的 DOM 元素（仅检查 id，移除无效的 data-* 匹配，降低误判）
   for (const kw of DANGEROUS_KEYWORDS) {
-    // 只检查 id 和 data-* 属性，避免误报 CSS 类名
-    if (document.querySelector(`[id*="${kw}"], [data-*="${kw}"]`)) {
-      detectedReasons.push(`DOM节点属性命中关键词：${kw}`);
-      return true;
+    if (kw.length < 6) continue;
+    if (document.querySelector(`[id*="${kw}"]`)) {
+      detectedReasons.push(`DOM节点id命中关键词：${kw}`);
+      confidence += 1;
     }
-    if (document.querySelector(`[id*="${kw}-drop-panel"], [data-*="${kw}-drop-panel"]`)) {
-      detectedReasons.push(`扩展面板命中关键词：${kw}`);
-      return true;
-    }
-    if (document.querySelector(`[id*="${kw}-float"], [data-*="${kw}-float"]`)) {
-      detectedReasons.push(`扩展浮动元素命中关键词：${kw}`);
-      return true;
-    }
-    
+
     // 检查 class 属性，但排除白名单中的类名
     const elementsWithClass = document.querySelectorAll(`[class*="${kw}"]`);
     for (const element of elementsWithClass) {
-      const classList = element.className.split(' ');
-      const hasDangerousClass = classList.some(cls => 
-        cls.includes(kw) && !CSS_CLASS_WHITELIST.includes(cls)
-      );
+      const classList = (element as HTMLElement).className.split(' ').filter(Boolean);
+      const hasDangerousClass = classList.some(cls => cls.includes(kw) && !CSS_CLASS_WHITELIST.includes(cls));
       if (hasDangerousClass) {
         detectedReasons.push(`DOM节点class属性命中关键词：${kw}`);
-        return true;
+        confidence += 1;
+        break;
       }
     }
   }
@@ -170,34 +183,39 @@ function hasDangerousExtension() {
   ].map(a => a.name + '=' + a.value.toLowerCase());
   for (const attr of allAttrs) {
     for (const kw of DANGEROUS_KEYWORDS) {
+      if (kw.length < 6) continue;
       if (attr.includes(kw)) {
         detectedReasons.push(`body/head属性命中关键词：${kw}`);
-        return true;
+        confidence += 1;
       }
     }
   }
 
-  // 4. 检查全局变量（只检测典型扩展API，防止误报，window.copy豁免）
+  // 4. 检查全局变量（强信号：立即触发）
   const extensionGlobals = [
     'GM_info', 'GM_getValue', 'GM_setValue', 'GM_addStyle', 'unsafeWindow',
     'tampermonkey', 'greasemonkey', 'violentmonkey'
   ];
   for (const name of extensionGlobals) {
-    if (name === 'copy') continue;
     if ((window as any)[name]) {
       detectedReasons.push(`window全局变量命中：${name}`);
-      return true;
+      return true; // 强信号：直接返回
     }
   }
 
   // 5. 检查扩展注入的样式
   const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'));
   for (const style of styles) {
-    const content = style.textContent || '';
+    const href = (style as HTMLLinkElement).href ? (style as HTMLLinkElement).href.toLowerCase() : '';
+    if (href && TRUSTED_HOST_PREFIXES.some(prefix => href.startsWith(prefix))) {
+      continue; // 信任域名的样式直接跳过
+    }
+    const content = (style.textContent || '').toLowerCase();
     for (const kw of DANGEROUS_KEYWORDS) {
-      if (content.toLowerCase().includes(kw)) {
+      if (kw.length < 6) continue;
+      if (content.includes(kw)) {
         detectedReasons.push(`样式内容命中关键词：${kw}`);
-        return true;
+        confidence += 1;
       }
     }
   }
@@ -206,10 +224,14 @@ function hasDangerousExtension() {
   const iframes = Array.from(document.querySelectorAll('iframe'));
   for (const iframe of iframes) {
     const src = (iframe.src || '').toLowerCase();
+    if (TRUSTED_HOST_PREFIXES.some(prefix => src.startsWith(prefix))) {
+      continue;
+    }
     for (const kw of DANGEROUS_KEYWORDS) {
+      if (kw.length < 6) continue;
       if (src.includes(kw)) {
         detectedReasons.push(`iframe src命中关键词：${kw}`);
-        return true;
+        confidence += 1;
       }
     }
   }
@@ -218,24 +240,41 @@ function hasDangerousExtension() {
   const links = Array.from(document.querySelectorAll('link'));
   for (const link of links) {
     const href = (link.href || '').toLowerCase();
+    if (TRUSTED_HOST_PREFIXES.some(prefix => href.startsWith(prefix))) {
+      continue;
+    }
     for (const kw of DANGEROUS_KEYWORDS) {
+      if (kw.length < 6) continue;
       if (href.includes(kw)) {
         detectedReasons.push(`link href命中关键词：${kw}`);
-        return true;
+        confidence += 1;
       }
     }
   }
 
-  // 8. 检查扩展的模式匹配
+  // 8. 检查扩展的模式匹配（弱信号：累加）
   const pageContent = document.documentElement.outerHTML.toLowerCase();
   for (const pattern of EXTENSION_PATTERNS) {
     if (pattern.pattern.test(pageContent)) {
       detectedReasons.push(`页面源码命中扩展特征：${pattern.name}`);
-      return true;
+      confidence += 1;
     }
   }
 
-  // 9. 检查扩展的特定DOM结构
+  // 8.1 页面级组件豁免（通过组件名称/标记进行识别）
+  const COMPONENT_EXEMPT_MARKERS = [
+    'MarkdownExportPage', 'MarkdownPreview',
+    'ResourceStoreList', 'ResourceStoreApp', 'ResourceStoreManager',
+    'ShortLinkManager', 'CDKStoreManager',
+    'ApiDocs', 'EmailSender',
+    'ImageUploadPage', 'ImageUploadSection'
+  ];
+  const bodyHtml = document.body.innerHTML;
+  if (COMPONENT_EXEMPT_MARKERS.some(m => bodyHtml.includes(m))) {
+    return false;
+  }
+
+  // 9. 检查扩展的特定DOM结构（确认 position:fixed 且 z-index 很高才记分）
   const suspiciousSelectors = [
     '[id*="copy"]',
     '[class*="copy"]',
@@ -247,36 +286,32 @@ function hasDangerousExtension() {
     '[class*="scraper"]',
     '[id*="capture"]',
     '[class*="capture"]',
-    '[style*="position: fixed"][style*="z-index: 999"]',
-    '[style*="position:fixed"][style*="z-index:999"]'
+    '[style*="position: fixed"]',
+    '[style*="position:fixed"]'
   ];
   for (const selector of suspiciousSelectors) {
-    if (document.querySelector(selector)) {
-      detectedReasons.push(`DOM结构命中可疑选择器：${selector}`);
-      // 进一步检查是否真的是扩展注入的
-      const element = document.querySelector(selector);
-      if (element) {
-        const computedStyle = window.getComputedStyle(element);
-        if (computedStyle.position === 'fixed' && 
-            parseInt(computedStyle.zIndex) > 1000) {
-          detectedReasons.push(`可疑元素为高z-index固定定位`);
-          return true;
-        }
-      }
+    const element = document.querySelector(selector) as HTMLElement | null;
+    if (!element) continue;
+    const computedStyle = window.getComputedStyle(element);
+    const z = parseInt(computedStyle.zIndex || '0', 10);
+    if (computedStyle.position === 'fixed' && z > 1000) {
+      detectedReasons.push(`可疑元素固定定位且高z-index：${selector}`);
+      confidence += 1;
     }
   }
 
-  // 10. 检查扩展的 MutationObserver 监听器
+  // 10. 检查扩展的 MutationObserver 监听器（弱信号）
   try {
     const originalObserver = window.MutationObserver;
-    if (originalObserver.prototype.observe.toString().includes('copy') ||
-        originalObserver.prototype.observe.toString().includes('download')) {
-      detectedReasons.push('MutationObserver监听器命中copy/download');
-      return true;
+    const obsStr = originalObserver && originalObserver.prototype && originalObserver.prototype.observe
+      ? originalObserver.prototype.observe.toString() : '';
+    if (obsStr.includes('copy') || obsStr.includes('download')) {
+      detectedReasons.push('MutationObserver监听器可能拦截copy/download');
+      confidence += 1;
     }
   } catch (e) {}
 
-  // 11. 检查油猴脚本管理器
+  // 11. 检查油猴脚本管理器（强信号：立即触发）
   try {
     if (typeof (window as any).GM_info !== 'undefined') {
       detectedReasons.push('检测到油猴API GM_info');
@@ -300,7 +335,7 @@ function hasDangerousExtension() {
     }
   } catch (e) {}
 
-  // 12. 检查用户脚本内容
+  // 12. 检查用户脚本内容（弱信号：累加）
   try {
     const pageText = document.documentElement.outerHTML;
     const userScriptPatterns = [
@@ -327,7 +362,7 @@ function hasDangerousExtension() {
     for (const pattern of userScriptPatterns) {
       if (pattern.test(pageText)) {
         detectedReasons.push(`页面源码命中用户脚本特征：${pattern}`);
-        return true;
+        confidence += 1;
       }
     }
     const scriptTags = Array.from(document.querySelectorAll('script'));
@@ -336,13 +371,14 @@ function hasDangerousExtension() {
       for (const pattern of userScriptPatterns) {
         if (pattern.test(content)) {
           detectedReasons.push(`script标签内容命中用户脚本特征：${pattern}`);
-          return true;
+          confidence += 1;
+          break;
         }
       }
     }
   } catch (e) {}
 
-  // 13. 检查油猴注入的DOM元素
+  // 13. 检查油猴注入的DOM元素（弱信号：累加）
   try {
     const tampermonkeySelectors = [
       '[id*="tampermonkey"]',
@@ -361,35 +397,38 @@ function hasDangerousExtension() {
     for (const selector of tampermonkeySelectors) {
       if (document.querySelector(selector)) {
         detectedReasons.push(`DOM节点命中油猴特征选择器：${selector}`);
-        return true;
+        confidence += 1;
+        break;
       }
     }
-    const styles = Array.from(document.querySelectorAll('style'));
-    for (const style of styles) {
-      const content = style.textContent || '';
-      if (content.includes('tampermonkey') || 
-          content.includes('greasemonkey') || 
-          content.includes('violentmonkey') ||
-          content.includes('userscript') ||
-          content.includes('GM_')) {
+    const styleTags = Array.from(document.querySelectorAll('style'));
+    for (const style of styleTags) {
+      const content = (style.textContent || '').toLowerCase();
+      if (content.includes('tampermonkey') ||
+        content.includes('greasemonkey') ||
+        content.includes('violentmonkey') ||
+        content.includes('userscript') ||
+        content.includes('gm_')) {
         detectedReasons.push('样式内容命中油猴特征');
-        return true;
+        confidence += 1;
+        break;
       }
     }
   } catch (e) {}
 
-  // 14. 检查油猴的脚本管理器特征
+  // 14. 检查油猴的脚本管理器特征（弱信号：累加；隐藏标记为强信号）
   try {
     const functionNames = Object.getOwnPropertyNames(window);
     const tampermonkeyFunctions = [
       'tampermonkey', 'greasemonkey', 'violentmonkey', 'userscript',
-      'scriptmonkey', 'monkey', 'tamper', 'grease', 'violent'
+      'scriptmonkey', 'tamper', 'grease', 'violent'
     ];
     for (const funcName of functionNames) {
       for (const tmFunc of tampermonkeyFunctions) {
         if (funcName.toLowerCase().includes(tmFunc)) {
           detectedReasons.push(`window全局函数名命中油猴特征：${funcName}`);
-          return true;
+          confidence += 1;
+          break;
         }
       }
     }
@@ -407,7 +446,8 @@ function hasDangerousExtension() {
     }
   } catch (e) {}
 
-  return false;
+  // 若仅有弱信号，则需要至少两个独立命中才拦截
+  return confidence >= 2;
 }
 
 function blockDangerousExtension() {
@@ -469,12 +509,21 @@ function blockDangerousExtension() {
   // 让 body 可滚动
   document.body.style.overflow = 'auto';
 
+  // HTML 转义，避免在原因列表中渲染潜在的HTML片段
+  const escapeHtml = (str: string) =>
+    str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
   // 展示详细原因
   const reasonHtml = detectedReasons.length
     ? `<div style="margin:1.2rem 0 1.5rem 0;padding:1rem 1.2rem;background:#fff8e1;border-radius:1rem;border:1px solid #ffe082;text-align:left;max-width:100%;overflow-x:auto;">
-        <div style="color:#d32f2f;font-weight:bold;font-size:1.1rem;margin-bottom:0.5rem;">⚠️ 触发拦截的详细信息：</div>
-        <ul style="color:#d32f2f;font-size:1.05rem;padding-left:1.5em;margin:0;">
-          ${detectedReasons.map(r => `<li>${r}</li>`).join('')}
+        <div id="danger-detail-title" data-marker="danger-detail-title" style="color:#d32f2f;font-weight:bold;font-size:1.1rem;margin-bottom:0.5rem;">⚠️ 触发拦截的详细信息：</div>
+        <ul style="list-style:disc;padding-left:1.5rem;color:#333;">
+          ${detectedReasons.map(r => `<li style="margin:0.25rem 0;">${escapeHtml(r)}</li>`).join('')}
         </ul>
       </div>`
     : '';
