@@ -37,17 +37,47 @@ export interface EmailQuotaInfo {
   resetAt: string; // ISO
 }
 
-// 简单本地文件实现（可扩展为Mongo/MySQL）
+function isDangerousKey(key: string): boolean {
+  return key === '__proto__' || key === 'prototype' || key === 'constructor';
+}
+
+// 使用 null 原型对象避免原型链污染
+function createSafeMap<T>(): Record<string, T> {
+  return Object.create(null) as Record<string, T>;
+}
+
 function readQuotaFile(): Record<string, { used: number; resetAt: string }> {
-  if (!fs.existsSync(EMAIL_QUOTA_FILE)) return {};
+  if (!fs.existsSync(EMAIL_QUOTA_FILE)) return createSafeMap();
   try {
-    return JSON.parse(fs.readFileSync(EMAIL_QUOTA_FILE, 'utf-8'));
+    const parsed = JSON.parse(fs.readFileSync(EMAIL_QUOTA_FILE, 'utf-8')) as Record<string, { used: number; resetAt: string }>;
+    const safe = createSafeMap<{ used: number; resetAt: string }>();
+    for (const [k, v] of Object.entries(parsed || {})) {
+      if (typeof k === 'string' && !isDangerousKey(k) && v && typeof v.used === 'number' && typeof v.resetAt === 'string') {
+        safe[k] = { used: v.used, resetAt: v.resetAt };
+      }
+    }
+    return safe;
   } catch {
-    return {};
+    return createSafeMap();
   }
 }
 function writeQuotaFile(data: Record<string, { used: number; resetAt: string }>) {
-  fs.writeFileSync(EMAIL_QUOTA_FILE, JSON.stringify(data, null, 2));
+  // 将可能的 null 原型对象安全序列化
+  const obj: Record<string, { used: number; resetAt: string }> = {};
+  for (const [k, v] of Object.entries(data || {})) {
+    if (!isDangerousKey(k)) obj[k] = v;
+  }
+  fs.writeFileSync(EMAIL_QUOTA_FILE, JSON.stringify(obj, null, 2));
+}
+
+function safeGet<T extends { used: number; resetAt: string }>(map: Record<string, T>, key: string): T | undefined {
+  if (typeof key !== 'string' || isDangerousKey(key)) return undefined;
+  return map[key];
+}
+
+function safeSet<T extends { used: number; resetAt: string }>(map: Record<string, T>, key: string, value: T): void {
+  if (typeof key !== 'string' || isDangerousKey(key)) return;
+  map[key] = value;
 }
 
 // 多域名配额支持
@@ -93,11 +123,12 @@ export async function getEmailQuota(userId: string, domain?: string): Promise<Em
   }
   // 文件存储兜底
   const all = readQuotaFile();
-  let info = all[userId];
+  const safeUserId = typeof userId === 'string' ? userId : '';
+  let info = safeGet(all, safeUserId);
   const now = dayjs();
   if (!info || !info.resetAt || dayjs(info.resetAt).isBefore(now)) {
     info = { used: 0, resetAt: now.add(1, 'day').startOf('day').toISOString() };
-    all[userId] = info;
+    safeSet(all, safeUserId, info);
     writeQuotaFile(all);
   }
   const quotaTotal = domain && domainQuotaMap[domain] ? domainQuotaMap[domain] : 100;
@@ -131,13 +162,14 @@ export async function addEmailUsage(userId: string, count = 1, domain?: string) 
   }
   // 文件存储兜底
   const all = readQuotaFile();
-  let info = all[userId];
+  const safeUserId = typeof userId === 'string' ? userId : '';
+  let info = safeGet(all, safeUserId);
   const now = dayjs();
   if (!info || !info.resetAt || dayjs(info.resetAt).isBefore(now)) {
     info = { used: 0, resetAt: now.add(1, 'day').startOf('day').toISOString() };
   }
   info.used = (info.used || 0) + count;
-  all[userId] = info;
+  safeSet(all, safeUserId, info);
   writeQuotaFile(all);
 }
 
@@ -159,7 +191,8 @@ export async function resetEmailQuota(userId: string, domain?: string) {
   }
   // 文件存储兜底
   const all = readQuotaFile();
-  all[userId] = { used: 0, resetAt: dayjs().add(1, 'day').startOf('day').toISOString() };
+  const safeUserId = typeof userId === 'string' ? userId : '';
+  safeSet(all, safeUserId, { used: 0, resetAt: dayjs().add(1, 'day').startOf('day').toISOString() });
   writeQuotaFile(all);
 }
 

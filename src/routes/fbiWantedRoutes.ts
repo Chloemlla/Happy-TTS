@@ -52,15 +52,15 @@ const uploadPhotoLimiter = createLimiter({
     message: '头像上传过于频繁，请稍后再试'
 });
 
-router.get('/', authenticateToken, authenticateAdmin, adminLimiter, fbiWantedController.getAllWanted);
-router.get('/statistics', authenticateToken, authenticateAdmin, adminLimiter, fbiWantedController.getStatistics);
-router.get('/:id', authenticateToken, authenticateAdmin, adminLimiter, fbiWantedController.getWantedById);
-router.post('/', authenticateToken, authenticateAdmin, adminLimiter, fbiWantedController.createWanted);
-router.put('/:id', authenticateToken, authenticateAdmin, adminLimiter, fbiWantedController.updateWanted);
-router.patch('/:id/status', authenticateToken, authenticateAdmin, adminLimiter, fbiWantedController.updateWantedStatus);
-router.patch('/:id/photo', authenticateToken, authenticateAdmin, uploadPhotoLimiter, upload.single('photo'), fbiWantedController.updateWantedPhoto);
-router.delete('/multiple', authenticateToken, authenticateAdmin, adminLimiter, fbiWantedController.deleteMultiple);
-router.delete('/:id', authenticateToken, authenticateAdmin, adminLimiter, fbiWantedController.deleteWanted);
-router.post('/batch-delete', authenticateToken, authenticateAdmin, adminLimiter, fbiWantedController.batchDeleteWanted);
+router.get('/', adminLimiter, authenticateToken, authenticateAdmin, fbiWantedController.getAllWanted);
+router.get('/statistics', adminLimiter, authenticateToken, authenticateAdmin, fbiWantedController.getStatistics);
+router.get('/:id', adminLimiter, authenticateToken, authenticateAdmin, fbiWantedController.getWantedById);
+router.post('/', adminLimiter, authenticateToken, authenticateAdmin, fbiWantedController.createWanted);
+router.put('/:id', adminLimiter, authenticateToken, authenticateAdmin, fbiWantedController.updateWanted);
+router.patch('/:id/status', adminLimiter, authenticateToken, authenticateAdmin, fbiWantedController.updateWantedStatus);
+router.patch('/:id/photo', uploadPhotoLimiter, authenticateToken, authenticateAdmin, upload.single('photo'), fbiWantedController.updateWantedPhoto);
+router.delete('/multiple', adminLimiter, authenticateToken, authenticateAdmin, fbiWantedController.deleteMultiple);
+router.delete('/:id', adminLimiter, authenticateToken, authenticateAdmin, fbiWantedController.deleteWanted);
+router.post('/batch-delete', adminLimiter, authenticateToken, authenticateAdmin, fbiWantedController.batchDeleteWanted);
 
 export default router;
