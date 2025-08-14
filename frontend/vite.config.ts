@@ -51,6 +51,10 @@ export default defineConfig(({ mode }) => {
         targetLangList: ['en', 'zh-cn', 'zh-tw'],
         // 构建行为
         buildToDist: true,
+        // 将打包后的翻译文件输出到 dist/lang 目录
+        distPath: 'lang',
+        // 打包后的翻译主文件名称
+        distKey: 'index',
         rewriteConfig: true,
         // 使用默认 Google 翻译（生产环境不走代理）
         translator: new GoogleTranslator(

@@ -53,6 +53,7 @@ import cdkRoutes from './routes/cdkRoutes';
 import shortUrlRoutes from './routes/shortUrlRoutes';
 import fbiWantedRoutes from './routes/fbiWantedRoutes';
 import fbiWantedPublicRoutes from './routes/fbiWantedPublicRoutes';
+import humanCheckRoutes from './routes/humanCheckRoutes';
 
 import emailRoutes from './routes/emailRoutes';
 import { commandStatusHandler } from './routes/commandRoutes';
