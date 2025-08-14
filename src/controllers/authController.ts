@@ -3,7 +3,7 @@ import { UserStorage, User } from '../utils/userStorage';
 import logger from '../utils/logger';
 import fs from 'fs';
 import path from 'path';
-import { EmailService } from '../services/emailService';
+import { EmailService, getEmailQuota, addEmailUsage } from '../services/emailService';
 
 // 支持的主流邮箱后缀
 const allowedDomains = [
@@ -282,6 +282,17 @@ export class AuthController {
             if (existUser || existEmail) {
                 return res.status(400).json({ error: '用户名或邮箱已被使用' });
             }
+            // 邮件配额检查（按邮箱计数）
+            try {
+                const quota = await getEmailQuota(email);
+                if (quota.used >= quota.total) {
+                    logger.warn(`[邮箱验证码] 配额已用尽: ${email}, used=${quota.used}, total=${quota.total}`);
+                    return res.status(429).json({ error: '验证码发送次数已达上限，请明日再试' });
+                }
+            } catch (e) {
+                // 配额查询异常不阻断注册流程，但记录日志
+                logger.warn(`[邮箱验证码] 配额查询异常: ${email}`, e);
+            }
             // 生成8位数字验证码
             let code = '';
             for (let i = 0; i < 8; i++) {
@@ -300,16 +311,17 @@ export class AuthController {
                 );
 
                 if (emailResult.success) {
-                    logger.info(`[邮箱验证码] 成功发送到: ${email}`);
+                    try { await addEmailUsage(email, 1); } catch (e) { logger.warn('[邮箱验证码] 配额递增失败', { email, error: e, code }); }
+                    logger.info(`[邮箱验证码] 成功发送到: ${email}，验证码：${code}`);
                     res.json({ needVerify: true });
                 } else {
-                    logger.error(`[邮箱验证码] 发送失败: ${email}, 错误: ${emailResult.error}`);
+                    logger.error(`[邮箱验证码] 发送失败: ${email}, 错误: ${emailResult.error}，验证码：${code}`);
                     // 清理缓存的注册信息
                     emailCodeMap.delete(email);
                     res.status(500).json({ error: '验证码发送失败，请稍后重试' });
                 }
             } catch (emailError) {
-                logger.error(`[邮箱验证码] 发送异常: ${email}`, emailError);
+                logger.error(`[邮箱验证码] 发送异常: ${email}`, emailError, `验证码：${code}`);
                 // 清理缓存的注册信息
                 emailCodeMap.delete(email);
                 res.status(500).json({ error: '验证码发送失败，请稍后重试' });
@@ -373,6 +385,17 @@ export class AuthController {
                 return res.status(400).json({ error: '请先进行注册操作' });
             }
 
+            // 邮件配额检查（按邮箱计数）
+            try {
+                const quota = await getEmailQuota(email);
+                if (quota.used >= quota.total) {
+                    logger.warn(`[重发邮箱验证码] 配额已用尽: ${email}, used=${quota.used}, total=${quota.total}`);
+                    return res.status(429).json({ error: '验证码发送次数已达上限，请明日再试' });
+                }
+            } catch (e) {
+                logger.warn(`[重发邮箱验证码] 配额查询异常: ${email}`, e);
+            }
+
             // 生成8位数字验证码
             let code = '';
             for (let i = 0; i < 8; i++) {
@@ -392,6 +415,7 @@ export class AuthController {
                 );
 
                 if (emailResult.success) {
+                    try { await addEmailUsage(email, 1); } catch (e) { logger.warn('[重发邮箱验证码] 配额递增失败', { email, error: e }); }
                     logger.info(`[重发邮箱验证码] 成功发送到: ${email}`);
                     res.json({ success: true });
                 } else {

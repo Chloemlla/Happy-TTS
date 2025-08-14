@@ -21,6 +21,24 @@ const adminLimiter = rateLimit({
   skip: (req: any) => req.isLocalIp || false
 });
 
+// 管理员清空指定用户的全部指纹记录（需管理员权限）
+router.delete('/users/:id/fingerprints', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    if (!userId) return res.status(400).json({ error: '缺少用户ID' });
+
+    const { getUserById, updateUser } = require('../services/userService');
+    const target = await getUserById(userId);
+    if (!target) return res.status(404).json({ error: '用户不存在' });
+
+    await updateUser(userId, { fingerprints: [] } as any);
+    return res.json({ success: true, fingerprints: [] });
+  } catch (e) {
+    console.error('清空指纹失败', e);
+    return res.status(500).json({ error: '清空指纹失败' });
+  }
+});
+
 // 管理员权限检查中间件
 const adminAuthMiddleware = (req: any, res: any, next: any) => {
   // 允许普通已登录用户访问的用户自助接口（在本路由前缀 /api/admin 下）
@@ -65,6 +83,22 @@ router.use(authMiddleware);
 router.use(adminAuthMiddleware);
 router.use(adminLimiter); // 已登录管理员不再限速
 
+// 在所有已认证/管理员路由上，若用户被标记为需要上报指纹，则告知前端
+router.use(async (req: any, res: any, next: any) => {
+  try {
+    if (req.user && req.user.id) {
+      const { getUserById } = require('../services/userService');
+      const current = await getUserById(req.user.id);
+      if (current && (current as any).requireFingerprint) {
+        res.setHeader('X-Require-Fingerprint', '1');
+      }
+    }
+  } catch (e) {
+    // 静默失败，不影响主流程
+  }
+  next();
+});
+
 /**
  * @openapi
  * /admin/users:
@@ -97,6 +131,30 @@ router.get('/users', adminController.getUsers);
  *         description: 创建用户结果
  */
 router.post('/users', adminController.createUser);
+
+// 管理员设置指定用户下次需要上报指纹（一次性或开关）
+router.post('/users/:id/fingerprint/require', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    if (!userId) return res.status(400).json({ error: '缺少用户ID' });
+    const { require: requireFlag } = req.body || {};
+    const enabled = !!requireFlag;
+    const { getUserById, updateUser } = require('../services/userService');
+    const target = await getUserById(userId);
+    if (!target) return res.status(404).json({ error: '用户不存在' });
+    const updates: any = { requireFingerprint: enabled };
+    if (enabled) {
+      updates.requireFingerprintAt = Date.now();
+    } else {
+      updates.requireFingerprintAt = 0;
+    }
+    await updateUser(userId, updates as any);
+    return res.json({ success: true, requireFingerprint: enabled, requireFingerprintAt: updates.requireFingerprintAt });
+  } catch (e) {
+    console.error('设置指纹上报需求失败', e);
+    return res.status(500).json({ error: '设置失败' });
+  }
+});
 
 /**
  * @openapi
@@ -892,11 +950,29 @@ router.post('/user/fingerprint', authMiddleware, async (req, res) => {
     // 保留最新的150条指纹记录
     const next = [fingerprintRecord, ...existing].slice(0, 150);
 
-    await updateUser(user.id, { fingerprints: next } as any);
+    // 保存指纹并清除一次性上报需求标记及时间戳
+    await updateUser(user.id, { fingerprints: next, requireFingerprint: false, requireFingerprintAt: 0 } as any);
     res.json({ success: true });
   } catch (e) {
     console.error('保存指纹失败', e);
     res.status(500).json({ error: '保存指纹失败' });
+  }
+});
+
+// 管理员查询指定用户的指纹预约状态（需管理员权限）
+router.get('/users/:id/fingerprint/require/status', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    if (!userId) return res.status(400).json({ error: '缺少用户ID' });
+    const { getUserById } = require('../services/userService');
+    const target = await getUserById(userId);
+    if (!target) return res.status(404).json({ error: '用户不存在' });
+    const requireFingerprint = !!(target as any).requireFingerprint;
+    const requireFingerprintAt = Number((target as any).requireFingerprintAt || 0);
+    return res.json({ success: true, requireFingerprint, requireFingerprintAt });
+  } catch (e) {
+    console.error('查询指纹预约状态失败', e);
+    return res.status(500).json({ error: '查询失败' });
   }
 });
 
@@ -923,6 +999,43 @@ router.get('/user/fingerprint/status', authMiddleware, async (req, res) => {
   } catch (e) {
     console.error('查询指纹状态失败', e);
     res.status(500).json({ error: '查询指纹状态失败' });
+  }
+});
+
+// 管理员删除指定用户的一条指纹记录（需管理员权限）
+router.delete('/users/:id/fingerprints/:fpId', async (req, res) => {
+  try {
+    // adminAuthMiddleware 已在上方全局应用，此处为管理员接口
+    const userId = req.params.id;
+    const fpId = req.params.fpId;
+    if (!userId || !fpId) {
+      return res.status(400).json({ error: '缺少必要参数' });
+    }
+
+    const { getUserById, updateUser } = require('../services/userService');
+    const target = await getUserById(userId);
+    if (!target) return res.status(404).json({ error: '用户不存在' });
+
+    const list: any[] = (target as any).fingerprints || [];
+    const tsParam = Number(req.query.ts || 0);
+
+    let next: any[] = [...list];
+    if (tsParam && !Number.isNaN(tsParam)) {
+      // 精确按 id+ts 删除单条
+      next = list.filter((r: any) => !(r && r.id === fpId && Number(r.ts) === tsParam));
+    } else {
+      // 未传 ts 时，仅删除首个匹配该 id 的记录
+      const idx = list.findIndex((r: any) => r && r.id === fpId);
+      if (idx >= 0) {
+        next.splice(idx, 1);
+      }
+    }
+
+    await updateUser(userId, { fingerprints: next } as any);
+    return res.json({ success: true, fingerprints: next });
+  } catch (e) {
+    console.error('删除指纹失败', e);
+    return res.status(500).json({ error: '删除指纹失败' });
   }
 });
 

@@ -8,10 +8,25 @@ if (!fs.existsSync(logDir)) {
     fs.mkdirSync(logDir, { recursive: true });
 }
 
-// 配置日志格式
+// 配置日志格式（上海时间）
 const logFormat = winston.format.combine(
     winston.format.colorize(),
-    winston.format.timestamp(),
+    winston.format.timestamp({
+        format: () => {
+            try {
+                const dtf = new Intl.DateTimeFormat('zh-CN', {
+                    timeZone: 'Asia/Shanghai',
+                    year: 'numeric', month: '2-digit', day: '2-digit',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit',
+                    hour12: false
+                });
+                // e.g. 2025/08/14 20:46:50 → replace / with - for consistency (avoid replaceAll for wider TS targets)
+                return dtf.format(new Date()).replace(/\//g, '-');
+            } catch {
+                return new Date().toISOString();
+            }
+        }
+    }),
     winston.format.printf(({ timestamp, level, message, ...meta }) => {
         const metaString = Object.keys(meta).length ? JSON.stringify(meta) : '';
         return `[${timestamp}] ${level}: ${message} ${metaString}`;

@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
+import { reportFingerprintOnce } from '../utils/fingerprint';
 
 // 获取API基础URL
 const getApiBaseUrl = () => {
@@ -26,8 +27,23 @@ api.interceptors.request.use((config) => {
 
 // 响应拦截器：处理错误
 api.interceptors.response.use(
-    (response) => response,
+    (response) => {
+        try {
+            const flag = response.headers?.['x-require-fingerprint'] || response.headers?.['X-Require-Fingerprint'];
+            if (flag === '1') {
+                // 异步触发上报（不阻塞当前请求）
+                reportFingerprintOnce({ force: true });
+            }
+        } catch {}
+        return response;
+    },
     (error) => {
+        try {
+            const flag = error?.response?.headers?.['x-require-fingerprint'] || error?.response?.headers?.['X-Require-Fingerprint'];
+            if (flag === '1') {
+                reportFingerprintOnce({ force: true });
+            }
+        } catch {}
         if (error.response?.status === 401) {
             localStorage.removeItem('token');
             window.location.href = '/welcome';

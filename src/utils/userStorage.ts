@@ -62,6 +62,9 @@ export interface User {
     currentChallenge?: string;
     passkeyVerified?: boolean;
     avatarUrl?: string; // 新增头像URL字段
+    // 指纹预约需求持久化（仅MongoDB完整支持，文件模式也会保存该字段）
+    requireFingerprint?: boolean;
+    requireFingerprintAt?: number;
     // 新增：指纹记录（历史）
     fingerprints?: {
         id: string;

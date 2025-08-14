@@ -159,7 +159,28 @@ const WatermarkOverlay: React.FC = () => {
   }, []);
 
   return (
-    <div className="fixed inset-0 z-[99999] pointer-events-none overflow-hidden">
+    <div className="fixed inset-0 z-[99999] pointer-events-none overflow-hidden backdrop-blur-sm">
+      {/* 斜向条纹遮罩层 */}
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage:
+            'repeating-linear-gradient(45deg, rgba(255,0,0,0.18) 0px, rgba(255,0,0,0.18) 10px, transparent 10px, transparent 22px)',
+          backgroundSize: '200px 200px',
+          animation: 'wmScroll 12s linear infinite',
+          mixBlendMode: 'multiply',
+        }}
+      />
+      {/* 水平细线遮罩层 */}
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage:
+            'repeating-linear-gradient(0deg, rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px, transparent 1px, transparent 6px)',
+          animation: 'wmScrollY 14s linear infinite',
+          mixBlendMode: 'multiply',
+        }}
+      />
       {watermarks.map((wm) => (
         <div
           key={wm.id}
@@ -169,11 +190,29 @@ const WatermarkOverlay: React.FC = () => {
             top: wm.top,
             transform: `translate(-50%, -50%) rotate(${wm.rotate}deg)`,
             fontSize: '16px',
+            animation: 'wmJitter 3s ease-in-out infinite alternate',
+            animationDelay: `${(wm.id % 7) * 0.15}s`,
           }}
         >
           Copyright © Individual Developer Happy-clo
         </div>
       ))}
+      <style>
+        {`
+          @keyframes wmScroll {
+            0% { background-position: 0 0; }
+            100% { background-position: 400px 400px; }
+          }
+          @keyframes wmScrollY {
+            0% { background-position: 0 0; }
+            100% { background-position: 0 300px; }
+          }
+          @keyframes wmJitter {
+            0% { transform: translate(-50%, -50%) rotate(-6deg); opacity: 0.9; }
+            100% { transform: translate(-50%, -50%) rotate(6deg); opacity: 1; }
+          }
+        `}
+      </style>
     </div>
   );
 };

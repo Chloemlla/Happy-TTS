@@ -35,7 +35,7 @@ const AdminDashboard: React.FC = () => {
   const [tab, setTab] = useState('users');
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
   const { setNotification } = useNotification();
   const navigate = useNavigate();
 
@@ -249,9 +249,14 @@ const AdminDashboard: React.FC = () => {
                 <span>ID: {user?.id}</span>
                 <span className="mx-1">•</span>
                 <motion.button
-                  onClick={() => {
-                    localStorage.removeItem('token');
-                    navigate('/login');
+                  onClick={async () => {
+                    try {
+                      await Promise.resolve(logout?.());
+                    } finally {
+                      // 兜底清理并跳转
+                      try { localStorage.removeItem('token'); } catch {}
+                      navigate('/login');
+                    }
                   }}
                   className="text-red-600 hover:text-red-700 transition"
                   whileHover={{ scale: 1.05 }}
