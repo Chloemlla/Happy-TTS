@@ -7,9 +7,9 @@ const MODIFY_CODE = process.env.MODIFY_CODE || '123456';
 export const getModList = async (req: Request, res: Response) => {
   try {
     console.log('🔐 [ModList] 开始处理MOD列表请求...');
-    console.log('   用户ID:', req.user?.id);
-    console.log('   用户名:', req.user?.username);
-    console.log('   用户角色:', req.user?.role);
+    console.log('   用户ID:', req.user?.id ?? '未登录');
+    console.log('   用户名:', req.user?.username ?? '未登录');
+    console.log('   用户角色:', req.user?.role ?? 'guest');
     console.log('   请求IP:', req.ip);
 
   const { withHash, withMd5 } = req.query;
@@ -130,7 +130,7 @@ export const addMod = async (req: Request, res: Response) => {
 
 export const updateMod = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { name, code } = req.body;
+  const { name, code, hash, md5 } = req.body;
   if (!id || !name || typeof name !== 'string') {
     return res.status(400).json({ error: '参数错误' });
   }
@@ -138,7 +138,7 @@ export const updateMod = async (req: Request, res: Response) => {
     return res.status(403).json({ error: '修改码错误' });
   }
   try {
-    const mod = await updateModStorage(id, name);
+    const mod = await updateModStorage(id, name, hash, md5);
     res.json({ success: true, mod });
   } catch (e: any) {
     res.status(404).json({ error: e.message || '修改失败' });

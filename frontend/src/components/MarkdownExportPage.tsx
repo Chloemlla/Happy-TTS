@@ -2,39 +2,21 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FaFileAlt, FaDownload, FaEye, FaFileWord, FaFilePdf, FaUpload, FaCopy, FaTrash } from 'react-icons/fa';
 import { marked } from 'marked';
-import markedKatex from 'marked-katex-extension';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+// marked-katex-extension 改为按需动态加载，避免初始包体积
+// jspdf 与 html2canvas 改为按需动态加载，仅在导出PDF时加载
 import DOMPurify from 'dompurify';
+// 拆分：按 CommandManager 方式将逻辑拆到独立文件
+import MarkdownPreview from './MarkdownExportPage/MarkdownPreview';
+import { useKatex } from './MarkdownExportPage/useKatex';
+import { exportToPdf as exportPdfUtil } from './MarkdownExportPage/pdfExport';
 
 // 简单的DOCX导出实现（使用RTF格式作为替代）
 
-// 按需加载 KaTeX 样式，浏览器会根据需要自动下载使用到的字体文件
-let katexCssLoaded = false;
-const ensureKatexStylesLoaded = async () => {
-    if (katexCssLoaded) return;
-    try {
-        await import('katex/dist/katex.min.css');
-        katexCssLoaded = true;
-    } catch {
-        // 忽略样式加载错误，降级渲染
-    }
-};
-
-// 简单判断是否包含数学公式
-const hasMath = (md: string): boolean => {
-    if (!md) return false;
-    // $$...$$, $...$, \\(...\\), \\[...\\]
-    return /\$\$[\s\S]*?\$\$/.test(md) || /(^|\s)\$[^$\n]+\$(?=\s|$)/.test(md) || /\\\([\s\S]*?\\\)/.test(md) || /\\\[[\s\S]*?\\\]/.test(md);
-};
-
-// 配置marked以支持KaTeX
-marked.use(markedKatex({
-    nonStandard: true
-}));
+// KaTeX 逻辑已拆分至 useKatex 钩子与独立模块
 
 const MarkdownExportPage: React.FC = () => {
-    const [isKatexLoaded, setIsKatexLoaded] = useState(false);
+    // 使用拆分的 KaTeX 钩子
+    const [isExporting, setIsExporting] = useState(false);
     const [markdownContent, setMarkdownContent] = useState(`# 示例文档
 
 ## 介绍
@@ -86,38 +68,8 @@ c & d
 [链接示例](https://example.com)
 `);
 
-    const [isExporting, setIsExporting] = useState(false);
     const previewRef = useRef<HTMLDivElement>(null);
-
-    // 当内容包含公式时，按需加载 KaTeX 样式，并在字体就绪后标记为已加载
-    useEffect(() => {
-        let mounted = true;
-        const loadIfNeeded = async () => {
-            if (!hasMath(markdownContent)) {
-                if (mounted) setIsKatexLoaded(true); // 不需要KaTeX也视为就绪
-                return;
-            }
-            await ensureKatexStylesLoaded();
-            // 等待字体就绪（特性检测，避免在不支持 document.fonts 的环境报错）
-            try {
-                const fontsReady = (typeof document !== 'undefined') &&
-                    (document as any).fonts &&
-                    (document as any).fonts.ready &&
-                    typeof (document as any).fonts.ready.then === 'function';
-                if (fontsReady) {
-                    await (document as any).fonts.ready;
-                } else {
-                    // 轻微延时，给样式与字体异步加载一些时间
-                    await new Promise(res => setTimeout(res, 200));
-                }
-            } catch {
-                // 忽略可能的字体就绪异常，继续渲染
-            }
-            if (mounted) setIsKatexLoaded(true);
-        };
-        loadIfNeeded();
-        return () => { mounted = false; };
-    }, [markdownContent]);
+    const isKatexLoaded = useKatex(markdownContent);
 
     // 简单转义函数，避免将纯文本解释为HTML
     const escapeHtml = (text: string) =>
@@ -371,37 +323,7 @@ c & d
         setIsExporting(true);
         try {
             if (!previewRef.current) return;
-
-            const canvas = await html2canvas(previewRef.current, {
-                scale: 2,
-                useCORS: true,
-                allowTaint: true,
-                backgroundColor: '#ffffff'
-            });
-
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF('p', 'mm', 'a4');
-
-            const imgWidth = 210; // A4宽度
-            const pageHeight = 295; // A4高度
-            const imgHeight = (canvas.height * imgWidth) / canvas.width;
-            let heightLeft = imgHeight;
-
-            let position = 0;
-
-            // 添加第一页
-            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-            heightLeft -= pageHeight;
-
-            // 如果内容超过一页，添加更多页面
-            while (heightLeft >= 0) {
-                position = heightLeft - imgHeight;
-                pdf.addPage();
-                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-                heightLeft -= pageHeight;
-            }
-
-            pdf.save(`markdown-export-${new Date().getTime()}.pdf`);
+            await exportPdfUtil(previewRef.current);
         } catch (error) {
             console.error('导出PDF失败:', error);
             alert('导出PDF失败，请检查内容格式');

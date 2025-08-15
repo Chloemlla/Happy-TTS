@@ -183,11 +183,11 @@ const addMod = async (name: string, code: string, hash?: string, md5?: string) =
   return await res.json();
 };
 
-const updateMod = async (id: string, name: string, code: string) => {
+const updateMod = async (id: string, name: string, code: string, hash?: string, md5?: string) => {
   const res = await fetch(getApiBaseUrl() + `/api/modlist/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, code })
+    body: JSON.stringify({ name, code, hash, md5 })
   });
   return await res.json();
 };
@@ -234,6 +234,8 @@ const ModListEditor: React.FC = () => {
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editCode, setEditCode] = useState('');
+  const [editHash, setEditHash] = useState('');
+  const [editMd5, setEditMd5] = useState('');
   const [jsonMode, setJsonMode] = useState(false);
   const [jsonValue, setJsonValue] = useState('');
   const [jsonEdit, setJsonEdit] = useState(false);
@@ -249,10 +251,10 @@ const ModListEditor: React.FC = () => {
   const loadMods = async () => {
     try {
     if (jsonMode) {
-      const data = await fetchModsJson();
+      const data = await fetchModsJson(true, true);
       setJsonValue(JSON.stringify(data, null, 2));
     } else {
-        const modsData = await fetchMods();
+        const modsData = await fetchMods(true, true);
         setMods(Array.isArray(modsData) ? modsData : []);
       }
     } catch (error) {
@@ -287,16 +289,18 @@ const ModListEditor: React.FC = () => {
   };
 
   const handleEdit = async () => {
-    if (!editId || !editName || !editCode) {
+    if (!editId || !editName || !editCode || !editHash) {
       setNotification({ message: '请填写完整', type: 'error' });
       return;
     }
-    const res = await updateMod(editId, editName, editCode);
+    const res = await updateMod(editId, editName, editCode, editHash, editMd5 || undefined);
     if (res.success) {
       setNotification({ message: '修改成功', type: 'success' });
       setEditId(null);
       setEditName('');
       setEditCode('');
+      setEditHash('');
+      setEditMd5('');
       loadMods();
     } else {
       setNotification({ message: res.error || '修改失败', type: 'error' });
@@ -463,7 +467,7 @@ const ModListEditor: React.FC = () => {
                   <span className="font-medium text-gray-800">{mod.name}</span>
                   <div className="flex gap-2">
                     <motion.button
-                      onClick={() => { setEditId(mod.id); setEditName(mod.name); setEditCode(''); }}
+                      onClick={() => { setEditId(mod.id); setEditName(mod.name); setEditCode(''); setEditHash(mod.hash || ''); setEditMd5(mod.md5 || ''); }}
                       className="px-3 py-1 bg-yellow-500 text-white rounded text-sm hover:bg-yellow-600 transition font-medium"
                       whileTap={{ scale: 0.95 }}
                     >
@@ -628,7 +632,7 @@ const ModListEditor: React.FC = () => {
               transition={{ duration: 0.1 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-xl font-bold text-gray-900 mb-6">修改MOD名</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-6">修改MOD</h3>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">新MOD名</label>
@@ -647,6 +651,26 @@ const ModListEditor: React.FC = () => {
                     placeholder="请输入修改码"
                     value={editCode}
                     onChange={e => setEditCode(e.target.value)}
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Hash (必填)</label>
+                  <input
+                    type="text"
+                    placeholder="请输入Hash"
+                    value={editHash}
+                    onChange={e => setEditHash(e.target.value)}
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">MD5 (可选)</label>
+                  <input
+                    type="text"
+                    placeholder="请输入MD5"
+                    value={editMd5}
+                    onChange={e => setEditMd5(e.target.value)}
                     className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
                   />
                 </div>

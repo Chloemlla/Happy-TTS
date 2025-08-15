@@ -36,39 +36,39 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       // 自动多语言翻译插件（默认使用 Google 翻译）
-      vitePluginsAutoI18n({
-        enabled: false,
-        deepScan: true,
-        translateType: 'full-auto',
-        translateKey: '$t',
-        // 默认只扫描 src 目录
-        includePath: [/src\//],
-        // 生成语言文件的目录（相对项目根目录），入口需引入 ../lang/index.js
-        globalPath: './lang',
-        // 基础语言与目标语言
-        originLang: 'zh-cn', // 源语言（简体中文）
-        // 支持 en、zhcn(=zh-cn)、zhtw(=zh-tw)
-        targetLangList: ['en', 'zh-cn', 'zh-tw'],
-        // 构建行为
-        buildToDist: true,
-        // 将打包后的翻译文件输出到 dist/lang 目录
-        distPath: 'lang',
-        // 打包后的翻译主文件名称
-        distKey: 'index',
-        rewriteConfig: true,
-        // 使用默认 Google 翻译（生产环境不走代理）
-        translator: new GoogleTranslator(
-          process.env.NODE_ENV === 'production'
-            ? {}
-            : {
-              proxyOption: {
-                host: '127.0.0.1',
-                port: 7890,
-                headers: { 'User-Agent': 'Node' }
-              }
-            }
-        ),
-      }),
+      // vitePluginsAutoI18n({
+      //   enabled: false,
+      //   deepScan: true,
+      //   translateType: 'full-auto',
+      //   translateKey: '$t',
+      //   // 默认只扫描 src 目录
+      //   includePath: [/src\//],
+      //   // 生成语言文件的目录（相对项目根目录），入口需引入 ../lang/index.js
+      //   globalPath: './lang',
+      //   // 基础语言与目标语言
+      //   originLang: 'zh-cn', // 源语言（简体中文）
+      //   // 支持 en、zhcn(=zh-cn)、zhtw(=zh-tw)
+      //   targetLangList: ['en', 'zh-cn', 'zh-tw'],
+      //   // 构建行为
+      //   buildToDist: true,
+      //   // 将打包后的翻译文件输出到 dist/lang 目录
+      //   distPath: 'lang',
+      //   // 打包后的翻译主文件名称
+      //   distKey: 'index',
+      //   rewriteConfig: true,
+      //   // 使用默认 Google 翻译（生产环境不走代理）
+      //   translator: new GoogleTranslator(
+      //     process.env.NODE_ENV === 'production'
+      //       ? {}
+      //       : {
+      //         proxyOption: {
+      //           host: '127.0.0.1',
+      //           port: 7890,
+      //           headers: { 'User-Agent': 'Node' }
+      //         }
+      //       }
+      //   ),
+      // }),
       {
         name: 'obfuscator',
         enforce: 'post' as const,

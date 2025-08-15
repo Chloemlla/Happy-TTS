@@ -39,11 +39,17 @@ export async function addMod(mod: { name: string, hash?: string, md5?: string })
   return newMod;
 }
 
-export async function updateMod(id: string, name: string) {
+export async function updateMod(id: string, name: string, hash?: string, md5?: string) {
   const list = readModList();
   const mod = list.find((m: any) => m.id === id);
   if (!mod) throw new Error('未找到MOD');
   mod.name = name;
+  if (hash !== undefined) {
+    if (hash) mod.hash = hash; else delete mod.hash;
+  }
+  if (md5 !== undefined) {
+    if (md5) mod.md5 = md5; else delete mod.md5;
+  }
   writeModList(list);
   return mod;
 }

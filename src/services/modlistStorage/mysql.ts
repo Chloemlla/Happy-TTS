@@ -39,14 +39,16 @@ export async function addMod(mod: { name: string, hash?: string, md5?: string })
   return { id, name: mod.name, hash: mod.hash, md5: mod.md5 };
 }
 
-export async function updateMod(id: string, name: string) {
+export async function updateMod(id: string, name: string, hash?: string, md5?: string) {
   const conn = await getConn();
   const [rows] = await conn.execute(`SELECT * FROM ${TABLE} WHERE id=?`, [id]);
   if ((rows as any[]).length === 0) {
     await conn.end();
     throw new Error('未找到MOD');
   }
-  await conn.execute(`UPDATE ${TABLE} SET name=? WHERE id=?`, [name, id]);
+  await conn.execute(`UPDATE ${TABLE} SET name=?, hash=?, md5=? WHERE id=?`, [name, hash || null, md5 || null, id]);
+  const [after] = await conn.execute(`SELECT * FROM ${TABLE} WHERE id=?`, [id]);
   await conn.end();
-  return { id, name };
-} 
+  const mod = (after as any[])[0];
+  return { id: mod.id, name: mod.name, hash: mod.hash || undefined, md5: mod.md5 || undefined };
+}

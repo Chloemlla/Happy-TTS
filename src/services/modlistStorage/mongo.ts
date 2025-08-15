@@ -41,15 +41,33 @@ export async function addMod(mod: { name: string, hash?: string, md5?: string })
   return newMod;
 }
 
-export async function updateMod(id: string, name: string) {
+export async function updateMod(id: string, name: string, hash?: string, md5?: string) {
   const safeId = sanitizeString(id);
   const safeName = sanitizeString(name);
+  const safeHash = typeof hash === 'string' ? sanitizeString(hash) : undefined;
+  const safeMd5 = typeof md5 === 'string' ? sanitizeString(md5) : undefined;
   if (!safeId || !safeName) throw new Error('参数非法');
   const mod = await ModModel.findOne({ id: safeId });
   if (!mod) throw new Error('未找到MOD');
   mod.name = safeName;
+  if (hash !== undefined) {
+    if (safeHash) {
+      mod.hash = safeHash;
+    } else {
+      // 清空无效/空hash
+      mod.hash = undefined as any;
+    }
+  }
+  if (md5 !== undefined) {
+    if (safeMd5) {
+      mod.md5 = safeMd5;
+    } else {
+      // 清空无效/空md5
+      mod.md5 = undefined as any;
+    }
+  }
   await mod.save();
-  return mod;
+  return mod.toObject();
 }
 
 export async function deleteMod(id: string) {
