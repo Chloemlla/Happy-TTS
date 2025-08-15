@@ -705,6 +705,14 @@ try {
 // Decide UI setup mode: if OPENAPI_JSON_PATH is defined or /app/openapi.json exists, let UI fetch /openapi.json directly
 const preferSwaggerUrl = !!process.env.OPENAPI_JSON_PATH || fs.existsSync('/app/openapi.json');
 
+// Override Swagger UI favicon request
+app.get('/api-docs/favicon-32x32.png', (req: Request, res: Response) => {
+  res.redirect(302, 'https://png.hapxs.com/i/2025/08/08/68953253d778d.png');
+});
+app.get('/api-docs/favicon-16x16.png', (req: Request, res: Response) => {
+  res.redirect(302, 'https://png.hapxs.com/i/2025/08/08/68953253d778d.png');
+});
+
 app.use('/api-docs', (req: Request, res: Response, next: NextFunction) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.set('Pragma', 'no-cache');
@@ -712,8 +720,37 @@ app.use('/api-docs', (req: Request, res: Response, next: NextFunction) => {
   res.removeHeader && res.removeHeader('ETag');
   next();
 }, swaggerUi.serve, preferSwaggerUrl
-  ? swaggerUi.setup(undefined, { swaggerUrl: '/openapi.json' })
-  : swaggerUi.setup(swaggerUiSpec)
+  ? swaggerUi.setup(undefined, {
+    swaggerUrl: '/openapi.json',
+    customSiteTitle: 'Happy API',
+    customCss: `
+      .swagger-ui .topbar .link img,
+      .swagger-ui .topbar .link svg { display: none !important; }
+      .swagger-ui .topbar .link {
+        background-image: url('https://png.hapxs.com/i/2025/08/08/68953253d778d.png');
+        background-repeat: no-repeat;
+        background-position: left center;
+        background-size: auto 40px;
+        height: 50px;
+        padding-left: 150px;
+      }
+    `
+  })
+  : swaggerUi.setup(swaggerUiSpec, {
+    customSiteTitle: 'Happy API',
+    customCss: `
+      .swagger-ui .topbar .link img,
+      .swagger-ui .topbar .link svg { display: none !important; }
+      .swagger-ui .topbar .link {
+        background-image: url('https://png.hapxs.com/i/2025/08/08/68953253d778d.png');
+        background-repeat: no-repeat;
+        background-position: left center;
+        background-size: auto 40px;
+        height: 50px;
+        padding-left: 150px;
+      }
+    `
+  })
 );
 
 // 音频文件服务限流器

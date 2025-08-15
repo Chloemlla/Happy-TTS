@@ -1,19 +1,22 @@
 import { writeFile, appendFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
-import { logger } from './logger';
+import logger from '../utils/logger';
 import { mongoose } from './mongoService';
 
-// MongoDB 数据收集 Schema
+// MongoDB 数据收集 Schema（开启 strict 以拒绝未声明字段）
 const DataCollectionSchema = new mongoose.Schema({
   userId: { type: String, required: true },
   action: { type: String, required: true },
   timestamp: { type: String, required: true },
   details: { type: Object },
-}, { collection: 'data_collections' });
+}, { collection: 'data_collections', strict: true });
 const DataCollectionModel = mongoose.models.DataCollection || mongoose.model('DataCollection', DataCollectionSchema);
 
+type StorageMode = 'mongo' | 'file' | 'both';
+
 class DataCollectionService {
+
   private static instance: DataCollectionService;
   private readonly DATA_DIR = join(process.cwd(), 'data');
   private readonly TEST_DATA_DIR = join(process.cwd(), 'test-data');
@@ -35,45 +38,180 @@ class DataCollectionService {
       // 确保数据目录存在
       if (!existsSync(this.DATA_DIR)) {
         await mkdir(this.DATA_DIR, { recursive: true });
-        logger.log('Created data directory for data collection');
+        logger.info('Created data directory for data collection');
       }
     } catch (error) {
       logger.error('Error initializing data collection service:', error);
     }
   }
 
-  public async saveData(data: any): Promise<void> {
-    try {
-      // 验证数据
-      if (!data || typeof data !== 'object') {
-        throw new Error('无效的数据格式');
+  // 递归清洗：
+  // - 移除以 $ 开头的键（Mongo 操作符）
+  // - 替换键名中的 . 为 _（禁止路径展开）
+  // - 限制键名长度与字符集
+  // - 规避循环引用
+  // - 归一化非序列化类型（函数、Symbol、BigInt、非有限数字等）
+  private static readonly MAX_KEY_LENGTH = 128;
+  private sanitizeForMongo(input: any, seen = new WeakSet<object>()): any {
+    if (input === null || input === undefined) return input;
+    const t = typeof input;
+    if (t === 'number') return Number.isFinite(input) ? input : String(input);
+    if (t === 'bigint') return input.toString();
+    if (t === 'function' || t === 'symbol') return String(input);
+    if (t !== 'object') return input;
+    if (seen.has(input)) return '[Circular]';
+    seen.add(input as object);
+    if (Array.isArray(input)) return input.map((v) => this.sanitizeForMongo(v, seen));
+    const out: Record<string, any> = {};
+    for (const [k, v] of Object.entries(input)) {
+      if (!k) continue;
+      // 丢弃可疑/危险键：Mongo 操作符与原型污染相关键
+      if (k[0] === '$') continue;
+      if (k === '__proto__' || k === 'prototype' || k === 'constructor') continue;
+      // 限制键名长度与字符集（只保留可见字符），并替换点
+      let safeKey = k.replace(/\./g, '_').replace(/[^\x20-\x7E]/g, '_');
+      if (safeKey.length > DataCollectionService.MAX_KEY_LENGTH) {
+        safeKey = safeKey.slice(0, DataCollectionService.MAX_KEY_LENGTH);
       }
-      if (!data.userId || !data.action || !data.timestamp) {
-        throw new Error('缺少必需字段');
-      }
-      // MongoDB 优先
-      if (mongoose.connection.readyState === 1) {
-        await DataCollectionModel.create(data);
-        logger.log('Data saved to MongoDB');
-        return;
-      }
-    } catch (error) {
-      logger.error('MongoDB 保存数据失败，降级为本地文件:', error);
+      out[safeKey] = this.sanitizeForMongo(v, seen);
     }
-    // 本地文件兜底
-    try {
-      const saveDir = process.env.NODE_ENV === 'test' ? this.TEST_DATA_DIR : this.DATA_DIR;
-      const saveFile = join(saveDir, `data-${Date.now()}.json`);
-      if (!existsSync(saveDir)) {
-        await mkdir(saveDir, { recursive: true });
+    return out;
+  }
+
+  // 统一限制：深度、键数量、数组长度、字符串长度与整体大小
+  private static readonly MAX_DEPTH = 6;
+  private static readonly MAX_KEYS_PER_OBJECT = 200;
+  private static readonly MAX_ARRAY_LENGTH = 200;
+  private static readonly MAX_STRING_LENGTH = 4096; // 4KB 字符
+  private static readonly MAX_DETAILS_BYTES = 256 * 1024; // 256KB
+
+  private clampDetails(input: any, depth = 0, seen = new WeakSet<object>()): any {
+    if (input === null || input === undefined) return input;
+    if (depth > DataCollectionService.MAX_DEPTH) return '[Truncated: depth limit]';
+    const t = typeof input;
+    if (t === 'string') {
+      return (input as string).length > DataCollectionService.MAX_STRING_LENGTH
+        ? (input as string).slice(0, DataCollectionService.MAX_STRING_LENGTH) + '…'
+        : input;
+    }
+    if (t !== 'object') return input;
+    if (seen.has(input)) return '[Circular]';
+    seen.add(input as object);
+    if (Array.isArray(input)) {
+      const arr = input
+        .slice(0, DataCollectionService.MAX_ARRAY_LENGTH)
+        .map((v) => this.clampDetails(v, depth + 1, seen));
+      if (input.length > DataCollectionService.MAX_ARRAY_LENGTH) arr.push('[Truncated: array length]');
+      return arr;
+    }
+    // object
+    const out: Record<string, any> = {};
+    let count = 0;
+    for (const [k, v] of Object.entries(input)) {
+      out[k] = this.clampDetails(v, depth + 1, seen);
+      count++;
+      if (count >= DataCollectionService.MAX_KEYS_PER_OBJECT) {
+        out['__truncated__'] = 'object keys limit reached';
+        break;
       }
-      await writeFile(saveFile, JSON.stringify(data, null, 2));
-      logger.log('Data saved to local file');
-    } catch (error) {
-      logger.error('Error saving data to local file:', error);
-      throw error;
+    }
+    return out;
+  }
+
+  private ensureSizeLimit(obj: any): any {
+    // 如果超过上限，逐步降采样：移除 headers/cookies 等大字段
+    const tryStringify = (o: any) => JSON.stringify(o);
+    const bytes = (s: string) => Buffer.byteLength(s, 'utf8');
+    let current = obj;
+    let s = tryStringify(current);
+    if (bytes(s) <= DataCollectionService.MAX_DETAILS_BYTES) return current;
+    // 尝试移除常见大字段
+    const dropList = ['headers', 'cookies', 'payload_raw', 'raw', 'body'];
+    if (current && typeof current === 'object') {
+      const clone = { ...current } as any;
+      for (const key of dropList) {
+        if (clone[key] !== undefined) delete clone[key];
+      }
+      s = tryStringify(clone);
+      if (bytes(s) <= DataCollectionService.MAX_DETAILS_BYTES) return clone;
+      // 仍超限，最后退化为简短提示
+      return { note: 'details truncated due to size limit' };
+    }
+    return { note: 'details truncated due to size limit' };
+  }
+
+  private validate(data: any) {
+    if (!data || typeof data !== 'object') {
+      throw new Error('无效的数据格式');
+    }
+    if (!data.userId || !data.action || !data.timestamp) {
+      throw new Error('缺少必需字段');
+    }
+    const idPattern = /^[a-zA-Z0-9_\-:@.]{1,128}$/;
+    if (typeof data.userId !== 'string' || !idPattern.test(data.userId)) {
+      throw new Error('userId 非法');
+    }
+    const actionPattern = /^[a-zA-Z0-9_\-:.]{1,128}$/;
+    if (typeof data.action !== 'string' || !actionPattern.test(data.action)) {
+      throw new Error('action 非法');
+    }
+    // 简单 ISO-8601 校验（允许毫秒与 Z 后缀）
+    const isoPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
+    if (typeof data.timestamp !== 'string' || data.timestamp.length > 64 || !isoPattern.test(data.timestamp)) {
+      throw new Error('timestamp 非法');
+    }
+  }
+
+  private async saveToMongo(data: any): Promise<void> {
+    if (mongoose.connection.readyState !== 1) {
+      throw new Error('MongoDB 未连接');
+    }
+    const sanitized = {
+      userId: data.userId,
+      action: data.action,
+      timestamp: data.timestamp,
+      details: this.ensureSizeLimit(this.clampDetails(this.sanitizeForMongo(data.details ?? {}))),
+    };
+    await DataCollectionModel.create(sanitized);
+    logger.info('Data saved to MongoDB');
+  }
+
+  private async saveToFile(data: any): Promise<void> {
+    const saveDir = process.env.NODE_ENV === 'test' ? this.TEST_DATA_DIR : this.DATA_DIR;
+    const saveFile = join(saveDir, `data-${Date.now()}.json`);
+    if (!existsSync(saveDir)) {
+      await mkdir(saveDir, { recursive: true });
+    }
+    const sanitized = {
+      userId: data.userId,
+      action: data.action,
+      timestamp: data.timestamp,
+      details: this.ensureSizeLimit(this.clampDetails(this.sanitizeForMongo(data.details ?? {}))),
+    };
+    await writeFile(saveFile, JSON.stringify(sanitized, null, 2));
+    logger.info('Data saved to local file');
+  }
+
+  public async saveData(data: any, mode: StorageMode = 'both'): Promise<{ savedTo: StorageMode | 'mongo_fallback_file' }>{
+    this.validate(data);
+    if (mode === 'mongo') {
+      await this.saveToMongo(data);
+      return { savedTo: 'mongo' };
+    }
+    if (mode === 'file') {
+      await this.saveToFile(data);
+      return { savedTo: 'file' };
+    }
+    // both: 优先 Mongo，失败则文件兜底
+    try {
+      await this.saveToMongo(data);
+      return { savedTo: 'both' };
+    } catch (err) {
+      logger.error('MongoDB 保存失败，回退到本地文件:', err);
+      await this.saveToFile(data);
+      return { savedTo: 'mongo_fallback_file' };
     }
   }
 }
 
-export const dataCollectionService = DataCollectionService.getInstance(); 
+export const dataCollectionService = DataCollectionService.getInstance();
