@@ -620,6 +620,8 @@ const swaggerSpec = swaggerJSDoc(swaggerOptions);
 const readOpenapiJson = async (): Promise<string> => {
   const candidates = [
     process.env.OPENAPI_JSON_PATH && path.resolve(process.env.OPENAPI_JSON_PATH),
+    // Docker 默认路径
+    '/app/openapi.json',
     path.join(process.cwd(), 'openapi.json'),
     path.join(__dirname, '../openapi.json'),
     path.join(process.cwd(), 'dist/openapi.json'),
