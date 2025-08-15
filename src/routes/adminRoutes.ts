@@ -947,8 +947,8 @@ router.post('/user/fingerprint', authMiddleware, async (req, res) => {
     const { updateUser, getUserById } = require('../services/userService');
     const current = await getUserById(user.id);
     const existing = (current && (current as any).fingerprints) || [];
-    // 保留最新的150条指纹记录
-    const next = [fingerprintRecord, ...existing].slice(0, 150);
+    // 保留最新的20条指纹记录
+    const next = [fingerprintRecord, ...existing].slice(0, 20);
 
     // 保存指纹并清除一次性上报需求标记及时间戳
     await updateUser(user.id, { fingerprints: next, requireFingerprint: false, requireFingerprintAt: 0 } as any);
