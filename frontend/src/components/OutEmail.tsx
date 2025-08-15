@@ -41,6 +41,7 @@ const OutEmail: React.FC = () => {
   const [domainExemptionStatus, setDomainExemptionStatus] = useState<{ exempted: boolean; message?: string } | null>(null);
   const [checkingExemption, setCheckingExemption] = useState(false);
   const { setNotification } = useNotification();
+  const [quota, setQuota] = useState<{ used: number; total: number; resetAt: string } | null>(null);
 
   // 附件（前端支持远程URL与本地文件）
   const [remoteAttachmentUrls, setRemoteAttachmentUrls] = useState('');
@@ -90,6 +91,22 @@ const OutEmail: React.FC = () => {
     };
     loadStatus();
   }, [user]);
+
+  // 获取每日配额
+  useEffect(() => {
+    const fetchQuota = async () => {
+      try {
+        const res = await fetch(getApiBaseUrl() + '/api/outemail/quota');
+        const data = await res.json();
+        if (data && data.success) {
+          setQuota({ used: Number(data.used)||0, total: Number(data.total)||0, resetAt: String(data.resetAt||'') });
+        }
+      } catch {}
+    };
+    fetchQuota();
+    const t = setInterval(fetchQuota, 30_000);
+    return () => clearInterval(t);
+  }, []);
 
   // 检查域名豁免状态
   const checkDomainExemption = async () => {
@@ -265,7 +282,28 @@ const OutEmail: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-5xl mx-auto p-4 space-y-6">
+      {/* 顶部返回和标题 */}
+      <div className="flex items-center gap-3">
+        <Link to="/admin" className="text-gray-500 hover:text-gray-700 flex items-center gap-2">
+          <FaArrowLeft /> 返回
+        </Link>
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <FaEnvelope className="text-blue-600" /> 对外邮件发送
+        </h1>
+      </div>
+
+      {/* 配额卡片 */}
+      {quota && (
+        <div className="bg-white rounded-xl p-4 border shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="text-sm text-gray-700">
+            <span className="font-semibold">每日配额：</span>
+            <span>{quota.used} / {quota.total}</span>
+          </div>
+          <div className="text-xs text-gray-500">重置时间：{quota.resetAt ? new Date(quota.resetAt).toLocaleString() : '-'}</div>
+        </div>
+      )}
+
       {/* 标题和说明 */}
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
         <div className="flex items-center justify-between mb-4">

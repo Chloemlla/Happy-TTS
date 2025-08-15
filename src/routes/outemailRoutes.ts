@@ -1,7 +1,7 @@
 import express from 'express';
 import { createLimiter } from '../middleware/rateLimiter';
 import logger from '../utils/logger';
-import { sendOutEmail, sendOutEmailBatch } from '../services/outEmailService';
+import { sendOutEmail, sendOutEmailBatch, getOutEmailQuota } from '../services/outEmailService';
 
 const router = express.Router();
 
@@ -19,6 +19,19 @@ const statusQueryLimiter = createLimiter({
   max: 60,
   message: '状态查询过于频繁，请稍后再试',
   routeName: 'outemail.status'
+});
+
+/**
+ * GET /api/outemail/quota
+ * 公共：查询对外邮件每日配额
+ */
+router.get('/quota', statusQueryLimiter, async (req, res) => {
+  try {
+    const info = await getOutEmailQuota();
+    res.json({ success: true, used: info.used, total: info.total, resetAt: info.resetAt });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e?.message || '无法获取配额信息' });
+  }
 });
 
 /**

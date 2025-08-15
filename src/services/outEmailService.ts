@@ -35,6 +35,25 @@ const domainApiKeyMap: Record<string, string> = {};
   }
 })();
 
+// 配额总量（每日），可通过 OUTEMAIL_QUOTA_TOTAL 或 RESEND_QUOTA_TOTAL 配置，默认 100
+const OUTEMAIL_QUOTA_TOTAL = Number(process.env.OUTEMAIL_QUOTA_TOTAL || process.env.RESEND_QUOTA_TOTAL || 100);
+
+export interface OutEmailQuotaInfo {
+  used: number;
+  total: number;
+  resetAt: string; // ISO
+}
+
+export async function getOutEmailQuota(): Promise<OutEmailQuotaInfo> {
+  const now = dayjs();
+  const date = now.format('YYYY-MM-DD');
+  let quota = await OutEmailQuota.findOne({ date });
+  if (!quota) quota = await OutEmailQuota.create({ date, minute: now.format('YYYY-MM-DD-HH-mm'), countDay: 0, countMinute: 0 });
+  // resetAt 为次日 00:00
+  const resetAt = now.add(1, 'day').startOf('day').toISOString();
+  return { used: quota.countDay || 0, total: OUTEMAIL_QUOTA_TOTAL, resetAt };
+}
+
 // 批量发送（不支持附件，遵循 Resend 限制：最多 100 封/次）
 export async function sendOutEmailBatch({
   messages,
@@ -87,8 +106,8 @@ export async function sendOutEmailBatch({
   if (currentMinuteCount + n > 20) {
     return { success: false, error: `当前一分钟可发送剩余额度不足（剩余 ${Math.max(0, 20 - currentMinuteCount)} 封）` };
   }
-  if (quota.countDay + n > 100) {
-    return { success: false, error: `今日可发送剩余额度不足（剩余 ${Math.max(0, 100 - quota.countDay)} 封）` };
+  if (quota.countDay + n > OUTEMAIL_QUOTA_TOTAL) {
+    return { success: false, error: `今日可发送剩余额度不足（剩余 ${Math.max(0, OUTEMAIL_QUOTA_TOTAL - quota.countDay)} 封）` };
   }
   // 预占额
   if (quota.minute === minute) {
@@ -175,8 +194,8 @@ export async function sendOutEmail({ to, subject, content, code, ip, from: fromU
   const minute = now.format('YYYY-MM-DD-HH-mm');
   let quota = await OutEmailQuota.findOne({ date });
   if (!quota) quota = await OutEmailQuota.create({ date, minute, countDay: 0, countMinute: 0 });
-  if (quota.countDay >= 100) {
-    return { success: false, error: '今日发送已达上限（100封）' };
+  if (quota.countDay >= OUTEMAIL_QUOTA_TOTAL) {
+    return { success: false, error: `今日发送已达上限（${OUTEMAIL_QUOTA_TOTAL}封）` };
   }
   if (quota.minute === minute) {
     if (quota.countMinute >= 20) {
