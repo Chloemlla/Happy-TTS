@@ -10,6 +10,7 @@ const OutEmail = React.lazy(() => import('./OutEmail'));
 const ShortLinkManager = React.lazy(() => import('./ShortLinkManager'));
 const ShortUrlMigrationManager = React.lazy(() => import('./ShortUrlMigrationManager'));
 const CommandManager = React.lazy(() => import('./CommandManager'));
+const WebhookEventsManager = React.lazy(() => import('./WebhookEventsManager'));
 const LogShare = React.lazy(() => import('./LogShare'));
 const FBIWantedManager = React.lazy(() => import('./FBIWantedManager'));
 import { useAuth } from '../hooks/useAuth';
@@ -29,6 +30,7 @@ const TABS = [
   { key: 'command', label: '命令管理' },
   { key: 'logshare', label: '日志分享' },
   { key: 'fbiwanted', label: 'FBI通缉犯管理' },
+  { key: 'webhookevents', label: 'Webhook事件' },
 ];
 
 const AdminDashboard: React.FC = () => {
@@ -399,6 +401,19 @@ const AdminDashboard: React.FC = () => {
                   >
                     <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
                       <ShortUrlMigrationManager />
+                    </Suspense>
+                  </motion.div>
+                )}
+                {tab === 'webhookevents' && (
+                  <motion.div
+                    key="webhookevents"
+                    initial={{ opacity: 0, x: 40 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -40 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
+                      <WebhookEventsManager />
                     </Suspense>
                   </motion.div>
                 )}

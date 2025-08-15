@@ -58,6 +58,8 @@ import humanCheckRoutes from './routes/humanCheckRoutes';
 import emailRoutes from './routes/emailRoutes';
 import outemailRoutes from './routes/outemailRoutes';
 import { commandStatusHandler } from './routes/commandRoutes';
+import webhookRoutes from './routes/webhookRoutes';
+import webhookEventRoutes from './routes/webhookEventRoutes';
 import { authenticateToken } from './middleware/authenticateToken';
 import { totpStatusHandler } from './routes/totpRoutes';
 
@@ -705,6 +707,8 @@ app.use('/api/image-data', imageDataRoutes);
 app.use('/api', resourceRoutes);
 // CDK路由 - 需要认证
 app.use('/api', authenticateToken, cdkRoutes);
+// Webhook事件管理 - 需要管理员认证
+app.use('/api/webhook-events', authenticateToken, webhookEventRoutes);
 // FBI通缉犯路由
 app.use('/api/fbi-wanted', fbiWantedRoutes);
 // FBI通缉犯公开路由（完全无鉴权）
@@ -1384,7 +1388,12 @@ function wafCheckSimple(str: string, maxLen = 256): boolean {
   return true;
 }
 app.use((req: Request, res: Response, next: NextFunction) => {
-  if (!req.path.startsWith('/api/') || req.path === '/api/auth/login' || req.path === '/api/auth/register') return next();
+  if (
+    !req.path.startsWith('/api/') ||
+    req.path === '/api/auth/login' ||
+    req.path === '/api/auth/register' ||
+    req.path === '/api/webhooks/resend'
+  ) return next();
   const ip = req.ip || (req.socket?.remoteAddress) || 'unknown';
   const now = Date.now();
   const rec = wafSkipMap.get(ip) || { last: 0, count: 0 };
