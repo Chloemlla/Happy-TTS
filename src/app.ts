@@ -771,7 +771,15 @@ app.use('/api/passkey', passkeyAutoFixMiddleware);
 app.use('/api/passkey', passkeyRoutes);
 app.use('/api/email', emailRoutes);
 app.use('/api/miniapi', miniapiLimiter, miniapiRoutes);
-app.use('/api/modlist', modlistRoutes);
+// 额外在挂载点增加一层限流，叠加路由内部限流，缓解扫接口类滥用
+const modlistMountLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1分钟
+  max: 60,
+  message: { error: 'MOD列表请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/modlist', modlistMountLimiter, modlistRoutes);
 app.use('/api/image-data', imageDataRoutes);
 // 资源路由 - 部分需要认证
 app.use('/api', resourceRoutes);

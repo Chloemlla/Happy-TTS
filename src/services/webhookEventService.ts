@@ -27,20 +27,54 @@ export const WebhookEventService = {
     return created.toObject();
   },
   async list({ page = 1, pageSize = 20 }: { page?: number; pageSize?: number }) {
-    const skip = (page - 1) * pageSize;
+    // Normalize and cap pagination to prevent abuse
+    const p = Number.isFinite(Number(page)) ? Math.max(1, Number(page)) : 1;
+    const ps = Number.isFinite(Number(pageSize)) ? Math.min(100, Math.max(1, Number(pageSize))) : 20;
+    const skip = (p - 1) * ps;
     const [items, total] = await Promise.all([
-      WebhookEventModel.find().sort({ receivedAt: -1 }).skip(skip).limit(pageSize).lean(),
+      WebhookEventModel.find().sort({ receivedAt: -1 }).skip(skip).limit(ps).lean(),
       WebhookEventModel.countDocuments(),
     ]);
-    return { items, total, page, pageSize };
+    return { items, total, page: p, pageSize: ps };
   },
   async get(id: string) {
+    if (!mongoose.isValidObjectId(id)) {
+      throw new Error('Invalid id');
+    }
     return WebhookEventModel.findById(id).lean();
   },
   async update(id: string, patch: any) {
-    return WebhookEventModel.findByIdAndUpdate(id, { $set: patch, updatedAt: new Date() }, { new: true }).lean();
+    if (!mongoose.isValidObjectId(id)) {
+      throw new Error('Invalid id');
+    }
+    // Whitelist fields to avoid arbitrary query injection
+    const allowed: Record<string, boolean> = {
+      provider: true,
+      eventId: true,
+      type: true,
+      created_at: true,
+      to: true,
+      subject: true,
+      status: true,
+      data: true,
+      raw: true,
+    };
+    const safePatch: any = {};
+    if (patch && typeof patch === 'object') {
+      for (const [k, v] of Object.entries(patch)) {
+        if (allowed[k]) safePatch[k] = v;
+      }
+    }
+    return WebhookEventModel.findByIdAndUpdate(
+      id,
+      { $set: { ...safePatch, updatedAt: new Date() } },
+      { new: true }
+    ).lean();
   },
   async remove(id: string) {
+    if (!mongoose.isValidObjectId(id)) {
+      throw new Error('Invalid id');
+    }
     await WebhookEventModel.findByIdAndDelete(id);
     return { success: true };
   },
