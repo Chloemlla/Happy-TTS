@@ -78,6 +78,25 @@ var EMAIL_ENABLED: boolean;
 // 邮件服务状态全局变量
 // eslint-disable-next-line no-var
 var EMAIL_SERVICE_STATUS: { available: boolean; error?: string };
+
+// Synchronous helper for Swagger UI initialization
+const readOpenapiJsonSync = (): string => {
+  const candidates = [
+    process.env.OPENAPI_JSON_PATH && path.resolve(process.env.OPENAPI_JSON_PATH),
+    '/app/openapi.json',
+    path.join(process.cwd(), 'openapi.json'),
+    path.join(__dirname, '../openapi.json'),
+    path.join(process.cwd(), 'dist/openapi.json'),
+  ].filter(Boolean) as string[];
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p) && fs.statSync(p).isFile()) {
+        return fs.readFileSync(p, 'utf-8');
+      }
+    } catch (_) { /* ignore */ }
+  }
+  throw new Error('openapi.json not found in: ' + candidates.join(' | '));
+};
 // 对外邮件服务状态全局变量
 // eslint-disable-next-line no-var
 var OUTEMAIL_SERVICE_STATUS: { available: boolean; error?: string };
@@ -660,14 +679,32 @@ app.get('/api-docs.json', openapiLimiter, async (req, res) => {
     res.status(500).json({ error: '无法读取API文档' });
   }
 });
-// Swagger UI 路由
+// Swagger UI 路由（优先使用预生成 openapi.json，避免容器中无源码注释导致无路径）
+let swaggerUiSpec: any = swaggerSpec;
+let swaggerLoadReason = 'swagger-jsdoc';
+try {
+  const json = readOpenapiJsonSync();
+  swaggerUiSpec = JSON.parse(json);
+  const pathsCount = swaggerUiSpec && swaggerUiSpec.paths ? Object.keys(swaggerUiSpec.paths).length : 0;
+  logger.info(`[Swagger] Loaded pre-generated openapi.json for UI, paths=${pathsCount}`);
+  swaggerLoadReason = 'pre-generated-openapi.json';
+} catch (e) {
+  logger.warn('[Swagger] Falling back to swagger-jsdoc generated spec. Reason: ' + (e instanceof Error ? e.message : String(e)));
+}
+
+// Decide UI setup mode: if OPENAPI_JSON_PATH is defined or /app/openapi.json exists, let UI fetch /api-docs.json directly
+const preferSwaggerUrl = !!process.env.OPENAPI_JSON_PATH || fs.existsSync('/app/openapi.json');
+
 app.use('/api-docs', (req: Request, res: Response, next: NextFunction) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.set('Pragma', 'no-cache');
   res.set('Expires', '0');
   res.removeHeader && res.removeHeader('ETag');
   next();
-}, swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+}, swaggerUi.serve, preferSwaggerUrl
+  ? swaggerUi.setup(undefined, { swaggerUrl: '/api-docs.json' })
+  : swaggerUi.setup(swaggerUiSpec)
+);
 
 // 音频文件服务限流器
 const audioFileLimiter = rateLimit({
