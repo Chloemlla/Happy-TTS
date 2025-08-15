@@ -25,26 +25,26 @@ export class EmailController {
 
       // 验证必填字段
       if (!from || !to || !subject || !html) {
-        logger.warn('邮件发送失败：缺少必填字段', { 
+        logger.warn('邮件发送失败：缺少必填字段', {
           body: req.body,
           ip,
-          userId: user?.id 
+          userId: user?.id
         });
-        return res.status(400).json({ 
-          error: '缺少必填字段：from、to、subject、html' 
+        return res.status(400).json({
+          error: '缺少必填字段：from、to、subject、html'
         });
       }
-
+ 
       // 验证发件人域名
       const fromDomain = from.split('@')[1];
       if (fromDomain !== 'hapxs.com') {
-        logger.warn('邮件发送失败：发件人域名不允许', { 
+        logger.warn('邮件发送失败：发件人域名不允许', {
           fromDomain,
           from,
           ip,
-          userId: user?.id 
+          userId: user?.id
         });
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: '发件人邮箱必须是 @hapxs.com 域名',
           invalidDomain: fromDomain
         });
@@ -54,39 +54,39 @@ export class EmailController {
       const emailsToValidate = skipWhitelist ? [from] : [from, ...to];
       const emailValidation = EmailService.validateEmails(emailsToValidate);
       if (emailValidation.invalid.length > 0) {
-        logger.warn('邮件发送失败：邮箱格式无效', { 
+        logger.warn('邮件发送失败：邮箱格式无效', {
           invalidEmails: emailValidation.invalid,
           skipWhitelist,
           ip,
-          userId: user?.id 
+          userId: user?.id
         });
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: '邮箱格式无效',
-          invalidEmails: emailValidation.invalid 
+          invalidEmails: emailValidation.invalid
         });
       }
 
       // 限制收件人数量
       if (to.length > 10) {
-        logger.warn('邮件发送失败：收件人数量过多', { 
+        logger.warn('邮件发送失败：收件人数量过多', {
           recipientCount: to.length,
           ip,
-          userId: user?.id 
+          userId: user?.id
         });
-        return res.status(400).json({ 
-          error: '收件人数量不能超过10个' 
+        return res.status(400).json({
+          error: '收件人数量不能超过10个'
         });
       }
 
       // 限制邮件内容长度
       if (html.length > 50000) {
-        logger.warn('邮件发送失败：内容过长', { 
+        logger.warn('邮件发送失败：内容过长', {
           contentLength: html.length,
           ip,
-          userId: user?.id 
+          userId: user?.id
         });
-        return res.status(400).json({ 
-          error: '邮件内容不能超过50000字符' 
+        return res.status(400).json({
+          error: '邮件内容不能超过50000字符'
         });
       }
 
@@ -149,10 +149,108 @@ export class EmailController {
         ip: req.ip,
         userId: (req as any).user?.id
       });
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
-        error: '邮件发送失败' 
+        error: '邮件发送失败'
       });
+    }
+  }
+
+  /**
+   * 批量发送HTML格式邮件（每个收件人单独一封，不支持附件）
+   * @param req.body { from: string, to: string[], subject: string, html?: string, text?: string }
+   */
+  public static async sendEmailBatch(req: Request, res: Response) {
+    try {
+      const { from, to, subject, html, text } = req.body as {
+        from: string;
+        to: string[];
+        subject: string;
+        html?: string;
+        text?: string;
+      };
+      const ip = req.ip || 'unknown';
+      const user = (req as any).user;
+
+      logger.info('收到批量邮件发送请求', {
+        from,
+        toCount: Array.isArray(to) ? to.length : 0,
+        subject,
+        htmlLength: typeof html === 'string' ? html.length : undefined,
+        textLength: typeof text === 'string' ? text.length : undefined,
+        ip,
+        userId: user?.id,
+        username: user?.username
+      });
+
+      // 基本验证
+      if (!from || !to || !subject) {
+        return res.status(400).json({ error: '缺少必填字段：from、to、subject' });
+      }
+      if (!Array.isArray(to) || to.length === 0) {
+        return res.status(400).json({ error: '收件人列表不能为空' });
+      }
+      if (to.length > 100) {
+        return res.status(400).json({ error: '收件人数量不能超过100个' });
+      }
+
+      // 需要提供 html 或 text 之一
+      if ((!html || html.trim().length === 0) && (!text || text.trim().length === 0)) {
+        return res.status(400).json({ error: '请提供 html 或 text 内容' });
+      }
+
+      // 验证发件人域名
+      const fromDomain = String(from).split('@')[1];
+      if (fromDomain !== 'hapxs.com') {
+        logger.warn('批量邮件发送失败：发件人域名不允许', { from, fromDomain, ip, userId: user?.id });
+        return res.status(400).json({ error: '发件人邮箱必须是 @hapxs.com 域名', invalidDomain: fromDomain });
+      }
+
+      // 验证收件人邮箱格式
+      const validation = EmailService.validateEmails(to);
+      if (validation.invalid.length > 0) {
+        return res.status(400).json({ error: '存在无效的收件人邮箱', invalidEmails: validation.invalid });
+      }
+
+      // 如果只提供了 text，将其转换为简单 HTML
+      const htmlContent = (html && html.trim().length > 0)
+        ? html
+        : `<pre style="white-space:pre-wrap;word-wrap:break-word;margin:0;font-family:Consolas,Menlo,Monaco,monospace;">${
+            String(text || '')
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+          }</pre>`;
+
+      // 发送批量邮件
+      const result = await EmailService.sendBatchHtmlEmails(validation.valid, subject, htmlContent, from);
+
+      if (result.success) {
+        // 邮件配额统计（按收件人数计数）
+        if (user?.id) await addEmailUsage(user.id, validation.valid.length, fromDomain);
+        logger.info('批量邮件发送成功', {
+          ids: result.ids,
+          from,
+          toCount: validation.valid.length,
+          subject,
+          ip,
+          userId: user?.id
+        });
+        return res.json({ success: true, message: '批量发送成功', ids: result.ids, data: result.data });
+      }
+
+      logger.error('批量邮件发送失败', { error: result.error, from, toCount: validation.valid.length, subject, ip, userId: user?.id });
+      return res.status(500).json({ success: false, error: result.error || '批量发送失败' });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '未知错误';
+      logger.error('批量邮件发送异常', {
+        error: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined,
+        body: req.body,
+        ip: req.ip,
+        userId: (req as any).user?.id
+      });
+      return res.status(500).json({ success: false, error: '批量发送失败' });
     }
   }
 
@@ -178,13 +276,13 @@ export class EmailController {
 
       // 验证必填字段
       if (!to || !subject || !content) {
-        logger.warn('简单邮件发送失败：缺少必填字段', { 
+        logger.warn('简单邮件发送失败：缺少必填字段', {
           body: req.body,
           ip,
-          userId: user?.id 
+          userId: user?.id
         });
-        return res.status(400).json({ 
-          error: '缺少必填字段：to、subject、content' 
+        return res.status(400).json({
+          error: '缺少必填字段：to、subject、content'
         });
       }
 
@@ -192,13 +290,13 @@ export class EmailController {
       if (from) {
         const fromDomain = from.split('@')[1];
         if (fromDomain !== 'hapxs.com') {
-          logger.warn('简单邮件发送失败：发件人域名不允许', { 
+          logger.warn('简单邮件发送失败：发件人域名不允许', {
             fromDomain,
             from,
             ip,
-            userId: user?.id 
+            userId: user?.id
           });
-          return res.status(400).json({ 
+          return res.status(400).json({
             error: '发件人邮箱必须是 @hapxs.com 域名',
             invalidDomain: fromDomain
           });
@@ -209,39 +307,39 @@ export class EmailController {
       if (!skipWhitelist) {
         const emailValidation = EmailService.validateEmails(to);
         if (emailValidation.invalid.length > 0) {
-          logger.warn('简单邮件发送失败：邮箱格式无效', { 
+          logger.warn('简单邮件发送失败：邮箱格式无效', {
             invalidEmails: emailValidation.invalid,
             ip,
-            userId: user?.id 
+            userId: user?.id
           });
-          return res.status(400).json({ 
+          return res.status(400).json({
             error: '邮箱格式无效',
-            invalidEmails: emailValidation.invalid 
+            invalidEmails: emailValidation.invalid
           });
         }
       }
 
       // 限制收件人数量
       if (to.length > 10) {
-        logger.warn('简单邮件发送失败：收件人数量过多', { 
+        logger.warn('简单邮件发送失败：收件人数量过多', {
           recipientCount: to.length,
           ip,
-          userId: user?.id 
+          userId: user?.id
         });
-        return res.status(400).json({ 
-          error: '收件人数量不能超过10个' 
+        return res.status(400).json({
+          error: '收件人数量不能超过10个'
         });
       }
 
       // 限制内容长度
       if (content.length > 10000) {
-        logger.warn('简单邮件发送失败：内容过长', { 
+        logger.warn('简单邮件发送失败：内容过长', {
           contentLength: content.length,
           ip,
-          userId: user?.id 
+          userId: user?.id
         });
-        return res.status(400).json({ 
-          error: '邮件内容不能超过10000字符' 
+        return res.status(400).json({
+          error: '邮件内容不能超过10000字符'
         });
       }
 
@@ -288,9 +386,9 @@ export class EmailController {
         ip: req.ip,
         userId: (req as any).user?.id
       });
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
-        error: '邮件发送失败' 
+        error: '邮件发送失败'
       });
     }
   }
@@ -507,9 +605,9 @@ export class EmailController {
         ip: req.ip,
         userId: (req as any).user?.id
       });
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
-        error: '服务状态查询失败' 
+        error: '服务状态查询失败'
       });
     }
   }
@@ -561,13 +659,13 @@ export class EmailController {
       });
 
       if (!email) {
-        logger.warn('发件人域名验证失败：参数无效', { 
+        logger.warn('发件人域名验证失败：参数无效', {
           body: req.body,
           ip,
-          userId: user?.id 
+          userId: user?.id
         });
-        return res.status(400).json({ 
-          error: '请提供邮箱地址' 
+        return res.status(400).json({
+          error: '请提供邮箱地址'
         });
       }
 
@@ -595,9 +693,9 @@ export class EmailController {
         ip: req.ip,
         userId: (req as any).user?.id
       });
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
-        error: '域名验证失败' 
+        error: '域名验证失败'
       });
     }
   }
@@ -620,13 +718,13 @@ export class EmailController {
       });
 
       if (!emails || !Array.isArray(emails)) {
-        logger.warn('邮箱验证失败：参数无效', { 
+        logger.warn('邮箱验证失败：参数无效', {
           body: req.body,
           ip,
-          userId: user?.id 
+          userId: user?.id
         });
-        return res.status(400).json({ 
-          error: '请提供邮箱地址数组' 
+        return res.status(400).json({
+          error: '请提供邮箱地址数组'
         });
       }
 
@@ -655,9 +753,9 @@ export class EmailController {
         ip: req.ip,
         userId: (req as any).user?.id
       });
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
-        error: '邮箱验证失败' 
+        error: '邮箱验证失败'
       });
     }
   }

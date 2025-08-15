@@ -35,6 +35,101 @@ const domainApiKeyMap: Record<string, string> = {};
   }
 })();
 
+// 批量发送（不支持附件，遵循 Resend 限制：最多 100 封/次）
+export async function sendOutEmailBatch({
+  messages,
+  code,
+  ip,
+  from: fromUser,
+  displayName,
+  domain
+}: {
+  messages: Array<{ to: string | string[]; subject: string; content: string }>;
+  code: string;
+  ip: string;
+  from?: string;
+  displayName?: string;
+  domain?: string;
+}) {
+  // 服务状态检查
+  const outemailStatus = (globalThis as any).OUTEMAIL_SERVICE_STATUS;
+  if (outemailStatus && !outemailStatus.available) {
+    return { success: false, error: outemailStatus.error || '对外邮件服务不可用' };
+  }
+
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return { success: false, error: '消息列表不能为空' };
+  }
+  if (messages.length > 100) {
+    return { success: false, error: '单次最多批量发送100封' };
+  }
+
+  // 校验码
+  if (!config.email.outemail.code || code !== config.email.outemail.code) {
+    return { success: false, error: '校验码错误' };
+  }
+
+  // 选择域名
+  const OUTEMAIL_DOMAIN = domain || require('../config').default.email.outemail.domain;
+  if (!OUTEMAIL_DOMAIN) return { success: false, error: '域名未配置' };
+  if (!domainApiKeyMap[OUTEMAIL_DOMAIN]) return { success: false, error: 'API密钥未配置' };
+  const resend = getResendInstanceByDomain(OUTEMAIL_DOMAIN);
+
+  // 限流检查（将本次批量计入配额）
+  const now = dayjs();
+  const date = now.format('YYYY-MM-DD');
+  const minute = now.format('YYYY-MM-DD-HH-mm');
+  let quota = await OutEmailQuota.findOne({ date });
+  if (!quota) quota = await OutEmailQuota.create({ date, minute, countDay: 0, countMinute: 0 });
+  const n = messages.length;
+  // 如果处于同一分钟，检查分钟剩余额度
+  const currentMinuteCount = quota.minute === minute ? quota.countMinute : 0;
+  if (currentMinuteCount + n > 20) {
+    return { success: false, error: `当前一分钟可发送剩余额度不足（剩余 ${Math.max(0, 20 - currentMinuteCount)} 封）` };
+  }
+  if (quota.countDay + n > 100) {
+    return { success: false, error: `今日可发送剩余额度不足（剩余 ${Math.max(0, 100 - quota.countDay)} 封）` };
+  }
+  // 预占额
+  if (quota.minute === minute) {
+    quota.countMinute += n;
+  } else {
+    quota.minute = minute;
+    quota.countMinute = n;
+  }
+  quota.countDay += n;
+  await quota.save();
+
+  try {
+    const sender = parseSender(fromUser || '', displayName, OUTEMAIL_DOMAIN);
+    // 构造 batch payload（无附件）
+    const batch = messages.map((m) => {
+      const toList = Array.isArray(m.to) ? m.to : [m.to];
+      return {
+        from: sender.email,
+        to: toList,
+        subject: m.subject,
+        html: m.content,
+        ...(sender.name && sender.name !== fromUser ? { reply_to: `${sender.name} <${sender.email}>`, headers: { 'X-From-Name': sender.name } } : {}),
+      } as any;
+    });
+
+    const { data, error } = await resend.batch.send(batch);
+    if (error) {
+      logger.error('对外批量邮件发送失败', { error });
+      return { success: false, error: error.message || error.toString() };
+    }
+
+    // 记录日志
+    const records = messages.map((m) => ({ to: Array.isArray(m.to) ? m.to.join(',') : m.to, subject: m.subject, content: m.content, ip }));
+    await OutEmailRecord.insertMany(records);
+    return { success: true, ids: Array.isArray(data) ? data.map((x: any) => x?.id).filter(Boolean) : [] };
+  } catch (e: any) {
+    logger.error('对外批量邮件发送异常', { error: e, stack: e?.stack });
+    return { success: false, error: e?.message || e?.toString() };
+  }
+}
+
 function getResendInstanceByDomain(domain: string) {
   const key = domainApiKeyMap[domain];
   if (!key) throw new Error(`未配置该域名(${domain})的API key`);
@@ -51,7 +146,7 @@ function parseSender(fromPrefix: string, displayName: string | undefined, domain
   };
 }
 
-export async function sendOutEmail({ to, subject, content, code, ip, from: fromUser, displayName, domain }: { to: string, subject: string, content: string, code: string, ip: string, from?: string, displayName?: string, domain?: string }) {
+export async function sendOutEmail({ to, subject, content, code, ip, from: fromUser, displayName, domain, attachments }: { to: string, subject: string, content: string, code: string, ip: string, from?: string, displayName?: string, domain?: string, attachments?: Array<{ path?: string; content?: string; filename: string; content_id?: string }> }) {
   // 检查对外邮件服务状态
   const outemailStatus = (globalThis as any).OUTEMAIL_SERVICE_STATUS;
   if (outemailStatus && !outemailStatus.available) {
@@ -103,6 +198,22 @@ export async function sendOutEmail({ to, subject, content, code, ip, from: fromU
       subject,
       html: content,
     };
+    // 附件
+    if (attachments && Array.isArray(attachments) && attachments.length) {
+      // 基本校验与限制：最多 10 个附件
+      const safeAttachments = attachments
+        .filter(a => a && typeof a.filename === 'string' && (typeof a.path === 'string' || typeof a.content === 'string'))
+        .slice(0, 10)
+        .map(a => ({
+          filename: a.filename,
+          ...(a.path ? { path: a.path } : {}),
+          ...(a.content ? { content: a.content } : {}),
+          ...(a.content_id ? { content_id: a.content_id } : {}),
+        }));
+      if (safeAttachments.length) {
+        mailOptions.attachments = safeAttachments;
+      }
+    }
     // 兼容部分服务商，尝试用headers或reply_to传递显示名
     if (sender.name && sender.name !== fromUser) {
       mailOptions.reply_to = `${sender.name} <${sender.email}>`;

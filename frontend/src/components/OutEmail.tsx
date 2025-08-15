@@ -42,38 +42,54 @@ const OutEmail: React.FC = () => {
   const [checkingExemption, setCheckingExemption] = useState(false);
   const { setNotification } = useNotification();
 
-  // 获取后端支持的所有域名
-  useEffect(() => {
-    fetch(getApiBaseUrl() + '/api/email/domains')
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data.domains) && data.domains.length > 0) {
-          setDomains(data.domains);
-          setSelectedDomain(data.domains[0]);
-        }
-      });
-  }, []);
+  // 附件（前端支持远程URL与本地文件）
+  const [remoteAttachmentUrls, setRemoteAttachmentUrls] = useState('');
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+
+  // 批量发送
+  const [batchMode, setBatchMode] = useState(false);
+  const [batchRecipients, setBatchRecipients] = useState('');
+
+  const fileToBase64 = (file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string; // data:*/*;base64,xxxx
+      const base64 = typeof result === 'string' && result.includes(',') ? result.split(',')[1] : result as string;
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+  // 域名来源仅来自 /api/outemail/status（状态接口会返回 domain 并在加载时设置到 state）
+  useEffect(() => { /* no-op */ }, []);
 
   // 获取对外邮件服务状态
   useEffect(() => {
-    fetch(getApiBaseUrl() + '/api/email/outemail-status')
-      .then(res => res.json())
-      .then(data => {
+    if (!user || user.role !== 'admin') return;
+    const loadStatus = async () => {
+      try {
+        const res = await fetch(getApiBaseUrl() + '/api/outemail/status');
+        if (!res.ok) throw new Error('获取服务状态失败');
+        let data: any;
+        try { data = await res.json(); } catch { throw new Error('服务状态响应解析失败'); }
         if (typeof data.available === 'boolean') {
-          setOutemailStatus({
-            available: data.available,
-            error: data.error
-          });
-          if (!data.available) {
-            setNotification({ message: data.error || '对外邮件服务异常', type: 'error' });
+          setOutemailStatus({ available: data.available, error: data.error });
+          if (data.domain && typeof data.domain === 'string') {
+            setDomains([data.domain]);
+            setSelectedDomain(prev => (prev === data.domain ? prev : data.domain));
           }
+          if (!data.available) setNotification({ message: data.error || '对外邮件服务异常', type: 'error' });
+        } else {
+          setOutemailStatus({ available: false, error: '服务状态数据无效' });
         }
-      })
-      .catch(() => {
-        setOutemailStatus({ available: false, error: '无法获取服务状态' });
-        setNotification({ message: '无法获取对外邮件服务状态', type: 'error' });
-      });
-  }, []);
+      } catch (e: any) {
+        setOutemailStatus({ available: false, error: e.message || '无法获取服务状态' });
+        setNotification({ message: e.message || '无法获取对外邮件服务状态', type: 'error' });
+      }
+    };
+    loadStatus();
+  }, [user]);
 
   // 检查域名豁免状态
   const checkDomainExemption = async () => {
@@ -87,19 +103,23 @@ const OutEmail: React.FC = () => {
       const response = await fetch(getApiBaseUrl() + '/api/email/check-domain-exemption', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ domain: selectedDomain })
       });
+      if (!response.ok) {
+        throw new Error('豁免检查请求失败');
+      }
+      let data: any;
+      try { data = await response.json(); } catch { throw new Error('豁免检查响应解析失败'); }
 
-      const data = await response.json();
-      
       if (data.success) {
         setDomainExemptionStatus({
           exempted: data.exempted,
           message: data.message
         });
-        setNotification({ 
-          message: data.exempted ? '域名已豁免检查' : '域名需要检查', 
-          type: data.exempted ? 'success' : 'info' 
+        setNotification({
+          message: data.exempted ? '域名已豁免检查' : '域名需要检查',
+          type: data.exempted ? 'success' : 'info'
         });
       } else {
         setDomainExemptionStatus({
@@ -108,12 +128,12 @@ const OutEmail: React.FC = () => {
         });
         setNotification({ message: data.error || '检查失败', type: 'error' });
       }
-    } catch (error) {
+    } catch (error: any) {
       setDomainExemptionStatus({
         exempted: false,
-        message: '网络错误'
+        message: error?.message || '网络错误'
       });
-      setNotification({ message: '网络错误，请重试', type: 'error' });
+      setNotification({ message: error?.message || '网络错误，请重试', type: 'error' });
     } finally {
       setCheckingExemption(false);
     }
@@ -121,51 +141,113 @@ const OutEmail: React.FC = () => {
 
   const handleSend = async () => {
     setError(''); setSuccess('');
-    if (!displayName.trim() || !fromUser.trim() || !to.trim() || !subject.trim() || !content.trim() || !code.trim()) {
-      setError('请填写所有字段');
-      setNotification({ message: '请填写所有字段', type: 'warning' });
+    const toTrimmed = to.trim();
+    const subjectTrimmed = subject.trim();
+    const contentTrimmed = content.trim();
+    const codeTrimmed = code.trim();
+    const fromUserTrimmed = fromUser.trim();
+    const displayNameTrimmed = displayName.trim();
+
+    if (!displayNameTrimmed || !fromUserTrimmed || !subjectTrimmed || !contentTrimmed || !codeTrimmed) {
+      setError('请填写必填字段');
+      setNotification({ message: '请填写必填字段', type: 'warning' });
       return;
     }
-    const from = fromUser.trim();
+    if (outemailStatus && !outemailStatus.available) {
+      setError(outemailStatus.error || '对外邮件服务不可用');
+      setNotification({ message: outemailStatus.error || '对外邮件服务不可用', type: 'error' });
+      return;
+    }
+    const from = fromUserTrimmed;
     const domain = selectedDomain;
-    if (!emailRegex.test(to.trim())) {
-      setError('收件人邮箱格式无效');
-      setNotification({ message: '收件人邮箱格式无效', type: 'warning' });
-      return;
-    }
+    
     setLoading(true);
     try {
-      const res = await fetch(getApiBaseUrl() + '/api/email/outemail', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from, displayName, to, subject, content, code, domain })
-      });
-      let data;
-      try {
-        data = await res.json();
-      } catch (e) {
-        setError('服务器响应异常，请联系管理员');
-        setNotification({ message: '服务器响应异常，请联系管理员', type: 'error' });
-        setLoading(false);
-        return;
-      }
-      if (data.success) {
-        setSuccess('邮件发送成功！');
-        setNotification({ message: '邮件发送成功！', type: 'success' });
-        setTo('');
-        setSubject('');
-        setContent('');
-        setCode('');
-        setFromUser('noreply');
-        setDisplayName('');
-        setSelectedDomain(domains[0] || '');
+      if (batchMode) {
+        // 批量：解析收件人
+        const recipients = batchRecipients
+          .split(/\r?\n|[,;\s]+/)
+          .map(s => s.trim())
+          .filter(Boolean);
+        const uniqueRecipients = Array.from(new Set(recipients));
+        if (uniqueRecipients.length === 0) {
+          throw new Error('请填写至少一个收件人');
+        }
+        if (uniqueRecipients.length > 100) {
+          throw new Error('一次最多发送100个收件人');
+        }
+        const invalid = uniqueRecipients.filter(r => !emailRegex.test(r));
+        if (invalid.length) {
+          throw new Error(`存在无效邮箱：${invalid.slice(0,3).join(', ')}${invalid.length>3?' 等':''}`);
+        }
+        const messages = uniqueRecipients.map(r => ({ to: r, subject: subjectTrimmed, content: contentTrimmed }));
+        const res = await fetch(getApiBaseUrl() + '/api/outemail/batch-send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages, code: codeTrimmed, from, displayName: displayNameTrimmed, domain })
+        });
+        if (!res.ok) {
+          const txt = await res.text();
+          throw new Error(txt || '批量发送失败');
+        }
+        const data = await res.json().catch(() => ({}));
+        if (data && data.success) {
+          setSuccess(`批量发送成功（${data.ids?.length ?? uniqueRecipients.length} 封）`);
+          setNotification({ message: '批量发送成功', type: 'success' });
+          setBatchRecipients('');
+        } else {
+          throw new Error(data?.error || '批量发送失败');
+        }
       } else {
-        setError(data.error || '发送失败');
-        setNotification({ message: data.error || '发送失败', type: 'error' });
+        if (!emailRegex.test(toTrimmed)) {
+          throw new Error('收件人邮箱格式无效');
+        }
+        // 单封：组装附件
+        const remoteList = remoteAttachmentUrls
+          .split(/\r?\n/)
+          .map(s => s.trim())
+          .filter(Boolean)
+          .map((url) => {
+            let filename = 'attachment';
+            try {
+              const u = new URL(url);
+              const base = u.pathname.split('/').filter(Boolean).pop();
+              if (base) filename = decodeURIComponent(base);
+            } catch {}
+            return { path: url, filename } as { path: string; filename: string };
+          });
+        const fileList = await Promise.all(selectedFiles.map(async (f) => ({ filename: f.name, content: await fileToBase64(f) })));
+        const attachments = [...remoteList, ...fileList].slice(0, 10);
+
+        const res = await fetch(getApiBaseUrl() + '/api/outemail/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to: toTrimmed, subject: subjectTrimmed, content: contentTrimmed, code: codeTrimmed, from, displayName: displayNameTrimmed, domain, ...(attachments.length ? { attachments } : {}) })
+        });
+        if (!res.ok) {
+          const txt = await res.text();
+          throw new Error(txt || '发送失败');
+        }
+        const data = await res.json().catch(() => ({}));
+        if (data && data.success) {
+          setSuccess('发送成功');
+          setNotification({ message: '发送成功', type: 'success' });
+          setTo('');
+          setSubject('');
+          setContent('');
+          setCode('');
+          setFromUser('noreply');
+          setDisplayName('Synapse');
+          setSelectedDomain(domains[0] || '');
+          setRemoteAttachmentUrls('');
+          setSelectedFiles([]);
+        } else {
+          throw new Error(data?.error || '发送失败');
+        }
       }
     } catch (e: any) {
-      setError(e.message || '发送失败');
-      setNotification({ message: e.message || '发送失败', type: 'error' });
+      setError(e.message || (batchMode ? '批量发送失败' : '发送失败'));
+      setNotification({ message: e.message || (batchMode ? '批量发送失败' : '发送失败'), type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -176,7 +258,7 @@ const OutEmail: React.FC = () => {
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
         <span style={{ fontSize: 120, lineHeight: 1 }}>🤡</span>
         <div className="text-3xl font-bold mt-6 mb-2 text-rose-600 drop-shadow-lg">你不是管理员，禁止访问！</div>
-        <div className="text-lg text-gray-500 mb-8">请用管理员账号登录后再来玩哦~<br/><span className="text-rose-400">（小丑竟是你自己）</span></div>
+        <div className="text-lg text-gray-500 mb-8">请用管理员账号登录后再来玩哦~<br /><span className="text-rose-400">（小丑竟是你自己）</span></div>
         <div className="text-base text-gray-400 italic mt-4">仅限管理员使用，恶搞界面仅供娱乐。</div>
       </div>
     );
@@ -191,7 +273,7 @@ const OutEmail: React.FC = () => {
             <FaEnvelope className="w-6 h-6" />
             对外邮件发送管理
           </h2>
-          <Link 
+          <Link
             to="/"
             className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm font-medium flex items-center gap-2"
           >
@@ -228,7 +310,25 @@ const OutEmail: React.FC = () => {
             服务状态
           </h3>
           <motion.button
-            onClick={() => window.location.reload()}
+            onClick={async () => {
+              // 轻量刷新状态和域名
+              try {
+                const statusRes = await fetch(getApiBaseUrl() + '/api/outemail/status');
+                if (statusRes.ok) {
+                  const d = await statusRes.json().catch(() => null);
+                  if (d && typeof d.available === 'boolean') {
+                    setOutemailStatus({ available: d.available, error: d.error });
+                    if (d.domain && typeof d.domain === 'string') {
+                      setDomains([d.domain]);
+                      setSelectedDomain(prev => (prev === d.domain ? prev : d.domain));
+                    }
+                  }
+                }
+                setNotification({ message: '已刷新', type: 'success' });
+              } catch {
+                setNotification({ message: '刷新失败', type: 'error' });
+              }
+            }}
             className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm font-medium flex items-center gap-2"
             whileTap={{ scale: 0.95 }}
           >
@@ -266,10 +366,21 @@ const OutEmail: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
       >
-        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-          <FaEnvelope className="w-5 h-5 text-indigo-500" />
-          发送邮件
-        </h3>
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <FaEnvelope className="w-5 h-5 text-indigo-500" />
+            发送邮件
+          </h3>
+          <label className="flex items-center gap-2 text-sm select-none">
+            <input
+              type="checkbox"
+              checked={batchMode}
+              onChange={(e) => setBatchMode(e.target.checked)}
+              className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+            />
+            批量发送（最多100个收件人）
+          </label>
+        </div>
 
         {/* 错误和成功消息 */}
         <AnimatePresence>
@@ -302,18 +413,27 @@ const OutEmail: React.FC = () => {
         </AnimatePresence>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* 收件人 */}
+          {/* 收件人 / 批量收件人 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              收件人邮箱 *
+              {batchMode ? '批量收件人（用换行、逗号、分号或空格分隔）*' : '收件人邮箱 *'}
             </label>
-            <input
-              type="email"
-              value={to}
-              onChange={(e) => setTo(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
-              placeholder="收件人@example.com"
-            />
+            {batchMode ? (
+              <textarea
+                value={batchRecipients}
+                onChange={(e) => setBatchRecipients(e.target.value)}
+                className="w-full h-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                placeholder={"foo@example.com, bar@example.com\n或每行一个"}
+              />
+            ) : (
+              <input
+                type="email"
+                value={to}
+                onChange={(e) => setTo(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                placeholder="收件人@example.com"
+              />
+            )}
           </div>
 
           {/* 邮件主题 */}
@@ -388,17 +508,16 @@ const OutEmail: React.FC = () => {
                 {checkingExemption ? '检查中...' : '豁免检查'}
               </motion.button>
             </div>
-            
+
             {/* 豁免状态显示 */}
             {domainExemptionStatus && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`mt-2 p-3 rounded-lg border ${
-                  domainExemptionStatus.exempted 
-                    ? 'bg-green-50 border-green-200' 
+                className={`mt-2 p-3 rounded-lg border ${domainExemptionStatus.exempted
+                    ? 'bg-green-50 border-green-200'
                     : 'bg-yellow-50 border-yellow-200'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-2">
                   {domainExemptionStatus.exempted ? (
@@ -406,16 +525,14 @@ const OutEmail: React.FC = () => {
                   ) : (
                     <FaExclamationTriangle className="w-4 h-4 text-yellow-500" />
                   )}
-                  <span className={`text-sm font-medium ${
-                    domainExemptionStatus.exempted ? 'text-green-800' : 'text-yellow-800'
-                  }`}>
+                  <span className={`text-sm font-medium ${domainExemptionStatus.exempted ? 'text-green-800' : 'text-yellow-800'
+                    }`}>
                     {domainExemptionStatus.exempted ? '已豁免' : '需要检查'}
                   </span>
                 </div>
                 {domainExemptionStatus.message && (
-                  <p className={`text-xs mt-1 ${
-                    domainExemptionStatus.exempted ? 'text-green-600' : 'text-yellow-600'
-                  }`}>
+                  <p className={`text-xs mt-1 ${domainExemptionStatus.exempted ? 'text-green-600' : 'text-yellow-600'
+                    }`}>
                     {domainExemptionStatus.message}
                   </p>
                 )}
@@ -451,28 +568,81 @@ const OutEmail: React.FC = () => {
           />
         </div>
 
+        {/* 附件 */}
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* 远程附件URL */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              附件URL（每行一个，可选）
+            </label>
+            <textarea
+              value={remoteAttachmentUrls}
+              onChange={(e) => setRemoteAttachmentUrls(e.target.value)}
+              disabled={batchMode}
+              className={`w-full h-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 ${batchMode ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+              placeholder="https://example.com/file1.pdf\nhttps://example.com/image.png"
+            />
+            <p className="mt-1 text-xs text-gray-500">{batchMode ? '批量模式不支持附件' : '我们会自动从URL推断文件名。'}</p>
+          </div>
+
+          {/* 本地文件上传 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              本地文件（可多选，可选）
+            </label>
+            <input
+              type="file"
+              multiple
+              onChange={(e) => {
+                const files = Array.from(e.target.files || []);
+                if (files.length) setSelectedFiles(prev => [...prev, ...files]);
+              }}
+              disabled={batchMode}
+              className={`block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 ${batchMode ? 'opacity-60 cursor-not-allowed' : ''}`}
+            />
+            {selectedFiles.length > 0 && (
+              <div className="mt-2 border border-gray-200 rounded-lg p-2 max-h-32 overflow-auto">
+                <ul className="text-xs text-gray-700 space-y-1">
+                  {selectedFiles.map((f, idx) => (
+                    <li key={idx} className="flex items-center justify-between">
+                      <span className="truncate mr-2">{f.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedFiles(prev => prev.filter((_, i) => i !== idx))}
+                        className="text-rose-600 hover:text-rose-700"
+                      >
+                        移除
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-2 text-[11px] text-gray-500">最多发送10个附件，单次邮件总大小不超过40MB。</div>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* 发送按钮 */}
         <div className="mt-6">
           <motion.button
             onClick={handleSend}
             disabled={loading}
-            className={`w-full py-3 px-6 rounded-lg font-semibold text-white transition-all duration-200 ${
-              loading
+            className={`w-full py-3 px-6 rounded-lg font-semibold text-white transition-all duration-200 ${loading
                 ? 'bg-gray-400 cursor-not-allowed'
                 : 'bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 shadow-lg hover:shadow-xl'
-            }`}
+              }`}
             whileHover={!loading ? { scale: 1.02 } : {}}
             whileTap={!loading ? { scale: 0.98 } : {}}
           >
             {loading ? (
               <div className="flex items-center justify-center space-x-2">
                 <FaSync className="animate-spin w-5 h-5" />
-                <span>发送中...</span>
+                <span>{batchMode ? '批量发送中...' : '发送中...'}</span>
               </div>
             ) : (
               <div className="flex items-center justify-center space-x-2">
                 <FaEnvelope className="w-5 h-5" />
-                <span>发送邮件</span>
+                <span>{batchMode ? '批量发送' : '发送邮件'}</span>
               </div>
             )}
           </motion.button>

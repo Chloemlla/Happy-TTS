@@ -56,6 +56,7 @@ import fbiWantedPublicRoutes from './routes/fbiWantedPublicRoutes';
 import humanCheckRoutes from './routes/humanCheckRoutes';
 
 import emailRoutes from './routes/emailRoutes';
+import outemailRoutes from './routes/outemailRoutes';
 import { commandStatusHandler } from './routes/commandRoutes';
 import { authenticateToken } from './middleware/authenticateToken';
 import { totpStatusHandler } from './routes/totpRoutes';
@@ -332,6 +333,8 @@ app.use(isLocalIp); // 添加本地 IP 检查中间件
 
 // 立即注册 emailRoutes，确保 /api/email/outemail 无需 token 验证
 app.use('/api/email', emailRoutes);
+// 单独注册对外邮件公共路由，确保无鉴权访问
+app.use('/api/outemail', outemailRoutes);
 
 // 应用请求限制到不同路由
 app.use('/api/auth', authLimiter);

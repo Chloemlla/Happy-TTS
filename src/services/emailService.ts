@@ -387,6 +387,50 @@ export class EmailService {
   }
 
   /**
+   * 使用 Resend 批量接口逐个发送（每个收件人一封）
+   * 限制：最多100个收件人；不支持附件
+   */
+  static async sendBatchHtmlEmails(
+    to: string[],
+    subject: string,
+    htmlContent: string,
+    from?: string
+  ): Promise<EmailResponse & { ids?: string[] }> {
+    if (!(globalThis as any).EMAIL_ENABLED) {
+      return { success: false, error: '邮件服务未启用，请联系管理员配置 RESEND_API_KEY' };
+    }
+
+    const serviceStatus = (globalThis as any).EMAIL_SERVICE_STATUS;
+    if (serviceStatus && !serviceStatus.available) {
+      return { success: false, error: serviceStatus.error || '邮件服务不可用' };
+    }
+
+    const safeTo = (to || []).map(t => String(t).trim()).filter(Boolean);
+    if (safeTo.length === 0) return { success: false, error: '收件人不能为空' };
+    if (safeTo.length > 100) return { success: false, error: '批量收件人最多100个' };
+
+    const sender = from || DEFAULT_EMAIL_FROM;
+    const domain = sender.split('@')[1] || RESEND_DOMAIN;
+    const resendInst = getResendInstanceByDomain(domain);
+
+    try {
+      const batch = safeTo.map((r) => ({
+        from: sender,
+        to: [r],
+        subject,
+        html: htmlContent
+      }));
+      // @ts-ignore - resend typings may not include batch yet
+      const { data, error } = await (resendInst as any).batch.send(batch);
+      if (error) return { success: false, error: error.message || String(error) };
+      const ids = Array.isArray(data) ? data.map((d: any) => d?.id).filter(Boolean) : undefined;
+      return { success: true, data, ids };
+    } catch (e: any) {
+      return { success: false, error: e?.message || '批量发送失败' };
+    }
+  }
+
+  /**
    * 发送Markdown格式邮件
    * @param param0 { from, to, subject, markdown }
    * @returns 发送结果
@@ -452,7 +496,7 @@ export class EmailService {
 
     return { valid, invalid };
   }
-
+  
   /**
    * 获取邮件发送状态
    * @returns 服务状态

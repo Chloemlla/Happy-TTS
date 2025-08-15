@@ -7,12 +7,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';
-      script-src 'self' 'unsafe-eval' https: http:;
+      script-src 'self' 'unsafe-eval' https: http: blob:;
+      worker-src 'self' blob:;
+      child-src blob:; 
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-      style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com;
+      style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net;
       img-src 'self' data: blob: https:;
-      connect-src 'self' http://localhost:3000 https://*.hapxs.com https://tts-api.hapxs.com https://api.ipify.org https://ipapi.co https://ipinfo.io https://cdn.shopimgs.com https://api.ip.sb https://ipfs.crossbell.io ws: wss:;
-      font-src 'self' https://fonts.gstatic.com data:;
+      connect-src 'self' http://localhost:3000 http://localhost:3001 https://*.hapxs.com https://tts-api.hapxs.com https://api.ipify.org https://ipapi.co https://ipinfo.io https://cdn.shopimgs.com https://api.ip.sb https://ipfs.crossbell.io ws: wss:;
+      font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net data:;
       object-src 'none';
       media-src 'self' blob:;
       frame-src 'self' https://tts-api.hapxs.com https://tts-api-docs.hapxs.com;
