@@ -826,6 +826,31 @@ app.get('/', rootLimiter, (req, res) => {
   res.redirect('/index.html');
 });
 
+// 兼容旧路径：直接访问 /lc 与 /librechat-image
+const lcCompatLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: { error: '请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.get('/lc', lcCompatLimiter, (req, res) => {
+  try {
+    const { libreChatService } = require('./services/libreChatService');
+    const record = libreChatService.getLatestRecord();
+    if (record) {
+      return res.json({
+        update_time: record.updateTime,
+        image_name: record.imageUrl,
+      });
+    }
+    return res.status(404).json({ error: 'No data available.' });
+  } catch (e) {
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+app.get('/librechat-image', lcCompatLimiter, (req, res) => res.redirect(302, '/api/libre-chat/librechat-image'));
+
 // IP查询路由限流器
 const ipQueryLimiter = rateLimit({
   windowMs: 60 * 1000, // 1分钟

@@ -3,16 +3,26 @@ import { JSDOM } from 'jsdom';
 import { writeFile, readFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
-import { logger } from './logger';
-import { mongoose } from './mongoService';
+import logger from '../utils/logger';
+import { mongoose } from '../services/mongoService';
 
-// MongoDB 图片记录 Schema
+// MongoDB 图片记录 Schema（历史图片记录，保留原有定义）
 const ImageRecordSchema = new mongoose.Schema({
   userId: { type: String, required: true },
   imageUrl: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },
 }, { collection: 'librechat_images' });
 const ImageRecordModel = mongoose.models.LibreChatImage || mongoose.model('LibreChatImage', ImageRecordSchema);
+
+// MongoDB 最新记录 Schema（单例文档，用于 getLatestRecord 持久化）
+const LatestRecordSchema = new mongoose.Schema({
+  _id: { type: String, default: 'latest' },
+  updateTime: { type: String, required: true },
+  updateTimeShanghai: { type: String },
+  imageUrl: { type: String, required: true },
+  updatedAt: { type: Date, default: Date.now },
+}, { collection: 'librechat_latest' });
+const LatestRecordModel = mongoose.models.LibreChatLatest || mongoose.model('LibreChatLatest', LatestRecordSchema);
 
 // MongoDB 聊天历史 Schema
 const ChatHistorySchema = new mongoose.Schema({
@@ -24,6 +34,8 @@ const ChatHistoryModel = mongoose.models.LibreChatHistory || mongoose.model('Lib
 
 interface ImageRecord {
   updateTime: string;
+  // 上海时间（UTC+8），用于本地化显示，可选以兼容历史数据
+  updateTimeShanghai?: string;
   imageUrl: string;
 }
 
@@ -68,15 +80,29 @@ class LibreChatService {
   private async initializeService() {
     try {
       if (mongoose.connection.readyState === 1) {
-        // MongoDB: 加载图片记录
-        const latest = await ImageRecordModel.findOne().sort({ createdAt: -1 }).lean();
-        this.latestRecord = latest ? latest as any : null;
-        logger.log('Loaded previous LibreChat image record from MongoDB');
+        // MongoDB: 加载最新记录（优先从单例集合获取）
+        const latestDoc = await LatestRecordModel.findById('latest').lean();
+        if (latestDoc) {
+          const d: any = latestDoc;
+          this.latestRecord = {
+            updateTime: d.updateTime,
+            updateTimeShanghai: d.updateTimeShanghai,
+            imageUrl: d.imageUrl,
+          };
+          logger.info('Loaded latest LibreChat record from MongoDB (librechat_latest)');
+        } else {
+          // 回退：尝试从历史图片集合中读取最近一条（仅保留 imageUrl）
+          const latest = await ImageRecordModel.findOne().sort({ createdAt: -1 }).lean();
+          this.latestRecord = latest ? { updateTime: new Date().toISOString(), imageUrl: (latest as any).imageUrl } : null;
+          if (this.latestRecord) {
+            logger.info('Loaded fallback LibreChat image record from MongoDB (librechat_images)');
+          }
+        }
         // 加载聊天历史
         const history = await ChatHistoryModel.findOne().sort({ updatedAt: -1 }).lean();
         const h: any = history;
         this.chatHistory = h && Array.isArray(h.messages) ? h.messages : [];
-        logger.log('Loaded chat history from MongoDB');
+        logger.info('Loaded chat history from MongoDB');
         if (!this.isRunning && process.env.NODE_ENV !== 'test') {
           this.startPeriodicCheck();
         }
@@ -89,17 +115,17 @@ class LibreChatService {
     try {
       if (!existsSync(this.DATA_DIR)) {
         await mkdir(this.DATA_DIR, { recursive: true });
-        logger.log('Created data directory for LibreChat service');
+        logger.info('Created data directory for LibreChat service');
       }
       if (existsSync(this.DATA_FILE)) {
         const data = await readFile(this.DATA_FILE, 'utf-8');
         this.latestRecord = JSON.parse(data);
-        logger.log('Loaded previous LibreChat image record');
+        logger.info('Loaded previous LibreChat image record');
       }
       if (existsSync(this.CHAT_HISTORY_FILE)) {
         const data = await readFile(this.CHAT_HISTORY_FILE, 'utf-8');
         this.chatHistory = JSON.parse(data);
-        logger.log('Loaded chat history');
+        logger.info('Loaded chat history');
       }
       if (!this.isRunning && process.env.NODE_ENV !== 'test') {
         this.startPeriodicCheck();
@@ -113,7 +139,16 @@ class LibreChatService {
     try {
       await writeFile(this.DATA_FILE, JSON.stringify(record, null, 2));
       this.latestRecord = record;
-      logger.log(`Saved new LibreChat image record: ${record.imageUrl}`);
+      logger.info(`Saved new LibreChat image record: ${record.imageUrl}`);
+      // 同步保存到 MongoDB（单例 upsert）
+      if (mongoose.connection.readyState === 1) {
+        await LatestRecordModel.findByIdAndUpdate(
+          'latest',
+          { ...record, updatedAt: new Date() },
+          { upsert: true, setDefaultsOnInsert: true }
+        );
+        logger.info('Upserted latest LibreChat record to MongoDB');
+      }
     } catch (error) {
       logger.error('Error saving LibreChat record:', error);
     }
@@ -131,23 +166,38 @@ class LibreChatService {
     try {
       const url = 'https://github.com/danny-avila/LibreChat/pkgs/container/librechat-dev';
       const response = await axios.get(url);
-      
+
       // 使用 JSDOM 解析 HTML
       const dom = new JSDOM(response.data);
       const document = dom.window.document;
-      
+
       // 查找 Docker 命令
       const clipboardCopy = document.querySelector('clipboard-copy');
       if (clipboardCopy) {
         const dockerCommand = clipboardCopy.getAttribute('value') || '';
         const filteredCommand = dockerCommand.replace('docker pull ', '');
-        
+        // 生成时间：UTC 和 上海时间（UTC+8）
+        const now = new Date();
+        const fmt = new Intl.DateTimeFormat('zh-CN', {
+          timeZone: 'Asia/Shanghai',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+        });
+        const parts = Object.fromEntries(fmt.formatToParts(now).map(p => [p.type, p.value]));
+        const shanghai = `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
+
         // 创建新记录
         const newRecord: ImageRecord = {
-          updateTime: new Date().toISOString(),
+          updateTime: now.toISOString(),
+          updateTimeShanghai: shanghai,
           imageUrl: filteredCommand
         };
-        
+
         // 保存记录
         await this.saveRecord(newRecord);
       }
@@ -167,6 +217,16 @@ class LibreChatService {
   }
 
   public getLatestRecord(): ImageRecord | null {
+    // 访问时确保持久化（若 MongoDB 已连接）
+    if (this.latestRecord && mongoose.connection.readyState === 1) {
+      LatestRecordModel.findByIdAndUpdate(
+        'latest',
+        { ...this.latestRecord, updatedAt: new Date() },
+        { upsert: true, setDefaultsOnInsert: true }
+      ).catch(err => {
+        logger.log('Failed to upsert latest record on getLatestRecord:', err);
+      });
+    }
     return this.latestRecord;
   }
 
@@ -196,7 +256,7 @@ class LibreChatService {
     ];
 
     const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-    
+
     // 保存AI响应
     const aiMessage: ChatMessage = {
       id: (Date.now() + 1).toString(),
@@ -217,7 +277,7 @@ class LibreChatService {
   public async getHistory(token: string, options: PaginationOptions = { page: 1, limit: 20 }): Promise<ChatHistory> {
     const userMessages = this.chatHistory.filter(msg => msg.token === token);
     const total = userMessages.length;
-    
+
     const startIndex = (options.page - 1) * options.limit;
     const endIndex = startIndex + options.limit;
     const messages = userMessages.slice(startIndex, endIndex);
