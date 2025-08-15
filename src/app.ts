@@ -692,7 +692,7 @@ try {
   logger.warn('[Swagger] Falling back to swagger-jsdoc generated spec. Reason: ' + (e instanceof Error ? e.message : String(e)));
 }
 
-// Decide UI setup mode: if OPENAPI_JSON_PATH is defined or /app/openapi.json exists, let UI fetch /api-docs.json directly
+// Decide UI setup mode: if OPENAPI_JSON_PATH is defined or /app/openapi.json exists, let UI fetch /openapi.json directly
 const preferSwaggerUrl = !!process.env.OPENAPI_JSON_PATH || fs.existsSync('/app/openapi.json');
 
 app.use('/api-docs', (req: Request, res: Response, next: NextFunction) => {
@@ -702,7 +702,7 @@ app.use('/api-docs', (req: Request, res: Response, next: NextFunction) => {
   res.removeHeader && res.removeHeader('ETag');
   next();
 }, swaggerUi.serve, preferSwaggerUrl
-  ? swaggerUi.setup(undefined, { swaggerUrl: '/api-docs.json' })
+  ? swaggerUi.setup(undefined, { swaggerUrl: '/openapi.json' })
   : swaggerUi.setup(swaggerUiSpec)
 );
 
