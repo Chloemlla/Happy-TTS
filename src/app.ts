@@ -112,6 +112,9 @@ app.options('/s/*', (req: Request, res: Response) => {
   res.status(200).end();
 });
 
+// Mount webhook routes BEFORE global JSON parser to preserve raw body for Svix
+app.use('/api/webhooks', webhookRoutes);
+
 // JSON body parser middleware - 必须在短链路由之前
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -613,6 +616,24 @@ const swaggerOptions = {
 };
 const swaggerSpec = swaggerJSDoc(swaggerOptions);
 
+// Helper to load openapi.json from multiple candidate paths
+const readOpenapiJson = async (): Promise<string> => {
+  const candidates = [
+    process.env.OPENAPI_JSON_PATH && path.resolve(process.env.OPENAPI_JSON_PATH),
+    path.join(process.cwd(), 'openapi.json'),
+    path.join(__dirname, '../openapi.json'),
+    path.join(process.cwd(), 'dist/openapi.json'),
+  ].filter(Boolean) as string[];
+  for (const p of candidates) {
+    try {
+      if (await fs.promises.stat(p).then(s => s.isFile()).catch(() => false)) {
+        return await fs.promises.readFile(p, 'utf-8');
+      }
+    } catch (_) { /* ignore */ }
+  }
+  throw new Error('openapi.json not found in: ' + candidates.join(' | '));
+};
+
 // openapi.json 路由（必须在最前面）
 const openapiLimiter = rateLimit({
   windowMs: 60 * 1000, // 1分钟
@@ -622,7 +643,7 @@ const openapiLimiter = rateLimit({
 app.get('/api/api-docs.json', openapiLimiter, async (req, res) => {
   try {
     res.setHeader('Content-Type', 'application/json');
-    const content = await fs.promises.readFile(path.join(process.cwd(), 'openapi.json'), 'utf-8');
+    const content = await readOpenapiJson();
     res.send(content);
   } catch (error) {
     res.status(500).json({ error: '无法读取API文档' });
@@ -631,7 +652,7 @@ app.get('/api/api-docs.json', openapiLimiter, async (req, res) => {
 app.get('/api-docs.json', openapiLimiter, async (req, res) => {
   try {
     res.setHeader('Content-Type', 'application/json');
-    const content = await fs.promises.readFile(path.join(process.cwd(), 'openapi.json'), 'utf-8');
+    const content = await readOpenapiJson();
     res.send(content);
   } catch (error) {
     res.status(500).json({ error: '无法读取API文档' });
@@ -866,16 +887,57 @@ const staticFileLimiter = rateLimit({
   skip: (req: Request): boolean => req.isLocalIp || false
 });
 
-// 静态文件服务
-const frontendPath = join(__dirname, '../frontend/dist');
-if (existsSync(frontendPath)) {
-  app.use('/static', staticFileLimiter, express.static(frontendPath));
+// 静态文件服务（兼容 Docker 镜像路径）
+const frontendCandidates = [
+  process.env.FRONTEND_DIST_DIR && path.resolve(process.env.FRONTEND_DIST_DIR),
+  join(__dirname, '../frontend/dist'),
+  join(__dirname, '../../frontend/dist'),
+  path.resolve(process.cwd(), 'frontend/dist'),
+].filter(Boolean) as string[];
+
+const resolvedFrontendPath = frontendCandidates.find(p => existsSync(p));
+
+if (resolvedFrontendPath) {
+  logger.info('[Frontend] Serving static files from: ' + resolvedFrontendPath);
+  app.use('/static', staticFileLimiter, express.static(resolvedFrontendPath));
   // 前端 SPA 路由 - 只匹配非 /api /api-docs /static /openapi 开头的路径
   app.get(/^\/(?!api|api-docs|static|openapi)(.*)/, frontendLimiter, (req, res) => {
-    res.sendFile(join(frontendPath, 'index.html'));
+    res.sendFile(join(resolvedFrontendPath, 'index.html'));
   });
 } else {
-  logger.warn('Frontend files not found at:', frontendPath);
+  const expected = frontendCandidates.join(' | ');
+  logger.warn('[Frontend] Frontend files not found at any candidate path. Tried: ' + expected);
+  // 提供降级首页，确保 Docker 镜像在无前端构建文件时也可使用 Swagger
+  app.get('/index.html', (req, res) => {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.status(200).send(`<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Synapse API</title>
+    <style>
+      body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;padding:40px;line-height:1.6}
+      .card{max-width:680px;margin:0 auto;border:1px solid #e5e7eb;border-radius:12px;padding:24px;box-shadow:0 4px 14px rgba(0,0,0,.08)}
+      h1{margin:0 0 12px;font-size:24px}
+      a{color:#3b82f6;text-decoration:none}
+      code{background:#f3f4f6;padding:2px 6px;border-radius:6px}
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Synapse 后端已启动</h1>
+      <p>未检测到前端构建文件。您仍可通过 Swagger 访问 API 文档：</p>
+      <ul>
+        <li><a href="/api-docs" rel="noopener">Swagger UI</a></li>
+        <li><a href="/api-docs.json" rel="noopener">Swagger JSON</a></li>
+        <li><a href="/api/api-docs.json" rel="noopener">Swagger JSON (alt)</a></li>
+      </ul>
+      <p>如果需要启用前端，请设置环境变量 <code>FRONTEND_DIST_DIR</code> 或将构建产物放到以下任一路径：<br/><small>${expected}</small></p>
+    </div>
+  </body>
+</html>`);
+  });
 }
 
 // 文档加载超时上报接口限流器

@@ -1,4 +1,6 @@
 import mongoose, { Schema } from 'mongoose';
+import type { IncomingHttpHeaders } from 'http';
+import { Webhook as SvixWebhook } from 'svix';
 
 const WebhookEventSchema = new Schema({
   provider: { type: String, default: 'resend' },
@@ -43,3 +45,36 @@ export const WebhookEventService = {
     return { success: true };
   },
 };
+
+/**
+ * 使用 Svix 验证 Resend Webhook 请求
+ * 注意：Resend 的签名密钥需要 Base64 解码后再传入 Svix
+ */
+export function verifyResendWebhook(payload: string, headers: IncomingHttpHeaders) {
+  const rawSecret = process.env.RESEND_WEBHOOK_SECRET || process.env.WEBHOOK_SECRET;
+  if (!rawSecret) {
+    throw new Error('RESEND_WEBHOOK_SECRET 未配置');
+  }
+  // Resend 文档要求：先 base64 解码
+  let secret: string;
+  try {
+    secret = Buffer.from(rawSecret, 'base64').toString('utf-8');
+  } catch {
+    // 若用户已提供明文（非base64），则直接使用
+    secret = rawSecret;
+  }
+
+  const svixHeaders = {
+    'svix-id': String(headers['svix-id'] || ''),
+    'svix-timestamp': String(headers['svix-timestamp'] || ''),
+    'svix-signature': String(headers['svix-signature'] || ''),
+  };
+
+  if (!svixHeaders['svix-id'] || !svixHeaders['svix-timestamp'] || !svixHeaders['svix-signature']) {
+    throw new Error('缺少 Svix 签名头');
+  }
+
+  const wh = new SvixWebhook(secret);
+  // 成功时返回已验证且解析后的对象，失败将抛错
+  return wh.verify(payload, svixHeaders as any);
+}

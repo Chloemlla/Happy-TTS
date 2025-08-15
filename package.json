@@ -101,6 +101,7 @@
     "serve": "^14.2.1",
     "socks-proxy-agent": "^8.0.5",
     "speakeasy": "^2.0.0",
+    "svix": "^1.73.0",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "uuid": "^11.1.0",

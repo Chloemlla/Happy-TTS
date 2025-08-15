@@ -3,7 +3,7 @@ import { WebhookController } from '../controllers/webhookController';
 
 const router = express.Router();
 
-// Resend webhooks send JSON body
-router.post('/resend', express.json({ type: 'application/json' }), WebhookController.handleResendWebhook);
+// Resend webhooks require RAW body for signature verification
+router.post('/resend', express.raw({ type: 'application/json' }), WebhookController.handleResendWebhook);
 
 export default router;

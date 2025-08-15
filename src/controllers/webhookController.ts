@@ -1,14 +1,20 @@
 import { Request, Response } from 'express';
 import logger from '../utils/logger';
-import { WebhookEventService } from '../services/webhookEventService';
+import { WebhookEventService, verifyResendWebhook } from '../services/webhookEventService';
 
 export class WebhookController {
   // POST /api/webhooks/resend
   static async handleResendWebhook(req: Request, res: Response) {
     try {
-      // Resend sends JSON events. If signature verification is needed later,
-      // we can add it here using a webhook secret.
-      const event = req.body;
+      // 读取原始请求体（express.raw 中间件提供 Buffer）并验证 Svix 签名
+      const payload = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : (typeof req.body === 'string' ? req.body : JSON.stringify(req.body || {}));
+      let event: any;
+      try {
+        event = verifyResendWebhook(payload, req.headers);
+      } catch (e) {
+        logger.warn('[ResendWebhook] 签名验证失败', { error: e instanceof Error ? e.message : String(e) });
+        return res.status(400).json({ error: 'Invalid webhook signature' });
+      }
 
       // Basic validation
       if (!event) {

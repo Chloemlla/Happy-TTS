@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { api } from '../api/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { FaEnvelope, FaUser, FaGlobe, FaShieldAlt, FaInfoCircle, FaExclamationTriangle, FaCheckCircle, FaSync, FaArrowLeft } from 'react-icons/fa';
@@ -96,10 +97,9 @@ const OutEmail: React.FC = () => {
   useEffect(() => {
     const fetchQuota = async () => {
       try {
-        const res = await fetch(getApiBaseUrl() + '/api/outemail/quota');
-        const data = await res.json();
-        if (data && data.success) {
-          setQuota({ used: Number(data.used)||0, total: Number(data.total)||0, resetAt: String(data.resetAt||'') });
+        const { data } = await api.get('/api/outemail/quota');
+        if (data?.success) {
+          setQuota({ used: Number(data.used) || 0, total: Number(data.total) || 0, resetAt: String(data.resetAt || '') });
         }
       } catch {}
     };
