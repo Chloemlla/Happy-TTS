@@ -783,16 +783,23 @@ app.use('/api/modlist', modlistMountLimiter, modlistRoutes);
 app.use('/api/image-data', imageDataRoutes);
 // 资源路由 - 部分需要认证
 app.use('/api', resourceRoutes);
-// CDK路由 - 需要认证
-app.use('/api', authenticateToken, cdkRoutes);
-// Webhook事件管理 - 需要管理员认证
-app.use('/api/webhook-events', authenticateToken, webhookEventRoutes);
-// FBI通缉犯路由
-app.use('/api/fbi-wanted', fbiWantedRoutes);
-// FBI通缉犯公开路由（完全无鉴权）
-app.use('/api/fbi-wanted-public', fbiWantedPublicRoutes);
-// 额外公开别名（非 /api 前缀，绕过任何潜在的 /api 层鉴权拦截）
-app.use('/public/fbi-wanted', fbiWantedPublicRoutes);
+// CDK路由 - 需要认证（添加挂载限流）
+const cdkMountLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1分钟
+  max: 60, // 每IP每分钟最多60次
+  message: { error: 'CDK 请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api', cdkMountLimiter, authenticateToken, cdkRoutes);
+// Webhook事件管理 - 需要管理员认证（添加管理员限流）
+app.use('/api/webhook-events', authenticateToken, adminLimiter, webhookEventRoutes);
+// FBI通缉犯路由（管理员端，添加管理员限流）
+app.use('/api/fbi-wanted', adminLimiter, fbiWantedRoutes);
+// FBI通缉犯公开路由（完全无鉴权，添加前端限流）
+app.use('/api/fbi-wanted-public', frontendLimiter, fbiWantedPublicRoutes);
+// 额外公开别名（非 /api 前缀，绕过任何潜在的 /api 层鉴权拦截）- 添加前端限流
+app.use('/public/fbi-wanted', frontendLimiter, fbiWantedPublicRoutes);
 // app.use('/api', shortUrlRoutes);
 
 // 完整性检测相关兜底接口限速
@@ -821,9 +828,9 @@ const rootLimiter = rateLimit({
   skip: (req: Request): boolean => req.isLocalIp || false
 });
 
-// 根路由重定向到前端
+// 根路由重定向到前端站点
 app.get('/', rootLimiter, (req, res) => {
-  res.redirect('/index.html');
+  res.redirect('http://tts.hapxs.com/');
 });
 
 // 兼容旧路径：直接访问 /lc 与 /librechat-image
