@@ -679,6 +679,16 @@ app.get('/api-docs.json', openapiLimiter, async (req, res) => {
     res.status(500).json({ error: '无法读取API文档' });
   }
 });
+// 兼容根路径 openapi.json（Swagger UI 在容器中可能直接请求 /openapi.json）
+app.get('/openapi.json', openapiLimiter, async (req, res) => {
+  try {
+    res.setHeader('Content-Type', 'application/json');
+    const content = await readOpenapiJson();
+    res.send(content);
+  } catch (error) {
+    res.status(500).json({ error: '无法读取API文档' });
+  }
+});
 // Swagger UI 路由（优先使用预生成 openapi.json，避免容器中无源码注释导致无路径）
 let swaggerUiSpec: any = swaggerSpec;
 let swaggerLoadReason = 'swagger-jsdoc';
