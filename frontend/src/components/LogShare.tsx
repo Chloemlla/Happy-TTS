@@ -975,11 +975,11 @@ const LogShare: React.FC = () => {
           </div>
 
           <div className="space-y-4">
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap sm:flex-nowrap">
               <motion.button
                 onClick={loadAllLogs}
                 disabled={isLoadingAllLogs}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm font-medium flex items-center gap-2"
+                className="px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm font-medium flex items-center gap-2 w-full sm:w-auto"
                 whileTap={{ scale: 0.95 }}
               >
                 {isLoadingAllLogs ? (
@@ -997,22 +997,22 @@ const LogShare: React.FC = () => {
 
               {/* 批量操作 */}
               {allLogs.length > 0 && (
-                <>
+                <div className="flex gap-2 flex-1 sm:flex-none">
                   <motion.button
                     onClick={handleBatchDelete}
-                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all duration-200 text-sm font-medium flex items-center gap-2"
+                    className="px-4 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all duration-200 text-sm font-medium flex items-center gap-2 w-full sm:w-auto"
                     whileTap={{ scale: 0.95 }}
                   >
                     批量删除
                   </motion.button>
                   <motion.button
                     onClick={handleDeleteAll}
-                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-200 text-sm font-medium flex items-center gap-2"
+                    className="px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-200 text-sm font-medium flex items-center gap-2 w-full sm:w-auto"
                     whileTap={{ scale: 0.95 }}
                   >
                     清空所有
                   </motion.button>
-                </>
+                </div>
               )}
             </div>
 
@@ -1024,9 +1024,9 @@ const LogShare: React.FC = () => {
                 className="mb-4"
               >
                 <h4 className="text-sm font-semibold text-gray-700 mb-2">所有日志列表 ({allLogs.length})</h4>
-                <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg">
+                <div className="max-h-[60vh] overflow-y-auto border border-gray-200 rounded-lg">
                   {/* 选择全选 */}
-                  <div className="flex items-center gap-2 p-2 border-b border-gray-100 bg-gray-50">
+                  <div className="flex items-center gap-2 p-3 border-b border-gray-100 bg-gray-50 sticky top-0 z-10">
                     <input type="checkbox" checked={selectedIds.length === allLogs.length && allLogs.length > 0} onChange={selectAll} />
                     <span className="text-sm text-gray-600">全选（已选 {selectedIds.length}）</span>
                   </div>
@@ -1036,22 +1036,28 @@ const LogShare: React.FC = () => {
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.1 }}
-                      className={`flex items-center justify-between p-2 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 ${
+                      className={`p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 ${
                         selectedLogIndex === index ? 'bg-blue-50 border-blue-200' : ''
                       }`}
                       whileHover={{ scale: 1.01 }}
                       whileTap={{ scale: 0.99 }}
                     >
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <input type="checkbox" checked={selectedIds.includes(log.id)} onChange={() => toggleSelect(log.id)} />
-                        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => { setSelectedLogIndex(index); viewLog(log.id); }}>
-                          <div className="text-sm font-medium text-gray-900 truncate">{log.id}</div>
-                          <div className="text-xs text-gray-500">{log.ext} • {new Date(log.uploadTime).toLocaleString()} • {(log.size / 1024).toFixed(1)}KB</div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button className="px-2 py-1 text-xs bg-blue-500 text-white rounded" onClick={() => viewLog(log.id)}>查看</button>
-                          <button className="px-2 py-1 text-xs bg-yellow-500 text-white rounded" onClick={() => openEdit(log)}>编辑</button>
-                          <button className="px-2 py-1 text-xs bg-red-500 text-white rounded" onClick={() => handleDeleteOne(log.id)}>删除</button>
+                      <div className="flex items-start gap-3">
+                        <input className="mt-1.5 shrink-0" type="checkbox" checked={selectedIds.includes(log.id)} onChange={() => toggleSelect(log.id)} />
+                        <div className="flex-1 min-w-0" >
+                          <div className="flex items-center gap-2">
+                            <div className="text-sm font-medium text-gray-900 truncate max-w-[60vw] sm:max-w-none cursor-pointer" onClick={() => { setSelectedLogIndex(index); viewLog(log.id); }}>{log.id}</div>
+                            <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">{log.ext || '未知'}</span>
+                          </div>
+                          <div className="mt-1 text-xs text-gray-500 flex flex-wrap gap-x-3 gap-y-1">
+                            <span>{new Date(log.uploadTime).toLocaleString()}</span>
+                            <span>{(log.size / 1024).toFixed(1)}KB</span>
+                          </div>
+                          <div className="mt-2 grid grid-cols-3 gap-2 sm:flex sm:items-center sm:gap-2">
+                            <button className="col-span-1 px-3 py-2 text-xs bg-blue-500 text-white rounded active:scale-[0.98]" onClick={() => viewLog(log.id)} aria-label="查看">查看</button>
+                            <button className="col-span-1 px-3 py-2 text-xs bg-yellow-500 text-white rounded active:scale-[0.98]" onClick={() => openEdit(log)} aria-label="编辑">编辑</button>
+                            <button className="col-span-1 px-3 py-2 text-xs bg-red-500 text-white rounded active:scale-[0.98]" onClick={() => handleDeleteOne(log.id)} aria-label="删除">删除</button>
+                          </div>
                         </div>
                       </div>
                     </motion.div>
