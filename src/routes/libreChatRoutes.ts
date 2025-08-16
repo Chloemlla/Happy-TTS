@@ -197,4 +197,139 @@ router.delete('/clear', async (req, res) => {
   }
 });
 
-export default router; 
+/**
+ * @openapi
+ * /message:
+ *   delete:
+ *     summary: 删除单条消息
+ *     parameters:
+ *       - in: query
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 用户认证token
+ *       - in: query
+ *         name: messageId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 消息ID
+ *     responses:
+ *       200:
+ *         description: 删除成功
+ *       401:
+ *         description: 认证失败
+ */
+router.delete('/message', async (req, res) => {
+  try {
+    const { token, messageId } = req.query;
+
+    // 验证token
+    if (!token || token === 'invalid-token') {
+      return res.status(401).json({ error: '无效的token' });
+    }
+
+    if (!messageId || typeof messageId !== 'string') {
+      return res.status(400).json({ error: '缺少消息ID' });
+    }
+
+    // 删除单条消息
+    const { removed } = await libreChatService.deleteMessage(token as string, messageId as string);
+    res.json({ message: '消息删除成功', removed });
+  } catch (error) {
+    console.error('删除消息错误:', error);
+    res.status(500).json({ error: '删除消息失败' });
+  }
+});
+
+/**
+ * @openapi
+ * /messages:
+ *   delete:
+ *     summary: 批量删除消息
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [token, messageIds]
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: 用户认证token
+ *               messageIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: 消息ID列表
+ *     responses:
+ *       200:
+ *         description: 删除成功
+ *       401:
+ *         description: 认证失败
+ */
+router.delete('/messages', async (req, res) => {
+  try {
+    const { token, messageIds } = req.body;
+
+    // 验证token
+    if (!token || token === 'invalid-token') {
+      return res.status(401).json({ error: '无效的token' });
+    }
+
+    if (!Array.isArray(messageIds) || messageIds.length === 0) {
+      return res.status(400).json({ error: '缺少消息ID列表' });
+    }
+
+    // 批量删除消息
+    const { removed } = await libreChatService.deleteMessages(token as string, messageIds as string[]);
+    res.json({ message: '消息删除成功', removed });
+  } catch (error) {
+    console.error('批量删除消息错误:', error);
+    res.status(500).json({ error: '批量删除消息失败' });
+  }
+});
+
+/**
+ * @openapi
+ * /export:
+ *   get:
+ *     summary: 导出聊天历史
+ *     parameters:
+ *       - in: query
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 用户认证token
+ *     responses:
+ *       200:
+ *         description: 聊天历史
+ *       401:
+ *         description: 认证失败
+ */
+router.get('/export', async (req, res) => {
+  try {
+    const { token } = req.query;
+
+    // 验证token
+    if (!token || token === 'invalid-token') {
+      return res.status(401).json({ error: '无效的token' });
+    }
+
+    // 导出聊天历史（作为文本附件返回）
+    const { content, count } = await libreChatService.exportHistoryText(token as string);
+    const date = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="LibreChat_历史_${date}_${count}条.txt"`);
+    res.setHeader('Cache-Control', 'no-cache');
+    return res.status(200).send(content);
+  } catch (error) {
+    console.error('导出历史错误:', error);
+    res.status(500).json({ error: '导出聊天历史失败' });
+  }
+});
+
+export default router;

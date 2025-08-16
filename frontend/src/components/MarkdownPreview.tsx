@@ -5,7 +5,7 @@ import 'katex/dist/katex.min.css';
 import '../styles/katex-fonts.css';
 import DOMPurify from 'dompurify';
 
-// 预加载KaTeX字体以避免慢网络警告
+// 预加载 KaTeX 字体（仅在需要渲染数学公式时调用）
 const preloadKatexFonts = () => {
     const fonts = [
         'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/fonts/KaTeX_Main-Regular.woff2',
@@ -39,26 +39,31 @@ interface MarkdownPreviewProps {
 const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ markdown }) => {
   const [isKatexLoaded, setIsKatexLoaded] = useState(false);
 
-  // 组件挂载时预加载KaTeX字体
+  // 是否包含数学语法的简单检测
+  const hasMath = (text: string) => /\$[^$]+\$|\$\$[\s\S]*?\$\$|\\\(|\\\)|\\\[|\\\]/.test(text || '');
+
+  // 仅在内容包含数学公式时预加载字体并等待就绪；否则立即放行
   useEffect(() => {
-    preloadKatexFonts();
-    
-    // 检查字体是否已加载
-    const checkFontsLoaded = () => {
-      if (document.fonts && document.fonts.ready) {
-        document.fonts.ready.then(() => {
-          setIsKatexLoaded(true);
-        });
-      } else {
-        // 降级方案：等待一段时间后假设字体已加载
-        setTimeout(() => {
-          setIsKatexLoaded(true);
-        }, 200);
-      }
-    };
-    
-    checkFontsLoaded();
-  }, []);
+    if (hasMath(markdown)) {
+      preloadKatexFonts();
+      const checkFontsLoaded = () => {
+        if (document.fonts && document.fonts.ready) {
+          document.fonts.ready.then(() => {
+            setIsKatexLoaded(true);
+          });
+        } else {
+          // 降级方案：等待一段时间后假设字体已加载
+          setTimeout(() => {
+            setIsKatexLoaded(true);
+          }, 200);
+        }
+      };
+      checkFontsLoaded();
+    } else {
+      // 没有数学公式时无需等待字体
+      setIsKatexLoaded(true);
+    }
+  }, [markdown]);
 
   // 简单转义，作为回退时防止HTML注入
   const escapeHtml = (text: string) =>
@@ -87,17 +92,6 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ markdown }) => {
       return `<pre>${safeText}</pre>`;
     }
   };
-
-  if (!isKatexLoaded) {
-    return (
-      <div className="prose prose-sm max-w-none flex items-center justify-center py-8">
-        <div className="text-center text-gray-500">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
-          <p className="text-sm">正在加载数学公式渲染器...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div 
