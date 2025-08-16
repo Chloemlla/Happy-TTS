@@ -50,6 +50,9 @@ const FBIWantedPublic = React.lazy(() => import('./components/FBIWantedPublic'))
 // LibreChat 页面懒加载
 const LibreChatPage = React.lazy(() => import('./components/LibreChatPage'));
 
+// SmartHumanCheckTestPage 懒加载
+const SmartHumanCheckTestPage = React.lazy(() => import('./components/SmartHumanCheckTestPage'));
+
 // 恢复 EmailSender 懒加载
 const EmailSenderPage: React.FC = () => {
   const [to, setTo] = React.useState('');
@@ -77,6 +80,8 @@ const EmailSenderPage: React.FC = () => {
     />
   );
 };
+
+// SmartHumanCheckTestPage 已抽取到 components/SmartHumanCheckTestPage.tsx
 
 // 页面切换动画变体
 const pageVariants = {
@@ -196,7 +201,7 @@ const WatermarkOverlay: React.FC = () => {
             animationDelay: `${(wm.id % 7) * 0.15}s`,
           }}
         >
-          Copyright © Individual Developer Happy-clo
+          Copyright Individual Developer Happy-clo
         </div>
       ))}
       <style>
@@ -772,6 +777,19 @@ const App: React.FC = () => {
                 >
                   <ModListPage />
                 </motion.div>
+              } />
+              <Route path="/smart-human-check" element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <motion.div
+                    variants={pageVariants}
+                    initial="initial"
+                    animate="in"
+                    exit="out"
+                    transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                  >
+                    <SmartHumanCheckTestPage />
+                  </motion.div>
+                </Suspense>
               } />
               <Route path="/image-upload" element={
                 user ? (

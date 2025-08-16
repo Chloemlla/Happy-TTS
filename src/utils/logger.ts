@@ -2,6 +2,8 @@ import winston from 'winston';
 import path from 'path';
 import fs from 'fs';
 
+import { inspect } from 'util';
+
 // 创建日志目录
 const logDir = path.join(process.cwd(), 'logs');
 if (!fs.existsSync(logDir)) {
@@ -28,7 +30,9 @@ const logFormat = winston.format.combine(
         }
     }),
     winston.format.printf(({ timestamp, level, message, ...meta }) => {
-        const metaString = Object.keys(meta).length ? JSON.stringify(meta) : '';
+        const metaString = meta && Object.keys(meta).length
+            ? inspect(meta, { depth: 5, breakLength: 120, colors: false })
+            : '';
         return `[${timestamp}] ${level}: ${message} ${metaString}`;
     })
 );
@@ -55,17 +59,19 @@ const logger = winston.createLogger({
 
 // 敏感信息过滤
 const sensitiveFields = ['password', 'token', 'secret', 'key', 'adminPassword', 'jwt', 'apiKey'];
-const maskSensitiveData = (obj: any): any => {
+const maskSensitiveData = (obj: any, seen: WeakSet<object> = new WeakSet()): any => {
   if (typeof obj !== 'object' || obj === null) return obj;
-  
-  const masked: { [key: string]: any } = Array.isArray(obj) ? [] : {};
+  if (seen.has(obj as object)) return '[Circular]';
+  seen.add(obj as object);
+
+  const masked: { [key: string]: any } | any[] = Array.isArray(obj) ? [] : {};
   for (const [key, value] of Object.entries(obj)) {
     if (sensitiveFields.some(field => key.toLowerCase().includes(field))) {
-      masked[key] = typeof value === 'string' ? '***' : '***';
-    } else if (typeof value === 'object') {
-      masked[key] = maskSensitiveData(value);
+      (masked as any)[key] = typeof value === 'string' ? '***' : '***';
+    } else if (typeof value === 'object' && value !== null) {
+      (masked as any)[key] = maskSensitiveData(value, seen);
     } else {
-      masked[key] = value;
+      (masked as any)[key] = value as any;
     }
   }
   return masked;

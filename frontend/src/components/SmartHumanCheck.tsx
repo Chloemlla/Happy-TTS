@@ -234,6 +234,12 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
   const [sliderOk, setSliderOk] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 轻量心跳用于驱动 UI 刷新，使行为评分根据 statsRef 变化而更新
+  const [pulse, setPulse] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setPulse(p => (p + 1) % 1024), 250);
+    return () => clearInterval(id);
+  }, []);
 
   // 计算行为评分（0..1）
   const score = useMemo(() => {
@@ -250,7 +256,10 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
     const base = (mScore * 0.18) + (kScore * 0.14) + (dScore * 0.18) + (uScore * 0.18) + (fScore * 0.22);
     const finalScore = Math.max(0, Math.min(1, base * vPenalty * tPenalty));
     return finalScore;
-  }, [statsRef]);
+  }, [pulse]);
+
+  // 滑块成功后放宽：将有效评分提升到较高值以允许提交
+  const effectiveScore = useMemo(() => (sliderOk ? Math.max(score, 0.95) : score), [score, sliderOk]);
 
   // 初始化 Canvas 熵
   useEffect(() => {
@@ -271,7 +280,7 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
     return () => clearInterval(t);
   }, [setTrapTriggered]);
 
-  const canSubmit = checked && sliderOk && ready && score >= SCORE_THRESHOLD;
+  const canSubmit = checked && sliderOk && ready && effectiveScore >= SCORE_THRESHOLD;
 
   const handleSliderComplete = useCallback(() => setSliderOk(true), []);
 
@@ -372,7 +381,10 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
       </div>
 
       <div className={`mt-2 text-xs ${subTextCls}`}>
-        提示：该组件仅在前端进行多信号融合与弱签名。为获得更高安全性，建议配合服务端 nonce 与签名校验。
+        提示：该组件仅在前端进行多信号融合与弱签名。生产使用请配合服务端校验：
+        1) 通过 GET /api/human-check/nonce 获取一次性 nonce；
+        2) 将该 nonce 作为 <code>challengeNonce</code> 参与生成 token；
+        3) 将 token 通过 POST /api/human-check/verify 发送至服务端进行校验。
       </div>
     </div>
   );

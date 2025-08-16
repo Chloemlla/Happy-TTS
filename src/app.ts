@@ -799,6 +799,7 @@ app.use(tamperProtectionMiddleware);
 app.use('/api/tamper', tamperRoutes);
 app.use('/api/command', commandRoutes);
 app.use('/api/libre-chat', libreChatRoutes);
+app.use('/api/human-check', humanCheckRoutes);
 app.use('/api/data-collection', dataCollectionRoutes);
 app.use('/api/data-collection/admin', dataCollectionAdminRoutes);
 app.use('/api/ipfs', ipfsRoutes);
