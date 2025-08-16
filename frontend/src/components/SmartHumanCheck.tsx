@@ -24,10 +24,60 @@ export interface SmartHumanCheckProps {
   challengeNonce?: string;
   // 完成后是否自动重置组件（默认 false）
   autoReset?: boolean;
+  // API 基础路径（默认 /api/human-check）
+  apiBaseUrl?: string;
+  // 自动获取 nonce（默认 true）
+  autoFetchNonce?: boolean;
 }
 
 // 行为评分阈值
 const SCORE_THRESHOLD = 0.62; // 合理偏宽松，降低误判率
+
+// 重试配置
+const RETRY_CONFIG = {
+  maxRetries: 3,
+  baseDelay: 1000, // 1秒
+  maxDelay: 8000,  // 8秒
+  backoffFactor: 2
+};
+
+// 指数退避延迟计算
+function getRetryDelay(attempt: number): number {
+  const delay = RETRY_CONFIG.baseDelay * Math.pow(RETRY_CONFIG.backoffFactor, attempt);
+  return Math.min(delay, RETRY_CONFIG.maxDelay);
+}
+
+// 带重试的 fetch 函数
+async function fetchWithRetry(url: string, options: RequestInit = {}, maxRetries = RETRY_CONFIG.maxRetries): Promise<Response> {
+  let lastError: Error;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      if (response.ok) {
+        return response;
+      }
+      // 对于 4xx 错误不重试
+      if (response.status >= 400 && response.status < 500) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    } catch (error) {
+      lastError = error as Error;
+
+      // 最后一次尝试失败
+      if (attempt === maxRetries) {
+        break;
+      }
+
+      // 等待后重试
+      const delay = getRetryDelay(attempt);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+
+  throw lastError!;
+}
 
 // 计算 SHA-256 (base64)
 async function sha256Base64(input: string): Promise<string> {
@@ -60,16 +110,39 @@ async function getCanvasEntropy(): Promise<string> {
   }
 }
 
-// 行为收集器
+// 增强的行为收集器
 interface BehaviorStats {
   mouseMoves: number;
   keyPresses: number;
   totalDistance: number; // 鼠标移动总距离
   uniquePathPoints: number; // 去重后的轨迹点
   avgSpeed: number; // 简易速度估计
+  maxSpeed: number; // 最大速度
+  minSpeed: number; // 最小速度
+  speedVariance: number; // 速度方差
   focusTimeMs: number; // 页面聚焦时间
   visibilityChanges: number;
   trapTriggered: boolean; // 蜜罐触发
+
+  // 新增的键盘行为分析
+  keyTimings: number[]; // 按键间隔时间
+  avgKeyInterval: number; // 平均按键间隔
+  keyPressVariance: number; // 按键间隔方差
+
+  // 新增的鼠标轨迹分析
+  mouseAcceleration: number; // 鼠标加速度
+  directionChanges: number; // 方向改变次数
+  pauseCount: number; // 鼠标停顿次数
+  clickCount: number; // 点击次数
+
+  // 新增的设备特征
+  screenResolution: string; // 屏幕分辨率
+  devicePixelRatio: number; // 设备像素比
+  touchSupport: boolean; // 触摸支持
+
+  // 新增的时间模式
+  sessionDuration: number; // 会话持续时间
+  idleTime: number; // 空闲时间
 }
 
 function useBehaviorTracker(containerRef: React.RefObject<HTMLDivElement | null>) {
@@ -79,66 +152,205 @@ function useBehaviorTracker(containerRef: React.RefObject<HTMLDivElement | null>
     totalDistance: 0,
     uniquePathPoints: 0,
     avgSpeed: 0,
+    maxSpeed: 0,
+    minSpeed: Number.MAX_SAFE_INTEGER,
+    speedVariance: 0,
     focusTimeMs: 0,
     visibilityChanges: 0,
     trapTriggered: false,
+
+    // 键盘行为
+    keyTimings: [],
+    avgKeyInterval: 0,
+    keyPressVariance: 0,
+
+    // 鼠标轨迹
+    mouseAcceleration: 0,
+    directionChanges: 0,
+    pauseCount: 0,
+    clickCount: 0,
+
+    // 设备特征
+    screenResolution: `${screen.width}x${screen.height}`,
+    devicePixelRatio: window.devicePixelRatio || 1,
+    touchSupport: 'ontouchstart' in window,
+
+    // 时间模式
+    sessionDuration: 0,
+    idleTime: 0,
   });
 
-  const lastPointRef = useRef<{ x: number; y: number; t: number } | null>(null);
+  const lastPointRef = useRef<{ x: number; y: number; t: number; speed: number } | null>(null);
   const focusStartRef = useRef<number | null>(null);
+  const lastKeyPressRef = useRef<number | null>(null);
+  const sessionStartRef = useRef<number>(performance.now());
+  const lastActivityRef = useRef<number>(performance.now());
+  const speedHistoryRef = useRef<number[]>([]);
+  const pathGridRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
-      statsRef.current.mouseMoves += 1;
-      const now = performance.now();
-      const p = { x: e.clientX, y: e.clientY, t: now };
-      if (lastPointRef.current) {
-        const dx = p.x - lastPointRef.current.x;
-        const dy = p.y - lastPointRef.current.y;
-        const dt = Math.max(1, p.t - lastPointRef.current.t);
-        const dist = Math.hypot(dx, dy);
-        statsRef.current.totalDistance += dist;
-        // 简化速度估计（像素/毫秒）
-        const speed = dist / dt;
-        // 简单滚动平均
-        statsRef.current.avgSpeed = (statsRef.current.avgSpeed * 0.9) + (speed * 0.1);
+      // 检查鼠标是否在容器内
+      const container = containerRef.current;
+      if (container) {
+        const rect = container.getBoundingClientRect();
+        const isInside = e.clientX >= rect.left && e.clientX <= rect.right &&
+          e.clientY >= rect.top && e.clientY <= rect.bottom;
+        if (!isInside) return; // 只跟踪容器内的鼠标移动
       }
-      lastPointRef.current = p;
 
-      // 去重轨迹点（按 8px 网格近似）
+      const now = performance.now();
+      lastActivityRef.current = now;
+      statsRef.current.mouseMoves += 1;
+
+      const currentPoint = { x: e.clientX, y: e.clientY, t: now, speed: 0 };
+
+      if (lastPointRef.current) {
+        const dx = currentPoint.x - lastPointRef.current.x;
+        const dy = currentPoint.y - lastPointRef.current.y;
+        const dt = Math.max(1, currentPoint.t - lastPointRef.current.t);
+        const dist = Math.hypot(dx, dy);
+
+        // 计算速度和加速度
+        const speed = dist / dt;
+        currentPoint.speed = speed;
+
+        if (lastPointRef.current.speed > 0) {
+          const acceleration = Math.abs(speed - lastPointRef.current.speed) / dt;
+          statsRef.current.mouseAcceleration = (statsRef.current.mouseAcceleration * 0.9) + (acceleration * 0.1);
+        }
+
+        // 更新距离和速度统计
+        statsRef.current.totalDistance += dist;
+        speedHistoryRef.current.push(speed);
+
+        // 保持速度历史在合理范围内
+        if (speedHistoryRef.current.length > 100) {
+          speedHistoryRef.current.shift();
+        }
+
+        // 更新速度统计
+        if (speedHistoryRef.current.length > 0) {
+          statsRef.current.avgSpeed = speedHistoryRef.current.reduce((a, b) => a + b, 0) / speedHistoryRef.current.length;
+          statsRef.current.maxSpeed = Math.max(statsRef.current.maxSpeed, speed);
+          if (speed > 0) {
+            statsRef.current.minSpeed = Math.min(statsRef.current.minSpeed, speed);
+          }
+
+          // 计算速度方差
+          const avgSpeed = statsRef.current.avgSpeed;
+          statsRef.current.speedVariance = speedHistoryRef.current.reduce((acc, s) => acc + Math.pow(s - avgSpeed, 2), 0) / speedHistoryRef.current.length;
+        }
+
+        // 检测方向变化
+        if (speedHistoryRef.current.length >= 3) {
+          const recent = speedHistoryRef.current.slice(-3);
+          if ((recent[0] < recent[1] && recent[1] > recent[2]) || (recent[0] > recent[1] && recent[1] < recent[2])) {
+            statsRef.current.directionChanges += 1;
+          }
+        }
+
+        // 检测停顿（速度接近0）
+        if (speed < 0.1 && lastPointRef.current.speed > 0.1) {
+          statsRef.current.pauseCount += 1;
+        }
+      }
+
+      lastPointRef.current = currentPoint;
+
+      // 增强的轨迹点去重（使用更精确的网格）
       const gridX = Math.round(e.clientX / 8);
       const gridY = Math.round(e.clientY / 8);
-      statsRef.current.uniquePathPoints += 1 / (1 + (statsRef.current.uniquePathPoints / 200)); // 渐进式估计
+      const gridKey = `${gridX},${gridY}`;
+
+      if (!pathGridRef.current.has(gridKey)) {
+        pathGridRef.current.add(gridKey);
+        statsRef.current.uniquePathPoints = pathGridRef.current.size;
+      }
     };
 
-    const onKeyDown = () => { statsRef.current.keyPresses += 1; };
+    const onKeyDown = () => {
+      const now = performance.now();
+      lastActivityRef.current = now;
+      statsRef.current.keyPresses += 1;
 
-    const onVisibility = () => { statsRef.current.visibilityChanges += 1; };
+      // 记录按键时间间隔
+      if (lastKeyPressRef.current) {
+        const interval = now - lastKeyPressRef.current;
+        statsRef.current.keyTimings.push(interval);
 
-    const onFocus = () => { focusStartRef.current = performance.now(); };
+        // 保持按键时间历史在合理范围内
+        if (statsRef.current.keyTimings.length > 50) {
+          statsRef.current.keyTimings.shift();
+        }
+
+        // 计算平均按键间隔
+        if (statsRef.current.keyTimings.length > 0) {
+          statsRef.current.avgKeyInterval = statsRef.current.keyTimings.reduce((a, b) => a + b, 0) / statsRef.current.keyTimings.length;
+
+          // 计算按键间隔方差
+          const avgInterval = statsRef.current.avgKeyInterval;
+          statsRef.current.keyPressVariance = statsRef.current.keyTimings.reduce((acc, t) => acc + Math.pow(t - avgInterval, 2), 0) / statsRef.current.keyTimings.length;
+        }
+      }
+
+      lastKeyPressRef.current = now;
+    };
+
+    const onVisibility = () => {
+      statsRef.current.visibilityChanges += 1;
+      lastActivityRef.current = performance.now();
+    };
+
+    const onClick = () => {
+      statsRef.current.clickCount += 1;
+      lastActivityRef.current = performance.now();
+    };
+
+    const onFocus = () => {
+      const now = performance.now();
+      focusStartRef.current = now;
+      lastActivityRef.current = now;
+    };
+
     const onBlur = () => {
+      const now = performance.now();
       if (focusStartRef.current != null) {
-        statsRef.current.focusTimeMs += performance.now() - focusStartRef.current;
+        statsRef.current.focusTimeMs += now - focusStartRef.current;
         focusStartRef.current = null;
       }
     };
 
+    // 定期更新会话时间和空闲时间
+    const updateSessionStats = () => {
+      const now = performance.now();
+      statsRef.current.sessionDuration = now - sessionStartRef.current;
+      statsRef.current.idleTime = now - lastActivityRef.current;
+    };
+
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('click', onClick);
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('focus', onFocus);
     window.addEventListener('blur', onBlur);
+
+    // 定期更新会话统计
+    const sessionInterval = setInterval(updateSessionStats, 1000);
+
     onFocus();
 
     return () => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('click', onClick);
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('focus', onFocus);
       window.removeEventListener('blur', onBlur);
+      clearInterval(sessionInterval);
       onBlur();
     };
-  }, []);
+  }, [containerRef]);
 
   const setTrapTriggered = useCallback(() => {
     statsRef.current.trapTriggered = true;
@@ -224,6 +436,8 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
   theme = 'light',
   challengeNonce,
   autoReset = false,
+  apiBaseUrl = '/api/human-check',
+  autoFetchNonce = true,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { statsRef, setTrapTriggered } = useBehaviorTracker(containerRef);
@@ -234,6 +448,9 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
   const [sliderOk, setSliderOk] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nonce, setNonce] = useState<string | null>(challengeNonce || null);
+  const [fetchingNonce, setFetchingNonce] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   // 轻量心跳用于驱动 UI 刷新，使行为评分根据 statsRef 变化而更新
   const [pulse, setPulse] = useState(0);
   useEffect(() => {
@@ -241,25 +458,168 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
     return () => clearInterval(id);
   }, []);
 
-  // 计算行为评分（0..1）
+  // 获取 nonce
+  const fetchNonce = useCallback(async () => {
+    if (fetchingNonce) return;
+
+    setFetchingNonce(true);
+    setError(null);
+
+    try {
+      const response = await fetchWithRetry(`${apiBaseUrl}/nonce`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+      if (data.success && data.nonce) {
+        setNonce(data.nonce);
+        setRetryCount(0);
+      } else {
+        throw new Error(data.error || '获取验证码失败');
+      }
+    } catch (err: any) {
+      const errorMsg = err.message || '网络错误，请重试';
+      setError(errorMsg);
+      onFail?.(errorMsg);
+      setRetryCount(prev => prev + 1);
+    } finally {
+      setFetchingNonce(false);
+    }
+  }, [apiBaseUrl, fetchingNonce, onFail]);
+
+  // 自动获取 nonce
+  useEffect(() => {
+    if (autoFetchNonce && !challengeNonce && !nonce && !fetchingNonce) {
+      fetchNonce();
+    }
+  }, [autoFetchNonce, challengeNonce, nonce, fetchingNonce, fetchNonce]);
+
+  // 增强的行为评分算法（0..1）
   const score = useMemo(() => {
     const s = statsRef.current;
-    // 各特征的简单归一化与权重（经验值，目标：降低误判，偏向放行真人）
-    const mScore = Math.min(1, Math.log10(1 + s.mouseMoves) / 2.2); // 鼠标移动次数
-    const kScore = Math.min(1, Math.log10(1 + s.keyPresses) / 2.0); // 键盘敲击
-    const dScore = Math.min(1, Math.log10(1 + s.totalDistance) / 3.0); // 移动距离
-    const uScore = Math.min(1, s.uniquePathPoints / 180); // 轨迹点
-    const fScore = Math.min(1, s.focusTimeMs / 3500); // 聚焦时间
-    const vPenalty = Math.max(0, 1 - s.visibilityChanges * 0.08); // 频繁切换可见性扣分
-    const tPenalty = s.trapTriggered ? 0.2 : 1; // 触发陷阱严重扣分
 
-    const base = (mScore * 0.18) + (kScore * 0.14) + (dScore * 0.18) + (uScore * 0.18) + (fScore * 0.22);
-    const finalScore = Math.max(0, Math.min(1, base * vPenalty * tPenalty));
+    // 基础行为特征评分
+    const mouseActivityScore = Math.min(1, Math.log10(1 + s.mouseMoves) / 2.5);
+    const keyboardActivityScore = Math.min(1, Math.log10(1 + s.keyPresses) / 2.2);
+    const movementDistanceScore = Math.min(1, Math.log10(1 + s.totalDistance) / 3.2);
+    const pathComplexityScore = Math.min(1, s.uniquePathPoints / 200);
+    const focusEngagementScore = Math.min(1, s.focusTimeMs / 4000);
+
+    // 高级行为模式评分
+    const speedConsistencyScore = s.speedVariance > 0 ?
+      Math.min(1, 1 / (1 + s.speedVariance * 0.1)) : 0.5; // 速度变化的自然性
+
+    const accelerationNaturalnessScore = s.mouseAcceleration > 0 ?
+      Math.min(1, 1 / (1 + Math.abs(s.mouseAcceleration - 0.5) * 2)) : 0.5; // 加速度的自然性
+
+    const directionVariabilityScore = s.directionChanges > 0 ?
+      Math.min(1, Math.log10(1 + s.directionChanges) / 2.0) : 0; // 方向变化的自然性
+
+    const pausePatternScore = s.pauseCount > 0 ?
+      Math.min(1, Math.log10(1 + s.pauseCount) / 1.8) : 0; // 停顿模式的人性化
+
+    const clickPatternScore = s.clickCount > 0 ?
+      Math.min(1, Math.log10(1 + s.clickCount) / 1.5) : 0; // 点击行为
+
+    // 键盘行为模式评分
+    const keyTimingNaturalnessScore = s.keyPressVariance > 0 ?
+      Math.min(1, 1 / (1 + Math.abs(s.keyPressVariance - 150) * 0.01)) : 0.5; // 按键间隔的自然性
+
+    const keyRhythmScore = s.avgKeyInterval > 0 && s.avgKeyInterval < 2000 ?
+      Math.min(1, 1 / (1 + Math.abs(s.avgKeyInterval - 200) * 0.005)) : 0.3; // 按键节奏
+
+    // 时间模式评分
+    const sessionEngagementScore = Math.min(1, s.sessionDuration / 10000); // 会话参与度
+    const activityConsistencyScore = s.idleTime < 5000 ? 1 : Math.max(0, 1 - (s.idleTime - 5000) / 15000); // 活跃度一致性
+
+    // 设备特征评分（基础分）
+    const deviceNaturalnessScore = s.touchSupport ? 0.8 : 0.9; // 触摸设备稍微降低基础分
+
+    // 权重配置（可根据风险评估动态调整）
+    const weights = {
+      mouseActivity: 0.12,
+      keyboardActivity: 0.10,
+      movementDistance: 0.12,
+      pathComplexity: 0.12,
+      focusEngagement: 0.15,
+      speedConsistency: 0.08,
+      accelerationNaturalness: 0.06,
+      directionVariability: 0.05,
+      pausePattern: 0.04,
+      clickPattern: 0.03,
+      keyTimingNaturalness: 0.05,
+      keyRhythm: 0.03,
+      sessionEngagement: 0.03,
+      activityConsistency: 0.02
+    };
+
+    // 计算加权基础分
+    const baseScore =
+      mouseActivityScore * weights.mouseActivity +
+      keyboardActivityScore * weights.keyboardActivity +
+      movementDistanceScore * weights.movementDistance +
+      pathComplexityScore * weights.pathComplexity +
+      focusEngagementScore * weights.focusEngagement +
+      speedConsistencyScore * weights.speedConsistency +
+      accelerationNaturalnessScore * weights.accelerationNaturalness +
+      directionVariabilityScore * weights.directionVariability +
+      pausePatternScore * weights.pausePattern +
+      clickPatternScore * weights.clickPattern +
+      keyTimingNaturalnessScore * weights.keyTimingNaturalness +
+      keyRhythmScore * weights.keyRhythm +
+      sessionEngagementScore * weights.sessionEngagement +
+      activityConsistencyScore * weights.activityConsistency;
+
+    // 应用惩罚因子
+    const visibilityPenalty = Math.max(0.3, 1 - s.visibilityChanges * 0.1); // 频繁切换可见性扣分
+    const trapPenalty = s.trapTriggered ? 0.1 : 1; // 触发陷阱严重扣分
+
+    // 应用设备特征调整
+    const deviceAdjustedScore = baseScore * deviceNaturalnessScore;
+
+    // 最终评分
+    const finalScore = Math.max(0, Math.min(1, deviceAdjustedScore * visibilityPenalty * trapPenalty));
+
     return finalScore;
   }, [pulse]);
 
-  // 滑块成功后放宽：将有效评分提升到较高值以允许提交
-  const effectiveScore = useMemo(() => (sliderOk ? Math.max(score, 0.95) : score), [score, sliderOk]);
+  // 自适应阈值计算
+  const adaptiveThreshold = useMemo(() => {
+    const s = statsRef.current;
+    let baseThreshold = SCORE_THRESHOLD;
+
+    // 根据设备特征调整阈值
+    if (s.touchSupport) {
+      baseThreshold -= 0.05; // 触摸设备降低阈值
+    }
+
+    // 根据会话时间调整阈值
+    if (s.sessionDuration > 30000) { // 超过30秒的长会话
+      baseThreshold -= 0.03;
+    }
+
+    // 根据交互复杂度调整阈值
+    const interactionComplexity = (s.mouseMoves + s.keyPresses + s.clickCount) / 100;
+    if (interactionComplexity > 1) {
+      baseThreshold -= Math.min(0.05, interactionComplexity * 0.02);
+    }
+
+    // 确保阈值在合理范围内
+    return Math.max(0.4, Math.min(0.8, baseThreshold));
+  }, [pulse]);
+
+  // 滑块成功后的评分调整
+  const effectiveScore = useMemo(() => {
+    if (sliderOk) {
+      // 滑块完成给予显著奖励，确保可提交，但不直接满分
+      const boosted = Math.max(score, 0.95);
+      return Math.min(1, boosted);
+    }
+    return score;
+  }, [score, sliderOk]);
 
   // 初始化 Canvas 熵
   useEffect(() => {
@@ -269,18 +629,52 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
     return () => { mounted = false; clearTimeout(t); };
   }, []);
 
-  // 蜜罐字段（不可见）。若被自动填充，判为触发陷阱
+  // 增强的蜜罐检测系统
   const trapInputRef = useRef<HTMLInputElement>(null);
+  const trapInput2Ref = useRef<HTMLInputElement>(null);
+  const trapInput3Ref = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
-    const t = setInterval(() => {
-      if (trapInputRef.current && trapInputRef.current.value) {
+    const checkTraps = () => {
+      let trapTriggered = false;
+
+      // 检查多个蜜罐字段
+      const traps = [trapInputRef.current, trapInput2Ref.current, trapInput3Ref.current];
+
+      traps.forEach((trap, index) => {
+        if (trap) {
+          // 检查值是否被填充
+          if (trap.value && trap.value.length > 0) {
+            trapTriggered = true;
+          }
+
+          // 检查是否被聚焦（机器人可能会聚焦隐藏字段）
+          if (document.activeElement === trap) {
+            trapTriggered = true;
+          }
+
+          // 检查样式是否被修改（某些机器人会尝试显示隐藏字段）
+          const computedStyle = window.getComputedStyle(trap);
+          if (computedStyle.display !== 'none' && computedStyle.visibility !== 'hidden' && computedStyle.opacity !== '0') {
+            trapTriggered = true;
+          }
+        }
+      });
+
+      if (trapTriggered) {
         setTrapTriggered();
       }
-    }, 600);
-    return () => clearInterval(t);
+    };
+
+    const trapInterval = setInterval(checkTraps, 500);
+
+    // 立即检查一次
+    checkTraps();
+
+    return () => clearInterval(trapInterval);
   }, [setTrapTriggered]);
 
-  const canSubmit = checked && sliderOk && ready && effectiveScore >= SCORE_THRESHOLD;
+  const canSubmit = checked && sliderOk && ready && effectiveScore >= adaptiveThreshold && (nonce || challengeNonce) && !fetchingNonce;
 
   const handleSliderComplete = useCallback(() => setSliderOk(true), []);
 
@@ -289,7 +683,13 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
     setSliderOk(false);
     setSubmitting(false);
     setError(null);
-  }, []);
+    setRetryCount(0);
+    // 重置时获取新的 nonce
+    if (autoFetchNonce && !challengeNonce) {
+      setNonce(null);
+      fetchNonce();
+    }
+  }, [autoFetchNonce, challengeNonce, fetchNonce]);
 
   const submit = useCallback(async () => {
     if (!canSubmit) return;
@@ -306,7 +706,7 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
         ce: canvasEntropy,
         sc: Number(score.toFixed(3)),
         st: statsRef.current,
-        cn: challengeNonce || null,
+        cn: nonce || challengeNonce || null,
       };
       const payloadStr = JSON.stringify(payload);
       // 弱签名（仅用于防篡改提示，服务端不可依赖）：payload + 浏览器随机 salt
@@ -327,7 +727,7 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
     } finally {
       setSubmitting(false);
     }
-  }, [autoReset, canvasEntropy, canSubmit, challengeNonce, onFail, onSuccess, reset, score, statsRef]);
+  }, [autoReset, canvasEntropy, canSubmit, challengeNonce, nonce, onFail, onSuccess, reset, score, statsRef]);
 
   const themeCls = theme === 'dark' ? 'bg-gray-800 text-gray-100 border-gray-700' : 'bg-white text-gray-800 border-gray-200';
   const subTextCls = theme === 'dark' ? 'text-gray-300' : 'text-gray-500';
@@ -335,14 +735,34 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
 
   return (
     <div ref={containerRef} className={`rounded-xl border ${themeCls} ${sizeCls} w-full max-w-md`}>
-      {/* 蜜罐输入框（隐藏） */}
+      {/* 增强的蜜罐输入框系统（隐藏） */}
       <input
         ref={trapInputRef}
         type="text"
+        name="username"
         tabIndex={-1}
         autoComplete="username"
         aria-hidden="true"
+        style={{ display: 'none' }}
         className="absolute w-0 h-0 opacity-0 pointer-events-none"
+      />
+      <input
+        ref={trapInput2Ref}
+        type="email"
+        name="email"
+        tabIndex={-1}
+        autoComplete="email"
+        aria-hidden="true"
+        style={{ position: 'absolute', left: '-9999px', visibility: 'hidden' }}
+      />
+      <input
+        ref={trapInput3Ref}
+        type="password"
+        name="password"
+        tabIndex={-1}
+        autoComplete="current-password"
+        aria-hidden="true"
+        style={{ opacity: 0, position: 'absolute', top: '-9999px' }}
       />
 
       <div className="flex items-center gap-3">
@@ -368,23 +788,44 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
           type="button"
           disabled={!canSubmit || submitting}
           onClick={submit}
-          className={`px-3 py-2 rounded-lg text-white ${
-            canSubmit && !submitting ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-400 cursor-not-allowed'
-          }`}
+          className={`px-3 py-2 rounded-lg text-white ${canSubmit && !submitting ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-400 cursor-not-allowed'
+            }`}
         >
           {submitting ? '验证中...' : '提交验证'}
         </button>
-        {error && <span className="text-sm text-red-500">{error}</span>}
+
+        {/* 错误显示和重试按钮 */}
+        {error && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-red-500">{error}</span>
+            {retryCount < RETRY_CONFIG.maxRetries && (
+              <button
+                type="button"
+                onClick={fetchNonce}
+                disabled={fetchingNonce}
+                className="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+              >
+                {fetchingNonce ? '重试中...' : '重试'}
+              </button>
+            )}
+          </div>
+        )}
+
         <div className={`ml-auto text-xs ${subTextCls}`}>
-          {ready ? '已准备' : '准备中...'} · Canvas熵: {canvasEntropy.slice(0, 10)}
+          {fetchingNonce ? '获取验证码...' : ready ? '已准备' : '准备中...'} ·
+          Canvas熵: {canvasEntropy.slice(0, 10)} ·
+          Nonce: {nonce || challengeNonce ? '✓' : '✗'}
         </div>
       </div>
 
       <div className={`mt-2 text-xs ${subTextCls}`}>
-        提示：该组件仅在前端进行多信号融合与弱签名。生产使用请配合服务端校验：
-        1) 通过 GET /api/human-check/nonce 获取一次性 nonce；
-        2) 将该 nonce 作为 <code>challengeNonce</code> 参与生成 token；
-        3) 将 token 通过 POST /api/human-check/verify 发送至服务端进行校验。
+        提示：该组件会自动获取服务端 nonce 并进行多信号融合验证。
+        {autoFetchNonce ? (
+          <>自动模式：组件会自动从 {apiBaseUrl}/nonce 获取验证码。</>
+        ) : (
+          <>手动模式：请通过 challengeNonce 属性提供验证码。</>
+        )}
+        生成的 token 需要通过 POST {apiBaseUrl}/verify 发送至服务端进行最终校验。
       </div>
     </div>
   );

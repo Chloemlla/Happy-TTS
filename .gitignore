@@ -10,6 +10,7 @@ scripts/test-mongo-simple.js
 scripts/test-mongo-connection.js
 LogPaste/
 .windsurf/
+.kiro/
 
 # 构建输出
 dist/
