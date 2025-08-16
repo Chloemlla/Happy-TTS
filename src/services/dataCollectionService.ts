@@ -227,43 +227,58 @@ class DataCollectionService {
   }): Promise<{ items: any[]; total: number; page: number; limit: number }>{
     if (!this.isMongoReady()) throw new Error('MongoDB 未连接');
     const Model = mongoose.models.DataCollection as any;
-    const { page = 1, limit = 20, userId, action, start, end, sort = 'desc' } = params || {};
+    const { page: _page = 1, limit: _limit = 20, userId, action, start, end, sort = 'desc' } = params || {};
+
+    // 安全分页参数
+    const safePage = Number.isFinite(_page as number) ? Math.max(1, Math.floor(_page as number)) : 1;
+    const safeLimitRaw = Number.isFinite(_limit as number) ? Math.max(1, Math.floor(_limit as number)) : 20;
+    const safeLimit = Math.min(100, safeLimitRaw); // 限制最大每页100
+
     const query: FilterQuery<any> = {};
-    if (userId) query.userId = userId;
-    if (action) query.action = action;
-    // timestamp is ISO string; filter by range if provided
-    if (start || end) {
+    // 仅允许字符串等值匹配，避免操作符注入
+    if (typeof userId === 'string') query.userId = String(userId);
+    if (typeof action === 'string') query.action = String(action);
+
+    // timestamp 过滤（ISO 字符串）；只接受有效日期
+    const isValidISO = (s?: string) => !!s && !isNaN(Date.parse(s));
+    if (isValidISO(start) || isValidISO(end)) {
       query.timestamp = {} as any;
-      if (start) (query.timestamp as any).$gte = start;
-      if (end) (query.timestamp as any).$lte = end;
+      if (isValidISO(start)) (query.timestamp as any).$gte = new Date(start as string).toISOString();
+      if (isValidISO(end)) (query.timestamp as any).$lte = new Date(end as string).toISOString();
     }
-    const skip = (Math.max(1, page) - 1) * Math.max(1, limit);
+
+    const skip = (safePage - 1) * safeLimit;
     const total = await Model.countDocuments(query);
     const items = await Model.find(query)
       .sort({ timestamp: sort === 'asc' ? 1 : -1 })
       .skip(skip)
-      .limit(Math.max(1, limit))
+      .limit(safeLimit)
       .lean();
-    return { items, total, page: Math.max(1, page), limit: Math.max(1, limit) };
+    return { items, total, page: safePage, limit: safeLimit };
   }
 
   public async getById(id: string): Promise<any | null> {
     if (!this.isMongoReady()) throw new Error('MongoDB 未连接');
     const Model = mongoose.models.DataCollection as any;
+    if (!mongoose.Types.ObjectId.isValid(id)) return null;
     return Model.findById(id).lean();
   }
 
   public async deleteById(id: string): Promise<{ deleted: boolean }>{
     if (!this.isMongoReady()) throw new Error('MongoDB 未连接');
     const Model = mongoose.models.DataCollection as any;
-    const res = await Model.deleteOne({ _id: id });
+    if (!mongoose.Types.ObjectId.isValid(id)) return { deleted: false };
+    const res = await Model.deleteOne({ _id: new mongoose.Types.ObjectId(id) });
     return { deleted: res.deletedCount > 0 };
   }
 
   public async deleteBatch(ids: string[]): Promise<{ deletedCount: number }>{
     if (!this.isMongoReady()) throw new Error('MongoDB 未连接');
     const Model = mongoose.models.DataCollection as any;
-    const res = await Model.deleteMany({ _id: { $in: ids } });
+    const validIds = (Array.isArray(ids) ? ids : []).filter((x) => typeof x === 'string' && mongoose.Types.ObjectId.isValid(x))
+      .map((x) => new mongoose.Types.ObjectId(x as string));
+    if (validIds.length === 0) return { deletedCount: 0 };
+    const res = await Model.deleteMany({ _id: { $in: validIds } });
     return { deletedCount: res.deletedCount || 0 };
   }
 
