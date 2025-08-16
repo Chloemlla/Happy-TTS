@@ -120,12 +120,12 @@ class LibreChatService {
       if (existsSync(this.DATA_FILE)) {
         const data = await readFile(this.DATA_FILE, 'utf-8');
         this.latestRecord = JSON.parse(data);
-        logger.info('Loaded previous LibreChat image record');
+        logger.info('加载之前的 LibreChat 镜像记录');
       }
       if (existsSync(this.CHAT_HISTORY_FILE)) {
         const data = await readFile(this.CHAT_HISTORY_FILE, 'utf-8');
         this.chatHistory = JSON.parse(data);
-        logger.info('Loaded chat history');
+        logger.info('加载聊天历史');
       }
       if (!this.isRunning && process.env.NODE_ENV !== 'test') {
         this.startPeriodicCheck();
@@ -139,7 +139,7 @@ class LibreChatService {
     try {
       await writeFile(this.DATA_FILE, JSON.stringify(record, null, 2));
       this.latestRecord = record;
-      logger.info(`Saved new LibreChat image record: ${record.imageUrl}`);
+      logger.info(`已保存新的 LibreChat 镜像记录: ${record.imageUrl}`);
       // 同步保存到 MongoDB（单例 upsert）
       if (mongoose.connection.readyState === 1) {
         await LatestRecordModel.findByIdAndUpdate(
@@ -147,10 +147,10 @@ class LibreChatService {
           { ...record, updatedAt: new Date() },
           { upsert: true, setDefaultsOnInsert: true }
         );
-        logger.info('Upserted latest LibreChat record to MongoDB');
+        logger.info('已将最新的 LibreChat 记录写入/更新到 MongoDB');
       }
     } catch (error) {
-      logger.error('Error saving LibreChat record:', error);
+      logger.error('保存 LibreChat 记录时出错:', error);
     }
   }
 
@@ -158,7 +158,7 @@ class LibreChatService {
     try {
       await writeFile(this.CHAT_HISTORY_FILE, JSON.stringify(this.chatHistory, null, 2));
     } catch (error) {
-      logger.error('Error saving chat history:', error);
+      logger.error('保存聊天历史时出错:', error);
     }
   }
 
@@ -202,7 +202,7 @@ class LibreChatService {
         await this.saveRecord(newRecord);
       }
     } catch (error) {
-      logger.error('Error fetching LibreChat image data:', error);
+      logger.error('获取 LibreChat 镜像数据时出错:', error);
     }
   }
 

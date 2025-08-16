@@ -1184,6 +1184,42 @@ const MobileNav: React.FC<MobileNavProps> = ({
                 </Link>
               </motion.div>
 
+              {/* LibreChat */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.52 }}
+              >
+                <Link
+                  to="/librechat"
+                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
+                    location.pathname === '/librechat' ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm' : 'hover:bg-indigo-50'
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <motion.svg 
+                    className={`w-5 h-5 ${location.pathname === '/librechat' ? 'text-indigo-500' : 'text-gray-400'}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4-.8L3 20l.8-4A8.99 8.99 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </motion.svg>
+                  <span>LibreChat</span>
+                  {location.pathname === '/librechat' && (
+                    <motion.span 
+                      className="ml-auto text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full"
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                    >
+                      当前
+                    </motion.span>
+                  )}
+                </Link>
+              </motion.div>
+
               {/* 分割线 */}
               <motion.div 
                 className="border-t border-gray-200 my-2"

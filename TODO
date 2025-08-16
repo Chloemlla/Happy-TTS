@@ -1,56 +1,25 @@
-前台功能（用户端）
-1. 资源展示
-首页展示所有可用资源列表
-资源卡片显示：标题、描述、价格、分类、图片
-支持资源分类筛选（软件、游戏、教程、素材、其他）
-响应式网格布局，支持桌面和移动设备
-2. CDK兑换系统
-用户输入CDK兑换码解锁资源
-实时验证CDK有效性
-防止重复使用（每个CDK只能使用一次）
-支持CDK过期时间检查
-兑换成功后显示下载链接
-3. 资源详情页
-查看资源详细信息
-显示资源描述、价格、分类等完整信息
-🔧 后台功能（管理员端）
-2. 仪表板统计
-总资源数量统计
-总CDK数量统计
-已使用CDK数量统计
-可用CDK数量统计
-管理员最后登录时间显示
-3. 资源管理
-添加资源: 设置标题、描述、下载链接、价格、分类、图片
-编辑资源: 修改现有资源的所有信息
-删除资源: 删除资源及相关的所有CDK
-资源列表: 查看所有资源，支持排序和搜索
-4. CDK管理
-生成CDK: 为指定资源批量生成CDK兑换码
-查看CDK: 显示所有CDK及其使用状态
-删除CDK: 删除未使用的CDK
-CDK状态跟踪: 显示CDK是否已使用、使用时间、使用IP
-�� API接口
-1. 资源相关API
-GET /api/resources - 获取资源列表（支持分页和分类筛选）
-GET /api/resources/:id - 获取资源详情
-GET /api/categories - 获取资源分类列表
-2. CDK相关API
-POST /api/redeem - CDK兑换接口
-POST /admin/cdks/generate - 生成CDK（管理员）
-DELETE /admin/cdks/:id - 删除CDK（管理员）
-3. 管理员API
-POST /admin/login - 管理员登录
-GET /admin/logout - 管理员登出
-��️ 数据模型
-1. Resource（资源模型）
-标题、描述、下载链接
-价格、分类、图片URL
-激活状态、创建/更新时间
-2. CDK（兑换码模型）
-兑换码、关联资源ID
-使用状态、使用时间、使用IP
-过期时间、创建时间
-3. Admin（管理员模型）
-用户名、加密密码
-激活状态、最后登录时间
+Notes
+- 用户需要前后端支持手动添加 DataCollection 记录。
+- 后端已增加 POST /api/data-collection/admin，校验字段并保存至 MongoDB。
+- 前端已实现“新增记录”弹窗，支持 userId、action、timestamp、details 字段，支持 JSON/文本详情。
+- 通知系统 useNotification 已集成，所有提示（成功/失败/未授权）均走通知。
+- 移动端适配已优化，表单与操作按钮移动端体验良好。
+- 日志管理（LogShare）移动端适配已增强，操作按钮/列表在小屏幕上更易用。
+- 后端数据收集相关接口已加固：所有查询参数/ID 严格校验，防止 NoSQL 注入与非法输入（见 CodeQL #254/#255 修复）。
+- Webhook 支持多路由自动注册：根据 RESEND_WEBHOOK_SECRET_XXX 环境变量自动添加 /resend-xxx 路由，controller/DB 持久化 routeKey 字段，便于前端分组管理。
+- Webhook 前端分组管理（已实现分组接口、前端分组/筛选/移动端适配）
+
+Task List
+- [x] 后端数据收集管理接口梳理与分析
+- [x] 增加后端 POST /api/data-collection/admin 支持手动创建
+- [x] 前端实现新增记录弹窗及表单
+- [x] 前端 handleCreate/通知系统集成，替换所有 alert
+- [x] 移动端适配优化
+- [x] 验证手动创建流程及通知
+- [x] 支持日志管理相关功能（LogShare.tsx，需求待细化）
+- [x] 后端实现日志单删、批量删、全删、元数据更新接口（含鉴权）
+- [x] 前端 LogShare.tsx 增加日志多选、单删/批量删/全删、编辑元数据 UI，并串联新接口
+- [x] LogShare.tsx 日志管理移动端适配增强
+- [x] 后端 dataCollectionService 查询/ID 校验加固，解决 CodeQL 注入警告
+- [x] Webhook 多路由自动注册与 routeKey 字段持久化（后端/数据库）
+- [x] Webhook 前端分组管理（按 routeKey 分组展示/筛选）

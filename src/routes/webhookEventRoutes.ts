@@ -4,13 +4,29 @@ import { WebhookEventService } from '../services/webhookEventService';
 
 const router = Router();
 
-// List with pagination
+// List with pagination & filters
 router.get('/', authenticateAdmin, async (req: Request, res: Response) => {
   try {
     const page = parseInt((req.query.page as string) || '1', 10);
     const pageSize = parseInt((req.query.pageSize as string) || '20', 10);
-    const result = await WebhookEventService.list({ page, pageSize });
+    // 可选过滤：routeKey, type, status
+    const routeKeyParam = (req.query.routeKey as string | undefined);
+    const type = (req.query.type as string | undefined) || undefined;
+    const status = (req.query.status as string | undefined) || undefined;
+    // 支持 routeKey=null 表示未分组
+    const routeKey = routeKeyParam === 'null' ? null : (routeKeyParam || undefined);
+    const result = await WebhookEventService.list({ page, pageSize, routeKey, type, status });
     res.json({ success: true, ...result });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// Group list by routeKey
+router.get('/groups', authenticateAdmin, async (_req: Request, res: Response) => {
+  try {
+    const rows = await WebhookEventService.groups();
+    res.json({ success: true, groups: rows });
   } catch (e) {
     res.status(500).json({ success: false, error: e instanceof Error ? e.message : String(e) });
   }

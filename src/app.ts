@@ -451,6 +451,9 @@ const libreChatLimiter = rateLimit({
   }
 });
 
+// LibreChat 路由
+app.use('/api/librechat', libreChatLimiter, libreChatRoutes);
+
 // 数据收集路由限流器
 const dataCollectionLimiter = rateLimit({
   windowMs: 60 * 1000, // 1分钟
@@ -697,7 +700,7 @@ try {
   const json = readOpenapiJsonSync();
   swaggerUiSpec = JSON.parse(json);
   const pathsCount = swaggerUiSpec && swaggerUiSpec.paths ? Object.keys(swaggerUiSpec.paths).length : 0;
-  logger.info(`[Swagger] Loaded pre-generated openapi.json for UI, paths=${pathsCount}`);
+  logger.info(`[Swagger] 为 UI 加载预先生成的 openapi.json，路径数=${pathsCount}`);
   swaggerLoadReason = 'pre-generated-openapi.json';
 } catch (e) {
   logger.warn('[Swagger] Falling back to swagger-jsdoc generated spec. Reason: ' + (e instanceof Error ? e.message : String(e)));
@@ -1035,7 +1038,7 @@ if (resolvedFrontendPath) {
   });
 } else {
   const expected = frontendCandidates.join(' | ');
-  logger.warn('[Frontend] Frontend files not found at any candidate path. Tried: ' + expected);
+  logger.warn('[Frontend] 在任何候选路径中均未找到前端文件。已尝试：' + expected);
   // 提供降级首页，确保 Docker 镜像在无前端构建文件时也可使用 Swagger
   app.get('/index.html', (req, res) => {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');

@@ -47,6 +47,8 @@ const CDKStoreManager = React.lazy(() => import('./components/CDKStoreManager'))
 
 // FBI通缉犯相关组件懒加载
 const FBIWantedPublic = React.lazy(() => import('./components/FBIWantedPublic'));
+// LibreChat 页面懒加载
+const LibreChatPage = React.lazy(() => import('./components/LibreChatPage'));
 
 // 恢复 EmailSender 懒加载
 const EmailSenderPage: React.FC = () => {
@@ -782,6 +784,23 @@ const App: React.FC = () => {
                       transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
                     >
                       <ImageUploadPage />
+                    </motion.div>
+                  </Suspense>
+                ) : (
+                  <Navigate to="/welcome" replace state={{ from: location.pathname }} />
+                )
+              } />
+              <Route path="/librechat" element={
+                user ? (
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <motion.div
+                      variants={pageVariants}
+                      initial="initial"
+                      animate="in"
+                      exit="out"
+                      transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                    >
+                      <LibreChatPage />
                     </motion.div>
                   </Suspense>
                 ) : (

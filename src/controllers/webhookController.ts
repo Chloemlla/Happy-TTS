@@ -8,9 +8,11 @@ export class WebhookController {
     try {
       // 读取原始请求体（express.raw 中间件提供 Buffer）并验证 Svix 签名
       const payload = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : (typeof req.body === 'string' ? req.body : JSON.stringify(req.body || {}));
+      // 支持从路由读取多密钥的 key（/resend-:key）
+      const routeKey = (req.params as any)?.key as string | undefined;
       let event: any;
       try {
-        event = verifyResendWebhook(payload, req.headers);
+        event = verifyResendWebhook(payload, req.headers, routeKey);
       } catch (e) {
         logger.warn('[ResendWebhook] 签名验证失败', { error: e instanceof Error ? e.message : String(e) });
         return res.status(400).json({ error: 'Invalid webhook signature' });
@@ -37,6 +39,7 @@ export class WebhookController {
       try {
         await WebhookEventService.create({
           provider: 'resend',
+          routeKey: routeKey,
           eventId: evtId || data?.id || data?.message?.id,
           type,
           created_at: created_at ? new Date(created_at) : undefined,

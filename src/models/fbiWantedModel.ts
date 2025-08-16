@@ -82,7 +82,6 @@ FBIWantedSchema.index({ isActive: 1 });
 FBIWantedSchema.index({ status: 1 });
 FBIWantedSchema.index({ dangerLevel: 1 });
 FBIWantedSchema.index({ dateAdded: -1 });
-FBIWantedSchema.index({ fbiNumber: 1 }, { unique: true });
 FBIWantedSchema.index({ name: 'text', description: 'text', charges: 'text' }); // 文本搜索索引
 
 // 更新 lastUpdated 字段的中间件

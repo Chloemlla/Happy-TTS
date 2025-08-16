@@ -4,6 +4,7 @@ import { Webhook as SvixWebhook } from 'svix';
 
 const WebhookEventSchema = new Schema({
   provider: { type: String, default: 'resend' },
+  routeKey: { type: String },
   eventId: { type: String },
   type: { type: String, required: true },
   created_at: { type: Date },
@@ -16,7 +17,9 @@ const WebhookEventSchema = new Schema({
   updatedAt: { type: Date, default: Date.now },
 }, { collection: 'webhook_events' });
 
-WebhookEventSchema.index({ provider: 1, eventId: 1 }, { unique: false });
+WebhookEventSchema.index({ provider: 1, routeKey: 1, eventId: 1 }, { unique: false });
+WebhookEventSchema.index({ routeKey: 1, receivedAt: -1 });
+WebhookEventSchema.index({ type: 1, status: 1, receivedAt: -1 });
 WebhookEventSchema.pre('save', function(next) { (this as any).updatedAt = new Date(); next(); });
 
 export const WebhookEventModel = mongoose.models.WebhookEvent || mongoose.model('WebhookEvent', WebhookEventSchema);
@@ -26,16 +29,35 @@ export const WebhookEventService = {
     const created = await WebhookEventModel.create(doc);
     return created.toObject();
   },
-  async list({ page = 1, pageSize = 20 }: { page?: number; pageSize?: number }) {
+  async list({ page = 1, pageSize = 20, routeKey, type, status }: { page?: number; pageSize?: number; routeKey?: string | null; type?: string; status?: string }) {
     // Normalize and cap pagination to prevent abuse
     const p = Number.isFinite(Number(page)) ? Math.max(1, Number(page)) : 1;
     const ps = Number.isFinite(Number(pageSize)) ? Math.min(100, Math.max(1, Number(pageSize))) : 20;
     const skip = (p - 1) * ps;
+
+    const query: any = {};
+    if (typeof routeKey === 'string') query.routeKey = routeKey;
+    if (routeKey === null) query.routeKey = { $in: [null, undefined] };
+    if (typeof type === 'string' && type) query.type = type;
+    if (typeof status === 'string' && status) query.status = status;
+
     const [items, total] = await Promise.all([
-      WebhookEventModel.find().sort({ receivedAt: -1 }).skip(skip).limit(ps).lean(),
-      WebhookEventModel.countDocuments(),
+      WebhookEventModel.find(query).sort({ receivedAt: -1 }).skip(skip).limit(ps).lean(),
+      WebhookEventModel.countDocuments(query),
     ]);
     return { items, total, page: p, pageSize: ps };
+  },
+  async groups() {
+    const rows = await WebhookEventModel.aggregate([
+      {
+        $group: {
+          _id: { routeKey: '$routeKey' },
+          total: { $sum: 1 },
+        },
+      },
+      { $sort: { total: -1 } },
+    ]);
+    return rows.map((r: any) => ({ routeKey: r._id.routeKey ?? null, total: r.total }));
   },
   async get(id: string) {
     if (!mongoose.isValidObjectId(id)) {
@@ -84,10 +106,23 @@ export const WebhookEventService = {
  * 使用 Svix 验证 Resend Webhook 请求
  * 注意：Resend 的签名密钥需要 Base64 解码后再传入 Svix
  */
-export function verifyResendWebhook(payload: string, headers: IncomingHttpHeaders) {
-  const rawSecret = process.env.RESEND_WEBHOOK_SECRET || process.env.WEBHOOK_SECRET;
+export function verifyResendWebhook(payload: string, headers: IncomingHttpHeaders, key?: string) {
+  // 支持多路由多密钥：优先使用 RESEND_WEBHOOK_SECRET_<KEY> / WEBHOOK_SECRET_<KEY>
+  const keySuffix = key ? String(key).trim().toUpperCase() : '';
+  const candidates = [
+    keySuffix ? `RESEND_WEBHOOK_SECRET_${keySuffix}` : '',
+    keySuffix ? `WEBHOOK_SECRET_${keySuffix}` : '',
+    'RESEND_WEBHOOK_SECRET',
+    'WEBHOOK_SECRET',
+  ].filter(Boolean) as string[];
+
+  let rawSecret = '';
+  for (const envName of candidates) {
+    const v = process.env[envName];
+    if (v && typeof v === 'string' && v.trim()) { rawSecret = v; break; }
+  }
   if (!rawSecret) {
-    throw new Error('RESEND_WEBHOOK_SECRET 未配置');
+    throw new Error(`RESEND_WEBHOOK_SECRET 未配置${keySuffix ? `（键：${keySuffix}）` : ''}`);
   }
   // Resend 文档要求：先 base64 解码
   let secret: string;
