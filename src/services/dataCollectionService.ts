@@ -3,6 +3,7 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 import logger from '../utils/logger';
 import { mongoose } from './mongoService';
+import type { FilterQuery } from 'mongoose';
 
 // MongoDB 数据收集 Schema（开启 strict 以拒绝未声明字段）
 const DataCollectionSchema = new mongoose.Schema({
@@ -211,6 +212,79 @@ class DataCollectionService {
       await this.saveToFile(data);
       return { savedTo: 'mongo_fallback_file' };
     }
+  }
+
+  // =============== Admin management helpers (Mongo only) ===============
+  public isMongoReady(): boolean {
+    return mongoose.connection.readyState === 1;
+  }
+
+  public async list(params: {
+    page?: number; limit?: number;
+    userId?: string; action?: string;
+    start?: string; end?: string;
+    sort?: 'desc' | 'asc';
+  }): Promise<{ items: any[]; total: number; page: number; limit: number }>{
+    if (!this.isMongoReady()) throw new Error('MongoDB 未连接');
+    const Model = mongoose.models.DataCollection as any;
+    const { page = 1, limit = 20, userId, action, start, end, sort = 'desc' } = params || {};
+    const query: FilterQuery<any> = {};
+    if (userId) query.userId = userId;
+    if (action) query.action = action;
+    // timestamp is ISO string; filter by range if provided
+    if (start || end) {
+      query.timestamp = {} as any;
+      if (start) (query.timestamp as any).$gte = start;
+      if (end) (query.timestamp as any).$lte = end;
+    }
+    const skip = (Math.max(1, page) - 1) * Math.max(1, limit);
+    const total = await Model.countDocuments(query);
+    const items = await Model.find(query)
+      .sort({ timestamp: sort === 'asc' ? 1 : -1 })
+      .skip(skip)
+      .limit(Math.max(1, limit))
+      .lean();
+    return { items, total, page: Math.max(1, page), limit: Math.max(1, limit) };
+  }
+
+  public async getById(id: string): Promise<any | null> {
+    if (!this.isMongoReady()) throw new Error('MongoDB 未连接');
+    const Model = mongoose.models.DataCollection as any;
+    return Model.findById(id).lean();
+  }
+
+  public async deleteById(id: string): Promise<{ deleted: boolean }>{
+    if (!this.isMongoReady()) throw new Error('MongoDB 未连接');
+    const Model = mongoose.models.DataCollection as any;
+    const res = await Model.deleteOne({ _id: id });
+    return { deleted: res.deletedCount > 0 };
+  }
+
+  public async deleteBatch(ids: string[]): Promise<{ deletedCount: number }>{
+    if (!this.isMongoReady()) throw new Error('MongoDB 未连接');
+    const Model = mongoose.models.DataCollection as any;
+    const res = await Model.deleteMany({ _id: { $in: ids } });
+    return { deletedCount: res.deletedCount || 0 };
+  }
+
+  public async stats() {
+    if (!this.isMongoReady()) throw new Error('MongoDB 未连接');
+    const Model = mongoose.models.DataCollection as any;
+    const total = await Model.estimatedDocumentCount();
+    // count by action
+    const byAction = await Model.aggregate([
+      { $group: { _id: '$action', count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
+    // last 7 days histogram by date (based on ISO strings -> convert to Date)
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const last7days = await Model.aggregate([
+      { $match: { timestamp: { $gte: sevenDaysAgo } } },
+      { $addFields: { tsDate: { $toDate: '$timestamp' } } },
+      { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$tsDate' } }, count: { $sum: 1 } } },
+      { $sort: { _id: 1 } }
+    ]);
+    return { total, byAction, last7days };
   }
 }
 

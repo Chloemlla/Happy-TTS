@@ -1,4 +1,4 @@
-import React, { useState, Suspense, useEffect } from 'react';
+import React, { useState, Suspense, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import UserManagement from './UserManagement';
 const AnnouncementManager = React.lazy(() => import('./AnnouncementManager'));
@@ -13,25 +13,11 @@ const CommandManager = React.lazy(() => import('./CommandManager'));
 const WebhookEventsManager = React.lazy(() => import('./WebhookEventsManager'));
 const LogShare = React.lazy(() => import('./LogShare'));
 const FBIWantedManager = React.lazy(() => import('./FBIWantedManager'));
+const DataCollectionManager = React.lazy(() => import('./DataCollectionManager'));
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from './Notification';
 import { getApiBaseUrl } from '../api/api';
 import { FaCog, FaUsers, FaShieldAlt } from 'react-icons/fa';
-
-const TABS = [
-  { key: 'users', label: '用户管理' },
-  { key: 'announcement', label: '公告管理' },
-  { key: 'env', label: '环境变量' },
-  { key: 'lottery', label: '抽奖管理' },
-  { key: 'modlist', label: 'Mod管理' },
-  { key: 'outemail', label: '外部邮件' },
-  { key: 'shortlink', label: '短链管理' },
-  { key: 'shorturlmigration', label: '短链迁移' },
-  { key: 'command', label: '命令管理' },
-  { key: 'logshare', label: '日志分享' },
-  { key: 'fbiwanted', label: 'FBI通缉犯管理' },
-  { key: 'webhookevents', label: 'Webhook事件' },
-];
 
 const AdminDashboard: React.FC = () => {
   const [tab, setTab] = useState('users');
@@ -40,6 +26,22 @@ const AdminDashboard: React.FC = () => {
   const { user, loading, logout } = useAuth();
   const { setNotification } = useNotification();
   const navigate = useNavigate();
+
+  const tabs = useMemo(() => ([
+    { key: 'users', label: '用户管理' },
+    { key: 'announcement', label: '公告管理' },
+    { key: 'env', label: '环境变量' },
+    { key: 'lottery', label: '抽奖管理' },
+    { key: 'modlist', label: 'Mod管理' },
+    { key: 'outemail', label: '外部邮件' },
+    { key: 'shortlink', label: '短链管理' },
+    { key: 'shorturlmigration', label: '短链迁移' },
+    { key: 'command', label: '命令管理' },
+    { key: 'logshare', label: '日志分享' },
+    { key: 'fbiwanted', label: 'FBI通缉犯管理' },
+    { key: 'webhookevents', label: 'Webhook事件' },
+    { key: 'data-collection', label: '数据收集管理' },
+  ] as const), []);
 
   // 多重权限验证
   useEffect(() => {
@@ -256,7 +258,7 @@ const AdminDashboard: React.FC = () => {
                       await Promise.resolve(logout?.());
                     } finally {
                       // 兜底清理并跳转
-                      try { localStorage.removeItem('token'); } catch {}
+                      try { localStorage.removeItem('token'); } catch { }
                       navigate('/login');
                     }
                   }}
@@ -284,7 +286,7 @@ const AdminDashboard: React.FC = () => {
               <span className="font-semibold text-gray-800">管理功能</span>
             </div>
             <div className="flex space-x-4 mb-6 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent" style={{ WebkitOverflowScrolling: 'touch' }}>
-              {TABS.map(t => (
+              {tabs.map(t => (
                 <motion.button
                   key={t.key}
                   className={`flex items-center justify-center px-4 py-2 rounded-lg font-semibold transition-all duration-150 shadow whitespace-nowrap min-w-[3.5rem] max-w-xs text-center ${tab === t.key
@@ -453,6 +455,19 @@ const AdminDashboard: React.FC = () => {
                   >
                     <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
                       <FBIWantedManager />
+                    </Suspense>
+                  </motion.div>
+                )}
+                {tab === 'data-collection' && (
+                  <motion.div
+                    key="data-collection"
+                    initial={{ opacity: 0, x: 40 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -40 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
+                      <DataCollectionManager />
                     </Suspense>
                   </motion.div>
                 )}

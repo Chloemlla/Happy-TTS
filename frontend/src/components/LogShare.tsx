@@ -114,6 +114,10 @@ const LogShare: React.FC = () => {
   const [allLogs, setAllLogs] = useState<{ id: string, ext: string, uploadTime: string, size: number }[]>([]);
   const [isLoadingAllLogs, setIsLoadingAllLogs] = useState(false);
   const [selectedLogIndex, setSelectedLogIndex] = useState<number | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [editingLog, setEditingLog] = useState<{ id: string, fileName?: string, note?: string } | null>(null);
+  const [editFileName, setEditFileName] = useState('');
+  const [editNote, setEditNote] = useState('');
 
   // 加载历史记录
   const loadHistory = async () => {
@@ -143,6 +147,96 @@ const LogShare: React.FC = () => {
       setQueryHistory(queryItems);
     } catch (error) {
       console.error('加载历史记录失败:', error);
+    }
+  };
+
+  // 选择相关
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+  const selectAll = () => {
+    if (selectedIds.length === allLogs.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(allLogs.map(l => l.id));
+    }
+  };
+
+  // 删除单个
+  const handleDeleteOne = async (id: string) => {
+    try {
+      await axios.delete(getApiBaseUrl() + `/api/sharelog/${id}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      setNotification({ message: '删除成功', type: 'success' });
+      await loadAllLogs();
+    } catch (e: any) {
+      setNotification({ message: e.response?.data?.error || '删除失败', type: 'error' });
+    }
+  };
+
+  // 批量删除
+  const handleBatchDelete = async () => {
+    if (selectedIds.length === 0) {
+      setNotification({ message: '请先选择要删除的日志', type: 'warning' });
+      return;
+    }
+    try {
+      await axios.post(getApiBaseUrl() + '/api/sharelog/delete-batch', { ids: selectedIds }, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      setNotification({ message: '批量删除成功', type: 'success' });
+      await loadAllLogs();
+    } catch (e: any) {
+      setNotification({ message: e.response?.data?.error || '批量删除失败', type: 'error' });
+    }
+  };
+
+  // 全部删除
+  const handleDeleteAll = async () => {
+    if (allLogs.length === 0) {
+      setNotification({ message: '暂无可删除日志', type: 'info' });
+      return;
+    }
+    if (!confirm('确定要删除所有日志吗？该操作不可恢复')) return;
+    try {
+      await axios.delete(getApiBaseUrl() + '/api/sharelog/all', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      setNotification({ message: '已清空所有日志', type: 'success' });
+      await loadAllLogs();
+    } catch (e: any) {
+      setNotification({ message: e.response?.data?.error || '清空失败', type: 'error' });
+    }
+  };
+
+  // 编辑元数据
+  const openEdit = (log: { id: string }) => {
+    const existing = allLogs.find(l => l.id === log.id);
+    setEditingLog({ id: log.id });
+    setEditFileName('');
+    setEditNote('');
+  };
+  const handleEditSave = async () => {
+    if (!editingLog) return;
+    if (!editFileName && !editNote) {
+      setNotification({ message: '请至少填写一个可修改字段', type: 'warning' });
+      return;
+    }
+    try {
+      await axios.put(getApiBaseUrl() + `/api/sharelog/${editingLog.id}`, {
+        fileName: editFileName || undefined,
+        note: editNote || undefined,
+      }, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      setNotification({ message: '保存成功', type: 'success' });
+      setEditingLog(null);
+      setEditFileName('');
+      setEditNote('');
+      await loadAllLogs();
+    } catch (e: any) {
+      setNotification({ message: e.response?.data?.error || '保存失败', type: 'error' });
     }
   };
 
@@ -437,6 +531,8 @@ const LogShare: React.FC = () => {
         setAllLogs(res.data.logs || []);
       }
       
+      // 刷新列表后清空选择
+      setSelectedIds([]);
       setNotification({ message: '日志列表加载成功', type: 'success' });
     } catch (e: any) {
       setNotification({ message: e.response?.data?.error || '加载日志列表失败', type: 'error' });
@@ -898,6 +994,26 @@ const LogShare: React.FC = () => {
                 )}
                 {isLoadingAllLogs ? '加载中...' : '查看所有日志'}
               </motion.button>
+
+              {/* 批量操作 */}
+              {allLogs.length > 0 && (
+                <>
+                  <motion.button
+                    onClick={handleBatchDelete}
+                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all duration-200 text-sm font-medium flex items-center gap-2"
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    批量删除
+                  </motion.button>
+                  <motion.button
+                    onClick={handleDeleteAll}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-200 text-sm font-medium flex items-center gap-2"
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    清空所有
+                  </motion.button>
+                </>
+              )}
             </div>
 
             {/* 所有日志列表 */}
@@ -908,34 +1024,36 @@ const LogShare: React.FC = () => {
                 className="mb-4"
               >
                 <h4 className="text-sm font-semibold text-gray-700 mb-2">所有日志列表 ({allLogs.length})</h4>
-                <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg">
+                <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg">
+                  {/* 选择全选 */}
+                  <div className="flex items-center gap-2 p-2 border-b border-gray-100 bg-gray-50">
+                    <input type="checkbox" checked={selectedIds.length === allLogs.length && allLogs.length > 0} onChange={selectAll} />
+                    <span className="text-sm text-gray-600">全选（已选 {selectedIds.length}）</span>
+                  </div>
                   {allLogs.map((log, index) => (
                     <motion.div
                       key={log.id}
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.1 }}
-                      className={`flex items-center justify-between p-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 ${
+                      className={`flex items-center justify-between p-2 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 ${
                         selectedLogIndex === index ? 'bg-blue-50 border-blue-200' : ''
                       }`}
-                      onClick={() => {
-                        setSelectedLogIndex(index);
-                        viewLog(log.id);
-                      }}
                       whileHover={{ scale: 1.01 }}
                       whileTap={{ scale: 0.99 }}
                     >
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-gray-900 truncate">
-                          {log.id}
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <input type="checkbox" checked={selectedIds.includes(log.id)} onChange={() => toggleSelect(log.id)} />
+                        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => { setSelectedLogIndex(index); viewLog(log.id); }}>
+                          <div className="text-sm font-medium text-gray-900 truncate">{log.id}</div>
+                          <div className="text-xs text-gray-500">{log.ext} • {new Date(log.uploadTime).toLocaleString()} • {(log.size / 1024).toFixed(1)}KB</div>
                         </div>
-                        <div className="text-xs text-gray-500">
-                          {log.ext} • {new Date(log.uploadTime).toLocaleString()} • {(log.size / 1024).toFixed(1)}KB
+                        <div className="flex items-center gap-2">
+                          <button className="px-2 py-1 text-xs bg-blue-500 text-white rounded" onClick={() => viewLog(log.id)}>查看</button>
+                          <button className="px-2 py-1 text-xs bg-yellow-500 text-white rounded" onClick={() => openEdit(log)}>编辑</button>
+                          <button className="px-2 py-1 text-xs bg-red-500 text-white rounded" onClick={() => handleDeleteOne(log.id)}>删除</button>
                         </div>
                       </div>
-                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
                     </motion.div>
                   ))}
                 </div>
@@ -1212,6 +1330,65 @@ const LogShare: React.FC = () => {
           </div>
         </motion.div>
         
+        {/* 编辑元数据弹窗 */}
+        <AnimatePresence>
+          {editingLog && (
+            <motion.div 
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <motion.div 
+                className="bg-white w-full max-w-lg rounded-xl shadow-xl p-6 border border-gray-200"
+                initial={{ scale: 0.95, y: 20, opacity: 0 }}
+                animate={{ scale: 1, y: 0, opacity: 1 }}
+                exit={{ scale: 0.95, y: 20, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-800">编辑日志元数据</h3>
+                  <button className="text-gray-400 hover:text-gray-600" onClick={() => { setEditingLog(null); setEditFileName(''); setEditNote(''); }}>✕</button>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">文件名（可选）</label>
+                    <input 
+                      className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                      placeholder="例如：error-2025-08-10.txt"
+                      value={editFileName}
+                      onChange={(e) => setEditFileName(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">备注（可选）</label>
+                    <textarea 
+                      className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all min-h-[100px]"
+                      placeholder="补充说明、标签等"
+                      value={editNote}
+                      onChange={(e) => setEditNote(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="mt-6 flex items-center justify-end gap-3">
+                  <button 
+                    className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+                    onClick={() => { setEditingLog(null); setEditFileName(''); setEditNote(''); }}
+                  >
+                    取消
+                  </button>
+                  <button 
+                    className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                    onClick={handleEditSave}
+                  >
+                    保存
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* 全局提示 */}
         {/* 所有提示已用 setNotification 全局弹窗替换 */}
       </motion.div>

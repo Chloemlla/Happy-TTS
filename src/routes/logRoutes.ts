@@ -88,6 +88,23 @@ async function checkAdminPassword(password: string) {
   }
 }
 
+// 复用的 Mongo 模型获取器
+function getLogShareModel() {
+  const LogShareSchema = new mongoose.Schema({
+    fileId: { type: String, required: true, unique: true },
+    ext: String,
+    content: String,
+    fileName: String,
+    mimeType: String,
+    fileSize: Number,
+    note: String,
+    createdAt: { type: Date, default: Date.now }
+  }, { collection: 'logshare_files' });
+  // 复用已存在的模型，避免重复编译
+  // @ts-ignore
+  return mongoose.models.LogShareFile || mongoose.model('LogShareFile', LogShareSchema);
+}
+
 // AES-256加密函数，使用PBKDF2密钥派生
 function encryptData(data: any, key: string): { data: string, iv: string } {
   console.log('🔐 [LogShare] 开始加密数据...');
@@ -149,17 +166,7 @@ router.post('/sharelog', logLimiter, upload.single('file'), async (req, res) => 
     const fileId = crypto.randomBytes(8).toString('hex');
     
     // 所有文件都存储到MongoDB，避免本地文件系统风险
-    const LogShareSchema = new mongoose.Schema({
-      fileId: { type: String, required: true, unique: true },
-      ext: String,
-      content: String,
-      fileName: String,
-      mimeType: String,
-      fileSize: Number,
-      createdAt: { type: Date, default: Date.now }
-    }, { collection: 'logshare_files' });
-    
-    const LogShareModel = mongoose.models.LogShareFile || mongoose.model('LogShareFile', LogShareSchema);
+    const LogShareModel = getLogShareModel();
     let content = '';
     try {
       content = req.file.buffer.toString('utf-8');
@@ -202,16 +209,8 @@ router.get('/sharelog/all', logLimiter, authenticateToken, async (req, res) => {
       return res.status(403).json({ error: '需要管理员权限' });
     }
 
-    // 获取MongoDB中的文本类型日志
-    const LogShareSchema = new mongoose.Schema({
-      fileId: { type: String, required: true, unique: true },
-      ext: String,
-      content: String,
-      fileName: String,
-      createdAt: { type: Date, default: Date.now }
-    }, { collection: 'logshare_files' });
-    const LogShareModel = mongoose.models.LogShareFile || mongoose.model('LogShareFile', LogShareSchema);
-    
+    await connectMongo();
+    const LogShareModel = getLogShareModel();
     const mongoLogs = await LogShareModel.find({}, { fileId: 1, ext: 1, createdAt: 1, content: 1 }).sort({ createdAt: -1 });
     
     // 获取本地文件系统中的非文本类型日志
@@ -281,14 +280,7 @@ router.post('/sharelog/:id', logLimiter, async (req, res) => {
       return res.status(403).json({ error: '管理员密码错误' });
     }
     // 只查MongoDB文本类型
-    const LogShareSchema = new mongoose.Schema({
-      fileId: { type: String, required: true, unique: true },
-      ext: String,
-      content: String,
-      fileName: String,
-      createdAt: { type: Date, default: Date.now }
-    }, { collection: 'logshare_files' });
-    const LogShareModel = mongoose.models.LogShareFile || mongoose.model('LogShareFile', LogShareSchema);
+    const LogShareModel = getLogShareModel();
     const doc = await LogShareModel.findOne({ fileId: id });
     if (doc && [".txt", ".log", ".json", ".md"].includes(doc.ext)) {
       logger.info(`[logshare] MongoDB命中: fileId=${id}, ext=${doc.ext}, fileName=${doc.fileName}`);
@@ -328,6 +320,147 @@ router.post('/sharelog/:id', logLimiter, async (req, res) => {
   } catch (e: any) {
     logger.error(`查询 | IP:${ip} | 文件ID:${id} | 结果:异常 | 错误:${e?.message}`);
     return res.status(500).json({ error: '日志查询失败' });
+  }
+});
+
+// 删除单个日志（DELETE，需要管理员权限）
+router.delete('/sharelog/:id', logLimiter, authenticateToken, async (req, res) => {
+  const ip = req.ip;
+  const { id } = req.params;
+  try {
+    // @ts-ignore
+    if (!req.user || req.user.role !== 'admin') {
+      logger.warn(`删除日志 | IP:${ip} | 结果:失败 | 原因:非管理员用户`);
+      return res.status(403).json({ error: '需要管理员权限' });
+    }
+    await connectMongo();
+    const LogShareModel = getLogShareModel();
+    const mongoResult = await LogShareModel.deleteOne({ fileId: id });
+
+    // 删除本地文件（二进制/非文本）
+    let fileDeleted = false;
+    try {
+      const files = await fs.promises.readdir(SHARELOGS_DIR);
+      const fileName = files.find(f => f.startsWith(id));
+      if (fileName) {
+        await fs.promises.unlink(path.join(SHARELOGS_DIR, fileName));
+        fileDeleted = true;
+      }
+    } catch (err) {
+      // 忽略本地不存在的情况
+    }
+
+    if (mongoResult.deletedCount === 0 && !fileDeleted) {
+      logger.warn(`删除日志 | IP:${ip} | 文件ID:${id} | 结果:失败 | 原因:日志不存在`);
+      return res.status(404).json({ error: '日志不存在' });
+    }
+    logger.info(`删除日志 | IP:${ip} | 文件ID:${id} | 结果:成功 | mongo:${mongoResult.deletedCount} | file:${fileDeleted}`);
+    return res.json({ success: true, mongoDeleted: mongoResult.deletedCount, fileDeleted });
+  } catch (e: any) {
+    logger.error(`删除日志 | IP:${ip} | 文件ID:${id} | 结果:异常 | 错误:${e?.message}`);
+    return res.status(500).json({ error: '删除失败' });
+  }
+});
+
+// 批量删除（POST，需要管理员权限）
+router.post('/sharelog/delete-batch', logLimiter, authenticateToken, async (req, res) => {
+  const ip = req.ip;
+  const ids: string[] = Array.isArray(req.body.ids) ? req.body.ids : [];
+  try {
+    // @ts-ignore
+    if (!req.user || req.user.role !== 'admin') {
+      logger.warn(`批量删除 | IP:${ip} | 结果:失败 | 原因:非管理员用户`);
+      return res.status(403).json({ error: '需要管理员权限' });
+    }
+    if (ids.length === 0) {
+      return res.status(400).json({ error: '缺少要删除的ID列表' });
+    }
+    await connectMongo();
+    const LogShareModel = getLogShareModel();
+    const mongoResult = await LogShareModel.deleteMany({ fileId: { $in: ids } });
+
+    let fileDeleted = 0;
+    try {
+      const files = await fs.promises.readdir(SHARELOGS_DIR);
+      for (const id of ids) {
+        const fileName = files.find(f => f.startsWith(id));
+        if (fileName) {
+          await fs.promises.unlink(path.join(SHARELOGS_DIR, fileName));
+          fileDeleted++;
+        }
+      }
+    } catch (err) {
+      // 忽略
+    }
+    logger.info(`批量删除 | IP:${ip} | 结果:成功 | mongo:${mongoResult.deletedCount} | file:${fileDeleted}`);
+    return res.json({ success: true, mongoDeleted: mongoResult.deletedCount, fileDeleted });
+  } catch (e: any) {
+    logger.error(`批量删除 | IP:${ip} | 结果:异常 | 错误:${e?.message}`);
+    return res.status(500).json({ error: '批量删除失败' });
+  }
+});
+
+// 全部删除（DELETE，需要管理员权限）
+router.delete('/sharelog/all', logLimiter, authenticateToken, async (req, res) => {
+  const ip = req.ip;
+  try {
+    // @ts-ignore
+    if (!req.user || req.user.role !== 'admin') {
+      logger.warn(`全部删除 | IP:${ip} | 结果:失败 | 原因:非管理员用户`);
+      return res.status(403).json({ error: '需要管理员权限' });
+    }
+    await connectMongo();
+    const LogShareModel = getLogShareModel();
+    const mongoResult = await LogShareModel.deleteMany({});
+
+    let fileDeleted = 0;
+    try {
+      const files = await fs.promises.readdir(SHARELOGS_DIR);
+      for (const file of files) {
+        await fs.promises.unlink(path.join(SHARELOGS_DIR, file));
+        fileDeleted++;
+      }
+    } catch (err) {
+      // 忽略
+    }
+    logger.info(`全部删除 | IP:${ip} | 结果:成功 | mongo:${mongoResult.deletedCount} | file:${fileDeleted}`);
+    return res.json({ success: true, mongoDeleted: mongoResult.deletedCount, fileDeleted });
+  } catch (e: any) {
+    logger.error(`全部删除 | IP:${ip} | 结果:异常 | 错误:${e?.message}`);
+    return res.status(500).json({ error: '全部删除失败' });
+  }
+});
+
+// 修改单个日志（PUT，需要管理员权限，仅Mongo文本日志支持）
+router.put('/sharelog/:id', logLimiter, authenticateToken, async (req, res) => {
+  const ip = req.ip;
+  const { id } = req.params;
+  const { fileName, note } = req.body || {};
+  try {
+    // @ts-ignore
+    if (!req.user || req.user.role !== 'admin') {
+      logger.warn(`修改日志 | IP:${ip} | 结果:失败 | 原因:非管理员用户`);
+      return res.status(403).json({ error: '需要管理员权限' });
+    }
+    if (!fileName && typeof note === 'undefined') {
+      return res.status(400).json({ error: '未提供可以更新的字段' });
+    }
+    await connectMongo();
+    const LogShareModel = getLogShareModel();
+    const update: any = {};
+    if (fileName) update.fileName = String(fileName).slice(0, 200);
+    if (typeof note !== 'undefined') update.note = String(note).slice(0, 1000);
+
+    const result = await LogShareModel.findOneAndUpdate({ fileId: id }, { $set: update }, { new: true });
+    if (!result) {
+      logger.warn(`修改日志 | IP:${ip} | 文件ID:${id} | 结果:失败 | 原因:仅支持Mongo文本日志`);
+      return res.status(404).json({ error: '仅支持修改存储在Mongo的文本日志' });
+    }
+    logger.info(`修改日志 | IP:${ip} | 文件ID:${id} | 结果:成功`);
+    return res.json({ success: true, log: { id: result.fileId, fileName: result.fileName, note: result.note } });
+  } catch (e: any) {
+    logger.error(`修改日志 | IP:${ip} | 文件ID:${id} | 结果:异常 | 错误:${e?.message}`);
+    return res.status(500).json({ error: '修改失败' });
   }
 });
 
