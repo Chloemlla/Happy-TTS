@@ -14,6 +14,11 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # 为 Node/V8 分配 10GB 内存（单位：MB）
+      NODE_OPTIONS: --max-old-space-size=10240
+      NODE_MEMORY: 10240
+      MEMORY: 10240M
 
     strategy:
       matrix:
@@ -27,15 +32,19 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: "npm"
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
+            frontend/docs/package-lock.json
 
       - name: Set Node.js memory limits
         run: |
-          echo "NODE_OPTIONS=--max-old-space-size=11264" >> $GITHUB_ENV
+          echo "NODE_OPTIONS=--max-old-space-size=10240" >> $GITHUB_ENV
           echo "NPM_CONFIG_CACHE=/tmp/.npm" >> $GITHUB_ENV
           echo "ROLLUP_SKIP_NATIVE_DEPENDENCIES=true" >> $GITHUB_ENV
           echo "VITE_SKIP_ROLLUP_NATIVE=true" >> $GITHUB_ENV
-          echo "MEMORY=11264M" >> $GITHUB_ENV
-          echo "NODE_MEMORY=11264" >> $GITHUB_ENV
+          echo "MEMORY=10240M" >> $GITHUB_ENV
+          echo "NODE_MEMORY=10240" >> $GITHUB_ENV
 
       - name: Clean node_modules and lock (root)
         run: |
@@ -69,6 +78,18 @@ jobs:
 
       - name: Generate package-lock.json
         run: npm install --package-lock-only
+
+      - name: Cache node_modules and npm cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            frontend/node_modules
+            frontend/docs/node_modules
+            /tmp/.npm
+          key: ${{ runner.os }}-node${{ matrix.node-version }}-modules-${{ hashFiles('package-lock.json','frontend/package-lock.json','frontend/docs/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node${{ matrix.node-version }}-modules-
 
       - name: Install dependencies with retry
         run: |
@@ -173,16 +194,3 @@ jobs:
           else
             echo "Warning: Obfuscation not detected in dist/app.js"
           fi
-
-      # - name: Cache build artifacts
-      #   uses: actions/cache@main
-      #   with:
-      #     path: |
-      #       dist
-      #       node_modules
-      #       frontend/node_modules
-      #       frontend/docs/node_modules
-      #       /tmp/.npm
-      #     key: ${{ runner.os }}-build-${{ github.sha }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-build-
