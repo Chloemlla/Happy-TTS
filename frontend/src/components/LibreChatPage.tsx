@@ -361,9 +361,10 @@ const LibreChatPage: React.FC = () => {
     setRtOpen(false);
   };
 
-  // 对话框内发送（单次实时）
+  // 对话框内发送（实时，支持上下文）
   const handleRealtimeSend = async () => {
     setRtError('');
+    if (rtSending || rtStreaming) return; // 避免并发发送
     if (!token) {
       setRtError('请先填写 Token');
       return;
@@ -388,6 +389,12 @@ const LibreChatPage: React.FC = () => {
       // 客户端模拟流式展示（后端字段为 response）
       const txtRaw: string = (data && typeof data.response === 'string') ? data.response : '';
       const txt = sanitizeAssistantText(txtRaw);
+      // 当后端按“模型身份”规则返回空字符串时，避免渲染空的助手消息
+      if (!txt) {
+        setRtStreaming(false);
+        setRtSending(false);
+        return;
+      }
       // 放入一个助手占位项，随着流式更新
       let assistantIndex = -1;
       setRtHistory((prev) => {
@@ -615,40 +622,49 @@ const LibreChatPage: React.FC = () => {
       {rtOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
           <motion.div
-            initial={{ opacity: 0, scale: 0.98, y: 8 }}
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="w-full max-w-2xl bg-white rounded-xl shadow-xl p-5"
+            className="w-full max-w-2xl bg-white rounded-xl p-6 shadow-sm border border-gray-200 relative"
           >
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold">单次实时对话</h3>
-              <button onClick={closeRealtimeDialog} className="p-1 rounded hover:bg-gray-100" title="关闭">
+            <div className="flex items-center mb-4 pr-10">
+              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <FaPaperPlane className="text-blue-500" />
+                实时对话（支持上下文）
+              </h3>
+              <button
+                onClick={closeRealtimeDialog}
+                className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-100 bg-white"
+                aria-label="关闭"
+                title="关闭"
+              >
                 <FaTimes className="w-4 h-4" />
               </button>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
               <input
-                className="border rounded px-3 py-2 w-full"
+                className="border-2 border-gray-200 rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="请输入 Token"
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
               />
               <input
-                className="border rounded px-3 py-2 w-full sm:col-span-2"
-                placeholder="请输入消息（单次对话）"
+                className="border-2 border-gray-200 rounded-lg px-3 py-2 w-full sm:col-span-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="请输入消息（支持上下文）"
                 value={rtMessage}
                 onChange={(e) => setRtMessage(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleRealtimeSend(); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !rtSending && !rtStreaming) handleRealtimeSend(); }}
               />
             </div>
             {rtError && <div className="text-red-500 text-sm mt-2">{rtError}</div>}
             <div className="mt-3 flex items-center justify-end gap-2">
-              <button
+              <motion.button
                 onClick={handleRealtimeSend}
                 disabled={rtSending}
-                className="px-3 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm font-medium hover:opacity-95 disabled:opacity-50 flex items-center gap-2"
+                className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
+                whileTap={{ scale: 0.95 }}
               >
                 <FaPaperPlane className="w-4 h-4" /> 发送
-              </button>
+              </motion.button>
             </div>
             <div className="mt-4">
               {rtHistory.length > 0 ? (
@@ -656,7 +672,7 @@ const LibreChatPage: React.FC = () => {
                   {rtHistory.map((m, idx) => (
                     <div key={idx} className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {m.role === 'user' ? (
-                        <div className="p-2 rounded border bg-white/80 order-1">
+                        <div className="p-3 rounded-lg border border-gray-200 bg-white order-1">
                           <div className="text-xs text-gray-500 mb-1">用户</div>
                           <div
                             className="prose prose-sm max-w-none"
@@ -667,7 +683,7 @@ const LibreChatPage: React.FC = () => {
                         <div className="hidden sm:block"></div>
                       )}
                       {m.role !== 'user' ? (
-                        <div className="p-2 rounded border bg-white/80 order-2">
+                        <div className="p-3 rounded-lg border border-gray-200 bg-white order-2">
                           <div className="text-xs text-gray-500 mb-1">助手{rtStreaming && idx === rtHistory.length - 1 ? '（生成中...）' : ''}</div>
                           <div
                             className="prose prose-sm max-w-none"
@@ -681,7 +697,7 @@ const LibreChatPage: React.FC = () => {
                   ))}
                 </div>
               ) : rtStreaming || rtStreamContent ? (
-                <div className="p-3 rounded border bg-white/90">
+                <div className="p-3 rounded-lg border border-gray-200 bg-white">
                   <div className="text-xs text-gray-500 mb-1">助手{rtStreaming ? '（生成中...）' : ''}</div>
                   <div
                     className="prose prose-sm max-w-none"

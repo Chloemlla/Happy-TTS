@@ -322,8 +322,14 @@ router.get('/export', async (req, res) => {
     // 导出聊天历史（作为文本附件返回）
     const { content, count } = await libreChatService.exportHistoryText(token as string);
     const date = new Date().toISOString().slice(0, 10);
+    // 为避免 Header 非法字符问题：
+    // 1) 使用 ASCII 安全的 filename 作为回退
+    // 2) 同时提供 RFC 5987 的 filename* 指向 UTF-8 编码的中文文件名
+    const asciiName = `LibreChat_history_${date}_${count}.txt`;
+    const utf8Name = `LibreChat_历史_${date}_${count}条.txt`;
+    const encoded = encodeURIComponent(utf8Name);
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="LibreChat_历史_${date}_${count}条.txt"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${asciiName}"; filename*=UTF-8''${encoded}`);
     res.setHeader('Cache-Control', 'no-cache');
     return res.status(200).send(content);
   } catch (error) {

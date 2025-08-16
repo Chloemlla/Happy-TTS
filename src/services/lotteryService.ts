@@ -89,7 +89,7 @@ class LotteryService {
         return data.height;
       }
     } catch (error) {
-      logger.log('获取区块链高度失败，使用时间戳作为备选:', error);
+      logger.warn('获取区块链高度失败，使用时间戳作为备选:', error);
     }
 
     // 备选方案：使用当前时间戳
@@ -139,7 +139,7 @@ class LotteryService {
     };
     try {
       await addRound(round);
-      logger.log(`创建抽奖轮次: ${round.id} - ${round.name}`);
+      logger.info(`创建抽奖轮次: ${round.id} - ${round.name}`);
       // 创建后强制刷新所有轮次，避免缓存/延迟
       await this.getLotteryRounds();
     } catch (e: any) {
@@ -153,9 +153,9 @@ class LotteryService {
   public async getLotteryRounds(): Promise<LotteryRound[]> {
     const rounds = await getAllRounds();
     if (!rounds || !Array.isArray(rounds) || rounds.length === 0) {
-      logger.log('[lottery] getLotteryRounds: 未读取到任何轮次数据');
+      logger.warn('[lottery] getLotteryRounds: 未读取到任何轮次数据');
     } else {
-      logger.log(`[lottery] getLotteryRounds: 读取到 ${rounds.length} 条轮次数据`);
+      logger.info(`[lottery] getLotteryRounds: 读取到 ${rounds.length} 条轮次数据`);
     }
     return rounds;
   }
@@ -227,7 +227,7 @@ class LotteryService {
     // 替换原有本地读写/Map操作，全部通过lotteryStorage接口实现
     // await this.saveData(); // 移除此行，因为不再直接保存
 
-    logger.log(`用户 ${username} 在轮次 ${roundId} 中获得了 ${prize.name}`);
+    logger.info(`用户 ${username} 在轮次 ${roundId} 中获得了 ${prize.name}`);
     return winner;
   }
 
@@ -334,7 +334,7 @@ class LotteryService {
 
     // 替换原有本地读写/Map操作，全部通过lotteryStorage接口实现
     // await this.saveData(); // 移除此行，因为不再直接保存
-    logger.log(`重置抽奖轮次: ${roundId}`);
+    logger.info(`重置抽奖轮次: ${roundId}`);
   }
 
   // 获取统计信息

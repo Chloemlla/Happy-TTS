@@ -30,6 +30,15 @@ export class Logger {
     this.log(message, { error: error?.message || error });
   }
 
+  // 兼容常见的日志等级，内部仍写入统一结构
+  info(message: string, data?: any) {
+    this.log(message, data);
+  }
+
+  warn(message: string, data?: any) {
+    this.log(message, data);
+  }
+
   close() {
     this.logStream.end();
   }
