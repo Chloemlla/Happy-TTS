@@ -107,14 +107,21 @@ const SmartHumanCheckTestPage: React.FC = () => {
       <Suspense fallback={<LoadingSpinner />}>
         <SmartHumanCheck
           challengeNonce={nonce || undefined}
-          onSuccess={(t) => {
+          onSuccess={async (t) => {
             setToken(t);
             setError('');
-            verifyToken(t).catch(() => {});
+            try {
+              await verifyToken(t);
+            } finally {
+              // 成功或失败后都获取新的 nonce，避免复用
+              await fetchNonce().catch(() => {});
+            }
           }}
-          onFail={(reason) => {
+          onFail={async (reason) => {
             setError(reason || '验证失败');
             setVerifyMsg('');
+            // 验证失败时也刷新 nonce，避免旧的 nonce 被继续使用
+            await fetchNonce().catch(() => {});
           }}
         />
       </Suspense>

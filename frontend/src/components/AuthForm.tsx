@@ -1,21 +1,21 @@
-import React, { useState, useEffect, startTransition, Suspense } from 'react';
+import React, { useState, useEffect, startTransition } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Link } from 'react-router-dom';
 import DOMPurify from 'dompurify';
-import AlertModal from './AlertModal';
 import TOTPVerification from './TOTPVerification';
 import { usePasskey } from '../hooks/usePasskey';
 import { DebugInfoModal } from './DebugInfoModal';
 import VerificationMethodSelector from './VerificationMethodSelector';
 import PasskeyVerifyModal from './PasskeyVerifyModal';
-import api from '../api/index';
 import { useNotification } from './Notification';
 import VerifyCodeInput from './VerifyCodeInput';
 import { AnimatePresence, motion } from 'framer-motion';
 import { NotificationData } from './Notification';
 import getApiBaseUrl from '../api';
+import SmartHumanCheck from './SmartHumanCheck';
+
 interface AuthFormProps {
-  setNotification?: (data: NotificationData) => void;
+    setNotification?: (data: NotificationData) => void;
 }
 
 interface PasswordStrength {
@@ -44,11 +44,11 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
     const { setNotification: contextSetNotification } = useNotification();
     const setNotify = propSetNotification || contextSetNotification;
     const { login, register, pending2FA, setPending2FA, verifyTOTP } = useAuth();
-    const { 
-        authenticateWithPasskey, 
-        showDebugModal, 
-        setShowDebugModal, 
-        debugInfos 
+    const {
+        authenticateWithPasskey,
+        showDebugModal,
+        setShowDebugModal,
+        debugInfos
     } = usePasskey();
     const [isLogin, setIsLogin] = useState(true);
     const [username, setUsername] = useState('');
@@ -72,18 +72,49 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
     const [verifyError, setVerifyError] = useState('');
     const [verifyLoading, setVerifyLoading] = useState(false);
     const [verifyResendTimer, setVerifyResendTimer] = useState(0);
+    const [shcLastFail, setShcLastFail] = useState<string | null>(null);
+    const [shcDebugLogs, setShcDebugLogs] = useState<any[]>([]);
+    const [showHumanCheck, setShowHumanCheck] = useState(false);
+    const [humanCheckToken, setHumanCheckToken] = useState<string | null>(null);
+    const [humanCheckKey, setHumanCheckKey] = useState(0);
+    // 人机验证失败弹窗状态
+    const [showHumanCheckFail, setShowHumanCheckFail] = useState(false);
+    const [humanCheckTraceId, setHumanCheckTraceId] = useState<string | null>(null);
+    const [humanCheckFailInfo, setHumanCheckFailInfo] = useState<{ message?: string; errorCode?: string; reason?: string } | null>(null);
+
+    // 人机验证 token 更新后，清理上一轮错误提示
+    useEffect(() => {
+        if (humanCheckToken) {
+            setError(null);
+        }
+    }, [humanCheckToken]);
 
     // 支持的主流邮箱后缀
     const allowedDomains = [
-      'gmail.com', 'outlook.com', 'qq.com', '163.com', '126.com',
-      'hotmail.com', 'yahoo.com', 'icloud.com', 'foxmail.com'
+        'gmail.com', 'outlook.com', 'qq.com', '163.com', '126.com',
+        'hotmail.com', 'yahoo.com', 'icloud.com', 'foxmail.com', 'hapxs.com', 'hapx.one'
     ];
     const emailPattern = new RegExp(
-      `^[\\w.-]+@(${allowedDomains.map(d => d.replace('.', '\\.')).join('|')})$`
+        `^[\\w.-]+@(${allowedDomains.map(d => d.replace('.', '\\.')).join('|')})$`
     );
 
     // 保留用户名列表
     const reservedUsernames = ['admin', 'root', 'system', 'test', 'administrator'];
+
+    // SmartHumanCheck 自动模式失败记录
+    const handleShcFail = (reason: string) => {
+        const info = {
+            action: 'SmartHumanCheck 自动获取 nonce 失败',
+            reason,
+            username: username || null,
+            context: 'AuthForm/register',
+            timestamp: new Date().toISOString()
+        };
+        setShcLastFail(reason);
+        setShcDebugLogs(prev => [...prev, info]);
+        // 提示用户需要重试人机验证
+        setNotify({ message: '人机验证环境异常，已记录。请重试人机验证后再注册。', type: 'warning' });
+    };
 
     // 密码复杂度检查
     const checkPasswordStrength = (pwd: string): PasswordStrength => {
@@ -166,7 +197,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
             case 'email':
                 // 邮箱格式验证（只允许主流邮箱）
                 if (!emailPattern.test(sanitizedValue)) {
-                    return '只支持主流邮箱（如gmail、outlook、qq、163、126、hotmail、yahoo、icloud、foxmail等）';
+                    return '只支持主流邮箱（如gmail、outlook、qq、163、126、hotmail、yahoo、icloud、foxmail、hapxs.com、hapx.one等）';
                 }
                 break;
             case 'password':
@@ -229,20 +260,20 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                     setPendingUser(result.user);
                     setPendingUserId(result.user.id);
                     setPendingToken(result.token);
-                    
+
                     // 检查是否同时启用了多种验证方式
                     const verificationTypes = result.twoFactorType;
-                    
+
                     // 新增：检查是否启用了任何二次验证方式
                     if (!verificationTypes || verificationTypes.length === 0) {
                         setNotify({ message: '未启用任何二次验证方式，请联系管理员', type: 'error' });
                         setLoading(false);
                         return;
                     }
-                    
+
                     const hasPasskey = verificationTypes.includes('Passkey');
                     const hasTOTP = verificationTypes.includes('TOTP');
-                    
+
                     if (hasPasskey && hasTOTP) {
                         // 同时启用两种验证方式，显示选择弹窗
                         // 注意：不设置 pending2FA，避免自动弹出验证弹窗
@@ -271,14 +302,56 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                 }
                 return;
             } else {
-                // 注册后进入邮箱验证码界面
+                // 注册前必须完成人机验证
+                if (!humanCheckToken) {
+                    setError('请先完成人机验证（滑块与提交）');
+                    setNotify({ message: '请先完成人机验证（滑块与提交）', type: 'warning' });
+                    setLoading(false);
+                    return;
+                }
+
+                // 先向后端验证人机校验 token
+                const token = humanCheckToken as string;
+                try {
+                    const vres = await fetch(getApiBaseUrl() + '/api/human-check/verify', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ token })
+                    });
+                    const vdata = await vres.json();
+                    if (!vres.ok || !vdata?.success) {
+                        const msg = vdata?.error || vdata?.errorMessage || '人机验证失败，请重试';
+                        // 捕获 Trace ID 并弹窗提示
+                        setHumanCheckTraceId(vdata?.traceId || null);
+                        setHumanCheckFailInfo({ message: msg, errorCode: vdata?.errorCode, reason: vdata?.reason });
+                        setShowHumanCheckFail(true);
+                        // 服务器校验失败时清空本地 token，避免 UI 显示“通过”与实际不一致
+                        setHumanCheckToken(null);
+                        setHumanCheckKey(k => k + 1);
+                        setError(msg);
+                        setNotify({ message: msg, type: 'error' });
+                        setLoading(false);
+                        return;
+                    }
+                } catch (e: any) {
+                    // 请求异常同样清空 token，提示用户重试
+                    setHumanCheckToken(null);
+                    setHumanCheckKey(k => k + 1);
+                    setError(e?.message || '人机验证失败，请重试');
+                    setNotify({ message: e?.message || '人机验证失败，请重试', type: 'error' });
+                    setLoading(false);
+                    return;
+                }
+
+                // 注册后进入邮箱验证码界面（附带人机校验 token，便于后端将来扩展）
                 const res = await fetch(getApiBaseUrl() + '/api/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         username: sanitizedUsername,
                         email: sanitizedEmail,
-                        password: sanitizedPassword
+                        password: sanitizedPassword,
+                        humanCheckToken: token
                     })
                 });
                 const data = await res.json();
@@ -286,6 +359,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                     setShowEmailVerify(true);
                     setPendingEmail(sanitizedEmail);
                     setNotify({ message: '验证码已发送到邮箱，请查收', type: 'info' });
+                    // 重置人机验证 token，防止复用
+                    setHumanCheckToken(null);
                 } else {
                     setError(data?.error || '注册失败，未收到验证码发送指示');
                     setNotify({ message: data?.error || '注册失败，未收到验证码发送指示', type: 'error' });
@@ -314,6 +389,9 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
             setError(null);
             setPassword('');
             setConfirmPassword('');
+            // 切换模式时重置人机验证 token
+            setHumanCheckToken(null);
+            setHumanCheckKey(k => k + 1);
         });
     };
 
@@ -353,7 +431,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                 setError('无法获取用户名信息');
                 return;
             }
-            
+
             // 记录Passkey验证的用户名来源（不输出到控制台）
             const usernameSourceInfo = {
                 action: 'Passkey验证用户名来源',
@@ -362,7 +440,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                 finalUsername: currentUsername,
                 timestamp: new Date().toISOString()
             };
-            
+
             const success = await authenticateWithPasskey(currentUsername);
             if (success) {
                 setNotify({ message: 'Passkey 验证成功', type: 'success' });
@@ -389,7 +467,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
     const handleVerificationMethodSelect = async (method: 'passkey' | 'totp') => {
         startTransition(() => setShowVerificationSelector(false));
         setLoading(true);
-        
+
         try {
             if (method === 'passkey') {
                 // 处理Passkey验证 - 直接调用验证，不设置pending2FA
@@ -563,17 +641,16 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                                 <div className="relative">
                                     <div className="mt-1 p-2 text-sm text-gray-600 bg-gray-50 rounded border border-gray-200 break-words">
                                         <div className="mb-1">密码强度：
-                                            <span className={`font-medium ${
-                                                passwordStrength.score >= 4 ? 'text-green-600' :
+                                            <span className={`font-medium ${passwordStrength.score >= 4 ? 'text-green-600' :
                                                 passwordStrength.score >= 3 ? 'text-blue-600' :
-                                                passwordStrength.score >= 2 ? 'text-yellow-600' :
-                                                'text-red-600'
-                                            }`}>
+                                                    passwordStrength.score >= 2 ? 'text-yellow-600' :
+                                                        'text-red-600'
+                                                }`}>
                                                 {(!username || !email) ? '请先填写用户名和邮箱' :
-                                                passwordStrength.score >= 4 ? '很强' :
-                                                passwordStrength.score >= 3 ? '强' :
-                                                passwordStrength.score >= 2 ? '中等' :
-                                                '弱'}
+                                                    passwordStrength.score >= 4 ? '很强' :
+                                                        passwordStrength.score >= 3 ? '强' :
+                                                            passwordStrength.score >= 2 ? '中等' :
+                                                                '弱'}
                                             </span>
                                         </div>
                                         {passwordStrength.feedback && !!username && !!email && (
@@ -598,6 +675,27 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
                                 />
+                            </div>
+                        )}
+                        {!isLogin && (
+                            <div className="mt-2">
+                                <SmartHumanCheck
+                                    key={humanCheckKey}
+                                    onSuccess={(token: string) => {
+                                        setHumanCheckToken(token);
+                                        setShcLastFail(null);
+                                    }}
+                                    onFail={(reason: string) => handleShcFail(reason)}
+                                    apiBaseUrl={`${getApiBaseUrl()}/api/human-check`}
+                                    size="normal"
+                                />
+                                <div className="mt-2 text-sm">
+                                    {humanCheckToken ? (
+                                        <span className="text-green-600 font-medium">人机验证通过</span>
+                                    ) : (
+                                        <span className="text-gray-500">请完成人机验证后再注册</span>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>
@@ -629,7 +727,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                     <div>
                         <button
                             type="submit"
-                            disabled={loading || (!isLogin && password !== confirmPassword)}
+                            disabled={loading || (!isLogin && (password !== confirmPassword || !humanCheckToken))}
                             className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-lg font-bold rounded-2xl text-white bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-indigo-600 hover:to-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 disabled:opacity-50 shadow-lg transition-all duration-200"
                         >
                             {loading ? '处理中...' : isLogin ? '登录' : '注册'}
@@ -648,21 +746,21 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                 </form>
             </div>
             {/* 服务条款与隐私政策弹窗已用 setNotification 全局弹窗替换 */}
-            
+
             {/* Passkey 二次校验弹窗 */}
             <PasskeyVerifyModal
                 open={showPasskeyVerification}
                 username={username}
-                onSuccess={() => { 
-                    startTransition(() => { 
-                        setShowPasskeyVerification(false); 
-                        setPending2FA(null); 
+                onSuccess={() => {
+                    startTransition(() => {
+                        setShowPasskeyVerification(false);
+                        setPending2FA(null);
                         setPendingVerificationData(null);
                         // 认证成功后刷新页面
                         if (typeof window !== 'undefined') {
-                            window.location.reload(); 
+                            window.location.reload();
                         }
-                    }); 
+                    });
                 }}
                 onClose={() => startTransition(() => {
                     setShowPasskeyVerification(false);
@@ -705,7 +803,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                     onSelectMethod={handleVerificationMethodSelect}
                     username={pendingVerificationData.username}
                     loading={loading}
-                    availableMethods={pendingVerificationData.user.twoFactorType?.map((type: string) => 
+                    availableMethods={pendingVerificationData.user.twoFactorType?.map((type: string) =>
                         type === 'Passkey' ? 'passkey' : type === 'TOTP' ? 'totp' : null
                     ).filter(Boolean) as ('passkey' | 'totp')[] || []}
                 />
@@ -735,107 +833,153 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
 
             {/* 邮箱验证码弹窗 */}
             <AnimatePresence>
-            {showEmailVerify && (
-                <motion.div
-                    className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm z-50 p-4"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                >
+                {showEmailVerify && (
                     <motion.div
-                        className="bg-white rounded-3xl shadow-2xl w-full max-w-md relative overflow-hidden"
-                        initial={{ scale: 0.9, opacity: 0, y: 50 }}
-                        animate={{ scale: 1, opacity: 1, y: 0 }}
-                        exit={{ scale: 0.9, opacity: 0, y: 50 }}
-                        transition={{ duration: 0.3, type: "spring", damping: 25, stiffness: 300 }}
+                        className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm z-50 p-4"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.3 }}
                     >
-                        {/* 顶部装饰条 */}
-                        <div className="h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
-                        
-                        <div className="p-8">
-                            {/* 标题区域 */}
-                            <div className="text-center mb-8">
-                                <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                                    </svg>
+                        <motion.div
+                            className="bg-white rounded-3xl shadow-2xl w-full max-w-md relative overflow-hidden"
+                            initial={{ scale: 0.9, opacity: 0, y: 50 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 50 }}
+                            transition={{ duration: 0.3, type: "spring", damping: 25, stiffness: 300 }}
+                        >
+                            {/* 顶部装饰条 */}
+                            <div className="h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
+
+                            <div className="p-8">
+                                {/* 标题区域 */}
+                                <div className="text-center mb-8">
+                                    <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                        </svg>
+                                    </div>
+                                    <h3 className="text-2xl font-bold text-gray-900 mb-2">创建账户</h3>
+                                    <p className="text-gray-600 leading-relaxed">
+                                        请输入发送到 <br />
+                                        <span className="font-semibold text-gray-900">{pendingEmail}</span> <br />
+                                        的验证码
+                                    </p>
                                 </div>
-                                <h3 className="text-2xl font-bold text-gray-900 mb-2">创建账户</h3>
-                                <p className="text-gray-600 leading-relaxed">
-                                    请输入发送到 <br />
-                                    <span className="font-semibold text-gray-900">{pendingEmail}</span> <br />
-                                    的验证码
-                                </p>
-                            </div>
 
-                            {/* 验证码输入区域 */}
-                            <div className="mb-8">
-                                <VerifyCodeInput
-                                    length={8}
-                                    inputClassName="w-12 h-12 text-center text-xl font-bold border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-gray-50 focus:bg-white"
-                                    onComplete={async (code) => {
-                                        setVerifyCode(code);
-                                        // 自动触发验证
-                                        if (code.length === 8 && !verifyLoading) {
-                                            await handleVerifyCode(code);
-                                        }
-                                    }}
-                                    loading={verifyLoading}
-                                    error={verifyError}
-                                />
-                            </div>
+                                {/* 验证码输入区域 */}
+                                <div className="mb-8">
+                                    <VerifyCodeInput
+                                        length={8}
+                                        inputClassName="w-12 h-12 text-center text-xl font-bold border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-gray-50 focus:bg-white"
+                                        onComplete={async (code) => {
+                                            setVerifyCode(code);
+                                            // 自动触发验证
+                                            if (code.length === 8 && !verifyLoading) {
+                                                await handleVerifyCode(code);
+                                            }
+                                        }}
+                                        loading={verifyLoading}
+                                        error={verifyError}
+                                    />
+                                </div>
 
-                            {/* 按钮区域 */}
-                            <div className="space-y-3">
-                                <button
-                                    className={`w-full py-4 px-6 rounded-2xl font-semibold text-lg transition-all duration-200 ${
-                                        verifyCode.length === 8 && !verifyLoading
+                                {/* 按钮区域 */}
+                                <div className="space-y-3">
+                                    <button
+                                        className={`w-full py-4 px-6 rounded-2xl font-semibold text-lg transition-all duration-200 ${verifyCode.length === 8 && !verifyLoading
                                             ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
                                             : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                    }`}
-                                    onClick={() => handleVerifyCode()}
-                                    disabled={verifyLoading || verifyCode.length !== 8}
-                                >
-                                    {verifyLoading ? (
-                                        <div className="flex items-center justify-center space-x-2">
-                                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                            <span>验证中...</span>
-                                        </div>
-                                    ) : '创建账户'}
-                                </button>
-                                
-                                <button
-                                    className={`w-full py-3 px-6 rounded-2xl font-medium transition-all duration-200 ${
-                                        verifyResendTimer > 0 
-                                            ? 'bg-gray-50 text-gray-400 cursor-not-allowed' 
-                                            : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                                    }`}
-                                    onClick={handleResendVerifyCode}
-                                    disabled={verifyLoading || verifyResendTimer > 0}
-                                >
-                                    {verifyResendTimer > 0 ? `重新发送验证码 (${verifyResendTimer}s)` : '重新发送验证码'}
-                                </button>
-                            </div>
+                                            }`}
+                                        onClick={() => handleVerifyCode()}
+                                        disabled={verifyLoading || verifyCode.length !== 8}
+                                    >
+                                        {verifyLoading ? (
+                                            <div className="flex items-center justify-center space-x-2">
+                                                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                <span>验证中...</span>
+                                            </div>
+                                        ) : '创建账户'}
+                                    </button>
 
-                            {/* 底部提示 */}
-                            <div className="mt-6 text-center">
-                                <p className="text-sm text-gray-500">
-                                    没有收到验证码？请检查垃圾邮件文件夹
-                                </p>
-                                <button
-                                    className="mt-2 text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
-                                    onClick={() => setShowEmailVerify(false)}
-                                    disabled={verifyLoading}
-                                >
-                                    返回修改邮箱
-                                </button>
+                                    <button
+                                        className={`w-full py-3 px-6 rounded-2xl font-medium transition-all duration-200 ${verifyResendTimer > 0
+                                            ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
+                                            : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                                            }`}
+                                        onClick={handleResendVerifyCode}
+                                        disabled={verifyLoading || verifyResendTimer > 0}
+                                    >
+                                        {verifyResendTimer > 0 ? `重新发送验证码 (${verifyResendTimer}s)` : '重新发送验证码'}
+                                    </button>
+                                </div>
+
+                                {/* 底部提示 */}
+                                <div className="mt-6 text-center">
+                                    <p className="text-sm text-gray-500">
+                                        没有收到验证码？请检查垃圾邮件文件夹
+                                    </p>
+                                    <button
+                                        className="mt-2 text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                                        onClick={() => setShowEmailVerify(false)}
+                                        disabled={verifyLoading}
+                                    >
+                                        返回修改邮箱
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* SmartHumanCheck 验证失败弹窗 */}
+            {showHumanCheckFail && (
+                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm z-50 p-4">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md relative overflow-hidden p-8">
+                        {/* 标题区域 */}
+                        <div className="text-center mb-8">
+                            <h3 className="text-2xl font-bold text-gray-900 mb-2">SmartHumanCheck 验证失败</h3>
+                            <p className="text-gray-600 leading-relaxed">
+                                验证失败，可能是由于系统错误或您的行为被识别为机器人。如果您认为这是误判，请联系管理员并提供以下 Trace ID（用于定位问题）：
+                            </p>
+                        </div>
+
+                        {/* Trace ID区域 */}
+                        <div className="mb-8">
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between gap-3">
+                                    <span className="text-gray-900 font-medium">Trace ID</span>
+                                    <code className="text-gray-800 bg-gray-100 rounded px-2 py-1 text-sm break-all">{humanCheckTraceId || '（无）'}</code>
+                                    <button
+                                        className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                                        onClick={() => humanCheckTraceId && navigator.clipboard.writeText(humanCheckTraceId)}
+                                        disabled={!humanCheckTraceId}
+                                    >
+                                        复制
+                                    </button>
+                                </div>
+                                {humanCheckFailInfo?.message && (
+                                    <div className="text-sm text-gray-600">原因：{humanCheckFailInfo.message}</div>
+                                )}
+                                {(humanCheckFailInfo?.errorCode || humanCheckFailInfo?.reason) && (
+                                    <div className="text-xs text-gray-500">{humanCheckFailInfo?.errorCode} {humanCheckFailInfo?.reason ? `(${humanCheckFailInfo.reason})` : ''}</div>
+                                )}
                             </div>
                         </div>
-                    </motion.div>
-                </motion.div>
+
+                        {/* 按钮区域 */}
+                        <div className="space-y-3">
+                            <button
+                                className="w-full py-4 px-6 rounded-2xl font-semibold text-lg transition-all duration-200 bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                onClick={() => setShowHumanCheckFail(false)}
+                            >
+                                关闭
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
-            </AnimatePresence>
         </div>
     );
 };

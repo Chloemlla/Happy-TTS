@@ -71,12 +71,16 @@ function generateVerificationEmailHtml(username: string, code: string): string {
         .header .icon {
             width: 40px;
             height: 40px;
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.22);
             border-radius: 50%;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
+            display: inline-block;
+            text-align: center;
+            line-height: 40px;
+            font-size: 18px;
+            font-weight: 700;
+            color: #ffffff;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.55);
         }
         .header p {
             color: #bfdbfe;
@@ -201,12 +205,12 @@ function generateVerificationEmailHtml(username: string, code: string): string {
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>
-                <span class="icon">🔊</span>
-                Synapse
+        <div class="header" style="text-align:center;">
+            <h1 style="margin:0;text-align:center;">
+                <span class="icon" style="display:inline-block;width:40px;height:40px;line-height:40px;background:rgba(0,0,0,0.22);border-radius:50%;text-align:center;color:#ffffff;font-weight:700;border:1px solid rgba(255,255,255,0.55);">H</span>
+                 <span class="logo-text">Synapse</span>
             </h1>
-            <p>文本转语音服务平台</p>
+            <p style="text-align:center;">文本转语音服务平台</p>
         </div>
         
         <div class="content">
@@ -251,6 +255,156 @@ function generateVerificationEmailHtml(username: string, code: string): string {
         </div>
     </div>
 </body>
+</html>
+    `.trim();
+}
+
+// 欢迎邮件 HTML 模板
+function generateWelcomeEmailHtml(username: string): string {
+    return `
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>欢迎加入 Synapse</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f7fbff;
+            color: #1f2937;
+            padding: 24px;
+        }
+
+        .card {
+            max-width: 680px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+            border: 1px solid #eef2f7;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            color: #fff;
+            padding: 36px 28px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin: 0;
+            display: inline-flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .icon {
+            width: 40px;
+            height: 40px;
+            background: rgba(0, 0, 0, 0.22);
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.55);
+        }
+
+        .badge {
+            display: inline-block;
+            margin-top: 8px;
+            background: rgba(255, 255, 255, 0.18);
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+        }
+
+        .content {
+            padding: 28px;
+        }
+
+        .hello {
+            font-size: 18px;
+            color: #374151;
+            margin-bottom: 16px;
+        }
+
+        .list {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 16px 18px;
+        }
+
+        .list h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            color: #111827;
+        }
+
+        .list ul {
+            margin: 0;
+            padding-left: 18px;
+            color: #4b5563;
+        }
+
+        .list li {
+            margin: 6px 0;
+        }
+
+        .cta {
+            margin-top: 22px;
+            padding: 16px;
+            background: #eef2ff;
+            border-left: 4px solid #6366f1;
+            border-radius: 10px;
+            color: #374151;
+        }
+
+        .footer {
+            padding: 20px 28px;
+            border-top: 1px solid #eef2f7;
+            color: #6b7280;
+            font-size: 13px;
+            text-align: center;
+            background: #f9fafb;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        <div class="header" style="text-align:center;">
+            <h1 style="margin:0;text-align:center;"><span class="icon" style="display:inline-block;width:40px;height:40px;line-height:40px;background:rgba(0,0,0,0.22);border-radius:50%;text-align:center;color:#ffffff;font-weight:700;border:1px solid rgba(255,255,255,0.55);">H</span>
+                <span class="logo-text">Synapse</span>
+            </h1>
+            <div class="badge">让文字拥有声音的力量</div>
+        </div>
+        <div class="content">
+            <p class="hello">亲爱的 <strong>${username}</strong>，欢迎来到 Synapse！您的账户已创建成功。</p>
+            <div class="list">
+                <h3>您现在可以：</h3>
+                <ul>
+                    <li>访问个人中心管理资料与头像（导航：Profile）</li>
+                    <li>前往各类内置工具与页面（导航：Case Converter、API Docs、Markdown Export、LibreChat 等）</li>
+                    <li>在移动端体验便捷的菜单导航（MobileNav）</li>
+                    <li>开启双重验证（TOTP）以增强账户安全</li>
+                </ul>
+            </div>
+            <div class="cta">
+                温馨提示：请妥善保管您的账户信息。如需帮助，直接在站内反馈或联系管理员。
+            </div>
+        </div>
+        <div class="footer">
+            Synapse 团队 · 感谢使用我们的服务！
+        </div>
+    </div>
+</body>
+
 </html>
     `.trim();
 }
@@ -361,6 +515,13 @@ export class AuthController {
             }
             await UserStorage.createUser(regInfo.username, regInfo.email, regInfo.password);
             emailCodeMap.delete(email);
+            // 发送欢迎邮件（不影响主流程）
+            try {
+                const welcomeHtml = generateWelcomeEmailHtml(regInfo.username);
+                await EmailService.sendHtmlEmail([regInfo.email], '欢迎加入 Synapse', welcomeHtml);
+            } catch (e) {
+                logger.warn(`[欢迎邮件] 发送失败: ${regInfo.email}`, e);
+            }
             res.json({ success: true });
         } catch (error) {
             res.status(500).json({ error: '邮箱验证失败' });

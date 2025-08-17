@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
+import { FaShieldAlt, FaInfoCircle, FaSync, FaRobot } from 'react-icons/fa';
 
 /**
  * SmartHumanCheck - 前端人机验证（仿 Turnstile）
@@ -57,11 +59,24 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, maxRetries
       if (response.ok) {
         return response;
       }
+      // 解析错误响应体，附带错误码等信息
+      let body: any = null;
+      try { body = await response.clone().json(); } catch { }
+      const retryAfterHeader = response.headers.get('Retry-After');
+      const retryAfter = retryAfterHeader ? Number(retryAfterHeader) : undefined;
+      const code = body?.errorCode || body?.code;
+      const message = body?.errorMessage || body?.error || response.statusText;
+      const richErr: any = new Error(`HTTP ${response.status}: ${message}`);
+      (richErr as any).httpStatus = response.status;
+      (richErr as any).errorCode = code;
+      (richErr as any).errorMessage = message;
+      if (retryAfter && !Number.isNaN(retryAfter)) (richErr as any).retryAfter = retryAfter;
+      if (body?.banUntil || body?.bannedUntil) (richErr as any).banUntil = body.banUntil || body.bannedUntil;
       // 对于 4xx 错误不重试
       if (response.status >= 400 && response.status < 500) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        throw richErr;
       }
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      throw richErr;
     } catch (error) {
       lastError = error as Error;
 
@@ -363,8 +378,31 @@ function useBehaviorTracker(containerRef: React.RefObject<HTMLDivElement | null>
 function Slider({ onComplete, disabled }: { onComplete: () => void; disabled?: boolean }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
-  const [pos, setPos] = useState(0); // 0..1
+  const [pos, setPos] = useState(0); // 0..1 (基于可滑动范围)
   const [done, setDone] = useState(false);
+  const [trackW, setTrackW] = useState(0);
+  const [trackH, setTrackH] = useState(40); // 默认高度，后续根据宽度自适应
+
+  // 自适应：监听容器尺寸变化，按宽度计算高度（在区间内夹持）
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const cr = entries[0].contentRect;
+      const w = cr.width || el.getBoundingClientRect().width || 0;
+      // 高度随宽度自适应，手机上更高一点，PC 保持中等高度
+      const h = Math.max(32, Math.min(56, Math.round(w * 0.12)));
+      setTrackW(w);
+      setTrackH(h);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // 计算圆块尺寸：略小于轨道高度，保留上下间距
+  const knobSize = Math.max(24, Math.min(40, trackH - 8));
+  const maxTravel = Math.max(0, trackW - knobSize);
+  const leftPx = Math.round(pos * maxTravel);
 
   useEffect(() => {
     const onMove = (e: MouseEvent | TouchEvent) => {
@@ -376,21 +414,28 @@ function Slider({ onComplete, disabled }: { onComplete: () => void; disabled?: b
       if ((e as TouchEvent).touches && (e as TouchEvent).touches[0]) {
         clientX = (e as TouchEvent).touches[0].clientX;
       }
-      const x = Math.min(Math.max(clientX - rect.left, 0), rect.width);
-      setPos(x / rect.width);
+      // 将左侧对齐到圆块中心，保证圆块不超出轨道
+      const xLeft = clientX - rect.left - knobSize / 2;
+      const clamped = Math.min(Math.max(xLeft, 0), rect.width - knobSize);
+      const newPos = (rect.width - knobSize) > 0 ? clamped / (rect.width - knobSize) : 0;
+      setPos(newPos);
+      // 阻止移动端滚动
+      if ((e as TouchEvent).touches) {
+        try { (e as TouchEvent).preventDefault(); } catch { }
+      }
     };
     const onUp = () => setDragging(false);
     window.addEventListener('mousemove', onMove);
-    window.addEventListener('touchmove', onMove);
+    window.addEventListener('touchmove', onMove, { passive: false });
     window.addEventListener('mouseup', onUp);
     window.addEventListener('touchend', onUp);
     return () => {
       window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchmove', onMove as any);
       window.removeEventListener('mouseup', onUp);
       window.removeEventListener('touchend', onUp);
     };
-  }, [dragging, done]);
+  }, [dragging, done, knobSize]);
 
   // 到达最右后保持 350ms 视为成功
   useEffect(() => {
@@ -404,20 +449,43 @@ function Slider({ onComplete, disabled }: { onComplete: () => void; disabled?: b
     }
   }, [pos, done, disabled, onComplete]);
 
+  // 进度填充到圆块中心，完成后100%
+  const fillWidthPct = (() => {
+    if (done) return '100%';
+    const center = leftPx + knobSize / 2;
+    const pct = trackW > 0 ? (center / trackW) * 100 : pos * 100;
+    return `${Math.max(0, Math.min(100, pct))}%`;
+  })();
+
   return (
     <div className={`w-full select-none ${disabled ? 'opacity-50' : ''}`}>
-      <div ref={trackRef} className="relative h-10 bg-gray-200 rounded-full overflow-hidden">
+      <div
+        ref={trackRef}
+        className="relative bg-gray-200 rounded-full overflow-hidden"
+        style={{ height: `${trackH}px` }}
+      >
         <div
           className="absolute top-0 left-0 h-full bg-green-400 transition-all"
-          style={{ width: `${Math.max(pos * 100, done ? 100 : 0)}%` }}
+          style={{ width: fillWidthPct }}
         />
         <div
           role="button"
           aria-label="slider-handle"
-          className={`absolute top-1 left-1 h-8 w-8 rounded-full bg-white shadow-md border border-gray-300 flex items-center justify-center cursor-pointer ${dragging ? 'scale-105' : ''}`}
-          style={{ transform: `translateX(${Math.max(0, (pos * 100) - 2)}%)` }}
+          className={`absolute rounded-full bg-white shadow-md border border-gray-300 flex items-center justify-center cursor-pointer`}
+          style={{
+            width: `${knobSize}px`,
+            height: `${knobSize}px`,
+            left: `${leftPx}px`,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            touchAction: 'none'
+          }}
           onMouseDown={() => !disabled && setDragging(true)}
-          onTouchStart={() => !disabled && setDragging(true)}
+          onTouchStart={(e) => {
+            if (disabled) return;
+            setDragging(true);
+            try { e.preventDefault(); } catch { }
+          }}
         >
           {done ? '✓' : '≡'}
         </div>
@@ -451,6 +519,10 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
   const [nonce, setNonce] = useState<string | null>(challengeNonce || null);
   const [fetchingNonce, setFetchingNonce] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  // 速率限制与封禁控制
+  const [bannedUntil, setBannedUntil] = useState<number | null>(null);
+  const [cooldownUntil, setCooldownUntil] = useState<number | null>(null);
+  const [lastErrorCode, setLastErrorCode] = useState<string | null>(null);
   // 轻量心跳用于驱动 UI 刷新，使行为评分根据 statsRef 变化而更新
   const [pulse, setPulse] = useState(0);
   useEffect(() => {
@@ -458,9 +530,31 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
     return () => clearInterval(id);
   }, []);
 
+  // 动态状态（依赖 pulse 触发重新计算以更新倒计时）
+  const isBanned = useMemo(() => bannedUntil != null && bannedUntil > Date.now(), [bannedUntil, pulse]);
+  const cooldownActive = useMemo(() => cooldownUntil != null && cooldownUntil > Date.now(), [cooldownUntil, pulse]);
+  const remainingCooldownSec = useMemo(() => {
+    if (!cooldownActive || !cooldownUntil) return 0;
+    return Math.max(1, Math.ceil((cooldownUntil - Date.now()) / 1000));
+  }, [cooldownActive, cooldownUntil, pulse]);
+  const remainingBanSec = useMemo(() => {
+    if (!isBanned || !bannedUntil) return 0;
+    return Math.max(1, Math.ceil((bannedUntil - Date.now()) / 1000));
+  }, [isBanned, bannedUntil, pulse]);
+
   // 获取 nonce
   const fetchNonce = useCallback(async () => {
     if (fetchingNonce) return;
+    if (isBanned) {
+      setError('检测到滥用，已暂时封禁。请稍后再试。');
+      setLastErrorCode('ABUSE_BANNED');
+      return;
+    }
+    if (cooldownActive) {
+      setError(`请求过于频繁，请 ${remainingCooldownSec} 秒后重试。`);
+      setLastErrorCode('RATE_LIMITED');
+      return;
+    }
 
     setFetchingNonce(true);
     setError(null);
@@ -468,7 +562,8 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
     try {
       const response = await fetchWithRetry(`${apiBaseUrl}/nonce`, {
         method: 'GET',
-        headers: {
+        headers:
+        {
           'Content-Type': 'application/json',
         },
       });
@@ -477,25 +572,41 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
       if (data.success && data.nonce) {
         setNonce(data.nonce);
         setRetryCount(0);
+        setCooldownUntil(null);
+        setBannedUntil(null);
+        setLastErrorCode(null);
       } else {
         throw new Error(data.error || '获取验证码失败');
       }
     } catch (err: any) {
-      const errorMsg = err.message || '网络错误，请重试';
-      setError(errorMsg);
-      onFail?.(errorMsg);
+      const code = err?.errorCode as string | undefined;
+      const msg = (err?.errorMessage as string) || err?.message || '网络错误，请重试';
+      setLastErrorCode(code || null);
+      if (code === 'ABUSE_BANNED') {
+        const until = (err?.banUntil as number | undefined) || (Date.now() + 60_000);
+        setBannedUntil(until);
+        setError('检测到滥用，已暂时封禁。请稍后再试。');
+      } else if (code === 'RATE_LIMITED') {
+        const ra = (err?.retryAfter as number | undefined);
+        const until = Date.now() + ((ra && !Number.isNaN(ra) ? ra : 30) * 1000);
+        setCooldownUntil(until);
+        setError(`请求过于频繁，请 ${Math.max(1, Math.ceil((until - Date.now()) / 1000))} 秒后重试。`);
+      } else {
+        setError(msg);
+      }
+      onFail?.(code || msg);
       setRetryCount(prev => prev + 1);
     } finally {
       setFetchingNonce(false);
     }
-  }, [apiBaseUrl, fetchingNonce, onFail]);
+  }, [apiBaseUrl, fetchingNonce, onFail, isBanned, cooldownActive, remainingCooldownSec]);
 
   // 自动获取 nonce
   useEffect(() => {
-    if (autoFetchNonce && !challengeNonce && !nonce && !fetchingNonce) {
+    if (autoFetchNonce && !challengeNonce && !nonce && !fetchingNonce && !isBanned && !cooldownActive) {
       fetchNonce();
     }
-  }, [autoFetchNonce, challengeNonce, nonce, fetchingNonce, fetchNonce]);
+  }, [autoFetchNonce, challengeNonce, nonce, fetchingNonce, fetchNonce, isBanned, cooldownActive]);
 
   // 增强的行为评分算法（0..1）
   const score = useMemo(() => {
@@ -674,7 +785,7 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
     return () => clearInterval(trapInterval);
   }, [setTrapTriggered]);
 
-  const canSubmit = checked && sliderOk && ready && effectiveScore >= adaptiveThreshold && (nonce || challengeNonce) && !fetchingNonce;
+  const canSubmit = checked && sliderOk && ready && effectiveScore >= adaptiveThreshold && (nonce || challengeNonce) && !fetchingNonce && !isBanned;
 
   const handleSliderComplete = useCallback(() => setSliderOk(true), []);
 
@@ -698,14 +809,16 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
 
     try {
       const now = Date.now();
+      // 快照行为统计，防止在签名与打包阶段被异步更新导致签名与载荷不一致
+      const statsSnapshot = JSON.parse(JSON.stringify(statsRef.current));
       const payload = {
         v: 1,
         ts: now,
         tz: Intl.DateTimeFormat().resolvedOptions().timeZone || 'unknown',
         ua: navigator.userAgent,
         ce: canvasEntropy,
-        sc: Number(score.toFixed(3)),
-        st: statsRef.current,
+        sc: Number(effectiveScore.toFixed(3)),
+        st: statsSnapshot,
         cn: nonce || challengeNonce || null,
       };
       const payloadStr = JSON.stringify(payload);
@@ -713,6 +826,18 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
       const salt = crypto.getRandomValues(new Uint8Array(12));
       const saltB64 = btoa(String.fromCharCode(...salt));
       const sig = await sha256Base64(payloadStr + '|' + saltB64);
+      // 可选调试输出：设置 localStorage SHC_DEBUG=1 以启用
+      if (typeof localStorage !== 'undefined' && localStorage.getItem('SHC_DEBUG') === '1') {
+        try {
+          const previewPayload = payloadStr.length > 300 ? payloadStr.slice(0, 300) + '…' : payloadStr;
+          console.debug('[SmartHumanCheck] sig-debug', {
+            payloadLen: payloadStr.length,
+            salt: saltB64,
+            sig,
+            previewPayload,
+          });
+        } catch { }
+      }
       const token = btoa(
         JSON.stringify({ payload: payload, salt: saltB64, sig })
       );
@@ -727,107 +852,149 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
     } finally {
       setSubmitting(false);
     }
-  }, [autoReset, canvasEntropy, canSubmit, challengeNonce, nonce, onFail, onSuccess, reset, score, statsRef]);
+  }, [autoReset, canvasEntropy, canSubmit, challengeNonce, nonce, onFail, onSuccess, reset, effectiveScore, statsRef]);
 
-  const themeCls = theme === 'dark' ? 'bg-gray-800 text-gray-100 border-gray-700' : 'bg-white text-gray-800 border-gray-200';
+  const cardCls = theme === 'dark' ? 'bg-gray-800/80 text-gray-100 border-gray-700' : 'bg-white/80 text-gray-800 border-white/20';
   const subTextCls = theme === 'dark' ? 'text-gray-300' : 'text-gray-500';
   const sizeCls = size === 'compact' ? 'p-3 text-sm' : 'p-4';
 
   return (
-    <div ref={containerRef} className={`rounded-xl border ${themeCls} ${sizeCls} w-full max-w-md`}>
-      {/* 增强的蜜罐输入框系统（隐藏） */}
-      <input
-        ref={trapInputRef}
-        type="text"
-        name="username"
-        tabIndex={-1}
-        autoComplete="username"
-        aria-hidden="true"
-        style={{ display: 'none' }}
-        className="absolute w-0 h-0 opacity-0 pointer-events-none"
-      />
-      <input
-        ref={trapInput2Ref}
-        type="email"
-        name="email"
-        tabIndex={-1}
-        autoComplete="email"
-        aria-hidden="true"
-        style={{ position: 'absolute', left: '-9999px', visibility: 'hidden' }}
-      />
-      <input
-        ref={trapInput3Ref}
-        type="password"
-        name="password"
-        tabIndex={-1}
-        autoComplete="current-password"
-        aria-hidden="true"
-        style={{ opacity: 0, position: 'absolute', top: '-9999px' }}
-      />
-
-      <div className="flex items-center gap-3">
-        <input
-          id="shc-check"
-          type="checkbox"
-          className="h-5 w-5 accent-blue-600"
-          checked={checked}
-          onChange={(e) => setChecked(e.target.checked)}
-        />
-        <label htmlFor="shc-check" className="cursor-pointer select-none">
-          我不是机器人
-        </label>
-        <div className={`ml-auto text-xs ${subTextCls}`}>行为评分：{(score * 100).toFixed(0)}%</div>
-      </div>
-
-      <div className="mt-3">
-        <Slider onComplete={handleSliderComplete} disabled={!checked} />
-      </div>
-
-      <div className="mt-3 flex items-center gap-3">
-        <button
-          type="button"
-          disabled={!canSubmit || submitting}
-          onClick={submit}
-          className={`px-3 py-2 rounded-lg text-white ${canSubmit && !submitting ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-400 cursor-not-allowed'
-            }`}
-        >
-          {submitting ? '验证中...' : '提交验证'}
-        </button>
-
-        {/* 错误显示和重试按钮 */}
-        {error && (
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-red-500">{error}</span>
-            {retryCount < RETRY_CONFIG.maxRetries && (
-              <button
-                type="button"
-                onClick={fetchNonce}
-                disabled={fetchingNonce}
-                className="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
-              >
-                {fetchingNonce ? '重试中...' : '重试'}
-              </button>
-            )}
-          </div>
-        )}
-
-        <div className={`ml-auto text-xs ${subTextCls}`}>
-          {fetchingNonce ? '获取验证码...' : ready ? '已准备' : '准备中...'} ·
-          Canvas熵: {canvasEntropy.slice(0, 10)} ·
-          Nonce: {nonce || challengeNonce ? '✓' : '✗'}
+    <motion.div
+      className={`rounded-2xl shadow-xl backdrop-blur-sm border ${cardCls} w-full max-w-md overflow-hidden`}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+    >
+      {/* 顶部渐变标题栏，与 TtsPage 统一 */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 flex items-center gap-2">
+        <FaShieldAlt className="text-xl" />
+        <h3 className="font-semibold">人机验证</h3>
+        <div className="ml-auto text-xs opacity-90 flex items-center gap-2">
+          <span className="hidden sm:inline">行为评分</span>
+          <span className="font-mono">{(effectiveScore * 100).toFixed(0)}%</span>
         </div>
       </div>
 
-      <div className={`mt-2 text-xs ${subTextCls}`}>
-        提示：该组件会自动获取服务端 nonce 并进行多信号融合验证。
-        {autoFetchNonce ? (
-          <>自动模式：组件会自动从 {apiBaseUrl}/nonce 获取验证码。</>
-        ) : (
-          <>手动模式：请通过 challengeNonce 属性提供验证码。</>
-        )}
-        生成的 token 需要通过 POST {apiBaseUrl}/verify 发送至服务端进行最终校验。
+      {/* 主体内容 */}
+      <div ref={containerRef} className={`${sizeCls} p-4`}>
+        {/* 增强的蜜罐输入框系统（隐藏） */}
+        <input
+          ref={trapInputRef}
+          type="text"
+          name="shc_trap_1"
+          tabIndex={-1}
+          autoComplete="off"
+          aria-hidden="true"
+          disabled
+          readOnly
+          inputMode="none"
+          style={{ display: 'none' }}
+          className="absolute w-0 h-0 opacity-0 pointer-events-none"
+        />
+        <input
+          ref={trapInput2Ref}
+          type="text"
+          name="shc_trap_2"
+          tabIndex={-1}
+          autoComplete="off"
+          aria-hidden="true"
+          disabled
+          readOnly
+          inputMode="none"
+          style={{ position: 'absolute', left: '-9999px', visibility: 'hidden' }}
+        />
+        <input
+          ref={trapInput3Ref}
+          type="text"
+          name="shc_trap_3"
+          tabIndex={-1}
+          autoComplete="off"
+          aria-hidden="true"
+          disabled
+          readOnly
+          inputMode="none"
+          style={{ opacity: 0, position: 'absolute', top: '-9999px' }}
+        />
+
+        {/* 顶部状态与提示 */}
+        <div className="flex items-center gap-3 mb-3">
+          <div className="flex items-center gap-2">
+            <FaRobot className="text-blue-600" />
+            <label htmlFor="shc-check" className="cursor-pointer select-none">我不是机器人</label>
+          </div>
+          <div className={`ml-auto text-xs ${subTextCls} flex items-center gap-2`}>
+            {fetchingNonce && (
+              <span className="inline-flex items-center gap-1"><FaSync className="animate-spin" /> 获取验证码...</span>
+            )}
+            {!fetchingNonce && (
+              <span>{ready ? '已准备' : '准备中...'}</span>
+            )}
+            <span className="hidden sm:inline">· Canvas熵: {canvasEntropy.slice(0, 10)}</span>
+            <span>· Nonce: {nonce || challengeNonce ? '✓' : '✗'}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <input
+            id="shc-check"
+            type="checkbox"
+            className="h-5 w-5 accent-blue-600"
+            checked={checked}
+            onChange={(e) => setChecked(e.target.checked)}
+          />
+          <div className="flex-1">
+            {/* 行为评分进度条 */}
+            <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
+              <div
+                className={`h-full transition-all duration-300 ${effectiveScore >= adaptiveThreshold ? 'bg-green-500' : 'bg-blue-500'}`}
+                style={{ width: `${Math.min(100, Math.round(effectiveScore * 100))}%` }}
+              />
+            </div>
+            <div className={`mt-1 text-xs ${subTextCls}`}>当前评分：{(effectiveScore * 100).toFixed(0)}% · 阈值：{(adaptiveThreshold * 100).toFixed(0)}%</div>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <Slider onComplete={handleSliderComplete} disabled={!checked} />
+        </div>
+
+        <div className="mt-4 flex items-center gap-3">
+          <motion.button
+            type="button"
+            disabled={!canSubmit || submitting}
+            onClick={submit}
+            className={`px-4 py-2 rounded-lg text-white font-medium ${canSubmit && !submitting ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700' : 'bg-gray-400 cursor-not-allowed'}`}
+            whileHover={{ scale: canSubmit && !submitting ? 1.02 : 1 }}
+            whileTap={{ scale: canSubmit && !submitting ? 0.98 : 1 }}
+          >
+            {submitting ? '验证中...' : '提交验证'}
+          </motion.button>
+
+          {/* 错误显示和重试按钮 */}
+          {error && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-red-500">{error}</span>
+              {lastErrorCode === 'RATE_LIMITED' && cooldownActive && (
+                <span className="text-xs text-gray-500">剩余 {remainingCooldownSec}s</span>
+              )}
+              {lastErrorCode === 'ABUSE_BANNED' && isBanned && (
+                <span className="text-xs text-gray-500">解禁倒计时 {remainingBanSec}s</span>
+              )}
+              {retryCount < RETRY_CONFIG.maxRetries && (
+                <button
+                  type="button"
+                  onClick={fetchNonce}
+                  disabled={fetchingNonce || cooldownActive || isBanned}
+                  className="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+                >
+                  {fetchingNonce ? '重试中...' : cooldownActive ? `冷却中 (${remainingCooldownSec}s)` : isBanned ? '已封禁' : '重试'}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

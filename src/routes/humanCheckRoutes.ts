@@ -1,6 +1,7 @@
 import express from 'express';
 import { SmartHumanCheckController } from '../controllers/humanCheckController';
 import { createLimiter } from '../middleware/rateLimiter';
+import { authenticateToken } from '../middleware/authenticateToken';
 
 const router = express.Router();
 
@@ -21,7 +22,7 @@ const verifyLimiter = createLimiter({
 // 添加 CORS 和安全头
 router.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.header('Access-Control-Max-Age', '86400');
 
@@ -45,5 +46,13 @@ router.post('/verify', verifyLimiter, SmartHumanCheckController.verifyToken);
 
 // 获取统计信息（管理端点，可能需要额外的认证）
 router.get('/stats', humanCheckLimiter, SmartHumanCheckController.getStats);
+
+// 管理端：查询溯源记录（需要管理员权限）
+router.get('/traces', authenticateToken, verifyLimiter, SmartHumanCheckController.listTraces);
+router.get('/trace/:id', authenticateToken, verifyLimiter, SmartHumanCheckController.getTrace);
+
+// 管理端：删除溯源记录（需要管理员权限）
+router.delete('/traces', authenticateToken, verifyLimiter, SmartHumanCheckController.deleteTraces);
+router.delete('/trace/:id', authenticateToken, verifyLimiter, SmartHumanCheckController.deleteTrace);
 
 export default router;
