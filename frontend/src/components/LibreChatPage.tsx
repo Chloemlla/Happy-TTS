@@ -438,13 +438,13 @@ const LibreChatPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-5xl mx-auto space-y-6">
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/70 backdrop-blur rounded-xl shadow p-4"
+        className="bg-white w-full rounded-xl shadow-xl p-6 border border-gray-200"
       >
-        <h2 className="text-lg font-semibold mb-3">LibreChat 最新镜像</h2>
+        <h2 className="text-lg font-semibold text-gray-800 mb-3">LibreChat 最新镜像</h2>
         {loadingLatest ? (
           <div className="text-gray-500">加载中...</div>
         ) : latest ? (
@@ -461,18 +461,18 @@ const LibreChatPage: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/70 backdrop-blur rounded-xl shadow p-4"
+        className="bg-white w-full rounded-xl shadow-xl p-6 border border-gray-200"
       >
-        <h2 className="text-lg font-semibold mb-3">发送消息</h2>
+        <h2 className="text-lg font-semibold text-gray-800 mb-3">发送消息</h2>
         <div className="grid gap-3 sm:grid-cols-3">
           <input
-            className="border rounded px-3 py-2 w-full"
+            className="border-2 border-gray-200 rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             placeholder="请输入 Token"
             value={token}
             onChange={(e) => setToken(e.target.value)}
           />
           <input
-            className="border rounded px-3 py-2 w-full sm:col-span-2"
+            className="border-2 border-gray-200 rounded-lg px-3 py-2 w-full sm:col-span-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             placeholder="请输入消息"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
@@ -484,11 +484,11 @@ const LibreChatPage: React.FC = () => {
           <button
             onClick={handleSend}
             disabled={sending}
-            className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+            className="px-5 py-2.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
           >发送</button>
           <button
             onClick={handleClear}
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+            className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
           >清除历史</button>
           <button
             onClick={openRealtimeDialog}
@@ -503,25 +503,25 @@ const LibreChatPage: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/70 backdrop-blur rounded-xl shadow p-4"
+        className="bg-white w-full rounded-xl shadow-xl p-6 border border-gray-200"
       >
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold">聊天历史</h2>
+          <h2 className="text-lg font-semibold text-gray-800">聊天历史</h2>
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <span>第 {page} / {history?.totalPages || 1} 页，共 {history?.total || 0} 条</span>
             <button
               onClick={refreshHistory}
-              className="px-2 py-0.5 border rounded hover:bg-gray-50"
+              className="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-50"
               title="刷新"
             >刷新</button>
             <button
               onClick={exportCurrentPage}
-              className="px-2 py-0.5 border rounded hover:bg-gray-50"
+              className="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-50"
               title="导出本页"
             >导出本页</button>
             <button
               onClick={exportAll}
-              className="px-2 py-0.5 border rounded hover:bg-gray-50"
+              className="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-50"
               title="导出全部"
             >导出全部</button>
           </div>
@@ -607,12 +607,12 @@ const LibreChatPage: React.FC = () => {
         <div className="mt-3 flex gap-2">
           <button
             onClick={() => fetchHistory(Math.max(1, page - 1))}
-            className="px-3 py-1 border rounded hover:bg-gray-50"
+            className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50"
             disabled={page <= 1}
           >上一页</button>
           <button
             onClick={() => fetchHistory(page + 1)}
-            className="px-3 py-1 border rounded hover:bg-gray-50"
+            className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50"
             disabled={history ? page >= history.totalPages : true}
           >下一页</button>
         </div>

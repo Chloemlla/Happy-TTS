@@ -70,11 +70,11 @@ router.post('/verify', verifyLimiter, SmartHumanCheckController.verifyToken);
 router.get('/stats', humanCheckLimiter, SmartHumanCheckController.getStats);
 
 // 管理端：查询溯源记录（需要管理员权限）
-router.get('/traces', authenticateToken, adminLimiter, SmartHumanCheckController.listTraces);
-router.get('/trace/:id', authenticateToken, adminLimiter, SmartHumanCheckController.getTrace);
+router.get('/traces', adminLimiter, authenticateToken, SmartHumanCheckController.listTraces);
+router.get('/trace/:id', adminLimiter, authenticateToken, SmartHumanCheckController.getTrace);
 
 // 管理端：删除溯源记录（需要管理员权限）
-router.delete('/traces', authenticateToken, adminLimiter, SmartHumanCheckController.deleteTraces);
-router.delete('/trace/:id', authenticateToken, adminLimiter, SmartHumanCheckController.deleteTrace);
+router.delete('/traces', adminLimiter, authenticateToken, SmartHumanCheckController.deleteTraces);
+router.delete('/trace/:id', adminLimiter, authenticateToken, SmartHumanCheckController.deleteTrace);
 
 export default router;
