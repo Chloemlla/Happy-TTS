@@ -1017,8 +1017,10 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
             onChange={handleCheckChange}
             aria-label="我不是机器人"
           />
-          {/* 极简模式下不显示标签，仅保留复选框；正常模式显示评分条 */}
-          {!isMinimal ? (
+          {/* 极简模式：在打勾框右侧显示“人机验证”；正常模式显示评分条 */}
+          {isMinimal ? (
+            <label htmlFor="shc-check" className="text-sm select-none cursor-pointer">人机验证</label>
+          ) : (
             <div className="flex-1">
               {/* 行为评分进度条 */}
               <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
@@ -1029,7 +1031,7 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
               </div>
               <div className={`mt-1 text-xs ${subTextCls}`}>当前评分：{(effectiveScore * 100).toFixed(0)}% · 阈值：{(adaptiveThreshold * 100).toFixed(0)}%</div>
             </div>
-          ) : null}
+          )}
         </div>
 
         {/* 极简/高缩放模式：将“按住滑块拖动完成验证”从内嵌改为外部提示 */}
