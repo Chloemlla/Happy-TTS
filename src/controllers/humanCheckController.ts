@@ -141,6 +141,16 @@ export class SmartHumanCheckController {
       }
 
       if (!result.success) {
+        // 当需要验证码挑战（CAPTCHA Fallback）时，返回 403 并携带挑战信息
+        if (result.challengeRequired) {
+          const body = {
+            ...withTrace,
+            errorCode: withTrace.errorCode || 'CHALLENGE_REQUIRED',
+            challengeRequired: true,
+          };
+          return res.status(403).json(body);
+        }
+
         // 根据错误类型返回适当的 HTTP 状态码
         let statusCode = 400;
         if (result.retryable) {

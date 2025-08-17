@@ -375,7 +375,7 @@ function useBehaviorTracker(containerRef: React.RefObject<HTMLDivElement | null>
 }
 
 // 简易滑块验证组件（拖到最右并保持稳定）
-function Slider({ onComplete, disabled }: { onComplete: () => void; disabled?: boolean }) {
+function Slider({ onComplete, disabled, showInnerHint = true }: { onComplete: () => void; disabled?: boolean; showInnerHint?: boolean }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
   const [pos, setPos] = useState(0); // 0..1 (基于可滑动范围)
@@ -489,9 +489,15 @@ function Slider({ onComplete, disabled }: { onComplete: () => void; disabled?: b
         >
           {done ? '✓' : '≡'}
         </div>
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-sm text-gray-600">
-          {done ? '验证成功' : '按住滑块拖动完成验证'}
-        </div>
+        {done ? (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-sm text-gray-600">
+            验证成功
+          </div>
+        ) : showInnerHint ? (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-sm text-gray-600">
+            按住滑块拖动完成验证
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -529,6 +535,59 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
     const id = setInterval(() => setPulse(p => (p + 1) % 1024), 250);
     return () => clearInterval(id);
   }, []);
+
+  // 根据缩放自动进入极简模式：仅显示“打勾 + 滑块 + 提交”
+  const baseScaleRef = useRef<number>(1);
+  const [isHighZoom, setIsHighZoom] = useState(false);
+  const [isNarrow, setIsNarrow] = useState(false);
+  const [isTightViewport, setIsTightViewport] = useState(false);
+  useEffect(() => {
+    const ZOOM_THRESHOLD = 1.25;
+    const getScale = () => (window.visualViewport?.scale || window.devicePixelRatio || 1);
+    const computeIsHighZoom = () => {
+      const vv = window.visualViewport;
+      // 优先使用 visualViewport.scale 作为绝对缩放判定
+      if (vv && typeof vv.scale === 'number') {
+        return vv.scale >= ZOOM_THRESHOLD; // 阈值可按需调整（更敏感）
+      }
+      // 退化方案：使用绝对 DPR 判定（避免以初始缩放为基准导致初始即高缩放时检测失败）
+      const dpr = window.devicePixelRatio || 1;
+      return dpr >= ZOOM_THRESHOLD;
+    };
+
+    // 初始化基准缩放
+    baseScaleRef.current = getScale();
+    const handleResize = () => {
+      setIsHighZoom(computeIsHighZoom());
+      const vpw = window.visualViewport?.width ?? window.innerWidth ?? 9999;
+      setIsTightViewport(vpw <= 420);
+    };
+    handleResize();
+
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener('resize', handleResize);
+      return () => vv.removeEventListener('resize', handleResize);
+    }
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // 监听容器宽度，过窄时也启用极简模式
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const update = () => setIsNarrow((el.clientWidth || 0) <= 420);
+    update();
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect?.width ?? el.clientWidth;
+      setIsNarrow((w || 0) <= 420);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [containerRef]);
+
+  const isMinimal = (size === 'compact') || isHighZoom || isNarrow || isTightViewport;
 
   // 动态状态（依赖 pulse 触发重新计算以更新倒计时）
   const isBanned = useMemo(() => bannedUntil != null && bannedUntil > Date.now(), [bannedUntil, pulse]);
@@ -857,6 +916,7 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
   const cardCls = theme === 'dark' ? 'bg-gray-800/80 text-gray-100 border-gray-700' : 'bg-white/80 text-gray-800 border-white/20';
   const subTextCls = theme === 'dark' ? 'text-gray-300' : 'text-gray-500';
   const sizeCls = size === 'compact' ? 'p-3 text-sm' : 'p-4';
+  const bubbleBgCls = theme === 'dark' ? 'bg-gray-700/60 text-gray-100' : 'bg-gray-100 text-gray-700';
 
   return (
     <motion.div
@@ -865,15 +925,17 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
     >
-      {/* 顶部渐变标题栏，与 TtsPage 统一 */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 flex items-center gap-2">
-        <FaShieldAlt className="text-xl" />
-        <h3 className="font-semibold">人机验证</h3>
-        <div className="ml-auto text-xs opacity-90 flex items-center gap-2">
-          <span className="hidden sm:inline">行为评分</span>
-          <span className="font-mono">{(effectiveScore * 100).toFixed(0)}%</span>
+      {/* 顶部渐变标题栏，与 TtsPage 统一（极简模式隐藏） */}
+      {!isMinimal && (
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 flex items-center gap-2">
+          <FaShieldAlt className="text-xl" />
+          <h3 className="font-semibold">人机验证</h3>
+          <div className="ml-auto text-xs opacity-90 flex items-center gap-2">
+            <span className="hidden sm:inline">行为评分</span>
+            <span className="font-mono">{(effectiveScore * 100).toFixed(0)}%</span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 主体内容 */}
       <div ref={containerRef} className={`${sizeCls} p-4`}>
@@ -916,23 +978,25 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
           style={{ opacity: 0, position: 'absolute', top: '-9999px' }}
         />
 
-        {/* 顶部状态与提示 */}
-        <div className="flex items-center gap-3 mb-3">
-          <div className="flex items-center gap-2">
-            <FaRobot className="text-blue-600" />
-            <label htmlFor="shc-check" className="cursor-pointer select-none">我不是机器人</label>
+        {/* 顶部状态与提示（极简模式隐藏） */}
+        {!isMinimal && (
+          <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-2">
+              <FaRobot className="text-blue-600" />
+              <label htmlFor="shc-check" className="cursor-pointer select-none">我不是机器人</label>
+            </div>
+            <div className={`ml-auto text-xs ${subTextCls} flex items-center gap-2`}>
+              {fetchingNonce && (
+                <span className="inline-flex items-center gap-1"><FaSync className="animate-spin" /> 获取验证码...</span>
+              )}
+              {!fetchingNonce && (
+                <span>{ready ? '已准备' : '准备中...'}</span>
+              )}
+              <span className="hidden sm:inline">· Canvas熵: {canvasEntropy.slice(0, 10)}</span>
+              <span>· Nonce: {nonce || challengeNonce ? '✓' : '✗'}</span>
+            </div>
           </div>
-          <div className={`ml-auto text-xs ${subTextCls} flex items-center gap-2`}>
-            {fetchingNonce && (
-              <span className="inline-flex items-center gap-1"><FaSync className="animate-spin" /> 获取验证码...</span>
-            )}
-            {!fetchingNonce && (
-              <span>{ready ? '已准备' : '准备中...'}</span>
-            )}
-            <span className="hidden sm:inline">· Canvas熵: {canvasEntropy.slice(0, 10)}</span>
-            <span>· Nonce: {nonce || challengeNonce ? '✓' : '✗'}</span>
-          </div>
-        </div>
+        )}
 
         <div className="flex items-center gap-3">
           <input
@@ -941,21 +1005,34 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
             className="h-5 w-5 accent-blue-600"
             checked={checked}
             onChange={(e) => setChecked(e.target.checked)}
+            aria-label="我不是机器人"
           />
-          <div className="flex-1">
-            {/* 行为评分进度条 */}
-            <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
-              <div
-                className={`h-full transition-all duration-300 ${effectiveScore >= adaptiveThreshold ? 'bg-green-500' : 'bg-blue-500'}`}
-                style={{ width: `${Math.min(100, Math.round(effectiveScore * 100))}%` }}
-              />
+          {/* 极简模式下不显示标签，仅保留复选框；正常模式显示评分条 */}
+          {!isMinimal ? (
+            <div className="flex-1">
+              {/* 行为评分进度条 */}
+              <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-300 ${effectiveScore >= adaptiveThreshold ? 'bg-green-500' : 'bg-blue-500'}`}
+                  style={{ width: `${Math.min(100, Math.round(effectiveScore * 100))}%` }}
+                />
+              </div>
+              <div className={`mt-1 text-xs ${subTextCls}`}>当前评分：{(effectiveScore * 100).toFixed(0)}% · 阈值：{(adaptiveThreshold * 100).toFixed(0)}%</div>
             </div>
-            <div className={`mt-1 text-xs ${subTextCls}`}>当前评分：{(effectiveScore * 100).toFixed(0)}% · 阈值：{(adaptiveThreshold * 100).toFixed(0)}%</div>
-          </div>
+          ) : null}
         </div>
 
+        {/* 极简/高缩放模式：将“按住滑块拖动完成验证”从内嵌改为外部提示 */}
+        {isMinimal && checked && !sliderOk && (
+          <div className="mt-3 mb-1 text-center">
+            <span className={`inline-block px-3 py-1 rounded-full text-sm ${bubbleBgCls}`}>
+              按住滑块拖动完成验证
+            </span>
+          </div>
+        )}
+
         <div className="mt-4">
-          <Slider onComplete={handleSliderComplete} disabled={!checked} />
+          <Slider onComplete={handleSliderComplete} disabled={!checked} showInnerHint={!isMinimal} />
         </div>
 
         <div className="mt-4 flex items-center gap-3">
@@ -970,8 +1047,8 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
             {submitting ? '验证中...' : '提交验证'}
           </motion.button>
 
-          {/* 错误显示和重试按钮 */}
-          {error && (
+          {/* 错误显示和重试按钮（极简模式隐藏，仅保留三项） */}
+          {!isMinimal && error && (
             <div className="flex items-center gap-2">
               <span className="text-sm text-red-500">{error}</span>
               {lastErrorCode === 'RATE_LIMITED' && cooldownActive && (

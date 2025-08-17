@@ -1,23 +1,32 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { SmartHumanCheckController } from '../controllers/humanCheckController';
-import { createLimiter } from '../middleware/rateLimiter';
 import { authenticateToken } from '../middleware/authenticateToken';
 
 const router = express.Router();
 
-// 适度限流，防止滥用
-const humanCheckLimiter = createLimiter({
+// 适度限流，防止滥用（使用 express-rate-limit 以便静态分析识别）
+const humanCheckLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 120,
-  message: '请求过于频繁，请稍后再试'
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: '请求过于频繁，请稍后再试',
+  },
+  keyGenerator: (req) => req.ip || req.socket.remoteAddress || 'unknown',
 });
 
-// 更严格的验证限流
-const verifyLimiter = createLimiter({
+// 更严格的验证限流（使用 express-rate-limit 以便静态分析识别）
+const verifyLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 30,
-  message: '验证请求过于频繁，请稍后再试'
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: '验证请求过于频繁，请稍后再试',
+  },
+  keyGenerator: (req) => req.ip || req.socket.remoteAddress || 'unknown',
 });
 
 // 显式的管理员端点限流（使用 express-rate-limit 以便静态分析识别）

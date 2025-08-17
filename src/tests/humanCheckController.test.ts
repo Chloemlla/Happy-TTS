@@ -1,5 +1,6 @@
 import request from 'supertest';
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import { SmartHumanCheckController } from '../controllers/humanCheckController';
 import SmartHumanCheckService from '../services/smartHumanCheckService';
 
@@ -15,10 +16,19 @@ describe('SmartHumanCheckController', () => {
         app = express();
         app.use(express.json());
 
+        // Lightweight rate limiter for tests to satisfy static analysis
+        const testLimiter = rateLimit({
+            windowMs: 60 * 1000,
+            max: 1000,
+            standardHeaders: true,
+            legacyHeaders: false,
+            keyGenerator: (req) => req.ip || req.socket.remoteAddress || 'unknown',
+        });
+
         // Setup routes
-        app.get('/nonce', SmartHumanCheckController.issueNonce);
-        app.post('/verify', SmartHumanCheckController.verifyToken);
-        app.get('/stats', SmartHumanCheckController.getStats);
+        app.get('/nonce', testLimiter, SmartHumanCheckController.issueNonce);
+        app.post('/verify', testLimiter, SmartHumanCheckController.verifyToken);
+        app.get('/stats', testLimiter, SmartHumanCheckController.getStats);
 
         // Create mock service instance
         mockService = {

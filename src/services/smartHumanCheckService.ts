@@ -157,8 +157,12 @@ const ERROR_CODES = {
     code: 'HIGH_RISK',
     message: '检测到高风险行为',
     retryable: false
+  },
+  CHALLENGE_REQUIRED: {
+    code: 'CHALLENGE_REQUIRED',
+    message: '需要完成验证码验证',
+    retryable: true
   }
-
 } as const;
 
 function base64EncodeJson(obj: unknown): string {
@@ -198,6 +202,10 @@ export class SmartHumanCheckService {
   private verifyTimestampsByIp = new Map<string, number[]>();
   private abuseTimestampsByIp = new Map<string, number[]>();
   private bannedUntilByIp = new Map<string, number>();
+  // Automated pattern detection
+  private patternWindowMs: number;
+  private patternTimestampsByKey = new Map<string, number[]>();
+  private patternBanThresholds = new Map<string, number>();
   // Pass-rate / dynamic policy tracking
   private prWindowMs: number;
   private prMinSamplesIp: number;
@@ -232,6 +240,15 @@ export class SmartHumanCheckService {
     this.abuseWindowMs = Number(process.env.SMART_HUMAN_CHECK_ABUSE_WINDOW_MS || 5 * 60_000);
     this.abuseThreshold = Number(process.env.SMART_HUMAN_CHECK_ABUSE_THRESHOLD || 6);
     this.banDurationMs = Number(process.env.SMART_HUMAN_CHECK_BAN_MS || 15 * 60_000);
+    // Pattern detection window and thresholds (can be tuned via env in future)
+    this.patternWindowMs = Number(process.env.SMART_HUMAN_CHECK_PATTERN_WINDOW_MS || this.abuseWindowMs);
+    // Fine-grained automated attack patterns
+    this.patternBanThresholds.set('bad_token_sig', 4);
+    this.patternBanThresholds.set('bad_token_format', 6);
+    this.patternBanThresholds.set('incomplete_token', 6);
+    this.patternBanThresholds.set('missing_token', 10);
+    this.patternBanThresholds.set('client_time_skew', 8);
+    this.patternBanThresholds.set('ua_suspicious', 12);
     // Pass-rate window and minimum samples for dynamic thresholding
     this.prWindowMs = Number(process.env.SMART_HUMAN_CHECK_PR_WINDOW_MS || 10 * 60_000);
     this.prMinSamplesIp = Number(process.env.SMART_HUMAN_CHECK_PR_MIN_IP || 10);
@@ -351,6 +368,8 @@ export class SmartHumanCheckService {
       }
       // Rate limit check for nonce issuance
       if (this.isRateLimited(ip, this.issueTimestampsByIp, this.nonceLimitPerWindow, this.rlWindowMs, now)) {
+        // 触发速率限制也视为滥用信号之一（更快触达临时封禁）
+        this.recordAbuse(ip);
         const error = ERROR_CODES.RATE_LIMITED;
         return {
           success: false,
@@ -375,6 +394,13 @@ export class SmartHumanCheckService {
       // 存储 nonce 到存储系统
       this.nonceStore.storeNonce(nonceId, clientIp, userAgent);
       
+      // 如果 UA 可疑，记录模式但不阻断发号
+      try {
+        if (this.isSuspiciousUA(userAgent)) {
+          this.recordPattern(ip, 'ua_suspicious');
+        }
+      } catch {}
+
       logger.debug('[SmartHumanCheck] Issued nonce', { 
         nonceId: nonceId.slice(0, 8) + '...', 
         clientIp,
@@ -587,6 +613,8 @@ export class SmartHumanCheckService {
       };
     }
     if (this.isRateLimited(ip, this.verifyTimestampsByIp, this.verifyLimitPerWindow, this.rlWindowMs, timestamp)) {
+      // 触发速率限制也视为滥用信号之一（更快触达临时封禁）
+      this.recordAbuse(ip);
       const err = ERROR_CODES.RATE_LIMITED;
       return {
         success: false,
@@ -602,6 +630,9 @@ export class SmartHumanCheckService {
     
     if (!tokenB64) {
       const error = ERROR_CODES.MISSING_TOKEN;
+      // 记录模式：缺失 token
+      this.recordPattern(ip, 'missing_token');
+      this.recordAbuse(ip);
       return { 
         success: false, 
         reason: 'missing_token',
@@ -617,6 +648,8 @@ export class SmartHumanCheckService {
       tokenObj = base64DecodeJson(tokenB64);
     } catch {
       const error = ERROR_CODES.BAD_TOKEN_FORMAT;
+      this.recordPattern(ip, 'bad_token_format');
+      this.recordAbuse(ip);
       return { 
         success: false, 
         reason: 'bad_token_format',
@@ -630,6 +663,8 @@ export class SmartHumanCheckService {
     const { payload, salt, sig } = tokenObj || ({} as any);
     if (!payload || typeof salt !== 'string' || typeof sig !== 'string') {
       const error = ERROR_CODES.INCOMPLETE_TOKEN;
+      this.recordPattern(ip, 'incomplete_token');
+      this.recordAbuse(ip);
       return { 
         success: false, 
         reason: 'incomplete_token',
@@ -668,6 +703,7 @@ export class SmartHumanCheckService {
     if (!sigMatch) {
       const error = ERROR_CODES.BAD_TOKEN_SIG;
       this.recordAbuse(ip); // 篡改/伪造迹象
+      this.recordPattern(ip, 'bad_token_sig');
       return { 
         success: false, 
         reason: 'bad_token_sig', 
@@ -685,6 +721,7 @@ export class SmartHumanCheckService {
       const errorInfo = nonceRes.errorInfo || ERROR_CODES.BAD_NONCE_FORMAT;
       // 非法/重复/过期 nonce 视为潜在滥用
       this.recordAbuse(ip);
+      this.recordPattern(ip, `nonce_invalid`);
       return { 
         success: false, 
         reason: `nonce_invalid:${nonceRes.reason}`, 
@@ -700,6 +737,8 @@ export class SmartHumanCheckService {
     const now = Date.now();
     if (Math.abs(now - payload.ts) > this.maxSkewMs) {
       const error = ERROR_CODES.CLIENT_TIME_SKEW;
+      this.recordPattern(ip, 'client_time_skew');
+      this.recordAbuse(ip);
       return { 
         success: false, 
         reason: 'client_time_skew', 
@@ -715,13 +754,19 @@ export class SmartHumanCheckService {
     // 预评估风险（用于动态阈值计算）
     const risk = this.assessRisk(payload, remoteIp);
     const ua = payload.ua;
+    // 记录可疑 UA 模式（不直接拒绝）
+    try {
+      if (this.isSuspiciousUA(ua)) {
+        this.recordPattern(ip, 'ua_suspicious');
+      }
+    } catch {}
     const baseThreshold = this.scoreThreshold;
     const dyn = this.computeDynamicThreshold(baseThreshold, ip, ua, risk.level, now);
 
     // 校验得分（动态阈值）
     if (typeof payload.sc !== 'number' || payload.sc < dyn.used) {
-      const error = ERROR_CODES.LOW_SCORE;
       const stepUp = typeof payload.sc === 'number' && payload.sc >= baseThreshold && dyn.used > baseThreshold;
+      const error = stepUp ? ERROR_CODES.CHALLENGE_REQUIRED : ERROR_CODES.LOW_SCORE;
       if (process.env.SMART_HUMAN_CHECK_DEBUG === '1') {
         try {
           logger.debug('[SmartHumanCheck] score-check', {
@@ -778,7 +823,8 @@ export class SmartHumanCheckService {
         timestamp,
         riskScore: risk.score,
         riskLevel: risk.level,
-        riskReasons: risk.reasons
+        riskReasons: risk.reasons,
+        challengeRequired: true
       };
     }
 
@@ -817,6 +863,36 @@ export class SmartHumanCheckService {
   }
 
   // ---- Rate limit & abuse helpers ----
+  private recordPattern(ip: string, pattern: string) {
+    const now = Date.now();
+    const key = `${pattern}|${ip}`;
+    const arr = this.patternTimestampsByKey.get(key) || [];
+    const cutoff = now - this.patternWindowMs;
+    const fresh = arr.filter(t => t > cutoff);
+    fresh.push(now);
+    this.patternTimestampsByKey.set(key, fresh);
+    const threshold = this.patternBanThresholds.get(pattern) || 0;
+    if (threshold > 0 && fresh.length >= threshold) {
+      const until = now + this.banDurationMs;
+      this.bannedUntilByIp.set(ip, until);
+      try {
+        logger.warn('[SmartHumanCheck] IP temporarily banned due to pattern', { ip, pattern, until, count: fresh.length });
+      } catch {}
+    }
+  }
+
+  /** 查询 IP 是否在临时封禁中 */
+  public isIpBanned(ip: string): boolean {
+    const now = Date.now();
+    return (this.bannedUntilByIp.get(ip) || 0) > now;
+    }
+
+  /** 剩余封禁毫秒（未封禁则为 0） */
+  public getBanRemainingMs(ip: string): number {
+    const now = Date.now();
+    const until = this.bannedUntilByIp.get(ip) || 0;
+    return Math.max(0, until - now);
+  }
   private isRateLimited(ip: string, bucket: Map<string, number[]>, limit: number, windowMs: number, now: number): boolean {
     const arr = bucket.get(ip) || [];
     const cutoff = now - windowMs;
