@@ -20,7 +20,6 @@ const WelcomePage = React.lazy(() => import('./components/WelcomePage').then(mod
 const TtsPage = React.lazy(() => import('./components/TtsPage').then(module => ({ default: module.TtsPage })));
 const PolicyPage = React.lazy(() => import('./components/PolicyPage'));
 const Footer = React.lazy(() => import('./components/Footer'));
-const PublicIP = React.lazy(() => import('./components/PublicIP'));
 const UserManagement = React.lazy(() => import('./components/UserManagement'));
 const MobileNav = React.lazy(() => import('./components/MobileNav'));
 const ApiDocs = React.lazy(() => import('./components/ApiDocs'));
@@ -561,8 +560,6 @@ const App: React.FC = () => {
             </div>
           </div>
         </motion.nav>
-
-        <PublicIP />
 
         <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 relative z-10">
           <AnimatePresence mode="wait">
