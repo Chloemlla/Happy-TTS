@@ -12,8 +12,8 @@ module.exports = {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
   transform: {
-    '^.+\\.ts$': ['ts-jest', {
-      tsconfig: 'tsconfig.json',
+    '^.+\\.(ts|tsx)$': ['ts-jest', {
+      tsconfig: 'tsconfig.jest.json',
     }],
     '^.+\\.mjs$': 'babel-jest',
     '^.+\\.js$': 'babel-jest',
@@ -23,7 +23,6 @@ module.exports = {
     '/dist/',
     '/coverage/',
     '/test-data/',
-    '.test.ts',
   ],
   // 性能测试配置
   testTimeout: 30000,
@@ -49,6 +48,7 @@ module.exports = {
   reporters: [
     'default',
   ],
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'json', 'node'],
   
   // 清理配置
   clearMocks: true,

@@ -1,0 +1,27 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es2019",
+    "jsx": "react-jsx",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "types": ["jest", "node"],
+    "baseUrl": ".",
+    "paths": {
+      "*": ["src/*", "frontend/src/*"]
+    }
+  },
+  "include": [
+    "src/**/*",
+    "frontend/src/**/*",
+    "**/*.test.ts",
+    "**/*.test.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "dist-obfuscated",
+    "coverage"
+  ]
+}
