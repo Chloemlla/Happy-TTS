@@ -1,7 +1,15 @@
 import { Router } from 'express';
+import { authenticateAdmin } from '../middleware/auth';
 import { libreChatService } from '../services/libreChatService';
 
 const router = Router();
+// 与前端保持一致的消息长度上限（以字符近似 tokens 上限）
+const MAX_MESSAGE_LEN = 8192;
+
+// 从已登录上下文提取 userId（若存在）
+function extractUserId(req: any): string | undefined {
+  return req?.user?.id || req?.user?._id || req?.auth?.userId || undefined;
+}
 
 /**
  * @openapi
@@ -21,6 +29,60 @@ router.get('/lc', (req, res) => {
     });
   }
   return res.status(404).json({ error: 'No data available.' });
+});
+
+/**
+ * @openapi
+ * /message:
+ *   put:
+ *     summary: 修改单条消息内容
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [token, messageId, content]
+ *             properties:
+ *               token:
+ *                 type: string
+ *               messageId:
+ *                 type: string
+ *               content:
+ *                 type: string
+ *                 description: 新内容
+ *     responses:
+ *       200:
+ *         description: 修改成功
+ *       400:
+ *         description: 请求参数错误
+ *       401:
+ *         description: 认证失败
+ */
+router.put('/message', async (req, res) => {
+  try {
+    const { token, messageId, content } = req.body || {};
+    const userId = extractUserId(req);
+
+    if (!token || token === 'invalid-token') {
+      return res.status(401).json({ error: '无效的token' });
+    }
+    if (!messageId || typeof messageId !== 'string') {
+      return res.status(400).json({ error: '缺少消息ID' });
+    }
+    if (typeof content !== 'string' || content.trim() === '') {
+      return res.status(400).json({ error: '缺少新内容' });
+    }
+    if (content.length > MAX_MESSAGE_LEN) {
+      return res.status(400).json({ error: `消息过长，最大允许 ${MAX_MESSAGE_LEN} 字符` });
+    }
+
+    const { updated } = await libreChatService.updateMessage(token as string, messageId as string, content as string, userId);
+    return res.json({ message: '修改成功', updated });
+  } catch (error) {
+    console.error('修改消息错误:', error);
+    res.status(500).json({ error: '修改消息失败' });
+  }
 });
 
 /**
@@ -73,6 +135,7 @@ router.get('/librechat-image', (req, res) => {
 router.post('/send', async (req, res) => {
   try {
     const { token, message } = req.body;
+    const userId = extractUserId(req);
 
     // 验证token
     if (!token || token === 'invalid-token') {
@@ -84,14 +147,14 @@ router.post('/send', async (req, res) => {
       return res.status(400).json({ error: '消息不能为空' });
     }
 
-    // 验证消息长度
-    if (message.length > 4000) {
-      return res.status(400).json({ error: '消息过长' });
+    // 验证消息长度（与前端同步）
+    if (message.length > MAX_MESSAGE_LEN) {
+      return res.status(400).json({ error: `消息过长，最大允许 ${MAX_MESSAGE_LEN} 字符` });
     }
 
     // 发送消息到LibreChat服务
-    const response = await libreChatService.sendMessage(token, message);
-    
+    const response = await libreChatService.sendMessage(token, message, userId);
+
     res.json({ response });
   } catch (error) {
     console.error('发送消息错误:', error);
@@ -132,6 +195,7 @@ router.post('/send', async (req, res) => {
 router.get('/history', async (req, res) => {
   try {
     const { token, page = 1, limit = 20 } = req.query;
+    const userId = extractUserId(req);
 
     // 验证token
     if (!token || token === 'invalid-token') {
@@ -142,7 +206,7 @@ router.get('/history', async (req, res) => {
     const history = await libreChatService.getHistory(token as string, {
       page: parseInt(page as string),
       limit: parseInt(limit as string)
-    });
+    }, userId);
 
     res.json({
       history: history.messages,
@@ -181,6 +245,7 @@ router.get('/history', async (req, res) => {
 router.delete('/clear', async (req, res) => {
   try {
     const { token } = req.body;
+    const userId = extractUserId(req);
 
     // 验证token
     if (!token || token === 'invalid-token') {
@@ -188,8 +253,8 @@ router.delete('/clear', async (req, res) => {
     }
 
     // 清除聊天历史
-    await libreChatService.clearHistory(token);
-    
+    await libreChatService.clearHistory(token, userId);
+
     res.json({ message: '聊天历史清除成功' });
   } catch (error) {
     console.error('清除历史错误:', error);
@@ -224,6 +289,7 @@ router.delete('/clear', async (req, res) => {
 router.delete('/message', async (req, res) => {
   try {
     const { token, messageId } = req.query;
+    const userId = extractUserId(req);
 
     // 验证token
     if (!token || token === 'invalid-token') {
@@ -235,7 +301,7 @@ router.delete('/message', async (req, res) => {
     }
 
     // 删除单条消息
-    const { removed } = await libreChatService.deleteMessage(token as string, messageId as string);
+    const { removed } = await libreChatService.deleteMessage(token as string, messageId as string, userId);
     res.json({ message: '消息删除成功', removed });
   } catch (error) {
     console.error('删除消息错误:', error);
@@ -273,6 +339,7 @@ router.delete('/message', async (req, res) => {
 router.delete('/messages', async (req, res) => {
   try {
     const { token, messageIds } = req.body;
+    const userId = extractUserId(req);
 
     // 验证token
     if (!token || token === 'invalid-token') {
@@ -284,7 +351,7 @@ router.delete('/messages', async (req, res) => {
     }
 
     // 批量删除消息
-    const { removed } = await libreChatService.deleteMessages(token as string, messageIds as string[]);
+    const { removed } = await libreChatService.deleteMessages(token as string, messageIds as string[], userId);
     res.json({ message: '消息删除成功', removed });
   } catch (error) {
     console.error('批量删除消息错误:', error);
@@ -313,6 +380,7 @@ router.delete('/messages', async (req, res) => {
 router.get('/export', async (req, res) => {
   try {
     const { token } = req.query;
+    const userId = extractUserId(req);
 
     // 验证token
     if (!token || token === 'invalid-token') {
@@ -320,7 +388,7 @@ router.get('/export', async (req, res) => {
     }
 
     // 导出聊天历史（作为文本附件返回）
-    const { content, count } = await libreChatService.exportHistoryText(token as string);
+    const { content, count } = await libreChatService.exportHistoryText(token as string, userId);
     const date = new Date().toISOString().slice(0, 10);
     // 为避免 Header 非法字符问题：
     // 1) 使用 ASCII 安全的 filename 作为回退
@@ -335,6 +403,47 @@ router.get('/export', async (req, res) => {
   } catch (error) {
     console.error('导出历史错误:', error);
     res.status(500).json({ error: '导出聊天历史失败' });
+  }
+});
+
+// ================= 管理员接口（仅管理后台使用） =================
+// 列出用户概览
+router.get('/admin/users', authenticateAdmin, async (req, res) => {
+  try {
+    const kw = (req.query.kw as string) || '';
+    const page = parseInt((req.query.page as string) || '1');
+    const limit = parseInt((req.query.limit as string) || '20');
+    const data = await libreChatService.adminListUsers(kw, page, limit);
+    res.json(data);
+  } catch (error) {
+    console.error('管理员获取用户列表错误:', error);
+    res.status(500).json({ error: '获取用户列表失败' });
+  }
+});
+
+// 查看指定用户历史
+router.get('/admin/users/:userId/history', authenticateAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params as { userId: string };
+    const page = parseInt((req.query.page as string) || '1');
+    const limit = parseInt((req.query.limit as string) || '20');
+    const data = await libreChatService.adminGetUserHistory(userId, page, limit);
+    res.json(data);
+  } catch (error) {
+    console.error('管理员获取用户历史错误:', error);
+    res.status(500).json({ error: '获取用户历史失败' });
+  }
+});
+
+// 删除指定用户全部历史
+router.delete('/admin/users/:userId', authenticateAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params as { userId: string };
+    const ret = await libreChatService.adminDeleteUser(userId);
+    res.json({ message: '指定用户聊天历史已删除', ...ret });
+  } catch (error) {
+    console.error('管理员删除用户历史错误:', error);
+    res.status(500).json({ error: '删除用户历史失败' });
   }
 });
 

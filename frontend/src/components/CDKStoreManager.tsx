@@ -689,6 +689,7 @@ export default function CDKStoreManager() {
   const [showDeleteUnusedDialog, setShowDeleteUnusedDialog] = useState(false);
   const [deleteUnusedLoading, setDeleteUnusedLoading] = useState(false);
   const [totalCDKCount, setTotalCDKCount] = useState(0);
+  const [exportingAll, setExportingAll] = useState(false);
   const [exportingUnused, setExportingUnused] = useState(false);
   const [exportingUsed, setExportingUsed] = useState(false);
   const { setNotification } = useNotification();
@@ -987,43 +988,33 @@ export default function CDKStoreManager() {
     setShowDeleteUnusedDialog(false);
   };
 
-  // 导出未使用的CDK
-  const handleExportUnused = async () => {
+  // 导出所有CDK（使用后端服务）
+  const handleExportAll = async (resourceId?: string) => {
+    setExportingAll(true);
+    try {
+      await cdksApi.exportCDKs(resourceId, 'all');
+      setNotification({
+        message: '全部CDK导出成功！文件已开始下载',
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('导出全部CDK失败:', error);
+      setNotification({
+        message: '导出全部CDK失败，请重试',
+        type: 'error'
+      });
+    } finally {
+      setExportingAll(false);
+    }
+  };
+
+  // 导出未使用CDK
+  const handleExportUnused = async (resourceId?: string) => {
     setExportingUnused(true);
     try {
-      // 获取所有未使用的CDK
-      const allUnusedCDKs: CDK[] = [];
-      let page = 1;
-      let hasMore = true;
-      
-      while (hasMore) {
-        const response = await cdksApi.getCDKs(page);
-        const unusedCDKs = response.cdks.filter(cdk => !cdk.isUsed);
-        allUnusedCDKs.push(...unusedCDKs);
-        
-        if (response.cdks.length < response.pageSize) {
-          hasMore = false;
-        } else {
-          page++;
-        }
-      }
-      
-      if (allUnusedCDKs.length === 0) {
-        setNotification({
-          message: '没有未使用的CDK可以导出',
-          type: 'warning'
-        });
-        return;
-      }
-      
-      // 生成导出内容
-      const exportContent = generateExportContent(allUnusedCDKs, '未使用');
-      
-      // 下载文件
-      downloadTextFile(exportContent, `未使用CDK_${new Date().toISOString().split('T')[0]}.txt`);
-      
+      await cdksApi.exportCDKs(resourceId, 'unused');
       setNotification({
-        message: `成功导出 ${allUnusedCDKs.length} 个未使用的CDK`,
+        message: '未使用CDK导出成功！文件已开始下载',
         type: 'success'
       });
     } catch (error) {
@@ -1037,43 +1028,13 @@ export default function CDKStoreManager() {
     }
   };
 
-  // 导出已使用的CDK
-  const handleExportUsed = async () => {
+  // 导出已使用CDK
+  const handleExportUsed = async (resourceId?: string) => {
     setExportingUsed(true);
     try {
-      // 获取所有已使用的CDK
-      const allUsedCDKs: CDK[] = [];
-      let page = 1;
-      let hasMore = true;
-      
-      while (hasMore) {
-        const response = await cdksApi.getCDKs(page);
-        const usedCDKs = response.cdks.filter(cdk => cdk.isUsed);
-        allUsedCDKs.push(...usedCDKs);
-        
-        if (response.cdks.length < response.pageSize) {
-          hasMore = false;
-        } else {
-          page++;
-        }
-      }
-      
-      if (allUsedCDKs.length === 0) {
-        setNotification({
-          message: '没有已使用的CDK可以导出',
-          type: 'warning'
-        });
-        return;
-      }
-      
-      // 生成导出内容
-      const exportContent = generateExportContent(allUsedCDKs, '已使用');
-      
-      // 下载文件
-      downloadTextFile(exportContent, `已使用CDK_${new Date().toISOString().split('T')[0]}.txt`);
-      
+      await cdksApi.exportCDKs(resourceId, 'used');
       setNotification({
-        message: `成功导出 ${allUsedCDKs.length} 个已使用的CDK`,
+        message: '已使用CDK导出成功！文件已开始下载',
         type: 'success'
       });
     } catch (error) {
@@ -1085,56 +1046,6 @@ export default function CDKStoreManager() {
     } finally {
       setExportingUsed(false);
     }
-  };
-
-  // 生成导出内容
-  const generateExportContent = (cdks: CDK[], type: string) => {
-    const header = `=== ${type}CDK导出报告 ===\n导出时间: ${new Date().toLocaleString('zh-CN')}\n总数量: ${cdks.length}\n\n`;
-    
-    let content = header;
-    
-    cdks.forEach((cdk, index) => {
-      content += `${index + 1}. CDK代码: ${cdk.code}\n`;
-      content += `   资源ID: ${cdk.resourceId}\n`;
-      content += `   创建时间: ${new Date(cdk.createdAt).toLocaleString('zh-CN')}\n`;
-      
-      if (cdk.expiresAt) {
-        content += `   过期时间: ${new Date(cdk.expiresAt).toLocaleString('zh-CN')}\n`;
-      }
-      
-      if (cdk.isUsed) {
-        content += `   使用状态: 已使用\n`;
-        if (cdk.usedAt) {
-          content += `   使用时间: ${new Date(cdk.usedAt).toLocaleString('zh-CN')}\n`;
-        }
-        if (cdk.usedIp) {
-          content += `   使用IP: ${cdk.usedIp}\n`;
-        }
-        if (cdk.usedBy) {
-          content += `   使用用户: ${cdk.usedBy.username} (ID: ${cdk.usedBy.userId})\n`;
-        }
-      } else {
-        content += `   使用状态: 未使用\n`;
-      }
-      
-      content += `\n`;
-    });
-    
-    content += `=== 导出完成 ===\n`;
-    return content;
-  };
-
-  // 下载文本文件
-  const downloadTextFile = (content: string, filename: string) => {
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
   };
 
   const filteredCDKs = cdks.filter(cdk =>
@@ -1216,7 +1127,7 @@ export default function CDKStoreManager() {
                 <li>查看CDK使用状态和时间</li>
                 <li>删除未使用的CDK</li>
                 <li>批量选择和删除多个未使用的CDK</li>
-                <li>一键导出未使用和已使用的CDK到txt文件</li>
+                <li>分类导出：全部、未使用、已使用CDK到UTF-8编码的txt文件（支持Windows记事本）</li>
               </ul>
             </div>
           </div>
@@ -1311,7 +1222,29 @@ export default function CDKStoreManager() {
           {/* 第二行：导出操作按钮 */}
           <div className="flex flex-col sm:flex-row gap-3">
             <motion.button
-              onClick={handleExportUnused}
+              onClick={() => handleExportAll()}
+              disabled={exportingAll || cdks.length === 0}
+              className="w-full sm:flex-1 px-4 py-3 sm:py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium flex items-center justify-center gap-2 text-base sm:text-sm"
+              whileHover={!exportingAll && cdks.length > 0 ? { scale: 1.02 } : {}}
+              whileTap={!exportingAll && cdks.length > 0 ? { scale: 0.98 } : {}}
+            >
+              {exportingAll ? (
+                <>
+                  <FaSync className="animate-spin w-4 h-4" />
+                  <span className="sm:hidden">导出中...</span>
+                  <span className="hidden sm:inline">导出中...</span>
+                </>
+              ) : (
+                <>
+                  <FaDownload className="w-4 h-4" />
+                  <span className="sm:hidden">导出全部CDK</span>
+                  <span className="hidden sm:inline">导出全部</span>
+                </>
+              )}
+            </motion.button>
+
+            <motion.button
+              onClick={() => handleExportUnused()}
               disabled={exportingUnused || cdks.length === 0}
               className="w-full sm:flex-1 px-4 py-3 sm:py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium flex items-center justify-center gap-2 text-base sm:text-sm"
               whileHover={!exportingUnused && cdks.length > 0 ? { scale: 1.02 } : {}}
@@ -1325,7 +1258,7 @@ export default function CDKStoreManager() {
                 </>
               ) : (
                 <>
-                  <FaDownload className="w-4 h-4" />
+                  <FaToggleOn className="w-4 h-4" />
                   <span className="sm:hidden">导出未使用CDK</span>
                   <span className="hidden sm:inline">导出未使用</span>
                 </>
@@ -1333,9 +1266,9 @@ export default function CDKStoreManager() {
             </motion.button>
 
             <motion.button
-              onClick={handleExportUsed}
+              onClick={() => handleExportUsed()}
               disabled={exportingUsed || cdks.length === 0}
-              className="w-full sm:flex-1 px-4 py-3 sm:py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium flex items-center justify-center gap-2 text-base sm:text-sm"
+              className="w-full sm:flex-1 px-4 py-3 sm:py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium flex items-center justify-center gap-2 text-base sm:text-sm"
               whileHover={!exportingUsed && cdks.length > 0 ? { scale: 1.02 } : {}}
               whileTap={!exportingUsed && cdks.length > 0 ? { scale: 0.98 } : {}}
             >
@@ -1347,7 +1280,7 @@ export default function CDKStoreManager() {
                 </>
               ) : (
                 <>
-                  <FaFileAlt className="w-4 h-4" />
+                  <FaToggleOff className="w-4 h-4" />
                   <span className="sm:hidden">导出已使用CDK</span>
                   <span className="hidden sm:inline">导出已使用</span>
                 </>

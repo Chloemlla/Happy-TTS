@@ -5,9 +5,13 @@ import ResourceModel from '../models/resourceModel';
 import { ResourceService } from './resourceService';
 import { TransactionService } from './transactionService';
 import logger from '../utils/logger';
+import { writeFile, mkdir } from 'fs/promises';
+import { join } from 'path';
+import { existsSync } from 'fs';
 
 export class CDKService {
   private resourceService = new ResourceService();
+  private readonly EXPORT_DIR = join(process.cwd(), 'data', 'exports');
 
   async redeemCDK(code: string, userInfo?: { userId: string; username: string }, forceRedeem?: boolean) {
     try {
@@ -116,7 +120,7 @@ export class CDKService {
     }
   }
 
-  async getCDKs(page: number, resourceId?: string) {
+  async getCDKs(page: number, resourceId?: string, filterType: 'all' | 'unused' | 'used' = 'all') {
     try {
       // 验证和清理输入参数
       const validatedPage = Math.max(1, Math.floor(Number(page) || 1));
@@ -135,6 +139,13 @@ export class CDKService {
         queryFilter.resourceId = validatedResourceId;
       }
       
+      // 根据过滤类型添加使用状态条件
+      if (filterType === 'unused') {
+        queryFilter.isUsed = false;
+      } else if (filterType === 'used') {
+        queryFilter.isUsed = true;
+      }
+
       const [cdks, total] = await Promise.all([
         CDKModel.find(queryFilter).skip(skip).limit(pageSize).sort({ createdAt: -1 }),
         CDKModel.countDocuments(queryFilter)
@@ -612,6 +623,126 @@ export class CDKService {
         resolve({ skipped: false, error: msg });
       }
     });
+  }
+
+  /**
+   * 导出CDK：若数量 > 5，则在后端生成UTF-8(BOM)文本文件供下载；否则以内联文本返回
+   */
+  public async exportCDKs(resourceId?: string, filterType: 'all' | 'unused' | 'used' = 'all'): Promise<
+    { mode: 'file'; filename: string; filePath: string; count: number } |
+    { mode: 'inline'; filename: string; content: string; count: number }
+  > {
+    try {
+      // 可选过滤 resourceId（24位hex）
+      const validatedResourceId = resourceId &&
+        typeof resourceId === 'string' &&
+        resourceId.trim() !== '' &&
+        resourceId.length === 24 &&
+        /^[0-9a-fA-F]{24}$/.test(resourceId) ? resourceId : undefined;
+
+      const query: any = {};
+      if (validatedResourceId) query.resourceId = validatedResourceId;
+      if (filterType === 'unused') query.isUsed = false;
+      if (filterType === 'used') query.isUsed = true;
+
+      // 先统计总数，决定导出策略
+      const count = await CDKModel.countDocuments(query);
+
+      const now = new Date();
+      const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+      const ts = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+      const filterLabel = filterType === 'all' ? '全部' : filterType === 'unused' ? '未使用' : '已使用';
+      const filename = validatedResourceId
+        ? `CDK导出_${filterLabel}_${validatedResourceId}_${ts}.txt`
+        : `CDK导出_${filterLabel}_${ts}.txt`;
+
+      // 通用的头部文本（稍后与BOM组合）
+      const header = `=== ${filterLabel}CDK导出报告 ===\n导出时间: ${now.toLocaleString('zh-CN')}\n${validatedResourceId ? `资源ID: ${validatedResourceId}\n` : ''}导出类型: ${filterLabel}\n总数量: ${count}\n\n`;
+
+      // 字段投影，减少IO与解码成本
+      const projection = {
+        code: 1,
+        resourceId: 1,
+        createdAt: 1,
+        expiresAt: 1,
+        isUsed: 1,
+        usedAt: 1,
+        usedIp: 1,
+        'usedBy.userId': 1,
+        'usedBy.username': 1
+      } as const;
+
+      if (count <= 5) {
+        // 小数据量：以内联字符串返回，但仍然用游标逐行拼接，避免意外的超量占用
+        const cursor = CDKModel.find(query).sort({ createdAt: -1 }).select(projection).lean().cursor();
+        let index = 0;
+        let body = header;
+        for await (const c of cursor as any) {
+          body += [
+            `${index + 1}. CDK代码: ${c.code}`,
+            `   资源ID: ${c.resourceId}`,
+            `   创建时间: ${new Date(c.createdAt).toLocaleString('zh-CN')}`,
+            c.expiresAt ? `   过期时间: ${new Date(c.expiresAt).toLocaleString('zh-CN')}` : undefined,
+            c.isUsed ? `   使用状态: 已使用` : '   使用状态: 未使用',
+            c.isUsed && c.usedAt ? `   使用时间: ${new Date(c.usedAt).toLocaleString('zh-CN')}` : undefined,
+            c.isUsed && c.usedIp ? `   使用IP: ${c.usedIp}` : undefined,
+            c.isUsed && c.usedBy?.username ? `   使用用户: ${c.usedBy.username} (ID: ${c.usedBy.userId || '-'})` : undefined,
+            ''
+          ].filter(Boolean).join('\n') + '\n';
+          index++;
+        }
+        body += `=== 导出完成 ===\n`;
+        const contentWithBOM = `\uFEFF${body}`;
+        logger.info('以内联文本返回CDK导出内容', { count });
+        return { mode: 'inline', filename, content: contentWithBOM, count };
+      }
+
+      // 大数据量：写入到文件（流式），避免内存峰值
+      if (!existsSync(this.EXPORT_DIR)) {
+        await mkdir(this.EXPORT_DIR, { recursive: true });
+      }
+      const filePath = join(this.EXPORT_DIR, filename);
+
+      // 使用写流 + 游标逐行写入
+      const fs = await import('fs');
+      const { createWriteStream } = fs;
+      const ws = createWriteStream(filePath, { encoding: 'utf8' });
+
+      // 先写入BOM与头
+      ws.write('\uFEFF');
+      ws.write(header);
+
+      const cursor = CDKModel.find(query).sort({ createdAt: -1 }).select(projection).lean().cursor();
+      let index = 0;
+      for await (const c of cursor as any) {
+        const line = [
+          `${index + 1}. CDK代码: ${c.code}`,
+          `   资源ID: ${c.resourceId}`,
+          `   创建时间: ${new Date(c.createdAt).toLocaleString('zh-CN')}`,
+          c.expiresAt ? `   过期时间: ${new Date(c.expiresAt).toLocaleString('zh-CN')}` : undefined,
+          c.isUsed ? `   使用状态: 已使用` : '   使用状态: 未使用',
+          c.isUsed && c.usedAt ? `   使用时间: ${new Date(c.usedAt).toLocaleString('zh-CN')}` : undefined,
+          c.isUsed && c.usedIp ? `   使用IP: ${c.usedIp}` : undefined,
+          c.isUsed && c.usedBy?.username ? `   使用用户: ${c.usedBy.username} (ID: ${c.usedBy.userId || '-'})` : undefined,
+          ''
+        ].filter(Boolean).join('\n') + '\n';
+        if (!ws.write(line)) {
+          await new Promise<void>(resolve => ws.once('drain', resolve));
+        }
+        index++;
+      }
+      ws.write('=== 导出完成 ===\n');
+      await new Promise<void>((resolve, reject) => {
+        ws.end(() => resolve());
+        ws.on('error', reject);
+      });
+
+      logger.info('CDK导出操作', { resourceId, filterType, count, mode: 'file', filename });
+      return { mode: 'file', filename, filePath, count };
+    } catch (err) {
+      logger.error('导出CDK失败', { err });
+      throw err;
+    }
   }
 
   private generateUniqueCode(): string {

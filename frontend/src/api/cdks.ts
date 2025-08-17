@@ -156,5 +156,37 @@ export const cdksApi = {
   importCDKs: async (content: string): Promise<ImportCDKResult> => {
     const response = await api.post(`${getApiBaseUrl()}/api/cdks/import`, { content });
     return response.data;
+  },
+
+  // 导出CDK
+  exportCDKs: async (resourceId?: string, filterType: 'all' | 'unused' | 'used' = 'all'): Promise<void> => {
+    const params = new URLSearchParams();
+    if (resourceId) params.append('resourceId', resourceId);
+    if (filterType) params.append('filterType', filterType);
+    
+    const response = await api.get(`${getApiBaseUrl()}/api/cdks/export?${params}`, {
+      responseType: 'blob'
+    });
+    
+    // 从响应头获取文件名
+    const contentDisposition = response.headers['content-disposition'];
+    let filename = 'cdks_export.txt';
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="(.+)"/i);
+      if (filenameMatch) {
+        filename = filenameMatch[1];
+      }
+    }
+    
+    // 创建下载链接
+    const blob = new Blob([response.data], { type: 'text/plain;charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
   }
 }; 

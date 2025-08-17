@@ -262,4 +262,45 @@ export const getUserRedeemedResources = async (req: Request, res: Response) => {
     logger.error('获取用户已兑换资源失败:', error);
     res.status(500).json({ message: '获取已兑换资源失败' });
   }
+};
+
+// 导出CDK数据（管理员）
+export const exportCDKs = async (req: AuthRequest, res: Response) => {
+  try {
+    const { resourceId, filterType } = req.query;
+    const validFilterType = ['all', 'unused', 'used'].includes(filterType as string) 
+      ? (filterType as 'all' | 'unused' | 'used') 
+      : 'all';
+    const result = await cdkService.exportCDKs(resourceId as string, validFilterType);
+    
+    logger.info('导出CDK数据成功', {
+      userId: req.user?.id,
+      username: req.user?.username,
+      mode: result.mode,
+      count: result.count,
+      resourceId,
+      filterType: validFilterType
+    });
+    
+    // 编码文件名以支持中文字符
+    const encodedFilename = encodeURIComponent(result.filename);
+    const contentDisposition = `attachment; filename="${result.filename.replace(/[^\x00-\x7F]/g, '_')}"; filename*=UTF-8''${encodedFilename}`;
+    
+    if (result.mode === 'file') {
+      // 返回文件下载
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.setHeader('Content-Disposition', contentDisposition);
+      res.sendFile(result.filePath);
+    } else {
+      // 返回内联内容
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.setHeader('Content-Disposition', contentDisposition);
+      res.send(result.content);
+    }
+  } catch (error) {
+    logger.error('导出CDK数据失败:', error);
+    res.status(500).json({ 
+      message: error instanceof Error ? error.message : '导出CDK数据失败' 
+    });
+  }
 }; 
