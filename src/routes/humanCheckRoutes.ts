@@ -1,4 +1,5 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import { SmartHumanCheckController } from '../controllers/humanCheckController';
 import { createLimiter } from '../middleware/rateLimiter';
 import { authenticateToken } from '../middleware/authenticateToken';
@@ -17,6 +18,18 @@ const verifyLimiter = createLimiter({
   windowMs: 60 * 1000,
   max: 30,
   message: '验证请求过于频繁，请稍后再试'
+});
+
+// 显式的管理员端点限流（使用 express-rate-limit 以便静态分析识别）
+const adminLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1分钟
+  max: 60,             // 管理查询/删除操作 QPS 较低
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: '管理端请求过于频繁，请稍后再试',
+  },
+  keyGenerator: (req) => req.ip || req.socket.remoteAddress || 'unknown',
 });
 
 // 添加 CORS 和安全头
@@ -48,11 +61,11 @@ router.post('/verify', verifyLimiter, SmartHumanCheckController.verifyToken);
 router.get('/stats', humanCheckLimiter, SmartHumanCheckController.getStats);
 
 // 管理端：查询溯源记录（需要管理员权限）
-router.get('/traces', authenticateToken, verifyLimiter, SmartHumanCheckController.listTraces);
-router.get('/trace/:id', authenticateToken, verifyLimiter, SmartHumanCheckController.getTrace);
+router.get('/traces', authenticateToken, adminLimiter, SmartHumanCheckController.listTraces);
+router.get('/trace/:id', authenticateToken, adminLimiter, SmartHumanCheckController.getTrace);
 
 // 管理端：删除溯源记录（需要管理员权限）
-router.delete('/traces', authenticateToken, verifyLimiter, SmartHumanCheckController.deleteTraces);
-router.delete('/trace/:id', authenticateToken, verifyLimiter, SmartHumanCheckController.deleteTrace);
+router.delete('/traces', authenticateToken, adminLimiter, SmartHumanCheckController.deleteTraces);
+router.delete('/trace/:id', authenticateToken, adminLimiter, SmartHumanCheckController.deleteTrace);
 
 export default router;

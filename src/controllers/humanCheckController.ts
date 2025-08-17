@@ -3,6 +3,7 @@ import SmartHumanCheckService from '../services/smartHumanCheckService';
 import logger from '../utils/logger';
 import crypto from 'crypto';
 import { connectMongo, mongoose } from '../services/mongoService';
+import { isIP } from 'net';
 
 const service = new SmartHumanCheckService();
 
@@ -177,16 +178,36 @@ export class SmartHumanCheckController {
       }
       const page = Math.max(1, Number(req.query.page || 1));
       const pageSize = Math.min(200, Math.max(1, Number(req.query.pageSize || 50)));
-      const success = req.query.success;
-      const reason = req.query.reason as string | undefined;
-      const traceId = req.query.traceId as string | undefined;
-      const ip = req.query.ip as string | undefined;
-      const ua = req.query.ua as string | undefined;
+
+      // 安全处理查询参数，避免将用户输入直接用于数据库查询
+      const successParam = req.query.success;
+      const reasonRaw = typeof req.query.reason === 'string' ? req.query.reason : undefined;
+      const traceIdRaw = typeof req.query.traceId === 'string' ? req.query.traceId : undefined;
+      const ipRaw = typeof req.query.ip === 'string' ? req.query.ip : undefined;
+      const uaRaw = typeof req.query.ua === 'string' ? req.query.ua : undefined;
+
+      // 仅接受严格的布尔字符串
+      const success = (typeof successParam !== 'undefined' && successParam !== '')
+        ? String(successParam) === 'true'
+        : undefined;
+
+      // 仅允许受控字符集且限制长度，防止注入和ReDoS攻击
+      const reason = reasonRaw && /^[A-Za-z0-9_.\-]{1,64}$/.test(reasonRaw) ? reasonRaw : undefined;
+
+      // traceId 为 24 位 hex（由 crypto.randomBytes(12) 生成）
+      const traceId = traceIdRaw && /^[a-fA-F0-9]{24}$/.test(traceIdRaw) ? traceIdRaw : undefined;
+
+      // IP 使用 Node 内置 isIP 校验（支持 IPv4/IPv6）
+      const ip = ipRaw && isIP(ipRaw) ? ipRaw : undefined;
+
+      // 对 UA 进行转义并限制长度，使用安全正则
+      const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const ua = uaRaw ? escapeRegex(uaRaw.slice(0, 100)) : undefined;
 
       await connectMongo();
       const M = SmartHumanCheckController.getTraceModel();
       const q: any = {};
-      if (typeof success !== 'undefined' && success !== '') q.success = success === 'true';
+      if (typeof success !== 'undefined') q.success = !!success;
       if (reason) q.reason = reason;
       if (traceId) q.traceId = traceId;
       if (ip) q.ip = ip;
