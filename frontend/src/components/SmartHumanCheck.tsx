@@ -520,6 +520,7 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
   const [ready, setReady] = useState(false);
   const [checked, setChecked] = useState(false);
   const [sliderOk, setSliderOk] = useState(false);
+  const [sliderKey, setSliderKey] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [nonce, setNonce] = useState<string | null>(challengeNonce || null);
@@ -848,9 +849,18 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
 
   const handleSliderComplete = useCallback(() => setSliderOk(true), []);
 
+  const handleCheckChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const next = e.target.checked;
+    setChecked(next);
+    // 每次切换复选框都强制重置滑块状态与实例，确保需要重新拖动验证
+    setSliderOk(false);
+    setSliderKey((k) => k + 1);
+  }, []);
+
   const reset = useCallback(() => {
     setChecked(false);
     setSliderOk(false);
+    setSliderKey((k) => k + 1);
     setSubmitting(false);
     setError(null);
     setRetryCount(0);
@@ -1004,7 +1014,7 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
             type="checkbox"
             className="h-5 w-5 accent-blue-600"
             checked={checked}
-            onChange={(e) => setChecked(e.target.checked)}
+            onChange={handleCheckChange}
             aria-label="我不是机器人"
           />
           {/* 极简模式下不显示标签，仅保留复选框；正常模式显示评分条 */}
@@ -1032,7 +1042,7 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
         )}
 
         <div className="mt-4">
-          <Slider onComplete={handleSliderComplete} disabled={!checked} showInnerHint={!isMinimal} />
+          <Slider key={sliderKey} onComplete={handleSliderComplete} disabled={!checked} showInnerHint={!isMinimal} />
         </div>
 
         <div className="mt-4 flex items-center gap-3">
