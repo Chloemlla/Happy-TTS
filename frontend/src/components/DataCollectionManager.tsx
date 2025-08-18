@@ -16,6 +16,7 @@ interface Item {
     userId: string;
     action: string;
     timestamp: string;
+    hash?: string;
     details?: any;
 }
 
@@ -29,11 +30,32 @@ const jsonPretty = (obj: any) => {
 const DataRow = React.memo(({ item, checked, onToggle, onView, onDelete }: {
     item: Item; checked: boolean; onToggle: (id: string) => void; onView: (it: Item) => void; onDelete: (id: string) => void;
 }) => {
+    const { setNotification } = useNotification();
     return (
         <tr className="border-t border-gray-100 hover:bg-gray-50">
             <td className="p-3"><input type="checkbox" checked={checked} onChange={() => onToggle(item._id)} /></td>
             <td className="p-3 whitespace-nowrap">{new Date(item.timestamp).toLocaleString('zh-CN')}</td>
             <td className="p-3 break-words whitespace-normal" title={item.userId}>{item.userId}</td>
+            <td className="p-3">
+                <div className="flex items-center gap-2">
+                    <span className="break-all font-mono flex-1" title={item._id}>{item._id}</span>
+                    <button
+                        className="inline-flex items-center justify-center w-5 h-5 rounded bg-gray-100 hover:bg-gray-200 text-gray-700"
+                        title="复制ID"
+                        onClick={async (e) => {
+                            e.stopPropagation();
+                            try {
+                                await navigator.clipboard.writeText(item._id);
+                                setNotification({ type: 'success', message: 'ID 已复制' });
+                            } catch (err: any) {
+                                setNotification({ type: 'error', message: err?.message || '复制失败' });
+                            }
+                        }}
+                    >
+                        <FaCopy className="w-3 h-3" />
+                    </button>
+                </div>
+            </td>
             <td className="p-3 break-words whitespace-normal" title={item.action}>{item.action}</td>
             <td className="p-3">
                 <div className="flex flex-wrap gap-2">
@@ -53,6 +75,7 @@ const DataRow = React.memo(({ item, checked, onToggle, onView, onDelete }: {
 const DataCard = React.memo(({ item, checked, onToggle, onView, onDelete }: {
     item: Item; checked: boolean; onToggle: (id: string) => void; onView: (it: Item) => void; onDelete: (id: string) => void;
 }) => {
+    const { setNotification } = useNotification();
     return (
         <div className="p-4">
             <div className="flex items-start gap-3">
@@ -64,6 +87,25 @@ const DataCard = React.memo(({ item, checked, onToggle, onView, onDelete }: {
                     </div>
                     <div className="text-xs text-gray-500 mt-1">{new Date(item.timestamp).toLocaleString('zh-CN')}</div>
                     <div className="text-xs text-gray-600 mt-1 break-words whitespace-normal" title={item.userId}>用户：{item.userId || '-'}</div>
+                    <div className="text-[10px] text-gray-600 mt-1 font-mono flex items-center gap-1" title={item._id}>
+                        <span className="text-gray-500 flex-shrink-0">ID：</span>
+                        <span className="break-all flex-1">{item._id}</span>
+                        <button
+                            className="inline-flex items-center justify-center w-5 h-5 rounded bg-gray-100 hover:bg-gray-200 text-gray-700 flex-shrink-0"
+                            onClick={async (e) => {
+                                e.stopPropagation();
+                                try {
+                                    await navigator.clipboard.writeText(item._id);
+                                    setNotification({ type: 'success', message: 'ID 已复制' });
+                                } catch (err: any) {
+                                    setNotification({ type: 'error', message: err?.message || '复制失败' });
+                                }
+                            }}
+                            title="复制ID"
+                        >
+                            <FaCopy className="w-3 h-3" />
+                        </button>
+                    </div>
                 </div>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2">
@@ -530,6 +572,7 @@ const DataCollectionManager: React.FC = () => {
                                 <th className="p-3 text-left w-10"><input type="checkbox" checked={allChecked} onChange={toggleAll} /></th>
                                 <th className="p-3 text-left w-44">时间</th>
                                 <th className="p-3 text-left w-56">用户</th>
+                                <th className="p-3 text-left w-72">ID</th>
                                 <th className="p-3 text-left w-56">动作</th>
                                 <th className="p-3 text-left w-48">操作</th>
                             </tr>
@@ -539,7 +582,7 @@ const DataCollectionManager: React.FC = () => {
                                 <DataRow key={item._id} item={item} checked={selected.has(item._id)} onToggle={toggleOne} onView={onView} onDelete={deleteOne} />
                             ))}
                             {deferredItems.length === 0 && (
-                                <tr><td className="p-6 text-center text-gray-400" colSpan={5}>{loading ? '加载中…' : '暂无数据'}</td></tr>
+                                <tr><td className="p-6 text-center text-gray-400" colSpan={6}>{loading ? '加载中…' : '暂无数据'}</td></tr>
                             )}
                         </tbody>
                     </table>
@@ -598,6 +641,24 @@ const DataCollectionManager: React.FC = () => {
                               <button className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2" onClick={() => setViewItem(null)}>
                                   <FaTimes className="w-4 h-4" /> 关闭
                               </button>
+                            </div>
+                        </div>
+                        <div className="mb-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-700">
+                            <div>
+                                <span className="text-gray-500">ID：</span>
+                                <span className="font-mono break-all">{(viewItem as any)?._id || '-'}</span>
+                            </div>
+                            <div>
+                                <span className="text-gray-500">时间：</span>
+                                <span className="font-mono">{(() => { try { return new Date((viewItem as any)?.timestamp).toLocaleString('zh-CN'); } catch { return String((viewItem as any)?.timestamp || '-') } })()}</span>
+                            </div>
+                            <div>
+                                <span className="text-gray-500">Hash：</span>
+                                <span className="font-mono break-all">{(viewItem as any)?.hash || '-'}</span>
+                            </div>
+                            <div>
+                                <span className="text-gray-500">动作：</span>
+                                <span className="font-mono break-all">{(viewItem as any)?.action || '-'}</span>
                             </div>
                         </div>
                         {(() => {

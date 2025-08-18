@@ -125,31 +125,40 @@ function StatusIcon({ type }: { type: NotificationData['type'] }) {
     switch (type) {
         case 'success':
             return (
-                <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="#22c55e" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="11" stroke="#22c55e" strokeWidth="2" fill="#e9fbe8" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 13l3 3 6-6" stroke="#22c55e" />
+                <svg className="w-6 h-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10.5" stroke="#22c55e" strokeWidth="2" fill="#e9fbe8" />
+                    {/* 轻微上移并向右平移，修正视觉偏左下 */}
+                    <g transform="translate(0.5,-0.5)">
+                        <path stroke="#22c55e" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7.5 12.5L10.5 15.5L16 10" />
+                    </g>
                 </svg>
             );
         case 'error':
             return (
-                <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="#ef4444" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="11" stroke="#ef4444" strokeWidth="2" fill="#fbeaea" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 9l-6 6M9 9l6 6" stroke="#ef4444" />
+                <svg className="w-6 h-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10.5" stroke="#ef4444" strokeWidth="2" fill="#fbeaea" />
+                    <g transform="translate(0,-0.5)">
+                        <path stroke="#ef4444" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 9l-6 6M9 9l6 6" />
+                    </g>
                 </svg>
             );
         case 'warning':
             return (
-                <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="#eab308" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="11" stroke="#eab308" strokeWidth="2" fill="#fffbe8" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01" stroke="#eab308" />
+                <svg className="w-6 h-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10.5" stroke="#eab308" strokeWidth="2" fill="#fffbe8" />
+                    <g transform="translate(0,-0.5)">
+                        <path stroke="#eab308" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01" />
+                    </g>
                 </svg>
             );
         case 'info':
         default:
             return (
-                <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="#3b82f6" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="11" stroke="#3b82f6" strokeWidth="2" fill="#e8f1fb" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8h.01M12 12v4" stroke="#3b82f6" />
+                <svg className="w-6 h-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10.5" stroke="#3b82f6" strokeWidth="2" fill="#e8f1fb" />
+                    <g transform="translate(0,-0.5)">
+                        <path stroke="#3b82f6" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8h.01M12 12v4" />
+                    </g>
                 </svg>
             );
     }
