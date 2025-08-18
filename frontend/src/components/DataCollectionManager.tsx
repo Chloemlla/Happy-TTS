@@ -604,9 +604,7 @@ const DataCollectionManager: React.FC = () => {
                             const raw: any = (viewItem as any)?.details?.payload?.raw_data;
                             if (typeof raw === 'string') {
                                 let txt = String(raw)
-                                    .replace(/\r\n/g, '\n')
-                                    .replace(/\n/g, '\n')
-                                    .replace(/\t/g, '\t');
+                                    .replace(/\r\n?/g, '\n');
                                 let lang: any = 'javascript';
                                 let t = txt.trim();
 
