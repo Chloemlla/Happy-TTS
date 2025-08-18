@@ -30,6 +30,54 @@ function obfuscateDistJs() {
   }
 }
 
+// 生成 sitemap.xml（只包含静态、可公开访问的前端路由）
+function generateSitemapXml() {
+  try {
+    const distDir = path.resolve(__dirname, 'dist');
+    if (!fs.existsSync(distDir)) return;
+
+    const siteUrlRaw = process.env.SITE_URL || process.env.VITE_SITE_URL || 'https://tts.hapxs.com';
+    const siteUrl = String(siteUrlRaw).replace(/\/$/, '');
+
+    // 注意：仅列出静态公共路由；排除需要鉴权的管理/用户页与动态参数路由
+    const routes: string[] = [
+      '/',
+      '/welcome',
+      '/policy',
+      '/api-docs',
+      '/fbi-wanted',
+      '/logshare',
+      '/case-converter',
+      '/outemail',
+      '/modlist',
+      '/smart-human-check',
+      '/librechat',
+      '/tiger-adventure',
+      '/coin-flip',
+      '/markdown-export',
+      '/store'
+    ];
+
+    const lastmod = new Date().toISOString();
+    const urlsXml = routes.map((p) => {
+      const loc = `${siteUrl}${p}`;
+      // 基本优先级：根路径最高，其余设为中等
+      const priority = p === '/' ? '1.0' : '0.6';
+      return `  <url>\n    <loc>${loc}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>${priority}</priority>\n  </url>`;
+    }).join('\n');
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n` +
+      `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
+      `${urlsXml}\n` +
+      `</urlset>\n`;
+
+    fs.writeFileSync(path.join(distDir, 'sitemap.xml'), xml, 'utf-8');
+  } catch (err) {
+    // 静默失败，不阻断构建
+    console.warn('[sitemap] generate failed:', err);
+  }
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const config = {
@@ -296,8 +344,9 @@ export default defineConfig(({ mode }) => {
     const originalWriteBundle = (typeof output === 'object' && 'writeBundle' in output) ? (output as any).writeBundle : undefined;
     (output as any).writeBundle = () => {
       obfuscateDistJs();
+      generateSitemapXml();
       if (originalWriteBundle) originalWriteBundle();
     };
   }
-  return config;
+  return config as any;
 }); 

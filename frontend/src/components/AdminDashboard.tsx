@@ -261,9 +261,10 @@ const AdminDashboard: React.FC = () => {
                     try {
                       await Promise.resolve(logout?.());
                     } finally {
-                      // 兜底清理并跳转
-                      try { localStorage.removeItem('token'); } catch { }
-                      navigate('/login');
+                      // 清空本地存储并跳转到欢迎页
+                      try { localStorage.clear(); } catch { }
+                      try { (sessionStorage as any)?.clear?.(); } catch { }
+                      navigate('/welcome', { replace: true });
                     }
                   }}
                   className="text-red-600 hover:text-red-700 transition"
