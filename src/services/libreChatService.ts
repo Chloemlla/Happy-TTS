@@ -610,7 +610,7 @@ class LibreChatService {
           details.push({ userId, deleted: deletedCount });
           totalDeleted += deletedCount;
         } catch (error) {
-          console.error(`删除用户 ${userId} 失败:`, error);
+          console.error('删除用户失败', { userId, error });
           details.push({ userId, deleted: 0 });
         }
       }

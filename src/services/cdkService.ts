@@ -709,10 +709,10 @@ export class CDKService {
       }
       const filePath = candidatePath;
 
-      // 使用写流 + 游标逐行写入
+      // 使用写流 + 游标逐行写入（不允许外部覆盖路径选项）
       const fs = await import('fs');
       const { createWriteStream } = fs;
-      const ws = createWriteStream(filePath, { encoding: 'utf8' });
+      const ws = createWriteStream(filePath, { encoding: 'utf8', flags: 'w' });
 
       // 先写入BOM与头
       ws.write('\uFEFF');
