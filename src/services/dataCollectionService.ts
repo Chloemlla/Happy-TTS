@@ -99,8 +99,8 @@ class DataCollectionService {
   private static readonly MAX_DEPTH = 6;
   private static readonly MAX_KEYS_PER_OBJECT = 200;
   private static readonly MAX_ARRAY_LENGTH = 200;
-  private static readonly MAX_STRING_LENGTH = 4096; // 4KB 字符
-  private static readonly MAX_DETAILS_BYTES = 256 * 1024; // 256KB
+  private static readonly MAX_STRING_LENGTH = 40960; // 40KB 字符
+  private static readonly MAX_DETAILS_BYTES = 5 * 1024 * 1024; // 5MB
 
   private clampDetails(input: any, depth = 0, seen = new WeakSet<object>()): any {
     if (input === null || input === undefined) return input;

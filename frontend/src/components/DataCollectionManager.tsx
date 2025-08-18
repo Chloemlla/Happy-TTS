@@ -3,6 +3,23 @@ import { motion } from 'framer-motion';
 import { getApiBaseUrl } from '../api/api';
 import { FaChartBar, FaSync, FaSearch, FaRedo, FaTrash, FaEye, FaTimes, FaPlus } from 'react-icons/fa';
 import { useNotification } from './Notification';
+import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import jsonLang from 'react-syntax-highlighter/dist/esm/languages/prism/json';
+import jsLang from 'react-syntax-highlighter/dist/esm/languages/prism/javascript';
+import tsLang from 'react-syntax-highlighter/dist/esm/languages/prism/typescript';
+import tsxLang from 'react-syntax-highlighter/dist/esm/languages/prism/tsx';
+import jsxLang from 'react-syntax-highlighter/dist/esm/languages/prism/jsx';
+import javaLang from 'react-syntax-highlighter/dist/esm/languages/prism/java';
+
+SyntaxHighlighter.registerLanguage('json', jsonLang);
+SyntaxHighlighter.registerLanguage('javascript', jsLang);
+SyntaxHighlighter.registerLanguage('js', jsLang);
+SyntaxHighlighter.registerLanguage('typescript', tsLang);
+SyntaxHighlighter.registerLanguage('ts', tsLang);
+SyntaxHighlighter.registerLanguage('tsx', tsxLang);
+SyntaxHighlighter.registerLanguage('jsx', jsxLang);
+SyntaxHighlighter.registerLanguage('java', javaLang);
 
 interface Item {
     _id: string;
@@ -335,10 +352,10 @@ const DataCollectionManager: React.FC = () => {
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2 flex-wrap">
                                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-indigo-100 text-indigo-700" title={item.action}>动作</span>
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono bg-gray-100 text-gray-700 max-w-[60%] truncate" title={item.action}>{item.action}</span>
+                                        <span className="inline-block px-2 py-0.5 rounded text-[10px] font-mono bg-gray-100 text-gray-700 break-words whitespace-normal max-w-full" title={item.action}>{item.action}</span>
                                     </div>
                                     <div className="text-xs text-gray-500 mt-1">{new Date(item.timestamp).toLocaleString('zh-CN')}</div>
-                                    <div className="text-xs text-gray-600 mt-1 truncate" title={item.userId}>用户：{item.userId || '-'}</div>
+                                    <div className="text-xs text-gray-600 mt-1 break-words whitespace-normal" title={item.userId}>用户：{item.userId || '-'}</div>
                                 </div>
                             </div>
                             <div className="mt-3 grid grid-cols-2 gap-2">
@@ -373,8 +390,8 @@ const DataCollectionManager: React.FC = () => {
                                 <tr key={item._id} className="border-t border-gray-100 hover:bg-gray-50">
                                     <td className="p-3"><input type="checkbox" checked={selected.has(item._id)} onChange={() => toggleOne(item._id)} /></td>
                                     <td className="p-3 whitespace-nowrap">{new Date(item.timestamp).toLocaleString('zh-CN')}</td>
-                                    <td className="p-3 truncate" title={item.userId}>{item.userId}</td>
-                                    <td className="p-3 truncate" title={item.action}>{item.action}</td>
+                                    <td className="p-3 break-words whitespace-normal" title={item.userId}>{item.userId}</td>
+                                    <td className="p-3 break-words whitespace-normal" title={item.action}>{item.action}</td>
                                     <td className="p-3">
                                         <div className="flex flex-wrap gap-2">
                                             <button className="px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-medium flex items-center gap-2" onClick={() => setViewItem(item)}>
@@ -419,7 +436,59 @@ const DataCollectionManager: React.FC = () => {
                                 <FaTimes className="w-4 h-4" /> 关闭
                             </button>
                         </div>
-                        <pre className="text-xs whitespace-pre-wrap bg-gray-900 text-gray-100 p-3 rounded-md overflow-auto">{jsonPretty(viewItem)}</pre>
+                        {(() => {
+                            const raw: any = (viewItem as any)?.details?.payload?.raw_data;
+                            if (typeof raw === 'string') {
+                                let txt = String(raw)
+                                    .replace(/\\r\\n/g, '\n')
+                                    .replace(/\\n/g, '\n')
+                                    .replace(/\\t/g, '\t');
+                                let lang: any = 'text';
+                                let t = txt.trim();
+
+                                // 解析代码围栏 ```lang\n...\n```
+                                if (t.startsWith('```')) {
+                                    const firstNl = t.indexOf('\n');
+                                    const firstLine = firstNl !== -1 ? t.slice(0, firstNl) : t;
+                                    const label = firstLine.replace(/^```/, '').trim().toLowerCase();
+                                    const aliasMap: Record<string, string> = {
+                                      js: 'javascript', javascript: 'javascript', node: 'javascript',
+                                      ts: 'typescript', typescript: 'typescript',
+                                      tsx: 'tsx', jsx: 'jsx',
+                                      java: 'java', json: 'json'
+                                    };
+                                    if (label && aliasMap[label]) lang = aliasMap[label];
+                                    const rest = firstNl !== -1 ? t.slice(firstNl + 1) : '';
+                                    t = rest.endsWith('```') ? rest.slice(0, -3).trimEnd() : rest;
+                                    txt = t;
+                                }
+
+                                // JSON 自动检测与美化（若未由围栏指定语言）
+                                if (lang === 'text') {
+                                    const tt = t.trim();
+                                    if ((tt.startsWith('{') && tt.endsWith('}')) || (tt.startsWith('[') && tt.endsWith(']'))) {
+                                        try {
+                                            txt = JSON.stringify(JSON.parse(t), null, 2);
+                                            lang = 'json';
+                                        } catch {}
+                                    }
+                                }
+
+                                return (
+                                    <SyntaxHighlighter
+                                        language={lang}
+                                        style={vscDarkPlus}
+                                        wrapLongLines
+                                        customStyle={{ background: '#1e1e1e', color: '#d4d4d4', borderRadius: '0.5rem', maxHeight: '70vh' }}
+                                    >
+                                        {txt}
+                                    </SyntaxHighlighter>
+                                );
+                            }
+                            return (
+                                <pre className="text-xs whitespace-pre-wrap bg-gray-900 text-gray-100 p-3 rounded-md overflow-auto">{jsonPretty(viewItem)}</pre>
+                            );
+                        })()}
                     </motion.div>
                 </div>
             )}
