@@ -5,6 +5,7 @@ interface AuthRequest extends Request {
   user?: any;
 }
 import { CDKService } from '../services/cdkService';
+import { join, basename } from 'path';
 
 const cdkService = new CDKService();
 
@@ -287,11 +288,14 @@ export const exportCDKs = async (req: AuthRequest, res: Response) => {
     const contentDisposition = `attachment; filename="${result.filename.replace(/[^\x00-\x7F]/g, '_')}"; filename*=UTF-8''${encodedFilename}`;
     
     if (result.mode === 'file') {
-      // 返回文件下载
-      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-      res.setHeader('Content-Disposition', contentDisposition);
-      res.sendFile(result.filePath);
-    } else {
+    // 返回文件下载
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Content-Disposition', contentDisposition);
+    // 使用固定根目录与安全的文件名，防止路径穿越
+    const EXPORT_ROOT = join(process.cwd(), 'data', 'exports');
+    const safeName = basename(result.filePath);
+    res.sendFile(safeName, { root: EXPORT_ROOT });
+  } else {
       // 返回内联内容
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       res.setHeader('Content-Disposition', contentDisposition);

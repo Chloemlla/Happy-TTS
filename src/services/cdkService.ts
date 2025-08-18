@@ -6,7 +6,7 @@ import { ResourceService } from './resourceService';
 import { TransactionService } from './transactionService';
 import logger from '../utils/logger';
 import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
+import { join, resolve, sep } from 'path';
 import { existsSync } from 'fs';
 
 export class CDKService {
@@ -701,7 +701,13 @@ export class CDKService {
       if (!existsSync(this.EXPORT_DIR)) {
         await mkdir(this.EXPORT_DIR, { recursive: true });
       }
-      const filePath = join(this.EXPORT_DIR, filename);
+      // 规范化并校验导出路径，防止路径穿越
+      const resolvedExportDir = resolve(this.EXPORT_DIR) + sep;
+      const candidatePath = resolve(this.EXPORT_DIR, filename);
+      if (!(candidatePath + sep).startsWith(resolvedExportDir) && candidatePath !== resolvedExportDir.slice(0, -1)) {
+        throw new Error('非法的导出文件路径');
+      }
+      const filePath = candidatePath;
 
       // 使用写流 + 游标逐行写入
       const fs = await import('fs');

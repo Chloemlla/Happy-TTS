@@ -6,6 +6,19 @@ import { existsSync } from 'fs';
 import logger from '../utils/logger';
 import { mongoose } from '../services/mongoService';
 
+// 基础输入清理：限制长度并移除可疑字符
+function sanitizeId(input?: string): string {
+  if (!input || typeof input !== 'string') return '';
+  // 仅保留常见安全字符，限制长度，防止注入与异常索引
+  return input.replace(/[^A-Za-z0-9_\-:@.]/g, '').slice(0, 128);
+}
+
+// 安全构建正则：对模式进行转义
+function escapeRegex(input?: string): string {
+  if (!input || typeof input !== 'string') return '';
+  return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 // 清洗助手文本中的 <think> 思考内容与可视化标记
 function sanitizeAssistantText(text: string): string {
   if (!text) return text;
@@ -214,8 +227,9 @@ class LibreChatService {
   private async upsertTokenHistory(keyId: string, messages: ChatMessage[]) {
     if (mongoose.connection.readyState !== 1) return;
     try {
+      const safeKey = sanitizeId(keyId);
       await (mongoose.models.LibreChatHistory as any).findOneAndUpdate(
-        { userId: keyId },
+        { userId: safeKey },
         { $set: { messages, updatedAt: new Date() } },
         { upsert: true, setDefaultsOnInsert: true }
       );
@@ -421,7 +435,7 @@ class LibreChatService {
     let userMessages: ChatMessage[] | null = null;
     if (mongoose.connection.readyState === 1) {
       try {
-        const keyId = userId || token;
+        const keyId = sanitizeId(userId || token);
         const doc = await (mongoose.models.LibreChatHistory as any).findOne({ userId: keyId }).lean();
         if (doc && Array.isArray(doc.messages)) userMessages = doc.messages as ChatMessage[];
       } catch (err) {
@@ -429,7 +443,9 @@ class LibreChatService {
       }
     }
     if (!userMessages) {
-      userMessages = this.chatHistory.filter(msg => userId ? msg.userId === userId : msg.token === token);
+      const safeUserId = sanitizeId(userId);
+      const safeToken = sanitizeId(token);
+      userMessages = this.chatHistory.filter(msg => safeUserId ? msg.userId === safeUserId : msg.token === safeToken);
     }
     const total = userMessages.length;
 
@@ -447,12 +463,14 @@ class LibreChatService {
    * 清除聊天历史
    */
   public async clearHistory(token: string, userId?: string): Promise<void> {
-    this.chatHistory = this.chatHistory.filter(msg => userId ? msg.userId !== userId : msg.token !== token);
+    const safeUserId = sanitizeId(userId);
+    const safeToken = sanitizeId(token);
+    this.chatHistory = this.chatHistory.filter(msg => safeUserId ? msg.userId !== safeUserId : msg.token !== safeToken);
     await this.saveChatHistory();
     // MongoDB 中删除该 token 文档
     if (mongoose.connection.readyState === 1) {
       try {
-        const keyId = userId || token;
+        const keyId = sanitizeId(userId || token);
         await (mongoose.models.LibreChatHistory as any).deleteOne({ userId: keyId });
       } catch (err) {
         logger.error('删除 MongoDB 聊天历史失败:', err);
@@ -465,12 +483,14 @@ class LibreChatService {
    */
   public async deleteMessage(token: string, id: string, userId?: string): Promise<{ removed: number }> {
     const before = this.chatHistory.length;
-    this.chatHistory = this.chatHistory.filter(m => !((userId ? m.userId === userId : m.token === token) && m.id === id));
+    const safeUserId = sanitizeId(userId);
+    const safeToken = sanitizeId(token);
+    this.chatHistory = this.chatHistory.filter(m => !((safeUserId ? m.userId === safeUserId : m.token === safeToken) && m.id === id));
     const removed = before - this.chatHistory.length;
     if (removed > 0) {
       await this.saveChatHistory();
-      const keyId = userId || token;
-      await this.upsertTokenHistory(keyId, this.chatHistory.filter(m => userId ? m.userId === userId : m.token === token));
+      const keyId = sanitizeId(userId || token);
+      await this.upsertTokenHistory(keyId, this.chatHistory.filter(m => safeUserId ? m.userId === safeUserId : m.token === safeToken));
     }
     return { removed };
   }
@@ -514,7 +534,8 @@ class LibreChatService {
   // 仅管理员使用：列出所有用户最新概览（分页）
   public async adminListUsers(keyword = '', page = 1, limit = 20): Promise<{ users: any[]; total: number }> {
     if (mongoose.connection.readyState !== 1) return { users: [], total: 0 };
-    const q: any = keyword ? { userId: { $regex: keyword, $options: 'i' } } : {};
+    const kw = escapeRegex(keyword.trim()).slice(0, 128);
+    const q: any = kw ? { userId: new RegExp(kw, 'i') } : {};
     const total = await (mongoose.models.LibreChatHistory as any).countDocuments(q);
     const docs = await (mongoose.models.LibreChatHistory as any)
       .find(q, { userId: 1, messages: 1, updatedAt: 1 })
@@ -536,7 +557,8 @@ class LibreChatService {
   // 仅管理员使用：获取指定用户的历史（分页）
   public async adminGetUserHistory(userId: string, page = 1, limit = 20): Promise<ChatHistory> {
     if (mongoose.connection.readyState !== 1) return { messages: [], total: 0 };
-    const doc = await (mongoose.models.LibreChatHistory as any).findOne({ userId }).lean();
+    const safeUserId = sanitizeId(userId);
+    const doc = await (mongoose.models.LibreChatHistory as any).findOne({ userId: safeUserId }).lean();
     const all: ChatMessage[] = doc?.messages || [];
     const total = all.length;
     const start = (page - 1) * limit;
@@ -547,10 +569,11 @@ class LibreChatService {
   // 仅管理员使用：删除指定用户全部历史
   public async adminDeleteUser(userId: string): Promise<{ deleted: number }> {
     if (mongoose.connection.readyState !== 1) return { deleted: 0 };
-    const ret = await (mongoose.models.LibreChatHistory as any).deleteOne({ userId });
+    const safeUserId = sanitizeId(userId);
+    const ret = await (mongoose.models.LibreChatHistory as any).deleteOne({ userId: safeUserId });
     // 同步内存/文件（按 userId 清理）
     const before = this.chatHistory.length;
-    this.chatHistory = this.chatHistory.filter(m => m.userId !== userId);
+    this.chatHistory = this.chatHistory.filter(m => m.userId !== safeUserId);
     if (this.chatHistory.length !== before) await this.saveChatHistory();
     return { deleted: (ret?.deletedCount || 0) as number };
   }
@@ -562,12 +585,14 @@ class LibreChatService {
     // 优先从 MongoDB 读取
     let userMessages: ChatMessage[] = [];
     if (mongoose.connection.readyState === 1) {
-      const keyId = userId || token;
+      const keyId = sanitizeId(userId || token);
       const doc = await (mongoose.models.LibreChatHistory as any).findOne({ userId: keyId }).lean();
       if (doc && Array.isArray(doc.messages)) userMessages = doc.messages as ChatMessage[];
     }
     if (userMessages.length === 0) {
-      userMessages = this.chatHistory.filter(msg => userId ? msg.userId === userId : msg.token === token);
+      const safeUserId = sanitizeId(userId);
+      const safeToken = sanitizeId(token);
+      userMessages = this.chatHistory.filter(msg => safeUserId ? msg.userId === safeUserId : msg.token === safeToken);
     }
     const count = userMessages.length;
     const now = new Date();
