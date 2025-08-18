@@ -135,6 +135,10 @@ app.options('/s/*', (req: Request, res: Response) => {
 // Mount webhook routes BEFORE global JSON parser to preserve raw body for Svix
 app.use('/api/webhooks', webhookRoutes);
 
+// 将数据收集路由提前到全局 JSON 解析器之前，避免 body-parser 对非 JSON 请求抛错
+app.use('/api/data-collection', dataCollectionRoutes);
+app.use('/', dataCollectionRoutes);
+
 // JSON body parser middleware - 必须在短链路由之前
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));

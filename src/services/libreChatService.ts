@@ -335,7 +335,7 @@ class LibreChatService {
     // 读取 OpenAI 兼容配置
     const baseURL = process.env.CHAT_BASE_URL?.replace(/\/$/, '') || '';
     const apiKey = process.env.CHAT_API_KEY || '';
-    const model = 'gpt-oss-120b';
+    const model = process.env.CHAT_MODEL || 'gpt-oss-120b';
 
     // 如果未配置，则返回降级的本地回复（不阻塞）
     if (!baseURL || !apiKey) {
@@ -566,16 +566,105 @@ class LibreChatService {
     return { messages: all.slice(start, end), total };
   }
 
-  // 仅管理员使用：删除指定用户全部历史
+  // 仅管理员使用：删除指定用户全部历史（Mongo 不可用时回退到内存存储）
   public async adminDeleteUser(userId: string): Promise<{ deleted: number }> {
-    if (mongoose.connection.readyState !== 1) return { deleted: 0 };
     const safeUserId = sanitizeId(userId);
-    const ret = await (mongoose.models.LibreChatHistory as any).deleteOne({ userId: safeUserId });
+    let deleted = 0;
+
+    // 优先尝试 MongoDB
+    try {
+      if (mongoose.connection.readyState === 1) {
+        const rawUserId = String(userId).trim();
+        const ret = await (mongoose.models.LibreChatHistory as any).deleteOne({ $or: [ { userId: rawUserId }, { userId: safeUserId } ] });
+        deleted = (ret?.deletedCount || 0) as number;
+      }
+    } catch (e) {
+      console.warn('[LibreChat] adminDeleteUser mongo delete failed, fallback to memory', e);
+    }
+
     // 同步内存/文件（按 userId 清理）
     const before = this.chatHistory.length;
     this.chatHistory = this.chatHistory.filter(m => m.userId !== safeUserId);
-    if (this.chatHistory.length !== before) await this.saveChatHistory();
-    return { deleted: (ret?.deletedCount || 0) as number };
+    if (this.chatHistory.length !== before) {
+      await this.saveChatHistory();
+      // 如果 Mongo 未删到文档，则至少按内存处理记作 1
+      if (deleted === 0) deleted = 1;
+    }
+
+    return { deleted };
+  }
+
+  // 仅管理员使用：批量删除多个用户全部历史
+  public async adminBatchDeleteUsers(userIds: string[]): Promise<{ deleted: number; details: { userId: string; deleted: number }[] }> {
+    const safeUserIds = userIds.map(id => sanitizeId(id));
+    const details: { userId: string; deleted: number }[] = [];
+    let totalDeleted = 0;
+
+    // 优先尝试 MongoDB 删除
+    if (mongoose.connection.readyState === 1) {
+      for (const userId of safeUserIds) {
+        try {
+          const rawUserId = String(userId).trim();
+          const ret = await (mongoose.models.LibreChatHistory as any).deleteOne({ $or: [ { userId: rawUserId }, { userId } ] });
+          const deletedCount = (ret?.deletedCount || 0) as number;
+          details.push({ userId, deleted: deletedCount });
+          totalDeleted += deletedCount;
+        } catch (error) {
+          console.error(`删除用户 ${userId} 失败:`, error);
+          details.push({ userId, deleted: 0 });
+        }
+      }
+    }
+
+    // 同步内存/文件（按 userId 清理）
+    const beforeLen = this.chatHistory.length;
+    this.chatHistory = this.chatHistory.filter(m => m.userId !== undefined && !safeUserIds.includes(m.userId));
+    const afterLen = this.chatHistory.length;
+    if (afterLen !== beforeLen) {
+      await this.saveChatHistory();
+      const memoryDeleted = beforeLen - afterLen;
+      // 如果 Mongo 没有删到，使用内存删除数量兜底
+      if (totalDeleted < memoryDeleted) totalDeleted = memoryDeleted;
+      for (const uid of safeUserIds) {
+        if (!details.find(d => d.userId === uid)) {
+          details.push({ userId: uid, deleted: 1 });
+        }
+      }
+    }
+
+    return { deleted: totalDeleted, details };
+  }
+
+  // 仅管理员使用：删除所有用户历史（危险操作，优先 drop 集合，失败则 deleteMany）
+  public async adminDeleteAllUsers(): Promise<{ deleted: number }> {
+    let deletedCount = 0;
+
+    if (mongoose.connection.readyState === 1) {
+      try {
+        const model: any = mongoose.models.LibreChatHistory;
+        // 统计现有文档数量
+        deletedCount = await model.countDocuments({});
+        // 优先尝试 drop 集合（速度更快，彻底清空）
+        await model.collection.drop();
+        // 重新创建索引由 Mongoose 自动在下次写入时处理
+      } catch (e: any) {
+        // 如果集合不存在或 drop 失败，则回退到 deleteMany
+        try {
+          const ret = await (mongoose.models.LibreChatHistory as any).deleteMany({});
+          deletedCount = (ret?.deletedCount || deletedCount) as number;
+        } catch (err) {
+          console.warn('[LibreChat] adminDeleteAllUsers mongo drop/deleteMany failed, fallback to memory only', err);
+        }
+      }
+    }
+
+    // 清空内存/文件
+    if (this.chatHistory.length > 0) {
+      this.chatHistory = [];
+      await this.saveChatHistory();
+    }
+    
+    return { deleted: deletedCount };
   }
 
   /**

@@ -1,11 +1,28 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
-import { FaTimes, FaPaperPlane } from 'react-icons/fa';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  FaTimes, 
+  FaPaperPlane, 
+  FaDownload, 
+  FaTrash, 
+  FaEdit, 
+  FaCopy, 
+  FaRedo,
+  FaHistory,
+  FaUser,
+  FaRobot,
+  FaExclamationTriangle,
+  FaInfoCircle,
+  FaEnvelope,
+  FaChevronLeft,
+  FaChevronRight
+} from 'react-icons/fa';
 import { marked } from 'marked';
 import markedKatex from 'marked-katex-extension';
 import 'katex/dist/katex.min.css';
 import DOMPurify from 'dompurify';
 import getApiBaseUrl from '../api';
+import { useNotification } from './Notification';
 
 // 兼容部分模型返回的 <think> 思考内容与孤立 </think> 标签
 function sanitizeAssistantText(text: string): string {
@@ -102,6 +119,8 @@ interface HistoryResponse {
 }
 
 const LibreChatPage: React.FC = () => {
+  const { setNotification } = useNotification();
+  
   // 作为 8192 tokens 的近似代理，前端采用同等数量的字符上限；
   // 真正的 token 计数应在后端/模型端完成（此处仅做输入侧保护）。
   const MAX_MESSAGE_LEN = 8192;
@@ -133,6 +152,19 @@ const LibreChatPage: React.FC = () => {
 
   const apiBase = useMemo(() => getApiBaseUrl(), []);
 
+  // 游客模式：当未填写本地 token 时视为游客（服务端通过 HttpOnly Cookie 维持会话）
+  const guestMode = useMemo(() => !token, [token]);
+  const [guestHintDismissed, setGuestHintDismissed] = useState<boolean>(() => localStorage.getItem('lc_guest_hint_dismissed') === '1');
+  useEffect(() => {
+    localStorage.setItem('lc_guest_hint_dismissed', guestHintDismissed ? '1' : '0');
+  }, [guestHintDismissed]);
+
+  // 游客须知面板的隐藏状态
+  const [guestNoticeDismissed, setGuestNoticeDismissed] = useState<boolean>(() => localStorage.getItem('lc_guest_notice_dismissed') === '1');
+  useEffect(() => {
+    localStorage.setItem('lc_guest_notice_dismissed', guestNoticeDismissed ? '1' : '0');
+  }, [guestNoticeDismissed]);
+
   // 将 librechat_token 持久化；若没有则尝试从 URL 和 登录态注入
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -152,16 +184,29 @@ const LibreChatPage: React.FC = () => {
     if (token) localStorage.setItem('librechat_token', token);
   }, [token]);
 
+  // 若无本地 token，则尝试申请游客 token（服务端通过 HttpOnly Cookie 下发）
+  const ensureGuestToken = async () => {
+    if (token) return;
+    try {
+      await fetch(`${apiBase}/api/librechat/guest`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch {
+      // 忽略错误：可能未启用游客模式或网络异常
+    }
+  };
+
   const fetchLatest = async () => {
     try {
       setLoadingLatest(true);
       // 优先新API /lc（image_name 字段）；兼容旧API /librechat-image（image_url 字段）
-      const res = await fetch(`${apiBase}/api/librechat/lc`, { credentials: 'same-origin' });
+      const res = await fetch(`${apiBase}/api/librechat/lc`, { credentials: 'include' });
       if (res.ok) {
         const data: LatestRecord = await res.json();
         setLatest(data);
       } else {
-        const res2 = await fetch(`${apiBase}/api/librechat/librechat-image`, { credentials: 'same-origin' });
+        const res2 = await fetch(`${apiBase}/api/librechat/librechat-image`, { credentials: 'include' });
         if (res2.ok) setLatest(await res2.json());
         else setLatest(null);
       }
@@ -176,13 +221,13 @@ const LibreChatPage: React.FC = () => {
   const onChangeMessage = (val: string) => {
     const next = val.length > MAX_MESSAGE_LEN ? val.slice(0, MAX_MESSAGE_LEN) : val;
     setMessage(next);
-    if (next.length >= MAX_MESSAGE_LEN) setSendError(`消息已达上限（${MAX_MESSAGE_LEN} 字符）`);
+    if (next.length >= MAX_MESSAGE_LEN) setSendError(`已达到上限，将自动截断发送（${MAX_MESSAGE_LEN} 字符）`);
     else if (sendError) setSendError('');
   };
   const onChangeRtMessage = (val: string) => {
     const next = val.length > MAX_MESSAGE_LEN ? val.slice(0, MAX_MESSAGE_LEN) : val;
     setRtMessage(next);
-    if (next.length >= MAX_MESSAGE_LEN) setRtError(`消息已达上限（${MAX_MESSAGE_LEN} 字符）`);
+    if (next.length >= MAX_MESSAGE_LEN) setRtError(`已达到上限，将自动截断发送（${MAX_MESSAGE_LEN} 字符）`);
     else if (rtError) setRtError('');
   };
 
@@ -194,7 +239,7 @@ const LibreChatPage: React.FC = () => {
 
   // 批量删除
   const handleBatchDelete = async () => {
-    if (!token || selectedIds.length === 0) return;
+    if (selectedIds.length === 0) return;
     const yes = confirm(`确定批量删除选中的 ${selectedIds.length} 条消息吗？`);
     if (!yes) return;
     try {
@@ -202,22 +247,22 @@ const LibreChatPage: React.FC = () => {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
-        body: JSON.stringify({ token, messageIds: selectedIds })
+        body: JSON.stringify(token ? { token, messageIds: selectedIds } : { messageIds: selectedIds })
       });
       if (res.ok) {
         setSelectedIds([]);
         await fetchHistory(page);
       } else {
-        alert('批量删除失败');
+        setNotification({ type: 'error', message: '批量删除失败' });
       }
-    } catch {
-      alert('批量删除失败');
+    } catch (e: any) {
+      setNotification({ type: 'error', message: e?.message || '批量删除失败' });
     }
   };
 
   // 编辑消息
   const handleEdit = async (id?: string, current?: string) => {
-    if (!token || !id) return;
+    if (!id) return;
     const next = prompt('编辑消息内容：', current || '');
     if (next === null) return; // 取消
     const content = next.trim();
@@ -226,16 +271,16 @@ const LibreChatPage: React.FC = () => {
       const res = await fetch(`${apiBase}/api/librechat/message`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({ token, messageId: id, content })
+        credentials: 'include',
+        body: JSON.stringify(token ? { token, messageId: id, content } : { messageId: id, content })
       });
       if (res.ok) {
         await fetchHistory(page);
       } else {
-        alert('修改失败');
+        setNotification({ type: 'error', message: '修改失败' });
       }
-    } catch {
-      alert('修改失败');
+    } catch (e: any) {
+      setNotification({ type: 'error', message: e?.message || '修改失败' });
     }
   };
 
@@ -260,11 +305,11 @@ const LibreChatPage: React.FC = () => {
 
   // 导出全部历史（后端生成并返回TXT文件）
   const exportAll = async () => {
-    if (!token) return;
-    const params = new URLSearchParams({ token });
+    const params = new URLSearchParams();
+    if (token) params.set('token', token);
     const res = await fetch(`${apiBase}/api/librechat/export?${params.toString()}`, {
       method: 'GET',
-      credentials: 'same-origin'
+      credentials: 'include'
     });
     if (!res.ok) {
       alert('导出失败');
@@ -304,13 +349,14 @@ const LibreChatPage: React.FC = () => {
 
   // 删除单条消息（需要后端返回 id）
   const handleDelete = async (id?: string) => {
-    if (!token || !id) return;
+    if (!id) return;
     const yes = confirm('确定删除该消息吗？');
     if (!yes) return;
-    const params = new URLSearchParams({ token, messageId: id });
+    const params = new URLSearchParams({ messageId: id });
+    if (token) params.set('token', token);
     const res = await fetch(`${apiBase}/api/librechat/message?${params.toString()}`, {
       method: 'DELETE',
-      credentials: 'same-origin'
+      credentials: 'include'
     });
     if (res.ok) {
       fetchHistory(page);
@@ -320,14 +366,12 @@ const LibreChatPage: React.FC = () => {
   };
 
   const fetchHistory = async (toPage = 1) => {
-    if (!token) {
-      setHistory(null);
-      return;
-    }
     try {
       setLoadingHistory(true);
-      const params = new URLSearchParams({ token, page: String(toPage), limit: String(limit) });
-      const res = await fetch(`${apiBase}/api/librechat/history?${params.toString()}`, { credentials: 'same-origin' });
+      const params = new URLSearchParams({ page: String(toPage), limit: String(limit) });
+      // 若存在 token 则一并传递；否则依赖后端会话中的 userId
+      if (token) params.set('token', token);
+      const res = await fetch(`${apiBase}/api/librechat/history?${params.toString()}`, { credentials: 'include' });
       if (res.ok) {
         const data: any = await res.json();
         // 后端返回的消息字段为 message/timestamp/role，这里映射到前端使用的字段
@@ -358,14 +402,12 @@ const LibreChatPage: React.FC = () => {
 
   const handleSend = async () => {
     setSendError('');
-    if (!token) {
-      setSendError('请先填写 Token');
-      return;
-    }
     if (!message.trim()) return;
-    if (message.length > MAX_MESSAGE_LEN) {
-      setSendError(`消息超出上限（最大 ${MAX_MESSAGE_LEN} 字符）`);
-      return;
+    // 自动截断超长消息
+    let toSend = message;
+    if (toSend.length > MAX_MESSAGE_LEN) {
+      toSend = toSend.slice(0, MAX_MESSAGE_LEN);
+      setSendError(`超出部分已自动截断（最大 ${MAX_MESSAGE_LEN} 字符）`);
     }
     try {
       setSending(true);
@@ -374,8 +416,9 @@ const LibreChatPage: React.FC = () => {
       const res = await fetch(`${apiBase}/api/librechat/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({ token, message })
+        credentials: 'include',
+        // 如果无 token，后端将使用登录会话中的 userId
+        body: JSON.stringify(token ? { token, message: toSend } : { message: toSend })
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -410,13 +453,12 @@ const LibreChatPage: React.FC = () => {
   };
 
   const handleClear = async () => {
-    if (!token) return;
     try {
       const res = await fetch(`${apiBase}/api/librechat/clear`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({ token })
+        credentials: 'include',
+        body: JSON.stringify(token ? { token } : {})
       });
       if (res.ok) {
         await fetchHistory(1);
@@ -428,10 +470,13 @@ const LibreChatPage: React.FC = () => {
 
   useEffect(() => {
     fetchLatest();
+    if (!token) ensureGuestToken();
   }, []);
 
   useEffect(() => {
-    if (token) fetchHistory(1);
+    // token 变更时刷新；无 token 也尝试从后端（会话）拉取
+    fetchHistory(1);
+    if (!token) ensureGuestToken();
   }, [token]);
 
   // 打开/关闭单次实时对话框
@@ -453,14 +498,12 @@ const LibreChatPage: React.FC = () => {
   const handleRealtimeSend = async () => {
     setRtError('');
     if (rtSending || rtStreaming) return; // 避免并发发送
-    if (!token) {
-      setRtError('请先填写 Token');
-      return;
-    }
     if (!rtMessage.trim()) return;
-    if (rtMessage.length > MAX_MESSAGE_LEN) {
-      setRtError(`消息超出上限（最大 ${MAX_MESSAGE_LEN} 字符）`);
-      return;
+    // 自动截断超长消息
+    let toSend = rtMessage;
+    if (toSend.length > MAX_MESSAGE_LEN) {
+      toSend = toSend.slice(0, MAX_MESSAGE_LEN);
+      setRtError(`超出部分已自动截断（最大 ${MAX_MESSAGE_LEN} 字符）`);
     }
     try {
       setRtSending(true);
@@ -474,7 +517,7 @@ const LibreChatPage: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
-        body: JSON.stringify({ token, message: userEntry.content })
+        body: JSON.stringify(token ? { token, message: toSend } : { message: toSend })
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -530,320 +573,585 @@ const LibreChatPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <motion.div
+      className="space-y-6"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6 }}
+    >
+      {/* 标题和说明 */}
       <motion.div
-        initial={{ opacity: 0, y: 10 }}
+        className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100"
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white w-full rounded-xl shadow-xl p-6 border border-gray-200"
+        transition={{ duration: 0.6 }}
       >
-        <h2 className="text-lg font-semibold text-gray-800 mb-3">LibreChat 最新镜像</h2>
-        {loadingLatest ? (
-          <div className="text-gray-500">加载中...</div>
-        ) : latest ? (
-          <div className="text-sm text-gray-700 space-y-1">
-            {latest.update_time && <div>更新时间：{latest.update_time}</div>}
-            {latest.image_name && <div>镜像名称：{latest.image_name}</div>}
-            {latest.image_url && <div>镜像地址：{latest.image_url}</div>}
-          </div>
-        ) : (
-          <div className="text-gray-400">暂无数据</div>
-        )}
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white w-full rounded-xl shadow-xl p-6 border border-gray-200"
-      >
-        <h2 className="text-lg font-semibold text-gray-800 mb-3">发送消息</h2>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <input
-            className="border-2 border-gray-200 rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="请输入 Token"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-          />
-          <input
-            className="border-2 border-gray-200 rounded-lg px-3 py-2 w-full sm:col-span-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="请输入消息"
-            value={message}
-            maxLength={MAX_MESSAGE_LEN}
-            onChange={(e) => onChangeMessage(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleSend(); }}
-          />
-          <div className="text-xs text-gray-400 sm:col-span-2 text-right mt-1">{message.length}/{MAX_MESSAGE_LEN}</div>
-        </div>
-        {sendError && <div className="text-red-500 text-sm mt-2">{sendError}</div>}
-        <div className="mt-3 flex gap-2">
-          <button
-            onClick={handleSend}
-            disabled={sending}
-            className="px-5 py-2.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
-          >发送</button>
-          <button
-            onClick={handleClear}
-            className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
-          >清除历史</button>
-          <button
-            onClick={openRealtimeDialog}
-            className="px-5 py-2.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-2"
-            title="打开单次实时对话框"
-          >
-            <FaPaperPlane className="w-4 h-4" /> 单次对话
-          </button>
-        </div>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white w-full rounded-xl shadow-xl p-6 border border-gray-200"
-      >
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-gray-800">聊天历史</h2>
-          <div className="flex items-center gap-2 text-sm text-gray-500">
-            <span>第 {page} / {history?.totalPages || 1} 页，共 {history?.total || 0} 条</span>
-            <button
-              onClick={refreshHistory}
-              className="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-50"
-              title="刷新"
-            >刷新</button>
-            <button
-              onClick={exportCurrentPage}
-              className="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-50"
-              title="导出本页"
-            >导出本页</button>
-            <button
-              onClick={exportAll}
-              className="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-50"
-              title="导出全部"
-            >导出全部</button>
-            <button
-              onClick={handleBatchDelete}
-              disabled={selectedIds.length === 0}
-              className={`px-3 py-1 rounded-lg border ${selectedIds.length === 0 ? 'border-gray-200 text-gray-300' : 'border-red-200 text-red-600 hover:bg-red-50'}`}
-              title="批量删除所选"
-            >批量删除</button>
-          </div>
-        </div>
-        {loadingHistory ? (
-          <div className="text-gray-500">加载中...</div>
-        ) : (
-          <div className="max-h-[50vh] overflow-auto pr-1">
-            {streaming && (
-              <div className="mb-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div></div>
-                <div className="p-3 rounded-lg border border-gray-200 bg-white">
-                  <div className="text-xs text-gray-500 mb-1">助手（生成中...）</div>
-                  <div
-                    className="prose prose-sm max-w-none"
-                    dangerouslySetInnerHTML={{ __html: renderMarkdown(sanitizeAssistantText(streamContent || '...')) }}
-                  />
-                </div>
-              </div>
-            )}
-            {history && history.history.length > 0 ? (
-              <div className="space-y-2">
-                {history.history.map((m: HistoryItem, idx: number) => (
-                  <div key={idx} className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {m.role === 'user' ? (
-                      <div className="p-3 rounded-lg border border-gray-200 bg-white order-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="text-xs text-gray-500">用户{m.createdAt ? ` · ${m.createdAt}` : ''}</div>
-                          <div className="flex items-center gap-2">
-                            {m.id && (
-                              <input
-                                type="checkbox"
-                                className="w-4 h-4"
-                                checked={selectedIds.includes(m.id)}
-                                onChange={() => toggleSelect(m.id)}
-                                title="选择此消息"
-                              />
-                            )}
-                            <button
-                              onClick={() => copyText(m.content)}
-                              className="text-xs px-2.5 py-1 rounded-lg border border-gray-300 hover:bg-gray-50"
-                            >复制</button>
-                          </div>
-                        </div>
-                        <div
-                          className="prose prose-sm max-w-none"
-                          dangerouslySetInnerHTML={{ __html: renderMarkdown(m.content) }}
-                        />
-                        {m.id && (
-                          <div className="mt-2 text-right">
-                            <button
-                              onClick={() => handleEdit(m.id, m.content)}
-                              className="text-xs px-2.5 py-1 rounded-lg border border-gray-300 hover:bg-gray-50 mr-2"
-                            >编辑</button>
-                            <button
-                              onClick={() => handleDelete(m.id)}
-                              className="text-xs px-2.5 py-1 rounded-lg border text-red-600 border-red-200 hover:bg-red-50"
-                            >删除</button>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="hidden sm:block"></div>
-                    )}
-                    {m.role !== 'user' ? (
-                      <div className="p-3 rounded-lg border border-gray-200 bg-white order-2">
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="text-xs text-gray-500">助手{m.createdAt ? ` · ${m.createdAt}` : ''}</div>
-                          <div className="flex items-center gap-2">
-                            {m.id && (
-                              <input
-                                type="checkbox"
-                                className="w-4 h-4"
-                                checked={selectedIds.includes(m.id)}
-                                onChange={() => toggleSelect(m.id)}
-                                title="选择此消息"
-                              />
-                            )}
-                            <button
-                              onClick={() => copyText(sanitizeAssistantText(m.content))}
-                              className="text-xs px-2.5 py-1 rounded-lg border border-gray-300 hover:bg-gray-50"
-                            >复制</button>
-                          </div>
-                        </div>
-                        <div
-                          className="prose prose-sm max-w-none"
-                          dangerouslySetInnerHTML={{ __html: renderMarkdown(sanitizeAssistantText(m.content)) }}
-                        />
-                        {m.id && (
-                          <div className="mt-2 text-right">
-                            <button
-                              onClick={() => handleEdit(m.id, m.content)}
-                              className="text-xs px-2.5 py-1 rounded-lg border border-gray-300 hover:bg-gray-50 mr-2"
-                            >编辑</button>
-                            <button
-                              onClick={() => handleDelete(m.id)}
-                              className="text-xs px-2.5 py-1 rounded-lg border text-red-600 border-red-200 hover:bg-red-50"
-                            >删除</button>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="hidden sm:block order-2"></div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-gray-400">暂无历史</div>
-            )}
-          </div>
-        )}
-        <div className="mt-3 flex gap-2">
-          <button
-            onClick={() => fetchHistory(Math.max(1, page - 1))}
-            className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50"
-            disabled={page <= 1}
-          >上一页</button>
-          <button
-            onClick={() => fetchHistory(page + 1)}
-            className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50"
-            disabled={history ? page >= history.totalPages : true}
-          >下一页</button>
-        </div>
-      </motion.div>
-
-      {/* 单次实时对话框（与 WebhookEventsManager 模态风格统一） */}
-      {rtOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="w-full max-w-2xl bg-white rounded-xl p-6 shadow-sm border border-gray-200 relative"
-          >
-            <div className="flex items-center mb-4 pr-10">
-              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                <FaPaperPlane className="text-blue-500" />
-                实时对话（支持上下文）
-              </h3>
-              <button
-                onClick={closeRealtimeDialog}
-                className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-100 bg-white"
-                aria-label="关闭"
-                title="关闭"
-              >
-                <FaTimes className="w-4 h-4" />
-              </button>
+        <h2 className="text-2xl font-bold text-blue-700 mb-3 flex items-center gap-2">
+          <FaEnvelope className="text-blue-500" />
+          LibreChat 聊天
+        </h2>
+        <div className="text-gray-600 space-y-2">
+          <p>与 LibreChat 进行智能对话，支持历史记录管理、消息编辑和导出功能。</p>
+          <div className="flex items-start gap-2 text-sm">
+            <div>
+              <p className="font-semibold text-blue-700">功能说明：</p>
+              <ul className="list-disc list-inside space-y-1 mt-1">
+                <li>智能对话和流式响应</li>
+                <li>历史记录查看和管理</li>
+                <li>消息编辑和批量删除</li>
+                <li>聊天记录导出功能</li>
+                <li>游客模式和用户模式</li>
+              </ul>
             </div>
-            <div className="grid gap-3 sm:grid-cols-3">
+          </div>
+        </div>
+      </motion.div>
+
+      {/* 最新镜像信息 */}
+      <motion.div
+        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+          <FaDownload className="text-lg text-blue-500" />
+          LibreChat 最新镜像
+        </h3>
+        {loadingLatest ? (
+          <div className="text-center py-8 text-gray-500">
+            <svg className="animate-spin h-8 w-8 mx-auto mb-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            加载中...
+          </div>
+        ) : latest ? (
+          <div className="space-y-3">
+            {latest.update_time && (
+              <div className="flex items-center gap-2 text-sm text-gray-700">
+                <FaInfoCircle className="text-blue-500" />
+                <span>更新时间：{latest.update_time}</span>
+              </div>
+            )}
+            {latest.image_name && (
+              <div className="flex items-center gap-2 text-sm text-gray-700">
+                <FaDownload className="text-green-500" />
+                <span>镜像名称：{latest.image_name}</span>
+              </div>
+            )}
+            {latest.image_url && (
+              <div className="flex items-center gap-2 text-sm text-gray-700">
+                <FaEnvelope className="text-orange-500" />
+                <span className="break-all">镜像地址：{latest.image_url}</span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <FaDownload className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+            暂无数据
+          </div>
+        )}
+      </motion.div>
+
+      {/* 游客须知 */}
+      <AnimatePresence>
+        {guestMode && !guestNoticeDismissed && (
+          <motion.div
+            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 relative"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <button
+              onClick={() => setGuestNoticeDismissed(true)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+              title="关闭并不再提示"
+            >
+              <FaTimes className="w-5 h-5" />
+            </button>
+            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+              <FaExclamationTriangle className="text-orange-500" />
+              使用须知（游客）
+            </h3>
+            <div className="space-y-4 text-sm text-gray-700">
+              <div>
+                <p className="font-medium mb-2 text-gray-800">1. 禁止内容范围：</p>
+                <ul className="list-disc list-inside ml-4 space-y-1">
+                  <li>政治敏感、民族歧视内容</li>
+                  <li>色情、暴力、恐怖主义内容</li>
+                  <li>侵犯知识产权内容</li>
+                  <li>虚假信息或误导性内容</li>
+                </ul>
+              </div>
+              <div>
+                <p className="font-medium mb-2 text-gray-800">2. 违规处理措施：</p>
+                <ul className="list-disc list-inside ml-4 space-y-1">
+                  <li>立即停止服务并封禁账号</li>
+                  <li>配合执法部门调查</li>
+                  <li>提供使用记录和生成内容</li>
+                  <li>保留追究法律责任权利</li>
+                </ul>
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <h4 className="text-blue-700 font-semibold mb-2 flex items-center gap-2">
+                  <FaEnvelope className="text-blue-500" />
+                  联系我们
+                </h4>
+                <p className="text-blue-700 text-sm">
+                  如有任何问题或建议，请联系开发者：
+                  <a
+                    href="mailto:admin@hapxs.com"
+                    className="font-medium hover:text-blue-800 transition-colors duration-200 ml-1 underline"
+                  >
+                    admin@hapxs.com
+                  </a>
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 发送消息 */}
+      <motion.div
+        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <FaPaperPlane className="text-lg text-blue-500" />
+            发送消息
+          </h3>
+          {guestMode && (
+            <span
+              className="inline-flex items-center text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-full px-3 py-1"
+              title="未填写令牌，将以游客模式使用 HttpOnly Cookie 维持会话"
+            >
+              <FaUser className="w-3 h-3 mr-1" />
+              游客模式
+            </span>
+          )}
+        </div>
+        
+        <div className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="relative">
               <input
-                className="border-2 border-gray-200 rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
                 placeholder="请输入 Token"
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
               />
+            </div>
+            <div className="relative sm:col-span-2">
               <input
-                className="border-2 border-gray-200 rounded-lg px-3 py-2 w-full sm:col-span-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="请输入消息（支持上下文）"
-                value={rtMessage}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                placeholder="请输入消息"
+                value={message}
                 maxLength={MAX_MESSAGE_LEN}
-                onChange={(e) => onChangeRtMessage(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && !rtSending && !rtStreaming) handleRealtimeSend(); }}
+                onChange={(e) => onChangeMessage(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSend(); }}
               />
-              <div className="text-xs text-gray-400 sm:col-span-2 text-right mt-1">{rtMessage.length}/{MAX_MESSAGE_LEN}</div>
             </div>
-            {rtError && <div className="text-red-500 text-sm mt-2">{rtError}</div>}
-            <div className="mt-3 flex items-center justify-end gap-2">
-              <motion.button
-                onClick={handleRealtimeSend}
-                disabled={rtSending}
-                className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
-                whileTap={{ scale: 0.95 }}
-              >
-                <FaPaperPlane className="w-4 h-4" /> 发送
-              </motion.button>
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <div className="text-xs text-gray-400">{message.length}/{MAX_MESSAGE_LEN}</div>
+            {guestMode && !guestHintDismissed && (
+              <div className="text-xs text-gray-500 flex items-center gap-2">
+                <span>当前以游客身份使用，会话通过浏览器 Cookie 保存。</span>
+                <button
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  onClick={() => setGuestHintDismissed(true)}
+                  title="不再提示"
+                >
+                  <FaTimes className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+          </div>
+          
+          {sendError && (
+            <div className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-lg p-3">
+              {sendError}
             </div>
-            <div className="mt-4">
-              {rtHistory.length > 0 ? (
-                <div className="space-y-2 max-h-[45vh] overflow-auto pr-1">
-                  {rtHistory.map((m, idx) => (
-                    <div key={idx} className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {m.role === 'user' ? (
-                        <div className="p-3 rounded-lg border border-gray-200 bg-white order-1">
-                          <div className="text-xs text-gray-500 mb-1">用户</div>
-                          <div
-                            className="prose prose-sm max-w-none"
-                            dangerouslySetInnerHTML={{ __html: renderMarkdown(m.content) }}
-                          />
-                        </div>
-                      ) : (
-                        <div className="hidden sm:block"></div>
-                      )}
-                      {m.role !== 'user' ? (
-                        <div className="p-3 rounded-lg border border-gray-200 bg-white order-2">
-                          <div className="text-xs text-gray-500 mb-1">助手{rtStreaming && idx === rtHistory.length - 1 ? '（生成中...）' : ''}</div>
-                          <div
-                            className="prose prose-sm max-w-none"
-                            dangerouslySetInnerHTML={{ __html: renderMarkdown(sanitizeAssistantText(m.content)) }}
-                          />
-                        </div>
-                      ) : (
-                        <div className="hidden sm:block order-2"></div>
-                      )}
+          )}
+          
+          <div className="flex flex-wrap gap-3">
+            <motion.button
+              onClick={handleSend}
+              disabled={sending}
+              className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium flex items-center gap-2 disabled:opacity-50"
+              whileTap={{ scale: 0.95 }}
+            >
+              <FaPaperPlane className="w-4 h-4" />
+              {sending ? '发送中...' : '发送'}
+            </motion.button>
+            <motion.button
+              onClick={handleClear}
+              className="px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
+              whileTap={{ scale: 0.95 }}
+            >
+              清除历史
+            </motion.button>
+            <motion.button
+              onClick={openRealtimeDialog}
+              className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-medium flex items-center gap-2"
+              title="打开单次实时对话框"
+              whileTap={{ scale: 0.95 }}
+            >
+              <FaPaperPlane className="w-4 h-4" />
+              单次对话
+            </motion.button>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* 聊天历史 */}
+      <motion.div
+        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <FaHistory className="text-lg text-blue-500" />
+            聊天历史
+          </h3>
+          <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
+            <span>第 {page} / {history?.totalPages || 1} 页，共 {history?.total || 0} 条</span>
+            <motion.button
+              onClick={refreshHistory}
+              className="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-50 transition flex items-center gap-1"
+              title="刷新"
+              whileTap={{ scale: 0.95 }}
+            >
+              <FaRedo className="w-3 h-3" />
+              刷新
+            </motion.button>
+            <motion.button
+              onClick={exportCurrentPage}
+              className="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-50 transition flex items-center gap-1"
+              title="导出本页"
+              whileTap={{ scale: 0.95 }}
+            >
+              <FaDownload className="w-3 h-3" />
+              导出本页
+            </motion.button>
+            <motion.button
+              onClick={exportAll}
+              className="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-50 transition flex items-center gap-1"
+              title="导出全部"
+              whileTap={{ scale: 0.95 }}
+            >
+              <FaDownload className="w-3 h-3" />
+              导出全部
+            </motion.button>
+            <motion.button
+              onClick={handleBatchDelete}
+              disabled={selectedIds.length === 0}
+              className={`px-3 py-1 rounded-lg border transition flex items-center gap-1 ${
+                selectedIds.length === 0 
+                  ? 'border-gray-200 text-gray-300' 
+                  : 'border-red-200 text-red-600 hover:bg-red-50'
+              }`}
+              title="批量删除所选"
+              whileTap={{ scale: 0.95 }}
+            >
+              <FaTrash className="w-3 h-3" />
+              批量删除
+            </motion.button>
+          </div>
+        </div>
+        {loadingHistory ? (
+          <div className="text-center py-8 text-gray-500">
+            <svg className="animate-spin h-8 w-8 mx-auto mb-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            加载中...
+          </div>
+        ) : (
+          <div className="max-h-[60vh] overflow-auto pr-1">
+                          {streaming && (
+                <motion.div 
+                  className="mb-4 p-4 border border-gray-200 rounded-lg bg-white"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
+                      <FaRobot className="w-4 h-4 text-white" />
                     </div>
-                  ))}
-                </div>
-              ) : rtStreaming || rtStreamContent ? (
-                <div className="p-3 rounded-lg border border-gray-200 bg-white">
-                  <div className="text-xs text-gray-500 mb-1">助手{rtStreaming ? '（生成中...）' : ''}</div>
-                  <div
-                    className="prose prose-sm max-w-none"
-                    dangerouslySetInnerHTML={{ __html: renderMarkdown(sanitizeAssistantText(rtStreamContent || '')) }}
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-green-700">助手</span>
+                      <span className="text-xs text-gray-500">生成中...</span>
+                    </div>
+                  </div>
+                <div
+                  className="prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ __html: renderMarkdown(sanitizeAssistantText(streamContent || '...')) }}
+                />
+              </motion.div>
+            )}
+            {history && history.history.length > 0 ? (
+              <div className="space-y-4">
+                {history.history.map((m: HistoryItem, idx: number) => (
+                  <motion.div 
+                    key={idx} 
+                    className="p-4 border border-gray-200 rounded-lg bg-white"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.05 * idx }}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                            m.role === 'user' 
+                              ? 'bg-blue-500' 
+                              : 'bg-green-500'
+                          }`}>
+                            {m.role === 'user' ? (
+                              <FaUser className="w-4 h-4 text-white" />
+                            ) : (
+                              <FaRobot className="w-4 h-4 text-white" />
+                            )}
+                          </div>
+                          <div className="flex flex-col">
+                            <span className={`text-sm font-medium ${
+                              m.role === 'user' 
+                                ? 'text-blue-700' 
+                                : 'text-green-700'
+                            }`}>
+                              {m.role === 'user' ? '用户' : '助手'}
+                            </span>
+                            {m.createdAt && (
+                              <span className="text-xs text-gray-500">{m.createdAt}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {m.id && (
+                          <input
+                            type="checkbox"
+                            className="w-4 h-4"
+                            checked={selectedIds.includes(m.id)}
+                            onChange={() => toggleSelect(m.id)}
+                            title="选择此消息"
+                          />
+                        )}
+                        <motion.button
+                          onClick={() => copyText(m.role === 'user' ? m.content : sanitizeAssistantText(m.content))}
+                          className="px-2 py-1 text-xs rounded border border-gray-300 hover:bg-gray-50 transition flex items-center gap-1"
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          <FaCopy className="w-3 h-3" />
+                          复制
+                        </motion.button>
+                      </div>
+                    </div>
+                    <div
+                      className="prose prose-sm max-w-none bg-gray-50 p-3 rounded border"
+                      dangerouslySetInnerHTML={{ __html: renderMarkdown(m.role === 'user' ? m.content : sanitizeAssistantText(m.content)) }}
+                    />
+                    {m.id && (
+                      <div className="mt-3 flex justify-end gap-2">
+                        <motion.button
+                          onClick={() => handleEdit(m.id, m.content)}
+                          className="px-3 py-1 text-xs rounded border border-gray-300 hover:bg-gray-50 transition flex items-center gap-1"
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          <FaEdit className="w-3 h-3" />
+                          编辑
+                        </motion.button>
+                        <motion.button
+                          onClick={() => handleDelete(m.id)}
+                          className="px-3 py-1 text-xs rounded border border-red-200 text-red-600 hover:bg-red-50 transition flex items-center gap-1"
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          <FaTrash className="w-3 h-3" />
+                          删除
+                        </motion.button>
+                      </div>
+                    )}
+                  </motion.div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-gray-500">
+                <FaHistory className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                暂无历史记录
+              </div>
+            )}
+          </div>
+        )}
+        {/* 分页控制 */}
+        {history && history.history.length > 0 && (
+          <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
+            <motion.button
+              className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition flex items-center gap-2"
+              disabled={page <= 1}
+              onClick={() => fetchHistory(Math.max(1, page - 1))}
+              whileTap={{ scale: 0.95 }}
+            >
+              <FaChevronLeft className="text-xs" />
+              上一页
+            </motion.button>
+            <motion.button
+              className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition flex items-center gap-2"
+              disabled={history ? page >= history.totalPages : true}
+              onClick={() => fetchHistory(page + 1)}
+              whileTap={{ scale: 0.95 }}
+            >
+              下一页
+              <FaChevronRight className="text-xs" />
+            </motion.button>
+          </div>
+        )}
+      </motion.div>
+
+      {/* 单次实时对话框 */}
+      <AnimatePresence>
+        {rtOpen && (
+          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="w-full max-w-2xl bg-white rounded-xl p-6 shadow-sm border border-gray-200 relative"
+            >
+              <div className="flex items-center mb-4 pr-10">
+                <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                  <FaPaperPlane className="text-blue-500" />
+                  实时对话（支持上下文）
+                </h3>
+                <button
+                  onClick={closeRealtimeDialog}
+                  className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-100 bg-white transition-colors"
+                  aria-label="关闭"
+                  title="关闭"
+                >
+                  <FaTimes className="w-4 h-4" />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <input
+                    className="border-2 border-gray-200 rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                    placeholder="请输入 Token"
+                    value={token}
+                    onChange={(e) => setToken(e.target.value)}
+                  />
+                  <input
+                    className="border-2 border-gray-200 rounded-lg px-3 py-2 w-full sm:col-span-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                    placeholder="请输入消息（支持上下文）"
+                    value={rtMessage}
+                    maxLength={MAX_MESSAGE_LEN}
+                    onChange={(e) => onChangeRtMessage(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !rtSending && !rtStreaming) handleRealtimeSend(); }}
                   />
                 </div>
-              ) : (
-                <div className="text-gray-400 text-sm">输入内容并点击发送以开始单次对话。</div>
-              )}
-            </div>
-          </motion.div>
-        </div>
-      )}
-    </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="text-xs text-gray-400">{rtMessage.length}/{MAX_MESSAGE_LEN}</div>
+                  {rtError && <div className="text-red-500 text-sm">{rtError}</div>}
+                </div>
+                
+                <div className="flex items-center justify-end gap-2">
+                  <motion.button
+                    onClick={handleRealtimeSend}
+                    disabled={rtSending}
+                    className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <FaPaperPlane className="w-4 h-4" />
+                    {rtSending ? '发送中...' : '发送'}
+                  </motion.button>
+                </div>
+                
+                <div className="mt-4">
+                  {rtHistory.length > 0 ? (
+                    <div className="space-y-3 max-h-[45vh] overflow-auto pr-1">
+                      {rtHistory.map((m, idx) => (
+                        <motion.div 
+                          key={idx} 
+                          className="p-4 border border-gray-200 rounded-lg bg-white"
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                        >
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                              m.role === 'user' 
+                                ? 'bg-blue-500' 
+                                : 'bg-green-500'
+                            }`}>
+                              {m.role === 'user' ? (
+                                <FaUser className="w-4 h-4 text-white" />
+                              ) : (
+                                <FaRobot className="w-4 h-4 text-white" />
+                              )}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className={`text-sm font-medium ${
+                                m.role === 'user' 
+                                  ? 'text-blue-700' 
+                                  : 'text-green-700'
+                              }`}>
+                                {m.role === 'user' ? '用户' : '助手'}
+                                {rtStreaming && idx === rtHistory.length - 1 ? '（生成中...）' : ''}
+                              </span>
+                            </div>
+                          </div>
+                          <div
+                            className="prose prose-sm max-w-none bg-gray-50 p-3 rounded border"
+                            dangerouslySetInnerHTML={{ __html: renderMarkdown(m.role === 'user' ? m.content : sanitizeAssistantText(m.content)) }}
+                          />
+                        </motion.div>
+                      ))}
+                    </div>
+                  ) : rtStreaming || rtStreamContent ? (
+                    <motion.div 
+                      className="p-4 border border-gray-200 rounded-lg bg-white"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                    >
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
+                          <FaRobot className="w-4 h-4 text-white" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-green-700">
+                            助手{rtStreaming ? '（生成中...）' : ''}
+                          </span>
+                        </div>
+                      </div>
+                      <div
+                        className="prose prose-sm max-w-none bg-gray-50 p-3 rounded border"
+                        dangerouslySetInnerHTML={{ __html: renderMarkdown(sanitizeAssistantText(rtStreamContent || '')) }}
+                      />
+                    </motion.div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <FaPaperPlane className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                      输入内容并点击发送以开始单次对话
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 };
 

@@ -806,21 +806,17 @@ const App: React.FC = () => {
                 )
               } />
               <Route path="/librechat" element={
-                user ? (
-                  <Suspense fallback={<LoadingSpinner />}>
-                    <motion.div
-                      variants={pageVariants}
-                      initial="initial"
-                      animate="in"
-                      exit="out"
-                      transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
-                    >
-                      <LibreChatPage />
-                    </motion.div>
-                  </Suspense>
-                ) : (
-                  <Navigate to="/welcome" replace state={{ from: location.pathname }} />
-                )
+                <Suspense fallback={<LoadingSpinner />}>
+                  <motion.div
+                    variants={pageVariants}
+                    initial="initial"
+                    animate="in"
+                    exit="out"
+                    transition={{ type: "tween", ease: "easeInOut", duration: 0.4 }}
+                  >
+                    <LibreChatPage />
+                  </motion.div>
+                </Suspense>
               } />
               <Route path="/tiger-adventure" element={
                 <Suspense fallback={<LoadingSpinner />}>

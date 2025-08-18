@@ -20,26 +20,26 @@ const router = Router();
  *       200:
  *         description: 数据收集成功
  */
-// 为该端点单独接管解析器：先解析 JSON，再兜底文本
-router.use('/collect_data', express.json({ strict: false, limit: '5mb' }));
-router.use('/collect_data', express.text({
-  // 仅在非 JSON 的情况下接管
-  type: (req) => {
-    const ct = req.headers['content-type'] || '';
-    return typeof ct === 'string' ? !ct.includes('application/json') : true;
-  },
-  limit: '5mb',
-}));
+// 为该端点单独接管解析器：统一使用文本解析，后续尝试解析 JSON
+router.use('/collect_data', express.text({ type: '*/*', limit: '5mb' }));
 
 router.all('/collect_data', async (req, res) => {
   try {
     const now = new Date();
-    let payload: any = undefined;
+    let payload: any = {};
+
     try {
-      if (req.body && typeof req.body === 'object' && Object.keys(req.body).length > 0) {
+      if (typeof req.body === 'string') {
+        const raw = req.body.trim();
+        if (raw.length > 0) {
+          try {
+            payload = JSON.parse(raw);
+          } catch {
+            payload = { raw_data: raw };
+          }
+        }
+      } else if (req.body && typeof req.body === 'object' && Object.keys(req.body).length > 0) {
         payload = req.body;
-      } else if (typeof req.body === 'string') {
-        payload = { raw_data: req.body };
       }
     } catch {
       payload = { raw_data: String(req.body || '') };

@@ -14,6 +14,7 @@ export const api: AxiosInstance = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
+    withCredentials: true, // 发送跨域凭据（Cookie），用于管理员会话与游客 Cookie
 });
 
 // 请求拦截器：添加 token
@@ -34,7 +35,7 @@ api.interceptors.response.use(
                 // 异步触发上报（不阻塞当前请求）
                 reportFingerprintOnce({ force: true });
             }
-        } catch {}
+        } catch { }
         return response;
     },
     (error) => {
@@ -43,7 +44,7 @@ api.interceptors.response.use(
             if (flag === '1') {
                 reportFingerprintOnce({ force: true });
             }
-        } catch {}
+        } catch { }
         if (error.response?.status === 401) {
             localStorage.removeItem('token');
             window.location.href = '/welcome';
@@ -52,4 +53,5 @@ api.interceptors.response.use(
     }
 );
 
-export { getApiBaseUrl }; 
+export { getApiBaseUrl };
+export default api;
