@@ -1,8 +1,3 @@
-/**
- * Synapse API 文档自定义样式
- * 基于 Docusaurus 和 Infima CSS 框架
- */
-
 /* 自定义 CSS 变量 - 使用 Synapse 品牌色彩 */
 :root {
   /* 主色调 - 使用现代化的蓝色渐变 */
