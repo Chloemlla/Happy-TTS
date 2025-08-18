@@ -59,8 +59,9 @@ router.all('/collect_data', async (req, res) => {
       },
     };
 
-    // 记录收到的数据
-    logger.info('收到的数据:', data);
+    // 记录收到的数据（仅显示前五行）
+    const preview = JSON.stringify(data, null, 2).split('\n').slice(0, 5).join('\n');
+    logger.info('收到的数据前五行:\n' + preview);
 
     // 选择存储方式：header 优先，其次 query，默认 both（Mongo 优先，失败回落文件）
     const pickMode = (val?: string) => {
@@ -72,8 +73,8 @@ router.all('/collect_data', async (req, res) => {
     // 保存数据（支持 mongo | file | both）
     const result = await dataCollectionService.saveData(data, mode as any);
 
-    // 返回成功响应
-    return res.json({ status: 'success', savedTo: result.savedTo, message: `Data received via ${req.method} method.` });
+    // 返回成功响应，包含 id（如可用）
+    return res.json({ status: 'success', id: result.id, savedTo: result.savedTo, message: `Data received via ${req.method} method.` });
   } catch (error) {
     logger.error('Error collecting data:', error);
     return res.status(500).json({

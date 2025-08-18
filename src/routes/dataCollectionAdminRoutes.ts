@@ -86,8 +86,9 @@ router.get('/:id/raw', ...guard, async (req: Request, res: Response) => {
 });
 
 // DELETE /api/data-collection/admin/:id
-router.delete('/:id', ...guard, async (req: Request, res: Response) => {
+router.delete('/:id', ...guard, async (req: Request, res: Response, next) => {
   try {
+    if (req.params.id === 'all') return next();
     const result = await dataCollectionService.deleteById(req.params.id);
     res.json({ success: result.deleted });
   } catch (e: any) {
@@ -108,6 +109,19 @@ router.post('/delete-batch', ...guard, async (req: Request, res: Response) => {
   } catch (e: any) {
     logger.error('[DataCollectionAdmin] deleteBatch error:', e);
     res.status(500).json({ success: false, message: e?.message || 'delete batch error' });
+  }
+});
+
+// DELETE /api/data-collection/admin/all
+router.delete('/all', ...guard, async (req: Request, res: Response) => {
+  try {
+    const { confirm } = (req.body || {}) as { confirm?: boolean };
+    const { statusCode, body } = await dataCollectionService.deleteAllAction({ confirm });
+    logger.info('[DataCollectionAdmin] deleteAllAction', { statusCode, body });
+    res.status(statusCode).json(body);
+  } catch (e: any) {
+    logger.error('[DataCollectionAdmin] deleteAll error:', e);
+    res.status(500).json({ success: false, message: e?.message || 'delete all error' });
   }
 });
 

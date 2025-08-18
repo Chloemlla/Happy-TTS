@@ -336,7 +336,7 @@ class DataCollectionService {
     }
   }
 
-  private async saveToMongo(data: any): Promise<void> {
+  private async saveToMongo(data: any): Promise<string> {
     if (mongoose.connection.readyState !== 1) {
       throw new Error('MongoDB 未连接');
     }
@@ -354,8 +354,9 @@ class DataCollectionService {
       tags: Array.isArray(data.tags) ? data.tags.slice(0, 50) : [],
       encryptedRaw: data.encryptedRaw || undefined,
     } as any;
-    await DataCollectionModel.create(doc);
+    const created = await DataCollectionModel.create(doc);
     logger.info('Data saved to MongoDB');
+    return (created && (created as any)._id) ? String((created as any)._id) : '';
   }
 
   private async saveToFile(data: any): Promise<void> {
@@ -382,14 +383,14 @@ class DataCollectionService {
     logger.info('Data saved to local file');
   }
 
-  public async saveData(data: any, mode: StorageMode = 'both'): Promise<{ savedTo: StorageMode | 'mongo_fallback_file' }>{
+  public async saveData(data: any, mode: StorageMode = 'both'): Promise<{ savedTo: StorageMode | 'mongo_fallback_file'; id?: string }>{
     this.validate(data);
     // 智能预处理与分析
     const prepared = await this.prepareRecord(data);
 
     if (mode === 'mongo') {
-      await this.saveToMongo(prepared);
-      return { savedTo: 'mongo' };
+      const id = await this.saveToMongo(prepared);
+      return { savedTo: 'mongo', id };
     }
     if (mode === 'file') {
       await this.saveToFile(prepared);
@@ -397,8 +398,8 @@ class DataCollectionService {
     }
     // both: 优先 Mongo，失败则文件兜底
     try {
-      await this.saveToMongo(prepared);
-      return { savedTo: 'both' };
+      const id = await this.saveToMongo(prepared);
+      return { savedTo: 'both', id };
     } catch (err) {
       logger.error('MongoDB 保存失败，回退到本地文件:', err);
       await this.saveToFile(prepared);
@@ -472,6 +473,26 @@ class DataCollectionService {
     if (validIds.length === 0) return { deletedCount: 0 };
     const res = await Model.deleteMany({ _id: { $in: validIds } });
     return { deletedCount: res.deletedCount || 0 };
+  }
+
+  // 删除全部数据收集记录（管理员）
+  public async deleteAll(): Promise<{ deletedCount: number }>{
+    if (!this.isMongoReady()) throw new Error('MongoDB 未连接');
+    const Model = mongoose.models.DataCollection as any;
+    const before = await Model.estimatedDocumentCount();
+    const ret = await Model.deleteMany({});
+    const deletedCount = typeof ret?.deletedCount === 'number' ? ret.deletedCount : 0;
+    logger.info('[DataCollection] deleteAll completed', { before, deletedCount });
+    return { deletedCount };
+  }
+
+  // Action 版本：封装确认校验与响应体
+  public async deleteAllAction(payload: { confirm?: boolean }): Promise<{ statusCode: number; body: any }>{
+    if (!payload?.confirm) {
+      return { statusCode: 400, body: { success: false, message: 'confirm required' } };
+    }
+    const { deletedCount } = await this.deleteAll();
+    return { statusCode: 200, body: { success: true, deletedCount } };
   }
 
   public async stats() {

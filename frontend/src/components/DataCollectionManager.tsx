@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useDeferredValue, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { getApiBaseUrl } from '../api/api';
-import { FaChartBar, FaSync, FaSearch, FaRedo, FaTrash, FaEye, FaTimes, FaPlus } from 'react-icons/fa';
+import { FaChartBar, FaSync, FaSearch, FaRedo, FaTrash, FaEye, FaTimes, FaPlus, FaClipboard, FaCopy } from 'react-icons/fa';
 import { useNotification } from './Notification';
 import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -92,6 +92,8 @@ const DataCollectionManager: React.FC = () => {
     const [stats, setStats] = useState<any>(null);
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [viewItem, setViewItem] = useState<Item | null>(null);
+    const [batchLoading, setBatchLoading] = useState(false);
+    const [batchView, setBatchView] = useState<null | { ids: string[]; items: any[] }>(null);
     // Create modal state
     const [creating, setCreating] = useState(false);
     const [newUserId, setNewUserId] = useState('');
@@ -285,6 +287,72 @@ const DataCollectionManager: React.FC = () => {
         }
     };
 
+    // 选择与聚合辅助
+    const requireSelection = (): string[] | null => {
+        const ids = Array.from(selected);
+        if (!ids.length) {
+            setNotification({ type: 'warning', message: '请先选择要操作的记录' });
+            return null;
+        }
+        return ids;
+    };
+
+    const copySelectedIds = async () => {
+        const ids = requireSelection();
+        if (!ids) return;
+        try {
+            await navigator.clipboard.writeText(ids.join('\n'));
+            setNotification({ type: 'success', message: `已复制 ${ids.length} 个ID` });
+        } catch (e: any) {
+            setNotification({ type: 'error', message: e?.message || '复制失败' });
+        }
+    };
+
+    const fetchDetailsByIds = async (ids: string[]) => {
+        const results: any[] = [];
+        for (const id of ids) {
+            try {
+                const res = await fetch(`${base}/api/data-collection/admin/${id}`, { headers: buildHeaders() });
+                const data = await res.json();
+                if (res.ok && data?.success !== false && data?.data) results.push(data.data);
+                else results.push({ _id: id, error: data?.message || 'not_ok' });
+            } catch (e: any) {
+                results.push({ _id: id, error: e?.message || 'fetch_error' });
+            }
+        }
+        return results;
+    };
+
+    const viewSelectedLogs = async () => {
+        const ids = requireSelection();
+        if (!ids) return;
+        setBatchLoading(true);
+        try {
+            const details = await fetchDetailsByIds(ids);
+            setBatchView({ ids, items: details });
+        } catch (e: any) {
+            setNotification({ type: 'error', message: e?.message || '加载日志失败' });
+        } finally {
+            setBatchLoading(false);
+        }
+    };
+
+    const copySelectedLogs = async () => {
+        const ids = requireSelection();
+        if (!ids) return;
+        setBatchLoading(true);
+        try {
+            const details = await fetchDetailsByIds(ids);
+            const text = JSON.stringify({ ids, items: details }, null, 2);
+            await navigator.clipboard.writeText(text);
+            setNotification({ type: 'success', message: `已复制 ${ids.length} 条日志 JSON` });
+        } catch (e: any) {
+            setNotification({ type: 'error', message: e?.message || '复制失败' });
+        } finally {
+            setBatchLoading(false);
+        }
+    };
+
     const onView = useCallback((it: Item) => setViewItem(it), []);
 
     return (
@@ -323,6 +391,38 @@ const DataCollectionManager: React.FC = () => {
                             className="w-full sm:w-auto px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium flex items-center gap-2"
                         >
                             <FaPlus className="w-4 h-4" /> 新增记录
+                        </button>
+                        <button onClick={viewSelectedLogs} disabled={batchLoading || selected.size === 0} className="w-full sm:w-auto px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium flex items-center gap-2">
+                          <FaEye className="w-4 h-4" /> 查看合并
+                        </button>
+                        <button onClick={copySelectedIds} disabled={selected.size === 0} className="w-full sm:w-auto px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium flex items-center gap-2">
+                          <FaCopy className="w-4 h-4" /> 复制ID
+                        </button>
+                        <button onClick={copySelectedLogs} disabled={batchLoading || selected.size === 0} className="w-full sm:w-auto px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium flex items-center gap-2">
+                          <FaClipboard className="w-4 h-4" /> 一键复制日志
+                        </button>
+                        <button
+                            onClick={async () => {
+                                if (!confirm('确认删除全部数据收集记录？该操作不可恢复。')) return;
+                                try {
+                                    const res = await fetch(`${base}/api/data-collection/admin/all`, {
+                                        method: 'DELETE',
+                                        headers: buildHeaders(),
+                                        body: JSON.stringify({ confirm: true })
+                                    });
+                                    const data = await res.json();
+                                    if (!res.ok || data.success === false) throw new Error(data.message || '删除失败');
+                                    setNotification({ type: 'success', message: `已删除 ${data.deletedCount || 0} 条记录` });
+                                    setSelected(new Set());
+                                    setPage(1);
+                                    await fetchList();
+                                } catch (e: any) {
+                                    setNotification({ type: 'error', message: e?.message || '删除失败' });
+                                }
+                            }}
+                            className="w-full sm:w-auto px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium flex items-center gap-2"
+                        >
+                            <FaTrash className="w-4 h-4" /> 删除全部
                         </button>
                     </div>
                 </div>
@@ -466,9 +566,39 @@ const DataCollectionManager: React.FC = () => {
                     >
                         <div className="flex items-center justify-between mb-3">
                             <div className="font-semibold text-gray-900">记录详情</div>
-                            <button className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2" onClick={() => setViewItem(null)}>
-                                <FaTimes className="w-4 h-4" /> 关闭
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await navigator.clipboard.writeText(JSON.stringify(viewItem, null, 2));
+                                    setNotification({ type: 'success', message: '已复制' });
+                                  } catch (e: any) {
+                                    setNotification({ type: 'error', message: e?.message || '复制失败' });
+                                  }
+                                }}
+                                className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2"
+                              >
+                                <FaClipboard className="w-4 h-4" /> 复制
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    const id = (viewItem as any)?._id || '';
+                                    if (!id) { setNotification({ type: 'warning', message: '无ID可复制' }); return; }
+                                    await navigator.clipboard.writeText(String(id));
+                                    setNotification({ type: 'success', message: 'ID 已复制' });
+                                  } catch (e: any) {
+                                    setNotification({ type: 'error', message: e?.message || '复制失败' });
+                                  }
+                                }}
+                                className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2"
+                              >
+                                <FaCopy className="w-4 h-4" /> 复制ID
+                              </button>
+                              <button className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2" onClick={() => setViewItem(null)}>
+                                  <FaTimes className="w-4 h-4" /> 关闭
+                              </button>
+                            </div>
                         </div>
                         {(() => {
                             const raw: any = (viewItem as any)?.details?.payload?.raw_data;
@@ -575,6 +705,28 @@ const DataCollectionManager: React.FC = () => {
                         </div>
                     </motion.div>
                 </div>
+            )}
+
+            {/* Batch View Modal */}
+            {batchView && (
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setBatchView(null)}>
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-[95vw] max-w-5xl max-h-[80vh] overflow-auto rounded-2xl bg-white/90 backdrop-blur p-4 sm:p-6 border border-white/20 shadow-xl" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="font-semibold text-gray-900">合并日志（{batchView.ids.length} 条）</div>
+                    <div className="flex items-center gap-2">
+                      <button onClick={async ()=>{ try { await navigator.clipboard.writeText(JSON.stringify(batchView, null, 2)); setNotification({ type:'success', message:'已复制' }); } catch(e:any){ setNotification({ type:'error', message:e?.message||'复制失败' }); } }} className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2">
+                        <FaClipboard className="w-4 h-4" /> 复制
+                      </button>
+                      <button onClick={() => setBatchView(null)} className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2">
+                        <FaTimes className="w-4 h-4" /> 关闭
+                      </button>
+                    </div>
+                  </div>
+                  <SyntaxHighlighter language={'json'} style={vscDarkPlus} wrapLongLines customStyle={{ background: '#1e1e1e', borderRadius: '0.5rem', maxHeight: '70vh' }}>
+                    {JSON.stringify(batchView, null, 2)}
+                  </SyntaxHighlighter>
+                </motion.div>
+              </div>
             )}
         </div>
     );
