@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useDeferredValue, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { getApiBaseUrl } from '../api/api';
 import { FaChartBar, FaSync, FaSearch, FaRedo, FaTrash, FaEye, FaTimes, FaPlus } from 'react-icons/fa';
@@ -7,19 +7,9 @@ import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import jsonLang from 'react-syntax-highlighter/dist/esm/languages/prism/json';
 import jsLang from 'react-syntax-highlighter/dist/esm/languages/prism/javascript';
-import tsLang from 'react-syntax-highlighter/dist/esm/languages/prism/typescript';
-import tsxLang from 'react-syntax-highlighter/dist/esm/languages/prism/tsx';
-import jsxLang from 'react-syntax-highlighter/dist/esm/languages/prism/jsx';
-import javaLang from 'react-syntax-highlighter/dist/esm/languages/prism/java';
 
 SyntaxHighlighter.registerLanguage('json', jsonLang);
 SyntaxHighlighter.registerLanguage('javascript', jsLang);
-SyntaxHighlighter.registerLanguage('js', jsLang);
-SyntaxHighlighter.registerLanguage('typescript', tsLang);
-SyntaxHighlighter.registerLanguage('ts', tsLang);
-SyntaxHighlighter.registerLanguage('tsx', tsxLang);
-SyntaxHighlighter.registerLanguage('jsx', jsxLang);
-SyntaxHighlighter.registerLanguage('java', javaLang);
 
 interface Item {
     _id: string;
@@ -34,6 +24,59 @@ type SortOrder = 'asc' | 'desc';
 const jsonPretty = (obj: any) => {
     try { return JSON.stringify(obj, null, 2); } catch { return String(obj); }
 };
+
+// Memoized desktop row
+const DataRow = React.memo(({ item, checked, onToggle, onView, onDelete }: {
+    item: Item; checked: boolean; onToggle: (id: string) => void; onView: (it: Item) => void; onDelete: (id: string) => void;
+}) => {
+    return (
+        <tr className="border-t border-gray-100 hover:bg-gray-50">
+            <td className="p-3"><input type="checkbox" checked={checked} onChange={() => onToggle(item._id)} /></td>
+            <td className="p-3 whitespace-nowrap">{new Date(item.timestamp).toLocaleString('zh-CN')}</td>
+            <td className="p-3 break-words whitespace-normal" title={item.userId}>{item.userId}</td>
+            <td className="p-3 break-words whitespace-normal" title={item.action}>{item.action}</td>
+            <td className="p-3">
+                <div className="flex flex-wrap gap-2">
+                    <button className="px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-medium flex items-center gap-2" onClick={() => onView(item)}>
+                        <FaEye className="w-3.5 h-3.5" /> 查看
+                    </button>
+                    <button className="px-2 py-1 rounded-lg bg-red-500 text-white hover:bg-red-600 text-xs font-medium" onClick={() => onDelete(item._id)}>
+                        删除
+                    </button>
+                </div>
+            </td>
+        </tr>
+    );
+});
+
+// Memoized mobile card
+const DataCard = React.memo(({ item, checked, onToggle, onView, onDelete }: {
+    item: Item; checked: boolean; onToggle: (id: string) => void; onView: (it: Item) => void; onDelete: (id: string) => void;
+}) => {
+    return (
+        <div className="p-4">
+            <div className="flex items-start gap-3">
+                <input type="checkbox" className="mt-1 flex-shrink-0" checked={checked} onChange={() => onToggle(item._id)} />
+                <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-indigo-100 text-indigo-700" title={item.action}>动作</span>
+                        <span className="inline-block px-2 py-0.5 rounded text-[10px] font-mono bg-gray-100 text-gray-700 break-words whitespace-normal max-w-full" title={item.action}>{item.action}</span>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">{new Date(item.timestamp).toLocaleString('zh-CN')}</div>
+                    <div className="text-xs text-gray-600 mt-1 break-words whitespace-normal" title={item.userId}>用户：{item.userId || '-'}</div>
+                </div>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+                <button className="w-full px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-medium flex items-center justify-center gap-1" onClick={() => onView(item)}>
+                    <FaEye className="w-3.5 h-3.5" /> 查看
+                </button>
+                <button className="w-full px-3 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 text-xs font-medium" onClick={() => onDelete(item._id)}>
+                    删除
+                </button>
+            </div>
+        </div>
+    );
+});
 
 const DataCollectionManager: React.FC = () => {
     const [page, setPage] = useState(1);
@@ -57,6 +100,10 @@ const DataCollectionManager: React.FC = () => {
     const [newDetailsRaw, setNewDetailsRaw] = useState(''); // string or JSON text
     const base = getApiBaseUrl();
     const { setNotification } = useNotification();
+
+    // Abort controllers
+    const listAbortRef = useRef<AbortController | null>(null);
+    const statsAbortRef = useRef<AbortController | null>(null);
 
     const buildHeaders = (): HeadersInit => {
         const token = localStorage.getItem('token');
@@ -107,8 +154,12 @@ const DataCollectionManager: React.FC = () => {
         }
     };
 
-    const fetchList = async () => {
+    const fetchList = useCallback(async () => {
         setLoading(true);
+        // cancel previous
+        if (listAbortRef.current) listAbortRef.current.abort();
+        const aborter = new AbortController();
+        listAbortRef.current = aborter;
         try {
             const params = new URLSearchParams();
             params.set('page', String(page));
@@ -120,6 +171,7 @@ const DataCollectionManager: React.FC = () => {
             if (end) params.set('end', new Date(end).toISOString());
             const res = await fetch(`${base}/api/data-collection/admin?${params.toString()}`, {
                 headers: buildHeaders(),
+                signal: aborter.signal,
             });
             if (res.status === 401) {
                 setNotification({ type: 'error', message: '未授权或登录已过期，请重新登录' });
@@ -129,17 +181,21 @@ const DataCollectionManager: React.FC = () => {
             if (!res.ok || data.success === false) throw new Error(data.message || '加载失败');
             setItems(data.items || []);
             setTotal(data.total || 0);
-        } catch (e) {
-            console.error('[DataCollectionManager] list error', e);
+        } catch (e: any) {
+            if (e?.name !== 'AbortError') console.error('[DataCollectionManager] list error', e);
         } finally {
             setLoading(false);
         }
-    };
+    }, [base, page, limit, sort, userId, action, start, end, setNotification]);
 
-    const fetchStats = async () => {
+    const fetchStats = useCallback(async () => {
+        if (statsAbortRef.current) statsAbortRef.current.abort();
+        const aborter = new AbortController();
+        statsAbortRef.current = aborter;
         try {
             const res = await fetch(`${base}/api/data-collection/admin/stats`, {
                 headers: buildHeaders(),
+                signal: aborter.signal,
             });
             if (res.status === 401) {
                 setNotification({ type: 'error', message: '未授权或登录已过期，请重新登录' });
@@ -147,19 +203,26 @@ const DataCollectionManager: React.FC = () => {
             }
             const data = await res.json();
             if (res.ok && data.success !== false) setStats(data.data);
-        } catch (e) {
-            console.error('[DataCollectionManager] stats error', e);
+        } catch (e: any) {
+            if (e?.name !== 'AbortError') console.error('[DataCollectionManager] stats error', e);
         }
-    };
+    }, [base, setNotification]);
 
     useEffect(() => {
         fetchList();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [page, limit, sort]);
+    }, [page, limit, sort, userId, action, start, end]);
 
     useEffect(() => {
         fetchStats();
         // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    useEffect(() => {
+        return () => {
+            if (listAbortRef.current) listAbortRef.current.abort();
+            if (statsAbortRef.current) statsAbortRef.current.abort();
+        };
     }, []);
 
     const totalPages = Math.max(1, Math.ceil(total / Math.max(1, limit)));
@@ -169,13 +232,17 @@ const DataCollectionManager: React.FC = () => {
         else setSelected(new Set(items.map(i => i._id)));
     };
 
-    const toggleOne = (id: string) => {
-        const next = new Set(selected);
-        if (next.has(id)) next.delete(id); else next.add(id);
-        setSelected(next);
-    };
+    const toggleOne = useCallback((id: string) => {
+        setSelected(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+        });
+    }, []);
 
-    const deleteOne = async (id: string) => {
+    const deferredItems = useDeferredValue(items);
+
+    const deleteOne = useCallback(async (id: string) => {
         if (!confirm('确认删除该记录？')) return;
         try {
             const res = await fetch(`${base}/api/data-collection/admin/${id}`, {
@@ -193,7 +260,7 @@ const DataCollectionManager: React.FC = () => {
         } catch (e) {
             setNotification({ type: 'error', message: '删除失败' });
         }
-    };
+    }, [base, fetchList, setNotification]);
 
     const deleteBatch = async () => {
         const ids = Array.from(selected);
@@ -217,6 +284,8 @@ const DataCollectionManager: React.FC = () => {
             setNotification({ type: 'error', message: '批量删除失败' });
         }
     };
+
+    const onView = useCallback((it: Item) => setViewItem(it), []);
 
     return (
         <div className="max-w-7xl mx-auto px-4 space-y-6">
@@ -345,30 +414,10 @@ const DataCollectionManager: React.FC = () => {
 
                 {/* Mobile Cards */}
                 <div className="block md:hidden divide-y divide-gray-100">
-                    {items.map(item => (
-                        <div key={item._id} className="p-4">
-                            <div className="flex items-start gap-3">
-                                <input type="checkbox" className="mt-1 flex-shrink-0" checked={selected.has(item._id)} onChange={() => toggleOne(item._id)} />
-                                <div className="min-w-0 flex-1">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-indigo-100 text-indigo-700" title={item.action}>动作</span>
-                                        <span className="inline-block px-2 py-0.5 rounded text-[10px] font-mono bg-gray-100 text-gray-700 break-words whitespace-normal max-w-full" title={item.action}>{item.action}</span>
-                                    </div>
-                                    <div className="text-xs text-gray-500 mt-1">{new Date(item.timestamp).toLocaleString('zh-CN')}</div>
-                                    <div className="text-xs text-gray-600 mt-1 break-words whitespace-normal" title={item.userId}>用户：{item.userId || '-'}</div>
-                                </div>
-                            </div>
-                            <div className="mt-3 grid grid-cols-2 gap-2">
-                                <button className="w-full px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-medium flex items-center justify-center gap-1" onClick={() => setViewItem(item)}>
-                                    <FaEye className="w-3.5 h-3.5" /> 查看
-                                </button>
-                                <button className="w-full px-3 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 text-xs font-medium" onClick={() => deleteOne(item._id)}>
-                                    删除
-                                </button>
-                            </div>
-                        </div>
+                    {deferredItems.map(item => (
+                        <DataCard key={item._id} item={item} checked={selected.has(item._id)} onToggle={toggleOne} onView={onView} onDelete={deleteOne} />
                     ))}
-                    {items.length === 0 && (
+                    {deferredItems.length === 0 && (
                         <div className="p-6 text-center text-gray-400">{loading ? '加载中…' : '暂无数据'}</div>
                     )}
                 </div>
@@ -386,25 +435,10 @@ const DataCollectionManager: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {items.map(item => (
-                                <tr key={item._id} className="border-t border-gray-100 hover:bg-gray-50">
-                                    <td className="p-3"><input type="checkbox" checked={selected.has(item._id)} onChange={() => toggleOne(item._id)} /></td>
-                                    <td className="p-3 whitespace-nowrap">{new Date(item.timestamp).toLocaleString('zh-CN')}</td>
-                                    <td className="p-3 break-words whitespace-normal" title={item.userId}>{item.userId}</td>
-                                    <td className="p-3 break-words whitespace-normal" title={item.action}>{item.action}</td>
-                                    <td className="p-3">
-                                        <div className="flex flex-wrap gap-2">
-                                            <button className="px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-medium flex items-center gap-2" onClick={() => setViewItem(item)}>
-                                                <FaEye className="w-3.5 h-3.5" /> 查看
-                                            </button>
-                                            <button className="px-2 py-1 rounded-lg bg-red-500 text-white hover:bg-red-600 text-xs font-medium" onClick={() => deleteOne(item._id)}>
-                                                删除
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
+                            {deferredItems.map(item => (
+                                <DataRow key={item._id} item={item} checked={selected.has(item._id)} onToggle={toggleOne} onView={onView} onDelete={deleteOne} />
                             ))}
-                            {items.length === 0 && (
+                            {deferredItems.length === 0 && (
                                 <tr><td className="p-6 text-center text-gray-400" colSpan={5}>{loading ? '加载中…' : '暂无数据'}</td></tr>
                             )}
                         </tbody>
@@ -440,10 +474,10 @@ const DataCollectionManager: React.FC = () => {
                             const raw: any = (viewItem as any)?.details?.payload?.raw_data;
                             if (typeof raw === 'string') {
                                 let txt = String(raw)
-                                    .replace(/\\r\\n/g, '\n')
-                                    .replace(/\\n/g, '\n')
-                                    .replace(/\\t/g, '\t');
-                                let lang: any = 'text';
+                                    .replace(/\r\n/g, '\n')
+                                    .replace(/\n/g, '\n')
+                                    .replace(/\t/g, '\t');
+                                let lang: any = 'javascript';
                                 let t = txt.trim();
 
                                 // 解析代码围栏 ```lang\n...\n```
@@ -452,10 +486,11 @@ const DataCollectionManager: React.FC = () => {
                                     const firstLine = firstNl !== -1 ? t.slice(0, firstNl) : t;
                                     const label = firstLine.replace(/^```/, '').trim().toLowerCase();
                                     const aliasMap: Record<string, string> = {
-                                      js: 'javascript', javascript: 'javascript', node: 'javascript',
-                                      ts: 'typescript', typescript: 'typescript',
-                                      tsx: 'tsx', jsx: 'jsx',
-                                      java: 'java', json: 'json'
+                                      js: 'javascript', javascript: 'javascript', node: 'javascript', mjs: 'javascript', cjs: 'javascript',
+                                      ts: 'javascript', typescript: 'javascript',
+                                      tsx: 'javascript', jsx: 'javascript',
+                                      tsreact: 'javascript', typescriptreact: 'javascript', javascriptreact: 'javascript',
+                                      java: 'javascript', json: 'json', jsonc: 'json'
                                     };
                                     if (label && aliasMap[label]) lang = aliasMap[label];
                                     const rest = firstNl !== -1 ? t.slice(firstNl + 1) : '';
@@ -464,7 +499,7 @@ const DataCollectionManager: React.FC = () => {
                                 }
 
                                 // JSON 自动检测与美化（若未由围栏指定语言）
-                                if (lang === 'text') {
+                                if (lang === 'javascript') {
                                     const tt = t.trim();
                                     if ((tt.startsWith('{') && tt.endsWith('}')) || (tt.startsWith('[') && tt.endsWith(']'))) {
                                         try {
@@ -479,14 +514,21 @@ const DataCollectionManager: React.FC = () => {
                                         language={lang}
                                         style={vscDarkPlus}
                                         wrapLongLines
-                                        customStyle={{ background: '#1e1e1e', color: '#d4d4d4', borderRadius: '0.5rem', maxHeight: '70vh' }}
+                                        customStyle={{ background: '#1e1e1e', borderRadius: '0.5rem', maxHeight: '70vh' }}
                                     >
                                         {txt}
                                     </SyntaxHighlighter>
                                 );
                             }
                             return (
-                                <pre className="text-xs whitespace-pre-wrap bg-gray-900 text-gray-100 p-3 rounded-md overflow-auto">{jsonPretty(viewItem)}</pre>
+                                <SyntaxHighlighter
+                                    language={'json'}
+                                    style={vscDarkPlus}
+                                    wrapLongLines
+                                    customStyle={{ background: '#1e1e1e', borderRadius: '0.5rem', maxHeight: '70vh' }}
+                                >
+                                    {jsonPretty(viewItem)}
+                                </SyntaxHighlighter>
                             );
                         })()}
                     </motion.div>
