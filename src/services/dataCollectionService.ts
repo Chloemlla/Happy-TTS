@@ -196,6 +196,13 @@ class DataCollectionService {
     let pii = false;
     const tags: string[] = [];
 
+    // 安全有界正则（避免潜在 ReDoS）
+    // 邮箱：本地部分最长64，域名部分最长255，TLD 2-24
+    const EMAIL_RE = /([A-Za-z0-9._%+-]{1,64})@(([A-Za-z0-9.-]{1,255})\.[A-Za-z]{2,24})/;
+    const EMAIL_GLOBAL_RE = /([A-Za-z0-9._%+-]{1,64})@(([A-Za-z0-9.-]{1,255})\.[A-Za-z]{2,24})/g;
+    // 电话（简化）：限制长度范围，避免大重复
+    const PHONE_RE = /\+?\d[\d\s-]{7,18}\d/;
+
     const redactKeys = ['authorization', 'cookie', 'cookies', 'set-cookie', 'password', 'pass', 'token', 'api-key', 'apikey', 'secret'];
     const walk = (o: any) => {
       if (!o || typeof o !== 'object') return;
@@ -208,10 +215,10 @@ class DataCollectionService {
           continue;
         }
         if (typeof v === 'string') {
-          // 邮箱
-          if (/\b[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}\b/.test(v)) { pii = true; o[k] = v.replace(/([\w.+-]+)@([\w.-]+)/g, '***@$2'); if (!tags.includes('EMAIL')) tags.push('EMAIL'); }
-          // 手机/电话（简化）
-          if (/(\+?\d[\d -]{7,}\d)/.test(v)) { pii = true; o[k] = v.replace(/\d/g, '*'); if (!tags.includes('PHONE')) tags.push('PHONE'); }
+          // 邮箱（安全有界）
+          if (EMAIL_RE.test(v)) { pii = true; o[k] = v.replace(EMAIL_GLOBAL_RE, '***@$2'); if (!tags.includes('EMAIL')) tags.push('EMAIL'); }
+          // 手机/电话（安全有界简化）
+          if (PHONE_RE.test(v)) { pii = true; o[k] = v.replace(/\d/g, '*'); if (!tags.includes('PHONE')) tags.push('PHONE'); }
           // 身份号/卡号（简化掩码）
           if (/\b\d{15,19}\b/.test(v)) { pii = true; o[k] = v.replace(/\d(?=\d{4})/g, '*'); if (!tags.includes('ID')) tags.push('ID'); }
         } else if (typeof v === 'object') {
