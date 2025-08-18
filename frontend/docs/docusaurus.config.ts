@@ -161,7 +161,7 @@ const config: Config = {
 
   // 添加插件配置
   plugins: [
-    // 可以添加自定义插件
+    require.resolve('./plugins/email-protection'),
   ],
 
   // 添加主题配置
@@ -173,6 +173,7 @@ const config: Config = {
     require.resolve('./src/clientModules/fixNavbar.js'),
     require.resolve('./src/clientModules/scrollNavbar.js'),
     require.resolve('./src/clientModules/routeModules.js'),
+    require.resolve('./src/clientModules/emailProtection.js'),
   ],
 };
 
