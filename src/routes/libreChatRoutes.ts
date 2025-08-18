@@ -520,9 +520,10 @@ router.get('/admin/users/:userId/history', authenticateAdmin, async (req, res) =
 });
 
 // 删除指定用户全部历史
-router.delete('/admin/users/:userId', authenticateAdmin, async (req, res) => {
+router.delete('/admin/users/:userId', authenticateAdmin, async (req, res, next) => {
   try {
     const { userId } = req.params as { userId: string };
+    if (userId === 'all') return next();
     const ret = await libreChatService.adminDeleteUser(userId);
     res.json({ message: '指定用户聊天历史已删除', ...ret });
   } catch (error) {
@@ -550,11 +551,8 @@ router.delete('/admin/users', authenticateAdmin, async (req, res) => {
 router.delete('/admin/users/all', authenticateAdmin, async (req, res) => {
   try {
     const { confirm } = req.body as { confirm: boolean };
-    if (!confirm) {
-      return res.status(400).json({ error: '请确认删除所有用户历史' });
-    }
-    const ret = await libreChatService.adminDeleteAllUsers();
-    res.json({ message: `已删除所有用户历史，共 ${ret.deleted} 个用户`, ...ret });
+    const { statusCode, body } = await libreChatService.adminDeleteAllUsersAction({ confirm });
+    res.status(statusCode).json(body);
   } catch (error) {
     console.error('管理员删除所有用户历史错误:', error);
     res.status(500).json({ error: '删除所有用户历史失败' });

@@ -4,6 +4,8 @@ import { existsSync } from 'fs';
 import logger from '../utils/logger';
 import { mongoose } from './mongoService';
 import type { FilterQuery } from 'mongoose';
+import crypto from 'crypto';
+import { RiskEvaluationEngine, type DeviceFingerprint } from './riskEvaluationEngine';
 
 // MongoDB 数据收集 Schema（开启 strict 以拒绝未声明字段）
 const DataCollectionSchema = new mongoose.Schema({
@@ -11,6 +13,14 @@ const DataCollectionSchema = new mongoose.Schema({
   action: { type: String, required: true },
   timestamp: { type: String, required: true },
   details: { type: Object },
+  // 智能分析增强字段（可选）
+  riskScore: { type: Number, default: 0 },
+  riskLevel: { type: String, enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], default: 'LOW' },
+  analysis: { type: Object },
+  hash: { type: String },
+  duplicate: { type: Boolean, default: false },
+  category: { type: String },
+  tags: { type: [String], default: [] },
 }, { collection: 'data_collections', strict: true });
 const DataCollectionModel = mongoose.models.DataCollection || mongoose.model('DataCollection', DataCollectionSchema);
 
@@ -22,6 +32,12 @@ class DataCollectionService {
   private readonly DATA_DIR = join(process.cwd(), 'data');
   private readonly TEST_DATA_DIR = join(process.cwd(), 'test-data');
   private readonly DATA_FILE = join(this.DATA_DIR, 'collection-data.txt');
+
+  // 智能分析引擎与去重缓存
+  private readonly riskEngine = new RiskEvaluationEngine();
+  private readonly dedupeTTLms = 10 * 60 * 1000; // 10分钟内视为重复
+  private readonly hashSeenAt = new Map<string, number>();
+  private readonly rawSecret = process.env.DATA_COLLECTION_RAW_SECRET || '';
 
   private constructor() {
     this.initializeService();
@@ -163,17 +179,175 @@ class DataCollectionService {
     }
   }
 
+  // =============== 智能分析与优化 ===============
+  private computeHash(obj: any): string {
+    const s = JSON.stringify(obj, Object.keys(obj).sort());
+    return crypto.createHash('sha256').update(s).digest('hex');
+  }
+
+  private cleanupDedupeCache(now: number) {
+    for (const [h, t] of this.hashSeenAt.entries()) {
+      if (now - t > this.dedupeTTLms) this.hashSeenAt.delete(h);
+    }
+  }
+
+  private redactPII(details: any): { redacted: any; piiDetected: boolean; tags: string[] } {
+    const clone = JSON.parse(JSON.stringify(details || {}));
+    let pii = false;
+    const tags: string[] = [];
+
+    const redactKeys = ['authorization', 'cookie', 'cookies', 'set-cookie', 'password', 'pass', 'token', 'api-key', 'apikey', 'secret'];
+    const walk = (o: any) => {
+      if (!o || typeof o !== 'object') return;
+      for (const k of Object.keys(o)) {
+        const v = o[k];
+        if (redactKeys.includes(k.toLowerCase())) {
+          o[k] = '[REDACTED]';
+          pii = true;
+          if (!tags.includes('CREDENTIALS')) tags.push('CREDENTIALS');
+          continue;
+        }
+        if (typeof v === 'string') {
+          // 邮箱
+          if (/\b[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}\b/.test(v)) { pii = true; o[k] = v.replace(/([\w.+-]+)@([\w.-]+)/g, '***@$2'); if (!tags.includes('EMAIL')) tags.push('EMAIL'); }
+          // 手机/电话（简化）
+          if (/(\+?\d[\d -]{7,}\d)/.test(v)) { pii = true; o[k] = v.replace(/\d/g, '*'); if (!tags.includes('PHONE')) tags.push('PHONE'); }
+          // 身份号/卡号（简化掩码）
+          if (/\b\d{15,19}\b/.test(v)) { pii = true; o[k] = v.replace(/\d(?=\d{4})/g, '*'); if (!tags.includes('ID')) tags.push('ID'); }
+        } else if (typeof v === 'object') {
+          walk(v);
+        }
+      }
+    };
+    walk(clone);
+    return { redacted: clone, piiDetected: pii, tags };
+  }
+
+  private classify(action: string, details: any): { category: string; tags: string[] } {
+    const tags: string[] = [];
+    const a = action.toLowerCase();
+    let category = 'general';
+    if (a.includes('login') || a.includes('auth')) { category = 'auth'; tags.push('AUTH'); }
+    if (a.includes('payment') || a.includes('order')) { category = 'commerce'; tags.push('COMMERCE'); }
+    if (a.includes('error') || a.includes('exception')) { category = 'error'; tags.push('ERROR'); }
+    if (a.includes('upload') || a.includes('file')) { category = 'file'; tags.push('FILE'); }
+    if (details && typeof details === 'object') {
+      const headers = (details as any).headers || {};
+      const ua = String(headers['user-agent'] || headers['User-Agent'] || '').toLowerCase();
+      if (ua.includes('bot') || ua.includes('crawler') || ua.includes('spider')) tags.push('BOT');
+    }
+    return { category, tags };
+  }
+
+  private async evaluateRisk(data: { details: any; ip?: string; userAgent?: string }): Promise<{ riskScore: number; riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'; flags: string[] }>{
+    try {
+      const headers = (data.details || {}).headers || {};
+      const ua = String(data.userAgent || headers['user-agent'] || headers['User-Agent'] || 'unknown');
+      const ip = String(data.ip || (data.details?.ip) || (data.details?.headers?.['x-forwarded-for']?.split(',')[0]) || '0.0.0.0');
+      const device: DeviceFingerprint = {
+        canvasEntropy: String(data.details?.device?.canvasEntropy || 'na'),
+        userAgent: ua,
+        timezone: String(data.details?.device?.timezone || 'UTC'),
+        screenResolution: data.details?.device?.screenResolution,
+        language: data.details?.device?.language,
+        platform: data.details?.device?.platform,
+      };
+      const behaviorScore = Number(data.details?.behaviorScore ?? 0.5);
+      const assessed = await this.riskEngine.assessRisk(ip, device, isNaN(behaviorScore) ? 0.5 : Math.max(0, Math.min(1, behaviorScore)), ua);
+      return { riskScore: assessed.overallRisk, riskLevel: assessed.riskLevel, flags: assessed.flags };
+    } catch (e) {
+      return { riskScore: 0.5, riskLevel: 'LOW', flags: ['EVAL_FALLBACK'] };
+    }
+  }
+
+  private prepareRecord = async (data: any) => {
+    // 先清洗与裁剪，后做敏感信息脱敏、分类与风控评估
+    const sanitizedDetails = this.ensureSizeLimit(this.clampDetails(this.sanitizeForMongo(data.details ?? {})));
+    const { redacted, piiDetected, tags: piiTags } = this.redactPII(sanitizedDetails);
+
+    const { category, tags: catTags } = this.classify(String(data.action || ''), redacted);
+    const hash = this.computeHash({ userId: data.userId, action: data.action, redacted });
+    const now = Date.now();
+    this.cleanupDedupeCache(now);
+    const lastSeen = this.hashSeenAt.get(hash) || 0;
+    const duplicate = now - lastSeen < this.dedupeTTLms;
+    this.hashSeenAt.set(hash, now);
+
+    const risk = await this.evaluateRisk({ details: redacted });
+
+    const allTags = Array.from(new Set([...(piiTags || []), ...(catTags || []), ...(risk.flags || [])]));
+
+    // 可选：加密存储原始详情（仅管理员后台可解密查看）
+    let encryptedRaw: { iv: string; tag: string; data: string } | undefined;
+    if (this.rawSecret && typeof data.details !== 'undefined') {
+      try {
+        const iv = crypto.randomBytes(12);
+        const key = crypto.createHash('sha256').update(this.rawSecret).digest();
+        const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+        const plaintext = Buffer.from(JSON.stringify(data.details), 'utf8');
+        const enc = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+        const tag = cipher.getAuthTag();
+        encryptedRaw = { iv: iv.toString('base64'), tag: tag.toString('base64'), data: enc.toString('base64') };
+      } catch (e) {
+        logger.warn('[DataCollection] encrypt raw failed');
+      }
+    }
+
+    return {
+      userId: data.userId,
+      action: data.action,
+      timestamp: data.timestamp,
+      details: redacted,
+      riskScore: risk.riskScore,
+      riskLevel: risk.riskLevel,
+      analysis: {
+        piiDetected,
+        duplicate,
+        hash,
+        flags: risk.flags,
+      },
+      hash,
+      duplicate,
+      category,
+      tags: allTags,
+      encryptedRaw,
+    };
+  };
+
+  // 仅供后台路由调用：解密原始详情
+  public decryptRawDetails(doc: any): any | null {
+    try {
+      if (!doc?.encryptedRaw || !this.rawSecret) return null;
+      const { iv, tag, data } = doc.encryptedRaw;
+      const key = crypto.createHash('sha256').update(this.rawSecret).digest();
+      const decipher = crypto.createDecipheriv('aes-256-gcm', key, Buffer.from(iv, 'base64'));
+      decipher.setAuthTag(Buffer.from(tag, 'base64'));
+      const dec = Buffer.concat([decipher.update(Buffer.from(data, 'base64')), decipher.final()]);
+      return JSON.parse(dec.toString('utf8'));
+    } catch (e) {
+      return null;
+    }
+  }
+
   private async saveToMongo(data: any): Promise<void> {
     if (mongoose.connection.readyState !== 1) {
       throw new Error('MongoDB 未连接');
     }
-    const sanitized = {
+    const doc = {
       userId: data.userId,
       action: data.action,
       timestamp: data.timestamp,
-      details: this.ensureSizeLimit(this.clampDetails(this.sanitizeForMongo(data.details ?? {}))),
-    };
-    await DataCollectionModel.create(sanitized);
+      details: data.details,
+      riskScore: Number(data.riskScore || 0),
+      riskLevel: data.riskLevel || 'LOW',
+      analysis: data.analysis || {},
+      hash: data.hash || undefined,
+      duplicate: Boolean(data.duplicate),
+      category: data.category || undefined,
+      tags: Array.isArray(data.tags) ? data.tags.slice(0, 50) : [],
+      encryptedRaw: data.encryptedRaw || undefined,
+    } as any;
+    await DataCollectionModel.create(doc);
     logger.info('Data saved to MongoDB');
   }
 
@@ -183,33 +357,44 @@ class DataCollectionService {
     if (!existsSync(saveDir)) {
       await mkdir(saveDir, { recursive: true });
     }
-    const sanitized = {
+    const serializable = {
       userId: data.userId,
       action: data.action,
       timestamp: data.timestamp,
-      details: this.ensureSizeLimit(this.clampDetails(this.sanitizeForMongo(data.details ?? {}))),
+      details: data.details,
+      riskScore: Number(data.riskScore || 0),
+      riskLevel: data.riskLevel || 'LOW',
+      analysis: data.analysis || {},
+      hash: data.hash || undefined,
+      duplicate: Boolean(data.duplicate),
+      category: data.category || undefined,
+      tags: Array.isArray(data.tags) ? data.tags.slice(0, 50) : [],
+      encryptedRaw: data.encryptedRaw || undefined,
     };
-    await writeFile(saveFile, JSON.stringify(sanitized, null, 2));
+    await writeFile(saveFile, JSON.stringify(serializable, null, 2));
     logger.info('Data saved to local file');
   }
 
   public async saveData(data: any, mode: StorageMode = 'both'): Promise<{ savedTo: StorageMode | 'mongo_fallback_file' }>{
     this.validate(data);
+    // 智能预处理与分析
+    const prepared = await this.prepareRecord(data);
+
     if (mode === 'mongo') {
-      await this.saveToMongo(data);
+      await this.saveToMongo(prepared);
       return { savedTo: 'mongo' };
     }
     if (mode === 'file') {
-      await this.saveToFile(data);
+      await this.saveToFile(prepared);
       return { savedTo: 'file' };
     }
     // both: 优先 Mongo，失败则文件兜底
     try {
-      await this.saveToMongo(data);
+      await this.saveToMongo(prepared);
       return { savedTo: 'both' };
     } catch (err) {
       logger.error('MongoDB 保存失败，回退到本地文件:', err);
-      await this.saveToFile(data);
+      await this.saveToFile(prepared);
       return { savedTo: 'mongo_fallback_file' };
     }
   }

@@ -186,6 +186,12 @@ export default defineConfig(({ mode }) => {
           target: 'http://127.0.0.1:3000',
           changeOrigin: true,
           secure: false,
+        },
+        '/collect_data': {
+          target: 'http://127.0.0.1:3000',
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => '/api/data-collection/collect_data'
         }
       } : undefined,
       allowedHosts: [

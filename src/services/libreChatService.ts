@@ -86,7 +86,7 @@ const ChatHistorySchema = new mongoose.Schema({
 // 索引：按用户与更新时间查询
 ChatHistorySchema.index({ userId: 1 });
 ChatHistorySchema.index({ updatedAt: -1 });
-const ChatHistoryModel = mongoose.models.LibreChatHistory || mongoose.model('LibreChatHistory', ChatHistorySchema);
+const ChatHistoryModel: any = mongoose.models.LibreChatHistory || mongoose.model('LibreChatHistory', ChatHistorySchema);
 
 interface ImageRecord {
   updateTime: string;
@@ -574,8 +574,7 @@ class LibreChatService {
     // 优先尝试 MongoDB
     try {
       if (mongoose.connection.readyState === 1) {
-        const rawUserId = String(userId).trim();
-        const ret = await (mongoose.models.LibreChatHistory as any).deleteOne({ $or: [ { userId: rawUserId }, { userId: safeUserId } ] });
+        const ret = await (mongoose.models.LibreChatHistory as any).deleteMany({ userId: safeUserId });
         deleted = (ret?.deletedCount || 0) as number;
       }
     } catch (e) {
@@ -604,8 +603,7 @@ class LibreChatService {
     if (mongoose.connection.readyState === 1) {
       for (const userId of safeUserIds) {
         try {
-          const rawUserId = String(userId).trim();
-          const ret = await (mongoose.models.LibreChatHistory as any).deleteOne({ $or: [ { userId: rawUserId }, { userId } ] });
+          const ret = await (mongoose.models.LibreChatHistory as any).deleteMany({ userId });
           const deletedCount = (ret?.deletedCount || 0) as number;
           details.push({ userId, deleted: deletedCount });
           totalDeleted += deletedCount;
@@ -636,35 +634,71 @@ class LibreChatService {
   }
 
   // 仅管理员使用：删除所有用户历史（危险操作，优先 drop 集合，失败则 deleteMany）
-  public async adminDeleteAllUsers(): Promise<{ deleted: number }> {
-    let deletedCount = 0;
+  public async adminDeleteAllUsers(): Promise<{ deletedCount: number }> {
+    try {
+      const startedAt = Date.now();
+      const mongoConnected = mongoose.connection.readyState === 1;
+      logger.info('开始删除所有用户聊天历史', { mongoConnected });
 
-    if (mongoose.connection.readyState === 1) {
-      try {
-        const model: any = mongoose.models.LibreChatHistory;
-        // 统计现有文档数量
-        deletedCount = await model.countDocuments({});
-        // 优先尝试 drop 集合（速度更快，彻底清空）
-        await model.collection.drop();
-        // 重新创建索引由 Mongoose 自动在下次写入时处理
-      } catch (e: any) {
-        // 如果集合不存在或 drop 失败，则回退到 deleteMany
+      let deletedCount = 0;
+      let dbTotalBefore: number | null = null;
+      let dbRemaining: number | null = null;
+
+      if (mongoConnected) {
         try {
-          const ret = await (mongoose.models.LibreChatHistory as any).deleteMany({});
-          deletedCount = (ret?.deletedCount || deletedCount) as number;
-        } catch (err) {
-          console.warn('[LibreChat] adminDeleteAllUsers mongo drop/deleteMany failed, fallback to memory only', err);
-        }
-      }
-    }
+          dbTotalBefore = await (mongoose.models.LibreChatHistory as any).countDocuments({});
+          logger.info('数据库记录总数（删除前）', { total: dbTotalBefore });
 
-    // 清空内存/文件
-    if (this.chatHistory.length > 0) {
-      this.chatHistory = [];
-      await this.saveChatHistory();
+          const result = await (mongoose.models.LibreChatHistory as any).deleteMany({});
+          deletedCount = typeof result?.deletedCount === 'number' ? result.deletedCount : 0;
+
+          dbRemaining = await (mongoose.models.LibreChatHistory as any).countDocuments({});
+          logger.info('数据库删除结果', { deletedCount, remaining: dbRemaining });
+        } catch (dbErr) {
+          logger.error('数据库删除过程中发生错误', dbErr);
+        }
+      } else {
+        logger.warn('MongoDB 未连接，跳过数据库删除');
+      }
+
+      const memoryBefore = this.chatHistory.length;
+      logger.info('内存记录数（删除前）', { memoryBefore });
+      if (memoryBefore > 0) {
+        this.chatHistory = [];
+        await this.saveChatHistory();
+        const memoryAfter = this.chatHistory.length;
+        logger.info('内存与本地缓存已清空', { memoryAfter });
+      } else {
+        logger.info('内存无记录，无需清空');
+      }
+
+      const durationMs = Date.now() - startedAt;
+      logger.info('删除所有用户聊天历史完成', {
+        durationMs,
+        deletedCount,
+        mongoConnected,
+        dbTotalBefore,
+        dbRemaining
+      });
+
+      return { deletedCount };
+    } catch (error) {
+      logger.error('删除所有聊天历史失败:', error);
+      throw error;
     }
-    
-    return { deleted: deletedCount };
+  }
+
+  public async adminDeleteAllUsersAction(payload: { confirm?: boolean }): Promise<{ statusCode: number; body: any }> {
+    if (!payload?.confirm) {
+      logger.warn('拒绝执行删除所有用户历史：缺少确认标志');
+      return { statusCode: 400, body: { error: '请确认删除所有用户历史' } };
+    }
+    const { deletedCount } = await this.adminDeleteAllUsers();
+    const body = {
+      message: `已删除所有用户历史，共 ${deletedCount} 个用户`,
+      deletedCount
+    };
+    return { statusCode: 200, body };
   }
 
   /**

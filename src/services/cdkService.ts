@@ -6,7 +6,7 @@ import { ResourceService } from './resourceService';
 import { TransactionService } from './transactionService';
 import logger from '../utils/logger';
 import { writeFile, mkdir } from 'fs/promises';
-import { join, resolve, sep } from 'path';
+import { join, resolve, sep, basename } from 'path';
 import { existsSync } from 'fs';
 
 export class CDKService {
@@ -652,9 +652,12 @@ export class CDKService {
       const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
       const ts = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
       const filterLabel = filterType === 'all' ? '全部' : filterType === 'unused' ? '未使用' : '已使用';
-      const filename = validatedResourceId
+      const rawFilename = validatedResourceId
         ? `CDK导出_${filterLabel}_${validatedResourceId}_${ts}.txt`
         : `CDK导出_${filterLabel}_${ts}.txt`;
+      // 额外净化：仅允许字母数字、下划线、短横线与中文，强制使用 basename 与 .txt 后缀
+      const safeBase = basename(rawFilename).replace(/[^\w\-\u4e00-\u9fa5\.]+/g, '_');
+      const filename = safeBase.endsWith('.txt') ? safeBase : `${safeBase}.txt`;
 
       // 通用的头部文本（稍后与BOM组合）
       const header = `=== ${filterLabel}CDK导出报告 ===\n导出时间: ${now.toLocaleString('zh-CN')}\n${validatedResourceId ? `资源ID: ${validatedResourceId}\n` : ''}导出类型: ${filterLabel}\n总数量: ${count}\n\n`;

@@ -71,6 +71,20 @@ router.get('/:id', ...guard, async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/data-collection/admin/:id/raw
+router.get('/:id/raw', ...guard, async (req: Request, res: Response) => {
+  try {
+    const item = await dataCollectionService.getById(req.params.id);
+    if (!item) return res.status(404).json({ success: false, message: 'Not found' });
+    const raw = dataCollectionService.decryptRawDetails(item);
+    if (!raw) return res.status(404).json({ success: false, message: 'No raw available' });
+    res.json({ success: true, data: raw });
+  } catch (e: any) {
+    logger.error('[DataCollectionAdmin] getRaw error:', e);
+    res.status(500).json({ success: false, message: e?.message || 'raw error' });
+  }
+});
+
 // DELETE /api/data-collection/admin/:id
 router.delete('/:id', ...guard, async (req: Request, res: Response) => {
   try {
