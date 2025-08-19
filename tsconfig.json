@@ -16,7 +16,7 @@
     "importHelpers": false,
     "isolatedModules": false,
     "noEmitOnError": true,
-    "removeComments": false,
+    "removeComments": true,
     "sourceMap": false,
     "declaration": false,
     "declarationMap": false,
