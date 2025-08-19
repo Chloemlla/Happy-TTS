@@ -1,0 +1,58 @@
+name: Code Quality (fuck-u-code)
+
+on:
+  push:
+    branches: [main, "**"]
+  pull_request:
+    branches: [main, "**"]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze with fuck-u-code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Install fuck-u-code
+        run: |
+          go install github.com/Done-0/fuck-u-code/cmd/fuck-u-code@latest
+
+      - name: Run analysis (Markdown)
+        shell: bash
+        run: |
+          set -e
+          fuck-u-code analyze \
+            --markdown \
+            --top 10 \
+            --issues 10 \
+            --lang zh-CN \
+            --exclude "**/node_modules/**" \
+            --exclude "**/dist/**" \
+            --exclude "**/build/**" \
+            --exclude "**/.next/**" \
+            --exclude "**/coverage/**" \
+            > code-quality-report.md
+          echo "### fuck-u-code 代码质量报告 (节选)" >> "$GITHUB_STEP_SUMMARY"
+          echo >> "$GITHUB_STEP_SUMMARY"
+          head -n 300 code-quality-report.md >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-quality-report
+          path: code-quality-report.md
+          if-no-files-found: error

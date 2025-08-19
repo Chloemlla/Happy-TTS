@@ -38,6 +38,15 @@ const adminSensitiveLimiter = rateLimit({
 	message: { error: '操作过于频繁，请稍后再试' }
 });
 
+// 写操作专用更严格限流（提高 DoS 防护强度）
+const adminWriteLimiter = rateLimit({
+	windowMs: 60 * 1000,
+	max: 5,
+	standardHeaders: true,
+	legacyHeaders: false,
+	message: { error: '写入过于频繁，请稍后再试' }
+});
+
 // 用户短链管理（需要登录）
 router.get('/shorturls', authMiddleware, userManageLimiter, ShortUrlController.getUserShortUrls);
 router.delete('/shorturls/:code', authMiddleware, userManageLimiter, ShortUrlController.deleteShortUrl);
@@ -76,7 +85,7 @@ router.get('/admin/aes-key', authMiddleware, adminAuthMiddleware, adminSensitive
 });
 
 // 设置/更新 AES_KEY
-router.post('/admin/aes-key', authMiddleware, adminAuthMiddleware, adminSensitiveLimiter, adminLimiter, async (req, res) => {
+router.post('/admin/aes-key', authMiddleware, adminAuthMiddleware, adminSensitiveLimiter, adminWriteLimiter, adminLimiter, async (req, res) => {
 	try {
 		const { value } = req.body || {};
 		if (typeof value !== 'string' || !value.trim() || value.length > 512) {
@@ -95,7 +104,7 @@ router.post('/admin/aes-key', authMiddleware, adminAuthMiddleware, adminSensitiv
 });
 
 // 删除 AES_KEY（恢复为仅环境变量或无加密）
-router.delete('/admin/aes-key', authMiddleware, adminAuthMiddleware, adminSensitiveLimiter, adminLimiter, async (req, res) => {
+router.delete('/admin/aes-key', authMiddleware, adminAuthMiddleware, adminSensitiveLimiter, adminWriteLimiter, adminLimiter, async (req, res) => {
 	try {
 		await ShortUrlSettingModel.deleteOne({ key: 'AES_KEY' });
 		return res.json({ success: true });
