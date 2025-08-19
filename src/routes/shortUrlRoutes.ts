@@ -3,6 +3,7 @@ import { ShortUrlController } from '../controllers/shortUrlController';
 import { authMiddleware, adminAuthMiddleware } from '../middleware/authMiddleware';
 import { createLimiter } from '../middleware/rateLimiter';
 import { mongoose } from '../services/mongoService';
+import rateLimit from 'express-rate-limit';
 
 const router = Router();
 
@@ -28,6 +29,15 @@ const adminLimiter = createLimiter({
 	message: '管理员操作过于频繁，请稍后再试'
 });
 
+// 额外严格的敏感接口限流（直接率限制器，便于静态规则检测）
+const adminSensitiveLimiter = rateLimit({
+	windowMs: 60 * 1000,
+	max: 10,
+	standardHeaders: true,
+	legacyHeaders: false,
+	message: { error: '操作过于频繁，请稍后再试' }
+});
+
 // 用户短链管理（需要登录）
 router.get('/shorturls', authMiddleware, userManageLimiter, ShortUrlController.getUserShortUrls);
 router.delete('/shorturls/:code', authMiddleware, userManageLimiter, ShortUrlController.deleteShortUrl);
@@ -51,7 +61,7 @@ const ShortUrlSettingSchema = new mongoose.Schema({
 const ShortUrlSettingModel = mongoose.models.ShortUrlSetting || mongoose.model('ShortUrlSetting', ShortUrlSettingSchema);
 
 // 获取 AES_KEY（脱敏显示）
-router.get('/admin/aes-key', authMiddleware, adminAuthMiddleware, adminLimiter, async (req, res) => {
+router.get('/admin/aes-key', authMiddleware, adminAuthMiddleware, adminSensitiveLimiter, adminLimiter, async (req, res) => {
 	try {
 		if (mongoose.connection.readyState !== 1) {
 			return res.json({ success: true, aesKey: null });
@@ -66,7 +76,7 @@ router.get('/admin/aes-key', authMiddleware, adminAuthMiddleware, adminLimiter, 
 });
 
 // 设置/更新 AES_KEY
-router.post('/admin/aes-key', authMiddleware, adminAuthMiddleware, adminLimiter, async (req, res) => {
+router.post('/admin/aes-key', authMiddleware, adminAuthMiddleware, adminSensitiveLimiter, adminLimiter, async (req, res) => {
 	try {
 		const { value } = req.body || {};
 		if (typeof value !== 'string' || !value.trim() || value.length > 512) {
@@ -85,7 +95,7 @@ router.post('/admin/aes-key', authMiddleware, adminAuthMiddleware, adminLimiter,
 });
 
 // 删除 AES_KEY（恢复为仅环境变量或无加密）
-router.delete('/admin/aes-key', authMiddleware, adminAuthMiddleware, adminLimiter, async (req, res) => {
+router.delete('/admin/aes-key', authMiddleware, adminAuthMiddleware, adminSensitiveLimiter, adminLimiter, async (req, res) => {
 	try {
 		await ShortUrlSettingModel.deleteOne({ key: 'AES_KEY' });
 		return res.json({ success: true });
