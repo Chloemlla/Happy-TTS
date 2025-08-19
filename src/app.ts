@@ -159,6 +159,37 @@ app.use('/s/*', (req: Request, res: Response, next: NextFunction) => {
 // 最高优先级，短链跳转
 app.use('/s', shortUrlRoutes);
 
+// 为 /api/shorturl/* 添加 OPTIONS 处理器 - 必须在路由挂载之前
+app.options('/api/shorturl/*', (req: Request, res: Response) => {
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  } else if (!origin) {
+    res.header('Access-Control-Allow-Origin', '*');
+  }
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Access-Control-Request-Method, Access-Control-Request-Headers, Cache-Control');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Max-Age', '86400');
+  res.status(200).end();
+});
+
+// 为所有 /api/shorturl/* 路由添加 CORS 响应头中间件 - 必须在路由挂载之前
+app.use('/api/shorturl/*', (req: Request, res: Response, next: NextFunction) => {
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  } else if (!origin) {
+    res.header('Access-Control-Allow-Origin', '*');
+  }
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Expose-Headers', 'Content-Length, X-RateLimit-Limit, X-RateLimit-Remaining, Content-Disposition, Content-Type, Cache-Control');
+  next();
+});
+
+// 为前端管理面板提供 /api 前缀的别名挂载，便于通过代理访问管理接口
+app.use('/api/shorturl', shortUrlRoutes);
+
 // 设置信任代理 - 只信任第一个代理（安全）
 app.set('trust proxy', 1);
 

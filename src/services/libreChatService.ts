@@ -487,7 +487,11 @@ class LibreChatService {
             'Authorization': `Bearer ${apiKey}`,
             'Content-Type': 'application/json'
           },
-          timeout: 60_000
+          timeout: 60_000,
+          // 避免使用系统代理造成的 302 循环重定向
+          proxy: false,
+          // 限制重定向次数，防止 provider 端异常配置导致死循环
+          maxRedirects: 5
         });
 
         // 解析 OpenAI 兼容响应并清洗 think 标签

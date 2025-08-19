@@ -19,6 +19,7 @@ const MODLIST_API = getApiBaseUrl() + '/api/admin/modlist/setting';
 const TTS_API = getApiBaseUrl() + '/api/admin/tts/setting';
 const LIBRECHAT_PROVIDERS_API = getApiBaseUrl() + '/api/librechat/admin/providers';
 const SHORTURL_AES_API = getApiBaseUrl() + '/api/shorturl/admin/aes-key';
+const WEBHOOK_SECRET_API = getApiBaseUrl() + '/api/admin/webhook/secret';
 
 // 统一的进入动画与过渡配置，结合 useReducedMotion 可降级
 const ENTER_INITIAL = { opacity: 0, y: 20 } as const;
@@ -67,6 +68,11 @@ interface ChatProviderItem {
 }
 interface ShortAesSetting {
   aesKey: string | null;
+  updatedAt?: string;
+}
+interface WebhookSecretSetting {
+  key: string;
+  secret: string | null;
   updatedAt?: string;
 }
 
@@ -230,6 +236,14 @@ const EnvManager: React.FC = () => {
   const [shortAesSaving, setShortAesSaving] = useState(false);
   const [shortAesDeleting, setShortAesDeleting] = useState(false);
 
+  // Webhook Secret Setting
+  const [webhookKeyInput, setWebhookKeyInput] = useState('');
+  const [webhookSecretInput, setWebhookSecretInput] = useState('');
+  const [webhookSetting, setWebhookSetting] = useState<WebhookSecretSetting | null>(null);
+  const [webhookLoading, setWebhookLoading] = useState(false);
+  const [webhookSaving, setWebhookSaving] = useState(false);
+  const [webhookDeleting, setWebhookDeleting] = useState(false);
+
   // LibreChat Providers
   const [providers, setProviders] = useState<ChatProviderItem[]>([]);
   const [providersLoading, setProvidersLoading] = useState(false);
@@ -326,11 +340,11 @@ const EnvManager: React.FC = () => {
           }
         } else {
           // 兼容旧的未加密格式
-        if (Array.isArray(data.envs)) {
-          envArr = data.envs;
-        } else if (data.envs && typeof data.envs === 'object') {
-          envArr = Object.entries(data.envs).map(([key, value]) => ({ key, value: String(value) }));
-        }
+          if (Array.isArray(data.envs)) {
+            envArr = data.envs;
+          } else if (data.envs && typeof data.envs === 'object') {
+            envArr = Object.entries(data.envs).map(([key, value]) => ({ key, value: String(value) }));
+          }
         }
         
         setEnvs(envArr);
@@ -635,6 +649,80 @@ const EnvManager: React.FC = () => {
     }
   }, [shortAesDeleting, fetchShortAes, setNotification]);
 
+  // Webhook Secret handlers
+  const fetchWebhookSecret = useCallback(async () => {
+    setWebhookLoading(true);
+    try {
+      const key = webhookKeyInput.trim().toUpperCase() || 'DEFAULT';
+      const res = await fetch(`${WEBHOOK_SECRET_API}?key=${encodeURIComponent(key)}`, { headers: { ...getAuthHeaders() } });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setNotification({ message: data.error || '获取 Webhook 密钥失败', type: 'error' });
+        setWebhookLoading(false);
+        return;
+      }
+      setWebhookSetting({ key: data.key || key, secret: data.secret ?? null, updatedAt: data.updatedAt });
+    } catch (e) {
+      setNotification({ message: '获取 Webhook 密钥失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
+    } finally {
+      setWebhookLoading(false);
+    }
+  }, [webhookKeyInput, setNotification]);
+
+  const handleSaveWebhookSecret = useCallback(async () => {
+    if (webhookSaving) return;
+    const key = webhookKeyInput.trim().toUpperCase() || 'DEFAULT';
+    const secret = webhookSecretInput.trim();
+    if (!secret) {
+      setNotification({ message: '请填写 Webhook 密钥', type: 'error' });
+      return;
+    }
+    setWebhookSaving(true);
+    try {
+      const res = await fetch(WEBHOOK_SECRET_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ key, secret })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setNotification({ message: data.error || '保存失败', type: 'error' });
+        return;
+      }
+      setNotification({ message: '保存成功', type: 'success' });
+      setWebhookSecretInput('');
+      await fetchWebhookSecret();
+    } catch (e) {
+      setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
+    } finally {
+      setWebhookSaving(false);
+    }
+  }, [webhookSaving, webhookKeyInput, webhookSecretInput, fetchWebhookSecret, setNotification]);
+
+  const handleDeleteWebhookSecret = useCallback(async () => {
+    if (webhookDeleting) return;
+    const key = webhookKeyInput.trim().toUpperCase() || 'DEFAULT';
+    setWebhookDeleting(true);
+    try {
+      const res = await fetch(WEBHOOK_SECRET_API, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ key })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setNotification({ message: data.error || '删除失败', type: 'error' });
+        return;
+      }
+      setNotification({ message: '删除成功', type: 'success' });
+      await fetchWebhookSecret();
+    } catch (e) {
+      setNotification({ message: '删除失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
+    } finally {
+      setWebhookDeleting(false);
+    }
+  }, [webhookDeleting, webhookKeyInput, fetchWebhookSecret, setNotification]);
+
   // Providers handlers
   const fetchProviders = useCallback(async () => {
     setProvidersLoading(true);
@@ -740,6 +828,7 @@ const EnvManager: React.FC = () => {
   useEffect(() => { fetchModlistSetting(); }, [fetchModlistSetting]);
   useEffect(() => { fetchTtsSetting(); }, [fetchTtsSetting]);
   useEffect(() => { fetchShortAes(); }, [fetchShortAes]);
+  useEffect(() => { fetchWebhookSecret(); }, [fetchWebhookSecret]);
   useEffect(() => { fetchProviders(); }, [fetchProviders]);
 
   const handleSourceClick = useCallback((source: string) => {
@@ -758,7 +847,7 @@ const EnvManager: React.FC = () => {
           transition={trans06}
         >
           <m.div 
-          className="bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-6 border border-red-100"
+            className="bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-6 border border-red-100"
             initial={ENTER_INITIAL}
             animate={ENTER_ANIMATE}
             transition={trans06}
@@ -1181,6 +1270,86 @@ const EnvManager: React.FC = () => {
 
           <div className="mt-4 text-xs text-gray-500">
             最后更新时间：{shortAesSetting?.updatedAt ? new Date(shortAesSetting.updatedAt).toLocaleString() : '-'}
+          </div>
+        </m.div>
+
+        {/* Webhook 密钥设置（支持自定义 key，默认 DEFAULT） */}
+        <m.div
+          className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+          initial={ENTER_INITIAL}
+          animate={ENTER_ANIMATE}
+          transition={trans06}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-800">Webhook 密钥设置</h3>
+            <m.button
+              onClick={fetchWebhookSecret}
+              disabled={webhookLoading}
+              className="px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
+              whileTap={{ scale: 0.95 }}
+            >
+              <FaSync className={`w-4 h-4 ${webhookLoading ? 'animate-spin' : ''}`} />
+              刷新
+            </m.button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Route Key（可选，默认 DEFAULT）</label>
+              <input
+                value={webhookKeyInput}
+                onChange={(e) => setWebhookKeyInput(e.target.value)}
+                placeholder="例如：ORDER、PAY 等，留空为 DEFAULT"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">密钥 Secret</label>
+              <input
+                value={webhookSecretInput}
+                onChange={(e) => setWebhookSecretInput(e.target.value)}
+                placeholder="请输入 Webhook 密钥（支持 Base64 或明文，不回显明文）"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
+            <div className="md:col-span-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">当前 Key</label>
+              <div className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700 min-h-[40px] flex items-center">
+                {webhookLoading ? '加载中...' : (webhookSetting?.key || 'DEFAULT')}
+              </div>
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">当前密钥（脱敏）</label>
+              <div className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700 min-h-[40px] flex items-center">
+                {webhookLoading ? '加载中...' : (webhookSetting?.secret ?? '未设置')}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3">
+            <m.button
+              onClick={handleDeleteWebhookSecret}
+              disabled={webhookDeleting}
+              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm font-medium"
+              whileTap={{ scale: 0.96 }}
+            >
+              {webhookDeleting ? '删除中...' : '删除'}
+            </m.button>
+            <m.button
+              onClick={handleSaveWebhookSecret}
+              disabled={webhookSaving}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 text-sm font-medium"
+              whileTap={{ scale: 0.96 }}
+            >
+              {webhookSaving ? '保存中...' : '保存/更新'}
+            </m.button>
+          </div>
+
+          <div className="mt-4 text-xs text-gray-500">
+            最后更新时间：{webhookSetting?.updatedAt ? new Date(webhookSetting.updatedAt).toLocaleString() : '-'}
           </div>
         </m.div>
 

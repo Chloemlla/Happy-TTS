@@ -28,9 +28,6 @@ const adminLimiter = createLimiter({
 	message: '管理员操作过于频繁，请稍后再试'
 });
 
-// 短链重定向（公开访问）
-router.get('/:code', redirectLimiter, ShortUrlController.redirectToTarget);
-
 // 用户短链管理（需要登录）
 router.get('/shorturls', authMiddleware, userManageLimiter, ShortUrlController.getUserShortUrls);
 router.delete('/shorturls/:code', authMiddleware, userManageLimiter, ShortUrlController.deleteShortUrl);
@@ -96,5 +93,8 @@ router.delete('/admin/aes-key', authMiddleware, adminAuthMiddleware, adminLimite
 		return res.status(500).json({ success: false, error: '删除 AES_KEY 失败' });
 	}
 });
+
+// 短链重定向（公开访问）— 放到最后，避免覆盖 /admin 与 /shorturls 前缀
+router.get('/:code', redirectLimiter, ShortUrlController.redirectToTarget);
 
 export default router;
