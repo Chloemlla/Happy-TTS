@@ -3,6 +3,31 @@ import { TransactionService } from './transactionService';
 import logger from '../utils/logger';
 const nanoid = require('nanoid').nanoid;
 const crypto = require('crypto');
+import { mongoose } from './mongoService';
+
+// 短链服务设置（支持从 MongoDB 读取 AES_KEY，优先于环境变量）
+interface ShortUrlSettingDoc { key: string; value: string; updatedAt?: Date }
+const ShortUrlSettingSchema = new mongoose.Schema<ShortUrlSettingDoc>({
+  key: { type: String, default: 'AES_KEY' },
+  value: { type: String, required: true },
+  updatedAt: { type: Date, default: Date.now }
+}, { collection: 'shorturl_settings' });
+const ShortUrlSettingModel = (mongoose.models.ShortUrlSetting as mongoose.Model<ShortUrlSettingDoc>) || mongoose.model<ShortUrlSettingDoc>('ShortUrlSetting', ShortUrlSettingSchema);
+
+async function getShortUrlAesKey(): Promise<string | null> {
+  try {
+    if (mongoose.connection.readyState === 1) {
+      const doc = await ShortUrlSettingModel.findOne({ key: 'AES_KEY' }).lean().exec();
+      if (doc && typeof doc.value === 'string' && doc.value.trim().length > 0) {
+        return doc.value.trim();
+      }
+    }
+  } catch (e) {
+    logger.error('读取短链 AES_KEY 失败，回退到环境变量', e);
+  }
+  const envKey = process.env.AES_KEY?.trim();
+  return envKey && envKey.length > 0 ? envKey : null;
+}
 
 export class ShortUrlService {
   /**
@@ -252,9 +277,9 @@ export class ShortUrlService {
 
       logger.info('导出所有短链数据成功', { count: shortUrls.length });
 
-      // 使用环境变量 AES_KEY 进行 AES 加密（如果提供）
-      const aesKeyEnv = process.env.AES_KEY;
-      if (aesKeyEnv && aesKeyEnv.trim().length > 0) {
+      // 使用数据库/环境变量提供的 AES_KEY 进行 AES 加密（如果提供）
+      const aesKeyEnv = await getShortUrlAesKey();
+      if (aesKeyEnv && aesKeyEnv.length > 0) {
         try {
           // 生成 32 字节密钥（SHA-256）
           const key = crypto.createHash('sha256').update(aesKeyEnv, 'utf8').digest();
@@ -330,8 +355,8 @@ export class ShortUrlService {
       })();
 
       if (looksEncryptedHeader || looksEncryptedJson) {
-        const aesKeyEnv = process.env.AES_KEY?.trim();
-        if (!aesKeyEnv) {
+        const aesKey = (await getShortUrlAesKey())?.trim();
+        if (!aesKey) {
           throw new Error('检测到加密导出文件，但未配置 AES_KEY，无法自动解密。请设置环境变量 AES_KEY 或离线解密后再导入');
         }
 
@@ -343,7 +368,7 @@ export class ShortUrlService {
               const ivB64 = (obj.iv || obj.IV || '').toString();
               const dataB64 = (obj.content || obj.cipher || obj.cipherText || '').toString();
               if (ivB64 && dataB64) {
-                const key = crypto.createHash('sha256').update(aesKeyEnv!, 'utf8').digest();
+                const key = crypto.createHash('sha256').update(aesKey!, 'utf8').digest();
                 const iv = Buffer.from(ivB64, 'base64');
                 const encrypted = Buffer.from(dataB64, 'base64');
                 const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
@@ -360,7 +385,7 @@ export class ShortUrlService {
             if (ivMatch && singleLineDataMatch) {
               const ivB64 = ivMatch[1].trim();
               const dataB64 = singleLineDataMatch[1].trim();
-              const key = crypto.createHash('sha256').update(aesKeyEnv!, 'utf8').digest();
+              const key = crypto.createHash('sha256').update(aesKey!, 'utf8').digest();
               const iv = Buffer.from(ivB64, 'base64');
               const encrypted = Buffer.from(dataB64, 'base64');
               const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
@@ -390,7 +415,7 @@ export class ShortUrlService {
                 if (b64Parts.length > 0) {
                   const ivB64 = ivMatch[1].trim();
                   const dataB64 = b64Parts.join('');
-                  const key = crypto.createHash('sha256').update(aesKeyEnv!, 'utf8').digest();
+                  const key = crypto.createHash('sha256').update(aesKey!, 'utf8').digest();
                   const iv = Buffer.from(ivB64, 'base64');
                   const encrypted = Buffer.from(dataB64, 'base64');
                   const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);

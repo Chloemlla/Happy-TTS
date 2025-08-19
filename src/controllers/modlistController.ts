@@ -1,8 +1,24 @@
 import { Request, Response } from 'express';
 import { getAllMods, addMod as addModStorage, updateMod as updateModStorage, deleteMod as deleteModStorage, batchAddMods as batchAddModsService, batchDeleteMods as batchDeleteModsService } from '../services/modlistStorage';
 import * as crypto from 'crypto';
+import { mongoose } from '../services/mongoService';
 
-const MODIFY_CODE = process.env.MODIFY_CODE || '123456';
+// 使用 MongoDB 存储和读取修改码（MODIFY_CODE），不再读取环境变量
+const ModlistSettingSchema = new mongoose.Schema({
+  key: { type: String, default: 'MODIFY_CODE' },
+  code: { type: String, required: true },
+  updatedAt: { type: Date, default: Date.now }
+}, { collection: 'modlist_settings' });
+const ModlistSettingModel = mongoose.models.ModlistSetting || mongoose.model('ModlistSetting', ModlistSettingSchema);
+
+async function getModifyCodeFromDb(): Promise<string | null> {
+  try {
+    const doc = await ModlistSettingModel.findOne({ key: 'MODIFY_CODE' }).lean().exec() as { code?: string } | null;
+    return (doc && typeof doc.code === 'string' && doc.code.length > 0) ? doc.code : null;
+  } catch {
+    return null;
+  }
+}
 
 export const getModList = async (req: Request, res: Response) => {
   try {
@@ -117,7 +133,8 @@ export const addMod = async (req: Request, res: Response) => {
   if (!name || typeof name !== 'string') {
     return res.status(400).json({ error: 'MOD名不能为空' });
   }
-  if (code !== MODIFY_CODE) {
+  const expected = await getModifyCodeFromDb();
+  if (!expected || code !== expected) {
     return res.status(403).json({ error: '修改码错误' });
   }
   try {
@@ -134,7 +151,8 @@ export const updateMod = async (req: Request, res: Response) => {
   if (!id || !name || typeof name !== 'string') {
     return res.status(400).json({ error: '参数错误' });
   }
-  if (code !== MODIFY_CODE) {
+  const expected = await getModifyCodeFromDb();
+  if (!expected || code !== expected) {
     return res.status(403).json({ error: '修改码错误' });
   }
   try {
@@ -148,7 +166,8 @@ export const updateMod = async (req: Request, res: Response) => {
 export const deleteMod = async (req: Request, res: Response) => {
   const { id } = req.params;
   const { code } = req.body;
-  if (code !== MODIFY_CODE) {
+  const expected = await getModifyCodeFromDb();
+  if (!expected || code !== expected) {
     return res.status(403).json({ error: '修改码错误' });
   }
   try {

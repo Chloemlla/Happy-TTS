@@ -309,6 +309,26 @@ router.delete('/envs', adminController.deleteEnv);
  */
 router.post('/envs/delete', adminController.deleteEnv);
 
+// OutEmail settings management (admin)
+router.get('/outemail/settings', adminController.getOutemailSettings);
+router.post('/outemail/settings', adminController.setOutemailSetting);
+router.delete('/outemail/settings', adminController.deleteOutemailSetting);
+
+// Modlist MODIFY_CODE management (admin)
+router.get('/modlist/setting', adminController.getModlistSetting);
+router.post('/modlist/setting', adminController.setModlistSetting);
+router.delete('/modlist/setting', adminController.deleteModlistSetting);
+
+// TTS GENERATION_CODE management (admin)
+router.get('/tts/setting', adminController.getTtsSetting);
+router.post('/tts/setting', adminController.setTtsSetting);
+router.delete('/tts/setting', adminController.deleteTtsSetting);
+
+// Webhook Secret management (admin)
+router.get('/webhook/secret', adminController.getWebhookSecret);
+router.post('/webhook/secret', adminController.setWebhookSecret);
+router.delete('/webhook/secret', adminController.deleteWebhookSecret);
+
 // 短链管理API
 router.get('/shortlinks', authenticateToken, async (req, res) => {
   try {

@@ -22,6 +22,30 @@ const OutEmailQuotaSchema = new mongoose.Schema({
 }, { collection: 'outemail_quotas' });
 const OutEmailQuota = mongoose.models.OutEmailQuota || mongoose.model('OutEmailQuota', OutEmailQuotaSchema);
 
+// 新增：对外邮件服务设置（含 OUTEMAIL_CODE），支持按域名覆盖
+interface OutEmailSettingDoc { domain: string; code: string; updatedAt?: Date }
+const OutEmailSettingSchema = new mongoose.Schema<OutEmailSettingDoc>({
+  domain: { type: String, default: '' },
+  code: { type: String, required: true },
+  updatedAt: { type: Date, default: Date.now }
+}, { collection: 'outemail_settings' });
+const OutEmailSetting = (mongoose.models.OutEmailSetting as mongoose.Model<OutEmailSettingDoc>) || mongoose.model<OutEmailSettingDoc>('OutEmailSetting', OutEmailSettingSchema);
+
+async function getOutEmailCodeFromDb(domain?: string): Promise<string | null> {
+  try {
+    const domainKey = typeof domain === 'string' ? domain : '';
+    let doc = await OutEmailSetting.findOne({ domain: domainKey }).lean().exec() as OutEmailSettingDoc | null;
+    if (!doc && domainKey) {
+      // 回退到默认（空域名）配置
+      doc = await OutEmailSetting.findOne({ domain: '' }).lean().exec() as OutEmailSettingDoc | null;
+    }
+    return (doc && typeof doc.code === 'string' && doc.code.length > 0) ? doc.code : null;
+  } catch (e) {
+    logger.error('读取 OUTEMAIL_CODE 失败', { error: (e as any)?.message });
+    return null;
+  }
+}
+
 // 多域名多API key支持
 const domainApiKeyMap: Record<string, string> = {};
 (function loadDomainApiKeys() {
@@ -83,16 +107,17 @@ export async function sendOutEmailBatch({
     return { success: false, error: '单次最多批量发送100封' };
   }
 
-  // 校验码
-  if (!config.email.outemail.code || code !== config.email.outemail.code) {
-    return { success: false, error: '校验码错误' };
-  }
-
-  // 选择域名
+  // 选择域名（先确定域名，以便按域名读取校验码）
   const OUTEMAIL_DOMAIN = domain || require('../config').default.email.outemail.domain;
   if (!OUTEMAIL_DOMAIN) return { success: false, error: '域名未配置' };
   if (!domainApiKeyMap[OUTEMAIL_DOMAIN]) return { success: false, error: 'API密钥未配置' };
   const resend = getResendInstanceByDomain(OUTEMAIL_DOMAIN);
+
+  // 校验码（改为从MongoDB读取，不再读取环境变量）
+  const dbCode = await getOutEmailCodeFromDb(OUTEMAIL_DOMAIN);
+  if (!dbCode || code !== dbCode) {
+    return { success: false, error: '校验码错误' };
+  }
 
   // 限流检查（将本次批量计入配额）
   const now = dayjs();
@@ -184,8 +209,9 @@ export async function sendOutEmail({ to, subject, content, code, ip, from: fromU
   if (typeof to !== 'string') {
     throw new Error('to 必须为字符串');
   }
-  // 校验码
-  if (!config.email.outemail.code || code !== config.email.outemail.code) {
+  // 校验码（改为从MongoDB读取）
+  const dbCode = await getOutEmailCodeFromDb(OUTEMAIL_DOMAIN);
+  if (!dbCode || code !== dbCode) {
     return { success: false, error: '校验码错误' };
   }
   // 限流检查

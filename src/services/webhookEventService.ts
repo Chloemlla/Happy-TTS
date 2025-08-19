@@ -23,6 +23,28 @@ WebhookEventSchema.index({ type: 1, status: 1, receivedAt: -1 });
 WebhookEventSchema.pre('save', function(next) { (this as any).updatedAt = new Date(); next(); });
 
 export const WebhookEventModel = mongoose.models.WebhookEvent || mongoose.model('WebhookEvent', WebhookEventSchema);
+// 存储 Resend/Webhook 密钥的集合（优先从 DB 读取，回退到环境变量）
+const WebhookSecretSchema = new Schema({
+  provider: { type: String, default: 'resend' }, // 预留多提供商
+  key: { type: String, default: 'DEFAULT' },     // 路由后缀（大写），默认 DEFAULT
+  secret: { type: String, required: true },      // 可为 base64 或明文
+  updatedAt: { type: Date, default: Date.now },
+}, { collection: 'webhook_settings' });
+WebhookSecretSchema.index({ provider: 1, key: 1 }, { unique: true });
+export const WebhookSecretModel = mongoose.models.WebhookSecret || mongoose.model('WebhookSecret', WebhookSecretSchema);
+
+async function getResendSecretFromDb(routeKey?: string): Promise<string | null> {
+  if (mongoose.connection.readyState !== 1) return null;
+  const key = (routeKey ? String(routeKey).trim().toUpperCase() : 'DEFAULT') || 'DEFAULT';
+  const candidates = key === 'DEFAULT' ? ['DEFAULT'] : [key, 'DEFAULT'];
+  for (const k of candidates) {
+    const doc = await WebhookSecretModel.findOne({ provider: 'resend', key: k }).lean();
+    if (doc && typeof (doc as any).secret === 'string' && (doc as any).secret.trim()) {
+      return (doc as any).secret.trim();
+    }
+  }
+  return null;
+}
 
 export const WebhookEventService = {
   async create(doc: any) {
@@ -103,11 +125,57 @@ export const WebhookEventService = {
 };
 
 /**
- * 使用 Svix 验证 Resend Webhook 请求
- * 注意：Resend 的签名密钥需要 Base64 解码后再传入 Svix
+ * 获取 Resend Webhook 密钥（DB 优先，ENV 回退）
+ */
+export async function getResendSecret(routeKey?: string): Promise<string> {
+  const dbSecret = await getResendSecretFromDb(routeKey);
+  if (dbSecret && typeof dbSecret === 'string' && dbSecret.trim()) {
+    return dbSecret.trim();
+  }
+  const keySuffix = routeKey ? String(routeKey).trim().toUpperCase() : '';
+  const candidates = [
+    keySuffix ? `RESEND_WEBHOOK_SECRET_${keySuffix}` : '',
+    keySuffix ? `WEBHOOK_SECRET_${keySuffix}` : '',
+    'RESEND_WEBHOOK_SECRET',
+    'WEBHOOK_SECRET',
+  ].filter(Boolean) as string[];
+  for (const envName of candidates) {
+    const v = process.env[envName];
+    if (v && typeof v === 'string' && v.trim()) {
+      return v.trim();
+    }
+  }
+  throw new Error(`RESEND_WEBHOOK_SECRET 未配置${keySuffix ? `（键：${keySuffix}）` : ''}`);
+}
+
+/**
+ * 使用提供的密钥执行 Svix 验证
+ */
+export function verifyResendPayload(payload: string, headers: IncomingHttpHeaders, rawSecret: string) {
+  // Resend 文档要求：先 base64 解码（若解码失败则按明文处理）
+  let secret: string;
+  try {
+    secret = Buffer.from(rawSecret, 'base64').toString('utf-8');
+  } catch {
+    secret = rawSecret;
+  }
+  const svixHeaders = {
+    'svix-id': String(headers['svix-id'] || ''),
+    'svix-timestamp': String(headers['svix-timestamp'] || ''),
+    'svix-signature': String(headers['svix-signature'] || ''),
+  };
+  if (!svixHeaders['svix-id'] || !svixHeaders['svix-timestamp'] || !svixHeaders['svix-signature']) {
+    throw new Error('缺少 Svix 签名头');
+  }
+  const wh = new SvixWebhook(secret);
+  return wh.verify(payload, svixHeaders as any);
+}
+
+/**
+ * 兼容旧用法：仅从 ENV 中解析（同步），不走 DB
  */
 export function verifyResendWebhook(payload: string, headers: IncomingHttpHeaders, key?: string) {
-  // 支持多路由多密钥：优先使用 RESEND_WEBHOOK_SECRET_<KEY> / WEBHOOK_SECRET_<KEY>
+  // 支持多路由多密钥：优先使用 DB（webhook_settings），回退到 RESEND_WEBHOOK_SECRET_<KEY> / WEBHOOK_SECRET_<KEY>
   const keySuffix = key ? String(key).trim().toUpperCase() : '';
   const candidates = [
     keySuffix ? `RESEND_WEBHOOK_SECRET_${keySuffix}` : '',
@@ -117,6 +185,7 @@ export function verifyResendWebhook(payload: string, headers: IncomingHttpHeader
   ].filter(Boolean) as string[];
 
   let rawSecret = '';
+  // 仅 ENV（同步）
   for (const envName of candidates) {
     const v = process.env[envName];
     if (v && typeof v === 'string' && v.trim()) { rawSecret = v; break; }
@@ -124,26 +193,5 @@ export function verifyResendWebhook(payload: string, headers: IncomingHttpHeader
   if (!rawSecret) {
     throw new Error(`RESEND_WEBHOOK_SECRET 未配置${keySuffix ? `（键：${keySuffix}）` : ''}`);
   }
-  // Resend 文档要求：先 base64 解码
-  let secret: string;
-  try {
-    secret = Buffer.from(rawSecret, 'base64').toString('utf-8');
-  } catch {
-    // 若用户已提供明文（非base64），则直接使用
-    secret = rawSecret;
-  }
-
-  const svixHeaders = {
-    'svix-id': String(headers['svix-id'] || ''),
-    'svix-timestamp': String(headers['svix-timestamp'] || ''),
-    'svix-signature': String(headers['svix-signature'] || ''),
-  };
-
-  if (!svixHeaders['svix-id'] || !svixHeaders['svix-timestamp'] || !svixHeaders['svix-signature']) {
-    throw new Error('缺少 Svix 签名头');
-  }
-
-  const wh = new SvixWebhook(secret);
-  // 成功时返回已验证且解析后的对象，失败将抛错
-  return wh.verify(payload, svixHeaders as any);
+  return verifyResendPayload(payload, headers, rawSecret);
 }

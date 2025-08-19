@@ -21,6 +21,14 @@ router.post(
   WebhookController.handleResendWebhook
 );
 
+// 参数化路由：/resend-:key（无需预扫描环境变量即可支持 WEBHOOK_SECRET_<KEY> 系列）
+router.post(
+  '/resend-:key',
+  webhookLimiter,
+  express.raw({ type: 'application/json' }),
+  WebhookController.handleResendWebhook
+);
+
 // 动态多路由：根据环境变量自动注册 /resend-<key>
 // 支持：RESEND_WEBHOOK_SECRET_<KEY> 或 WEBHOOK_SECRET_<KEY>
 const env = process.env;

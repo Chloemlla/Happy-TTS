@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import logger from '../utils/logger';
-import { WebhookEventService, verifyResendWebhook } from '../services/webhookEventService';
+import { WebhookEventService, getResendSecret, verifyResendPayload } from '../services/webhookEventService';
 
 export class WebhookController {
   // POST /api/webhooks/resend
@@ -12,7 +12,8 @@ export class WebhookController {
       const routeKey = (req.params as any)?.key as string | undefined;
       let event: any;
       try {
-        event = verifyResendWebhook(payload, req.headers, routeKey);
+        const secret = await getResendSecret(routeKey);
+        event = verifyResendPayload(payload, req.headers, secret);
       } catch (e) {
         logger.warn('[ResendWebhook] 签名验证失败', { error: e instanceof Error ? e.message : String(e) });
         return res.status(400).json({ error: 'Invalid webhook signature' });

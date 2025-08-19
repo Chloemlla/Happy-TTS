@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authenticateAdmin } from '../middleware/auth';
 import { libreChatService } from '../services/libreChatService';
 import { randomBytes } from 'crypto';
+import { mongoose } from '../services/mongoService';
 
 const router = Router();
 // 与前端保持一致的消息长度上限（以字符近似 tokens 上限）
@@ -556,6 +557,92 @@ router.delete('/admin/users/all', authenticateAdmin, async (req, res) => {
   } catch (error) {
     console.error('管理员删除所有用户历史错误:', error);
     res.status(500).json({ error: '删除所有用户历史失败' });
+  }
+});
+
+// ========== 管理聊天提供者配置（BASE_URL/API_KEY/MODEL，多组轮询&故障切换）===========
+// 列表（可选按 group 过滤），对 apiKey 做脱敏
+router.get('/admin/providers', authenticateAdmin, async (req, res) => {
+  try {
+    const group = typeof req.query.group === 'string' ? req.query.group : undefined;
+    const ChatProviderModel = (mongoose.models.ChatProvider as any) || mongoose.model('ChatProvider');
+    const q: any = {};
+    if (group) q.group = group;
+    const docs = await ChatProviderModel.find(q).sort({ updatedAt: -1 }).lean();
+    const list = (docs || []).map((d: any) => ({
+      id: String(d._id),
+      baseUrl: d.baseUrl,
+      model: d.model,
+      group: d.group || '',
+      enabled: d.enabled !== false,
+      weight: Number(d.weight || 1),
+      apiKey: typeof d.apiKey === 'string' && d.apiKey.length > 8 ? (d.apiKey.slice(0, 2) + '***' + d.apiKey.slice(-4)) : '***',
+      updatedAt: d.updatedAt
+    }));
+    res.json({ success: true, providers: list });
+  } catch (e) {
+    res.status(500).json({ success: false, error: '获取提供者失败' });
+  }
+});
+
+// 新增或更新（带 id 则更新，不带则创建）。自动标准化 baseUrl 去尾斜杠
+router.post('/admin/providers', authenticateAdmin, async (req, res) => {
+  try {
+    const { id, baseUrl, apiKey, model, group, enabled, weight } = req.body || {};
+    const ChatProviderModel = (mongoose.models.ChatProvider as any) || mongoose.model('ChatProvider');
+    const safeBase = typeof baseUrl === 'string' ? baseUrl.trim().replace(/\/$/, '') : '';
+    const safeKey = typeof apiKey === 'string' ? apiKey.trim() : '';
+    const safeModel = typeof model === 'string' ? model.trim() : '';
+    const safeGroup = typeof group === 'string' ? group.trim() : '';
+    const safeEnabled = typeof enabled === 'boolean' ? enabled : true;
+    const safeWeight = Number.isFinite(Number(weight)) ? Math.max(1, Math.min(10, Number(weight))) : 1;
+    if (!safeBase || !safeKey || !safeModel) {
+      return res.status(400).json({ success: false, error: 'baseUrl/apiKey/model 不能为空' });
+    }
+    let doc;
+    if (id && typeof id === 'string' && /^[0-9a-fA-F]{24}$/.test(id)) {
+      doc = await ChatProviderModel.findByIdAndUpdate(id, {
+        baseUrl: safeBase,
+        apiKey: safeKey,
+        model: safeModel,
+        group: safeGroup,
+        enabled: safeEnabled,
+        weight: safeWeight,
+        updatedAt: new Date()
+      }, { new: true, upsert: false });
+      if (!doc) return res.status(404).json({ success: false, error: '提供者不存在' });
+    } else {
+      doc = await ChatProviderModel.create({
+        baseUrl: safeBase,
+        apiKey: safeKey,
+        model: safeModel,
+        group: safeGroup,
+        enabled: safeEnabled,
+        weight: safeWeight,
+        updatedAt: new Date()
+      });
+    }
+    // 可选触发服务端缓存尽快刷新（若提供了内部方法）
+    try { await (libreChatService as any).loadProviders?.(); } catch {}
+    res.json({ success: true, id: String(doc._id) });
+  } catch (e) {
+    res.status(500).json({ success: false, error: '保存提供者失败' });
+  }
+});
+
+// 删除提供者
+router.delete('/admin/providers/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params as any;
+    if (!id || typeof id !== 'string' || !/^[0-9a-fA-F]{24}$/.test(id)) {
+      return res.status(400).json({ success: false, error: '无效的提供者ID' });
+    }
+    const ChatProviderModel = (mongoose.models.ChatProvider as any) || mongoose.model('ChatProvider');
+    await ChatProviderModel.findByIdAndDelete(id);
+    try { await (libreChatService as any).loadProviders?.(); } catch {}
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ success: false, error: '删除提供者失败' });
   }
 });
 

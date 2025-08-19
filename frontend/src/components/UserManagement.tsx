@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useState, useCallback } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { api } from '../api/api';
 
 import { useNavigate } from 'react-router-dom';
@@ -77,6 +77,9 @@ function decryptAES256(encryptedData: string, iv: string, key: string): string {
   }
 }
 
+const ROW_INITIAL = { opacity: 0, x: -20 } as const;
+const ROW_ANIMATE = { opacity: 1, x: 0 } as const;
+
 const UserManagement: React.FC = () => {
   const { user } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
@@ -91,6 +94,13 @@ const UserManagement: React.FC = () => {
   const [fpRequireMap, setFpRequireMap] = useState<Record<string, number>>({});
   const navigate = useNavigate();
   const { setNotification } = useNotification();
+  const prefersReducedMotion = useReducedMotion();
+  const hoverScale = React.useCallback((scale: number, enabled: boolean = true) => (
+    enabled && !prefersReducedMotion ? { scale } : undefined
+  ), [prefersReducedMotion]);
+  const tapScale = React.useCallback((scale: number, enabled: boolean = true) => (
+    enabled && !prefersReducedMotion ? { scale } : undefined
+  ), [prefersReducedMotion]);
 
   // 获取用户列表
   const fetchUsers = async () => {
@@ -188,7 +198,7 @@ const UserManagement: React.FC = () => {
   };
 
   // 删除用户
-  const handleDelete = async (id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     if (!window.confirm('确定要删除该用户吗？')) return;
     setLoading(true);
     setError('');
@@ -203,7 +213,10 @@ const UserManagement: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [setNotification]);
+
+  const openEdit = useCallback((u: User) => { setEditingUser(u); setForm(u); setShowForm(true); }, []);
+  const openFp = useCallback((u: User) => { setFpUser(u); setShowFpModal(true); }, []);
 
   if (!user || user.role !== 'admin') {
     return (
@@ -290,7 +303,8 @@ const UserManagement: React.FC = () => {
                 <motion.button
                   onClick={() => navigate('/welcome')}
                   className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
-                  whileTap={{ scale: 0.95 }}
+                  whileHover={hoverScale(1.02)}
+                  whileTap={tapScale(0.95)}
                 >
                   重新登录
                 </motion.button>
@@ -315,7 +329,8 @@ const UserManagement: React.FC = () => {
           <motion.button
             onClick={() => { setShowForm(true); setEditingUser(null); setForm(emptyUser); }}
             className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium flex items-center gap-2"
-            whileTap={{ scale: 0.95 }}
+            whileHover={hoverScale(1.02)}
+            whileTap={tapScale(0.95)}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -331,7 +346,7 @@ const UserManagement: React.FC = () => {
               onSubmit={handleSubmit}
               className="mb-6 space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-200"
               initial={{ opacity: 0, height: 0, scale: 0.95 }}
-              animate={{ opacity: 1, height: "auto", scale: 1 }}
+              animate={{ opacity: 1, height: 'auto', scale: 1 }}
               exit={{ opacity: 0, height: 0, scale: 0.95 }}
               transition={{ duration: 0.3 }}
             >
@@ -395,7 +410,8 @@ const UserManagement: React.FC = () => {
                 <motion.button
                   type="submit"
                   className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium"
-                  whileTap={{ scale: 0.95 }}
+                  whileHover={hoverScale(1.02)}
+                  whileTap={tapScale(0.95)}
                 >
                   {editingUser ? '保存修改' : '添加用户'}
                 </motion.button>
@@ -403,7 +419,8 @@ const UserManagement: React.FC = () => {
                   type="button"
                   className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium"
                   onClick={() => { setShowForm(false); setEditingUser(null); }}
-                  whileTap={{ scale: 0.95 }}
+                  whileHover={hoverScale(1.02)}
+                  whileTap={tapScale(0.95)}
                 >
                   取消
                 </motion.button>
@@ -439,8 +456,8 @@ const UserManagement: React.FC = () => {
                   <motion.tr
                     key={u.id}
                     className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
+                    initial={ROW_INITIAL}
+                    animate={ROW_ANIMATE}
                     transition={{ duration: 0.3, delay: 0.1 * idx }}
                     whileHover={{ backgroundColor: '#f0f9ff' }}
                   >
@@ -469,10 +486,12 @@ const UserManagement: React.FC = () => {
                           <div className="text-[10px] text-gray-500">
                             {new Date(u.fingerprints[0].ts).toLocaleString()} · {u.fingerprints.length} 条
                           </div>
-                          <button
+                          <motion.button
                             className="text-blue-600 hover:underline text-[11px]"
-                            onClick={() => { setFpUser(u); setShowFpModal(true); }}
-                          >查看全部</button>
+                            onClick={() => openFp(u)}
+                            whileHover={hoverScale(1.02)}
+                            whileTap={tapScale(0.95)}
+                          >查看全部</motion.button>
                         </div>
                       ) : (
                         <div className="space-y-1">
@@ -480,7 +499,7 @@ const UserManagement: React.FC = () => {
                             <>
                               <div className="text-blue-600 text-[12px]">已在预约列表</div>
                               <div className="text-[10px] text-gray-500">上次预约：{new Date(fpRequireMap[u.id]).toLocaleString()}</div>
-                              <button
+                              <motion.button
                                 className="text-blue-600 hover:underline text-[11px]"
                                 onClick={async () => {
                                   try {
@@ -491,12 +510,14 @@ const UserManagement: React.FC = () => {
                                     setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '请求失败' });
                                   }
                                 }}
-                              >再次请求</button>
+                                whileHover={hoverScale(1.02)}
+                                whileTap={tapScale(0.95)}
+                              >再次请求</motion.button>
                             </>
                           ) : (
                             <>
                               <span className="text-gray-400">暂无</span>
-                              <button
+                              <motion.button
                                 className="text-blue-600 hover:underline text-[11px]"
                                 onClick={async () => {
                                   try {
@@ -507,7 +528,9 @@ const UserManagement: React.FC = () => {
                                     setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '请求失败' });
                                   }
                                 }}
-                              >请求上报</button>
+                                whileHover={hoverScale(1.02)}
+                                whileTap={tapScale(0.95)}
+                              >请求上报</motion.button>
                             </>
                           )}
                         </div>
@@ -517,15 +540,17 @@ const UserManagement: React.FC = () => {
                       <div className="flex gap-2">
                         <motion.button
                           className="px-3 py-1 bg-yellow-500 text-white rounded text-sm hover:bg-yellow-600 transition"
-                          onClick={() => { setEditingUser(u); setForm(u); setShowForm(true); }}
-                          whileTap={{ scale: 0.95 }}
+                          onClick={() => openEdit(u)}
+                          whileHover={hoverScale(1.02)}
+                          whileTap={tapScale(0.95)}
                         >
                           编辑
                         </motion.button>
                         <motion.button
                           className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600 transition"
                           onClick={() => handleDelete(u.id)}
-                          whileTap={{ scale: 0.95 }}
+                          whileHover={hoverScale(1.02)}
+                          whileTap={tapScale(0.95)}
                         >
                           删除
                         </motion.button>
@@ -564,7 +589,7 @@ const UserManagement: React.FC = () => {
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-800">指纹详情 - {fpUser.username}</h3>
                 <div className="flex items-center gap-2">
-                  <button
+                  <motion.button
                     className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
                     onClick={async () => {
                       if (!fpUser) return;
@@ -576,8 +601,10 @@ const UserManagement: React.FC = () => {
                         setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '请求失败' });
                       }
                     }}
-                  >请求下次上报</button>
-                  <button
+                    whileHover={hoverScale(1.02)}
+                    whileTap={tapScale(0.95)}
+                  >请求下次上报</motion.button>
+                  <motion.button
                     className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
                     onClick={async () => {
                       if (!fpUser) return;
@@ -592,8 +619,10 @@ const UserManagement: React.FC = () => {
                         setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '清空指纹失败' });
                       }
                     }}
-                  >清空全部</button>
-                  <button className="text-gray-500 hover:text-gray-700" onClick={() => setShowFpModal(false)}>✕</button>
+                    whileHover={hoverScale(1.02)}
+                    whileTap={tapScale(0.95)}
+                  >清空全部</motion.button>
+                  <motion.button className="text-gray-500 hover:text-gray-700" onClick={() => setShowFpModal(false)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.95)}>✕</motion.button>
                 </div>
               </div>
               {fpUser.fingerprints && fpUser.fingerprints.length > 0 ? (
@@ -604,7 +633,7 @@ const UserManagement: React.FC = () => {
                       <div className="font-mono break-all text-sm">{fp.id}</div>
                       {fp.ua && <div className="text-[11px] text-gray-500 mt-1 break-all">{fp.ua}</div>}
                       <div className="mt-2">
-                        <button
+                        <motion.button
                           className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
                           onClick={async () => {
                             try {
@@ -614,8 +643,10 @@ const UserManagement: React.FC = () => {
                               setNotification({ type: 'error', message: '复制失败，请手动选择文本复制' });
                             }
                           }}
-                        >复制ID</button>
-                        <button
+                          whileHover={hoverScale(1.02)}
+                          whileTap={tapScale(0.95)}
+                        >复制ID</motion.button>
+                        <motion.button
                           className="ml-2 px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
                           onClick={async () => {
                             if (!fpUser) return;
@@ -625,16 +656,16 @@ const UserManagement: React.FC = () => {
                                 params: { ts: fp.ts }
                               });
                               const next = res?.data?.fingerprints || [];
-                              // 同步更新本地状态
                               setFpUser({ ...fpUser, fingerprints: next });
-                              // 同步刷新 users 列表中的该用户
                               setUsers(prev => prev.map(u => u.id === fpUser.id ? { ...u, fingerprints: next } : u));
                               setNotification({ type: 'success', message: '已删除指纹记录' });
                             } catch (e: any) {
                               setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '删除指纹失败' });
                             }
                           }}
-                        >删除</button>
+                          whileHover={hoverScale(1.02)}
+                          whileTap={tapScale(0.95)}
+                        >删除</motion.button>
                       </div>
                     </div>
                   ))}
@@ -646,7 +677,7 @@ const UserManagement: React.FC = () => {
                     <div className="mt-2">
                       <div className="text-blue-600 text-sm">已在预约列表</div>
                       <div className="text-[12px] text-gray-500">上次预约：{new Date(fpRequireMap[fpUser.id]).toLocaleString()}</div>
-                      <button
+                      <motion.button
                         className="mt-2 text-blue-600 hover:underline text-[12px]"
                         onClick={async () => {
                           if (!fpUser) return;
@@ -660,11 +691,13 @@ const UserManagement: React.FC = () => {
                             setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '请求失败' });
                           }
                         }}
-                      >再次请求</button>
+                        whileHover={hoverScale(1.02)}
+                        whileTap={tapScale(0.95)}
+                      >再次请求</motion.button>
                     </div>
                   ) : (
                     <div className="mt-2">
-                      <button
+                      <motion.button
                         className="text-blue-600 hover:underline text-[12px]"
                         onClick={async () => {
                           if (!fpUser) return;
@@ -678,13 +711,15 @@ const UserManagement: React.FC = () => {
                             setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '请求失败' });
                           }
                         }}
-                      >请求上报</button>
+                        whileHover={hoverScale(1.02)}
+                        whileTap={tapScale(0.95)}
+                      >请求上报</motion.button>
                     </div>
                   )}
                 </div>
               )}
               <div className="mt-4 text-right">
-                <button className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600" onClick={() => setShowFpModal(false)}>关闭</button>
+                <motion.button className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600" onClick={() => setShowFpModal(false)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.95)}>关闭</motion.button>
               </div>
             </motion.div>
           </motion.div>

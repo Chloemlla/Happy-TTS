@@ -47,6 +47,39 @@ async function ensureMongoAnnouncementCollection() {
 
 const AnnouncementModel = mongoose.models.Announcement || mongoose.model('Announcement', AnnouncementSchema);
 
+// ========== 新增：对外邮件设置集合（outemail_settings）===========
+const OutEmailSettingSchema = new mongoose.Schema({
+  domain: { type: String, default: '' },
+  code: { type: String, required: true },
+  updatedAt: { type: Date, default: Date.now }
+}, { collection: 'outemail_settings' });
+const OutEmailSettingModel = mongoose.models.OutEmailSetting || mongoose.model('OutEmailSetting', OutEmailSettingSchema);
+
+// ========== 新增：MOD 列表修改码设置集合（modlist_settings）===========
+const ModlistSettingSchema = new mongoose.Schema({
+  key: { type: String, default: 'MODIFY_CODE' },
+  code: { type: String, required: true },
+  updatedAt: { type: Date, default: Date.now }
+}, { collection: 'modlist_settings' });
+const ModlistSettingModel = mongoose.models.ModlistSetting || mongoose.model('ModlistSetting', ModlistSettingSchema);
+
+// ========== 新增：TTS 生成码设置集合（tts_settings）===========
+const TtsSettingSchema = new mongoose.Schema({
+  key: { type: String, default: 'GENERATION_CODE' },
+  code: { type: String, required: true },
+  updatedAt: { type: Date, default: Date.now }
+}, { collection: 'tts_settings' });
+const TtsSettingModel = mongoose.models.TtsSetting || mongoose.model('TtsSetting', TtsSettingSchema);
+
+// ========== 新增：Webhook 密钥设置集合（webhook_settings）===========
+const WebhookSecretSchema = new mongoose.Schema({
+  provider: { type: String, default: 'resend' },
+  key: { type: String, default: 'DEFAULT' },
+  secret: { type: String, required: true },
+  updatedAt: { type: Date, default: Date.now }
+}, { collection: 'webhook_settings' });
+const WebhookSecretModel = mongoose.models.WebhookSecret || mongoose.model('WebhookSecret', WebhookSecretSchema);
+
 // MySQL建表
 async function ensureMysqlTable(conn: any) {
   await conn.execute(`CREATE TABLE IF NOT EXISTS announcements (
@@ -63,170 +96,170 @@ function sanitizeInput(str: string) {
 }
 
 export const adminController = {
-    getUsers: async (req: Request, res: Response) => {
-        try {
-            console.log('🔐 [UserManagement] 开始处理用户列表加密请求...');
-            console.log('   用户ID:', req.user?.id);
-            console.log('   用户名:', req.user?.username);
-            console.log('   用户角色:', req.user?.role);
-            console.log('   请求IP:', req.ip);
-            
-            // 检查管理员权限
-            if (!req.user || req.user.role !== 'admin') {
-                console.log('❌ [UserManagement] 权限检查失败：非管理员用户');
-                return res.status(403).json({ error: '需要管理员权限' });
-            }
+  getUsers: async (req: Request, res: Response) => {
+    try {
+      console.log('🔐 [UserManagement] 开始处理用户列表加密请求...');
+      console.log('   用户ID:', req.user?.id);
+      console.log('   用户名:', req.user?.username);
+      console.log('   用户角色:', req.user?.role);
+      console.log('   请求IP:', req.ip);
+      
+      // 检查管理员权限
+      if (!req.user || req.user.role !== 'admin') {
+        console.log('❌ [UserManagement] 权限检查失败：非管理员用户');
+        return res.status(403).json({ error: '需要管理员权限' });
+      }
 
-            console.log('✅ [UserManagement] 权限检查通过');
+      console.log('✅ [UserManagement] 权限检查通过');
 
-            // 获取管理员token作为加密密钥
-            const authHeader = req.headers.authorization;
-            if (!authHeader || !authHeader.startsWith('Bearer ')) {
-                console.log('❌ [UserManagement] Token格式错误：未携带Token或格式不正确');
-                return res.status(401).json({ error: '未携带Token，请先登录' });
-            }
-            
-            const token = authHeader.substring(7); // 移除 'Bearer ' 前缀
-            if (!token) {
-                console.log('❌ [UserManagement] Token为空');
-                return res.status(401).json({ error: 'Token为空' });
-            }
+      // 获取管理员token作为加密密钥
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        console.log('❌ [UserManagement] Token格式错误：未携带Token或格式不正确');
+        return res.status(401).json({ error: '未携带Token，请先登录' });
+      }
+      
+      const token = authHeader.substring(7); // 移除 'Bearer ' 前缀
+      if (!token) {
+        console.log('❌ [UserManagement] Token为空');
+        return res.status(401).json({ error: 'Token为空' });
+      }
 
-            console.log('✅ [UserManagement] Token获取成功，长度:', token.length);
+      console.log('✅ [UserManagement] Token获取成功，长度:', token.length);
 
-            // 是否包含指纹信息（默认不返回）
-            const includeFingerprints = ['1','true','yes'].includes(String((req.query as any).includeFingerprints || '').toLowerCase());
-            if (!includeFingerprints) {
-              console.log('🛡️ [UserManagement] 将从响应中排除 fingerprints 字段');
-            } else {
-              console.log('🔎 [UserManagement] 管理端请求包含 fingerprints 字段');
-            }
+      // 是否包含指纹信息（默认不返回）
+      const includeFingerprints = ['1','true','yes'].includes(String((req.query as any).includeFingerprints || '').toLowerCase());
+      if (!includeFingerprints) {
+        console.log('🛡️ [UserManagement] 将从响应中排除 fingerprints 字段');
+      } else {
+        console.log('🔎 [UserManagement] 管理端请求包含 fingerprints 字段');
+      }
 
-            // 获取用户数据
-            const users = await UserStorage.getAllUsers();
-            const usersSanitized = users.map(user => {
-                const { password, ...rest } = (user as any);
-                if (!includeFingerprints) {
-                  const { fingerprints, ...restNoFp } = rest as any;
-                  return restNoFp;
-                }
-                return rest;
-            });
-
-            console.log('📊 [UserManagement] 获取到用户数量:', usersSanitized.length);
-
-            // 准备加密数据
-            const jsonData = JSON.stringify(usersSanitized);
-            console.log('📝 [UserManagement] JSON数据准备完成，长度:', jsonData.length);
-
-            // 使用AES-256-CBC加密数据
-            console.log('🔐 [UserManagement] 开始AES-256-CBC加密...');
-            const algorithm = 'aes-256-cbc';
-            
-            // 生成密钥
-            console.log('   生成密钥...');
-            const key = crypto.createHash('sha256').update(token).digest();
-            console.log('   密钥生成完成，长度:', key.length);
-            
-            // 生成IV
-            console.log('   生成初始化向量(IV)...');
-            const iv = crypto.randomBytes(16);
-            console.log('   IV生成完成，长度:', iv.length);
-            console.log('   IV (hex):', iv.toString('hex'));
-            
-            // 创建加密器
-            console.log('   创建加密器...');
-            const cipher = crypto.createCipheriv(algorithm, key, iv);
-            
-            // 执行加密
-            console.log('   开始加密数据...');
-            let encrypted = cipher.update(jsonData, 'utf8', 'hex');
-            encrypted += cipher.final('hex');
-            
-            console.log('✅ [UserManagement] 加密完成');
-            console.log('   原始数据长度:', jsonData.length);
-            console.log('   加密后数据长度:', encrypted.length);
-            console.log('   加密算法:', algorithm);
-            console.log('   密钥长度:', key.length);
-            console.log('   IV长度:', iv.length);
-
-            // 返回加密后的数据
-            const response = { 
-                success: true, 
-                data: encrypted,
-                iv: iv.toString('hex')
-            };
-            
-            console.log('📤 [UserManagement] 准备返回加密数据');
-            console.log('   响应数据大小:', JSON.stringify(response).length);
-            
-            res.json(response);
-            
-            console.log('✅ [UserManagement] 用户列表加密请求处理完成');
-            
-        } catch (error) {
-            console.error('❌ [UserManagement] 获取用户列表失败:', error);
-            logger.error('获取用户列表失败:', error);
-            res.status(500).json({ error: '获取用户列表失败' });
+      // 获取用户数据
+      const users = await UserStorage.getAllUsers();
+      const usersSanitized = users.map(user => {
+        const { password, ...rest } = (user as any);
+        if (!includeFingerprints) {
+          const { fingerprints, ...restNoFp } = rest as any;
+          return restNoFp;
         }
-    },
-    
-    createUser: async (req: Request, res: Response) => {
-        try {
-            const { username, email, password, role } = req.body;
-            if (!username || !email || !password) {
-                return res.status(400).json({ error: '参数不全' });
-            }
-            const exist = await UserStorage.getUserByUsername(username);
-            if (exist) {
-                return res.status(400).json({ error: '用户名已存在' });
-            }
-            const user = await UserStorage.createUser(username, email, password);
-            if (user && role) {
-                await UserStorage.updateUser(user.id, { role });
-            }
-            const { password: _, ...newUser } = user || {};
-            res.status(201).json(newUser);
-        } catch (error) {
-            logger.error('创建用户失败:', error);
-            res.status(500).json({ error: '创建用户失败' });
-        }
-    },
-    
-    updateUser: async (req: Request, res: Response) => {
-        try {
-            const { username, email, password, role } = req.body;
-            if (!username || !email || !role) {
-                return res.status(400).json({ error: '参数不全' });
-            }
-            const user = await UserStorage.getUserById(req.params.id);
-            if (!user) {
-                return res.status(404).json({ error: '用户不存在' });
-            }
-            const newPassword = password || user.password;
-            const updated = await UserStorage.updateUser(user.id, { username, email, password: newPassword, role });
-            const { password: _, ...updatedUser } = updated || {};
-            res.json(updatedUser);
-        } catch (error) {
-            logger.error('更新用户失败:', error);
-            res.status(500).json({ error: '更新用户失败' });
-        }
-    },
-    
-    deleteUser: async (req: Request, res: Response) => {
-        try {
-            const user = await UserStorage.getUserById(req.params.id);
-            if (!user) {
-                return res.status(404).json({ error: '用户不存在' });
-            }
-            await UserStorage.deleteUser(user.id);
-            const { password, ...deletedUser } = user;
-            res.json(deletedUser);
-        } catch (error) {
-            logger.error('删除用户失败:', error);
-            res.status(500).json({ error: '删除用户失败' });
-        }
-    },
+        return rest;
+      });
+
+      console.log('📊 [UserManagement] 获取到用户数量:', usersSanitized.length);
+
+      // 准备加密数据
+      const jsonData = JSON.stringify(usersSanitized);
+      console.log('📝 [UserManagement] JSON数据准备完成，长度:', jsonData.length);
+
+      // 使用AES-256-CBC加密数据
+      console.log('🔐 [UserManagement] 开始AES-256-CBC加密...');
+      const algorithm = 'aes-256-cbc';
+      
+      // 生成密钥
+      console.log('   生成密钥...');
+      const key = crypto.createHash('sha256').update(token).digest();
+      console.log('   密钥生成完成，长度:', key.length);
+      
+      // 生成IV
+      console.log('   生成初始化向量(IV)...');
+      const iv = crypto.randomBytes(16);
+      console.log('   IV生成完成，长度:', iv.length);
+      console.log('   IV (hex):', iv.toString('hex'));
+      
+      // 创建加密器
+      console.log('   创建加密器...');
+      const cipher = crypto.createCipheriv(algorithm, key, iv);
+      
+      // 执行加密
+      console.log('   开始加密数据...');
+      let encrypted = cipher.update(jsonData, 'utf8', 'hex');
+      encrypted += cipher.final('hex');
+      
+      console.log('✅ [UserManagement] 加密完成');
+      console.log('   原始数据长度:', jsonData.length);
+      console.log('   加密后数据长度:', encrypted.length);
+      console.log('   加密算法:', algorithm);
+      console.log('   密钥长度:', key.length);
+      console.log('   IV长度:', iv.length);
+
+      // 返回加密后的数据
+      const response = { 
+        success: true, 
+        data: encrypted,
+        iv: iv.toString('hex')
+      };
+      
+      console.log('📤 [UserManagement] 准备返回加密数据');
+      console.log('   响应数据大小:', JSON.stringify(response).length);
+      
+      res.json(response);
+      
+      console.log('✅ [UserManagement] 用户列表加密请求处理完成');
+      
+    } catch (error) {
+      console.error('❌ [UserManagement] 获取用户列表失败:', error);
+      logger.error('获取用户列表失败:', error);
+      res.status(500).json({ error: '获取用户列表失败' });
+    }
+  },
+  
+  createUser: async (req: Request, res: Response) => {
+    try {
+      const { username, email, password, role } = req.body;
+      if (!username || !email || !password) {
+        return res.status(400).json({ error: '参数不全' });
+      }
+      const exist = await UserStorage.getUserByUsername(username);
+      if (exist) {
+        return res.status(400).json({ error: '用户名已存在' });
+      }
+      const user = await UserStorage.createUser(username, email, password);
+      if (user && role) {
+        await UserStorage.updateUser(user.id, { role });
+      }
+      const { password: _, ...newUser } = user || {};
+      res.status(201).json(newUser);
+    } catch (error) {
+      logger.error('创建用户失败:', error);
+      res.status(500).json({ error: '创建用户失败' });
+    }
+  },
+  
+  updateUser: async (req: Request, res: Response) => {
+    try {
+      const { username, email, password, role } = req.body;
+      if (!username || !email || !role) {
+        return res.status(400).json({ error: '参数不全' });
+      }
+      const user = await UserStorage.getUserById(req.params.id);
+      if (!user) {
+        return res.status(404).json({ error: '用户不存在' });
+      }
+      const newPassword = password || user.password;
+      const updated = await UserStorage.updateUser(user.id, { username, email, password: newPassword, role });
+      const { password: _, ...updatedUser } = updated || {};
+      res.json(updatedUser);
+    } catch (error) {
+      logger.error('更新用户失败:', error);
+      res.status(500).json({ error: '更新用户失败' });
+    }
+  },
+  
+  deleteUser: async (req: Request, res: Response) => {
+    try {
+      const user = await UserStorage.getUserById(req.params.id);
+      if (!user) {
+        return res.status(404).json({ error: '用户不存在' });
+      }
+      await UserStorage.deleteUser(user.id);
+      const { password, ...deletedUser } = user;
+      res.json(deletedUser);
+    } catch (error) {
+      logger.error('删除用户失败:', error);
+      res.status(500).json({ error: '删除用户失败' });
+    }
+  },
 
   // 获取当前公告
   async getAnnouncement(req: Request, res: Response) {
@@ -647,6 +680,202 @@ export const adminController = {
       res.json({ success: true, envs });
     } catch (e) {
       res.status(500).json({ success: false, error: '删除环境变量失败' });
+    }
+  },
+
+  // ========== OutEmail 设置管理（仅管理员）===========
+  async getOutemailSettings(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: '无权限' });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: '数据库未连接' });
+      const list = await OutEmailSettingModel.find({}).sort({ updatedAt: -1 }).lean();
+      // 返回时对 code 做部分脱敏显示
+      const safe = list.map((it: any) => ({
+        domain: it.domain || '',
+        code: typeof it.code === 'string' && it.code.length > 8 ? (it.code.slice(0, 2) + '***' + it.code.slice(-4)) : '***',
+        updatedAt: it.updatedAt
+      }));
+      return res.json({ success: true, settings: safe });
+    } catch (e) {
+      return res.status(500).json({ success: false, error: '获取设置失败' });
+    }
+  },
+
+  async setOutemailSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: '无权限' });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: '数据库未连接' });
+      const { domain, code } = req.body || {};
+      const safeDomain = typeof domain === 'string' ? domain.trim() : '';
+      if (typeof code !== 'string' || code.trim().length < 1 || code.length > 256) {
+        return res.status(400).json({ error: '无效的校验码' });
+      }
+      const now = new Date();
+      const doc = await OutEmailSettingModel.findOneAndUpdate(
+        { domain: safeDomain },
+        { code: code, updatedAt: now },
+        { upsert: true, new: true }
+      );
+      return res.json({ success: true, setting: { domain: doc.domain, updatedAt: doc.updatedAt } });
+    } catch (e) {
+      return res.status(500).json({ success: false, error: '保存设置失败' });
+    }
+  },
+
+  async deleteOutemailSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: '无权限' });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: '数据库未连接' });
+      const { domain } = req.body || {};
+      const safeDomain = typeof domain === 'string' ? domain.trim() : '';
+      await OutEmailSettingModel.deleteOne({ domain: safeDomain });
+      return res.json({ success: true });
+    } catch (e) {
+      return res.status(500).json({ success: false, error: '删除设置失败' });
+    }
+  },
+
+  // ========== Modlist MODIFY_CODE 设置管理（仅管理员）===========
+  async getModlistSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: '无权限' });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: '数据库未连接' });
+      const doc = await ModlistSettingModel.findOne({ key: 'MODIFY_CODE' }).lean();
+      const setting = doc ? {
+        code: typeof (doc as any).code === 'string' && (doc as any).code.length > 8 ? ((doc as any).code.slice(0, 2) + '***' + (doc as any).code.slice(-4)) : '***',
+        updatedAt: (doc as any).updatedAt
+      } : null;
+      return res.json({ success: true, setting });
+    } catch (e) {
+      return res.status(500).json({ success: false, error: '获取修改码失败' });
+    }
+  },
+
+  async setModlistSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: '无权限' });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: '数据库未连接' });
+      const { code } = req.body || {};
+      if (typeof code !== 'string' || code.trim().length < 1 || code.length > 256) {
+        return res.status(400).json({ error: '无效的修改码' });
+      }
+      const now = new Date();
+      const doc = await ModlistSettingModel.findOneAndUpdate(
+        { key: 'MODIFY_CODE' },
+        { code, updatedAt: now },
+        { upsert: true, new: true }
+      );
+      return res.json({ success: true, setting: { updatedAt: doc.updatedAt } });
+    } catch (e) {
+      return res.status(500).json({ success: false, error: '保存修改码失败' });
+    }
+  },
+
+  async deleteModlistSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: '无权限' });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: '数据库未连接' });
+      await ModlistSettingModel.deleteOne({ key: 'MODIFY_CODE' });
+      return res.json({ success: true });
+    } catch (e) {
+      return res.status(500).json({ success: false, error: '删除修改码失败' });
+    }
+  },
+
+  // ========== TTS GENERATION_CODE 设置管理（仅管理员）===========
+  async getTtsSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: '无权限' });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: '数据库未连接' });
+      const doc = await TtsSettingModel.findOne({ key: 'GENERATION_CODE' }).lean();
+      const setting = doc ? {
+        code: typeof (doc as any).code === 'string' && (doc as any).code.length > 8 ? ((doc as any).code.slice(0, 2) + '***' + (doc as any).code.slice(-4)) : '***',
+        updatedAt: (doc as any).updatedAt
+      } : null;
+      return res.json({ success: true, setting });
+    } catch (e) {
+      return res.status(500).json({ success: false, error: '获取生成码失败' });
+    }
+  },
+
+  async setTtsSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: '无权限' });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: '数据库未连接' });
+      const { code } = req.body || {};
+      if (typeof code !== 'string' || code.trim().length < 1 || code.length > 256) {
+        return res.status(400).json({ error: '无效的生成码' });
+      }
+      const now = new Date();
+      const doc = await TtsSettingModel.findOneAndUpdate(
+        { key: 'GENERATION_CODE' },
+        { code, updatedAt: now },
+        { upsert: true, new: true }
+      );
+      return res.json({ success: true, setting: { updatedAt: doc.updatedAt } });
+    } catch (e) {
+      return res.status(500).json({ success: false, error: '保存生成码失败' });
+    }
+  },
+
+  async deleteTtsSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: '无权限' });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: '数据库未连接' });
+      await TtsSettingModel.deleteOne({ key: 'GENERATION_CODE' });
+      return res.json({ success: true });
+    } catch (e) {
+      return res.status(500).json({ success: false, error: '删除生成码失败' });
+    }
+  },
+
+  // ========== Webhook Secret 设置管理（仅管理员）===========
+  async getWebhookSecret(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: '无权限' });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: '数据库未连接' });
+      const routeKey = typeof req.query.key === 'string' && req.query.key ? String(req.query.key).trim().toUpperCase() : 'DEFAULT';
+      const doc = await WebhookSecretModel.findOne({ provider: 'resend', key: routeKey }).lean();
+      if (!doc) return res.json({ success: true, secret: null, updatedAt: null });
+      const value = (doc as any).secret || '';
+      const masked = value.length > 8 ? (value.slice(0, 2) + '***' + value.slice(-4)) : '***';
+      return res.json({ success: true, secret: masked, updatedAt: (doc as any).updatedAt, key: routeKey });
+    } catch (e) {
+      return res.status(500).json({ success: false, error: '获取 Webhook 密钥失败' });
+    }
+  },
+
+  async setWebhookSecret(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: '无权限' });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: '数据库未连接' });
+      const { key, secret } = req.body || {};
+      const routeKey = typeof key === 'string' && key ? String(key).trim().toUpperCase() : 'DEFAULT';
+      if (typeof secret !== 'string' || !secret.trim() || secret.length > 1024) {
+        return res.status(400).json({ success: false, error: '无效的密钥' });
+      }
+      const now = new Date();
+      await WebhookSecretModel.findOneAndUpdate(
+        { provider: 'resend', key: routeKey },
+        { secret: secret.trim(), updatedAt: now },
+        { upsert: true }
+      );
+      return res.json({ success: true });
+    } catch (e) {
+      return res.status(500).json({ success: false, error: '保存 Webhook 密钥失败' });
+    }
+  },
+
+  async deleteWebhookSecret(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: '无权限' });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: '数据库未连接' });
+      const { key } = req.body || {};
+      const routeKey = typeof key === 'string' && key ? String(key).trim().toUpperCase() : 'DEFAULT';
+      await WebhookSecretModel.deleteOne({ provider: 'resend', key: routeKey });
+      return res.json({ success: true });
+    } catch (e) {
+      return res.status(500).json({ success: false, error: '删除 Webhook 密钥失败' });
     }
   },
 }; 

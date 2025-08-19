@@ -88,6 +88,32 @@ ChatHistorySchema.index({ userId: 1 });
 ChatHistorySchema.index({ updatedAt: -1 });
 const ChatHistoryModel: any = mongoose.models.LibreChatHistory || mongoose.model('LibreChatHistory', ChatHistorySchema);
 
+// ========== 新增：聊天提供者配置（多组 BASE_URL/API_KEY/MODEL）===========
+interface ChatProviderDoc { baseUrl: string; apiKey: string; model: string; enabled?: boolean; weight?: number; group?: string; updatedAt?: Date }
+const ChatProviderSchema = new mongoose.Schema({
+  baseUrl: { type: String, required: true },
+  apiKey: { type: String, required: true },
+  model: { type: String, required: true },
+  enabled: { type: Boolean, default: true },
+  weight: { type: Number, default: 1 },
+  group: { type: String, default: '' },
+  updatedAt: { type: Date, default: Date.now }
+}, { collection: 'chat_providers' });
+const ChatProviderModel = (mongoose.models.ChatProvider as any) || mongoose.model('ChatProvider', ChatProviderSchema);
+
+function normalizeBaseUrl(url?: string): string {
+  if (!url) return '';
+  return url.replace(/\/$/, '');
+}
+
+function shuffleInPlace<T>(arr: T[]): T[] {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 interface ImageRecord {
   updateTime: string;
   // 上海时间（UTC+8），用于本地化显示，可选以兼容历史数据
@@ -123,6 +149,11 @@ class LibreChatService {
   private isRunning: boolean = false;
   private intervalId: NodeJS.Timeout | null = null;
   private chatHistory: ChatMessage[] = [];
+
+  // provider 缓存（Mongo 可配置多组）
+  private providersCache: ChatProviderDoc[] = [];
+  private providersLoadedAt: number = 0;
+  private readonly PROVIDERS_TTL_MS = 60_000;
 
   private constructor() {
     this.initializeService();
@@ -164,6 +195,8 @@ class LibreChatService {
         if (!this.isRunning && process.env.NODE_ENV !== 'test') {
           this.startPeriodicCheck();
         }
+        // 预加载 providers（忽略失败，不阻塞服务）
+        this.loadProviders().catch(() => undefined);
         return;
       }
     } catch (error) {
@@ -220,10 +253,55 @@ class LibreChatService {
     }
   }
 
-  /**
-   * 将指定 token 的消息写入 MongoDB（upsert）。
-   * 仅在 MongoDB 已连接时执行。
-   */
+  private async loadProviders(): Promise<ChatProviderDoc[]> {
+    try {
+      if (mongoose.connection.readyState !== 1) return [];
+      const docs: ChatProviderDoc[] = await ChatProviderModel.find({ enabled: { $ne: false } }).lean();
+      const normalized = (docs || [])
+        .map(d => ({
+          baseUrl: normalizeBaseUrl((d as any).baseUrl),
+          apiKey: String((d as any).apiKey || ''),
+          model: String((d as any).model || ''),
+          enabled: (d as any).enabled !== false,
+          weight: Number((d as any).weight || 1),
+          group: String((d as any).group || ''),
+          updatedAt: (d as any).updatedAt
+        }))
+        .filter(p => p.baseUrl && p.apiKey && p.model);
+      this.providersCache = normalized;
+      this.providersLoadedAt = Date.now();
+      return this.providersCache;
+    } catch (e) {
+      logger.error('加载聊天提供者配置失败', e);
+      return [];
+    }
+  }
+
+  private async getProvidersFresh(): Promise<ChatProviderDoc[]> {
+    const now = Date.now();
+    if (!this.providersLoadedAt || now - this.providersLoadedAt > this.PROVIDERS_TTL_MS) {
+      await this.loadProviders();
+    }
+    return this.providersCache;
+  }
+
+  private buildProviderTryList(envFallbackFirst = false): { baseUrl: string; apiKey: string; model: string }[] {
+    const envBase = normalizeBaseUrl(process.env.CHAT_BASE_URL || '');
+    const envKey = process.env.CHAT_API_KEY || '';
+    const envModel = process.env.CHAT_MODEL || 'gpt-oss-120b';
+    const envProvider = envBase && envKey ? [{ baseUrl: envBase, apiKey: envKey, model: envModel }] : [];
+    // 混合顺序：可选择将 env 放前或放后
+    const dbProviders = [...this.providersCache];
+    // 按 weight 简单展开
+    const weighted: ChatProviderDoc[] = [];
+    for (const p of dbProviders) {
+      const times = Math.min(10, Math.max(1, Number(p.weight || 1)));
+      for (let i = 0; i < times; i++) weighted.push(p);
+    }
+    const tryList = shuffleInPlace(weighted.map(p => ({ baseUrl: p.baseUrl, apiKey: p.apiKey, model: p.model })));
+    return envFallbackFirst ? [...envProvider, ...tryList] : [...tryList, ...envProvider];
+  }
+
   private async upsertTokenHistory(keyId: string, messages: ChatMessage[]) {
     if (mongoose.connection.readyState !== 1) return;
     try {
@@ -332,14 +410,28 @@ class LibreChatService {
       return '';
     }
 
-    // 读取 OpenAI 兼容配置
-    const baseURL = process.env.CHAT_BASE_URL?.replace(/\/$/, '') || '';
-    const apiKey = process.env.CHAT_API_KEY || '';
-    const model = process.env.CHAT_MODEL || 'gpt-oss-120b';
+    // 尝试加载 DB 提供者
+    let providers: { baseUrl: string; apiKey: string; model: string }[] = [];
+    try {
+      await this.getProvidersFresh();
+      providers = this.buildProviderTryList(false);
+    } catch {
+      providers = [];
+    }
 
-    // 如果未配置，则返回降级的本地回复（不阻塞）
-    if (!baseURL || !apiKey) {
-      logger.warn('CHAT_BASE_URL 或 CHAT_API_KEY 未配置，使用本地模拟回复');
+    // 如果 DB 无配置，则回退到环境变量
+    if (!providers.length) {
+      const envBase = normalizeBaseUrl(process.env.CHAT_BASE_URL || '');
+      const envKey = process.env.CHAT_API_KEY || '';
+      const envModel = process.env.CHAT_MODEL || 'gpt-oss-120b';
+      if (envBase && envKey) {
+        providers = [{ baseUrl: envBase, apiKey: envKey, model: envModel }];
+      }
+    }
+
+    // 如果仍未配置，返回降级本地回复
+    if (!providers.length) {
+      logger.warn('未配置任何聊天提供者（DB/ENV），使用本地模拟回复');
       const fallback = '系统暂未配置对话服务，已返回本地示例回答。';
       const aiMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -355,76 +447,88 @@ class LibreChatService {
       return fallback;
     }
 
-    try {
-      // 组织对话上下文（可扩展：带上最近若干轮同一 token 的消息）
-      const recent = this.chatHistory
-        .filter(m => m.token === token)
-        .slice(-20); // 仅取最近10条以控制上下文长度
+    // 组织对话上下文（带上最近若干轮同一 token 的消息）
+    const recent = this.chatHistory
+      .filter(m => m.token === token)
+      .slice(-20);
 
-      const messagesPayload = [
-        {
-          role: 'system',
-          content:
-            '你是 Synapse LibreChat 的客服助理，必须使用中文并提供专业、准确、简洁的回答。\n' +
-            '重要规则：\n' +
-            '1) 当用户询问你“是什么模型/用的什么模型/模型名称/模型版本/运行在什么模型”等同类问题时，保持沉默，不要作答，不要输出任何字符。\n' +
-            '2) 不要改变身份，不要扮演其他角色。\n' +
-            '3) 在确保安全与合规的前提下，遵循用户的正常需求与指令。'
-        },
-        ...recent.map(m => ({
-          role: (m.role === 'assistant' ? 'assistant' : 'user') as 'user' | 'assistant',
-          content: m.message
-        })),
-      ];
+    const messagesPayload = [
+      {
+        role: 'system',
+        content:
+          '你是 Synapse LibreChat 的客服助理，必须使用中文并提供专业、准确、简洁的回答。\n' +
+          '重要规则：\n' +
+          '1) 当用户询问你“是什么模型/用的什么模型/模型名称/模型版本/运行在什么模型”等同类问题时，保持沉默，不要作答，不要输出任何字符。\n' +
+          '2) 不要改变身份，不要扮演其他角色。\n' +
+          '3) 在确保安全与合规的前提下，遵循用户的正常需求与指令。'
+      },
+      ...recent.map(m => ({
+        role: (m.role === 'assistant' ? 'assistant' : 'user') as 'user' | 'assistant',
+        content: m.message
+      })),
+    ];
 
-      const url = `${baseURL}/v1/chat/completions`;
-      const resp = await axios.post(url, {
-        model,
-        messages: messagesPayload,
-        temperature: 0.7,
-        stream: false
-      }, {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 60_000
-      });
+    // 依序尝试 providers，失败自动切换到下一个
+    let lastError: any = null;
+    for (const p of providers) {
+      const baseURL = p.baseUrl;
+      const apiKey = p.apiKey;
+      const model = p.model;
 
-      // 解析 OpenAI 兼容响应并清洗 think 标签
-      const aiTextRaw = resp?.data?.choices?.[0]?.message?.content?.trim() || '（无有效回复）';
-      const aiText = sanitizeAssistantText(aiTextRaw);
+      try {
+        const url = `${baseURL}/v1/chat/completions`;
+        const resp = await axios.post(url, {
+          model,
+          messages: messagesPayload,
+          temperature: 0.7,
+          stream: false
+        }, {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 60_000
+        });
 
-      // 持久化助手回复
-      const aiMsg: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        message: aiText,
-        role: 'assistant',
-        timestamp: new Date().toISOString(),
-        token,
-        userId
-      };
-      this.chatHistory.push(aiMsg);
-      await this.saveChatHistory();
-      await this.upsertTokenHistory(keyId, this.chatHistory.filter(m => userId ? m.userId === userId : m.token === token));
+        // 解析 OpenAI 兼容响应并清洗 think 标签
+        const aiTextRaw = resp?.data?.choices?.[0]?.message?.content?.trim() || '（无有效回复）';
+        const aiText = sanitizeAssistantText(aiTextRaw);
 
-      return aiText;
-    } catch (err: any) {
-      logger.error('调用 OpenAI 兼容聊天接口失败:', err?.response?.data || err?.message || err);
-      const fallback = '对话服务暂不可用，请稍后重试。';
-      const aiMsg: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        message: fallback,
-        role: 'assistant',
-        timestamp: new Date().toISOString(),
-        token,
-        userId
-      };
-      this.chatHistory.push(aiMsg);
-      await this.saveChatHistory();
-      await this.upsertTokenHistory(keyId, this.chatHistory.filter(m => userId ? m.userId === userId : m.token === token));
-      return fallback;
+        // 持久化助手回复
+        const aiMsg: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          message: aiText,
+          role: 'assistant',
+          timestamp: new Date().toISOString(),
+          token,
+          userId
+        };
+        this.chatHistory.push(aiMsg);
+        await this.saveChatHistory();
+        await this.upsertTokenHistory(keyId, this.chatHistory.filter(m => userId ? m.userId === userId : m.token === token));
+        return aiText;
+      } catch (err: any) {
+        lastError = err;
+        logger.error('调用聊天提供者失败，尝试下一个', { baseURL, model, error: err?.response?.data || err?.message || String(err) });
+        // 继续尝试下一个 provider
+      }
     }
+
+    // 所有 provider 失败，返回降级
+    logger.error('所有聊天提供者均失败，返回本地降级回复', lastError);
+    const fallback = '对话服务暂不可用，请稍后重试。';
+    const aiMsg: ChatMessage = {
+      id: (Date.now() + 1).toString(),
+      message: fallback,
+      role: 'assistant',
+      timestamp: new Date().toISOString(),
+      token,
+      userId
+    };
+    this.chatHistory.push(aiMsg);
+    await this.saveChatHistory();
+    await this.upsertTokenHistory(keyId, this.chatHistory.filter(m => userId ? m.userId === userId : m.token === token));
+    return fallback;
   }
 
   /**
