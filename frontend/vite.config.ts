@@ -30,6 +30,56 @@ function obfuscateDistJs() {
   }
 }
 
+// 构建后：混淆页面中的电子邮件地址，并注入浏览器端还原脚本
+function obfuscateEmailsInDist() {
+  try {
+    const distRoot = path.resolve(__dirname, 'dist');
+    const assetsDir = path.join(distRoot, 'assets');
+    if (!fs.existsSync(distRoot)) return;
+
+    // 1) 写入客户端还原脚本
+    if (fs.existsSync(assetsDir)) {
+      const clientJs = `(() => {\n  function decodePlaceholders(str) {\n    return str.replace(/\\\\[\\\\[EMAIL_ENC:([A-Za-z0-9+/=]+)\\\\]\\\\]/g, (_, b64) => {\n      try { return atob(b64); } catch { return ''; }\n    });\n  }\n  function walk(node) {\n    if (node.nodeType === Node.TEXT_NODE) {\n      const decoded = decodePlaceholders(node.nodeValue || '');\n      if (decoded !== node.nodeValue) node.nodeValue = decoded;\n      return;\n    }\n    if (node.nodeType !== Node.ELEMENT_NODE) return;\n    const el = node;\n    for (const attr of el.getAttributeNames()) {\n      const val = el.getAttribute(attr) || '';\n      const dec = decodePlaceholders(val);\n      if (dec !== val) el.setAttribute(attr, dec);\n    }\n    for (const child of Array.from(el.childNodes)) walk(child);\n  }\n  function upgradeMailtoLinks() {\n    document.querySelectorAll('a[href^="mailto:"]').forEach(a => {\n      const href = a.getAttribute('href') || '';\n      const m = href.match(/\\\\[\\\\[EMAIL_ENC:([A-Za-z0-9+/=]+)\\\\]\\\\]/);\n      if (m) {\n        try {\n          const email = atob(m[1]);\n          a.setAttribute('href', 'mailto:' + email);\n          if (!a.textContent || !a.textContent.trim()) a.textContent = email;\n        } catch {}\n      }\n    });\n  }\n  function run() {\n    walk(document.body);\n    upgradeMailtoLinks();\n  }\n  if (document.readyState === 'loading') {\n    document.addEventListener('DOMContentLoaded', run);\n  } else {\n    run();\n  }\n})();\n`;
+      const epFile = path.join(assetsDir, 'email-protection.js');
+      fs.writeFileSync(epFile, clientJs, 'utf-8');
+    }
+
+    // 2) 注入还原脚本到 index.html
+    const indexHtml = path.join(distRoot, 'index.html');
+    if (fs.existsSync(indexHtml)) {
+      let html = fs.readFileSync(indexHtml, 'utf-8');
+      if (!/email-protection\.js/.test(html)) {
+        html = html.replace(/<\/body>/i, '  <script defer src="/assets/email-protection.js"></script>\n</body>');
+        fs.writeFileSync(indexHtml, html, 'utf-8');
+      }
+    }
+
+    // 3) 将所有 html/js 文件中的邮箱替换为占位符 [[EMAIL_ENC:BASE64]]
+    const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g;
+    const replaceEmails = (content: string) => content.replace(emailRegex, (m: string) => `[[EMAIL_ENC:${Buffer.from(m, 'utf-8').toString('base64')}]]`);
+
+    const processFile = (filePath: string) => {
+      const ext = path.extname(filePath).toLowerCase();
+      if (ext !== '.html' && ext !== '.js') return;
+      let code = fs.readFileSync(filePath, 'utf-8');
+      const next = replaceEmails(code);
+      if (next !== code) fs.writeFileSync(filePath, next, 'utf-8');
+    };
+
+    // index.html
+    if (fs.existsSync(indexHtml)) processFile(indexHtml);
+    // assets 下 js 与可能存在的 html
+    if (fs.existsSync(assetsDir)) {
+      for (const name of fs.readdirSync(assetsDir)) {
+        const p = path.join(assetsDir, name);
+        if (fs.statSync(p).isFile()) processFile(p);
+      }
+    }
+  } catch (err) {
+    console.warn('[email-protect] obfuscate failed:', err);
+  }
+}
+
 // 生成 sitemap.xml（只包含静态、可公开访问的前端路由）
 function generateSitemapXml() {
   try {
@@ -351,6 +401,7 @@ export default defineConfig(({ mode }) => {
     (output as any).writeBundle = () => {
       obfuscateDistJs();
       generateSitemapXml();
+      obfuscateEmailsInDist();
       if (originalWriteBundle) originalWriteBundle();
     };
   }
