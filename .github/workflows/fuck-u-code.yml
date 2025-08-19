@@ -37,8 +37,8 @@ jobs:
           set -e
           fuck-u-code analyze \
             --markdown \
-            --top 10 \
-            --issues 10 \
+            --top 1000 \
+            --issues 1000 \
             --lang zh-CN \
             --exclude "**/node_modules/**" \
             --exclude "**/dist/**" \
