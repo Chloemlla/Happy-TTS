@@ -446,6 +446,58 @@ router.delete('/messages', async (req, res) => {
 
 /**
  * @openapi
+ * /retry:
+ *   post:
+ *     summary: 携带上下文重试指定助手消息
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [messageId]
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: 用户认证token，可选（游客模式或登录会话可不传）
+ *               messageId:
+ *                 type: string
+ *                 description: 需要重试的助手消息ID
+ *     responses:
+ *       200:
+ *         description: 重试成功，返回新的回复
+ *       400:
+ *         description: 请求参数错误
+ *       401:
+ *         description: 认证失败
+ */
+router.post('/retry', async (req, res) => {
+  try {
+    const { messageId } = req.body || {};
+    const token = getTokenFromReq(req);
+    const userId = extractUserId(req);
+
+    // 游客模式：允许无认证
+    if (!isGuestEnabled()) {
+      if ((!token || token === 'invalid-token') && !userId) {
+        return res.status(401).json({ error: '未认证：请提供有效 token 或登录后再试' });
+      }
+    }
+
+    if (!messageId || typeof messageId !== 'string') {
+      return res.status(400).json({ error: '缺少消息ID' });
+    }
+
+    const response = await libreChatService.retryMessage(token ?? '', messageId as string, userId);
+    return res.json({ response });
+  } catch (error) {
+    console.error('重试生成错误:', error);
+    res.status(500).json({ error: '重试失败' });
+  }
+});
+
+/**
+ * @openapi
  * /export:
  *   get:
  *     summary: 导出聊天历史
@@ -498,7 +550,8 @@ router.get('/admin/users', authenticateAdmin, async (req, res) => {
     const kw = (req.query.kw as string) || '';
     const page = parseInt((req.query.page as string) || '1');
     const limit = parseInt((req.query.limit as string) || '20');
-    const data = await libreChatService.adminListUsers(kw, page, limit);
+    const includeDeleted = String(req.query.includeDeleted || '').toLowerCase() === 'true';
+    const data = await (libreChatService as any).adminListUsers(kw, page, limit, includeDeleted);
     res.json(data);
   } catch (error) {
     console.error('管理员获取用户列表错误:', error);

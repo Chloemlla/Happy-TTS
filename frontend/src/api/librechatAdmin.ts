@@ -30,9 +30,9 @@ export interface AdminUserHistoryResponse {
 // 若未设置环境变量，则使用 getApiBaseUrl() 拼接为完整地址，避免不同部署环境下前缀不一致
 const BASE = (import.meta as any)?.env?.VITE_LIBRECHAT_API_BASE || `${getApiBaseUrl()}/api/librechat`;
 
-export async function listUsers(params: { kw?: string; page?: number; limit?: number }): Promise<AdminUsersResponse> {
-    const { kw = '', page = 1, limit = 20 } = params || {};
-    const res = await api.get(`${BASE}/admin/users`, { params: { kw, page, limit } });
+export async function listUsers(params: { kw?: string; page?: number; limit?: number; includeDeleted?: boolean }): Promise<AdminUsersResponse> {
+    const { kw = '', page = 1, limit = 20, includeDeleted = false } = params || {};
+    const res = await api.get(`${BASE}/admin/users`, { params: { kw, page, limit, includeDeleted } });
     return res.data as AdminUsersResponse;
 }
 

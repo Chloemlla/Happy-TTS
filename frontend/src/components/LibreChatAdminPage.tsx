@@ -31,6 +31,8 @@ const LibreChatAdminPage: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / limit)), [total, limit]);
+  // 是否显示已删除用户
+  const [includeDeleted, setIncludeDeleted] = useState(false);
 
   // Selected user details
   const [selectedUser, setSelectedUser] = useState<AdminUserSummary | null>(null);
@@ -49,7 +51,7 @@ const LibreChatAdminPage: React.FC = () => {
   const fetchUsers = async (toPage = page, showTip = false) => {
     setLoading(true);
     try {
-      const res = await listUsers({ kw, page: toPage, limit });
+      const res = await listUsers({ kw, page: toPage, limit, includeDeleted });
       setUsers(res.users || []);
       setTotal(res.total || 0);
       setPage(toPage);
@@ -81,7 +83,7 @@ const LibreChatAdminPage: React.FC = () => {
   useEffect(() => {
     fetchUsers(1, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [limit]);
+  }, [limit, includeDeleted]);
 
   // 同步全选状态
   useEffect(() => {
@@ -298,6 +300,16 @@ const LibreChatAdminPage: React.FC = () => {
               >
                 {loading ? '搜索中...' : '搜索'}
               </motion.button>
+              <label className="flex items-center gap-2 text-sm text-gray-700 select-none">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4"
+                  checked={includeDeleted}
+                  onChange={(e) => setIncludeDeleted(e.target.checked)}
+                  disabled={loading || actionLoading}
+                />
+                显示已删除
+              </label>
               <motion.button
                 className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium flex items-center gap-2"
                 onClick={handleDeleteAll}

@@ -284,6 +284,26 @@ const LibreChatPage: React.FC = () => {
     }
   };
 
+  // 重试助手消息（携带上下文，覆盖原消息）
+  const handleRetry = async (id?: string) => {
+    if (!id) return;
+    try {
+      const res = await fetch(`${apiBase}/api/librechat/retry`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(token ? { token, messageId: id } : { messageId: id })
+      });
+      if (res.ok) {
+        await fetchHistory(page);
+      } else {
+        setNotification({ type: 'error', message: '重试失败' });
+      }
+    } catch (e: any) {
+      setNotification({ type: 'error', message: e?.message || '重试失败' });
+    }
+  };
+
   const refreshHistory = () => {
     fetchHistory(page);
   };
@@ -352,15 +372,19 @@ const LibreChatPage: React.FC = () => {
     if (!id) return;
     const yes = confirm('确定删除该消息吗？');
     if (!yes) return;
-    const params = new URLSearchParams({ messageId: id });
-    if (token) params.set('token', token);
-    const res = await fetch(`${apiBase}/api/librechat/message?${params.toString()}`, {
-      method: 'DELETE',
-      credentials: 'include'
-    });
-    if (res.ok) {
-      fetchHistory(page);
-    } else {
+    try {
+      const res = await fetch(`${apiBase}/api/librechat/messages`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(token ? { token, messageIds: [id] } : { messageIds: [id] })
+      });
+      if (res.ok) {
+        await fetchHistory(page);
+      } else {
+        alert('删除失败');
+      }
+    } catch {
       alert('删除失败');
     }
   };
@@ -972,6 +996,16 @@ const LibreChatPage: React.FC = () => {
                           <FaEdit className="w-3 h-3" />
                           编辑
                         </motion.button>
+                        {m.role !== 'user' && (
+                          <motion.button
+                            onClick={() => handleRetry(m.id)}
+                            className="px-3 py-1 text-xs rounded border border-blue-200 text-blue-600 hover:bg-blue-50 transition flex items-center gap-1"
+                            whileTap={{ scale: 0.95 }}
+                          >
+                            <FaRedo className="w-3 h-3" />
+                            重试
+                          </motion.button>
+                        )}
                         <motion.button
                           onClick={() => handleDelete(m.id)}
                           className="px-3 py-1 text-xs rounded border border-red-200 text-red-600 hover:bg-red-50 transition flex items-center gap-1"
