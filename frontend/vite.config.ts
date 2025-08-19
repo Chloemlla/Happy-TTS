@@ -122,6 +122,7 @@ function generateSitemapXml() {
       `</urlset>\n`;
 
     fs.writeFileSync(path.join(distDir, 'sitemap.xml'), xml, 'utf-8');
+    console.log('[sitemap] generated');
   } catch (err) {
     // 静默失败，不阻断构建
     console.warn('[sitemap] generate failed:', err);
