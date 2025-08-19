@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, ChangeEvent, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { FaSearch, FaPlus, FaEye, FaEdit, FaTrash, FaExclamationTriangle, FaFilter, FaUser, FaTimes, FaImage, FaUpload, FaShieldAlt, FaUserSecret, FaSpinner, FaSave } from 'react-icons/fa';
 import { useNotification } from './Notification';
 import getApiBaseUrl from '../api';
@@ -424,6 +424,14 @@ const FBIWantedManager: React.FC = () => {
         );
     };
 
+    const prefersReducedMotion = useReducedMotion();
+    const hoverScale = React.useCallback((scale: number, enabled: boolean = true) => (
+        enabled && !prefersReducedMotion ? { scale } : undefined
+    ), [prefersReducedMotion]);
+    const tapScale = React.useCallback((scale: number, enabled: boolean = true) => (
+        enabled && !prefersReducedMotion ? { scale } : undefined
+    ), [prefersReducedMotion]);
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8 px-4 rounded-lg">
             <div className="max-w-7xl mx-auto px-4 space-y-8">
@@ -544,27 +552,33 @@ const FBIWantedManager: React.FC = () => {
                         </div>
 
                         <div className="flex flex-col sm:flex-row gap-4">
-                            <button
+                            <motion.button
                                 onClick={() => handleBatchDelete({ status: 'DECEASED' }, '确定要删除所有已死亡的通缉犯记录吗？此操作不可逆！')}
                                 className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-yellow-500 to-orange-600 text-white rounded-xl hover:from-yellow-600 hover:to-orange-700 transition-all duration-200 font-semibold"
+                                whileHover={hoverScale(1.02)}
+                                whileTap={tapScale(0.98)}
                             >
                                 <FaTrash />
                                 <span>删除死亡记录</span>
-                            </button>
-                            <button
+                            </motion.button>
+                            <motion.button
                                 onClick={() => handleBatchDelete({}, '警告：确定要删除所有的通缉犯记录吗？此操作将清空数据库，不可逆！')}
                                 className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-red-600 to-pink-700 text-white rounded-xl hover:from-red-700 hover:to-pink-800 transition-all duration-200 font-semibold"
+                                whileHover={hoverScale(1.02)}
+                                whileTap={tapScale(0.98)}
                             >
                                 <FaExclamationTriangle />
                                 <span>删除所有记录</span>
-                            </button>
-                            <button
+                            </motion.button>
+                            <motion.button
                                 onClick={() => setShowCreateModal(true)}
                                 className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 font-semibold"
+                                whileHover={hoverScale(1.02)}
+                                whileTap={tapScale(0.98)}
                             >
                                 <FaPlus />
                                 <span>添加通缉犯</span>
-                            </button>
+                            </motion.button>
                         </div>
                     </div>
                 </motion.div>
@@ -646,35 +660,41 @@ const FBIWantedManager: React.FC = () => {
                                                     ${wanted.reward.toLocaleString()}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                                                    <button
+                                                    <motion.button
                                                         onClick={() => {
                                                             setSelectedWanted(wanted);
                                                             setShowViewModal(true);
                                                         }}
                                                         className="text-blue-600 hover:text-blue-900 transition-colors"
+                                                        whileHover={hoverScale(1.1)}
+                                                        whileTap={tapScale(0.95)}
                                                     >
                                                         <FaEye />
-                                                    </button>
-                                                    <button
+                                                    </motion.button>
+                                                    <motion.button
                                                         onClick={() => {
                                                             setSelectedWanted(wanted);
                                                             setFormData(wanted);
                                                             setShowEditModal(true);
                                                         }}
                                                         className="text-green-600 hover:text-green-900 transition-colors"
+                                                        whileHover={hoverScale(1.1)}
+                                                        whileTap={tapScale(0.95)}
                                                     >
                                                         <FaEdit />
-                                                    </button>
-                                                    <button
+                                                    </motion.button>
+                                                    <motion.button
                                                         onClick={() => {
                                                             if (confirm('确定要删除这个通缉犯记录吗？')) {
                                                                 handleDeleteWanted(wanted._id);
                                                             }
                                                         }}
                                                         className="text-red-600 hover:text-red-900 transition-colors"
+                                                        whileHover={hoverScale(1.1)}
+                                                        whileTap={tapScale(0.95)}
                                                     >
                                                         <FaTrash />
-                                                    </button>
+                                                    </motion.button>
                                                 </td>
                                             </tr>
                                         ))}

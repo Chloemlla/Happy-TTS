@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { getApiBaseUrl } from '../api/api';
 import { useNotification } from './Notification';
 import { FaChartBar, FaSync, FaPlus, FaEdit, FaTrash, FaEye, FaTimes } from 'react-icons/fa';
@@ -43,6 +43,14 @@ const WebhookEventsManager: React.FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize]);
+
+  const prefersReducedMotion = useReducedMotion();
+  const hoverScale = React.useCallback((scale: number, enabled: boolean = true) => (
+    enabled && !prefersReducedMotion ? { scale } : undefined
+  ), [prefersReducedMotion]);
+  const tapScale = React.useCallback((scale: number, enabled: boolean = true) => (
+    enabled && !prefersReducedMotion ? { scale } : undefined
+  ), [prefersReducedMotion]);
 
   const fetchList = async (p = page, ps = pageSize) => {
     try {
@@ -103,15 +111,22 @@ const WebhookEventsManager: React.FC = () => {
   // Auto-fit zoom based on container width (target width: 1200px)
   useEffect(() => {
     if (!autoFit) return;
+    let rafId: number | null = null;
     const update = () => {
-      const w = containerRef.current?.clientWidth || window.innerWidth;
-      const target = 1200; // base design width
-      const scale = Math.min(1, Math.max(0.7, w / target));
-      setZoom(Number(scale.toFixed(2)));
+      if (rafId != null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const w = containerRef.current?.clientWidth || window.innerWidth;
+        const target = 1200; // base design width
+        const scale = Math.min(1, Math.max(0.7, w / target));
+        setZoom(Number(scale.toFixed(2)));
+      });
     };
     update();
     window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
+    return () => {
+      window.removeEventListener('resize', update);
+      if (rafId != null) cancelAnimationFrame(rafId);
+    };
   }, [autoFit]);
 
   const handleDelete = async (id: string) => {
@@ -197,19 +212,23 @@ const WebhookEventsManager: React.FC = () => {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <button
+            <motion.button
               onClick={() => fetchList(page, pageSize)}
               className="px-3 py-2 rounded-lg bg-white/20 hover:bg-white/30 transition text-sm font-medium"
               title="刷新"
+              whileHover={hoverScale(1.02)}
+              whileTap={tapScale(0.98)}
             >
               <span className="inline-flex items-center gap-2"><FaSync className="w-4 h-4" /> 刷新</span>
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               onClick={() => { setCreating(true); setEditing({ _id: '', type: '', provider: 'resend' } as any); }}
               className="px-3 py-2 rounded-lg bg-white/20 hover:bg-white/30 transition text-sm font-medium"
+              whileHover={hoverScale(1.02)}
+              whileTap={tapScale(0.98)}
             >
               <span className="inline-flex items-center gap-2"><FaPlus className="w-4 h-4" /> 新增</span>
-            </button>
+            </motion.button>
           </div>
         </div>
         {/* Filters */}
@@ -231,10 +250,12 @@ const WebhookEventsManager: React.FC = () => {
                   </option>
                 ))}
               </select>
-              <button
+              <motion.button
                 onClick={() => fetchGroups()}
                 className="px-3 py-2 rounded-lg bg-white/20 hover:bg-white/30 text-sm"
-              >更新分组</button>
+                whileHover={hoverScale(1.02)}
+                whileTap={tapScale(0.98)}
+              >更新分组</motion.button>
             </div>
           </div>
           <div>
@@ -251,13 +272,13 @@ const WebhookEventsManager: React.FC = () => {
                    onChange={(e)=>setStatusFilter(e.target.value)}
                    onBlur={()=>fetchList(1, pageSize)}
                    placeholder="processed"
-                   className="w-full px-3 py-2 rounded-lg bg-white/20 text-white placeholder-white/60" />
+                   className="w-full px-3 py-2 rounded-lg bg-white/20 text白 placeholder-white/60" />
           </div>
         </div>
       </motion.div>
 
       {/* List & Table */}
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden">
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border白/20 overflow-hidden">
         {/* Mobile Cards */}
         <div className="block md:hidden divide-y divide-gray-100">
           {items.map(it => (
@@ -279,15 +300,15 @@ const WebhookEventsManager: React.FC = () => {
                 </div>
               </div>
               <div className="mt-3 grid grid-cols-3 gap-2 sm:flex sm:flex-row sm:grid-cols-none">
-                <button className="w-full px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-medium flex items-center gap-2" onClick={() => setSelected(it)}>
+                <motion.button className="w-full px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-medium flex items-center gap-2" onClick={() => setSelected(it)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                   <FaEye className="w-3.5 h-3.5" /> 详情
-                </button>
-                <button className="w-full px-3 py-2 rounded-lg bg-amber-500 text-white hover:bg-amber-600 text-xs font-medium flex items-center gap-2" onClick={() => setEditing(it)}>
+                </motion.button>
+                <motion.button className="w-full px-3 py-2 rounded-lg bg-amber-500 text-white hover:bg-amber-600 text-xs font-medium flex items-center gap-2" onClick={() => setEditing(it)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                   <FaEdit className="w-3.5 h-3.5" /> 编辑
-                </button>
-                <button className="w-full px-3 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 text-xs font-medium flex items-center gap-2" onClick={() => handleDelete(it._id)}>
+                </motion.button>
+                <motion.button className="w-full px-3 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 text-xs font-medium flex items-center gap-2" onClick={() => handleDelete(it._id)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                   <FaTrash className="w-3.5 h-3.5" /> 删除
-                </button>
+                </motion.button>
               </div>
             </div>
           ))}
@@ -323,15 +344,15 @@ const WebhookEventsManager: React.FC = () => {
                   <td className="p-3 whitespace-nowrap">{it.receivedAt ? new Date(it.receivedAt).toLocaleString('zh-CN') : '-'}</td>
                   <td className="p-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <button className="px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-medium flex items-center gap-2" onClick={() => setSelected(it)}>
+                      <motion.button className="px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-medium flex items-center gap-2" onClick={() => setSelected(it)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                         <FaEye className="w-3.5 h-3.5" /> <span className="hidden sm:inline">详情</span>
-                      </button>
-                      <button className="px-2 py-1 rounded-lg bg-amber-500 text-white hover:bg-amber-600 text-xs font-medium" onClick={() => setEditing(it)}>
+                      </motion.button>
+                      <motion.button className="px-2 py-1 rounded-lg bg-amber-500 text-white hover:bg-amber-600 text-xs font-medium" onClick={() => setEditing(it)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                         <FaEdit className="w-3.5 h-3.5" /> <span className="hidden sm:inline">编辑</span>
-                      </button>
-                      <button className="px-2 py-1 rounded-lg bg-red-500 text-white hover:bg-red-600 text-xs font-medium" onClick={() => handleDelete(it._id)}>
+                      </motion.button>
+                      <motion.button className="px-2 py-1 rounded-lg bg-red-500 text-white hover:bg-red-600 text-xs font-medium" onClick={() => handleDelete(it._id)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                         <FaTrash className="w-3.5 h-3.5" /> <span className="hidden sm:inline">删除</span>
-                      </button>
+                      </motion.button>
                     </div>
                   </td>
                 </tr>
@@ -351,104 +372,108 @@ const WebhookEventsManager: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 bg-gray-50 border border-gray-100 rounded-2xl">
         <div className="text-sm text-gray-600">共 {total} 条 • 第 {page}/{totalPages} 页</div>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          <button disabled={page <= 1} onClick={() => fetchList(page - 1, pageSize)} className="w-full sm:w-auto px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50">上一页</button>
-          <button disabled={page >= totalPages} onClick={() => fetchList(page + 1, pageSize)} className="w-full sm:w-auto px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50">下一页</button>
+          <motion.button disabled={page <= 1} onClick={() => fetchList(page - 1, pageSize)} className="w-full sm:w-auto px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50" whileHover={hoverScale(1.02, page > 1)} whileTap={tapScale(0.98, page > 1)}>上一页</motion.button>
+          <motion.button disabled={page >= totalPages} onClick={() => fetchList(page + 1, pageSize)} className="w-full sm:w-auto px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50" whileHover={hoverScale(1.02, page < totalPages)} whileTap={tapScale(0.98, page < totalPages)}>下一页</motion.button>
         </div>
       </div>
 
       {/* 详情弹窗 */}
-      {selected && (
-        <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <div className="bg-white/90 backdrop-blur rounded-2xl max-w-3xl w-[95vw] p-4 sm:p-6 border border-white/20 shadow-xl">
-            <div className="flex items-center justify-between mb-3">
-              <div className="font-semibold text-gray-900">事件详情</div>
-              <button onClick={() => setSelected(null)} className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2">
-                <FaTimes className="w-4 h-4" /> 关闭
-              </button>
-            </div>
-            <pre className="text-xs bg-gray-900 text-gray-100 p-3 rounded overflow-auto max-h-[70vh]">{JSON.stringify(selected, null, 2)}</pre>
-          </div>
-        </motion.div>
-      )}
+      <AnimatePresence>
+        {selected && (
+          <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <motion.div className="bg-white/90 backdrop-blur rounded-2xl max-w-3xl w-[95vw] p-4 sm:p-6 border border-white/20 shadow-xl" initial={{ scale: 0.95, y: 10, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 10, opacity: 0 }}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="font-semibold text-gray-900">事件详情</div>
+                <motion.button onClick={() => setSelected(null)} className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                  <FaTimes className="w-4 h-4" /> 关闭
+                </motion.button>
+              </div>
+              <pre className="text-xs bg-gray-900 text-gray-100 p-3 rounded overflow-auto max-h-[70vh]">{JSON.stringify(selected, null, 2)}</pre>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 编辑/创建弹窗 */}
-      {(editing || creating) && (
-        <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <div className="bg-white/90 backdrop-blur rounded-2xl max-w-2xl w-[95vw] p-4 sm:p-6 space-y-4 border border-white/20 shadow-xl">
-            <div className="flex items-center justify-between">
-              <div className="font-semibold text-gray-900">{creating ? '新增事件' : '编辑事件'}</div>
-              <button onClick={() => { setEditing(null); setCreating(false); }} className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2">
-                <FaTimes className="w-4 h-4" /> 关闭
-              </button>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">类型</label>
-                <input className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200" value={editing?.type || ''} onChange={e => setEditing({ ...(editing as any), type: e.target.value })} />
+      <AnimatePresence>
+        {(editing || creating) && (
+          <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <motion.div className="bg-white/90 backdrop-blur rounded-2xl max-w-2xl w-[95vw] p-4 sm:p-6 space-y-4 border border-white/20 shadow-xl" initial={{ scale: 0.95, y: 10, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 10, opacity: 0 }}>
+              <div className="flex items-center justify-between">
+                <div className="font-semibold text-gray-900">{creating ? '新增事件' : '编辑事件'}</div>
+                <motion.button onClick={() => { setEditing(null); setCreating(false); }} className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                  <FaTimes className="w-4 h-4" /> 关闭
+                </motion.button>
               </div>
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">事件ID</label>
-                <input className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200" value={editing?.eventId || ''} onChange={e => setEditing({ ...(editing as any), eventId: e.target.value })} />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">分组(routeKey)</label>
-                <input className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200" value={editing?.routeKey ?? ''} onChange={e => setEditing({ ...(editing as any), routeKey: e.target.value || null })} />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">主题</label>
-                <input className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200" value={editing?.subject || ''} onChange={e => setEditing({ ...(editing as any), subject: e.target.value })} />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">状态</label>
-                <input className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200" value={editing?.status || ''} onChange={e => setEditing({ ...(editing as any), status: e.target.value })} />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-sm text-gray-600 mb-1">收件人(to)</label>
-                <input className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200" value={typeof editing?.to === 'string' ? (editing?.to || '') : JSON.stringify(editing?.to || '')} onChange={e => {
-                  let value: any = e.target.value;
-                  try { value = JSON.parse(e.target.value); } catch {}
-                  setEditing({ ...(editing as any), to: value });
-                }} />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-sm text-gray-600 mb-1">数据(data)</label>
-                <textarea
-                  className="w-full px-3 py-2 h-32 rounded-lg bg-gray-50 border border-gray-200"
-                  value={
-                    editing?.data == null
-                      ? ''
-                      : (typeof editing.data === 'string'
-                          ? (editing.data as string)
-                          : JSON.stringify(editing.data, null, 2))
-                  }
-                  onChange={e => {
-                    const raw = e.target.value;
-                    // Try parse as JSON; if fails, keep as raw string
-                    try {
-                      const parsed = JSON.parse(raw);
-                      setEditing({ ...(editing as any), data: parsed });
-                    } catch {
-                      setEditing({ ...(editing as any), data: raw });
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">类型</label>
+                  <input className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200" value={editing?.type || ''} onChange={e => setEditing({ ...(editing as any), type: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">事件ID</label>
+                  <input className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200" value={editing?.eventId || ''} onChange={e => setEditing({ ...(editing as any), eventId: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">分组(routeKey)</label>
+                  <input className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200" value={editing?.routeKey ?? ''} onChange={e => setEditing({ ...(editing as any), routeKey: e.target.value || null })} />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">主题</label>
+                  <input className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200" value={editing?.subject || ''} onChange={e => setEditing({ ...(editing as any), subject: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">状态</label>
+                  <input className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200" value={editing?.status || ''} onChange={e => setEditing({ ...(editing as any), status: e.target.value })} />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-sm text-gray-600 mb-1">收件人(to)</label>
+                  <input className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200" value={typeof editing?.to === 'string' ? (editing?.to || '') : JSON.stringify(editing?.to || '')} onChange={e => {
+                    let value: any = e.target.value;
+                    try { value = JSON.parse(e.target.value); } catch {}
+                    setEditing({ ...(editing as any), to: value });
+                  }} />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-sm text-gray-600 mb-1">数据(data)</label>
+                  <textarea
+                    className="w-full px-3 py-2 h-32 rounded-lg bg-gray-50 border border-gray-200"
+                    value={
+                      editing?.data == null
+                        ? ''
+                        : (typeof editing.data === 'string'
+                            ? (editing.data as string)
+                            : JSON.stringify(editing.data, null, 2))
                     }
-                  }}
-                />
+                    onChange={e => {
+                      const raw = e.target.value;
+                      // Try parse as JSON; if fails, keep as raw string
+                      try {
+                        const parsed = JSON.parse(raw);
+                        setEditing({ ...(editing as any), data: parsed });
+                      } catch {
+                        setEditing({ ...(editing as any), data: raw });
+                      }
+                    }}
+                  />
+                </div>
               </div>
-            </div>
-            <div className="flex items-center justify-end gap-2">
-              {!creating && (
-                <button onClick={handleSave} className="px-3 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm font-medium flex items-center gap-2">
-                  <FaEdit className="w-4 h-4" /> 保存
-                </button>
-              )}
-              {creating && (
-                <button onClick={handleCreate} className="px-3 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm font-medium flex items-center gap-2">
-                  <FaPlus className="w-4 h-4" /> 创建
-                </button>
-              )}
-            </div>
-          </div>
-        </motion.div>
-      )}
+              <div className="flex items-center justify-end gap-2">
+                {!creating && (
+                  <motion.button onClick={handleSave} className="px-3 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                    <FaEdit className="w-4 h-4" /> 保存
+                  </motion.button>
+                )}
+                {creating && (
+                  <motion.button onClick={handleCreate} className="px-3 py-2 rounded-lg bg-gradient-to-r from-blue-600 to紫-600 text白 text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                    <FaPlus className="w-4 h-4" /> 创建
+                  </motion.button>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

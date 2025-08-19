@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useState, startTransition } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { FaTrash, FaCopy, FaSearch, FaSync, FaDice, FaLink, FaPlus, FaInfoCircle, FaExclamationTriangle, FaCheckCircle, FaArrowLeft, FaList, FaToggleOn, FaToggleOff, FaChevronLeft, FaChevronRight, FaAngleDoubleLeft, FaAngleDoubleRight, FaDownload, FaFileAlt, FaUpload } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import { useNotification } from './Notification';
@@ -67,6 +67,15 @@ const ShortLinkManager: React.FC = () => {
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [codeValidation, setCodeValidation] = useState<{ isValid: boolean; message: string } | null>(null);
   const { setNotification } = useNotification();
+
+  // 优化动画：根据系统“减少动态”偏好降级，并用辅助函数避免重复创建对象
+  const prefersReducedMotion = useReducedMotion();
+  const hoverScale = React.useCallback((scale: number, enabled: boolean = true) => (
+    enabled && !prefersReducedMotion ? { scale } : undefined
+  ), [prefersReducedMotion]);
+  const tapScale = React.useCallback((scale: number, enabled: boolean = true) => (
+    enabled && !prefersReducedMotion ? { scale } : undefined
+  ), [prefersReducedMotion]);
 
   // 虚拟滚动相关状态
   const [containerHeight, setContainerHeight] = useState(600);
@@ -208,11 +217,15 @@ const ShortLinkManager: React.FC = () => {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
 
-    // 添加生成动画效果
-    setCustomCode('');
-    setTimeout(() => {
-      setCustomCode(result);
-    }, 100);
+    // 使用非阻塞更新并让出一帧，减少与点击动画竞争
+    startTransition(() => setCustomCode(''));
+    if (typeof window !== 'undefined' && 'requestAnimationFrame' in window) {
+      requestAnimationFrame(() => {
+        startTransition(() => setCustomCode(result));
+      });
+    } else {
+      startTransition(() => setCustomCode(result));
+    }
   };
 
   // 清除自定义短链接码
@@ -786,7 +799,7 @@ const ShortLinkManager: React.FC = () => {
             onClick={handleRefresh}
             disabled={refreshing}
             className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
-            whileTap={{ scale: 0.95 }}
+            whileTap={tapScale(0.95)}
           >
             <FaSync className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
             刷新
@@ -822,8 +835,8 @@ const ShortLinkManager: React.FC = () => {
               onClick={handleExportAll}
               disabled={exportingAll || links.length === 0}
               className="w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-2 text-sm sm:text-base bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium flex items-center justify-center gap-2"
-              whileHover={!exportingAll && links.length > 0 ? { scale: 1.02 } : {}}
-              whileTap={!exportingAll && links.length > 0 ? { scale: 0.98 } : {}}
+              whileHover={hoverScale(1.02, !exportingAll && links.length > 0)}
+              whileTap={tapScale(0.98, !exportingAll && links.length > 0)}
             >
               {exportingAll ? (
                 <>
@@ -852,8 +865,8 @@ const ShortLinkManager: React.FC = () => {
               <motion.button
                 disabled={importingData}
                 className="w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-2 text-sm sm:text-base bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium flex items-center justify-center gap-2"
-                whileHover={!importingData ? { scale: 1.02 } : {}}
-                whileTap={!importingData ? { scale: 0.98 } : {}}
+                whileHover={hoverScale(1.02, !importingData)}
+                whileTap={tapScale(0.98, !importingData)}
               >
                 {importingData ? (
                   <>
@@ -876,8 +889,8 @@ const ShortLinkManager: React.FC = () => {
               onClick={handleDeleteAll}
               disabled={deletingAll || links.length === 0}
               className="w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-2 text-sm sm:text-base bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium flex items-center justify-center gap-2"
-              whileHover={!deletingAll && links.length > 0 ? { scale: 1.02 } : {}}
-              whileTap={!deletingAll && links.length > 0 ? { scale: 0.98 } : {}}
+              whileHover={hoverScale(1.02, !deletingAll && links.length > 0)}
+              whileTap={tapScale(0.98, !deletingAll && links.length > 0)}
             >
               {deletingAll ? (
                 <>
@@ -901,8 +914,8 @@ const ShortLinkManager: React.FC = () => {
                 ? 'bg-orange-500 text-white hover:bg-orange-600'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={hoverScale(1.02)}
+              whileTap={tapScale(0.98)}
             >
               {isSelectMode ? <FaToggleOn className="w-3 h-3 sm:w-4 sm:h-4" /> : <FaToggleOff className="w-3 h-3 sm:w-4 sm:h-4" />}
               <span className="hidden sm:inline">{isSelectMode ? '退出选择' : '批量选择'}</span>
@@ -929,14 +942,14 @@ const ShortLinkManager: React.FC = () => {
                     <motion.button
                       onClick={selectAllLinks}
                       className="w-full sm:w-auto px-2 sm:px-3 py-1 text-xs sm:text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition"
-                      whileTap={{ scale: 0.95 }}
+                      whileTap={tapScale(0.95)}
                     >
                       全选
                     </motion.button>
                     <motion.button
                       onClick={clearSelection}
                       className="w-full sm:w-auto px-2 sm:px-3 py-1 text-xs sm:text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition"
-                      whileTap={{ scale: 0.95 }}
+                      whileTap={tapScale(0.95)}
                     >
                       清空选择
                     </motion.button>
@@ -948,8 +961,8 @@ const ShortLinkManager: React.FC = () => {
                     onClick={handleBatchDelete}
                     disabled={batchDeleting}
                     className="w-full sm:w-auto px-3 sm:px-4 py-2 text-sm sm:text-base bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 font-medium flex items-center justify-center gap-2"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                    whileHover={hoverScale(1.02)}
+                    whileTap={tapScale(0.98)}
                   >
                     <FaTrash className="w-3 h-3 sm:w-4 sm:h-4" />
                     <span className="hidden sm:inline">{batchDeleting ? '删除中...' : `删除 ${selectedLinks.size} 个`}</span>
@@ -993,11 +1006,11 @@ const ShortLinkManager: React.FC = () => {
                 disabled={creating}
               />
               <motion.button
-                className="px-3 py-2 bg-orange-500 text-white rounded-r-lg hover:bg-orange-600 transition disabled:opacity-50 flex items-center gap-2"
+                className="px-3 py-2 bg-orange-500 text-white rounded-r-lg hover:bg-orange-600 transition disabled:opacity-50 flex items-center gap-2 transform-gpu will-change-transform touch-manipulation select-none"
                 onClick={generateRandomCode}
                 disabled={creating}
                 title="生成随机短链接码"
-                whileTap={{ scale: 0.95 }}
+                whileTap={tapScale(0.95)}
               >
                 <FaDice className="w-4 h-4" />
               </motion.button>
@@ -1059,8 +1072,8 @@ const ShortLinkManager: React.FC = () => {
               ? 'bg-gray-400 cursor-not-allowed'
               : 'bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 shadow-lg hover:shadow-xl'
               }`}
-            whileHover={!creating ? { scale: 1.02 } : {}}
-            whileTap={!creating ? { scale: 0.98 } : {}}
+            whileHover={hoverScale(1.02, !creating)}
+            whileTap={tapScale(0.98, !creating)}
           >
             {creating ? (
               <div className="flex items-center justify-center space-x-2">
@@ -1193,8 +1206,8 @@ const ShortLinkManager: React.FC = () => {
                               title="复制短链"
                               onClick={() => handleCopy(link.code)}
                               data-copy-code={link.code}
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
+                              whileHover={hoverScale(1.1)}
+                              whileTap={tapScale(0.9)}
                             >
                               <FaCopy className="w-4 h-4" />
                             </motion.button>
@@ -1202,8 +1215,8 @@ const ShortLinkManager: React.FC = () => {
                               className="flex items-center justify-center bg-red-100 hover:bg-red-200 text-red-600 rounded-lg px-2 py-1 shadow-sm hover:shadow-md transition-all duration-150"
                               title="删除"
                               onClick={() => handleDelete(link._id)}
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
+                              whileHover={hoverScale(1.1)}
+                              whileTap={tapScale(0.9)}
                             >
                               <FaTrash className="w-4 h-4" />
                             </motion.button>
@@ -1274,8 +1287,8 @@ const ShortLinkManager: React.FC = () => {
                           title="复制短链"
                           onClick={() => handleCopy(link.code)}
                           data-copy-code={link.code}
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
+                          whileHover={hoverScale(1.1)}
+                          whileTap={tapScale(0.9)}
                         >
                           <FaCopy className="w-3 h-3 sm:w-4 sm:h-4" />
                         </motion.button>
@@ -1283,8 +1296,8 @@ const ShortLinkManager: React.FC = () => {
                           className="flex items-center justify-center bg-red-100 hover:bg-red-200 text-red-600 rounded-lg p-1.5 sm:p-2 shadow-sm hover:shadow-md transition-all duration-150"
                           title="删除"
                           onClick={() => handleDelete(link._id)}
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
+                          whileHover={hoverScale(1.1)}
+                          whileTap={tapScale(0.9)}
                         >
                           <FaTrash className="w-3 h-3 sm:w-4 sm:h-4" />
                         </motion.button>
@@ -1338,8 +1351,8 @@ const ShortLinkManager: React.FC = () => {
                   ? 'text-gray-400 cursor-not-allowed'
                   : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
                   }`}
-                whileHover={page !== 1 ? { scale: 1.05 } : {}}
-                whileTap={page !== 1 ? { scale: 0.95 } : {}}
+                whileHover={hoverScale(1.05, page !== 1)}
+                whileTap={tapScale(0.95, page !== 1)}
               >
                 <FaAngleDoubleLeft className="w-3 h-3 sm:w-4 sm:h-4" />
               </motion.button>
@@ -1352,8 +1365,8 @@ const ShortLinkManager: React.FC = () => {
                   ? 'text-gray-400 cursor-not-allowed'
                   : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
                   }`}
-                whileHover={page !== 1 ? { scale: 1.05 } : {}}
-                whileTap={page !== 1 ? { scale: 0.95 } : {}}
+                whileHover={hoverScale(1.05, page !== 1)}
+                whileTap={tapScale(0.95, page !== 1)}
               >
                 <FaChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" />
               </motion.button>
@@ -1368,8 +1381,8 @@ const ShortLinkManager: React.FC = () => {
                       ? 'bg-blue-500 text-white shadow-md'
                       : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
                       }`}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                    whileHover={hoverScale(1.05)}
+                    whileTap={tapScale(0.95)}
                   >
                     {pageNum}
                   </motion.button>
@@ -1384,8 +1397,8 @@ const ShortLinkManager: React.FC = () => {
                   ? 'text-gray-400 cursor-not-allowed'
                   : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
                   }`}
-                whileHover={page !== totalPages ? { scale: 1.05 } : {}}
-                whileTap={page !== totalPages ? { scale: 0.95 } : {}}
+                whileHover={hoverScale(1.05, page !== totalPages)}
+                whileTap={tapScale(0.95, page !== totalPages)}
               >
                 <FaChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
               </motion.button>
@@ -1398,8 +1411,8 @@ const ShortLinkManager: React.FC = () => {
                   ? 'text-gray-400 cursor-not-allowed'
                   : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
                   }`}
-                whileHover={page !== totalPages ? { scale: 1.05 } : {}}
-                whileTap={page !== totalPages ? { scale: 0.95 } : {}}
+                whileHover={hoverScale(1.05, page !== totalPages)}
+                whileTap={tapScale(0.95, page !== totalPages)}
               >
                 <FaAngleDoubleRight className="w-3 h-3 sm:w-4 sm:h-4" />
               </motion.button>

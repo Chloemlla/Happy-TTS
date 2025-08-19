@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { LazyMotion, domAnimation, m, AnimatePresence, useReducedMotion } from 'framer-motion';
 import getApiBaseUrl from '../api';
 import { useNotification } from './Notification';
 import { useAuth } from '../hooks/useAuth';
@@ -14,6 +14,13 @@ import {
 } from 'react-icons/fa';
 
 const API_URL = getApiBaseUrl() + '/api/admin/envs';
+
+// 统一的进入动画与过渡配置，结合 useReducedMotion 可降级
+const ENTER_INITIAL = { opacity: 0, y: 20 } as const;
+const ENTER_ANIMATE = { opacity: 1, y: 0 } as const;
+const DURATION_06 = { duration: 0.6 } as const;
+const DURATION_03 = { duration: 0.3 } as const;
+const NO_DURATION = { duration: 0 } as const;
 
 function getAuthHeaders(): Record<string, string> {
   const token = localStorage.getItem('token');
@@ -105,6 +112,50 @@ function getEnvSource(key: string): string | undefined {
   return undefined; // 没有明确来源
 }
 
+// 抽取表格行，memo 化以减少不必要渲染
+interface EnvRowProps {
+  item: EnvItem;
+  idx: number;
+  prefersReducedMotion: boolean;
+  onSourceClick: (source: string) => void;
+}
+const EnvRow = React.memo(function EnvRow({ item, idx, prefersReducedMotion, onSourceClick }: EnvRowProps) {
+  const rowTransition = useMemo(() => (
+    prefersReducedMotion ? NO_DURATION : { duration: 0.3, delay: idx * 0.05 }
+  ), [prefersReducedMotion, idx]);
+
+  return (
+    <m.tr 
+      className={`border-b border-gray-100 last:border-b-0 ${
+        idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+      }`}
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={rowTransition}
+      whileHover={{ backgroundColor: '#f8fafc' }}
+    >
+      <td className="px-4 py-3 font-mono text-sm font-medium text-gray-900 align-top">
+        <div className="break-words whitespace-normal leading-relaxed flex items-start gap-1">
+          {item.source && (
+            <button
+              onClick={() => onSourceClick(item.source!)}
+              className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 mt-0.5 flex-shrink-0 hover:text-blue-600 transition-colors cursor-pointer"
+            >
+              <FaInfoCircle />
+            </button>
+          )}
+          <span>{item.key.split(':').pop() || item.key}</span>
+        </div>
+      </td>
+      <td className="px-4 py-3 font-mono text-sm text-gray-700 align-top">
+        <div className="break-words whitespace-pre-wrap leading-relaxed">
+          {item.value}
+        </div>
+      </td>
+    </m.tr>
+  );
+});
+
 const EnvManager: React.FC = () => {
   const { user } = useAuth();
   const [envs, setEnvs] = useState<EnvItem[]>([]);
@@ -114,6 +165,11 @@ const EnvManager: React.FC = () => {
   const [showSourceModal, setShowSourceModal] = useState(false);
   const [selectedSource, setSelectedSource] = useState<string>('');
   const { setNotification } = useNotification();
+  const prefersReducedMotion = useReducedMotion();
+
+  const trans06 = useMemo(() => (prefersReducedMotion ? NO_DURATION : DURATION_06), [prefersReducedMotion]);
+  const trans03 = useMemo(() => (prefersReducedMotion ? NO_DURATION : DURATION_03), [prefersReducedMotion]);
+  const modalTrans = useMemo(() => (prefersReducedMotion ? NO_DURATION : { duration: 0.1 }), [prefersReducedMotion]);
 
   const fetchEnvs = async () => {
     setLoading(true);
@@ -192,11 +248,11 @@ const EnvManager: React.FC = () => {
           }
         } else {
           // 兼容旧的未加密格式
-        if (Array.isArray(data.envs)) {
-          envArr = data.envs;
-        } else if (data.envs && typeof data.envs === 'object') {
-          envArr = Object.entries(data.envs).map(([key, value]) => ({ key, value: String(value) }));
-        }
+          if (Array.isArray(data.envs)) {
+            envArr = data.envs;
+          } else if (data.envs && typeof data.envs === 'object') {
+            envArr = Object.entries(data.envs).map(([key, value]) => ({ key, value: String(value) }));
+          }
         }
         
         setEnvs(envArr);
@@ -212,215 +268,200 @@ const EnvManager: React.FC = () => {
 
   useEffect(() => { fetchEnvs(); }, []);
 
+  const handleSourceClick = useCallback((source: string) => {
+    setSelectedSource(source);
+    setShowSourceModal(true);
+  }, []);
+
   // 管理员校验
   if (!user || user.role !== 'admin') {
     return (
-      <motion.div 
-        className="space-y-6"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        <motion.div 
-          className="bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-6 border border-red-100"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
+      <LazyMotion features={domAnimation}>
+        <m.div 
+          className="space-y-6"
+          initial={ENTER_INITIAL}
+          animate={ENTER_ANIMATE}
+          transition={trans06}
         >
-          <h2 className="text-2xl font-bold text-red-700 mb-3 flex items-center gap-2">
-            <FaLock className="text-2xl text-red-600" />
-            访问被拒绝
-          </h2>
-          <div className="text-gray-600 space-y-2">
-            <p>你不是管理员，禁止访问！请用管理员账号登录后再来。</p>
-            <div className="text-sm text-red-500 italic">
-              环境变量管理仅限管理员使用
+          <m.div 
+            className="bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-6 border border-red-100"
+            initial={ENTER_INITIAL}
+            animate={ENTER_ANIMATE}
+            transition={trans06}
+          >
+            <h2 className="text-2xl font-bold text-red-700 mb-3 flex items-center gap-2">
+              <FaLock className="text-2xl text-red-600" />
+              访问被拒绝
+            </h2>
+            <div className="text-gray-600 space-y-2">
+              <p>你不是管理员，禁止访问！请用管理员账号登录后再来。</p>
+              <div className="text-sm text-red-500 italic">
+                环境变量管理仅限管理员使用
+              </div>
             </div>
-          </div>
-        </motion.div>
-      </motion.div>
+          </m.div>
+        </m.div>
+      </LazyMotion>
     );
   }
 
   return (
-    <motion.div 
-      className="space-y-6"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6 }}
-    >
-      {/* 标题和说明 */}
-      <motion.div 
-        className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
+    <LazyMotion features={domAnimation}>
+      <m.div 
+        className="space-y-6"
+        initial={ENTER_INITIAL}
+        animate={ENTER_ANIMATE}
+        transition={trans06}
       >
-        <h2 className="text-2xl font-bold text-blue-700 mb-3 flex items-center gap-2">
-          <FaCog className="text-2xl text-blue-600" />
-          环境变量管理
-        </h2>
-        <div className="text-gray-600 space-y-2">
-          <p>查看系统环境变量配置，支持加密存储和传输。</p>
-          <div className="flex items-start gap-2 text-sm">
-            <div>
-              <p className="font-semibold text-blue-700">功能说明：</p>
-              <ul className="list-disc list-inside space-y-1 mt-1">
-                <li>实时查看系统环境变量</li>
-                <li>支持AES-256加密传输</li>
-                <li>自动解密显示数据</li>
-                <li>仅管理员可访问</li>
-              </ul>
+        {/* 标题和说明 */}
+        <m.div 
+          className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100"
+          initial={ENTER_INITIAL}
+          animate={ENTER_ANIMATE}
+          transition={trans06}
+        >
+          <h2 className="text-2xl font-bold text-blue-700 mb-3 flex items-center gap-2">
+            <FaCog className="text-2xl text-blue-600" />
+            环境变量管理
+          </h2>
+          <div className="text-gray-600 space-y-2">
+            <p>查看系统环境变量配置，支持加密存储和传输。</p>
+            <div className="flex items-start gap-2 text-sm">
+              <div>
+                <p className="font-semibold text-blue-700">功能说明：</p>
+                <ul className="list-disc list-inside space-y-1 mt-1">
+                  <li>实时查看系统环境变量</li>
+                  <li>支持AES-256加密传输</li>
+                  <li>自动解密显示数据</li>
+                  <li>仅管理员可访问</li>
+                </ul>
+              </div>
             </div>
           </div>
-        </div>
-      </motion.div>
+        </m.div>
 
-      {/* 环境变量表格 */}
-      <motion.div 
-        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <FaList className="text-lg text-blue-500" />
-            环境变量列表
-          </h3>
-          <motion.button
-            onClick={fetchEnvs}
-            disabled={loading}
-            className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
-            whileTap={{ scale: 0.95 }}
-          >
-            <FaSync className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            刷新
-          </motion.button>
-        </div>
+        {/* 环境变量表格 */}
+        <m.div 
+          className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+          initial={ENTER_INITIAL}
+          animate={ENTER_ANIMATE}
+          transition={trans06}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+              <FaList className="text-lg text-blue-500" />
+              环境变量列表
+            </h3>
+            <m.button
+              onClick={fetchEnvs}
+              disabled={loading}
+              className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
+              whileTap={{ scale: 0.95 }}
+            >
+              <FaSync className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              刷新
+            </m.button>
+          </div>
 
-        {/* 数据来源图例 */}
-        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="flex items-center gap-3 text-base text-blue-700">
-            <FaInfoCircle className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 flex-shrink-0" />
-            <span className="font-medium leading-relaxed">带蓝色感叹号图标的变量表示有明确的数据来源信息</span>
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="text-center py-8 text-gray-500">
-            <svg className="animate-spin h-8 w-8 mx-auto mb-4 text-blue-500" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            加载中...
-          </div>
-        ) : envs.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <FaList className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-            暂无环境变量数据
-          </div>
-        ) : (
-          <div className="overflow-x-auto border border-gray-200 rounded-lg">
-            <table className="min-w-full">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-[200px] w-1/3">变量名</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-[300px] w-2/3">值</th>
-                </tr>
-              </thead>
-              <tbody>
-                {envs.map((item, idx) => (
-                  <motion.tr 
-                    key={item.key} 
-                    className={`border-b border-gray-100 last:border-b-0 ${
-                      idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                    }`}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3, delay: idx * 0.05 }}
-                    whileHover={{ backgroundColor: '#f8fafc' }}
-                  >
-                    <td className="px-4 py-3 font-mono text-sm font-medium text-gray-900 align-top">
-                      <div className="break-words whitespace-normal leading-relaxed flex items-start gap-1">
-                        {item.source && (
-                          <button
-                            onClick={() => {
-                              setSelectedSource(item.source!);
-                              setShowSourceModal(true);
-                            }}
-                            className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 mt-0.5 flex-shrink-0 hover:text-blue-600 transition-colors cursor-pointer"
-                          >
-                            <FaInfoCircle />
-                          </button>
-                        )}
-                        <span>{item.key.split(':').pop() || item.key}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-sm text-gray-700 align-top">
-                      <div className="break-words whitespace-pre-wrap leading-relaxed">
-                        {item.value}
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* 统计信息 */}
-        {!loading && envs.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-4 pt-4 border-t border-gray-200"
-          >
-            <div className="flex items-center justify-between text-sm text-gray-600">
-              <span>总计 {envs.length} 个环境变量</span>
-              <span>最后更新: {new Date().toLocaleString()}</span>
+          {/* 数据来源图例 */}
+          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center gap-3 text-base text-blue-700">
+              <FaInfoCircle className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 flex-shrink-0" />
+              <span className="font-medium leading-relaxed">带蓝色感叹号图标的变量表示有明确的数据来源信息</span>
             </div>
-          </motion.div>
-        )}
-      </motion.div>
+          </div>
 
-      {/* 数据来源弹窗 */}
-      <AnimatePresence>
-        {showSourceModal && (
-          <motion.div
-            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-[9999]"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.1 }}
-            onClick={() => setShowSourceModal(false)}
-          >
-            <motion.div
-              className="bg-white rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] p-8 w-full max-w-md mx-4 relative z-[10000] border border-gray-100"
+          {loading ? (
+            <div className="text-center py-8 text-gray-500">
+              <svg className="animate-spin h-8 w-8 mx-auto mb-4 text-blue-500" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              加载中...
+            </div>
+          ) : envs.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <FaList className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+              暂无环境变量数据
+            </div>
+          ) : (
+            <div className="overflow-x-auto border border-gray-200 rounded-lg">
+              <table className="min-w-full">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-[200px] w-1/3">变量名</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-[300px] w-2/3">值</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {envs.map((item, idx) => (
+                    <EnvRow
+                      key={item.key}
+                      item={item}
+                      idx={idx}
+                      prefersReducedMotion={!!prefersReducedMotion}
+                      onSourceClick={handleSourceClick}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* 统计信息 */}
+          {!loading && envs.length > 0 && (
+            <m.div
+              initial={ENTER_INITIAL}
+              animate={ENTER_ANIMATE}
+              transition={trans03}
+              className="mt-4 pt-4 border-t border-gray-200"
+            >
+              <div className="flex items-center justify-between text-sm text-gray-600">
+                <span>总计 {envs.length} 个环境变量</span>
+                <span>最后更新: {new Date().toLocaleString()}</span>
+              </div>
+            </m.div>
+          )}
+        </m.div>
+
+        {/* 数据来源弹窗 */}
+        <AnimatePresence>
+          {showSourceModal && (
+            <m.div
+              className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-[9999]"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.1 }}
-              onClick={(e) => e.stopPropagation()}
+              transition={modalTrans}
+              onClick={() => setShowSourceModal(false)}
             >
-              <div className="text-center">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <FaInfoCircle className="w-8 h-8 text-blue-500" />
+              <m.div
+                className="bg-white rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] p-8 w-full max-w-md mx-4 relative z-[10000] border border-gray-100"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={modalTrans}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <FaInfoCircle className="w-8 h-8 text-blue-500" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">数据来源</h3>
+                  <p className="text-gray-600 mb-6">{selectedSource}</p>
+                  <button
+                    onClick={() => setShowSourceModal(false)}
+                    className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+                  >
+                    确定
+                  </button>
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">数据来源</h3>
-                <p className="text-gray-600 mb-6">{selectedSource}</p>
-                <button
-                  onClick={() => setShowSourceModal(false)}
-                  className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
-                >
-                  确定
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+              </m.div>
+            </m.div>
+          )}
+        </AnimatePresence>
+      </m.div>
+    </LazyMotion>
   );
 };
 
