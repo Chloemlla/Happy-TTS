@@ -5,6 +5,853 @@ import App from './App'
 import './index.css'
 import { integrityChecker } from './utils/integrityCheck'
 import { disableSelection } from './utils/disableSelection'
+import CryptoJS from 'crypto-js'
+
+// AES-256 解密函数（前端版本）
+function decryptAES256(encryptedData: string, iv: string, key: string): string {
+  try {
+    const keyHash = CryptoJS.SHA256(key);
+    const ivBytes = CryptoJS.enc.Hex.parse(iv);
+    const encryptedBytes = CryptoJS.enc.Hex.parse(encryptedData);
+    
+    const decrypted = CryptoJS.AES.decrypt(
+      { ciphertext: encryptedBytes },
+      keyHash,
+      {
+        iv: ivBytes,
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7
+      }
+    );
+    
+    return decrypted.toString(CryptoJS.enc.Utf8);
+  } catch (error) {
+    console.error('AES-256 解密失败:', error);
+    throw new Error('解密失败');
+  }
+}
+
+// 调试控制台验证机制
+interface DebugConsoleConfig {
+  enabled: boolean;
+  keySequence: string;
+  verificationCode: string;
+  maxAttempts: number;
+  lockoutDuration: number; // 毫秒
+  updatedAt?: Date;
+}
+
+// 默认调试控制台配置
+const DEFAULT_DEBUG_CONFIG: DebugConsoleConfig = {
+  enabled: true,
+  keySequence: '91781145',
+  verificationCode: '123456',
+  maxAttempts: 5,
+  lockoutDuration: 30 * 60 * 1000, // 30分钟
+  updatedAt: new Date()
+};
+
+// 调试控制台状态管理
+class DebugConsoleManager {
+  private static instance: DebugConsoleManager;
+  private config: DebugConsoleConfig;
+  private keyBuffer: string = '';
+  private attempts: number = 0;
+  private lockoutUntil: number = 0;
+  private isDebugMode: boolean = false;
+
+  private constructor() {
+    this.config = this.loadConfig();
+    this.attempts = this.loadAttempts();
+    this.lockoutUntil = this.loadLockoutUntil();
+    this.isDebugMode = this.loadDebugMode();
+    
+    // 启动配置同步
+    this.startConfigSync();
+  }
+
+  public static getInstance(): DebugConsoleManager {
+    if (!DebugConsoleManager.instance) {
+      DebugConsoleManager.instance = new DebugConsoleManager();
+    }
+    return DebugConsoleManager.instance;
+  }
+
+  private loadConfig(): DebugConsoleConfig {
+    try {
+      const stored = localStorage.getItem('debug_console_config');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return { ...DEFAULT_DEBUG_CONFIG, ...parsed };
+      }
+    } catch (error) {
+      console.warn('加载调试控制台配置失败:', error);
+    }
+    return DEFAULT_DEBUG_CONFIG;
+  }
+
+  private saveConfig(): void {
+    try {
+      localStorage.setItem('debug_console_config', JSON.stringify(this.config));
+    } catch (error) {
+      console.warn('保存调试控制台配置失败:', error);
+    }
+  }
+
+  private loadAttempts(): number {
+    try {
+      const stored = localStorage.getItem('debug_console_attempts');
+      return stored ? parseInt(stored, 10) : 0;
+    } catch (error) {
+      console.warn('加载调试控制台尝试次数失败:', error);
+      return 0;
+    }
+  }
+
+  private saveAttempts(): void {
+    try {
+      localStorage.setItem('debug_console_attempts', this.attempts.toString());
+    } catch (error) {
+      console.warn('保存调试控制台尝试次数失败:', error);
+    }
+  }
+
+  private loadLockoutUntil(): number {
+    try {
+      const stored = localStorage.getItem('debug_console_lockout');
+      return stored ? parseInt(stored, 10) : 0;
+    } catch (error) {
+      console.warn('加载调试控制台锁定时间失败:', error);
+      return 0;
+    }
+  }
+
+  private saveLockoutUntil(): void {
+    try {
+      localStorage.setItem('debug_console_lockout', this.lockoutUntil.toString());
+    } catch (error) {
+      console.warn('保存调试控制台锁定时间失败:', error);
+    }
+  }
+
+  private loadDebugMode(): boolean {
+    try {
+      const stored = localStorage.getItem('debug_console_mode');
+      return stored === 'true';
+    } catch (error) {
+      console.warn('加载调试控制台模式失败:', error);
+      return false;
+    }
+  }
+
+  private saveDebugMode(): void {
+    try {
+      localStorage.setItem('debug_console_mode', this.isDebugMode.toString());
+    } catch (error) {
+      console.warn('保存调试控制台模式失败:', error);
+    }
+  }
+
+  // 从后端同步配置
+  public async syncConfigFromBackend(): Promise<void> {
+    try {
+      // 获取认证token
+      const token = localStorage.getItem('token');
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      // 尝试获取加密配置
+      let response = await fetch('/api/debug-console/configs/encrypted', {
+        headers
+      });
+      
+      if (response.status === 401) {
+        console.log('⚠️ 同步配置需要管理员权限，跳过自动同步');
+        return;
+      }
+      
+      let data: any = null;
+      let configs: any[] = [];
+      
+      if (response.ok) {
+        data = await response.json();
+        if (data.success && data.data && data.iv) {
+          try {
+            // 解密配置数据
+            const decryptedJson = decryptAES256(data.data, data.iv, token!);
+            const decryptedData = JSON.parse(decryptedJson);
+            
+            if (Array.isArray(decryptedData)) {
+              configs = decryptedData;
+            }
+          } catch (decryptError) {
+            console.warn('解密配置失败，尝试获取未加密配置:', decryptError);
+          }
+        }
+      }
+      
+      // 如果加密配置获取失败，回退到未加密配置
+      if (configs.length === 0) {
+        response = await fetch('/api/debug-console/configs', {
+          headers
+        });
+        
+        if (response.ok) {
+          data = await response.json();
+          if (data.success && data.data && data.data.length > 0) {
+            configs = data.data;
+          }
+        }
+      }
+      
+      if (configs.length > 0) {
+        // 获取默认配置或第一个配置
+        const backendConfig = configs.find((config: any) => config.group === 'default') || configs[0];
+        
+        // 检查配置是否有变化
+        const oldConfig = { ...this.config };
+        const newConfig = {
+          ...this.config,
+          enabled: backendConfig.enabled,
+          keySequence: backendConfig.keySequence,
+          verificationCode: backendConfig.verificationCode,
+          maxAttempts: backendConfig.maxAttempts,
+          lockoutDuration: backendConfig.lockoutDuration,
+          updatedAt: new Date()
+        };
+        
+        // 检查关键配置是否发生变化
+        const configChanged = 
+          oldConfig.enabled !== newConfig.enabled ||
+          oldConfig.keySequence !== newConfig.keySequence ||
+          oldConfig.verificationCode !== newConfig.verificationCode ||
+          oldConfig.maxAttempts !== newConfig.maxAttempts ||
+          oldConfig.lockoutDuration !== newConfig.lockoutDuration;
+        
+        // 更新配置
+        this.config = newConfig;
+        this.saveConfig();
+        
+        if (configChanged) {
+          console.log('🔄 调试控制台配置已更新，重新初始化相关状态');
+          
+          // 如果配置被禁用，清除调试模式
+          if (!this.config.enabled && this.isDebugMode) {
+            this.disableDebugMode();
+          }
+          
+          // 如果按键序列发生变化，清空当前缓冲区并重置状态
+          if (oldConfig.keySequence !== newConfig.keySequence) {
+            this.keyBuffer = '';
+            console.log('🔄 按键序列已更新，缓冲区已清空');
+            console.log(`   新序列: ${newConfig.keySequence}`);
+            console.log(`   旧序列: ${oldConfig.keySequence}`);
+          }
+          
+          // 如果最大尝试次数或锁定时间发生变化，重置尝试次数
+          if (oldConfig.maxAttempts !== newConfig.maxAttempts || 
+              oldConfig.lockoutDuration !== newConfig.lockoutDuration) {
+            this.attempts = 0;
+            this.saveAttempts();
+            console.log('🔄 尝试次数限制已更新，尝试次数已重置');
+          }
+        } else {
+          console.log('✅ 调试控制台配置已从后端同步（无变化）');
+        }
+      } else {
+        console.warn('从后端同步调试控制台配置失败:', response.status, response.statusText);
+      }
+    } catch (error) {
+      console.warn('从后端同步调试控制台配置失败:', error);
+    }
+  }
+
+  // 启动配置同步机制
+  private startConfigSync(): void {
+    // 检查是否有管理员权限，如果没有则跳过自动同步
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.log('⚠️ 未检测到登录token，跳过自动配置同步');
+      return;
+    }
+    
+    // 立即同步一次
+    this.syncConfigFromBackend();
+    
+    // 每5分钟同步一次配置
+    setInterval(() => {
+      this.syncConfigFromBackend();
+    }, 5 * 60 * 1000);
+    
+    // 监听页面可见性变化，当页面重新可见时同步配置
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        this.syncConfigFromBackend();
+      }
+    });
+    
+    // 监听窗口焦点变化，当窗口重新获得焦点时同步配置
+    window.addEventListener('focus', () => {
+      this.syncConfigFromBackend();
+    });
+  }
+
+  // 检查是否有管理员权限
+  private hasAdminPermission(): boolean {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return false;
+      
+      // 简单的token存在性检查，实际项目中可能需要更复杂的验证
+      return token.length > 10; // 假设有效token长度大于10
+    } catch (error) {
+      return false;
+    }
+  }
+
+  // 手动触发配置同步（用于调试）
+  public forceSyncConfig(): Promise<void> {
+    console.log('🔄 手动触发配置同步...');
+    return this.syncConfigFromBackend();
+  }
+
+  public handleKeyPress(key: string): boolean {
+    if (!this.config.enabled) return false;
+    
+    // 检查是否在锁定状态
+    if (this.isLocked()) {
+      console.warn('调试控制台已锁定，请稍后再试');
+      return false;
+    }
+
+    // 添加到按键缓冲区
+    this.keyBuffer += key;
+    
+    // 保持缓冲区长度不超过序列长度
+    if (this.keyBuffer.length > this.config.keySequence.length) {
+      this.keyBuffer = this.keyBuffer.slice(-this.config.keySequence.length);
+    }
+
+    // 检查是否匹配按键序列
+    if (this.keyBuffer === this.config.keySequence) {
+      console.log('检测到调试控制台按键序列，请输入验证码');
+      this.showVerificationPrompt();
+      this.keyBuffer = '';
+      return true;
+    }
+
+    // 调试模式下显示按键进度（仅在调试模式下显示，避免干扰）
+    if (this.isDebugMode && this.keyBuffer.length > 0) {
+      const progress = Math.round((this.keyBuffer.length / this.config.keySequence.length) * 100);
+      console.log(`🔧 按键进度: ${progress}% (${this.keyBuffer.length}/${this.config.keySequence.length})`);
+    }
+
+    // 检查是否需要重置缓冲区
+    // 如果缓冲区长度等于序列长度但不匹配，清空缓冲区重新开始
+    if (this.keyBuffer.length === this.config.keySequence.length) {
+      this.keyBuffer = '';
+      if (this.isDebugMode) {
+        console.log('🔄 按键序列不匹配，缓冲区已重置');
+      }
+    }
+
+    return false;
+  }
+
+  // 检查调试控制台是否可以重新激活
+  public canReactivate(): boolean {
+    return this.config.enabled && !this.isLocked();
+  }
+
+  private isLocked(): boolean {
+    return Date.now() < this.lockoutUntil;
+  }
+
+  private showVerificationPrompt(): void {
+    const code = prompt('请输入调试控制台验证码:');
+    if (code !== null) {
+      this.verifyCode(code);
+    }
+  }
+
+  private async verifyCode(inputCode: string): Promise<void> {
+    try {
+      // 获取当前按键序列
+      const keySequence = this.keyBuffer || this.config.keySequence;
+      
+      // 调用后端 API 验证
+      const response = await fetch('/api/debug-console/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          keySequence,
+          verificationCode: inputCode
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        this.isDebugMode = true;
+        this.saveDebugMode();
+        this.attempts = 0;
+        this.saveAttempts();
+        this.lockoutUntil = 0;
+        this.saveLockoutUntil();
+        
+        // 验证成功后，重置按键缓冲区，确保可以重新触发
+        this.keyBuffer = '';
+        
+        console.log('✅ 调试控制台验证成功！');
+        console.log('🔧 调试模式已启用');
+        console.log('📝 可用的调试命令:');
+        console.log('  - debug.help() - 显示帮助信息');
+        console.log('  - debug.config() - 显示当前配置');
+        console.log('  - debug.reset() - 重置配置');
+        console.log('  - debug.disable() - 禁用调试模式');
+        console.log('  - debug.api() - 显示API接口信息');
+        console.log('  - debug.sync() - 同步后端配置');
+        console.log('  - debug.forceSync() - 强制同步后端配置');
+        console.log('  - debug.buffer() - 显示按键缓冲区状态');
+        console.log('  - debug.resetBuffer() - 重置按键缓冲区');
+        console.log('  - debug.reactivate() - 重新激活调试控制台');
+        console.log('🔧 如果开发者工具未自动打开，请手动按 F12 或 Ctrl+Shift+I');
+        
+        // 暴露调试接口到全局
+        const debugConsoleManager = this;
+        (window as any).debug = {
+          help: () => debugConsoleManager.showHelp(),
+          config: () => debugConsoleManager.showConfig(),
+          reset: () => debugConsoleManager.resetConfig(),
+          disable: () => debugConsoleManager.disableDebugMode(),
+          status: () => debugConsoleManager.showStatus(),
+          api: () => debugConsoleManager.showApiInfo(),
+          sync: () => debugConsoleManager.syncConfigFromBackend(),
+          forceSync: () => debugConsoleManager.forceSyncConfig(),
+          buffer: () => debugConsoleManager.showBufferStatus(),
+          resetBuffer: () => debugConsoleManager.resetKeyBuffer(),
+          reactivate: () => debugConsoleManager.reactivate()
+        };
+
+        // 启用选择功能和右键菜单
+        this.toggleSelection(true);
+
+        // 尝试自动打开开发者工具
+        this.tryOpenDevTools();
+      } else {
+        this.attempts++;
+        this.saveAttempts();
+        
+        if (result.lockoutUntil) {
+          this.lockoutUntil = new Date(result.lockoutUntil).getTime();
+          this.saveLockoutUntil();
+          console.error(`❌ 验证码错误次数过多，调试控制台已锁定 ${Math.ceil((this.lockoutUntil - Date.now()) / 1000 / 60)} 分钟`);
+        } else {
+          console.error(`❌ 验证码错误，剩余尝试次数: ${result.attempts || 0}`);
+        }
+      }
+    } catch (error) {
+      console.error('❌ 验证请求失败:', error);
+      // 回退到本地验证
+      if (inputCode === this.config.verificationCode) {
+        this.isDebugMode = true;
+        this.saveDebugMode();
+        this.attempts = 0;
+        this.saveAttempts();
+        this.lockoutUntil = 0;
+        this.saveLockoutUntil();
+        
+        // 验证成功后，重置按键缓冲区，确保可以重新触发
+        this.keyBuffer = '';
+        
+        console.log('✅ 调试控制台验证成功（本地模式）！');
+        console.log('🔧 调试模式已启用');
+        console.log('🔧 如果开发者工具未自动打开，请手动按 F12 或 Ctrl+Shift+I');
+        
+        // 暴露调试接口到全局
+        const debugConsoleManager = this;
+        (window as any).debug = {
+          help: () => debugConsoleManager.showHelp(),
+          config: () => debugConsoleManager.showConfig(),
+          reset: () => debugConsoleManager.resetConfig(),
+          disable: () => debugConsoleManager.disableDebugMode(),
+          status: () => debugConsoleManager.showStatus(),
+          api: () => debugConsoleManager.showApiInfo(),
+          sync: () => debugConsoleManager.syncConfigFromBackend(),
+          forceSync: () => debugConsoleManager.forceSyncConfig(),
+          buffer: () => debugConsoleManager.showBufferStatus(),
+          resetBuffer: () => debugConsoleManager.resetKeyBuffer(),
+          reactivate: () => debugConsoleManager.reactivate()
+        };
+
+        // 启用选择功能和右键菜单
+        this.toggleSelection(true);
+
+        // 尝试自动打开开发者工具
+        this.tryOpenDevTools();
+      } else {
+        this.attempts++;
+        this.saveAttempts();
+        
+        const remainingAttempts = this.config.maxAttempts - this.attempts;
+        
+        if (remainingAttempts <= 0) {
+          this.lockoutUntil = Date.now() + this.config.lockoutDuration;
+          this.saveLockoutUntil();
+          console.error(`❌ 验证码错误次数过多，调试控制台已锁定 ${this.config.lockoutDuration / 1000 / 60} 分钟`);
+        } else {
+          console.error(`❌ 验证码错误，剩余尝试次数: ${remainingAttempts}`);
+        }
+      }
+    }
+  }
+
+  // 尝试自动打开开发者工具
+  private tryOpenDevTools(): void {
+    try {
+      // 方法1: 使用 F12 快捷键模拟
+      const f12Event = new KeyboardEvent('keydown', {
+        key: 'F12',
+        code: 'F12',
+        keyCode: 123,
+        which: 123,
+        bubbles: true,
+        cancelable: true
+      });
+      document.dispatchEvent(f12Event);
+
+      // 方法2: 使用 Ctrl+Shift+I 快捷键模拟
+      setTimeout(() => {
+        const ctrlShiftIEvent = new KeyboardEvent('keydown', {
+          key: 'I',
+          code: 'KeyI',
+          keyCode: 73,
+          which: 73,
+          ctrlKey: true,
+          shiftKey: true,
+          bubbles: true,
+          cancelable: true
+        });
+        document.dispatchEvent(ctrlShiftIEvent);
+      }, 100);
+
+      // 方法3: 使用 Ctrl+Shift+J 快捷键模拟（打开控制台）
+      setTimeout(() => {
+        const ctrlShiftJEvent = new KeyboardEvent('keydown', {
+          key: 'J',
+          code: 'KeyJ',
+          keyCode: 74,
+          which: 74,
+          ctrlKey: true,
+          shiftKey: true,
+          bubbles: true,
+          cancelable: true
+        });
+        document.dispatchEvent(ctrlShiftJEvent);
+      }, 200);
+
+      // 方法4: 尝试直接调用开发者工具API（仅在某些浏览器中有效）
+      setTimeout(() => {
+        try {
+          // @ts-ignore - 某些浏览器可能有这个API
+          if (window.devtools && typeof window.devtools.open === 'function') {
+            // @ts-ignore
+            window.devtools.open();
+          }
+        } catch (e) {
+          // 忽略错误
+        }
+      }, 300);
+
+      // 方法5: 创建可见的提示按钮
+      this.createDevToolsPrompt();
+
+      console.log('🔧 已尝试自动打开开发者工具，如果未自动打开请手动按 F12');
+    } catch (error) {
+      console.warn('⚠️ 自动打开开发者工具失败，请手动按 F12:', error);
+    }
+  }
+
+  // 检查开发者工具是否已经打开
+  private isDevToolsOpen(): boolean {
+    try {
+      // 方法1: 检查窗口大小变化
+      const threshold = 160;
+      const widthThreshold = window.outerWidth - window.innerWidth > threshold;
+      const heightThreshold = window.outerHeight - window.innerHeight > threshold;
+      
+      // 方法2: 检查控制台是否打开（通过console.log的时间差）
+      let devtools = {
+        open: false,
+        orientation: null as string | null
+      };
+      
+      const start = performance.now();
+      console.log('%c', 'color: transparent');
+      const end = performance.now();
+      
+      // 如果console.log执行时间超过100ms，可能开发者工具已打开
+      const timeThreshold = end - start > 100;
+      
+      return widthThreshold || heightThreshold || timeThreshold;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  // 创建开发者工具提示按钮
+  private createDevToolsPrompt(): void {
+    try {
+      // 检查开发者工具是否已经打开
+      if (this.isDevToolsOpen()) {
+        console.log('🔧 开发者工具已经打开，跳过提示');
+        return;
+      }
+
+      // 移除已存在的提示
+      const existingPrompt = document.getElementById('debug-console-prompt');
+      if (existingPrompt) {
+        existingPrompt.remove();
+      }
+
+      // 创建提示容器
+      const prompt = document.createElement('div');
+      prompt.id = 'debug-console-prompt';
+      prompt.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        z-index: 999999;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-size: 14px;
+        max-width: 300px;
+        animation: slideInRight 0.5s ease-out;
+      `;
+
+      prompt.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+          <span style="font-size: 18px;">🔧</span>
+          <strong>调试模式已启用</strong>
+        </div>
+        <div style="margin-bottom: 10px; font-size: 13px; opacity: 0.9;">
+          按 F12 或 Ctrl+Shift+I 打开开发者工具
+        </div>
+          <button id="debug-close-prompt-btn" 
+                  style="background: rgba(255,255,255,0.1); border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: background 0.2s;">
+            ✕ 关闭
+          </button>
+        </div>
+      `;
+
+      // 添加事件监听器
+      const openConsoleBtn = prompt.querySelector('#debug-open-console-btn');
+      const closePromptBtn = prompt.querySelector('#debug-close-prompt-btn');
+
+      if (openConsoleBtn) {
+        openConsoleBtn.addEventListener('click', () => {
+          window.focus();
+          document.dispatchEvent(new KeyboardEvent('keydown', {
+            key: 'F12',
+            code: 'F12',
+            keyCode: 123,
+            which: 123,
+            bubbles: true,
+            cancelable: true
+          }));
+        });
+      }
+
+      if (closePromptBtn) {
+        closePromptBtn.addEventListener('click', () => {
+          prompt.remove();
+        });
+      }
+
+      // 添加动画样式
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes slideInRight {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        #debug-console-prompt button:hover {
+          background: rgba(255,255,255,0.3) !important;
+        }
+      `;
+      document.head.appendChild(style);
+
+      document.body.appendChild(prompt);
+
+      // 5秒后自动隐藏
+      setTimeout(() => {
+        if (prompt.parentNode) {
+          prompt.style.animation = 'slideInRight 0.5s ease-out reverse';
+          setTimeout(() => prompt.remove(), 500);
+        }
+      }, 5000);
+
+    } catch (error) {
+      console.warn('创建开发者工具提示失败:', error);
+    }
+  }
+
+  private showHelp(): void {
+    console.log('🔧 调试控制台帮助信息:');
+    console.log('  debug.help() - 显示此帮助信息');
+    console.log('  debug.config() - 显示当前配置');
+    console.log('  debug.reset() - 重置为默认配置');
+    console.log('  debug.disable() - 禁用调试模式');
+    console.log('  debug.status() - 显示当前状态');
+    console.log('  debug.api() - 显示API接口信息');
+    console.log('  debug.sync() - 同步后端配置');
+    console.log('  debug.forceSync() - 强制同步后端配置');
+    console.log('  debug.buffer() - 显示按键缓冲区状态');
+    console.log('  debug.resetBuffer() - 重置按键缓冲区');
+    console.log('  debug.reactivate() - 重新激活调试控制台');
+  }
+
+  private showApiInfo(): void {
+    console.log('🌐 调试控制台API接口信息:');
+    console.log('  POST /api/debug-console/verify - 验证调试控制台访问');
+    console.log('  GET  /api/debug-console/configs - 获取配置列表（管理员）');
+    console.log('  PUT  /api/debug-console/configs/:group - 更新配置（管理员）');
+    console.log('  DELETE /api/debug-console/configs/:group - 删除配置（管理员）');
+    console.log('  GET  /api/debug-console/logs - 获取访问日志（管理员）');
+    console.log('  POST /api/debug-console/init - 初始化默认配置（管理员）');
+  }
+
+  private showConfig(): void {
+    console.log('⚙️ 调试控制台配置:', this.config);
+  }
+
+  private showStatus(): void {
+    const bufferStatus = this.getKeyBufferStatus();
+    console.log('📊 调试控制台状态:', {
+      enabled: this.config.enabled,
+      isDebugMode: this.isDebugMode,
+      attempts: this.attempts,
+      maxAttempts: this.config.maxAttempts,
+      isLocked: this.isLocked(),
+      lockoutUntil: this.lockoutUntil ? new Date(this.lockoutUntil).toLocaleString() : '未锁定',
+      keyBuffer: bufferStatus.buffer,
+      keySequence: bufferStatus.sequence,
+      bufferProgress: `${bufferStatus.progress}%`
+    });
+  }
+
+  private resetConfig(): void {
+    this.config = { ...DEFAULT_DEBUG_CONFIG };
+    this.saveConfig();
+    console.log('🔄 配置已重置为默认值');
+  }
+
+  private disableDebugMode(): void {
+    this.isDebugMode = false;
+    this.saveDebugMode();
+    delete (window as any).debug;
+    
+    // 移除开发者工具提示
+    const prompt = document.getElementById('debug-console-prompt');
+    if (prompt) {
+      prompt.remove();
+    }
+
+    // 禁用选择功能和右键菜单
+    this.toggleSelection(false);
+    
+    // 重置按键缓冲区，确保可以重新激活
+    this.keyBuffer = '';
+    
+    console.log('🚫 调试模式已禁用');
+    console.log('💡 如需重新激活，请重新输入按键序列');
+  }
+
+  // 重新激活调试控制台
+  public reactivate(): void {
+    if (this.canReactivate()) {
+      this.keyBuffer = '';
+      console.log('🔄 调试控制台已重置，可以重新输入按键序列激活');
+    } else {
+      console.warn('⚠️ 调试控制台当前无法重新激活（已禁用或已锁定）');
+    }
+  }
+
+  public isDebugModeEnabled(): boolean {
+    return this.isDebugMode;
+  }
+
+  public getConfig(): DebugConsoleConfig {
+    return { ...this.config };
+  }
+
+  public updateConfig(newConfig: Partial<DebugConsoleConfig>): void {
+    this.config = { ...this.config, ...newConfig, updatedAt: new Date() };
+    this.saveConfig();
+    console.log('✅ 配置已更新');
+  }
+
+  // 动态切换选择功能
+  public toggleSelection(enable: boolean): void {
+    try {
+      if (enable) {
+        // 启用选择功能
+        document.body.style.userSelect = 'auto';
+        document.body.style.setProperty('-webkit-user-select', 'auto');
+        document.body.style.setProperty('-moz-user-select', 'auto');
+        document.body.style.setProperty('-ms-user-select', 'auto');
+        document.body.style.setProperty('-webkit-touch-callout', 'auto');
+        document.body.style.setProperty('-khtml-user-select', 'auto');
+        console.log('✅ 文本选择功能已启用');
+      } else {
+        // 禁用选择功能
+        disableSelection();
+        console.log('🚫 文本选择功能已禁用');
+      }
+    } catch (error) {
+      console.warn('切换选择功能失败:', error);
+    }
+  }
+
+  // 重置按键缓冲区
+  public resetKeyBuffer(): void {
+    this.keyBuffer = '';
+    console.log('🔄 按键缓冲区已重置');
+  }
+
+  // 获取当前按键缓冲区状态
+  public getKeyBufferStatus(): { buffer: string; sequence: string; progress: number } {
+    return {
+      buffer: this.keyBuffer,
+      sequence: this.config.keySequence,
+      progress: Math.round((this.keyBuffer.length / this.config.keySequence.length) * 100)
+    };
+  }
+
+  // 显示按键缓冲区状态
+  private showBufferStatus(): void {
+    const status = this.getKeyBufferStatus();
+    console.log('📊 按键缓冲区状态:');
+    console.log(`   当前缓冲区: "${status.buffer}"`);
+    console.log(`   目标序列: "${status.sequence}"`);
+    console.log(`   进度: ${status.progress}%`);
+    console.log(`   长度: ${status.buffer.length}/${status.sequence.length}`);
+  }
+}
+
+// 初始化调试控制台管理器
+const debugConsoleManager = DebugConsoleManager.getInstance();
 
 // 统一危险关键字 - 扩展更多关键词
 const DANGEROUS_KEYWORDS = [
@@ -614,22 +1461,57 @@ document.addEventListener('DOMContentLoaded', () => {
   setInterval(runDangerousExtensionCheck, 20000);
 });
 
-// // 禁止右键和常见调试快捷键（仅生产环境生效）
-// if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
-//   window.addEventListener('contextmenu', e => e.preventDefault());
-//   window.addEventListener('keydown', e => {
-//     // F12
-//     if (e.key === 'F12') e.preventDefault();
-//     // Ctrl+Shift+I/C/U/J
-//     if ((e.ctrlKey && e.shiftKey && ['I', 'C', 'J'].includes(e.key)) ||
-//       (e.ctrlKey && e.key === 'U')) {
-//       e.preventDefault();
-//     }
-//   });
+// 禁止右键和常见调试快捷键（仅生产环境生效）
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
+  window.addEventListener('contextmenu', e => {
+    // 检查是否处于调试模式
+    const isDebugMode = debugConsoleManager.isDebugModeEnabled();
+    
+    // 在调试模式下允许右键菜单
+    if (isDebugMode) {
+      return;
+    }
+    
+    e.preventDefault();
+  });
+  
+  window.addEventListener('keydown', e => {
+    // 检查是否处于调试模式
+    const isDebugMode = debugConsoleManager.isDebugModeEnabled();
+    
+    // 在调试模式下允许F12和开发者工具快捷键
+    if (isDebugMode) {
+      return;
+    }
+    
+    // F12
+    if (e.key === 'F12') e.preventDefault();
+    // Ctrl+Shift+I/C/U/J
+    if ((e.ctrlKey && e.shiftKey && ['I', 'C', 'J'].includes(e.key)) ||
+      (e.ctrlKey && e.key === 'U')) {
+      e.preventDefault();
+    }
+  });
 
-//   // 初始化禁用选择功能
-//   disableSelection();
-// }
+  // 初始化禁用选择功能（仅在非调试模式下）
+  if (!debugConsoleManager.isDebugModeEnabled()) {
+    disableSelection();
+  }
+}
+
+// 调试控制台键盘事件监听器
+if (typeof window !== 'undefined') {
+  window.addEventListener('keydown', (e) => {
+    // 只在非输入框中监听按键序列
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true') {
+      return;
+    }
+
+    // 处理调试控制台按键序列
+    debugConsoleManager.handleKeyPress(e.key);
+  });
+}
 
 // 初始化完整性检查
 document.addEventListener('DOMContentLoaded', () => {

@@ -48,7 +48,10 @@ const Footer: React.FC = () => {
     const fetchIPInfo = async () => {
       try {
         setIpLoading(true);
-        const response = await fetch('https://api.hapxs.com/ip');
+        const url = `${getApiBaseUrl()}/ip`;
+        const response = await fetch(url, {
+          headers: { 'Accept': 'application/json' }
+        });
         
         // 检查响应状态
         if (!response.ok) {
@@ -61,14 +64,22 @@ const Footer: React.FC = () => {
           throw new Error(`预期JSON响应，但收到: ${contentType}`);
         }
         
-        const data: IPInfo = await response.json();
+        const raw: any = await response.json();
         
-        // 验证数据格式
-        if (!data || typeof data.ip !== 'string') {
+        // 兼容多种字段命名
+        const info: IPInfo = {
+          ip: raw?.ip || raw?.query || '',
+          country: raw?.country || raw?.country_name || raw?.countryName || '',
+          region: raw?.region || raw?.province || raw?.state || raw?.regionName || '',
+          city: raw?.city || '',
+          isp: raw?.isp || raw?.org || raw?.as || raw?.operator || ''
+        };
+        
+        if (!info.ip) {
           throw new Error('IP信息数据格式无效');
         }
         
-        setIpInfo(data);
+        setIpInfo(info);
       } catch (error) {
         console.error('获取IP信息失败:', error);
         setIpInfo(null);
@@ -94,17 +105,17 @@ const Footer: React.FC = () => {
         </a>{' '}
         {year}
       </div>
-             <div className="mt-1 px-2 py-1 bg-yellow-50 border border-yellow-200 rounded text-yellow-700 text-xs max-w-xs">
-         <FaExclamationTriangle className="inline mr-1" /> 本站为个人独立开发项目，与 OpenAI 官方无任何隶属或合作关系。请勿将本站内容视为 OpenAI 官方服务。
-       </div>
-             <div className="mt-1 px-2 py-1 bg-green-50 border border-green-200 rounded text-green-700 text-xs max-w-xs">
-         <FaRocket className="inline mr-1" /> 自 2025年6月15日 9:30 以来，本站已稳定运行{' '}
+      <div className="mt-1 px-2 py-1 bg-yellow-50 border border-yellow-200 rounded text-yellow-700 text-xs max-w-xs">
+        <FaExclamationTriangle className="inline mr-1" /> 本站为个人独立开发项目，与 OpenAI 官方无任何隶属或合作关系。请勿将本站内容视为 OpenAI 官方服务。
+      </div>
+      <div className="mt-1 px-2 py-1 bg-green-50 border border-green-200 rounded text-green-700 text-xs max-w-xs">
+        <FaRocket className="inline mr-1" /> 自 2025年6月15日 9:30 以来，本站已稳定运行{' '}
         <span className="font-bold text-green-800">
           {uptime.days} 天 {uptime.hours} 小时 {uptime.minutes} 分钟 {uptime.seconds} 秒
         </span>
       </div>
-             <div className="mt-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded text-blue-700 text-xs max-w-xs">
-         <FaGlobe className="inline mr-1" /> 您的网络信息：
+      <div className="mt-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded text-blue-700 text-xs max-w-xs">
+        <FaGlobe className="inline mr-1" /> 您的网络信息：
         {ipLoading ? (
           <span className="font-mono font-bold text-blue-800">获取中...</span>
         ) : ipInfo ? (
@@ -112,12 +123,12 @@ const Footer: React.FC = () => {
             <div className="font-mono font-bold text-blue-800">
               IP: {ipInfo.ip}
             </div>
-                         <div className="text-blue-600">
-               <FaMapMarkerAlt className="inline mr-1" /> {ipInfo.country} {ipInfo.region} {ipInfo.city}
-             </div>
-                         <div className="text-blue-600">
-               <FaGlobe className="inline mr-1" /> {ipInfo.isp}
-             </div>
+            <div className="text-blue-600">
+              <FaMapMarkerAlt className="inline mr-1" /> {ipInfo.country} {ipInfo.region} {ipInfo.city}
+            </div>
+            <div className="text-blue-600">
+              <FaGlobe className="inline mr-1" /> {ipInfo.isp}
+            </div>
           </div>
         ) : (
           <span className="font-mono font-bold text-red-600">获取失败</span>

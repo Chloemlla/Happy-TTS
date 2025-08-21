@@ -55,6 +55,7 @@ import shortUrlRoutes from './routes/shortUrlRoutes';
 import fbiWantedRoutes from './routes/fbiWantedRoutes';
 import fbiWantedPublicRoutes from './routes/fbiWantedPublicRoutes';
 import humanCheckRoutes from './routes/humanCheckRoutes';
+import debugConsoleRoutes from './routes/debugConsoleRoutes';
 
 import emailRoutes from './routes/emailRoutes';
 import outemailRoutes from './routes/outemailRoutes';
@@ -835,6 +836,7 @@ app.use('/api/tamper', tamperRoutes);
 app.use('/api/command', commandRoutes);
 app.use('/api/libre-chat', libreChatRoutes);
 app.use('/api/human-check', humanCheckRoutes);
+app.use('/api/debug-console', debugConsoleRoutes);
 app.use('/api/data-collection', dataCollectionRoutes);
 app.use('/api/data-collection/admin', dataCollectionAdminRoutes);
 app.use('/api/ipfs', ipfsRoutes);
