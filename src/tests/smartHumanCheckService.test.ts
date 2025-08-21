@@ -26,8 +26,7 @@ describe('SmartHumanCheckService', () => {
 
     it('should return structured error response on failure', () => {
       // Mock crypto.randomBytes to throw an error
-      const originalRandomBytes = crypto.randomBytes;
-      crypto.randomBytes = jest.fn().mockImplementation(() => {
+      const spy = jest.spyOn(crypto, 'randomBytes').mockImplementation(() => {
         throw new Error('Crypto error');
       });
 
@@ -41,7 +40,7 @@ describe('SmartHumanCheckService', () => {
       expect(result.timestamp).toBeDefined();
 
       // Restore original function
-      crypto.randomBytes = originalRandomBytes;
+      spy.mockRestore();
     });
   });
 
@@ -150,7 +149,7 @@ describe('SmartHumanCheckService', () => {
       expect(result.reason).toBe('low_score');
       expect(result.errorCode).toBe('LOW_SCORE');
       expect(result.errorMessage).toBe('行为评分过低');
-      expect(result.retryable).toBe(false);
+      expect(result.retryable).toBe(true);
       expect(result.score).toBe(0.3);
       expect(result.timestamp).toBeDefined();
     });

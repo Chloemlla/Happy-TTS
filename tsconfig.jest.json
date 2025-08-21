@@ -1,27 +1,50 @@
 {
-  "extends": "./tsconfig.json",
   "compilerOptions": {
-    "module": "commonjs",
     "target": "es2019",
-    "jsx": "react-jsx",
+    "module": "commonjs",
+    "lib": ["es2019", "es2020.promise", "es2020.bigint", "es2020.string"],
+    "outDir": "./dist-test",
+    "rootDir": ".",
+    "strict": true,
     "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "jsx": "react-jsx",
     "types": ["jest", "node"],
     "baseUrl": ".",
     "paths": {
       "*": ["src/*", "frontend/src/*"]
-    }
+    },
+    "noEmit": true,
+    "isolatedModules": true,
+    "allowJs": true,
+    "checkJs": false,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "removeComments": true,
+    "incremental": false,
+    "tsBuildInfoFile": null
   },
   "include": [
     "src/**/*",
     "frontend/src/**/*",
     "**/*.test.ts",
-    "**/*.test.tsx"
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx"
   ],
   "exclude": [
     "node_modules",
     "dist",
     "dist-obfuscated",
-    "coverage"
+    "dist-test",
+    "coverage",
+    "build",
+    "frontend/dist",
+    "frontend/build"
   ]
 }

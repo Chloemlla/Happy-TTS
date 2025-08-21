@@ -8,6 +8,50 @@ jest.mock('../middleware/ipCheck', () => ({
   ipCheckMiddleware: (req: Request, res: Response, next: NextFunction) => next()
 }));
 
+// Mock MongoDB - 改进版本
+const mockModel = {
+  find: jest.fn().mockReturnValue({ 
+    exec: jest.fn().mockResolvedValue([]),
+    sort: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockReturnThis(),
+    skip: jest.fn().mockReturnThis()
+  }),
+  findOne: jest.fn().mockReturnValue({ 
+    exec: jest.fn().mockResolvedValue(null),
+    sort: jest.fn().mockReturnThis()
+  }),
+  create: jest.fn().mockResolvedValue({}),
+  save: jest.fn().mockResolvedValue({}),
+  deleteOne: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue({}) }),
+  deleteMany: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue({}) }),
+  updateOne: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue({}) }),
+  updateMany: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue({}) }),
+  countDocuments: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(0) }),
+  aggregate: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue([]) }),
+  insertMany: jest.fn().mockResolvedValue([]),
+  findOneAndUpdate: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(null) }),
+  findOneAndDelete: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(null) })
+};
+
+const mockSchema = jest.fn().mockImplementation(() => ({
+  model: jest.fn().mockReturnValue(mockModel)
+}));
+
+jest.mock('mongoose', () => ({
+  Schema: mockSchema,
+  connect: jest.fn().mockResolvedValue({}),
+  disconnect: jest.fn().mockResolvedValue({}),
+  connection: {
+    readyState: 1,
+    on: jest.fn(),
+    once: jest.fn()
+  },
+  model: jest.fn().mockReturnValue(mockModel),
+  Types: {
+    ObjectId: jest.fn().mockReturnValue('mock-object-id')
+  }
+}));
+
 // Mock 篡改保护中间件
 jest.mock('../middleware/tamperProtection', () => ({
   tamperProtectionMiddleware: (req: Request, res: Response, next: NextFunction) => next()
@@ -263,6 +307,16 @@ afterAll(async () => {
     // 忽略错误
   }
   
+  // 清理 NonceStore 定时器
+  try {
+    const { destroyNonceStore } = require('../services/nonceStore');
+    if (destroyNonceStore && typeof destroyNonceStore === 'function') {
+      destroyNonceStore();
+    }
+  } catch (error) {
+    // 忽略错误
+  }
+  
   // 清理所有注册的清理任务
   for (const task of cleanupTasks) {
     try {
@@ -312,3 +366,24 @@ process.on('SIGTERM', () => {
   console.log('收到SIGTERM信号，正在清理...');
   process.exit(0);
 });
+
+// Mock 其他常用模块
+jest.mock('nanoid', () => ({
+  nanoid: jest.fn().mockReturnValue('test-nanoid-123')
+}));
+
+jest.mock('marked', () => ({
+  marked: jest.fn().mockReturnValue('<p>test</p>')
+}));
+
+jest.mock('dayjs', () => {
+  const mockDayjs = jest.fn((date) => ({
+    format: jest.fn().mockReturnValue('2024-01-01'),
+    toDate: jest.fn().mockReturnValue(new Date()),
+    valueOf: jest.fn().mockReturnValue(1704067200000)
+  }));
+  (mockDayjs as any).extend = jest.fn();
+  return mockDayjs;
+});
+
+// 注意：前端相关的模块 Mock 已移除，因为后端测试不需要

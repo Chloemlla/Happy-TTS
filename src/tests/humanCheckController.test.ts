@@ -2,15 +2,25 @@ import request from 'supertest';
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { SmartHumanCheckController } from '../controllers/humanCheckController';
-import SmartHumanCheckService from '../services/smartHumanCheckService';
 
-// Mock the service
-jest.mock('../services/smartHumanCheckService');
-const MockedService = SmartHumanCheckService as jest.MockedClass<typeof SmartHumanCheckService>;
+// Mock the service - 移到 jest.mock 之前
+const mockService = {
+  issueNonce: jest.fn(),
+  verifyToken: jest.fn(),
+  getStats: jest.fn(),
+  cleanupExpiredNonces: jest.fn(),
+};
+
+jest.mock('../services/smartHumanCheckService', () => ({
+  __esModule: true,
+  default: jest.fn().mockImplementation(() => mockService)
+}));
+
+// 重新导入以确保 mock 生效
+import SmartHumanCheckService from '../services/smartHumanCheckService';
 
 describe('SmartHumanCheckController', () => {
     let app: express.Application;
-    let mockService: jest.Mocked<SmartHumanCheckService>;
 
     beforeEach(() => {
         app = express();
@@ -30,16 +40,7 @@ describe('SmartHumanCheckController', () => {
         app.post('/verify', testLimiter, SmartHumanCheckController.verifyToken);
         app.get('/stats', testLimiter, SmartHumanCheckController.getStats);
 
-        // Create mock service instance
-        mockService = {
-            issueNonce: jest.fn(),
-            verifyToken: jest.fn(),
-            getStats: jest.fn(),
-            cleanupExpiredNonces: jest.fn(),
-        } as any;
-
-        // Mock the service constructor to return our mock
-        MockedService.mockImplementation(() => mockService);
+        // Mock service is already set up globally
     });
 
     afterEach(() => {

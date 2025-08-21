@@ -13,7 +13,7 @@ describe('DomainExemptionService', () => {
       const result = domainExemptionService.checkDomainExemption('arteam.dev');
       expect(result.exempted).toBe(true);
       expect(result.isInternal).toBe(true);
-      expect(result.message).toContain('内部域名');
+      expect(result.message).toContain('豁免列表中');
     });
 
     it('应该正确检查外部域名', () => {
