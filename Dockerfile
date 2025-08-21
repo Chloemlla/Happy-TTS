@@ -169,6 +169,12 @@ COPY --from=backend-builder /app/openapi.json ./dist/openapi.json
 COPY --from=frontend-builder /app/frontend/dist ./public
 COPY --from=docs-builder /app/docs/build ./docs
 
+# 创建运行用户 nodejs 并修正权限，避免找不到用户错误
+RUN addgroup -S nodejs && adduser -S nodejs -G nodejs && \
+    chown -R nodejs:nodejs /app
+
+USER nodejs
+
 # 暴露端口
 EXPOSE 3000 3001 3002
 
