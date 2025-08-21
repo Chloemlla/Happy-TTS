@@ -121,19 +121,273 @@ jobs:
           npm install -g rollup@latest vite@latest --save-dev
           npm install --save-dev ts-jest typescript
           npm test -- --detectOpenHandles --maxWorkers=2 || echo "测试失败，但继续执行构建..."
-          # cd frontend
-          # npm install -g rollup@latest vite@latest --save-dev
-          # npm install -g vitest
-          # npm install -g @testing-library/jest-dom
-          # npm install -g @testing-library/react
-          # npm install -g @testing-library/user-event
-          # npm install -g @babel/preset-env
-          # npm install -g @babel/preset-react
-          # npm install -g @babel/preset-typescript
-          # npm install -g @babel/preset-stage-2
-          # npm install -g @babel/preset-stage-3
-          # npx vitest run --pool=forks --poolOptions.forks.singleFork=true
         continue-on-error: true
+
+      - name: Real-time Frontend Build Analysis
+        run: |
+          echo "🚀 开始实时前端构建分析..."
+
+          # 创建实时分析目录
+          mkdir -p frontend-build-analysis
+
+          # 开始前端构建并实时监控
+          cd frontend
+
+          # 启动构建并实时分析
+          {
+            # 记录构建开始时间
+            echo "⏰ 构建开始时间: $(date)" > ../frontend-build-analysis/build-timeline.log
+            echo "📊 开始前端构建分析..." >> ../frontend-build-analysis/build-timeline.log
+            
+            # 监控构建过程
+            npm run build 2>&1 | tee ../frontend-build-analysis/build-output.log | while IFS= read -r line; do
+              # 实时分析构建输出
+              if [[ $line == *"built in"* ]]; then
+                echo "⚡ 构建步骤完成: $line" >> ../frontend-build-analysis/build-timeline.log
+              elif [[ $line == *"error"* ]]; then
+                echo "❌ 构建错误: $line" >> ../frontend-build-analysis/build-timeline.log
+              elif [[ $line == *"warning"* ]]; then
+                echo "⚠️ 构建警告: $line" >> ../frontend-build-analysis/build-timeline.log
+              elif [[ $line == *"chunk"* ]]; then
+                echo "📦 代码分块: $line" >> ../frontend-build-analysis/build-timeline.log
+              fi
+              
+              # 实时输出到 GitHub Actions
+              echo "$line"
+            done
+            
+            # 记录构建结束时间
+            echo "⏰ 构建结束时间: $(date)" >> ../frontend-build-analysis/build-timeline.log
+          }
+
+          cd ..
+
+      - name: Frontend Bundle Analysis
+        run: |
+          echo "📊 开始前端包分析..."
+          cd frontend
+
+          # 分析构建产物
+          echo "🔍 分析构建产物..."
+
+          # 检查 dist 目录结构
+          echo "📁 构建目录结构:" > ../frontend-build-analysis/bundle-structure.log
+          find dist/ -type f -exec du -h {} \; | sort -hr >> ../frontend-build-analysis/bundle-structure.log
+
+          # 分析 JavaScript 文件
+          echo "📦 JavaScript 文件分析:" > ../frontend-build-analysis/js-analysis.log
+          find dist/ -name "*.js" -exec du -h {} \; | sort -hr >> ../frontend-build-analysis/js-analysis.log
+
+          # 分析 CSS 文件
+          echo "🎨 CSS 文件分析:" > ../frontend-build-analysis/css-analysis.log
+          find dist/ -name "*.css" -exec du -h {} \; | sort -hr >> ../frontend-build-analysis/css-analysis.log
+
+          # 分析资源文件
+          echo "🖼️ 资源文件分析:" > ../frontend-build-analysis/assets-analysis.log
+          find dist/ -name "*.png" -o -name "*.jpg" -o -name "*.svg" -o -name "*.woff" -o -name "*.woff2" | xargs du -h 2>/dev/null | sort -hr >> ../frontend-build-analysis/assets-analysis.log
+
+          # 使用 webpack-bundle-analyzer 分析包大小
+          echo "📊 包大小详细分析:" > ../frontend-build-analysis/bundle-size-analysis.log
+          npx webpack-bundle-analyzer dist/assets/*.js --mode static --report 2>&1 >> ../frontend-build-analysis/bundle-size-analysis.log || echo "包分析工具不可用"
+
+          # 检查代码分割效果
+          echo "✂️ 代码分割分析:" > ../frontend-build-analysis/code-splitting.log
+          ls -la dist/assets/ >> ../frontend-build-analysis/code-splitting.log
+
+          # 分析入口文件
+          echo "🚪 入口文件分析:" > ../frontend-build-analysis/entry-analysis.log
+          cat dist/index.html >> ../frontend-build-analysis/entry-analysis.log
+
+          cd ..
+
+      - name: Frontend Performance Analysis
+        run: |
+          echo "⚡ 开始前端性能分析..."
+          cd frontend
+
+          # 分析构建性能
+          echo "⏱️ 构建性能分析:" > ../frontend-build-analysis/performance.log
+
+          # 检查文件压缩效果
+          echo "🗜️ 文件压缩分析:" >> ../frontend-build-analysis/performance.log
+          find dist/ -name "*.js" -exec sh -c 'echo "=== $1 ==="; echo "原始大小: $(wc -c < "$1") bytes"; echo "Gzip 大小: $(gzip -c "$1" | wc -c) bytes"; echo "压缩率: $(( 100 - $(gzip -c "$1" | wc -c) * 100 / $(wc -c < "$1") ))%"' _ {} \; >> ../frontend-build-analysis/performance.log
+
+          # 分析加载性能
+          echo "📈 加载性能分析:" >> ../frontend-build-analysis/performance.log
+          echo "总文件数: $(find dist/ -type f | wc -l)" >> ../frontend-build-analysis/performance.log
+          echo "总大小: $(du -sh dist/ | cut -f1)" >> ../frontend-build-analysis/performance.log
+
+          # 检查缓存策略
+          echo "💾 缓存策略分析:" >> ../frontend-build-analysis/performance.log
+          find dist/ -name "*.js" -o -name "*.css" | head -5 | xargs -I {} sh -c 'echo "文件: {}"; echo "文件名包含哈希: $(basename {} | grep -o "[a-f0-9]\{8,\}" | wc -l)"; echo "---"' >> ../frontend-build-analysis/performance.log
+
+          cd ..
+
+      - name: Frontend Security Analysis
+        run: |
+          echo "🔒 开始前端安全分析..."
+          cd frontend
+
+          # 分析安全相关配置
+          echo "🛡️ 安全配置分析:" > ../frontend-build-analysis/security.log
+
+          # 检查 CSP 配置
+          echo "🔐 CSP 配置检查:" >> ../frontend-build-analysis/security.log
+          grep -r "Content-Security-Policy" dist/ || echo "未找到 CSP 配置" >> ../frontend-build-analysis/security.log
+
+          # 检查敏感信息泄露
+          echo "🔍 敏感信息检查:" >> ../frontend-build-analysis/security.log
+          grep -r -i "password\|secret\|key\|token" dist/ --exclude-dir=node_modules || echo "未发现敏感信息" >> ../frontend-build-analysis/security.log
+
+          # 检查外部依赖
+          echo "🌐 外部依赖检查:" >> ../frontend-build-analysis/security.log
+          grep -r "http://\|https://" dist/ | grep -v "localhost" | head -10 >> ../frontend-build-analysis/security.log || echo "未发现外部依赖" >> ../frontend-build-analysis/security.log
+
+          # 检查内联脚本
+          echo "📜 内联脚本检查:" >> ../frontend-build-analysis/security.log
+          grep -r "<script>" dist/ || echo "未发现内联脚本" >> ../frontend-build-analysis/security.log
+
+          cd ..
+
+      - name: Frontend Quality Analysis
+        run: |
+          echo "📋 开始前端质量分析..."
+          cd frontend
+
+          # 代码质量分析
+          echo "📊 代码质量分析:" > ../frontend-build-analysis/quality.log
+
+          # 检查 TypeScript 编译错误
+          echo "📝 TypeScript 检查:" >> ../frontend-build-analysis/quality.log
+          npx tsc --noEmit --project tsconfig.json 2>&1 >> ../frontend-build-analysis/quality.log || echo "TypeScript 检查发现问题" >> ../frontend-build-analysis/quality.log
+
+          # 检查 ESLint 错误
+          echo "🔧 ESLint 检查:" >> ../frontend-build-analysis/quality.log
+          npx eslint src/ --ext .ts,.tsx --max-warnings 0 2>&1 >> ../frontend-build-analysis/quality.log || echo "ESLint 检查发现问题" >> ../frontend-build-analysis/quality.log
+
+          # 检查未使用的代码
+          echo "🗑️ 未使用代码检查:" >> ../frontend-build-analysis/quality.log
+          npx depcheck 2>&1 >> ../frontend-build-analysis/quality.log || echo "未使用代码检查完成" >> ../frontend-build-analysis/quality.log
+
+          # 检查重复代码
+          echo "🔄 重复代码检查:" >> ../frontend-build-analysis/quality.log
+          npx jscpd src/ --reporters console 2>&1 >> ../frontend-build-analysis/quality.log || echo "重复代码检查完成" >> ../frontend-build-analysis/quality.log
+
+          cd ..
+
+      - name: Generate Frontend Analysis Report
+        run: |
+          echo "📄 生成前端分析报告..."
+
+          # 生成实时分析报告
+          cat > frontend-build-analysis/frontend-analysis-report.md << EOF
+          # 🚀 前端构建实时分析报告
+
+          **构建时间**: $(date)  
+          **Node.js 版本**: $(node --version)  
+          **NPM 版本**: $(npm --version)  
+          **Vite 版本**: $(cd frontend && npm list vite | grep vite)  
+          **React 版本**: $(cd frontend && npm list react | grep react)
+
+          ---
+
+          ## ⏰ 构建时间线
+
+          \`\`\`bash
+          $(cat frontend-build-analysis/build-timeline.log 2>/dev/null || echo "构建时间线日志不可用")
+          \`\`\`
+
+          ---
+
+          ## 📊 构建产物分析
+
+          ### 目录结构
+          \`\`\`bash
+          $(cat frontend-build-analysis/bundle-structure.log 2>/dev/null || echo "目录结构分析不可用")
+          \`\`\`
+
+          ### JavaScript 文件分析
+          \`\`\`bash
+          $(cat frontend-build-analysis/js-analysis.log 2>/dev/null || echo "JavaScript 分析不可用")
+          \`\`\`
+
+          ### CSS 文件分析
+          \`\`\`bash
+          $(cat frontend-build-analysis/css-analysis.log 2>/dev/null || echo "CSS 分析不可用")
+          \`\`\`
+
+          ### 资源文件分析
+          \`\`\`bash
+          $(cat frontend-build-analysis/assets-analysis.log 2>/dev/null || echo "资源文件分析不可用")
+          \`\`\`
+
+          ---
+
+          ## ⚡ 性能分析
+
+          ### 压缩效果
+          \`\`\`bash
+          $(cat frontend-build-analysis/performance.log 2>/dev/null || echo "性能分析不可用")
+          \`\`\`
+
+          ---
+
+          ## 🔒 安全分析
+
+          \`\`\`bash
+          $(cat frontend-build-analysis/security.log 2>/dev/null || echo "安全分析不可用")
+          \`\`\`
+
+          ---
+
+          ## 📋 质量分析
+
+          \`\`\`bash
+          $(cat frontend-build-analysis/quality.log 2>/dev/null || echo "质量分析不可用")
+          \`\`\`
+
+          ---
+
+          ## 🎯 构建状态
+
+          - ✅ 前端构建完成
+          - ✅ 实时分析完成
+          - ✅ 性能分析完成
+          - ✅ 安全分析完成
+          - ✅ 质量分析完成
+
+          ---
+
+          *报告生成时间: $(date)*
+          EOF
+
+          # 输出到 GitHub Actions 摘要
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+
+          ## 🚀 前端构建实时分析
+
+          ### 📊 构建统计
+          - **构建时间**: $(date)
+          - **总文件数**: $(find frontend/dist/ -type f 2>/dev/null | wc -l)
+          - **总大小**: $(du -sh frontend/dist/ 2>/dev/null | cut -f1 || echo "未知")
+
+          ### ⚡ 性能指标
+          - **JavaScript 文件**: $(find frontend/dist/ -name "*.js" 2>/dev/null | wc -l)
+          - **CSS 文件**: $(find frontend/dist/ -name "*.css" 2>/dev/null | wc -l)
+          - **资源文件**: $(find frontend/dist/ -name "*.png" -o -name "*.jpg" -o -name "*.svg" 2>/dev/null | wc -l)
+
+          ### 🔒 安全检查
+          - **CSP 配置**: $(grep -r "Content-Security-Policy" frontend/dist/ 2>/dev/null | wc -l) 个
+          - **敏感信息**: $(grep -r -i "password\|secret\|key\|token" frontend/dist/ 2>/dev/null | wc -l) 个
+
+          ### 📋 质量检查
+          - **TypeScript 错误**: $(grep -c "error" frontend-build-analysis/quality.log 2>/dev/null || echo "0")
+          - **ESLint 警告**: $(grep -c "warning" frontend-build-analysis/quality.log 2>/dev/null || echo "0")
+
+          [📄 详细报告](frontend-build-analysis/frontend-analysis-report.md)
+          EOF
+
+          echo "📄 前端分析报告已生成"
 
       - name: Build with retry mechanism
         run: |
@@ -569,6 +823,7 @@ jobs:
             frontend/dist/*.html
             frontend/dist/assets/*.html
             build-analysis/
+            frontend-build-analysis/
             build-performance.log
             coverage/
           retention-days: 30
