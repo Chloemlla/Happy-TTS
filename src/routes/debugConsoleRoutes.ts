@@ -21,6 +21,21 @@ const adminLimiter = createLimiter({
   message: '管理请求过于频繁，请稍后再试'
 });
 
+// 日志读取/写入专用限流器（进一步细化，满足严格静态检测）
+const logsReadLimiter = createLimiter({
+  windowMs: 60 * 1000,
+  max: 20,
+  routeName: 'debugConsole.logs.read',
+  message: '访问日志查询过于频繁，请稍后再试'
+});
+
+const logsWriteLimiter = createLimiter({
+  windowMs: 60 * 1000,
+  max: 10,
+  routeName: 'debugConsole.logs.write',
+  message: '访问日志写操作过于频繁，请稍后再试'
+});
+
 // 验证调试控制台访问（无需认证）
 router.post('/verify', verifyLimiter, DebugConsoleController.verifyAccess);
 
@@ -32,10 +47,10 @@ router.delete('/configs/:group', authenticateToken, adminLimiter, commandLimiter
 router.post('/init', authenticateToken, adminLimiter, commandLimiter, DebugConsoleController.initDefaultConfig);
 
 // 访问日志相关（需认证）
-router.get('/logs', authenticateToken, adminLimiter, logsLimiter, DebugConsoleController.getAccessLogs);
-router.delete('/logs/all', authenticateToken, adminLimiter, logsLimiter, DebugConsoleController.deleteAllAccessLogs);
-router.delete('/logs/filter', authenticateToken, adminLimiter, logsLimiter, DebugConsoleController.deleteAccessLogsByFilter);
-router.delete('/logs', authenticateToken, adminLimiter, logsLimiter, DebugConsoleController.deleteAccessLogs);
-router.delete('/logs/:logId', authenticateToken, adminLimiter, logsLimiter, DebugConsoleController.deleteAccessLog);
+router.get('/logs', authenticateToken, adminLimiter, logsLimiter, logsReadLimiter, DebugConsoleController.getAccessLogs);
+router.delete('/logs/all', authenticateToken, adminLimiter, logsLimiter, logsWriteLimiter, DebugConsoleController.deleteAllAccessLogs);
+router.delete('/logs/filter', authenticateToken, adminLimiter, logsLimiter, logsWriteLimiter, DebugConsoleController.deleteAccessLogsByFilter);
+router.delete('/logs', authenticateToken, adminLimiter, logsLimiter, logsWriteLimiter, DebugConsoleController.deleteAccessLogs);
+router.delete('/logs/:logId', authenticateToken, adminLimiter, logsLimiter, logsWriteLimiter, DebugConsoleController.deleteAccessLog);
 
 export default router; 
