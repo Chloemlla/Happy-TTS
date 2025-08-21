@@ -39,12 +39,14 @@ jobs:
 
       - name: Set Node.js memory limits
         run: |
-          echo "NODE_OPTIONS=--max-old-space-size=10240" >> $GITHUB_ENV
+          echo "NODE_MEMORY_OPTIONS=--max-old-space-size=10240" >> $GITHUB_ENV
           echo "NPM_CONFIG_CACHE=/tmp/.npm" >> $GITHUB_ENV
           echo "ROLLUP_SKIP_NATIVE_DEPENDENCIES=true" >> $GITHUB_ENV
           echo "VITE_SKIP_ROLLUP_NATIVE=true" >> $GITHUB_ENV
           echo "MEMORY=10240M" >> $GITHUB_ENV
           echo "NODE_MEMORY=10240" >> $GITHUB_ENV
+        env:
+          NODE_OPTIONS: --max-old-space-size=10240
 
       - name: Clean node_modules and lock (root)
         run: |
@@ -115,6 +117,8 @@ jobs:
           ls node_modules/@rollup/ || echo "Rollup dependencies not found, but continuing..."
           cd docs
           npm install --no-optional --no-audit --no-fund
+        env:
+          NODE_OPTIONS: --max-old-space-size=10240
 
       - name: Test with memory optimization
         run: |
@@ -122,6 +126,8 @@ jobs:
           npm install --save-dev ts-jest typescript
           npm test -- --detectOpenHandles --maxWorkers=2 || echo "测试失败，但继续执行构建..."
         continue-on-error: true
+        env:
+          NODE_OPTIONS: --max-old-space-size=10240
 
       - name: Real-time Frontend Build Analysis
         run: |
@@ -161,6 +167,8 @@ jobs:
           }
 
           cd ..
+        env:
+          NODE_OPTIONS: --max-old-space-size=10240
 
       - name: Frontend Bundle Analysis
         run: |
@@ -428,6 +436,8 @@ jobs:
             echo "简化构建失败，使用最小构建..."
             npm run build:minimal
           )
+        env:
+          NODE_OPTIONS: --max-old-space-size=10240
 
       - name: Check obfuscation (auto)
         run: |
