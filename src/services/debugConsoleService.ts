@@ -2,6 +2,34 @@ import { mongoose } from './mongoService';
 import logger from '../utils/logger';
 import crypto from 'crypto';
 
+// 安全工具：转义正则、验证参数
+function escapeRegExp(input: string): string {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function buildSafeRegex(input: string, { maxLen = 100, flags = 'i', exact = false }: { maxLen?: number; flags?: string; exact?: boolean } = {}): RegExp {
+  const trimmed = String(input).slice(0, maxLen);
+  const escaped = escapeRegExp(trimmed);
+  const pattern = exact ? `^${escaped}$` : escaped;
+  return new RegExp(pattern, flags);
+}
+
+function isValidGroup(group: string): boolean {
+  return /^[A-Za-z0-9_-]{1,64}$/.test(group);
+}
+
+function isLikelyIPv4(ip: string): boolean {
+  return /^(?:(?:25[0-5]|2[0-4]\d|[01]?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d?\d)$/.test(ip);
+}
+
+function isValidObjectId(id: string): boolean {
+  try {
+    return mongoose.Types.ObjectId.isValid(id);
+  } catch {
+    return false;
+  }
+}
+
 // AES-256 加密函数
 function encryptAES256(data: string, key: string): { encryptedData: string; iv: string } {
   try {
@@ -463,16 +491,31 @@ class DebugConsoleService {
         return null;
       }
 
+      // 校验 group，防止不受控查询键
+      if (!isValidGroup(group)) {
+        logger.warn('非法的配置分组标识', { group });
+        return null;
+      }
+
+      const safeUpdates: Partial<DebugConsoleConfigDoc> = { ...updates };
+      if (typeof safeUpdates.maxAttempts === 'number') {
+        safeUpdates.maxAttempts = Math.max(1, Math.min(20, safeUpdates.maxAttempts));
+      }
+      if (typeof safeUpdates.lockoutDuration === 'number') {
+        // 最少1分钟，最多24小时
+        safeUpdates.lockoutDuration = Math.max(60_000, Math.min(86_400_000, safeUpdates.lockoutDuration));
+      }
+
       const result = await DebugConsoleConfigModel.findOneAndUpdate(
         { group },
-        { ...updates, updatedAt: new Date() },
+        { ...safeUpdates, updatedAt: new Date() },
         { upsert: true, new: true, setDefaultsOnInsert: true }
       );
 
       // 清除缓存
       this.configLoadedAt = 0;
       
-      logger.info('调试控制台配置已更新', { group, updates });
+      logger.info('调试控制台配置已更新', { group, updates: safeUpdates });
       return result;
     } catch (error) {
       logger.error('更新调试控制台配置失败:', error);
@@ -487,6 +530,11 @@ class DebugConsoleService {
     try {
       if (mongoose.connection.readyState !== 1) {
         logger.warn('MongoDB 未连接，无法删除配置');
+        return false;
+      }
+
+      if (!isValidGroup(group)) {
+        logger.warn('非法的配置分组标识', { group });
         return false;
       }
 
@@ -529,24 +577,39 @@ class DebugConsoleService {
 
       const query: any = {};
       
-      if (filters.ip) query.ip = new RegExp(filters.ip, 'i');
+      if (filters.ip) {
+        const ipStr = String(filters.ip).slice(0, 64);
+        if (isLikelyIPv4(ipStr)) {
+          // 精准匹配有效IPv4地址，避免使用不必要的正则
+          query.ip = ipStr;
+        } else {
+          // 对非严格IPv4输入进行安全转义的子串匹配
+          query.ip = buildSafeRegex(ipStr, { maxLen: 64, flags: 'i', exact: false });
+        }
+      }
       if (filters.success !== undefined) query.success = filters.success;
-      if (filters.userId) query.userId = new RegExp(filters.userId, 'i');
+      if (filters.userId) {
+        const uid = String(filters.userId).slice(0, 64);
+        query.userId = buildSafeRegex(uid, { maxLen: 64, flags: 'i', exact: false });
+      }
       if (filters.startDate || filters.endDate) {
         query.timestamp = {};
-        if (filters.startDate) query.timestamp.$gte = filters.startDate;
-        if (filters.endDate) query.timestamp.$lte = filters.endDate;
+        if (filters.startDate instanceof Date && !isNaN(filters.startDate.getTime())) query.timestamp.$gte = filters.startDate;
+        if (filters.endDate instanceof Date && !isNaN(filters.endDate.getTime())) query.timestamp.$lte = filters.endDate;
       }
+
+      const safeLimit = Math.max(1, Math.min(200, Number(limit) || 50));
+      const safePage = Math.max(1, Number(page) || 1);
 
       const total = await DebugConsoleAccessLogModel.countDocuments(query);
       const logs = await DebugConsoleAccessLogModel
         .find(query)
         .sort({ timestamp: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
+        .skip((safePage - 1) * safeLimit)
+        .limit(safeLimit)
         .lean();
 
-      return { logs, total, page, limit };
+      return { logs, total, page: safePage, limit: safeLimit };
     } catch (error) {
       logger.error('获取调试控制台访问日志失败:', error);
       return { logs: [], total: 0, page, limit };
@@ -560,6 +623,11 @@ class DebugConsoleService {
     try {
       if (mongoose.connection.readyState !== 1) {
         logger.warn('MongoDB 未连接，无法删除访问日志');
+        return false;
+      }
+
+      if (!isValidObjectId(logId)) {
+        logger.warn('非法的访问日志ID', { logId });
         return false;
       }
 
@@ -587,22 +655,30 @@ class DebugConsoleService {
         return { success: false, deletedCount: 0, errors: ['MongoDB 未连接'] };
       }
 
-      if (!logIds || logIds.length === 0) {
+      if (!Array.isArray(logIds) || logIds.length === 0) {
         return { success: false, deletedCount: 0, errors: ['未提供要删除的日志ID'] };
       }
 
-      const result = await DebugConsoleAccessLogModel.deleteMany({ _id: { $in: logIds } });
+      const validIds = logIds.filter((id) => typeof id === 'string' && isValidObjectId(id));
+      const invalidCount = logIds.length - validIds.length;
+
+      if (validIds.length === 0) {
+        return { success: false, deletedCount: 0, errors: ['无有效的日志ID'] };
+      }
+
+      const result = await DebugConsoleAccessLogModel.deleteMany({ _id: { $in: validIds } });
       
       logger.info('调试控制台访问日志批量删除完成', { 
-        logIds, 
-        deletedCount: result.deletedCount,
-        totalRequested: logIds.length 
+        totalRequested: logIds.length,
+        valid: validIds.length,
+        invalid: invalidCount,
+        deletedCount: result.deletedCount 
       });
       
       return { 
         success: true, 
         deletedCount: result.deletedCount,
-        errors: []
+        errors: invalidCount > 0 ? [`忽略无效ID数量: ${invalidCount}`] : []
       };
     } catch (error) {
       logger.error('批量删除调试控制台访问日志失败:', error);
@@ -668,13 +744,23 @@ class DebugConsoleService {
 
       const query: any = {};
       
-      if (filters.ip) query.ip = new RegExp(filters.ip, 'i');
+      if (filters.ip) {
+        const ipStr = String(filters.ip).slice(0, 64);
+        if (isLikelyIPv4(ipStr)) {
+          query.ip = ipStr;
+        } else {
+          query.ip = buildSafeRegex(ipStr, { maxLen: 64, flags: 'i', exact: false });
+        }
+      }
       if (filters.success !== undefined) query.success = filters.success;
-      if (filters.userId) query.userId = new RegExp(filters.userId, 'i');
+      if (filters.userId) {
+        const uid = String(filters.userId).slice(0, 64);
+        query.userId = buildSafeRegex(uid, { maxLen: 64, flags: 'i', exact: false });
+      }
       if (filters.startDate || filters.endDate) {
         query.timestamp = {};
-        if (filters.startDate) query.timestamp.$gte = filters.startDate;
-        if (filters.endDate) query.timestamp.$lte = filters.endDate;
+        if (filters.startDate instanceof Date && !isNaN(filters.startDate.getTime())) query.timestamp.$gte = filters.startDate;
+        if (filters.endDate instanceof Date && !isNaN(filters.endDate.getTime())) query.timestamp.$lte = filters.endDate;
       }
 
       const result = await DebugConsoleAccessLogModel.deleteMany(query);
