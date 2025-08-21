@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { formatModForOutput } from './shared';
 
 const MODLIST_PATH = path.resolve(__dirname, '../../../data/modlist.json');
 
@@ -18,12 +19,7 @@ function writeModList(list: any[]) {
 
 export async function getAllMods({ withHash, withMd5 }: { withHash?: boolean, withMd5?: boolean } = {}) {
   const list = readModList();
-  return list.map((mod: any) => {
-    const result: any = { id: mod.id, name: mod.name };
-    if (withHash && mod.hash) result.hash = mod.hash;
-    if (withMd5 && mod.md5) result.md5 = mod.md5;
-    return result;
-  });
+  return list.map((mod: any) => formatModForOutput(mod, { withHash, withMd5 }));
 }
 
 export async function addMod(mod: { name: string, hash?: string, md5?: string }) {

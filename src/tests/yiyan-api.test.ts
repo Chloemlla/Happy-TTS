@@ -1,29 +1,25 @@
 import request from 'supertest';
 import app from '../app';
 
+async function expectYiyanOk(type: 'hitokoto' | 'poetry') {
+  const res = await request(app)
+    .get('/api/network/yiyan')
+    .query({ type });
+
+  expect(res.status).toBe(200);
+  expect(res.body.success).toBe(true);
+  expect(res.body.data).toHaveProperty('data');
+  expect(res.body.data).toHaveProperty('code');
+  expect(res.body.data).toHaveProperty('msg');
+}
+
 describe('随机一言古诗词 API', () => {
   it('随机一言 (hitokoto) 应该返回成功', async () => {
-    const res = await request(app)
-      .get('/api/network/yiyan')
-      .query({ type: 'hitokoto' });
-    
-    expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body.data).toHaveProperty('data');
-    expect(res.body.data).toHaveProperty('code');
-    expect(res.body.data).toHaveProperty('msg');
+    await expectYiyanOk('hitokoto');
   });
 
   it('随机古诗词 (poetry) 应该返回成功', async () => {
-    const res = await request(app)
-      .get('/api/network/yiyan')
-      .query({ type: 'poetry' });
-    
-    expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body.data).toHaveProperty('data');
-    expect(res.body.data).toHaveProperty('code');
-    expect(res.body.data).toHaveProperty('msg');
+    await expectYiyanOk('poetry');
   });
 
   it('空类型参数应该返回 400 错误', async () => {
@@ -43,13 +39,7 @@ describe('随机一言古诗词 API', () => {
 
   it('批量测试一言 (连续5次)', async () => {
     for (let i = 0; i < 5; i++) {
-      const res = await request(app)
-        .get('/api/network/yiyan')
-        .query({ type: 'hitokoto' });
-      
-      expect(res.status).toBe(200);
-      expect(res.body.success).toBe(true);
-      expect(res.body.data).toHaveProperty('data');
+      await expectYiyanOk('hitokoto');
     }
   });
 }); 

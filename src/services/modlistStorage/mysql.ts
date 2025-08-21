@@ -1,4 +1,5 @@
 import mysql from 'mysql2/promise';
+import { formatModForOutput } from './shared';
 
 const MYSQL_URI = process.env.MYSQL_URI || 'mysql://root:password@localhost:3306/tts';
 const TABLE = 'modlist';
@@ -18,12 +19,7 @@ export async function getAllMods({ withHash, withMd5 }: { withHash?: boolean, wi
   const conn = await getConn();
   const [rows] = await conn.execute(`SELECT * FROM ${TABLE}`);
   await conn.end();
-  return (rows as any[]).map((mod: any) => {
-    const result: any = { id: mod.id, name: mod.name };
-    if (withHash && mod.hash) result.hash = mod.hash;
-    if (withMd5 && mod.md5) result.md5 = mod.md5;
-    return result;
-  });
+  return (rows as any[]).map((mod: any) => formatModForOutput(mod, { withHash, withMd5 }));
 }
 
 export async function addMod(mod: { name: string, hash?: string, md5?: string }) {
@@ -50,5 +46,5 @@ export async function updateMod(id: string, name: string, hash?: string, md5?: s
   const [after] = await conn.execute(`SELECT * FROM ${TABLE} WHERE id=?`, [id]);
   await conn.end();
   const mod = (after as any[])[0];
-  return { id: mod.id, name: mod.name, hash: mod.hash || undefined, md5: mod.md5 || undefined };
+  return formatModForOutput(mod, { withHash: true, withMd5: true });
 }
