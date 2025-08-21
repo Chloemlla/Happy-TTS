@@ -1,17 +1,5 @@
 import mysql from 'mysql2/promise';
-import { getUserById } from '../userService';
-
-export interface GenerationRecord {
-  userId: string;
-  text: string;
-  voice?: string;
-  model?: string;
-  outputFormat?: string;
-  speed?: number;
-  fileName?: string;
-  contentHash?: string;
-  timestamp?: Date | string;
-}
+import { GenerationRecord, isAdminUser as sharedIsAdminUser } from './types';
 
 const MYSQL_URI = process.env.MYSQL_URI || 'mysql://root:password@localhost:3306/tts';
 const TABLE = 'user_generations';
@@ -56,6 +44,8 @@ export async function addGenerationRecord(record: GenerationRecord): Promise<Gen
 }
 
 export async function isAdminUser(userId: string): Promise<boolean> {
-  const user = await getUserById(userId);
-  return !!(user && user.role === 'admin');
-} 
+  return sharedIsAdminUser(userId);
+}
+
+// 重新导出类型
+export type { GenerationRecord }; 

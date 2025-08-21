@@ -121,10 +121,9 @@ export class TestCleanup {
 export const testCleanup = TestCleanup.getInstance();
 
 /**
- * 自动清理装饰器
- * 用于自动注册清理任务
+ * 通用装饰器工厂函数
  */
-export function AutoCleanup() {
+function createCleanupDecorator(cleanupAction: () => Promise<void>) {
   return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
     const originalMethod = descriptor.value;
 
@@ -133,8 +132,7 @@ export function AutoCleanup() {
         const result = await originalMethod.apply(this, args);
         return result;
       } finally {
-        // 测试完成后自动清理
-        await testCleanup.cleanup();
+        await cleanupAction();
       }
     };
 
@@ -143,22 +141,16 @@ export function AutoCleanup() {
 }
 
 /**
+ * 自动清理装饰器
+ * 用于自动注册清理任务
+ */
+export function AutoCleanup() {
+  return createCleanupDecorator(() => testCleanup.cleanup());
+}
+
+/**
  * 清理特定服务的装饰器
  */
 export function CleanupService(serviceName: string) {
-  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
-    const originalMethod = descriptor.value;
-
-    descriptor.value = async function (...args: any[]) {
-      try {
-        const result = await originalMethod.apply(this, args);
-        return result;
-      } finally {
-        // 清理特定服务
-        await testCleanup.cleanupService(serviceName);
-      }
-    };
-
-    return descriptor;
-  };
+  return createCleanupDecorator(() => testCleanup.cleanupService(serviceName));
 } 

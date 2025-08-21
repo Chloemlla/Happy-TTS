@@ -55,7 +55,10 @@ function demonstrateBackupCodes() {
       }
     })
     .catch(error => {
-      console.error('   ❌ 演示失败:', error.response?.data?.error || error.message);
+      const errorMessage = error.response && error.response.data && error.response.data.error 
+        ? error.response.data.error 
+        : error.message;
+      console.error('   ❌ 演示失败:', errorMessage);
     });
 }
 
