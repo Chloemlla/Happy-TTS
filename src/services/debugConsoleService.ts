@@ -30,6 +30,10 @@ function isValidObjectId(id: string): boolean {
   }
 }
 
+function isValidUserId(userId: string): boolean {
+  return /^[A-Za-z0-9_-]{1,64}$/.test(userId);
+}
+
 // AES-256 加密函数
 function encryptAES256(data: string, key: string): { encryptedData: string; iv: string } {
   try {
@@ -496,26 +500,54 @@ class DebugConsoleService {
         logger.warn('非法的配置分组标识', { group });
         return null;
       }
+      const safeGroup = group.trim();
 
-      const safeUpdates: Partial<DebugConsoleConfigDoc> = { ...updates };
-      if (typeof safeUpdates.maxAttempts === 'number') {
-        safeUpdates.maxAttempts = Math.max(1, Math.min(20, safeUpdates.maxAttempts));
+      // 严格字段白名单与范围校验
+      const safeUpdates: Partial<DebugConsoleConfigDoc> = {};
+
+      if (typeof updates.enabled === 'boolean') {
+        safeUpdates.enabled = updates.enabled;
       }
-      if (typeof safeUpdates.lockoutDuration === 'number') {
+
+      if (typeof updates.keySequence === 'string') {
+        // 只允许数字，长度 4-32
+        const ks = updates.keySequence.replace(/\D/g, '').slice(0, 32);
+        if (ks.length >= 4) safeUpdates.keySequence = ks;
+      }
+
+      if (typeof updates.verificationCode === 'string') {
+        // 只允许数字，长度 4-12
+        const vc = updates.verificationCode.replace(/\D/g, '').slice(0, 12);
+        if (vc.length >= 4) safeUpdates.verificationCode = vc;
+      }
+
+      if (typeof updates.maxAttempts === 'number') {
+        safeUpdates.maxAttempts = Math.max(1, Math.min(20, updates.maxAttempts));
+      }
+
+      if (typeof updates.lockoutDuration === 'number') {
         // 最少1分钟，最多24小时
-        safeUpdates.lockoutDuration = Math.max(60_000, Math.min(86_400_000, safeUpdates.lockoutDuration));
+        safeUpdates.lockoutDuration = Math.max(60_000, Math.min(86_400_000, updates.lockoutDuration));
       }
 
+      // 防止空对象（避免只写入 updatedAt）
+      const hasAnyField = Object.keys(safeUpdates).length > 0;
+      if (!hasAnyField) {
+        logger.warn('忽略无有效字段的配置更新');
+        return null;
+      }
+
+      // 使用 $set 避免操作符注入，并启用 runValidators
       const result = await DebugConsoleConfigModel.findOneAndUpdate(
-        { group },
-        { ...safeUpdates, updatedAt: new Date() },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
+        { group: safeGroup },
+        { $set: { ...safeUpdates, updatedAt: new Date() } },
+        { upsert: true, new: true, setDefaultsOnInsert: true, runValidators: true, context: 'query' }
       );
 
       // 清除缓存
       this.configLoadedAt = 0;
       
-      logger.info('调试控制台配置已更新', { group, updates: safeUpdates });
+      logger.info('调试控制台配置已更新', { group: safeGroup, updates: safeUpdates });
       return result;
     } catch (error) {
       logger.error('更新调试控制台配置失败:', error);
@@ -577,25 +609,35 @@ class DebugConsoleService {
 
       const query: any = {};
       
+      // 仅允许严格等值匹配，拒绝/忽略无法通过白名单校验的输入
       if (filters.ip) {
-        const ipStr = String(filters.ip).slice(0, 64);
+        const ipStr = String(filters.ip).trim();
         if (isLikelyIPv4(ipStr)) {
-          // 精准匹配有效IPv4地址，避免使用不必要的正则
           query.ip = ipStr;
-        } else {
-          // 对非严格IPv4输入进行安全转义的子串匹配
-          query.ip = buildSafeRegex(ipStr, { maxLen: 64, flags: 'i', exact: false });
-        }
+        } // 非法IP将被忽略，不参与查询
       }
-      if (filters.success !== undefined) query.success = filters.success;
+      if (filters.success !== undefined) query.success = !!filters.success;
       if (filters.userId) {
-        const uid = String(filters.userId).slice(0, 64);
-        query.userId = buildSafeRegex(uid, { maxLen: 64, flags: 'i', exact: false });
+        const uid = String(filters.userId).trim();
+        if (isValidUserId(uid)) {
+          query.userId = uid;
+        } // 非法userId将被忽略
       }
       if (filters.startDate || filters.endDate) {
-        query.timestamp = {};
-        if (filters.startDate instanceof Date && !isNaN(filters.startDate.getTime())) query.timestamp.$gte = filters.startDate;
-        if (filters.endDate instanceof Date && !isNaN(filters.endDate.getTime())) query.timestamp.$lte = filters.endDate;
+        const range: any = {};
+        if (filters.startDate instanceof Date && !isNaN(filters.startDate.getTime())) range.$gte = filters.startDate;
+        if (filters.endDate instanceof Date && !isNaN(filters.endDate.getTime())) range.$lte = filters.endDate;
+        if (range.$gte || range.$lte) {
+          // 限制时间跨度最大为31天
+          const startMs = range.$gte ? range.$gte.getTime() : 0;
+          const endMs = range.$lte ? range.$lte.getTime() : Date.now();
+          const MAX_RANGE_MS = 31 * 24 * 60 * 60 * 1000;
+          if (endMs >= startMs && (endMs - startMs) <= MAX_RANGE_MS) {
+            query.timestamp = range;
+          } else {
+            logger.warn('忽略超出上限或无效的时间范围过滤', { startMs, endMs });
+          }
+        }
       }
 
       const safeLimit = Math.max(1, Math.min(200, Number(limit) || 50));
@@ -744,23 +786,42 @@ class DebugConsoleService {
 
       const query: any = {};
       
+      // 仅允许严格等值匹配，拒绝非法过滤条件
       if (filters.ip) {
-        const ipStr = String(filters.ip).slice(0, 64);
-        if (isLikelyIPv4(ipStr)) {
-          query.ip = ipStr;
-        } else {
-          query.ip = buildSafeRegex(ipStr, { maxLen: 64, flags: 'i', exact: false });
+        const ipStr = String(filters.ip).trim();
+        if (!isLikelyIPv4(ipStr)) {
+          return { success: false, deletedCount: 0, error: '非法IP过滤条件' };
         }
+        query.ip = ipStr;
       }
-      if (filters.success !== undefined) query.success = filters.success;
+      if (filters.success !== undefined) query.success = !!filters.success;
       if (filters.userId) {
-        const uid = String(filters.userId).slice(0, 64);
-        query.userId = buildSafeRegex(uid, { maxLen: 64, flags: 'i', exact: false });
+        const uid = String(filters.userId).trim();
+        if (!isValidUserId(uid)) {
+          return { success: false, deletedCount: 0, error: '非法userId过滤条件' };
+        }
+        query.userId = uid;
       }
       if (filters.startDate || filters.endDate) {
-        query.timestamp = {};
-        if (filters.startDate instanceof Date && !isNaN(filters.startDate.getTime())) query.timestamp.$gte = filters.startDate;
-        if (filters.endDate instanceof Date && !isNaN(filters.endDate.getTime())) query.timestamp.$lte = filters.endDate;
+        const range: any = {};
+        if (filters.startDate instanceof Date && !isNaN(filters.startDate.getTime())) range.$gte = filters.startDate;
+        if (filters.endDate instanceof Date && !isNaN(filters.endDate.getTime())) range.$lte = filters.endDate;
+        if (range.$gte || range.$lte) {
+          // 限制删除操作的时间范围最大为31天
+          const startMs = range.$gte ? range.$gte.getTime() : 0;
+          const endMs = range.$lte ? range.$lte.getTime() : Date.now();
+          const MAX_RANGE_MS = 31 * 24 * 60 * 60 * 1000;
+          if (endMs >= startMs && (endMs - startMs) <= MAX_RANGE_MS) {
+            query.timestamp = range;
+          } else {
+            return { success: false, deletedCount: 0, error: '时间范围无效或跨度过大（>31天）' };
+          }
+        }
+      }
+
+      // 防止空条件删除
+      if (Object.keys(query).length === 0) {
+        return { success: false, deletedCount: 0, error: '必须提供至少一个有效过滤条件' };
       }
 
       const result = await DebugConsoleAccessLogModel.deleteMany(query);

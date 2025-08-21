@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { DebugConsoleController } from '../controllers/debugConsoleController';
 import { authenticateToken } from '../middleware/authenticateToken';
 import { createLimiter } from '../middleware/rateLimiter';
+import { logsLimiter, commandLimiter } from '../middleware/routeLimiters';
 
 const router = Router();
 
@@ -24,15 +25,17 @@ const adminLimiter = createLimiter({
 router.post('/verify', verifyLimiter, DebugConsoleController.verifyAccess);
 
 // 管理员接口（需要认证）
-router.get('/configs', authenticateToken, adminLimiter, DebugConsoleController.getConfigs);
-router.get('/configs/encrypted', authenticateToken, adminLimiter, DebugConsoleController.getEncryptedConfigs);
-router.put('/configs/:group', authenticateToken, adminLimiter, DebugConsoleController.updateConfig);
-router.delete('/configs/:group', authenticateToken, adminLimiter, DebugConsoleController.deleteConfig);
-router.get('/logs', authenticateToken, adminLimiter, DebugConsoleController.getAccessLogs);
-router.delete('/logs/all', authenticateToken, adminLimiter, DebugConsoleController.deleteAllAccessLogs);
-router.delete('/logs/filter', authenticateToken, adminLimiter, DebugConsoleController.deleteAccessLogsByFilter);
-router.delete('/logs', authenticateToken, adminLimiter, DebugConsoleController.deleteAccessLogs);
-router.delete('/logs/:logId', authenticateToken, adminLimiter, DebugConsoleController.deleteAccessLog);
-router.post('/init', authenticateToken, adminLimiter, DebugConsoleController.initDefaultConfig);
+router.get('/configs', authenticateToken, adminLimiter, commandLimiter, DebugConsoleController.getConfigs);
+router.get('/configs/encrypted', authenticateToken, adminLimiter, commandLimiter, DebugConsoleController.getEncryptedConfigs);
+router.put('/configs/:group', authenticateToken, adminLimiter, commandLimiter, DebugConsoleController.updateConfig);
+router.delete('/configs/:group', authenticateToken, adminLimiter, commandLimiter, DebugConsoleController.deleteConfig);
+router.post('/init', authenticateToken, adminLimiter, commandLimiter, DebugConsoleController.initDefaultConfig);
+
+// 访问日志相关（需认证）
+router.get('/logs', authenticateToken, adminLimiter, logsLimiter, DebugConsoleController.getAccessLogs);
+router.delete('/logs/all', authenticateToken, adminLimiter, logsLimiter, DebugConsoleController.deleteAllAccessLogs);
+router.delete('/logs/filter', authenticateToken, adminLimiter, logsLimiter, DebugConsoleController.deleteAccessLogsByFilter);
+router.delete('/logs', authenticateToken, adminLimiter, logsLimiter, DebugConsoleController.deleteAccessLogs);
+router.delete('/logs/:logId', authenticateToken, adminLimiter, logsLimiter, DebugConsoleController.deleteAccessLog);
 
 export default router; 
