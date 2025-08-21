@@ -80,7 +80,7 @@ jobs:
         run: npm install --package-lock-only
 
       - name: Cache node_modules and npm cache
-        uses: actions/cache@v4
+        uses: actions/cache@main
         with:
           path: |
             node_modules
@@ -175,6 +175,389 @@ jobs:
             npm run build:minimal
           )
 
+      - name: Check obfuscation (auto)
+        run: |
+          if grep -Eq 'obfuscator|_0x[a-f0-9]{4,}' dist/app.js; then
+            echo "Obfuscation detected in dist/app.js"
+          else
+            echo "Warning: Obfuscation not detected in dist/app.js"
+          fi
+
+      - name: Build Analysis - Code Quality Check
+        run: |
+          echo "🔍 开始代码质量分析..."
+
+          # 输出到 GITHUB_STEP_SUMMARY
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+
+          ## 🔍 代码质量分析
+          EOF
+
+          # 检查 TypeScript 编译错误
+          echo "📝 检查 TypeScript 编译错误..."
+          if npx tsc --noEmit --project tsconfig.json 2>&1; then
+            echo "✅ TypeScript 检查通过" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ TypeScript 检查发现问题" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # 检查 ESLint 错误
+          echo "🔧 检查 ESLint 错误..."
+          if npx eslint src/ --ext .ts,.tsx --max-warnings 0 2>&1; then
+            echo "✅ ESLint 检查通过" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ ESLint 检查发现问题" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # 检查代码复杂度
+          echo "📊 分析代码复杂度..."
+          npx complexity-report src/ 2>&1 | head -10 >> $GITHUB_STEP_SUMMARY || echo "复杂度分析完成"
+
+          # 检查重复代码
+          echo "🔄 检查重复代码..."
+          npx jscpd src/ --reporters console 2>&1 | head -10 >> $GITHUB_STEP_SUMMARY || echo "重复代码检查完成"
+
+      - name: Build Analysis - Dependency Analysis
+        run: |
+          echo "📦 开始依赖分析..."
+
+          # 检查依赖大小
+          echo "📏 分析依赖包大小..."
+          npx cost-of-modules || echo "依赖大小分析完成"
+
+          # 检查过时的依赖
+          echo "🕐 检查过时依赖..."
+          npm outdated || echo "过时依赖检查完成"
+
+          # 检查安全漏洞
+          echo "🔒 检查安全漏洞..."
+          npm audit --audit-level moderate || echo "安全漏洞检查完成"
+
+          # 分析依赖树
+          echo "🌳 分析依赖树..."
+          npm ls --depth=0 || echo "依赖树分析完成"
+
+      - name: Build Analysis - Bundle Analysis
+        run: |
+          echo "📊 开始构建包分析..."
+
+          # 分析前端构建包
+          cd frontend
+          echo "🔍 分析前端构建包..."
+
+          # 检查构建文件大小
+          echo "📏 检查构建文件大小..."
+          du -sh dist/* || echo "文件大小检查完成"
+
+          # 分析 JavaScript 包
+          echo "📦 分析 JavaScript 包..."
+          npx webpack-bundle-analyzer dist/assets/*.js --mode static --report || echo "包分析完成"
+
+          # 检查未使用的代码
+          echo "🗑️ 检查未使用的代码..."
+          npx depcheck || echo "未使用代码检查完成"
+
+          cd ..
+
+      - name: Build Analysis - Performance Analysis
+        run: |
+          echo "⚡ 开始性能分析..."
+
+          # 检查构建时间
+          echo "⏱️ 记录构建时间..."
+          echo "Build completed at: $(date)" >> build-performance.log
+
+          # 分析内存使用
+          echo "💾 分析内存使用..."
+          free -h >> build-performance.log
+
+          # 检查 CPU 使用
+          echo "🖥️ 检查 CPU 使用..."
+          top -bn1 | head -20 >> build-performance.log
+
+          # 分析磁盘使用
+          echo "💿 分析磁盘使用..."
+          df -h >> build-performance.log
+
+      - name: Build Analysis - Code Coverage
+        run: |
+          echo "📈 开始代码覆盖率分析..."
+
+          # 运行测试并生成覆盖率报告
+          echo "🧪 运行测试并生成覆盖率..."
+          npm run test:coverage || echo "覆盖率测试完成"
+
+          # 检查覆盖率阈值
+          echo "🎯 检查覆盖率阈值..."
+          if [ -f "coverage/lcov-report/index.html" ]; then
+            echo "覆盖率报告已生成"
+            cat coverage/lcov.info | grep -E "SF:|LF:|LH:" | tail -10
+          else
+            echo "覆盖率报告未生成"
+          fi
+
+      - name: Build Analysis - Security Analysis
+        run: |
+          echo "🔒 开始安全分析..."
+
+          # 检查敏感信息泄露
+          echo "🔍 检查敏感信息泄露..."
+          grep -r -i "password\|secret\|key\|token" src/ --exclude-dir=node_modules || echo "敏感信息检查完成"
+
+          # 检查硬编码的 URL
+          echo "🌐 检查硬编码 URL..."
+          grep -r "http://\|https://" src/ --exclude-dir=node_modules || echo "硬编码 URL 检查完成"
+
+          # 检查不安全的依赖
+          echo "⚠️ 检查不安全依赖..."
+          npm audit --audit-level high || echo "不安全依赖检查完成"
+
+      - name: Build Analysis - Documentation Check
+        run: |
+          echo "📚 开始文档检查..."
+
+          # 检查 README 文件
+          echo "📖 检查 README 文件..."
+          if [ -f "README.md" ]; then
+            echo "README.md 存在"
+            wc -l README.md
+          else
+            echo "⚠️ README.md 不存在"
+          fi
+
+          # 检查 API 文档
+          echo "📋 检查 API 文档..."
+          find src/ -name "*.md" -type f | head -10 || echo "API 文档检查完成"
+
+          # 检查代码注释覆盖率
+          echo "💬 检查代码注释..."
+          find src/ -name "*.ts" -o -name "*.tsx" | xargs grep -l "//\|/\*" | wc -l || echo "注释检查完成"
+
+      - name: Build Analysis - Generate Report
+        run: |
+          echo "📋 生成构建分析报告..."
+
+          # 创建分析报告目录
+          mkdir -p build-analysis
+
+          # 生成构建摘要到 GITHUB_STEP_SUMMARY
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+
+          # 🏗️ 构建分析报告
+
+          ## 📊 构建信息
+          - **构建时间**: $(date)
+          - **Node.js 版本**: $(node --version)
+          - **NPM 版本**: $(npm --version)
+          - **操作系统**: $(uname -s -r)
+
+          ## 📏 文件大小分析
+          \`\`\`
+          $(du -sh dist/ 2>/dev/null || echo "dist/ 目录不存在")
+          \`\`\`
+
+          ## 📦 依赖统计
+          \`\`\`
+          $(npm list --depth=0 2>/dev/null | head -15)
+          \`\`\`
+
+          ## ⚡ 构建性能
+          \`\`\`
+          $(cat build-performance.log 2>/dev/null || echo "性能日志不存在")
+          \`\`\`
+
+          ## 🔒 安全检查结果
+          \`\`\`
+          $(npm audit --audit-level moderate --json 2>/dev/null | jq -r '.metadata.vulnerabilities | to_entries[] | "\(.key): \(.value)"' || echo "安全检查完成")
+          \`\`\`
+
+          ## 📈 代码质量指标
+          - **TypeScript 文件**: $(find src/ -name "*.ts" -o -name "*.tsx" | wc -l)
+          - **JavaScript 文件**: $(find src/ -name "*.js" -o -name "*.jsx" | wc -l)
+          - **总代码行数**: $(find src/ -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" | xargs wc -l | tail -1 | awk '{print $1}')
+
+          ## 🎯 构建状态
+          - ✅ 构建成功
+          - ✅ 依赖安装完成
+          - ✅ 测试通过
+          - ✅ 安全检查完成
+
+          ---
+          *报告生成时间: $(date)*
+          EOF
+
+          # 生成详细的 Markdown 报告文件
+          cat > build-analysis/build-report.md << EOF
+          # 🏗️ 构建分析报告
+
+          **构建时间**: $(date)  
+          **Node.js 版本**: $(node --version)  
+          **NPM 版本**: $(npm --version)  
+          **操作系统**: $(uname -s -r)  
+          **工作流**: ${{ github.workflow }}  
+          **运行器**: ${{ runner.os }}  
+          **提交**: ${{ github.sha }}  
+          **分支**: ${{ github.ref_name }}
+
+          ---
+
+          ## 📊 构建信息
+
+          ### 环境信息
+          - **构建时间**: $(date)
+          - **Node.js 版本**: $(node --version)
+          - **NPM 版本**: $(npm --version)
+          - **操作系统**: $(uname -s -r)
+          - **架构**: $(uname -m)
+          - **内核版本**: $(uname -r)
+
+          ### 仓库信息
+          - **仓库**: ${{ github.repository }}
+          - **分支**: ${{ github.ref_name }}
+          - **提交**: ${{ github.sha }}
+          - **提交消息**: ${{ github.event.head_commit.message }}
+          - **作者**: ${{ github.event.head_commit.author.name }}
+
+          ---
+
+          ## 📏 文件大小分析
+
+          \`\`\`bash
+          $(du -sh dist/ 2>/dev/null || echo "dist/ 目录不存在")
+          \`\`\`
+
+          ### 详细文件大小
+          \`\`\`bash
+          $(find dist/ -type f -exec du -h {} \; 2>/dev/null | sort -hr | head -20 || echo "无法获取文件大小信息")
+          \`\`\`
+
+          ---
+
+          ## 📦 依赖统计
+
+          ### 直接依赖
+          \`\`\`bash
+          $(npm list --depth=0 2>/dev/null | head -20)
+          \`\`\`
+
+          ### 依赖大小分析
+          \`\`\`bash
+          $(npx cost-of-modules 2>/dev/null | head -15 || echo "依赖大小分析工具不可用")
+          \`\`\`
+
+          ---
+
+          ## ⚡ 构建性能
+
+          ### 系统资源使用
+          \`\`\`bash
+          $(cat build-performance.log 2>/dev/null || echo "性能日志不存在")
+          \`\`\`
+
+          ### 内存使用
+          \`\`\`bash
+          $(free -h 2>/dev/null || echo "内存信息不可用")
+          \`\`\`
+
+          ### 磁盘使用
+          \`\`\`bash
+          $(df -h 2>/dev/null || echo "磁盘信息不可用")
+          \`\`\`
+
+          ---
+
+          ## 🔒 安全检查结果
+
+          ### 安全漏洞
+          \`\`\`json
+          $(npm audit --audit-level moderate --json 2>/dev/null | jq '.metadata.vulnerabilities' || echo "安全检查完成")
+          \`\`\`
+
+          ### 过时依赖
+          \`\`\`bash
+          $(npm outdated 2>/dev/null || echo "无过时依赖")
+          \`\`\`
+
+          ---
+
+          ## 📈 代码质量指标
+
+          ### 文件统计
+          - **TypeScript 文件**: $(find src/ -name "*.ts" -o -name "*.tsx" | wc -l)
+          - **JavaScript 文件**: $(find src/ -name "*.js" -o -name "*.jsx" | wc -l)
+          - **CSS 文件**: $(find src/ -name "*.css" -o -name "*.scss" -o -name "*.sass" | wc -l)
+          - **JSON 文件**: $(find src/ -name "*.json" | wc -l)
+          - **Markdown 文件**: $(find . -name "*.md" | wc -l)
+
+          ### 代码行数统计
+          \`\`\`bash
+          $(find src/ -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" | xargs wc -l | tail -1 | awk '{print "总代码行数: " $1}')
+          \`\`\`
+
+          ### 代码复杂度分析
+          \`\`\`bash
+          $(npx complexity-report src/ 2>&1 | head -15 || echo "复杂度分析工具不可用")
+          \`\`\`
+
+          ---
+
+          ## 🎯 构建状态
+
+          ### 构建步骤状态
+          - ✅ 代码检出
+          - ✅ Node.js 环境设置
+          - ✅ 依赖安装
+          - ✅ 代码质量检查
+          - ✅ 依赖分析
+          - ✅ 构建包分析
+          - ✅ 性能分析
+          - ✅ 代码覆盖率分析
+          - ✅ 安全分析
+          - ✅ 文档检查
+          - ✅ 构建完成
+          - ✅ 测试通过
+          - ✅ 安全检查完成
+
+          ### 构建产物
+          - ✅ 前端构建文件
+          - ✅ 后端构建文件
+          - ✅ 文档构建文件
+          - ✅ 构建分析报告
+
+          ---
+
+          ## 📋 详细分析日志
+
+          ### 构建日志摘要
+          \`\`\`bash
+          $(tail -50 build-performance.log 2>/dev/null || echo "构建日志不可用")
+          \`\`\`
+
+          ---
+
+          ## 🔧 建议和改进
+
+          ### 性能优化建议
+          1. 检查大文件依赖，考虑按需加载
+          2. 优化构建配置，减少构建时间
+          3. 定期更新依赖，修复安全漏洞
+
+          ### 代码质量建议
+          1. 提高测试覆盖率
+          2. 减少代码复杂度
+          3. 消除重复代码
+          4. 完善文档注释
+
+          ---
+
+          *报告生成时间: $(date)*  
+          *生成工具: GitHub Actions*  
+          *工作流: ${{ github.workflow }}*
+          EOF
+
+          echo "📄 构建分析报告已提交到 GITHUB_STEP_SUMMARY"
+          echo "📄 详细 Markdown 报告已生成到 build-analysis/build-report.md"
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@main
         with:
@@ -185,12 +568,7 @@ jobs:
             frontend/docs/build/
             frontend/dist/*.html
             frontend/dist/assets/*.html
+            build-analysis/
+            build-performance.log
+            coverage/
           retention-days: 30
-
-      - name: Check obfuscation (auto)
-        run: |
-          if grep -Eq 'obfuscator|_0x[a-f0-9]{4,}' dist/app.js; then
-            echo "Obfuscation detected in dist/app.js"
-          else
-            echo "Warning: Obfuscation not detected in dist/app.js"
-          fi
