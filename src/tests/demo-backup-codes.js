@@ -24,35 +24,39 @@ const api = axios.create({
 /**
  * 演示获取备用恢复码
  */
-async function demonstrateBackupCodes() {
+function demonstrateBackupCodes() {
   console.log('🔐 备用恢复码功能演示\n');
   
-  try {
-    console.log('1. 获取TOTP状态...');
-    const statusResponse = await api.get('/api/totp/status');
-    console.log('   ✅ TOTP状态:', statusResponse.data);
-    
-    if (statusResponse.data.enabled && statusResponse.data.hasBackupCodes) {
-      console.log('\n2. 获取备用恢复码...');
-      const backupCodesResponse = await api.get('/api/totp/backup-codes');
-      console.log('   ✅ 备用恢复码获取成功');
-      console.log('   📊 剩余数量:', backupCodesResponse.data.remainingCount);
-      console.log('   🔑 恢复码:', backupCodesResponse.data.backupCodes);
+  console.log('1. 获取TOTP状态...');
+  api.get('/api/totp/status')
+    .then(statusResponse => {
+      console.log('   ✅ TOTP状态:', statusResponse.data);
       
-      console.log('\n3. 功能特性:');
-      console.log('   • 查看恢复码: 用户可以在TOTP管理页面查看所有可用的恢复码');
-      console.log('   • 下载功能: 支持将恢复码下载为文本文件');
-      console.log('   • 打印功能: 支持直接打印恢复码');
-      console.log('   • 安全保护: 恢复码默认隐藏，需要用户主动显示');
-      
-    } else {
-      console.log('   ⚠️  用户未启用TOTP或没有备用恢复码');
-      console.log('   💡 请先设置二次验证以体验完整功能');
-    }
-    
-  } catch (error) {
-    console.error('   ❌ 演示失败:', error.response?.data?.error || error.message);
-  }
+      if (statusResponse.data.enabled && statusResponse.data.hasBackupCodes) {
+        console.log('\n2. 获取备用恢复码...');
+        return api.get('/api/totp/backup-codes');
+      } else {
+        console.log('   ⚠️  用户未启用TOTP或没有备用恢复码');
+        console.log('   💡 请先设置二次验证以体验完整功能');
+        return null;
+      }
+    })
+    .then(backupCodesResponse => {
+      if (backupCodesResponse) {
+        console.log('   ✅ 备用恢复码获取成功');
+        console.log('   📊 剩余数量:', backupCodesResponse.data.remainingCount);
+        console.log('   🔑 恢复码:', backupCodesResponse.data.backupCodes);
+        
+        console.log('\n3. 功能特性:');
+        console.log('   • 查看恢复码: 用户可以在TOTP管理页面查看所有可用的恢复码');
+        console.log('   • 下载功能: 支持将恢复码下载为文本文件');
+        console.log('   • 打印功能: 支持直接打印恢复码');
+        console.log('   • 安全保护: 恢复码默认隐藏，需要用户主动显示');
+      }
+    })
+    .catch(error => {
+      console.error('   ❌ 演示失败:', error.response?.data?.error || error.message);
+    });
 }
 
 /**
