@@ -99,6 +99,7 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
     newlineToSpace: FaArrowsAltH,
     singleLine: FaArrowsAltH,
     properLineBreaks: FaArrowsAltV,
+    newlineToComma: FaArrowsAltH,
     
     // 清理功能
     removeSymbols: FaBroom,
@@ -159,6 +160,7 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
     newlineToSpace: 'bg-cyan-500 hover:bg-cyan-600',
     singleLine: 'bg-cyan-500 hover:bg-cyan-600',
     properLineBreaks: 'bg-cyan-500 hover:bg-cyan-600',
+    newlineToComma: 'bg-cyan-500 hover:bg-cyan-600',
     
     // 清理功能 - 橙色
     removeSymbols: 'bg-orange-500 hover:bg-orange-600',
@@ -279,6 +281,7 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
       newlineToSpace: isEnglish ? 'Newline → Space' : '换行→空格',
       singleLine: isEnglish ? 'Single Line' : '单行化',
       properLineBreaks: isEnglish ? 'Proper Line Breaks' : '规范换行',
+      newlineToComma: isEnglish ? 'Newline → Comma' : '换行→逗号',
       
       // 清理功能
       removeSymbols: isEnglish ? 'Remove Symbols' : '清除符号',
@@ -438,6 +441,11 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
         description: isEnglish ? 'Normalize line breaks' : '规范化换行',
         code: 'text.replace(/\\n{3,}/g, "\\n\\n").replace(/\\s+$/gm, "")',
         example: isEnglish ? 'Multiple\\n\\n\\nbreaks → Multiple\\n\\nbreaks' : 'Multiple\\n\\n\\nbreaks → Multiple\\n\\nbreaks'
+      },
+      newlineToComma: {
+        description: isEnglish ? 'Convert newlines to comma-separated values' : '将换行转换为逗号分隔值',
+        code: 'text.split("\\n").filter(line => line.trim()).join(", ")',
+        example: isEnglish ? 'chatgpt-4o-latest\\ngpt-4o\\ngpt-4o-2024-05-13 → chatgpt-4o-latest, gpt-4o, gpt-4o-2024-05-13' : 'chatgpt-4o-latest\\ngpt-4o\\ngpt-4o-2024-05-13 → chatgpt-4o-latest, gpt-4o, gpt-4o-2024-05-13'
       },
       removeSymbols: {
         description: isEnglish ? 'Remove all symbols except letters, numbers, and spaces' : '移除除字母、数字、空格外的所有符号',
@@ -651,6 +659,9 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
         break;
       case 'properLineBreaks':
         result = inputText.replace(/\n{3,}/g, '\n\n').replace(/\s+$/gm, '');
+        break;
+      case 'newlineToComma':
+        result = inputText.split('\n').filter(line => line.trim()).join(',');
         break;
       
       // 清理功能
