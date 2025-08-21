@@ -99,7 +99,7 @@
     "autoprefixer": "^10.4.16",
     "cross-env": "^10.0.0",
     "javascript-obfuscator": "^4.1.1",
-    "jest-environment-jsdom": "^30.0.4",
+    "jest-environment-jsdom": "^30.0.5",
     "jsdom": "^26.1.0",
     "postcss": "^8.5.6",
     "react-email": "4.2.8",
