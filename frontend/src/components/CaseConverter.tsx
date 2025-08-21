@@ -444,8 +444,10 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
       },
       newlineToComma: {
         description: isEnglish ? 'Convert newlines to comma-separated values' : '将换行转换为逗号分隔值',
-        code: 'text.split("\\n").filter(line => line.trim()).join(", ")',
-        example: isEnglish ? 'chatgpt-4o-latest\\ngpt-4o\\ngpt-4o-2024-05-13 → chatgpt-4o-latest, gpt-4o, gpt-4o-2024-05-13' : 'chatgpt-4o-latest\\ngpt-4o\\ngpt-4o-2024-05-13 → chatgpt-4o-latest, gpt-4o, gpt-4o-2024-05-13'
+        code: 'text.split("\\\\n").filter(line => line.trim()).join(", ")',
+        example: isEnglish
+          ? 'chatgpt-4o-latest\ngpt-4o\ngpt-4o-2024-05-13 → chatgpt-4o-latest,gpt-4o,gpt-4o-2024-05-13'
+          : 'chatgpt-4o-latest\ngpt-4o\ngpt-4o-2024-05-13 → chatgpt-4o-latest,gpt-4o,gpt-4o-2024-05-13'
       },
       removeSymbols: {
         description: isEnglish ? 'Remove all symbols except letters, numbers, and spaces' : '移除除字母、数字、空格外的所有符号',
