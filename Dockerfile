@@ -44,8 +44,6 @@ RUN npm install --no-optional --no-audit --no-fund \
 RUN npm install @fingerprintjs/fingerprintjs --no-optional && \
     npm install crypto-js --no-optional && \
     npm install --save-dev @types/crypto-js --no-optional
-
-# 安装构建时需要的全局工具（仅构建时使用）
 RUN npm install -g vitest && \
     npm install -g @testing-library/jest-dom && \
     npm install -g @testing-library/react && \
@@ -138,8 +136,8 @@ RUN npm run build:backend || (echo "第一次构建失败，重试..." && npm ru
 # 生成 openapi.json
 RUN npm run generate:openapi
 
-# 生产环境 - 优化版本，减少未使用的依赖
-FROM node:22-alpine AS production
+# 生产环境
+FROM node:22-alpine
 
 # 设置时区为上海
 RUN apk add --no-cache tzdata && \
@@ -158,82 +156,10 @@ ENV OPENAPI_JSON_PATH="/app/openapi.json"
 
 WORKDIR /app
 
-# 只安装生产环境必需的依赖
+# 安装生产环境依赖（这层会被缓存）
 COPY package*.json ./
 RUN npm ci --only=production --no-optional --no-audit --no-fund && \
-    npm install -g concurrently serve && \
-    # 使用 npm prune 移除开发依赖
-    npm prune --production && \
-    # 清理 npm 缓存和临时文件
-    npm cache clean --force && \
-    rm -rf /tmp/.npm && \
-    # 删除不必要的文件
-    find node_modules -name "*.md" -delete && \
-    find node_modules -name "*.txt" -delete && \
-    find node_modules -name "LICENSE" -delete && \
-    find node_modules -name "license" -delete && \
-    find node_modules -name "CHANGELOG*" -delete && \
-    find node_modules -name "README*" -delete && \
-    find node_modules -name "test" -type d -exec rm -rf {} + 2>/dev/null || true && \
-    find node_modules -name "tests" -type d -exec rm -rf {} + 2>/dev/null || true && \
-    find node_modules -name "example" -type d -exec rm -rf {} + 2>/dev/null || true && \
-    find node_modules -name "examples" -type d -exec rm -rf {} + 2>/dev/null || true && \
-    find node_modules -name "docs" -type d -exec rm -rf {} + 2>/dev/null || true && \
-    find node_modules -name "*.d.ts" -delete && \
-    find node_modules -name "*.map" -delete && \
-    find node_modules -name "*.ts" -delete && \
-    find node_modules -name "*.tsx" -delete && \
-    find node_modules -name "*.jsx" -delete && \
-    find node_modules -name "*.test.js" -delete && \
-    find node_modules -name "*.spec.js" -delete && \
-    find node_modules -name "*.test.ts" -delete && \
-    find node_modules -name "*.spec.ts" -delete && \
-    find node_modules -name "*.test.tsx" -delete && \
-    find node_modules -name "*.spec.tsx" -delete && \
-    find node_modules -name "*.test.jsx" -delete && \
-    find node_modules -name "*.spec.jsx" -delete && \
-    # 删除源码映射文件
-    find node_modules -name "*.map" -delete && \
-    # 删除 TypeScript 定义文件（生产环境不需要）
-    find node_modules -name "*.d.ts" -delete && \
-    # 删除不必要的二进制文件
-    find node_modules -name "*.node" ! -path "*/node_modules/node-gyp/*" -delete && \
-    # 删除不必要的配置文件
-    find node_modules -name ".npmrc" -delete && \
-    find node_modules -name ".gitignore" -delete && \
-    find node_modules -name ".eslintrc*" -delete && \
-    find node_modules -name ".prettierrc*" -delete && \
-    find node_modules -name "tsconfig.json" -delete && \
-    find node_modules -name "webpack.config.js" -delete && \
-    find node_modules -name "rollup.config.js" -delete && \
-    find node_modules -name "vite.config.js" -delete && \
-    find node_modules -name "jest.config.js" -delete && \
-    find node_modules -name "babel.config.js" -delete && \
-    # 删除不必要的脚本文件
-    find node_modules -name "*.sh" -delete && \
-    find node_modules -name "*.bat" -delete && \
-    find node_modules -name "*.cmd" -delete && \
-    # 删除不必要的文档和示例
-    find node_modules -name "*.html" -delete && \
-    find node_modules -name "*.css" -delete && \
-    find node_modules -name "*.scss" -delete && \
-    find node_modules -name "*.sass" -delete && \
-    find node_modules -name "*.less" -delete && \
-    # 删除不必要的图片和字体文件
-    find node_modules -name "*.png" -delete && \
-    find node_modules -name "*.jpg" -delete && \
-    find node_modules -name "*.jpeg" -delete && \
-    find node_modules -name "*.gif" -delete && \
-    find node_modules -name "*.svg" -delete && \
-    find node_modules -name "*.ico" -delete && \
-    find node_modules -name "*.woff" -delete && \
-    find node_modules -name "*.woff2" -delete && \
-    find node_modules -name "*.ttf" -delete && \
-    find node_modules -name "*.eot" -delete && \
-    # 删除空目录
-    find node_modules -type d -empty -delete && \
-    # 显示清理后的 node_modules 大小
-    du -sh node_modules
+    npm install -g concurrently serve
 
 # 从构建阶段复制文件
 COPY --from=backend-builder /app/dist-obfuscated ./dist
@@ -242,16 +168,6 @@ COPY --from=backend-builder /app/openapi.json ./openapi.json
 COPY --from=backend-builder /app/openapi.json ./dist/openapi.json
 COPY --from=frontend-builder /app/frontend/dist ./public
 COPY --from=docs-builder /app/docs/build ./docs
-
-# 创建非 root 用户
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
-
-# 更改文件所有权
-RUN chown -R nodejs:nodejs /app
-
-# 切换到非 root 用户
-USER nodejs
 
 # 暴露端口
 EXPOSE 3000 3001 3002
