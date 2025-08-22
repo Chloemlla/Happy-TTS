@@ -612,16 +612,54 @@ class LibreChatService {
   public async clearHistory(token: string, userId?: string): Promise<void> {
     const safeUserId = sanitizeId(userId);
     const safeToken = sanitizeId(token);
-    this.chatHistory = this.chatHistory.filter(msg => safeUserId ? msg.userId !== safeUserId : msg.token !== safeToken);
+    
+    // 从内存中删除该用户的消息
+    const beforeCount = this.chatHistory.length;
+    this.chatHistory = this.chatHistory.filter(msg => {
+      if (userId) {
+        return msg.userId !== userId; // 使用原始userId进行比较
+      } else {
+        return msg.token !== token; // 使用原始token进行比较
+      }
+    });
+    const removedCount = beforeCount - this.chatHistory.length;
+    
+    logger.info(`清除历史记录: 用户ID=${userId || token}, 从内存中删除了 ${removedCount} 条消息`);
+    
+    // 保存更新后的内存数据到文件
     await this.saveChatHistory();
-    // MongoDB 中删除该 token 文档
+    
+    // MongoDB 中软删除该用户的记录
     if (mongoose.connection.readyState === 1) {
       try {
         const keyId = sanitizeId(userId || token);
-        await (mongoose.models.LibreChatHistory as any).updateOne({ userId: keyId }, { $set: { deleted: true, deletedAt: new Date() } }, { upsert: true });
+        logger.info(`在 MongoDB 中软删除用户记录: ${keyId}`);
+        
+        // 使用 findOneAndUpdate 确保原子操作，如果记录不存在则创建
+        const result = await (mongoose.models.LibreChatHistory as any).findOneAndUpdate(
+          { userId: keyId },
+          { 
+            $set: { 
+              deleted: true, 
+              deletedAt: new Date(),
+              messages: [], // 清空消息数组
+              updatedAt: new Date()
+            } 
+          },
+          { 
+            upsert: true, 
+            setDefaultsOnInsert: true,
+            new: true // 返回更新后的文档
+          }
+        );
+        
+        logger.info(`MongoDB 软删除成功: ${result ? '记录已更新' : '记录已创建'}`);
       } catch (err) {
-        logger.error('删除 MongoDB 聊天历史失败:', err);
+        logger.error('MongoDB 软删除聊天历史失败:', err);
+        // 即使 MongoDB 操作失败，内存和文件中的数据已经被清除
       }
+    } else {
+      logger.warn('MongoDB 未连接，仅清除内存和文件中的历史记录');
     }
   }
 

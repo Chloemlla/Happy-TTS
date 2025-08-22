@@ -127,16 +127,16 @@ export const getModListJson = async (req: Request, res: Response) => {
     console.log('   用户角色:', req.user?.role ?? 'guest');
     console.log('   请求IP:', req.ip);
     
-    const { withHash, withMd5 } = req.query;
-    const mods = await getAllMods({
-      withHash: withHash === '1' || withHash === 'true',
-      withMd5: withMd5 === '1' || withMd5 === 'true',
-    });
+  const { withHash, withMd5 } = req.query;
+  const mods = await getAllMods({
+    withHash: withHash === '1' || withHash === 'true',
+    withMd5: withMd5 === '1' || withMd5 === 'true',
+  });
     
     console.log('📊 [ModListJson] 获取到MOD数量:', mods.length);
     console.log('✅ [ModListJson] JSON格式MOD列表请求处理完成');
     
-    res.json(mods);
+  res.json(mods);
   } catch (error) {
     console.error('❌ [ModListJson] 获取JSON格式MOD列表失败:', error);
     res.status(500).json({ error: '获取MOD列表失败' });
@@ -151,19 +151,19 @@ export const addMod = async (req: Request, res: Response) => {
     console.log('   用户角色:', req.user?.role ?? 'guest');
     console.log('   请求IP:', req.ip);
     
-    const { name, code, hash, md5 } = req.body;
-    if (!name || typeof name !== 'string') {
+  const { name, code, hash, md5 } = req.body;
+  if (!name || typeof name !== 'string') {
       console.log('❌ [AddMod] 参数错误：MOD名为空或格式错误');
-      return res.status(400).json({ error: 'MOD名不能为空' });
-    }
+    return res.status(400).json({ error: 'MOD名不能为空' });
+  }
     
     console.log('📝 [AddMod] 请求添加MOD名称:', name);
     
-    const expected = await getModifyCodeFromDb();
-    if (!expected || code !== expected) {
+  const expected = await getModifyCodeFromDb();
+  if (!expected || code !== expected) {
       console.log('❌ [AddMod] 修改码校验失败');
-      return res.status(403).json({ error: '修改码错误' });
-    }
+    return res.status(403).json({ error: '修改码错误' });
+  }
     
     console.log('✅ [AddMod] 修改码校验通过');
     
@@ -185,20 +185,20 @@ export const updateMod = async (req: Request, res: Response) => {
     console.log('   用户角色:', req.user?.role ?? 'guest');
     console.log('   请求IP:', req.ip);
     
-    const { id } = req.params;
-    const { name, code, hash, md5 } = req.body;
-    if (!id || !name || typeof name !== 'string') {
+  const { id } = req.params;
+  const { name, code, hash, md5 } = req.body;
+  if (!id || !name || typeof name !== 'string') {
       console.log('❌ [UpdateMod] 参数错误：ID或名称为空或格式错误');
-      return res.status(400).json({ error: '参数错误' });
-    }
+    return res.status(400).json({ error: '参数错误' });
+  }
     
     console.log('📝 [UpdateMod] 请求更新MOD ID:', id, '名称:', name);
     
-    const expected = await getModifyCodeFromDb();
-    if (!expected || code !== expected) {
+  const expected = await getModifyCodeFromDb();
+  if (!expected || code !== expected) {
       console.log('❌ [UpdateMod] 修改码校验失败');
-      return res.status(403).json({ error: '修改码错误' });
-    }
+    return res.status(403).json({ error: '修改码错误' });
+  }
     
     console.log('✅ [UpdateMod] 修改码校验通过');
     
@@ -220,16 +220,16 @@ export const deleteMod = async (req: Request, res: Response) => {
     console.log('   用户角色:', req.user?.role ?? 'guest');
     console.log('   请求IP:', req.ip);
     
-    const { id } = req.params;
-    const { code } = req.body;
+  const { id } = req.params;
+  const { code } = req.body;
     
     console.log('📝 [DeleteMod] 请求删除MOD ID:', id);
     
-    const expected = await getModifyCodeFromDb();
-    if (!expected || code !== expected) {
+  const expected = await getModifyCodeFromDb();
+  if (!expected || code !== expected) {
       console.log('❌ [DeleteMod] 修改码校验失败');
-      return res.status(403).json({ error: '修改码错误' });
-    }
+    return res.status(403).json({ error: '修改码错误' });
+  }
     
     console.log('✅ [DeleteMod] 修改码校验通过');
     

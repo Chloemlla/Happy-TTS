@@ -45,9 +45,13 @@ api.interceptors.response.use(
                 reportFingerprintOnce({ force: true });
             }
         } catch { }
+        // 401错误处理：支持游客模式，只有在本地有token时才跳转登录页
         if (error.response?.status === 401) {
-            localStorage.removeItem('token');
-            window.location.href = '/welcome';
+            if (localStorage.getItem('token')) {
+                localStorage.removeItem('token');
+                window.location.href = '/welcome';
+            }
+            // 如果没有token，说明是游客模式，不做跳转
         }
         return Promise.reject(error);
     }

@@ -13,12 +13,107 @@ import {
   FaUser,
   FaComments,
   FaClock,
-  FaEnvelope
+  FaEnvelope,
+  FaCode,
+  FaEyeSlash
 } from 'react-icons/fa';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 
 const PAGE_SIZES = [10, 20, 50];
 
 const formatTs = (ts?: string | null) => ts ? new Date(ts).toLocaleString() : '';
+
+// Markdown渲染组件
+const MarkdownRenderer: React.FC<{ content: string; className?: string }> = ({ content, className = '' }) => {
+  const [isRendered, setIsRendered] = useState(false);
+  const [showRaw, setShowRaw] = useState(false);
+
+  const renderMarkdown = (text: string) => {
+    try {
+      // 配置marked选项
+      marked.setOptions({
+        breaks: true,
+        gfm: true
+      });
+
+      // 渲染markdown
+      const html = marked.parse(text) as string;
+      
+      // 使用DOMPurify清理HTML
+      const cleanHtml = DOMPurify.sanitize(html, {
+        ALLOWED_TAGS: [
+          'p', 'br', 'strong', 'b', 'em', 'i', 'u', 'del', 's',
+          'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+          'ul', 'ol', 'li',
+          'blockquote', 'pre', 'code',
+          'a', 'img',
+          'table', 'thead', 'tbody', 'tr', 'th', 'td',
+          'div', 'span'
+        ],
+        ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'target', 'class', 'id'],
+        ALLOW_DATA_ATTR: false
+      });
+
+      return cleanHtml;
+    } catch (error) {
+      console.error('Markdown渲染失败:', error);
+      return DOMPurify.sanitize(content.replace(/</g, '&lt;').replace(/>/g, '&gt;'));
+    }
+  };
+
+  // 检测是否包含markdown语法
+  const hasMarkdown = /[#*`\[\]()>|~=]/.test(content) || 
+                     /^[-*+]\s/.test(content) || 
+                     /^\d+\.\s/.test(content) ||
+                     /```[\s\S]*```/.test(content) ||
+                     /`[^`]+`/.test(content);
+
+  if (!hasMarkdown) {
+    return (
+      <div className={`whitespace-pre-wrap break-words text-sm ${className}`}>
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {/* 切换按钮 */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <FaCode className="text-xs text-gray-500" />
+          <span className="text-xs text-gray-500">Markdown</span>
+        </div>
+        <button
+          onClick={() => setShowRaw(!showRaw)}
+          className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors"
+          title={showRaw ? '显示渲染结果' : '显示原始文本'}
+        >
+          {showRaw ? <FaEye className="text-xs" /> : <FaEyeSlash className="text-xs" />}
+          {showRaw ? '渲染' : '原始'}
+        </button>
+      </div>
+
+      {/* 内容显示 */}
+      <div className={`${className} ${showRaw ? 'bg-gray-100' : 'bg-gray-50'}`}>
+        {showRaw ? (
+          <pre className="whitespace-pre-wrap break-words text-sm p-3 rounded border overflow-x-auto">
+            {content}
+          </pre>
+        ) : (
+          <div 
+            className="prose prose-sm max-w-none p-3 rounded border overflow-x-auto prose-headings:text-gray-800 prose-p:text-gray-700 prose-strong:text-gray-900 prose-code:text-gray-800 prose-code:bg-gray-200 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-800 prose-pre:text-gray-100 prose-blockquote:border-l-4 prose-blockquote:border-gray-300 prose-blockquote:pl-4 prose-blockquote:italic prose-ul:list-disc prose-ol:list-decimal prose-li:marker:text-gray-500 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&>h1]:text-xl [&>h1]:font-bold [&>h1]:mb-3 [&>h2]:text-lg [&>h2]:font-semibold [&>h2]:mb-2 [&>h3]:text-base [&>h3]:font-medium [&>h3]:mb-2 [&>p]:mb-2 [&>ul]:mb-2 [&>ol]:mb-2 [&>li]:mb-1 [&>code]:font-mono [&>pre]:p-3 [&>pre]:rounded [&>blockquote]:border-l-4 [&>blockquote]:border-gray-300 [&>blockquote]:pl-4 [&>blockquote]:italic [&>a]:text-blue-600 [&>a]:underline [&>a]:hover:text-blue-800"
+            dangerouslySetInnerHTML={{ 
+              __html: renderMarkdown(content) 
+            }}
+            onLoad={() => setIsRendered(true)}
+          />
+        )}
+      </div>
+    </div>
+  );
+};
 
 const LibreChatAdminPage: React.FC = () => {
   const { setNotification } = useNotification();
@@ -561,8 +656,11 @@ const LibreChatAdminPage: React.FC = () => {
                           {m.id.length > 16 ? `${m.id.slice(0, 12)}...${m.id.slice(-4)}` : m.id}
                         </div>
                       </div>
-                      <div className="whitespace-pre-wrap break-words text-sm bg-gray-50 p-3 rounded border max-h-40 overflow-y-auto overflow-x-hidden">
-                        {m.message}
+                      <div className="max-h-40 overflow-y-auto overflow-x-hidden">
+                        <MarkdownRenderer 
+                          content={m.message} 
+                          className="bg-gray-50 p-3 rounded border"
+                        />
                       </div>
                     </motion.div>
                   ))

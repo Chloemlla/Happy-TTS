@@ -46,16 +46,16 @@ const AlertModal: React.FC<AlertModalProps> = ({ open, onClose, title, message, 
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          onClick={onClose}
-        >
+      onClick={onClose}
+    >
           <motion.div
             className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 max-w-md w-[90vw] mx-4 relative"
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.2 }}
-            onClick={e => e.stopPropagation()}
-          >
+        onClick={e => e.stopPropagation()}
+      >
             <div className="flex items-center justify-center mb-4">
               {getIcon()}
             </div>
@@ -64,17 +64,17 @@ const AlertModal: React.FC<AlertModalProps> = ({ open, onClose, title, message, 
             </h2>
             <div className="text-gray-700 mb-6 text-center leading-relaxed">
               {message}
-            </div>
+        </div>
             <div className="flex justify-center">
               <motion.button
-                onClick={onClose}
+          onClick={onClose}
                 className={`px-6 py-3 rounded-lg transition-colors font-medium flex items-center gap-2 ${getButtonClass()}`}
                 whileTap={{ scale: 0.95 }}
-              >
+        >
                 <FaTimes className="w-4 h-4" />
-                知道了
+          知道了
               </motion.button>
-            </div>
+      </div>
           </motion.div>
         </motion.div>
       )}

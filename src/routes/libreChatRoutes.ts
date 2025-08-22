@@ -330,14 +330,24 @@ router.delete('/clear', async (req, res) => {
     const token = getTokenFromReq(req);
     const userId = extractUserId(req);
 
+    console.log('清除历史记录请求:', { 
+      token: token ? `${token.substring(0, 8)}...` : 'null', 
+      userId: userId ? `${userId.substring(0, 8)}...` : 'null',
+      body: req.body 
+    });
+
     // 验证身份：允许 token 或 已登录 userId 其一存在
     if ((!token || token === 'invalid-token') && !userId) {
+      console.log('清除历史记录认证失败: 无有效token或userId');
       return res.status(401).json({ error: '未认证：请提供有效 token 或登录后再试' });
     }
 
+    console.log('开始清除聊天历史...');
+    
     // 清除聊天历史
     await libreChatService.clearHistory(token ?? '', userId);
 
+    console.log('聊天历史清除成功');
     res.json({ message: '聊天历史清除成功' });
   } catch (error) {
     console.error('清除历史错误:', error);

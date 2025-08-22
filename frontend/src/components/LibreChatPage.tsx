@@ -15,17 +15,25 @@ import {
   FaInfoCircle,
   FaEnvelope,
   FaChevronLeft,
-  FaChevronRight
+  FaChevronRight,
+  FaCode,
+  FaEye,
+  FaEyeSlash,
+  FaExpand,
+  FaCompress,
+  FaQuestionCircle
 } from 'react-icons/fa';
 import { marked } from 'marked';
 import markedKatex from 'marked-katex-extension';
 import 'katex/dist/katex.min.css';
 import DOMPurify from 'dompurify';
+import 'highlight.js/styles/github.css';
 import getApiBaseUrl from '../api';
 import { useNotification } from './Notification';
 import AlertModal from './AlertModal';
 import ConfirmModal from './ConfirmModal';
 import PromptModal from './PromptModal';
+import { FaCopy as FaCopyIcon } from 'react-icons/fa';
 
 // 兼容部分模型返回的 <think> 思考内容与孤立 </think> 标签
 function sanitizeAssistantText(text: string): string {
@@ -49,7 +57,270 @@ function sanitizeAssistantText(text: string): string {
 // 配置 marked 支持 KaTeX
 marked.use(markedKatex({ nonStandard: true }));
 
-// 渲染并净化 Markdown
+// 代码高亮配置
+marked.setOptions({
+  highlight: function(code: string, lang: string) {
+    if (lang && (window as any).hljs) {
+      try {
+        return (window as any).hljs.highlight(code, { language: lang }).value;
+      } catch (err) {
+        console.warn('代码高亮失败:', err);
+      }
+    }
+    return code;
+  }
+} as any);
+
+// 增强的 Markdown 渲染组件
+const EnhancedMarkdownRenderer: React.FC<{ 
+  content: string; 
+  className?: string;
+  showControls?: boolean;
+  onCopy?: (content: string) => void;
+}> = ({ content, className = '', showControls = true, onCopy }) => {
+  const [showRaw, setShowRaw] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isRendered, setIsRendered] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+
+  // 检测是否包含markdown语法
+  const hasMarkdown = useMemo(() => {
+    return /[#*`\[\]()>|~=]/.test(content) || 
+           /^[-*+]\s/.test(content) || 
+           /^\d+\.\s/.test(content) ||
+           /```[\s\S]*```/.test(content) ||
+           /`[^`]+`/.test(content) ||
+           /\$\$[\s\S]*\$\$/.test(content) ||
+           /\$[^$]+\$/.test(content);
+  }, [content]);
+
+  // 检测具体的markdown语法类型
+  const markdownFeatures = useMemo(() => {
+    const features = [];
+    if (/^#{1,6}\s/.test(content)) features.push('标题');
+    if (/^[-*+]\s/.test(content) || /^\d+\.\s/.test(content)) features.push('列表');
+    if (/```[\s\S]*```/.test(content)) features.push('代码块');
+    if (/`[^`]+`/.test(content)) features.push('行内代码');
+    if (/\*\*[^*]+\*\*/.test(content) || /__[^_]+__/.test(content)) features.push('粗体');
+    if (/\*[^*]+\*/.test(content) || /_[^_]+_/.test(content)) features.push('斜体');
+    if (/\[[^\]]+\]\([^)]+\)/.test(content)) features.push('链接');
+    if (/!\[[^\]]*\]\([^)]+\)/.test(content)) features.push('图片');
+    if (/^\s*>\s/.test(content)) features.push('引用');
+    if (/\$\$[\s\S]*\$\$/.test(content) || /\$[^$]+\$/.test(content)) features.push('数学公式');
+    if (/\|[^|]+\|[^|]+\|/.test(content)) features.push('表格');
+    return features;
+  }, [content]);
+
+  const renderMarkdown = (text: string): string => {
+    try {
+      // 配置marked选项
+      marked.setOptions({
+        breaks: true,
+        gfm: true
+      });
+
+      const rawHtml = marked.parse(text || '', { async: false } as any) as unknown as string;
+      
+      // 使用DOMPurify清理HTML，允许更多标签和属性
+      return DOMPurify.sanitize(rawHtml, {
+        ALLOWED_TAGS: [
+          'p', 'br', 'pre', 'code', 'span', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+          'ul', 'ol', 'li', 'strong', 'em', 'b', 'i', 'u', 'del', 's', 'mark',
+          'table', 'thead', 'tbody', 'tr', 'th', 'td', 'caption', 'colgroup', 'col',
+          'a', 'img', 'blockquote', 'hr', 'details', 'summary', 'abbr', 'cite',
+          'kbd', 'samp', 'var', 'sub', 'sup', 'small', 'big', 'time', 'data'
+        ],
+        ALLOWED_ATTR: [
+          'href', 'title', 'alt', 'src', 'class', 'id', 'target', 'rel', 'width', 'height',
+          'style', 'data-*', 'aria-*', 'role', 'tabindex', 'download', 'hreflang',
+          'type', 'value', 'name', 'placeholder', 'required', 'disabled', 'readonly',
+          'maxlength', 'minlength', 'pattern', 'autocomplete', 'autofocus', 'form'
+        ],
+        ALLOW_DATA_ATTR: true,
+        ALLOW_UNKNOWN_PROTOCOLS: true
+      });
+    } catch (e) {
+      console.error('Markdown渲染失败:', e);
+      // 回退为纯文本
+      const safe = (text || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+      return `<pre class="text-red-500 bg-red-50 p-2 rounded border">${safe}</pre>`;
+    }
+  };
+
+  // 如果没有markdown语法，直接显示纯文本
+  if (!hasMarkdown) {
+    return (
+      <div className={`whitespace-pre-wrap break-words text-sm ${className}`}>
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {/* 控制按钮 */}
+      {showControls && (
+        <div className="flex items-center justify-between bg-gray-50 p-2 rounded-t border-b">
+          <div className="flex items-center gap-2">
+            <FaCode className="text-xs text-gray-500" />
+            <span className="text-xs text-gray-500">Markdown</span>
+            {hasMarkdown && (
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">
+                  已检测到语法
+                </span>
+                {markdownFeatures.length > 0 && (
+                  <div className="flex items-center gap-1">
+                    {markdownFeatures.slice(0, 3).map((feature, idx) => (
+                      <span key={idx} className="text-xs text-blue-600 bg-blue-100 px-1 py-0.5 rounded text-[10px]">
+                        {feature}
+                      </span>
+                    ))}
+                    {markdownFeatures.length > 3 && (
+                      <span className="text-xs text-gray-500">
+                        +{markdownFeatures.length - 3}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors p-1 rounded hover:bg-blue-50"
+              title={isExpanded ? '收起' : '展开'}
+            >
+              {isExpanded ? <FaCompress className="text-xs" /> : <FaExpand className="text-xs" />}
+              {isExpanded ? '收起' : '展开'}
+            </button>
+            <button
+              onClick={() => setShowRaw(!showRaw)}
+              className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors p-1 rounded hover:bg-blue-50"
+              title={showRaw ? '显示渲染结果' : '显示原始文本'}
+            >
+              {showRaw ? <FaEye className="text-xs" /> : <FaEyeSlash className="text-xs" />}
+              {showRaw ? '渲染' : '原始'}
+            </button>
+            <button
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(content);
+                  if (onCopy) {
+                    onCopy(content);
+                  } else {
+                    console.log('Markdown内容已复制到剪贴板');
+                  }
+                } catch (err) {
+                  console.error('复制失败:', err);
+                }
+              }}
+              className="text-xs text-green-600 hover:text-green-800 flex items-center gap-1 transition-colors p-1 rounded hover:bg-green-50"
+              title="复制原始内容"
+            >
+              <FaCopyIcon className="text-xs" />
+              复制
+            </button>
+            <button
+              onClick={() => setShowHelp(!showHelp)}
+              className="text-xs text-purple-600 hover:text-purple-800 flex items-center gap-1 transition-colors p-1 rounded hover:bg-purple-50"
+              title="显示Markdown语法帮助"
+            >
+              <FaQuestionCircle className="text-xs" />
+              帮助
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 内容显示 */}
+      <div className={`${className} ${showRaw ? 'bg-gray-100' : 'bg-gray-50'} ${isExpanded ? '' : 'max-h-96 overflow-y-auto'}`}>
+        {/* Markdown语法帮助面板 */}
+        {showHelp && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3 text-xs">
+            <h4 className="font-semibold text-blue-800 mb-2">Markdown语法速查：</h4>
+            <div className="grid grid-cols-2 gap-2 text-blue-700">
+              <div><code>**粗体**</code> {'→'} <strong>粗体</strong></div>
+              <div><code>*斜体*</code> {'→'} <em>斜体</em></div>
+              <div><code>`代码`</code> {'→'} <code className="bg-gray-200 px-1 rounded">代码</code></div>
+              <div><code># 标题</code> {'→'} 标题</div>
+              <div><code>- 列表</code> {'→'} 列表</div>
+              <div><code>[链接](url)</code> {'→'} 链接</div>
+              <div><code>![图片](url)</code> {'→'} 图片</div>
+              <div><code>&gt; 引用</code> {'→'} 引用</div>
+              <div><code>$$公式$$</code> {'→'} 数学公式</div>
+              <div><code>|表格|</code> {'→'} 表格</div>
+            </div>
+          </div>
+        )}
+        {showRaw ? (
+          <pre className="whitespace-pre-wrap break-words text-sm p-3 rounded border overflow-x-auto bg-white">
+            {content}
+          </pre>
+        ) : (
+          <div 
+            className="prose prose-sm max-w-none p-3 rounded border overflow-x-auto bg-white
+                     prose-headings:text-gray-800 prose-headings:font-semibold
+                     prose-p:text-gray-700 prose-p:leading-relaxed
+                     prose-strong:text-gray-900 prose-strong:font-semibold
+                     prose-em:text-gray-800 prose-em:italic
+                     prose-code:text-gray-800 prose-code:bg-gray-200 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:font-mono prose-code:text-sm
+                     prose-pre:bg-gray-800 prose-pre:text-gray-100 prose-pre:p-3 prose-pre:rounded prose-pre:overflow-x-auto
+                     prose-blockquote:border-l-4 prose-blockquote:border-gray-300 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-gray-700
+                     prose-ul:list-disc prose-ul:pl-5
+                     prose-ol:list-decimal prose-ol:pl-5
+                     prose-li:marker:text-gray-500 prose-li:mb-1
+                     prose-a:text-blue-600 prose-a:underline prose-a:hover:text-blue-800
+                     prose-table:border-collapse prose-table:w-full
+                     prose-th:border prose-th:border-gray-300 prose-th:bg-gray-100 prose-th:p-2 prose-th:text-left
+                     prose-td:border prose-td:border-gray-300 prose-td:p-2
+                     prose-img:rounded prose-img:shadow-sm
+                     prose-hr:border-gray-300 prose-hr:my-4
+                     [&>*:first-child]:mt-0 [&>*:last-child]:mb-0
+                     [&>h1]:text-xl [&>h1]:font-bold [&>h1]:mb-3 [&>h1]:border-b [&>h1]:pb-2
+                     [&>h2]:text-lg [&>h2]:font-semibold [&>h2]:mb-2 [&>h2]:text-gray-800
+                     [&>h3]:text-base [&>h3]:font-medium [&>h3]:mb-2 [&>h3]:text-gray-800
+                     [&>h4]:text-sm [&>h4]:font-medium [&>h4]:mb-1 [&>h4]:text-gray-800
+                     [&>p]:mb-2 [&>p]:leading-relaxed
+                     [&>ul]:mb-2 [&>ol]:mb-2
+                     [&>li]:mb-1 [&>li]:leading-relaxed
+                     [&>code]:font-mono [&>code]:text-sm
+                     [&>pre]:p-3 [&>pre]:rounded [&>pre]:bg-gray-800 [&>pre]:text-gray-100 [&>pre]:overflow-x-auto
+                     [&>pre>code]:bg-transparent [&>pre>code]:text-inherit [&>pre>code]:p-0
+                     [&>blockquote]:border-l-4 [&>blockquote]:border-gray-300 [&>blockquote]:pl-4 [&>blockquote]:italic [&>blockquote]:bg-gray-50 [&>blockquote]:py-2
+                     [&>a]:text-blue-600 [&>a]:underline [&>a]:hover:text-blue-800 [&>a]:transition-colors
+                     [&>table]:border-collapse [&>table]:w-full [&>table]:mb-4
+                     [&>table>thead]:bg-gray-100
+                     [&>table>thead>tr>th]:border [&>table>thead>tr>th]:border-gray-300 [&>table>thead>tr>th]:p-2 [&>table>thead>tr>th]:text-left [&>table>thead>tr>th]:font-semibold
+                     [&>table>tbody>tr>td]:border [&>table>tbody>tr>td]:border-gray-300 [&>table>tbody>tr>td]:p-2
+                     [&>table>tbody>tr:nth-child(even)]:bg-gray-50
+                     [&>img]:rounded [&>img]:shadow-sm [&>img]:max-w-full [&>img]:h-auto
+                     [&>hr]:border-gray-300 [&>hr]:my-4
+                     [&>details]:border [&>details]:border-gray-300 [&>details]:rounded [&>details]:p-3 [&>details]:mb-2
+                     [&>summary]:cursor-pointer [&>summary]:font-medium [&>summary]:text-gray-800
+                     [&>kbd]:bg-gray-200 [&>kbd]:border [&>kbd]:border-gray-400 [&>kbd]:rounded [&>kbd]:px-2 [&>kbd]:py-1 [&>kbd]:text-sm [&>kbd]:font-mono
+                     [&>mark]:bg-yellow-200 [&>mark]:px-1 [&>mark]:rounded
+                     [&>sub]:text-xs [&>sub]:text-gray-600
+                     [&>sup]:text-xs [&>sup]:text-gray-600
+                     [&>.hljs]:bg-transparent [&>.hljs]:text-inherit [&>.hljs]:p-0
+                     [&>pre>.hljs]:bg-gray-800 [&>pre>.hljs]:text-gray-100
+                     [&>.katex]:text-inherit [&>.katex-display]:text-center [&>.katex-display]:my-4"
+            dangerouslySetInnerHTML={{ 
+              __html: renderMarkdown(content) 
+            }}
+            onLoad={() => setIsRendered(true)}
+          />
+        )}
+      </div>
+    </div>
+  );
+};
+
+// 兼容性函数：保持原有API
 function renderMarkdown(content: string): string {
   try {
     const rawHtml = marked.parse(content || '', { async: false } as any) as unknown as string;
@@ -274,22 +545,22 @@ const LibreChatPage: React.FC = () => {
       onConfirm: async () => {
         try {
           setNotification({ type: 'info', message: '正在批量删除消息...' });
-          const res = await fetch(`${apiBase}/api/librechat/messages`, {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'same-origin',
-            body: JSON.stringify(token ? { token, messageIds: selectedIds } : { messageIds: selectedIds })
-          });
-          if (res.ok) {
-            setSelectedIds([]);
+      const res = await fetch(`${apiBase}/api/librechat/messages`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(token ? { token, messageIds: selectedIds } : { messageIds: selectedIds })
+      });
+      if (res.ok) {
+        setSelectedIds([]);
             setNotification({ type: 'success', message: `已删除 ${selectedIds.length} 条消息` });
-            await fetchHistory(page);
-          } else {
-            setNotification({ type: 'error', message: '批量删除失败' });
-          }
-        } catch (e: any) {
-          setNotification({ type: 'error', message: e?.message || '批量删除失败' });
-        }
+        await fetchHistory(page);
+      } else {
+        setNotification({ type: 'error', message: '批量删除失败' });
+      }
+    } catch (e: any) {
+      setNotification({ type: 'error', message: e?.message || '批量删除失败' });
+    }
       }
     });
   };
@@ -313,21 +584,21 @@ const LibreChatPage: React.FC = () => {
         }
         try {
           setNotification({ type: 'info', message: '正在修改消息...' });
-          const res = await fetch(`${apiBase}/api/librechat/message`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify(token ? { token, messageId: id, content } : { messageId: id, content })
-          });
-          if (res.ok) {
+      const res = await fetch(`${apiBase}/api/librechat/message`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(token ? { token, messageId: id, content } : { messageId: id, content })
+      });
+      if (res.ok) {
             setNotification({ type: 'success', message: '消息修改成功' });
-            await fetchHistory(page);
-          } else {
-            setNotification({ type: 'error', message: '修改失败' });
-          }
-        } catch (e: any) {
-          setNotification({ type: 'error', message: e?.message || '修改失败' });
-        }
+        await fetchHistory(page);
+      } else {
+        setNotification({ type: 'error', message: '修改失败' });
+      }
+    } catch (e: any) {
+      setNotification({ type: 'error', message: e?.message || '修改失败' });
+    }
       }
     });
   };
@@ -369,17 +640,17 @@ const LibreChatPage: React.FC = () => {
     }
     try {
       setNotification({ type: 'info', message: '正在导出当前页历史记录...' });
-      const now = new Date();
-      const dateStr = now.toISOString().slice(0, 10);
-      const header = `LibreChat 历史导出（当前页）\n导出时间：${now.toLocaleString()}\n总条数：${history.history.length}\n\n`;
-      const lines = history.history.map((m, idx) => {
-        const role = m.role === 'user' ? '用户' : '助手';
-        const content = m.role === 'user' ? m.content : sanitizeAssistantText(m.content);
-        const ts = m.createdAt ? ` @ ${m.createdAt}` : '';
-        return `#${idx + 1} 【${role}${ts}】\n${content}\n`;
-      });
-      const txt = header + lines.join('\n');
-      downloadTextFile(`LibreChat_聊天历史_第${page}页_${dateStr}.txt`, txt);
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10);
+    const header = `LibreChat 历史导出（当前页）\n导出时间：${now.toLocaleString()}\n总条数：${history.history.length}\n\n`;
+    const lines = history.history.map((m, idx) => {
+      const role = m.role === 'user' ? '用户' : '助手';
+      const content = m.role === 'user' ? m.content : sanitizeAssistantText(m.content);
+      const ts = m.createdAt ? ` @ ${m.createdAt}` : '';
+      return `#${idx + 1} 【${role}${ts}】\n${content}\n`;
+    });
+    const txt = header + lines.join('\n');
+    downloadTextFile(`LibreChat_聊天历史_第${page}页_${dateStr}.txt`, txt);
       setNotification({ type: 'success', message: `已导出 ${history.history.length} 条历史记录` });
     } catch (e) {
       setNotification({ type: 'error', message: '导出历史记录失败' });
@@ -390,46 +661,46 @@ const LibreChatPage: React.FC = () => {
   const exportAll = async () => {
     try {
       setNotification({ type: 'info', message: '正在导出全部历史记录...' });
-      const params = new URLSearchParams();
-      if (token) params.set('token', token);
-      const res = await fetch(`${apiBase}/api/librechat/export?${params.toString()}`, {
-        method: 'GET',
-        credentials: 'include'
-      });
-      if (!res.ok) {
+    const params = new URLSearchParams();
+    if (token) params.set('token', token);
+    const res = await fetch(`${apiBase}/api/librechat/export?${params.toString()}`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+    if (!res.ok) {
         setNotification({ type: 'error', message: '导出失败，请稍后再试' });
-        return;
-      }
-      // Try to normalize to UTF-8 with BOM for broad editor compatibility
-      const originalBlob = await res.blob();
-      let blob: Blob;
-      try {
-        const text = await originalBlob.text();
-        const utf8Text = text.startsWith('\uFEFF') ? text : '\uFEFF' + text;
-        blob = new Blob([utf8Text], { type: 'text/plain;charset=utf-8' });
-      } catch {
-        // Fallback: if not readable as text, keep original
-        blob = originalBlob;
-      }
-      // 从响应头尝试获取文件名
-      const cd = res.headers.get('Content-Disposition') || '';
-      const match = /filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i.exec(cd || '');
-      let filename = '';
-      if (match) {
-        filename = decodeURIComponent(match[1] || match[2] || '');
-      }
-      if (!filename) {
-        const date = new Date().toISOString().slice(0, 10);
-        filename = `LibreChat_历史_${date}.txt`;
-      }
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      return;
+    }
+    // Try to normalize to UTF-8 with BOM for broad editor compatibility
+    const originalBlob = await res.blob();
+    let blob: Blob;
+    try {
+      const text = await originalBlob.text();
+      const utf8Text = text.startsWith('\uFEFF') ? text : '\uFEFF' + text;
+      blob = new Blob([utf8Text], { type: 'text/plain;charset=utf-8' });
+    } catch {
+      // Fallback: if not readable as text, keep original
+      blob = originalBlob;
+    }
+    // 从响应头尝试获取文件名
+    const cd = res.headers.get('Content-Disposition') || '';
+    const match = /filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i.exec(cd || '');
+    let filename = '';
+    if (match) {
+      filename = decodeURIComponent(match[1] || match[2] || '');
+    }
+    if (!filename) {
+      const date = new Date().toISOString().slice(0, 10);
+      filename = `LibreChat_历史_${date}.txt`;
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
       setNotification({ type: 'success', message: '全部历史记录导出成功' });
     } catch (e) {
       setNotification({ type: 'error', message: '导出全部历史记录失败' });
@@ -450,21 +721,21 @@ const LibreChatPage: React.FC = () => {
       onConfirm: async () => {
         try {
           setNotification({ type: 'info', message: '正在删除消息...' });
-          const res = await fetch(`${apiBase}/api/librechat/messages`, {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify(token ? { token, messageIds: [id] } : { messageIds: [id] })
-          });
-          if (res.ok) {
+      const res = await fetch(`${apiBase}/api/librechat/messages`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(token ? { token, messageIds: [id] } : { messageIds: [id] })
+      });
+      if (res.ok) {
             setNotification({ type: 'success', message: '消息删除成功' });
-            await fetchHistory(page);
-          } else {
+        await fetchHistory(page);
+      } else {
             setNotification({ type: 'error', message: '删除失败，请稍后再试' });
-          }
-        } catch {
+      }
+    } catch {
           setNotification({ type: 'error', message: '删除失败，请稍后再试' });
-        }
+    }
       }
     });
   };
@@ -505,7 +776,7 @@ const LibreChatPage: React.FC = () => {
         console.log('History updated successfully'); // 调试信息
         if (mapped.history.length > 0) {
           setNotification({ type: 'success', message: `已加载 ${mapped.history.length} 条历史记录` });
-        } else {
+      } else {
           setNotification({ type: 'info', message: '暂无历史记录' });
         }
       } else {
@@ -522,7 +793,7 @@ const LibreChatPage: React.FC = () => {
     }
   };
 
-    const handleSend = async () => {
+  const handleSend = async () => {
     setSendError('');
     if (!message.trim()) return;
     
@@ -587,7 +858,7 @@ const LibreChatPage: React.FC = () => {
           fetchHistory(1);
         }, 500);
       }
-              } catch (e) {
+    } catch (e) {
       console.error('Send message error:', e); // 调试信息
       setSendError('发送失败，请稍后再试');
       setStreaming(false);
@@ -600,19 +871,40 @@ const LibreChatPage: React.FC = () => {
   const handleClear = async () => {
     try {
       setNotification({ type: 'info', message: '正在清除历史记录...' });
+      
+      // 构建请求体，确保包含token信息
+      const requestBody: any = {};
+      if (token && token.trim()) {
+        requestBody.token = token;
+      }
+      
+      console.log('清除历史记录请求体:', requestBody); // 调试信息
+      
       const res = await fetch(`${apiBase}/api/librechat/clear`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(token ? { token } : {})
+        body: JSON.stringify(requestBody)
       });
+      
       if (res.ok) {
+        const result = await res.json();
+        console.log('清除历史记录成功:', result); // 调试信息
         setNotification({ type: 'success', message: '历史记录已清除' });
+        
+        // 清除本地状态
+        setHistory(null);
+        setSelectedIds([]);
+        
+        // 重新获取历史记录（应该为空）
         await fetchHistory(1);
       } else {
-        setNotification({ type: 'error', message: '清除历史记录失败' });
+        const errorData = await res.json().catch(() => ({}));
+        console.error('清除历史记录失败:', res.status, errorData); // 调试信息
+        setNotification({ type: 'error', message: errorData.error || '清除历史记录失败' });
       }
     } catch (e) {
+      console.error('清除历史记录异常:', e); // 调试信息
       setNotification({ type: 'error', message: '清除历史记录失败，请稍后再试' });
     }
   };
@@ -910,6 +1202,15 @@ const LibreChatPage: React.FC = () => {
               游客模式
             </span>
           )}
+          {!guestMode && token && (
+            <span
+              className="inline-flex items-center text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-3 py-1"
+              title={`当前Token: ${token.substring(0, 8)}...`}
+            >
+              <FaUser className="w-3 h-3 mr-1" />
+              用户模式
+            </span>
+          )}
         </div>
         
         <div className="space-y-4">
@@ -967,7 +1268,15 @@ const LibreChatPage: React.FC = () => {
               {sending ? '发送中...' : '发送'}
             </motion.button>
             <motion.button
-              onClick={handleClear}
+              onClick={() => {
+                setConfirmModal({
+                  open: true,
+                  title: '确认清除历史',
+                  message: '确定要清除所有聊天历史记录吗？此操作不可恢复。',
+                  type: 'danger',
+                  onConfirm: handleClear
+                });
+              }}
               className="px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
               whileTap={{ scale: 0.95 }}
             >
@@ -997,6 +1306,11 @@ const LibreChatPage: React.FC = () => {
           <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
             <FaHistory className="text-lg text-blue-500" />
             聊天历史
+            {history && (
+              <span className="text-sm text-gray-500 font-normal">
+                (共 {history.total} 条记录)
+              </span>
+            )}
           </h3>
           <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
             <span>第 {page} / {history?.totalPages || 1} 页，共 {history?.total || 0} 条</span>
@@ -1053,24 +1367,24 @@ const LibreChatPage: React.FC = () => {
           </div>
         ) : (
           <div className="max-h-[60vh] overflow-auto pr-1">
-            {streaming && (
-              <motion.div 
-                className="mb-4 p-4 border border-gray-200 rounded-lg bg-white"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
-                    <FaRobot className="w-4 h-4 text-white" />
+                          {streaming && (
+                <motion.div 
+                  className="mb-4 p-4 border border-gray-200 rounded-lg bg-white"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
+                      <FaRobot className="w-4 h-4 text-white" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-green-700">助手</span>
+                      <span className="text-xs text-gray-500">生成中...</span>
+                    </div>
                   </div>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-green-700">助手</span>
-                    <span className="text-xs text-gray-500">生成中...</span>
-                  </div>
-                </div>
-                <div
-                  className="prose prose-sm max-w-none"
-                  dangerouslySetInnerHTML={{ __html: renderMarkdown(sanitizeAssistantText(streamContent || '...')) }}
+                <EnhancedMarkdownRenderer 
+                  content={sanitizeAssistantText(streamContent || '...')}
+                  showControls={false}
                 />
               </motion.div>
             )}
@@ -1137,9 +1451,10 @@ const LibreChatPage: React.FC = () => {
                         </motion.button>
                       </div>
                     </div>
-                    <div
-                      className="prose prose-sm max-w-none bg-gray-50 p-3 rounded border"
-                      dangerouslySetInnerHTML={{ __html: renderMarkdown(m.role === 'user' ? m.content : sanitizeAssistantText(m.content)) }}
+                    <EnhancedMarkdownRenderer 
+                      content={m.role === 'user' ? m.content : sanitizeAssistantText(m.content)}
+                      showControls={true}
+                      onCopy={(content) => setNotification({ type: 'success', message: 'Markdown内容已复制到剪贴板' })}
                     />
                     {m.id && (
                       <div className="mt-3 flex justify-end gap-2">
@@ -1306,9 +1621,9 @@ const LibreChatPage: React.FC = () => {
                               </span>
                             </div>
                           </div>
-                          <div
-                            className="prose prose-sm max-w-none bg-gray-50 p-3 rounded border"
-                            dangerouslySetInnerHTML={{ __html: renderMarkdown(m.role === 'user' ? m.content : sanitizeAssistantText(m.content)) }}
+                          <EnhancedMarkdownRenderer 
+                            content={m.role === 'user' ? m.content : sanitizeAssistantText(m.content)}
+                            showControls={false}
                           />
                         </motion.div>
                       ))}
@@ -1329,9 +1644,9 @@ const LibreChatPage: React.FC = () => {
                           </span>
                         </div>
                       </div>
-                      <div
-                        className="prose prose-sm max-w-none bg-gray-50 p-3 rounded border"
-                        dangerouslySetInnerHTML={{ __html: renderMarkdown(sanitizeAssistantText(rtStreamContent || '')) }}
+                      <EnhancedMarkdownRenderer 
+                        content={sanitizeAssistantText(rtStreamContent || '')}
+                        showControls={false}
                       />
                     </motion.div>
                   ) : (
