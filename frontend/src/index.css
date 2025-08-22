@@ -11,6 +11,12 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* 深色模式基础背景与文字颜色（Tailwind 使用 class 策略）*/
+.dark body {
+  background-color: #0b1220; /* slate-950-ish */
+  color: #e5e7eb; /* gray-200 */
+}
+
 /* 自定义Toast样式 */
 .custom-toast {
   background: transparent !important;

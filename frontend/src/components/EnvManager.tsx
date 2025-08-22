@@ -10,7 +10,8 @@ import {
   FaList, 
   FaSync, 
   FaInfoCircle,
-  FaTimes
+  FaTimes,
+  FaChevronDown
 } from 'react-icons/fa';
 
 const API_URL = getApiBaseUrl() + '/api/admin/envs';
@@ -230,6 +231,23 @@ const EnvManager: React.FC = () => {
   const [selectedSource, setSelectedSource] = useState<string>('');
   const { setNotification } = useNotification();
   const prefersReducedMotion = useReducedMotion();
+
+  // 基于窗口宽度的移动端检测（随页面缩放实时更新）
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+  // 环境变量区折叠
+  const [isEnvCollapsed, setIsEnvCollapsed] = useState<boolean>(false);
+  useEffect(() => {
+    const checkIsMobile = () => {
+      try {
+        setIsMobile(window.innerWidth <= 768);
+      } catch (_) {
+        setIsMobile(false);
+      }
+    };
+    checkIsMobile();
+    window.addEventListener('resize', checkIsMobile);
+    return () => window.removeEventListener('resize', checkIsMobile);
+  }, []);
 
   // OutEmail Settings
   const [outemailSettings, setOutemailSettings] = useState<OutemailSettingItem[]>([]);
@@ -1269,14 +1287,9 @@ const EnvManager: React.FC = () => {
 
   // 管理员校验
   if (!user || user.role !== 'admin') {
-    return (
-      <LazyMotion features={domAnimation}>
-        <m.div 
-        className="space-y-6"
-          initial={ENTER_INITIAL}
-          animate={ENTER_ANIMATE}
-          transition={trans06}
-        >
+      return (
+    <LazyMotion features={domAnimation}>
+      <m.div className="space-y-6">
           <m.div 
             className="bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-6 border border-red-100"
             initial={ENTER_INITIAL}
@@ -1301,12 +1314,6 @@ const EnvManager: React.FC = () => {
 
   return (
     <LazyMotion features={domAnimation}>
-      <m.div 
-      className="space-y-6"
-        initial={ENTER_INITIAL}
-        animate={ENTER_ANIMATE}
-        transition={trans06}
-    >
       {/* 标题和说明 */}
         <m.div 
         className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100"
@@ -1346,77 +1353,140 @@ const EnvManager: React.FC = () => {
             <FaList className="text-lg text-blue-500" />
             环境变量列表
           </h3>
-            <m.button
-            onClick={fetchEnvs}
-            disabled={loading}
-            className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
-            whileTap={{ scale: 0.95 }}
-          >
-            <FaSync className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            刷新
-            </m.button>
-        </div>
-
-        {/* 数据来源图例 */}
-        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="flex items-center gap-3 text-base text-blue-700">
-            <FaInfoCircle className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 flex-shrink-0" />
-            <span className="font-medium leading-relaxed">带蓝色感叹号图标的变量表示有明确的数据来源信息</span>
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="text-center py-8 text-gray-500">
-            <svg className="animate-spin h-8 w-8 mx-auto mb-4 text-blue-500" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            加载中...
-          </div>
-        ) : envs.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <FaList className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-            暂无环境变量数据
-          </div>
-        ) : (
-          <div className="overflow-x-auto border border-gray-200 rounded-lg">
-            <table className="min-w-full">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-[200px] w-1/3">变量名</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-[300px] w-2/3">值</th>
-                </tr>
-              </thead>
-              <tbody>
-                {envs.map((item, idx) => (
-                    <EnvRow
-                    key={item.key} 
-                      item={item}
-                      idx={idx}
-                      prefersReducedMotion={!!prefersReducedMotion}
-                      onSourceClick={handleSourceClick}
-                    />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* 统计信息 */}
-        {!loading && envs.length > 0 && (
-            <m.div
-              initial={ENTER_INITIAL}
-              animate={ENTER_ANIMATE}
-              transition={trans03}
-            className="mt-4 pt-4 border-t border-gray-200"
-          >
-            <div className="flex items-center justify-between text-sm text-gray-600">
-              <span>总计 {envs.length} 个环境变量</span>
-              <span>最后更新: {new Date().toLocaleString()}</span>
+            <div className="flex items-center gap-2">
+              <m.button
+                onClick={() => setIsEnvCollapsed(prev => !prev)}
+                className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition text-sm font-medium flex items-center gap-2"
+                whileTap={{ scale: 0.95 }}
+              >
+                <m.span
+                  animate={{ rotate: isEnvCollapsed ? -90 : 0 }}
+                  transition={prefersReducedMotion ? NO_DURATION : { duration: 0.2 }}
+                  className="inline-flex"
+                >
+                  <FaChevronDown className="w-4 h-4" />
+                </m.span>
+                {isEnvCollapsed ? '展开' : '收起'}
+              </m.button>
+              <m.button
+                onClick={fetchEnvs}
+                disabled={loading}
+                className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
+                whileTap={{ scale: 0.95 }}
+              >
+                <FaSync className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                刷新
+              </m.button>
             </div>
+        </div>
+
+        <AnimatePresence initial={false}>
+          {!isEnvCollapsed && (
+            <m.div
+              key="env-list-wrap"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={prefersReducedMotion ? NO_DURATION : { duration: 0.25 }}
+            >
+              {/* 数据来源图例 */}
+              <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-3 text-base text-blue-700">
+                  <FaInfoCircle className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 flex-shrink-0" />
+                  <span className="font-medium leading-relaxed">带蓝色感叹号图标的变量表示有明确的数据来源信息</span>
+                </div>
+              </div>
+
+              {loading ? (
+                <div className="text-center py-8 text-gray-500">
+                  <svg className="animate-spin h-8 w-8 mx-auto mb-4 text-blue-500" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  加载中...
+                </div>
+              ) : envs.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <FaList className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                  暂无环境变量数据
+                </div>
+              ) : (
+                <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                  {isMobile ? (
+                    <div className="space-y-3 p-2">
+                      {envs.map((item, idx) => (
+                        <m.div
+                          key={item.key}
+                          className={`rounded-2xl border border-gray-200 bg-white p-4 shadow-sm hover:shadow transition ${idx % 2 === 0 ? '' : ''}`}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={prefersReducedMotion ? NO_DURATION : { duration: 0.25, delay: idx * 0.02 }}
+                        >
+                          <div className="flex items-start gap-3">
+                            {item.source && (
+                              <button
+                                onClick={() => handleSourceClick(item.source!)}
+                                className="flex-shrink-0 focus:outline-none self-center"
+                                aria-label="数据来源"
+                              >
+                                <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                                  <FaInfoCircle className="w-3 h-3" />
+                                </span>
+                              </button>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="text-base font-semibold text-gray-900 tracking-wide break-words">
+                                {item.key.split(':').pop() || item.key}
+                              </div>
+                              <div className="mt-2 px-3 py-2 bg-gray-50 rounded-lg font-mono text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed">
+                                {item.value}
+                              </div>
+                            </div>
+                          </div>
+                        </m.div>
+                      ))}
+                    </div>
+                  ) : (
+                    <table className="min-w-full">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-gray-200">
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-[200px] w-1/3">变量名</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-[300px] w-2/3">值</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {envs.map((item, idx) => (
+                            <EnvRow
+                            key={item.key} 
+                              item={item}
+                              idx={idx}
+                              prefersReducedMotion={!!prefersReducedMotion}
+                              onSourceClick={handleSourceClick}
+                            />
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
+
+              {/* 统计信息 */}
+              {!loading && envs.length > 0 && (
+                  <m.div
+                    initial={ENTER_INITIAL}
+                    animate={ENTER_ANIMATE}
+                    transition={trans03}
+                  className="mt-4 pt-4 border-t border-gray-200"
+                >
+                  <div className="flex items-center justify-between text-sm text-gray-600">
+                    <span>总计 {envs.length} 个环境变量</span>
+                    <span>最后更新: {new Date().toLocaleString()}</span>
+                  </div>
+                  </m.div>
+                )}
             </m.div>
           )}
-        </m.div>
+        </AnimatePresence>
 
         {/* 对外邮件校验码设置 */}
         <m.div
@@ -1478,28 +1548,22 @@ const EnvManager: React.FC = () => {
               <div className="text-gray-500 text-sm">暂无配置</div>
             ) : (
               <div className="overflow-x-auto border border-gray-200 rounded-lg">
-                <table className="min-w-full">
-                  <thead>
-                    <tr className="bg-gray-50 border-b border-gray-200">
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">域名</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">校验码（脱敏）</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">更新时间</th>
-                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">操作</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                {isMobile ? (
+                  <div className="space-y-3 p-2">
                     {outemailSettings.map((s, i) => (
-                      <m.tr
+                      <m.div
                         key={(s.domain || '') + i}
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={prefersReducedMotion ? NO_DURATION : { duration: 0.25, delay: i * 0.04 }}
-                        className="border-b last:border-b-0"
+                        className="border rounded-lg p-3 bg-white"
                       >
-                        <td className="px-4 py-3 text-sm text-gray-800">{s.domain || <span className="text-gray-400">默认</span>}</td>
-                        <td className="px-4 py-3 font-mono text-sm text-gray-700">{s.code}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{s.updatedAt ? new Date(s.updatedAt).toLocaleString() : '-'}</td>
-                        <td className="px-4 py-3 text-right">
+                        <div className="text-sm text-gray-800">
+                          <div className="font-semibold mb-1">{s.domain || <span className="text-gray-400">默认</span>}</div>
+                          <div className="font-mono text-xs text-gray-700 break-all">{s.code}</div>
+                          <div className="text-xs text-gray-500 mt-1">{s.updatedAt ? new Date(s.updatedAt).toLocaleString() : '-'}</div>
+                        </div>
+                        <div className="mt-2 text-right">
                           <m.button
                             onClick={() => handleDeleteSetting(s.domain || '')}
                             disabled={settingsDeletingDomain === (s.domain || '')}
@@ -1508,11 +1572,47 @@ const EnvManager: React.FC = () => {
                           >
                             {settingsDeletingDomain === (s.domain || '') ? '删除中...' : '删除'}
                           </m.button>
-                        </td>
-                      </m.tr>
+                        </div>
+                      </m.div>
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+                ) : (
+                  <table className="min-w-full">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-200">
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">域名</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">校验码（脱敏）</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">更新时间</th>
+                        <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {outemailSettings.map((s, i) => (
+                        <m.tr
+                          key={(s.domain || '') + i}
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={prefersReducedMotion ? NO_DURATION : { duration: 0.25, delay: i * 0.04 }}
+                          className="border-b last:border-b-0"
+                        >
+                          <td className="px-4 py-3 text-sm text-gray-800">{s.domain || <span className="text-gray-400">默认</span>}</td>
+                          <td className="px-4 py-3 font-mono text-sm text-gray-700">{s.code}</td>
+                          <td className="px-4 py-3 text-sm text-gray-600">{s.updatedAt ? new Date(s.updatedAt).toLocaleString() : '-'}</td>
+                          <td className="px-4 py-3 text-right">
+                            <m.button
+                              onClick={() => handleDeleteSetting(s.domain || '')}
+                              disabled={settingsDeletingDomain === (s.domain || '')}
+                              className="px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm"
+                              whileTap={{ scale: 0.95 }}
+                            >
+                              {settingsDeletingDomain === (s.domain || '') ? '删除中...' : '删除'}
+                            </m.button>
+                          </td>
+                        </m.tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
             )}
           </div>
@@ -1897,58 +1997,98 @@ const EnvManager: React.FC = () => {
             <div className="text-gray-500 text-sm">暂无提供者</div>
           ) : (
             <div className="overflow-x-auto border border-gray-200 rounded-lg">
-              <table className="min-w-full">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Base URL</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Model</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Group</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Enabled</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Weight</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">API Key（脱敏）</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Updated</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
+              {isMobile ? (
+                <div className="space-y-3 p-2">
                   {providers.map((p, i) => (
-                    <m.tr
+                    <m.div
                       key={p.id}
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={prefersReducedMotion ? NO_DURATION : { duration: 0.25, delay: i * 0.04 }}
-                      className="border-b last:border-b-0"
+                      className="border rounded-lg p-3 bg-white"
                     >
-                      <td className="px-4 py-3 text-sm text-gray-800 break-all">{p.baseUrl}</td>
-                      <td className="px-4 py-3 text-sm text-gray-800">{p.model}</td>
-                      <td className="px-4 py-3 text-sm text-gray-800">{p.group || '-'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-800">{p.enabled ? '是' : '否'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-800">{p.weight}</td>
-                      <td className="px-4 py-3 font-mono text-sm text-gray-700">{p.apiKey}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{p.updatedAt ? new Date(p.updatedAt).toLocaleString() : '-'}</td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <m.button
-                            onClick={() => handleEditProvider(p)}
-                            className="px-3 py-1.5 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition text-sm"
-                            whileTap={{ scale: 0.95 }}
-                          >
-                            编辑
-                          </m.button>
-                          <m.button
-                            onClick={() => handleDeleteProvider(p.id)}
-                            disabled={providerDeletingId === p.id}
-                            className="px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm"
-                            whileTap={{ scale: 0.95 }}
-                          >
-                            {providerDeletingId === p.id ? '删除中...' : '删除'}
-                          </m.button>
-                        </div>
-                      </td>
-                    </m.tr>
+                      <div className="text-sm text-gray-800 break-all">
+                        <div className="font-semibold">{p.baseUrl}</div>
+                        <div className="mt-1">Model：{p.model}</div>
+                        <div className="mt-1">Group：{p.group || '-'}</div>
+                        <div className="mt-1">Enabled：{p.enabled ? '是' : '否'}｜Weight：{p.weight}</div>
+                        <div className="mt-1 font-mono text-xs text-gray-700">{p.apiKey}</div>
+                        <div className="mt-1 text-xs text-gray-500">{p.updatedAt ? new Date(p.updatedAt).toLocaleString() : '-'}</div>
+                      </div>
+                      <div className="mt-2 flex items-center justify-end gap-2">
+                        <m.button
+                          onClick={() => handleEditProvider(p)}
+                          className="px-3 py-1.5 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition text-sm"
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          编辑
+                        </m.button>
+                        <m.button
+                          onClick={() => handleDeleteProvider(p.id)}
+                          disabled={providerDeletingId === p.id}
+                          className="px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm"
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          {providerDeletingId === p.id ? '删除中...' : '删除'}
+                        </m.button>
+                      </div>
+                    </m.div>
                   ))}
-                </tbody>
-              </table>
+                </div>
+              ) : (
+                <table className="min-w-full">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Base URL</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Model</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Group</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Enabled</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Weight</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">API Key（脱敏）</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Updated</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {providers.map((p, i) => (
+                      <m.tr
+                        key={p.id}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={prefersReducedMotion ? NO_DURATION : { duration: 0.25, delay: i * 0.04 }}
+                        className="border-b last:border-b-0"
+                      >
+                        <td className="px-4 py-3 text-sm text-gray-800 break-all">{p.baseUrl}</td>
+                        <td className="px-4 py-3 text-sm text-gray-800">{p.model}</td>
+                        <td className="px-4 py-3 text-sm text-gray-800">{p.group || '-'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-800">{p.enabled ? '是' : '否'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-800">{p.weight}</td>
+                        <td className="px-4 py-3 font-mono text-sm text-gray-700">{p.apiKey}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{p.updatedAt ? new Date(p.updatedAt).toLocaleString() : '-'}</td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <m.button
+                              onClick={() => handleEditProvider(p)}
+                              className="px-3 py-1.5 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition text-sm"
+                              whileTap={{ scale: 0.95 }}
+                            >
+                              编辑
+                            </m.button>
+                            <m.button
+                              onClick={() => handleDeleteProvider(p.id)}
+                              disabled={providerDeletingId === p.id}
+                              className="px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm"
+                              whileTap={{ scale: 0.95 }}
+                            >
+                              {providerDeletingId === p.id ? '删除中...' : '删除'}
+                            </m.button>
+                          </div>
+                        </td>
+                      </m.tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           )}
         </m.div>
@@ -2075,58 +2215,98 @@ const EnvManager: React.FC = () => {
             <div className="text-gray-500 text-sm">暂无配置</div>
           ) : (
             <div className="overflow-x-auto border border-gray-200 rounded-lg">
-              <table className="min-w-full">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">配置组</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">按键序列</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">验证码（脱敏）</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">最大尝试</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">锁定时间</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">启用</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">更新时间</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
+              {isMobile ? (
+                <div className="space-y-3 p-2">
                   {debugConfigs.map((config, i) => (
-                    <m.tr
+                    <m.div
                       key={config.group}
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={prefersReducedMotion ? NO_DURATION : { duration: 0.25, delay: i * 0.04 }}
-                      className="border-b last:border-b-0"
+                      className="border rounded-lg p-3 bg-white"
                     >
-                      <td className="px-4 py-3 text-sm text-gray-800">{config.group}</td>
-                      <td className="px-4 py-3 font-mono text-sm text-gray-700">{config.keySequence}</td>
-                      <td className="px-4 py-3 font-mono text-sm text-gray-700">******</td>
-                      <td className="px-4 py-3 text-sm text-gray-800">{config.maxAttempts}</td>
-                      <td className="px-4 py-3 text-sm text-gray-800">{Math.floor(config.lockoutDuration / 1000 / 60)}分钟</td>
-                      <td className="px-4 py-3 text-sm text-gray-800">{config.enabled ? '是' : '否'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{config.updatedAt ? new Date(config.updatedAt).toLocaleString() : '-'}</td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <m.button
-                            onClick={() => handleEditDebugConfig(config)}
-                            className="px-3 py-1.5 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition text-sm"
-                            whileTap={{ scale: 0.95 }}
-                          >
-                            编辑
-                          </m.button>
-                          <m.button
-                            onClick={() => handleDeleteDebugConfig(config.group)}
-                            disabled={debugConfigDeletingGroup === config.group}
-                            className="px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm"
-                            whileTap={{ scale: 0.95 }}
-                          >
-                            {debugConfigDeletingGroup === config.group ? '删除中...' : '删除'}
-                          </m.button>
-                        </div>
-                      </td>
-                    </m.tr>
+                      <div className="text-sm text-gray-800">
+                        <div className="font-semibold">{config.group}</div>
+                        <div className="mt-1 font-mono text-xs text-gray-700">KeySeq：{config.keySequence}</div>
+                        <div className="mt-1">最大尝试：{config.maxAttempts}</div>
+                        <div className="mt-1">锁定：{Math.floor(config.lockoutDuration / 1000 / 60)} 分钟</div>
+                        <div className="mt-1">启用：{config.enabled ? '是' : '否'}</div>
+                        <div className="mt-1 text-xs text-gray-500">{config.updatedAt ? new Date(config.updatedAt).toLocaleString() : '-'}</div>
+                      </div>
+                      <div className="mt-2 flex items-center justify-end gap-2">
+                        <m.button
+                          onClick={() => handleEditDebugConfig(config)}
+                          className="px-3 py-1.5 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition text-sm"
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          编辑
+                        </m.button>
+                        <m.button
+                          onClick={() => handleDeleteDebugConfig(config.group)}
+                          disabled={debugConfigDeletingGroup === config.group}
+                          className="px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm"
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          {debugConfigDeletingGroup === config.group ? '删除中...' : '删除'}
+                        </m.button>
+                      </div>
+                    </m.div>
                   ))}
-                </tbody>
-              </table>
+                </div>
+              ) : (
+                <table className="min-w-full">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">配置组</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">按键序列</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">验证码（脱敏）</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">最大尝试</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">锁定时间</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">启用</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">更新时间</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {debugConfigs.map((config, i) => (
+                      <m.tr
+                        key={config.group}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={prefersReducedMotion ? NO_DURATION : { duration: 0.25, delay: i * 0.04 }}
+                        className="border-b last:border-b-0"
+                      >
+                        <td className="px-4 py-3 text-sm text-gray-800">{config.group}</td>
+                        <td className="px-4 py-3 font-mono text-sm text-gray-700">{config.keySequence}</td>
+                        <td className="px-4 py-3 font-mono text-sm text-gray-700">******</td>
+                        <td className="px-4 py-3 text-sm text-gray-800">{config.maxAttempts}</td>
+                        <td className="px-4 py-3 text-sm text-gray-800">{Math.floor(config.lockoutDuration / 1000 / 60)}分钟</td>
+                        <td className="px-4 py-3 text-sm text-gray-800">{config.enabled ? '是' : '否'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{config.updatedAt ? new Date(config.updatedAt).toLocaleString() : '-'}</td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <m.button
+                              onClick={() => handleEditDebugConfig(config)}
+                              className="px-3 py-1.5 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition text-sm"
+                              whileTap={{ scale: 0.95 }}
+                            >
+                              编辑
+                            </m.button>
+                            <m.button
+                              onClick={() => handleDeleteDebugConfig(config.group)}
+                              disabled={debugConfigDeletingGroup === config.group}
+                              className="px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm"
+                              whileTap={{ scale: 0.95 }}
+                            >
+                              {debugConfigDeletingGroup === config.group ? '删除中...' : '删除'}
+                            </m.button>
+                          </div>
+                        </td>
+                      </m.tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           )}
         </m.div>

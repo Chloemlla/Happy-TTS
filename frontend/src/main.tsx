@@ -6,8 +6,11 @@ import './index.css'
 import { integrityChecker } from './utils/integrityCheck'
 import { disableSelection } from './utils/disableSelection'
 import CryptoJS from 'crypto-js'
+import { initTheme } from './utils/theme'
 
 // AES-256 解密函数（前端版本）
+// 在任何渲染之前初始化主题，避免闪烁
+try { initTheme(); } catch {}
 function decryptAES256(encryptedData: string, iv: string, key: string): string {
   try {
     const keyHash = CryptoJS.SHA256(key);
@@ -29,6 +32,18 @@ function decryptAES256(encryptedData: string, iv: string, key: string): string {
     console.error('AES-256 解密失败:', error);
     throw new Error('解密失败');
   }
+}
+
+// 辅助：带401重试的 fetch（401 时最多重试两次，总共最多三次）
+async function fetchWithAuthRetry(input: RequestInfo | URL, init?: RequestInit, max401Retries: number = 2): Promise<Response> {
+  let attempt = 0;
+  let res: Response;
+  do {
+    res = await fetch(input, init);
+    if (res.status !== 401) return res;
+    attempt++;
+  } while (attempt <= max401Retries);
+  return res;
 }
 
 // 调试控制台验证机制
@@ -165,10 +180,10 @@ class DebugConsoleManager {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      // 尝试获取加密配置
-      let response = await fetch('/api/debug-console/configs/encrypted', {
+      // 尝试获取加密配置（401 最多重试两次）
+      let response = await fetchWithAuthRetry('/api/debug-console/configs/encrypted', {
         headers
-      });
+      }, 2);
       
       if (response.status === 401) {
         console.log('⚠️ 同步配置需要管理员权限，跳过自动同步');
@@ -195,11 +210,11 @@ class DebugConsoleManager {
         }
       }
       
-      // 如果加密配置获取失败，回退到未加密配置
+      // 如果加密配置获取失败，回退到未加密配置（401 最多重试两次）
       if (configs.length === 0) {
-        response = await fetch('/api/debug-console/configs', {
+        response = await fetchWithAuthRetry('/api/debug-console/configs', {
           headers
-        });
+        }, 2);
         
         if (response.ok) {
           data = await response.json();

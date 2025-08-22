@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { listUsers, getUserHistory, deleteUser, batchDeleteUsers, deleteAllUsers, AdminUserSummary, AdminUserHistoryItem } from '../api/librechatAdmin';
 import { useNotification } from './Notification';
@@ -19,6 +19,7 @@ import {
 } from 'react-icons/fa';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
+import mermaid from 'mermaid';
 
 const PAGE_SIZES = [10, 20, 50];
 
@@ -26,9 +27,141 @@ const formatTs = (ts?: string | null) => ts ? new Date(ts).toLocaleString() : ''
 
 // Markdown渲染组件
 const MarkdownRenderer: React.FC<{ content: string; className?: string }> = ({ content, className = '' }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Mermaid 初始化（轻量版，不自动修复）
+  const initializeMermaid = () => {
+    try {
+      mermaid.initialize({
+        startOnLoad: false,
+        securityLevel: 'loose',
+        theme: 'default',
+        maxTextSize: 50000,
+        logLevel: 0,
+        flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' }
+      });
+    } catch {}
+  };
+
+  // 静默 Mermaid 相关告警/错误日志（确保早于渲染useEffect执行）
+  useEffect(() => {
+    const originalWarn = console.warn;
+    const originalError = console.error;
+    console.warn = (...args: any[]) => {
+      const msg = args.join(' ');
+      if (
+        msg.includes('mermaid') || msg.includes('Mermaid') ||
+        msg.includes('No theme found for error') ||
+        msg.includes('Graph at first') || msg.includes('Extract') ||
+        msg.includes('dagre') || msg.includes('WARN :')
+      ) return;
+      originalWarn.apply(console, args as any);
+    };
+    console.error = (...args: any[]) => {
+      const msg = args.join(' ');
+      if (
+        msg.includes('Error parsing') ||
+        msg.includes('Parse error on line') ||
+        msg.includes('Error executing queue') ||
+        msg.includes('Syntax error in text')
+      ) return;
+      originalError.apply(console, args as any);
+    };
+    return () => {
+      console.warn = originalWarn;
+      console.error = originalError;
+    };
+  }, []);
   const [isRendered, setIsRendered] = useState(false);
   const [showRaw, setShowRaw] = useState(false);
 
+  // 渲染后查找 Mermaid 代码并渲染（失败显示复制按钮）
+  useEffect(() => {
+    if (showRaw) return;
+    const root = containerRef.current;
+    if (!root) return;
+
+    const codeBlocks = root.querySelectorAll('pre > code.language-mermaid, pre > code.lang-mermaid, code.language-mermaid');
+    if (codeBlocks.length === 0) return;
+
+    initializeMermaid();
+
+    codeBlocks.forEach(async (codeEl, idx) => {
+      const parentPre = codeEl.closest('pre');
+      const raw = codeEl.textContent || '';
+      // 仅修复 Mermaid 断行箭头：将行首 "-->" 合并到上一行，避免解析错误
+      const normalizedRaw = raw.replace(/\n\s*-->/g, ' -->');
+      const id = `admin-mermaid-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 8)}`;
+      try {
+        const { svg } = await mermaid.render(id, normalizedRaw);
+        if (!svg || !svg.includes('<svg')) throw new Error('Empty SVG');
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'mermaid-diagram my-2';
+        wrapper.setAttribute('data-mermaid-id', id);
+        const img = document.createElement('img');
+        img.alt = 'mermaid diagram';
+        img.style.maxWidth = '100%';
+        img.style.height = 'auto';
+        img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+        wrapper.appendChild(img);
+
+        if (parentPre && parentPre.parentNode) parentPre.parentNode.replaceChild(wrapper, parentPre);
+        else if (codeEl.parentNode) codeEl.parentNode.replaceChild(wrapper, codeEl);
+      } catch (err) {
+        const fallback = document.createElement('div');
+        fallback.className = 'bg-yellow-50 border border-yellow-200 rounded p-3 text-xs';
+        const btn = document.createElement('button');
+        btn.className = 'px-2 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 mb-2';
+        btn.textContent = '复制可渲染代码';
+        btn.onclick = async () => {
+          try {
+            await navigator.clipboard.writeText(raw);
+            btn.textContent = '已复制';
+            setTimeout(() => (btn.textContent = '复制可渲染代码'), 1200);
+          } catch {}
+        };
+        const pre = document.createElement('pre');
+        pre.className = 'bg-white border border-gray-200 rounded p-2 overflow-x-auto';
+        pre.textContent = raw;
+        fallback.appendChild(btn);
+        fallback.appendChild(pre);
+        if (parentPre && parentPre.parentNode) parentPre.parentNode.replaceChild(fallback, parentPre);
+        else if (codeEl.parentNode) codeEl.parentNode.replaceChild(fallback, codeEl);
+      }
+    });
+    }, [content, showRaw]);
+  
+  // 静默 Mermaid 相关告警/错误日志（仅本组件作用域）
+  useEffect(() => {
+    const originalWarn = console.warn;
+    const originalError = console.error;
+    console.warn = (...args: any[]) => {
+      const msg = args.join(' ');
+      if (
+        msg.includes('mermaid') || msg.includes('Mermaid') ||
+        msg.includes('No theme found for error') ||
+        msg.includes('Graph at first') || msg.includes('Extract') ||
+        msg.includes('dagre') || msg.includes('WARN :')
+      ) return;
+      originalWarn.apply(console, args as any);
+    };
+    console.error = (...args: any[]) => {
+      const msg = args.join(' ');
+      if (
+        msg.includes('Error parsing') ||
+        msg.includes('Parse error on line') ||
+        msg.includes('Error executing queue') ||
+        msg.includes('Syntax error in text')
+      ) return;
+      originalError.apply(console, args as any);
+    };
+    return () => {
+      console.warn = originalWarn;
+      console.error = originalError;
+    };
+  }, []);
+  
   const renderMarkdown = (text: string) => {
     try {
       // 配置marked选项
@@ -107,7 +240,7 @@ const MarkdownRenderer: React.FC<{ content: string; className?: string }> = ({ c
             dangerouslySetInnerHTML={{ 
               __html: renderMarkdown(content) 
             }}
-            onLoad={() => setIsRendered(true)}
+            ref={containerRef}
           />
         )}
       </div>

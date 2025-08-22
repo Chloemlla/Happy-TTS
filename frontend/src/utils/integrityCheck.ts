@@ -124,14 +124,14 @@ class IntegrityChecker {
         '/upload', '/image', '/images', '/img',
         '/fbi', '/wanted', '/public', '/docs', '/api-docs',
         '/resource', '/resources', '/short', '/shortlink', '/short-links',
-        '/cdk', '/cdk-store'
+        '/cdk', '/cdk-store', '/librechat'
       ];
       if (exemptPathKeywords.some(k => pathname.toLowerCase().includes(k))) return true;
 
       // 标题豁免
       const exemptTitleKeywords = [
         'upload', 'image', 'markdown', 'api', 'docs', 'documentation',
-        'fbi', 'wanted', 'shortlink', 'short link', 'cdk', 'store'
+        'fbi', 'wanted', 'shortlink', 'short link', 'cdk', 'store', 'librechat'
       ];
       if (exemptTitleKeywords.some(k => title.includes(k))) return true;
 
@@ -146,6 +146,13 @@ class IntegrityChecker {
           `[class*="${marker}"]`
         ];
         if (document.querySelector(sel.join(', '))) return true;
+      }
+
+      // 特殊处理 LibreChat 页面
+      if (document.querySelector('[data-component="LibreChatPage"]') || 
+          document.querySelector('[data-page="librechat"]') ||
+          pathname.includes('/librechat')) {
+        return true;
       }
 
       // 可信来源的整页资源（如受信任CDN/域名提供的页面片段）
@@ -828,6 +835,14 @@ class IntegrityChecker {
             return;
           }
 
+          // 如果在豁免页面，跳过检查
+          if (this.isExemptPage()) {
+            if (this.debugMode) {
+              this.safeLog('log', '✅ 在豁免页面，跳过完整性检查');
+            }
+            return;
+          }
+
           if (mutation.type === 'characterData' || mutation.type === 'childList') {
             this.handleMutation(mutation);
           }
@@ -847,6 +862,11 @@ class IntegrityChecker {
   }
 
   private handleMutation(mutation: MutationRecord): void {
+    // 如果在豁免页面，跳过检查
+    if (this.isExemptPage()) {
+      return;
+    }
+
     if (mutation.type === 'characterData' && mutation.target.textContent) {
       const text = mutation.target.textContent;
       this.checkProtectedTexts(text, mutation.target as Node);
@@ -862,6 +882,11 @@ class IntegrityChecker {
   private checkProtectedTexts(text: string, node: Node): void {
     // 检查是否是安全的文本变化
     if (this.isSafeTextChange(text, node)) {
+      return;
+    }
+
+    // 如果在 LibreChat 页面，放宽检查
+    if (this.isExemptPage()) {
       return;
     }
 
@@ -883,8 +908,9 @@ class IntegrityChecker {
     // 检查父元素是否是安全元素
     let parent = node.parentElement;
     while (parent) {
-      const className = parent.className || '';
-      const id = parent.id || '';
+      // 安全地获取 className 和 id，确保它们是字符串类型
+      const className = typeof parent.className === 'string' ? parent.className : '';
+      const id = typeof parent.id === 'string' ? parent.id : '';
       
       // 安全元素标识
       const safeIdentifiers = [
@@ -892,9 +918,22 @@ class IntegrityChecker {
         'modal', 'popup', 'tooltip', 'dropdown', 'menu'
       ];
       
-      if (safeIdentifiers.some(id => 
-        className.toLowerCase().includes(id) || 
-        id.toLowerCase().includes(id)
+      if (safeIdentifiers.some(safeId => 
+        className.toLowerCase().includes(safeId) || 
+        id.toLowerCase().includes(safeId)
+      )) {
+        return true;
+      }
+      
+      // 检查是否是聊天相关的元素
+      const chatIdentifiers = [
+        'chat', 'message', 'conversation', 'dialog', 'librechat',
+        'user', 'assistant', 'bot', 'ai', 'streaming'
+      ];
+      
+      if (chatIdentifiers.some(chatId => 
+        className.toLowerCase().includes(chatId) || 
+        id.toLowerCase().includes(chatId)
       )) {
         return true;
       }
@@ -916,7 +955,23 @@ class IntegrityChecker {
       /menu/gi
     ];
 
-    return safeTextPatterns.some(pattern => pattern.test(text));
+    // 检查是否是聊天相关的文本内容
+    const chatTextPatterns = [
+      /用户/gi,
+      /助手/gi,
+      /assistant/gi,
+      /user/gi,
+      /生成中/gi,
+      /发送中/gi,
+      /loading/gi,
+      /streaming/gi,
+      /聊天/gi,
+      /对话/gi,
+      /消息/gi
+    ];
+
+    return safeTextPatterns.some(pattern => pattern.test(text)) ||
+           chatTextPatterns.some(pattern => pattern.test(text));
   }
 
   private handleTextTampering(node: Node, tamperText: string, originalText: string): void {
