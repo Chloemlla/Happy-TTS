@@ -178,8 +178,73 @@ const MarkdownRenderer: React.FC<{ content: string; className?: string; onCopy?:
         gfm: true
       });
 
+      // 预处理文本，防止 KaTeX 解析错误
+      let processedText = text || '';
+      
+      // 保护数学公式，避免被误处理
+      const mathBlocks: string[] = [];
+      
+      // 先保护块级数学公式
+      processedText = processedText.replace(/\$\$([\s\S]*?)\$\$/g, (match, content) => {
+        // 检查内容是否看起来像真正的数学公式
+        if (content.trim().length > 0 && !content.includes('replace(') && !content.includes('\\n{3,}')) {
+          mathBlocks.push(match);
+          return `__MATH_BLOCK_${mathBlocks.length - 1}__`;
+        }
+        return match; // 如果不是真正的数学公式，保持原样
+      });
+      
+      // 再保护行内数学公式
+      processedText = processedText.replace(/\$([^$\n]*?)\$/g, (match, content) => {
+        // 检查内容是否看起来像真正的数学公式
+        if (content.trim().length > 0 && !content.includes('replace(') && !content.includes('\\n{3,}')) {
+          mathBlocks.push(match);
+          return `__MATH_INLINE_${mathBlocks.length - 1}__`;
+        }
+        return match; // 如果不是真正的数学公式，保持原样
+      });
+      
+      // 处理数学公式内容
+      mathBlocks.forEach((block, index) => {
+        let processedBlock = block;
+        
+        if (block.startsWith('$$') && block.endsWith('$$')) {
+          // 块级数学公式
+          const content = block.slice(2, -2);
+          let processedContent = content;
+          
+          // 1. 处理换行符
+          processedContent = processedContent.replace(/\n/g, '\\\\');
+          
+          // 2. 处理中文字符
+          if (/[\u4e00-\u9fff]/.test(processedContent)) {
+            processedContent = processedContent.replace(/([\u4e00-\u9fff]+)/g, '\\text{$1}');
+          }
+          
+          processedBlock = `$$${processedContent}$$`;
+        } else if (block.startsWith('$') && block.endsWith('$')) {
+          // 行内数学公式
+          const content = block.slice(1, -1);
+          let processedContent = content;
+          
+          // 1. 处理换行符
+          processedContent = processedContent.replace(/\n/g, '\\\\');
+          
+          // 2. 处理中文字符
+          if (/[\u4e00-\u9fff]/.test(processedContent)) {
+            processedContent = processedContent.replace(/([\u4e00-\u9fff]+)/g, '\\text{$1}');
+          }
+          
+          processedBlock = `$${processedContent}$`;
+        }
+        
+        // 替换回处理后的数学公式
+        processedText = processedText.replace(`__MATH_BLOCK_${index}__`, processedBlock);
+        processedText = processedText.replace(`__MATH_INLINE_${index}__`, processedBlock);
+      });
+
       // 渲染markdown
-      const html = marked.parse(text) as string;
+      const html = marked.parse(processedText) as string;
       
       // 使用DOMPurify清理HTML
       const cleanHtml = DOMPurify.sanitize(html, {
@@ -245,7 +310,7 @@ const MarkdownRenderer: React.FC<{ content: string; className?: string; onCopy?:
                     {code}
                   </SyntaxHighlighter>
                   <button
-                    className="absolute top-2 right-2 p-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white rounded opacity-0 group-hover:opacity-100 transition-all duration-200"
+                    className="absolute top-2 right-2 p-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white rounded opacity-0 group-hover:opacity-100 md:group-hover:opacity-100 transition-all duration-200 touch-manipulation flex items-center justify-center min-w-[32px] min-h-[32px]"
                     onClick={async () => {
                       try {
                         await navigator.clipboard.writeText(code);
@@ -255,6 +320,16 @@ const MarkdownRenderer: React.FC<{ content: string; className?: string; onCopy?:
                       }
                     }}
                     title="复制代码"
+                    onTouchStart={(e) => {
+                      // 在移动端触摸时显示按钮
+                      e.currentTarget.style.opacity = '1';
+                    }}
+                    onTouchEnd={(e) => {
+                      // 触摸结束后延迟隐藏按钮
+                      setTimeout(() => {
+                        e.currentTarget.style.opacity = '0';
+                      }, 2000);
+                    }}
                   >
                     <FaCopy className="w-3 h-3" />
                   </button>
@@ -265,15 +340,42 @@ const MarkdownRenderer: React.FC<{ content: string; className?: string; onCopy?:
             // 普通元素，递归处理
             const childNodes = walkNodes(child);
             if (childNodes.length > 0) {
+              // 处理属性，确保 style 属性是对象而不是字符串
+              const attributes: Record<string, any> = {
+                key: `element-${currentIndex++}`,
+                className: element.className
+              };
+              
+              Array.from(element.attributes).forEach(attr => {
+                if (attr.name === 'style') {
+                  // 将 style 字符串转换为对象
+                  try {
+                    const styleObj: Record<string, string> = {};
+                    attr.value.split(';').forEach(rule => {
+                      const [property, value] = rule.split(':').map(s => s.trim());
+                      if (property && value) {
+                        // 转换 CSS 属性名为 camelCase
+                        const camelProperty = property.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+                        styleObj[camelProperty] = value;
+                      }
+                    });
+                    attributes.style = styleObj;
+                  } catch (e) {
+                    // 如果解析失败，忽略 style 属性
+                    console.warn('Failed to parse style attribute:', attr.value);
+                  }
+                } else if (attr.name === 'class') {
+                  // 将 class 属性转换为 className
+                  attributes.className = attr.value;
+                } else if (attr.name !== 'key' && attr.name !== 'className') {
+                  // 避免重复设置已处理的属性
+                  attributes[attr.name] = attr.value;
+                }
+              });
+              
               const ReactElement = React.createElement(
                 element.tagName.toLowerCase(),
-                { 
-                  key: `element-${currentIndex++}`,
-                  className: element.className,
-                  ...Object.fromEntries(
-                    Array.from(element.attributes).map(attr => [attr.name, attr.value])
-                  )
-                },
+                attributes,
                 ...childNodes
               );
               nodes.push(ReactElement);

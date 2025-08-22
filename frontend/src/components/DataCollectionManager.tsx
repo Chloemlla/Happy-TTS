@@ -47,7 +47,7 @@ const DataRow = React.memo(({ item, checked, onToggle, onView, onDelete }: {
                 <div className="flex items-center gap-2">
                     <span className="break-all font-mono flex-1" title={item._id}>{item._id}</span>
                     <motion.button
-                        className="inline-flex items-center justify-center w-5 h-5 rounded bg-gray-100 hover:bg-gray-200 text-gray-700"
+                        className="inline-flex items-center justify-center w-5 h-5 rounded bg-gray-100 hover:bg-gray-200 text-gray-700 touch-manipulation"
                         title="复制ID"
                         onClick={async (e) => {
                             e.stopPropagation();
@@ -107,7 +107,7 @@ const DataCard = React.memo(({ item, checked, onToggle, onView, onDelete }: {
                         <span className="text-gray-500 flex-shrink-0">ID：</span>
                         <span className="break-all flex-1">{item._id}</span>
                         <motion.button
-                            className="inline-flex items-center justify-center w-5 h-5 rounded bg-gray-100 hover:bg-gray-200 text-gray-700 flex-shrink-0"
+                            className="inline-flex items-center justify-center w-5 h-5 rounded bg-gray-100 hover:bg-gray-200 text-gray-700 flex-shrink-0 touch-manipulation"
                             onClick={async (e) => {
                                 e.stopPropagation();
                                 try {
@@ -748,7 +748,7 @@ const DataCollectionManager: React.FC = () => {
                                             {txt}
                                         </SyntaxHighlighter>
                                         <button
-                                            className="absolute top-2 right-2 p-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white rounded opacity-0 group-hover:opacity-100 transition-all duration-200"
+                                            className="absolute top-2 right-2 p-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white rounded opacity-0 group-hover:opacity-100 md:group-hover:opacity-100 transition-all duration-200 touch-manipulation flex items-center justify-center min-w-[32px] min-h-[32px]"
                                             onClick={async () => {
                                                 try {
                                                     await navigator.clipboard.writeText(txt);
@@ -758,6 +758,16 @@ const DataCollectionManager: React.FC = () => {
                                                 }
                                             }}
                                             title="复制代码"
+                                            onTouchStart={(e) => {
+                                                // 在移动端触摸时显示按钮
+                                                e.currentTarget.style.opacity = '1';
+                                            }}
+                                            onTouchEnd={(e) => {
+                                                // 触摸结束后延迟隐藏按钮
+                                                setTimeout(() => {
+                                                    e.currentTarget.style.opacity = '0';
+                                                }, 2000);
+                                            }}
                                         >
                                             <FaCopy className="w-3 h-3" />
                                         </button>
@@ -775,7 +785,7 @@ const DataCollectionManager: React.FC = () => {
                                         {jsonPretty(viewItem)}
                                     </SyntaxHighlighter>
                                     <button
-                                        className="absolute top-2 right-2 p-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white rounded opacity-0 group-hover:opacity-100 transition-all duration-200"
+                                        className="absolute top-2 right-2 p-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white rounded opacity-0 group-hover:opacity-100 md:group-hover:opacity-100 transition-all duration-200 touch-manipulation flex items-center justify-center min-w-[32px] min-h-[32px]"
                                         onClick={async () => {
                                             try {
                                                 await navigator.clipboard.writeText(jsonPretty(viewItem));
@@ -785,6 +795,16 @@ const DataCollectionManager: React.FC = () => {
                                             }
                                         }}
                                         title="复制代码"
+                                        onTouchStart={(e) => {
+                                            // 在移动端触摸时显示按钮
+                                            e.currentTarget.style.opacity = '1';
+                                        }}
+                                        onTouchEnd={(e) => {
+                                            // 触摸结束后延迟隐藏按钮
+                                            setTimeout(() => {
+                                                e.currentTarget.style.opacity = '0';
+                                            }, 2000);
+                                        }}
                                     >
                                         <FaCopy className="w-3 h-3" />
                                     </button>
@@ -862,7 +882,7 @@ const DataCollectionManager: React.FC = () => {
                       {JSON.stringify(batchView, null, 2)}
                     </SyntaxHighlighter>
                     <button
-                      className="absolute top-2 right-2 p-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white rounded opacity-0 group-hover:opacity-100 transition-all duration-200"
+                      className="absolute top-2 right-2 p-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white rounded opacity-0 group-hover:opacity-100 md:group-hover:opacity-100 transition-all duration-200 touch-manipulation flex items-center justify-center min-w-[32px] min-h-[32px]"
                       onClick={async () => {
                         try {
                           await navigator.clipboard.writeText(JSON.stringify(batchView, null, 2));
@@ -872,6 +892,16 @@ const DataCollectionManager: React.FC = () => {
                         }
                       }}
                       title="复制代码"
+                      onTouchStart={(e) => {
+                        // 在移动端触摸时显示按钮
+                        e.currentTarget.style.opacity = '1';
+                      }}
+                      onTouchEnd={(e) => {
+                        // 触摸结束后延迟隐藏按钮
+                        setTimeout(() => {
+                          e.currentTarget.style.opacity = '0';
+                        }, 2000);
+                      }}
                     >
                       <FaCopy className="w-3 h-3" />
                     </button>
