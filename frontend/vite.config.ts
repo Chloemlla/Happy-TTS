@@ -30,6 +30,43 @@ function obfuscateDistJs() {
   }
 }
 
+// 构建后：将 JS 文件中的所有非 ASCII 字符（如中文）转换为 Unicode \uXXXX 形式
+function escapeUnicodeInDistJs() {
+  const distDir = path.resolve(__dirname, 'dist/assets');
+  if (!fs.existsSync(distDir)) return;
+  const files = fs.readdirSync(distDir).filter(f => f.endsWith('.js'));
+
+  // 将任意字符串中的非 ASCII 字符转为 \uXXXX（对 >0xFFFF 的码点使用代理项对）
+  const toUnicodeEscapes = (input: string) => {
+    let out = '';
+    for (const ch of input) {
+      const codePoint = ch.codePointAt(0)!;
+      if (codePoint <= 0x7F) {
+        out += ch; // ASCII 直接保留
+      } else if (codePoint <= 0xFFFF) {
+        const hex = codePoint.toString(16).padStart(4, '0');
+        out += `\\u${hex}`;
+      } else {
+        // 需要拆分为 UTF-16 代理项对
+        const cp = codePoint - 0x10000;
+        const high = 0xD800 + ((cp >> 10) & 0x3FF);
+        const low = 0xDC00 + (cp & 0x3FF);
+        out += `\\u${high.toString(16).padStart(4, '0')}\\u${low.toString(16).padStart(4, '0')}`;
+      }
+    }
+    return out;
+  };
+
+  for (const file of files) {
+    const filePath = path.join(distDir, file);
+    let code = fs.readFileSync(filePath, 'utf-8');
+    // 快速检查是否含有非 ASCII 字符
+    if (!/[\u0080-\uFFFF]/.test(code)) continue;
+    const converted = toUnicodeEscapes(code);
+    fs.writeFileSync(filePath, converted, 'utf-8');
+  }
+}
+
 // 构建后：混淆页面中的电子邮件地址，并注入浏览器端还原脚本
 function obfuscateEmailsInDist() {
   try {
@@ -401,6 +438,7 @@ export default defineConfig(({ mode }) => {
     const originalWriteBundle = (typeof output === 'object' && 'writeBundle' in output) ? (output as any).writeBundle : undefined;
     (output as any).writeBundle = () => {
       obfuscateDistJs();
+      escapeUnicodeInDistJs();
       generateSitemapXml();
       obfuscateEmailsInDist();
       if (originalWriteBundle) originalWriteBundle();
