@@ -45,13 +45,17 @@ api.interceptors.response.use(
                 reportFingerprintOnce({ force: true });
             }
         } catch { }
-        // 401错误处理：支持游客模式，只有在本地有token时才跳转登录页
         if (error.response?.status === 401) {
-            if (localStorage.getItem('token')) {
+            // 检查当前是否在 /librechat 路由下
+            // 避免在 /welcome 路由下重复重定向
+            if (
+                !window.location.pathname.startsWith('/librechat') &&
+                window.location.pathname !== '/welcome'
+            ) {
                 localStorage.removeItem('token');
                 window.location.href = '/welcome';
             }
-            // 如果没有token，说明是游客模式，不做跳转
+            // /librechat 或 /welcome 路由下不做跳转
         }
         return Promise.reject(error);
     }
