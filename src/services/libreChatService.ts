@@ -193,7 +193,7 @@ class LibreChatService {
         const history = await ChatHistoryModel.findOne().sort({ updatedAt: -1 }).lean();
         const h: any = history;
         this.chatHistory = h && Array.isArray(h.messages) ? h.messages : [];
-        logger.info('Loaded chat history from MongoDB');
+        logger.info(`从 MongoDB 加载聊天历史: ${this.chatHistory.length} 条消息`);
         if (!this.isRunning && process.env.NODE_ENV !== 'test') {
           this.startPeriodicCheck();
         }
@@ -218,7 +218,7 @@ class LibreChatService {
       if (existsSync(this.CHAT_HISTORY_FILE)) {
         const data = await readFile(this.CHAT_HISTORY_FILE, 'utf-8');
         this.chatHistory = JSON.parse(data);
-        logger.info('加载聊天历史');
+        logger.info(`从本地文件加载聊天历史: ${this.chatHistory.length} 条消息`);
       }
       if (!this.isRunning && process.env.NODE_ENV !== 'test') {
         this.startPeriodicCheck();
@@ -250,6 +250,7 @@ class LibreChatService {
   private async saveChatHistory() {
     try {
       await writeFile(this.CHAT_HISTORY_FILE, JSON.stringify(this.chatHistory, null, 2));
+      logger.info(`已保存聊天历史到本地文件: ${this.chatHistory.length} 条消息`);
     } catch (error) {
       logger.error('保存聊天历史时出错:', error);
     }
@@ -305,14 +306,18 @@ class LibreChatService {
   }
 
   private async upsertTokenHistory(keyId: string, messages: ChatMessage[]) {
-    if (mongoose.connection.readyState !== 1) return;
     try {
       const safeKey = sanitizeId(keyId);
-      await (mongoose.models.LibreChatHistory as any).findOneAndUpdate(
-        { userId: safeKey },
-        { $set: { messages, updatedAt: new Date() } },
-        { upsert: true, setDefaultsOnInsert: true }
-      );
+      if (mongoose.connection.readyState === 1) {
+        await (mongoose.models.LibreChatHistory as any).findOneAndUpdate(
+          { userId: safeKey },
+          { $set: { messages, updatedAt: new Date() } },
+          { upsert: true, setDefaultsOnInsert: true }
+        );
+        logger.info(`已保存 ${messages.length} 条消息到 MongoDB，用户ID: ${safeKey}`);
+      } else {
+        logger.warn('MongoDB 未连接，跳过数据库保存');
+      }
     } catch (err) {
       logger.error('写入 MongoDB 聊天历史失败:', err);
     }
@@ -401,6 +406,8 @@ class LibreChatService {
     };
     this.chatHistory.push(userMsg);
     await this.saveChatHistory();
+    logger.info(`已保存用户消息到内存/文件，token: ${token}, userId: ${userId}`);
+    
     // 同步写入 MongoDB（用户消息）
     const keyId = userId || token;
     const currentUserMessages = this.chatHistory.filter(m => userId ? m.userId === userId : m.token === token);
@@ -445,7 +452,11 @@ class LibreChatService {
       };
       this.chatHistory.push(aiMsg);
       await this.saveChatHistory();
-      await this.upsertTokenHistory(keyId, this.chatHistory.filter(m => userId ? m.userId === userId : m.token === token));
+      logger.info(`已保存降级回复到内存/文件，token: ${token}, userId: ${userId}`);
+      
+      const updatedUserMessages = this.chatHistory.filter(m => userId ? m.userId === userId : m.token === token);
+      await this.upsertTokenHistory(keyId, updatedUserMessages);
+      logger.info(`已更新MongoDB（降级回复），用户消息总数: ${updatedUserMessages.length}`);
       return fallback;
     }
 
@@ -511,7 +522,11 @@ class LibreChatService {
         };
         this.chatHistory.push(aiMsg);
         await this.saveChatHistory();
-        await this.upsertTokenHistory(keyId, this.chatHistory.filter(m => userId ? m.userId === userId : m.token === token));
+        logger.info(`已保存AI回复到内存/文件，token: ${token}, userId: ${userId}`);
+        
+        const updatedUserMessages = this.chatHistory.filter(m => userId ? m.userId === userId : m.token === token);
+        await this.upsertTokenHistory(keyId, updatedUserMessages);
+        logger.info(`已更新MongoDB，用户消息总数: ${updatedUserMessages.length}`);
         return aiText;
       } catch (err: any) {
         lastError = err;
@@ -533,7 +548,11 @@ class LibreChatService {
     };
     this.chatHistory.push(aiMsg);
     await this.saveChatHistory();
-    await this.upsertTokenHistory(keyId, this.chatHistory.filter(m => userId ? m.userId === userId : m.token === token));
+    logger.info(`已保存错误降级回复到内存/文件，token: ${token}, userId: ${userId}`);
+    
+    const updatedUserMessages = this.chatHistory.filter(m => userId ? m.userId === userId : m.token === token);
+    await this.upsertTokenHistory(keyId, updatedUserMessages);
+    logger.info(`已更新MongoDB（错误降级），用户消息总数: ${updatedUserMessages.length}`);
     return fallback;
   }
 
@@ -546,23 +565,41 @@ class LibreChatService {
     if (mongoose.connection.readyState === 1) {
       try {
         const keyId = sanitizeId(userId || token);
+        logger.info(`从 MongoDB 获取历史记录，用户ID: ${keyId}`);
         const doc = await (mongoose.models.LibreChatHistory as any).findOne({ userId: keyId, deleted: { $ne: true } }).lean();
-        if (doc && Array.isArray(doc.messages)) userMessages = doc.messages as ChatMessage[];
+        if (doc && Array.isArray(doc.messages)) {
+          userMessages = doc.messages as ChatMessage[];
+          logger.info(`从 MongoDB 获取到 ${userMessages.length} 条消息`);
+        } else {
+          logger.info('MongoDB 中未找到历史记录');
+        }
       } catch (err) {
         logger.error('从 MongoDB 获取聊天历史失败，回退到内存/文件:', err);
       }
+    } else {
+      logger.warn('MongoDB 未连接，使用内存/文件存储');
     }
+    
     if (!userMessages) {
+      // 回退到内存/文件存储
       const safeUserId = sanitizeId(userId);
       const safeToken = sanitizeId(token);
-      userMessages = this.chatHistory.filter(msg => safeUserId ? msg.userId === safeUserId : msg.token === safeToken);
+      userMessages = this.chatHistory.filter(msg => {
+        if (userId) {
+          return msg.userId === userId; // 使用原始userId进行比较
+        } else {
+          return msg.token === token; // 使用原始token进行比较
+        }
+      });
+      logger.info(`从内存/文件获取到 ${userMessages.length} 条消息，token: ${token}, userId: ${userId}`);
     }
+    
     const total = userMessages.length;
-
     const startIndex = (options.page - 1) * options.limit;
     const endIndex = startIndex + options.limit;
     const messages = userMessages.slice(startIndex, endIndex);
 
+    logger.info(`返回历史记录: 总数 ${total}, 当前页 ${options.page}, 每页 ${options.limit}, 返回 ${messages.length} 条`);
     return {
       messages,
       total

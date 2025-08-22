@@ -23,6 +23,9 @@ import 'katex/dist/katex.min.css';
 import DOMPurify from 'dompurify';
 import getApiBaseUrl from '../api';
 import { useNotification } from './Notification';
+import AlertModal from './AlertModal';
+import ConfirmModal from './ConfirmModal';
+import PromptModal from './PromptModal';
 
 // 兼容部分模型返回的 <think> 思考内容与孤立 </think> 标签
 function sanitizeAssistantText(text: string): string {
@@ -68,20 +71,7 @@ function renderMarkdown(content: string): string {
   }
 }
 
-// 复制到剪贴板
-async function copyText(text: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-  } catch {
-    // fallback
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-  }
-}
+  
 
 // 导出当前页为 TXT
 function downloadTextFile(filename: string, content: string) {
@@ -150,7 +140,29 @@ const LibreChatPage: React.FC = () => {
   const [rtError, setRtError] = useState('');
   const [rtHistory, setRtHistory] = useState<HistoryItem[]>([]);
 
+  // 自定义弹窗状态
+  const [alertModal, setAlertModal] = useState<{ open: boolean; title?: string; message: string; type?: 'warning' | 'danger' | 'info' | 'success' }>({ open: false, message: '' });
+  const [confirmModal, setConfirmModal] = useState<{ open: boolean; title?: string; message: string; onConfirm: () => void; type?: 'warning' | 'danger' | 'info' }>({ open: false, message: '', onConfirm: () => {} });
+  const [promptModal, setPromptModal] = useState<{ open: boolean; title?: string; message?: string; placeholder?: string; defaultValue?: string; onConfirm: (value: string) => void }>({ open: false, message: '', onConfirm: () => {} });
+
   const apiBase = useMemo(() => getApiBaseUrl(), []);
+
+  // 复制到剪贴板
+  const copyText = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setNotification({ type: 'success', message: '内容已复制到剪贴板' });
+    } catch {
+      // fallback
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      setNotification({ type: 'success', message: '内容已复制到剪贴板' });
+    }
+  };
 
   // 游客模式：当未填写本地 token 时视为游客（服务端通过 HttpOnly Cookie 维持会话）
   const guestMode = useMemo(() => !token, [token]);
@@ -233,61 +245,101 @@ const LibreChatPage: React.FC = () => {
 
   // 勾选切换
   const toggleSelect = (id?: string) => {
-    if (!id) return;
-    setSelectedIds((prev) => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
+    if (!id) {
+      setNotification({ type: 'warning', message: '无法选择此消息' });
+      return;
+    }
+    setSelectedIds((prev) => {
+      const newIds = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id];
+      if (newIds.length > prev.length) {
+        setNotification({ type: 'info', message: '已选择消息' });
+      } else {
+        setNotification({ type: 'info', message: '已取消选择消息' });
+      }
+      return newIds;
+    });
   };
 
   // 批量删除
   const handleBatchDelete = async () => {
-    if (selectedIds.length === 0) return;
-    const yes = confirm(`确定批量删除选中的 ${selectedIds.length} 条消息吗？`);
-    if (!yes) return;
-    try {
-      const res = await fetch(`${apiBase}/api/librechat/messages`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify(token ? { token, messageIds: selectedIds } : { messageIds: selectedIds })
-      });
-      if (res.ok) {
-        setSelectedIds([]);
-        await fetchHistory(page);
-      } else {
-        setNotification({ type: 'error', message: '批量删除失败' });
-      }
-    } catch (e: any) {
-      setNotification({ type: 'error', message: e?.message || '批量删除失败' });
+    if (selectedIds.length === 0) {
+      setNotification({ type: 'warning', message: '请先选择要删除的消息' });
+      return;
     }
+    setConfirmModal({
+      open: true,
+      title: '确认批量删除',
+      message: `确定批量删除选中的 ${selectedIds.length} 条消息吗？`,
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          setNotification({ type: 'info', message: '正在批量删除消息...' });
+          const res = await fetch(`${apiBase}/api/librechat/messages`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify(token ? { token, messageIds: selectedIds } : { messageIds: selectedIds })
+          });
+          if (res.ok) {
+            setSelectedIds([]);
+            setNotification({ type: 'success', message: `已删除 ${selectedIds.length} 条消息` });
+            await fetchHistory(page);
+          } else {
+            setNotification({ type: 'error', message: '批量删除失败' });
+          }
+        } catch (e: any) {
+          setNotification({ type: 'error', message: e?.message || '批量删除失败' });
+        }
+      }
+    });
   };
 
   // 编辑消息
   const handleEdit = async (id?: string, current?: string) => {
-    if (!id) return;
-    const next = prompt('编辑消息内容：', current || '');
-    if (next === null) return; // 取消
-    const content = next.trim();
-    if (!content) return;
-    try {
-      const res = await fetch(`${apiBase}/api/librechat/message`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(token ? { token, messageId: id, content } : { messageId: id, content })
-      });
-      if (res.ok) {
-        await fetchHistory(page);
-      } else {
-        setNotification({ type: 'error', message: '修改失败' });
-      }
-    } catch (e: any) {
-      setNotification({ type: 'error', message: e?.message || '修改失败' });
+    if (!id) {
+      setNotification({ type: 'warning', message: '无法编辑此消息' });
+      return;
     }
+    setPromptModal({
+      open: true,
+      title: '编辑消息',
+      message: '请输入新的消息内容：',
+      placeholder: '请输入消息内容',
+      defaultValue: current || '',
+      onConfirm: async (content: string) => {
+        if (!content.trim()) {
+          setNotification({ type: 'warning', message: '消息内容不能为空' });
+          return;
+        }
+        try {
+          setNotification({ type: 'info', message: '正在修改消息...' });
+          const res = await fetch(`${apiBase}/api/librechat/message`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(token ? { token, messageId: id, content } : { messageId: id, content })
+          });
+          if (res.ok) {
+            setNotification({ type: 'success', message: '消息修改成功' });
+            await fetchHistory(page);
+          } else {
+            setNotification({ type: 'error', message: '修改失败' });
+          }
+        } catch (e: any) {
+          setNotification({ type: 'error', message: e?.message || '修改失败' });
+        }
+      }
+    });
   };
 
   // 重试助手消息（携带上下文，覆盖原消息）
   const handleRetry = async (id?: string) => {
-    if (!id) return;
+    if (!id) {
+      setNotification({ type: 'warning', message: '无法重试此消息' });
+      return;
+    }
     try {
+      setNotification({ type: 'info', message: '正在重试AI回复...' });
       const res = await fetch(`${apiBase}/api/librechat/retry`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -295,6 +347,7 @@ const LibreChatPage: React.FC = () => {
         body: JSON.stringify(token ? { token, messageId: id } : { messageId: id })
       });
       if (res.ok) {
+        setNotification({ type: 'success', message: 'AI回复重试成功' });
         await fetchHistory(page);
       } else {
         setNotification({ type: 'error', message: '重试失败' });
@@ -305,138 +358,189 @@ const LibreChatPage: React.FC = () => {
   };
 
   const refreshHistory = () => {
+    setNotification({ type: 'info', message: '正在刷新历史记录...' });
     fetchHistory(page);
   };
 
   const exportCurrentPage = async () => {
-    if (!history || !history.history || history.history.length === 0) return;
-    const now = new Date();
-    const dateStr = now.toISOString().slice(0, 10);
-    const header = `LibreChat 历史导出（当前页）\n导出时间：${now.toLocaleString()}\n总条数：${history.history.length}\n\n`;
-    const lines = history.history.map((m, idx) => {
-      const role = m.role === 'user' ? '用户' : '助手';
-      const content = m.role === 'user' ? m.content : sanitizeAssistantText(m.content);
-      const ts = m.createdAt ? ` @ ${m.createdAt}` : '';
-      return `#${idx + 1} 【${role}${ts}】\n${content}\n`;
-    });
-    const txt = header + lines.join('\n');
-    downloadTextFile(`LibreChat_聊天历史_第${page}页_${dateStr}.txt`, txt);
+    if (!history || !history.history || history.history.length === 0) {
+      setNotification({ type: 'warning', message: '当前页无历史记录可导出' });
+      return;
+    }
+    try {
+      setNotification({ type: 'info', message: '正在导出当前页历史记录...' });
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0, 10);
+      const header = `LibreChat 历史导出（当前页）\n导出时间：${now.toLocaleString()}\n总条数：${history.history.length}\n\n`;
+      const lines = history.history.map((m, idx) => {
+        const role = m.role === 'user' ? '用户' : '助手';
+        const content = m.role === 'user' ? m.content : sanitizeAssistantText(m.content);
+        const ts = m.createdAt ? ` @ ${m.createdAt}` : '';
+        return `#${idx + 1} 【${role}${ts}】\n${content}\n`;
+      });
+      const txt = header + lines.join('\n');
+      downloadTextFile(`LibreChat_聊天历史_第${page}页_${dateStr}.txt`, txt);
+      setNotification({ type: 'success', message: `已导出 ${history.history.length} 条历史记录` });
+    } catch (e) {
+      setNotification({ type: 'error', message: '导出历史记录失败' });
+    }
   };
 
   // 导出全部历史（后端生成并返回TXT文件）
   const exportAll = async () => {
-    const params = new URLSearchParams();
-    if (token) params.set('token', token);
-    const res = await fetch(`${apiBase}/api/librechat/export?${params.toString()}`, {
-      method: 'GET',
-      credentials: 'include'
-    });
-    if (!res.ok) {
-      alert('导出失败');
-      return;
-    }
-    // Try to normalize to UTF-8 with BOM for broad editor compatibility
-    const originalBlob = await res.blob();
-    let blob: Blob;
     try {
-      const text = await originalBlob.text();
-      const utf8Text = text.startsWith('\uFEFF') ? text : '\uFEFF' + text;
-      blob = new Blob([utf8Text], { type: 'text/plain;charset=utf-8' });
-    } catch {
-      // Fallback: if not readable as text, keep original
-      blob = originalBlob;
+      setNotification({ type: 'info', message: '正在导出全部历史记录...' });
+      const params = new URLSearchParams();
+      if (token) params.set('token', token);
+      const res = await fetch(`${apiBase}/api/librechat/export?${params.toString()}`, {
+        method: 'GET',
+        credentials: 'include'
+      });
+      if (!res.ok) {
+        setNotification({ type: 'error', message: '导出失败，请稍后再试' });
+        return;
+      }
+      // Try to normalize to UTF-8 with BOM for broad editor compatibility
+      const originalBlob = await res.blob();
+      let blob: Blob;
+      try {
+        const text = await originalBlob.text();
+        const utf8Text = text.startsWith('\uFEFF') ? text : '\uFEFF' + text;
+        blob = new Blob([utf8Text], { type: 'text/plain;charset=utf-8' });
+      } catch {
+        // Fallback: if not readable as text, keep original
+        blob = originalBlob;
+      }
+      // 从响应头尝试获取文件名
+      const cd = res.headers.get('Content-Disposition') || '';
+      const match = /filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i.exec(cd || '');
+      let filename = '';
+      if (match) {
+        filename = decodeURIComponent(match[1] || match[2] || '');
+      }
+      if (!filename) {
+        const date = new Date().toISOString().slice(0, 10);
+        filename = `LibreChat_历史_${date}.txt`;
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setNotification({ type: 'success', message: '全部历史记录导出成功' });
+    } catch (e) {
+      setNotification({ type: 'error', message: '导出全部历史记录失败' });
     }
-    // 从响应头尝试获取文件名
-    const cd = res.headers.get('Content-Disposition') || '';
-    const match = /filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i.exec(cd || '');
-    let filename = '';
-    if (match) {
-      filename = decodeURIComponent(match[1] || match[2] || '');
-    }
-    if (!filename) {
-      const date = new Date().toISOString().slice(0, 10);
-      filename = `LibreChat_历史_${date}.txt`;
-    }
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   };
 
   // 删除单条消息（需要后端返回 id）
   const handleDelete = async (id?: string) => {
-    if (!id) return;
-    const yes = confirm('确定删除该消息吗？');
-    if (!yes) return;
-    try {
-      const res = await fetch(`${apiBase}/api/librechat/messages`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(token ? { token, messageIds: [id] } : { messageIds: [id] })
-      });
-      if (res.ok) {
-        await fetchHistory(page);
-      } else {
-        alert('删除失败');
-      }
-    } catch {
-      alert('删除失败');
+    if (!id) {
+      setNotification({ type: 'warning', message: '无法删除此消息' });
+      return;
     }
+    setConfirmModal({
+      open: true,
+      title: '确认删除',
+      message: '确定删除该消息吗？',
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          setNotification({ type: 'info', message: '正在删除消息...' });
+          const res = await fetch(`${apiBase}/api/librechat/messages`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(token ? { token, messageIds: [id] } : { messageIds: [id] })
+          });
+          if (res.ok) {
+            setNotification({ type: 'success', message: '消息删除成功' });
+            await fetchHistory(page);
+          } else {
+            setNotification({ type: 'error', message: '删除失败，请稍后再试' });
+          }
+        } catch {
+          setNotification({ type: 'error', message: '删除失败，请稍后再试' });
+        }
+      }
+    });
   };
 
   const fetchHistory = async (toPage = 1) => {
+    console.log('fetchHistory called with page:', toPage); // 调试信息
     try {
       setLoadingHistory(true);
       const params = new URLSearchParams({ page: String(toPage), limit: String(limit) });
       // 若存在 token 则一并传递；否则依赖后端会话中的 userId
       if (token) params.set('token', token);
-      const res = await fetch(`${apiBase}/api/librechat/history?${params.toString()}`, { credentials: 'include' });
+      const url = `${apiBase}/api/librechat/history?${params.toString()}`;
+      console.log('Fetching history from:', url); // 调试信息
+      const res = await fetch(url, { credentials: 'include' });
       if (res.ok) {
         const data: any = await res.json();
+        console.log('History API response:', data); // 调试信息
         // 后端返回的消息字段为 message/timestamp/role，这里映射到前端使用的字段
         const mapped: HistoryResponse = {
           history: Array.isArray(data.history)
-            ? data.history.map((m: any) => ({
-              id: m.id,
-              role: m.role || (m.token ? (m.message ? 'user' : 'assistant') : 'user'),
-              content: m.message,
-              createdAt: m.timestamp
-            }))
+            ? data.history.map((m: any) => {
+                console.log('Processing message:', m); // 调试信息
+                return {
+                  id: m.id || `msg_${Date.now()}_${Math.random()}`, // 确保有ID
+                  role: m.role || 'user', // 简化role判断逻辑
+                  content: m.message || m.content || '',
+                  createdAt: m.timestamp || m.createdAt
+                };
+              })
             : [],
           total: data.total || 0,
           currentPage: data.currentPage || toPage,
           totalPages: data.totalPages || 1
         };
+        console.log('Mapped history:', mapped); // 调试信息
         setHistory(mapped);
         setPage(toPage);
+        console.log('History updated successfully'); // 调试信息
+        if (mapped.history.length > 0) {
+          setNotification({ type: 'success', message: `已加载 ${mapped.history.length} 条历史记录` });
+        } else {
+          setNotification({ type: 'info', message: '暂无历史记录' });
+        }
       } else {
+        console.error('History API error:', res.status, res.statusText); // 调试信息
         setHistory(null);
+        setNotification({ type: 'error', message: '加载历史记录失败' });
       }
     } catch (e) {
+      console.error('History fetch error:', e); // 调试信息
       setHistory(null);
+      setNotification({ type: 'error', message: '加载历史记录失败，请稍后再试' });
     } finally {
       setLoadingHistory(false);
     }
   };
 
-  const handleSend = async () => {
+    const handleSend = async () => {
     setSendError('');
     if (!message.trim()) return;
+    
     // 自动截断超长消息
     let toSend = message;
     if (toSend.length > MAX_MESSAGE_LEN) {
       toSend = toSend.slice(0, MAX_MESSAGE_LEN);
       setSendError(`超出部分已自动截断（最大 ${MAX_MESSAGE_LEN} 字符）`);
+      setNotification({ type: 'warning', message: `消息过长，已自动截断（最大 ${MAX_MESSAGE_LEN} 字符）` });
     }
+    
     try {
       setSending(true);
       setStreaming(true);
       setStreamContent('');
+      setNotification({ type: 'info', message: '正在发送消息...' });
+      
+      console.log('Sending message:', toSend); // 调试信息
       const res = await fetch(`${apiBase}/api/librechat/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -446,9 +550,15 @@ const LibreChatPage: React.FC = () => {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
+      console.log('Send response:', data); // 调试信息
       const txtRaw: string = (data && typeof data.response === 'string') ? data.response : '';
       const txt = sanitizeAssistantText(txtRaw);
       setMessage('');
+      console.log('Message sent, waiting for response...'); // 调试信息
+      if (txt) {
+        console.log('AI response received:', txt.substring(0, 100) + '...'); // 调试信息
+        setNotification({ type: 'success', message: 'AI回复已收到，正在生成...' });
+      }
       // 简单的前端流式展示：按字符逐步显示
       if (txt) {
         let i = 0;
@@ -458,19 +568,30 @@ const LibreChatPage: React.FC = () => {
             setStreamContent(txt);
             clearInterval(interval);
             setStreaming(false);
-            // 完成后刷新历史
-            fetchHistory(page);
+            // 完成后刷新历史，确保刷新第一页
+            console.log('Streaming completed, refreshing history...'); // 调试信息
+            setNotification({ type: 'success', message: '对话完成，正在刷新历史记录...' });
+            setTimeout(() => {
+              console.log('Delayed refresh triggered...'); // 调试信息
+              fetchHistory(1);
+            }, 2000); // 增加延迟到2秒确保后端数据已保存
           } else {
             setStreamContent(txt.slice(0, i));
           }
         }, 30);
       } else {
         setStreaming(false);
-        await fetchHistory(page);
+        setNotification({ type: 'warning', message: 'AI未返回有效回复，正在刷新历史记录...' });
+        // 即使没有回复内容，也要刷新历史记录
+        setTimeout(() => {
+          fetchHistory(1);
+        }, 500);
       }
-    } catch (e) {
+              } catch (e) {
+      console.error('Send message error:', e); // 调试信息
       setSendError('发送失败，请稍后再试');
       setStreaming(false);
+      setNotification({ type: 'error', message: '发送消息失败，请稍后再试' });
     } finally {
       setSending(false);
     }
@@ -478,6 +599,7 @@ const LibreChatPage: React.FC = () => {
 
   const handleClear = async () => {
     try {
+      setNotification({ type: 'info', message: '正在清除历史记录...' });
       const res = await fetch(`${apiBase}/api/librechat/clear`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
@@ -485,22 +607,35 @@ const LibreChatPage: React.FC = () => {
         body: JSON.stringify(token ? { token } : {})
       });
       if (res.ok) {
+        setNotification({ type: 'success', message: '历史记录已清除' });
         await fetchHistory(1);
+      } else {
+        setNotification({ type: 'error', message: '清除历史记录失败' });
       }
     } catch (e) {
-      // ignore
+      setNotification({ type: 'error', message: '清除历史记录失败，请稍后再试' });
     }
   };
 
   useEffect(() => {
     fetchLatest();
-    if (!token) ensureGuestToken();
+    fetchHistory(1); // 立即加载历史记录
+    if (!token) {
+      ensureGuestToken();
+      setNotification({ type: 'info', message: '已切换到游客模式' });
+    }
   }, []);
 
   useEffect(() => {
     // token 变更时刷新；无 token 也尝试从后端（会话）拉取
+    console.log('useEffect triggered, token:', token); // 调试信息
     fetchHistory(1);
-    if (!token) ensureGuestToken();
+    if (!token) {
+      ensureGuestToken();
+      setNotification({ type: 'info', message: '已切换到游客模式' });
+    } else {
+      setNotification({ type: 'success', message: '已切换到用户模式' });
+    }
   }, [token]);
 
   // 打开/关闭单次实时对话框
@@ -521,18 +656,26 @@ const LibreChatPage: React.FC = () => {
   // 对话框内发送（实时，支持上下文）
   const handleRealtimeSend = async () => {
     setRtError('');
-    if (rtSending || rtStreaming) return; // 避免并发发送
-    if (!rtMessage.trim()) return;
+    if (rtSending || rtStreaming) {
+      setNotification({ type: 'warning', message: '正在处理中，请稍候...' });
+      return; // 避免并发发送
+    }
+    if (!rtMessage.trim()) {
+      setNotification({ type: 'warning', message: '请输入消息内容' });
+      return;
+    }
     // 自动截断超长消息
     let toSend = rtMessage;
     if (toSend.length > MAX_MESSAGE_LEN) {
       toSend = toSend.slice(0, MAX_MESSAGE_LEN);
       setRtError(`超出部分已自动截断（最大 ${MAX_MESSAGE_LEN} 字符）`);
+      setNotification({ type: 'warning', message: `消息过长，已自动截断（最大 ${MAX_MESSAGE_LEN} 字符）` });
     }
     try {
       setRtSending(true);
       setRtStreaming(true);
       setRtStreamContent('');
+      setNotification({ type: 'info', message: '正在发送消息...' });
       // 先把用户消息加入对话框内的本地上下文
       const userEntry: HistoryItem = { role: 'user', content: rtMessage };
       setRtHistory((prev) => [...prev, userEntry]);
@@ -577,6 +720,12 @@ const LibreChatPage: React.FC = () => {
           clearInterval(interval);
           setRtStreaming(false);
           setRtSending(false);
+          // 实时对话框发送完成后也刷新历史记录
+          console.log('Realtime dialog completed, refreshing history...'); // 调试信息
+          setNotification({ type: 'success', message: '实时对话完成，正在刷新历史记录...' });
+          setTimeout(() => {
+            fetchHistory(1);
+          }, 500);
         } else {
           const partial = txt.slice(0, i);
           setRtStreamContent(partial);
@@ -593,6 +742,7 @@ const LibreChatPage: React.FC = () => {
       setRtError('发送失败，请稍后再试');
       setRtStreaming(false);
       setRtSending(false);
+      setNotification({ type: 'error', message: '实时对话发送失败，请稍后再试' });
     }
   };
 
@@ -903,27 +1053,32 @@ const LibreChatPage: React.FC = () => {
           </div>
         ) : (
           <div className="max-h-[60vh] overflow-auto pr-1">
-                          {streaming && (
-                <motion.div 
-                  className="mb-4 p-4 border border-gray-200 rounded-lg bg-white"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
-                      <FaRobot className="w-4 h-4 text-white" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium text-green-700">助手</span>
-                      <span className="text-xs text-gray-500">生成中...</span>
-                    </div>
+            {streaming && (
+              <motion.div 
+                className="mb-4 p-4 border border-gray-200 rounded-lg bg-white"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
+                    <FaRobot className="w-4 h-4 text-white" />
                   </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-green-700">助手</span>
+                    <span className="text-xs text-gray-500">生成中...</span>
+                  </div>
+                </div>
                 <div
                   className="prose prose-sm max-w-none"
                   dangerouslySetInnerHTML={{ __html: renderMarkdown(sanitizeAssistantText(streamContent || '...')) }}
                 />
               </motion.div>
             )}
+            {/* 调试信息 */}
+            <div className="text-xs text-gray-500 mb-2">
+              历史记录状态: {history ? `已加载 (${history.history.length} 条)` : '未加载'} | 
+              加载状态: {loadingHistory ? '加载中' : '已完成'}
+            </div>
             {history && history.history.length > 0 ? (
               <div className="space-y-4">
                 {history.history.map((m: HistoryItem, idx: number) => (
@@ -1022,7 +1177,7 @@ const LibreChatPage: React.FC = () => {
             ) : (
               <div className="text-center py-12 text-gray-500">
                 <FaHistory className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                暂无历史记录
+                {loadingHistory ? '加载中...' : '暂无历史记录'}
               </div>
             )}
           </div>
@@ -1033,7 +1188,10 @@ const LibreChatPage: React.FC = () => {
             <motion.button
               className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition flex items-center gap-2"
               disabled={page <= 1}
-              onClick={() => fetchHistory(Math.max(1, page - 1))}
+              onClick={() => {
+                setNotification({ type: 'info', message: '正在加载上一页...' });
+                fetchHistory(Math.max(1, page - 1));
+              }}
               whileTap={{ scale: 0.95 }}
             >
               <FaChevronLeft className="text-xs" />
@@ -1042,7 +1200,10 @@ const LibreChatPage: React.FC = () => {
             <motion.button
               className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition flex items-center gap-2"
               disabled={history ? page >= history.totalPages : true}
-              onClick={() => fetchHistory(page + 1)}
+              onClick={() => {
+                setNotification({ type: 'info', message: '正在加载下一页...' });
+                fetchHistory(page + 1);
+              }}
               whileTap={{ scale: 0.95 }}
             >
               下一页
@@ -1080,13 +1241,13 @@ const LibreChatPage: React.FC = () => {
               <div className="space-y-4">
                 <div className="grid gap-3 sm:grid-cols-3">
                   <input
-                    className="border-2 border-gray-200 rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                    className="border-2 border-gray-200 rounded-lg px-4 py-3 w-full focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
                     placeholder="请输入 Token"
                     value={token}
                     onChange={(e) => setToken(e.target.value)}
                   />
                   <input
-                    className="border-2 border-gray-200 rounded-lg px-3 py-2 w-full sm:col-span-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                    className="border-2 border-gray-200 rounded-lg px-4 py-3 w-full sm:col-span-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
                     placeholder="请输入消息（支持上下文）"
                     value={rtMessage}
                     maxLength={MAX_MESSAGE_LEN}
@@ -1185,6 +1346,34 @@ const LibreChatPage: React.FC = () => {
           </div>
         )}
       </AnimatePresence>
+
+      {/* 自定义弹窗组件 */}
+      <AlertModal
+        open={alertModal.open}
+        onClose={() => setAlertModal({ open: false, message: '' })}
+        title={alertModal.title}
+        message={alertModal.message}
+        type={alertModal.type}
+      />
+      
+      <ConfirmModal
+        open={confirmModal.open}
+        onClose={() => setConfirmModal({ open: false, message: '', onConfirm: () => {} })}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type={confirmModal.type}
+      />
+      
+      <PromptModal
+        open={promptModal.open}
+        onClose={() => setPromptModal({ open: false, message: '', onConfirm: () => {} })}
+        onConfirm={promptModal.onConfirm}
+        title={promptModal.title}
+        message={promptModal.message}
+        placeholder={promptModal.placeholder}
+        defaultValue={promptModal.defaultValue}
+      />
     </motion.div>
   );
 };

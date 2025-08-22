@@ -1,22 +1,32 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaExclamationTriangle, FaTimes } from 'react-icons/fa';
+import { FaExclamationTriangle, FaCheck, FaTimes } from 'react-icons/fa';
 
-interface AlertModalProps {
+interface ConfirmModalProps {
   open: boolean;
   onClose: () => void;
+  onConfirm: () => void;
   title?: string;
   message: string;
-  type?: 'warning' | 'danger' | 'info' | 'success';
+  confirmText?: string;
+  cancelText?: string;
+  type?: 'warning' | 'danger' | 'info';
 }
 
-const AlertModal: React.FC<AlertModalProps> = ({ open, onClose, title, message, type = 'warning' }) => {
+const ConfirmModal: React.FC<ConfirmModalProps> = ({ 
+  open, 
+  onClose, 
+  onConfirm, 
+  title, 
+  message, 
+  confirmText = '确定', 
+  cancelText = '取消',
+  type = 'warning'
+}) => {
   const getIcon = () => {
     switch (type) {
       case 'danger':
         return <FaExclamationTriangle className="w-8 h-8 text-red-500" />;
-      case 'success':
-        return <FaTimes className="w-8 h-8 text-green-500" />;
       case 'info':
         return <FaExclamationTriangle className="w-8 h-8 text-blue-500" />;
       default:
@@ -24,12 +34,10 @@ const AlertModal: React.FC<AlertModalProps> = ({ open, onClose, title, message, 
     }
   };
 
-  const getButtonClass = () => {
+  const getConfirmButtonClass = () => {
     switch (type) {
       case 'danger':
         return 'bg-red-500 hover:bg-red-600 text-white';
-      case 'success':
-        return 'bg-green-500 hover:bg-green-600 text-white';
       case 'info':
         return 'bg-blue-500 hover:bg-blue-600 text-white';
       default:
@@ -60,19 +68,30 @@ const AlertModal: React.FC<AlertModalProps> = ({ open, onClose, title, message, 
               {getIcon()}
             </div>
             <h2 className="text-lg font-semibold text-gray-800 mb-3 text-center">
-              {title || '温馨提示'}
+              {title || '确认操作'}
             </h2>
             <div className="text-gray-700 mb-6 text-center leading-relaxed">
               {message}
             </div>
-            <div className="flex justify-center">
+            <div className="flex gap-3 justify-center">
               <motion.button
                 onClick={onClose}
-                className={`px-6 py-3 rounded-lg transition-colors font-medium flex items-center gap-2 ${getButtonClass()}`}
+                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center gap-2"
                 whileTap={{ scale: 0.95 }}
               >
                 <FaTimes className="w-4 h-4" />
-                知道了
+                {cancelText}
+              </motion.button>
+              <motion.button
+                onClick={() => {
+                  onConfirm();
+                  onClose();
+                }}
+                className={`px-6 py-3 rounded-lg transition-colors font-medium flex items-center gap-2 ${getConfirmButtonClass()}`}
+                whileTap={{ scale: 0.95 }}
+              >
+                <FaCheck className="w-4 h-4" />
+                {confirmText}
               </motion.button>
             </div>
           </motion.div>
@@ -82,4 +101,4 @@ const AlertModal: React.FC<AlertModalProps> = ({ open, onClose, title, message, 
   );
 };
 
-export default AlertModal; 
+export default ConfirmModal; 
