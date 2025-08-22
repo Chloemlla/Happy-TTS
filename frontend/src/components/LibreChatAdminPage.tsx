@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { listUsers, getUserHistory, deleteUser, batchDeleteUsers, deleteAllUsers, AdminUserSummary, AdminUserHistoryItem } from '../api/librechatAdmin';
 import { useNotification } from './Notification';
+import { UnifiedLoadingSpinner } from './LoadingSpinner';
 import {
   FaUsers,
   FaSearch,
@@ -187,7 +188,14 @@ const MarkdownRenderer: React.FC<{ content: string; className?: string; onCopy?:
       // 先保护块级数学公式
       processedText = processedText.replace(/\$\$([\s\S]*?)\$\$/g, (match, content) => {
         // 检查内容是否看起来像真正的数学公式
-        if (content.trim().length > 0 && !content.includes('replace(') && !content.includes('\\n{3,}')) {
+        const trimmedContent = content.trim();
+        if (trimmedContent.length > 0 && 
+            !content.includes('replace(') && 
+            !content.includes('\\n{3,}') &&
+            !content.includes('\\n') &&
+            !/[\u4e00-\u9fff]/.test(content) && // 不包含中文字符
+            !content.includes('\\\\') && // 不包含转义字符
+            /^[a-zA-Z0-9\s+\-*/()\[\]{}=.,;:!@#$%^&|<>~`'"_\\]+$/.test(trimmedContent)) { // 只包含数学符号
           mathBlocks.push(match);
           return `__MATH_BLOCK_${mathBlocks.length - 1}__`;
         }
@@ -197,7 +205,14 @@ const MarkdownRenderer: React.FC<{ content: string; className?: string; onCopy?:
       // 再保护行内数学公式
       processedText = processedText.replace(/\$([^$\n]*?)\$/g, (match, content) => {
         // 检查内容是否看起来像真正的数学公式
-        if (content.trim().length > 0 && !content.includes('replace(') && !content.includes('\\n{3,}')) {
+        const trimmedContent = content.trim();
+        if (trimmedContent.length > 0 && 
+            !content.includes('replace(') && 
+            !content.includes('\\n{3,}') &&
+            !content.includes('\\n') &&
+            !/[\u4e00-\u9fff]/.test(content) && // 不包含中文字符
+            !content.includes('\\\\') && // 不包含转义字符
+            /^[a-zA-Z0-9\s+\-*/()\[\]{}=.,;:!@#$%^&|<>~`'"_\\]+$/.test(trimmedContent)) { // 只包含数学符号
           mathBlocks.push(match);
           return `__MATH_INLINE_${mathBlocks.length - 1}__`;
         }

@@ -36,6 +36,7 @@ import { useNotification } from './Notification';
 import AlertModal from './AlertModal';
 import ConfirmModal from './ConfirmModal';
 import PromptModal from './PromptModal';
+import { UnifiedLoadingSpinner } from './LoadingSpinner';
 import { FaCopy as FaCopyIcon } from 'react-icons/fa';
 import mermaid from 'mermaid';
 
@@ -178,7 +179,14 @@ const EnhancedMarkdownRenderer: React.FC<{
       // 先保护块级数学公式
       processedText = processedText.replace(/\$\$([\s\S]*?)\$\$/g, (match, content) => {
         // 检查内容是否看起来像真正的数学公式
-        if (content.trim().length > 0 && !content.includes('replace(') && !content.includes('\\n{3,}')) {
+        const trimmedContent = content.trim();
+        if (trimmedContent.length > 0 && 
+            !content.includes('replace(') && 
+            !content.includes('\\n{3,}') &&
+            !content.includes('\\n') &&
+            !/[\u4e00-\u9fff]/.test(content) && // 不包含中文字符
+            !content.includes('\\\\') && // 不包含转义字符
+            /^[a-zA-Z0-9\s+\-*/()\[\]{}=.,;:!@#$%^&|<>~`'"_\\]+$/.test(trimmedContent)) { // 只包含数学符号
           mathBlocks.push(match);
           return `__MATH_BLOCK_${mathBlocks.length - 1}__`;
         }
@@ -188,7 +196,14 @@ const EnhancedMarkdownRenderer: React.FC<{
       // 再保护行内数学公式
       processedText = processedText.replace(/\$([^$\n]*?)\$/g, (match, content) => {
         // 检查内容是否看起来像真正的数学公式
-        if (content.trim().length > 0 && !content.includes('replace(') && !content.includes('\\n{3,}')) {
+        const trimmedContent = content.trim();
+        if (trimmedContent.length > 0 && 
+            !content.includes('replace(') && 
+            !content.includes('\\n{3,}') &&
+            !content.includes('\\n') &&
+            !/[\u4e00-\u9fff]/.test(content) && // 不包含中文字符
+            !content.includes('\\\\') && // 不包含转义字符
+            /^[a-zA-Z0-9\s+\-*/()\[\]{}=.,;:!@#$%^&|<>~`'"_\\]+$/.test(trimmedContent)) { // 只包含数学符号
           mathBlocks.push(match);
           return `__MATH_INLINE_${mathBlocks.length - 1}__`;
         }
@@ -783,6 +798,9 @@ const EnhancedMarkdownRenderer: React.FC<{
           
           const wrapper = document.createElement('div');
           wrapper.className = 'mermaid-diagram my-2';
+          wrapper.style.overflow = 'hidden';
+          wrapper.style.borderRadius = '0.5rem';
+          wrapper.style.maxWidth = '100%';
           wrapper.setAttribute('contenteditable', 'false');
           wrapper.setAttribute('aria-hidden', 'false');
           wrapper.setAttribute('data-mermaid-id', id); // 添加唯一标识
@@ -794,6 +812,8 @@ const EnhancedMarkdownRenderer: React.FC<{
           img.alt = 'mermaid diagram';
           img.style.maxWidth = '100%';
           img.style.height = 'auto';
+          img.style.overflow = 'hidden';
+          img.style.borderRadius = '0.5rem';
           img.setAttribute('draggable', 'false');
           img.setAttribute('aria-hidden', 'false');
           const dataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(safeSvg);
@@ -1056,7 +1076,8 @@ const EnhancedMarkdownRenderer: React.FC<{
                      [&>table>thead>tr>th]:border [&>table>thead>tr>th]:border-gray-300 [&>table>thead>tr>th]:p-2 [&>table>thead>tr>th]:text-left [&>table>thead>tr>th]:font-semibold
                      [&>table>tbody>tr>td]:border [&>table>tbody>tr>td]:border-gray-300 [&>table>tbody>tr>td]:p-2
                      [&>table>tbody>tr:nth-child(even)]:bg-gray-50
-                     [&>img]:rounded [&>img]:shadow-sm [&>img]:max-w-full [&>img]:h-auto
+                     [&>img]:rounded [&>img]:shadow-sm [&>img]:max-w-full [&>img]:h-auto [&>img]:overflow-hidden
+                     [&_.mermaid-diagram]:overflow-hidden [&_.mermaid-diagram]:rounded-lg [&_.mermaid-diagram]:max-w-full
                      [&>hr]:border-gray-300 [&>hr]:my-4
                      [&>details]:border [&>details]:border-gray-300 [&>details]:rounded [&>details]:p-3 [&>details]:mb-2
                      [&>summary]:cursor-pointer [&>summary]:font-medium [&>summary]:text-gray-800
@@ -2120,13 +2141,11 @@ const LibreChatPage: React.FC = () => {
           LibreChat 最新镜像
         </h3>
         {loadingLatest ? (
-          <div className="text-center py-8 text-gray-500">
-            <svg className="animate-spin h-8 w-8 mx-auto mb-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            加载中...
-          </div>
+          <UnifiedLoadingSpinner 
+            size="md" 
+            text="正在获取最新镜像信息..." 
+            className="py-8"
+          />
         ) : latest ? (
           <div className="space-y-3">
             {latest.update_time && (
@@ -2393,13 +2412,11 @@ const LibreChatPage: React.FC = () => {
           </div>
         </div>
         {loadingHistory ? (
-          <div className="text-center py-8 text-gray-500">
-            <svg className="animate-spin h-8 w-8 mx-auto mb-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            加载中...
-          </div>
+          <UnifiedLoadingSpinner 
+            size="md" 
+            text="正在加载聊天历史..." 
+            className="py-8"
+          />
         ) : (
           <div className="max-h-[60vh] overflow-auto pr-1">
                           {streaming && (
