@@ -15,18 +15,26 @@ import {
   FaClock,
   FaEnvelope,
   FaCode,
-  FaEyeSlash
+  FaEyeSlash,
+  FaCopy
 } from 'react-icons/fa';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
+import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import jsonLang from 'react-syntax-highlighter/dist/esm/languages/prism/json';
+import jsLang from 'react-syntax-highlighter/dist/esm/languages/prism/javascript';
 import mermaid from 'mermaid';
+
+SyntaxHighlighter.registerLanguage('json', jsonLang);
+SyntaxHighlighter.registerLanguage('javascript', jsLang);
 
 const PAGE_SIZES = [10, 20, 50];
 
 const formatTs = (ts?: string | null) => ts ? new Date(ts).toLocaleString() : '';
 
 // Markdown渲染组件
-const MarkdownRenderer: React.FC<{ content: string; className?: string }> = ({ content, className = '' }) => {
+const MarkdownRenderer: React.FC<{ content: string; className?: string; onCopy?: (success: boolean) => void }> = ({ content, className = '', onCopy }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Mermaid 初始化（轻量版，不自动修复）
@@ -195,6 +203,97 @@ const MarkdownRenderer: React.FC<{ content: string; className?: string }> = ({ c
     }
   };
 
+  // 处理代码块高亮的函数
+  const processCodeBlocks = (htmlContent: string): React.ReactNode[] => {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = htmlContent;
+    
+    let currentIndex = 0;
+    
+    // 将HTML字符串转换为React节点数组
+    const walkNodes = (node: Node): React.ReactNode[] => {
+      const nodes: React.ReactNode[] = [];
+      
+      for (let i = 0; i < node.childNodes.length; i++) {
+        const child = node.childNodes[i];
+        
+        if (child.nodeType === Node.ELEMENT_NODE) {
+          const element = child as Element;
+          
+          if (element.tagName === 'PRE' && element.querySelector('code')) {
+            // 这是一个代码块，使用 SyntaxHighlighter
+            const codeElement = element.querySelector('code');
+            if (codeElement) {
+              const code = codeElement.textContent || '';
+              const className = codeElement.className || '';
+              const langMatch = className.match(/language-(\w+)/);
+              const language = langMatch ? langMatch[1] : 'javascript';
+              
+              nodes.push(
+                <div key={`code-wrapper-${currentIndex++}`} className="relative group">
+                  <SyntaxHighlighter
+                    language={language}
+                    style={vscDarkPlus}
+                    wrapLongLines
+                    customStyle={{ 
+                      background: '#1e1e1e', 
+                      borderRadius: '0.5rem', 
+                      margin: '0.5rem 0',
+                      fontSize: '0.875rem'
+                    }}
+                  >
+                    {code}
+                  </SyntaxHighlighter>
+                  <button
+                    className="absolute top-2 right-2 p-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white rounded opacity-0 group-hover:opacity-100 transition-all duration-200"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(code);
+                        onCopy?.(true);
+                      } catch (err) {
+                        onCopy?.(false);
+                      }
+                    }}
+                    title="复制代码"
+                  >
+                    <FaCopy className="w-3 h-3" />
+                  </button>
+                </div>
+              );
+            }
+          } else {
+            // 普通元素，递归处理
+            const childNodes = walkNodes(child);
+            if (childNodes.length > 0) {
+              const ReactElement = React.createElement(
+                element.tagName.toLowerCase(),
+                { 
+                  key: `element-${currentIndex++}`,
+                  className: element.className,
+                  ...Object.fromEntries(
+                    Array.from(element.attributes).map(attr => [attr.name, attr.value])
+                  )
+                },
+                ...childNodes
+              );
+              nodes.push(ReactElement);
+            }
+          }
+        } else if (child.nodeType === Node.TEXT_NODE) {
+          // 文本节点
+          const text = child.textContent;
+          if (text && text.trim()) {
+            nodes.push(text);
+          }
+        }
+      }
+      
+      return nodes;
+    };
+    
+    return walkNodes(tempDiv);
+  };
+
   // 检测是否包含markdown语法
   const hasMarkdown = /[#*`\[\]()>|~=]/.test(content) || 
                      /^[-*+]\s/.test(content) || 
@@ -236,12 +335,11 @@ const MarkdownRenderer: React.FC<{ content: string; className?: string }> = ({ c
           </pre>
         ) : (
           <div 
-            className="prose prose-sm max-w-none p-3 rounded border overflow-x-auto prose-headings:text-gray-800 prose-p:text-gray-700 prose-strong:text-gray-900 prose-code:text-gray-800 prose-code:bg-gray-200 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-800 prose-pre:text-gray-100 prose-blockquote:border-l-4 prose-blockquote:border-gray-300 prose-blockquote:pl-4 prose-blockquote:italic prose-ul:list-disc prose-ol:list-decimal prose-li:marker:text-gray-500 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&>h1]:text-xl [&>h1]:font-bold [&>h1]:mb-3 [&>h2]:text-lg [&>h2]:font-semibold [&>h2]:mb-2 [&>h3]:text-base [&>h3]:font-medium [&>h3]:mb-2 [&>p]:mb-2 [&>ul]:mb-2 [&>ol]:mb-2 [&>li]:mb-1 [&>code]:font-mono [&>pre]:p-3 [&>pre]:rounded [&>blockquote]:border-l-4 [&>blockquote]:border-gray-300 [&>blockquote]:pl-4 [&>blockquote]:italic [&>a]:text-blue-600 [&>a]:underline [&>a]:hover:text-blue-800"
-            dangerouslySetInnerHTML={{ 
-              __html: renderMarkdown(content) 
-            }}
+            className="prose prose-sm max-w-none p-3 rounded border overflow-x-auto prose-headings:text-gray-800 prose-p:text-gray-700 prose-strong:text-gray-900 prose-code:text-gray-800 prose-code:bg-gray-200 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-blockquote:border-l-4 prose-blockquote:border-gray-300 prose-blockquote:pl-4 prose-blockquote:italic prose-ul:list-disc prose-ol:list-decimal prose-li:marker:text-gray-500 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&>h1]:text-xl [&>h1]:font-bold [&>h1]:mb-3 [&>h2]:text-lg [&>h2]:font-semibold [&>h2]:mb-2 [&>h3]:text-base [&>h3]:font-medium [&>h3]:mb-2 [&>p]:mb-2 [&>ul]:mb-2 [&>ol]:mb-2 [&>li]:mb-1 [&>code]:font-mono [&>blockquote]:border-l-4 [&>blockquote]:border-gray-300 [&>blockquote]:pl-4 [&>blockquote]:italic [&>a]:text-blue-600 [&>a]:underline [&>a]:hover:text-blue-800"
             ref={containerRef}
-          />
+          >
+            {processCodeBlocks(renderMarkdown(content))}
+          </div>
         )}
       </div>
     </div>
@@ -793,6 +891,13 @@ const LibreChatAdminPage: React.FC = () => {
                         <MarkdownRenderer 
                           content={m.message} 
                           className="bg-gray-50 p-3 rounded border"
+                          onCopy={(success) => {
+                            if (success) {
+                              setNotification({ type: 'success', message: '代码已复制' });
+                            } else {
+                              setNotification({ type: 'error', message: '复制失败' });
+                            }
+                          }}
                         />
                       </div>
                     </motion.div>

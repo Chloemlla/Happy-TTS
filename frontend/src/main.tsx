@@ -6,11 +6,8 @@ import './index.css'
 import { integrityChecker } from './utils/integrityCheck'
 import { disableSelection } from './utils/disableSelection'
 import CryptoJS from 'crypto-js'
-import { initTheme } from './utils/theme'
 
 // AES-256 解密函数（前端版本）
-// 在任何渲染之前初始化主题，避免闪烁
-try { initTheme(); } catch {}
 function decryptAES256(encryptedData: string, iv: string, key: string): string {
   try {
     const keyHash = CryptoJS.SHA256(key);

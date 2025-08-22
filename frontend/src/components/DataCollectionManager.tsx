@@ -738,25 +738,57 @@ const DataCollectionManager: React.FC = () => {
                                 }
 
                                 return (
+                                    <div className="relative group">
+                                        <SyntaxHighlighter
+                                            language={lang}
+                                            style={vscDarkPlus}
+                                            wrapLongLines
+                                            customStyle={{ background: '#1e1e1e', borderRadius: '0.5rem', maxHeight: '70vh' }}
+                                        >
+                                            {txt}
+                                        </SyntaxHighlighter>
+                                        <button
+                                            className="absolute top-2 right-2 p-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white rounded opacity-0 group-hover:opacity-100 transition-all duration-200"
+                                            onClick={async () => {
+                                                try {
+                                                    await navigator.clipboard.writeText(txt);
+                                                    setNotification({ type: 'success', message: '代码已复制' });
+                                                } catch (err) {
+                                                    setNotification({ type: 'error', message: '复制失败' });
+                                                }
+                                            }}
+                                            title="复制代码"
+                                        >
+                                            <FaCopy className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                );
+                            }
+                            return (
+                                <div className="relative group">
                                     <SyntaxHighlighter
-                                        language={lang}
+                                        language={'json'}
                                         style={vscDarkPlus}
                                         wrapLongLines
                                         customStyle={{ background: '#1e1e1e', borderRadius: '0.5rem', maxHeight: '70vh' }}
                                     >
-                                        {txt}
+                                        {jsonPretty(viewItem)}
                                     </SyntaxHighlighter>
-                                );
-                            }
-                            return (
-                                <SyntaxHighlighter
-                                    language={'json'}
-                                    style={vscDarkPlus}
-                                    wrapLongLines
-                                    customStyle={{ background: '#1e1e1e', borderRadius: '0.5rem', maxHeight: '70vh' }}
-                                >
-                                    {jsonPretty(viewItem)}
-                                </SyntaxHighlighter>
+                                    <button
+                                        className="absolute top-2 right-2 p-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white rounded opacity-0 group-hover:opacity-100 transition-all duration-200"
+                                        onClick={async () => {
+                                            try {
+                                                await navigator.clipboard.writeText(jsonPretty(viewItem));
+                                                setNotification({ type: 'success', message: '代码已复制' });
+                                            } catch (err) {
+                                                setNotification({ type: 'error', message: '复制失败' });
+                                            }
+                                        }}
+                                        title="复制代码"
+                                    >
+                                        <FaCopy className="w-3 h-3" />
+                                    </button>
+                                </div>
                             );
                         })()}
                     </motion.div>
@@ -825,9 +857,25 @@ const DataCollectionManager: React.FC = () => {
                       </motion.button>
                     </div>
                   </div>
-                  <SyntaxHighlighter language={'json'} style={vscDarkPlus} wrapLongLines customStyle={{ background: '#1e1e1e', borderRadius: '0.5rem', maxHeight: '70vh' }}>
-                    {JSON.stringify(batchView, null, 2)}
-                  </SyntaxHighlighter>
+                  <div className="relative group">
+                    <SyntaxHighlighter language={'json'} style={vscDarkPlus} wrapLongLines customStyle={{ background: '#1e1e1e', borderRadius: '0.5rem', maxHeight: '70vh' }}>
+                      {JSON.stringify(batchView, null, 2)}
+                    </SyntaxHighlighter>
+                    <button
+                      className="absolute top-2 right-2 p-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white rounded opacity-0 group-hover:opacity-100 transition-all duration-200"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(JSON.stringify(batchView, null, 2));
+                          setNotification({ type: 'success', message: '代码已复制' });
+                        } catch (err) {
+                          setNotification({ type: 'error', message: '复制失败' });
+                        }
+                      }}
+                      title="复制代码"
+                    >
+                      <FaCopy className="w-3 h-3" />
+                    </button>
+                  </div>
                 </motion.div>
               </motion.div>
             )}

@@ -766,13 +766,17 @@ class DebugConsoleService {
 
   /**
    * 根据条件删除访问日志（管理员接口）
+   * 现在用于删除选中的日志
    */
-  public async deleteAccessLogsByFilter(filters: {
-    ip?: string;
-    success?: boolean;
-    userId?: string;
-    startDate?: Date;
-    endDate?: Date;
+  public async deleteAccessLogsByFilter(data: {
+    logIds?: string[];
+    filters?: {
+      ip?: string;
+      success?: boolean;
+      userId?: string;
+      startDate?: string | Date;
+      endDate?: string | Date;
+    };
   }): Promise<{
     success: boolean;
     deletedCount: number;
@@ -780,63 +784,112 @@ class DebugConsoleService {
   }> {
     try {
       if (mongoose.connection.readyState !== 1) {
-        logger.warn('MongoDB 未连接，无法根据条件删除访问日志');
+        logger.warn('MongoDB 未连接，无法删除访问日志');
         return { success: false, deletedCount: 0, error: 'MongoDB 未连接' };
       }
 
-      const query: any = {};
-      
-      // 仅允许严格等值匹配，拒绝非法过滤条件
-      if (filters.ip) {
-        const ipStr = String(filters.ip).trim();
-        if (!isLikelyIPv4(ipStr)) {
-          return { success: false, deletedCount: 0, error: '非法IP过滤条件' };
+      // 优先处理选中的日志ID
+      if (data.logIds && Array.isArray(data.logIds) && data.logIds.length > 0) {
+        const validIds = data.logIds.filter((id) => typeof id === 'string' && isValidObjectId(id));
+        const invalidCount = data.logIds.length - validIds.length;
+
+        if (validIds.length === 0) {
+          return { success: false, deletedCount: 0, error: '无有效的日志ID' };
         }
-        query.ip = ipStr;
+
+        const result = await DebugConsoleAccessLogModel.deleteMany({ _id: { $in: validIds } });
+        
+        logger.info('删除选中的调试控制台访问日志完成', { 
+          totalRequested: data.logIds.length,
+          valid: validIds.length,
+          invalid: invalidCount,
+          deletedCount: result.deletedCount 
+        });
+        
+        return { 
+          success: true, 
+          deletedCount: result.deletedCount 
+        };
       }
-      if (filters.success !== undefined) query.success = !!filters.success;
-      if (filters.userId) {
-        const uid = String(filters.userId).trim();
-        if (!isValidUserId(uid)) {
-          return { success: false, deletedCount: 0, error: '非法userId过滤条件' };
+
+      // 如果没有选中日志，则处理过滤条件（向后兼容）
+      if (data.filters) {
+        const query: any = {};
+        
+        // 仅允许严格等值匹配，拒绝非法过滤条件
+        if (data.filters.ip) {
+          const ipStr = String(data.filters.ip).trim();
+          if (!isLikelyIPv4(ipStr)) {
+            return { success: false, deletedCount: 0, error: '非法IP过滤条件' };
+          }
+          query.ip = ipStr;
         }
-        query.userId = uid;
-      }
-      if (filters.startDate || filters.endDate) {
-        const range: any = {};
-        if (filters.startDate instanceof Date && !isNaN(filters.startDate.getTime())) range.$gte = filters.startDate;
-        if (filters.endDate instanceof Date && !isNaN(filters.endDate.getTime())) range.$lte = filters.endDate;
-        if (range.$gte || range.$lte) {
-          // 限制删除操作的时间范围最大为31天
-          const startMs = range.$gte ? range.$gte.getTime() : 0;
-          const endMs = range.$lte ? range.$lte.getTime() : Date.now();
-          const MAX_RANGE_MS = 31 * 24 * 60 * 60 * 1000;
-          if (endMs >= startMs && (endMs - startMs) <= MAX_RANGE_MS) {
-            query.timestamp = range;
-          } else {
-            return { success: false, deletedCount: 0, error: '时间范围无效或跨度过大（>31天）' };
+        if (data.filters.success !== undefined) query.success = !!data.filters.success;
+        if (data.filters.userId) {
+          const uid = String(data.filters.userId).trim();
+          if (!isValidUserId(uid)) {
+            return { success: false, deletedCount: 0, error: '非法userId过滤条件' };
+          }
+          query.userId = uid;
+        }
+        if (data.filters.startDate || data.filters.endDate) {
+          const range: any = {};
+          
+          // 处理 startDate
+          if (data.filters.startDate) {
+            const startDate = typeof data.filters.startDate === 'string' ? new Date(data.filters.startDate) : data.filters.startDate;
+            if (startDate instanceof Date && !isNaN(startDate.getTime())) {
+              range.$gte = startDate;
+            }
+          }
+          
+          // 处理 endDate
+          if (data.filters.endDate) {
+            const endDate = typeof data.filters.endDate === 'string' ? new Date(data.filters.endDate) : data.filters.endDate;
+            if (endDate instanceof Date && !isNaN(endDate.getTime())) {
+              range.$lte = endDate;
+            }
+          }
+          
+          if (range.$gte || range.$lte) {
+            // 限制删除操作的时间范围最大为31天
+            const startMs = range.$gte ? range.$gte.getTime() : 0;
+            const endMs = range.$lte ? range.$lte.getTime() : Date.now();
+            const MAX_RANGE_MS = 31 * 24 * 60 * 60 * 1000;
+            if (endMs >= startMs && (endMs - startMs) <= MAX_RANGE_MS) {
+              query.timestamp = range;
+            } else {
+              return { success: false, deletedCount: 0, error: '时间范围无效或跨度过大（>31天）' };
+            }
           }
         }
+
+        // 如果没有过滤条件，则删除所有日志（需要特别小心）
+        if (Object.keys(query).length === 0) {
+          logger.warn('根据条件删除访问日志：未提供过滤条件，将删除所有日志', { filters: data.filters });
+        }
+
+        const result = await DebugConsoleAccessLogModel.deleteMany(query);
+        
+        logger.info('根据条件删除调试控制台访问日志完成', { 
+          filters: data.filters, 
+          deletedCount: result.deletedCount 
+        });
+        
+        return { 
+          success: true, 
+          deletedCount: result.deletedCount 
+        };
       }
 
-      // 防止空条件删除
-      if (Object.keys(query).length === 0) {
-        return { success: false, deletedCount: 0, error: '必须提供至少一个有效过滤条件' };
-      }
-
-      const result = await DebugConsoleAccessLogModel.deleteMany(query);
-      
-      logger.info('根据条件删除调试控制台访问日志完成', { 
-        filters, 
-        deletedCount: result.deletedCount 
-      });
-      
-      return { 
-        success: true, 
-        deletedCount: result.deletedCount 
-      };
+      // 如果既没有选中日志也没有过滤条件，返回错误
+      return { success: false, deletedCount: 0, error: '未提供要删除的日志ID或过滤条件' };
     } catch (error) {
-      logger.error('根据条件删除调试控制台访问日志失败:', error);
+      logger.error('删除调试控制台访问日志失败:', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        data
+      });
       return { 
         success: false, 
         deletedCount: 0, 

@@ -44,32 +44,6 @@
   --ifm-transition-slow: 300ms ease;
 }
 
-/* 深色模式配色 */
-[data-theme='dark'] {
-  --ifm-color-primary: #818cf8;
-  --ifm-color-primary-dark: #6366f1;
-  --ifm-color-primary-darker: #4f46e5;
-  --ifm-color-primary-darkest: #4338ca;
-  --ifm-color-primary-light: #a5b4fc;
-  --ifm-color-primary-lighter: #c7d2fe;
-  --ifm-color-primary-lightest: #e0e7ff;
-  
-  --ifm-background-color: #0f172a;
-  --ifm-background-surface-color: #1e293b;
-  --ifm-color-emphasis-100: #1e293b;
-  --ifm-color-emphasis-200: #334155;
-  --ifm-color-emphasis-300: #475569;
-  --ifm-color-emphasis-600: #94a3b8;
-  --ifm-color-emphasis-700: #cbd5e1;
-  --ifm-color-emphasis-800: #e2e8f0;
-  --ifm-color-emphasis-900: #f1f5f9;
-  
-  --docusaurus-highlighted-code-line-bg: rgba(129, 140, 248, 0.2);
-  
-  /* 深色模式代码块样式 */
-  --ifm-code-background: #1e293b;
-  --ifm-code-color: #e2e8f0;
-}
 
 /* 全局样式优化 */
 html {
@@ -95,16 +69,6 @@ body {
   border-radius: 0 !important;
 }
 
-[data-theme='dark'] .navbar {
-  background: rgba(15, 23, 42, 0.8) !important;
-  border-bottom: 1px solid var(--ifm-color-emphasis-200);
-  color: #fff !important;
-  backdrop-filter: blur(10px);
-}
-
-[data-theme='dark'] .navbar * {
-  color: #fff !important;
-}
 
 .navbar__brand {
   font-weight: 700;

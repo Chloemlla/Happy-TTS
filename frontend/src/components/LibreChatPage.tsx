@@ -27,7 +27,10 @@ import { marked } from 'marked';
 import markedKatex from 'marked-katex-extension';
 import 'katex/dist/katex.min.css';
 import DOMPurify from 'dompurify';
-import 'highlight.js/styles/github.css';
+import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import jsonLang from 'react-syntax-highlighter/dist/esm/languages/prism/json';
+import jsLang from 'react-syntax-highlighter/dist/esm/languages/prism/javascript';
 import getApiBaseUrl from '../api';
 import { useNotification } from './Notification';
 import AlertModal from './AlertModal';
@@ -35,6 +38,9 @@ import ConfirmModal from './ConfirmModal';
 import PromptModal from './PromptModal';
 import { FaCopy as FaCopyIcon } from 'react-icons/fa';
 import mermaid from 'mermaid';
+
+SyntaxHighlighter.registerLanguage('json', jsonLang);
+SyntaxHighlighter.registerLanguage('javascript', jsLang);
 
 // 兼容部分模型返回的 <think> 思考内容与孤立 </think> 标签
 function sanitizeAssistantText(text: string): string {
@@ -72,17 +78,18 @@ function normalizeAiOutput(input: string): string {
 // 配置 marked 支持 KaTeX
 marked.use(markedKatex({ nonStandard: true }));
 
-// 代码高亮配置
+// 代码高亮配置 - 使用 react-syntax-highlighter
 marked.setOptions({
   highlight: function(code: string, lang: string) {
-    if (lang && (window as any).hljs) {
-      try {
-        return (window as any).hljs.highlight(code, { language: lang }).value;
-      } catch (err) {
-        console.warn('代码高亮失败:', err);
-      }
+    // 使用 react-syntax-highlighter 进行代码高亮
+    try {
+      // 这里我们将在渲染时使用 SyntaxHighlighter 组件
+      // 暂时返回原始代码，让 SyntaxHighlighter 组件处理高亮
+      return code;
+    } catch (err) {
+      console.warn('代码高亮失败:', err);
+      return code;
     }
-    return code;
   }
 } as any);
 
@@ -92,7 +99,8 @@ const EnhancedMarkdownRenderer: React.FC<{
   className?: string;
   showControls?: boolean;
   onCopy?: (content: string) => void;
-}> = ({ content, className = '', showControls = true, onCopy }) => {
+  onCodeCopy?: (success: boolean) => void;
+}> = ({ content, className = '', showControls = true, onCopy, onCodeCopy }) => {
   const [showRaw, setShowRaw] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isRendered, setIsRendered] = useState(false);
@@ -166,6 +174,99 @@ const EnhancedMarkdownRenderer: React.FC<{
         .replace(/>/g, '&gt;');
       return `<pre class="text-red-500 bg-red-50 p-2 rounded border">${safe}</pre>`;
     }
+  };
+
+  // 处理代码块高亮的函数
+  const processCodeBlocks = (htmlContent: string): React.ReactNode[] => {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = htmlContent;
+    
+    const codeBlocks = tempDiv.querySelectorAll('pre code');
+    const result: React.ReactNode[] = [];
+    let currentIndex = 0;
+    
+    // 将HTML字符串转换为React节点数组
+    const walkNodes = (node: Node): React.ReactNode[] => {
+      const nodes: React.ReactNode[] = [];
+      
+      for (let i = 0; i < node.childNodes.length; i++) {
+        const child = node.childNodes[i];
+        
+        if (child.nodeType === Node.ELEMENT_NODE) {
+          const element = child as Element;
+          
+          if (element.tagName === 'PRE' && element.querySelector('code')) {
+            // 这是一个代码块，使用 SyntaxHighlighter
+            const codeElement = element.querySelector('code');
+            if (codeElement) {
+              const code = codeElement.textContent || '';
+              const className = codeElement.className || '';
+              const langMatch = className.match(/language-(\w+)/);
+              const language = langMatch ? langMatch[1] : 'javascript';
+              
+              nodes.push(
+                <div key={`code-wrapper-${currentIndex++}`} className="relative group">
+                  <SyntaxHighlighter
+                    language={language}
+                    style={vscDarkPlus}
+                    wrapLongLines
+                    customStyle={{ 
+                      background: '#1e1e1e', 
+                      borderRadius: '0.5rem', 
+                      margin: '0.5rem 0',
+                      fontSize: '0.875rem'
+                    }}
+                  >
+                    {code}
+                  </SyntaxHighlighter>
+                  <button
+                    className="absolute top-2 right-2 p-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white rounded opacity-0 group-hover:opacity-100 transition-all duration-200"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(code);
+                        onCodeCopy?.(true);
+                      } catch (err) {
+                        onCodeCopy?.(false);
+                      }
+                    }}
+                    title="复制代码"
+                  >
+                    <FaCopy className="w-3 h-3" />
+                  </button>
+                </div>
+              );
+            }
+          } else {
+            // 普通元素，递归处理
+            const childNodes = walkNodes(child);
+            if (childNodes.length > 0) {
+              const ReactElement = React.createElement(
+                element.tagName.toLowerCase(),
+                { 
+                  key: `element-${currentIndex++}`,
+                  className: element.className,
+                  ...Object.fromEntries(
+                    Array.from(element.attributes).map(attr => [attr.name, attr.value])
+                  )
+                },
+                ...childNodes
+              );
+              nodes.push(ReactElement);
+            }
+          }
+        } else if (child.nodeType === Node.TEXT_NODE) {
+          // 文本节点
+          const text = child.textContent;
+          if (text && text.trim()) {
+            nodes.push(text);
+          }
+        }
+      }
+      
+      return nodes;
+    };
+    
+    return walkNodes(tempDiv);
   };
 
   // Mermaid 初始化（每次渲染前重新初始化以确保多图表支持）
@@ -801,7 +902,6 @@ const EnhancedMarkdownRenderer: React.FC<{
                      prose-strong:text-gray-900 prose-strong:font-semibold
                      prose-em:text-gray-800 prose-em:italic
                      prose-code:text-gray-800 prose-code:bg-gray-200 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:font-mono prose-code:text-sm
-                     prose-pre:bg-gray-800 prose-pre:text-gray-100 prose-pre:p-3 prose-pre:rounded prose-pre:overflow-x-auto
                      prose-blockquote:border-l-4 prose-blockquote:border-gray-300 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-gray-700
                      prose-ul:list-disc prose-ul:pl-5
                      prose-ol:list-decimal prose-ol:pl-5
@@ -838,22 +938,19 @@ const EnhancedMarkdownRenderer: React.FC<{
                      [&>mark]:bg-yellow-200 [&>mark]:px-1 [&>mark]:rounded
                      [&>sub]:text-xs [&>sub]:text-gray-600
                      [&>sup]:text-xs [&>sup]:text-gray-600
-                     [&>.hljs]:bg-transparent [&>.hljs]:text-inherit [&>.hljs]:p-0
-                     [&>pre>.hljs]:bg-gray-800 [&>pre>.hljs]:text-gray-100
+
                      [&>.katex]:text-inherit [&>.katex-display]:text-center [&>.katex-display]:my-4"
             ref={containerRef}
-            dangerouslySetInnerHTML={{ 
-              __html: renderMarkdown(content) 
-            }}
-            onLoad={() => setIsRendered(true)}
-          />
+          >
+            {processCodeBlocks(renderMarkdown(content))}
+          </div>
         )}
       </div>
     </div>
   );
 };
 
-// 兼容性函数：保持原有API
+// 兼容性函数：保持原有API - 使用 react-syntax-highlighter
 function renderMarkdown(content: string): string {
   try {
     const rawHtml = marked.parse(content || '', { async: false } as any) as unknown as string;
@@ -2197,6 +2294,13 @@ const LibreChatPage: React.FC = () => {
                 <EnhancedMarkdownRenderer 
                   content={sanitizeAssistantText(streamContent || '...')}
                   showControls={false}
+                  onCodeCopy={(success) => {
+                    if (success) {
+                      setNotification({ type: 'success', message: '代码已复制' });
+                    } else {
+                      setNotification({ type: 'error', message: '复制失败' });
+                    }
+                  }}
                 />
               </motion.div>
             )}
@@ -2267,6 +2371,13 @@ const LibreChatPage: React.FC = () => {
                       content={m.role === 'user' ? m.content : sanitizeAssistantText(m.content)}
                       showControls={true}
                       onCopy={(content) => setNotification({ type: 'success', message: 'Markdown内容已复制到剪贴板' })}
+                      onCodeCopy={(success) => {
+                        if (success) {
+                          setNotification({ type: 'success', message: '代码已复制' });
+                        } else {
+                          setNotification({ type: 'error', message: '复制失败' });
+                        }
+                      }}
                     />
                     {m.id && (
                       <div className="mt-3 flex justify-end gap-2">
@@ -2436,6 +2547,13 @@ const LibreChatPage: React.FC = () => {
                           <EnhancedMarkdownRenderer 
                             content={m.role === 'user' ? m.content : sanitizeAssistantText(m.content)}
                             showControls={false}
+                            onCodeCopy={(success) => {
+                              if (success) {
+                                setNotification({ type: 'success', message: '代码已复制' });
+                              } else {
+                                setNotification({ type: 'error', message: '复制失败' });
+                              }
+                            }}
                           />
                         </motion.div>
                       ))}
@@ -2459,6 +2577,13 @@ const LibreChatPage: React.FC = () => {
                       <EnhancedMarkdownRenderer 
                         content={sanitizeAssistantText(rtStreamContent || '')}
                         showControls={false}
+                        onCodeCopy={(success) => {
+                          if (success) {
+                            setNotification({ type: 'success', message: '代码已复制' });
+                          } else {
+                            setNotification({ type: 'error', message: '复制失败' });
+                          }
+                        }}
                       />
                     </motion.div>
                   ) : (

@@ -508,15 +508,7 @@ export class DebugConsoleController {
         });
       }
 
-      const filters = {
-        ip: req.body.ip,
-        success: req.body.success !== undefined ? req.body.success : undefined,
-        userId: req.body.userId,
-        startDate: req.body.startDate ? new Date(req.body.startDate) : undefined,
-        endDate: req.body.endDate ? new Date(req.body.endDate) : undefined
-      };
-
-      const result = await debugConsoleService.deleteAccessLogsByFilter(filters);
+      const result = await debugConsoleService.deleteAccessLogsByFilter(req.body);
       
       if (result.success) {
         res.json({
@@ -532,7 +524,12 @@ export class DebugConsoleController {
         });
       }
     } catch (error) {
-      logger.error('根据条件删除调试控制台访问日志失败:', error);
+      logger.error('根据条件删除调试控制台访问日志失败:', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        body: req.body,
+        user: req.user?.id
+      });
       res.status(500).json({
         success: false,
         error: '服务器内部错误'

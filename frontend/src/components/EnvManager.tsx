@@ -1189,38 +1189,36 @@ const EnvManager: React.FC = () => {
   const handleDeleteLogsByFilter = useCallback(async () => {
     setDeleteLogsLoading(true);
     try {
-      const filters = {
-        ip: debugLogsFilterIp || undefined,
-        success: debugLogsFilterSuccess ? debugLogsFilterSuccess === 'true' : undefined,
-        userId: debugLogsFilterUserId || undefined,
-        startDate: debugLogsFilterStartDate || undefined,
-        endDate: debugLogsFilterEndDate || undefined
-      };
+      // 检查是否有选中的日志
+      if (selectedLogIds.length === 0) {
+        setNotification({ message: '请先选择要删除的日志', type: 'warning' });
+        return;
+      }
 
-      const res = await fetch(`${DEBUG_CONSOLE_API}/logs/filter`, {
+      const res = await fetch(`${DEBUG_CONSOLE_API}/logs`, {
         method: 'DELETE',
         headers: { 
           ...getAuthHeaders(),
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(filters)
+        body: JSON.stringify({ logIds: selectedLogIds })
       });
       const data = await res.json();
       
       if (!res.ok || !data.success) {
-        setNotification({ message: data.error || '根据条件删除日志失败', type: 'error' });
+        setNotification({ message: data.error || '删除选中日志失败', type: 'error' });
         return;
       }
       
-      setNotification({ message: `根据条件成功删除 ${data.deletedCount} 条日志`, type: 'success' });
+      setNotification({ message: `成功删除 ${data.deletedCount} 条选中日志`, type: 'success' });
       setSelectedLogIds([]); // 清空选择
       fetchDebugLogs(); // 重新获取日志列表
     } catch (e) {
-      setNotification({ message: '根据条件删除日志失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
+      setNotification({ message: '删除选中日志失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
     } finally {
       setDeleteLogsLoading(false);
     }
-  }, [debugLogsFilterIp, debugLogsFilterSuccess, debugLogsFilterUserId, debugLogsFilterStartDate, debugLogsFilterEndDate, fetchDebugLogs, setNotification]);
+  }, [selectedLogIds, fetchDebugLogs, setNotification]);
 
   const handleSelectLog = useCallback((logId: string, checked: boolean) => {
     if (checked) {
@@ -2351,7 +2349,7 @@ const EnvManager: React.FC = () => {
                 className="px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition disabled:opacity-50 text-sm font-medium"
                 whileTap={{ scale: 0.95 }}
               >
-                删除筛选
+                删除选中
               </m.button>
             </div>
           </div>
@@ -2642,7 +2640,7 @@ const EnvManager: React.FC = () => {
                   {deleteType === 'single' && '确定要删除这条访问日志吗？'}
                   {deleteType === 'batch' && `确定要删除选中的 ${selectedLogIds.length} 条访问日志吗？`}
                   {deleteType === 'all' && '确定要删除所有访问日志吗？此操作不可恢复！'}
-                  {deleteType === 'filter' && '确定要删除符合当前筛选条件的所有访问日志吗？此操作不可恢复！'}
+                  {deleteType === 'filter' && `确定要删除选中的 ${selectedLogIds.length} 条访问日志吗？此操作不可恢复！`}
                 </p>
                 <div className="flex items-center justify-center gap-3">
                   <button
