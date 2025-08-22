@@ -786,13 +786,11 @@ const LibreChatAdminPage: React.FC = () => {
 
           {/* 用户列表 */}
           {loading ? (
-            <div className="text-center py-8 text-gray-500">
-              <svg className="animate-spin h-8 w-8 mx-auto mb-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              加载中...
-            </div>
+            <UnifiedLoadingSpinner 
+              size="md" 
+              text="正在加载用户列表..." 
+              className="py-8"
+            />
           ) : (
             <div className="space-y-3">
               {users.length === 0 ? (
@@ -968,13 +966,11 @@ const LibreChatAdminPage: React.FC = () => {
               {/* 历史记录列表 */}
               <div className="space-y-3 max-h-[60vh] overflow-y-auto">
                 {hLoading ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <svg className="animate-spin h-6 w-6 mx-auto mb-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    加载中...
-                  </div>
+                  <UnifiedLoadingSpinner 
+                    size="sm" 
+                    text="正在加载历史记录..." 
+                    className="py-4"
+                  />
                 ) : history.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <FaComments className="w-8 h-8 mx-auto mb-2 text-gray-300" />
