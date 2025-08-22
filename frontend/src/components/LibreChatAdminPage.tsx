@@ -702,6 +702,26 @@ const LibreChatAdminPage: React.FC = () => {
               >
                 刷新
               </motion.button>
+              {users.length > 0 && (
+                <motion.button
+                  className="px-3 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600 transition flex items-center gap-1"
+                  onClick={async () => {
+                    try {
+                      const allUserIds = users.map(u => u.userId).join('\n');
+                      await navigator.clipboard.writeText(allUserIds);
+                      setNotification({ type: 'success', message: `已复制当前页面 ${users.length} 个用户ID` });
+                    } catch (err) {
+                      setNotification({ type: 'error', message: '复制失败' });
+                    }
+                  }}
+                  disabled={actionLoading}
+                  whileTap={{ scale: 0.95 }}
+                  title="复制当前页面所有用户ID"
+                >
+                  <FaCopy className="text-xs" />
+                  复制全部
+                </motion.button>
+              )}
               {selectedUserIds.length > 0 && (
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-blue-600">已选择 {selectedUserIds.length} 个用户</span>
@@ -725,7 +745,7 @@ const LibreChatAdminPage: React.FC = () => {
               <div className="flex-1">
                 <div className="relative">
                   <input
-                    className="w-full px-4 py-2 pl-10 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                    className="w-full px-4 py-2 pl-10 pr-10 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
                     placeholder="搜索 userId (支持模糊)"
                     value={kw}
                     onChange={(e) => setKw(e.target.value)}
@@ -733,6 +753,22 @@ const LibreChatAdminPage: React.FC = () => {
                     onBlur={() => kw.trim() && onSearch()}
                   />
                   <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  {kw && (
+                    <button
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-blue-600 transition-colors"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(kw);
+                          setNotification({ type: 'success', message: '搜索关键词已复制' });
+                        } catch (err) {
+                          setNotification({ type: 'error', message: '复制失败' });
+                        }
+                      }}
+                      title="复制搜索关键词"
+                    >
+                      <FaCopy className="w-3 h-3" />
+                    </button>
+                  )}
                 </div>
               </div>
               <motion.button
@@ -819,6 +855,24 @@ const LibreChatAdminPage: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-2">
                       <motion.button
+                        className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 transition flex items-center gap-1"
+                        onClick={async () => {
+                          try {
+                            const userIdsText = selectedUserIds.join('\n');
+                            await navigator.clipboard.writeText(userIdsText);
+                            setNotification({ type: 'success', message: `已复制 ${selectedUserIds.length} 个用户ID` });
+                          } catch (err) {
+                            setNotification({ type: 'error', message: '复制失败' });
+                          }
+                        }}
+                        disabled={selectedUserIds.length === 0 || actionLoading}
+                        whileTap={{ scale: 0.95 }}
+                        title="复制选中的用户ID列表"
+                      >
+                        <FaCopy className="text-xs" />
+                        复制ID
+                      </motion.button>
+                      <motion.button
                         className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600 transition flex items-center gap-1"
                         onClick={handleBatchDelete}
                         disabled={selectedUserIds.length === 0 || actionLoading}
@@ -853,6 +907,20 @@ const LibreChatAdminPage: React.FC = () => {
                               <span className="font-medium text-gray-800 truncate max-w-32" title={u.userId}>
                                 {u.userId.length > 24 ? `${u.userId.slice(0, 20)}...${u.userId.slice(-4)}` : u.userId}
                               </span>
+                              <button
+                                className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                                onClick={async () => {
+                                  try {
+                                    await navigator.clipboard.writeText(u.userId);
+                                    setNotification({ type: 'success', message: '用户ID已复制' });
+                                  } catch (err) {
+                                    setNotification({ type: 'error', message: '复制失败' });
+                                  }
+                                }}
+                                title="复制用户ID"
+                              >
+                                <FaCopy className="w-3 h-3" />
+                              </button>
                             </div>
                             <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm text-gray-600">
                               <div className="flex items-center gap-1">
@@ -931,9 +999,47 @@ const LibreChatAdminPage: React.FC = () => {
               <FaHistory className="text-lg text-blue-500" />
               用户历史
             </h3>
+            {history.length > 0 && (
+              <motion.button
+                className="px-3 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600 transition flex items-center gap-1"
+                onClick={async () => {
+                  try {
+                    const allMessages = history.map(m => 
+                      `[${m.role === 'user' ? '用户' : '助手'}] ${formatTs(m.timestamp)}\n${m.message}\n`
+                    ).join('\n---\n\n');
+                    await navigator.clipboard.writeText(allMessages);
+                    setNotification({ type: 'success', message: `已复制 ${history.length} 条消息内容` });
+                  } catch (err) {
+                    setNotification({ type: 'error', message: '复制失败' });
+                  }
+                }}
+                disabled={actionLoading}
+                whileTap={{ scale: 0.95 }}
+                title="复制所有消息内容"
+              >
+                <FaCopy className="text-xs" />
+                复制全部
+              </motion.button>
+            )}
             {selectedUser && (
-              <div className="text-sm text-gray-500 truncate max-w-48" title={selectedUser.userId}>
-                {selectedUser.userId.length > 24 ? `${selectedUser.userId.slice(0, 20)}...${selectedUser.userId.slice(-4)}` : selectedUser.userId} · 共 {hTotal} 条
+              <div className="flex items-center gap-2 text-sm text-gray-500 truncate max-w-48">
+                <span title={selectedUser.userId}>
+                  {selectedUser.userId.length > 24 ? `${selectedUser.userId.slice(0, 20)}...${selectedUser.userId.slice(-4)}` : selectedUser.userId} · 共 {hTotal} 条
+                </span>
+                <button
+                  className="p-1 text-gray-400 hover:text-blue-600 transition-colors flex-shrink-0"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(selectedUser.userId);
+                      setNotification({ type: 'success', message: '用户ID已复制' });
+                    } catch (err) {
+                      setNotification({ type: 'error', message: '复制失败' });
+                    }
+                  }}
+                  title="复制用户ID"
+                >
+                  <FaCopy className="w-3 h-3" />
+                </button>
               </div>
             )}
           </div>
@@ -996,11 +1102,27 @@ const LibreChatAdminPage: React.FC = () => {
                           </span>
                           <span className="truncate max-w-32">{formatTs(m.timestamp)}</span>
                         </div>
-                        <div className="font-mono text-[10px] text-gray-400 truncate max-w-28 ml-2 flex-shrink-0" title={m.id}>
-                          {m.id.length > 16 ? `${m.id.slice(0, 12)}...${m.id.slice(-4)}` : m.id}
+                        <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                          <span className="font-mono text-[10px] text-gray-400 truncate max-w-28" title={m.id}>
+                            {m.id.length > 16 ? `${m.id.slice(0, 12)}...${m.id.slice(-4)}` : m.id}
+                          </span>
+                          <button
+                            className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                            onClick={async () => {
+                              try {
+                                await navigator.clipboard.writeText(m.id);
+                                setNotification({ type: 'success', message: '消息ID已复制' });
+                              } catch (err) {
+                                setNotification({ type: 'error', message: '复制失败' });
+                              }
+                            }}
+                            title="复制消息ID"
+                          >
+                            <FaCopy className="w-2 h-2" />
+                          </button>
                         </div>
                       </div>
-                      <div className="max-h-40 overflow-y-auto overflow-x-hidden">
+                      <div className="max-h-40 overflow-y-auto overflow-x-hidden relative group">
                         <MarkdownRenderer 
                           content={m.message} 
                           className="bg-gray-50 p-3 rounded border"
@@ -1012,6 +1134,20 @@ const LibreChatAdminPage: React.FC = () => {
                             }
                           }}
                         />
+                        <button
+                          className="absolute top-2 right-2 p-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white rounded opacity-0 group-hover:opacity-100 transition-all duration-200"
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(m.message);
+                              setNotification({ type: 'success', message: '消息内容已复制' });
+                            } catch (err) {
+                              setNotification({ type: 'error', message: '复制失败' });
+                            }
+                          }}
+                          title="复制完整消息"
+                        >
+                          <FaCopy className="w-3 h-3" />
+                        </button>
                       </div>
                     </motion.div>
                   ))
