@@ -301,11 +301,13 @@ export default defineConfig(({ mode }) => {
       legalComments: 'none' as const, // 修正为合法枚举值
       logOverride: { 'this-is-undefined-in-esm': 'silent' as const }, // 修正为合法 LogLevel
       treeShaking: true, // 启用tree shaking
-      minifyIdentifiers: true, // 暂时禁用以减少内存使用
-      minifySyntax: true, // 暂时禁用以减少内存使用
-      minifyWhitespace: true, // 暂时禁用以减少内存使用
-      keepNames: true, // 保留名称以减少内存使用
-      target: 'es2020'
+      minifyIdentifiers: true, // 启用标识符压缩
+      minifySyntax: true, // 启用语法压缩
+      minifyWhitespace: true, // 启用空白压缩
+      keepNames: false, // 不保留名称以进一步压缩
+      target: 'es2020',
+      drop: ['console', 'debugger'], // 直接移除 console 和 debugger
+      pure: ['console.log', 'console.info', 'console.debug', 'console.warn', 'console.error'] // 标记为纯函数
     },
     build: {
       minify: 'terser' as const,
@@ -313,14 +315,50 @@ export default defineConfig(({ mode }) => {
         compress: {
           drop_console: true, // 移除console.log
           drop_debugger: true, // 移除debugger
-          pure_funcs: ['console.log', 'console.info', 'console.debug'], // 移除特定函数调用
+          pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.warn', 'console.error'], // 移除特定函数调用
+          passes: 2, // 多次压缩
+          unsafe: true, // 启用不安全优化
+          unsafe_comps: true, // 不安全比较优化
+          unsafe_Function: true, // 不安全函数优化
+          unsafe_math: true, // 不安全数学优化
+          unsafe_methods: true, // 不安全方法优化
+          unsafe_proto: true, // 不安全原型优化
+          unsafe_regexp: true, // 不安全正则优化
+          unsafe_undefined: true, // 不安全 undefined 优化
+          toplevel: true, // 顶级变量优化
+          booleans_as_integers: true, // 布尔值作为整数
+          collapse_vars: true, // 折叠变量
+          hoist_funs: true, // 提升函数
+          hoist_props: true, // 提升属性
+          hoist_vars: true, // 提升变量
+          if_return: true, // if return 优化
+          inline: true, // 内联优化
+          join_vars: true, // 连接变量
+          loops: true, // 循环优化
+          negate_iife: true, // 否定立即执行函数
+          properties: true, // 属性优化
+          reduce_vars: true, // 减少变量
+          sequences: true, // 序列优化
+          side_effects: true, // 副作用优化
+          switches: true, // switch 优化
+          typeofs: true, // typeof 优化
+          unused: true, // 移除未使用代码
         },
         mangle: {
           toplevel: true, // 混淆顶级变量名
+          safari10: true, // Safari 10 兼容性
+        },
+        format: {
+          comments: false,
+          ascii_only: true,
         },
       },
       rollupOptions: {
-        treeshake: true, // 启用tree shaking
+        treeshake: {
+          moduleSideEffects: false, // 假设所有模块都没有副作用
+          propertyReadSideEffects: false, // 属性读取没有副作用
+          unknownGlobalSideEffects: false, // 未知全局变量没有副作用
+        },
         external: (id: string) => {
           // 避免 Rollup 尝试处理可选依赖
           if (process.env.VITE_SKIP_ROLLUP_NATIVE === 'true') {
@@ -332,16 +370,60 @@ export default defineConfig(({ mode }) => {
           return false;
         },
         output: {
-          manualChunks: {
-            'react-vendor': ['react', 'react-dom'],
-            'router': ['react-router-dom'],
-            'ui': ['@radix-ui/react-dialog', 'lucide-react', 'react-icons'],
-            'utils': ['axios', 'clsx', 'tailwind-merge'],
-            'auth': ['@simplewebauthn/browser', 'qrcode.react'],
-            'animations': ['framer-motion'],
-            'code-highlight': ['react-syntax-highlighter', 'prismjs'],
-            'toast': ['react-toastify'],
-            'swagger': ['swagger-ui-react']
+          manualChunks: (id: string) => {
+            // 将大型库分离到独立 chunk
+            if (id.includes('mermaid')) {
+              return 'mermaid';
+            }
+            if (id.includes('jspdf')) {
+              return 'jspdf';
+            }
+            if (id.includes('html2canvas')) {
+              return 'html2canvas';
+            }
+            if (id.includes('cytoscape')) {
+              return 'cytoscape';
+            }
+            if (id.includes('react-syntax-highlighter') || id.includes('prismjs')) {
+              return 'code-highlight';
+            }
+            if (id.includes('framer-motion')) {
+              return 'animations';
+            }
+            if (id.includes('swagger-ui-react')) {
+              return 'swagger';
+            }
+            if (id.includes('react-toastify')) {
+              return 'toast';
+            }
+            if (id.includes('@simplewebauthn/browser') || id.includes('qrcode.react')) {
+              return 'auth';
+            }
+            if (id.includes('@radix-ui/react-dialog') || id.includes('lucide-react') || id.includes('react-icons')) {
+              return 'ui';
+            }
+            if (id.includes('react') || id.includes('react-dom')) {
+              return 'react-vendor';
+            }
+            if (id.includes('react-router-dom')) {
+              return 'router';
+            }
+            if (id.includes('axios') || id.includes('clsx') || id.includes('tailwind-merge')) {
+              return 'utils';
+            }
+            // 将 node_modules 中的其他库分组
+            if (id.includes('node_modules')) {
+              // 将 lodash 相关库分组
+              if (id.includes('lodash') || id.includes('uniqBy')) {
+                return 'lodash-utils';
+              }
+              // 将图表相关库分组
+              if (id.includes('chart') || id.includes('treemap') || id.includes('d3')) {
+                return 'charts';
+              }
+              // 其他第三方库
+              return 'vendor';
+            }
           },
           entryFileNames: 'assets/[name].[hash].js',
           chunkFileNames: 'assets/[name].[hash].js',
@@ -361,7 +443,12 @@ export default defineConfig(({ mode }) => {
           }
         },
         onwarn(warning: any, warn: any) {
-          if (warning.message && warning.message.includes('sourcemap')) {
+          // 忽略一些常见的警告
+          if (warning.message && (
+            warning.message.includes('sourcemap') ||
+            warning.message.includes('Circular dependency') ||
+            warning.message.includes('Module level directives cause errors')
+          )) {
             return;
           }
           warn(warning);
@@ -375,7 +462,7 @@ export default defineConfig(({ mode }) => {
       modulePreload: {
         polyfill: false
       },
-      chunkSizeWarningLimit: 500, // 降低警告阈值以更好地控制包大小
+      chunkSizeWarningLimit: 1000, // 提高警告阈值，因为我们已经优化了分割
       emptyOutDir: true
     },
     optimizeDeps: {
@@ -388,7 +475,11 @@ export default defineConfig(({ mode }) => {
         'tailwind-merge'
       ],
       exclude: [
-        'javascript-obfuscator'
+        'javascript-obfuscator',
+        'mermaid', // 排除 mermaid，让它按需加载
+        'jspdf', // 排除 jspdf，让它按需加载
+        'html2canvas', // 排除 html2canvas，让它按需加载
+        'cytoscape' // 排除 cytoscape，让它按需加载
       ],
       force: false
     },
@@ -405,35 +496,26 @@ export default defineConfig(({ mode }) => {
     config.build = config.build || {};
     config.build.rollupOptions = config.build.rollupOptions || {};
     // 只在 output 层级添加 writeBundle 钩子
-    if (!config.build.rollupOptions.output) config.build.rollupOptions.output = {
-      manualChunks: {
-        'react-vendor': ['react', 'react-dom'],
-        'router': ['react-router-dom'],
-        'ui': ['@radix-ui/react-dialog', 'lucide-react', 'react-icons'],
-        'utils': ['axios', 'clsx', 'tailwind-merge'],
-        'auth': ['@simplewebauthn/browser', 'qrcode.react'],
-        'animations': ['framer-motion'],
-        'code-highlight': ['react-syntax-highlighter', 'prismjs'],
-        'toast': ['react-toastify'],
-        'swagger': ['swagger-ui-react']
-      },
-      entryFileNames: 'assets/[name].[hash].js',
-      chunkFileNames: 'assets/[name].[hash].js',
-      assetFileNames: (assetInfo: any) => {
-        if (!assetInfo.name) {
-          return 'assets/[name].[hash].[ext]';
+    if (!config.build.rollupOptions.output) {
+      config.build.rollupOptions.output = {
+        entryFileNames: 'assets/[name].[hash].js',
+        chunkFileNames: 'assets/[name].[hash].js',
+        assetFileNames: (assetInfo: any) => {
+          if (!assetInfo.name) {
+            return 'assets/[name].[hash].[ext]';
+          }
+          const info = assetInfo.name.split('.');
+          const ext = info[info.length - 1];
+          if (/\.(css)$/.test(assetInfo.name)) {
+            return `assets/css/[name].[hash].${ext}`;
+          }
+          if (/\.(png|jpe?g|svg|gif|tiff|bmp|ico)$/i.test(assetInfo.name)) {
+            return `assets/images/[name].[hash].${ext}`;
+          }
+          return `assets/[name].[hash].${ext}`;
         }
-        const info = assetInfo.name.split('.');
-        const ext = info[info.length - 1];
-        if (/\.(css)$/.test(assetInfo.name)) {
-          return `assets/css/[name].[hash].${ext}`;
-        }
-        if (/\.(png|jpe?g|svg|gif|tiff|bmp|ico)$/i.test(assetInfo.name)) {
-          return `assets/images/[name].[hash].${ext}`;
-        }
-        return `assets/[name].[hash].${ext}`;
-      }
-    };
+      } as any;
+    }
     const output = config.build.rollupOptions.output;
     const originalWriteBundle = (typeof output === 'object' && 'writeBundle' in output) ? (output as any).writeBundle : undefined;
     (output as any).writeBundle = () => {
