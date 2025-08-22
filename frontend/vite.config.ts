@@ -304,7 +304,7 @@ export default defineConfig(({ mode }) => {
       minifyIdentifiers: true, // 启用标识符压缩
       minifySyntax: true, // 启用语法压缩
       minifyWhitespace: true, // 启用空白压缩
-      keepNames: false, // 不保留名称以进一步压缩
+      keepNames: true, // 保留名称以确保兼容性
       target: 'es2020',
       drop: ['console', 'debugger'], // 直接移除 console 和 debugger
       pure: ['console.log', 'console.info', 'console.debug', 'console.warn', 'console.error'] // 标记为纯函数
@@ -316,17 +316,9 @@ export default defineConfig(({ mode }) => {
           drop_console: true, // 移除console.log
           drop_debugger: true, // 移除debugger
           pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.warn', 'console.error'], // 移除特定函数调用
-          passes: 2, // 多次压缩
-          unsafe: true, // 启用不安全优化
-          unsafe_comps: true, // 不安全比较优化
-          unsafe_Function: true, // 不安全函数优化
-          unsafe_math: true, // 不安全数学优化
-          unsafe_methods: true, // 不安全方法优化
-          unsafe_proto: true, // 不安全原型优化
-          unsafe_regexp: true, // 不安全正则优化
-          unsafe_undefined: true, // 不安全 undefined 优化
-          toplevel: true, // 顶级变量优化
-          booleans_as_integers: true, // 布尔值作为整数
+          passes: 1, // 减少压缩次数以避免过度优化
+          unsafe: false, // 禁用不安全优化以确保兼容性
+          toplevel: false, // 禁用顶级变量优化
           collapse_vars: true, // 折叠变量
           hoist_funs: true, // 提升函数
           hoist_props: true, // 提升属性
@@ -335,7 +327,6 @@ export default defineConfig(({ mode }) => {
           inline: true, // 内联优化
           join_vars: true, // 连接变量
           loops: true, // 循环优化
-          negate_iife: true, // 否定立即执行函数
           properties: true, // 属性优化
           reduce_vars: true, // 减少变量
           sequences: true, // 序列优化
@@ -345,7 +336,7 @@ export default defineConfig(({ mode }) => {
           unused: true, // 移除未使用代码
         },
         mangle: {
-          toplevel: true, // 混淆顶级变量名
+          toplevel: false, // 禁用顶级变量混淆以确保兼容性
           safari10: true, // Safari 10 兼容性
         },
         format: {
@@ -355,7 +346,7 @@ export default defineConfig(({ mode }) => {
       },
       rollupOptions: {
         treeshake: {
-          moduleSideEffects: false, // 假设所有模块都没有副作用
+          moduleSideEffects: 'no-external', // 只对非外部模块假设无副作用
           propertyReadSideEffects: false, // 属性读取没有副作用
           unknownGlobalSideEffects: false, // 未知全局变量没有副作用
         },
@@ -421,7 +412,10 @@ export default defineConfig(({ mode }) => {
               if (id.includes('chart') || id.includes('treemap') || id.includes('d3')) {
                 return 'charts';
               }
-              // 其他第三方库
+              // 其他第三方库 - 避免过度分割
+              if (id.includes('@types/') || id.includes('types/')) {
+                return undefined; // 不分割类型定义
+              }
               return 'vendor';
             }
           },
@@ -458,7 +452,7 @@ export default defineConfig(({ mode }) => {
       cssCodeSplit: true,
       assetsInlineLimit: 4096,
       reportCompressedSize: true, // 启用压缩大小报告
-      target: 'esnext',
+      target: 'es2015', // 降低目标以确保更好的浏览器兼容性
       modulePreload: {
         polyfill: false
       },
