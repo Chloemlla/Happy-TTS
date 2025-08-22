@@ -443,6 +443,11 @@ class DebugConsoleManager {
         // 启用选择功能和右键菜单
         this.toggleSelection(true);
 
+        // 立即更新权限状态
+        if ((window as any).updateDebugPermissions) {
+          (window as any).updateDebugPermissions();
+        }
+
         // 尝试自动打开开发者工具
         this.tryOpenDevTools();
       } else {
@@ -493,6 +498,11 @@ class DebugConsoleManager {
 
         // 启用选择功能和右键菜单
         this.toggleSelection(true);
+
+        // 立即更新权限状态
+        if ((window as any).updateDebugPermissions) {
+          (window as any).updateDebugPermissions();
+        }
 
         // 尝试自动打开开发者工具
         this.tryOpenDevTools();
@@ -770,6 +780,11 @@ class DebugConsoleManager {
 
     // 禁用选择功能和右键菜单
     this.toggleSelection(false);
+    
+    // 立即更新权限状态
+    if ((window as any).updateDebugPermissions) {
+      (window as any).updateDebugPermissions();
+    }
     
     // 重置按键缓冲区，确保可以重新激活
     this.keyBuffer = '';
@@ -1463,7 +1478,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // 禁止右键和常见调试快捷键（仅生产环境生效）
 if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
-  window.addEventListener('contextmenu', e => {
+  // 右键菜单事件监听器
+  const contextMenuHandler = (e: MouseEvent) => {
     // 检查是否处于调试模式
     const isDebugMode = debugConsoleManager.isDebugModeEnabled();
     
@@ -1473,9 +1489,10 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
     }
     
     e.preventDefault();
-  });
+  };
   
-  window.addEventListener('keydown', e => {
+  // 键盘事件监听器
+  const keydownHandler = (e: KeyboardEvent) => {
     // 检查是否处于调试模式
     const isDebugMode = debugConsoleManager.isDebugModeEnabled();
     
@@ -1491,12 +1508,55 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
       (e.ctrlKey && e.key === 'U')) {
       e.preventDefault();
     }
-  });
+  };
+
+  // 添加事件监听器
+  window.addEventListener('contextmenu', contextMenuHandler);
+  window.addEventListener('keydown', keydownHandler);
 
   // 初始化禁用选择功能（仅在非调试模式下）
   if (!debugConsoleManager.isDebugModeEnabled()) {
     disableSelection();
   }
+
+  // 监听调试模式状态变化，动态调整权限
+  const checkDebugModeAndUpdatePermissions = () => {
+    const isDebugMode = debugConsoleManager.isDebugModeEnabled();
+    
+    if (isDebugMode) {
+      // 调试模式启用时，移除事件监听器以允许F12等快捷键
+      window.removeEventListener('contextmenu', contextMenuHandler);
+      window.removeEventListener('keydown', keydownHandler);
+      
+      // 启用选择功能
+      document.body.style.userSelect = 'auto';
+      document.body.style.setProperty('-webkit-user-select', 'auto');
+      document.body.style.setProperty('-moz-user-select', 'auto');
+      document.body.style.setProperty('-ms-user-select', 'auto');
+      document.body.style.setProperty('-webkit-touch-callout', 'auto');
+      document.body.style.setProperty('-khtml-user-select', 'auto');
+      
+      console.log('🔧 调试模式已启用，F12等快捷键已解锁');
+    } else {
+      // 调试模式禁用时，重新添加事件监听器
+      window.addEventListener('contextmenu', contextMenuHandler);
+      window.addEventListener('keydown', keydownHandler);
+      
+      // 禁用选择功能
+      disableSelection();
+      
+      console.log('🚫 调试模式已禁用，F12等快捷键已锁定');
+    }
+  };
+
+  // 定期检查调试模式状态（每1秒检查一次）
+  setInterval(checkDebugModeAndUpdatePermissions, 1000);
+  
+  // 初始检查
+  checkDebugModeAndUpdatePermissions();
+
+  // 为调试控制台管理器添加权限更新回调
+  (window as any).updateDebugPermissions = checkDebugModeAndUpdatePermissions;
 }
 
 // 调试控制台键盘事件监听器

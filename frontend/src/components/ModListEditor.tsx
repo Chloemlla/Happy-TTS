@@ -197,20 +197,20 @@ const deleteMod = async (id: string) => {
   return await res.json();
 };
 
-const batchAddMods = async (mods: Mod[]) => {
+const batchAddMods = async (mods: Mod[], code: string) => {
   const res = await fetch(getApiBaseUrl() + '/api/modlist/batch-add', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(mods)
+    body: JSON.stringify({ mods, code })
   });
   return await res.json();
 };
 
-const batchDeleteMods = async (ids: string[]) => {
+const batchDeleteMods = async (ids: string[], code: string) => {
   const res = await fetch(getApiBaseUrl() + '/api/modlist/batch-delete', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(ids)
+    body: JSON.stringify({ ids, code })
   });
   return await res.json();
 };
@@ -329,9 +329,7 @@ const ModListEditor: React.FC = () => {
       setShowBatchCode(false);
       return;
     }
-    // 给每个mod加code
-    const modsWithCode = mods.map(m => ({ ...m, code: batchCode }));
-    const res = await batchAddMods(modsWithCode);
+    const res = await batchAddMods(mods, batchCode);
     if (res.success) {
       setNotification({ message: '批量添加成功', type: 'success' });
       setShowBatchCode(false);
