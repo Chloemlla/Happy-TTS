@@ -504,7 +504,7 @@ const EnhancedMarkdownRenderer: React.FC<{
           // 统一将 Unicode 箭头替换为 mermaid 箭头
           .replace(/[→⇒➔➜➝➞➟➠➡➢➣➤➥➦➧➨➩➪➫➬➭➮➯➱]/g, '-->')
           // 智能纠错：修复常见的语法错误
-          .replace(/\s*--[!>]*>\s*\[([^\]]*)\]\s*([A-Z])\s*--[!>]*>/g, ' --> $2[$1]')
+          .replace(/\s*--(>|!>)\s*\[([^\]]*)\]\s*([A-Z])\s*--(>|!>)/g, ' --> $3[$2]')
       };
       
       // 智能检查和修复 Mermaid 代码
@@ -541,7 +541,7 @@ const EnhancedMarkdownRenderer: React.FC<{
           // 修复缺少开始节点的连接
           { pattern: /^\s*--[!>]*>\s*([A-Z])/gm, replacement: 'START --> $1' },
           // 修复重复的连接符
-          { pattern: /--[!>]*>\s*--[!>]*>/g, replacement: '-->' },
+          { pattern: /--(>|!>)\s*--(>|!>)/g, replacement: '-->' },
           // 修复缺少空格的情况
           { pattern: /([A-Z])\[([^\]]*)\]([A-Z])/g, replacement: '$1[$2] --> $3' },
           // 修复中文括号导致的语法错误
