@@ -99,7 +99,7 @@ const MarkdownRenderer: React.FC<{ content: string; className?: string; onCopy?:
       const parentPre = codeEl.closest('pre');
       const raw = codeEl.textContent || '';
       // 仅修复 Mermaid 断行箭头：将行首 "-->" 合并到上一行，避免解析错误
-      const normalizedRaw = raw.replace(/\n\s*-->/g, ' -->');
+              const normalizedRaw = raw.replace(/\n\s*--[!>]*>/g, ' -->');
       const id = `admin-mermaid-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 8)}`;
       try {
         const { svg } = await mermaid.render(id, normalizedRaw);

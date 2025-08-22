@@ -92,7 +92,7 @@ function normalizeAiOutput(input: string): string {
   try {
     // 仅处理 ```mermaid 代码块：把换行起始的箭头合并到上一行，避免 "\n -->" 导致解析错误
     return input.replace(/```\s*mermaid\s*[\r\n]+([\s\S]*?)```/gi, (m, code) => {
-      const fixed = code.replace(/\n\s*-->/g, ' -->');
+              const fixed = code.replace(/\n\s*--[!>]*>/g, ' -->');
       return '```mermaid\n' + fixed + '\n```';
     });
   } catch {
@@ -504,7 +504,7 @@ const EnhancedMarkdownRenderer: React.FC<{
           // 统一将 Unicode 箭头替换为 mermaid 箭头
           .replace(/[→⇒➔➜➝➞➟➠➡➢➣➤➥➦➧➨➩➪➫➬➭➮➯➱]/g, '-->')
           // 智能纠错：修复常见的语法错误
-          .replace(/\s*-->\s*\[([^\]]*)\]\s*([A-Z])\s*-->/g, ' --> $2[$1]')
+          .replace(/\s*--[!>]*>\s*\[([^\]]*)\]\s*([A-Z])\s*--[!>]*>/g, ' --> $2[$1]')
       };
       
       // 智能检查和修复 Mermaid 代码
@@ -520,7 +520,7 @@ const EnhancedMarkdownRenderer: React.FC<{
         
         // 检查是否有基本的节点和连接
         const hasNodes = /[A-Za-z]\s*\[[^\]]*\]/i.test(cleanedCode);
-        const hasConnections = /-->/i.test(cleanedCode);
+        const hasConnections = /--[!>]*>/i.test(cleanedCode);
         
         // 进一步放宽检查条件：只要有图表关键字就认为可以尝试渲染
         return hasGraphKeyword;
@@ -533,15 +533,15 @@ const EnhancedMarkdownRenderer: React.FC<{
         // 修复常见的语法错误模式
         const fixes = [
           // 修复不完整的节点定义
-          { pattern: /([A-Z])\s*-->\s*([A-Z])\s*\[([^\]]*)\]\s*([A-Z])\s*-->/g, replacement: '$1 --> $2[$3]\n$2 --> $4' },
+          { pattern: /([A-Z])\s*--[!>]*>\s*([A-Z])\s*\[([^\]]*)\]\s*([A-Z])\s*--[!>]*>/g, replacement: '$1 --> $2[$3]\n$2 --> $4' },
           // 修复缺少方括号的节点
-          { pattern: /([A-Z])\s*-->\s*([A-Z])\s*([^[\n\r]*?)(?=\s*-->\s*[A-Z]|$)/g, replacement: '$1 --> $2[$3]' },
+          { pattern: /([A-Z])\s*--[!>]*>\s*([A-Z])\s*([^[\n\r]*?)(?=\s*--[!>]*>\s*[A-Z]|$)/g, replacement: '$1 --> $2[$3]' },
           // 修复不完整的连接
-          { pattern: /([A-Z])\s*-->\s*$/gm, replacement: '$1 --> END' },
+          { pattern: /([A-Z])\s*--[!>]*>\s*$/gm, replacement: '$1 --> END' },
           // 修复缺少开始节点的连接
-          { pattern: /^\s*-->\s*([A-Z])/gm, replacement: 'START --> $1' },
+          { pattern: /^\s*--[!>]*>\s*([A-Z])/gm, replacement: 'START --> $1' },
           // 修复重复的连接符
-          { pattern: /-->\s*-->/g, replacement: '-->' },
+          { pattern: /--[!>]*>\s*--[!>]*>/g, replacement: '-->' },
           // 修复缺少空格的情况
           { pattern: /([A-Z])\[([^\]]*)\]([A-Z])/g, replacement: '$1[$2] --> $3' },
           // 修复中文括号导致的语法错误
@@ -549,20 +549,20 @@ const EnhancedMarkdownRenderer: React.FC<{
           { pattern: /\[([^\]]*?)（([^）]*?)\]/g, replacement: '[$1($2)]' },
           { pattern: /\[([^\]]*?)）([^\]]*?)\]/g, replacement: '[$1)$2]' },
           // 修复不完整的节点标签
-          { pattern: /([A-Z])\s*-->\s*([A-Z])\s*\[([^\]]*?)\s*$/gm, replacement: '$1 --> $2[$3]' },
+          { pattern: /([A-Z])\s*--[!>]*>\s*([A-Z])\s*\[([^\]]*?)\s*$/gm, replacement: '$1 --> $2[$3]' },
           // 修复缺少结束方括号的情况
-          { pattern: /([A-Z])\s*-->\s*([A-Z])\s*\[([^\]]*?)(?=\s*-->\s*[A-Z]|$)/g, replacement: '$1 --> $2[$3]' },
+          { pattern: /([A-Z])\s*--[!>]*>\s*([A-Z])\s*\[([^\]]*?)(?=\s*--[!>]*>\s*[A-Z]|$)/g, replacement: '$1 --> $2[$3]' },
           // 修复多余的方括号
           { pattern: /\[\[([^\]]*?)\]\]/g, replacement: '[$1]' },
           // 修复不正确的连接语法
           { pattern: /([A-Z])\s*-\s*>\s*([A-Z])/g, replacement: '$1 --> $2' },
           { pattern: /([A-Z])\s*--\s*>\s*([A-Z])/g, replacement: '$1 --> $2' },
           // 将同一行的多个语句拆分为多行（在节点定义或结束方括号后，遇到新的起始节点+箭头时换行）
-          { pattern: /(\]|\))\s+([A-Za-z][A-Za-z0-9_]*)\s*-->/g, replacement: '$1\n$2 -->' },
+          { pattern: /(\]|\))\s+([A-Za-z][A-Za-z0-9_]*)\s*--[!>]*>/g, replacement: '$1\n$2 -->' },
           // 在纯节点后紧接另一个节点/连接时也换行
-          { pattern: /([A-Za-z][A-Za-z0-9_]*)\s*\[([^\]]*)\]\s+([A-Za-z][A-Za-z0-9_]*)\s*-->/g, replacement: '$1[$2]\n$3 -->' },
+          { pattern: /([A-Za-z][A-Za-z0-9_]*)\s*\[([^\]]*)\]\s+([A-Za-z][A-Za-z0-9_]*)\s*--[!>]*>/g, replacement: '$1[$2]\n$3 -->' },
           // 修复同一行多个语句：在节点定义后遇到另一个节点时换行
-          { pattern: /([A-Za-z][A-Za-z0-9_]*)\s*\[([^\]]*)\]\s+([A-Za-z][A-Za-z0-9_]*)(?!\s*-->)/g, replacement: '$1[$2]\n$3' },
+          { pattern: /([A-Za-z][A-Za-z0-9_]*)\s*\[([^\]]*)\]\s+([A-Za-z][A-Za-z0-9_]*)(?!\s*--[!>]*>)/g, replacement: '$1[$2]\n$3' },
           // 修复同一行多个语句：在节点定义后遇到另一个节点定义时换行
           { pattern: /([A-Za-z][A-Za-z0-9_]*)\s*\[([^\]]*)\]\s+([A-Za-z][A-Za-z0-9_]*)\s*\[/g, replacement: '$1[$2]\n$3[' },
           // 修复节点之间缺少换行的情况：在节点定义后直接跟另一个节点
@@ -570,27 +570,27 @@ const EnhancedMarkdownRenderer: React.FC<{
           // 修复节点之间缺少换行的情况：在节点定义后直接跟另一个节点定义
           { pattern: /([A-Za-z][A-Za-z0-9_]*)\s*\[([^\]]*)\]([A-Za-z][A-Za-z0-9_]*)\s*\[/g, replacement: '$1[$2]\n$3[' },
           // 修复边标签语法错误：将 "X -- 标签 --> Y" 转换为 "X -->|标签| Y"
-          { pattern: /([A-Za-z][A-Za-z0-9_]*)\s*--\s*([^>\n\r|]+?)\s*-->\s*([A-Za-z][A-Za-z0-9_]*)/g, replacement: '$1 -->|$2| $3' },
+          { pattern: /([A-Za-z][A-Za-z0-9_]*)\s*--\s*([^>\n\r|]+?)\s*--[!>]*>\s*([A-Za-z][A-Za-z0-9_]*)/g, replacement: '$1 -->|$2| $3' },
           // 修复边标签语法错误：将 "X -- 标签 → Y" 转换为 "X -->|标签| Y"
           { pattern: /([A-Za-z][A-Za-z0-9_]*)\s*--\s*([^>\n\r|]+?)\s*→\s*([A-Za-z][A-Za-z0-9_]*)/g, replacement: '$1 -->|$2| $3' },
           // 修复边标签语法错误：将 "X -- 标签 --> Y" 转换为 "X -->|标签| Y"（无空格版本）
-          { pattern: /([A-Za-z][A-Za-z0-9_]*)\s*--([^>\n\r|]+?)-->\s*([A-Za-z][A-Za-z0-9_]*)/g, replacement: '$1 -->|$2| $3' },
+          { pattern: /([A-Za-z][A-Za-z0-9_]*)\s*--([^>\n\r|]+?)--[!>]*>\s*([A-Za-z][A-Za-z0-9_]*)/g, replacement: '$1 -->|$2| $3' },
           // 修复同一行多个语句：在节点定义后遇到边标签时换行
           { pattern: /([A-Za-z][A-Za-z0-9_]*)\s*\[([^\]]*)\]\s+([A-Za-z][A-Za-z0-9_]*)\s*--/g, replacement: '$1[$2]\n$3 --' },
           // 修复同一行多个语句：在节点定义后遇到连接时换行
-          { pattern: /([A-Za-z][A-Za-z0-9_]*)\s*\[([^\]]*)\]\s+([A-Za-z][A-Za-z0-9_]*)\s*-->/g, replacement: '$1[$2]\n$3 -->' },
+          { pattern: /([A-Za-z][A-Za-z0-9_]*)\s*\[([^\]]*)\]\s+([A-Za-z][A-Za-z0-9_]*)\s*--[!>]*>/g, replacement: '$1[$2]\n$3 -->' },
           // 修复分号后的多余内容：将 "A[label]; B" 转换为 "A[label];\nB"
           { pattern: /;\s*([A-Za-z][A-Za-z0-9_]*)/g, replacement: ';\n$1' },
           // 修复分号后的连接：将 "A[label]; B -->" 转换为 "A[label];\nB -->"
-          { pattern: /;\s*([A-Za-z][A-Za-z0-9_]*)\s*-->/g, replacement: ';\n$1 -->' },
+          { pattern: /;\s*([A-Za-z][A-Za-z0-9_]*)\s*--[!>]*>/g, replacement: ';\n$1 -->' },
           // 修复分号后的节点定义：将 "A[label]; B[label]" 转换为 "A[label];\nB[label]"
           { pattern: /;\s*([A-Za-z][A-Za-z0-9_]*)\s*\[/g, replacement: ';\n$1[' },
           // 修复分号后的多余内容：将 "A[label]; B C" 转换为 "A[label];\nB\nC"
           { pattern: /;\s*([A-Za-z][A-Za-z0-9_]*)\s*([A-Za-z][A-Za-z0-9_]*)/g, replacement: ';\n$1\n$2' },
           // 修复节点定义和连接分离的情况：将 "A[label]\n --> B" 转换为 "A[label] --> B"
-          { pattern: /([A-Za-z][A-Za-z0-9_]*)\s*\[([^\]]*)\]\s*\n\s*-->/g, replacement: '$1[$2] -->' },
+          { pattern: /([A-Za-z][A-Za-z0-9_]*)\s*\[([^\]]*)\]\s*\n\s*--[!>]*>/g, replacement: '$1[$2] -->' },
           // 修复节点定义和连接在同一行的情况：将 "A[label] --> B" 保持原样
-          { pattern: /([A-Za-z][A-Za-z0-9_]*)\s*\[([^\]]*)\]\s*-->/g, replacement: '$1[$2] -->' },
+          { pattern: /([A-Za-z][A-Za-z0-9_]*)\s*\[([^\]]*)\]\s*--[!>]*>/g, replacement: '$1[$2] -->' },
 
         ];
         
@@ -600,13 +600,13 @@ const EnhancedMarkdownRenderer: React.FC<{
         
         // 智能补全缺失的节点
         const nodeMatches = fixedCode.match(/[A-Z]\s*\[[^\]]*\]/g) || [];
-        const connectionMatches = fixedCode.match(/[A-Z]\s*-->\s*[A-Z]/g) || [];
+        const connectionMatches = fixedCode.match(/[A-Z]\s*--[!>]*>\s*[A-Z]/g) || [];
         
         // 如果只有连接但没有节点定义，尝试补全
         if (connectionMatches.length > 0 && nodeMatches.length === 0) {
           const nodes = new Set<string>();
           connectionMatches.forEach(conn => {
-            const parts = conn.match(/([A-Z])\s*-->\s*([A-Z])/);
+            const parts = conn.match(/([A-Z])\s*--[!>]*>\s*([A-Z])/);
             if (parts) {
               nodes.add(parts[1]);
               nodes.add(parts[2]);
@@ -616,7 +616,7 @@ const EnhancedMarkdownRenderer: React.FC<{
           // 为每个节点添加默认定义
           nodes.forEach(node => {
             if (!fixedCode.includes(`${node}[`)) {
-              fixedCode = fixedCode.replace(new RegExp(`(${node})\\s*-->`, 'g'), `$1[${node}节点] -->`);
+              fixedCode = fixedCode.replace(new RegExp(`(${node})\\s*--[!>]*>`, 'g'), `$1[${node}节点] -->`);
             }
           });
         }
