@@ -583,39 +583,43 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 sm:p-6">
             <div className="text-center">
               <motion.div
-                className="flex items-center justify-center gap-3 mb-2"
+                className="flex items-center justify-center gap-2 sm:gap-3 mb-2"
                 initial={{ scale: 0.95 }}
                 animate={{ scale: 1 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
               >
-                <FaEnvelope className="text-4xl" />
-                <h1 className="text-3xl sm:text-4xl font-bold">邮件发送</h1>
+                <FaEnvelope className="text-3xl sm:text-4xl" />
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold">邮件发送</h1>
               </motion.div>
               <motion.p
-                className="text-blue-100"
+                className="text-blue-100 text-sm sm:text-base"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.5, delay: 0.4 }}
               >
-                发送 HTML、纯文本或 Markdown 邮件（支持多收件人与预览）
+                <span className="hidden sm:inline">发送 HTML、纯文本或 Markdown 邮件（支持多收件人与预览）</span>
+                <span className="sm:hidden">发送 HTML、纯文本或 Markdown 邮件</span>
               </motion.p>
             </div>
           </div>
         </motion.div>
 
         {/* 邮件配额进度条 */}
-        <div className="max-w-2xl mx-auto pt-2">
+        <div className="max-w-2xl mx-auto pt-2 px-4 sm:px-0">
           <div className="mb-4">
-            <div className="flex justify-between items-center mb-1">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 sm:gap-0 mb-1">
               <span className="text-sm text-gray-700 font-medium">今日邮件配额</span>
-              <span className="text-xs text-gray-500">{quota.used} / {quota.total} 封 &nbsp;|&nbsp; {quota.resetAt ? `重置时间：${new Date(quota.resetAt).toLocaleString('zh-CN')}` : ''}</span>
+              <span className="text-xs text-gray-500">
+                <span className="sm:hidden">{quota.used} / {quota.total} 封</span>
+                <span className="hidden sm:inline">{quota.used} / {quota.total} 封 &nbsp;|&nbsp; {quota.resetAt ? `重置时间：${new Date(quota.resetAt).toLocaleString('zh-CN')}` : ''}</span>
+              </span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-3">
+            <div className="w-full bg-gray-200 rounded-full h-2 sm:h-3">
               <div
-                className="bg-gradient-to-r from-indigo-500 to-purple-500 h-3 rounded-full transition-all duration-300"
+                className="bg-gradient-to-r from-indigo-500 to-purple-500 h-2 sm:h-3 rounded-full transition-all duration-300"
                 style={{ width: `${Math.min(100, (quota.used / quota.total) * 100)}%` }}
               ></div>
             </div>
@@ -629,19 +633,19 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
           transition={{ duration: 0.6, delay: 0.1 }}
         >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
+            <div className="flex justify-between items-center h-14 sm:h-16">
               <motion.div
-                className="flex items-center space-x-4"
+                className="flex items-center space-x-2 sm:space-x-4"
                 initial={{ x: -20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ duration: 0.6, delay: 0.2 }}
               >
                 <Link
                   to="/"
-                  className="flex items-center space-x-2 text-gray-600 hover:text-indigo-600 transition-colors duration-200"
+                  className="flex items-center space-x-1 sm:space-x-2 text-gray-600 hover:text-indigo-600 transition-colors duration-200"
                 >
                   <motion.svg
-                    className="w-5 h-5"
+                    className="w-4 h-4 sm:w-5 sm:h-5"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -649,18 +653,18 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                   >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                   </motion.svg>
-                  <span className="font-medium">返回主页</span>
+                  <span className="text-sm sm:text-base font-medium">返回主页</span>
                 </Link>
               </motion.div>
 
               <motion.div
-                className="flex items-center space-x-2"
+                className="flex items-center space-x-1 sm:space-x-2"
                 initial={{ x: 20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ duration: 0.6, delay: 0.3 }}
               >
                 <motion.svg
-                  className="w-6 h-6 text-indigo-600"
+                  className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -669,7 +673,7 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </motion.svg>
-                <h1 className="text-xl font-bold text-gray-900">邮件发送</h1>
+                <h1 className="text-lg sm:text-xl font-bold text-gray-900">邮件发送</h1>
               </motion.div>
             </div>
           </div>
@@ -681,10 +685,10 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.4 }}
-            className="grid grid-cols-1 lg:grid-cols-3 gap-8"
+            className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8"
           >
             {/* 左侧表单 */}
-            <div className="lg:col-span-2">
+            <div className="lg:col-span-2 order-1 lg:order-1">
               <motion.div
                 className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
                 initial={{ scale: 0.95, opacity: 0 }}
@@ -692,49 +696,50 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                 transition={{ duration: 0.6, delay: 0.5 }}
               >
                 {/* 表单头部 */}
-                <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-4">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-bold text-white">发送邮件</h2>
-                    <div className="flex items-center space-x-2">
+                <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-4 sm:px-6 py-3 sm:py-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
+                    <div className="flex items-center justify-center sm:justify-end gap-1 sm:gap-2">
                       <motion.button
                         onClick={() => setEmailMode('simple')}
-                        className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 ${emailMode === 'simple'
+                        className={`px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${emailMode === 'simple'
                           ? 'bg-white text-indigo-600 shadow-md'
                           : 'text-white/80 hover:text-white hover:bg-white/10'
                           }`}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                       >
-                        简单模式
+                        <span className="hidden sm:inline">简单模式</span>
+                        <span className="sm:hidden">简单</span>
                       </motion.button>
                       <motion.button
                         onClick={() => setEmailMode('html')}
-                        className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 ${emailMode === 'html'
+                        className={`px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${emailMode === 'html'
                           ? 'bg-white text-indigo-600 shadow-md'
                           : 'text-white/80 hover:text-white hover:bg-white/10'
                           }`}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                       >
-                        HTML模式
+                        HTML
                       </motion.button>
                       <motion.button
                         onClick={() => setEmailMode('markdown')}
-                        className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 ${emailMode === 'markdown'
+                        className={`px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${emailMode === 'markdown'
                           ? 'bg-white text-indigo-600 shadow-md'
                           : 'text-white/80 hover:text-white hover:bg-white/10'
                           }`}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                       >
-                        Markdown模式
+                        <span className="hidden sm:inline">Markdown模式</span>
+                        <span className="sm:hidden">MD</span>
                       </motion.button>
                     </div>
                   </div>
                 </div>
 
                 {/* 表单内容 */}
-                <div className="p-6 space-y-6">
+                <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
                   {/* 服务状态 */}
                   {serviceStatus && (
                     <motion.div
@@ -745,9 +750,9 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                         : 'bg-red-50 border-red-200 text-red-800'
                         }`}
                     >
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-start space-x-2">
                         <motion.svg
-                          className={`w-5 h-5 ${serviceStatus.available ? 'text-green-500' : 'text-red-500'}`}
+                          className={`w-5 h-5 flex-shrink-0 mt-0.5 ${serviceStatus.available ? 'text-green-500' : 'text-red-500'}`}
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -760,13 +765,15 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                           )}
                         </motion.svg>
-                        <span className="font-medium">
-                          {serviceStatus.available ? '邮件服务正常' : '邮件服务异常'}
-                        </span>
+                        <div className="min-w-0 flex-1">
+                          <span className="font-medium">
+                            {serviceStatus.available ? '邮件服务正常' : '邮件服务异常'}
+                          </span>
+                          {serviceStatus.error && (
+                            <p className="text-sm mt-1 leading-relaxed">{serviceStatus.error}</p>
+                          )}
+                        </div>
                       </div>
-                      {serviceStatus.error && (
-                        <p className="text-sm mt-1">{serviceStatus.error}</p>
-                      )}
                     </motion.div>
                   )}
 
@@ -777,11 +784,11 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="bg-red-50 border border-red-200 rounded-lg p-4"
+                        className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4"
                       >
-                        <div className="flex items-center space-x-2 mb-2">
+                        <div className="flex items-start space-x-2 mb-2">
                           <motion.svg
-                            className="w-5 h-5 text-red-500"
+                            className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -792,9 +799,9 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                           </motion.svg>
                           <span className="font-medium text-red-800">验证错误</span>
                         </div>
-                        <ul className="text-sm text-red-700 space-y-1">
+                        <ul className="text-sm text-red-700 space-y-1 ml-7">
                           {validationErrors.map((error, index) => (
-                            <li key={index}>• {error}</li>
+                            <li key={index} className="leading-relaxed">• {error}</li>
                           ))}
                         </ul>
                       </motion.div>
@@ -806,7 +813,7 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       发件人邮箱 *
                     </label>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
                       <div className="flex-1 flex">
                         <input
                           type="text"
@@ -815,11 +822,11 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                             const username = e.target.value;
                             setForm({ ...form, from: `${username}@${form.from.split('@')[1] || senderDomains[0] || ''}` });
                           }}
-                          className="flex-1 px-4 py-3 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 rounded-r-none"
+                          className="flex-1 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 rounded-r-none text-sm sm:text-base"
                           placeholder="noreply"
                         />
                         {senderDomains.length === 1 && (
-                          <span className="inline-flex items-center px-3 py-3 border border-l-0 border-gray-300 bg-gray-50 text-gray-600 text-base rounded-r-lg select-none">@{senderDomains[0]}</span>
+                          <span className="inline-flex items-center px-2 sm:px-3 py-2 sm:py-3 border border-l-0 border-gray-300 bg-gray-50 text-gray-600 text-sm sm:text-base rounded-r-lg select-none">@{senderDomains[0]}</span>
                         )}
                         {senderDomains.length > 1 && (
                           <select
@@ -827,7 +834,7 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                             onChange={e => {
                               setForm({ ...form, from: `${form.from.split('@')[0]}@${e.target.value}` });
                             }}
-                            className="px-2 py-2 border border-l-0 border-gray-300 rounded-r-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white"
+                            className="px-2 sm:px-3 py-2 sm:py-3 border border-l-0 border-gray-300 rounded-r-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white text-sm sm:text-base"
                           >
                             {senderDomains.map(domain => (
                               <option key={domain} value={domain}>@{domain}</option>
@@ -838,7 +845,7 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                       <motion.button
                         onClick={checkDomainExemption}
                         disabled={checkingExemption}
-                        className={`px-4 py-3 rounded-lg font-medium text-sm transition-all duration-200 ${checkingExemption
+                        className={`w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-medium text-sm transition-all duration-200 ${checkingExemption
                           ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                           : 'bg-blue-500 hover:bg-blue-600 text-white shadow-md hover:shadow-lg'
                           }`}
@@ -846,20 +853,22 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                         whileTap={!checkingExemption ? { scale: 0.98 } : {}}
                       >
                         {checkingExemption ? (
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center justify-center space-x-2">
                             <motion.div
                               className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
                               animate={{ rotate: 360 }}
                               transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                             />
-                            <span>检查中...</span>
+                            <span className="hidden sm:inline">检查中...</span>
+                            <span className="sm:hidden">检查中</span>
                           </div>
                         ) : (
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center justify-center space-x-2">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                            <span>豁免检查</span>
+                            <span className="hidden sm:inline">豁免检查</span>
+                            <span className="sm:hidden">豁免</span>
                           </div>
                         )}
                       </motion.button>
@@ -877,9 +886,9 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                             : 'bg-yellow-50 border-yellow-200 text-yellow-800'
                             }`}
                         >
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-start space-x-2">
                             <motion.svg
-                              className={`w-5 h-5 ${domainExemptionStatus.exempted ? 'text-green-500' : 'text-yellow-500'
+                              className={`w-5 h-5 flex-shrink-0 mt-0.5 ${domainExemptionStatus.exempted ? 'text-green-500' : 'text-yellow-500'
                                 }`}
                               fill="none"
                               stroke="currentColor"
@@ -893,11 +902,11 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                               )}
                             </motion.svg>
-                            <div>
+                            <div className="min-w-0 flex-1">
                               <div className="font-medium">
                                 {domainExemptionStatus.exempted ? '域名已豁免' : '域名需要检查'}
                               </div>
-                              <div className="text-sm opacity-90">
+                              <div className="text-sm opacity-90 leading-relaxed">
                                 {domainExemptionStatus.message}
                                 {domainExemptionStatus.isInternal && ' (内部域名)'}
                                 {domainExemptionStatus.isExempted && ' (豁免域名)'}
@@ -921,17 +930,17 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                             type="email"
                             value={email}
                             onChange={(e) => handleToChange(index, e.target.value)}
-                            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                            className="flex-1 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 text-sm sm:text-base"
                             placeholder={`收件人${index + 1}@example.com`}
                           />
                           {form.to.length > 1 && (
                             <motion.button
                               onClick={() => removeRecipient(index)}
-                              className="p-3 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200"
+                              className="p-2 sm:p-3 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200"
                               whileHover={{ scale: 1.1 }}
                               whileTap={{ scale: 0.9 }}
                             >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                               </svg>
                             </motion.button>
@@ -941,15 +950,15 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                       {form.to.length < 10 && (
                         <motion.button
                           onClick={addRecipient}
-                          className="w-full py-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg border-2 border-dashed border-indigo-300 transition-all duration-200"
+                          className="w-full py-2 sm:py-3 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg border-2 border-dashed border-indigo-300 transition-all duration-200"
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
                         >
                           <div className="flex items-center justify-center space-x-2">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                             </svg>
-                            <span>添加收件人</span>
+                            <span className="text-sm sm:text-base">添加收件人</span>
                           </div>
                         </motion.button>
                       )}
@@ -960,7 +969,7 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                       <motion.button
                         onClick={checkRecipientWhitelist}
                         disabled={checkingRecipientWhitelist || !form.to.find(email => email.trim())}
-                        className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${checkingRecipientWhitelist || !form.to.find(email => email.trim())
+                        className={`w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-medium text-sm transition-all duration-200 ${checkingRecipientWhitelist || !form.to.find(email => email.trim())
                           ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                           : 'bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg'
                           }`}
@@ -968,20 +977,22 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                         whileTap={!checkingRecipientWhitelist && form.to.find(email => email.trim()) ? { scale: 0.98 } : {}}
                       >
                         {checkingRecipientWhitelist ? (
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center justify-center space-x-2">
                             <motion.div
                               className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
                               animate={{ rotate: 360 }}
                               transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                             />
-                            <span>检查中...</span>
+                            <span className="hidden sm:inline">检查中...</span>
+                            <span className="sm:hidden">检查中</span>
                           </div>
                         ) : (
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center justify-center space-x-2">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                             </svg>
-                            <span>白名单检查</span>
+                            <span className="hidden sm:inline">白名单检查</span>
+                            <span className="sm:hidden">白名单</span>
                           </div>
                         )}
                       </motion.button>
@@ -999,9 +1010,9 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                             : 'bg-orange-50 border-orange-200 text-orange-800'
                             }`}
                         >
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-start space-x-2">
                             <motion.svg
-                              className={`w-5 h-5 ${recipientWhitelistStatus.whitelisted ? 'text-green-500' : 'text-orange-500'
+                              className={`w-5 h-5 flex-shrink-0 mt-0.5 ${recipientWhitelistStatus.whitelisted ? 'text-green-500' : 'text-orange-500'
                                 }`}
                               fill="none"
                               stroke="currentColor"
@@ -1015,11 +1026,11 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                               )}
                             </motion.svg>
-                            <div>
+                            <div className="min-w-0 flex-1">
                               <div className="font-medium">
                                 {recipientWhitelistStatus.whitelisted ? '收件人域名在白名单中' : '收件人域名需要检查'}
                               </div>
-                              <div className="text-sm opacity-90">
+                              <div className="text-sm opacity-90 leading-relaxed">
                                 {recipientWhitelistStatus.message}
                                 {recipientWhitelistStatus.isWhitelisted && ' (白名单域名)'}
                               </div>
@@ -1039,21 +1050,21 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                       type="text"
                       value={form.subject}
                       onChange={(e) => setForm({ ...form, subject: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 text-sm sm:text-base"
                       placeholder="请输入邮件主题"
                     />
                   </div>
 
                   {/* 邮件内容 */}
                   <div>
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0 mb-2">
                       <label className="block text-sm font-medium text-gray-700">
                         邮件内容 *
                       </label>
                       {emailMode === 'html' && (
                         <motion.button
                           onClick={handlePreview}
-                          className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                          className="text-sm text-indigo-600 hover:text-indigo-700 font-medium self-end sm:self-auto"
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                         >
@@ -1082,15 +1093,16 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                                   const t = htmlTemplates.find(x => x.name === selectedTemplate);
                                   if (t) insertHtmlTemplate(t.code);
                                 }}
-                                className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium shadow"
+                                className="flex-1 sm:flex-none px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium shadow"
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
                               >
-                                插入模板
+                                <span className="hidden sm:inline">插入模板</span>
+                                <span className="sm:hidden">插入</span>
                               </motion.button>
                               <motion.button
                                 onClick={() => setForm({ ...form, html: '' })}
-                                className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm"
+                                className="flex-1 sm:flex-none px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm"
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
                               >
@@ -1103,11 +1115,12 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                               <motion.button
                                 key={template.name}
                                 onClick={() => insertHtmlTemplate(template.code)}
-                                className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-all duration-200"
+                                className="px-2 sm:px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-all duration-200"
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
                               >
-                                {template.name}
+                                <span className="hidden sm:inline">{template.name}</span>
+                                <span className="sm:hidden">{template.name.length > 4 ? template.name.substring(0, 4) + '...' : template.name}</span>
                               </motion.button>
                             ))}
                           </div>
@@ -1118,7 +1131,7 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                           ref={htmlEditorRef}
                           value={form.html}
                           onChange={(e) => setForm({ ...form, html: e.target.value })}
-                          className="w-full h-64 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 font-mono text-sm"
+                          className="w-full h-64 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 font-mono text-sm"
                           placeholder="请输入HTML格式的邮件内容"
                         />
 
@@ -1129,11 +1142,11 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                               initial={{ opacity: 0, height: 0 }}
                               animate={{ opacity: 1, height: 'auto' }}
                               exit={{ opacity: 0, height: 0 }}
-                              className="border border-gray-300 rounded-lg p-4 bg-gray-50"
+                              className="border border-gray-300 rounded-lg p-3 sm:p-4 bg-gray-50"
                             >
                               <h4 className="text-sm font-medium text-gray-700 mb-2">预览效果：</h4>
                               <div
-                                className="prose prose-sm max-w-none"
+                                className="prose prose-sm max-w-none overflow-x-auto"
                                 dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(form.html) }}
                               />
                             </motion.div>
@@ -1144,7 +1157,7 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                       <textarea
                         value={simpleContent}
                         onChange={(e) => setSimpleContent(e.target.value)}
-                        className="w-full h-64 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                        className="w-full h-64 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 text-sm sm:text-base"
                         placeholder="请输入邮件内容"
                       />
                     ) : (
@@ -1152,22 +1165,24 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                         <textarea
                           value={markdownContent}
                           onChange={(e) => setMarkdownContent(e.target.value)}
-                          className="w-full h-64 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 font-mono text-sm"
+                          className="w-full h-64 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 font-mono text-sm"
                           placeholder="请输入Markdown格式的邮件内容"
                         />
-                        <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
+                        <div className="border border-gray-300 rounded-lg p-3 sm:p-4 bg-gray-50">
                           <h4 className="text-sm font-medium text-gray-700 mb-2">预览效果：</h4>
-                          <MarkdownPreview markdown={markdownContent} />
+                          <div className="overflow-x-auto">
+                            <MarkdownPreview markdown={markdownContent} />
+                          </div>
                         </div>
                       </div>
                     )}
                   </div>
 
                   {/* 跳过白名单检查选项 */}
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                    <div className="flex items-center space-x-3">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 sm:p-4">
+                    <div className="flex items-start space-x-2 sm:space-x-3">
                       <motion.svg
-                        className="w-6 h-6 text-yellow-600"
+                        className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-600 flex-shrink-0 mt-0.5 sm:mt-0"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -1176,22 +1191,24 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                       >
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                       </motion.svg>
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-3">
-                          <label className="flex items-center space-x-2 cursor-pointer">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start space-x-2 sm:space-x-3">
+                          <label className="flex items-start space-x-2 cursor-pointer">
                             <input
                               type="checkbox"
                               checked={skipWhitelistCheck}
                               onChange={(e) => setSkipWhitelistCheck(e.target.checked)}
-                              className="w-4 h-4 text-yellow-600 border-yellow-300 rounded focus:ring-yellow-500 focus:ring-2"
+                              className="w-4 h-4 text-yellow-600 border-yellow-300 rounded focus:ring-yellow-500 focus:ring-2 mt-0.5 flex-shrink-0"
                             />
-                            <span className="text-sm font-medium text-yellow-800">
-                              跳过收件人域名白名单检查
+                            <span className="text-sm font-medium text-yellow-800 leading-relaxed">
+                              <span className="hidden sm:inline">跳过收件人域名白名单检查</span>
+                              <span className="sm:hidden">跳过白名单检查</span>
                             </span>
                           </label>
                         </div>
-                        <p className="text-xs text-yellow-700 mt-1">
-                          启用此选项将跳过收件人域名的白名单验证和邮箱格式验证，直接发送邮件。仅管理员可用。
+                        <p className="text-xs text-yellow-700 mt-1 leading-relaxed">
+                          <span className="hidden sm:inline">启用此选项将跳过收件人域名的白名单验证和邮箱格式验证，直接发送邮件。仅管理员可用。</span>
+                          <span className="sm:hidden">跳过白名单验证和邮箱格式验证，直接发送邮件。仅管理员可用。</span>
                         </p>
                       </div>
                     </div>
@@ -1201,7 +1218,7 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                   <motion.button
                     onClick={handleSendEmail}
                     disabled={loading || !serviceStatus?.available}
-                    className={`w-full py-4 px-6 rounded-lg font-semibold text-white transition-all duration-200 ${loading || !serviceStatus?.available
+                    className={`w-full py-3 sm:py-4 px-4 sm:px-6 rounded-lg font-semibold text-white transition-all duration-200 ${loading || !serviceStatus?.available
                       ? 'bg-gray-400 cursor-not-allowed'
                       : 'bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 shadow-lg hover:shadow-xl'
                       }`}
@@ -1211,18 +1228,18 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                     {loading ? (
                       <div className="flex items-center justify-center space-x-2">
                         <motion.div
-                          className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
+                          className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full"
                           animate={{ rotate: 360 }}
                           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                         />
-                        <span>发送中...</span>
+                        <span className="text-sm sm:text-base">发送中...</span>
                       </div>
                     ) : (
                       <div className="flex items-center justify-center space-x-2">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                         </svg>
-                        <span>发送邮件</span>
+                        <span className="text-sm sm:text-base">发送邮件</span>
                       </div>
                     )}
                   </motion.button>
@@ -1231,7 +1248,7 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
             </div>
 
             {/* 右侧帮助面板 */}
-            <div className="lg:col-span-1">
+            <div className="lg:col-span-1 order-2 lg:order-2">
               <motion.div
                 className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
                 initial={{ scale: 0.95, opacity: 0 }}
@@ -1239,96 +1256,96 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
                 transition={{ duration: 0.6, delay: 0.6 }}
               >
                 {/* 面板头部 */}
-                <div className="bg-gradient-to-r from-green-500 to-teal-600 px-6 py-4">
-                  <h3 className="text-lg font-bold text-white">使用帮助</h3>
+                <div className="bg-gradient-to-r from-green-500 to-teal-600 px-4 sm:px-6 py-3 sm:py-4">
+                  <h3 className="text-base sm:text-lg font-bold text-white">使用帮助</h3>
                 </div>
 
                 {/* 面板内容 */}
-                <div className="p-6 space-y-6">
+                <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
                   {/* 功能说明 */}
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-900 mb-3">功能说明</h4>
+                    <h4 className="text-sm font-semibold text-gray-900 mb-2 sm:mb-3">功能说明</h4>
                     <div className="space-y-2 text-sm text-gray-600">
                       <div className="flex items-start space-x-2">
                         <div className="w-2 h-2 bg-indigo-500 rounded-full mt-2 flex-shrink-0"></div>
-                        <p>支持HTML、简单文本和Markdown三种邮件格式</p>
+                        <p className="leading-relaxed">支持HTML、简单文本和Markdown三种邮件格式</p>
                       </div>
                       <div className="flex items-start space-x-2">
                         <div className="w-2 h-2 bg-indigo-500 rounded-full mt-2 flex-shrink-0"></div>
-                        <p>最多可同时发送给10个收件人</p>
+                        <p className="leading-relaxed">最多可同时发送给10个收件人</p>
                       </div>
                       <div className="flex items-start space-x-2">
                         <div className="w-2 h-2 bg-indigo-500 rounded-full mt-2 flex-shrink-0"></div>
-                        <p>自动验证邮箱格式</p>
+                        <p className="leading-relaxed">自动验证邮箱格式</p>
                       </div>
                       <div className="flex items-start space-x-2">
                         <div className="w-2 h-2 bg-indigo-500 rounded-full mt-2 flex-shrink-0"></div>
-                        <p>实时预览邮件效果</p>
+                        <p className="leading-relaxed">实时预览邮件效果</p>
                       </div>
                     </div>
                   </div>
 
                   {/* 使用提示 */}
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-900 mb-3">使用提示</h4>
+                    <h4 className="text-sm font-semibold text-gray-900 mb-2 sm:mb-3">使用提示</h4>
                     <div className="space-y-2 text-sm text-gray-600">
                       <div className="flex items-start space-x-2">
                         <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
-                        <p>发件人邮箱固定为 @{resendDomain} 域名</p>
+                        <p className="leading-relaxed">发件人邮箱固定为 @{resendDomain} 域名</p>
                       </div>
                       <div className="flex items-start space-x-2">
                         <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
-                        <p>HTML模式下可使用模板快速插入标签</p>
+                        <p className="leading-relaxed">HTML模式下可使用模板快速插入标签</p>
                       </div>
                       <div className="flex items-start space-x-2">
                         <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
-                        <p>发送前建议先预览邮件效果</p>
+                        <p className="leading-relaxed">发送前建议先预览邮件效果</p>
                       </div>
                       <div className="flex items-start space-x-2">
                         <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
-                        <p>每分钟最多发送5封邮件</p>
+                        <p className="leading-relaxed">每分钟最多发送5封邮件</p>
                       </div>
                       <div className="flex items-start space-x-2">
                         <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
-                        <p>点击"豁免检查"按钮可检查域名安全状态</p>
+                        <p className="leading-relaxed">点击"豁免检查"按钮可检查域名安全状态</p>
                       </div>
                       <div className="flex items-start space-x-2">
                         <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
-                        <p>点击"白名单检查"按钮可检查收件人域名安全状态</p>
+                        <p className="leading-relaxed">点击"白名单检查"按钮可检查收件人域名安全状态</p>
                       </div>
                       <div className="flex items-start space-x-2">
                         <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2 flex-shrink-0"></div>
-                        <p>可勾选"跳过白名单检查"选项直接发送邮件</p>
+                        <p className="leading-relaxed">可勾选"跳过白名单检查"选项直接发送邮件</p>
                       </div>
                       <div className="flex items-start space-x-2">
                         <div className="w-2 h-2 bg-red-500 rounded-full mt-2 flex-shrink-0"></div>
-                        <p>跳过白名单检查时将绕过收件人邮箱格式验证</p>
+                        <p className="leading-relaxed">跳过白名单检查时将绕过收件人邮箱格式验证</p>
                       </div>
                     </div>
                   </div>
 
                   {/* 安全提醒 */}
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-900 mb-3">安全提醒</h4>
+                    <h4 className="text-sm font-semibold text-gray-900 mb-2 sm:mb-3">安全提醒</h4>
                     <div className="space-y-2 text-sm text-gray-600">
                       <div className="flex items-start space-x-2">
                         <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2 flex-shrink-0"></div>
-                        <p>请勿发送垃圾邮件或恶意内容</p>
+                        <p className="leading-relaxed">请勿发送垃圾邮件或恶意内容</p>
                       </div>
                       <div className="flex items-start space-x-2">
                         <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2 flex-shrink-0"></div>
-                        <p>注意保护收件人隐私</p>
+                        <p className="leading-relaxed">注意保护收件人隐私</p>
                       </div>
                       <div className="flex items-start space-x-2">
                         <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2 flex-shrink-0"></div>
-                        <p>仅管理员可使用此功能</p>
+                        <p className="leading-relaxed">仅管理员可使用此功能</p>
                       </div>
                     </div>
                   </div>
 
                   {/* 服务状态 */}
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-900 mb-3">服务状态</h4>
+                    <h4 className="text-sm font-semibold text-gray-900 mb-2 sm:mb-3">服务状态</h4>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-gray-600">邮件服务</span>
