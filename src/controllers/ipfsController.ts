@@ -53,14 +53,16 @@ export class IPFSController {
             // 返回成功响应
             res.json({
                 success: true,
-                message: '图片上传成功',
+                message: result.convertedFromSvg ? 'SVG已转换为PNG并上传成功' : '图片上传成功',
                 data: {
                     cid: result.cid,
                     url: result.url,
                     web2url: result.web2url,
                     fileSize: result.fileSize,
                     filename: originalname,
-                    shortUrl: result.shortUrl
+                    shortUrl: result.shortUrl,
+                    convertedFromSvg: result.convertedFromSvg || false,
+                    originalFilename: result.originalFilename || originalname
                 }
             });
 

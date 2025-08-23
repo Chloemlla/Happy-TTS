@@ -9,6 +9,24 @@ import ShortUrlModel from '../models/shortUrlModel';
 import { TransactionService } from './transactionService';
 import { ShortUrlService } from './shortUrlService';
 
+// 动态导入，避免编译时错误
+let convert: any = null;
+let executablePath: any = null;
+
+try {
+  const convertModule = require('convert-svg-to-png');
+  const puppeteerModule = require('puppeteer');
+  convert = convertModule.convert;
+  executablePath = puppeteerModule.executablePath;
+  logger.info('[IPFS] convert-svg-to-png 和 puppeteer 模块加载成功');
+  logger.info('[IPFS] convert函数类型:', typeof convert);
+  logger.info('[IPFS] executablePath:', executablePath);
+} catch (error) {
+  logger.warn('[IPFS] convert-svg-to-png 或 puppeteer 模块未安装，SVG转PNG功能将不可用');
+  logger.warn('[IPFS] 错误详情:', error instanceof Error ? error.message : String(error));
+  logger.warn('[IPFS] 请运行: npm install convert-svg-to-png puppeteer');
+}
+
 export interface IPFSUploadResponse {
     status: string;
     cid: string;
@@ -18,6 +36,8 @@ export interface IPFSUploadResponse {
     gnfd_id: string | null;
     gnfd_txn: string | null;
     shortUrl?: string;
+    convertedFromSvg?: boolean;
+    originalFilename?: string;
 }
 
 // 确保 mongoose 连接已建立
@@ -45,9 +65,6 @@ export class IPFSService {
         mimetype: string,
         options?: { shortLink?: boolean; userId?: string; username?: string }
     ): Promise<IPFSUploadResponse> {
-        const MAX_RETRIES = 2;
-        let lastError: any = null;
-        
         // 检查文件大小
         if (fileBuffer.length > this.MAX_FILE_SIZE) {
             throw new Error(`文件大小不能超过 ${this.MAX_FILE_SIZE / 1024 / 1024}MB`);
@@ -66,6 +83,107 @@ export class IPFSService {
         if (!allowedMimeTypes.includes(mimetype.toLowerCase())) {
             throw new Error('只支持图片文件格式：JPEG, PNG, GIF, WebP, BMP, SVG');
         }
+
+        // 规范化文件名，特别是SVG文件
+        const normalizedFilename = this.normalizeFilename(filename, mimetype);
+        logger.info(`[IPFS] 原始文件名: ${filename}, 规范化后: ${normalizedFilename}`);
+        
+        // 如果规范化后的文件名有问题，使用原始文件名
+        const finalFilename = normalizedFilename && normalizedFilename !== '.svg' ? normalizedFilename : filename;
+        
+        // 如果是SVG文件，验证和优化文件内容
+        if (mimetype.toLowerCase() === 'image/svg+xml' || filename.toLowerCase().endsWith('.svg')) {
+            this.validateSVGContent(fileBuffer);
+            // 优化SVG内容
+            fileBuffer = Buffer.from(this.optimizeSVGContent(fileBuffer.toString('utf-8')));
+        }
+
+        try {
+            return await this.uploadFileInternal(fileBuffer, finalFilename, mimetype, options);
+        } catch (error) {
+            // 如果是SVG文件，尝试转换为PNG后重新上传
+            if ((mimetype.toLowerCase() === 'image/svg+xml' || filename.toLowerCase().endsWith('.svg')) && convert && executablePath) {
+                try {
+                    logger.info(`[IPFS] SVG上传失败，尝试转换为PNG后重新上传: ${filename}`);
+                    return await this.uploadSvgAsPng(fileBuffer, filename, options);
+                } catch (conversionError) {
+                    logger.error(`[IPFS] SVG转PNG上传也失败: ${filename}`, conversionError instanceof Error ? conversionError.message : String(conversionError));
+                    throw new Error(`IPFS上传失败: ${error instanceof Error ? error.message : String(error)}。SVG转PNG也失败: ${conversionError instanceof Error ? conversionError.message : String(conversionError)}`);
+                }
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * 备用IPFS上传方案
+     */
+    private static async uploadToBackup(
+        fileBuffer: Buffer,
+        filename: string,
+        mimetype: string,
+        options?: { shortLink?: boolean; userId?: string; username?: string }
+    ): Promise<IPFSUploadResponse> {
+        // 规范化文件名
+        const normalizedFilename = this.normalizeFilename(filename, mimetype);
+        logger.info(`[IPFS] 使用备用方案上传: ${normalizedFilename}`);
+        
+        try {
+            const formData = new (require('form-data'))();
+            formData.append('file', fileBuffer, {
+                filename: normalizedFilename,
+                contentType: mimetype
+            });
+            
+            const response = await (require('axios')).post(
+                this.IPFS_BACKUP_URL,
+                formData,
+                {
+                    headers: {
+                        ...formData.getHeaders(),
+                    },
+                    timeout: 45000, // 备用服务可能需要更长时间
+                }
+            );
+            
+            // 备用服务返回格式可能不同，需要适配
+            const cid = response.data.Hash;
+            const web2url = `https://ipfs.io/ipfs/${cid}`;
+            
+            logger.info(`[IPFS] 备用方案上传成功: ${normalizedFilename}, CID: ${cid}`);
+            
+            return {
+                status: 'success',
+                cid,
+                url: `ipfs://${cid}`,
+                web2url,
+                fileSize: fileBuffer.length.toString(),
+                gnfd_id: null,
+                gnfd_txn: null
+            };
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            logger.error(`[IPFS] 备用方案失败: ${errorMessage}`);
+            throw new Error(`备用IPFS服务也失败: ${errorMessage}`);
+        }
+    }
+
+    /**
+     * 内部上传方法，包含重试逻辑
+     * @param fileBuffer 文件缓冲区
+     * @param filename 文件名
+     * @param mimetype 文件类型
+     * @param options 上传选项
+     * @returns IPFS上传响应
+     */
+    private static async uploadFileInternal(
+        fileBuffer: Buffer,
+        filename: string,
+        mimetype: string,
+        options?: { shortLink?: boolean; userId?: string; username?: string }
+    ): Promise<IPFSUploadResponse> {
+        const MAX_RETRIES = 2;
+        let lastError: any = null;
 
         for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
             try {
@@ -132,9 +250,9 @@ export class IPFSService {
                     maxRetries: MAX_RETRIES
                 });
                 
-                // 如果是503错误，说明服务不可用，可以尝试备用方案
-                if (statusCode === 503) {
-                    logger.warn(`[IPFS] 主服务不可用 (503)，尝试备用方案`);
+                // 如果是503或500错误，说明服务不可用，可以尝试备用方案
+                if (statusCode === 503 || statusCode === 500) {
+                    logger.warn(`[IPFS] 主服务不可用 (${statusCode})，尝试备用方案`);
                     try {
                         return await this.uploadToBackup(fileBuffer, filename, mimetype, options);
                     } catch (backupError) {
@@ -158,54 +276,217 @@ export class IPFSService {
     }
 
     /**
-     * 备用IPFS上传方案
+     * 将SVG转换为PNG并上传
+     * @param svgBuffer 原始SVG文件缓冲区
+     * @param originalFilename 原始文件名
+     * @param options 上传选项
+     * @returns IPFS上传响应
      */
-    private static async uploadToBackup(
-        fileBuffer: Buffer,
-        filename: string,
-        mimetype: string,
+    private static async uploadSvgAsPng(
+        svgBuffer: Buffer,
+        originalFilename: string,
         options?: { shortLink?: boolean; userId?: string; username?: string }
     ): Promise<IPFSUploadResponse> {
-        logger.info(`[IPFS] 使用备用方案上传: ${filename}`);
-        
         try {
-            const formData = new (require('form-data'))();
-            formData.append('file', fileBuffer, {
-                filename,
-                contentType: mimetype
-            });
+            // 转换SVG为PNG
+            const pngBuffer = await this.convertSvgToPng(svgBuffer, originalFilename);
             
-            const response = await (require('axios')).post(
-                this.IPFS_BACKUP_URL,
-                formData,
-                {
-                    headers: {
-                        ...formData.getHeaders(),
-                    },
-                    timeout: 45000, // 备用服务可能需要更长时间
-                }
-            );
+            // 生成PNG文件名
+            const pngFilename = originalFilename.replace(/\.svg$/i, '.png');
+            const normalizedPngFilename = this.normalizeFilename(pngFilename, 'image/png');
             
-            // 备用服务返回格式可能不同，需要适配
-            const cid = response.data.Hash;
-            const web2url = `https://ipfs.io/ipfs/${cid}`;
+            logger.info(`[IPFS] 开始上传转换后的PNG文件: ${normalizedPngFilename}`);
             
-            logger.info(`[IPFS] 备用方案上传成功: ${filename}, CID: ${cid}`);
+            // 使用PNG文件重新上传
+            const result = await this.uploadFileInternal(pngBuffer, normalizedPngFilename, 'image/png', options);
             
+            // 添加转换信息
             return {
-                status: 'success',
-                cid,
-                url: `ipfs://${cid}`,
-                web2url,
-                fileSize: fileBuffer.length.toString(),
-                gnfd_id: null,
-                gnfd_txn: null
+                ...result,
+                convertedFromSvg: true,
+                originalFilename: originalFilename
             };
-        } catch (error: unknown) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            logger.error(`[IPFS] 备用方案失败: ${errorMessage}`);
-            throw new Error(`备用IPFS服务也失败: ${errorMessage}`);
+        } catch (error) {
+            logger.error(`[IPFS] SVG转PNG上传失败: ${originalFilename}`, error instanceof Error ? error.message : String(error));
+            throw error;
         }
+    }
+
+    /**
+     * 将SVG转换为PNG
+     * @param svgBuffer SVG文件缓冲区
+     * @param filename 原始文件名
+     * @returns PNG文件缓冲区
+     */
+    private static async convertSvgToPng(svgBuffer: Buffer, filename: string): Promise<Buffer> {
+        try {
+            // 检查模块是否可用
+            if (!convert || !executablePath) {
+                throw new Error('convert-svg-to-png 或 puppeteer 模块未安装，请运行: npm install convert-svg-to-png puppeteer');
+            }
+            
+            logger.info(`[IPFS] 开始将SVG转换为PNG: ${filename}`);
+            logger.info(`[IPFS] SVG文件大小: ${svgBuffer.length} bytes`);
+            
+            // 确保SVG内容是有效的
+            const svgContent = svgBuffer.toString('utf-8');
+            logger.info(`[IPFS] SVG内容预览: ${svgContent.substring(0, 200)}...`);
+            
+            if (!svgContent.includes('<svg')) {
+                throw new Error('无效的SVG文件内容');
+            }
+            
+            logger.info(`[IPFS] 调用convert函数，executablePath: ${executablePath}`);
+            
+            const convertOptions = {
+                launch: { 
+                    executablePath,
+                    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+                },
+                background: '#FFFFFF',
+                scale: 1, // 降低scale以避免内存问题
+                rounding: 'round'
+            };
+            
+            logger.info(`[IPFS] convert选项:`, convertOptions);
+            
+            const pngBuffer = await convert(svgBuffer, convertOptions);
+            
+            if (!pngBuffer || pngBuffer.length === 0) {
+                throw new Error('PNG转换结果为空');
+            }
+            
+            logger.info(`[IPFS] SVG转PNG成功: ${filename}, 大小: ${pngBuffer.length} bytes`);
+            return pngBuffer;
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            logger.error(`[IPFS] SVG转PNG失败: ${filename}`, errorMessage);
+            logger.error(`[IPFS] 错误堆栈:`, error instanceof Error ? error.stack : '无堆栈信息');
+            
+            // 如果是模块未安装的错误，提供更友好的提示
+            if (errorMessage.includes('模块未安装')) {
+                throw new Error('SVG转PNG功能需要安装额外依赖，请联系管理员安装 convert-svg-to-png 和 puppeteer 模块');
+            }
+            
+            throw new Error(`SVG转PNG失败: ${errorMessage}`);
+        }
+    }
+
+    /**
+     * 优化SVG文件内容
+     * @param content SVG文件内容
+     * @returns 优化后的SVG内容
+     */
+    private static optimizeSVGContent(content: string): string {
+        try {
+            // 移除注释
+            content = content.replace(/<!--[\s\S]*?-->/g, '');
+            
+            // 移除多余的空白字符
+            content = content.replace(/\s+/g, ' ');
+            
+            // 移除XML声明（如果存在）
+            content = content.replace(/<\?xml[^>]*\?>/g, '');
+            
+            // 确保有正确的DOCTYPE（如果需要）
+            if (!content.includes('<!DOCTYPE')) {
+                content = content.replace('<svg', '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\n<svg');
+            }
+            
+            // 移除潜在的危险属性
+            content = content.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, '');
+            content = content.replace(/\s+javascript\s*:/gi, '');
+            
+            logger.info('[IPFS] SVG文件内容优化完成');
+            return content;
+        } catch (error) {
+            logger.warn('[IPFS] SVG文件内容优化失败，使用原始内容:', error instanceof Error ? error.message : String(error));
+            return content;
+        }
+    }
+
+    /**
+     * 验证SVG文件内容
+     * @param fileBuffer 文件缓冲区
+     */
+    private static validateSVGContent(fileBuffer: Buffer): void {
+        try {
+            const content = fileBuffer.toString('utf-8');
+            
+            // 检查是否包含基本的SVG标签
+            if (!content.includes('<svg') || !content.includes('</svg>')) {
+                throw new Error('无效的SVG文件：缺少SVG标签');
+            }
+            
+            // 检查文件大小（SVG文件通常不应该太大）
+            if (content.length > 1024 * 1024) { // 1MB
+                throw new Error('SVG文件过大，可能包含恶意内容');
+            }
+            
+            // 检查是否包含潜在的危险内容
+            const dangerousPatterns = [
+                /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
+                /javascript:/gi,
+                /on\w+\s*=/gi,
+                /<iframe\b/gi,
+                /<object\b/gi,
+                /<embed\b/gi
+            ];
+            
+            for (const pattern of dangerousPatterns) {
+                if (pattern.test(content)) {
+                    throw new Error('SVG文件包含潜在的危险内容');
+                }
+            }
+            
+            logger.info('[IPFS] SVG文件内容验证通过');
+        } catch (error) {
+            logger.error('[IPFS] SVG文件内容验证失败:', error instanceof Error ? error.message : String(error));
+            throw new Error(`SVG文件验证失败: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
+    /**
+     * 规范化文件名，特别是处理SVG文件的中文名称
+     * @param filename 原始文件名
+     * @param mimetype 文件类型
+     * @returns 规范化后的文件名
+     */
+    private static normalizeFilename(filename: string, mimetype: string): string {
+        // 移除文件扩展名
+        const nameWithoutExt = filename.replace(/\.[^/.]+$/, '');
+        const ext = filename.match(/\.[^/.]+$/)?.[0] || '';
+        
+        // 如果是SVG文件，特殊处理中文名称
+        if (mimetype.toLowerCase() === 'image/svg+xml' || ext.toLowerCase() === '.svg') {
+            // 检测是否包含中文字符
+            const hasChinese = /[\u4e00-\u9fff]/.test(nameWithoutExt);
+            
+            if (hasChinese) {
+                // 生成一个基于时间戳和随机数的英文名称
+                const timestamp = Date.now();
+                const randomId = nanoid(8);
+                return `svg_${timestamp}_${randomId}.svg`;
+            }
+        }
+        
+        // 对于其他文件，清理特殊字符但保留原始名称
+        let cleanedName = nameWithoutExt;
+        
+        // 如果名称为空或只包含特殊字符，生成一个默认名称
+        if (!cleanedName || cleanedName.trim() === '') {
+            const timestamp = Date.now();
+            const randomId = nanoid(8);
+            cleanedName = `file_${timestamp}_${randomId}`;
+        } else {
+            // 清理特殊字符但保留中文
+            cleanedName = cleanedName
+                .replace(/[^\w\u4e00-\u9fff\-_]/g, '_') // 只保留字母、数字、中文、连字符和下划线
+                .replace(/_+/g, '_') // 将多个连续下划线替换为单个
+                .replace(/^_|_$/g, ''); // 移除开头和结尾的下划线
+        }
+        
+        return `${cleanedName}${ext}`;
     }
 
     /**
