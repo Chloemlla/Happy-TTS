@@ -5,6 +5,7 @@ import mongoose from 'mongoose';
 import logger from '../utils/logger';
 import { connectMongo } from '../services/mongoService';
 import rateLimit from 'express-rate-limit';
+import { authenticateAdmin } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -130,7 +131,110 @@ const shortlinkLimiter = rateLimit({
  */
 router.post('/upload', uploadLimiter, upload.single('file'), IPFSController.uploadImage);
 
-// 短链跳转路由
+/**
+ * @openapi
+ * /api/ipfs/settings:
+ *   get:
+ *     summary: 获取IPFS配置
+ *     description: 获取当前IPFS上传URL配置
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 获取配置成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   description: 是否成功
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     ipfsUploadUrl:
+ *                       type: string
+ *                       description: IPFS上传URL
+ *       401:
+ *         description: 未授权
+ *       500:
+ *         description: 服务器错误
+ */
+router.get('/settings', authenticateAdmin, IPFSController.getConfig);
+
+/**
+ * @openapi
+ * /api/ipfs/settings:
+ *   post:
+ *     summary: 设置IPFS配置
+ *     description: 设置IPFS上传URL配置
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               ipfsUploadUrl:
+ *                 type: string
+ *                 description: IPFS上传URL
+ *                 example: "https://ipfs-webui.hapxs.com/api/v0/add"
+ *     responses:
+ *       200:
+ *         description: 设置配置成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   description: 是否成功
+ *                 message:
+ *                   type: string
+ *                   description: 成功消息
+ *       400:
+ *         description: 请求错误
+ *       401:
+ *         description: 未授权
+ *       500:
+ *         description: 服务器错误
+ */
+router.post('/settings', authenticateAdmin, IPFSController.setConfig);
+
+/**
+ * @openapi
+ * /api/ipfs/settings/test:
+ *   post:
+ *     summary: 测试IPFS配置
+ *     description: 测试当前IPFS配置是否有效
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 测试结果
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   description: 是否成功
+ *                 message:
+ *                   type: string
+ *                   description: 测试结果消息
+ *       401:
+ *         description: 未授权
+ *       500:
+ *         description: 服务器错误
+ */
+router.post('/settings/test', authenticateAdmin, IPFSController.testConfig);
+
+// 短链跳转路由 - 必须放在最后，避免与其他路由冲突
 router.get('/:code', shortlinkLimiter, async (req, res) => {
   const code = req.params.code;
   const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;

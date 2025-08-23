@@ -22,6 +22,7 @@ const LIBRECHAT_PROVIDERS_API = getApiBaseUrl() + '/api/librechat/admin/provider
 const SHORTURL_AES_API = getApiBaseUrl() + '/api/shorturl/admin/aes-key';
 const WEBHOOK_SECRET_API = getApiBaseUrl() + '/api/admin/webhook/secret';
 const DEBUG_CONSOLE_API = getApiBaseUrl() + '/api/debug-console';
+const IPFS_CONFIG_API = getApiBaseUrl() + '/api/ipfs/settings';
 
 // 统一的进入动画与过渡配置，结合 useReducedMotion 可降级
 const ENTER_INITIAL = { opacity: 0, y: 20 } as const;
@@ -75,6 +76,11 @@ interface ShortAesSetting {
 interface WebhookSecretSetting {
   key: string;
   secret: string | null;
+  updatedAt?: string;
+}
+
+interface IPFSConfigSetting {
+  ipfsUploadUrl: string;
   updatedAt?: string;
 }
 
@@ -314,6 +320,13 @@ const EnvManager: React.FC = () => {
   const [debugConfigVerificationCode, setDebugConfigVerificationCode] = useState('');
   const [debugConfigMaxAttempts, setDebugConfigMaxAttempts] = useState<number>(5);
   const [debugConfigLockoutDuration, setDebugConfigLockoutDuration] = useState<number>(30);
+
+  // IPFS Config Setting
+  const [ipfsConfig, setIpfsConfig] = useState<IPFSConfigSetting | null>(null);
+  const [ipfsConfigLoading, setIpfsConfigLoading] = useState(false);
+  const [ipfsConfigSaving, setIpfsConfigSaving] = useState(false);
+  const [ipfsConfigTesting, setIpfsConfigTesting] = useState(false);
+  const [ipfsUploadUrlInput, setIpfsUploadUrlInput] = useState('');
 
   // Debug Console Access Logs
   const [debugLogs, setDebugLogs] = useState<DebugConsoleAccessLog[]>([]);
@@ -1241,6 +1254,75 @@ const EnvManager: React.FC = () => {
     setShowDeleteConfirm(true);
   }, []);
 
+  // IPFS Config handlers
+  const fetchIpfsConfig = useCallback(async () => {
+    setIpfsConfigLoading(true);
+    try {
+      const res = await fetch(IPFS_CONFIG_API, { headers: { ...getAuthHeaders() } });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setNotification({ message: data.error || '获取IPFS配置失败', type: 'error' });
+        setIpfsConfigLoading(false);
+        return;
+      }
+      setIpfsConfig({ ipfsUploadUrl: data.data.ipfsUploadUrl });
+    } catch (e) {
+      setNotification({ message: '获取IPFS配置失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
+    } finally {
+      setIpfsConfigLoading(false);
+    }
+  }, [setNotification]);
+
+  const handleSaveIpfsConfig = useCallback(async () => {
+    if (ipfsConfigSaving) return;
+    const url = ipfsUploadUrlInput.trim();
+    if (!url) {
+      setNotification({ message: '请填写IPFS上传URL', type: 'error' });
+      return;
+    }
+    setIpfsConfigSaving(true);
+    try {
+      const res = await fetch(IPFS_CONFIG_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ ipfsUploadUrl: url })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setNotification({ message: data.error || '保存失败', type: 'error' });
+        return;
+      }
+      setNotification({ message: '保存成功', type: 'success' });
+      setIpfsUploadUrlInput('');
+      await fetchIpfsConfig();
+    } catch (e) {
+      setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
+    } finally {
+      setIpfsConfigSaving(false);
+    }
+  }, [ipfsConfigSaving, ipfsUploadUrlInput, fetchIpfsConfig, setNotification]);
+
+  const handleTestIpfsConfig = useCallback(async () => {
+    if (ipfsConfigTesting) return;
+    setIpfsConfigTesting(true);
+    try {
+      const res = await fetch(`${IPFS_CONFIG_API}/test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setNotification({ message: data.error || '测试失败', type: 'error' });
+        return;
+      }
+      setNotification({ message: data.message || '测试成功', type: 'success' });
+    } catch (e) {
+      setNotification({ message: '测试失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
+    } finally {
+      setIpfsConfigTesting(false);
+    }
+  }, [ipfsConfigTesting, setNotification]);
+
   const handleConfirmDelete = useCallback(() => {
     switch (deleteType) {
       case 'single':
@@ -1268,6 +1350,7 @@ const EnvManager: React.FC = () => {
   useEffect(() => { fetchProviders(); }, [fetchProviders]);
   useEffect(() => { fetchDebugConfigs(); }, [fetchDebugConfigs]);
   useEffect(() => { fetchDebugLogs(); }, [fetchDebugLogs]);
+  useEffect(() => { fetchIpfsConfig(); }, [fetchIpfsConfig]);
 
   // 当过滤条件改变时重新获取日志
   useEffect(() => {
@@ -1879,6 +1962,68 @@ const EnvManager: React.FC = () => {
 
           <div className="mt-4 text-xs text-gray-500">
             最后更新时间：{webhookSetting?.updatedAt ? new Date(webhookSetting.updatedAt).toLocaleString() : '-'}
+          </div>
+        </m.div>
+
+        {/* IPFS 配置设置 */}
+        <m.div
+          className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+          initial={ENTER_INITIAL}
+          animate={ENTER_ANIMATE}
+          transition={trans06}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-800">IPFS 配置设置</h3>
+            <m.button
+              onClick={fetchIpfsConfig}
+              disabled={ipfsConfigLoading}
+              className="px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
+              whileTap={{ scale: 0.95 }}
+            >
+              <FaSync className={`w-4 h-4 ${ipfsConfigLoading ? 'animate-spin' : ''}`} />
+              刷新
+            </m.button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">IPFS上传URL</label>
+              <input
+                value={ipfsUploadUrlInput}
+                onChange={(e) => setIpfsUploadUrlInput(e.target.value)}
+                placeholder="例如：https://ipfs.openai.com/api/v0/add"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">当前配置</label>
+              <div className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700 min-h-[40px] flex items-center break-all">
+                {ipfsConfigLoading ? '加载中...' : (ipfsConfig?.ipfsUploadUrl || '未设置')}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3">
+            <m.button
+              onClick={handleTestIpfsConfig}
+              disabled={ipfsConfigTesting || !ipfsConfig?.ipfsUploadUrl}
+              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition disabled:opacity-50 text-sm font-medium"
+              whileTap={{ scale: 0.96 }}
+            >
+              {ipfsConfigTesting ? '测试中...' : '测试配置'}
+            </m.button>
+            <m.button
+              onClick={handleSaveIpfsConfig}
+              disabled={ipfsConfigSaving}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 text-sm font-medium"
+              whileTap={{ scale: 0.96 }}
+            >
+              {ipfsConfigSaving ? '保存中...' : '保存/更新'}
+            </m.button>
+          </div>
+
+          <div className="mt-4 text-xs text-gray-500">
+            说明：IPFS上传URL用于文件上传到IPFS网络，支持动态配置，无需重启服务
           </div>
         </m.div>
 

@@ -9,6 +9,32 @@ import ShortUrlModel from '../models/shortUrlModel';
 import { TransactionService } from './transactionService';
 import { ShortUrlService } from './shortUrlService';
 
+// IPFS服务设置（支持从 MongoDB 读取配置，优先于环境变量）
+interface IPFSSettingDoc { key: string; value: string; updatedAt?: Date }
+const IPFSSettingSchema = new mongoose.Schema<IPFSSettingDoc>({
+  key: { type: String, required: true },
+  value: { type: String, required: true },
+  updatedAt: { type: Date, default: Date.now }
+}, { collection: 'shorturl_settings' });
+const IPFSSettingModel = (mongoose.models.IPFSSetting as mongoose.Model<IPFSSettingDoc>) || mongoose.model<IPFSSettingDoc>('IPFSSetting', IPFSSettingSchema);
+
+async function getIPFSUploadURL(): Promise<string> {
+  try {
+    if (mongoose.connection.readyState === 1) {
+      const doc = await IPFSSettingModel.findOne({ key: 'IPFS_UPLOAD_URL' }).lean().exec();
+      if (doc && typeof doc.value === 'string' && doc.value.trim().length > 0) {
+        logger.info('[IPFS] 从MongoDB读取到IPFS_UPLOAD_URL配置:', doc.value);
+        return doc.value.trim();
+      }
+    }
+  } catch (e) {
+    logger.error('[IPFS] 读取IPFS_UPLOAD_URL配置失败', e);
+  }
+  
+  // 如果没有配置，抛出错误
+  throw new Error('IPFS_UPLOAD_URL配置未设置，请在MongoDB的shorturl_settings集合中设置key为"IPFS_UPLOAD_URL"的配置');
+}
+
 // 动态导入，避免编译时错误
 let convert: any = null;
 let executablePath: any = null;
@@ -48,7 +74,6 @@ async function ensureMongoConnected() {
 }
 
 export class IPFSService {
-    private static readonly IPFS_UPLOAD_URL = 'https://ipfs-relay.crossbell.io/upload';
     private static readonly IPFS_BACKUP_URL = 'https://ipfs.infura.io:5001/api/v0/add'; // 备用IPFS网关
     private static readonly MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
@@ -93,6 +118,7 @@ export class IPFSService {
         
         // 如果是SVG文件，验证和优化文件内容
         if (mimetype.toLowerCase() === 'image/svg+xml' || filename.toLowerCase().endsWith('.svg')) {
+            logger.info(`[IPFS] 检测到SVG文件，先尝试直接上传: ${filename}`);
             this.validateSVGContent(fileBuffer);
             // 优化SVG内容
             fileBuffer = Buffer.from(this.optimizeSVGContent(fileBuffer.toString('utf-8')));
@@ -101,10 +127,10 @@ export class IPFSService {
         try {
             return await this.uploadFileInternal(fileBuffer, finalFilename, mimetype, options);
         } catch (error) {
-            // 如果是SVG文件，尝试转换为PNG后重新上传
+            // 如果是SVG文件且直接上传失败，尝试转换为PNG后重新上传
             if ((mimetype.toLowerCase() === 'image/svg+xml' || filename.toLowerCase().endsWith('.svg')) && convert && executablePath) {
                 try {
-                    logger.info(`[IPFS] SVG上传失败，尝试转换为PNG后重新上传: ${filename}`);
+                    logger.info(`[IPFS] SVG直接上传失败，尝试转换为PNG后重新上传: ${filename}`);
                     return await this.uploadSvgAsPng(fileBuffer, filename, options);
                 } catch (conversionError) {
                     logger.error(`[IPFS] SVG转PNG上传也失败: ${filename}`, conversionError instanceof Error ? conversionError.message : String(conversionError));
@@ -196,9 +222,18 @@ export class IPFSService {
                     contentType: mimetype
                 });
                 
+                // 动态获取IPFS上传URL
+                let ipfsUploadUrl;
+                try {
+                    ipfsUploadUrl = await getIPFSUploadURL();
+                } catch (configError) {
+                    logger.error('[IPFS] 获取IPFS配置失败:', configError instanceof Error ? configError.message : String(configError));
+                    throw new Error('IPFS服务配置未设置，请联系管理员配置IPFS_UPLOAD_URL');
+                }
+                
                 // 发送请求到IPFS
                 const response = await (require('axios')).post(
-                    this.IPFS_UPLOAD_URL,
+                    `${ipfsUploadUrl}?stream-channels=true&pin=false&wrap-with-directory=false&progress=false`,
                     formData,
                     {
                         headers: {
@@ -208,14 +243,30 @@ export class IPFSService {
                     }
                 );
                 
-                logger.info(`[IPFS] 上传成功: ${filename}, CID: ${response.data.cid}`);
+                // 新API返回格式：{ "Name": "文件名", "Hash": "CID", "Size": "文件大小" }
+                const cid = response.data.Hash;
+                const web2url = `https://ipfs.hapxs.com/ipfs/${cid}`;
+                
+                logger.info(`[IPFS] 上传成功: ${filename}, CID: ${cid}, 文件大小: ${response.data.Size} bytes`);
+                logger.info(`[IPFS] API响应:`, response.data);
+                
+                // 构建标准化的响应格式
+                const uploadResponse = {
+                    status: 'success',
+                    cid,
+                    url: `ipfs://${cid}`,
+                    web2url,
+                    fileSize: response.data.Size || fileBuffer.length.toString(),
+                    gnfd_id: null,
+                    gnfd_txn: null
+                };
                 
                 // 上传成功后生成短链（仅当 options.shortLink 为 true 时）
                 let shortUrl = '';
-                if (options && options.shortLink && response.data.web2url) {
+                if (options && options.shortLink && web2url) {
                   try {
                     // 使用迁移服务自动修正目标URL
-                    const fixedTarget = shortUrlMigrationService.fixTargetUrlBeforeSave(response.data.web2url);
+                    const fixedTarget = shortUrlMigrationService.fixTargetUrlBeforeSave(web2url);
                     
                     // 使用短链服务创建短链，确保并发安全
                     shortUrl = await ShortUrlService.createShortUrl(
@@ -231,13 +282,13 @@ export class IPFSService {
                     });
                   } catch (err) {
                     logger.error('[ShortLink] 短链创建失败', { 
-                      target: response.data.web2url, 
+                      target: web2url, 
                       error: err instanceof Error ? err.message : String(err) 
                     });
                     // 不抛出错误，继续返回IPFS上传结果
                   }
                 }
-                return { ...response.data, shortUrl };
+                return { ...uploadResponse, shortUrl };
             } catch (error: unknown) {
                 lastError = error;
                 const errorMessage = error instanceof Error ? error.message : String(error);
@@ -276,7 +327,8 @@ export class IPFSService {
     }
 
     /**
-     * 将SVG转换为PNG并上传
+     * 将SVG转换为PNG并上传（备用方案）
+     * 当SVG直接上传失败时使用此方法
      * @param svgBuffer 原始SVG文件缓冲区
      * @param originalFilename 原始文件名
      * @param options 上传选项
@@ -295,7 +347,7 @@ export class IPFSService {
             const pngFilename = originalFilename.replace(/\.svg$/i, '.png');
             const normalizedPngFilename = this.normalizeFilename(pngFilename, 'image/png');
             
-            logger.info(`[IPFS] 开始上传转换后的PNG文件: ${normalizedPngFilename}`);
+            logger.info(`[IPFS] 开始上传转换后的PNG文件（备用方案）: ${normalizedPngFilename}`);
             
             // 使用PNG文件重新上传
             const result = await this.uploadFileInternal(pngBuffer, normalizedPngFilename, 'image/png', options);
@@ -487,6 +539,62 @@ export class IPFSService {
         }
         
         return `${cleanedName}${ext}`;
+    }
+
+    /**
+     * 设置IPFS上传URL配置
+     * @param url IPFS上传URL
+     * @returns 设置结果
+     */
+    public static async setIPFSUploadURL(url: string): Promise<boolean> {
+        try {
+            if (!url || typeof url !== 'string' || url.trim().length === 0) {
+                throw new Error('IPFS上传URL不能为空');
+            }
+
+            const trimmedUrl = url.trim();
+            
+            // 验证URL格式
+            try {
+                new URL(trimmedUrl);
+            } catch {
+                throw new Error('IPFS上传URL格式无效');
+            }
+
+            // 确保MongoDB连接
+            await ensureMongoConnected();
+
+            // 更新或创建配置
+            await IPFSSettingModel.findOneAndUpdate(
+                { key: 'IPFS_UPLOAD_URL' },
+                { 
+                    key: 'IPFS_UPLOAD_URL',
+                    value: trimmedUrl,
+                    updatedAt: new Date()
+                },
+                { upsert: true, new: true }
+            );
+
+            logger.info('[IPFS] IPFS_UPLOAD_URL配置已更新:', trimmedUrl);
+            return true;
+        } catch (error) {
+            logger.error('[IPFS] 设置IPFS_UPLOAD_URL失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 获取当前IPFS上传URL配置
+     * @returns 当前配置的URL
+     * @throws 如果配置未设置
+     */
+    public static async getCurrentIPFSUploadURL(): Promise<string> {
+        try {
+            return await getIPFSUploadURL();
+        } catch (error) {
+            logger.error('[IPFS] 获取当前IPFS配置失败:', error instanceof Error ? error.message : String(error));
+            throw new Error('IPFS_UPLOAD_URL配置未设置，请先使用setIPFSUploadURL方法设置配置');
+        }
     }
 
     /**
