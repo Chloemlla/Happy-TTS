@@ -447,6 +447,37 @@ const EnhancedMarkdownRenderer: React.FC<{
           useMaxWidth: true,
           htmlLabels: true,
           curve: 'basis'
+        },
+        // 自动适应页面大小的配置
+        sequence: {
+          useMaxWidth: true
+        },
+        gantt: {
+          useMaxWidth: true
+        },
+        pie: {
+          useMaxWidth: true
+        },
+        journey: {
+          useMaxWidth: true
+        },
+        gitGraph: {
+          useMaxWidth: true
+        },
+        class: {
+          useMaxWidth: true
+        },
+        state: {
+          useMaxWidth: true
+        },
+        er: {
+          useMaxWidth: true
+        },
+        mindmap: {
+          useMaxWidth: true
+        },
+        timeline: {
+          useMaxWidth: true
         }
       });
     } catch (error) {
@@ -778,10 +809,14 @@ const EnhancedMarkdownRenderer: React.FC<{
       }
       
               const p = (async () => {
-          try {
+
+        
+        try {
                     console.log('[Mermaid] 开始渲染图表:', id, '代码长度:', cleanedCode.length);
         console.log('[Mermaid] 渲染代码:', cleanedCode.substring(0, 200) + '...');
         console.log('[Mermaid] 完整代码:', cleanedCode);
+            
+
             
                       // 为每个图表创建独立的渲染上下文
           const { svg } = await mermaid.render(id, cleanedCode);
@@ -809,9 +844,9 @@ const EnhancedMarkdownRenderer: React.FC<{
                 svg2.includes('y="250"') && 
                 svg2.includes('font-size="150px"') && 
                 svg2.includes('text-anchor: middle')) {
-              // 两个方法都失败，不渲染，保持原代码块
-              console.log('[Mermaid] 两个方法都失败，跳过渲染');
-              return;
+                          // 两个方法都失败，不渲染，保持原代码块
+            console.log('[Mermaid] 两个方法都失败，跳过渲染');
+            return;
             }
             
             // 方法2成功，使用 svg2
@@ -847,9 +882,11 @@ const EnhancedMarkdownRenderer: React.FC<{
             
             const wrapper = document.createElement('div');
             wrapper.className = 'mermaid-diagram my-2';
-            wrapper.style.overflow = 'hidden';
+            wrapper.style.overflow = 'auto';
             wrapper.style.borderRadius = '0.5rem';
             wrapper.style.maxWidth = '100%';
+            wrapper.style.width = '100%';
+            wrapper.style.minHeight = '200px';
             wrapper.setAttribute('contenteditable', 'false');
             wrapper.setAttribute('aria-hidden', 'false');
             wrapper.setAttribute('data-mermaid-id', id + '_retry'); // 添加唯一标识
@@ -860,26 +897,72 @@ const EnhancedMarkdownRenderer: React.FC<{
             const img = document.createElement('img');
             img.alt = 'mermaid diagram';
             img.style.maxWidth = '100%';
+            img.style.width = 'auto';
             img.style.height = 'auto';
-            img.style.overflow = 'hidden';
+            img.style.overflow = 'visible';
             img.style.borderRadius = '0.5rem';
+            img.style.display = 'block';
+            img.style.margin = '0 auto';
             img.setAttribute('draggable', 'false');
             img.setAttribute('aria-hidden', 'false');
+            img.setAttribute('title', '点击放大查看');
             const dataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(safeSvg);
             img.src = dataUrl;
+            
+            // 添加点击放大功能
+            img.addEventListener('click', () => {
+              const modal = document.createElement('div');
+              modal.style.position = 'fixed';
+              modal.style.top = '0';
+              modal.style.left = '0';
+              modal.style.width = '100%';
+              modal.style.height = '100%';
+              modal.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+              modal.style.display = 'flex';
+              modal.style.alignItems = 'center';
+              modal.style.justifyContent = 'center';
+              modal.style.zIndex = '9999';
+              modal.style.cursor = 'pointer';
+              
+              const modalImg = document.createElement('img');
+              modalImg.src = dataUrl;
+              modalImg.style.maxWidth = '90%';
+              modalImg.style.maxHeight = '90%';
+              modalImg.style.objectFit = 'contain';
+              modalImg.style.borderRadius = '8px';
+              modalImg.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.3)';
+              
+              modal.appendChild(modalImg);
+              document.body.appendChild(modal);
+              
+              // 点击关闭
+              modal.addEventListener('click', () => {
+                document.body.removeChild(modal);
+              });
+              
+              // ESC 键关闭
+              const handleKeyDown = (e: KeyboardEvent) => {
+                if (e.key === 'Escape') {
+                  document.body.removeChild(modal);
+                  document.removeEventListener('keydown', handleKeyDown);
+                }
+              };
+              document.addEventListener('keydown', handleKeyDown);
+            });
+            
             wrapper.appendChild(img);
             
-            // 安全地替换元素
-            console.log('[Mermaid] 准备替换元素（方法2）, parentPre:', parentPre, 'codeEl:', codeEl);
-            if (parentPre && parentPre.parentNode) {
-              console.log('[Mermaid] 替换 parentPre（方法2）');
-              parentPre.parentNode.replaceChild(wrapper, parentPre);
-            } else if (codeEl.parentNode) {
-              console.log('[Mermaid] 替换 codeEl（方法2）');
-              codeEl.parentNode.replaceChild(wrapper, codeEl);
-            } else {
-              console.log('[Mermaid] 无法找到父节点进行替换（方法2）');
-            }
+                      // 安全地替换元素
+          console.log('[Mermaid] 准备替换元素（方法2）');
+          if (parentPre && parentPre.parentNode) {
+            console.log('[Mermaid] 替换 parentPre（方法2）');
+            parentPre.parentNode.replaceChild(wrapper, parentPre);
+          } else if (codeEl.parentNode) {
+            console.log('[Mermaid] 替换 codeEl（方法2）');
+            codeEl.parentNode.replaceChild(wrapper, codeEl);
+          } else {
+            console.log('[Mermaid] 无法找到父节点进行替换（方法2）');
+          }
             
             console.log('[Mermaid] 方法2成功渲染图表:', id + '_retry');
             console.log('[Mermaid] 包装器元素已添加到DOM（方法2）:', wrapper.parentNode);
@@ -929,9 +1012,11 @@ const EnhancedMarkdownRenderer: React.FC<{
           
           const wrapper = document.createElement('div');
           wrapper.className = 'mermaid-diagram my-2';
-          wrapper.style.overflow = 'hidden';
+          wrapper.style.overflow = 'auto';
           wrapper.style.borderRadius = '0.5rem';
           wrapper.style.maxWidth = '100%';
+          wrapper.style.width = '100%';
+          wrapper.style.minHeight = '200px';
           wrapper.setAttribute('contenteditable', 'false');
           wrapper.setAttribute('aria-hidden', 'false');
           wrapper.setAttribute('data-mermaid-id', id); // 添加唯一标识
@@ -942,17 +1027,63 @@ const EnhancedMarkdownRenderer: React.FC<{
           const img = document.createElement('img');
           img.alt = 'mermaid diagram';
           img.style.maxWidth = '100%';
+          img.style.width = 'auto';
           img.style.height = 'auto';
-          img.style.overflow = 'hidden';
+          img.style.overflow = 'visible';
           img.style.borderRadius = '0.5rem';
+          img.style.display = 'block';
+          img.style.margin = '0 auto';
           img.setAttribute('draggable', 'false');
           img.setAttribute('aria-hidden', 'false');
+          img.setAttribute('title', '点击放大查看');
           const dataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(safeSvg);
           img.src = dataUrl;
+          
+          // 添加点击放大功能
+          img.addEventListener('click', () => {
+            const modal = document.createElement('div');
+            modal.style.position = 'fixed';
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.width = '100%';
+            modal.style.height = '100%';
+            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            modal.style.display = 'flex';
+            modal.style.alignItems = 'center';
+            modal.style.justifyContent = 'center';
+            modal.style.zIndex = '9999';
+            modal.style.cursor = 'pointer';
+            
+            const modalImg = document.createElement('img');
+            modalImg.src = dataUrl;
+            modalImg.style.maxWidth = '90%';
+            modalImg.style.maxHeight = '90%';
+            modalImg.style.objectFit = 'contain';
+            modalImg.style.borderRadius = '8px';
+            modalImg.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.3)';
+            
+            modal.appendChild(modalImg);
+            document.body.appendChild(modal);
+            
+            // 点击关闭
+            modal.addEventListener('click', () => {
+              document.body.removeChild(modal);
+            });
+            
+            // ESC 键关闭
+            const handleKeyDown = (e: KeyboardEvent) => {
+              if (e.key === 'Escape') {
+                document.body.removeChild(modal);
+                document.removeEventListener('keydown', handleKeyDown);
+              }
+            };
+            document.addEventListener('keydown', handleKeyDown);
+          });
+          
           wrapper.appendChild(img);
           
           // 安全地替换元素
-          console.log('[Mermaid] 准备替换元素（方法1）, parentPre:', parentPre, 'codeEl:', codeEl);
+          console.log('[Mermaid] 准备替换元素（方法1）');
           if (parentPre && parentPre.parentNode) {
             console.log('[Mermaid] 替换 parentPre（方法1）');
             parentPre.parentNode.replaceChild(wrapper, parentPre);
@@ -1046,6 +1177,7 @@ const EnhancedMarkdownRenderer: React.FC<{
           fallbackDiv.appendChild(btnRow);
           fallbackDiv.appendChild(pre);
 
+          // 替换原始元素
           if (parentPre && parentPre.parentNode) {
             parentPre.parentNode.replaceChild(fallbackDiv, parentPre);
           } else if (codeEl.parentNode) {
@@ -1228,7 +1360,7 @@ const EnhancedMarkdownRenderer: React.FC<{
                      [&>table>tbody>tr>td]:border [&>table>tbody>tr>td]:border-gray-300 [&>table>tbody>tr>td]:p-2
                      [&>table>tbody>tr:nth-child(even)]:bg-gray-50
                      [&>img]:rounded [&>img]:shadow-sm [&>img]:max-w-full [&>img]:h-auto [&>img]:overflow-hidden
-                     [&_.mermaid-diagram]:overflow-hidden [&_.mermaid-diagram]:rounded-lg [&_.mermaid-diagram]:max-w-full
+                     [&_.mermaid-diagram]:overflow-auto [&_.mermaid-diagram]:rounded-lg [&_.mermaid-diagram]:max-w-full [&_.mermaid-diagram]:w-full [&_.mermaid-diagram]:min-h-[200px] [&_.mermaid-diagram]:border [&_.mermaid-diagram]:border-gray-200 [&_.mermaid-diagram]:bg-white [&_.mermaid-diagram]:p-2 [&_.mermaid-diagram]:shadow-sm [&_.mermaid-diagram_img]:max-w-full [&_.mermaid-diagram_img]:h-auto [&_.mermaid-diagram_img]:w-auto [&_.mermaid-diagram_img]:block [&_.mermaid-diagram_img]:mx-auto [&_.mermaid-diagram_img]:overflow-visible [&_.mermaid-diagram_img]:transform [&_.mermaid-diagram_img]:transition-transform [&_.mermaid-diagram_img]:duration-200 [&_.mermaid-diagram_img]:hover:scale-105 [&_.mermaid-diagram_img]:cursor-zoom-in [&_.mermaid-diagram]:sm:min-h-[300px] [&_.mermaid-diagram]:md:min-h-[400px] [&_.mermaid-diagram]:lg:min-h-[500px] [&_.mermaid-diagram_img]:sm:max-w-[95%] [&_.mermaid-diagram_img]:md:max-w-[90%] [&_.mermaid-diagram_img]:lg:max-w-[85%]
                      [&>hr]:border-gray-300 [&>hr]:my-4
                      [&>details]:border [&>details]:border-gray-300 [&>details]:rounded [&>details]:p-3 [&>details]:mb-2
                      [&>summary]:cursor-pointer [&>summary]:font-medium [&>summary]:text-gray-800
