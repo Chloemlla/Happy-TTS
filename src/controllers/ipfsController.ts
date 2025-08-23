@@ -184,7 +184,7 @@ export class IPFSController {
             
             // 创建一个简单的测试文件
             const testBuffer = Buffer.from('IPFS配置测试文件', 'utf-8');
-            const testFilename = 'test.txt';
+            const testFilename = 'test-ipfs-config.txt';
             
             // 测试上传
             const formData = new (require('form-data'))();
