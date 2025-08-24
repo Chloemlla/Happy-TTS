@@ -443,18 +443,20 @@ export class IPFSService {
      */
     private static optimizeSVGContent(content: string): string {
         try {
-            // 移除注释
-            content = content.replace(/<!--[\s\S]*?-->/g, '');
-            
-            // 移除多余的空白字符
-            content = content.replace(/\s+/g, ' ');
-            
-            // 移除XML声明（如果存在）
-            content = content.replace(/<\?xml[^>]*\?>/g, '');
-            
-            // 确保有正确的DOCTYPE（如果需要）
-            if (!content.includes('<!DOCTYPE')) {
-                content = content.replace('<svg', '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\n<svg');
+            // 使用 JSDOM 移除注释，避免基于正则的多字符清理导致的遗漏
+            try {
+                const dom = new JSDOM(content, { contentType: 'image/svg+xml' });
+                const doc = dom.window.document;
+                const walker = doc.createTreeWalker(doc, dom.window.NodeFilter.SHOW_COMMENT);
+                const toRemove: Comment[] = [] as unknown as Comment[];
+                while (walker.nextNode()) {
+                    toRemove.push(walker.currentNode as Comment);
+                }
+                toRemove.forEach((node) => node.parentNode?.removeChild(node));
+                // 使用序列化后的 SVG 作为后续处理输入
+                content = doc.documentElement ? doc.documentElement.outerHTML : content;
+            } catch {
+                // 忽略解析失败，继续后续清理
             }
             
             // 移除潜在的危险属性 - 使用更严格的正则表达式
