@@ -10,6 +10,7 @@ import { TransactionService } from './transactionService';
 import { ShortUrlService } from './shortUrlService';
 import { JSDOM } from 'jsdom';
 import createDOMPurify from 'dompurify';
+import { TurnstileService } from './turnstileService';
 
 // IPFS服务设置（支持从 MongoDB 读取配置，优先于环境变量）
 interface IPFSSettingDoc { key: string; value: string; updatedAt?: Date }
@@ -94,14 +95,37 @@ export class IPFSService {
      * @param fileBuffer 文件缓冲区
      * @param filename 文件名
      * @param mimetype 文件类型
+     * @param options 上传选项
+     * @param cfToken Turnstile验证token（可选）
      * @returns IPFS上传响应
      */
     public static async uploadFile(
         fileBuffer: Buffer,
         filename: string,
         mimetype: string,
-        options?: { shortLink?: boolean; userId?: string; username?: string }
+        options?: { shortLink?: boolean; userId?: string; username?: string },
+        cfToken?: string
     ): Promise<IPFSUploadResponse> {
+        // 如果提供了cfToken，进行Turnstile验证
+        if (cfToken) {
+            if (TurnstileService.isEnabled()) {
+                try {
+                    const isValid = await TurnstileService.verifyToken(cfToken);
+                    if (!isValid) {
+                        throw new Error('人机验证失败，请重新验证');
+                    }
+                    logger.info('[IPFS] Turnstile验证通过');
+                } catch (error) {
+                    logger.error('[IPFS] Turnstile验证失败:', error instanceof Error ? error.message : String(error));
+                    throw new Error('人机验证失败，请重新验证');
+                }
+            } else {
+                logger.warn('[IPFS] Turnstile服务未启用，跳过验证');
+            }
+        } else {
+            logger.info('[IPFS] 未提供cfToken，跳过Turnstile验证');
+        }
+        
         // 检查文件大小
         if (fileBuffer.length > this.MAX_FILE_SIZE) {
             throw new Error(`文件大小不能超过 ${this.MAX_FILE_SIZE / 1024 / 1024}MB`);
@@ -137,13 +161,13 @@ export class IPFSService {
         }
 
         try {
-            return await this.uploadFileInternal(fileBuffer, finalFilename, mimetype, options);
+            return await this.uploadFileInternal(fileBuffer, finalFilename, mimetype, options, cfToken);
         } catch (error) {
             // 如果是SVG文件且直接上传失败，尝试转换为PNG后重新上传
             if ((mimetype.toLowerCase() === 'image/svg+xml' || filename.toLowerCase().endsWith('.svg')) && convert && executablePath) {
                 try {
                     logger.info(`[IPFS] SVG直接上传失败，尝试转换为PNG后重新上传: ${filename}`);
-                    return await this.uploadSvgAsPng(fileBuffer, filename, options);
+                    return await this.uploadSvgAsPng(fileBuffer, filename, options, cfToken);
                 } catch (conversionError) {
                     logger.error(`[IPFS] SVG转PNG上传也失败: ${filename}`, conversionError instanceof Error ? conversionError.message : String(conversionError));
                     throw new Error(`IPFS上传失败: ${error instanceof Error ? error.message : String(error)}。SVG转PNG也失败: ${conversionError instanceof Error ? conversionError.message : String(conversionError)}`);
@@ -160,7 +184,8 @@ export class IPFSService {
         fileBuffer: Buffer,
         filename: string,
         mimetype: string,
-        options?: { shortLink?: boolean; userId?: string; username?: string }
+        options?: { shortLink?: boolean; userId?: string; username?: string },
+        cfToken?: string
     ): Promise<IPFSUploadResponse> {
         // 规范化文件名
         const normalizedFilename = this.normalizeFilename(filename, mimetype);
@@ -212,13 +237,15 @@ export class IPFSService {
      * @param filename 文件名
      * @param mimetype 文件类型
      * @param options 上传选项
+     * @param cfToken Turnstile验证token（可选）
      * @returns IPFS上传响应
      */
     private static async uploadFileInternal(
         fileBuffer: Buffer,
         filename: string,
         mimetype: string,
-        options?: { shortLink?: boolean; userId?: string; username?: string }
+        options?: { shortLink?: boolean; userId?: string; username?: string },
+        cfToken?: string
     ): Promise<IPFSUploadResponse> {
         const MAX_RETRIES = 2;
         let lastError: any = null;
@@ -317,7 +344,7 @@ export class IPFSService {
                 if (statusCode === 503 || statusCode === 500) {
                     logger.warn(`[IPFS] 主服务不可用 (${statusCode})，尝试备用方案`);
                     try {
-                        return await this.uploadToBackup(fileBuffer, filename, mimetype, options);
+                        return await this.uploadToBackup(fileBuffer, filename, mimetype, options, cfToken);
                     } catch (backupError) {
                         logger.error(`[IPFS] 备用方案也失败: ${backupError instanceof Error ? backupError.message : String(backupError)}`);
                         lastError = new Error(`IPFS服务暂时不可用，请稍后重试。错误详情: ${errorMessage}`);
@@ -344,12 +371,14 @@ export class IPFSService {
      * @param svgBuffer 原始SVG文件缓冲区
      * @param originalFilename 原始文件名
      * @param options 上传选项
+     * @param cfToken Turnstile验证token（可选）
      * @returns IPFS上传响应
      */
     private static async uploadSvgAsPng(
         svgBuffer: Buffer,
         originalFilename: string,
-        options?: { shortLink?: boolean; userId?: string; username?: string }
+        options?: { shortLink?: boolean; userId?: string; username?: string },
+        cfToken?: string
     ): Promise<IPFSUploadResponse> {
         try {
             // 转换SVG为PNG
@@ -362,7 +391,7 @@ export class IPFSService {
             logger.info(`[IPFS] 开始上传转换后的PNG文件（备用方案）: ${normalizedPngFilename}`);
             
             // 使用PNG文件重新上传
-            const result = await this.uploadFileInternal(pngBuffer, normalizedPngFilename, 'image/png', options);
+            const result = await this.uploadFileInternal(pngBuffer, normalizedPngFilename, 'image/png', options, cfToken);
             
             // 添加转换信息
             return {

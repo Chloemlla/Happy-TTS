@@ -1,5 +1,7 @@
 import express from 'express';
 import { TtsController } from '../controllers/ttsController';
+import { TurnstileService } from '../services/turnstileService';
+import { config } from '../config/config';
 
 const router = express.Router();
 
@@ -50,6 +52,35 @@ const router = express.Router();
  *                   description: 签名
  */
 router.post('/generate', TtsController.generateSpeech);
+
+/**
+ * @openapi
+ * /tts/turnstile/config:
+ *   get:
+ *     summary: 获取 Turnstile 配置
+ *     description: 获取 Turnstile 配置
+ *     responses:
+ *       200:
+ *         description: Turnstile 配置
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 enabled:
+ *                   type: boolean
+ *                 siteKey:
+ *                   type: string
+ *                   description: Turnstile 站点密钥
+ */
+router.get('/turnstile/config', (req, res) => {
+    const enableTurnstile = TurnstileService.isEnabled();
+    
+    res.json({
+        enabled: enableTurnstile,
+        siteKey: enableTurnstile ? config.turnstile.siteKey : null
+    });
+});
 
 /**
  * @openapi

@@ -6,7 +6,8 @@ import logger from '../utils/logger';
 import { config } from '../config/config';
 import axios from 'axios';
 import { ContentFilterService } from '../services/contentFilterService';
-import { CloudflareTurnstileService } from '../services/cloudflareTurnstileService';
+import { TurnstileService } from '../services/turnstileService';
+
 import { findDuplicateGeneration, addGenerationRecord, isAdminUser } from '../services/userGenerationService';
 import { mongoose } from '../services/mongoService';
 
@@ -120,11 +121,13 @@ export class TtsController {
                 });
             }
 
-            // 验证 Cloudflare Turnstile
-            if (CloudflareTurnstileService.isEnabled()) {
-                const cfVerified = await CloudflareTurnstileService.verifyToken(cfToken, ip);
+
+
+            // 验证 Turnstile
+            if (TurnstileService.isEnabled()) {
+                const cfVerified = await TurnstileService.verifyToken(cfToken, ip);
                 if (!cfVerified) {
-                    logger.warn('Cloudflare Turnstile 验证失败', {
+                    logger.warn('Turnstile 验证失败', {
                         ip,
                         userAgent: req.headers['user-agent'],
                         timestamp: new Date().toISOString()

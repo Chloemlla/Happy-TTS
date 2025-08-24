@@ -6,6 +6,8 @@ import { escapeHtml } from '../utils/escapeHtml';
 import CryptoJS from 'crypto-js';
 import { imageDataApi } from '../api/imageData';
 import { openDB, deleteDB } from 'idb';
+import { TurnstileWidget } from './TurnstileWidget';
+import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
 import { 
   FaImage, 
   FaUpload, 
@@ -291,6 +293,13 @@ const ImageUploadPage: React.FC = () => {
   // 2. 新增本地图片管理相关state
   const [storedImages, setStoredImages] = useState<any[]>([]);
   const [dragActive, setDragActive] = useState(false);
+  
+  // Turnstile 相关状态
+  const { config: turnstileConfig, loading: turnstileConfigLoading } = useTurnstileConfig();
+  const [turnstileToken, setTurnstileToken] = useState<string>('');
+  const [turnstileVerified, setTurnstileVerified] = useState(false);
+  const [turnstileError, setTurnstileError] = useState(false);
+  const [turnstileKey, setTurnstileKey] = useState(0);
 
   // 加载本地图片
   React.useEffect(() => {
@@ -331,6 +340,12 @@ const ImageUploadPage: React.FC = () => {
     setFile(f);
     setUploadedUrl(null);
     setError(null);
+    
+    // 重置Turnstile状态
+    setTurnstileToken('');
+    setTurnstileVerified(false);
+    setTurnstileKey(k => k + 1);
+    
     const url = URL.createObjectURL(f);
     setPreviewUrl(url);
     console.log('[图片上传] 预览URL:', url);
@@ -342,14 +357,47 @@ const ImageUploadPage: React.FC = () => {
     setPreviewUrl(null);
     setUploadedUrl(null);
     setError(null);
+    
+    // 重置Turnstile状态
+    setTurnstileToken('');
+    setTurnstileVerified(false);
+    setTurnstileKey(k => k + 1);
+    
     // 清空文件输入框
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
+  // Turnstile 验证处理函数
+  const handleTurnstileVerify = (token: string) => {
+    setTurnstileToken(token);
+    setTurnstileVerified(true);
+    setTurnstileError(false);
+  };
+
+  const handleTurnstileExpire = () => {
+    setTurnstileToken('');
+    setTurnstileVerified(false);
+    setTurnstileError(false);
+  };
+
+  const handleTurnstileError = () => {
+    setTurnstileToken('');
+    setTurnstileVerified(false);
+    setTurnstileError(true);
+  };
+
   const handleUpload = async () => {
     if (!file) return;
+    
+    // 检查Turnstile验证
+    if (turnstileConfig.enabled && (!turnstileVerified || !turnstileToken)) {
+      setError('请先完成人机验证');
+      setNotification({ message: '请先完成人机验证', type: 'warning' });
+      return;
+    }
+    
     setUploading(true);
     setError(null);
     setUploadedUrl(null);
@@ -357,6 +405,9 @@ const ImageUploadPage: React.FC = () => {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('source', 'imgupload'); // 标记来源
+      if (turnstileConfig.enabled && turnstileToken) {
+        formData.append('cfToken', turnstileToken);
+      }
       const token = localStorage.getItem('token');
       const uploadUrl = getApiBaseUrl() + '/api/ipfs/upload';
       console.log('[图片上传] 开始上传:', { uploadUrl, file, token });
@@ -373,6 +424,11 @@ const ImageUploadPage: React.FC = () => {
         setUploadedUrl(result.data.web2url);
         setUploadedShortUrl(result.data.shortUrl || null);
         setNotification({ message: '上传成功', type: 'success' });
+        
+        // 重置Turnstile状态
+        setTurnstileToken('');
+        setTurnstileVerified(false);
+        setTurnstileKey(k => k + 1);
         
         // 生成图片数据验证信息
         let imageId: string;
@@ -717,10 +773,44 @@ const ImageUploadPage: React.FC = () => {
               >移除</motion.button>
             </motion.div>
           )}
+          
+          {/* Turnstile 人机验证 */}
+          {turnstileConfig.enabled && turnstileConfig.siteKey && !turnstileConfigLoading && (
+            <motion.div
+              className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <div className="text-sm text-gray-700 mb-3 text-center">
+                人机验证
+                {turnstileVerified && (
+                  <span className="ml-2 text-green-600 font-medium">✓ 验证通过</span>
+                )}
+              </div>
+              
+              <TurnstileWidget
+                key={turnstileKey}
+                siteKey={turnstileConfig.siteKey}
+                onVerify={handleTurnstileVerify}
+                onExpire={handleTurnstileExpire}
+                onError={handleTurnstileError}
+                theme="light"
+                size="normal"
+              />
+              
+              {turnstileError && (
+                <div className="mt-2 text-sm text-red-500 text-center">
+                  验证失败，请重新验证
+                </div>
+              )}
+            </motion.div>
+          )}
+          
           <motion.button
             className="w-full mt-2 px-4 py-3 sm:py-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold shadow hover:from-blue-700 hover:to-indigo-700 transition disabled:opacity-50 text-base sm:text-lg tracking-wide min-h-[48px] sm:min-h-[44px]"
             onClick={handleUpload}
-            disabled={!file || uploading}
+            disabled={!file || uploading || (turnstileConfig.enabled && !turnstileVerified)}
             whileTap={{ scale: 0.98 }}
           >
             {uploading ? '上传中...' : '上传图片'}

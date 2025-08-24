@@ -5,6 +5,8 @@ import { TtsRequest, TtsResponse } from '../types/tts';
 import { AudioPreview } from './AudioPreview';
 import { Input } from './ui';
 import { useNotification } from './Notification';
+import { TurnstileWidget } from './TurnstileWidget';
+import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
 import { 
     FaLock, 
     FaDownload, 
@@ -37,15 +39,13 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const [audioUrl, setAudioUrl] = useState<string | null>(null);
     const { setNotification } = useNotification();
-    const [cfToken, setCfToken] = useState<string>('');
-    const [cfVerified, setCfVerified] = useState(false);
-    const [cfError, setCfError] = useState(false);
-    const [cfHidden, setCfHidden] = useState(false);
-    const [cfInstanceId, setCfInstanceId] = useState(0);
-    const [cfLoading, setCfLoading] = useState(true);
-    const turnstileRef = useRef<HTMLDivElement>(null);
+    const [turnstileToken, setTurnstileToken] = useState<string>('');
+    const [turnstileVerified, setTurnstileVerified] = useState(false);
+    const [turnstileError, setTurnstileError] = useState(false);
+
 
     const { generateSpeech, loading, error: ttsError, audioUrl: ttsAudioUrl } = useTts();
+    const { config: turnstileConfig, loading: turnstileConfigLoading } = useTurnstileConfig();
 
     const voices = useMemo(() => [
         { id: 'alloy', name: 'Alloy', description: '中性、平衡的声音' },
@@ -70,8 +70,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
 
     const MAX_TEXT_LENGTH = 4096;
 
-    // 默认关闭人机验证，只有明确设置为 'true' 时才启用
-    const enableTurnstile = import.meta.env.VITE_ENABLE_TURNSTILE === 'true';
+
 
     // 计算当前文本字节数
     const textByteSize = useMemo(() => {
@@ -85,13 +84,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
         return `${(bytes / 1024 / 1024).toFixed(2)}MB`;
     }, []);
 
-    // 重置验证状态，用于下一次生成
-    const resetCfVerification = useCallback(() => {
-        setCfToken('');
-        setCfVerified(false);
-        setCfError(false);
-        setCfHidden(false);
-    }, []);
+
 
     // 验证表单数据
     const validateForm = useCallback(() => {
@@ -107,11 +100,12 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
         if (!generationCode.trim()) {
             return '请输入生成码';
         }
-        if (enableTurnstile && (!cfVerified || !cfToken)) {
+        if (turnstileConfig.enabled && (!turnstileVerified || !turnstileToken)) {
             return '请完成人机验证';
         }
+
         return null;
-    }, [cooldown, cooldownTime, text, generationCode, enableTurnstile, cfVerified, cfToken]);
+    }, [cooldown, cooldownTime, text, generationCode, turnstileConfig.enabled, turnstileVerified, turnstileToken]);
 
     const handleSubmit = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
@@ -122,9 +116,6 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
             setError(validationError);
             return;
         }
-
-        // 验证通过后隐藏验证组件
-        setCfHidden(true);
 
         try {
             const request: TtsRequest = {
@@ -137,8 +128,8 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                 isAdmin,
                 customFileName: `tts-${Date.now()}`,
                 generationCode,
-                // 只有在启用人机验证时才发送 cfToken
-                ...(enableTurnstile && { cfToken })
+                ...(turnstileConfig.enabled && { cfToken: turnstileToken })
+
             };
 
             const result = await generateSpeech(request);
@@ -155,17 +146,13 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                 });
             }
 
-            // 生成成功后重置验证状态，为下一次生成做准备
-            resetCfVerification();
+
 
             if (onSuccess) {
                 onSuccess(result);
             }
         } catch (error: any) {
             console.error('TTS生成错误:', error);
-            
-            // 生成失败时重置验证状态，允许用户重新验证
-            resetCfVerification();
             
             if (error.message.includes('封禁')) {
                 setNotification({
@@ -202,12 +189,8 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                     type: 'error'
                 });
             }
-        } finally {
-            // 每次提交后都重置cf验证状态并强制刷新cf-turnstile
-            resetCfVerification();
-            setCfInstanceId(id => id + 1);
         }
-    }, [validateForm, enableTurnstile, cfToken, text, model, voice, outputFormat, speed, userId, isAdmin, generationCode, generateSpeech, onSuccess, setNotification, resetCfVerification]);
+    }, [validateForm, text, model, voice, outputFormat, speed, userId, isAdmin, generationCode, generateSpeech, onSuccess, setNotification, turnstileConfig.enabled, turnstileToken]);
 
     const handleDownload = useCallback(() => {
         if (audioUrl) {
@@ -222,26 +205,25 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
 
     const displayError = error || ttsError;
 
-    const handleCfVerify = (token: string) => {
-        setCfToken(token);
-        setCfVerified(true);
-        setCfError(false);
-        setCfHidden(false); // 确保验证组件可见
+    const handleTurnstileVerify = (token: string) => {
+        setTurnstileToken(token);
+        setTurnstileVerified(true);
+        setTurnstileError(false);
     };
 
-    const handleCfExpire = () => {
-        setCfToken('');
-        setCfVerified(false);
-        setCfError(false);
-        setCfHidden(false); // 过期时显示验证组件
+    const handleTurnstileExpire = () => {
+        setTurnstileToken('');
+        setTurnstileVerified(false);
+        setTurnstileError(false);
     };
 
-    const handleCfError = () => {
-        setCfToken('');
-        setCfVerified(false);
-        setCfError(true);
-        setCfHidden(false); // 错误时显示验证组件
+    const handleTurnstileError = () => {
+        setTurnstileToken('');
+        setTurnstileVerified(false);
+        setTurnstileError(true);
     };
+
+
 
     return (
         <div className="relative w-full max-w-4xl mx-auto">
@@ -548,90 +530,53 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                     </div>
                 </motion.div>
 
-                {/* 人机验证区域（可选） */}
-                {enableTurnstile && (
-                    <div>
-                        <AnimatePresence>
-                            {!cfHidden && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -20, height: 0 }}
-                                    transition={{ duration: 0.5, delay: 1.0 }}
-                                >
-                                    <motion.label 
-                                        className="block text-gray-700 text-lg font-semibold mb-3"
-                                        initial={{ opacity: 0, y: -10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ duration: 0.3, delay: 1.1 }}
-                                    >
-                                        人机验证
-                                        <span className="text-red-500 ml-1">*</span>
-                                    </motion.label>
-                                    {/* 只保留官方Turnstile组件，无任何装饰样式 */}
-                                    <div>
-                                        <div
-                                            className="cf-turnstile"
-                                            data-sitekey="0x4AAAAAABkocXH4KiqcoV1a"
-                                            // data-theme="light"
-                                            // data-callback="turnstileCallback"
-                                            // data-expired-callback="turnstileExpiredCallback"
-                                            // data-error-callback="turnstileErrorCallback"
-                                        />
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                        {/* 验证失败提示 */}
-                        <AnimatePresence>
-                            {cfError && (
-                                <motion.div
-                                    className="flex items-center justify-center bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-200 rounded-xl p-3 shadow-sm"
-                                    initial={{ opacity: 0, scale: 0.8, y: -10 }}
-                                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                                    exit={{ opacity: 0, scale: 0.8, y: -10 }}
-                                    transition={{ duration: 0.4, type: "spring", stiffness: 200 }}
-                                >
-                                    <div className="flex flex-col items-center space-y-2">
-                                        <div className="flex items-center space-x-2">
-                                            <div className="w-6 h-6 bg-gradient-to-r from-red-400 to-pink-500 rounded-full flex items-center justify-center">
-                                                <FaTimes className="w-4 h-4 text-white" />
-                                            </div>
-                                            <span className="text-red-700 font-medium">验证失败，请重试</span>
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    setCfError(false);
-                                                    setCfLoading(true);
-                                                    setCfInstanceId(id => id + 1);
-                                                }}
-                                                className="mt-2 px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-                                            >
-                                                重试
-                                            </button>
-                                        </div>
-                                        {/* 详细错误信息打印 */}
-                                        {cfError && typeof cfError === 'object' && (
-                                            <pre className="mt-2 text-xs text-red-500 bg-red-100 rounded p-2 max-w-xl overflow-x-auto">
-                                                {JSON.stringify(cfError, null, 2)}
-                                            </pre>
-                                        )}
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+                {/* Turnstile 人机验证 */}
+                {turnstileConfig.enabled && turnstileConfig.siteKey && !turnstileConfigLoading && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5, delay: 1.0 }}
+                        className="space-y-3"
+                    >
+                        <motion.label 
+                            className="block text-gray-700 text-lg font-semibold mb-3"
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3, delay: 1.1 }}
+                        >
+                            人机验证
+                            <span className="text-red-500 ml-1">*</span>
+                        </motion.label>
                         
-                        {/* 安全验证说明 */}
+                        <TurnstileWidget
+                            siteKey={turnstileConfig.siteKey!}
+                            onVerify={handleTurnstileVerify}
+                            onExpire={handleTurnstileExpire}
+                            onError={handleTurnstileError}
+                            theme="light"
+                            size="normal"
+                        />
+
+                        {turnstileError && (
+                            <motion.div
+                                className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-lg p-3"
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                            >
+                                验证失败，请重新验证
+                            </motion.div>
+                        )}
+
                         <motion.div
-                            className="flex items-center justify-center space-x-2 text-sm text-gray-600 mt-2"
+                            className="flex items-center space-x-2 text-sm text-gray-600"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             transition={{ duration: 0.3, delay: 1.3 }}
                         >
                             <FaLock className="w-4 h-4 text-blue-500" />
-                            <span>请完成人机验证以证明您是人类用户，保护系统免受自动化攻击</span>
+                            <span>请完成人机验证以证明您是人类用户</span>
                         </motion.div>
-                    </div>
+                    </motion.div>
                 )}
 
                 <AnimatePresence>
@@ -648,70 +593,6 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                     )}
                 </AnimatePresence>
 
-                {/* 人机验证区域（可选） */}
-                {enableTurnstile && (
-                    <div>
-                        <AnimatePresence>
-                            {!cfHidden && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -20, height: 0 }}
-                                    transition={{ duration: 0.5, delay: 1.0 }}
-                                >
-                                    <motion.label 
-                                        className="block text-gray-700 text-lg font-semibold mb-3"
-                                        initial={{ opacity: 0, y: -10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ duration: 0.3, delay: 1.1 }}
-                                    >
-                                        人机验证
-                                        <span className="text-red-500 ml-1">*</span>
-                                    </motion.label>
-                                    {/* 只保留官方Turnstile组件，无任何装饰样式 */}
-                                    <div>
-                                        <div
-                                            className="cf-turnstile"
-                                            data-sitekey="0x4AAAAAABkocXH4KiqcoV1a"
-                                        />
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                        {/* 验证失败提示 */}
-                        <AnimatePresence>
-                            {cfError && (
-                                <motion.div
-                                    className="flex items-center justify-center bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-200 rounded-xl p-3 shadow-sm"
-                                    initial={{ opacity: 0, scale: 0.8, y: -10 }}
-                                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                                    exit={{ opacity: 0, scale: 0.8, y: -10 }}
-                                    transition={{ duration: 0.4, type: "spring", stiffness: 200 }}
-                                >
-                                    <div className="flex flex-col items-center space-y-2">
-                                        <div className="flex items-center space-x-2">
-                                            <div className="w-6 h-6 bg-gradient-to-r from-red-400 to-pink-500 rounded-full flex items-center justify-center">
-                                                <FaTimes className="w-4 h-4 text-white" />
-                                            </div>
-                                            <span className="text-red-700 font-medium">验证失败，请重试</span>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setCfError(false);
-                                                setCfLoading(true);
-                                                setCfInstanceId(id => id + 1);
-                                            }}
-                                            className="mt-2 px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-                                        >
-                                            重新验证
-                                        </button>
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                    </div>
-                )}
 
                 <motion.div 
                     className="flex flex-col sm:flex-row gap-3 sm:gap-4"

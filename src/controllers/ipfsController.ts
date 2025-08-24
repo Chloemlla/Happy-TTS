@@ -33,12 +33,15 @@ export class IPFSController {
                 const userId = (req as any).user?.id || 'admin';
                 const username = (req as any).user?.username || 'admin';
                 
+                // 从请求中提取cfToken（Turnstile验证token）
+                const cfToken = req.body.cfToken;
+                
                 // 使用IPFS服务上传文件
                 const uploadResult = await IPFSService.uploadFile(buffer, originalname, mimetype, { 
                     shortLink: !!shortLinkFlag, 
                     userId, 
                     username 
-                });
+                }, cfToken);
 
                 logger.info('IPFS上传成功', {
                     ip,

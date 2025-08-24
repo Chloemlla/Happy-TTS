@@ -43,11 +43,12 @@ export const config = {
   },
   // 用户数据存储方式: 'file' 或 'mongo'
   userStorageMode: process.env.USER_STORAGE_MODE || 'file',
-  // Cloudflare Turnstile 配置
-  cloudflareTurnstile: {
-    secretKey: process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY || '',
-    siteKey: process.env.CLOUDFLARE_TURNSTILE_SITE_KEY || '',
+  // Turnstile 配置
+  turnstile: {
+    secretKey: process.env.TURNSTILE_SECRET_KEY || '',
+    siteKey: process.env.TURNSTILE_SITE_KEY || '',
   },
+
   mysql: {
     host: process.env.MYSQL_HOST || 'localhost',
     port: process.env.MYSQL_PORT || 3306,

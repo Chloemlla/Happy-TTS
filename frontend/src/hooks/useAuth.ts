@@ -163,11 +163,12 @@ export const useAuth = () => {
         checkAuth();
     }, []);
 
-    const login = async (username: string, password: string) => {
+    const login = async (username: string, password: string, cfToken?: string) => {
         try {
             const response = await api.post<{ user: User; token: string; requires2FA?: boolean; twoFactorType?: string[] }>('/api/auth/login', {
                 identifier: username,
-                password
+                password,
+                ...(cfToken && { cfToken })
             });
             const { user, token, requires2FA, twoFactorType } = response.data;
             if (token) {

@@ -136,7 +136,20 @@ class DebugConsoleService {
   private readonly CONFIG_TTL_MS = 60_000; // 1分钟缓存
 
   private constructor() {
-    this.initializeService();
+    // 延迟初始化，等待MongoDB服务启动
+    setTimeout(() => {
+      this.initializeService();
+    }, 2000); // 等待2秒让MongoDB服务先启动
+    
+    // 监听MongoDB连接状态变化
+    mongoose.connection.on('connected', () => {
+      logger.info('MongoDB连接成功，重新初始化调试控制台服务');
+      this.initializeService();
+    });
+    
+    mongoose.connection.on('disconnected', () => {
+      logger.warn('MongoDB连接断开，调试控制台服务将使用默认配置');
+    });
   }
 
   public static getInstance(): DebugConsoleService {
@@ -148,11 +161,24 @@ class DebugConsoleService {
 
   private async initializeService() {
     try {
+      // 检查MongoDB连接状态
       if (mongoose.connection.readyState === 1) {
         await this.loadConfigs();
         logger.info('调试控制台服务初始化成功');
       } else {
         logger.warn('MongoDB 未连接，调试控制台服务将使用默认配置');
+        
+        // 如果MongoDB未连接，等待一段时间后重试（仅在首次初始化时）
+        if (!this.configLoadedAt) {
+          setTimeout(async () => {
+            if (mongoose.connection.readyState === 1) {
+              await this.loadConfigs();
+              logger.info('调试控制台服务延迟初始化成功');
+            } else {
+              logger.warn('MongoDB 仍未连接，调试控制台服务继续使用默认配置');
+            }
+          }, 5000); // 再等待5秒后重试
+        }
       }
     } catch (error) {
       logger.error('调试控制台服务初始化失败:', error);
@@ -161,7 +187,10 @@ class DebugConsoleService {
 
   private async loadConfigs(): Promise<DebugConsoleConfigDoc[]> {
     try {
-      if (mongoose.connection.readyState !== 1) return [];
+      if (mongoose.connection.readyState !== 1) {
+        logger.debug('MongoDB未连接，跳过配置加载');
+        return [];
+      }
       
       const docs: DebugConsoleConfigDoc[] = await DebugConsoleConfigModel.find({ enabled: { $ne: false } }).lean();
       const normalized = (docs || [])
@@ -178,6 +207,7 @@ class DebugConsoleService {
 
       this.configCache = normalized;
       this.configLoadedAt = Date.now();
+      logger.debug(`调试控制台配置加载完成，共${normalized.length}个配置`);
       return this.configCache;
     } catch (error) {
       logger.error('加载调试控制台配置失败:', error);
@@ -187,9 +217,17 @@ class DebugConsoleService {
 
   private async getConfigsFresh(): Promise<DebugConsoleConfigDoc[]> {
     const now = Date.now();
-    if (!this.configLoadedAt || now - this.configLoadedAt > this.CONFIG_TTL_MS) {
+    
+    // 如果MongoDB连接状态发生变化，重新加载配置
+    const isConnected = this.isMongoConnected();
+    const wasConnected = this.configCache.length > 0 || this.configLoadedAt > 0;
+    
+    if (!this.configLoadedAt || 
+        now - this.configLoadedAt > this.CONFIG_TTL_MS || 
+        (isConnected && !wasConnected)) {
       await this.loadConfigs();
     }
+    
     return this.configCache;
   }
 
@@ -434,6 +472,38 @@ class DebugConsoleService {
     } catch (error) {
       logger.error('记录调试控制台访问日志失败:', error);
     }
+  }
+
+  /**
+   * 检查MongoDB连接状态
+   */
+  public isMongoConnected(): boolean {
+    return mongoose.connection.readyState === 1;
+  }
+
+  /**
+   * 获取服务状态信息
+   */
+  public getServiceStatus(): {
+    mongoConnected: boolean;
+    configLoaded: boolean;
+    configCount: number;
+    lastLoadedAt: number | null;
+  } {
+    return {
+      mongoConnected: this.isMongoConnected(),
+      configLoaded: this.configLoadedAt > 0,
+      configCount: this.configCache.length,
+      lastLoadedAt: this.configLoadedAt || null
+    };
+  }
+
+  /**
+   * 手动重新初始化服务（用于MongoDB连接恢复后）
+   */
+  public async reinitialize(): Promise<void> {
+    logger.info('手动重新初始化调试控制台服务');
+    await this.initializeService();
   }
 
   /**

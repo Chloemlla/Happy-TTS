@@ -1,7 +1,6 @@
 import axios from 'axios';
 import { config } from '../config/config';
 import logger from '../utils/logger';
-import { enableTurnstile } from '../config';
 
 interface TurnstileResponse {
   success: boolean;
@@ -10,35 +9,30 @@ interface TurnstileResponse {
   hostname?: string;
 }
 
-export class CloudflareTurnstileService {
+export class TurnstileService {
   private static readonly VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 
   /**
-   * 验证 Cloudflare Turnstile token
+   * 验证 Turnstile token
    * @param token 前端返回的 token
    * @param remoteIp 用户 IP 地址
    * @returns 验证结果
    */
   public static async verifyToken(token: string, remoteIp?: string): Promise<boolean> {
     try {
-      // 如果未启用Turnstile，直接跳过
-      if (!enableTurnstile) {
-        logger.warn('Cloudflare Turnstile 校验已禁用，直接跳过');
-        return true;
-      }
-      // 如果没有配置密钥，跳过验证（开发环境）
-      if (!config.cloudflareTurnstile.secretKey) {
-        logger.warn('Cloudflare Turnstile 密钥未配置，跳过验证');
+      // 检查是否配置了密钥
+      if (!config.turnstile?.secretKey) {
+        logger.warn('Turnstile 密钥未配置，跳过验证');
         return true;
       }
 
       if (!token) {
-        logger.warn('Cloudflare Turnstile token 为空');
+        logger.warn('Turnstile token 为空');
         return false;
       }
 
       const formData = new URLSearchParams();
-      formData.append('secret', config.cloudflareTurnstile.secretKey);
+      formData.append('secret', config.turnstile.secretKey);
       formData.append('response', token);
       
       if (remoteIp) {
@@ -59,7 +53,7 @@ export class CloudflareTurnstileService {
       const result = response.data;
 
       if (!result.success) {
-        logger.warn('Cloudflare Turnstile 验证失败', {
+        logger.warn('Turnstile 验证失败', {
           errorCodes: result['error-codes'],
           remoteIp,
           timestamp: result.challenge_ts,
@@ -68,7 +62,7 @@ export class CloudflareTurnstileService {
         return false;
       }
 
-      logger.info('Cloudflare Turnstile 验证成功', {
+      logger.info('Turnstile 验证成功', {
         remoteIp,
         timestamp: result.challenge_ts,
         hostname: result.hostname,
@@ -76,7 +70,7 @@ export class CloudflareTurnstileService {
 
       return true;
     } catch (error) {
-      logger.error('Cloudflare Turnstile 验证请求失败', {
+      logger.error('Turnstile 验证请求失败', {
         error: error instanceof Error ? error.message : 'Unknown error',
         remoteIp,
       });
@@ -85,9 +79,9 @@ export class CloudflareTurnstileService {
   }
 
   /**
-   * 检查是否启用了 Cloudflare Turnstile
+   * 检查是否启用了 Turnstile
    */
   public static isEnabled(): boolean {
-    return enableTurnstile && !!config.cloudflareTurnstile.secretKey;
+    return !!config.turnstile?.secretKey;
   }
 } 

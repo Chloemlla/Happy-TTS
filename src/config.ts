@@ -73,7 +73,6 @@ const config: Config = {
   },
 };
 
-// 默认关闭人机验证，只有明确设置为 'true' 时才启用
-export const enableTurnstile = process.env.VITE_ENABLE_TURNSTILE === 'true';
+
 
 export default config; 

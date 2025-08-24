@@ -6,9 +6,10 @@ export interface TtsRequest {
   speed: number;
   userId?: string;
   isAdmin?: boolean;
-  customFileName?: string;
-  generationCode: string;
-  cfToken?: string; // Cloudflare Turnstile token
+      customFileName?: string;
+    generationCode: string;
+    cfToken?: string; // Turnstile token
+  
 }
 
 export interface TtsResponse {

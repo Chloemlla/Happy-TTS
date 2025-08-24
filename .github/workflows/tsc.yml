@@ -1,0 +1,39 @@
+name: TypeScript Compilation Check
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  type-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@main
+
+      - name: Setup Node.js
+        uses: actions/setup-node@main
+        with:
+          node-version: "18"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run TypeScript compilation check
+        run: npx tsc --noEmit
+
+      - name: Check for path-to-regexp issues
+        run: |
+          echo "Checking for potential path-to-regexp issues..."
+          if grep -r "router\.(get|post|put|delete|patch).*-" src/routes/ --include="*.ts"; then
+            echo "Found routes with hyphens that might cause path-to-regexp issues:"
+            grep -r "router\.(get|post|put|delete|patch).*-" src/routes/ --include="*.ts"
+            echo "Consider replacing hyphens with slashes in route paths"
+          else
+            echo "No routes with hyphens found"
+          fi

@@ -12,7 +12,8 @@ import VerifyCodeInput from './VerifyCodeInput';
 import { AnimatePresence, motion } from 'framer-motion';
 import { NotificationData } from './Notification';
 import getApiBaseUrl from '../api';
-import SmartHumanCheck from './SmartHumanCheck';
+import { TurnstileWidget } from './TurnstileWidget';
+import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
 
 interface AuthFormProps {
     setNotification?: (data: NotificationData) => void;
@@ -44,6 +45,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
     const { setNotification: contextSetNotification } = useNotification();
     const setNotify = propSetNotification || contextSetNotification;
     const { login, register, pending2FA, setPending2FA, verifyTOTP } = useAuth();
+    const { config: turnstileConfig, loading: turnstileConfigLoading } = useTurnstileConfig();
     const {
         authenticateWithPasskey,
         showDebugModal,
@@ -72,22 +74,17 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
     const [verifyError, setVerifyError] = useState('');
     const [verifyLoading, setVerifyLoading] = useState(false);
     const [verifyResendTimer, setVerifyResendTimer] = useState(0);
-    const [shcLastFail, setShcLastFail] = useState<string | null>(null);
-    const [shcDebugLogs, setShcDebugLogs] = useState<any[]>([]);
-    const [showHumanCheck, setShowHumanCheck] = useState(false);
-    const [humanCheckToken, setHumanCheckToken] = useState<string | null>(null);
-    const [humanCheckKey, setHumanCheckKey] = useState(0);
-    // 人机验证失败弹窗状态
-    const [showHumanCheckFail, setShowHumanCheckFail] = useState(false);
-    const [humanCheckTraceId, setHumanCheckTraceId] = useState<string | null>(null);
-    const [humanCheckFailInfo, setHumanCheckFailInfo] = useState<{ message?: string; errorCode?: string; reason?: string } | null>(null);
+    const [turnstileToken, setTurnstileToken] = useState<string>('');
+    const [turnstileVerified, setTurnstileVerified] = useState(false);
+    const [turnstileError, setTurnstileError] = useState(false);
+    const [turnstileKey, setTurnstileKey] = useState(0);
 
-    // 人机验证 token 更新后，清理上一轮错误提示
+    // Turnstile token 更新后，清理上一轮错误提示
     useEffect(() => {
-        if (humanCheckToken) {
+        if (turnstileToken) {
             setError(null);
         }
-    }, [humanCheckToken]);
+    }, [turnstileToken]);
 
     // 支持的主流邮箱后缀
     const allowedDomains = [
@@ -101,19 +98,23 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
     // 保留用户名列表
     const reservedUsernames = ['admin', 'root', 'system', 'test', 'administrator'];
 
-    // SmartHumanCheck 自动模式失败记录
-    const handleShcFail = (reason: string) => {
-        const info = {
-            action: 'SmartHumanCheck 自动获取 nonce 失败',
-            reason,
-            username: username || null,
-            context: 'AuthForm/register',
-            timestamp: new Date().toISOString()
-        };
-        setShcLastFail(reason);
-        setShcDebugLogs(prev => [...prev, info]);
-        // 提示用户需要重试人机验证
-        setNotify({ message: '人机验证环境异常，已记录。请重试人机验证后再注册。', type: 'warning' });
+    // Turnstile 验证处理函数
+    const handleTurnstileVerify = (token: string) => {
+        setTurnstileToken(token);
+        setTurnstileVerified(true);
+        setTurnstileError(false);
+    };
+
+    const handleTurnstileExpire = () => {
+        setTurnstileToken('');
+        setTurnstileVerified(false);
+        setTurnstileError(false);
+    };
+
+    const handleTurnstileError = () => {
+        setTurnstileToken('');
+        setTurnstileVerified(false);
+        setTurnstileError(true);
     };
 
     // 密码复杂度检查
@@ -254,7 +255,15 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
             const sanitizedEmail = DOMPurify.sanitize(email).trim();
             const sanitizedPassword = password;
             if (isLogin) {
-                const result = await login(sanitizedUsername, sanitizedPassword);
+                // 登录前必须完成人机验证
+                if (!turnstileVerified || !turnstileToken) {
+                    setError('请先完成人机验证');
+                    setNotify({ message: '请先完成人机验证', type: 'warning' });
+                    setLoading(false);
+                    return;
+                }
+
+                const result = await login(sanitizedUsername, sanitizedPassword, turnstileToken);
                 if (result && result.requires2FA && result.twoFactorType) {
                     setNotify({ message: '需要二次验证，请选择验证方式', type: 'info' });
                     setPendingUser(result.user);
@@ -303,47 +312,16 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                 return;
             } else {
                 // 注册前必须完成人机验证
-                if (!humanCheckToken) {
-                    setError('请先完成人机验证（滑块与提交）');
-                    setNotify({ message: '请先完成人机验证（滑块与提交）', type: 'warning' });
+                if (!turnstileVerified || !turnstileToken) {
+                    setError('请先完成人机验证');
+                    setNotify({ message: '请先完成人机验证', type: 'warning' });
                     setLoading(false);
                     return;
                 }
 
-                // 先向后端验证人机校验 token
-                const token = humanCheckToken as string;
-                try {
-                    const vres = await fetch(getApiBaseUrl() + '/api/human-check/verify', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ token })
-                    });
-                    const vdata = await vres.json();
-                    if (!vres.ok || !vdata?.success) {
-                        const msg = vdata?.error || vdata?.errorMessage || '人机验证失败，请重试';
-                        // 捕获 Trace ID 并弹窗提示
-                        setHumanCheckTraceId(vdata?.traceId || null);
-                        setHumanCheckFailInfo({ message: msg, errorCode: vdata?.errorCode, reason: vdata?.reason });
-                        setShowHumanCheckFail(true);
-                        // 服务器校验失败时清空本地 token，避免 UI 显示“通过”与实际不一致
-                        setHumanCheckToken(null);
-                        setHumanCheckKey(k => k + 1);
-                        setError(msg);
-                        setNotify({ message: msg, type: 'error' });
-                        setLoading(false);
-                        return;
-                    }
-                } catch (e: any) {
-                    // 请求异常同样清空 token，提示用户重试
-                    setHumanCheckToken(null);
-                    setHumanCheckKey(k => k + 1);
-                    setError(e?.message || '人机验证失败，请重试');
-                    setNotify({ message: e?.message || '人机验证失败，请重试', type: 'error' });
-                    setLoading(false);
-                    return;
-                }
 
-                // 注册后进入邮箱验证码界面（附带人机校验 token，便于后端将来扩展）
+
+                // 注册后进入邮箱验证码界面（附带Turnstile token）
                 const res = await fetch(getApiBaseUrl() + '/api/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -351,7 +329,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                         username: sanitizedUsername,
                         email: sanitizedEmail,
                         password: sanitizedPassword,
-                        humanCheckToken: token
+                        cfToken: turnstileToken
                     })
                 });
                 const data = await res.json();
@@ -359,8 +337,10 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                     setShowEmailVerify(true);
                     setPendingEmail(sanitizedEmail);
                     setNotify({ message: '验证码已发送到邮箱，请查收', type: 'info' });
-                    // 重置人机验证 token，防止复用
-                    setHumanCheckToken(null);
+                    // 重置Turnstile token，防止复用
+                    setTurnstileToken('');
+                    setTurnstileVerified(false);
+                    setTurnstileKey(k => k + 1);
                 } else {
                     setError(data?.error || '注册失败，未收到验证码发送指示');
                     setNotify({ message: data?.error || '注册失败，未收到验证码发送指示', type: 'error' });
@@ -389,9 +369,10 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
             setError(null);
             setPassword('');
             setConfirmPassword('');
-            // 切换模式时重置人机验证 token
-            setHumanCheckToken(null);
-            setHumanCheckKey(k => k + 1);
+            // 切换模式时重置Turnstile token
+            setTurnstileToken('');
+            setTurnstileVerified(false);
+            setTurnstileKey(k => k + 1);
         });
     };
 
@@ -677,25 +658,29 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                                 />
                             </div>
                         )}
-                        {!isLogin && (
+                        {turnstileConfig.enabled && turnstileConfig.siteKey && !turnstileConfigLoading && (
                             <div className="mt-2">
-                                <SmartHumanCheck
-                                    key={humanCheckKey}
-                                    onSuccess={(token: string) => {
-                                        setHumanCheckToken(token);
-                                        setShcLastFail(null);
-                                    }}
-                                    onFail={(reason: string) => handleShcFail(reason)}
-                                    apiBaseUrl={`${getApiBaseUrl()}/api/human-check`}
+                                <TurnstileWidget
+                                    key={turnstileKey}
+                                    siteKey={turnstileConfig.siteKey}
+                                    onVerify={handleTurnstileVerify}
+                                    onExpire={handleTurnstileExpire}
+                                    onError={handleTurnstileError}
+                                    theme="light"
                                     size="normal"
                                 />
                                 <div className="mt-2 text-sm">
-                                    {humanCheckToken ? (
+                                    {turnstileVerified ? (
                                         <span className="text-green-600 font-medium">人机验证通过</span>
                                     ) : (
-                                        <span className="text-gray-500">请完成人机验证后再注册</span>
+                                        <span className="text-gray-500">请完成人机验证</span>
                                     )}
                                 </div>
+                                {turnstileError && (
+                                    <div className="mt-2 text-sm text-red-500">
+                                        验证失败，请重新验证
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
@@ -727,7 +712,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                     <div>
                         <button
                             type="submit"
-                            disabled={loading || (!isLogin && (password !== confirmPassword || !humanCheckToken))}
+                            disabled={loading || (!isLogin && password !== confirmPassword) || !turnstileVerified}
                             className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-lg font-bold rounded-2xl text-white bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-indigo-600 hover:to-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 disabled:opacity-50 shadow-lg transition-all duration-200"
                         >
                             {loading ? '处理中...' : isLogin ? '登录' : '注册'}
@@ -933,53 +918,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                 )}
             </AnimatePresence>
 
-            {/* SmartHumanCheck 验证失败弹窗 */}
-            {showHumanCheckFail && (
-                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm z-50 p-4">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md relative overflow-hidden p-8">
-                        {/* 标题区域 */}
-                        <div className="text-center mb-8">
-                            <h3 className="text-2xl font-bold text-gray-900 mb-2">SmartHumanCheck 验证失败</h3>
-                            <p className="text-gray-600 leading-relaxed">
-                                验证失败，可能是由于系统错误或您的行为被识别为机器人。如果您认为这是误判，请联系管理员并提供以下 Trace ID（用于定位问题）：
-                            </p>
-                        </div>
 
-                        {/* Trace ID区域 */}
-                        <div className="mb-8">
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between gap-3">
-                                    <span className="text-gray-900 font-medium">Trace ID</span>
-                                    <code className="text-gray-800 bg-gray-100 rounded px-2 py-1 text-sm break-all">{humanCheckTraceId || '（无）'}</code>
-                                    <button
-                                        className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
-                                        onClick={() => humanCheckTraceId && navigator.clipboard.writeText(humanCheckTraceId)}
-                                        disabled={!humanCheckTraceId}
-                                    >
-                                        复制
-                                    </button>
-                                </div>
-                                {humanCheckFailInfo?.message && (
-                                    <div className="text-sm text-gray-600">原因：{humanCheckFailInfo.message}</div>
-                                )}
-                                {(humanCheckFailInfo?.errorCode || humanCheckFailInfo?.reason) && (
-                                    <div className="text-xs text-gray-500">{humanCheckFailInfo?.errorCode} {humanCheckFailInfo?.reason ? `(${humanCheckFailInfo.reason})` : ''}</div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* 按钮区域 */}
-                        <div className="space-y-3">
-                            <button
-                                className="w-full py-4 px-6 rounded-2xl font-semibold text-lg transition-all duration-200 bg-gray-100 text-gray-700 hover:bg-gray-200"
-                                onClick={() => setShowHumanCheckFail(false)}
-                            >
-                                关闭
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

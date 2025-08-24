@@ -19,7 +19,7 @@ export const MYSQL_HOST = process.env.MYSQL_HOST || 'localhost';
 export const MYSQL_PORT = process.env.MYSQL_PORT ? parseInt(process.env.MYSQL_PORT, 10) : 3306;
 export const MYSQL_USER = process.env.MYSQL_USER || 'root';
 export const MYSQL_PASSWORD = process.env.MYSQL_PASSWORD || '';
-export const MYSQL_DATABASE = process.env.MYSQL_DATABASE || 'synapse'; 
-// Cloudflare Turnstile 配置
-export const CLOUDFLARE_TURNSTILE_SECRET_KEY = process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY || '';
-export const CLOUDFLARE_TURNSTILE_SITE_KEY = process.env.CLOUDFLARE_TURNSTILE_SITE_KEY || '';
+export const MYSQL_DATABASE = process.env.MYSQL_DATABASE || 'synapse';
+// Turnstile 配置
+export const TURNSTILE_SECRET_KEY = process.env.TURNSTILE_SECRET_KEY || '';
+export const TURNSTILE_SITE_KEY = process.env.TURNSTILE_SITE_KEY || ''; 
