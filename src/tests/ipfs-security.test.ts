@@ -17,39 +17,110 @@ class MockIPFSService {
             content = content.replace(selfClosingRegex, '');
         }
         
-        // 移除所有事件处理器属性
-        content = content.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, '');
-        content = content.replace(/\s+on\w+\s*=\s*[^>\s]+/gi, '');
+        // 移除所有事件处理器属性 - 使用更严格的清理
+        content = this.removeEventHandlers(content);
         
-        // 移除所有危险协议
+        // 移除所有危险协议 - 使用更严格的清理
+        content = this.removeDangerousProtocols(content);
+        
+        // 移除所有外部引用 - 使用更严格的清理
+        content = this.removeExternalReferences(content);
+        
+        // 移除所有data属性 - 使用更严格的清理
+        content = this.removeDataAttributes(content);
+        
+        // 移除所有外部URL引用 - 使用更严格的清理
+        content = this.removeExternalUrls(content);
+        
+        // 移除所有注释 - 使用更严格的清理
+        content = this.removeComments(content);
+        
+        // 移除所有CDATA部分 - 使用更严格的清理
+        content = this.removeCDATA(content);
+        
+        return content;
+    }
+
+    // 更安全的事件处理器清理方法
+    private static removeEventHandlers(content: string): string {
+        // 使用循环确保所有事件处理器都被移除
+        let previousContent = '';
+        while (previousContent !== content) {
+            previousContent = content;
+            content = content.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, '');
+            content = content.replace(/\s+on\w+\s*=\s*[^>\s]+/gi, '');
+        }
+        return content;
+    }
+
+    // 更安全的危险协议清理方法
+    private static removeDangerousProtocols(content: string): string {
         const dangerousProtocols = [
             'javascript:', 'vbscript:', 'data:', 'mocha:', 'livescript:'
         ];
         
-        for (const protocol of dangerousProtocols) {
-            const protocolRegex = new RegExp(`\\s*${protocol.replace(':', '\\s*:')}\\s*`, 'gi');
-            content = content.replace(protocolRegex, '');
+        let previousContent = '';
+        while (previousContent !== content) {
+            previousContent = content;
+            for (const protocol of dangerousProtocols) {
+                const protocolRegex = new RegExp(`\\s*${protocol.replace(':', '\\s*:')}\\s*`, 'gi');
+                content = content.replace(protocolRegex, '');
+            }
         }
-        
-        // 移除所有外部引用
-        content = content.replace(/\s*href\s*=\s*["'][^"']*["']/gi, '');
-        content = content.replace(/\s*src\s*=\s*["'][^"']*["']/gi, '');
-        content = content.replace(/\s*url\s*\(\s*["']?[^"')]*["']?\s*\)/gi, '');
-        
-        // 移除所有data属性
-        content = content.replace(/\s*data-[^=]*\s*=\s*["'][^"']*["']/gi, '');
-        
-        // 移除所有外部URL引用
-        content = content.replace(/url\s*\(\s*["']?https?:\/\//gi, 'url(');
-        content = content.replace(/href\s*=\s*["']?https?:\/\//gi, 'href=');
-        content = content.replace(/src\s*=\s*["']?https?:\/\//gi, 'src=');
-        
-        // 移除所有注释
-        content = content.replace(/<!--[\s\S]*?-->/g, '');
-        
-        // 移除所有CDATA部分
-        content = content.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, '');
-        
+        return content;
+    }
+
+    // 更安全的外部引用清理方法
+    private static removeExternalReferences(content: string): string {
+        let previousContent = '';
+        while (previousContent !== content) {
+            previousContent = content;
+            content = content.replace(/\s*href\s*=\s*["'][^"']*["']/gi, '');
+            content = content.replace(/\s*src\s*=\s*["'][^"']*["']/gi, '');
+            content = content.replace(/\s*url\s*\(\s*["']?[^"')]*["']?\s*\)/gi, '');
+        }
+        return content;
+    }
+
+    // 更安全的data属性清理方法
+    private static removeDataAttributes(content: string): string {
+        let previousContent = '';
+        while (previousContent !== content) {
+            previousContent = content;
+            content = content.replace(/\s*data-[^=]*\s*=\s*["'][^"']*["']/gi, '');
+        }
+        return content;
+    }
+
+    // 更安全的外部URL清理方法
+    private static removeExternalUrls(content: string): string {
+        let previousContent = '';
+        while (previousContent !== content) {
+            previousContent = content;
+            content = content.replace(/url\s*\(\s*["']?https?:\/\//gi, 'url(');
+            content = content.replace(/href\s*=\s*["']?https?:\/\//gi, 'href=');
+            content = content.replace(/src\s*=\s*["']?https?:\/\//gi, 'src=');
+        }
+        return content;
+    }
+
+    // 更安全的注释清理方法
+    private static removeComments(content: string): string {
+        let previousContent = '';
+        while (previousContent !== content) {
+            previousContent = content;
+            content = content.replace(/<!--[\s\S]*?-->/g, '');
+        }
+        return content;
+    }
+
+    // 更安全的CDATA清理方法
+    private static removeCDATA(content: string): string {
+        let previousContent = '';
+        while (previousContent !== content) {
+            previousContent = content;
+            content = content.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, '');
+        }
         return content;
     }
 
@@ -64,19 +135,27 @@ class MockIPFSService {
             return false;
         }
         
-        // 检查是否包含潜在的危险内容
+        // 检查是否包含潜在的危险内容 - 使用更严格的正则表达式
         const dangerousPatterns = [
+            // 更严格的script标签检测，包括各种变体
+            /<script\b[^>]*>[\s\S]*?<\/script\s*>/gi,
             /<script\b[^>]*>[\s\S]*?<\/script>/gi,
+            // 检测javascript协议的各种变体
             /javascript\s*:/gi,
+            /javascript\s*:\s*/gi,
+            // 检测事件处理器
             /on\w+\s*=/gi,
-            /<iframe\b/gi,
-            /<object\b/gi,
-            /<embed\b/gi,
-            /<link\b/gi,
-            /<meta\b/gi,
-            /<style\b/gi,
+            // 检测危险标签的各种变体
+            /<iframe\b[^>]*>/gi,
+            /<object\b[^>]*>/gi,
+            /<embed\b[^>]*>/gi,
+            /<link\b[^>]*>/gi,
+            /<meta\b[^>]*>/gi,
+            /<style\b[^>]*>/gi,
+            // 检测危险协议
             /data\s*:/gi,
             /vbscript\s*:/gi,
+            // 检测外部URL引用
             /url\s*\(\s*["']?https?:\/\//gi,
             /href\s*=\s*["']?https?:\/\//gi,
             /src\s*=\s*["']?https?:\/\//gi

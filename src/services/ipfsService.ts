@@ -8,6 +8,8 @@ import { shortUrlMigrationService } from './shortUrlMigrationService';
 import ShortUrlModel from '../models/shortUrlModel';
 import { TransactionService } from './transactionService';
 import { ShortUrlService } from './shortUrlService';
+import { JSDOM } from 'jsdom';
+import createDOMPurify from 'dompurify';
 
 // IPFS服务设置（支持从 MongoDB 读取配置，优先于环境变量）
 interface IPFSSettingDoc { key: string; value: string; updatedAt?: Date }
@@ -76,6 +78,16 @@ async function ensureMongoConnected() {
 export class IPFSService {
     private static readonly IPFS_BACKUP_URL = 'https://ipfs.infura.io:5001/api/v0/add'; // 备用IPFS网关
     private static readonly MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    private static dompurifyInstance: any | null = null;
+
+    // 懒加载并返回 DOMPurify 实例（Node 环境使用 JSDOM）
+    private static getDOMPurify(): any {
+        if (!this.dompurifyInstance) {
+            const { window } = new JSDOM('');
+            this.dompurifyInstance = (createDOMPurify as any)(window as any);
+        }
+        return this.dompurifyInstance;
+    }
 
     /**
      * 上传文件到IPFS
@@ -446,41 +458,146 @@ export class IPFSService {
             }
             
             // 移除潜在的危险属性 - 使用更严格的正则表达式
-            // 移除所有事件处理器属性
-            content = content.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, '');
-            // 移除javascript:协议
-            content = content.replace(/\s*javascript\s*:\s*/gi, '');
-            // 移除data:协议（可能包含恶意代码）
-            content = content.replace(/\s*data\s*:\s*[^;]*;base64\s*,/gi, '');
-            // 移除vbscript:协议
-            content = content.replace(/\s*vbscript\s*:\s*/gi, '');
-            // 移除所有script标签
-            content = content.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '');
-            // 移除所有iframe标签
-            content = content.replace(/<iframe\b[^>]*>[\s\S]*?<\/iframe>/gi, '');
-            // 移除所有object标签
-            content = content.replace(/<object\b[^>]*>[\s\S]*?<\/object>/gi, '');
-            // 移除所有embed标签
-            content = content.replace(/<embed\b[^>]*>/gi, '');
-            // 移除所有link标签（可能加载外部资源）
-            content = content.replace(/<link\b[^>]*>/gi, '');
-            // 移除所有meta标签（可能包含恶意重定向）
-            content = content.replace(/<meta\b[^>]*>/gi, '');
-            // 移除所有style标签（可能包含恶意CSS）
-            content = content.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '');
-            // 移除所有外部引用
-            content = content.replace(/\s*href\s*=\s*["'][^"']*["']/gi, '');
-            content = content.replace(/\s*src\s*=\s*["'][^"']*["']/gi, '');
-            // 移除所有外部样式表引用
-            content = content.replace(/\s*url\s*\(\s*["']?[^"')]*["']?\s*\)/gi, '');
+            // 使用更安全的清理方法
+            content = this.safeRemoveEventHandlers(content);
+            content = this.safeRemoveDangerousProtocols(content);
+            content = this.safeRemoveDangerousTags(content);
+            content = this.safeRemoveExternalReferences(content);
             
             // 使用额外的安全清理
             content = this.performAdditionalSanitization(content);
+
+            // 最终使用 DOMPurify 清理，避免使用不可靠的 HTML 正则
+            content = this.sanitizeSVGWithDOMPurify(content);
             
             logger.info('[IPFS] SVG文件内容优化完成');
             return content;
         } catch (error) {
             logger.warn('[IPFS] SVG文件内容优化失败，使用原始内容:', error instanceof Error ? error.message : String(error));
+            return content;
+        }
+    }
+
+    // 使用 DOMPurify 进行 SVG 安全清理
+    private static sanitizeSVGWithDOMPurify(content: string): string {
+        const DOMPurify = this.getDOMPurify();
+        return DOMPurify.sanitize(content, {
+            USE_PROFILES: { svg: true, svgFilters: true, html: false },
+            FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'link', 'meta', 'style', 'foreignObject'],
+            FORBID_ATTR: [/^on/i, 'href', 'xlink:href', 'src', 'style'],
+            ALLOW_UNKNOWN_PROTOCOLS: false,
+            // 禁止一切 URI（包括 http/https/data/javascript 等）
+            ALLOWED_URI_REGEXP: /^(?!)$/,
+            KEEP_CONTENT: false
+        } as any);
+    }
+
+    /**
+     * 安全移除事件处理器
+     * @param content SVG文件内容
+     * @returns 清理后的SVG内容
+     */
+    private static safeRemoveEventHandlers(content: string): string {
+        try {
+            const dom = new JSDOM(content, { contentType: 'image/svg+xml' });
+            const doc = dom.window.document;
+            const elements = doc.querySelectorAll('*');
+            for (const el of Array.from(elements)) {
+                const toRemove: string[] = [];
+                for (const attr of Array.from(el.attributes)) {
+                    if (/^on/i.test(attr.name)) {
+                        toRemove.push(attr.name);
+                    }
+                }
+                toRemove.forEach((name) => el.removeAttribute(name));
+            }
+            return doc.documentElement ? doc.documentElement.outerHTML : content;
+        } catch {
+            return content;
+        }
+    }
+
+    /**
+     * 安全移除危险协议
+     * @param content SVG文件内容
+     * @returns 清理后的SVG内容
+     */
+    private static safeRemoveDangerousProtocols(content: string): string {
+        try {
+            const dom = new JSDOM(content, { contentType: 'image/svg+xml' });
+            const doc = dom.window.document;
+            const elements = doc.querySelectorAll('*');
+            const hasUnsafeProtocol = (val: string) =>
+                /^[a-zA-Z][a-zA-Z0-9+.-]*\s*:/i.test(val) && !val.trim().startsWith('#');
+            for (const el of Array.from(elements)) {
+                const toRemove: string[] = [];
+                for (const attr of Array.from(el.attributes)) {
+                    const name = attr.name;
+                    const value = attr.value || '';
+                    if (hasUnsafeProtocol(value)) {
+                        toRemove.push(name);
+                        continue;
+                    }
+                    if (name.toLowerCase() === 'style') {
+                        // 移除包含外部协议的 url() 引用
+                        if (/url\(\s*["']?\s*(https?:|data:|javascript:|vbscript:)/i.test(value)) {
+                            toRemove.push(name);
+                        }
+                    }
+                }
+                toRemove.forEach((n) => el.removeAttribute(n));
+            }
+            return doc.documentElement ? doc.documentElement.outerHTML : content;
+        } catch {
+            return content;
+        }
+    }
+
+    /**
+     * 安全移除危险标签
+     * @param content SVG文件内容
+     * @returns 清理后的SVG内容
+     */
+    private static safeRemoveDangerousTags(content: string): string {
+        try {
+            const dom = new JSDOM(content, { contentType: 'image/svg+xml' });
+            const doc = dom.window.document;
+            const forbiddenTags = ['script', 'iframe', 'object', 'embed', 'link', 'meta', 'style', 'foreignObject'];
+            for (const tag of forbiddenTags) {
+                doc.querySelectorAll(tag).forEach((el) => el.remove());
+            }
+            return doc.documentElement ? doc.documentElement.outerHTML : content;
+        } catch {
+            return content;
+        }
+    }
+
+    /**
+     * 安全移除外部引用
+     * @param content SVG文件内容
+     * @returns 清理后的SVG内容
+     */
+    private static safeRemoveExternalReferences(content: string): string {
+        try {
+            const dom = new JSDOM(content, { contentType: 'image/svg+xml' });
+            const doc = dom.window.document;
+            const elements = doc.querySelectorAll('*');
+            for (const el of Array.from(elements)) {
+                // href/src/xlink:href 仅保留内部引用 #id
+                ['href', 'xlink:href', 'src'].forEach((name) => {
+                    const val = el.getAttribute(name);
+                    if (val && !val.trim().startsWith('#')) {
+                        el.removeAttribute(name);
+                    }
+                });
+                // style 中的外部 url() 引用不允许
+                const style = el.getAttribute('style');
+                if (style && /url\(\s*["']?\s*https?:/i.test(style)) {
+                    el.removeAttribute('style');
+                }
+            }
+            return doc.documentElement ? doc.documentElement.outerHTML : content;
+        } catch {
             return content;
         }
     }
@@ -491,33 +608,91 @@ export class IPFSService {
      * @returns 清理后的SVG内容
      */
     private static performAdditionalSanitization(content: string): string {
-        // 移除所有CDATA部分（可能包含恶意代码）
-        content = content.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, '');
+        // 使用循环确保所有内容都被清理
+        content = this.safeRemoveCDATA(content);
+        content = this.safeRemoveDataAttributes(content);
+        content = this.safeRemoveExternalUrls(content);
+        content = this.safeRemoveEncodedContent(content);
+        content = this.safeRemoveComments(content);
         
-        // 移除所有data属性（可能包含恶意数据）
-        content = content.replace(/\s*data-[^=]*\s*=\s*["'][^"']*["']/gi, '');
-        
-        // 移除所有外部URL引用
-        content = content.replace(/url\s*\(\s*["']?https?:\/\//gi, 'url(');
-        content = content.replace(/href\s*=\s*["']?https?:\/\//gi, 'href=');
-        content = content.replace(/src\s*=\s*["']?https?:\/\//gi, 'src=');
-        
-        // 移除所有可能的编码绕过
-        content = content.replace(/&#x?[0-9a-f]+;/gi, '');
-        content = content.replace(/\\x[0-9a-f]{2}/gi, '');
-        content = content.replace(/\\u[0-9a-f]{4}/gi, '');
-        
-        // 移除所有可能的Unicode绕过
-        content = content.replace(/\\u[0-9a-f]{4}/gi, '');
-        content = content.replace(/\\u\{[0-9a-f]+\}/gi, '');
-        
-        // 移除所有可能的HTML实体绕过
-        content = content.replace(/&[a-z]+;/gi, '');
-        
-        // 移除所有可能的注释绕过
-        content = content.replace(/\/\*[\s\S]*?\*\//g, '');
-        content = content.replace(/\/\/.*$/gm, '');
-        
+        return content;
+    }
+
+    /**
+     * 安全移除CDATA部分
+     * @param content SVG文件内容
+     * @returns 清理后的SVG内容
+     */
+    private static safeRemoveCDATA(content: string): string {
+        let previousContent = '';
+        while (previousContent !== content) {
+            previousContent = content;
+            content = content.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, '');
+        }
+        return content;
+    }
+
+    /**
+     * 安全移除data属性
+     * @param content SVG文件内容
+     * @returns 清理后的SVG内容
+     */
+    private static safeRemoveDataAttributes(content: string): string {
+        let previousContent = '';
+        while (previousContent !== content) {
+            previousContent = content;
+            content = content.replace(/\s*data-[^=]*\s*=\s*["'][^"']*["']/gi, '');
+        }
+        return content;
+    }
+
+    /**
+     * 安全移除外部URL
+     * @param content SVG文件内容
+     * @returns 清理后的SVG内容
+     */
+    private static safeRemoveExternalUrls(content: string): string {
+        let previousContent = '';
+        while (previousContent !== content) {
+            previousContent = content;
+            content = content.replace(/url\s*\(\s*["']?https?:\/\//gi, 'url(');
+            content = content.replace(/href\s*=\s*["']?https?:\/\//gi, 'href=');
+            content = content.replace(/src\s*=\s*["']?https?:\/\//gi, 'src=');
+        }
+        return content;
+    }
+
+    /**
+     * 安全移除编码内容
+     * @param content SVG文件内容
+     * @returns 清理后的SVG内容
+     */
+    private static safeRemoveEncodedContent(content: string): string {
+        let previousContent = '';
+        while (previousContent !== content) {
+            previousContent = content;
+            // 移除所有可能的编码绕过
+            content = content.replace(/&#x?[0-9a-f]+;/gi, '');
+            content = content.replace(/\\x[0-9a-f]{2}/gi, '');
+            content = content.replace(/\\u[0-9a-f]{4}/gi, '');
+            content = content.replace(/\\u\{[0-9a-f]+\}/gi, '');
+            content = content.replace(/&[a-z]+;/gi, '');
+        }
+        return content;
+    }
+
+    /**
+     * 安全移除注释
+     * @param content SVG文件内容
+     * @returns 清理后的SVG内容
+     */
+    private static safeRemoveComments(content: string): string {
+        let previousContent = '';
+        while (previousContent !== content) {
+            previousContent = content;
+            content = content.replace(/\/\*[\s\S]*?\*\//g, '');
+            content = content.replace(/\/\/.*$/gm, '');
+        }
         return content;
     }
 
@@ -538,62 +713,43 @@ export class IPFSService {
             if (content.length > 1024 * 1024) { // 1MB
                 throw new Error('SVG文件过大，可能包含恶意内容');
             }
-            
-            // 检查是否包含潜在的危险内容 - 使用更严格的正则表达式
-            const dangerousPatterns = [
-                // 更严格的script标签检测
-                /<script\b[^>]*>[\s\S]*?<\/script>/gi,
-                // 检测javascript协议
-                /javascript\s*:/gi,
-                // 检测事件处理器
-                /on\w+\s*=/gi,
-                // 检测iframe标签
-                /<iframe\b/gi,
-                // 检测object标签
-                /<object\b/gi,
-                // 检测embed标签
-                /<embed\b/gi,
-                // 检测link标签（可能加载外部资源）
-                /<link\b/gi,
-                // 检测meta标签（可能包含恶意重定向）
-                /<meta\b/gi,
-                // 检测style标签（可能包含恶意CSS）
-                /<style\b/gi,
-                // 检测data协议
-                /data\s*:/gi,
-                // 检测vbscript协议
-                /vbscript\s*:/gi,
-                // 检测外部URL引用
-                /url\s*\(\s*["']?https?:\/\//gi,
-                // 检测外部资源引用
-                /href\s*=\s*["']?https?:\/\//gi,
-                /src\s*=\s*["']?https?:\/\//gi
-            ];
-            
-            for (const pattern of dangerousPatterns) {
-                if (pattern.test(content)) {
-                    throw new Error(`SVG文件包含潜在的危险内容: ${pattern.source}`);
+            // 使用 JSDOM 进行结构化校验
+            const dom = new JSDOM(content, { contentType: 'image/svg+xml' });
+            const doc = dom.window.document;
+
+            // 禁止的标签
+            const forbiddenTags = ['script', 'iframe', 'object', 'embed', 'link', 'meta', 'style', 'foreignObject'];
+            if (doc.querySelector(forbiddenTags.join(','))) {
+                throw new Error('SVG文件包含禁止的标签');
+            }
+
+            // 遍历所有元素，检查属性安全性
+            const elements = doc.querySelectorAll('*');
+            for (const el of Array.from(elements)) {
+                for (const attr of Array.from(el.attributes)) {
+                    const name = attr.name;
+                    const value = attr.value || '';
+                    // 禁止事件处理器
+                    if (/^on/i.test(name)) {
+                        throw new Error(`SVG文件包含事件处理器属性: ${name}`);
+                    }
+                    // 禁止危险引用属性（仅允许内部引用 #id）
+                    if (['href', 'xlink:href', 'src', 'style'].includes(name)) {
+                        if (!value.trim().startsWith('#')) {
+                            throw new Error(`SVG文件包含外部引用或危险属性: ${name}`);
+                        }
+                    }
+                    // 禁止任何包含外部 url(http/https) 的属性值
+                    if (/url\(\s*["']?https?:/i.test(value)) {
+                        throw new Error('SVG文件包含外部URL引用');
+                    }
+                    // 禁止任何带有协议的值（如 javascript:, data:, vbscript:, http: 等），除非是内部引用
+                    if (/^[a-zA-Z][a-zA-Z0-9+.-]*\s*:/i.test(value) && !value.trim().startsWith('#')) {
+                        throw new Error('SVG文件包含不安全的URI协议');
+                    }
                 }
             }
-            
-            // 额外的安全检查：检查是否有嵌套的恶意内容
-            const nestedDangerousPatterns = [
-                // 检查是否有嵌套的script标签
-                /<[^>]*script[^>]*>/gi,
-                // 检查是否有编码的javascript
-                /&#x?6a;&#x?61;&#x?76;&#x?61;&#x?73;&#x?63;&#x?72;&#x?69;&#x?70;&#x?74;/gi,
-                // 检查是否有Unicode编码的javascript
-                /\\u006a\\u0061\\u0076\\u0061\\u0073\\u0063\\u0072\\u0069\\u0070\\u0074/gi,
-                // 检查是否有混合编码
-                /j\\u0061v\\u0061s\\u0063r\\u0069pt/gi
-            ];
-            
-            for (const pattern of nestedDangerousPatterns) {
-                if (pattern.test(content)) {
-                    throw new Error(`SVG文件包含编码的危险内容: ${pattern.source}`);
-                }
-            }
-            
+
             logger.info('[IPFS] SVG文件内容验证通过');
         } catch (error) {
             logger.error('[IPFS] SVG文件内容验证失败:', error instanceof Error ? error.message : String(error));
