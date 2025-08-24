@@ -55,13 +55,13 @@ function convertToChinesePunctuation(text: string): string {
     .replace(/;/g, '；')
     .replace(/\[/g, '【')
     .replace(/\]/g, '】')
-    .replace(/\{/g, '{')
-    .replace(/\}/g, '}')
+    .replace(/\{/g, '｛')
+    .replace(/\}/g, '｝')
     .replace(/"/g, '"')
     .replace(/"/g, '"')
-    .replace(/'/g, "'")
-    .replace(/'/g, "'")
-    .replace(/\.\.\./g, '…');
+    .replace(/'/g, '’')
+    .replace(/'/g, '’')
+    .replace(/\.\.\./g, '…')
 }
 
 // 兼容部分模型返回的 <think> 思考内容与孤立 </think> 标签

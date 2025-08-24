@@ -445,9 +445,37 @@ export class IPFSService {
                 content = content.replace('<svg', '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\n<svg');
             }
             
-            // 移除潜在的危险属性
+            // 移除潜在的危险属性 - 使用更严格的正则表达式
+            // 移除所有事件处理器属性
             content = content.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, '');
-            content = content.replace(/\s+javascript\s*:/gi, '');
+            // 移除javascript:协议
+            content = content.replace(/\s*javascript\s*:\s*/gi, '');
+            // 移除data:协议（可能包含恶意代码）
+            content = content.replace(/\s*data\s*:\s*[^;]*;base64\s*,/gi, '');
+            // 移除vbscript:协议
+            content = content.replace(/\s*vbscript\s*:\s*/gi, '');
+            // 移除所有script标签
+            content = content.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '');
+            // 移除所有iframe标签
+            content = content.replace(/<iframe\b[^>]*>[\s\S]*?<\/iframe>/gi, '');
+            // 移除所有object标签
+            content = content.replace(/<object\b[^>]*>[\s\S]*?<\/object>/gi, '');
+            // 移除所有embed标签
+            content = content.replace(/<embed\b[^>]*>/gi, '');
+            // 移除所有link标签（可能加载外部资源）
+            content = content.replace(/<link\b[^>]*>/gi, '');
+            // 移除所有meta标签（可能包含恶意重定向）
+            content = content.replace(/<meta\b[^>]*>/gi, '');
+            // 移除所有style标签（可能包含恶意CSS）
+            content = content.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '');
+            // 移除所有外部引用
+            content = content.replace(/\s*href\s*=\s*["'][^"']*["']/gi, '');
+            content = content.replace(/\s*src\s*=\s*["'][^"']*["']/gi, '');
+            // 移除所有外部样式表引用
+            content = content.replace(/\s*url\s*\(\s*["']?[^"')]*["']?\s*\)/gi, '');
+            
+            // 使用额外的安全清理
+            content = this.performAdditionalSanitization(content);
             
             logger.info('[IPFS] SVG文件内容优化完成');
             return content;
@@ -455,6 +483,42 @@ export class IPFSService {
             logger.warn('[IPFS] SVG文件内容优化失败，使用原始内容:', error instanceof Error ? error.message : String(error));
             return content;
         }
+    }
+
+    /**
+     * 执行额外的安全清理，确保SVG内容安全
+     * @param content SVG文件内容
+     * @returns 清理后的SVG内容
+     */
+    private static performAdditionalSanitization(content: string): string {
+        // 移除所有CDATA部分（可能包含恶意代码）
+        content = content.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, '');
+        
+        // 移除所有data属性（可能包含恶意数据）
+        content = content.replace(/\s*data-[^=]*\s*=\s*["'][^"']*["']/gi, '');
+        
+        // 移除所有外部URL引用
+        content = content.replace(/url\s*\(\s*["']?https?:\/\//gi, 'url(');
+        content = content.replace(/href\s*=\s*["']?https?:\/\//gi, 'href=');
+        content = content.replace(/src\s*=\s*["']?https?:\/\//gi, 'src=');
+        
+        // 移除所有可能的编码绕过
+        content = content.replace(/&#x?[0-9a-f]+;/gi, '');
+        content = content.replace(/\\x[0-9a-f]{2}/gi, '');
+        content = content.replace(/\\u[0-9a-f]{4}/gi, '');
+        
+        // 移除所有可能的Unicode绕过
+        content = content.replace(/\\u[0-9a-f]{4}/gi, '');
+        content = content.replace(/\\u\{[0-9a-f]+\}/gi, '');
+        
+        // 移除所有可能的HTML实体绕过
+        content = content.replace(/&[a-z]+;/gi, '');
+        
+        // 移除所有可能的注释绕过
+        content = content.replace(/\/\*[\s\S]*?\*\//g, '');
+        content = content.replace(/\/\/.*$/gm, '');
+        
+        return content;
     }
 
     /**
@@ -475,19 +539,58 @@ export class IPFSService {
                 throw new Error('SVG文件过大，可能包含恶意内容');
             }
             
-            // 检查是否包含潜在的危险内容
+            // 检查是否包含潜在的危险内容 - 使用更严格的正则表达式
             const dangerousPatterns = [
-                /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
-                /javascript:/gi,
+                // 更严格的script标签检测
+                /<script\b[^>]*>[\s\S]*?<\/script>/gi,
+                // 检测javascript协议
+                /javascript\s*:/gi,
+                // 检测事件处理器
                 /on\w+\s*=/gi,
+                // 检测iframe标签
                 /<iframe\b/gi,
+                // 检测object标签
                 /<object\b/gi,
-                /<embed\b/gi
+                // 检测embed标签
+                /<embed\b/gi,
+                // 检测link标签（可能加载外部资源）
+                /<link\b/gi,
+                // 检测meta标签（可能包含恶意重定向）
+                /<meta\b/gi,
+                // 检测style标签（可能包含恶意CSS）
+                /<style\b/gi,
+                // 检测data协议
+                /data\s*:/gi,
+                // 检测vbscript协议
+                /vbscript\s*:/gi,
+                // 检测外部URL引用
+                /url\s*\(\s*["']?https?:\/\//gi,
+                // 检测外部资源引用
+                /href\s*=\s*["']?https?:\/\//gi,
+                /src\s*=\s*["']?https?:\/\//gi
             ];
             
             for (const pattern of dangerousPatterns) {
                 if (pattern.test(content)) {
-                    throw new Error('SVG文件包含潜在的危险内容');
+                    throw new Error(`SVG文件包含潜在的危险内容: ${pattern.source}`);
+                }
+            }
+            
+            // 额外的安全检查：检查是否有嵌套的恶意内容
+            const nestedDangerousPatterns = [
+                // 检查是否有嵌套的script标签
+                /<[^>]*script[^>]*>/gi,
+                // 检查是否有编码的javascript
+                /&#x?6a;&#x?61;&#x?76;&#x?61;&#x?73;&#x?63;&#x?72;&#x?69;&#x?70;&#x?74;/gi,
+                // 检查是否有Unicode编码的javascript
+                /\\u006a\\u0061\\u0076\\u0061\\u0073\\u0063\\u0072\\u0069\\u0070\\u0074/gi,
+                // 检查是否有混合编码
+                /j\\u0061v\\u0061s\\u0063r\\u0069pt/gi
+            ];
+            
+            for (const pattern of nestedDangerousPatterns) {
+                if (pattern.test(content)) {
+                    throw new Error(`SVG文件包含编码的危险内容: ${pattern.source}`);
                 }
             }
             
