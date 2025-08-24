@@ -2116,10 +2116,62 @@ const LibreChatPage: React.FC = () => {
         console.log('AI response received:', txt.substring(0, 100) + '...'); // 调试信息
         setNotification({ type: 'success', message: 'AI回复已收到，正在生成...' });
       }
+      
+      // 检测历史记录中是否已有助手回复的函数
+      const checkForExistingAssistantResponse = async () => {
+        try {
+          const params = new URLSearchParams({ page: '1', limit: '10' });
+          if (token) params.set('token', token);
+          const checkRes = await fetch(`${apiBase}/api/librechat/history?${params.toString()}`, { 
+            credentials: 'include' 
+          });
+          if (checkRes.ok) {
+            const checkData = await checkRes.json();
+            if (checkData.history && Array.isArray(checkData.history)) {
+              // 检查最新的几条记录中是否有助手回复
+              const recentMessages = checkData.history.slice(0, 5); // 检查最新的5条
+              const hasAssistantResponse = recentMessages.some((msg: any) => {
+                const role = msg.role || 'user';
+                const content = msg.message || msg.content || '';
+                return role === 'assistant' && content.trim().length > 0;
+              });
+              
+              if (hasAssistantResponse) {
+                console.log('检测到历史记录中已有助手回复，停止流式展示');
+                return true;
+              }
+            }
+          }
+        } catch (error) {
+          console.warn('检查历史记录失败:', error);
+        }
+        return false;
+      };
+      
       // 智能流式展示：按字符逐步显示，但避免渲染不完整的 Mermaid 代码
       if (txt) {
         let i = 0;
-        const interval = setInterval(() => {
+        let checkCounter = 0;
+        const startTime = Date.now();
+        const maxCheckDuration = 10000; // 最多检测10秒
+        const interval = setInterval(async () => {
+          // 每5次更新检查一次历史记录，避免过多API调用
+          // 并且只在开始后的10秒内进行检测
+          checkCounter++;
+          const elapsedTime = Date.now() - startTime;
+          if (checkCounter % 5 === 0 && elapsedTime < maxCheckDuration) {
+            const hasExistingResponse = await checkForExistingAssistantResponse();
+            if (hasExistingResponse) {
+              clearInterval(interval);
+              setStreaming(false);
+              setStreamContent('');
+              console.log('检测到已有助手回复，立即停止流式展示并刷新历史');
+              setNotification({ type: 'info', message: '检测到已有回复，正在刷新历史记录...' });
+              fetchHistory(1);
+              return;
+            }
+          }
+          
           i = i + Math.max(1, Math.floor(txt.length / 80)); // 自适应步长
           if (i >= txt.length) {
             setStreamContent(txt);
@@ -2324,6 +2376,38 @@ const LibreChatPage: React.FC = () => {
         setRtSending(false);
         return;
       }
+      
+      // 检测历史记录中是否已有助手回复的函数（实时对话框版本）
+      const checkForExistingAssistantResponseRealtime = async () => {
+        try {
+          const params = new URLSearchParams({ page: '1', limit: '10' });
+          if (token) params.set('token', token);
+          const checkRes = await fetch(`${apiBase}/api/librechat/history?${params.toString()}`, { 
+            credentials: 'include' 
+          });
+          if (checkRes.ok) {
+            const checkData = await checkRes.json();
+            if (checkData.history && Array.isArray(checkData.history)) {
+              // 检查最新的几条记录中是否有助手回复
+              const recentMessages = checkData.history.slice(0, 5); // 检查最新的5条
+              const hasAssistantResponse = recentMessages.some((msg: any) => {
+                const role = msg.role || 'user';
+                const content = msg.message || msg.content || '';
+                return role === 'assistant' && content.trim().length > 0;
+              });
+              
+              if (hasAssistantResponse) {
+                console.log('实时对话框：检测到历史记录中已有助手回复，停止流式展示');
+                return true;
+              }
+            }
+          }
+        } catch (error) {
+          console.warn('实时对话框：检查历史记录失败:', error);
+        }
+        return false;
+      };
+      
       // 放入一个助手占位项，随着流式更新
       let assistantIndex = -1;
       setRtHistory((prev) => {
@@ -2337,8 +2421,36 @@ const LibreChatPage: React.FC = () => {
         rtIntervalRef.current = null;
       }
       let i = 0;
-      const interval = window.setInterval(() => {
+      let checkCounter = 0;
+      const interval = window.setInterval(async () => {
         try {
+          // 每5次更新检查一次历史记录，避免过多API调用
+          checkCounter++;
+          if (checkCounter % 5 === 0) {
+            const hasExistingResponse = await checkForExistingAssistantResponseRealtime();
+            if (hasExistingResponse) {
+              if (rtIntervalRef.current) {
+                clearInterval(rtIntervalRef.current);
+                rtIntervalRef.current = null;
+              }
+              setRtStreaming(false);
+              setRtSending(false);
+              setRtStreamContent('');
+              // 移除刚添加的助手占位项
+              setRtHistory((prev) => {
+                const next = [...prev];
+                if (assistantIndex >= 0 && assistantIndex < next.length) {
+                  next.splice(assistantIndex, 1);
+                }
+                return next;
+              });
+              console.log('实时对话框：检测到已有助手回复，立即停止流式展示并刷新历史');
+              setNotification({ type: 'info', message: '检测到已有回复，正在刷新历史记录...' });
+              fetchHistory(1);
+              return;
+            }
+          }
+          
           i = i + Math.max(1, Math.floor(txt.length / 80));
           if (i >= txt.length) {
             setRtStreamContent(txt); // 兼容旧显示区域
