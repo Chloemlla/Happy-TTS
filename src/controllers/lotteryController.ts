@@ -211,6 +211,7 @@ export class LotteryController {
   public async participateInLottery(req: Request, res: Response): Promise<void> {
     try {
       const { roundId } = req.params;
+      const { cfToken, userRole } = req.body;
       const userId = req.user?.id;
       const username = req.user?.username;
 
@@ -227,7 +228,7 @@ export class LotteryController {
         return;
       }
 
-      const winner = await lotteryService.participateInLottery(roundId, userId, username);
+      const winner = await lotteryService.participateInLottery(roundId, userId, username, cfToken, userRole);
       
       res.json({
         success: true,
@@ -235,6 +236,17 @@ export class LotteryController {
       });
     } catch (error) {
       logger.error('参与抽奖失败:', error);
+      // 处理 Turnstile 验证错误
+      if (error instanceof Error) {
+        if (error.message.includes('人机验证') || error.message.includes('Turnstile')) {
+          res.status(400).json({
+            success: false,
+            error: error.message
+          });
+          return;
+        }
+      }
+      
       res.status(400).json({
         success: false,
         error: error instanceof Error ? error.message : '参与抽奖失败'

@@ -195,6 +195,12 @@ router.get('/librechat-image', (req, res) => {
  *               message:
  *                 type: string
  *                 description: 聊天消息
+ *               cfToken:
+ *                 type: string
+ *                 description: Cloudflare Turnstile 验证token（非管理员用户必需）
+ *               userRole:
+ *                 type: string
+ *                 description: 用户角色（admin/administrator 为管理员，其他为普通用户）
  *     responses:
  *       200:
  *         description: 消息发送成功
@@ -205,7 +211,7 @@ router.get('/librechat-image', (req, res) => {
  */
 router.post('/send', async (req, res) => {
   try {
-    const { message } = req.body;
+    const { message, cfToken, userRole } = req.body;
     const token = getTokenFromReq(req);
     const userId = extractUserId(req);
 
@@ -230,11 +236,19 @@ router.post('/send', async (req, res) => {
     }
 
     // 发送消息到LibreChat服务
-    const response = await libreChatService.sendMessage(token ?? '', message, userId);
+    const response = await libreChatService.sendMessage(token ?? '', message, userId, cfToken, userRole);
 
     res.json({ response });
   } catch (error) {
     console.error('发送消息错误:', error);
+    
+    // 处理 Turnstile 验证错误
+    if (error instanceof Error) {
+      if (error.message.includes('人机验证') || error.message.includes('Turnstile')) {
+        return res.status(400).json({ error: error.message });
+      }
+    }
+    
     res.status(500).json({ error: '发送消息失败' });
   }
 });
@@ -473,6 +487,12 @@ router.delete('/messages', async (req, res) => {
  *               messageId:
  *                 type: string
  *                 description: 需要重试的助手消息ID
+ *               cfToken:
+ *                 type: string
+ *                 description: Cloudflare Turnstile 验证token（非管理员用户必需）
+ *               userRole:
+ *                 type: string
+ *                 description: 用户角色（admin/administrator 为管理员，其他为普通用户）
  *     responses:
  *       200:
  *         description: 重试成功，返回新的回复
@@ -483,7 +503,7 @@ router.delete('/messages', async (req, res) => {
  */
 router.post('/retry', async (req, res) => {
   try {
-    const { messageId } = req.body || {};
+    const { messageId, cfToken, userRole } = req.body || {};
     const token = getTokenFromReq(req);
     const userId = extractUserId(req);
 
@@ -498,10 +518,18 @@ router.post('/retry', async (req, res) => {
       return res.status(400).json({ error: '缺少消息ID' });
     }
 
-    const response = await libreChatService.retryMessage(token ?? '', messageId as string, userId);
+    const response = await libreChatService.retryMessage(token ?? '', messageId as string, userId, cfToken, userRole);
     return res.json({ response });
   } catch (error) {
     console.error('重试生成错误:', error);
+    
+    // 处理 Turnstile 验证错误
+    if (error instanceof Error) {
+      if (error.message.includes('人机验证') || error.message.includes('Turnstile')) {
+        return res.status(400).json({ error: error.message });
+      }
+    }
+    
     res.status(500).json({ error: '重试失败' });
   }
 });

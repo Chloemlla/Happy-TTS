@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLottery } from '../hooks/useLottery';
 import { useAuth } from '../hooks/useAuth';
@@ -7,6 +7,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { useNotification } from './Notification';
 import getApiBaseUrl, { getApiBaseUrl as namedGetApiBaseUrl } from '../api';
+import { TurnstileWidget } from './TurnstileWidget';
+import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
 import { 
   FaLink, 
   FaChartBar, 
@@ -16,7 +18,9 @@ import {
   FaDice,
   FaGift,
   FaCrown,
-  FaMedal
+  FaMedal,
+  FaCheckCircle,
+  FaExclamationTriangle
 } from 'react-icons/fa';
 
 // 区块链数据展示组件
@@ -88,9 +92,29 @@ const PrizeDisplay: React.FC<{ prize: any }> = ({ prize }) => {
 // 抽奖轮次卡片组件
 const LotteryRoundCard: React.FC<{ 
   round: LotteryRound; 
-  onParticipate: (roundId: string) => void;
+  onParticipate: (roundId: string, cfToken?: string) => void;
   loading: boolean;
-}> = ({ round, onParticipate, loading }) => {
+  turnstileVerified?: boolean;
+  turnstileToken?: string;
+  isAdmin?: boolean;
+  turnstileConfig?: any;
+  turnstileConfigLoading?: boolean;
+  onTurnstileVerify?: (token: string) => void;
+  onTurnstileExpire?: () => void;
+  onTurnstileError?: () => void;
+}> = ({ 
+  round, 
+  onParticipate, 
+  loading, 
+  turnstileVerified = false,
+  turnstileToken = '',
+  isAdmin = false,
+  turnstileConfig,
+  turnstileConfigLoading = false,
+  onTurnstileVerify,
+  onTurnstileExpire,
+  onTurnstileError
+}) => {
   const { user } = useAuth();
   const hasParticipated = round.participants.includes(user?.id || '');
   const isActive = round.isActive && Date.now() >= round.startTime && Date.now() <= round.endTime;
@@ -141,18 +165,47 @@ const LotteryRoundCard: React.FC<{
           区块链高度: {round.blockchainHeight.toLocaleString()}
         </div>
         {user && (
-          <motion.button
-            onClick={() => onParticipate(round.id)}
-            disabled={!isActive || hasParticipated || loading}
-            className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-              !isActive || hasParticipated || loading
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-blue-500 text-white hover:bg-blue-600'
-            }`}
-            whileTap={{ scale: 0.95 }}
-          >
-            {loading ? '抽奖中...' : hasParticipated ? '已参与' : '立即参与'}
-          </motion.button>
+          <div className="flex flex-col gap-2">
+            <motion.button
+              onClick={() => onParticipate(round.id, turnstileToken)}
+              disabled={!isActive || hasParticipated || loading || (!isAdmin && !!turnstileConfig?.siteKey && !turnstileVerified)}
+              className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                !isActive || hasParticipated || loading || (!isAdmin && !!turnstileConfig?.siteKey && !turnstileVerified)
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-blue-500 text-white hover:bg-blue-600'
+              }`}
+              whileTap={{ scale: 0.95 }}
+            >
+              {loading ? '抽奖中...' : hasParticipated ? '已参与' : '立即参与'}
+            </motion.button>
+            
+            {/* Turnstile 验证组件（非管理员用户） */}
+            {!isAdmin && !turnstileConfigLoading && turnstileConfig?.siteKey && typeof turnstileConfig.siteKey === 'string' && (
+              <div className="mt-2">
+                <div className="flex items-center gap-2 mb-2">
+                  {turnstileVerified ? (
+                    <>
+                      <FaCheckCircle className="w-4 h-4 text-green-500" />
+                      <span className="text-sm text-green-600 font-medium">已完成</span>
+                    </>
+                  ) : (
+                    <>
+                      <FaExclamationTriangle className="w-4 h-4 text-yellow-500" />
+                      <span className="text-sm text-gray-600">请完成人机验证</span>
+                    </>
+                  )}
+                </div>
+                <TurnstileWidget
+                  siteKey={turnstileConfig.siteKey}
+                  onVerify={onTurnstileVerify || (() => {})}
+                  onExpire={onTurnstileExpire || (() => {})}
+                  onError={onTurnstileError || (() => {})}
+                  theme="light"
+                  size="normal"
+                />
+              </div>
+            )}
+          </div>
         )}
       </div>
     </motion.div>
@@ -414,12 +467,58 @@ const LotteryPage: React.FC = () => {
   } = useLottery();
 
   const [winner, setWinner] = useState<LotteryWinner | null>(null);
+  
+  // Turnstile 相关状态
+  const { config: turnstileConfig, loading: turnstileConfigLoading } = useTurnstileConfig();
+  const [turnstileToken, setTurnstileToken] = useState<string>('');
+  const [turnstileVerified, setTurnstileVerified] = useState<boolean>(false);
+  const [turnstileError, setTurnstileError] = useState<string>('');
+  const [turnstileKey, setTurnstileKey] = useState<string>('');
 
-  const handleParticipate = async (roundId: string) => {
+  // 检查是否为管理员
+  const isAdmin = useMemo(() => {
+    const userRole = localStorage.getItem('userRole');
+    return userRole === 'admin' || userRole === 'administrator';
+  }, []);
+
+  // Turnstile 回调函数
+  const handleTurnstileVerify = (token: string) => {
+    setTurnstileToken(token);
+    setTurnstileVerified(true);
+    setTurnstileError('');
+    setTurnstileKey(token);
+  };
+
+  const handleTurnstileExpire = () => {
+    setTurnstileToken('');
+    setTurnstileVerified(false);
+    setTurnstileError('');
+    setTurnstileKey('');
+  };
+
+  const handleTurnstileError = () => {
+    setTurnstileToken('');
+    setTurnstileVerified(false);
+    setTurnstileError('验证失败，请重试');
+    setTurnstileKey('');
+  };
+
+  const handleParticipate = async (roundId: string, cfToken?: string) => {
     try {
-      const result = await participateInLottery(roundId);
+      // 检查非管理员用户的 Turnstile 验证
+      if (!isAdmin && !!turnstileConfig.siteKey && (!turnstileVerified || !turnstileToken)) {
+        setNotification({ message: '请先完成人机验证', type: 'error' });
+        return;
+      }
+
+      const result = await participateInLottery(roundId, cfToken);
       setWinner(result);
       setNotification({ message: `恭喜获得 ${result.prizeName}！`, type: 'success' });
+      
+      // 重置 Turnstile 状态
+      setTurnstileToken('');
+      setTurnstileVerified(false);
+      setTurnstileKey('');
     } catch (err) {
       const msg = err instanceof Error ? err.message : '参与抽奖失败';
       setNotification({ message: msg, type: 'error' });
@@ -536,6 +635,14 @@ const LotteryPage: React.FC = () => {
                   round={round}
                   onParticipate={handleParticipate}
                   loading={loading}
+                  turnstileVerified={turnstileVerified}
+                  turnstileToken={turnstileToken}
+                  isAdmin={isAdmin}
+                  turnstileConfig={turnstileConfig}
+                  turnstileConfigLoading={turnstileConfigLoading}
+                  onTurnstileVerify={handleTurnstileVerify}
+                  onTurnstileExpire={handleTurnstileExpire}
+                  onTurnstileError={handleTurnstileError}
                 />
               ))}
             </div>

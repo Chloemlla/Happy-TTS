@@ -12,7 +12,7 @@ const cdkService = new CDKService();
 // CDK兑换
 export const redeemCDK = async (req: AuthRequest, res: Response) => {
   try {
-    const { code, userId, username, forceRedeem } = req.body;
+    const { code, userId, username, forceRedeem, cfToken, userRole } = req.body;
     
     // 构建用户信息对象
     let userInfo: { userId: string; username: string } | undefined;
@@ -26,7 +26,7 @@ export const redeemCDK = async (req: AuthRequest, res: Response) => {
       };
     }
     
-    const result = await cdkService.redeemCDK(code, userInfo, forceRedeem);
+    const result = await cdkService.redeemCDK(code, userInfo, forceRedeem, cfToken, userRole);
     
     logger.info('CDK兑换成功', { 
       code, 
@@ -46,6 +46,13 @@ export const redeemCDK = async (req: AuthRequest, res: Response) => {
         resourceTitle: error.resourceTitle,
         resourceId: error.resourceId
       });
+    }
+    
+    // 处理 Turnstile 验证错误
+    if (error instanceof Error) {
+      if (error.message.includes('人机验证') || error.message.includes('Turnstile')) {
+        return res.status(400).json({ message: error.message });
+      }
     }
     
     res.status(400).json({ message: '兑换失败：无效或已使用的CDK' });

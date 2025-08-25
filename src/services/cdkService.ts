@@ -13,7 +13,7 @@ export class CDKService {
   private resourceService = new ResourceService();
   private readonly EXPORT_DIR = join(process.cwd(), 'data', 'exports');
 
-  async redeemCDK(code: string, userInfo?: { userId: string; username: string }, forceRedeem?: boolean) {
+  async redeemCDK(code: string, userInfo?: { userId: string; username: string }, forceRedeem?: boolean, cfToken?: string, userRole?: string) {
     try {
       // 验证CDK代码格式
       if (!code || typeof code !== 'string' || code.length !== 16 || !/^[A-Z0-9]{16}$/.test(code)) {
@@ -35,6 +35,59 @@ export class CDKService {
         // 清理用户输入，移除潜在的NoSQL注入字符
         userInfo.userId = userInfo.userId.replace(/[{}$]/g, '');
         userInfo.username = userInfo.username.replace(/[{}$]/g, '');
+      }
+
+      // Turnstile 验证（非管理员用户）
+      const isAdmin = userRole === 'admin' || userRole === 'administrator';
+      if (!isAdmin && process.env.TURNSTILE_SECRET_KEY) {
+        if (!cfToken) {
+          logger.warn('非管理员用户缺少 Turnstile token，拒绝CDK兑换', { userId: userInfo?.userId, userRole });
+          throw new Error('需要完成人机验证才能兑换CDK');
+        }
+
+        try {
+          // 验证 Turnstile token
+          const axios = await import('axios');
+          const verificationResult = await axios.default.post(
+            'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+            {
+              secret: process.env.TURNSTILE_SECRET_KEY,
+              response: cfToken
+            },
+            {
+              timeout: 10000 // 10秒超时
+            }
+          );
+
+          if (!verificationResult.data.success) {
+            logger.warn('Turnstile 验证失败', { 
+              userId: userInfo?.userId, 
+              userRole,
+              errorCodes: verificationResult.data['error-codes']
+            });
+            throw new Error('人机验证失败，请重新验证');
+          }
+
+          logger.info('Turnstile 验证成功', { 
+            userId: userInfo?.userId, 
+            userRole,
+            hostname: verificationResult.data.hostname 
+          });
+        } catch (error) {
+          if (error instanceof Error && error.message.includes('Turnstile')) {
+            throw error;
+          }
+          logger.error('Turnstile 验证请求失败', { 
+            userId: userInfo?.userId, 
+            userRole,
+            error: error instanceof Error ? error.message : String(error)
+          });
+          throw new Error('人机验证服务暂时不可用，请稍后重试');
+        }
+      } else if (!isAdmin && !process.env.TURNSTILE_SECRET_KEY) {
+        logger.info('跳过 Turnstile 验证（未配置密钥）', { userId: userInfo?.userId, userRole });
+      } else if (isAdmin) {
+        logger.info('跳过 Turnstile 验证（管理员用户）', { userId: userInfo?.userId, userRole });
       }
       
       // 首先查找CDK以获取资源ID

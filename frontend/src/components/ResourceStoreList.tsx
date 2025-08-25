@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { FaStore, FaKey, FaSearch, FaSync, FaInfoCircle, FaExclamationTriangle, FaCheckCircle, FaTag, FaDollarSign, FaEye, FaDownload, FaGift, FaUser, FaHistory, FaCalendarAlt } from 'react-icons/fa';
 import { resourcesApi, Resource } from '../api/resources';
 import { cdksApi, RedeemedResource } from '../api/cdks';
 import { UnifiedLoadingSpinner } from './LoadingSpinner';
+import { TurnstileWidget } from './TurnstileWidget';
+import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
 
 export default function ResourceStoreList() {
   const [resources, setResources] = useState<Resource[]>([]);
@@ -23,6 +25,41 @@ export default function ResourceStoreList() {
   const [duplicateResourceInfo, setDuplicateResourceInfo] = useState<{ title: string, id: string } | null>(null);
   const [pendingCDKCode, setPendingCDKCode] = useState('');
   const [redeemedCount, setRedeemedCount] = useState(0);
+  
+  // Turnstile 相关状态
+  const { config: turnstileConfig, loading: turnstileConfigLoading } = useTurnstileConfig();
+  const [turnstileToken, setTurnstileToken] = useState<string>('');
+  const [turnstileVerified, setTurnstileVerified] = useState<boolean>(false);
+  const [turnstileError, setTurnstileError] = useState<string>('');
+  const [turnstileKey, setTurnstileKey] = useState<string>('');
+
+  // 检查是否为管理员
+  const isAdmin = useMemo(() => {
+    const userRole = localStorage.getItem('userRole');
+    return userRole === 'admin' || userRole === 'administrator';
+  }, []);
+
+  // Turnstile 回调函数
+  const handleTurnstileVerify = (token: string) => {
+    setTurnstileToken(token);
+    setTurnstileVerified(true);
+    setTurnstileError('');
+    setTurnstileKey(token);
+  };
+
+  const handleTurnstileExpire = () => {
+    setTurnstileToken('');
+    setTurnstileVerified(false);
+    setTurnstileError('');
+    setTurnstileKey('');
+  };
+
+  const handleTurnstileError = () => {
+    setTurnstileToken('');
+    setTurnstileVerified(false);
+    setTurnstileError('验证失败，请重试');
+    setTurnstileKey('');
+  };
 
   useEffect(() => {
     fetchResources();
@@ -93,6 +130,12 @@ export default function ResourceStoreList() {
       return;
     }
 
+    // 检查非管理员用户的 Turnstile 验证
+    if (!isAdmin && !!turnstileConfig.siteKey && (!turnstileVerified || !turnstileToken)) {
+      setError('请先完成人机验证');
+      return;
+    }
+
     setCdkLoading(true);
     setError('');
     setSuccess('');
@@ -116,11 +159,29 @@ export default function ResourceStoreList() {
         username: `用户${generateSecureNumber()}` // 使用加密安全的随机用户名
       };
 
-      const result = await cdksApi.redeemCDK(codeToRedeem, userInfo, forceRedeem);
+      // 构建请求参数
+      const requestParams: any = {
+        code: codeToRedeem,
+        ...userInfo,
+        forceRedeem
+      };
+
+      // 如果不是管理员且Turnstile已启用，添加验证token
+      if (!isAdmin && !!turnstileConfig.siteKey && turnstileToken) {
+        requestParams.cfToken = turnstileToken;
+        requestParams.userRole = localStorage.getItem('userRole') || 'user';
+      }
+
+      const result = await cdksApi.redeemCDK(requestParams);
       setSuccess(`兑换成功！获得资源：${result.resource.title}`);
       setCdkCode('');
       setPendingCDKCode('');
       setShowDuplicateDialog(false);
+      
+      // 重置 Turnstile 状态
+      setTurnstileToken('');
+      setTurnstileVerified(false);
+      setTurnstileKey('');
 
       // 刷新已兑换资源列表和数量
       fetchRedeemedResourcesCount();
@@ -235,7 +296,7 @@ export default function ResourceStoreList() {
             />
             <motion.button
               onClick={() => handleRedeemCDK()}
-              disabled={cdkLoading}
+              disabled={cdkLoading || (!isAdmin && !!turnstileConfig.siteKey && !turnstileVerified)}
               className="px-6 py-2 bg-gradient-to-r from-green-500 to-blue-600 text-white rounded-lg hover:from-green-600 hover:to-blue-700 disabled:opacity-50 transition-all duration-200 font-medium flex items-center justify-center gap-2"
               whileHover={!cdkLoading ? { scale: 1.02 } : {}}
               whileTap={!cdkLoading ? { scale: 0.98 } : {}}
@@ -253,6 +314,33 @@ export default function ResourceStoreList() {
               )}
             </motion.button>
           </div>
+          
+          {/* Turnstile 验证组件（非管理员用户） */}
+          {!isAdmin && !turnstileConfigLoading && turnstileConfig.siteKey && typeof turnstileConfig.siteKey === 'string' && (
+            <div className="mt-4">
+              <div className="flex items-center gap-2 mb-2">
+                {turnstileVerified ? (
+                  <>
+                    <FaCheckCircle className="w-4 h-4 text-green-500" />
+                    <span className="text-sm text-green-600 font-medium">已完成</span>
+                  </>
+                ) : (
+                  <>
+                    <FaExclamationTriangle className="w-4 h-4 text-yellow-500" />
+                    <span className="text-sm text-gray-600">请完成人机验证</span>
+                  </>
+                )}
+              </div>
+              <TurnstileWidget
+                siteKey={turnstileConfig.siteKey}
+                onVerify={handleTurnstileVerify}
+                onExpire={handleTurnstileExpire}
+                onError={handleTurnstileError}
+                theme="light"
+                size="normal"
+              />
+            </div>
+          )}
           <AnimatePresence>
             {error && (
               <motion.div

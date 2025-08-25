@@ -62,12 +62,15 @@ export interface ImportCDKResult {
 
 export const cdksApi = {
   // CDK兑换
-  redeemCDK: async (code: string, userInfo?: { userId: string; username: string }, forceRedeem?: boolean) => {
-    const response = await api.post(`${getApiBaseUrl()}/api/redeem`, { 
-      code,
-      ...(userInfo && { userId: userInfo.userId, username: userInfo.username }),
-      ...(forceRedeem && { forceRedeem })
-    });
+  redeemCDK: async (params: {
+    code: string;
+    userId?: string;
+    username?: string;
+    forceRedeem?: boolean;
+    cfToken?: string;
+    userRole?: string;
+  }) => {
+    const response = await api.post(`${getApiBaseUrl()}/api/redeem`, params);
     return response.data;
   },
 

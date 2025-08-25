@@ -218,67 +218,72 @@ app.get("/s/*path", handler);
 ### 常见错误及解决方法
 
 #### 1. 可选参数错误
+
 **错误**: `Unexpected ?`
 **旧语法**: `/user/:id?`
 **新语法**: `/user/:id{.:ext}` 或 `/user/:id`
 
 ```javascript
 // 修复前
-app.get('/user/:id?', handler);
+app.get("/user/:id?", handler);
 
 // 修复后 - 方案1：使用组语法
-app.get('/user/:id{.:ext}', handler);
+app.get("/user/:id{.:ext}", handler);
 
 // 修复后 - 方案2：使用两个路由
-app.get('/user', handler);
-app.get('/user/:id', handler);
+app.get("/user", handler);
+app.get("/user/:id", handler);
 ```
 
 #### 2. 重复参数错误
+
 **错误**: `Unexpected +`
 **旧语法**: `/files/:path+`
 **新语法**: `/files/*path`
 
 ```javascript
 // 修复前
-app.get('/files/:path+', handler);
+app.get("/files/:path+", handler);
 
 // 修复后
-app.get('/files/*path', handler);
+app.get("/files/*path", handler);
 ```
 
 #### 3. 可选重复参数错误
+
 **错误**: `Unexpected *`
 **旧语法**: `/files/:path*`
 **新语法**: `/files{/*path}`
 
 ```javascript
 // 修复前
-app.get('/files/:path*', handler);
+app.get("/files/:path*", handler);
 
 // 修复后
-app.get('/files{/*path}', handler);
+app.get("/files{/*path}", handler);
 ```
 
 #### 4. 特殊字符转义
+
 **错误**: `Unexpected (, ), [, ]`
 **解决方案**: 使用反斜杠转义
 
 ```javascript
 // 修复前
-app.get('/api/(v1|v2)/user', handler);
+app.get("/api/(v1|v2)/user", handler);
 
 // 修复后
-app.get('/api/\\(v1|v2\\)/user', handler);
+app.get("/api/\\(v1|v2\\)/user", handler);
 ```
 
 #### 5. 无效参数名称
+
 **错误**: `Missing parameter name`
 **解决方案**: 使用引号包装特殊名称
 
 ```javascript
 // 修复前
-app.get('/api/:1st-param', handler);
+app.get("/api/:1st-param", handler);
 
 // 修复后
 app.get('/api/:"1st-param"', handler);
@@ -289,27 +294,27 @@ app.get('/api/:"1st-param"', handler);
 可以使用以下脚本自动检测和修复路由：
 
 ```javascript
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
 function fixRoutePattern(pattern) {
   // 修复通配符
-  pattern = pattern.replace(/\/(\*)(?!\w)/g, '/*path');
-  
+  pattern = pattern.replace(/\/(\*)(?!\w)/g, "/*path");
+
   // 修复可选参数
-  pattern = pattern.replace(/:(\w+)\?/g, ':$1{.:ext}');
-  
+  pattern = pattern.replace(/:(\w+)\?/g, ":$1{.:ext}");
+
   // 修复重复参数
-  pattern = pattern.replace(/:(\w+)\+/g, '/*$1');
-  
+  pattern = pattern.replace(/:(\w+)\+/g, "/*$1");
+
   // 转义特殊字符
-  pattern = pattern.replace(/([()[\]{}])/g, '\\$1');
-  
+  pattern = pattern.replace(/([()[\]{}])/g, "\\$1");
+
   return pattern;
 }
 
 // 使用示例
-const oldPattern = '/api/*';
+const oldPattern = "/api/*";
 const newPattern = fixRoutePattern(oldPattern);
 console.log(newPattern); // 输出: /api/*path
 ```

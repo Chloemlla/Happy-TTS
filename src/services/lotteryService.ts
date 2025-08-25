@@ -170,7 +170,7 @@ class LotteryService {
   }
 
   // 参与抽奖
-  public async participateInLottery(roundId: string, userId: string, username: string): Promise<LotteryWinner | null> {
+  public async participateInLottery(roundId: string, userId: string, username: string, cfToken?: string, userRole?: string): Promise<LotteryWinner | null> {
     const round = await this.getRoundDetails(roundId); // 使用新的getRoundDetails
     if (!round) {
       throw new Error('抽奖轮次不存在');
@@ -187,6 +187,59 @@ class LotteryService {
 
     if (round.participants.includes(userId)) {
       throw new Error('您已经参与过此轮抽奖');
+    }
+
+    // Turnstile 验证（非管理员用户）
+    const isAdmin = userRole === 'admin' || userRole === 'administrator';
+    if (!isAdmin && process.env.TURNSTILE_SECRET_KEY) {
+      if (!cfToken) {
+        logger.warn('非管理员用户缺少 Turnstile token，拒绝参与抽奖', { userId, userRole });
+        throw new Error('需要完成人机验证才能参与抽奖');
+      }
+
+      try {
+        // 验证 Turnstile token
+        const axios = await import('axios');
+        const verificationResult = await axios.default.post(
+          'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+          {
+            secret: process.env.TURNSTILE_SECRET_KEY,
+            response: cfToken
+          },
+          {
+            timeout: 10000 // 10秒超时
+          }
+        );
+
+        if (!verificationResult.data.success) {
+          logger.warn('Turnstile 验证失败', { 
+            userId, 
+            userRole,
+            errorCodes: verificationResult.data['error-codes']
+          });
+          throw new Error('人机验证失败，请重新验证');
+        }
+
+        logger.info('Turnstile 验证成功', { 
+          userId, 
+          userRole,
+          hostname: verificationResult.data.hostname 
+        });
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('Turnstile')) {
+          throw error;
+        }
+        logger.error('Turnstile 验证请求失败', { 
+          userId, 
+          userRole,
+          error: error instanceof Error ? error.message : String(error)
+        });
+        throw new Error('人机验证服务暂时不可用，请稍后重试');
+      }
+    } else if (!isAdmin && !process.env.TURNSTILE_SECRET_KEY) {
+      logger.info('跳过 Turnstile 验证（未配置密钥）', { userId, userRole });
+    } else if (isAdmin) {
+      logger.info('跳过 Turnstile 验证（管理员用户）', { userId, userRole });
     }
 
     // 获取最新的区块链数据

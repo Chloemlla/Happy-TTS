@@ -394,7 +394,55 @@ class LibreChatService {
   /**
    * 发送聊天消息
    */
-  public async sendMessage(token: string, message: string, userId?: string): Promise<string> {
+  public async sendMessage(token: string, message: string, userId?: string, cfToken?: string, userRole?: string): Promise<string> {
+    // 检查非管理员用户的 Turnstile 验证
+    const isAdmin = userRole === 'admin' || userRole === 'administrator';
+    if (!isAdmin && process.env.TURNSTILE_SECRET_KEY) {
+      if (!cfToken) {
+        logger.warn('非管理员用户缺少 Turnstile token，拒绝发送消息', { userId, userRole });
+        throw new Error('需要完成人机验证才能发送消息');
+      }
+      
+      try {
+        // 验证 Turnstile token
+        const verificationUrl = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+        const formData = new URLSearchParams();
+        formData.append('secret', process.env.TURNSTILE_SECRET_KEY);
+        formData.append('response', cfToken);
+        
+        const verificationResponse = await axios.post(verificationUrl, formData, {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          timeout: 10000
+        });
+        
+        const verificationResult = verificationResponse.data;
+        if (!verificationResult.success) {
+          logger.warn('Turnstile 验证失败', { 
+            userId, 
+            userRole, 
+            errorCodes: verificationResult['error-codes'],
+            challengeTs: verificationResult['challenge_ts'],
+            hostname: verificationResult.hostname
+          });
+          throw new Error('人机验证失败，请重新验证');
+        }
+        
+        logger.info('Turnstile 验证成功', { userId, userRole, hostname: verificationResult.hostname });
+             } catch (error) {
+         if (error instanceof Error && (error.message.includes('人机验证') || error.message.includes('Turnstile'))) {
+           throw error;
+         }
+         logger.error('Turnstile 验证请求失败', { userId, userRole, error: error instanceof Error ? error.message : String(error) });
+         throw new Error('人机验证服务暂时不可用，请稍后重试');
+       }
+    } else if (!isAdmin) {
+      logger.info('非管理员用户但未配置 Turnstile，跳过验证', { userId, userRole });
+    } else {
+      logger.info('管理员用户，跳过 Turnstile 验证', { userId, userRole });
+    }
+
     // 先将用户消息写入历史
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
@@ -738,9 +786,57 @@ class LibreChatService {
   /**
    * 携带上下文重试指定的助手消息：用该消息之前的上下文重新向提供者请求，并用新内容覆盖原助手消息
    */
-  public async retryMessage(token: string, messageId: string, userId?: string): Promise<string> {
+  public async retryMessage(token: string, messageId: string, userId?: string, cfToken?: string, userRole?: string): Promise<string> {
     const safeUserId = sanitizeId(userId);
     const safeToken = sanitizeId(token);
+    // 检查非管理员用户的 Turnstile 验证
+    const isAdmin = userRole === 'admin' || userRole === 'administrator';
+    if (!isAdmin && process.env.TURNSTILE_SECRET_KEY) {
+      if (!cfToken) {
+        logger.warn('非管理员用户重试消息时缺少 Turnstile token，拒绝操作', { userId, userRole });
+        throw new Error('需要完成人机验证才能重试消息');
+      }
+      
+      try {
+        // 验证 Turnstile token
+        const verificationUrl = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+        const formData = new URLSearchParams();
+        formData.append('secret', process.env.TURNSTILE_SECRET_KEY);
+        formData.append('response', cfToken);
+        
+        const verificationResponse = await axios.post(verificationUrl, formData, {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          timeout: 10000
+        });
+        
+        const verificationResult = verificationResponse.data;
+        if (!verificationResult.success) {
+          logger.warn('重试消息时 Turnstile 验证失败', { 
+            userId, 
+            userRole, 
+            errorCodes: verificationResult['error-codes'],
+            challengeTs: verificationResult['challenge_ts'],
+            hostname: verificationResult.hostname
+          });
+          throw new Error('人机验证失败，请重新验证');
+        }
+        
+        logger.info('重试消息时 Turnstile 验证成功', { userId, userRole, hostname: verificationResult.hostname });
+      } catch (error) {
+        if (error instanceof Error && (error.message.includes('人机验证') || error.message.includes('Turnstile'))) {
+          throw error;
+        }
+        logger.error('重试消息时 Turnstile 验证请求失败', { userId, userRole, error: error instanceof Error ? error.message : String(error) });
+        throw new Error('人机验证服务暂时不可用，请稍后重试');
+      }
+    } else if (!isAdmin) {
+      logger.info('非管理员用户重试消息但未配置 Turnstile，跳过验证', { userId, userRole });
+    } else {
+      logger.info('管理员用户重试消息，跳过 Turnstile 验证', { userId, userRole });
+    }
+
     // 取该用户的所有消息
     const userMessages = this.chatHistory.filter(m => safeUserId ? m.userId === safeUserId : m.token === safeToken);
     // 定位要重试的助手消息

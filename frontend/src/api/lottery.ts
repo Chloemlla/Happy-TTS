@@ -73,9 +73,21 @@ export async function getRoundDetails(roundId: string): Promise<LotteryRound> {
 }
 
 // 参与抽奖
-export async function participateInLottery(roundId: string): Promise<LotteryWinner> {
+export async function participateInLottery(roundId: string, cfToken?: string): Promise<LotteryWinner> {
+  const body: any = {};
+  
+  // 如果不是管理员且提供了cfToken，添加到请求体
+  const userRole = localStorage.getItem('userRole');
+  const isAdmin = userRole === 'admin' || userRole === 'administrator';
+  
+  if (!isAdmin && cfToken) {
+    body.cfToken = cfToken;
+    body.userRole = userRole || 'user';
+  }
+  
   return apiRequest<LotteryWinner>(`/rounds/${roundId}/participate`, {
     method: 'POST',
+    body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined,
   });
 }
 
