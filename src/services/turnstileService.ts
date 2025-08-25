@@ -1047,19 +1047,41 @@ export class TurnstileService {
         };
       }
 
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + validDuration * 60 * 1000);
+
       // 检查IP是否已经被封禁
       const existingBan = await IpBanModel.findOne({ ipAddress: validatedIp });
+      
       if (existingBan) {
+        // 如果IP已被封禁，更新过期时间和封禁原因
+        existingBan.expiresAt = expiresAt;
+        existingBan.reason = sanitizedReason;
+        
+        // 如果提供了新的指纹或用户代理，也更新它们
+        if (fingerprint) {
+          const sanitizedFingerprint = sanitizeString(fingerprint, 200);
+          if (sanitizedFingerprint) {
+            existingBan.fingerprint = sanitizedFingerprint;
+          }
+        }
+        if (userAgent) {
+          const sanitizedUserAgent = sanitizeString(userAgent, 500);
+          if (sanitizedUserAgent) {
+            existingBan.userAgent = sanitizedUserAgent;
+          }
+        }
+        
+        await existingBan.save();
+        
+        logger.info(`更新IP封禁: ${validatedIp}, 原因: ${sanitizedReason}, 新过期时间: ${expiresAt}`);
+        
         return {
-          success: false,
-          error: 'IP已被封禁',
-          expiresAt: existingBan.expiresAt,
+          success: true,
+          expiresAt: expiresAt,
           bannedAt: existingBan.bannedAt
         };
       }
-
-      const now = new Date();
-      const expiresAt = new Date(now.getTime() + validDuration * 60 * 1000);
 
       // 创建新的封禁记录
       const banRecord = new IpBanModel({

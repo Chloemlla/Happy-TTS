@@ -97,10 +97,10 @@ export const useFirstVisitDetection = (): UseFirstVisitDetectionReturn => {
         if (err instanceof Error && err.message.includes('IP已被封禁')) {
           setIsIpBanned(true);
           setBanReason(err.message);
-          // 从错误消息中提取封禁到期时间（如果有的话）
-          const match = err.message.match(/封禁到期时间: (.+)/);
-          if (match) {
-            setBanExpiresAt(new Date(match[1]));
+          // 从错误对象中提取封禁信息
+          const banData = (err as any).banData;
+          if (banData && banData.expiresAt) {
+            setBanExpiresAt(new Date(banData.expiresAt));
           }
         }
       }
@@ -131,10 +131,10 @@ export const useFirstVisitDetection = (): UseFirstVisitDetectionReturn => {
       if (err instanceof Error && err.message.includes('IP已被封禁')) {
         setIsIpBanned(true);
         setBanReason(err.message);
-        // 从错误消息中提取封禁到期时间（如果有的话）
-        const match = err.message.match(/封禁到期时间: (.+)/);
-        if (match) {
-          setBanExpiresAt(new Date(match[1]));
+        // 从错误对象中提取封禁信息
+        const banData = (err as any).banData;
+        if (banData && banData.expiresAt) {
+          setBanExpiresAt(new Date(banData.expiresAt));
         }
         setError('您的IP地址已被封禁，请稍后再试');
       } else {

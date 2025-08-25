@@ -288,7 +288,13 @@ export const reportTempFingerprint = async (): Promise<{ isFirstVisit: boolean; 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       if (response.status === 403 && errorData.error === 'IP已被封禁') {
-        throw new Error(`IP已被封禁: ${errorData.reason}`);
+        // 创建一个包含完整封禁信息的错误对象
+        const banError = new Error(`IP已被封禁: ${errorData.reason}`);
+        (banError as any).banData = {
+          reason: errorData.reason,
+          expiresAt: errorData.expiresAt
+        };
+        throw banError;
       }
       throw new Error('指纹上报失败');
     }
@@ -318,7 +324,13 @@ export const verifyTempFingerprint = async (fingerprint: string, cfToken: string
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       if (response.status === 403 && errorData.error === 'IP已被封禁') {
-        throw new Error(`IP已被封禁: ${errorData.reason}`);
+        // 创建一个包含完整封禁信息的错误对象
+        const banError = new Error(`IP已被封禁: ${errorData.reason}`);
+        (banError as any).banData = {
+          reason: errorData.reason,
+          expiresAt: errorData.expiresAt
+        };
+        throw banError;
       }
       throw new Error('验证失败');
     }
@@ -347,7 +359,13 @@ export const checkTempFingerprintStatus = async (fingerprint: string): Promise<{
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       if (response.status === 403 && errorData.error === 'IP已被封禁') {
-        throw new Error(`IP已被封禁: ${errorData.reason}`);
+        // 创建一个包含完整封禁信息的错误对象
+        const banError = new Error(`IP已被封禁: ${errorData.reason}`);
+        (banError as any).banData = {
+          reason: errorData.reason,
+          expiresAt: errorData.expiresAt
+        };
+        throw banError;
       }
       throw new Error('检查状态失败');
     }

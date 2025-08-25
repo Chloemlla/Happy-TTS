@@ -447,20 +447,7 @@ router.post('/ban-ip', authenticateToken, adminLimiter, async (req, res) => {
             );
         }
 
-        // 检查IP是否已经被封禁
-        const existingBan = await TurnstileService.isIpBanned(ipAddress);
-        if (existingBan.banned) {
-            return res.status(409).json({ 
-                success: false, 
-                error: 'IP已被封禁',
-                existingBan: {
-                    reason: existingBan.reason,
-                    expiresAt: existingBan.expiresAt
-                }
-            });
-        }
-
-        // 手动封禁IP
+        // 手动封禁IP（如果IP已被封禁，会更新过期时间）
         const banResult = await TurnstileService.manualBanIp(
             ipAddress, 
             reason, 
@@ -470,9 +457,11 @@ router.post('/ban-ip', authenticateToken, adminLimiter, async (req, res) => {
         );
         
         if (banResult.success) {
+            // 由于服务层已经处理了更新逻辑，这里直接返回成功
+            // 简化逻辑，不再尝试判断是否是更新操作
             res.json({ 
                 success: true, 
-                message: `IP ${ipAddress} 已被封禁 ${banDuration} 分钟`,
+                message: `IP ${ipAddress} 封禁操作成功，过期时间: ${banResult.expiresAt}`,
                 banInfo: {
                     ipAddress,
                     reason,
@@ -616,21 +605,7 @@ router.post('/ban-ips', authenticateToken, adminLimiter, async (req, res) => {
 
         for (const ipAddress of ipAddresses) {
             try {
-                // 检查IP是否已经被封禁
-                const existingBan = await TurnstileService.isIpBanned(ipAddress);
-                if (existingBan.banned) {
-                    errors.push({
-                        ipAddress,
-                        error: 'IP已被封禁',
-                        existingBan: {
-                            reason: existingBan.reason,
-                            expiresAt: existingBan.expiresAt
-                        }
-                    });
-                    continue;
-                }
-
-                // 手动封禁IP
+                // 手动封禁IP（如果IP已被封禁，会更新过期时间）
                 const banResult = await TurnstileService.manualBanIp(
                     ipAddress, 
                     reason, 
@@ -638,10 +613,11 @@ router.post('/ban-ips', authenticateToken, adminLimiter, async (req, res) => {
                 );
                 
                 if (banResult.success) {
+                    // 由于服务层已经处理了更新逻辑，这里直接返回成功
                     results.push({
                         ipAddress,
                         success: true,
-                        message: `IP ${ipAddress} 已被封禁 ${banDuration} 分钟`,
+                        message: `IP ${ipAddress} 封禁操作成功，过期时间: ${banResult.expiresAt}`,
                         banInfo: {
                             reason,
                             durationMinutes: banDuration,

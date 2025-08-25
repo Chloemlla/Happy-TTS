@@ -145,6 +145,15 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
       console.error('验证失败:', err);
       // 检查是否是IP封禁错误
       if (err instanceof Error && err.message.includes('IP已被封禁')) {
+        // 从错误对象中提取封禁信息
+        const banData = (err as any).banData;
+        if (banData && banData.expiresAt) {
+          // 如果组件接收到了封禁到期时间，更新它
+          if (banExpiresAt !== new Date(banData.expiresAt)) {
+            // 这里可以通过回调函数更新父组件的状态
+            console.log('封禁到期时间:', banData.expiresAt);
+          }
+        }
         setError('您的IP地址已被封禁，请稍后再试');
       } else {
         setError('验证失败，请重试');
@@ -158,6 +167,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
   }, [turnstileVerified, turnstileToken, fingerprint, onVerificationComplete]);
 
   // 如果IP被封禁，显示封禁页面
+  console.log('显示封禁页面:', { isIpBanned, banReason, banExpiresAt, clientIP });
   if (isIpBanned) {
     return (
       <AnimatePresence>
@@ -346,14 +356,18 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                   fontSize: isMobile && window.innerWidth < 400 ? '0.75rem' : undefined,
                   lineHeight: '1.3'
                 }}>
-                  {banExpiresAt.toLocaleString('zh-CN', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit'
-                  })}
+                  {(() => {
+                    console.log('渲染封禁到期时间:', banExpiresAt, typeof banExpiresAt);
+                    return banExpiresAt.toLocaleString('zh-CN', {
+                      year: 'numeric',
+                      month: '2-digit',
+                      day: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      second: '2-digit',
+                      timeZoneName: 'short'
+                    });
+                  })()}
                 </p>
               </motion.div>
             )}
