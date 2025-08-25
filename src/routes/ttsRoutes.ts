@@ -75,10 +75,17 @@ router.post('/generate', TtsController.generateSpeech);
  */
 router.get('/turnstile/config', (req, res) => {
     const enableTurnstile = TurnstileService.isEnabled();
+    const siteKey = enableTurnstile ? config.turnstile.siteKey : null;
+    
+    console.log('Turnstile config response:', {
+        enabled: enableTurnstile,
+        siteKey: siteKey,
+        siteKeyType: typeof siteKey
+    });
     
     res.json({
         enabled: enableTurnstile,
-        siteKey: enableTurnstile ? config.turnstile.siteKey : null
+        siteKey: siteKey
     });
 });
 

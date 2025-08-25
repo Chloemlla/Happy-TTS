@@ -224,9 +224,25 @@ writeCache(fallback);
 return fallback || 'unknown';
 };
 
+// 检查用户是否已登录
+function isUserLoggedIn(): boolean {
+  try {
+    const token = localStorage.getItem('token');
+    return !!token && token.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 // 将指纹上报到后端（幂等、带限频）
 export const reportFingerprintOnce = async (opts?: { force?: boolean }): Promise<void> => {
   try {
+    // 检查用户是否已登录，未登录用户不进行指纹上报
+    if (!isUserLoggedIn()) {
+      console.log('[指纹上报] 用户未登录，跳过指纹上报');
+      return;
+    }
+
     const force = !!opts?.force;
     const lastKey = 'hapx_fp_report_ts_v2';
     const now = Date.now();

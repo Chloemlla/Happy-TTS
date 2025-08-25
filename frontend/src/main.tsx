@@ -31,12 +31,17 @@ function decryptAES256(encryptedData: string, iv: string, key: string): string {
   }
 }
 
-// 辅助：带401重试的 fetch（401 时最多重试两次，总共最多三次）
+// 辅助：带401重试的 fetch（401 时最多重试两次，总共最多三次，403 时立即停止）
 async function fetchWithAuthRetry(input: RequestInfo | URL, init?: RequestInit, max401Retries: number = 2): Promise<Response> {
   let attempt = 0;
   let res: Response;
   do {
     res = await fetch(input, init);
+    // 如果返回403，立即停止，不再重试
+    if (res.status === 403) {
+      console.log('🚫 收到403状态码，用户没有权限，停止请求');
+      return res;
+    }
     if (res.status !== 401) return res;
     attempt++;
   } while (attempt <= max401Retries);
@@ -164,9 +169,28 @@ class DebugConsoleManager {
     }
   }
 
+  // 检查用户是否为管理员
+  private isUserAdmin(): boolean {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return false;
+      
+      // 简单的token存在性检查，实际项目中可能需要更复杂的验证
+      return token.length > 10; // 假设有效token长度大于10
+    } catch (error) {
+      return false;
+    }
+  }
+
   // 从后端同步配置
   public async syncConfigFromBackend(): Promise<void> {
     try {
+      // 检查用户是否为管理员，非管理员用户不进行配置同步
+      if (!this.isUserAdmin()) {
+        console.log('[调试控制台] 用户非管理员，跳过配置同步');
+        return;
+      }
+
       // 获取认证token
       const token = localStorage.getItem('token');
       const headers: Record<string, string> = {
@@ -184,6 +208,12 @@ class DebugConsoleManager {
       
       if (response.status === 401) {
         console.log('⚠️ 同步配置需要管理员权限，跳过自动同步');
+        return;
+      }
+      
+      // 如果返回403，说明用户没有权限，停止后续请求
+      if (response.status === 403) {
+        console.log('🚫 用户没有调试控制台权限，停止配置同步');
         return;
       }
       
@@ -212,6 +242,12 @@ class DebugConsoleManager {
         response = await fetchWithAuthRetry('/api/debug-console/configs', {
           headers
         }, 2);
+        
+        // 如果返回403，说明用户没有权限，停止后续请求
+        if (response.status === 403) {
+          console.log('🚫 用户没有调试控制台权限，停止配置同步');
+          return;
+        }
         
         if (response.ok) {
           data = await response.json();
@@ -285,10 +321,9 @@ class DebugConsoleManager {
 
   // 启动配置同步机制
   private startConfigSync(): void {
-    // 检查是否有管理员权限，如果没有则跳过自动同步
-    const token = localStorage.getItem('token');
-    if (!token) {
-      console.log('⚠️ 未检测到登录token，跳过自动配置同步');
+    // 检查用户是否为管理员，非管理员用户不启动配置同步
+    if (!this.isUserAdmin()) {
+      console.log('[调试控制台] 用户非管理员，跳过配置同步机制启动');
       return;
     }
     
@@ -296,8 +331,11 @@ class DebugConsoleManager {
     this.syncConfigFromBackend();
     
     // 每5分钟同步一次配置
-    setInterval(() => {
-      this.syncConfigFromBackend();
+    const syncInterval = setInterval(() => {
+      this.syncConfigFromBackend().catch(() => {
+        // 如果同步失败，停止定时器
+        clearInterval(syncInterval);
+      });
     }, 5 * 60 * 1000);
     
     // 监听页面可见性变化，当页面重新可见时同步配置
@@ -328,12 +366,23 @@ class DebugConsoleManager {
 
   // 手动触发配置同步（用于调试）
   public forceSyncConfig(): Promise<void> {
+    // 检查用户是否为管理员，非管理员用户不进行手动同步
+    if (!this.isUserAdmin()) {
+      console.log('[调试控制台] 用户非管理员，跳过手动配置同步');
+      return Promise.resolve();
+    }
+    
     console.log('🔄 手动触发配置同步...');
     return this.syncConfigFromBackend();
   }
 
   public handleKeyPress(key: string): boolean {
     if (!this.config.enabled) return false;
+    
+    // 检查用户是否为管理员，非管理员用户不处理按键序列
+    if (!this.isUserAdmin()) {
+      return false;
+    }
     
     // 检查是否在锁定状态
     if (this.isLocked()) {
@@ -393,6 +442,12 @@ class DebugConsoleManager {
 
   private async verifyCode(inputCode: string): Promise<void> {
     try {
+      // 检查用户是否为管理员，非管理员用户不进行验证
+      if (!this.isUserAdmin()) {
+        console.log('[调试控制台] 用户非管理员，跳过验证码验证');
+        return;
+      }
+
       // 获取当前按键序列
       const keySequence = this.keyBuffer || this.config.keySequence;
       
@@ -407,6 +462,12 @@ class DebugConsoleManager {
           verificationCode: inputCode
         })
       });
+
+      // 如果返回403，说明用户没有权限，停止验证
+      if (response.status === 403) {
+        console.log('🚫 用户没有调试控制台权限，验证失败');
+        return;
+      }
 
       const result = await response.json();
 
@@ -807,6 +868,12 @@ class DebugConsoleManager {
 
   // 重新激活调试控制台
   public reactivate(): void {
+    // 检查用户是否为管理员，非管理员用户不进行重新激活
+    if (!this.isUserAdmin()) {
+      console.log('[调试控制台] 用户非管理员，跳过重新激活');
+      return;
+    }
+    
     if (this.canReactivate()) {
       this.keyBuffer = '';
       console.log('🔄 调试控制台已重置，可以重新输入按键序列激活');

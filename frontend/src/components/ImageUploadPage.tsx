@@ -290,6 +290,13 @@ const ImageUploadPage: React.FC = () => {
   const [uploadedShortUrl, setUploadedShortUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // 批量上传相关状态
+  const [batchFiles, setBatchFiles] = useState<File[]>([]);
+  const [batchUploading, setBatchUploading] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<{ [key: string]: { status: 'pending' | 'uploading' | 'success' | 'error', progress?: number, error?: string } }>({});
+  const [showBatchList, setShowBatchList] = useState(false);
+  const batchFileInputRef = useRef<HTMLInputElement>(null);
+
   // 2. 新增本地图片管理相关state
   const [storedImages, setStoredImages] = useState<any[]>([]);
   const [dragActive, setDragActive] = useState(false);
@@ -351,6 +358,57 @@ const ImageUploadPage: React.FC = () => {
     console.log('[图片上传] 预览URL:', url);
   };
 
+  // 批量文件选择处理
+  const handleBatchFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    console.log('[批量上传] 选择文件数量:', files.length);
+    
+    if (files.length === 0) return;
+    
+    // 验证文件
+    const validFiles: File[] = [];
+    const invalidFiles: string[] = [];
+    
+    files.forEach(file => {
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        invalidFiles.push(`${file.name} (格式不支持)`);
+      } else if (file.size > MAX_IMAGE_SIZE) {
+        invalidFiles.push(`${file.name} (超过5MB)`);
+      } else {
+        validFiles.push(file);
+      }
+    });
+    
+    if (invalidFiles.length > 0) {
+      setNotification({ 
+        message: `以下文件不符合要求：${invalidFiles.slice(0, 3).join(', ')}${invalidFiles.length > 3 ? '...' : ''}`, 
+        type: 'warning' 
+      });
+    }
+    
+    if (validFiles.length > 0) {
+      setBatchFiles(prev => [...prev, ...validFiles]);
+      
+      // 初始化进度状态
+      const newProgress: { [key: string]: { status: 'pending' | 'uploading' | 'success' | 'error', progress?: number, error?: string } } = {};
+      validFiles.forEach(file => {
+        newProgress[file.name] = { status: 'pending' };
+      });
+      setBatchProgress(prev => ({ ...prev, ...newProgress }));
+      
+      setShowBatchList(true);
+      setNotification({ 
+        message: `已添加 ${validFiles.length} 个文件到批量上传队列`, 
+        type: 'success' 
+      });
+    }
+    
+    // 清空文件输入框
+    if (batchFileInputRef.current) {
+      batchFileInputRef.current.value = '';
+    }
+  };
+
   const handleRemove = () => {
     console.log('[图片上传] 移除文件:', file);
     setFile(null);
@@ -367,6 +425,27 @@ const ImageUploadPage: React.FC = () => {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  // 批量文件管理函数
+  const removeBatchFile = (fileName: string) => {
+    setBatchFiles(prev => prev.filter(f => f.name !== fileName));
+    setBatchProgress(prev => {
+      const newProgress = { ...prev };
+      delete newProgress[fileName];
+      return newProgress;
+    });
+    
+    if (batchFiles.length <= 1) {
+      setShowBatchList(false);
+    }
+  };
+
+  const clearBatchFiles = () => {
+    setBatchFiles([]);
+    setBatchProgress({});
+    setShowBatchList(false);
+    setNotification({ message: '已清空批量上传队列', type: 'success' });
   };
 
   // Turnstile 验证处理函数
@@ -392,7 +471,7 @@ const ImageUploadPage: React.FC = () => {
     if (!file) return;
     
     // 检查Turnstile验证
-    if (turnstileConfig.enabled && (!turnstileVerified || !turnstileToken)) {
+    if (!!turnstileConfig.siteKey && (!turnstileVerified || !turnstileToken)) {
       setError('请先完成人机验证');
       setNotification({ message: '请先完成人机验证', type: 'warning' });
       return;
@@ -405,7 +484,7 @@ const ImageUploadPage: React.FC = () => {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('source', 'imgupload'); // 标记来源
-      if (turnstileConfig.enabled && turnstileToken) {
+      if (!!turnstileConfig.siteKey && turnstileToken) {
         formData.append('cfToken', turnstileToken);
       }
       const token = localStorage.getItem('token');
@@ -504,6 +583,196 @@ const ImageUploadPage: React.FC = () => {
     }
   };
 
+  // 批量上传处理
+  const handleBatchUpload = async () => {
+    if (batchFiles.length === 0) return;
+    
+    // 检查Turnstile验证（批量上传只需要验证一次）
+    if (!!turnstileConfig.siteKey && (!turnstileVerified || !turnstileToken)) {
+      setNotification({ message: '请先完成人机验证', type: 'warning' });
+      return;
+    }
+    
+    setBatchUploading(true);
+    const token = localStorage.getItem('token');
+    const uploadUrl = getApiBaseUrl() + '/api/ipfs/upload';
+    
+    console.log('[批量上传] 开始上传，文件数量:', batchFiles.length);
+    
+    // 逐个上传文件
+    for (let i = 0; i < batchFiles.length; i++) {
+      const file = batchFiles[i];
+      const fileName = file.name;
+      
+      try {
+        // 更新进度状态
+        setBatchProgress(prev => ({
+          ...prev,
+          [fileName]: { status: 'uploading', progress: 0 }
+        }));
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('source', 'batch-imgupload'); // 标记批量上传来源
+        
+        // 只在第一个文件时添加 Turnstile token
+        if (!!turnstileConfig.siteKey && turnstileToken && i === 0) {
+          formData.append('cfToken', turnstileToken);
+        }
+        
+        console.log(`[批量上传] 上传文件 ${i + 1}/${batchFiles.length}:`, fileName);
+        
+        const res = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          body: formData,
+        });
+        
+        const result = await res.json();
+        
+        if (result?.data?.web2url) {
+          // 上传成功
+          setBatchProgress(prev => ({
+            ...prev,
+            [fileName]: { status: 'success', progress: 100 }
+          }));
+          
+          // 生成图片数据验证信息
+          let imageId: string;
+          let fileHash: string;
+          let md5Hash: string;
+          
+          try {
+            imageId = generateImageId();
+            const fileArrayBuffer = await file.arrayBuffer();
+            fileHash = await generateFileHash(fileArrayBuffer);
+            md5Hash = generateMD5Hash(fileArrayBuffer);
+          } catch (error) {
+            console.error('[批量上传] 哈希生成失败:', error);
+            imageId = generateImageId();
+            fileHash = 'hash-generation-failed';
+            md5Hash = 'md5-generation-failed';
+          }
+          
+          // 保存到本地存储
+          const imageData = {
+            imageId,
+            cid: result.data.cid || '',
+            url: result.data.url || '',
+            web2url: result.data.web2url,
+            fileSize: file.size,
+            fileName: file.name,
+            uploadTime: new Date().toISOString(),
+            fileHash,
+            md5Hash
+          };
+          
+          try {
+            await saveImageToStorage(imageData);
+            console.log(`[批量上传] 文件 ${fileName} 已保存到本地存储`);
+          } catch (error) {
+            console.error('[批量上传] 保存到本地存储失败:', error);
+          }
+          
+          // 记录到后端数据库
+          try {
+            await imageDataApi.recordImageData({
+              imageId,
+              fileName: file.name,
+              fileSize: file.size,
+              fileHash,
+              md5Hash,
+              web2url: result.data.web2url,
+              cid: result.data.cid || '',
+              uploadTime: new Date().toISOString()
+            });
+            console.log(`[批量上传] 文件 ${fileName} 已记录到后端数据库`);
+          } catch (error) {
+            console.error('[批量上传] 记录到后端失败:', error);
+          }
+          
+          console.log(`[批量上传] 文件 ${fileName} 上传成功`);
+        } else {
+          // 上传失败
+          const errorMsg = result?.error || '上传失败';
+          setBatchProgress(prev => ({
+            ...prev,
+            [fileName]: { status: 'error', error: errorMsg }
+          }));
+          console.error(`[批量上传] 文件 ${fileName} 上传失败:`, errorMsg);
+        }
+      } catch (error: any) {
+        // 异常处理
+        const errorMsg = error?.message || '上传异常';
+        setBatchProgress(prev => ({
+          ...prev,
+          [fileName]: { status: 'error', error: errorMsg }
+        }));
+        console.error(`[批量上传] 文件 ${fileName} 上传异常:`, error);
+      }
+      
+      // 添加延迟，避免请求过于频繁
+      if (i < batchFiles.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+    
+    setBatchUploading(false);
+    
+    // 重新加载图片列表，确保显示所有成功上传的文件
+    try {
+      await reloadImages();
+      console.log('[批量上传] 本地图片列表已重新加载');
+    } catch (error) {
+      console.error('[批量上传] 重新加载图片列表失败:', error);
+    }
+    
+    // 统计上传结果
+    const successCount = Object.values(batchProgress).filter(p => p.status === 'success').length;
+    const errorCount = Object.values(batchProgress).filter(p => p.status === 'error').length;
+    
+    if (successCount > 0) {
+      // 获取成功上传的文件列表
+      const successfulFiles = batchFiles.filter(file => {
+        const progress = batchProgress[file.name];
+        return progress && progress.status === 'success';
+      });
+      
+      // 显示成功上传的文件列表
+      const successfulFileNames = successfulFiles.map(file => file.name).join(', ');
+      setNotification({ 
+        message: `批量上传完成！成功 ${successCount} 个，失败 ${errorCount} 个。成功文件：${successfulFileNames}`, 
+        type: successCount === batchFiles.length ? 'success' : 'warning' 
+      });
+      
+      // 更新批量文件列表，只保留成功的文件
+      setBatchFiles(successfulFiles);
+      
+      // 更新进度状态，只保留成功的文件
+      const successfulProgress: { [key: string]: { status: 'pending' | 'uploading' | 'success' | 'error', progress?: number, error?: string } } = {};
+      successfulFiles.forEach(file => {
+        const progress = batchProgress[file.name];
+        if (progress && progress.status === 'success') {
+          successfulProgress[file.name] = progress;
+        }
+      });
+      setBatchProgress(successfulProgress);
+      
+      // 如果所有文件都上传成功，隐藏批量上传列表
+      if (successCount === batchFiles.length) {
+        setShowBatchList(false);
+      }
+      
+      // 显示成功上传的文件已添加到本地历史记录
+      console.log(`[批量上传] 成功上传的文件已添加到本地历史记录：`, successfulFileNames);
+    }
+    
+    // 重置 Turnstile 状态
+    setTurnstileToken('');
+    setTurnstileVerified(false);
+    setTurnstileKey(k => k + 1);
+  };
+
   // 3. 拖拽上传相关事件
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -517,8 +786,18 @@ const ImageUploadPage: React.FC = () => {
     e.preventDefault();
     setDragActive(false);
     const files = e.dataTransfer.files;
-    if (files.length > 0 && files[0].type.startsWith('image/')) {
-      handleFileChange({ target: { files }, preventDefault: () => {} } as any);
+    if (files.length > 0) {
+      // 检查是否包含图片文件
+      const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+      if (imageFiles.length > 0) {
+        if (imageFiles.length === 1) {
+          // 单文件上传
+          handleFileChange({ target: { files: imageFiles }, preventDefault: () => {} } as any);
+        } else {
+          // 多文件批量上传
+          handleBatchFileChange({ target: { files: imageFiles }, preventDefault: () => {} } as any);
+        }
+      }
     }
   };
 
@@ -725,6 +1004,29 @@ const ImageUploadPage: React.FC = () => {
             <FaUpload className="text-lg text-blue-500" />
             上传图片
           </h3>
+          <div className="flex items-center gap-2">
+            {/* 批量上传按钮 */}
+            <div className="relative">
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                ref={batchFileInputRef}
+                className="hidden"
+                onChange={handleBatchFileChange}
+                disabled={batchUploading}
+              />
+              <motion.button
+                className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition text-sm font-medium flex items-center gap-2 cursor-pointer"
+                whileTap={{ scale: 0.95 }}
+                onClick={() => !batchUploading && batchFileInputRef.current?.click()}
+                disabled={batchUploading}
+              >
+                <FaUpload className="w-4 h-4" />
+                批量上传
+              </motion.button>
+            </div>
+          </div>
         </div>
         <motion.div
           className={`mb-6 sm:mb-8 p-4 sm:p-6 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 shadow ${dragActive ? 'ring-4 ring-indigo-200' : ''}`}
@@ -754,7 +1056,7 @@ const ImageUploadPage: React.FC = () => {
             <div className="text-sm sm:text-base text-gray-600 mb-2 sm:mb-3 text-center">
               {uploading ? '上传中...' : file ? '已选择文件' : '点击选择图片或拖拽图片到此处'}
             </div>
-            <div className="text-xs text-gray-400 text-center">支持 JPG、PNG、GIF 等格式</div>
+            <div className="text-xs text-gray-400 text-center">支持 JPG、PNG、GIF 等格式，可拖拽多个文件进行批量上传</div>
           </div>
           {file && previewUrl && (
             <motion.div
@@ -775,7 +1077,7 @@ const ImageUploadPage: React.FC = () => {
           )}
           
           {/* Turnstile 人机验证 */}
-          {turnstileConfig.enabled && turnstileConfig.siteKey && !turnstileConfigLoading && (
+          {!turnstileConfigLoading && turnstileConfig.siteKey && typeof turnstileConfig.siteKey === 'string' && (
             <motion.div
               className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200"
               initial={{ opacity: 0, y: 20 }}
@@ -807,10 +1109,90 @@ const ImageUploadPage: React.FC = () => {
             </motion.div>
           )}
           
+          {/* 批量上传列表 */}
+          {showBatchList && batchFiles.length > 0 && (
+            <motion.div
+              className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-semibold text-gray-700">
+                  批量上传队列 ({batchFiles.length})
+                </h4>
+                <motion.button
+                  className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 transition"
+                  onClick={clearBatchFiles}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  清空队列
+                </motion.button>
+              </div>
+              
+              <div className="max-h-40 overflow-y-auto space-y-2">
+                {batchFiles.map((file, index) => {
+                  const progress = batchProgress[file.name];
+                  return (
+                    <div key={file.name} className="flex items-center justify-between p-2 bg-white rounded border">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-800 truncate">
+                          {file.name}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {formatFileSize(file.size)}
+                        </div>
+                        {progress && (
+                          <div className="mt-1">
+                            {progress.status === 'pending' && (
+                              <div className="text-xs text-gray-500">等待上传</div>
+                            )}
+                            {progress.status === 'uploading' && (
+                              <div className="text-xs text-blue-600">上传中...</div>
+                            )}
+                            {progress.status === 'success' && (
+                              <div className="text-xs text-green-600">✓ 上传成功</div>
+                            )}
+                            {progress.status === 'error' && (
+                              <div className="text-xs text-red-600">✗ {progress.error}</div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 ml-2">
+                        {progress?.status === 'uploading' && (
+                          <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                        )}
+                        {progress?.status === 'success' && (
+                          <FaCheck className="w-4 h-4 text-green-500" />
+                        )}
+                        {progress?.status === 'error' && (
+                          <FaTrash className="w-4 h-4 text-red-500 cursor-pointer" onClick={() => removeBatchFile(file.name)} />
+                        )}
+                        {progress?.status === 'pending' && (
+                          <FaTrash className="w-4 h-4 text-gray-400 cursor-pointer hover:text-red-500" onClick={() => removeBatchFile(file.name)} />
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              <motion.button
+                className="w-full mt-3 px-4 py-2 rounded-lg bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold shadow hover:from-green-700 hover:to-emerald-700 transition disabled:opacity-50 text-sm"
+                onClick={handleBatchUpload}
+                disabled={batchUploading || batchFiles.length === 0 || (!!turnstileConfig.siteKey && !turnstileVerified)}
+                whileTap={{ scale: 0.98 }}
+              >
+                {batchUploading ? '批量上传中...' : `开始批量上传 (${batchFiles.length} 个文件)`}
+              </motion.button>
+            </motion.div>
+          )}
+          
           <motion.button
             className="w-full mt-2 px-4 py-3 sm:py-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold shadow hover:from-blue-700 hover:to-indigo-700 transition disabled:opacity-50 text-base sm:text-lg tracking-wide min-h-[48px] sm:min-h-[44px]"
             onClick={handleUpload}
-            disabled={!file || uploading || (turnstileConfig.enabled && !turnstileVerified)}
+            disabled={!file || uploading || (!!turnstileConfig.siteKey && !turnstileVerified)}
             whileTap={{ scale: 0.98 }}
           >
             {uploading ? '上传中...' : '上传图片'}

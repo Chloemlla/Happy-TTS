@@ -86,6 +86,28 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
         }
     }, [turnstileToken]);
 
+    // 调试 Turnstile 配置
+    useEffect(() => {
+        if (!turnstileConfigLoading) {
+            console.log('AuthForm: Turnstile config:', {
+                enabled: turnstileConfig.enabled,
+                siteKey: turnstileConfig.siteKey,
+                siteKeyType: typeof turnstileConfig.siteKey,
+                loading: turnstileConfigLoading
+            });
+        }
+    }, [turnstileConfig, turnstileConfigLoading]);
+
+    // 调试 Turnstile 验证状态
+    useEffect(() => {
+        console.log('AuthForm: Turnstile verification status:', {
+            turnstileVerified,
+            turnstileToken: turnstileToken ? 'present' : 'missing',
+            turnstileError,
+            siteKey: turnstileConfig.siteKey ? 'present' : 'missing'
+        });
+    }, [turnstileVerified, turnstileToken, turnstileError, turnstileConfig.siteKey]);
+
     // 支持的主流邮箱后缀
     const allowedDomains = [
         'gmail.com', 'outlook.com', 'qq.com', '163.com', '126.com',
@@ -100,6 +122,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
 
     // Turnstile 验证处理函数
     const handleTurnstileVerify = (token: string) => {
+        console.log('Turnstile verification successful, token:', token);
         setTurnstileToken(token);
         setTurnstileVerified(true);
         setTurnstileError(false);
@@ -255,15 +278,15 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
             const sanitizedEmail = DOMPurify.sanitize(email).trim();
             const sanitizedPassword = password;
             if (isLogin) {
-                // 登录前必须完成人机验证
-                if (!turnstileVerified || !turnstileToken) {
+                // 登录前必须完成人机验证（仅在启用Turnstile时）
+                if (turnstileConfig.siteKey && (!turnstileVerified || !turnstileToken)) {
                     setError('请先完成人机验证');
                     setNotify({ message: '请先完成人机验证', type: 'warning' });
                     setLoading(false);
                     return;
                 }
 
-                const result = await login(sanitizedUsername, sanitizedPassword, turnstileToken);
+                const result = await login(sanitizedUsername, sanitizedPassword, turnstileConfig.siteKey ? turnstileToken : undefined);
                 if (result && result.requires2FA && result.twoFactorType) {
                     setNotify({ message: '需要二次验证，请选择验证方式', type: 'info' });
                     setPendingUser(result.user);
@@ -311,8 +334,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                 }
                 return;
             } else {
-                // 注册前必须完成人机验证
-                if (!turnstileVerified || !turnstileToken) {
+                // 注册前必须完成人机验证（仅在启用Turnstile时）
+                if (turnstileConfig.siteKey && (!turnstileVerified || !turnstileToken)) {
                     setError('请先完成人机验证');
                     setNotify({ message: '请先完成人机验证', type: 'warning' });
                     setLoading(false);
@@ -321,16 +344,21 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
 
 
 
-                // 注册后进入邮箱验证码界面（附带Turnstile token）
+                // 注册后进入邮箱验证码界面（附带Turnstile token，仅在启用时）
+                const requestBody: any = {
+                    username: sanitizedUsername,
+                    email: sanitizedEmail,
+                    password: sanitizedPassword
+                };
+                
+                if (turnstileConfig.siteKey && turnstileToken) {
+                    requestBody.cfToken = turnstileToken;
+                }
+                
                 const res = await fetch(getApiBaseUrl() + '/api/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        username: sanitizedUsername,
-                        email: sanitizedEmail,
-                        password: sanitizedPassword,
-                        cfToken: turnstileToken
-                    })
+                    body: JSON.stringify(requestBody)
                 });
                 const data = await res.json();
                 if (data && data.needVerify) {
@@ -369,9 +397,10 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
             setError(null);
             setPassword('');
             setConfirmPassword('');
-            // 切换模式时重置Turnstile token
+            // 切换模式时重置Turnstile状态
             setTurnstileToken('');
             setTurnstileVerified(false);
+            setTurnstileError(false);
             setTurnstileKey(k => k + 1);
         });
     };
@@ -658,7 +687,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                                 />
                             </div>
                         )}
-                        {turnstileConfig.enabled && turnstileConfig.siteKey && !turnstileConfigLoading && (
+                        {!turnstileConfigLoading && turnstileConfig.siteKey && typeof turnstileConfig.siteKey === 'string' && (
                             <div className="mt-2">
                                 <TurnstileWidget
                                     key={turnstileKey}
@@ -712,7 +741,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                     <div>
                         <button
                             type="submit"
-                            disabled={loading || (!isLogin && password !== confirmPassword) || !turnstileVerified}
+                            disabled={loading || (!isLogin && password !== confirmPassword) || (!!turnstileConfig.siteKey && !turnstileVerified)}
                             className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-lg font-bold rounded-2xl text-white bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-indigo-600 hover:to-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 disabled:opacity-50 shadow-lg transition-all duration-200"
                         >
                             {loading ? '处理中...' : isLogin ? '登录' : '注册'}

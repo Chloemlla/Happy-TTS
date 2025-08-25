@@ -11,10 +11,14 @@ interface DebugInfoModalProps {
     isOpen: boolean;
     onClose: () => void;
     debugInfos: DebugInfo[];
+    userRole?: string; // 添加用户角色属性
 }
 
-export const DebugInfoModal: React.FC<DebugInfoModalProps> = ({ isOpen, onClose, debugInfos }) => {
+export const DebugInfoModal: React.FC<DebugInfoModalProps> = ({ isOpen, onClose, debugInfos, userRole }) => {
     const [copied, setCopied] = useState(false);
+
+    // 检查用户是否为管理员
+    const isAdmin = userRole === 'admin' || userRole === 'administrator';
 
     const copyToClipboard = async () => {
         try {
@@ -29,6 +33,12 @@ export const DebugInfoModal: React.FC<DebugInfoModalProps> = ({ isOpen, onClose,
             console.error('复制失败:', error);
         }
     };
+
+    // 如果不是管理员，不显示调试信息模态框
+    if (!isAdmin) {
+        console.log('[调试信息] 用户非管理员，跳过调试信息显示');
+        return null;
+    }
 
     if (!isOpen) return null;
 
@@ -64,7 +74,7 @@ export const DebugInfoModal: React.FC<DebugInfoModalProps> = ({ isOpen, onClose,
                                     </svg>
                                 </motion.div>
                                 <div>
-                                    <h2 className="text-2xl font-bold">Passkey 调试信息</h2>
+                                    <h2 className="text-2xl font-bold">Passkey 调试信息 (管理员专用)</h2>
                                     <p className="text-sm opacity-90">请将此信息提供给管理员进行问题诊断</p>
                                 </div>
                             </div>

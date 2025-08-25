@@ -365,9 +365,9 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "blob:", "https:"],
-      scriptSrc: ["'self'"],
+      scriptSrc: ["'self'", "https://challenges.cloudflare.com"],
       connectSrc: ["'self'", "https://api.openai.com", "https://api.hapxs.com", "http://localhost:3000", "http://localhost:3001"],
-      frameSrc: ["'none'"],
+      frameSrc: ["'self'", "https://challenges.cloudflare.com", "https://*.cloudflare.com"],
       objectSrc: ["'none'"],
       upgradeInsecureRequests: []
     }
