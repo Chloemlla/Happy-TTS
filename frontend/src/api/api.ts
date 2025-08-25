@@ -33,7 +33,7 @@ api.interceptors.response.use(
             const flag = response.headers?.['x-require-fingerprint'] || response.headers?.['X-Require-Fingerprint'];
             if (flag === '1') {
                 // 异步触发上报（不阻塞当前请求）
-                reportFingerprintOnce({ force: true });
+                reportFingerprintOnce();
             }
         } catch { }
         return response;
@@ -42,7 +42,7 @@ api.interceptors.response.use(
         try {
             const flag = error?.response?.headers?.['x-require-fingerprint'] || error?.response?.headers?.['X-Require-Fingerprint'];
             if (flag === '1') {
-                reportFingerprintOnce({ force: true });
+                reportFingerprintOnce();
             }
         } catch { }
         if (error.response?.status === 401) {
