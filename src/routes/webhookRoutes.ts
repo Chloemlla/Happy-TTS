@@ -45,14 +45,18 @@ for (const name of Object.keys(env)) {
 }
 
 for (const key of keys) {
-  const path = `/resend-${key}`;
+  // 确保键名只包含有效的URL字符，避免路由解析错误
+  const sanitizedKey = key.replace(/[^a-zA-Z0-9_-]/g, '');
+  if (!sanitizedKey) continue; // 跳过无效的键名
+  
+  const path = `/resend-${sanitizedKey}`;
   // 使用 param 形式以便 controller 读取 req.params.key
   router.post(
     path,
     webhookLimiter,
     express.raw({ type: 'application/json' }),
     // 将 key 注入到 req.params 兼容 controller（Express 路由本身无 params，这里包一层）
-    (req, _res, next) => { (req as any).params = { ...(req as any).params, key }; next(); },
+    (req, _res, next) => { (req as any).params = { ...(req as any).params, key: sanitizedKey }; next(); },
     WebhookController.handleResendWebhook
   );
 }

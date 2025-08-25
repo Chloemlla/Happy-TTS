@@ -119,7 +119,7 @@ const allowedOrigins = [
 ];
 
 // 为所有 /s/* 路由添加 OPTIONS 处理器 - 必须在路由挂载之前
-app.options('/s/*', (req: Request, res: Response) => {
+app.options('/s/*path', (req: Request, res: Response) => {
   const origin = req.headers.origin;
   if (origin && allowedOrigins.includes(origin)) {
     res.header('Access-Control-Allow-Origin', origin);
@@ -145,7 +145,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // 为所有 /s/* 路由添加 CORS 响应头中间件 - 必须在路由挂载之前
-app.use('/s/*', (req: Request, res: Response, next: NextFunction) => {
+app.use('/s/*path', (req: Request, res: Response, next: NextFunction) => {
   const origin = req.headers.origin;
   if (origin && allowedOrigins.includes(origin)) {
     res.header('Access-Control-Allow-Origin', origin);
@@ -161,7 +161,7 @@ app.use('/s/*', (req: Request, res: Response, next: NextFunction) => {
 app.use('/s', shortUrlRoutes);
 
 // 为 /api/shorturl/* 添加 OPTIONS 处理器 - 必须在路由挂载之前
-app.options('/api/shorturl/*', (req: Request, res: Response) => {
+app.options('/api/shorturl/*path', (req: Request, res: Response) => {
   const origin = req.headers.origin;
   if (origin && allowedOrigins.includes(origin)) {
     res.header('Access-Control-Allow-Origin', origin);
@@ -176,7 +176,7 @@ app.options('/api/shorturl/*', (req: Request, res: Response) => {
 });
 
 // 为所有 /api/shorturl/* 路由添加 CORS 响应头中间件 - 必须在路由挂载之前
-app.use('/api/shorturl/*', (req: Request, res: Response, next: NextFunction) => {
+app.use('/api/shorturl/*path', (req: Request, res: Response, next: NextFunction) => {
   const origin = req.headers.origin;
   if (origin && allowedOrigins.includes(origin)) {
     res.header('Access-Control-Allow-Origin', origin);
