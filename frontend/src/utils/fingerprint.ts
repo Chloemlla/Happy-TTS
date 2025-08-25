@@ -279,3 +279,83 @@ export const reportFingerprintOnce = async (opts?: { force?: boolean }): Promise
     // 静默失败
   }
 };
+
+// 临时指纹上报（用于首次访问检测）
+export const reportTempFingerprint = async (): Promise<{ isFirstVisit: boolean; verified: boolean }> => {
+  try {
+    const fingerprint = await getFingerprint();
+    if (!fingerprint) {
+      throw new Error('无法生成指纹');
+    }
+
+    const response = await fetch(`${getApiBaseUrl()}/api/turnstile/temp-fingerprint`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ fingerprint }),
+    });
+
+    if (!response.ok) {
+      throw new Error('指纹上报失败');
+    }
+
+    const data = await response.json();
+    return {
+      isFirstVisit: data.isFirstVisit || false,
+      verified: data.verified || false,
+    };
+  } catch (error) {
+    console.error('临时指纹上报失败:', error);
+    // 出错时默认不是首次访问，避免阻塞用户
+    return { isFirstVisit: false, verified: false };
+  }
+};
+
+// 验证临时指纹
+export const verifyTempFingerprint = async (fingerprint: string, cfToken: string): Promise<boolean> => {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/api/turnstile/verify-temp-fingerprint`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ fingerprint, cfToken }),
+    });
+
+    if (!response.ok) {
+      throw new Error('验证失败');
+    }
+
+    const data = await response.json();
+    return data.success && data.verified;
+  } catch (error) {
+    console.error('验证临时指纹失败:', error);
+    return false;
+  }
+};
+
+// 检查临时指纹状态
+export const checkTempFingerprintStatus = async (fingerprint: string): Promise<{ exists: boolean; verified: boolean }> => {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/api/turnstile/temp-fingerprint/${fingerprint}`);
+    
+    if (!response.ok) {
+      throw new Error('检查状态失败');
+    }
+
+    const data = await response.json();
+    return {
+      exists: data.exists || false,
+      verified: data.verified || false,
+    };
+  } catch (error) {
+    console.error('检查临时指纹状态失败:', error);
+    return { exists: false, verified: false };
+  }
+};
+
+// 获取API基础URL
+function getApiBaseUrl(): string {
+  return import.meta.env.VITE_API_BASE_URL || '';
+}

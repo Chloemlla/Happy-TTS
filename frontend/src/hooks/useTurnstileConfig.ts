@@ -6,7 +6,12 @@ interface TurnstileConfig {
   siteKey: string | null;
 }
 
-export const useTurnstileConfig = () => {
+interface UseTurnstileConfigOptions {
+  usePublicConfig?: boolean; // 是否使用公共配置接口（无需认证）
+}
+
+export const useTurnstileConfig = (options: UseTurnstileConfigOptions = {}) => {
+  const { usePublicConfig = false } = options;
   const [config, setConfig] = useState<TurnstileConfig>({
     enabled: false,
     siteKey: null
@@ -18,8 +23,12 @@ export const useTurnstileConfig = () => {
     const fetchConfig = async () => {
       try {
         setLoading(true);
-        console.log('正在获取 Turnstile 配置...');
-        const response = await api.get('/api/turnstile/config');
+        console.log('正在获取 Turnstile 配置...', usePublicConfig ? '(公共配置)' : '(认证配置)');
+        
+        // 根据选项选择不同的API端点
+        const endpoint = usePublicConfig ? '/api/turnstile/public-config' : '/api/turnstile/config';
+        const response = await api.get(endpoint);
+        
         console.log('Turnstile 配置获取成功:', response.data);
         setConfig(response.data);
       } catch (err) {
@@ -33,7 +42,7 @@ export const useTurnstileConfig = () => {
     };
 
     fetchConfig();
-  }, []);
+  }, [usePublicConfig]);
 
   return { config, loading, error };
 }; 

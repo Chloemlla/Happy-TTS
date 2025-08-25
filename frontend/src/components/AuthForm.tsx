@@ -45,7 +45,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
     const { setNotification: contextSetNotification } = useNotification();
     const setNotify = propSetNotification || contextSetNotification;
     const { login, register, pending2FA, setPending2FA, verifyTOTP } = useAuth();
-    const { config: turnstileConfig, loading: turnstileConfigLoading } = useTurnstileConfig();
+    const { config: turnstileConfig, loading: turnstileConfigLoading } = useTurnstileConfig({ usePublicConfig: true });
     const {
         authenticateWithPasskey,
         showDebugModal,

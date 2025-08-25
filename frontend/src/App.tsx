@@ -14,6 +14,8 @@ import md5 from 'md5';
 import getApiBaseUrl from './api';
 import DOMPurify from 'dompurify';
 import { reportFingerprintOnce } from './utils/fingerprint';
+import { useFirstVisitDetection } from './hooks/useFirstVisitDetection';
+import { FirstVisitVerification } from './components/FirstVisitVerification';
 
 // 懒加载组件
 const WelcomePage = React.lazy(() => import('./components/WelcomePage').then(module => ({ default: module.WelcomePage })));
@@ -246,6 +248,16 @@ const App: React.FC = () => {
   const [totpStatus, setTotpStatus] = useState<TOTPStatus | null>(null);
   const [showWatermark, setShowWatermark] = useState(false);
   const prefersReducedMotion = useReducedMotion();
+
+  // 首次访问检测
+  const {
+    isFirstVisit,
+    isVerified,
+    isLoading: isFirstVisitLoading,
+    error: firstVisitError,
+    fingerprint,
+    markAsVerified,
+  } = useFirstVisitDetection();
 
   // 在App组件内，提升isMobile/isOverflow状态
   const [isMobileNav, setIsMobileNav] = useState(false);
@@ -535,6 +547,33 @@ const App: React.FC = () => {
   }
 
   // 统一的渲染逻辑，不再区分管理员和普通用户
+
+  // 首次访问验证
+  if (isFirstVisitLoading) {
+    return (
+      <NotificationProvider>
+        <LazyMotion features={domAnimation}>
+          <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center">
+            <LoadingSpinner />
+          </div>
+        </LazyMotion>
+      </NotificationProvider>
+    );
+  }
+
+  // 首次访问且未验证，显示验证页面
+  if (isFirstVisit && !isVerified && fingerprint) {
+    return (
+      <NotificationProvider>
+        <LazyMotion features={domAnimation}>
+          <FirstVisitVerification
+            fingerprint={fingerprint}
+            onVerificationComplete={markAsVerified}
+          />
+        </LazyMotion>
+      </NotificationProvider>
+    );
+  }
 
   return (
     <NotificationProvider>

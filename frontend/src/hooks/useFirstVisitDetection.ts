@@ -1,0 +1,93 @@
+import { useState, useEffect, useCallback } from 'react';
+import { getFingerprint, reportTempFingerprint, checkTempFingerprintStatus } from '../utils/fingerprint';
+
+interface UseFirstVisitDetectionReturn {
+  isFirstVisit: boolean;
+  isVerified: boolean;
+  isLoading: boolean;
+  error: string | null;
+  fingerprint: string | null;
+  checkFirstVisit: () => Promise<void>;
+  markAsVerified: () => void;
+}
+
+export const useFirstVisitDetection = (): UseFirstVisitDetectionReturn => {
+  const [isFirstVisit, setIsFirstVisit] = useState(false);
+  const [isVerified, setIsVerified] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [fingerprint, setFingerprint] = useState<string | null>(null);
+
+  const checkFirstVisit = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // 生成指纹
+      const fp = await getFingerprint();
+      if (!fp) {
+        throw new Error('无法生成浏览器指纹');
+      }
+      setFingerprint(fp);
+
+      // 临时强制显示首次访问验证页面（用于测试）
+      // 注释掉下面的代码来恢复正常逻辑
+      setIsFirstVisit(true);
+      setIsVerified(false);
+      
+      // 即使强制显示，也要创建临时指纹记录
+      try {
+        await reportTempFingerprint();
+      } catch (err) {
+        console.warn('创建临时指纹记录失败:', err);
+      }
+      
+      setIsLoading(false);
+      return;
+
+      // 正常逻辑（已注释）
+      /*
+      // 检查是否已经验证过
+      const status = await checkTempFingerprintStatus(fp);
+      if (status.exists && status.verified) {
+        setIsFirstVisit(false);
+        setIsVerified(true);
+        return;
+      }
+
+      // 上报指纹并检查是否首次访问
+      const result = await reportTempFingerprint();
+      setIsFirstVisit(result.isFirstVisit);
+      setIsVerified(result.verified);
+      */
+
+    } catch (err) {
+      console.error('首次访问检测失败:', err);
+      setError(err instanceof Error ? err.message : '检测失败');
+      // 出错时默认不是首次访问，避免阻塞用户
+      setIsFirstVisit(false);
+      setIsVerified(false);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const markAsVerified = useCallback(() => {
+    setIsVerified(true);
+    setIsFirstVisit(false);
+  }, []);
+
+  useEffect(() => {
+    checkFirstVisit();
+  }, [checkFirstVisit]);
+
+  return {
+    isFirstVisit,
+    isVerified,
+    isLoading,
+    error,
+    fingerprint,
+    checkFirstVisit,
+    markAsVerified,
+  };
+}; 

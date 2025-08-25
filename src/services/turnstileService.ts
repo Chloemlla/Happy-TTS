@@ -2,6 +2,7 @@ import axios from 'axios';
 import { config } from '../config/config';
 import logger from '../utils/logger';
 import { mongoose } from './mongoService';
+import { TempFingerprintModel, TempFingerprintDoc } from '../models/tempFingerprintModel';
 
 // Turnstile配置文档接口
 interface TurnstileSettingDoc { 
@@ -189,6 +190,194 @@ export class TurnstileService {
     } catch (error) {
       logger.error(`删除Turnstile配置失败: ${key}`, error);
       return false;
+    }
+  }
+
+  // ==================== 临时指纹管理 ====================
+
+  /**
+   * 上报临时指纹
+   * @param fingerprint 浏览器指纹
+   * @returns 是否首次访问和验证状态
+   */
+  public static async reportTempFingerprint(fingerprint: string): Promise<{
+    isFirstVisit: boolean;
+    verified: boolean;
+  }> {
+    try {
+      if (mongoose.connection.readyState !== 1) {
+        logger.error('数据库连接不可用，无法上报临时指纹');
+        return { isFirstVisit: false, verified: false };
+      }
+
+      // 检查指纹是否已存在
+      const existingDoc = await TempFingerprintModel.findOne({ fingerprint }).lean().exec();
+      
+      if (existingDoc) {
+        // 指纹已存在，返回当前状态
+        return {
+          isFirstVisit: false,
+          verified: existingDoc.verified,
+        };
+      }
+
+      // 首次访问，创建新记录
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5分钟后过期
+      await TempFingerprintModel.create({
+        fingerprint,
+        verified: false,
+        expiresAt,
+      });
+
+      logger.info('临时指纹上报成功', { fingerprint: fingerprint.substring(0, 8) + '...' });
+      
+      return {
+        isFirstVisit: true,
+        verified: false,
+      };
+    } catch (error) {
+      logger.error('临时指纹上报失败', error);
+      return { isFirstVisit: false, verified: false };
+    }
+  }
+
+  /**
+   * 验证临时指纹
+   * @param fingerprint 浏览器指纹
+   * @param cfToken Turnstile验证令牌
+   * @param remoteIp 用户IP地址
+   * @returns 验证结果
+   */
+  public static async verifyTempFingerprint(
+    fingerprint: string, 
+    cfToken: string, 
+    remoteIp?: string
+  ): Promise<boolean> {
+    try {
+      if (mongoose.connection.readyState !== 1) {
+        logger.error('数据库连接不可用，无法验证临时指纹');
+        return false;
+      }
+
+      // 查找指纹记录
+      const doc = await TempFingerprintModel.findOne({ fingerprint }).exec();
+      if (!doc) {
+        logger.warn('临时指纹不存在或已过期', { fingerprint: fingerprint.substring(0, 8) + '...' });
+        return false;
+      }
+
+      // 验证Turnstile令牌
+      const isValid = await this.verifyToken(cfToken, remoteIp);
+      if (!isValid) {
+        logger.warn('Turnstile验证失败', { fingerprint: fingerprint.substring(0, 8) + '...' });
+        return false;
+      }
+
+      // 标记为已验证
+      doc.verified = true;
+      doc.updatedAt = new Date();
+      await doc.save();
+
+      logger.info('临时指纹验证成功', { fingerprint: fingerprint.substring(0, 8) + '...' });
+      return true;
+    } catch (error) {
+      logger.error('临时指纹验证失败', error);
+      return false;
+    }
+  }
+
+  /**
+   * 检查临时指纹状态
+   * @param fingerprint 浏览器指纹
+   * @returns 指纹状态
+   */
+  public static async checkTempFingerprintStatus(fingerprint: string): Promise<{
+    exists: boolean;
+    verified: boolean;
+  }> {
+    try {
+      if (mongoose.connection.readyState !== 1) {
+        logger.error('数据库连接不可用，无法检查临时指纹状态');
+        return { exists: false, verified: false };
+      }
+
+      const doc = await TempFingerprintModel.findOne({ fingerprint }).lean().exec();
+      
+      if (!doc) {
+        return { exists: false, verified: false };
+      }
+
+      return {
+        exists: true,
+        verified: doc.verified,
+      };
+    } catch (error) {
+      logger.error('检查临时指纹状态失败', error);
+      return { exists: false, verified: false };
+    }
+  }
+
+  /**
+   * 清理过期的临时指纹
+   * @returns 清理的文档数量
+   */
+  public static async cleanupExpiredFingerprints(): Promise<number> {
+    try {
+      if (mongoose.connection.readyState !== 1) {
+        logger.error('数据库连接不可用，无法清理过期指纹');
+        return 0;
+      }
+
+      const now = new Date();
+      const result = await TempFingerprintModel.deleteMany({
+        expiresAt: { $lt: now }
+      });
+
+      if (result.deletedCount > 0) {
+        logger.info(`清理过期临时指纹完成，删除 ${result.deletedCount} 条记录`);
+      }
+
+      return result.deletedCount || 0;
+    } catch (error) {
+      logger.error('清理过期临时指纹失败', error);
+      return 0;
+    }
+  }
+
+  /**
+   * 获取临时指纹统计信息
+   * @returns 统计信息
+   */
+  public static async getTempFingerprintStats(): Promise<{
+    total: number;
+    verified: number;
+    unverified: number;
+    expired: number;
+  }> {
+    try {
+      if (mongoose.connection.readyState !== 1) {
+        logger.error('数据库连接不可用，无法获取临时指纹统计');
+        return { total: 0, verified: 0, unverified: 0, expired: 0 };
+      }
+
+      const now = new Date();
+      
+      const [total, verified, unverified, expired] = await Promise.all([
+        TempFingerprintModel.countDocuments(),
+        TempFingerprintModel.countDocuments({ verified: true }),
+        TempFingerprintModel.countDocuments({ verified: false }),
+        TempFingerprintModel.countDocuments({ expiresAt: { $lt: now } }),
+      ]);
+
+      return {
+        total,
+        verified,
+        unverified,
+        expired,
+      };
+    } catch (error) {
+      logger.error('获取临时指纹统计失败', error);
+      return { total: 0, verified: 0, unverified: 0, expired: 0 };
     }
   }
 } 

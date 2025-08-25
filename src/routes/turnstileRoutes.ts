@@ -1,8 +1,279 @@
 import express from 'express';
 import { TurnstileService } from '../services/turnstileService';
 import { authenticateToken } from '../middleware/authenticateToken';
+import { schedulerService } from '../services/schedulerService';
 
 const router = express.Router();
+
+// 临时指纹上报接口（无需认证）
+router.post('/temp-fingerprint', async (req, res) => {
+    try {
+        const { fingerprint } = req.body;
+        
+        if (!fingerprint || typeof fingerprint !== 'string') {
+            return res.status(400).json({ 
+                success: false, 
+                error: '指纹参数无效' 
+            });
+        }
+
+        const result = await TurnstileService.reportTempFingerprint(fingerprint);
+
+        res.json({
+            success: true,
+            isFirstVisit: result.isFirstVisit,
+            verified: result.verified
+        });
+    } catch (error) {
+        console.error('临时指纹上报失败:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: '服务器内部错误' 
+        });
+    }
+});
+
+// 验证临时指纹接口（无需认证）
+router.post('/verify-temp-fingerprint', async (req, res) => {
+    try {
+        const { fingerprint, cfToken } = req.body;
+        
+        if (!fingerprint || typeof fingerprint !== 'string') {
+            return res.status(400).json({ 
+                success: false, 
+                error: '指纹参数无效' 
+            });
+        }
+
+        if (!cfToken || typeof cfToken !== 'string') {
+            return res.status(400).json({ 
+                success: false, 
+                error: '验证令牌无效' 
+            });
+        }
+
+        const success = await TurnstileService.verifyTempFingerprint(fingerprint, cfToken, req.ip);
+
+        if (!success) {
+            return res.status(400).json({ 
+                success: false, 
+                error: '验证失败' 
+            });
+        }
+
+        res.json({
+            success: true,
+            verified: true
+        });
+    } catch (error) {
+        console.error('验证临时指纹失败:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: '服务器内部错误' 
+        });
+    }
+});
+
+// 检查临时指纹状态接口（无需认证）
+router.get('/temp-fingerprint/:fingerprint', async (req, res) => {
+    try {
+        const { fingerprint } = req.params;
+        
+        if (!fingerprint) {
+            return res.status(400).json({ 
+                success: false, 
+                error: '指纹参数无效' 
+            });
+        }
+
+        const status = await TurnstileService.checkTempFingerprintStatus(fingerprint);
+
+        res.json({
+            success: true,
+            exists: status.exists,
+            verified: status.verified
+        });
+    } catch (error) {
+        console.error('检查临时指纹状态失败:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: '服务器内部错误' 
+        });
+    }
+});
+
+// 清理过期指纹接口（管理员专用）
+router.post('/cleanup-expired-fingerprints', authenticateToken, async (req, res) => {
+    try {
+        const userRole = (req as any).user?.role;
+        const isAdmin = userRole === 'admin' || userRole === 'administrator';
+        
+        if (!isAdmin) {
+            return res.status(403).json({ 
+                success: false, 
+                error: '权限不足' 
+            });
+        }
+
+        const deletedCount = await TurnstileService.cleanupExpiredFingerprints();
+
+        res.json({
+            success: true,
+            deletedCount,
+            message: `清理了 ${deletedCount} 条过期指纹记录`
+        });
+    } catch (error) {
+        console.error('清理过期指纹失败:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: '服务器内部错误' 
+        });
+    }
+});
+
+// 获取指纹统计信息接口（管理员专用）
+router.get('/fingerprint-stats', authenticateToken, async (req, res) => {
+    try {
+        const userRole = (req as any).user?.role;
+        const isAdmin = userRole === 'admin' || userRole === 'administrator';
+        
+        if (!isAdmin) {
+            return res.status(403).json({ 
+                success: false, 
+                error: '权限不足' 
+            });
+        }
+
+        const stats = await TurnstileService.getTempFingerprintStats();
+
+        res.json({
+            success: true,
+            stats
+        });
+    } catch (error) {
+        console.error('获取指纹统计失败:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: '服务器内部错误' 
+        });
+    }
+});
+
+// 获取定时任务状态接口（管理员专用）
+router.get('/scheduler-status', authenticateToken, async (req, res) => {
+    try {
+        const userRole = (req as any).user?.role;
+        const isAdmin = userRole === 'admin' || userRole === 'administrator';
+        
+        if (!isAdmin) {
+            return res.status(403).json({ 
+                success: false, 
+                error: '权限不足' 
+            });
+        }
+
+        const status = schedulerService.getStatus();
+
+        res.json({
+            success: true,
+            status
+        });
+    } catch (error) {
+        console.error('获取定时任务状态失败:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: '服务器内部错误' 
+        });
+    }
+});
+
+// 手动触发清理接口（管理员专用）
+router.post('/manual-cleanup', authenticateToken, async (req, res) => {
+    try {
+        const userRole = (req as any).user?.role;
+        const isAdmin = userRole === 'admin' || userRole === 'administrator';
+        
+        if (!isAdmin) {
+            return res.status(403).json({ 
+                success: false, 
+                error: '权限不足' 
+            });
+        }
+
+        const result = await schedulerService.manualCleanup();
+
+        res.json({
+            success: result.success,
+            deletedCount: result.deletedCount,
+            message: result.success 
+                ? `手动清理完成，删除了 ${result.deletedCount} 条过期指纹记录`
+                : `手动清理失败: ${result.error}`,
+            error: result.error
+        });
+    } catch (error) {
+        console.error('手动清理失败:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: '服务器内部错误' 
+        });
+    }
+});
+
+// 启动定时任务接口（管理员专用）
+router.post('/scheduler/start', authenticateToken, async (req, res) => {
+    try {
+        const userRole = (req as any).user?.role;
+        const isAdmin = userRole === 'admin' || userRole === 'administrator';
+        
+        if (!isAdmin) {
+            return res.status(403).json({ 
+                success: false, 
+                error: '权限不足' 
+            });
+        }
+
+        schedulerService.start();
+
+        res.json({
+            success: true,
+            message: '定时任务已启动'
+        });
+    } catch (error) {
+        console.error('启动定时任务失败:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: '服务器内部错误' 
+        });
+    }
+});
+
+// 停止定时任务接口（管理员专用）
+router.post('/scheduler/stop', authenticateToken, async (req, res) => {
+    try {
+        const userRole = (req as any).user?.role;
+        const isAdmin = userRole === 'admin' || userRole === 'administrator';
+        
+        if (!isAdmin) {
+            return res.status(403).json({ 
+                success: false, 
+                error: '权限不足' 
+            });
+        }
+
+        schedulerService.stop();
+
+        res.json({
+            success: true,
+            message: '定时任务已停止'
+        });
+    } catch (error) {
+        console.error('停止定时任务失败:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: '服务器内部错误' 
+        });
+    }
+});
 
 /**
  * @openapi
@@ -60,10 +331,50 @@ router.get('/config', authenticateToken, async (req, res) => {
 
 /**
  * @openapi
+ * /api/turnstile/public-config:
+ *   get:
+ *     summary: 获取Turnstile公共配置
+ *     description: 获取Turnstile公共配置信息（无需认证，用于首次访问验证）
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 enabled:
+ *                   type: boolean
+ *                   description: 是否启用
+ *                 siteKey:
+ *                   type: string
+ *                   description: 站点密钥
+ *       500:
+ *         description: 服务器内部错误
+ */
+router.get('/public-config', async (req, res) => {
+    try {
+        const config = await TurnstileService.getConfig();
+        
+        // 只返回前端需要的公共信息
+        res.json({
+            enabled: config.enabled,
+            siteKey: config.siteKey
+        });
+    } catch (error) {
+        console.error('获取Turnstile公共配置失败:', error);
+        res.status(500).json({
+            error: '获取配置失败'
+        });
+    }
+});
+
+/**
+ * @openapi
  * /api/turnstile/config:
  *   post:
  *     summary: 更新Turnstile配置
- *     description: 更新Turnstile配置（仅管理员）
+ *     description: 更新Turnstile配置信息（需要管理员权限）
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -72,6 +383,9 @@ router.get('/config', authenticateToken, async (req, res) => {
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - key
+ *               - value
  *             properties:
  *               key:
  *                 type: string
@@ -82,7 +396,7 @@ router.get('/config', authenticateToken, async (req, res) => {
  *                 description: 配置值
  *     responses:
  *       200:
- *         description: 配置更新成功
+ *         description: 更新成功
  *       401:
  *         description: 未授权
  *       403:
@@ -90,44 +404,43 @@ router.get('/config', authenticateToken, async (req, res) => {
  */
 router.post('/config', authenticateToken, async (req, res) => {
     try {
-        // 检查管理员权限
         const userRole = (req as any).user?.role;
-        if (userRole !== 'admin' && userRole !== 'administrator') {
-            return res.status(403).json({
-                error: '权限不足，仅管理员可操作'
+        const isAdmin = userRole === 'admin' || userRole === 'administrator';
+        
+        if (!isAdmin) {
+            return res.status(403).json({ 
+                success: false, 
+                error: '权限不足' 
             });
         }
 
         const { key, value } = req.body;
-
-        if (!key || !value) {
-            return res.status(400).json({
-                error: '缺少必要参数'
+        
+        if (!key || !value || !['TURNSTILE_SECRET_KEY', 'TURNSTILE_SITE_KEY'].includes(key)) {
+            return res.status(400).json({ 
+                success: false, 
+                error: '参数无效' 
             });
         }
 
-        if (!['TURNSTILE_SECRET_KEY', 'TURNSTILE_SITE_KEY'].includes(key)) {
-            return res.status(400).json({
-                error: '无效的配置键名'
-            });
-        }
-
-        const success = await TurnstileService.updateConfig(key, value);
+        const success = await TurnstileService.updateConfig(key as 'TURNSTILE_SECRET_KEY' | 'TURNSTILE_SITE_KEY', value);
         
         if (success) {
-            res.json({
-                success: true,
-                message: '配置更新成功'
+            res.json({ 
+                success: true, 
+                message: '配置更新成功' 
             });
         } else {
-            res.status(500).json({
-                error: '配置更新失败'
+            res.status(500).json({ 
+                success: false, 
+                error: '配置更新失败' 
             });
         }
     } catch (error) {
         console.error('更新Turnstile配置失败:', error);
-        res.status(500).json({
-            error: '更新配置失败'
+        res.status(500).json({ 
+            success: false, 
+            error: '服务器内部错误' 
         });
     }
 });
@@ -137,7 +450,7 @@ router.post('/config', authenticateToken, async (req, res) => {
  * /api/turnstile/config/{key}:
  *   delete:
  *     summary: 删除Turnstile配置
- *     description: 删除指定的Turnstile配置（仅管理员）
+ *     description: 删除指定的Turnstile配置（需要管理员权限）
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -147,10 +460,10 @@ router.post('/config', authenticateToken, async (req, res) => {
  *         schema:
  *           type: string
  *           enum: [TURNSTILE_SECRET_KEY, TURNSTILE_SITE_KEY]
- *         description: 配置键名
+ *         description: 要删除的配置键名
  *     responses:
  *       200:
- *         description: 配置删除成功
+ *         description: 删除成功
  *       401:
  *         description: 未授权
  *       403:
@@ -158,38 +471,43 @@ router.post('/config', authenticateToken, async (req, res) => {
  */
 router.delete('/config/:key', authenticateToken, async (req, res) => {
     try {
-        // 检查管理员权限
         const userRole = (req as any).user?.role;
-        if (userRole !== 'admin' && userRole !== 'administrator') {
-            return res.status(403).json({
-                error: '权限不足，仅管理员可操作'
+        const isAdmin = userRole === 'admin' || userRole === 'administrator';
+        
+        if (!isAdmin) {
+            return res.status(403).json({ 
+                success: false, 
+                error: '权限不足' 
             });
         }
 
         const { key } = req.params;
-
-        if (!['TURNSTILE_SECRET_KEY', 'TURNSTILE_SITE_KEY'].includes(key)) {
-            return res.status(400).json({
-                error: '无效的配置键名'
+        
+        if (!key || !['TURNSTILE_SECRET_KEY', 'TURNSTILE_SITE_KEY'].includes(key)) {
+            return res.status(400).json({ 
+                success: false, 
+                error: '参数无效' 
             });
         }
 
         const success = await TurnstileService.deleteConfig(key as 'TURNSTILE_SECRET_KEY' | 'TURNSTILE_SITE_KEY');
         
         if (success) {
-            res.json({
-                success: true,
-                message: '配置删除成功'
+            res.json({ 
+                success: true, 
+                message: '配置删除成功' 
             });
         } else {
-            res.status(500).json({
-                error: '配置删除失败'
+            res.status(500).json({ 
+                success: false, 
+                error: '配置删除失败' 
             });
         }
     } catch (error) {
         console.error('删除Turnstile配置失败:', error);
-        res.status(500).json({
-            error: '删除配置失败'
+        res.status(500).json({ 
+            success: false, 
+            error: '服务器内部错误' 
         });
     }
 });

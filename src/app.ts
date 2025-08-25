@@ -65,6 +65,7 @@ import webhookEventRoutes from './routes/webhookEventRoutes';
 import { authenticateToken } from './middleware/authenticateToken';
 import { totpStatusHandler } from './routes/totpRoutes';
 import turnstileRoutes from './routes/turnstileRoutes';
+import { schedulerService } from './services/schedulerService';
 
 // 扩展 Request 类型
 declare global {
@@ -1529,6 +1530,16 @@ if (process.env.NODE_ENV !== 'test') {
 
       // 初始化 UserStorage MongoDB 监听器（所有模式都需要）
       UserStorage.initializeMongoListener();
+
+      // 启动定时任务服务
+      try {
+        schedulerService.start();
+        logger.info('[启动] 定时任务服务已启动');
+      } catch (error) {
+        logger.warn('[启动] 定时任务服务启动失败，继续启动', {
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
 
       // 移除自动修复Passkey数据
       // logger.info('[启动] 开始自动修复Passkey数据...');
