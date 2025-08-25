@@ -7,7 +7,7 @@ import { AccessTokenModel, AccessTokenDoc } from '../models/accessTokenModel';
 import crypto from 'crypto';
 
 // 输入验证和清理函数
-const sanitizeString = (input: string, maxLength: number = 1000): string | null => {
+const sanitizeString = (input: string, maxLength: number = 1500): string | null => {
   if (!input || typeof input !== 'string') {
     return null;
   }
@@ -57,13 +57,15 @@ const validateToken = (token: string): string | null => {
   }
   
   // 令牌应该是有效的字符串，长度在合理范围内
-  const sanitized = sanitizeString(token, 500);
+  const sanitized = sanitizeString(token, 2000); // 增加长度限制，Turnstile tokens 可能较长
   if (!sanitized || sanitized.length < 10) {
     return null;
   }
   
-  // 检查令牌格式（应该是字母数字组合）
-  if (!/^[a-zA-Z0-9_-]+$/.test(sanitized)) {
+  // Turnstile tokens 可以包含各种字符，包括 Base64 编码字符
+  // 主要的安全检查由 sanitizeString 函数处理（移除危险模式）
+  // 这里只做基本的格式检查，确保不是纯空白字符
+  if (!sanitized.trim()) {
     return null;
   }
   
