@@ -52,9 +52,9 @@ router.post('/verify-temp-fingerprint', async (req, res) => {
             });
         }
 
-        const success = await TurnstileService.verifyTempFingerprint(fingerprint, cfToken, req.ip);
+        const result = await TurnstileService.verifyTempFingerprint(fingerprint, cfToken, req.ip);
 
-        if (!success) {
+        if (!result.success) {
             return res.status(400).json({ 
                 success: false, 
                 error: '验证失败' 
@@ -63,10 +63,79 @@ router.post('/verify-temp-fingerprint', async (req, res) => {
 
         res.json({
             success: true,
-            verified: true
+            verified: true,
+            accessToken: result.accessToken
         });
     } catch (error) {
         console.error('验证临时指纹失败:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: '服务器内部错误' 
+        });
+    }
+});
+
+// 验证访问密钥接口（无需认证）
+router.post('/verify-access-token', async (req, res) => {
+    try {
+        const { token, fingerprint } = req.body;
+        
+        if (!token || typeof token !== 'string') {
+            return res.status(400).json({ 
+                success: false, 
+                error: '访问密钥无效' 
+            });
+        }
+
+        if (!fingerprint || typeof fingerprint !== 'string') {
+            return res.status(400).json({ 
+                success: false, 
+                error: '指纹参数无效' 
+            });
+        }
+
+        const isValid = await TurnstileService.verifyAccessToken(token, fingerprint);
+
+        if (!isValid) {
+            return res.status(400).json({ 
+                success: false, 
+                error: '访问密钥无效或已过期' 
+            });
+        }
+
+        res.json({
+            success: true,
+            valid: true
+        });
+    } catch (error) {
+        console.error('验证访问密钥失败:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: '服务器内部错误' 
+        });
+    }
+});
+
+// 检查指纹是否有有效访问密钥接口（无需认证）
+router.get('/check-access-token/:fingerprint', async (req, res) => {
+    try {
+        const { fingerprint } = req.params;
+        
+        if (!fingerprint) {
+            return res.status(400).json({ 
+                success: false, 
+                error: '指纹参数无效' 
+            });
+        }
+
+        const hasValidToken = await TurnstileService.hasValidAccessToken(fingerprint);
+
+        res.json({
+            success: true,
+            hasValidToken
+        });
+    } catch (error) {
+        console.error('检查访问密钥失败:', error);
         res.status(500).json({ 
             success: false, 
             error: '服务器内部错误' 

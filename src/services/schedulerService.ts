@@ -5,104 +5,77 @@ class SchedulerService {
   private cleanupInterval: NodeJS.Timeout | null = null;
   private isRunning = false;
 
-  /**
-   * 启动定时任务
-   */
   public start(): void {
     if (this.isRunning) {
-      logger.warn('定时任务已在运行中');
+      logger.warn('定时任务服务已在运行中');
       return;
     }
 
     this.isRunning = true;
-    
-    // 每5分钟清理一次过期的临时指纹
-    this.cleanupInterval = setInterval(async () => {
-      try {
-        await this.cleanupExpiredFingerprints();
-      } catch (error) {
-        logger.error('定时清理过期指纹失败:', error);
-      }
-    }, 5 * 60 * 1000); // 5分钟
+    this.cleanupInterval = setInterval(() => {
+      this.cleanupExpiredData();
+    }, 5 * 60 * 1000); // 每5分钟执行一次
 
-    logger.info('定时任务服务已启动');
-    
-    // 启动后立即执行一次清理
-    this.cleanupExpiredFingerprints().catch(error => {
-      logger.error('初始清理过期指纹失败:', error);
-    });
+    logger.info('定时任务服务已启动，每5分钟清理一次过期数据');
   }
 
-  /**
-   * 停止定时任务
-   */
   public stop(): void {
-    if (!this.isRunning) {
-      logger.warn('定时任务未在运行');
-      return;
-    }
-
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
       this.cleanupInterval = null;
     }
-
     this.isRunning = false;
     logger.info('定时任务服务已停止');
   }
 
-  /**
-   * 清理过期的临时指纹
-   */
-  private async cleanupExpiredFingerprints(): Promise<void> {
+  private async cleanupExpiredData(): Promise<void> {
     try {
-      const deletedCount = await TurnstileService.cleanupExpiredFingerprints();
+      // 清理过期的临时指纹
+      const fingerprintCount = await TurnstileService.cleanupExpiredFingerprints();
       
-      if (deletedCount > 0) {
-        logger.info(`定时清理完成，删除了 ${deletedCount} 条过期指纹记录`);
-      } else {
-        logger.debug('定时清理完成，没有过期指纹需要清理');
+      // 清理过期的访问密钥
+      const accessTokenCount = await TurnstileService.cleanupExpiredAccessTokens();
+
+      if (fingerprintCount > 0 || accessTokenCount > 0) {
+        logger.info(`定时清理完成: 临时指纹 ${fingerprintCount} 条, 访问密钥 ${accessTokenCount} 条`);
       }
     } catch (error) {
-      logger.error('清理过期指纹失败:', error);
+      logger.error('定时清理任务失败', error);
     }
   }
 
-  /**
-   * 获取服务状态
-   */
   public getStatus(): { isRunning: boolean; lastCleanup?: Date } {
     return {
       isRunning: this.isRunning,
+      lastCleanup: this.lastCleanup
     };
   }
 
-  /**
-   * 手动触发清理
-   */
   public async manualCleanup(): Promise<{ success: boolean; deletedCount: number; error?: string }> {
     try {
-      const deletedCount = await TurnstileService.cleanupExpiredFingerprints();
-      logger.info(`手动清理完成，删除了 ${deletedCount} 条过期指纹记录`);
-      
+      const fingerprintCount = await TurnstileService.cleanupExpiredFingerprints();
+      const accessTokenCount = await TurnstileService.cleanupExpiredAccessTokens();
+      const totalCount = fingerprintCount + accessTokenCount;
+
+      logger.info(`手动清理完成: 临时指纹 ${fingerprintCount} 条, 访问密钥 ${accessTokenCount} 条`);
+
       return {
         success: true,
-        deletedCount,
+        deletedCount: totalCount
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '未知错误';
-      logger.error('手动清理失败:', error);
-      
+      logger.error('手动清理失败', error);
       return {
         success: false,
         deletedCount: 0,
-        error: errorMessage,
+        error: errorMessage
       };
     }
   }
+
+  private lastCleanup?: Date;
 }
 
-// 创建单例实例
 const schedulerService = new SchedulerService();
-
 export { schedulerService }; 

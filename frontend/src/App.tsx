@@ -553,9 +553,7 @@ const App: React.FC = () => {
     return (
       <NotificationProvider>
         <LazyMotion features={domAnimation}>
-          <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center">
             <LoadingSpinner />
-          </div>
         </LazyMotion>
       </NotificationProvider>
     );

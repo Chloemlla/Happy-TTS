@@ -35,7 +35,7 @@ export const LoadingSpinner: React.FC<{ size?: number }> = ({ size = 1 }) => {
   const innerSize = 32 * size; // 原 8 * 4
   const fontSize = 18 * size;
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br relative overflow-hidden">
       <BackgroundParticles />
       <motion.div
         className="relative z-10 flex flex-col items-center"
@@ -63,7 +63,7 @@ export const LoadingSpinner: React.FC<{ size?: number }> = ({ size = 1 }) => {
           </motion.div>
         </div>
         <motion.p
-          className="mt-6 text-center text-gray-600 font-medium"
+          className="mt-6 text-center font-medium"
           style={{ fontSize }}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}

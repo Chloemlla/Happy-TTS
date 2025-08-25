@@ -1,5 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getFingerprint, reportTempFingerprint, checkTempFingerprintStatus } from '../utils/fingerprint';
+import { 
+  getFingerprint, 
+  reportTempFingerprint, 
+  checkTempFingerprintStatus,
+  checkAccessToken,
+  getAccessToken,
+  verifyAccessToken,
+  storeAccessToken,
+  cleanupExpiredAccessTokens
+} from '../utils/fingerprint';
 
 interface UseFirstVisitDetectionReturn {
   isFirstVisit: boolean;
@@ -23,12 +32,39 @@ export const useFirstVisitDetection = (): UseFirstVisitDetectionReturn => {
       setIsLoading(true);
       setError(null);
 
+      // 清理过期的访问密钥
+      cleanupExpiredAccessTokens();
+
       // 生成指纹
       const fp = await getFingerprint();
       if (!fp) {
         throw new Error('无法生成浏览器指纹');
       }
       setFingerprint(fp);
+
+      // 首先检查是否有有效的访问密钥
+      const hasValidToken = await checkAccessToken(fp);
+      if (hasValidToken) {
+        console.log('发现有效访问密钥，跳过首次访问验证');
+        setIsFirstVisit(false);
+        setIsVerified(true);
+        setIsLoading(false);
+        return;
+      }
+
+      // 检查本地存储的访问密钥
+      const localToken = getAccessToken(fp);
+      if (localToken) {
+        // 验证本地存储的密钥是否仍然有效
+        const isValid = await verifyAccessToken(localToken, fp);
+        if (isValid) {
+          console.log('本地访问密钥有效，跳过首次访问验证');
+          setIsFirstVisit(false);
+          setIsVerified(true);
+          setIsLoading(false);
+          return;
+        }
+      }
 
       // 临时强制显示首次访问验证页面（用于测试）
       // 注释掉下面的代码来恢复正常逻辑

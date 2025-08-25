@@ -195,105 +195,77 @@ async function getWithFingerprintJS(timeoutMs = 1500): Promise<string | null> {
   }
 }
 
-export const getFingerprint = async (): Promise<string> => {
-  // 1) 读取缓存
-  const cached = readCache();
-  if (cached) return cached;
-
-  // 2) 优先尝试 FingerprintJS（带超时）
-  const fpjs = await getWithFingerprintJS(1500);
-  if (fpjs && typeof fpjs === 'string' && fpjs.length > 0) {
-    writeCache(fpjs);
-    return fpjs;
-  }
-
-  // 3) 退回到组合指纹
-  try {
-    const composite = buildCompositeFingerprint();
-    if (composite && composite.length > 0) {
-      writeCache(composite);
-      return composite;
-    }
-  } catch (error) {
-    console.error('生成组合指纹失败:', error);
-  }
-
-// 4) 最终兜底：随机稳定ID（若localStorage不可用则非稳定）
-const fallback = getOrCreateStableRandomId();
-writeCache(fallback);
-return fallback || 'unknown';
-};
+// 获取API基础URL
+function getApiBaseUrl(): string {
+  return import.meta.env.VITE_API_BASE_URL || '';
+}
 
 // 检查用户是否已登录
 function isUserLoggedIn(): boolean {
-  try {
-    const token = localStorage.getItem('token');
-    return !!token && token.length > 0;
-  } catch {
-    return false;
-  }
+  const token = localStorage.getItem('token');
+  return !!token;
 }
 
-// 将指纹上报到后端（幂等、带限频）
-export const reportFingerprintOnce = async (opts?: { force?: boolean }): Promise<void> => {
+// 生成浏览器指纹
+export const getFingerprint = async (): Promise<string | null> => {
   try {
-    // 检查用户是否已登录，未登录用户不进行指纹上报
-    if (!isUserLoggedIn()) {
-      console.log('[指纹上报] 用户未登录，跳过指纹上报');
-      return;
+    const fp = await FingerprintJS.load();
+    const result = await fp.get();
+    return result.visitorId;
+  } catch (error) {
+    console.error('生成指纹失败:', error);
+    return null;
+  }
+};
+
+// 上报指纹（仅登录用户）
+export const reportFingerprintOnce = async (): Promise<void> => {
+  // 未登录用户不进行请求
+  if (!isUserLoggedIn()) {
+    console.log('用户未登录，跳过指纹上报');
+    return;
+  }
+
+  const fingerprint = await getFingerprint();
+  if (!fingerprint) {
+    console.error('无法生成指纹');
+    return;
+  }
+
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/api/fingerprint/report`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({ fingerprint })
+    });
+
+    if (response.ok) {
+      console.log('指纹上报成功');
+    } else {
+      console.warn('指纹上报失败:', response.status);
     }
-
-    const force = !!opts?.force;
-    const lastKey = 'hapx_fp_report_ts_v2';
-    const now = Date.now();
-    const localLast = Number(localStorage.getItem(lastKey) || '0');
-    // 本地兜底：5分钟内不重复上报，避免频繁写库（force 时跳过）
-    if (!force && (now - localLast < 5 * 60 * 1000)) return;
-
-    // 优先从后端查询最近一次的指纹时间与数量，服务端有真实来源
-    if (!force) {
-      try {
-        const statusRes = await api.get('/api/admin/user/fingerprint/status', { withCredentials: true });
-        if (statusRes?.data?.success) {
-          const { lastTs, ipChanged, uaChanged } = statusRes.data as { success: boolean; lastTs: number; count: number; ipChanged?: boolean; uaChanged?: boolean };
-          if (!ipChanged && !uaChanged) {
-            if (typeof lastTs === 'number' && lastTs > 0) {
-              // 若距离上次采集 < 5 分钟，则不再上报
-              if (now - lastTs < 5 * 60 * 1000) return;
-            }
-          }
-        }
-      } catch {
-        // 查询失败则继续走本地节流逻辑
-      }
-    }
-
-    const id = await getFingerprint();
-    if (!id) return;
-
-    // 使用全局 axios 实例，自动带上 baseURL 与拦截器
-    await api.post('/api/admin/user/fingerprint', { id }, { withCredentials: true }).catch(() => {});
-
-    try { localStorage.setItem(lastKey, String(now)); } catch {}
-  } catch (e) {
-    // 静默失败
+  } catch (error) {
+    console.error('指纹上报请求失败:', error);
   }
 };
 
 // 临时指纹上报（用于首次访问检测）
 export const reportTempFingerprint = async (): Promise<{ isFirstVisit: boolean; verified: boolean }> => {
-  try {
-    const fingerprint = await getFingerprint();
-    if (!fingerprint) {
-      throw new Error('无法生成指纹');
-    }
+  const fingerprint = await getFingerprint();
+  if (!fingerprint) {
+    throw new Error('无法生成指纹');
+  }
 
+  try {
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/temp-fingerprint`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ fingerprint }),
+      body: JSON.stringify({ fingerprint })
     });
 
     if (!response.ok) {
@@ -302,25 +274,24 @@ export const reportTempFingerprint = async (): Promise<{ isFirstVisit: boolean; 
 
     const data = await response.json();
     return {
-      isFirstVisit: data.isFirstVisit || false,
-      verified: data.verified || false,
+      isFirstVisit: data.isFirstVisit,
+      verified: data.verified
     };
   } catch (error) {
     console.error('临时指纹上报失败:', error);
-    // 出错时默认不是首次访问，避免阻塞用户
-    return { isFirstVisit: false, verified: false };
+    throw error;
   }
 };
 
 // 验证临时指纹
-export const verifyTempFingerprint = async (fingerprint: string, cfToken: string): Promise<boolean> => {
+export const verifyTempFingerprint = async (fingerprint: string, cfToken: string): Promise<{ success: boolean; accessToken?: string }> => {
   try {
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/verify-temp-fingerprint`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ fingerprint, cfToken }),
+      body: JSON.stringify({ fingerprint, cfToken })
     });
 
     if (!response.ok) {
@@ -328,34 +299,144 @@ export const verifyTempFingerprint = async (fingerprint: string, cfToken: string
     }
 
     const data = await response.json();
-    return data.success && data.verified;
+    return {
+      success: data.success,
+      accessToken: data.accessToken
+    };
   } catch (error) {
     console.error('验证临时指纹失败:', error);
-    return false;
+    throw error;
   }
 };
 
 // 检查临时指纹状态
 export const checkTempFingerprintStatus = async (fingerprint: string): Promise<{ exists: boolean; verified: boolean }> => {
   try {
-    const response = await fetch(`${getApiBaseUrl()}/api/turnstile/temp-fingerprint/${fingerprint}`);
-    
+    const response = await fetch(`${getApiBaseUrl()}/api/turnstile/temp-fingerprint/${fingerprint}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
     if (!response.ok) {
       throw new Error('检查状态失败');
     }
 
     const data = await response.json();
     return {
-      exists: data.exists || false,
-      verified: data.verified || false,
+      exists: data.exists,
+      verified: data.verified
     };
   } catch (error) {
     console.error('检查临时指纹状态失败:', error);
-    return { exists: false, verified: false };
+    throw error;
   }
 };
 
-// 获取API基础URL
-function getApiBaseUrl(): string {
-  return import.meta.env.VITE_API_BASE_URL || '';
-}
+// 验证访问密钥
+export const verifyAccessToken = async (token: string, fingerprint: string): Promise<boolean> => {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/api/turnstile/verify-access-token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ token, fingerprint })
+    });
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const data = await response.json();
+    return data.success && data.valid;
+  } catch (error) {
+    console.error('验证访问密钥失败:', error);
+    return false;
+  }
+};
+
+// 检查指纹是否有有效访问密钥
+export const checkAccessToken = async (fingerprint: string): Promise<boolean> => {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/api/turnstile/check-access-token/${fingerprint}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const data = await response.json();
+    return data.success && data.hasValidToken;
+  } catch (error) {
+    console.error('检查访问密钥失败:', error);
+    return false;
+  }
+};
+
+// 存储访问密钥到本地存储
+export const storeAccessToken = (fingerprint: string, token: string): void => {
+  try {
+    const accessTokens = JSON.parse(localStorage.getItem('accessTokens') || '{}');
+    accessTokens[fingerprint] = {
+      token,
+      timestamp: Date.now(),
+      expiresAt: Date.now() + 5 * 60 * 1000 // 5分钟后过期
+    };
+    localStorage.setItem('accessTokens', JSON.stringify(accessTokens));
+  } catch (error) {
+    console.error('存储访问密钥失败:', error);
+  }
+};
+
+// 从本地存储获取访问密钥
+export const getAccessToken = (fingerprint: string): string | null => {
+  try {
+    const accessTokens = JSON.parse(localStorage.getItem('accessTokens') || '{}');
+    const tokenData = accessTokens[fingerprint];
+    
+    if (!tokenData) {
+      return null;
+    }
+
+    // 检查是否过期
+    if (Date.now() > tokenData.expiresAt) {
+      // 删除过期的密钥
+      delete accessTokens[fingerprint];
+      localStorage.setItem('accessTokens', JSON.stringify(accessTokens));
+      return null;
+    }
+
+    return tokenData.token;
+  } catch (error) {
+    console.error('获取访问密钥失败:', error);
+    return null;
+  }
+};
+
+// 清理过期的访问密钥
+export const cleanupExpiredAccessTokens = (): void => {
+  try {
+    const accessTokens = JSON.parse(localStorage.getItem('accessTokens') || '{}');
+    const now = Date.now();
+    let hasChanges = false;
+
+    Object.keys(accessTokens).forEach(fingerprint => {
+      if (now > accessTokens[fingerprint].expiresAt) {
+        delete accessTokens[fingerprint];
+        hasChanges = true;
+      }
+    });
+
+    if (hasChanges) {
+      localStorage.setItem('accessTokens', JSON.stringify(accessTokens));
+    }
+  } catch (error) {
+    console.error('清理过期访问密钥失败:', error);
+  }
+};

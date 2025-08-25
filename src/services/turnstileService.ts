@@ -3,6 +3,8 @@ import { config } from '../config/config';
 import logger from '../utils/logger';
 import { mongoose } from './mongoService';
 import { TempFingerprintModel, TempFingerprintDoc } from '../models/tempFingerprintModel';
+import { AccessTokenModel, AccessTokenDoc } from '../models/accessTokenModel';
+import crypto from 'crypto';
 
 // Turnstile配置文档接口
 interface TurnstileSettingDoc { 
@@ -252,25 +254,25 @@ export class TurnstileService {
     fingerprint: string, 
     cfToken: string, 
     remoteIp?: string
-  ): Promise<boolean> {
+  ): Promise<{ success: boolean; accessToken?: string }> {
     try {
       if (mongoose.connection.readyState !== 1) {
         logger.error('数据库连接不可用，无法验证临时指纹');
-        return false;
+        return { success: false };
       }
 
       // 查找指纹记录
       const doc = await TempFingerprintModel.findOne({ fingerprint }).exec();
       if (!doc) {
         logger.warn('临时指纹不存在或已过期', { fingerprint: fingerprint.substring(0, 8) + '...' });
-        return false;
+        return { success: false };
       }
 
       // 验证Turnstile令牌
       const isValid = await this.verifyToken(cfToken, remoteIp);
       if (!isValid) {
         logger.warn('Turnstile验证失败', { fingerprint: fingerprint.substring(0, 8) + '...' });
-        return false;
+        return { success: false };
       }
 
       // 标记为已验证
@@ -278,11 +280,18 @@ export class TurnstileService {
       doc.updatedAt = new Date();
       await doc.save();
 
-      logger.info('临时指纹验证成功', { fingerprint: fingerprint.substring(0, 8) + '...' });
-      return true;
+      // 生成访问密钥
+      const accessToken = await this.generateAccessToken(fingerprint);
+
+      logger.info('临时指纹验证成功，已生成访问密钥', { 
+        fingerprint: fingerprint.substring(0, 8) + '...',
+        accessToken: accessToken.substring(0, 8) + '...'
+      });
+      
+      return { success: true, accessToken };
     } catch (error) {
       logger.error('临时指纹验证失败', error);
-      return false;
+      return { success: false };
     }
   }
 
@@ -378,6 +387,163 @@ export class TurnstileService {
     } catch (error) {
       logger.error('获取临时指纹统计失败', error);
       return { total: 0, verified: 0, unverified: 0, expired: 0 };
+    }
+  }
+
+  // ==================== 访问密钥管理 ====================
+
+  /**
+   * 生成访问密钥
+   * @param fingerprint 浏览器指纹
+   * @returns 访问密钥
+   */
+  public static async generateAccessToken(fingerprint: string): Promise<string> {
+    try {
+      if (mongoose.connection.readyState !== 1) {
+        logger.error('数据库连接不可用，无法生成访问密钥');
+        throw new Error('数据库连接不可用');
+      }
+
+      // 生成随机密钥
+      const token = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5分钟后过期
+
+      // 保存到数据库
+      await AccessTokenModel.create({
+        token,
+        fingerprint,
+        expiresAt,
+      });
+
+      logger.info('访问密钥生成成功', { 
+        fingerprint: fingerprint.substring(0, 8) + '...',
+        expiresAt 
+      });
+
+      return token;
+    } catch (error) {
+      logger.error('生成访问密钥失败', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 验证访问密钥
+   * @param token 访问密钥
+   * @param fingerprint 浏览器指纹
+   * @returns 验证结果
+   */
+  public static async verifyAccessToken(token: string, fingerprint: string): Promise<boolean> {
+    try {
+      if (mongoose.connection.readyState !== 1) {
+        logger.error('数据库连接不可用，无法验证访问密钥');
+        return false;
+      }
+
+      // 查找并验证密钥
+      const doc = await AccessTokenModel.findOne({ 
+        token, 
+        fingerprint,
+        expiresAt: { $gt: new Date() } // 确保未过期
+      }).exec();
+
+      if (!doc) {
+        logger.warn('访问密钥无效或已过期', { 
+          token: token.substring(0, 8) + '...',
+          fingerprint: fingerprint.substring(0, 8) + '...'
+        });
+        return false;
+      }
+
+      // 更新最后访问时间
+      doc.updatedAt = new Date();
+      await doc.save();
+
+      logger.info('访问密钥验证成功', { 
+        token: token.substring(0, 8) + '...',
+        fingerprint: fingerprint.substring(0, 8) + '...'
+      });
+
+      return true;
+    } catch (error) {
+      logger.error('验证访问密钥失败', error);
+      return false;
+    }
+  }
+
+  /**
+   * 检查指纹是否有有效的访问密钥
+   * @param fingerprint 浏览器指纹
+   * @returns 是否有有效密钥
+   */
+  public static async hasValidAccessToken(fingerprint: string): Promise<boolean> {
+    try {
+      if (mongoose.connection.readyState !== 1) {
+        return false;
+      }
+
+      const doc = await AccessTokenModel.findOne({ 
+        fingerprint,
+        expiresAt: { $gt: new Date() } // 确保未过期
+      }).exec();
+
+      return !!doc;
+    } catch (error) {
+      logger.error('检查访问密钥失败', error);
+      return false;
+    }
+  }
+
+  /**
+   * 清理过期的访问密钥
+   * @returns 清理的数量
+   */
+  public static async cleanupExpiredAccessTokens(): Promise<number> {
+    try {
+      if (mongoose.connection.readyState !== 1) {
+        return 0;
+      }
+
+      const result = await AccessTokenModel.deleteMany({
+        expiresAt: { $lt: new Date() }
+      });
+
+      if (result.deletedCount > 0) {
+        logger.info(`清理了 ${result.deletedCount} 个过期访问密钥`);
+      }
+
+      return result.deletedCount;
+    } catch (error) {
+      logger.error('清理过期访问密钥失败', error);
+      return 0;
+    }
+  }
+
+  /**
+   * 获取访问密钥统计信息
+   * @returns 统计信息
+   */
+  public static async getAccessTokenStats(): Promise<{
+    total: number;
+    valid: number;
+    expired: number;
+  }> {
+    try {
+      if (mongoose.connection.readyState !== 1) {
+        return { total: 0, valid: 0, expired: 0 };
+      }
+
+      const now = new Date();
+      const [total, valid, expired] = await Promise.all([
+        AccessTokenModel.countDocuments(),
+        AccessTokenModel.countDocuments({ expiresAt: { $gt: now } }),
+        AccessTokenModel.countDocuments({ expiresAt: { $lte: now } })
+      ]);
+
+      return { total, valid, expired };
+    } catch (error) {
+      logger.error('获取访问密钥统计失败', error);
+      return { total: 0, valid: 0, expired: 0 };
     }
   }
 } 

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TurnstileWidget } from './TurnstileWidget';
 import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
-import { getFingerprint, verifyTempFingerprint } from '../utils/fingerprint';
+import { getFingerprint, verifyTempFingerprint, storeAccessToken } from '../utils/fingerprint';
 
 interface FirstVisitVerificationProps {
   onVerificationComplete: () => void;
@@ -22,6 +22,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
   const [error, setError] = useState<string>('');
   const [isMobile, setIsMobile] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
+  const [showParticles, setShowParticles] = useState(false); // 控制背景粒子显示
 
   // 检测设备类型和方向
   useEffect(() => {
@@ -36,9 +37,15 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     window.addEventListener('resize', checkDevice);
     window.addEventListener('orientationchange', checkDevice);
 
+    // 延迟显示背景粒子，避免加载时的视觉问题
+    const timer = setTimeout(() => {
+      setShowParticles(true);
+    }, 100); // 从1秒增加到2秒
+
     return () => {
       window.removeEventListener('resize', checkDevice);
       window.removeEventListener('orientationchange', checkDevice);
+      clearTimeout(timer);
     };
   }, []);
 
@@ -75,9 +82,16 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     setError('');
 
     try {
-      const success = await verifyTempFingerprint(fingerprint, turnstileToken);
-      if (success) {
+      const result = await verifyTempFingerprint(fingerprint, turnstileToken);
+      if (result.success) {
         console.log('首次访问验证成功');
+        
+        // 存储访问密钥
+        if (result.accessToken) {
+          storeAccessToken(fingerprint, result.accessToken);
+          console.log('访问密钥已存储，5分钟内无需再次验证');
+        }
+        
         onVerificationComplete();
       } else {
         setError('验证失败，请重试');
@@ -189,27 +203,53 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     const particleCount = isMobile ? 10 : 20;
     
     return (
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {Array.from({ length: particleCount }).map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute w-2 h-2 bg-gradient-to-r from-indigo-400 to-purple-400 rounded-full opacity-30"
-            initial={{
-              x: Math.random() * window.innerWidth,
-              y: Math.random() * window.innerHeight,
-            }}
-            animate={{
-              x: Math.random() * window.innerWidth,
-              y: Math.random() * window.innerHeight,
-            }}
-            transition={{
-              duration: Math.random() * 20 + 15,
-              repeat: Infinity,
-              ease: "linear"
-            }}
-          />
-        ))}
-      </div>
+      <motion.div 
+        className="absolute inset-0 overflow-hidden pointer-events-none"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 1, delay: 0.5 }}
+      >
+        {Array.from({ length: particleCount }).map((_, i) => {
+          // 使用固定的初始位置，避免随机位置导致的视觉问题
+          const initialX = ((i * 137) % (typeof window !== 'undefined' ? window.innerWidth : 1200));
+          const initialY = ((i * 193) % (typeof window !== 'undefined' ? window.innerHeight : 800));
+          
+          return (
+            <motion.div
+              key={i}
+              className="absolute w-2 h-2 bg-gradient-to-r from-indigo-400 to-purple-400 rounded-full opacity-20"
+              initial={{
+                x: initialX,
+                y: initialY,
+                opacity: 0,
+                scale: 0,
+              }}
+              animate={{
+                x: Math.random() * (typeof window !== 'undefined' ? window.innerWidth : 1200),
+                y: Math.random() * (typeof window !== 'undefined' ? window.innerHeight : 800),
+                opacity: 0.2,
+                scale: 1,
+              }}
+              transition={{
+                opacity: { duration: 0.8, delay: 1.2 + i * 0.05 },
+                scale: { duration: 0.5, delay: 1.2 + i * 0.05 },
+                x: { 
+                  duration: Math.random() * 20 + 20, 
+                  repeat: Infinity, 
+                  ease: "linear",
+                  delay: 2 + i * 0.1
+                },
+                y: { 
+                  duration: Math.random() * 20 + 20, 
+                  repeat: Infinity, 
+                  ease: "linear",
+                  delay: 2 + i * 0.1
+                }
+              }}
+            />
+          );
+        })}
+      </motion.div>
     );
   };
 
@@ -220,14 +260,14 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.5 }}
-        className="fixed inset-0 bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4 z-50 overflow-hidden"
+        className="fixed inset-0 bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center z-50"
         style={{
-          padding: isMobile ? '1rem' : '1.5rem',
           minHeight: '100dvh', // 支持动态视口高度
+          padding: isMobile ? '1rem' : '1.5rem',
         }}
       >
         {/* 背景粒子 */}
-        <BackgroundParticles />
+        {showParticles && <BackgroundParticles />}
         
         {/* 主容器 */}
         <motion.div
@@ -247,6 +287,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
           style={{
             maxHeight: isMobile ? '90vh' : '80vh',
             overflowY: 'auto',
+            overflowX: 'hidden', // 防止水平滚动条
           }}
         >
           {/* 顶部装饰线 */}
