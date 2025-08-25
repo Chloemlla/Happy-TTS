@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { getApiBaseUrl } from '../api/api';
 import { 
   getFingerprint, 
   reportTempFingerprint, 

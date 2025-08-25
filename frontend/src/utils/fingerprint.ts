@@ -1,6 +1,6 @@
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
 import CryptoJS from 'crypto-js';
-import { api } from '../api/api';
+import { getApiBaseUrl } from '../api/api';
 
 const FP_STORAGE_KEY = 'hapx_fingerprint_v2';
 const FP_VERSION = '2';
@@ -195,10 +195,7 @@ async function getWithFingerprintJS(timeoutMs = 1500): Promise<string | null> {
   }
 }
 
-// 获取API基础URL
-function getApiBaseUrl(): string {
-  return import.meta.env.VITE_API_BASE_URL || '';
-}
+
 
 // 检查用户是否已登录
 function isUserLoggedIn(): boolean {

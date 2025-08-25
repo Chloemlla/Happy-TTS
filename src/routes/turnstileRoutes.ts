@@ -1,12 +1,78 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import { TurnstileService } from '../services/turnstileService';
 import { authenticateToken } from '../middleware/authenticateToken';
 import { schedulerService } from '../services/schedulerService';
 
 const router = express.Router();
 
+// 创建不同类型的速率限制器
+// 公共接口限流器（无需认证的接口）
+const publicLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1分钟
+    max: 30, // 每分钟30次请求
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: '请求过于频繁，请稍后再试' },
+    keyGenerator: (req) => req.ip || req.socket.remoteAddress || 'unknown',
+    handler: (req, res) => {
+        res.status(429).json({
+            error: '请求过于频繁，请稍后再试',
+            retryAfter: 60
+        });
+    }
+});
+
+// 指纹验证接口限流器（更严格）
+const fingerprintLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1分钟
+    max: 20, // 每分钟20次请求
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: '指纹验证请求过于频繁，请稍后再试' },
+    keyGenerator: (req) => req.ip || req.socket.remoteAddress || 'unknown',
+    handler: (req, res) => {
+        res.status(429).json({
+            error: '指纹验证请求过于频繁，请稍后再试',
+            retryAfter: 60
+        });
+    }
+});
+
+// 管理员接口限流器
+const adminLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1分钟
+    max: 50, // 每分钟50次请求
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: '管理员操作过于频繁，请稍后再试' },
+    keyGenerator: (req) => req.ip || req.socket.remoteAddress || 'unknown',
+    handler: (req, res) => {
+        res.status(429).json({
+            error: '管理员操作过于频繁，请稍后再试',
+            retryAfter: 60
+        });
+    }
+});
+
+// 配置管理接口限流器（更严格）
+const configLimiter = rateLimit({
+    windowMs: 5 * 60 * 1000, // 5分钟
+    max: 10, // 每5分钟10次请求
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: '配置操作过于频繁，请稍后再试' },
+    keyGenerator: (req) => req.ip || req.socket.remoteAddress || 'unknown',
+    handler: (req, res) => {
+        res.status(429).json({
+            error: '配置操作过于频繁，请稍后再试',
+            retryAfter: 300
+        });
+    }
+});
+
 // 临时指纹上报接口（无需认证）
-router.post('/temp-fingerprint', async (req, res) => {
+router.post('/temp-fingerprint', publicLimiter, async (req, res) => {
     try {
         const { fingerprint } = req.body;
         
@@ -34,7 +100,7 @@ router.post('/temp-fingerprint', async (req, res) => {
 });
 
 // 验证临时指纹接口（无需认证）
-router.post('/verify-temp-fingerprint', async (req, res) => {
+router.post('/verify-temp-fingerprint', fingerprintLimiter, async (req, res) => {
     try {
         const { fingerprint, cfToken } = req.body;
         
@@ -76,7 +142,7 @@ router.post('/verify-temp-fingerprint', async (req, res) => {
 });
 
 // 验证访问密钥接口（无需认证）
-router.post('/verify-access-token', async (req, res) => {
+router.post('/verify-access-token', fingerprintLimiter, async (req, res) => {
     try {
         const { token, fingerprint } = req.body;
         
@@ -117,7 +183,7 @@ router.post('/verify-access-token', async (req, res) => {
 });
 
 // 检查指纹是否有有效访问密钥接口（无需认证）
-router.get('/check-access-token/:fingerprint', async (req, res) => {
+router.get('/check-access-token/:fingerprint', fingerprintLimiter, async (req, res) => {
     try {
         const { fingerprint } = req.params;
         
@@ -144,7 +210,7 @@ router.get('/check-access-token/:fingerprint', async (req, res) => {
 });
 
 // 检查临时指纹状态接口（无需认证）
-router.get('/temp-fingerprint/:fingerprint', async (req, res) => {
+router.get('/temp-fingerprint/:fingerprint', fingerprintLimiter, async (req, res) => {
     try {
         const { fingerprint } = req.params;
         
@@ -172,7 +238,7 @@ router.get('/temp-fingerprint/:fingerprint', async (req, res) => {
 });
 
 // 清理过期指纹接口（管理员专用）
-router.post('/cleanup-expired-fingerprints', authenticateToken, async (req, res) => {
+router.post('/cleanup-expired-fingerprints', authenticateToken, adminLimiter, async (req, res) => {
     try {
         const userRole = (req as any).user?.role;
         const isAdmin = userRole === 'admin' || userRole === 'administrator';
@@ -201,7 +267,7 @@ router.post('/cleanup-expired-fingerprints', authenticateToken, async (req, res)
 });
 
 // 获取指纹统计信息接口（管理员专用）
-router.get('/fingerprint-stats', authenticateToken, async (req, res) => {
+router.get('/fingerprint-stats', authenticateToken, adminLimiter, async (req, res) => {
     try {
         const userRole = (req as any).user?.role;
         const isAdmin = userRole === 'admin' || userRole === 'administrator';
@@ -229,7 +295,7 @@ router.get('/fingerprint-stats', authenticateToken, async (req, res) => {
 });
 
 // 获取定时任务状态接口（管理员专用）
-router.get('/scheduler-status', authenticateToken, async (req, res) => {
+router.get('/scheduler-status', authenticateToken, adminLimiter, async (req, res) => {
     try {
         const userRole = (req as any).user?.role;
         const isAdmin = userRole === 'admin' || userRole === 'administrator';
@@ -257,7 +323,7 @@ router.get('/scheduler-status', authenticateToken, async (req, res) => {
 });
 
 // 手动触发清理接口（管理员专用）
-router.post('/manual-cleanup', authenticateToken, async (req, res) => {
+router.post('/manual-cleanup', authenticateToken, adminLimiter, async (req, res) => {
     try {
         const userRole = (req as any).user?.role;
         const isAdmin = userRole === 'admin' || userRole === 'administrator';
@@ -289,7 +355,7 @@ router.post('/manual-cleanup', authenticateToken, async (req, res) => {
 });
 
 // 启动定时任务接口（管理员专用）
-router.post('/scheduler/start', authenticateToken, async (req, res) => {
+router.post('/scheduler/start', authenticateToken, adminLimiter, async (req, res) => {
     try {
         const userRole = (req as any).user?.role;
         const isAdmin = userRole === 'admin' || userRole === 'administrator';
@@ -317,7 +383,7 @@ router.post('/scheduler/start', authenticateToken, async (req, res) => {
 });
 
 // 停止定时任务接口（管理员专用）
-router.post('/scheduler/stop', authenticateToken, async (req, res) => {
+router.post('/scheduler/stop', authenticateToken, adminLimiter, async (req, res) => {
     try {
         const userRole = (req as any).user?.role;
         const isAdmin = userRole === 'admin' || userRole === 'administrator';
@@ -372,7 +438,7 @@ router.post('/scheduler/stop', authenticateToken, async (req, res) => {
  *       401:
  *         description: 未授权
  */
-router.get('/config', authenticateToken, async (req, res) => {
+router.get('/config', authenticateToken, configLimiter, async (req, res) => {
     try {
         const config = await TurnstileService.getConfig();
         
@@ -421,7 +487,7 @@ router.get('/config', authenticateToken, async (req, res) => {
  *       500:
  *         description: 服务器内部错误
  */
-router.get('/public-config', async (req, res) => {
+router.get('/public-config', publicLimiter, async (req, res) => {
     try {
         const config = await TurnstileService.getConfig();
         
@@ -471,7 +537,7 @@ router.get('/public-config', async (req, res) => {
  *       403:
  *         description: 权限不足
  */
-router.post('/config', authenticateToken, async (req, res) => {
+router.post('/config', authenticateToken, configLimiter, async (req, res) => {
     try {
         const userRole = (req as any).user?.role;
         const isAdmin = userRole === 'admin' || userRole === 'administrator';
@@ -538,7 +604,7 @@ router.post('/config', authenticateToken, async (req, res) => {
  *       403:
  *         description: 权限不足
  */
-router.delete('/config/:key', authenticateToken, async (req, res) => {
+router.delete('/config/:key', authenticateToken, configLimiter, async (req, res) => {
     try {
         const userRole = (req as any).user?.role;
         const isAdmin = userRole === 'admin' || userRole === 'administrator';

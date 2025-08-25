@@ -6,6 +6,94 @@ import { TempFingerprintModel, TempFingerprintDoc } from '../models/tempFingerpr
 import { AccessTokenModel, AccessTokenDoc } from '../models/accessTokenModel';
 import crypto from 'crypto';
 
+// 输入验证和清理函数
+const sanitizeString = (input: string, maxLength: number = 1000): string | null => {
+  if (!input || typeof input !== 'string') {
+    return null;
+  }
+  
+  // 移除危险字符和过长的输入
+  const sanitized = input.trim().substring(0, maxLength);
+  
+  // 检查是否包含危险的字符序列
+  const dangerousPatterns = [
+    /[<>{}]/g, // 移除HTML/XML标签字符
+    /javascript:/gi, // 移除JavaScript协议
+    /data:/gi, // 移除data协议
+    /vbscript:/gi, // 移除VBScript协议
+    /on\w+\s*=/gi, // 移除事件处理器
+  ];
+  
+  let cleaned = sanitized;
+  dangerousPatterns.forEach(pattern => {
+    cleaned = cleaned.replace(pattern, '');
+  });
+  
+  return cleaned || null;
+};
+
+const validateFingerprint = (fingerprint: string): string | null => {
+  if (!fingerprint || typeof fingerprint !== 'string') {
+    return null;
+  }
+  
+  // 指纹应该是有效的字符串，长度在合理范围内
+  const sanitized = sanitizeString(fingerprint, 200);
+  if (!sanitized || sanitized.length < 8) {
+    return null;
+  }
+  
+  // 检查指纹格式（应该是字母数字组合）
+  if (!/^[a-zA-Z0-9_-]+$/.test(sanitized)) {
+    return null;
+  }
+  
+  return sanitized;
+};
+
+const validateToken = (token: string): string | null => {
+  if (!token || typeof token !== 'string') {
+    return null;
+  }
+  
+  // 令牌应该是有效的字符串，长度在合理范围内
+  const sanitized = sanitizeString(token, 500);
+  if (!sanitized || sanitized.length < 10) {
+    return null;
+  }
+  
+  // 检查令牌格式（应该是字母数字组合）
+  if (!/^[a-zA-Z0-9_-]+$/.test(sanitized)) {
+    return null;
+  }
+  
+  return sanitized;
+};
+
+const validateConfigKey = (key: string): 'TURNSTILE_SECRET_KEY' | 'TURNSTILE_SITE_KEY' | null => {
+  if (!key || typeof key !== 'string') {
+    return null;
+  }
+  
+  // 只允许预定义的配置键
+  const validKeys = ['TURNSTILE_SECRET_KEY', 'TURNSTILE_SITE_KEY'];
+  return validKeys.includes(key) ? key as 'TURNSTILE_SECRET_KEY' | 'TURNSTILE_SITE_KEY' : null;
+};
+
+const validateConfigValue = (value: string): string | null => {
+  if (!value || typeof value !== 'string') {
+    return null;
+  }
+  
+  // 配置值应该是有效的字符串，长度在合理范围内
+  const sanitized = sanitizeString(value, 1000);
+  if (!sanitized || sanitized.length < 1) {
+    return null;
+  }
+  
+  return sanitized;
+};
+
 // Turnstile配置文档接口
 interface TurnstileSettingDoc { 
   key: string; 
@@ -59,6 +147,14 @@ export class TurnstileService {
    */
   public static async verifyToken(token: string, remoteIp?: string): Promise<boolean> {
     try {
+      // 验证输入参数
+      const validatedToken = validateToken(token);
+      
+      if (!validatedToken) {
+        logger.warn('Turnstile token 验证失败：输入参数无效', { tokenLength: token?.length });
+        return false;
+      }
+
       // 从数据库获取密钥
       const secretKey = await getTurnstileKey('TURNSTILE_SECRET_KEY');
       
@@ -68,14 +164,9 @@ export class TurnstileService {
         return true;
       }
 
-      if (!token) {
-        logger.warn('Turnstile token 为空');
-        return false;
-      }
-
       const formData = new URLSearchParams();
       formData.append('secret', secretKey);
-      formData.append('response', token);
+      formData.append('response', validatedToken);
       
       if (remoteIp) {
         formData.append('remoteip', remoteIp);
@@ -153,22 +244,31 @@ export class TurnstileService {
    */
   public static async updateConfig(key: 'TURNSTILE_SECRET_KEY' | 'TURNSTILE_SITE_KEY', value: string): Promise<boolean> {
     try {
+      // 验证输入参数
+      const validatedKey = validateConfigKey(key);
+      const validatedValue = validateConfigValue(value);
+      
+      if (!validatedKey || !validatedValue) {
+        logger.warn('Turnstile配置更新失败：输入参数无效', { key, valueLength: value?.length });
+        return false;
+      }
+
       if (mongoose.connection.readyState !== 1) {
         logger.error('数据库连接不可用，无法更新Turnstile配置');
         return false;
       }
 
       await TurnstileSettingModel.findOneAndUpdate(
-        { key },
+        { key: validatedKey },
         { 
-          key, 
-          value: value.trim(), 
+          key: validatedKey, 
+          value: validatedValue, 
           updatedAt: new Date() 
         },
         { upsert: true, new: true }
       );
 
-      logger.info(`Turnstile配置更新成功: ${key}`);
+      logger.info(`Turnstile配置更新成功: ${validatedKey}`);
       return true;
     } catch (error) {
       logger.error(`更新Turnstile配置失败: ${key}`, error);
@@ -181,13 +281,21 @@ export class TurnstileService {
    */
   public static async deleteConfig(key: 'TURNSTILE_SECRET_KEY' | 'TURNSTILE_SITE_KEY'): Promise<boolean> {
     try {
+      // 验证输入参数
+      const validatedKey = validateConfigKey(key);
+      
+      if (!validatedKey) {
+        logger.warn('Turnstile配置删除失败：输入参数无效', { key });
+        return false;
+      }
+
       if (mongoose.connection.readyState !== 1) {
         logger.error('数据库连接不可用，无法删除Turnstile配置');
         return false;
       }
 
-      await TurnstileSettingModel.findOneAndDelete({ key });
-      logger.info(`Turnstile配置删除成功: ${key}`);
+      await TurnstileSettingModel.findOneAndDelete({ key: validatedKey });
+      logger.info(`Turnstile配置删除成功: ${validatedKey}`);
       return true;
     } catch (error) {
       logger.error(`删除Turnstile配置失败: ${key}`, error);
@@ -207,13 +315,21 @@ export class TurnstileService {
     verified: boolean;
   }> {
     try {
+      // 验证输入参数
+      const validatedFingerprint = validateFingerprint(fingerprint);
+      
+      if (!validatedFingerprint) {
+        logger.warn('临时指纹上报失败：输入参数无效', { fingerprintLength: fingerprint?.length });
+        return { isFirstVisit: false, verified: false };
+      }
+
       if (mongoose.connection.readyState !== 1) {
         logger.error('数据库连接不可用，无法上报临时指纹');
         return { isFirstVisit: false, verified: false };
       }
 
       // 检查指纹是否已存在
-      const existingDoc = await TempFingerprintModel.findOne({ fingerprint }).lean().exec();
+      const existingDoc = await TempFingerprintModel.findOne({ fingerprint: validatedFingerprint }).lean().exec();
       
       if (existingDoc) {
         // 指纹已存在，返回当前状态
@@ -226,12 +342,12 @@ export class TurnstileService {
       // 首次访问，创建新记录
       const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5分钟后过期
       await TempFingerprintModel.create({
-        fingerprint,
+        fingerprint: validatedFingerprint,
         verified: false,
         expiresAt,
       });
 
-      logger.info('临时指纹上报成功', { fingerprint: fingerprint.substring(0, 8) + '...' });
+      logger.info('临时指纹上报成功', { fingerprint: validatedFingerprint.substring(0, 8) + '...' });
       
       return {
         isFirstVisit: true,
@@ -256,22 +372,34 @@ export class TurnstileService {
     remoteIp?: string
   ): Promise<{ success: boolean; accessToken?: string }> {
     try {
+      // 验证输入参数
+      const validatedFingerprint = validateFingerprint(fingerprint);
+      const validatedToken = validateToken(cfToken);
+      
+      if (!validatedFingerprint || !validatedToken) {
+        logger.warn('临时指纹验证失败：输入参数无效', { 
+          fingerprintLength: fingerprint?.length,
+          tokenLength: cfToken?.length 
+        });
+        return { success: false };
+      }
+
       if (mongoose.connection.readyState !== 1) {
         logger.error('数据库连接不可用，无法验证临时指纹');
         return { success: false };
       }
 
       // 查找指纹记录
-      const doc = await TempFingerprintModel.findOne({ fingerprint }).exec();
+      const doc = await TempFingerprintModel.findOne({ fingerprint: validatedFingerprint }).exec();
       if (!doc) {
-        logger.warn('临时指纹不存在或已过期', { fingerprint: fingerprint.substring(0, 8) + '...' });
+        logger.warn('临时指纹不存在或已过期', { fingerprint: validatedFingerprint.substring(0, 8) + '...' });
         return { success: false };
       }
 
       // 验证Turnstile令牌
-      const isValid = await this.verifyToken(cfToken, remoteIp);
+      const isValid = await this.verifyToken(validatedToken, remoteIp);
       if (!isValid) {
-        logger.warn('Turnstile验证失败', { fingerprint: fingerprint.substring(0, 8) + '...' });
+        logger.warn('Turnstile验证失败', { fingerprint: validatedFingerprint.substring(0, 8) + '...' });
         return { success: false };
       }
 
@@ -281,10 +409,10 @@ export class TurnstileService {
       await doc.save();
 
       // 生成访问密钥
-      const accessToken = await this.generateAccessToken(fingerprint);
+      const accessToken = await this.generateAccessToken(validatedFingerprint);
 
       logger.info('临时指纹验证成功，已生成访问密钥', { 
-        fingerprint: fingerprint.substring(0, 8) + '...',
+        fingerprint: validatedFingerprint.substring(0, 8) + '...',
         accessToken: accessToken.substring(0, 8) + '...'
       });
       
@@ -305,12 +433,20 @@ export class TurnstileService {
     verified: boolean;
   }> {
     try {
+      // 验证输入参数
+      const validatedFingerprint = validateFingerprint(fingerprint);
+      
+      if (!validatedFingerprint) {
+        logger.warn('检查临时指纹状态失败：输入参数无效', { fingerprintLength: fingerprint?.length });
+        return { exists: false, verified: false };
+      }
+
       if (mongoose.connection.readyState !== 1) {
         logger.error('数据库连接不可用，无法检查临时指纹状态');
         return { exists: false, verified: false };
       }
 
-      const doc = await TempFingerprintModel.findOne({ fingerprint }).lean().exec();
+      const doc = await TempFingerprintModel.findOne({ fingerprint: validatedFingerprint }).lean().exec();
       
       if (!doc) {
         return { exists: false, verified: false };
@@ -399,6 +535,14 @@ export class TurnstileService {
    */
   public static async generateAccessToken(fingerprint: string): Promise<string> {
     try {
+      // 验证输入参数
+      const validatedFingerprint = validateFingerprint(fingerprint);
+      
+      if (!validatedFingerprint) {
+        logger.warn('生成访问密钥失败：输入参数无效', { fingerprintLength: fingerprint?.length });
+        throw new Error('无效的指纹参数');
+      }
+
       if (mongoose.connection.readyState !== 1) {
         logger.error('数据库连接不可用，无法生成访问密钥');
         throw new Error('数据库连接不可用');
@@ -411,12 +555,12 @@ export class TurnstileService {
       // 保存到数据库
       await AccessTokenModel.create({
         token,
-        fingerprint,
+        fingerprint: validatedFingerprint,
         expiresAt,
       });
 
       logger.info('访问密钥生成成功', { 
-        fingerprint: fingerprint.substring(0, 8) + '...',
+        fingerprint: validatedFingerprint.substring(0, 8) + '...',
         expiresAt 
       });
 
@@ -435,6 +579,18 @@ export class TurnstileService {
    */
   public static async verifyAccessToken(token: string, fingerprint: string): Promise<boolean> {
     try {
+      // 验证输入参数
+      const validatedToken = validateToken(token);
+      const validatedFingerprint = validateFingerprint(fingerprint);
+      
+      if (!validatedToken || !validatedFingerprint) {
+        logger.warn('验证访问密钥失败：输入参数无效', { 
+          tokenLength: token?.length,
+          fingerprintLength: fingerprint?.length 
+        });
+        return false;
+      }
+
       if (mongoose.connection.readyState !== 1) {
         logger.error('数据库连接不可用，无法验证访问密钥');
         return false;
@@ -442,15 +598,15 @@ export class TurnstileService {
 
       // 查找并验证密钥
       const doc = await AccessTokenModel.findOne({ 
-        token, 
-        fingerprint,
+        token: validatedToken, 
+        fingerprint: validatedFingerprint,
         expiresAt: { $gt: new Date() } // 确保未过期
       }).exec();
 
       if (!doc) {
         logger.warn('访问密钥无效或已过期', { 
-          token: token.substring(0, 8) + '...',
-          fingerprint: fingerprint.substring(0, 8) + '...'
+          token: validatedToken.substring(0, 8) + '...',
+          fingerprint: validatedFingerprint.substring(0, 8) + '...'
         });
         return false;
       }
@@ -460,8 +616,8 @@ export class TurnstileService {
       await doc.save();
 
       logger.info('访问密钥验证成功', { 
-        token: token.substring(0, 8) + '...',
-        fingerprint: fingerprint.substring(0, 8) + '...'
+        token: validatedToken.substring(0, 8) + '...',
+        fingerprint: validatedFingerprint.substring(0, 8) + '...'
       });
 
       return true;
@@ -478,12 +634,20 @@ export class TurnstileService {
    */
   public static async hasValidAccessToken(fingerprint: string): Promise<boolean> {
     try {
+      // 验证输入参数
+      const validatedFingerprint = validateFingerprint(fingerprint);
+      
+      if (!validatedFingerprint) {
+        logger.warn('检查访问密钥失败：输入参数无效', { fingerprintLength: fingerprint?.length });
+        return false;
+      }
+
       if (mongoose.connection.readyState !== 1) {
         return false;
       }
 
       const doc = await AccessTokenModel.findOne({ 
-        fingerprint,
+        fingerprint: validatedFingerprint,
         expiresAt: { $gt: new Date() } // 确保未过期
       }).exec();
 
