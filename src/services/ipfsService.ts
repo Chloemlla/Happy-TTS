@@ -108,7 +108,7 @@ export class IPFSService {
     ): Promise<IPFSUploadResponse> {
         // 如果提供了cfToken，进行Turnstile验证
         if (cfToken) {
-            if (TurnstileService.isEnabled()) {
+            if (await TurnstileService.isEnabled()) {
                 try {
                     const isValid = await TurnstileService.verifyToken(cfToken);
                     if (!isValid) {

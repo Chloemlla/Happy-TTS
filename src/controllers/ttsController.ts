@@ -124,7 +124,7 @@ export class TtsController {
 
 
             // 验证 Turnstile
-            if (TurnstileService.isEnabled()) {
+            if (await TurnstileService.isEnabled()) {
                 const cfVerified = await TurnstileService.verifyToken(cfToken, ip);
                 if (!cfVerified) {
                     logger.warn('Turnstile 验证失败', {

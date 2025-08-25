@@ -19,7 +19,7 @@ export const useTurnstileConfig = () => {
       try {
         setLoading(true);
         console.log('正在获取 Turnstile 配置...');
-        const response = await api.get('/api/tts/turnstile/config');
+        const response = await api.get('/api/turnstile/config');
         console.log('Turnstile 配置获取成功:', response.data);
         setConfig(response.data);
       } catch (err) {

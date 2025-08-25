@@ -64,6 +64,7 @@ import webhookRoutes from './routes/webhookRoutes';
 import webhookEventRoutes from './routes/webhookEventRoutes';
 import { authenticateToken } from './middleware/authenticateToken';
 import { totpStatusHandler } from './routes/totpRoutes';
+import turnstileRoutes from './routes/turnstileRoutes';
 
 // 扩展 Request 类型
 declare global {
@@ -827,6 +828,7 @@ app.use('/api/totp', totpRoutes);
 app.use('/api/totp/status', authenticateToken, totpStatusHandler as RequestHandler);
 app.use('/api/admin', adminLimiter, adminRoutes);
 app.use('/api/status', statusRouter);
+app.use('/api/turnstile', turnstileRoutes);
 
 // 添加篡改保护中间件
 app.use(tamperProtectionMiddleware);

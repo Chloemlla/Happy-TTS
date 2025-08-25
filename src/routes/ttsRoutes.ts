@@ -73,20 +73,28 @@ router.post('/generate', TtsController.generateSpeech);
  *                   type: string
  *                   description: Turnstile 站点密钥
  */
-router.get('/turnstile/config', (req, res) => {
-    const enableTurnstile = TurnstileService.isEnabled();
-    const siteKey = enableTurnstile ? config.turnstile.siteKey : null;
-    
-    console.log('Turnstile config response:', {
-        enabled: enableTurnstile,
-        siteKey: siteKey,
-        siteKeyType: typeof siteKey
-    });
-    
-    res.json({
-        enabled: enableTurnstile,
-        siteKey: siteKey
-    });
+router.get('/turnstile/config', async (req, res) => {
+    try {
+        const turnstileConfig = await TurnstileService.getConfig();
+        
+        console.log('Turnstile config response:', {
+            enabled: turnstileConfig.enabled,
+            siteKey: turnstileConfig.siteKey,
+            siteKeyType: typeof turnstileConfig.siteKey
+        });
+        
+        res.json({
+            enabled: turnstileConfig.enabled,
+            siteKey: turnstileConfig.siteKey
+        });
+    } catch (error) {
+        console.error('获取Turnstile配置失败:', error);
+        res.status(500).json({
+            enabled: false,
+            siteKey: null,
+            error: '获取配置失败'
+        });
+    }
 });
 
 /**
