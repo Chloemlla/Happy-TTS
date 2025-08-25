@@ -9,7 +9,9 @@ const router = express.Router();
  * /api/turnstile/config:
  *   get:
  *     summary: 获取Turnstile配置
- *     description: 获取当前Turnstile配置信息
+ *     description: 获取当前Turnstile配置信息（需要认证）
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Turnstile配置信息
@@ -27,8 +29,10 @@ const router = express.Router();
  *                 secretKey:
  *                   type: string
  *                   description: 密钥（仅管理员可见）
+ *       401:
+ *         description: 未授权
  */
-router.get('/config', async (req, res) => {
+router.get('/config', authenticateToken, async (req, res) => {
     try {
         const config = await TurnstileService.getConfig();
         
@@ -36,10 +40,15 @@ router.get('/config', async (req, res) => {
         const userRole = (req as any).user?.role;
         const isAdmin = userRole === 'admin' || userRole === 'administrator';
         
+        // 对Secret Key进行脱敏处理
+        const maskedSecretKey = config.secretKey && config.secretKey.length > 8 
+            ? (config.secretKey.slice(0, 2) + '***' + config.secretKey.slice(-4)) 
+            : (config.secretKey ? '***' : null);
+        
         res.json({
             enabled: config.enabled,
             siteKey: config.siteKey,
-            ...(isAdmin && { secretKey: config.secretKey })
+            ...(isAdmin && { secretKey: maskedSecretKey })
         });
     } catch (error) {
         console.error('获取Turnstile配置失败:', error);

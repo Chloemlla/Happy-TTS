@@ -1349,10 +1349,16 @@ const EnvManager: React.FC = () => {
       const res = await fetch(TURNSTILE_CONFIG_API, { headers: { ...getAuthHeaders() } });
       const data = await res.json();
       if (!res.ok) {
-        setNotification({ message: data.error || '获取Turnstile配置失败', type: 'error' });
+        // 处理认证错误
+        if (res.status === 401) {
+          setNotification({ message: '登录状态已失效，请重新登录', type: 'error' });
+        } else {
+          setNotification({ message: data.error || '获取Turnstile配置失败', type: 'error' });
+        }
         setTurnstileConfigLoading(false);
         return;
       }
+      // Turnstile配置API直接返回配置数据，不包含success字段
       setTurnstileConfig({
         enabled: data.enabled || false,
         siteKey: data.siteKey || null,
@@ -2178,7 +2184,7 @@ const EnvManager: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">当前配置（脱敏）</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">当前配置</label>
                 <div className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700 min-h-[40px] flex items-center">
                   {turnstileConfigLoading ? '加载中...' : (turnstileConfig?.siteKey || '未设置')}
                 </div>
