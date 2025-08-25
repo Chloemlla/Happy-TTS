@@ -831,11 +831,11 @@ app.use('/api/admin', adminLimiter, adminRoutes);
 app.use('/api/status', statusRouter);
 app.use('/api/turnstile', turnstileRoutes);
 
-// 添加篡改保护中间件
-app.use(tamperProtectionMiddleware);
-
-// 注册路由
+// 注册篡改路由（无需认证，用于接收篡改报告）
 app.use('/api/tamper', tamperRoutes);
+
+// 添加篡改保护中间件（应用到需要保护的路由）
+app.use(tamperProtectionMiddleware);
 app.use('/api/command', commandRoutes);
 app.use('/api/libre-chat', libreChatRoutes);
 app.use('/api/human-check', humanCheckRoutes);
