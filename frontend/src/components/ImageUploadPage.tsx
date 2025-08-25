@@ -293,9 +293,13 @@ const ImageUploadPage: React.FC = () => {
   // 批量上传相关状态
   const [batchFiles, setBatchFiles] = useState<File[]>([]);
   const [batchUploading, setBatchUploading] = useState(false);
-  const [batchProgress, setBatchProgress] = useState<{ [key: string]: { status: 'pending' | 'uploading' | 'success' | 'error', progress?: number, error?: string } }>({});
+  const [batchProgress, setBatchProgress] = useState<{ [key: string]: { status: 'pending' | 'uploading' | 'success' | 'error', progress?: number, error?: string, shortUrl?: string } }>({});
   const [showBatchList, setShowBatchList] = useState(false);
+  const [batchUploadResults, setBatchUploadResults] = useState<{ [key: string]: { web2url: string, shortUrl?: string } }>({});
   const batchFileInputRef = useRef<HTMLInputElement>(null);
+  
+  // 新增闪烁效果状态
+  const [flashingImages, setFlashingImages] = useState<Set<string>>(new Set());
 
   // 2. 新增本地图片管理相关state
   const [storedImages, setStoredImages] = useState<any[]>([]);
@@ -632,9 +636,19 @@ const ImageUploadPage: React.FC = () => {
         
         if (result?.data?.web2url) {
           // 上传成功
+          const shortUrl = result.data.shortUrl || null;
           setBatchProgress(prev => ({
             ...prev,
-            [fileName]: { status: 'success', progress: 100 }
+            [fileName]: { status: 'success', progress: 100, shortUrl }
+          }));
+          
+          // 保存上传结果
+          setBatchUploadResults(prev => ({
+            ...prev,
+            [fileName]: {
+              web2url: result.data.web2url,
+              shortUrl: shortUrl || undefined
+            }
           }));
           
           // 生成图片数据验证信息
@@ -723,6 +737,41 @@ const ImageUploadPage: React.FC = () => {
     try {
       await reloadImages();
       console.log('[批量上传] 本地图片列表已重新加载');
+      
+      // 为成功上传的图片添加闪烁效果
+      const successfulFiles = batchFiles.filter(file => {
+        const progress = batchProgress[file.name];
+        return progress && progress.status === 'success';
+      });
+      
+      if (successfulFiles.length > 0) {
+        // 获取新上传的图片ID用于闪烁效果
+        const newImageIds = new Set<string>();
+        
+        // 延迟一点时间确保图片列表已经更新
+        setTimeout(() => {
+          for (const file of successfulFiles) {
+            const result = batchUploadResults[file.name];
+            if (result) {
+              // 通过文件名和web2url来匹配新上传的图片
+              const newImage = storedImages.find(img => 
+                img.fileName === file.name && img.web2url === result.web2url
+              );
+              if (newImage) {
+                newImageIds.add(newImage.imageId);
+              }
+            }
+          }
+          
+          // 设置闪烁效果
+          setFlashingImages(newImageIds);
+          
+          // 3秒后清除闪烁效果
+          setTimeout(() => {
+            setFlashingImages(new Set());
+          }, 3000);
+        }, 100);
+      }
     } catch (error) {
       console.error('[批量上传] 重新加载图片列表失败:', error);
     }
@@ -740,10 +789,27 @@ const ImageUploadPage: React.FC = () => {
       
       // 显示成功上传的文件列表
       const successfulFileNames = successfulFiles.map(file => file.name).join(', ');
-      setNotification({ 
-        message: `批量上传完成！成功 ${successCount} 个，失败 ${errorCount} 个。成功文件：${successfulFileNames}`, 
-        type: successCount === batchFiles.length ? 'success' : 'warning' 
-      });
+      
+      // 根据上传结果显示不同的通知
+      if (successCount === batchFiles.length) {
+        // 全部成功
+        setNotification({ 
+          message: `批量上传完成！所有 ${successCount} 个文件上传成功。相关信息请在页面下方的"本地存储管理"区域查看。`, 
+          type: 'success' 
+        });
+      } else if (successCount > 0) {
+        // 部分成功
+        setNotification({ 
+          message: `批量上传完成！成功 ${successCount} 个，失败 ${errorCount} 个。成功上传的文件信息请在页面下方的"本地存储管理"区域查看。`, 
+          type: 'warning' 
+        });
+      } else {
+        // 全部失败
+        setNotification({ 
+          message: `批量上传失败！所有 ${errorCount} 个文件上传失败，请检查网络连接或文件格式后重试。`, 
+          type: 'error' 
+        });
+      }
       
       // 更新批量文件列表，只保留成功的文件
       setBatchFiles(successfulFiles);
@@ -1151,7 +1217,23 @@ const ImageUploadPage: React.FC = () => {
                               <div className="text-xs text-blue-600">上传中...</div>
                             )}
                             {progress.status === 'success' && (
-                              <div className="text-xs text-green-600">✓ 上传成功</div>
+                              <div className="text-xs text-green-600">
+                                ✓ 上传成功
+                                {progress.shortUrl && (
+                                  <div className="mt-1">
+                                    <div className="text-xs text-blue-600 truncate" title={progress.shortUrl}>
+                                      短链: {progress.shortUrl}
+                                    </div>
+                                    <motion.button
+                                      className="text-xs text-blue-500 hover:text-blue-700 underline"
+                                      onClick={() => handleCopy(progress.shortUrl || '')}
+                                      whileTap={{ scale: 0.95 }}
+                                    >
+                                      复制
+                                    </motion.button>
+                                  </div>
+                                )}
+                              </div>
                             )}
                             {progress.status === 'error' && (
                               <div className="text-xs text-red-600">✗ {progress.error}</div>
@@ -1356,10 +1438,25 @@ const ImageUploadPage: React.FC = () => {
             storedImages.map((img, idx) => (
               <motion.div 
                 key={img.cid} 
-                className="bg-white rounded-xl p-3 flex flex-col border border-gray-200 shadow-sm"
+                className={`bg-white rounded-xl p-3 flex flex-col border shadow-sm ${
+                  flashingImages.has(img.imageId) 
+                    ? 'border-green-400 shadow-lg shadow-green-200 animate-pulse' 
+                    : 'border-gray-200'
+                }`}
                 initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.3, delay: idx * 0.1 }}
+                animate={{ 
+                  opacity: 1, 
+                  scale: flashingImages.has(img.imageId) ? 1.05 : 1,
+                  boxShadow: flashingImages.has(img.imageId) 
+                    ? '0 0 20px rgba(34, 197, 94, 0.3)' 
+                    : '0 1px 3px rgba(0,0,0,0.1)'
+                }}
+                transition={{ 
+                  duration: flashingImages.has(img.imageId) ? 0.6 : 0.3, 
+                  delay: idx * 0.1,
+                  repeat: flashingImages.has(img.imageId) ? 3 : 0,
+                  repeatType: "reverse"
+                }}
                 whileHover={{ scale: 1.02, y: -2, boxShadow: '0 8px 32px 0 rgba(0,0,0,0.12)' }}
                 whileTap={{ scale: 0.98 }}
               >
