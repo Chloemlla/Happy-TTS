@@ -3,6 +3,7 @@ import { authenticateAdmin } from '../middleware/auth';
 import { libreChatService } from '../services/libreChatService';
 import { randomBytes } from 'crypto';
 import { mongoose } from '../services/mongoService';
+import logger from '../utils/logger';
 
 const router = Router();
 // 与前端保持一致的消息长度上限（以字符近似 tokens 上限）
@@ -578,6 +579,77 @@ router.get('/export', async (req, res) => {
   } catch (error) {
     console.error('导出历史错误:', error);
     res.status(500).json({ error: '导出聊天历史失败' });
+  }
+});
+
+/**
+ * @openapi
+ * /sse:
+ *   get:
+ *     summary: 建立SSE连接接收实时通知
+ *     parameters:
+ *       - in: query
+ *         name: token
+ *         schema:
+ *           type: string
+ *         description: 用户认证token
+ *     responses:
+ *       200:
+ *         description: SSE连接建立成功
+ *         content:
+ *           text/event-stream:
+ *             schema:
+ *               type: string
+ *               description: Server-Sent Events流
+ *       401:
+ *         description: 认证失败
+ */
+router.get('/sse', async (req, res) => {
+  try {
+    const token = getTokenFromReq(req);
+    const userId = extractUserId(req);
+
+    // 游客模式：允许无认证访问
+    if (isGuestEnabled()) {
+      // 游客模式下允许访问，无需严格验证
+    } else {
+      // 非游客模式：需要 token 或 已登录 userId
+      if ((!token || token === 'invalid-token') && !userId) {
+        return res.status(401).json({ error: '未认证：请提供有效 token 或登录后再试' });
+      }
+    }
+
+    // 注册SSE客户端
+    const clientId = libreChatService.registerSSEClient(userId || '', token || '', res);
+
+    // 处理客户端断开连接
+    req.on('close', () => {
+      libreChatService.removeSSEClient(clientId);
+    });
+
+    req.on('error', (error) => {
+      logger.error('SSE连接错误:', error);
+      libreChatService.removeSSEClient(clientId);
+    });
+
+    // 保持连接活跃
+    const keepAliveInterval = setInterval(() => {
+      try {
+        res.write(`data: ${JSON.stringify({ type: 'ping', timestamp: Date.now() })}\n\n`);
+      } catch (error) {
+        clearInterval(keepAliveInterval);
+        libreChatService.removeSSEClient(clientId);
+      }
+    }, 30000); // 每30秒发送ping
+
+    // 清理定时器
+    req.on('close', () => {
+      clearInterval(keepAliveInterval);
+    });
+
+  } catch (error) {
+    console.error('SSE连接错误:', error);
+    res.status(500).json({ error: 'SSE连接失败' });
   }
 });
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FaTimes, 
@@ -1706,7 +1706,7 @@ const LibreChatPage: React.FC = () => {
   // 自定义弹窗状态
   const [alertModal, setAlertModal] = useState<{ open: boolean; title?: string; message: string; type?: 'warning' | 'danger' | 'info' | 'success' }>({ open: false, message: '' });
   const [confirmModal, setConfirmModal] = useState<{ open: boolean; title?: string; message: string; onConfirm: () => void; type?: 'warning' | 'danger' | 'info' }>({ open: false, message: '', onConfirm: () => {} });
-  const [promptModal, setPromptModal] = useState<{ open: boolean; title?: string; message?: string; placeholder?: string; defaultValue?: string; onConfirm: (value: string) => void }>({ open: false, message: '', onConfirm: () => {} });
+  const [promptModal, setPromptModal] = useState<{ open: boolean; title?: string; message?: string; placeholder?: string; defaultValue?: string; codeEditor?: boolean; language?: string; maxLength?: number; onConfirm: (value: string) => void }>({ open: false, message: '', onConfirm: () => {} });
 
   const apiBase = useMemo(() => getApiBaseUrl(), []);
 
@@ -1875,6 +1875,9 @@ const LibreChatPage: React.FC = () => {
       message: '请输入新的消息内容：',
       placeholder: '请输入消息内容',
       defaultValue: current || '',
+      codeEditor: true,
+      language: 'auto',
+      maxLength: MAX_MESSAGE_LEN,
       onConfirm: async (content: string) => {
         if (!content.trim()) {
           setNotification({ type: 'warning', message: '消息内容不能为空' });
@@ -2338,12 +2341,17 @@ const LibreChatPage: React.FC = () => {
     }
   }, []);
 
-  // 组件卸载时，确保清理实时流式 interval，避免遗留计时器导致状态异常
+  // 组件卸载时，确保清理实时流式 interval 和 SSE 连接，避免遗留计时器导致状态异常
   useEffect(() => {
     return () => {
       if (rtIntervalRef.current) {
         clearInterval(rtIntervalRef.current);
         rtIntervalRef.current = null;
+      }
+      // 清理SSE连接
+      if (sseRef.current) {
+        sseRef.current.close();
+        sseRef.current = null;
       }
     };
   }, []);
@@ -2611,6 +2619,124 @@ const LibreChatPage: React.FC = () => {
     }
   };
 
+  // 新增：SSE 连接管理
+  const [sseConnected, setSseConnected] = useState(false);
+  const sseRef = useRef<EventSource | null>(null);
+
+  // 建立SSE连接
+  const connectSSE = useCallback(() => {
+    if (sseRef.current) {
+      sseRef.current.close();
+    }
+
+    try {
+      const params = new URLSearchParams();
+      if (token) params.set('token', token);
+      const sseUrl = `${apiBase}/api/librechat/sse?${params.toString()}`;
+      
+      const eventSource = new EventSource(sseUrl);
+      sseRef.current = eventSource;
+
+      eventSource.onopen = () => {
+        console.log('[SSE] 连接已建立');
+        setSseConnected(true);
+      };
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('[SSE] 收到消息:', data);
+
+          switch (data.type) {
+            case 'connected':
+              console.log('[SSE] 连接确认，客户端ID:', data.clientId);
+              break;
+            
+            case 'ping':
+              // 心跳包，保持连接活跃
+              break;
+            
+            case 'message_completed':
+              console.log('[SSE] 消息完成通知:', data.data);
+              // 立即停止流式展示并刷新历史记录
+              setStreaming(false);
+              setStreamContent('');
+              setSending(false);
+              setRtStreaming(false);
+              setRtStreamContent('');
+              setRtSending(false);
+              
+              // 立即刷新历史记录
+              setNotification({ type: 'success', message: 'AI回复已完成，正在刷新历史记录...' });
+              fetchHistory(1);
+              break;
+            
+            case 'retry_completed':
+              console.log('[SSE] 重试完成通知:', data.data);
+              // 立即停止流式展示并刷新历史记录
+              setStreaming(false);
+              setStreamContent('');
+              setSending(false);
+              setRtStreaming(false);
+              setRtStreamContent('');
+              setRtSending(false);
+              
+              // 立即刷新历史记录
+              setNotification({ type: 'success', message: 'AI重试已完成，正在刷新历史记录...' });
+              fetchHistory(1);
+              break;
+            
+            default:
+              console.log('[SSE] 未知消息类型:', data.type);
+          }
+        } catch (error) {
+          console.error('[SSE] 解析消息失败:', error);
+        }
+      };
+
+      eventSource.onerror = (error) => {
+        console.error('[SSE] 连接错误:', error);
+        setSseConnected(false);
+        
+        // 自动重连（延迟3秒）
+        setTimeout(() => {
+          if (sseRef.current === eventSource) {
+            console.log('[SSE] 尝试重新连接...');
+            connectSSE();
+          }
+        }, 3000);
+      };
+
+    } catch (error) {
+      console.error('[SSE] 建立连接失败:', error);
+      setSseConnected(false);
+    }
+  }, [apiBase, token]);
+
+  // 断开SSE连接
+  const disconnectSSE = useCallback(() => {
+    if (sseRef.current) {
+      sseRef.current.close();
+      sseRef.current = null;
+      setSseConnected(false);
+      console.log('[SSE] 连接已断开');
+    }
+  }, []);
+
+  // 监听token变化，重新建立SSE连接
+  useEffect(() => {
+    if (token || guestMode) {
+      connectSSE();
+    } else {
+      disconnectSSE();
+    }
+
+    // 组件卸载时清理连接
+    return () => {
+      disconnectSSE();
+    };
+  }, [token, guestMode, connectSSE, disconnectSSE]);
+
   return (
     <motion.div
       className="space-y-6"
@@ -2637,11 +2763,19 @@ const LibreChatPage: React.FC = () => {
               <ul className="list-disc list-inside space-y-1 mt-1">
                 <li>智能对话和流式响应</li>
                 <li>历史记录查看和管理</li>
-                <li>消息编辑和批量删除</li>
+                <li>消息编辑和批量删除（支持VSCode Dark+主题代码编辑器）</li>
                 <li>聊天记录导出功能</li>
                 <li>游客模式和用户模式</li>
+                <li>实时通知和自动刷新</li>
               </ul>
             </div>
+          </div>
+          {/* SSE连接状态指示器 */}
+          <div className="flex items-center gap-2 mt-2">
+            <div className={`w-2 h-2 rounded-full ${sseConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+            <span className="text-xs text-gray-500">
+              {sseConnected ? '实时连接已建立' : '实时连接已断开'}
+            </span>
           </div>
         </div>
       </motion.div>
@@ -2894,6 +3028,43 @@ const LibreChatPage: React.FC = () => {
             >
               <FaPaperPlane className="w-4 h-4" />
               单次对话
+            </motion.button>
+            <motion.button
+              onClick={() => {
+                setPromptModal({
+                  open: true,
+                  title: '测试代码编辑器',
+                  message: '这是一个测试，展示VSCode Dark+主题的代码编辑器功能：',
+                  placeholder: '请输入代码内容...',
+                  defaultValue: `// 这是一个JavaScript示例
+function greet(name) {
+  return \`Hello, \${name}!\`;
+}
+
+const user = "World";
+console.log(greet(user));
+
+// JSON示例
+const config = {
+  "theme": "vscDarkPlus",
+  "language": "javascript",
+  "features": ["syntax-highlighting", "line-numbers", "auto-detection"]
+};`,
+                  codeEditor: true,
+                  language: 'auto',
+                  maxLength: 5000,
+                  onConfirm: (content: string) => {
+                    setNotification({ type: 'success', message: '代码编辑器测试完成！' });
+                    console.log('测试代码内容:', content);
+                  }
+                });
+              }}
+              className="px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition font-medium flex items-center gap-2"
+              title="测试代码编辑器功能"
+              whileTap={{ scale: 0.95 }}
+            >
+              <FaCode className="w-4 h-4" />
+              测试编辑器
             </motion.button>
           </div>
         </div>
@@ -3356,6 +3527,9 @@ const LibreChatPage: React.FC = () => {
         message={promptModal.message}
         placeholder={promptModal.placeholder}
         defaultValue={promptModal.defaultValue}
+        codeEditor={promptModal.codeEditor}
+        language={promptModal.language}
+        maxLength={promptModal.maxLength}
       />
     </motion.div>
   );

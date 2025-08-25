@@ -7,12 +7,34 @@ import { getFingerprint, verifyTempFingerprint, storeAccessToken } from '../util
 interface FirstVisitVerificationProps {
   onVerificationComplete: () => void;
   fingerprint: string;
+  isIpBanned?: boolean;
+  banReason?: string;
+  banExpiresAt?: Date;
+  clientIP?: string | null;
 }
 
 export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
   onVerificationComplete,
   fingerprint,
+  isIpBanned = false,
+  banReason,
+  banExpiresAt,
+  clientIP,
 }) => {
+  // 响应式工具函数
+  const getResponsiveSize = (mobile: number, desktop: number) => {
+    if (isMobile) {
+      return window.innerWidth < 400 ? mobile * 0.8 : mobile;
+    }
+    return desktop;
+  };
+
+  const getResponsiveFontSize = (mobile: string, desktop: string) => {
+    if (isMobile) {
+      return window.innerWidth < 400 ? mobile : mobile;
+    }
+    return desktop;
+  };
   const { config: turnstileConfig, loading: turnstileConfigLoading } = useTurnstileConfig({ usePublicConfig: true });
   const [turnstileToken, setTurnstileToken] = useState<string>('');
   const [turnstileVerified, setTurnstileVerified] = useState(false);
@@ -24,27 +46,47 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
   const [isLandscape, setIsLandscape] = useState(false);
   const [showParticles, setShowParticles] = useState(false); // 控制背景粒子显示
 
-  // 检测设备类型和方向
+  // 检测设备类型、方向和缩放
   useEffect(() => {
     const checkDevice = () => {
       const width = window.innerWidth;
       const height = window.innerHeight;
-      setIsMobile(width <= 768);
+      const zoomLevel = window.devicePixelRatio || 1;
+      
+      // 考虑缩放因素，调整移动端判断逻辑
+      const effectiveWidth = width * zoomLevel;
+      const effectiveHeight = height * zoomLevel;
+      
+      // 移动端判断：考虑缩放后的实际像素密度
+      const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const isSmallScreen = width <= 768 || effectiveWidth <= 768;
+      
+      setIsMobile(isMobileDevice || isSmallScreen);
       setIsLandscape(width > height);
     };
 
     checkDevice();
+    
+    // 监听窗口大小变化
     window.addEventListener('resize', checkDevice);
     window.addEventListener('orientationchange', checkDevice);
+    
+    // 监听缩放变化（部分浏览器支持）
+    if ('visualViewport' in window) {
+      window.visualViewport?.addEventListener('resize', checkDevice);
+    }
 
     // 延迟显示背景粒子，避免加载时的视觉问题
     const timer = setTimeout(() => {
       setShowParticles(true);
-    }, 100); // 从1秒增加到2秒
+    }, 100);
 
     return () => {
       window.removeEventListener('resize', checkDevice);
       window.removeEventListener('orientationchange', checkDevice);
+      if ('visualViewport' in window) {
+        window.visualViewport?.removeEventListener('resize', checkDevice);
+      }
       clearTimeout(timer);
     };
   }, []);
@@ -101,7 +143,12 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
       }
     } catch (err) {
       console.error('验证失败:', err);
-      setError('验证失败，请重试');
+      // 检查是否是IP封禁错误
+      if (err instanceof Error && err.message.includes('IP已被封禁')) {
+        setError('您的IP地址已被封禁，请稍后再试');
+      } else {
+        setError('验证失败，请重试');
+      }
       setTurnstileToken('');
       setTurnstileVerified(false);
       setTurnstileKey(k => k + 1);
@@ -109,6 +156,237 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
       setVerifying(false);
     }
   }, [turnstileVerified, turnstileToken, fingerprint, onVerificationComplete]);
+
+  // 如果IP被封禁，显示封禁页面
+  if (isIpBanned) {
+    return (
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.5 }}
+          className="fixed inset-0 bg-gradient-to-br from-red-50 via-white to-red-50 flex items-center justify-center z-50"
+          style={{
+            minHeight: '100dvh',
+            padding: isMobile ? '0.25rem' : '1.5rem',
+            // 支持动态视口高度，适配移动端浏览器地址栏
+            height: '100dvh',
+            width: '100vw',
+            overflow: 'hidden',
+            // 添加CSS变量用于响应式设计
+            '--mobile-scale': isMobile && window.innerWidth < 400 ? '0.85' : '1',
+            '--mobile-padding': isMobile && window.innerWidth < 400 ? '0.5rem' : '1rem',
+          } as React.CSSProperties}
+        >
+                  <motion.div
+          initial={{ y: 30, opacity: 0, scale: 0.95 }}
+          animate={{ y: 0, opacity: 1, scale: 1 }}
+          exit={{ y: -30, opacity: 0, scale: 0.95 }}
+          transition={{ 
+            duration: 0.6, 
+            ease: "easeOut",
+            delay: 0.1 
+          }}
+          className={`relative bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl border border-red-200 ${
+            isMobile 
+              ? 'w-full max-w-sm mx-1 p-3' 
+              : 'max-w-md w-full mx-4 p-8'
+          }`}
+          style={{
+            maxHeight: isMobile ? 'calc(100dvh - 1rem)' : '80vh',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            // 动态缩放适配
+            transform: isMobile && window.innerWidth < 400 
+              ? `scale(${Math.min(window.innerWidth / 350, 0.9)})` 
+              : 'scale(1)',
+            transformOrigin: 'center center',
+            // 确保在小屏幕上不会溢出
+            width: isMobile && window.innerWidth < 400 ? '95vw' : undefined,
+            maxWidth: isMobile && window.innerWidth < 400 ? '95vw' : undefined,
+          }}
+        >
+            {/* 顶部装饰线 */}
+            <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-20 h-1 bg-gradient-to-r from-transparent via-red-500 to-transparent rounded-full"></div>
+            
+            {/* 警告图标 */}
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.6, ease: "easeOut" }}
+              className="relative mx-auto mb-6"
+            >
+              <svg
+                width={isMobile ? (window.innerWidth < 400 ? 60 : 80) : 100}
+                height={isMobile ? (window.innerWidth < 400 ? 60 : 80) : 100}
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="mx-auto text-red-500"
+                style={{
+                  minWidth: isMobile ? '60px' : '100px',
+                  minHeight: isMobile ? '60px' : '100px',
+                }}
+              >
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none"/>
+                <path d="M12 8v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                <circle cx="12" cy="16" r="1" fill="currentColor"/>
+              </svg>
+            </motion.div>
+            
+            {/* 标题 */}
+            <motion.h1 
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className={`text-center text-gray-800 mb-3 bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent font-bold ${
+                isMobile ? (window.innerWidth < 400 ? 'text-xl' : 'text-2xl') : 'text-3xl'
+              }`}
+              style={{
+                fontSize: isMobile ? (window.innerWidth < 400 ? '1.25rem' : '1.5rem') : '1.875rem',
+                lineHeight: '1.2',
+              }}
+            >
+              IP地址已被封禁
+            </motion.h1>
+            
+            {/* 说明文字 */}
+            <motion.p 
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+              className={`text-center text-gray-600 leading-relaxed mb-4 ${
+                isMobile ? (window.innerWidth < 400 ? 'text-xs' : 'text-sm') : 'text-base'
+              }`}
+              style={{
+                fontSize: isMobile ? (window.innerWidth < 400 ? '0.75rem' : '0.875rem') : '1rem',
+                lineHeight: '1.4',
+              }}
+            >
+              您的IP地址因违规行为已被临时封禁
+              <br />
+              请稍后再试或联系管理员
+            </motion.p>
+
+            {/* 封禁详情 */}
+            {banReason && (
+              <motion.div
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.5, delay: 0.5 }}
+                className={`mb-4 p-3 bg-red-50 border border-red-200 rounded-xl ${
+                  isMobile ? (window.innerWidth < 400 ? 'text-xs' : 'text-sm') : 'text-base'
+                }`}
+                style={{
+                  padding: isMobile ? (window.innerWidth < 400 ? '0.75rem' : '1rem') : '1rem',
+                }}
+              >
+                <div className="flex items-center gap-2 text-red-600 mb-2">
+                  <svg className={`${isMobile && window.innerWidth < 400 ? 'w-4 h-4' : 'w-5 h-5'} flex-shrink-0`} fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  <span className="font-medium" style={{ fontSize: isMobile && window.innerWidth < 400 ? '0.75rem' : undefined }}>封禁原因</span>
+                </div>
+                <p className="text-red-700" style={{ 
+                  fontSize: isMobile && window.innerWidth < 400 ? '0.75rem' : undefined,
+                  wordBreak: 'break-word',
+                  lineHeight: '1.3'
+                }}>{banReason}</p>
+              </motion.div>
+            )}
+
+            {/* 客户端IP地址 */}
+            {clientIP && (
+              <motion.div
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.5, delay: 0.55 }}
+                className={`mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl ${
+                  isMobile ? (window.innerWidth < 400 ? 'text-xs' : 'text-sm') : 'text-base'
+                }`}
+                style={{
+                  padding: isMobile ? (window.innerWidth < 400 ? '0.75rem' : '1rem') : '1rem',
+                }}
+              >
+                <div className="flex items-center gap-2 text-blue-600 mb-2">
+                  <svg className={`${isMobile && window.innerWidth < 400 ? 'w-4 h-4' : 'w-5 h-5'} flex-shrink-0`} fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" clipRule="evenodd" />
+                  </svg>
+                  <span className="font-medium" style={{ fontSize: isMobile && window.innerWidth < 400 ? '0.75rem' : undefined }}>客户端IP地址</span>
+                </div>
+                <p className="text-blue-700 font-mono" style={{ 
+                  fontSize: isMobile && window.innerWidth < 400 ? '0.75rem' : undefined,
+                  wordBreak: 'break-all',
+                  lineHeight: '1.3'
+                }}>{clientIP}</p>
+              </motion.div>
+            )}
+
+            {/* 封禁到期时间 */}
+            {banExpiresAt && (
+              <motion.div
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.5, delay: 0.6 }}
+                className={`mb-6 p-3 bg-yellow-50 border border-yellow-200 rounded-xl ${
+                  isMobile ? (window.innerWidth < 400 ? 'text-xs' : 'text-sm') : 'text-base'
+                }`}
+                style={{
+                  padding: isMobile ? (window.innerWidth < 400 ? '0.75rem' : '1rem') : '1rem',
+                }}
+              >
+                <div className="flex items-center gap-2 text-yellow-600 mb-2">
+                  <svg className={`${isMobile && window.innerWidth < 400 ? 'w-4 h-4' : 'w-5 h-5'} flex-shrink-0`} fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                  </svg>
+                  <span className="font-medium" style={{ fontSize: isMobile && window.innerWidth < 400 ? '0.75rem' : undefined }}>封禁到期时间</span>
+                </div>
+                <p className="text-yellow-700" style={{ 
+                  fontSize: isMobile && window.innerWidth < 400 ? '0.75rem' : undefined,
+                  lineHeight: '1.3'
+                }}>
+                  {banExpiresAt.toLocaleString('zh-CN', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                  })}
+                </p>
+              </motion.div>
+            )}
+
+            {/* 底部说明 */}
+            <motion.div 
+              className={`text-center ${isMobile ? 'mt-3' : 'mt-8'}`}
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.7 }}
+            >
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <div className="w-1 h-1 bg-red-400 rounded-full"></div>
+                <div className="w-1 h-1 bg-red-400 rounded-full"></div>
+                <div className="w-1 h-1 bg-red-400 rounded-full"></div>
+              </div>
+              <p className={`text-gray-500 leading-relaxed ${
+                isMobile ? (window.innerWidth < 400 ? 'text-xs' : 'text-xs') : 'text-sm'
+              }`}
+              style={{
+                fontSize: isMobile && window.innerWidth < 400 ? '0.75rem' : undefined,
+                lineHeight: '1.3'
+              }}>
+                如有疑问，请联系系统管理员
+                <br />
+                感谢您的理解与配合
+              </p>
+            </motion.div>
+          </motion.div>
+        </motion.div>
+      </AnimatePresence>
+    );
+  }
 
   // 响应式Logo组件
   const Logo = () => {

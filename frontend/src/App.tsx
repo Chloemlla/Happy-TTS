@@ -256,6 +256,10 @@ const App: React.FC = () => {
     isLoading: isFirstVisitLoading,
     error: firstVisitError,
     fingerprint,
+    isIpBanned,
+    banReason,
+    banExpiresAt,
+    clientIP,
     markAsVerified,
   } = useFirstVisitDetection();
 
@@ -567,6 +571,10 @@ const App: React.FC = () => {
           <FirstVisitVerification
             fingerprint={fingerprint}
             onVerificationComplete={markAsVerified}
+            isIpBanned={isIpBanned}
+            banReason={banReason}
+            banExpiresAt={banExpiresAt}
+            clientIP={clientIP}
           />
         </LazyMotion>
       </NotificationProvider>

@@ -8,7 +8,8 @@ import {
   getAccessToken,
   verifyAccessToken,
   storeAccessToken,
-  cleanupExpiredAccessTokens
+  cleanupExpiredAccessTokens,
+  getClientIP
 } from '../utils/fingerprint';
 
 interface UseFirstVisitDetectionReturn {
@@ -17,6 +18,10 @@ interface UseFirstVisitDetectionReturn {
   isLoading: boolean;
   error: string | null;
   fingerprint: string | null;
+  isIpBanned: boolean;
+  banReason?: string;
+  banExpiresAt?: Date;
+  clientIP: string | null;
   checkFirstVisit: () => Promise<void>;
   markAsVerified: () => void;
 }
@@ -27,14 +32,25 @@ export const useFirstVisitDetection = (): UseFirstVisitDetectionReturn => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [fingerprint, setFingerprint] = useState<string | null>(null);
+  const [isIpBanned, setIsIpBanned] = useState(false);
+  const [banReason, setBanReason] = useState<string | undefined>();
+  const [banExpiresAt, setBanExpiresAt] = useState<Date | undefined>();
+  const [clientIP, setClientIP] = useState<string | null>(null);
 
   const checkFirstVisit = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
+      setIsIpBanned(false);
+      setBanReason(undefined);
+      setBanExpiresAt(undefined);
 
       // 清理过期的访问密钥
       cleanupExpiredAccessTokens();
+
+      // 获取客户端IP地址
+      const ip = await getClientIP();
+      setClientIP(ip);
 
       // 生成指纹
       const fp = await getFingerprint();
@@ -77,6 +93,16 @@ export const useFirstVisitDetection = (): UseFirstVisitDetectionReturn => {
         await reportTempFingerprint();
       } catch (err) {
         console.warn('创建临时指纹记录失败:', err);
+        // 检查是否是IP封禁错误
+        if (err instanceof Error && err.message.includes('IP已被封禁')) {
+          setIsIpBanned(true);
+          setBanReason(err.message);
+          // 从错误消息中提取封禁到期时间（如果有的话）
+          const match = err.message.match(/封禁到期时间: (.+)/);
+          if (match) {
+            setBanExpiresAt(new Date(match[1]));
+          }
+        }
       }
       
       setIsLoading(false);
@@ -100,7 +126,21 @@ export const useFirstVisitDetection = (): UseFirstVisitDetectionReturn => {
 
     } catch (err) {
       console.error('首次访问检测失败:', err);
-      setError(err instanceof Error ? err.message : '检测失败');
+      
+      // 检查是否是IP封禁错误
+      if (err instanceof Error && err.message.includes('IP已被封禁')) {
+        setIsIpBanned(true);
+        setBanReason(err.message);
+        // 从错误消息中提取封禁到期时间（如果有的话）
+        const match = err.message.match(/封禁到期时间: (.+)/);
+        if (match) {
+          setBanExpiresAt(new Date(match[1]));
+        }
+        setError('您的IP地址已被封禁，请稍后再试');
+      } else {
+        setError(err instanceof Error ? err.message : '检测失败');
+      }
+      
       // 出错时默认不是首次访问，避免阻塞用户
       setIsFirstVisit(false);
       setIsVerified(false);
@@ -124,6 +164,10 @@ export const useFirstVisitDetection = (): UseFirstVisitDetectionReturn => {
     isLoading,
     error,
     fingerprint,
+    isIpBanned,
+    banReason,
+    banExpiresAt,
+    clientIP,
     checkFirstVisit,
     markAsVerified,
   };

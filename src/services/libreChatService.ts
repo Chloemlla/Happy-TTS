@@ -142,6 +142,15 @@ interface PaginationOptions {
   limit: number;
 }
 
+// 新增：SSE 连接管理器
+interface SSEClient {
+  id: string;
+  userId: string;
+  token: string;
+  res: any; // Express Response
+  lastPing: number;
+}
+
 class LibreChatService {
   private static instance: LibreChatService;
   private latestRecord: ImageRecord | null = null;
@@ -157,8 +166,13 @@ class LibreChatService {
   private providersLoadedAt: number = 0;
   private readonly PROVIDERS_TTL_MS = 60_000;
 
+  // 新增：SSE 连接管理
+  private sseClients: Map<string, SSEClient> = new Map();
+  private sseCleanupInterval: NodeJS.Timeout | null = null;
+
   private constructor() {
     this.initializeService();
+    this.startSSECleanup();
   }
 
   public static getInstance(): LibreChatService {
@@ -391,6 +405,101 @@ class LibreChatService {
     return this.latestRecord;
   }
 
+  // 新增：SSE 连接管理方法
+  private startSSECleanup() {
+    // 每30秒清理断开的SSE连接
+    this.sseCleanupInterval = setInterval(() => {
+      const now = Date.now();
+      const timeout = 5 * 60 * 1000; // 5分钟超时
+      
+      for (const [clientId, client] of this.sseClients.entries()) {
+        if (now - client.lastPing > timeout) {
+          this.sseClients.delete(clientId);
+          logger.info(`清理超时的SSE连接: ${clientId}`);
+        }
+      }
+    }, 30000);
+  }
+
+  /**
+   * 注册SSE客户端连接
+   */
+  public registerSSEClient(userId: string, token: string, res: any): string {
+    const clientId = `${userId || token}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // 设置SSE响应头
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Cache-Control'
+    });
+
+    // 发送初始连接消息
+    res.write(`data: ${JSON.stringify({ type: 'connected', clientId, timestamp: Date.now() })}\n\n`);
+
+    // 存储客户端信息
+    this.sseClients.set(clientId, {
+      id: clientId,
+      userId,
+      token,
+      res,
+      lastPing: Date.now()
+    });
+
+    logger.info(`注册SSE客户端: ${clientId}, userId: ${userId}, token: ${token}`);
+    return clientId;
+  }
+
+  /**
+   * 移除SSE客户端连接
+   */
+  public removeSSEClient(clientId: string): void {
+    const client = this.sseClients.get(clientId);
+    if (client) {
+      try {
+        client.res.end();
+      } catch (error) {
+        logger.warn(`关闭SSE连接时出错: ${clientId}`, error);
+      }
+      this.sseClients.delete(clientId);
+      logger.info(`移除SSE客户端: ${clientId}`);
+    }
+  }
+
+  /**
+   * 向指定用户发送SSE通知
+   */
+  private sendSSENotification(userId: string, token: string, eventType: string, data: any): void {
+    const targetClients = Array.from(this.sseClients.values()).filter(client => 
+      (userId && client.userId === userId) || (!userId && client.token === token)
+    );
+
+    if (targetClients.length === 0) {
+      logger.debug(`未找到匹配的SSE客户端: userId=${userId}, token=${token}`);
+      return;
+    }
+
+    const message = JSON.stringify({
+      type: eventType,
+      data,
+      timestamp: Date.now()
+    });
+
+    targetClients.forEach(client => {
+      try {
+        client.res.write(`data: ${message}\n\n`);
+        client.lastPing = Date.now();
+      } catch (error) {
+        logger.warn(`发送SSE消息失败: ${client.id}`, error);
+        this.sseClients.delete(client.id);
+      }
+    });
+
+    logger.info(`向 ${targetClients.length} 个客户端发送SSE通知: ${eventType}`);
+  }
+
   /**
    * 发送聊天消息
    */
@@ -464,6 +573,12 @@ class LibreChatService {
     // 若用户询问“你是什么模型”等同类问题，严格保持沉默并直接返回空字符串
     if (isModelIdentityQuery(message)) {
       logger.info('拦截模型识别类问题，按规则保持沉默');
+      // 发送SSE通知：消息完成
+      this.sendSSENotification(userId || '', token, 'message_completed', {
+        messageId: userMsg.id,
+        hasResponse: false,
+        reason: 'model_identity_query'
+      });
       return '';
     }
 
@@ -505,6 +620,16 @@ class LibreChatService {
       const updatedUserMessages = this.chatHistory.filter(m => userId ? m.userId === userId : m.token === token);
       await this.upsertTokenHistory(keyId, updatedUserMessages);
       logger.info(`已更新MongoDB（降级回复），用户消息总数: ${updatedUserMessages.length}`);
+
+      // 发送SSE通知：消息完成（降级回复）
+      this.sendSSENotification(userId || '', token, 'message_completed', {
+        messageId: aiMsg.id,
+        hasResponse: true,
+        responseLength: fallback.length,
+        totalMessages: updatedUserMessages.length,
+        isFallback: true
+      });
+
       return fallback;
     }
 
@@ -578,6 +703,15 @@ class LibreChatService {
         const updatedUserMessages = this.chatHistory.filter(m => userId ? m.userId === userId : m.token === token);
         await this.upsertTokenHistory(keyId, updatedUserMessages);
         logger.info(`已更新MongoDB，用户消息总数: ${updatedUserMessages.length}`);
+
+        // 发送SSE通知：消息完成
+        this.sendSSENotification(userId || '', token, 'message_completed', {
+          messageId: aiMsg.id,
+          hasResponse: true,
+          responseLength: aiText.length,
+          totalMessages: updatedUserMessages.length
+        });
+
         return aiText;
       } catch (err: any) {
         lastError = err;
@@ -604,6 +738,16 @@ class LibreChatService {
     const updatedUserMessages = this.chatHistory.filter(m => userId ? m.userId === userId : m.token === token);
     await this.upsertTokenHistory(keyId, updatedUserMessages);
     logger.info(`已更新MongoDB（错误降级），用户消息总数: ${updatedUserMessages.length}`);
+
+    // 发送SSE通知：消息完成（降级回复）
+    this.sendSSENotification(userId || '', token, 'message_completed', {
+      messageId: aiMsg.id,
+      hasResponse: true,
+      responseLength: fallback.length,
+      totalMessages: updatedUserMessages.length,
+      isFallback: true
+    });
+
     return fallback;
   }
 
@@ -929,6 +1073,14 @@ class LibreChatService {
         await this.saveChatHistory();
         const keyId = safeUserId || safeToken;
         await this.upsertTokenHistory(keyId, this.chatHistory.filter(m => safeUserId ? m.userId === safeUserId : m.token === safeToken));
+
+        // 发送SSE通知：重试完成
+        this.sendSSENotification(userId || '', token, 'retry_completed', {
+          messageId: updatedMsg.id,
+          hasResponse: true,
+          responseLength: aiText.length
+        });
+
         return aiText;
       } catch (err: any) {
         lastError = err;
@@ -948,6 +1100,15 @@ class LibreChatService {
     await this.saveChatHistory();
     const keyId = safeUserId || safeToken;
     await this.upsertTokenHistory(keyId, this.chatHistory.filter(m => safeUserId ? m.userId === safeUserId : m.token === safeToken));
+
+    // 发送SSE通知：重试完成（降级回复）
+    this.sendSSENotification(userId || '', token, 'retry_completed', {
+      messageId: this.chatHistory[globalIndex].id,
+      hasResponse: true,
+      responseLength: fallback.length,
+      isFallback: true
+    });
+
     return fallback;
   }
 
@@ -1170,6 +1331,19 @@ class LibreChatService {
       clearInterval(this.intervalId);
       this.intervalId = null;
     }
+    if (this.sseCleanupInterval) {
+      clearInterval(this.sseCleanupInterval);
+      this.sseCleanupInterval = null;
+    }
+    // 清理所有SSE连接
+    for (const [clientId, client] of this.sseClients.entries()) {
+      try {
+        client.res.end();
+      } catch (error) {
+        logger.warn(`清理SSE连接时出错: ${clientId}`, error);
+      }
+    }
+    this.sseClients.clear();
     this.isRunning = false;
   }
 }

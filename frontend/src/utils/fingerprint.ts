@@ -195,13 +195,33 @@ async function getWithFingerprintJS(timeoutMs = 1500): Promise<string | null> {
   }
 }
 
-
-
 // 检查用户是否已登录
 function isUserLoggedIn(): boolean {
   const token = localStorage.getItem('token');
   return !!token;
 }
+
+// 获取客户端IP地址
+export const getClientIP = async (): Promise<string> => {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/ip`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('获取IP地址失败');
+    }
+
+    const data = await response.json();
+    return data.ip || 'unknown';
+  } catch (error) {
+    console.error('获取IP地址失败:', error);
+    return 'unknown';
+  }
+};
 
 // 生成浏览器指纹
 export const getFingerprint = async (): Promise<string | null> => {
@@ -266,6 +286,10 @@ export const reportTempFingerprint = async (): Promise<{ isFirstVisit: boolean; 
     });
 
     if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      if (response.status === 403 && errorData.error === 'IP已被封禁') {
+        throw new Error(`IP已被封禁: ${errorData.reason}`);
+      }
       throw new Error('指纹上报失败');
     }
 
@@ -292,6 +316,10 @@ export const verifyTempFingerprint = async (fingerprint: string, cfToken: string
     });
 
     if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      if (response.status === 403 && errorData.error === 'IP已被封禁') {
+        throw new Error(`IP已被封禁: ${errorData.reason}`);
+      }
       throw new Error('验证失败');
     }
 
@@ -317,6 +345,10 @@ export const checkTempFingerprintStatus = async (fingerprint: string): Promise<{
     });
 
     if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      if (response.status === 403 && errorData.error === 'IP已被封禁') {
+        throw new Error(`IP已被封禁: ${errorData.reason}`);
+      }
       throw new Error('检查状态失败');
     }
 
@@ -343,6 +375,11 @@ export const verifyAccessToken = async (token: string, fingerprint: string): Pro
     });
 
     if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      if (response.status === 403 && errorData.error === 'IP已被封禁') {
+        console.error(`IP已被封禁: ${errorData.reason}`);
+        return false;
+      }
       return false;
     }
 
@@ -365,6 +402,11 @@ export const checkAccessToken = async (fingerprint: string): Promise<boolean> =>
     });
 
     if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      if (response.status === 403 && errorData.error === 'IP已被封禁') {
+        console.error(`IP已被封禁: ${errorData.reason}`);
+        return false;
+      }
       return false;
     }
 

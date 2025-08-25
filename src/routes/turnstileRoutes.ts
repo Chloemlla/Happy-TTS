@@ -75,6 +75,8 @@ const configLimiter = rateLimit({
 router.post('/temp-fingerprint', publicLimiter, async (req, res) => {
     try {
         const { fingerprint } = req.body;
+        const clientIp = req.ip || req.socket.remoteAddress || (Array.isArray(req.headers['x-forwarded-for']) ? req.headers['x-forwarded-for'][0] : req.headers['x-forwarded-for']) || 'unknown';
+        const validatedClientIp = typeof clientIp === 'string' ? clientIp : 'unknown';
         
         if (!fingerprint || typeof fingerprint !== 'string') {
             return res.status(400).json({ 
@@ -83,7 +85,18 @@ router.post('/temp-fingerprint', publicLimiter, async (req, res) => {
             });
         }
 
-        const result = await TurnstileService.reportTempFingerprint(fingerprint);
+        // 检查IP是否被封禁
+        const banStatus = await TurnstileService.isIpBanned(validatedClientIp);
+        if (banStatus.banned) {
+            return res.status(403).json({
+                success: false,
+                error: 'IP已被封禁',
+                reason: banStatus.reason,
+                expiresAt: banStatus.expiresAt
+            });
+        }
+
+        const result = await TurnstileService.reportTempFingerprint(fingerprint, validatedClientIp);
 
         res.json({
             success: true,
@@ -103,6 +116,8 @@ router.post('/temp-fingerprint', publicLimiter, async (req, res) => {
 router.post('/verify-temp-fingerprint', fingerprintLimiter, async (req, res) => {
     try {
         const { fingerprint, cfToken } = req.body;
+        const clientIp = req.ip || req.socket.remoteAddress || (Array.isArray(req.headers['x-forwarded-for']) ? req.headers['x-forwarded-for'][0] : req.headers['x-forwarded-for']) || 'unknown';
+        const validatedClientIp = typeof clientIp === 'string' ? clientIp : 'unknown';
         
         if (!fingerprint || typeof fingerprint !== 'string') {
             return res.status(400).json({ 
@@ -118,7 +133,18 @@ router.post('/verify-temp-fingerprint', fingerprintLimiter, async (req, res) => 
             });
         }
 
-        const result = await TurnstileService.verifyTempFingerprint(fingerprint, cfToken, req.ip);
+        // 检查IP是否被封禁
+        const banStatus = await TurnstileService.isIpBanned(validatedClientIp);
+        if (banStatus.banned) {
+            return res.status(403).json({
+                success: false,
+                error: 'IP已被封禁',
+                reason: banStatus.reason,
+                expiresAt: banStatus.expiresAt
+            });
+        }
+
+        const result = await TurnstileService.verifyTempFingerprint(fingerprint, cfToken, validatedClientIp);
 
         if (!result.success) {
             return res.status(400).json({ 
@@ -145,6 +171,8 @@ router.post('/verify-temp-fingerprint', fingerprintLimiter, async (req, res) => 
 router.post('/verify-access-token', fingerprintLimiter, async (req, res) => {
     try {
         const { token, fingerprint } = req.body;
+        const clientIp = req.ip || req.socket.remoteAddress || (Array.isArray(req.headers['x-forwarded-for']) ? req.headers['x-forwarded-for'][0] : req.headers['x-forwarded-for']) || 'unknown';
+        const validatedClientIp = typeof clientIp === 'string' ? clientIp : 'unknown';
         
         if (!token || typeof token !== 'string') {
             return res.status(400).json({ 
@@ -160,7 +188,18 @@ router.post('/verify-access-token', fingerprintLimiter, async (req, res) => {
             });
         }
 
-        const isValid = await TurnstileService.verifyAccessToken(token, fingerprint);
+        // 检查IP是否被封禁
+        const banStatus = await TurnstileService.isIpBanned(clientIp);
+        if (banStatus.banned) {
+            return res.status(403).json({
+                success: false,
+                error: 'IP已被封禁',
+                reason: banStatus.reason,
+                expiresAt: banStatus.expiresAt
+            });
+        }
+
+        const isValid = await TurnstileService.verifyAccessToken(token, fingerprint, clientIp);
 
         if (!isValid) {
             return res.status(400).json({ 
@@ -186,6 +225,8 @@ router.post('/verify-access-token', fingerprintLimiter, async (req, res) => {
 router.get('/check-access-token/:fingerprint', fingerprintLimiter, async (req, res) => {
     try {
         const { fingerprint } = req.params;
+        const clientIp = req.ip || req.socket.remoteAddress || req.headers['x-forwarded-for'] || 'unknown';
+        const validatedClientIp = typeof clientIp === 'string' ? clientIp : 'unknown';
         
         if (!fingerprint) {
             return res.status(400).json({ 
@@ -194,7 +235,18 @@ router.get('/check-access-token/:fingerprint', fingerprintLimiter, async (req, r
             });
         }
 
-        const hasValidToken = await TurnstileService.hasValidAccessToken(fingerprint);
+        // 检查IP是否被封禁
+        const banStatus = await TurnstileService.isIpBanned(validatedClientIp);
+        if (banStatus.banned) {
+            return res.status(403).json({
+                success: false,
+                error: 'IP已被封禁',
+                reason: banStatus.reason,
+                expiresAt: banStatus.expiresAt
+            });
+        }
+
+        const hasValidToken = await TurnstileService.hasValidAccessToken(fingerprint, validatedClientIp);
 
         res.json({
             success: true,
@@ -213,11 +265,24 @@ router.get('/check-access-token/:fingerprint', fingerprintLimiter, async (req, r
 router.get('/temp-fingerprint/:fingerprint', fingerprintLimiter, async (req, res) => {
     try {
         const { fingerprint } = req.params;
+        const clientIp = req.ip || req.socket.remoteAddress || req.headers['x-forwarded-for'] || 'unknown';
+        const validatedClientIp = typeof clientIp === 'string' ? clientIp : 'unknown';
         
         if (!fingerprint) {
             return res.status(400).json({ 
                 success: false, 
                 error: '指纹参数无效' 
+            });
+        }
+
+        // 检查IP是否被封禁
+        const banStatus = await TurnstileService.isIpBanned(validatedClientIp);
+        if (banStatus.banned) {
+            return res.status(403).json({
+                success: false,
+                error: 'IP已被封禁',
+                reason: banStatus.reason,
+                expiresAt: banStatus.expiresAt
             });
         }
 
@@ -294,6 +359,404 @@ router.get('/fingerprint-stats', authenticateToken, adminLimiter, async (req, re
     }
 });
 
+// 获取IP封禁统计信息接口（管理员专用）
+router.get('/ip-ban-stats', authenticateToken, adminLimiter, async (req, res) => {
+    try {
+        const userRole = (req as any).user?.role;
+        const isAdmin = userRole === 'admin' || userRole === 'administrator';
+        
+        if (!isAdmin) {
+            return res.status(403).json({ 
+                success: false, 
+                error: '权限不足' 
+            });
+        }
+
+        const stats = await TurnstileService.getIpBanStats();
+
+        res.json({
+            success: true,
+            stats
+        });
+    } catch (error) {
+        console.error('获取IP封禁统计失败:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: '服务器内部错误' 
+        });
+    }
+});
+
+// 手动封禁IP接口（管理员专用）
+router.post('/ban-ip', authenticateToken, adminLimiter, async (req, res) => {
+    try {
+        const userRole = (req as any).user?.role;
+        const isAdmin = userRole === 'admin' || userRole === 'administrator';
+        
+        if (!isAdmin) {
+            return res.status(403).json({ 
+                success: false, 
+                error: '权限不足' 
+            });
+        }
+
+        const { ipAddress, reason, durationMinutes, fingerprint, userAgent } = req.body;
+        
+        if (!ipAddress || typeof ipAddress !== 'string') {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'IP地址参数无效' 
+            });
+        }
+
+        if (!reason || typeof reason !== 'string') {
+            return res.status(400).json({ 
+                success: false, 
+                error: '封禁原因参数无效' 
+            });
+        }
+
+        // 验证IP地址格式
+        const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+        if (!ipRegex.test(ipAddress)) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'IP地址格式无效' 
+            });
+        }
+
+        // 验证和设置封禁时长
+        let banDuration = 60; // 默认60分钟
+        
+        if (durationMinutes !== undefined && durationMinutes !== null) {
+            // 确保是数字类型
+            const duration = Number(durationMinutes);
+            
+            // 检查是否为有效数字
+            if (isNaN(duration) || !isFinite(duration)) {
+                return res.status(400).json({ 
+                    success: false, 
+                    error: '封禁时长必须是有效的数字' 
+                });
+            }
+            
+            // 设置合理的范围：1分钟到24小时（1440分钟）
+            banDuration = Math.min(
+                Math.max(duration, 1), // 最少1分钟
+                24 * 60 // 最多24小时
+            );
+        }
+
+        // 检查IP是否已经被封禁
+        const existingBan = await TurnstileService.isIpBanned(ipAddress);
+        if (existingBan.banned) {
+            return res.status(409).json({ 
+                success: false, 
+                error: 'IP已被封禁',
+                existingBan: {
+                    reason: existingBan.reason,
+                    expiresAt: existingBan.expiresAt
+                }
+            });
+        }
+
+        // 手动封禁IP
+        const banResult = await TurnstileService.manualBanIp(
+            ipAddress, 
+            reason, 
+            banDuration,
+            fingerprint,
+            userAgent
+        );
+        
+        if (banResult.success) {
+            res.json({ 
+                success: true, 
+                message: `IP ${ipAddress} 已被封禁 ${banDuration} 分钟`,
+                banInfo: {
+                    ipAddress,
+                    reason,
+                    durationMinutes: banDuration,
+                    expiresAt: banResult.expiresAt,
+                    bannedAt: banResult.bannedAt
+                }
+            });
+        } else {
+            res.status(500).json({ 
+                success: false, 
+                error: banResult.error || '封禁失败' 
+            });
+        }
+    } catch (error) {
+        console.error('手动封禁IP失败:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: '服务器内部错误' 
+        });
+    }
+});
+
+// 手动解除IP封禁接口（管理员专用）
+router.post('/unban-ip', authenticateToken, adminLimiter, async (req, res) => {
+    try {
+        const userRole = (req as any).user?.role;
+        const isAdmin = userRole === 'admin' || userRole === 'administrator';
+        
+        if (!isAdmin) {
+            return res.status(403).json({ 
+                success: false, 
+                error: '权限不足' 
+            });
+        }
+
+        const { ipAddress } = req.body;
+        
+        if (!ipAddress || typeof ipAddress !== 'string') {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'IP地址参数无效' 
+            });
+        }
+
+        // 验证IP地址格式
+        const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+        if (!ipRegex.test(ipAddress)) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'IP地址格式无效' 
+            });
+        }
+
+        const success = await TurnstileService.unbanIp(ipAddress);
+        
+        if (success) {
+            res.json({ 
+                success: true, 
+                message: `IP ${ipAddress} 封禁已解除` 
+            });
+        } else {
+            res.status(404).json({ 
+                success: false, 
+                error: 'IP地址未找到或未被封禁' 
+            });
+        }
+    } catch (error) {
+        console.error('解除IP封禁失败:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: '服务器内部错误' 
+        });
+    }
+});
+
+// 批量封禁IP接口（管理员专用）
+router.post('/ban-ips', authenticateToken, adminLimiter, async (req, res) => {
+    try {
+        const userRole = (req as any).user?.role;
+        const isAdmin = userRole === 'admin' || userRole === 'administrator';
+        
+        if (!isAdmin) {
+            return res.status(403).json({ 
+                success: false, 
+                error: '权限不足' 
+            });
+        }
+
+        const { ipAddresses, reason, durationMinutes } = req.body;
+        
+        if (!Array.isArray(ipAddresses) || ipAddresses.length === 0) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'IP地址列表参数无效' 
+            });
+        }
+
+        if (!reason || typeof reason !== 'string') {
+            return res.status(400).json({ 
+                success: false, 
+                error: '封禁原因参数无效' 
+            });
+        }
+
+        // 验证IP地址格式
+        const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+        const invalidIPs = ipAddresses.filter(ip => !ipRegex.test(ip));
+        if (invalidIPs.length > 0) {
+            return res.status(400).json({ 
+                success: false, 
+                error: '以下IP地址格式无效',
+                invalidIPs
+            });
+        }
+
+        // 验证和设置封禁时长
+        let banDuration = 60; // 默认60分钟
+        
+        if (durationMinutes !== undefined && durationMinutes !== null) {
+            // 确保是数字类型
+            const duration = Number(durationMinutes);
+            
+            // 检查是否为有效数字
+            if (isNaN(duration) || !isFinite(duration)) {
+                return res.status(400).json({ 
+                    success: false, 
+                    error: '封禁时长必须是有效的数字' 
+                });
+            }
+            
+            // 设置合理的范围：1分钟到24小时（1440分钟）
+            banDuration = Math.min(
+                Math.max(duration, 1), // 最少1分钟
+                24 * 60 // 最多24小时
+            );
+        }
+
+        const results = [];
+        const errors = [];
+
+        for (const ipAddress of ipAddresses) {
+            try {
+                // 检查IP是否已经被封禁
+                const existingBan = await TurnstileService.isIpBanned(ipAddress);
+                if (existingBan.banned) {
+                    errors.push({
+                        ipAddress,
+                        error: 'IP已被封禁',
+                        existingBan: {
+                            reason: existingBan.reason,
+                            expiresAt: existingBan.expiresAt
+                        }
+                    });
+                    continue;
+                }
+
+                // 手动封禁IP
+                const banResult = await TurnstileService.manualBanIp(
+                    ipAddress, 
+                    reason, 
+                    banDuration
+                );
+                
+                if (banResult.success) {
+                    results.push({
+                        ipAddress,
+                        success: true,
+                        message: `IP ${ipAddress} 已被封禁 ${banDuration} 分钟`,
+                        banInfo: {
+                            reason,
+                            durationMinutes: banDuration,
+                            expiresAt: banResult.expiresAt,
+                            bannedAt: banResult.bannedAt
+                        }
+                    });
+                } else {
+                    errors.push({
+                        ipAddress,
+                        error: banResult.error || '封禁失败'
+                    });
+                }
+            } catch (error) {
+                errors.push({
+                    ipAddress,
+                    error: error instanceof Error ? error.message : '未知错误'
+                });
+            }
+        }
+
+        res.json({
+            success: true,
+            total: ipAddresses.length,
+            successful: results.length,
+            failed: errors.length,
+            results,
+            errors
+        });
+    } catch (error) {
+        console.error('批量封禁IP失败:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: '服务器内部错误' 
+        });
+    }
+});
+
+// 批量解封IP接口（管理员专用）
+router.post('/unban-ips', authenticateToken, adminLimiter, async (req, res) => {
+    try {
+        const userRole = (req as any).user?.role;
+        const isAdmin = userRole === 'admin' || userRole === 'administrator';
+        
+        if (!isAdmin) {
+            return res.status(403).json({ 
+                success: false, 
+                error: '权限不足' 
+            });
+        }
+
+        const { ipAddresses } = req.body;
+        
+        if (!Array.isArray(ipAddresses) || ipAddresses.length === 0) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'IP地址列表参数无效' 
+            });
+        }
+
+        // 验证IP地址格式
+        const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+        const invalidIPs = ipAddresses.filter(ip => !ipRegex.test(ip));
+        if (invalidIPs.length > 0) {
+            return res.status(400).json({ 
+                success: false, 
+                error: '以下IP地址格式无效',
+                invalidIPs
+            });
+        }
+
+        const results = [];
+        const errors = [];
+
+        for (const ipAddress of ipAddresses) {
+            try {
+                const success = await TurnstileService.unbanIp(ipAddress);
+                
+                if (success) {
+                    results.push({
+                        ipAddress,
+                        success: true,
+                        message: `IP ${ipAddress} 封禁已解除`
+                    });
+                } else {
+                    errors.push({
+                        ipAddress,
+                        error: 'IP地址未找到或未被封禁'
+                    });
+                }
+            } catch (error) {
+                errors.push({
+                    ipAddress,
+                    error: error instanceof Error ? error.message : '未知错误'
+                });
+            }
+        }
+
+        res.json({
+            success: true,
+            total: ipAddresses.length,
+            successful: results.length,
+            failed: errors.length,
+            results,
+            errors
+        });
+    } catch (error) {
+        console.error('批量解封IP失败:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: '服务器内部错误' 
+        });
+    }
+});
+
 // 获取定时任务状态接口（管理员专用）
 router.get('/scheduler-status', authenticateToken, adminLimiter, async (req, res) => {
     try {
@@ -341,7 +804,7 @@ router.post('/manual-cleanup', authenticateToken, adminLimiter, async (req, res)
             success: result.success,
             deletedCount: result.deletedCount,
             message: result.success 
-                ? `手动清理完成，删除了 ${result.deletedCount} 条过期指纹记录`
+                ? `手动清理完成，删除了 ${result.deletedCount} 条过期记录`
                 : `手动清理失败: ${result.error}`,
             error: result.error
         });

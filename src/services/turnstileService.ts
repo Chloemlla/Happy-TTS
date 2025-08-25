@@ -4,6 +4,7 @@ import logger from '../utils/logger';
 import { mongoose } from './mongoService';
 import { TempFingerprintModel, TempFingerprintDoc } from '../models/tempFingerprintModel';
 import { AccessTokenModel, AccessTokenDoc } from '../models/accessTokenModel';
+import { IpBanModel, IpBanDoc } from '../models/ipBanModel';
 import crypto from 'crypto';
 
 // 输入验证和清理函数
@@ -70,6 +71,28 @@ const validateToken = (token: string): string | null => {
   }
   
   return sanitized;
+};
+
+const validateIpAddress = (ip: string): string | null => {
+  if (!ip || typeof ip !== 'string') {
+    return null;
+  }
+  
+  // 简单的IP地址验证
+  const sanitized = sanitizeString(ip, 50);
+  if (!sanitized) {
+    return null;
+  }
+  
+  // 检查是否为有效的IP地址格式
+  const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+  const ipv6Regex = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/;
+  
+  if (ipv4Regex.test(sanitized) || ipv6Regex.test(sanitized)) {
+    return sanitized;
+  }
+  
+  return null;
 };
 
 const validateConfigKey = (key: string): 'TURNSTILE_SECRET_KEY' | 'TURNSTILE_SITE_KEY' | null => {
@@ -140,6 +163,120 @@ async function getTurnstileKey(keyName: 'TURNSTILE_SECRET_KEY' | 'TURNSTILE_SITE
 
 export class TurnstileService {
   private static readonly VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+  private static readonly MAX_VIOLATIONS = 3; // 最大违规次数
+  private static readonly BAN_DURATION = 60 * 60 * 1000; // 封禁时长：60分钟
+
+  /**
+   * 检查IP是否被封禁
+   * @param ipAddress IP地址
+   * @returns 封禁状态
+   */
+  public static async isIpBanned(ipAddress: string): Promise<{ banned: boolean; reason?: string; expiresAt?: Date }> {
+    try {
+      const validatedIp = validateIpAddress(ipAddress);
+      if (!validatedIp) {
+        return { banned: false };
+      }
+
+      if (mongoose.connection.readyState !== 1) {
+        return { banned: false };
+      }
+
+      const banDoc = await IpBanModel.findOne({ 
+        ipAddress: validatedIp,
+        expiresAt: { $gt: new Date() } // 确保封禁未过期
+      }).lean().exec();
+
+      if (banDoc) {
+        return {
+          banned: true,
+          reason: banDoc.reason,
+          expiresAt: banDoc.expiresAt
+        };
+      }
+
+      return { banned: false };
+    } catch (error) {
+      logger.error('检查IP封禁状态失败', error);
+      return { banned: false };
+    }
+  }
+
+  /**
+   * 记录违规并可能封禁IP
+   * @param ipAddress IP地址
+   * @param reason 违规原因
+   * @param fingerprint 指纹（可选）
+   * @param userAgent 用户代理（可选）
+   * @returns 是否被封禁
+   */
+  public static async recordViolation(
+    ipAddress: string, 
+    reason: string, 
+    fingerprint?: string, 
+    userAgent?: string
+  ): Promise<boolean> {
+    try {
+      const validatedIp = validateIpAddress(ipAddress);
+      if (!validatedIp) {
+        return false;
+      }
+
+      if (mongoose.connection.readyState !== 1) {
+        return false;
+      }
+
+      // 查找现有的封禁记录
+      let banDoc = await IpBanModel.findOne({ ipAddress: validatedIp }).exec();
+
+      if (banDoc) {
+        // 更新现有记录
+        banDoc.violationCount += 1;
+        banDoc.reason = reason;
+        // 由于 lean() 查询返回的对象没有 updatedAt 字段，这里不再直接赋值
+        // 如果 banDoc 有 updatedAt 字段则更新，否则跳过
+        if ('updatedAt' in banDoc) {
+          banDoc.updatedAt = new Date();
+        }
+        
+        // 如果违规次数达到阈值，延长封禁时间
+        if (banDoc.violationCount >= this.MAX_VIOLATIONS) {
+          banDoc.expiresAt = new Date(Date.now() + this.BAN_DURATION);
+        }
+        
+        await banDoc.save();
+        
+        logger.warn(`IP ${validatedIp} 违规次数增加到 ${banDoc.violationCount}`, {
+          reason,
+          fingerprint: fingerprint?.substring(0, 8) + '...',
+          banned: banDoc.violationCount >= this.MAX_VIOLATIONS
+        });
+        
+        return banDoc.violationCount >= this.MAX_VIOLATIONS;
+      } else {
+        // 创建新的封禁记录
+        const expiresAt = new Date(Date.now() + this.BAN_DURATION);
+        await IpBanModel.create({
+          ipAddress: validatedIp,
+          reason,
+          violationCount: 1,
+          expiresAt,
+          fingerprint,
+          userAgent
+        });
+        
+        logger.warn(`IP ${validatedIp} 首次违规，已封禁60分钟`, {
+          reason,
+          fingerprint: fingerprint?.substring(0, 8) + '...'
+        });
+        
+        return true;
+      }
+    } catch (error) {
+      logger.error('记录违规失败', error);
+      return false;
+    }
+  }
 
   /**
    * 验证 Turnstile token
@@ -310,18 +447,33 @@ export class TurnstileService {
   /**
    * 上报临时指纹
    * @param fingerprint 浏览器指纹
+   * @param ipAddress IP地址
    * @returns 是否首次访问和验证状态
    */
-  public static async reportTempFingerprint(fingerprint: string): Promise<{
+  public static async reportTempFingerprint(fingerprint: string, ipAddress: string): Promise<{
     isFirstVisit: boolean;
     verified: boolean;
   }> {
     try {
       // 验证输入参数
       const validatedFingerprint = validateFingerprint(fingerprint);
+      const validatedIp = validateIpAddress(ipAddress);
       
-      if (!validatedFingerprint) {
-        logger.warn('临时指纹上报失败：输入参数无效', { fingerprintLength: fingerprint?.length });
+      if (!validatedFingerprint || !validatedIp) {
+        logger.warn('临时指纹上报失败：输入参数无效', { 
+          fingerprintLength: fingerprint?.length,
+          ipAddress 
+        });
+        return { isFirstVisit: false, verified: false };
+      }
+
+      // 检查IP是否被封禁
+      const banStatus = await this.isIpBanned(validatedIp);
+      if (banStatus.banned) {
+        logger.warn(`IP ${validatedIp} 已被封禁，拒绝访问`, {
+          reason: banStatus.reason,
+          expiresAt: banStatus.expiresAt
+        });
         return { isFirstVisit: false, verified: false };
       }
 
@@ -349,7 +501,10 @@ export class TurnstileService {
         expiresAt,
       });
 
-      logger.info('临时指纹上报成功', { fingerprint: validatedFingerprint.substring(0, 8) + '...' });
+      logger.info('临时指纹上报成功', { 
+        fingerprint: validatedFingerprint.substring(0, 8) + '...',
+        ipAddress: validatedIp
+      });
       
       return {
         isFirstVisit: true,
@@ -377,11 +532,23 @@ export class TurnstileService {
       // 验证输入参数
       const validatedFingerprint = validateFingerprint(fingerprint);
       const validatedToken = validateToken(cfToken);
+      const validatedIp = validateIpAddress(remoteIp || '');
       
-      if (!validatedFingerprint || !validatedToken) {
+      if (!validatedFingerprint || !validatedToken || !validatedIp) {
         logger.warn('临时指纹验证失败：输入参数无效', { 
           fingerprintLength: fingerprint?.length,
-          tokenLength: cfToken?.length 
+          tokenLength: cfToken?.length,
+          ipAddress: remoteIp
+        });
+        return { success: false };
+      }
+
+      // 检查IP是否被封禁
+      const banStatus = await this.isIpBanned(validatedIp);
+      if (banStatus.banned) {
+        logger.warn(`IP ${validatedIp} 已被封禁，拒绝验证`, {
+          reason: banStatus.reason,
+          expiresAt: banStatus.expiresAt
         });
         return { success: false };
       }
@@ -394,14 +561,22 @@ export class TurnstileService {
       // 查找指纹记录
       const doc = await TempFingerprintModel.findOne({ fingerprint: validatedFingerprint }).exec();
       if (!doc) {
-        logger.warn('临时指纹不存在或已过期', { fingerprint: validatedFingerprint.substring(0, 8) + '...' });
+        logger.warn('临时指纹不存在或已过期', { 
+          fingerprint: validatedFingerprint.substring(0, 8) + '...',
+          ipAddress: validatedIp
+        });
         return { success: false };
       }
 
       // 验证Turnstile令牌
-      const isValid = await this.verifyToken(validatedToken, remoteIp);
+      const isValid = await this.verifyToken(validatedToken, validatedIp);
       if (!isValid) {
-        logger.warn('Turnstile验证失败', { fingerprint: validatedFingerprint.substring(0, 8) + '...' });
+        // 记录违规
+        await this.recordViolation(validatedIp, 'Turnstile验证失败', validatedFingerprint);
+        logger.warn('Turnstile验证失败', { 
+          fingerprint: validatedFingerprint.substring(0, 8) + '...',
+          ipAddress: validatedIp
+        });
         return { success: false };
       }
 
@@ -411,10 +586,11 @@ export class TurnstileService {
       await doc.save();
 
       // 生成访问密钥
-      const accessToken = await this.generateAccessToken(validatedFingerprint);
+      const accessToken = await this.generateAccessToken(validatedFingerprint, validatedIp);
 
       logger.info('临时指纹验证成功，已生成访问密钥', { 
         fingerprint: validatedFingerprint.substring(0, 8) + '...',
+        ipAddress: validatedIp,
         accessToken: accessToken.substring(0, 8) + '...'
       });
       
@@ -533,16 +709,21 @@ export class TurnstileService {
   /**
    * 生成访问密钥
    * @param fingerprint 浏览器指纹
+   * @param ipAddress IP地址
    * @returns 访问密钥
    */
-  public static async generateAccessToken(fingerprint: string): Promise<string> {
+  public static async generateAccessToken(fingerprint: string, ipAddress: string): Promise<string> {
     try {
       // 验证输入参数
       const validatedFingerprint = validateFingerprint(fingerprint);
+      const validatedIp = validateIpAddress(ipAddress);
       
-      if (!validatedFingerprint) {
-        logger.warn('生成访问密钥失败：输入参数无效', { fingerprintLength: fingerprint?.length });
-        throw new Error('无效的指纹参数');
+      if (!validatedFingerprint || !validatedIp) {
+        logger.warn('生成访问密钥失败：输入参数无效', { 
+          fingerprintLength: fingerprint?.length,
+          ipAddress 
+        });
+        throw new Error('无效的指纹或IP参数');
       }
 
       if (mongoose.connection.readyState !== 1) {
@@ -558,11 +739,13 @@ export class TurnstileService {
       await AccessTokenModel.create({
         token,
         fingerprint: validatedFingerprint,
+        ipAddress: validatedIp,
         expiresAt,
       });
 
       logger.info('访问密钥生成成功', { 
         fingerprint: validatedFingerprint.substring(0, 8) + '...',
+        ipAddress: validatedIp,
         expiresAt 
       });
 
@@ -577,18 +760,31 @@ export class TurnstileService {
    * 验证访问密钥
    * @param token 访问密钥
    * @param fingerprint 浏览器指纹
+   * @param ipAddress IP地址
    * @returns 验证结果
    */
-  public static async verifyAccessToken(token: string, fingerprint: string): Promise<boolean> {
+  public static async verifyAccessToken(token: string, fingerprint: string, ipAddress: string): Promise<boolean> {
     try {
       // 验证输入参数
       const validatedToken = validateToken(token);
       const validatedFingerprint = validateFingerprint(fingerprint);
+      const validatedIp = validateIpAddress(ipAddress);
       
-      if (!validatedToken || !validatedFingerprint) {
+      if (!validatedToken || !validatedFingerprint || !validatedIp) {
         logger.warn('验证访问密钥失败：输入参数无效', { 
           tokenLength: token?.length,
-          fingerprintLength: fingerprint?.length 
+          fingerprintLength: fingerprint?.length,
+          ipAddress 
+        });
+        return false;
+      }
+
+      // 检查IP是否被封禁
+      const banStatus = await this.isIpBanned(validatedIp);
+      if (banStatus.banned) {
+        logger.warn(`IP ${validatedIp} 已被封禁，拒绝验证访问密钥`, {
+          reason: banStatus.reason,
+          expiresAt: banStatus.expiresAt
         });
         return false;
       }
@@ -598,17 +794,19 @@ export class TurnstileService {
         return false;
       }
 
-      // 查找并验证密钥
+      // 查找并验证密钥（必须匹配token、fingerprint和ipAddress）
       const doc = await AccessTokenModel.findOne({ 
         token: validatedToken, 
         fingerprint: validatedFingerprint,
+        ipAddress: validatedIp,
         expiresAt: { $gt: new Date() } // 确保未过期
       }).exec();
 
       if (!doc) {
         logger.warn('访问密钥无效或已过期', { 
           token: validatedToken.substring(0, 8) + '...',
-          fingerprint: validatedFingerprint.substring(0, 8) + '...'
+          fingerprint: validatedFingerprint.substring(0, 8) + '...',
+          ipAddress: validatedIp
         });
         return false;
       }
@@ -619,7 +817,8 @@ export class TurnstileService {
 
       logger.info('访问密钥验证成功', { 
         token: validatedToken.substring(0, 8) + '...',
-        fingerprint: validatedFingerprint.substring(0, 8) + '...'
+        fingerprint: validatedFingerprint.substring(0, 8) + '...',
+        ipAddress: validatedIp
       });
 
       return true;
@@ -632,15 +831,30 @@ export class TurnstileService {
   /**
    * 检查指纹是否有有效的访问密钥
    * @param fingerprint 浏览器指纹
+   * @param ipAddress IP地址
    * @returns 是否有有效密钥
    */
-  public static async hasValidAccessToken(fingerprint: string): Promise<boolean> {
+  public static async hasValidAccessToken(fingerprint: string, ipAddress: string): Promise<boolean> {
     try {
       // 验证输入参数
       const validatedFingerprint = validateFingerprint(fingerprint);
+      const validatedIp = validateIpAddress(ipAddress);
       
-      if (!validatedFingerprint) {
-        logger.warn('检查访问密钥失败：输入参数无效', { fingerprintLength: fingerprint?.length });
+      if (!validatedFingerprint || !validatedIp) {
+        logger.warn('检查访问密钥失败：输入参数无效', { 
+          fingerprintLength: fingerprint?.length,
+          ipAddress 
+        });
+        return false;
+      }
+
+      // 检查IP是否被封禁
+      const banStatus = await this.isIpBanned(validatedIp);
+      if (banStatus.banned) {
+        logger.warn(`IP ${validatedIp} 已被封禁，拒绝检查访问密钥`, {
+          reason: banStatus.reason,
+          expiresAt: banStatus.expiresAt
+        });
         return false;
       }
 
@@ -650,6 +864,7 @@ export class TurnstileService {
 
       const doc = await AccessTokenModel.findOne({ 
         fingerprint: validatedFingerprint,
+        ipAddress: validatedIp,
         expiresAt: { $gt: new Date() } // 确保未过期
       }).exec();
 
@@ -710,6 +925,198 @@ export class TurnstileService {
     } catch (error) {
       logger.error('获取访问密钥统计失败', error);
       return { total: 0, valid: 0, expired: 0 };
+    }
+  }
+
+  // ==================== IP封禁管理 ====================
+
+  /**
+   * 清理过期的IP封禁记录
+   * @returns 清理的数量
+   */
+  public static async cleanupExpiredIpBans(): Promise<number> {
+    try {
+      if (mongoose.connection.readyState !== 1) {
+        return 0;
+      }
+
+      const result = await IpBanModel.deleteMany({
+        expiresAt: { $lt: new Date() }
+      });
+
+      if (result.deletedCount > 0) {
+        logger.info(`清理了 ${result.deletedCount} 条过期IP封禁记录`);
+      }
+
+      return result.deletedCount;
+    } catch (error) {
+      logger.error('清理过期IP封禁记录失败', error);
+      return 0;
+    }
+  }
+
+  /**
+   * 获取IP封禁统计信息
+   * @returns 统计信息
+   */
+  public static async getIpBanStats(): Promise<{
+    total: number;
+    active: number;
+    expired: number;
+  }> {
+    try {
+      if (mongoose.connection.readyState !== 1) {
+        return { total: 0, active: 0, expired: 0 };
+      }
+
+      const now = new Date();
+      const [total, active, expired] = await Promise.all([
+        IpBanModel.countDocuments(),
+        IpBanModel.countDocuments({ expiresAt: { $gt: now } }),
+        IpBanModel.countDocuments({ expiresAt: { $lte: now } })
+      ]);
+
+      return { total, active, expired };
+    } catch (error) {
+      logger.error('获取IP封禁统计失败', error);
+      return { total: 0, active: 0, expired: 0 };
+    }
+  }
+
+  /**
+   * 手动封禁IP地址
+   * @param ipAddress IP地址
+   * @param reason 封禁原因
+   * @param durationMinutes 封禁时长（分钟）
+   * @param fingerprint 用户指纹（可选）
+   * @param userAgent 用户代理（可选）
+   * @returns 封禁结果
+   */
+  public static async manualBanIp(
+    ipAddress: string, 
+    reason: string, 
+    durationMinutes: number = 60,
+    fingerprint?: string,
+    userAgent?: string
+  ): Promise<{
+    success: boolean;
+    error?: string;
+    expiresAt?: Date;
+    bannedAt?: Date;
+  }> {
+    try {
+      const validatedIp = validateIpAddress(ipAddress);
+      if (!validatedIp) {
+        return {
+          success: false,
+          error: 'IP地址格式无效'
+        };
+      }
+
+      const sanitizedReason = sanitizeString(reason, 500);
+      if (!sanitizedReason) {
+        return {
+          success: false,
+          error: '封禁原因无效'
+        };
+      }
+
+      // 验证封禁时长
+      let validDuration = 60; // 默认60分钟
+      
+      if (durationMinutes !== undefined && durationMinutes !== null) {
+        // 确保是数字类型
+        const duration = Number(durationMinutes);
+        
+        // 检查是否为有效数字
+        if (isNaN(duration) || !isFinite(duration)) {
+          return {
+            success: false,
+            error: '封禁时长必须是有效的数字'
+          };
+        }
+        
+        // 设置合理的范围：1分钟到24小时（1440分钟）
+        validDuration = Math.min(Math.max(duration, 1), 24 * 60);
+      }
+
+      if (mongoose.connection.readyState !== 1) {
+        return {
+          success: false,
+          error: '数据库连接不可用'
+        };
+      }
+
+      // 检查IP是否已经被封禁
+      const existingBan = await IpBanModel.findOne({ ipAddress: validatedIp });
+      if (existingBan) {
+        return {
+          success: false,
+          error: 'IP已被封禁',
+          expiresAt: existingBan.expiresAt,
+          bannedAt: existingBan.bannedAt
+        };
+      }
+
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + validDuration * 60 * 1000);
+
+      // 创建新的封禁记录
+      const banRecord = new IpBanModel({
+        ipAddress: validatedIp,
+        reason: sanitizedReason,
+        violationCount: 1,
+        bannedAt: now,
+        expiresAt: expiresAt,
+        fingerprint: fingerprint ? sanitizeString(fingerprint, 200) : undefined,
+        userAgent: userAgent ? sanitizeString(userAgent, 500) : undefined
+      });
+
+      await banRecord.save();
+
+      logger.info(`手动封禁IP: ${validatedIp}, 原因: ${sanitizedReason}, 时长: ${validDuration}分钟`);
+      
+      return {
+        success: true,
+        expiresAt: expiresAt,
+        bannedAt: now
+      };
+    } catch (error) {
+      logger.error('手动封禁IP失败', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '未知错误'
+      };
+    }
+  }
+
+  /**
+   * 手动解除IP封禁
+   * @param ipAddress IP地址
+   * @returns 是否成功
+   */
+  public static async unbanIp(ipAddress: string): Promise<boolean> {
+    try {
+      const validatedIp = validateIpAddress(ipAddress);
+      if (!validatedIp) {
+        return false;
+      }
+
+      if (mongoose.connection.readyState !== 1) {
+        return false;
+      }
+
+      const result = await IpBanModel.deleteOne({ ipAddress: validatedIp });
+      
+      if (result.deletedCount > 0) {
+        logger.info(`手动解除IP封禁: ${validatedIp}`);
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      logger.error('手动解除IP封禁失败', error);
+      return false;
     }
   }
 } 

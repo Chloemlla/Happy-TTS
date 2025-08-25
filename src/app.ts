@@ -916,6 +916,11 @@ app.get('/', rootLimiter, (req, res) => {
   res.redirect('http://tts.hapxs.com/');
 });
 
+// favicon.ico 路由 - 重定向到指定的图片
+app.get('/favicon.ico', (req, res) => {
+  res.redirect(302, 'https://png.hapxs.com/i/2025/08/08/68953253d778d.png');
+});
+
 // 兼容旧路径：直接访问 /lc 与 /librechat-image
 const lcCompatLimiter = rateLimit({
   windowMs: 60 * 1000,

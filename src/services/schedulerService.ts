@@ -36,8 +36,11 @@ class SchedulerService {
       // 清理过期的访问密钥
       const accessTokenCount = await TurnstileService.cleanupExpiredAccessTokens();
 
-      if (fingerprintCount > 0 || accessTokenCount > 0) {
-        logger.info(`定时清理完成: 临时指纹 ${fingerprintCount} 条, 访问密钥 ${accessTokenCount} 条`);
+      // 清理过期的IP封禁记录
+      const ipBanCount = await TurnstileService.cleanupExpiredIpBans();
+
+      if (fingerprintCount > 0 || accessTokenCount > 0 || ipBanCount > 0) {
+        logger.info(`定时清理完成: 临时指纹 ${fingerprintCount} 条, 访问密钥 ${accessTokenCount} 条, IP封禁 ${ipBanCount} 条`);
       }
     } catch (error) {
       logger.error('定时清理任务失败', error);
@@ -55,9 +58,10 @@ class SchedulerService {
     try {
       const fingerprintCount = await TurnstileService.cleanupExpiredFingerprints();
       const accessTokenCount = await TurnstileService.cleanupExpiredAccessTokens();
-      const totalCount = fingerprintCount + accessTokenCount;
+      const ipBanCount = await TurnstileService.cleanupExpiredIpBans();
+      const totalCount = fingerprintCount + accessTokenCount + ipBanCount;
 
-      logger.info(`手动清理完成: 临时指纹 ${fingerprintCount} 条, 访问密钥 ${accessTokenCount} 条`);
+      logger.info(`手动清理完成: 临时指纹 ${fingerprintCount} 条, 访问密钥 ${accessTokenCount} 条, IP封禁 ${ipBanCount} 条`);
 
       return {
         success: true,
