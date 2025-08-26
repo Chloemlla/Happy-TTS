@@ -67,7 +67,7 @@ const PromptModal: React.FC<PromptModalProps> = ({
 
   const handleConfirm = () => {
     if (value.trim()) {
-      onConfirm(value.trim());
+      onConfirm(value); // 移除 trim() 以保留换行符
       onClose();
     }
   };
@@ -142,6 +142,12 @@ const PromptModal: React.FC<PromptModalProps> = ({
     // Bash检测
     if (trimmed.includes('#!/') || trimmed.includes('echo ') || trimmed.includes('cd ')) {
       return 'bash';
+    }
+    
+    // Mermaid检测
+    if (trimmed.includes('```mermaid') || trimmed.includes('graph ') || trimmed.includes('flowchart ') || 
+        trimmed.includes('sequenceDiagram') || trimmed.includes('classDiagram') || trimmed.includes('stateDiagram')) {
+      return 'markdown'; // Mermaid 使用 markdown 语法高亮
     }
     
     // Markdown检测
@@ -241,6 +247,8 @@ const PromptModal: React.FC<PromptModalProps> = ({
                       className="w-full h-full px-4 py-3 bg-gray-50 text-gray-900 font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
                       style={{ minHeight: isExpanded ? '400px' : '200px' }}
                       autoFocus
+                      spellCheck={false}
+                      wrap="off"
                     />
                   ) : (
                     <div className="relative">
@@ -254,7 +262,9 @@ const PromptModal: React.FC<PromptModalProps> = ({
                           lineHeight: '1.5',
                           minHeight: isExpanded ? '400px' : '200px',
                           maxHeight: isExpanded ? 'none' : '300px',
-                          overflow: 'auto'
+                          overflow: 'auto',
+                          wordBreak: 'break-all',
+                          whiteSpace: 'pre-wrap'
                         }}
                         showLineNumbers
                         wrapLongLines
@@ -277,9 +287,13 @@ const PromptModal: React.FC<PromptModalProps> = ({
                           paddingTop: '1rem',
                           paddingLeft: '3.5rem',
                           lineHeight: '1.5',
-                          fontSize: '14px'
+                          fontSize: '14px',
+                          wordBreak: 'break-all',
+                          whiteSpace: 'pre-wrap'
                         }}
                         autoFocus
+                        spellCheck={false}
+                        wrap="off"
                       />
                     </div>
                   )}
@@ -291,9 +305,10 @@ const PromptModal: React.FC<PromptModalProps> = ({
                   onKeyDown={handleKeyDown}
                   placeholder={placeholder}
                   maxLength={maxLength}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all resize-none"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all resize-none font-mono text-sm"
                   rows={4}
                   autoFocus
+                  spellCheck={false}
                 />
               ) : (
                 <input
