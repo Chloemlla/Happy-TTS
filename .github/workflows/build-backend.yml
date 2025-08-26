@@ -39,11 +39,11 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [20.x]
+        node-version: [24.x]
         platform: [windows, linux, macos]
         exclude:
           - platform: macos
-            node-version: 20.x
+            node-version: 24.x
 
     steps:
       - name: Checkout code
@@ -221,15 +221,15 @@ jobs:
           # 根据平台设置 pkg 目标
           case ${{ matrix.platform }} in
             "windows")
-              TARGET="node18-win-x64"
+              TARGET="node24-win-x64"
               EXTENSION=".exe"
               ;;
             "linux")
-              TARGET="node18-linux-x64"
+              TARGET="node24-linux-x64"
               EXTENSION=""
               ;;
             "macos")
-              TARGET="node18-macos-x64"
+              TARGET="node24-macos-x64"
               EXTENSION=""
               ;;
             *)
