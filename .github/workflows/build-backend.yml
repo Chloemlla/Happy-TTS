@@ -240,12 +240,31 @@ jobs:
 
           echo "🎯 目标平台: $TARGET" >> backend-build-analysis/build-timeline.log
 
-          # 构建可执行文件
+          # 创建 pkg 配置文件来解决模块解析问题
+          cat > pkg-config.json << EOF
+          {
+            "scripts": ["dist/app.js"],
+            "assets": [
+              "node_modules/**/*",
+              "dist/**/*",
+              "package.json"
+            ],
+            "targets": ["$TARGET"],
+            "outputPath": "executables",
+            "public": true,
+            "compress": "GZip"
+          }
+          EOF
+
+          # 构建可执行文件（使用更兼容的配置）
           pkg dist/app.js \
             --target $TARGET \
             --output executables/synapse-${{ matrix.platform }}$EXTENSION \
             --public \
-            --compress GZip
+            --compress GZip \
+            --config pkg-config.json \
+            --no-bytecode \
+            --no-native-addons
 
           # 检查构建结果
           if [ -f "executables/synapse-${{ matrix.platform }}$EXTENSION" ]; then
