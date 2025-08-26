@@ -122,13 +122,7 @@ COPY package*.json ./
 # 安装后端依赖（包括开发依赖，因为需要TypeScript编译器）
 RUN npm install -g npm@latest
 RUN npm cache clean --force && \
-    if [ "$(uname -m)" = "aarch64" ] || [ "$(uname -m)" = "arm64" ]; then \
-    echo "ARM64 detected, installing without Puppeteer dependencies..." && \
-    npm install --no-optional --no-audit --no-fund --omit=optional && \
-    npm uninstall convert-svg-to-png || true; \
-    else \
-    npm install --no-optional --no-audit --no-fund; \
-    fi && \
+    npm install --no-optional --no-audit --no-fund && \
     npm install -g javascript-obfuscator
 
 # 复制后端源代码和配置文件（这层会在源代码变化时重新构建）
@@ -164,14 +158,7 @@ WORKDIR /app
 
 # 安装生产环境依赖（这层会被缓存）
 COPY package*.json ./
-# 对于 ARM64 架构，跳过 Puppeteer 相关依赖
-RUN if [ "$(uname -m)" = "aarch64" ] || [ "$(uname -m)" = "arm64" ]; then \
-    echo "ARM64 detected, installing without Puppeteer dependencies..." && \
-    npm ci --only=production --no-optional --no-audit --no-fund --omit=optional && \
-    npm uninstall convert-svg-to-png || true; \
-    else \
-    npm ci --only=production --no-optional --no-audit --no-fund; \
-    fi && \
+RUN npm ci --only=production --no-optional --no-audit --no-fund && \
     npm install -g concurrently serve
 
 # 从构建阶段复制文件

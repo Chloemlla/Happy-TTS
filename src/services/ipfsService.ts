@@ -38,23 +38,6 @@ async function getIPFSUploadURL(): Promise<string> {
   throw new Error('IPFS_UPLOAD_URL配置未设置，请在MongoDB的shorturl_settings集合中设置key为"IPFS_UPLOAD_URL"的配置');
 }
 
-// 动态导入，避免编译时错误
-let convert: any = null;
-let executablePath: any = null;
-
-try {
-  const convertModule = require('convert-svg-to-png');
-  const puppeteerModule = require('puppeteer');
-  convert = convertModule.convert;
-  executablePath = puppeteerModule.executablePath;
-  logger.info('[IPFS] convert-svg-to-png 和 puppeteer 模块加载成功');
-  logger.info('[IPFS] convert函数类型:', typeof convert);
-  logger.info('[IPFS] executablePath:', executablePath);
-} catch (error) {
-  logger.warn('[IPFS] convert-svg-to-png 或 puppeteer 模块未安装，SVG转PNG功能将不可用');
-  logger.warn('[IPFS] 错误详情:', error instanceof Error ? error.message : String(error));
-  logger.warn('[IPFS] 请运行: npm install convert-svg-to-png puppeteer');
-}
 
 export interface IPFSUploadResponse {
     status: string;
@@ -65,8 +48,6 @@ export interface IPFSUploadResponse {
     gnfd_id: string | null;
     gnfd_txn: string | null;
     shortUrl?: string;
-    convertedFromSvg?: boolean;
-    originalFilename?: string;
 }
 
 // 确保 mongoose 连接已建立
@@ -154,7 +135,7 @@ export class IPFSService {
         
         // 如果是SVG文件，验证和优化文件内容
         if (mimetype.toLowerCase() === 'image/svg+xml' || filename.toLowerCase().endsWith('.svg')) {
-            logger.info(`[IPFS] 检测到SVG文件，先尝试直接上传: ${filename}`);
+            logger.info(`[IPFS] 检测到SVG文件，进行安全验证和优化: ${filename}`);
             this.validateSVGContent(fileBuffer);
             // 优化SVG内容
             fileBuffer = Buffer.from(this.optimizeSVGContent(fileBuffer.toString('utf-8')));
@@ -163,16 +144,7 @@ export class IPFSService {
         try {
             return await this.uploadFileInternal(fileBuffer, finalFilename, mimetype, options, cfToken);
         } catch (error) {
-            // 如果是SVG文件且直接上传失败，尝试转换为PNG后重新上传
-            if ((mimetype.toLowerCase() === 'image/svg+xml' || filename.toLowerCase().endsWith('.svg')) && convert && executablePath) {
-                try {
-                    logger.info(`[IPFS] SVG直接上传失败，尝试转换为PNG后重新上传: ${filename}`);
-                    return await this.uploadSvgAsPng(fileBuffer, filename, options, cfToken);
-                } catch (conversionError) {
-                    logger.error(`[IPFS] SVG转PNG上传也失败: ${filename}`, conversionError instanceof Error ? conversionError.message : String(conversionError));
-                    throw new Error(`IPFS上传失败: ${error instanceof Error ? error.message : String(error)}。SVG转PNG也失败: ${conversionError instanceof Error ? conversionError.message : String(conversionError)}`);
-                }
-            }
+            // SVG转PNG功能已移除，直接抛出错误
             throw error;
         }
     }
@@ -363,106 +335,6 @@ export class IPFSService {
         const finalError = lastError instanceof Error ? lastError.message : String(lastError);
         logger.error(`[IPFS] 所有上传尝试都失败: ${filename}`, { finalError });
         throw new Error(`IPFS上传失败: ${finalError}`);
-    }
-
-    /**
-     * 将SVG转换为PNG并上传（备用方案）
-     * 当SVG直接上传失败时使用此方法
-     * @param svgBuffer 原始SVG文件缓冲区
-     * @param originalFilename 原始文件名
-     * @param options 上传选项
-     * @param cfToken Turnstile验证token（可选）
-     * @returns IPFS上传响应
-     */
-    private static async uploadSvgAsPng(
-        svgBuffer: Buffer,
-        originalFilename: string,
-        options?: { shortLink?: boolean; userId?: string; username?: string },
-        cfToken?: string
-    ): Promise<IPFSUploadResponse> {
-        try {
-            // 转换SVG为PNG
-            const pngBuffer = await this.convertSvgToPng(svgBuffer, originalFilename);
-            
-            // 生成PNG文件名
-            const pngFilename = originalFilename.replace(/\.svg$/i, '.png');
-            const normalizedPngFilename = this.normalizeFilename(pngFilename, 'image/png');
-            
-            logger.info(`[IPFS] 开始上传转换后的PNG文件（备用方案）: ${normalizedPngFilename}`);
-            
-            // 使用PNG文件重新上传
-            const result = await this.uploadFileInternal(pngBuffer, normalizedPngFilename, 'image/png', options, cfToken);
-            
-            // 添加转换信息
-            return {
-                ...result,
-                convertedFromSvg: true,
-                originalFilename: originalFilename
-            };
-        } catch (error) {
-            logger.error(`[IPFS] SVG转PNG上传失败: ${originalFilename}`, error instanceof Error ? error.message : String(error));
-            throw error;
-        }
-    }
-
-    /**
-     * 将SVG转换为PNG
-     * @param svgBuffer SVG文件缓冲区
-     * @param filename 原始文件名
-     * @returns PNG文件缓冲区
-     */
-    private static async convertSvgToPng(svgBuffer: Buffer, filename: string): Promise<Buffer> {
-        try {
-            // 检查模块是否可用
-            if (!convert || !executablePath) {
-                throw new Error('convert-svg-to-png 或 puppeteer 模块未安装，请运行: npm install convert-svg-to-png puppeteer');
-            }
-            
-            logger.info(`[IPFS] 开始将SVG转换为PNG: ${filename}`);
-            logger.info(`[IPFS] SVG文件大小: ${svgBuffer.length} bytes`);
-            
-            // 确保SVG内容是有效的
-            const svgContent = svgBuffer.toString('utf-8');
-            logger.info(`[IPFS] SVG内容预览: ${svgContent.substring(0, 200)}...`);
-            
-            if (!svgContent.includes('<svg')) {
-                throw new Error('无效的SVG文件内容');
-            }
-            
-            logger.info(`[IPFS] 调用convert函数，executablePath: ${executablePath}`);
-            
-            const convertOptions = {
-                launch: { 
-                    executablePath,
-                    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
-                },
-                background: '#FFFFFF',
-                scale: 1, // 降低scale以避免内存问题
-                rounding: 'round'
-            };
-            
-            logger.info(`[IPFS] convert选项:`, convertOptions);
-            
-            const pngBuffer = await convert(svgBuffer, convertOptions);
-            
-            if (!pngBuffer || pngBuffer.length === 0) {
-                throw new Error('PNG转换结果为空');
-            }
-            
-            logger.info(`[IPFS] SVG转PNG成功: ${filename}, 大小: ${pngBuffer.length} bytes`);
-            return pngBuffer;
-        } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            logger.error(`[IPFS] SVG转PNG失败: ${filename}`, errorMessage);
-            logger.error(`[IPFS] 错误堆栈:`, error instanceof Error ? error.stack : '无堆栈信息');
-            
-            // 如果是模块未安装的错误，提供更友好的提示
-            if (errorMessage.includes('模块未安装')) {
-                throw new Error('SVG转PNG功能需要安装额外依赖，请联系管理员安装 convert-svg-to-png 和 puppeteer 模块');
-            }
-            
-            throw new Error(`SVG转PNG失败: ${errorMessage}`);
-        }
     }
 
     /**
