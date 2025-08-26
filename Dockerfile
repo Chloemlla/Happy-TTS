@@ -36,10 +36,19 @@ RUN npm install -g npm@latest
 RUN echo "🔧 修复 Rollup 依赖问题..." && \
     npm cache clean --force
 
-# 先安装依赖，遇到 rollup 可选依赖问题时强制修复，只安装 musl 版本的 rollup 依赖
+# 先安装依赖，根据平台安装合适的 rollup 依赖
 RUN npm install --no-optional --no-audit --no-fund \
-    && npm install rollup @rollup/rollup-linux-x64-musl --no-optional \
-    || (echo "依赖安装失败，尝试修复..." && rm -rf node_modules package-lock.json && npm install --no-optional --no-audit --no-fund && npm install rollup @rollup/rollup-linux-x64-musl --no-optional)
+    && if [ "$(uname -m)" = "x86_64" ] || [ "$(uname -m)" = "amd64" ]; then \
+    echo "x64 platform detected, installing x64 rollup dependencies..." && \
+    npm install rollup @rollup/rollup-linux-x64-musl --no-optional; \
+    elif [ "$(uname -m)" = "aarch64" ] || [ "$(uname -m)" = "arm64" ]; then \
+    echo "ARM64 platform detected, skipping platform-specific rollup dependencies..." && \
+    npm install rollup @rollup/rollup-linux-arm64-musl --no-optional; \
+    else \
+    echo "Unknown platform, installing generic rollup..." && \
+    npm install rollup --no-optional; \
+    fi \
+    || (echo "依赖安装失败，尝试修复..." && rm -rf node_modules package-lock.json && npm install --no-optional --no-audit --no-fund && npm install rollup --no-optional)
 
 RUN npm install @fingerprintjs/fingerprintjs --no-optional && \
     npm install crypto-js --no-optional && \
