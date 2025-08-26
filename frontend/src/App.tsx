@@ -109,14 +109,21 @@ const NAV_SPRING = { type: 'spring', stiffness: 100, damping: 20 } as const;
 const TOTP_SPRING = { type: 'spring', stiffness: 300, damping: 30 } as const;
 
 // 背景粒子组件
-const BackgroundParticles: React.FC = () => {
-  const [particles, setParticles] = React.useState<Array<{ id: number, x: number, y: number, x2: number, y2: number, duration: number }>>([]);
+const BackgroundParticles: React.FC = React.memo(() => {
+  const [isDocVisible, setIsDocVisible] = React.useState(
+    typeof document !== 'undefined' ? document.visibilityState === 'visible' : true
+  );
 
-  React.useEffect(() => {
-    // 预生成粒子位置，避免每次渲染都重新计算
+  // 生成粒子（只计算一次）
+  const particles = React.useMemo(() => {
     const w = typeof window !== 'undefined' ? window.innerWidth : 1200;
     const h = typeof window !== 'undefined' ? window.innerHeight : 800;
-    const generatedParticles = Array.from({ length: 20 }, (_, i) => {
+
+    // 根据屏幕尺寸自适应数量，尽量减小 DOM 数量
+    const isMobile = w < 768;
+    const count = isMobile ? 8 : 14; // 原为 20
+
+    return Array.from({ length: count }, (_, i) => {
       const x0 = Math.random() * w;
       const y0 = Math.random() * h;
       const x1 = Math.random() * w;
@@ -125,47 +132,69 @@ const BackgroundParticles: React.FC = () => {
         id: i,
         x: x0,
         y: y0,
-        x2: x1,
-        y2: y1,
-        duration: Math.random() * 20 + 10
+        dx: x1 - x0,
+        dy: y1 - y0,
+        duration: Math.random() * 16 + 12 // 原为 [10,30]，略微收敛以降低刷新感知
       };
     });
-    setParticles(generatedParticles);
+  }, []);
+
+  // 页面可见性变化时暂停/恢复动画（降低后台标签页的资源占用）
+  React.useEffect(() => {
+    const onVisible = () => setIsDocVisible(document.visibilityState === 'visible');
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
   }, []);
 
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-      {particles.map((particle) => (
-        <m.div
-          key={particle.id}
-          className="absolute w-2 h-2 bg-indigo-200 rounded-full opacity-30"
-          initial={{
-            x: particle.x,
-            y: particle.y,
-          }}
-          animate={{
-            x: particle.x2,
-            y: particle.y2,
-          }}
-          transition={{
-            duration: particle.duration,
-            repeat: Infinity,
-            ease: "linear"
+      {/* 全局 keyframes（CSS 动画，避免 JS 每帧计算，降低开销） */}
+      <style>
+        {`
+          @keyframes particleMove {
+            0% { transform: translate(0, 0); opacity: 0.25; }
+            50% { opacity: 0.35; }
+            100% { transform: translate(var(--dx), var(--dy)); opacity: 0.25; }
+          }
+        `}
+      </style>
+      {particles.map((p) => (
+        <div
+          key={p.id}
+          className="absolute w-2 h-2 bg-indigo-200 rounded-full"
+          style={{
+            left: `${p.x}px`,
+            top: `${p.y}px`,
+            // 使用 CSS 变量传递偏移量，配合统一的 keyframes
+            // 避免为每个粒子生成独立的 keyframes
+            ['--dx' as any]: `${p.dx}px`,
+            ['--dy' as any]: `${p.dy}px`,
+            animation: `particleMove ${p.duration}s linear infinite`,
+            animationPlayState: isDocVisible ? 'running' : 'paused',
+            willChange: 'transform, opacity',
+            opacity: 0.3
           }}
         />
       ))}
     </div>
   );
-};
+});
 
 // 水印组件（满屏铺满）
-const WatermarkOverlay: React.FC = () => {
-  const [watermarks, setWatermarks] = React.useState<Array<{ id: number, left: string, top: string, rotate: number }>>([]);
+const WatermarkOverlay: React.FC = React.memo(() => {
+  const [isDocVisible, setIsDocVisible] = React.useState(
+    typeof document !== 'undefined' ? document.visibilityState === 'visible' : true
+  );
+  const prefersReduced = useReducedMotion();
 
-  React.useEffect(() => {
-    // 极高密度，降低页面可读性
-    const cols = 20;
-    const rows = 14;
+  // 生成水印网格（只在初次渲染计算一次，避免在窗口缩放时大规模重排）
+  const watermarks = React.useMemo(() => {
+    const w = typeof window !== 'undefined' ? window.innerWidth : 1200;
+    // 根据屏幕大小控制密度，减少 DOM 数量
+    const isMobile = w < 768;
+    const cols = isMobile ? 10 : 16; // 原为 20
+    const rows = isMobile ? 7 : 10;  // 原为 14
+
     const items: Array<{ id: number, left: string, top: string, rotate: number }> = [];
     let id = 0;
     for (let r = 0; r < rows; r++) {
@@ -178,8 +207,17 @@ const WatermarkOverlay: React.FC = () => {
         });
       }
     }
-    setWatermarks(items);
+    return items;
   }, []);
+
+  // 页面可见性变化时暂停/恢复动画
+  React.useEffect(() => {
+    const onVisible = () => setIsDocVisible(document.visibilityState === 'visible');
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
+
+  const playState = isDocVisible && !prefersReduced ? 'running' : 'paused';
 
   return (
     <div className="fixed inset-0 z-[99999] pointer-events-none overflow-hidden backdrop-blur-sm">
@@ -190,7 +228,8 @@ const WatermarkOverlay: React.FC = () => {
           backgroundImage:
             'repeating-linear-gradient(45deg, rgba(255,0,0,0.18) 0px, rgba(255,0,0,0.18) 10px, transparent 10px, transparent 22px)',
           backgroundSize: '200px 200px',
-          animation: 'wmScroll 12s linear infinite',
+          animation: prefersReduced ? 'none' : 'wmScroll 12s linear infinite',
+          animationPlayState: playState as any,
           mixBlendMode: 'multiply',
         }}
       />
@@ -200,7 +239,8 @@ const WatermarkOverlay: React.FC = () => {
         style={{
           backgroundImage:
             'repeating-linear-gradient(0deg, rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px, transparent 1px, transparent 6px)',
-          animation: 'wmScrollY 14s linear infinite',
+          animation: prefersReduced ? 'none' : 'wmScrollY 14s linear infinite',
+          animationPlayState: playState as any,
           mixBlendMode: 'multiply',
         }}
       />
@@ -212,9 +252,10 @@ const WatermarkOverlay: React.FC = () => {
             left: wm.left,
             top: wm.top,
             transform: `translate(-50%, -50%) rotate(${wm.rotate}deg)`,
-            fontSize: '16px',
-            animation: 'wmJitter 3s ease-in-out infinite alternate',
+            fontSize: (typeof window !== 'undefined' && window.innerWidth < 768) ? '14px' : '16px',
+            animation: prefersReduced ? 'none' : 'wmJitter 3s ease-in-out infinite alternate',
             animationDelay: `${(wm.id % 7) * 0.15}s`,
+            animationPlayState: playState as any,
           }}
         >
           Copyright Individual Developer Happy-clo
@@ -238,7 +279,7 @@ const WatermarkOverlay: React.FC = () => {
       </style>
     </div>
   );
-};
+});
 
 const App: React.FC = () => {
   const { user, loading, logout } = useAuth();
