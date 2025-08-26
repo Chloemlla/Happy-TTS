@@ -81,6 +81,10 @@ ENV NPM_CONFIG_FUND=false
 ENV NPM_CONFIG_OPTIONAL=false
 ENV ROLLUP_SKIP_NATIVE_DEPENDENCIES=true
 ENV VITE_SKIP_ROLLUP_NATIVE=true
+# 禁用Git功能，避免在Docker环境中出现Git相关警告
+ENV DISABLE_GIT_INFO=true
+ENV GIT_DISABLED=true
+ENV DOCUSAURUS_DISABLE_GIT_INFO=true
 
 # 安装编译 gifsicle 所需的系统依赖和git
 RUN apk add --no-cache autoconf automake libtool build-base git
@@ -95,7 +99,7 @@ WORKDIR /app/docs
 RUN npm install -g npm@latest
 RUN npm cache clean --force && \
     npm install --no-optional --no-audit --no-fund && \
-    (npm run build:no-git || (echo "第一次构建失败，重试..." && npm run build) || (echo "第二次构建失败，使用简化构建..." && npm run build:simple))
+    (npm run build:no-git || (echo "第一次构建失败，重试..." && npm run build:docker) || (echo "第二次构建失败，使用简化构建..." && npm run build:simple))
 
 # 构建后端
 FROM node:22-alpine AS backend-builder
