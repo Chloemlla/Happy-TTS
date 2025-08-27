@@ -1,6 +1,7 @@
 import express from 'express';
 import { TtsController } from '../controllers/ttsController';
 import { TurnstileService } from '../services/turnstileService';
+import { ClarityService } from '../services/clarityService';
 import { config } from '../config/config';
 
 const router = express.Router();
@@ -76,13 +77,13 @@ router.post('/generate', TtsController.generateSpeech);
 router.get('/turnstile/config', async (req, res) => {
     try {
         const turnstileConfig = await TurnstileService.getConfig();
-        
+
         console.log('Turnstile config response:', {
             enabled: turnstileConfig.enabled,
             siteKey: turnstileConfig.siteKey,
             siteKeyType: typeof turnstileConfig.siteKey
         });
-        
+
         res.json({
             enabled: turnstileConfig.enabled,
             siteKey: turnstileConfig.siteKey
@@ -93,6 +94,155 @@ router.get('/turnstile/config', async (req, res) => {
             enabled: false,
             siteKey: null,
             error: '获取配置失败'
+        });
+    }
+});
+
+/**
+ * @openapi
+ * /tts/clarity/config:
+ *   get:
+ *     summary: 获取 Clarity 配置
+ *     description: 获取 Microsoft Clarity 配置
+ *     responses:
+ *       200:
+ *         description: Clarity 配置
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 enabled:
+ *                   type: boolean
+ *                 projectId:
+ *                   type: string
+ *                   description: Clarity 项目ID
+ */
+router.get('/clarity/config', async (req, res) => {
+    try {
+        const clarityConfig = await ClarityService.getConfig();
+
+        console.log('Clarity config response:', {
+            enabled: clarityConfig.enabled,
+            projectId: clarityConfig.projectId,
+            projectIdType: typeof clarityConfig.projectId
+        });
+
+        res.json({
+            enabled: clarityConfig.enabled,
+            projectId: clarityConfig.projectId
+        });
+    } catch (error) {
+        console.error('获取Clarity配置失败:', error);
+        res.status(500).json({
+            enabled: false,
+            projectId: null,
+            error: '获取配置失败'
+        });
+    }
+});
+
+/**
+ * @openapi
+ * /tts/clarity/config:
+ *   post:
+ *     summary: 更新 Clarity 配置
+ *     description: 更新 Microsoft Clarity 项目ID配置
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               projectId:
+ *                 type: string
+ *                 description: Clarity 项目ID
+ *     responses:
+ *       200:
+ *         description: 配置更新成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ */
+router.post('/clarity/config', async (req, res) => {
+    try {
+        const { projectId } = req.body;
+
+        if (!projectId || typeof projectId !== 'string') {
+            return res.status(400).json({
+                success: false,
+                error: '项目ID不能为空'
+            });
+        }
+
+        const success = await ClarityService.updateConfig(projectId);
+
+        if (success) {
+            res.json({
+                success: true,
+                message: 'Clarity配置更新成功'
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                error: '配置更新失败'
+            });
+        }
+    } catch (error) {
+        console.error('更新Clarity配置失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '配置更新失败'
+        });
+    }
+});
+
+/**
+ * @openapi
+ * /tts/clarity/config:
+ *   delete:
+ *     summary: 删除 Clarity 配置
+ *     description: 删除 Microsoft Clarity 项目ID配置
+ *     responses:
+ *       200:
+ *         description: 配置删除成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ */
+router.delete('/clarity/config', async (req, res) => {
+    try {
+        const success = await ClarityService.deleteConfig();
+
+        if (success) {
+            res.json({
+                success: true,
+                message: 'Clarity配置删除成功'
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                error: '配置删除失败'
+            });
+        }
+    } catch (error) {
+        console.error('删除Clarity配置失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '配置删除失败'
         });
     }
 });

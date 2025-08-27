@@ -71,6 +71,69 @@ const configLimiter = rateLimit({
     }
 });
 
+// 指纹上报接口（需要认证，用于已登录用户）
+router.post('/fingerprint/report', authenticateToken, publicLimiter, async (req, res) => {
+    try {
+        const { fingerprint } = req.body;
+        const clientIp = req.ip || req.socket.remoteAddress || (Array.isArray(req.headers['x-forwarded-for']) ? req.headers['x-forwarded-for'][0] : req.headers['x-forwarded-for']) || 'unknown';
+        const validatedClientIp = typeof clientIp === 'string' ? clientIp : 'unknown';
+        const userId = (req as any).user?.id;
+        const userAgent = req.headers['user-agent'] || 'unknown';
+        
+        console.log('🔍 收到指纹上报请求:', {
+            fingerprint: fingerprint ? fingerprint.substring(0, 8) + '...' : 'null',
+            clientIp: validatedClientIp,
+            userId,
+            userAgent: userAgent.substring(0, 50) + '...'
+        });
+        
+        if (!fingerprint || typeof fingerprint !== 'string') {
+            console.warn('❌ 指纹参数无效:', { fingerprint });
+            return res.status(400).json({ 
+                success: false, 
+                error: '指纹参数无效' 
+            });
+        }
+
+        // 检查IP是否被封禁
+        const banStatus = await TurnstileService.isIpBanned(validatedClientIp);
+        if (banStatus.banned) {
+            console.warn('🚫 IP已被封禁:', {
+                ip: validatedClientIp,
+                reason: banStatus.reason,
+                expiresAt: banStatus.expiresAt
+            });
+            return res.status(403).json({
+                success: false,
+                error: 'IP已被封禁',
+                reason: banStatus.reason,
+                expiresAt: banStatus.expiresAt
+            });
+        }
+
+        // 这里可以添加指纹存储逻辑，目前只是记录日志
+        // 可以考虑将指纹信息存储到数据库中，用于用户行为分析
+        console.log('✅ 指纹上报成功:', {
+            fingerprint: fingerprint.substring(0, 8) + '...',
+            userId,
+            clientIp: validatedClientIp,
+            timestamp: new Date().toISOString()
+        });
+
+        res.json({
+            success: true,
+            message: '指纹上报成功',
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('❌ 指纹上报失败:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: '服务器内部错误' 
+        });
+    }
+});
+
 // 临时指纹上报接口（无需认证）
 router.post('/temp-fingerprint', publicLimiter, async (req, res) => {
     try {

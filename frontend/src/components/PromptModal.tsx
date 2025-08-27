@@ -1,28 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaEdit, FaCheck, FaTimes, FaCode, FaEye, FaEyeSlash, FaCopy, FaExpand, FaCompress } from 'react-icons/fa';
-import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import jsonLang from 'react-syntax-highlighter/dist/esm/languages/prism/json';
-import jsLang from 'react-syntax-highlighter/dist/esm/languages/prism/javascript';
-import tsLang from 'react-syntax-highlighter/dist/esm/languages/prism/typescript';
-import cssLang from 'react-syntax-highlighter/dist/esm/languages/prism/css';
-import htmlLang from 'react-syntax-highlighter/dist/esm/languages/prism/markup';
-import sqlLang from 'react-syntax-highlighter/dist/esm/languages/prism/sql';
-import pythonLang from 'react-syntax-highlighter/dist/esm/languages/prism/python';
-import bashLang from 'react-syntax-highlighter/dist/esm/languages/prism/bash';
-import markdownLang from 'react-syntax-highlighter/dist/esm/languages/prism/markdown';
+import { FaEdit, FaCheck, FaTimes, FaCopy, FaExpand, FaCompress } from 'react-icons/fa';
 
-// 注册语言
-SyntaxHighlighter.registerLanguage('json', jsonLang);
-SyntaxHighlighter.registerLanguage('javascript', jsLang);
-SyntaxHighlighter.registerLanguage('typescript', tsLang);
-SyntaxHighlighter.registerLanguage('css', cssLang);
-SyntaxHighlighter.registerLanguage('html', htmlLang);
-SyntaxHighlighter.registerLanguage('sql', sqlLang);
-SyntaxHighlighter.registerLanguage('python', pythonLang);
-SyntaxHighlighter.registerLanguage('bash', bashLang);
-SyntaxHighlighter.registerLanguage('markdown', markdownLang);
 
 interface PromptModalProps {
   open: boolean;
@@ -56,14 +35,85 @@ const PromptModal: React.FC<PromptModalProps> = ({
   language = 'text'
 }) => {
   const [value, setValue] = useState(defaultValue);
-  const [showRaw, setShowRaw] = useState(false);
+
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
+
+  // 移动端专用样式
+  const mobileStyles = {
+    modal: {
+      // 使用 CSS 自定义属性来适应键盘弹出
+      height: isMobile ? 'calc(var(--vh, 1vh) * 100)' : 'auto',
+      // 优化触摸滚动
+      WebkitOverflowScrolling: 'touch' as const,
+      // 防止双击缩放
+      touchAction: 'manipulation' as const
+    },
+    input: {
+      // 移动端输入框优化
+      fontSize: isMobile ? '16px' : '14px', // 防止 iOS Safari 缩放
+      WebkitAppearance: 'none' as const,
+      borderRadius: isMobile ? '8px' : '6px'
+    }
+  };
+
+  // 检测设备类型和屏幕尺寸
+  useEffect(() => {
+    const checkDeviceAndSize = () => {
+      const width = window.innerWidth;
+      
+      setIsMobile(width <= 768);
+      setIsTablet(width > 768 && width <= 1024);
+    };
+    
+    checkDeviceAndSize();
+    window.addEventListener('resize', checkDeviceAndSize);
+    return () => window.removeEventListener('resize', checkDeviceAndSize);
+  }, []);
 
   useEffect(() => {
     if (open) {
       setValue(defaultValue);
+      
+      // 移动端键盘适配
+      if (isMobile) {
+        // 防止页面滚动
+        document.body.style.overflow = 'hidden';
+        document.body.style.position = 'fixed';
+        document.body.style.width = '100%';
+        
+        // 监听视口变化以适应键盘弹出
+        const handleViewportChange = () => {
+          const vh = window.innerHeight * 0.01;
+          document.documentElement.style.setProperty('--vh', `${vh}px`);
+        };
+        
+        handleViewportChange();
+        window.addEventListener('resize', handleViewportChange);
+        
+        return () => {
+          window.removeEventListener('resize', handleViewportChange);
+        };
+      }
+    } else if (isMobile) {
+      // 恢复页面滚动
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
     }
-  }, [open, defaultValue]);
+  }, [open, defaultValue, isMobile]);
+
+  // 组件卸载时清理
+  useEffect(() => {
+    return () => {
+      if (isMobile) {
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.width = '';
+      }
+    };
+  }, [isMobile]);
 
   const handleConfirm = () => {
     if (value.trim()) {
@@ -97,207 +147,137 @@ const PromptModal: React.FC<PromptModalProps> = ({
     }
   };
 
-  // 检测内容类型并自动选择语言
-  const detectLanguage = (content: string): string => {
-    if (!content) return 'text';
-    
-    const trimmed = content.trim();
-    
-    // JSON检测
-    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-      try {
-        JSON.parse(trimmed);
-        return 'json';
-      } catch {}
-    }
-    
-    // JavaScript/TypeScript检测
-    if (trimmed.includes('function') || trimmed.includes('const ') || trimmed.includes('let ') || trimmed.includes('var ')) {
-      if (trimmed.includes('interface ') || trimmed.includes('type ') || trimmed.includes(': ')) {
-        return 'typescript';
-      }
-      return 'javascript';
-    }
-    
-    // HTML检测
-    if (trimmed.includes('<html') || trimmed.includes('<div') || trimmed.includes('<span')) {
-      return 'html';
-    }
-    
-    // CSS检测
-    if (trimmed.includes('{') && trimmed.includes('}') && (trimmed.includes('color:') || trimmed.includes('background:'))) {
-      return 'css';
-    }
-    
-    // SQL检测
-    if (trimmed.toLowerCase().includes('select ') || trimmed.toLowerCase().includes('insert ') || trimmed.toLowerCase().includes('update ')) {
-      return 'sql';
-    }
-    
-    // Python检测
-    if (trimmed.includes('def ') || trimmed.includes('import ') || trimmed.includes('print(')) {
-      return 'python';
-    }
-    
-    // Bash检测
-    if (trimmed.includes('#!/') || trimmed.includes('echo ') || trimmed.includes('cd ')) {
-      return 'bash';
-    }
-    
-    // Mermaid检测
-    if (trimmed.includes('```mermaid') || trimmed.includes('graph ') || trimmed.includes('flowchart ') || 
-        trimmed.includes('sequenceDiagram') || trimmed.includes('classDiagram') || trimmed.includes('stateDiagram')) {
-      return 'markdown'; // Mermaid 使用 markdown 语法高亮
-    }
-    
-    // Markdown检测
-    if (trimmed.includes('# ') || trimmed.includes('**') || trimmed.includes('```')) {
-      return 'markdown';
-    }
-    
-    return 'text';
-  };
 
-  const detectedLang = codeEditor ? (language === 'auto' ? detectLanguage(value) : language) : 'text';
 
   return (
-    <AnimatePresence>
-      {open && (
+    <>
+
+      <AnimatePresence>
+        {open && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm"
+          className={`fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm ${
+            isMobile ? 'p-2' : 'p-4'
+          }`}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
           onClick={onClose}
+          style={{
+            // 防止移动端滚动穿透
+            touchAction: 'none',
+            overscrollBehavior: 'contain'
+          }}
         >
           <motion.div
-            className={`bg-white rounded-xl shadow-sm border border-gray-200 p-6 mx-4 relative ${
-              isExpanded ? 'w-[95vw] h-[90vh]' : 'max-w-2xl w-[90vw]'
+            className={`bg-white shadow-sm border border-gray-200 relative ${
+              isMobile 
+                ? `w-full h-full rounded-lg p-3 ${isExpanded ? '' : 'max-h-[95vh] overflow-y-auto'}` 
+                : isTablet
+                ? `rounded-xl p-4 mx-3 ${isExpanded ? 'w-[92vw] h-[85vh]' : 'max-w-3xl w-[88vw]'}`
+                : `rounded-xl p-6 mx-4 ${isExpanded ? 'w-[95vw] h-[90vh]' : 'max-w-2xl w-[90vw]'}`
             }`}
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            initial={{ 
+              opacity: 0, 
+              scale: isMobile ? 0.98 : 0.95, 
+              y: isMobile ? 10 : 20 
+            }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            exit={{ 
+              opacity: 0, 
+              scale: isMobile ? 0.98 : 0.95, 
+              y: isMobile ? 10 : 20 
+            }}
             transition={{ duration: 0.2 }}
             onClick={e => e.stopPropagation()}
+            style={{
+              ...mobileStyles.modal,
+              // 确保在移动端有足够的触摸区域
+              minHeight: isMobile ? '200px' : 'auto',
+              // 防止内容溢出
+              maxHeight: isMobile ? '95vh' : 'auto'
+            }}
           >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <FaEdit className="w-6 h-6 text-blue-500" />
-                <h2 className="text-lg font-semibold text-gray-800">
+            <div className={`flex items-center justify-between ${isMobile ? 'mb-3' : 'mb-4'}`}>
+              <div className={`flex items-center ${isMobile ? 'gap-2' : 'gap-3'}`}>
+                <FaEdit className={`text-blue-500 ${isMobile ? 'w-5 h-5' : 'w-6 h-6'}`} />
+                <h2 className={`font-semibold text-gray-800 ${isMobile ? 'text-base' : 'text-lg'}`}>
                   {title || '输入内容'}
                 </h2>
-                {codeEditor && (
-                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
-                    {detectedLang}
-                  </span>
-                )}
               </div>
-              <div className="flex items-center gap-2">
+              <div className={`flex items-center ${isMobile ? 'gap-1' : 'gap-2'}`}>
                 {codeEditor && (
                   <>
                     <button
                       onClick={copyToClipboard}
-                      className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
+                      className={`text-gray-500 hover:text-gray-700 transition-colors touch-manipulation ${
+                        isMobile ? 'p-1.5 min-w-[36px] min-h-[36px]' : 'p-2'
+                      }`}
                       title="复制内容"
                     >
-                      <FaCopy className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => setShowRaw(!showRaw)}
-                      className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
-                      title={showRaw ? '显示语法高亮' : '显示原始文本'}
-                    >
-                      {showRaw ? <FaCode className="w-4 h-4" /> : <FaEye className="w-4 h-4" />}
+                      <FaCopy className={isMobile ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
                     </button>
                     <button
                       onClick={() => setIsExpanded(!isExpanded)}
-                      className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
+                      className={`text-gray-500 hover:text-gray-700 transition-colors touch-manipulation ${
+                        isMobile ? 'p-1.5 min-w-[36px] min-h-[36px]' : 'p-2'
+                      }`}
                       title={isExpanded ? '收起' : '展开'}
                     >
-                      {isExpanded ? <FaCompress className="w-4 h-4" /> : <FaExpand className="w-4 h-4" />}
+                      {isExpanded ? <FaCompress className={isMobile ? 'w-3.5 h-3.5' : 'w-4 h-4'} /> : <FaExpand className={isMobile ? 'w-3.5 h-3.5' : 'w-4 h-4'} />}
                     </button>
                   </>
                 )}
                 <button
                   onClick={onClose}
-                  className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                  className={`text-gray-400 hover:text-gray-600 transition-colors touch-manipulation ${
+                    isMobile ? 'p-1.5 min-w-[36px] min-h-[36px]' : 'p-2'
+                  }`}
                 >
-                  <FaTimes className="w-5 h-5" />
+                  <FaTimes className={isMobile ? 'w-4 h-4' : 'w-5 h-5'} />
                 </button>
               </div>
             </div>
             
             {message && (
-              <div className="text-gray-700 mb-4 leading-relaxed">
+              <div className={`text-gray-700 leading-relaxed ${isMobile ? 'mb-3 text-sm' : 'mb-4'}`}>
                 {message}
               </div>
             )}
             
-            <div className={`mb-6 ${isExpanded ? 'flex-1' : ''}`}>
+            <div className={`${isMobile ? 'mb-4' : 'mb-6'} ${isExpanded ? 'flex-1' : ''}`}>
               {codeEditor ? (
-                <div className={`border-2 border-gray-200 rounded-lg overflow-hidden ${isExpanded ? 'h-[calc(90vh-200px)]' : 'max-h-96'}`}>
-                  {showRaw ? (
-                    <textarea
-                      value={value}
-                      onChange={(e) => setValue(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      placeholder={placeholder}
-                      maxLength={maxLength}
-                      className="w-full h-full px-4 py-3 bg-gray-50 text-gray-900 font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
-                      style={{ minHeight: isExpanded ? '400px' : '200px' }}
-                      autoFocus
-                      spellCheck={false}
-                      wrap="off"
-                    />
-                  ) : (
-                    <div className="relative">
-                      <SyntaxHighlighter
-                        language={detectedLang}
-                        style={vscDarkPlus}
-                        customStyle={{
-                          margin: 0,
-                          borderRadius: 0,
-                          fontSize: '14px',
-                          lineHeight: '1.5',
-                          minHeight: isExpanded ? '400px' : '200px',
-                          maxHeight: isExpanded ? 'none' : '300px',
-                          overflow: 'auto',
-                          wordBreak: 'break-all',
-                          whiteSpace: 'pre-wrap'
-                        }}
-                        showLineNumbers
-                        wrapLongLines
-                        lineNumberStyle={{
-                          color: '#6b7280',
-                          fontSize: '12px',
-                          paddingRight: '16px'
-                        }}
-                      >
-                        {value || placeholder}
-                      </SyntaxHighlighter>
-                      <textarea
-                        value={value}
-                        onChange={(e) => setValue(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        placeholder={placeholder}
-                        maxLength={maxLength}
-                        className="absolute inset-0 w-full h-full bg-transparent text-transparent caret-gray-300 font-mono text-sm resize-none focus:outline-none border-none p-4"
-                        style={{
-                          paddingTop: '1rem',
-                          paddingLeft: '3.5rem',
-                          lineHeight: '1.5',
-                          fontSize: '14px',
-                          wordBreak: 'break-all',
-                          whiteSpace: 'pre-wrap'
-                        }}
-                        autoFocus
-                        spellCheck={false}
-                        wrap="off"
-                      />
-                    </div>
-                  )}
-                </div>
+                <textarea
+                  value={value}
+                  onChange={(e) => setValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={placeholder}
+                  maxLength={maxLength}
+                  className={`w-full border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all resize-none font-mono bg-gray-50 text-gray-900 ${
+                    isExpanded 
+                      ? isMobile 
+                        ? 'h-[calc(100vh-180px)]' 
+                        : isTablet 
+                        ? 'h-[calc(85vh-180px)]' 
+                        : 'h-[calc(90vh-200px)]'
+                      : isMobile 
+                      ? 'max-h-80' 
+                      : 'max-h-96'
+                  }`}
+                  style={{
+                    padding: isMobile ? '12px' : '16px',
+                    fontSize: isMobile ? '16px' : '14px',
+                    lineHeight: '1.5',
+                    minHeight: isExpanded 
+                      ? isMobile ? '300px' : '400px' 
+                      : isMobile ? '150px' : '200px',
+                    fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
+                    WebkitAppearance: 'none'
+                  }}
+                  autoFocus
+                  spellCheck={false}
+                  wrap="off"
+                />
               ) : multiline ? (
                 <textarea
                   value={value}
@@ -305,10 +285,18 @@ const PromptModal: React.FC<PromptModalProps> = ({
                   onKeyDown={handleKeyDown}
                   placeholder={placeholder}
                   maxLength={maxLength}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all resize-none font-mono text-sm"
-                  rows={4}
+                  className="w-full border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all resize-none font-mono"
+                  rows={isMobile ? 3 : 4}
                   autoFocus
                   spellCheck={false}
+                  style={{
+                    padding: isMobile ? '12px' : '16px',
+                    fontSize: isMobile ? '16px' : '14px',
+                    lineHeight: '1.5',
+                    fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
+                    WebkitAppearance: 'none',
+                    borderRadius: isMobile ? '8px' : '6px'
+                  }}
                 />
               ) : (
                 <input
@@ -318,41 +306,54 @@ const PromptModal: React.FC<PromptModalProps> = ({
                   onKeyDown={handleKeyDown}
                   placeholder={placeholder}
                   maxLength={maxLength}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
+                  className="w-full border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
                   autoFocus
+                  style={{
+                    padding: isMobile ? '12px' : '16px',
+                    fontSize: isMobile ? '16px' : '14px',
+                    lineHeight: '1.5',
+                    fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
+                    WebkitAppearance: 'none',
+                    borderRadius: isMobile ? '8px' : '6px'
+                  }}
                 />
               )}
               
               {maxLength && (
-                <div className="text-xs text-gray-400 mt-2 text-right">
+                <div className={`text-gray-400 text-right ${isMobile ? 'text-xs mt-1' : 'text-xs mt-2'}`}>
                   {value.length}/{maxLength}
                 </div>
               )}
             </div>
             
-            <div className="flex gap-3 justify-center">
+            <div className={`flex justify-center ${isMobile ? 'gap-2' : 'gap-3'}`}>
               <motion.button
                 onClick={onClose}
-                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center gap-2"
+                className={`border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center gap-2 touch-manipulation ${
+                  isMobile ? 'px-4 py-2.5 text-sm min-h-[44px]' : 'px-6 py-3'
+                }`}
                 whileTap={{ scale: 0.95 }}
               >
-                <FaTimes className="w-4 h-4" />
+                <FaTimes className={isMobile ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
                 {cancelText}
               </motion.button>
               <motion.button
                 onClick={handleConfirm}
                 disabled={!value.trim()}
-                className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation ${
+                  isMobile ? 'px-4 py-2.5 text-sm min-h-[44px]' : 'px-6 py-3'
+                }`}
                 whileTap={{ scale: 0.95 }}
               >
-                <FaCheck className="w-4 h-4" />
+                <FaCheck className={isMobile ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
                 {confirmText}
               </motion.button>
             </div>
           </motion.div>
         </motion.div>
-      )}
-    </AnimatePresence>
+        )}
+      </AnimatePresence>
+    </>
   );
 };
 

@@ -44,7 +44,7 @@ function getOrCreateStableRandomId(): string {
   try {
     const existing = localStorage.getItem(key);
     if (existing) return existing;
-  } catch {}
+  } catch { }
 
   let rand = '';
   try {
@@ -55,7 +55,7 @@ function getOrCreateStableRandomId(): string {
     rand = Math.random().toString(36).slice(2) + Date.now().toString(36);
   }
 
-  try { localStorage.setItem(key, rand); } catch {}
+  try { localStorage.setItem(key, rand); } catch { }
   return rand;
 }
 
@@ -235,37 +235,137 @@ export const getFingerprint = async (): Promise<string | null> => {
   }
 };
 
+// 延迟函数
+const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+
+// 重试配置
+const RETRY_DELAY = 2000; // 2秒
+const MAX_RETRIES = 1; // 最多重试1次（总共尝试2次）
+
+// 带重试的 fetch 函数
+const fetchWithRetry = async (url: string, options: RequestInit, maxRetries: number = MAX_RETRIES): Promise<Response> => {
+  let lastError: Error = new Error('未知错误'); // 初始化默认错误
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+
+      // 如果是第一次尝试成功，直接返回
+      if (attempt === 0) {
+        return response;
+      }
+
+      // 如果是重试成功，记录日志
+      console.log(`✅ 重试成功:`, {
+        url,
+        attempt: attempt + 1,
+        status: response.status
+      });
+
+      return response;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      // 如果是最后一次尝试，不再重试
+      if (attempt === maxRetries) {
+        break;
+      }
+
+      // 检查是否应该重试（网络错误或其他可重试的错误）
+      const shouldRetry = (
+        error instanceof TypeError || // 网络错误通常是 TypeError
+        (error instanceof Error && error.message.includes('fetch')) ||
+        (error instanceof Error && error.message.includes('network')) ||
+        (error instanceof Error && error.message.includes('timeout'))
+      );
+
+      if (!shouldRetry) {
+        break;
+      }
+
+      console.log(`🔄 请求失败，${RETRY_DELAY / 1000}秒后重试:`, {
+        url,
+        attempt: attempt + 1,
+        error: lastError.message,
+        nextAttempt: attempt + 2
+      });
+
+      // 等待后重试
+      await delay(RETRY_DELAY);
+    }
+  }
+
+  // 所有重试都失败了
+  throw lastError;
+};
+
 // 上报指纹（仅登录用户）
 export const reportFingerprintOnce = async (): Promise<void> => {
+  console.log('🔍 开始指纹上报流程...');
+
   // 未登录用户不进行请求
   if (!isUserLoggedIn()) {
-    console.log('用户未登录，跳过指纹上报');
+    console.log('👤 用户未登录，跳过指纹上报');
     return;
   }
 
+  console.log('✅ 用户已登录，开始生成指纹...');
   const fingerprint = await getFingerprint();
   if (!fingerprint) {
-    console.error('无法生成指纹');
+    console.error('❌ 无法生成指纹');
     return;
   }
 
+  console.log('🔑 指纹生成成功:', fingerprint.substring(0, 8) + '...');
+  const apiUrl = `${getApiBaseUrl()}/api/turnstile/fingerprint/report`;
+  const token = localStorage.getItem('token');
+
+  console.log('🌐 准备发送请求到:', apiUrl);
+  console.log('🔐 使用Token:', token ? token.substring(0, 20) + '...' : 'null');
+
   try {
-    const response = await fetch(`${getApiBaseUrl()}/api/fingerprint/report`, {
+    const response = await fetchWithRetry(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+        'Authorization': `Bearer ${token}`,
+        'X-Requested-With': 'XMLHttpRequest'
       },
+      credentials: 'same-origin',
       body: JSON.stringify({ fingerprint })
     });
 
+    console.log('📡 收到响应:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      url: response.url
+    });
+
     if (response.ok) {
-      console.log('指纹上报成功');
+      const data = await response.json().catch(() => ({}));
+      console.log('✅ 指纹上报成功:', {
+        ...data,
+        fingerprint: fingerprint.substring(0, 8) + '...',
+        url: apiUrl
+      });
     } else {
-      console.warn('指纹上报失败:', response.status);
+      const errorData = await response.json().catch(() => ({}));
+      console.warn('⚠️ 指纹上报失败:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData,
+        url: apiUrl,
+        fingerprint: fingerprint.substring(0, 8) + '...'
+      });
     }
   } catch (error) {
-    console.error('指纹上报请求失败:', error);
+    console.error('❌ 指纹上报请求失败（包含重试）:', {
+      error: error instanceof Error ? error.message : error,
+      stack: error instanceof Error ? error.stack : undefined,
+      url: apiUrl,
+      totalAttempts: MAX_RETRIES + 1
+    });
   }
 };
 
@@ -456,7 +556,7 @@ export const getAccessToken = (fingerprint: string): string | null => {
   try {
     const accessTokens = JSON.parse(localStorage.getItem('accessTokens') || '{}');
     const tokenData = accessTokens[fingerprint];
-    
+
     if (!tokenData) {
       return null;
     }
