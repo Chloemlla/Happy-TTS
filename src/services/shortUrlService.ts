@@ -1,9 +1,12 @@
-import ShortUrlModel from '../models/shortUrlModel';
+import ShortUrlModel, { IShortUrl } from '../models/shortUrlModel';
 import { TransactionService } from './transactionService';
 import logger from '../utils/logger';
 const nanoid = require('nanoid').nanoid;
 const crypto = require('crypto');
 import { mongoose } from './mongoService';
+
+// 定义短链数据的精简类型
+type ShortUrlData = Pick<IShortUrl, 'code' | 'target' | 'userId' | 'username' | 'createdAt'>;
 
 // 短链服务设置（支持从 MongoDB 读取 AES_KEY，优先于环境变量）
 interface ShortUrlSettingDoc { key: string; value: string; updatedAt?: Date }
@@ -17,16 +20,23 @@ const ShortUrlSettingModel = (mongoose.models.ShortUrlSetting as mongoose.Model<
 async function getShortUrlAesKey(): Promise<string | null> {
   try {
     if (mongoose.connection.readyState === 1) {
-      const doc = await ShortUrlSettingModel.findOne({ key: 'AES_KEY' }).lean().exec();
+      // 使用严格的查询条件，防止NoSQL注入
+      const doc = await ShortUrlSettingModel.findOne({ 
+        key: { $eq: 'AES_KEY' } 
+      }).lean().exec() as ShortUrlSettingDoc | null;
       if (doc && typeof doc.value === 'string' && doc.value.trim().length > 0) {
-        return doc.value.trim();
+        const trimmedValue = doc.value.trim();
+        // 验证AES密钥格式，防止恶意数据
+        if (trimmedValue.length >= 16 && trimmedValue.length <= 256) {
+          return trimmedValue;
+        }
       }
     }
   } catch (e) {
     logger.error('读取短链 AES_KEY 失败，回退到环境变量', e);
   }
   const envKey = process.env.AES_KEY?.trim();
-  return envKey && envKey.length > 0 ? envKey : null;
+  return envKey && envKey.length >= 16 && envKey.length <= 256 ? envKey : null;
 }
 
 export class ShortUrlService {
@@ -97,14 +107,21 @@ export class ShortUrlService {
         return null;
       }
 
-      const shortUrl = await ShortUrlModel.findOne({ code: trimmedCode });
+      // 限制代码长度，防止内存占用过大
+      if (trimmedCode.length > 50) {
+        logger.warn('短链代码长度超限', { code: trimmedCode });
+        return null;
+      }
+
+      // 使用 lean() 减少内存占用，只返回纯对象
+      const shortUrl = await ShortUrlModel.findOne({ code: trimmedCode }).lean().exec() as ShortUrlData | null;
       if (!shortUrl) {
         logger.warn('短链不存在', { code: trimmedCode });
         return null;
       }
 
       logger.info('获取短链成功', { code: trimmedCode, target: shortUrl.target });
-      return shortUrl.toObject();
+      return shortUrl;
     } catch (error) {
       logger.error('获取短链失败:', error);
       throw error;
@@ -130,9 +147,22 @@ export class ShortUrlService {
         return false;
       }
 
-      const query: any = { code: trimmedCode };
+      // 限制代码长度，防止内存占用过大
+      if (trimmedCode.length > 50) {
+        logger.warn('短链代码长度超限', { code: trimmedCode });
+        return false;
+      }
+
+      // 构建安全的查询对象，防止NoSQL注入
+      const query: { code: string; userId?: string } = { code: trimmedCode };
       if (userId && typeof userId === 'string' && userId.trim().length > 0) {
-        query.userId = userId.trim(); // 只能删除自己的短链
+        const trimmedUserId = userId.trim();
+        // 验证userId格式，防止NoSQL注入
+        if (!/^[a-zA-Z0-9_-]+$/.test(trimmedUserId) || trimmedUserId.length > 100) {
+          logger.warn('用户ID格式无效', { userId: trimmedUserId });
+          return false;
+        }
+        query.userId = trimmedUserId; // 只能删除自己的短链
       }
 
       const result = await ShortUrlModel.findOneAndDelete(query);
@@ -160,22 +190,36 @@ export class ShortUrlService {
       }
 
       const trimmedUserId = userId.trim();
+      
+      // 验证userId格式，防止NoSQL注入
+      if (!/^[a-zA-Z0-9_-]+$/.test(trimmedUserId) || trimmedUserId.length > 100) {
+        throw new Error('用户ID格式无效');
+      }
+
       const validatedPage = Math.max(1, parseInt(String(page)) || 1);
-      const validatedLimit = Math.min(100, Math.max(1, parseInt(String(limit)) || 10));
+      const validatedLimit = Math.min(50, Math.max(1, parseInt(String(limit)) || 10)); // 降低最大限制
       const skip = (validatedPage - 1) * validatedLimit;
+
+      // 防止过大的skip值导致性能问题
+      if (skip > 10000) {
+        throw new Error('页码过大，请使用更小的页码');
+      }
 
       const [shortUrls, total] = await Promise.all([
         ShortUrlModel.find({ userId: trimmedUserId })
           .sort({ createdAt: -1 })
           .skip(skip)
-          .limit(validatedLimit),
+          .limit(validatedLimit)
+          .select('code target userId username createdAt')
+          .lean<ShortUrlData[]>() // 使用泛型确保类型（数组）
+          .exec(),
         ShortUrlModel.countDocuments({ userId: trimmedUserId })
       ]);
 
       logger.info('获取用户短链列表成功', { userId: trimmedUserId, page: validatedPage, total });
 
       return {
-        shortUrls: shortUrls.map(url => url.toObject()),
+        shortUrls,
         total,
         page: validatedPage,
         limit: validatedLimit
@@ -200,6 +244,7 @@ export class ShortUrlService {
       const validCodes = codes.filter(code =>
         typeof code === 'string' &&
         code.trim().length > 0 &&
+        code.trim().length <= 50 && // 限制单个代码长度
         /^[a-zA-Z0-9_-]+$/.test(code.trim())
       ).map(code => code.trim());
 
@@ -208,13 +253,19 @@ export class ShortUrlService {
       }
 
       // 限制批量删除的数量，防止DoS攻击
-      if (validCodes.length > 100) {
-        throw new Error('批量删除数量不能超过100个');
+      if (validCodes.length > 50) { // 降低批量限制
+        throw new Error('批量删除数量不能超过50个');
       }
 
-      const query: any = { code: { $in: validCodes } };
+      // 构建安全的查询对象，防止NoSQL注入
+      const query: { code: { $in: string[] }; userId?: string } = { code: { $in: validCodes } };
       if (userId && typeof userId === 'string' && userId.trim().length > 0) {
-        query.userId = userId.trim();
+        const trimmedUserId = userId.trim();
+        // 验证userId格式，防止NoSQL注入
+        if (!/^[a-zA-Z0-9_-]+$/.test(trimmedUserId) || trimmedUserId.length > 100) {
+          throw new Error('用户ID格式无效');
+        }
+        query.userId = trimmedUserId;
       }
 
       const result = await ShortUrlModel.deleteMany(query);
@@ -237,9 +288,19 @@ export class ShortUrlService {
    */
   static async exportAllShortUrls() {
     try {
+      // 限制导出数量，防止内存溢出
+      const maxExportCount = 10000;
+      const count = await ShortUrlModel.countDocuments({});
+      
+      if (count > maxExportCount) {
+        throw new Error(`导出数量过大（${count}），请联系管理员或分批导出`);
+      }
+
       const shortUrls = await ShortUrlModel.find({})
         .sort({ createdAt: -1 })
-        .lean();
+        .select('code target userId username createdAt')
+        .lean<ShortUrlData[]>()
+        .exec();
 
       if (shortUrls.length === 0) {
         return {
@@ -252,28 +313,32 @@ export class ShortUrlService {
       const baseUrl = process.env.VITE_API_URL || process.env.BASE_URL || 'https://api.hapxs.com';
       const exportTime = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
 
-      let content = `短链数据导出报告\n`;
-      content += `导出时间: ${exportTime}\n`;
-      content += `总数量: ${shortUrls.length} 个短链\n`;
-      content += `${'='.repeat(50)}\n\n`;
+      // 使用数组拼接而不是字符串拼接，提高性能
+      const contentParts: string[] = [];
+      contentParts.push(`短链数据导出报告\n`);
+      contentParts.push(`导出时间: ${exportTime}\n`);
+      contentParts.push(`总数量: ${shortUrls.length} 个短链\n`);
+      contentParts.push(`${'='.repeat(50)}\n\n`);
 
       shortUrls.forEach((link, index) => {
-        content += `${index + 1}. 短链信息\n`;
-        content += `   短链码: ${link.code}\n`;
-        content += `   完整短链: ${baseUrl}/s/${link.code}\n`;
-        content += `   目标地址: ${link.target}\n`;
-        content += `   创建时间: ${new Date(link.createdAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}\n`;
+        contentParts.push(`${index + 1}. 短链信息\n`);
+        contentParts.push(`   短链码: ${link.code}\n`);
+        contentParts.push(`   完整短链: ${baseUrl}/s/${link.code}\n`);
+        contentParts.push(`   目标地址: ${link.target}\n`);
+        contentParts.push(`   创建时间: ${new Date(link.createdAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}\n`);
         if (link.username) {
-          content += `   创建用户: ${link.username}\n`;
+          contentParts.push(`   创建用户: ${link.username}\n`);
         }
         if (link.userId) {
-          content += `   用户ID: ${link.userId}\n`;
+          contentParts.push(`   用户ID: ${link.userId}\n`);
         }
-        content += `\n`;
+        contentParts.push(`\n`);
       });
 
-      content += `${'='.repeat(50)}\n`;
-      content += `导出完成 - 共 ${shortUrls.length} 个短链\n`;
+      contentParts.push(`${'='.repeat(50)}\n`);
+      contentParts.push(`导出完成 - 共 ${shortUrls.length} 个短链\n`);
+
+      const content = contentParts.join('');
 
       logger.info('导出所有短链数据成功', { count: shortUrls.length });
 
@@ -569,7 +634,12 @@ export class ShortUrlService {
     errorCount: number;
     errors: string[];
   }> {
-    const batchSize = 10; // 每批处理10个链接，避免过载
+    // 限制导入数量，防止内存溢出
+    if (links.length > 5000) {
+      throw new Error(`导入数量过大（${links.length}），请分批导入，单次最多5000条`);
+    }
+
+    const batchSize = 5; // 减少批次大小，降低内存压力
     const errors: string[] = [];
     let importedCount = 0;
     let skippedCount = 0;
@@ -613,13 +683,18 @@ export class ShortUrlService {
         processed: i + batch.length,
         total: links.length
       });
+
+      // 每处理100个批次后稍作延迟，避免过度占用资源
+      if ((i / batchSize) % 100 === 0 && i > 0) {
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
     }
 
     return {
       importedCount,
       skippedCount,
       errorCount,
-      errors: errors.slice(0, 10) // 只返回前10个错误
+      errors: errors.slice(0, 20) // 增加错误信息返回数量
     };
   }
 
@@ -627,56 +702,80 @@ export class ShortUrlService {
    * 处理单个导入链接 - 异步版本
    */
   private static async processImportLinkAsync(linkData: any): Promise<{ skipped: boolean; error?: string }> {
-    return new Promise(async (resolve) => {
-      try {
-        // 验证必需字段
-        if (!linkData.code || !linkData.target) {
-          throw new Error('缺少必需的短链码或目标地址');
-        }
-
-        // 过滤掉 undefined 或空值
-        if (linkData.code === 'undefined' || linkData.target === 'undefined' ||
-          !linkData.code.trim() || !linkData.target.trim()) {
-          throw new Error('短链码或目标地址包含无效值');
-        }
-
-        // 验证短链码格式
-        if (!/^[a-zA-Z0-9_-]+$/.test(linkData.code)) {
-          throw new Error('短链码格式无效');
-        }
-
-        // 验证目标地址格式
-        try {
-          new URL(linkData.target);
-        } catch {
-          throw new Error('目标地址格式无效');
-        }
-
-        // 异步检查是否已存在 - 如果存在则跳过，不抛出错误
-        const existing = await ShortUrlModel.findOne({ code: linkData.code });
-        if (existing) {
-          logger.info(`跳过重复短链: ${linkData.code}`);
-          resolve({ skipped: true });
-          return;
-        }
-
-        // 异步创建新的短链记录
-        await ShortUrlModel.create({
-          code: linkData.code,
-          target: linkData.target,
-          userId: linkData.userId || 'admin',
-          username: linkData.username || 'admin',
-          createdAt: new Date()
-        });
-
-        logger.debug(`成功导入短链: ${linkData.code}`);
-        resolve({ skipped: false });
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        logger.warn(`导入链接失败 ${linkData.code}: ${errorMessage}`);
-        resolve({ skipped: false, error: errorMessage });
+    try {
+      // 验证必需字段
+      if (!linkData.code || !linkData.target) {
+        throw new Error('缺少必需的短链码或目标地址');
       }
-    });
+
+      // 过滤掉 undefined 或空值
+      if (linkData.code === 'undefined' || linkData.target === 'undefined' ||
+        !linkData.code.trim() || !linkData.target.trim()) {
+        throw new Error('短链码或目标地址包含无效值');
+      }
+
+      const trimmedCode = linkData.code.trim();
+      const trimmedTarget = linkData.target.trim();
+
+      // 验证短链码格式和长度
+      if (!/^[a-zA-Z0-9_-]+$/.test(trimmedCode) || trimmedCode.length > 50) {
+        throw new Error('短链码格式无效或长度超限');
+      }
+
+      // 验证目标地址格式和长度
+      if (trimmedTarget.length > 2000) {
+        throw new Error('目标地址长度超限');
+      }
+
+      try {
+        new URL(trimmedTarget);
+      } catch {
+        throw new Error('目标地址格式无效');
+      }
+
+      // 验证用户信息
+      let validUserId = 'admin';
+      let validUsername = 'admin';
+
+      if (linkData.userId && typeof linkData.userId === 'string') {
+        const trimmedUserId = linkData.userId.trim();
+        if (!/^[a-zA-Z0-9_-]+$/.test(trimmedUserId) || trimmedUserId.length > 100) {
+          throw new Error('用户ID格式无效');
+        }
+        validUserId = trimmedUserId;
+      }
+
+      if (linkData.username && typeof linkData.username === 'string') {
+        const trimmedUsername = linkData.username.trim();
+        if (trimmedUsername.length > 100) {
+          throw new Error('用户名长度超限');
+        }
+        validUsername = trimmedUsername;
+      }
+
+      // 使用lean()检查是否已存在，减少内存占用
+      const existing = await ShortUrlModel.findOne({ code: trimmedCode }).lean().exec() as Pick<IShortUrl, 'code'> | null;
+      if (existing) {
+        logger.info(`跳过重复短链: ${trimmedCode}`);
+        return { skipped: true };
+      }
+
+      // 创建新的短链记录
+      await ShortUrlModel.create({
+        code: trimmedCode,
+        target: trimmedTarget,
+        userId: validUserId,
+        username: validUsername,
+        createdAt: new Date()
+      });
+
+      logger.debug(`成功导入短链: ${trimmedCode}`);
+      return { skipped: false };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.warn(`导入链接失败 ${linkData.code}: ${errorMessage}`);
+      return { skipped: false, error: errorMessage };
+    }
   }
 
   /**

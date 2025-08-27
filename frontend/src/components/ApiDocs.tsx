@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaFileAlt, FaInfoCircle, FaExternalLinkAlt, FaLink, FaQuestionCircle } from 'react-icons/fa';
+import { FaFileAlt, FaInfoCircle, FaExternalLinkAlt, FaLink, FaQuestionCircle, FaTimes } from 'react-icons/fa';
 
 const MAIN_DOC_URL = 'https://tts-api-docs.hapx.one';
 const BACKUP_DOC_URL = 'https://tts-api-docs.hapxs.com';
@@ -9,17 +9,27 @@ const ApiDocs: React.FC = () => {
   const [lang, setLang] = useState<'zh' | 'en'>('zh');
   const [showConfirm, setShowConfirm] = useState(false);
   const [countdown, setCountdown] = useState(5);
-  const [timer, setTimer] = useState<number | null>(null);
   const [autoRedirect, setAutoRedirect] = useState(true);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
-  const handleRedirect = () => {
-    setShowConfirm(true);
+  // 清理计时器
+  const clearTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  // 启动计时器
+  const startTimer = useCallback(() => {
+    clearTimer();
     setCountdown(5);
-    setAutoRedirect(true);
-    const t = setInterval(() => {
+    
+    timerRef.current = setInterval(() => {
       setCountdown(prev => {
-        if (prev <= 1 && autoRedirect) {
-          clearInterval(t);
+        if (prev <= 1) {
+          clearTimer();
           window.open(MAIN_DOC_URL, '_blank', 'noopener,noreferrer');
           setShowConfirm(false);
           return 0;
@@ -27,25 +37,80 @@ const ApiDocs: React.FC = () => {
         return prev - 1;
       });
     }, 1000);
-    // 将 NodeJS.Timeout 类型转换为 number
-    setTimer(t as unknown as number);
-  };
+  }, [clearTimer]);
 
-  const confirmRedirect = (url: string) => {
-    if (timer) clearInterval(timer);
+  // 处理跳转
+  const handleRedirect = useCallback(() => {
+    setShowConfirm(true);
+    setAutoRedirect(true);
+    startTimer();
+  }, [startTimer]);
+
+  // 确认跳转
+  const confirmRedirect = useCallback((url: string) => {
+    clearTimer();
     window.open(url, '_blank', 'noopener,noreferrer');
     setShowConfirm(false);
-  };
+  }, [clearTimer]);
 
-  const cancelRedirect = () => {
-    if (timer) clearInterval(timer);
+  // 取消跳转
+  const cancelRedirect = useCallback(() => {
+    clearTimer();
     setShowConfirm(false);
-  };
+  }, [clearTimer]);
 
-  const toggleAutoRedirect = () => {
-    setAutoRedirect(!autoRedirect);
-    if (timer) clearInterval(timer);
-  };
+  // 切换自动跳转
+  const toggleAutoRedirect = useCallback(() => {
+    const newAutoRedirect = !autoRedirect;
+    setAutoRedirect(newAutoRedirect);
+    
+    if (newAutoRedirect) {
+      startTimer();
+    } else {
+      clearTimer();
+    }
+  }, [autoRedirect, startTimer, clearTimer]);
+
+  // 键盘事件处理
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!showConfirm) return;
+      
+      switch (event.key) {
+        case 'Escape':
+          cancelRedirect();
+          break;
+        case 'Enter':
+          confirmRedirect(MAIN_DOC_URL);
+          break;
+        case '1':
+          confirmRedirect(MAIN_DOC_URL);
+          break;
+        case '2':
+          confirmRedirect(BACKUP_DOC_URL);
+          break;
+        case ' ':
+          event.preventDefault();
+          toggleAutoRedirect();
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showConfirm, cancelRedirect, confirmRedirect, toggleAutoRedirect]);
+
+  // 组件卸载时清理计时器
+  useEffect(() => {
+    return () => clearTimer();
+  }, [clearTimer]);
+
+  // 焦点管理
+  useEffect(() => {
+    if (showConfirm && dialogRef.current) {
+      dialogRef.current.focus();
+    }
+  }, [showConfirm]);
 
   return (
     <motion.div
@@ -207,11 +272,17 @@ const ApiDocs: React.FC = () => {
           >
             <motion.button
               onClick={handleRedirect}
-              className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3 sm:py-4 px-6 sm:px-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-3 text-base sm:text-lg"
+              className="group w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3 sm:py-4 px-6 sm:px-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-3 text-base sm:text-lg relative overflow-hidden"
               whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
             >
-              <FaExternalLinkAlt className="w-4 h-4 sm:w-5 sm:h-5" />
+              <motion.div
+                className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0"
+                initial={{ x: '-100%' }}
+                whileHover={{ x: '100%' }}
+                transition={{ duration: 0.6 }}
+              />
+              <FaExternalLinkAlt className="w-4 h-4 sm:w-5 sm:h-5 group-hover:rotate-12 transition-transform duration-300" />
               {lang === 'zh' ? '访问文档站点' : 'Visit Documentation'}
             </motion.button>
             <motion.div
@@ -240,19 +311,34 @@ const ApiDocs: React.FC = () => {
                 onClick={cancelRedirect}
               >
                 <motion.div
-                  className="bg-white rounded-xl p-4 sm:p-6 max-w-lg w-full mx-2 sm:mx-4 shadow-xl border border-gray-200 relative my-4 sm:my-8 max-h-[95vh] sm:max-h-[90vh] overflow-y-auto"
+                  ref={dialogRef}
+                  className="bg-white rounded-xl p-4 sm:p-6 max-w-lg w-full mx-2 sm:mx-4 shadow-xl border border-gray-200 relative my-4 sm:my-8 max-h-[95vh] sm:max-h-[90vh] overflow-y-auto focus:outline-none"
                   initial={{ opacity: 0, scale: 0.8, y: 50 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.8, y: 50 }}
                   transition={{ duration: 0.4, type: 'spring', stiffness: 300, damping: 25 }}
                   onClick={e => e.stopPropagation()}
+                  tabIndex={-1}
                 >
+                  {/* 关闭按钮 */}
+                  <motion.button
+                    onClick={cancelRedirect}
+                    className="absolute top-3 right-3 w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                    initial={{ opacity: 0, scale: 0 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.2, delay: 0.3 }}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    <FaTimes className="w-4 h-4 text-gray-600" />
+                  </motion.button>
+
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: 0.1 }}
                   >
-                    <div className="flex items-center mb-4">
+                    <div className="flex items-center mb-4 pr-8">
                       <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
                         <FaInfoCircle className="w-5 h-5 text-blue-600" />
                       </div>
@@ -290,43 +376,60 @@ const ApiDocs: React.FC = () => {
                   <motion.div className="flex flex-col gap-3 mb-4">
                     <motion.button
                       onClick={() => confirmRedirect(MAIN_DOC_URL)}
-                      className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3 px-3 sm:px-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl text-base sm:text-lg flex items-center justify-center gap-2 border-2 border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                      className="relative flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3 px-3 sm:px-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl text-base sm:text-lg flex items-center justify-center gap-2 border-2 border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
                       whileHover={{ scale: 1.04 }}
                       whileTap={{ scale: 0.98 }}
                     >
                       <FaExternalLinkAlt className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                       <span className="truncate">{lang === 'zh' ? '主站点：hapx.one（推荐）' : 'Main: hapx.one (Recommended)'}</span>
+                      <span className="absolute top-1 right-1 text-xs bg-white bg-opacity-20 text-white rounded px-1.5 py-0.5 font-mono">1</span>
                       {autoRedirect && (
                         <span className="hidden sm:inline ml-2 text-xs bg-white bg-opacity-80 text-blue-700 rounded px-2 py-0.5 font-mono animate-pulse">{lang === 'zh' ? `（${countdown}秒后自动跳转）` : `(Auto in ${countdown}s)`}</span>
                       )}
                     </motion.button>
                     {autoRedirect && (
-                      <div className="sm:hidden text-center text-xs text-blue-200 animate-pulse">
-                        {lang === 'zh' ? `${countdown}秒后自动跳转主站点` : `Auto redirect in ${countdown}s`}
-                      </div>
+                      <motion.div 
+                        className="text-center"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <div className="sm:hidden text-xs text-blue-200 animate-pulse mb-2">
+                          {lang === 'zh' ? `${countdown}秒后自动跳转主站点` : `Auto redirect in ${countdown}s`}
+                        </div>
+                        <div className="w-full bg-blue-100 rounded-full h-1.5 overflow-hidden">
+                          <motion.div
+                            className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full"
+                            initial={{ width: '100%' }}
+                            animate={{ width: `${(countdown / 5) * 100}%` }}
+                            transition={{ duration: 0.1, ease: 'linear' }}
+                          />
+                        </div>
+                      </motion.div>
                     )}
                     <motion.button
                       onClick={() => confirmRedirect(BACKUP_DOC_URL)}
-                      className="flex-1 bg-gradient-to-r from-blue-100 to-indigo-50 hover:from-blue-200 hover:to-indigo-100 text-blue-700 font-semibold py-3 px-3 sm:px-4 rounded-xl transition-all duration-200 border-2 border-blue-200 text-base sm:text-lg flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      className="relative flex-1 bg-gradient-to-r from-blue-100 to-indigo-50 hover:from-blue-200 hover:to-indigo-100 text-blue-700 font-semibold py-3 px-3 sm:px-4 rounded-xl transition-all duration-200 border-2 border-blue-200 text-base sm:text-lg flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-blue-200"
                       whileHover={{ scale: 1.03 }}
                       whileTap={{ scale: 0.98 }}
                     >
                       <FaLink className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                       <span className="truncate">{lang === 'zh' ? '备用站点：hapxs.com' : 'Backup: hapxs.com'}</span>
+                      <span className="absolute top-1 right-1 text-xs bg-blue-200 text-blue-700 rounded px-1.5 py-0.5 font-mono">2</span>
                     </motion.button>
                   </motion.div>
                   <motion.div className="flex flex-col sm:flex-row gap-3 mb-4">
                     <motion.button
                       onClick={cancelRedirect}
-                      className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-3 sm:px-4 rounded-xl transition-all duration-200 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-200 text-sm sm:text-base"
+                      className="relative flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-3 sm:px-4 rounded-xl transition-all duration-200 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-200 text-sm sm:text-base"
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      {lang === 'zh' ? '取消' : 'Cancel'}
+                      {lang === 'zh' ? '取消 (Esc)' : 'Cancel (Esc)'}
                     </motion.button>
                     <motion.button
                       onClick={toggleAutoRedirect}
-                      className={`flex-1 py-3 px-3 sm:px-4 rounded-xl transition-all duration-200 border-2 focus:outline-none focus:ring-2 text-xs sm:text-sm font-semibold ${autoRedirect
+                      className={`relative flex-1 py-3 px-3 sm:px-4 rounded-xl transition-all duration-200 border-2 focus:outline-none focus:ring-2 text-xs sm:text-sm font-semibold ${autoRedirect
                           ? 'bg-red-50 hover:bg-red-100 text-red-700 border-red-200 focus:ring-red-200'
                           : 'bg-green-50 hover:bg-green-100 text-green-700 border-green-200 focus:ring-green-200'
                         }`}
@@ -334,17 +437,26 @@ const ApiDocs: React.FC = () => {
                       whileTap={{ scale: 0.98 }}
                     >
                       {autoRedirect
-                        ? (lang === 'zh' ? '取消自动跳转' : 'Cancel Auto Redirect')
-                        : (lang === 'zh' ? '启用自动跳转' : 'Enable Auto Redirect')
+                        ? (lang === 'zh' ? '取消自动跳转 (空格)' : 'Cancel Auto (Space)')
+                        : (lang === 'zh' ? '启用自动跳转 (空格)' : 'Enable Auto (Space)')
                       }
                     </motion.button>
                   </motion.div>
-                  <div className="absolute top-2 right-2 sm:right-4 text-xs text-gray-400 select-none hidden sm:block">
-                    {autoRedirect
-                      ? (lang === 'zh' ? '如无操作，将自动跳转主站点' : 'Auto redirect to main if no action')
-                      : (lang === 'zh' ? '自动跳转已禁用' : 'Auto redirect disabled')
-                    }
-                  </div>
+                  {/* 键盘快捷键提示 */}
+                  <motion.div 
+                    className="mb-4 p-2 bg-blue-50 rounded-lg border border-blue-200"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.4 }}
+                  >
+                    <div className="text-xs text-blue-700 text-center">
+                      {lang === 'zh' ? '快捷键：' : 'Shortcuts: '}
+                      <span className="font-mono bg-white px-1 rounded">1</span> {lang === 'zh' ? '主站点' : 'Main'} • 
+                      <span className="font-mono bg-white px-1 rounded ml-1">2</span> {lang === 'zh' ? '备用' : 'Backup'} • 
+                      <span className="font-mono bg-white px-1 rounded ml-1">Space</span> {lang === 'zh' ? '切换自动' : 'Toggle Auto'} • 
+                      <span className="font-mono bg-white px-1 rounded ml-1">Esc</span> {lang === 'zh' ? '取消' : 'Cancel'}
+                    </div>
+                  </motion.div>
                   {/* FAQ 区域 */}
                   <div className="mt-6 sm:mt-8 p-3 sm:p-4 bg-gray-50 rounded-xl border border-gray-200 text-left">
                     <div className="font-bold text-blue-700 mb-2 text-sm sm:text-base flex items-center gap-2">

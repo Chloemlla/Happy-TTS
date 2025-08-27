@@ -11,68 +11,162 @@ interface NotificationContextProps {
 }
 
 const NotificationContext = createContext<NotificationContextProps>({
-    setNotification: () => {},
+    setNotification: () => { },
 });
 
 export const useNotification = () => useContext(NotificationContext);
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [notification, setNotificationState] = useState<NotificationData | null>(null);
+    const [isPaused, setIsPaused] = useState<boolean>(false);
     const progressRef = React.useRef<HTMLDivElement>(null);
-    const timerRef = React.useRef<NodeJS.Timeout | null>(null);
     const rafRef = React.useRef<number | null>(null);
     const startTimeRef = React.useRef<number>(0);
+    const pausedTimeRef = React.useRef<number>(0);
+    const isActiveRef = React.useRef<boolean>(false);
+    const isPausedRef = React.useRef<boolean>(false);
+    const notificationIdRef = React.useRef<number>(0);
     const duration = 3000;
 
-    // 进度条动画
+    // 更新暂停状态的 ref
     React.useEffect(() => {
-        if (!notification) {
-            if (progressRef.current) progressRef.current.style.width = '0%';
-            return;
-        }
-        if (progressRef.current) progressRef.current.style.width = '100%';
-        startTimeRef.current = performance.now();
-        if (rafRef.current) cancelAnimationFrame(rafRef.current);
-        if (timerRef.current) clearTimeout(timerRef.current);
-        function animate(now: number) {
-            const elapsed = now - startTimeRef.current;
-            const percent = Math.max(0, 100 - (elapsed / duration) * 100);
-            if (progressRef.current) progressRef.current.style.width = percent + '%';
-            if (elapsed < duration) {
-                rafRef.current = requestAnimationFrame(animate);
-            } else {
-                if (progressRef.current) progressRef.current.style.width = '0%';
-                setNotificationState(null);
-            }
-        }
-        rafRef.current = requestAnimationFrame(animate);
-        timerRef.current = setTimeout(() => {
-            setNotificationState(null);
-            if (progressRef.current) progressRef.current.style.width = '0%';
-            if (rafRef.current) cancelAnimationFrame(rafRef.current);
-        }, duration);
-        return () => {
-            if (rafRef.current) cancelAnimationFrame(rafRef.current);
-            if (timerRef.current) clearTimeout(timerRef.current);
-        };
-    }, [notification]);
+        isPausedRef.current = isPaused;
+    }, [isPaused]);
 
-    const setNotification = useCallback((data: NotificationData) => {
-        setNotificationState(null); // 先关闭再弹出，确保动画重置
-        setTimeout(() => setNotificationState(data), 10);
+    // 处理暂停和恢复
+    const handleMouseEnter = React.useCallback(() => {
+        if (isActiveRef.current && !isPausedRef.current) {
+            setIsPaused(true);
+            pausedTimeRef.current = performance.now();
+        }
     }, []);
 
-    const handleClose = () => {
-        setNotificationState(null);
-        if (progressRef.current) progressRef.current.style.width = '0%';
-        if (timerRef.current) clearTimeout(timerRef.current);
-        if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
+    const handleMouseLeave = React.useCallback(() => {
+        if (isActiveRef.current && isPausedRef.current) {
+            setIsPaused(false);
+            // 调整开始时间，补偿暂停的时间
+            const pausedDuration = performance.now() - pausedTimeRef.current;
+            startTimeRef.current += pausedDuration;
+        }
+    }, []);
 
+    // 统一的进度条和倒计时管理
+    React.useEffect(() => {
+        if (!notification) {
+            // 清理状态
+            isActiveRef.current = false;
+            setIsPaused(false);
+            isPausedRef.current = false;
+            if (rafRef.current) {
+                cancelAnimationFrame(rafRef.current);
+                rafRef.current = null;
+            }
+            if (progressRef.current) {
+                progressRef.current.style.width = '0%';
+            }
+            return;
+        }
+
+        // 为这个通知分配一个唯一ID，防止竞争条件
+        const currentNotificationId = ++notificationIdRef.current;
+
+        // 清理之前的动画
+        if (rafRef.current) {
+            cancelAnimationFrame(rafRef.current);
+            rafRef.current = null;
+        }
+
+        // 重置状态
+        isActiveRef.current = true;
+        setIsPaused(false);
+        isPausedRef.current = false;
+
+        // 使用 requestAnimationFrame 确保 DOM 更新后再开始动画
+        const startAnimation = () => {
+            // 检查这个通知是否仍然是当前的通知
+            if (currentNotificationId !== notificationIdRef.current || !isActiveRef.current) {
+                return;
+            }
+
+            // 设置开始时间和初始状态
+            startTimeRef.current = performance.now();
+            pausedTimeRef.current = 0;
+
+            if (progressRef.current) {
+                progressRef.current.style.width = '100%';
+            }
+
+            const animate = (now: number) => {
+                // 检查这个动画是否仍然有效
+                if (currentNotificationId !== notificationIdRef.current || !isActiveRef.current) {
+                    return;
+                }
+
+                // 如果暂停，不更新进度，但继续动画循环
+                if (isPausedRef.current) {
+                    rafRef.current = requestAnimationFrame(animate);
+                    return;
+                }
+
+                const elapsed = now - startTimeRef.current;
+                const progress = Math.max(0, Math.min(100, 100 - (elapsed / duration) * 100));
+
+                if (progressRef.current) {
+                    progressRef.current.style.width = `${progress}%`;
+                }
+
+                if (elapsed >= duration) {
+                    // 时间到了，关闭通知
+                    if (currentNotificationId === notificationIdRef.current) {
+                        isActiveRef.current = false;
+                        setNotificationState(null);
+                    }
+                } else {
+                    // 继续动画
+                    rafRef.current = requestAnimationFrame(animate);
+                }
+            };
+
+            // 启动动画
+            rafRef.current = requestAnimationFrame(animate);
+        };
+
+        requestAnimationFrame(startAnimation);
+
+        // 清理函数
+        return () => {
+            if (currentNotificationId === notificationIdRef.current) {
+                isActiveRef.current = false;
+                if (rafRef.current) {
+                    cancelAnimationFrame(rafRef.current);
+                    rafRef.current = null;
+                }
+            }
+        };
+    }, [notification]); // 只依赖 notification
+
+    const setNotification = useCallback((data: NotificationData) => {
+        // 直接设置新通知，不需要延迟重置
+        setNotificationState(data);
+    }, []);
+
+    const handleClose = React.useCallback(() => {
+        isActiveRef.current = false;
+        if (rafRef.current) {
+            cancelAnimationFrame(rafRef.current);
+            rafRef.current = null;
+        }
+        setNotificationState(null);
+    }, []);
+
+    // 组件卸载时清理
     React.useEffect(() => {
         return () => {
-            if (timerRef.current) clearTimeout(timerRef.current);
-            if (rafRef.current) cancelAnimationFrame(rafRef.current);
+            isActiveRef.current = false;
+            if (rafRef.current) {
+                cancelAnimationFrame(rafRef.current);
+                rafRef.current = null;
+            }
         };
     }, []);
 
@@ -85,8 +179,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                         initial={{ opacity: 0, y: -32, scale: 0.92 }}
                         animate={{ opacity: 1, y: 0, scale: 1, transition: { duration: 0.32, ease: [0.4, 0, 0.2, 1] } }}
                         exit={{ opacity: 0, y: -24, scale: 0.96, transition: { duration: 0.18, ease: [0.4, 0, 0.2, 1] } }}
-                        className={`fixed top-4 right-4 z-[9999] bg-white/90 text-gray-800 px-3 sm:px-4 py-2 sm:py-3 rounded-lg shadow-lg backdrop-blur-sm border flex flex-col items-stretch min-w-[200px] max-w-xs`}
+                        className={`fixed top-4 right-4 z-[9999] bg-white/90 text-gray-800 px-3 sm:px-4 py-2 sm:py-3 rounded-lg shadow-lg backdrop-blur-sm border flex flex-col items-stretch min-w-[200px] max-w-xs cursor-pointer select-none ${isPaused ? 'ring-2 ring-blue-200' : ''}`}
                         style={{ gap: 8 }}
+                        onMouseEnter={handleMouseEnter}
+                        onMouseLeave={handleMouseLeave}
                     >
                         <div className="flex items-center" style={{ gap: 12 }}>
                             <StatusIcon type={notification.type} />
@@ -103,17 +199,29 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                             </button>
                         </div>
                         {/* 底部进度条 */}
-                        <div className="w-full h-1 mt-2 rounded bg-gray-200 overflow-hidden">
+                        <div className="w-full h-1 mt-2 rounded bg-gray-200 overflow-hidden relative">
                             <div
                                 ref={progressRef}
-                                className="h-full"
+                                className={`h-full transition-none ${isPaused ? 'animate-pulse' : ''}`}
                                 style={{
                                     width: '100%',
-                                    background: getBarColor(notification.type),
-                                    transition: 'width 0.3s cubic-bezier(0.4,0,0.2,1)',
+                                    background: isPaused
+                                        ? `linear-gradient(90deg, ${getBarColor(notification.type)}80, ${getBarColor(notification.type)})`
+                                        : `linear-gradient(90deg, ${getBarColor(notification.type)}, ${getBarColor(notification.type)}dd)`,
+                                    transformOrigin: 'left center',
                                 }}
                             />
+                            {isPaused && (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="w-1 h-1 bg-white rounded-full opacity-80"></div>
+                                </div>
+                            )}
                         </div>
+                        {isPaused && (
+                            <div className="text-xs text-gray-500 text-center mt-1 opacity-75">
+                                悬停暂停 • Hover to pause
+                            </div>
+                        )}
                     </motion.div>
                 )}
             </AnimatePresence>

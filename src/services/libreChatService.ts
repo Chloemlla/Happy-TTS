@@ -160,6 +160,8 @@ class LibreChatService {
   private isRunning: boolean = false;
   private intervalId: NodeJS.Timeout | null = null;
   private chatHistory: ChatMessage[] = [];
+  private readonly MAX_MEMORY_MESSAGES = 10000; // 限制内存中的最大消息数量
+  private readonly MAX_USER_MESSAGES = 1000; // 限制单个用户的最大消息数量
 
   // provider 缓存（Mongo 可配置多组）
   private providersCache: ChatProviderDoc[] = [];
@@ -169,6 +171,7 @@ class LibreChatService {
   // 新增：SSE 连接管理
   private sseClients: Map<string, SSEClient> = new Map();
   private sseCleanupInterval: NodeJS.Timeout | null = null;
+  private readonly MAX_SSE_CLIENTS = 1000; // 限制最大 SSE 连接数
 
   private constructor() {
     this.initializeService();
@@ -263,6 +266,13 @@ class LibreChatService {
 
   private async saveChatHistory() {
     try {
+      // 内存清理：如果消息总数超过限制，保留最新的消息
+      if (this.chatHistory.length > this.MAX_MEMORY_MESSAGES) {
+        const oldLength = this.chatHistory.length;
+        this.chatHistory = this.chatHistory.slice(-this.MAX_MEMORY_MESSAGES);
+        logger.info(`内存清理：从 ${oldLength} 条消息清理到 ${this.chatHistory.length} 条消息`);
+      }
+      
       await writeFile(this.CHAT_HISTORY_FILE, JSON.stringify(this.chatHistory, null, 2));
       logger.info(`已保存聊天历史到本地文件: ${this.chatHistory.length} 条消息`);
     } catch (error) {
@@ -323,17 +333,49 @@ class LibreChatService {
     try {
       const safeKey = sanitizeId(keyId);
       if (mongoose.connection.readyState === 1) {
+        // 限制单次写入的消息数量，防止文档过大
+        const limitedMessages = messages.slice(-this.MAX_USER_MESSAGES);
+        
         await (mongoose.models.LibreChatHistory as any).findOneAndUpdate(
           { userId: safeKey },
-          { $set: { messages, updatedAt: new Date() } },
-          { upsert: true, setDefaultsOnInsert: true }
+          { 
+            $set: { 
+              messages: limitedMessages, 
+              updatedAt: new Date() 
+            } 
+          },
+          { 
+            upsert: true, 
+            setDefaultsOnInsert: true,
+            // 设置最大文档大小限制
+            maxTimeMS: 10000 // 10秒超时
+          }
         );
-        logger.info(`已保存 ${messages.length} 条消息到 MongoDB，用户ID: ${safeKey}`);
+        logger.info(`已保存 ${limitedMessages.length} 条消息到 MongoDB，用户ID: ${safeKey}`);
       } else {
         logger.warn('MongoDB 未连接，跳过数据库保存');
       }
     } catch (err) {
       logger.error('写入 MongoDB 聊天历史失败:', err);
+      // 如果是文档过大错误，尝试只保存最近的消息
+      if (err instanceof Error && err.message.includes('document too large')) {
+        try {
+          const reducedMessages = messages.slice(-100); // 只保存最近100条
+          await (mongoose.models.LibreChatHistory as any).findOneAndUpdate(
+            { userId: sanitizeId(keyId) },
+            { 
+              $set: { 
+                messages: reducedMessages, 
+                updatedAt: new Date() 
+              } 
+            },
+            { upsert: true, setDefaultsOnInsert: true }
+          );
+          logger.info(`文档过大，已保存最近 ${reducedMessages.length} 条消息到 MongoDB`);
+        } catch (retryErr) {
+          logger.error('重试写入 MongoDB 失败:', retryErr);
+        }
+      }
     }
   }
 
@@ -412,12 +454,28 @@ class LibreChatService {
       const now = Date.now();
       const timeout = 5 * 60 * 1000; // 5分钟超时
       
+      // 检查连接数量限制
+      if (this.sseClients.size > this.MAX_SSE_CLIENTS) {
+        // 按最后活跃时间排序，删除最旧的连接
+        const sortedClients = Array.from(this.sseClients.entries())
+          .sort(([, a], [, b]) => a.lastPing - b.lastPing);
+        
+        const toRemove = sortedClients.slice(0, this.sseClients.size - this.MAX_SSE_CLIENTS);
+        for (const [clientId] of toRemove) {
+          this.removeSSEClient(clientId);
+          logger.info(`因连接数超限清理SSE连接: ${clientId}`);
+        }
+      }
+      
+      // 清理超时连接
       for (const [clientId, client] of this.sseClients.entries()) {
         if (now - client.lastPing > timeout) {
-          this.sseClients.delete(clientId);
+          this.removeSSEClient(clientId);
           logger.info(`清理超时的SSE连接: ${clientId}`);
         }
       }
+      
+      logger.debug(`SSE连接清理完成，当前连接数: ${this.sseClients.size}`);
     }, 30000);
   }
 
@@ -425,17 +483,18 @@ class LibreChatService {
    * 注册SSE客户端连接
    */
   public registerSSEClient(userId: string, token: string, res: any): string {
-    const clientId = `${userId || token}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // 检查连接数限制
+    if (this.sseClients.size >= this.MAX_SSE_CLIENTS) {
+      logger.warn(`SSE连接数已达上限 ${this.MAX_SSE_CLIENTS}，拒绝新连接`);
+      res.writeHead(503, { 'Content-Type': 'text/plain' });
+      res.end('Service Unavailable: Too many connections');
+      return '';
+    }
     
-    // 设置SSE响应头
-    res.writeHead(200, {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'Cache-Control'
-    });
-
+    const safeUserId = sanitizeId(userId);
+    const safeToken = sanitizeId(token);
+    const clientId = `${safeUserId || safeToken}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
     // 发送初始连接消息
     res.write(`data: ${JSON.stringify({ type: 'connected', clientId, timestamp: Date.now() })}\n\n`);
 
@@ -561,14 +620,24 @@ class LibreChatService {
       token,
       userId
     };
+    // 检查单个用户消息数量限制
+    const keyId = userId || token;
+    const currentUserMessages = this.chatHistory.filter(m => userId ? m.userId === userId : m.token === token);
+    
+    if (currentUserMessages.length >= this.MAX_USER_MESSAGES) {
+      // 删除该用户最旧的消息，保持在限制内
+      const userMessagesToRemove = currentUserMessages.slice(0, currentUserMessages.length - this.MAX_USER_MESSAGES + 1);
+      this.chatHistory = this.chatHistory.filter(m => !userMessagesToRemove.some(rm => rm.id === m.id));
+      logger.info(`用户 ${keyId} 消息数量超限，已清理 ${userMessagesToRemove.length} 条旧消息`);
+    }
+    
     this.chatHistory.push(userMsg);
     await this.saveChatHistory();
     logger.info(`已保存用户消息到内存/文件，token: ${token}, userId: ${userId}`);
     
     // 同步写入 MongoDB（用户消息）
-    const keyId = userId || token;
-    const currentUserMessages = this.chatHistory.filter(m => userId ? m.userId === userId : m.token === token);
-    await this.upsertTokenHistory(keyId, currentUserMessages);
+    const currentMessages = this.chatHistory.filter(m => userId ? m.userId === userId : m.token === token);
+    await this.upsertTokenHistory(keyId, currentMessages);
 
     // 若用户询问“你是什么模型”等同类问题，严格保持沉默并直接返回空字符串
     if (isModelIdentityQuery(message)) {
@@ -1115,8 +1184,16 @@ class LibreChatService {
   // 仅管理员使用：列出所有用户最新概览（分页）
     public async adminListUsers(keyword = '', page = 1, limit = 20, includeDeleted = false): Promise<{ users: any[]; total: number }> {
      if (mongoose.connection.readyState !== 1) return { users: [], total: 0 };
-     const kw = escapeRegex(keyword.trim()).slice(0, 128);
-     const q: any = kw ? { userId: new RegExp(kw, 'i') } : {};
+     
+     // 安全处理搜索关键词，防止 NoSQL 注入
+     const sanitizedKeyword = sanitizeId(keyword.trim());
+     const q: any = {};
+     
+     if (sanitizedKeyword) {
+       // 使用安全的字符串匹配而不是正则表达式，防止 ReDoS 攻击
+       q.userId = { $regex: `^${escapeRegex(sanitizedKeyword)}`, $options: 'i' };
+     }
+     
      if (!includeDeleted) q.deleted = { $ne: true };
      const total = await (mongoose.models.LibreChatHistory as any).countDocuments(q);
      const docs = await (mongoose.models.LibreChatHistory as any)

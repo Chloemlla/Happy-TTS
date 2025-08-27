@@ -39,6 +39,26 @@ const fingerprintLimiter = rateLimit({
     }
 });
 
+// 新增：认证用户的指纹上报限流器（按用户+IP 更严格）
+const authenticatedFingerprintLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1分钟
+    max: 10, // 每分钟10次请求
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: '指纹上报请求过于频繁，请稍后再试' },
+    keyGenerator: (req) => {
+        const userId = (req as any).user?.id || 'anonymous';
+        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        return `${userId}:${ip}`;
+    },
+    handler: (req, res) => {
+        res.status(429).json({
+            error: '指纹上报请求过于频繁，请稍后再试',
+            retryAfter: 60
+        });
+    }
+});
+
 // 管理员接口限流器
 const adminLimiter = rateLimit({
     windowMs: 60 * 1000, // 1分钟
@@ -72,7 +92,7 @@ const configLimiter = rateLimit({
 });
 
 // 指纹上报接口（需要认证，用于已登录用户）
-router.post('/fingerprint/report', authenticateToken, publicLimiter, async (req, res) => {
+router.post('/fingerprint/report', authenticateToken, authenticatedFingerprintLimiter, async (req, res) => {
     try {
         const { fingerprint } = req.body;
         const clientIp = req.ip || req.socket.remoteAddress || (Array.isArray(req.headers['x-forwarded-for']) ? req.headers['x-forwarded-for'][0] : req.headers['x-forwarded-for']) || 'unknown';

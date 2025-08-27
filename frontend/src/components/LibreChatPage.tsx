@@ -3034,7 +3034,7 @@ const LibreChatPage: React.FC = () => {
                 setPromptModal({
                   open: true,
                   title: '测试代码编辑器',
-                  message: '这是一个测试，展示VSCode Dark+主题的代码编辑器功能：',
+                  message: '这是一个测试，展示原生代码编辑器功能：',
                   placeholder: '请输入代码内容...',
                   defaultValue: `// 这是一个JavaScript示例
 function greet(name) {
