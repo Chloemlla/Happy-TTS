@@ -1,0 +1,104 @@
+name: Build Docker Image For Linux ARM64
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+    paths-ignore:
+      - .github/**
+      - "!.github/workflows/docker-arm64.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    if: (github.actor == 'happy-clo' || github.actor == 'actions-user' || github.actor == 'hapxscom' || github.actor == 'devhappys') && !contains(github.event.head_commit.message, 'npm(deps):')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@main
+
+      - name: Use Node.js
+        uses: actions/setup-node@main
+        with:
+          node-version: 20
+
+      - name: Set Node.js memory limits
+        run: |
+          echo "NODE_OPTIONS=--max-old-space-size=5096" >> $GITHUB_ENV
+          echo "NPM_CONFIG_CACHE=/tmp/.npm" >> $GITHUB_ENV
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@master
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@master
+
+      - name: Set timezone to Shanghai
+        run: |
+          sudo ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+          sudo dpkg-reconfigure -f noninteractive tzdata
+
+      - name: Compute metadata
+        id: meta
+        run: |
+          echo "timestamp=$(TZ='Asia/Shanghai' date +%s)" >> $GITHUB_OUTPUT
+          echo "repo_name=$(echo ${{ github.repository }} | cut -d'/' -f2)" >> $GITHUB_OUTPUT
+          echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "lower_repo=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+      - name: Get previous commit SHA (optional)
+        id: prev_commit
+        run: echo "prev_sha=$(git rev-parse HEAD^1)" >> $GITHUB_OUTPUT
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@master
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@master
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Prepare buildx cache dirs
+        run: |
+          mkdir -p /tmp/.buildx-cache
+          mkdir -p /tmp/.buildx-cache-new
+
+      - name: Build and push with memory optimization
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@master
+        env:
+          BUILDKIT_MEM_LIMIT: 13g
+        with:
+          context: .
+          platforms: linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+            NODE_OPTIONS=--max-old-space-size=13000
+          cache-from: |
+            type=local,src=/tmp/.buildx-cache
+            type=gha
+            type=registry,ref=happyclo/tts-node:cache
+          cache-to: |
+            type=local,dest=/tmp/.buildx-cache-new,mode=max
+            type=gha,mode=max
+            type=registry,ref=happyclo/tts-node:cache,mode=max
+          tags: |
+            happyclo/tts-node:${{ github.ref_name }}-arm64
+            happyclo/tts-node:${{ steps.meta.outputs.short_sha }}-arm64
+            ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ github.ref_name }}-arm64
+            ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ steps.meta.outputs.short_sha }}-arm64
+
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache

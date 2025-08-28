@@ -1,4 +1,4 @@
-name: Build Docker Image
+name: Build Docker Image For Linux AMD64
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
       - dev
     paths-ignore:
       - .github/**
-      - "!.github/workflows/docker.yml"
+      - "!.github/workflows/docker-amd64.yml"
   workflow_dispatch:
 permissions:
   contents: read
@@ -16,7 +16,7 @@ permissions:
 jobs:
   docker:
     runs-on: ubuntu-latest
-    if: (github.actor == 'happy-clo' || github.actor == 'actions-user' || github.actor == 'hapxscom') && !contains(github.event.head_commit.message, 'npm(deps):')
+    if: (github.actor == 'happy-clo' || github.actor == 'actions-user' || github.actor == 'hapxscom' || github.actor == 'devhappys') && !contains(github.event.head_commit.message, 'npm(deps):')
     steps:
       - name: Checkout
         uses: actions/checkout@main
@@ -79,7 +79,7 @@ jobs:
           BUILDKIT_MEM_LIMIT: 13g
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           build-args: |
             BUILDKIT_INLINE_CACHE=1
@@ -93,10 +93,10 @@ jobs:
             type=gha,mode=max
             type=registry,ref=happyclo/tts-node:cache,mode=max
           tags: |
-            happyclo/tts-node:${{ github.ref_name }}
-            happyclo/tts-node:${{ steps.meta.outputs.short_sha }}
-            ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ github.ref_name }}
-            ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ steps.meta.outputs.short_sha }}
+            happyclo/tts-node:${{ github.ref_name }}-amd64
+            happyclo/tts-node:${{ steps.meta.outputs.short_sha }}-amd64
+            ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ github.ref_name }}-amd64
+            ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ steps.meta.outputs.short_sha }}-amd64
 
       - name: Move cache
         run: |
@@ -132,7 +132,7 @@ jobs:
           PORT: ${{ secrets.PORT }}
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           CONTAINER_NAMES: ${{ secrets.CONTAINER_NAMES }}
-          IMAGE_URL: happyclo/tts-node:${{ steps.meta.outputs.short_sha }}
+          IMAGE_URL: happyclo/tts-node:${{ steps.meta.outputs.short_sha }}-amd64
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
         run: |
           python scripts/deploy_image.py
