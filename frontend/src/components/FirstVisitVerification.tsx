@@ -4,6 +4,7 @@ import { TurnstileWidget } from './TurnstileWidget';
 import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
 import { getFingerprint, verifyTempFingerprint, storeAccessToken } from '../utils/fingerprint';
 import { useNotification } from './Notification';
+import { integrityChecker } from '../utils/integrityCheck';
 
 interface FirstVisitVerificationProps {
   onVerificationComplete: () => void;
@@ -134,6 +135,34 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     }, 500);
 
     return () => clearTimeout(welcomeTimer);
+  }, [setNotification]);
+
+  // 验证完整性检查豁免状态（开发模式）
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      const checkExemptStatus = () => {
+        const status = integrityChecker.checkExemptStatus();
+        console.log('🛡️ FirstVisitVerification 完整性检查豁免状态:', status);
+        
+        if (!status.isExempt) {
+          console.warn('⚠️ FirstVisitVerification 组件未被豁免，可能会触发完整性检查');
+          setNotification({
+            message: '开发提示：组件未被完整性检查豁免',
+            type: 'warning'
+          });
+        } else {
+          console.log('✅ FirstVisitVerification 组件已被正确豁免');
+          setNotification({
+            message: '完整性检查豁免已生效',
+            type: 'success'
+          });
+        }
+      };
+
+      // 延迟检查，确保DOM已完全渲染
+      const checkTimer = setTimeout(checkExemptStatus, 1000);
+      return () => clearTimeout(checkTimer);
+    }
   }, [setNotification]);
 
   // 网络状态监听
@@ -415,6 +444,9 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.5 }}
           className="fixed inset-0 bg-gradient-to-br from-red-50 via-white to-red-50 flex items-center justify-center z-50"
+          data-component="FirstVisitVerification"
+          data-page="FirstVisitVerification"
+          data-view="FirstVisitVerification"
           style={{
             minHeight: '100dvh',
             padding: isMobile ? '0.25rem' : '1.5rem',
@@ -784,6 +816,9 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
         exit={{ opacity: 0 }}
         transition={{ duration: 0.5 }}
         className="fixed inset-0 bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center z-50"
+        data-component="FirstVisitVerification"
+        data-page="FirstVisitVerification"
+        data-view="FirstVisitVerification"
         style={{
           minHeight: '100dvh', // 支持动态视口高度
           padding: isMobile ? '1rem' : '1.5rem',
@@ -1062,6 +1097,35 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                 <span>遇到问题？</span>
               </div>
             </motion.button>
+
+            {/* 开发模式下的豁免状态检查按钮 */}
+            {process.env.NODE_ENV === 'development' && (
+              <motion.button
+                className={`mt-2 text-blue-400 hover:text-blue-600 transition-colors duration-200 ${
+                  isMobile ? 'text-xs' : 'text-sm'
+                }`}
+                onClick={() => {
+                  const status = integrityChecker.checkExemptStatus();
+                  console.log('🛡️ 完整性检查豁免状态:', status);
+                  setNotification({
+                    message: status.isExempt 
+                      ? `豁免生效: ${status.exemptReasons.join(', ')}` 
+                      : '未被豁免，可能触发完整性检查',
+                    type: status.isExempt ? 'success' : 'warning'
+                  });
+                }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <div className="flex items-center justify-center gap-1">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M9 12a1 1 0 102 0V7a1 1 0 10-2 0v5zm1-8a1 1 0 100 2 1 1 0 000-2z" clipRule="evenodd" />
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z" clipRule="evenodd" />
+                  </svg>
+                  <span>检查豁免状态</span>
+                </div>
+              </motion.button>
+            )}
           </motion.div>
         </motion.div>
       </motion.div>

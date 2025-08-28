@@ -75,7 +75,8 @@ class IntegrityChecker {
     'ShortLinkManager', 'CDKStoreManager',
     'ApiDocs', 'EmailSender',
     'ImageUploadPage', 'ImageUploadSection',
-    'FBIWantedManager', 'FBIWantedPublic'
+    'FBIWantedManager', 'FBIWantedPublic',
+    'FirstVisitVerification'
   ];
 
   private constructor() {
@@ -124,14 +125,16 @@ class IntegrityChecker {
         '/upload', '/image', '/images', '/img',
         '/fbi', '/wanted', '/public', '/docs', '/api-docs',
         '/resource', '/resources', '/short', '/shortlink', '/short-links',
-        '/cdk', '/cdk-store', '/librechat'
+        '/cdk', '/cdk-store', '/librechat',
+        '/verification', '/verify', '/first-visit', '/captcha', '/turnstile'
       ];
       if (exemptPathKeywords.some(k => pathname.toLowerCase().includes(k))) return true;
 
       // 标题豁免
       const exemptTitleKeywords = [
         'upload', 'image', 'markdown', 'api', 'docs', 'documentation',
-        'fbi', 'wanted', 'shortlink', 'short link', 'cdk', 'store', 'librechat'
+        'fbi', 'wanted', 'shortlink', 'short link', 'cdk', 'store', 'librechat',
+        'verification', 'verify', 'first visit', 'captcha', 'turnstile', 'security'
       ];
       if (exemptTitleKeywords.some(k => title.includes(k))) return true;
 
@@ -152,6 +155,17 @@ class IntegrityChecker {
       if (document.querySelector('[data-component="LibreChatPage"]') || 
           document.querySelector('[data-page="librechat"]') ||
           pathname.includes('/librechat')) {
+        return true;
+      }
+
+      // 特殊处理首次访问验证页面
+      if (document.querySelector('[data-component="FirstVisitVerification"]') || 
+          document.querySelector('[data-page="FirstVisitVerification"]') ||
+          document.querySelector('[data-view="FirstVisitVerification"]') ||
+          pathname.includes('/verification') ||
+          pathname.includes('/verify') ||
+          title.includes('verification') ||
+          title.includes('verify')) {
         return true;
       }
 
@@ -970,8 +984,30 @@ class IntegrityChecker {
       /消息/gi
     ];
 
+    // 检查是否是验证相关的文本内容
+    const verificationTextPatterns = [
+      /验证/gi,
+      /verification/gi,
+      /verify/gi,
+      /captcha/gi,
+      /turnstile/gi,
+      /人机验证/gi,
+      /安全验证/gi,
+      /首次访问/gi,
+      /first visit/gi,
+      /欢迎访问/gi,
+      /welcome/gi,
+      /继续访问/gi,
+      /验证通过/gi,
+      /验证成功/gi,
+      /验证失败/gi,
+      /重试/gi,
+      /retry/gi
+    ];
+
     return safeTextPatterns.some(pattern => pattern.test(text)) ||
-           chatTextPatterns.some(pattern => pattern.test(text));
+           chatTextPatterns.some(pattern => pattern.test(text)) ||
+           verificationTextPatterns.some(pattern => pattern.test(text));
   }
 
   private handleTextTampering(node: Node, tamperText: string, originalText: string): void {
@@ -1497,6 +1533,96 @@ class IntegrityChecker {
         }
       }
     });
+  }
+
+  // 检查当前页面是否被豁免（调试用）
+  public checkExemptStatus(): {
+    isExempt: boolean;
+    isTrustedUrl: boolean;
+    exemptReasons: string[];
+  } {
+    const exemptReasons: string[] = [];
+    let isExempt = false;
+    let isTrustedUrl = false;
+
+    try {
+      const href = window.location.href;
+      const pathname = window.location.pathname || '';
+      const title = (document.title || '').toLowerCase();
+
+      // 检查可信URL
+      isTrustedUrl = this.isTrustedUrl(href);
+      if (isTrustedUrl) {
+        exemptReasons.push('可信URL');
+        isExempt = true;
+      }
+
+      // 检查路径豁免
+      const exemptPathKeywords = [
+        '/upload', '/image', '/images', '/img',
+        '/fbi', '/wanted', '/public', '/docs', '/api-docs',
+        '/resource', '/resources', '/short', '/shortlink', '/short-links',
+        '/cdk', '/cdk-store', '/librechat',
+        '/verification', '/verify', '/first-visit', '/captcha', '/turnstile'
+      ];
+      
+      const matchedPaths = exemptPathKeywords.filter(k => pathname.toLowerCase().includes(k));
+      if (matchedPaths.length > 0) {
+        exemptReasons.push(`路径豁免: ${matchedPaths.join(', ')}`);
+        isExempt = true;
+      }
+
+      // 检查标题豁免
+      const exemptTitleKeywords = [
+        'upload', 'image', 'markdown', 'api', 'docs', 'documentation',
+        'fbi', 'wanted', 'shortlink', 'short link', 'cdk', 'store', 'librechat',
+        'verification', 'verify', 'first visit', 'captcha', 'turnstile', 'security'
+      ];
+      
+      const matchedTitles = exemptTitleKeywords.filter(k => title.includes(k));
+      if (matchedTitles.length > 0) {
+        exemptReasons.push(`标题豁免: ${matchedTitles.join(', ')}`);
+        isExempt = true;
+      }
+
+      // 检查组件标记豁免
+      const foundMarkers: string[] = [];
+      for (const marker of this.COMPONENT_EXEMPT_MARKERS) {
+        const selectors = [
+          `[data-component="${marker}"]`,
+          `[data-page="${marker}"]`,
+          `[data-view="${marker}"]`,
+          `#${CSS.escape(marker)}`,
+          `[id*="${marker}"]`,
+          `[class*="${marker}"]`
+        ];
+        
+        for (const selector of selectors) {
+          if (document.querySelector(selector)) {
+            foundMarkers.push(`${marker} (${selector})`);
+            break;
+          }
+        }
+      }
+      
+      if (foundMarkers.length > 0) {
+        exemptReasons.push(`组件标记豁免: ${foundMarkers.join(', ')}`);
+        isExempt = true;
+      }
+
+      return {
+        isExempt,
+        isTrustedUrl,
+        exemptReasons
+      };
+    } catch (error) {
+      this.safeLog('error', '❌ 检查豁免状态时出错:', error);
+      return {
+        isExempt: false,
+        isTrustedUrl: false,
+        exemptReasons: ['检查失败']
+      };
+    }
   }
 }
 
