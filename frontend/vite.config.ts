@@ -335,7 +335,7 @@ export default defineConfig(({ mode }) => {
           manualChunks: {
             'react-vendor': ['react', 'react-dom'],
             'router': ['react-router-dom'],
-            'ui': ['@radix-ui/react-dialog', 'lucide-react', 'react-icons'],
+            'ui': ['@radix-ui/react-dialog', 'react-icons'],
             'utils': ['axios', 'clsx', 'tailwind-merge'],
             'auth': ['@simplewebauthn/browser', 'qrcode.react'],
             'animations': ['framer-motion'],
@@ -409,7 +409,7 @@ export default defineConfig(({ mode }) => {
       manualChunks: {
         'react-vendor': ['react', 'react-dom'],
         'router': ['react-router-dom'],
-        'ui': ['@radix-ui/react-dialog', 'lucide-react', 'react-icons'],
+        'ui': ['@radix-ui/react-dialog', 'react-icons'],
         'utils': ['axios', 'clsx', 'tailwind-merge'],
         'auth': ['@simplewebauthn/browser', 'qrcode.react'],
         'animations': ['framer-motion'],
