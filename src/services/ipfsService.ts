@@ -256,6 +256,17 @@ export class IPFSService {
         const MAX_RETRIES = 2;
         let lastError: any = null;
 
+        // 预先获取IPFS配置，避免在循环中重复获取
+        let ipfsUploadUrl: string;
+        let ipfsUserAgent: string;
+        try {
+            ipfsUploadUrl = await getIPFSUploadURL();
+            ipfsUserAgent = await getIPFSUserAgent();
+        } catch (configError) {
+            logger.error('[IPFS] 获取IPFS配置失败:', configError instanceof Error ? configError.message : String(configError));
+            throw new Error('IPFS服务配置未设置，请联系管理员配置IPFS_UPLOAD_URL');
+        }
+
         for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
             try {
                 logger.info(`[IPFS] 尝试上传文件 (第${attempt + 1}次): ${filename}`);
@@ -267,16 +278,9 @@ export class IPFSService {
                     contentType: mimetype
                 });
                 
-                // 动态获取IPFS上传URL和User-Agent
-                let ipfsUploadUrl;
-                let ipfsUserAgent;
-                try {
-                    ipfsUploadUrl = await getIPFSUploadURL();
-                    ipfsUserAgent = await getIPFSUserAgent();
-                } catch (configError) {
-                    logger.error('[IPFS] 获取IPFS配置失败:', configError instanceof Error ? configError.message : String(configError));
-                    throw new Error('IPFS服务配置未设置，请联系管理员配置IPFS_UPLOAD_URL');
-                }
+                // 从ipfsUploadUrl提取origin
+                const ipfsUrlObj = new URL(ipfsUploadUrl);
+                const origin = `${ipfsUrlObj.protocol}//${ipfsUrlObj.host}`;
                 
                 // 发送请求到IPFS
                 const response = await (require('axios')).post(
@@ -286,6 +290,7 @@ export class IPFSService {
                         headers: {
                             ...formData.getHeaders(),
                             'User-Agent': ipfsUserAgent,
+                            'Origin': origin,
                         },
                         timeout: 30000, // 30秒超时
                     }
@@ -342,12 +347,61 @@ export class IPFSService {
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 const statusCode = (error as any)?.response?.status;
                 
-                logger.error(`[IPFS] 上传失败 (第${attempt + 1}次): ${filename}`, {
-                    error: errorMessage,
-                    statusCode,
-                    attempt: attempt + 1,
-                    maxRetries: MAX_RETRIES
-                });
+                // 如果是403错误，提供详细的调试信息
+                if (statusCode === 403) {
+                    try {
+                        // 构建完整的URL
+                        const fullUrl = `${ipfsUploadUrl}?stream-channels=true&pin=false&wrap-with-directory=false&progress=false`;
+                        
+                        // 生成curl命令用于调试
+                        const curlCommand = IPFSService.generateCurlCommand(
+                            fullUrl,
+                            ipfsUserAgent,
+                            filename,
+                            mimetype
+                        );
+                        
+                        logger.error(`[IPFS] 403错误 - 详细调试信息 (第${attempt + 1}次): ${filename}`, {
+                            error: errorMessage,
+                            statusCode,
+                            attempt: attempt + 1,
+                            maxRetries: MAX_RETRIES,
+                            requestDetails: {
+                                ipfsUploadUrl,
+                                ipfsUserAgent,
+                                filename,
+                                mimetype,
+                                fileSize: fileBuffer.length,
+                                fullUrl,
+                                queryParams: {
+                                    'stream-channels': 'true',
+                                    'pin': 'false',
+                                    'wrap-with-directory': 'false',
+                                    'progress': 'false'
+                                }
+                            },
+                            curlCommand,
+                            timestamp: new Date().toISOString()
+                        });
+                    } catch (debugError) {
+                        logger.error(`[IPFS] 403错误 - 无法生成调试信息 (第${attempt + 1}次): ${filename}`, {
+                            error: errorMessage,
+                            statusCode,
+                            attempt: attempt + 1,
+                            maxRetries: MAX_RETRIES,
+                            debugError: debugError instanceof Error ? debugError.message : String(debugError),
+                            timestamp: new Date().toISOString()
+                        });
+                    }
+                } else {
+                    // 非403错误的常规日志
+                    logger.error(`[IPFS] 上传失败 (第${attempt + 1}次): ${filename}`, {
+                        error: errorMessage,
+                        statusCode,
+                        attempt: attempt + 1,
+                        maxRetries: MAX_RETRIES
+                    });
+                }
                 
                 // 如果是503或500错误，说明服务不可用，可以尝试备用方案
                 if (statusCode === 503 || statusCode === 500) {
@@ -840,6 +894,40 @@ export class IPFSService {
      */
     public static async getCurrentIPFSUserAgent(): Promise<string> {
         return await getIPFSUserAgent();
+    }
+
+    /**
+     * 生成curl命令用于调试IPFS上传请求
+     */
+    private static generateCurlCommand(
+        url: string,
+        userAgent: string,
+        filename: string,
+        mimetype: string
+    ): string {
+        // 解析URL获取基础URL和查询参数
+        const urlObj = new URL(url);
+        const origin = `${urlObj.protocol}//${urlObj.host}`;
+        
+        // 构建curl命令
+        const curlCommand = [
+            "curl -X POST",
+            `'${url}'`,
+            `-H 'User-Agent: ${userAgent}'`,
+            `-H 'accept-language: zh-CN,zh;q=0.9,en;q=0.8'`,
+            `-H 'origin: ${origin}'`,
+            `-H 'priority: u=1, i'`,
+            `-H 'referer: ${origin}/'`,
+            `-H 'sec-ch-ua: "Not;A=Brand";v="99", "Google Chrome";v="139", "Chromium";v="139"'`,
+            `-H 'sec-ch-ua-mobile: ?0'`,
+            `-H 'sec-ch-ua-platform: "Windows"'`,
+            `-H 'sec-fetch-dest: empty'`,
+            `-H 'sec-fetch-mode: cors'`,
+            `-H 'sec-fetch-site: same-origin'`,
+            `-F 'file=@"${filename}";filename="${filename}";headers="Content-Type: ${mimetype}"'`
+        ].join(' ');
+        
+        return curlCommand;
     }
 
     /**

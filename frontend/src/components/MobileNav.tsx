@@ -14,11 +14,11 @@ interface MobileNavProps {
   totpStatus?: { enabled: boolean } | null;
 }
 
-const MobileNav: React.FC<MobileNavProps> = ({ 
-  user, 
-  logout, 
-  onTOTPManagerOpen, 
-  totpStatus 
+const MobileNav: React.FC<MobileNavProps> = ({
+  user,
+  logout,
+  onTOTPManagerOpen,
+  totpStatus
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -198,7 +198,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
   // 桌面端导航
   if (!isMobile) {
     return (
-      <motion.div 
+      <motion.div
         className="flex items-center space-x-2"
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
@@ -211,18 +211,17 @@ const MobileNav: React.FC<MobileNavProps> = ({
           whileTap={{ scale: 0.95 }}
           className="relative"
         >
-          <Link 
-            to="/" 
-            className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${
-              location.pathname === '/' 
-                ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg' 
-                : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-indigo-600 border border-gray-200/50'
-            }`}
+          <Link
+            to="/"
+            className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/'
+              ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg'
+              : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-indigo-600 border border-gray-200/50'
+              }`}
           >
-            <motion.svg 
-              className="w-4 h-4" 
-              fill="none" 
-              stroke="currentColor" 
+            <motion.svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
               viewBox="0 0 24 24"
               animate={location.pathname === '/' ? { rotate: [0, 10, -10, 0] } : {}}
               transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
@@ -239,18 +238,17 @@ const MobileNav: React.FC<MobileNavProps> = ({
             whileHover={{ scale: 1.05, y: -2 }}
             whileTap={{ scale: 0.95 }}
           >
-            <Link 
-              to="/case-converter" 
-              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${
-                location.pathname === '/case-converter'
-                  ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg'
-                  : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-green-600 border border-gray-200/50'
-              }`}
+            <Link
+              to="/case-converter"
+              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/case-converter'
+                ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg'
+                : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-green-600 border border-gray-200/50'
+                }`}
             >
-              <motion.svg 
-                className="w-4 h-4" 
-                fill="none" 
-                stroke="currentColor" 
+              <motion.svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
                 viewBox="0 0 24 24"
                 whileHover={{ rotate: 5 }}
               >
@@ -264,18 +262,17 @@ const MobileNav: React.FC<MobileNavProps> = ({
             whileHover={{ scale: 1.05, y: -2 }}
             whileTap={{ scale: 0.95 }}
           >
-            <Link 
-              to="/api-docs" 
-              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${
-                location.pathname === '/api-docs'
-                  ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg'
-                  : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-blue-600 border border-gray-200/50'
-              }`}
+            <Link
+              to="/api-docs"
+              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/api-docs'
+                ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg'
+                : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-blue-600 border border-gray-200/50'
+                }`}
             >
-              <motion.svg 
-                className="w-4 h-4" 
-                fill="none" 
-                stroke="currentColor" 
+              <motion.svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
                 viewBox="0 0 24 24"
                 whileHover={{ rotate: 5 }}
               >
@@ -289,18 +286,17 @@ const MobileNav: React.FC<MobileNavProps> = ({
             whileHover={{ scale: 1.05, y: -2 }}
             whileTap={{ scale: 0.95 }}
           >
-            <Link 
-              to="/markdown-export" 
-              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${
-                location.pathname === '/markdown-export'
-                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
-                  : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-purple-600 border border-gray-200/50'
-              }`}
+            <Link
+              to="/markdown-export"
+              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/markdown-export'
+                ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
+                : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-purple-600 border border-gray-200/50'
+                }`}
             >
-              <motion.svg 
-                className="w-4 h-4" 
-                fill="none" 
-                stroke="currentColor" 
+              <motion.svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
                 viewBox="0 0 24 24"
                 whileHover={{ rotate: 5 }}
               >
@@ -311,46 +307,43 @@ const MobileNav: React.FC<MobileNavProps> = ({
           </motion.div>
 
           <motion.div
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          <Link 
-            to="/lottery" 
-            className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${
-              location.pathname === '/lottery'
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Link
+              to="/lottery"
+              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/lottery'
                 ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg'
                 : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-green-600 border border-gray-200/50'
-            }`}
-          >
-            <motion.svg 
-              className="w-4 h-4" 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-              whileHover={{ rotate: 5 }}
+                }`}
             >
-              <circle cx="12" cy="12" r="10" strokeWidth="2" />
-              <path d="M8 12l2 2 4-4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </motion.svg>
-            <span className="hidden sm:inline">抽奖系统</span>
-          </Link>
-        </motion.div>
+              <motion.svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                whileHover={{ rotate: 5 }}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </motion.svg>
+              <span className="hidden sm:inline">抽奖系统</span>
+            </Link>
+          </motion.div>
           <motion.div
             whileHover={{ scale: 1.05, y: -2 }}
             whileTap={{ scale: 0.95 }}
           >
-            <Link 
-              to="/image-upload" 
-              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${
-                location.pathname === '/image-upload'
-                  ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg'
-                  : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-blue-600 border border-gray-200/50'
-              }`}
+            <Link
+              to="/image-upload"
+              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/image-upload'
+                ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg'
+                : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-blue-600 border border-gray-200/50'
+                }`}
             >
-              <motion.svg 
-                className="w-4 h-4" 
-                fill="none" 
-                stroke="currentColor" 
+              <motion.svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
                 viewBox="0 0 24 24"
                 whileHover={{ rotate: 5 }}
               >
@@ -364,18 +357,17 @@ const MobileNav: React.FC<MobileNavProps> = ({
             whileHover={{ scale: 1.05, y: -2 }}
             whileTap={{ scale: 0.95 }}
           >
-            <Link 
-              to="/fbi-wanted" 
-              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${
-                location.pathname === '/fbi-wanted'
-                  ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-lg'
-                  : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-red-600 border border-gray-200/50'
-              }`}
+            <Link
+              to="/fbi-wanted"
+              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/fbi-wanted'
+                ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-lg'
+                : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-red-600 border border-gray-200/50'
+                }`}
             >
-              <motion.svg 
-                className="w-4 h-4" 
-                fill="none" 
-                stroke="currentColor" 
+              <motion.svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
                 viewBox="0 0 24 24"
                 whileHover={{ rotate: 5 }}
               >
@@ -389,18 +381,17 @@ const MobileNav: React.FC<MobileNavProps> = ({
             whileHover={{ scale: 1.05, y: -2 }}
             whileTap={{ scale: 0.95 }}
           >
-            <Link 
-              to="/anti-counterfeit" 
-              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${
-                location.pathname === '/anti-counterfeit'
-                  ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg'
-                  : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-red-600 border border-gray-200/50'
-              }`}
+            <Link
+              to="/anti-counterfeit"
+              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/anti-counterfeit'
+                ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg'
+                : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-red-600 border border-gray-200/50'
+                }`}
             >
-              <motion.svg 
-                className="w-4 h-4" 
-                fill="none" 
-                stroke="currentColor" 
+              <motion.svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
                 viewBox="0 0 24 24"
                 whileHover={{ rotate: 5 }}
               >
@@ -419,18 +410,17 @@ const MobileNav: React.FC<MobileNavProps> = ({
               whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
             >
-              <Link 
-                to="/admin" 
-                className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${
-                  location.pathname === '/admin'
-                    ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg'
-                    : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-pink-600 border border-gray-200/50'
-                }`}
+              <Link
+                to="/admin"
+                className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/admin'
+                  ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg'
+                  : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-pink-600 border border-gray-200/50'
+                  }`}
               >
-                <motion.svg 
-                  className="w-4 h-4" 
-                  fill="none" 
-                  stroke="currentColor" 
+                <motion.svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
                   viewBox="0 0 24 24"
                   whileHover={{ rotate: 5 }}
                 >
@@ -444,18 +434,17 @@ const MobileNav: React.FC<MobileNavProps> = ({
               whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
             >
-              <Link 
-                to="/email-sender" 
-                className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${
-                  location.pathname === '/email-sender'
-                    ? 'bg-gradient-to-r from-purple-500 to-violet-500 text-white shadow-lg'
-                    : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-purple-600 border border-gray-200/50'
-                }`}
+              <Link
+                to="/email-sender"
+                className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/email-sender'
+                  ? 'bg-gradient-to-r from-purple-500 to-violet-500 text-white shadow-lg'
+                  : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-purple-600 border border-gray-200/50'
+                  }`}
               >
-                <motion.svg 
-                  className="w-4 h-4" 
-                  fill="none" 
-                  stroke="currentColor" 
+                <motion.svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
                   viewBox="0 0 24 24"
                   whileHover={{ rotate: 5 }}
                 >
@@ -473,18 +462,17 @@ const MobileNav: React.FC<MobileNavProps> = ({
             whileHover={{ scale: 1.05, y: -2 }}
             whileTap={{ scale: 0.95 }}
           >
-            <Link 
-              to="/profile" 
-              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${
-                location.pathname === '/profile'
-                  ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-lg'
-                  : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-yellow-600 border border-gray-200/50'
-              }`}
+            <Link
+              to="/profile"
+              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/profile'
+                ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-lg'
+                : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-yellow-600 border border-gray-200/50'
+                }`}
             >
-              <motion.svg 
-                className="w-4 h-4" 
-                fill="none" 
-                stroke="currentColor" 
+              <motion.svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
                 viewBox="0 0 24 24"
                 whileHover={{ rotate: 5 }}
               >
@@ -500,10 +488,10 @@ const MobileNav: React.FC<MobileNavProps> = ({
             whileTap={{ scale: 0.95 }}
             className="flex items-center space-x-2 px-3 py-2 rounded-xl font-medium bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-indigo-600 border border-gray-200/50 transition-all duration-300 shadow-sm hover:shadow-lg"
           >
-            <motion.svg 
-              className="w-4 h-4" 
-              fill="none" 
-              stroke="currentColor" 
+            <motion.svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
               viewBox="0 0 24 24"
               animate={{ rotate: [0, 5, -5, 0] }}
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
@@ -512,7 +500,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
             </motion.svg>
             <span className="hidden sm:inline">二次验证</span>
             {twoFactorStatus.enabled && (
-              <motion.span 
+              <motion.span
                 className="w-2 h-2 bg-green-500 rounded-full"
                 animate={{ scale: [1, 1.2, 1] }}
                 transition={{ duration: 2, repeat: Infinity }}
@@ -528,10 +516,10 @@ const MobileNav: React.FC<MobileNavProps> = ({
           whileTap={{ scale: 0.95 }}
           className="flex items-center space-x-2 px-3 py-2 rounded-xl font-medium bg-gradient-to-r from-red-500 to-pink-500 text-white hover:from-red-600 hover:to-pink-600 transition-all duration-300 shadow-sm hover:shadow-lg"
         >
-          <motion.svg 
-            className="w-4 h-4" 
-            fill="none" 
-            stroke="currentColor" 
+          <motion.svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
             viewBox="0 0 24 24"
             whileHover={{ rotate: 5 }}
           >
@@ -554,19 +542,19 @@ const MobileNav: React.FC<MobileNavProps> = ({
         className="flex items-center justify-center p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors duration-200 shadow-sm"
         aria-label="打开菜单"
       >
-        <motion.svg 
+        <motion.svg
           className="w-5 h-5"
           animate={{ rotate: isMenuOpen ? 90 : 0 }}
           transition={{ duration: 0.3, ease: "easeInOut" }}
-          fill="none" 
-          stroke="currentColor" 
+          fill="none"
+          stroke="currentColor"
           viewBox="0 0 24 24"
         >
-          <path 
-            strokeLinecap="round" 
-            strokeLinejoin="round" 
-            strokeWidth={2} 
-            d="M4 6h16M4 12h16M4 18h16" 
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M4 6h16M4 12h16M4 18h16"
           />
         </motion.svg>
       </motion.button>
@@ -588,10 +576,10 @@ const MobileNav: React.FC<MobileNavProps> = ({
             initial={{ opacity: 0, y: -20, scale: 0.92, x: 20 }}
             animate={{ opacity: 1, y: 0, scale: 1, x: 0 }}
             exit={{ opacity: 0, y: -20, scale: 0.92, x: 20 }}
-            transition={{ 
-              type: 'spring', 
-              stiffness: 320, 
-              damping: 22, 
+            transition={{
+              type: 'spring',
+              stiffness: 320,
+              damping: 22,
               duration: 0.25,
               staggerChildren: 0.05
             }}
@@ -599,14 +587,14 @@ const MobileNav: React.FC<MobileNavProps> = ({
             style={{ right: 0 }}
           >
             {/* 用户信息 */}
-            <motion.div 
+            <motion.div
               className="px-5 py-4 bg-gradient-to-r from-indigo-100 to-purple-100 border-b border-gray-100 flex items-center gap-4 shrink-0"
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.1 }}
             >
               <Link to="/profile" className="flex items-center gap-4">
-                <motion.div 
+                <motion.div
                   className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-300 to-purple-300 flex items-center justify-center border-2 border-white shadow-lg"
                   initial={{ scale: 0, rotate: -180 }}
                   animate={{ scale: 1, rotate: 0 }}
@@ -621,10 +609,10 @@ const MobileNav: React.FC<MobileNavProps> = ({
                       onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
                     />
                   ) : (
-                    <motion.svg 
-                      className="w-6 h-6 text-white drop-shadow" 
-                      fill="none" 
-                      stroke="currentColor" 
+                    <motion.svg
+                      className="w-6 h-6 text-white drop-shadow"
+                      fill="none"
+                      stroke="currentColor"
                       viewBox="0 0 24 24"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
@@ -639,7 +627,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.4, delay: 0.3 }}
                 >
-                  <motion.p 
+                  <motion.p
                     className="font-bold text-gray-900 text-base leading-tight"
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -647,7 +635,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   >
                     {user?.username}
                   </motion.p>
-                  <motion.p 
+                  <motion.p
                     className="text-xs text-indigo-500 font-medium mt-1"
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -669,15 +657,14 @@ const MobileNav: React.FC<MobileNavProps> = ({
               >
                 <Link
                   to="/"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
-                    location.pathname === '/' ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm' : 'hover:bg-indigo-50'
-                  }`}
+                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/' ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm' : 'hover:bg-indigo-50'
+                    }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <motion.svg 
-                    className={`w-5 h-5 ${location.pathname === '/' ? 'text-indigo-500' : 'text-gray-400'}`} 
-                    fill="none" 
-                    stroke="currentColor" 
+                  <motion.svg
+                    className={`w-5 h-5 ${location.pathname === '/' ? 'text-indigo-500' : 'text-gray-400'}`}
+                    fill="none"
+                    stroke="currentColor"
                     viewBox="0 0 24 24"
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
@@ -685,7 +672,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   </motion.svg>
                   <span>语音合成</span>
                   {location.pathname === '/' && (
-                    <motion.span 
+                    <motion.span
                       className="ml-auto text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full"
                       initial={{ scale: 0, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
@@ -707,15 +694,14 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   >
                     <Link
                       to="/admin"
-                      className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
-                        location.pathname === '/admin' ? 'bg-pink-50 text-pink-700 font-semibold shadow-sm' : 'hover:bg-pink-50'
-                      }`}
+                      className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/admin' ? 'bg-pink-50 text-pink-700 font-semibold shadow-sm' : 'hover:bg-pink-50'
+                        }`}
                       onClick={() => setIsMenuOpen(false)}
                     >
-                      <motion.svg 
-                        className={`w-5 h-5 ${location.pathname === '/admin' ? 'text-pink-500' : 'text-gray-400'}`} 
-                        fill="none" 
-                        stroke="currentColor" 
+                      <motion.svg
+                        className={`w-5 h-5 ${location.pathname === '/admin' ? 'text-pink-500' : 'text-gray-400'}`}
+                        fill="none"
+                        stroke="currentColor"
                         viewBox="0 0 24 24"
                         whileHover={{ scale: 1.1, rotate: 5 }}
                       >
@@ -723,7 +709,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
                       </motion.svg>
                       <span>管理后台</span>
                       {location.pathname === '/admin' && (
-                        <motion.span 
+                        <motion.span
                           className="ml-auto text-xs bg-pink-100 text-pink-700 px-2 py-1 rounded-full"
                           initial={{ scale: 0, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
@@ -742,15 +728,14 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   >
                     <Link
                       to="/admin/store"
-                      className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
-                        location.pathname.startsWith('/admin/store') ? 'bg-blue-50 text-blue-700 font-semibold shadow-sm' : 'hover:bg-blue-50'
-                      }`}
+                      className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname.startsWith('/admin/store') ? 'bg-blue-50 text-blue-700 font-semibold shadow-sm' : 'hover:bg-blue-50'
+                        }`}
                       onClick={() => setIsMenuOpen(false)}
                     >
-                      <motion.svg 
-                        className={`w-5 h-5 ${location.pathname.startsWith('/admin/store') ? 'text-blue-500' : 'text-gray-400'}`} 
-                        fill="none" 
-                        stroke="currentColor" 
+                      <motion.svg
+                        className={`w-5 h-5 ${location.pathname.startsWith('/admin/store') ? 'text-blue-500' : 'text-gray-400'}`}
+                        fill="none"
+                        stroke="currentColor"
                         viewBox="0 0 24 24"
                         whileHover={{ scale: 1.1, rotate: 5 }}
                       >
@@ -758,7 +743,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
                       </motion.svg>
                       <span>资源商店管理</span>
                       {location.pathname.startsWith('/admin/store') && (
-                        <motion.span 
+                        <motion.span
                           className="ml-auto text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full"
                           initial={{ scale: 0, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
@@ -777,15 +762,14 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   >
                     <Link
                       to="/email-sender"
-                      className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
-                        location.pathname === '/email-sender' ? 'bg-purple-50 text-purple-700 font-semibold shadow-sm' : 'hover:bg-purple-50'
-                      }`}
+                      className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/email-sender' ? 'bg-purple-50 text-purple-700 font-semibold shadow-sm' : 'hover:bg-purple-50'
+                        }`}
                       onClick={() => setIsMenuOpen(false)}
                     >
-                      <motion.svg 
-                        className={`w-5 h-5 ${location.pathname === '/email-sender' ? 'text-purple-500' : 'text-gray-400'}`} 
-                        fill="none" 
-                        stroke="currentColor" 
+                      <motion.svg
+                        className={`w-5 h-5 ${location.pathname === '/email-sender' ? 'text-purple-500' : 'text-gray-400'}`}
+                        fill="none"
+                        stroke="currentColor"
                         viewBox="0 0 24 24"
                         whileHover={{ scale: 1.1, rotate: 5 }}
                       >
@@ -793,7 +777,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
                       </motion.svg>
                       <span>邮件发送</span>
                       {location.pathname === '/email-sender' && (
-                        <motion.span 
+                        <motion.span
                           className="ml-auto text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full"
                           initial={{ scale: 0, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
@@ -819,10 +803,10 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   whileHover={{ x: 5 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  <motion.svg 
-                    className={`w-5 h-5 ${twoFactorStatus.enabled ? 'text-purple-500' : 'text-gray-400'}`} 
-                    fill="none" 
-                    stroke="currentColor" 
+                  <motion.svg
+                    className={`w-5 h-5 ${twoFactorStatus.enabled ? 'text-purple-500' : 'text-gray-400'}`}
+                    fill="none"
+                    stroke="currentColor"
                     viewBox="0 0 24 24"
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
@@ -830,7 +814,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   </motion.svg>
                   <span>二次验证</span>
                   {twoFactorStatus.enabled && (
-                    <motion.span 
+                    <motion.span
                       className="ml-auto w-2 h-2 bg-green-500 rounded-full"
                       animate={{ scale: [1, 1.2, 1] }}
                       transition={{ duration: 2, repeat: Infinity }}
@@ -849,15 +833,14 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   to="/policy"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
-                    location.pathname === '/policy' ? 'bg-green-50 text-green-700 font-semibold shadow-sm' : 'hover:bg-green-50'
-                  }`}
+                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/policy' ? 'bg-green-50 text-green-700 font-semibold shadow-sm' : 'hover:bg-green-50'
+                    }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <motion.svg 
-                    className={`w-5 h-5 ${location.pathname === '/policy' ? 'text-green-500' : 'text-gray-400'}`} 
-                    fill="none" 
-                    stroke="currentColor" 
+                  <motion.svg
+                    className={`w-5 h-5 ${location.pathname === '/policy' ? 'text-green-500' : 'text-gray-400'}`}
+                    fill="none"
+                    stroke="currentColor"
                     viewBox="0 0 24 24"
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
@@ -865,7 +848,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   </motion.svg>
                   <span>服务条款</span>
                   {location.pathname === '/policy' && (
-                    <motion.span 
+                    <motion.span
                       className="ml-auto text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full"
                       initial={{ scale: 0, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
@@ -874,10 +857,10 @@ const MobileNav: React.FC<MobileNavProps> = ({
                       当前
                     </motion.span>
                   )}
-                  <motion.svg 
-                    className="w-4 h-4 text-gray-400" 
-                    fill="none" 
-                    stroke="currentColor" 
+                  <motion.svg
+                    className="w-4 h-4 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
                     viewBox="0 0 24 24"
                     whileHover={{ scale: 1.1, x: 2 }}
                   >
@@ -894,15 +877,14 @@ const MobileNav: React.FC<MobileNavProps> = ({
               >
                 <Link
                   to="/case-converter"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
-                    location.pathname === '/case-converter' ? 'bg-green-50 text-green-700 font-semibold shadow-sm' : 'hover:bg-green-50'
-                  }`}
+                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/case-converter' ? 'bg-green-50 text-green-700 font-semibold shadow-sm' : 'hover:bg-green-50'
+                    }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <motion.svg 
-                    className={`w-5 h-5 ${location.pathname === '/case-converter' ? 'text-green-500' : 'text-gray-400'}`} 
-                    fill="none" 
-                    stroke="currentColor" 
+                  <motion.svg
+                    className={`w-5 h-5 ${location.pathname === '/case-converter' ? 'text-green-500' : 'text-gray-400'}`}
+                    fill="none"
+                    stroke="currentColor"
                     viewBox="0 0 24 24"
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
@@ -910,7 +892,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   </motion.svg>
                   <span>字母转换</span>
                   {location.pathname === '/case-converter' && (
-                    <motion.span 
+                    <motion.span
                       className="ml-auto text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full"
                       initial={{ scale: 0, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
@@ -930,15 +912,14 @@ const MobileNav: React.FC<MobileNavProps> = ({
               >
                 <Link
                   to="/store"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
-                    location.pathname.startsWith('/store') ? 'bg-orange-50 text-orange-700 font-semibold shadow-sm' : 'hover:bg-orange-50'
-                  }`}
+                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname.startsWith('/store') ? 'bg-orange-50 text-orange-700 font-semibold shadow-sm' : 'hover:bg-orange-50'
+                    }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <motion.svg 
-                    className={`w-5 h-5 ${location.pathname.startsWith('/store') ? 'text-orange-500' : 'text-gray-400'}`} 
-                    fill="none" 
-                    stroke="currentColor" 
+                  <motion.svg
+                    className={`w-5 h-5 ${location.pathname.startsWith('/store') ? 'text-orange-500' : 'text-gray-400'}`}
+                    fill="none"
+                    stroke="currentColor"
                     viewBox="0 0 24 24"
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
@@ -946,7 +927,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   </motion.svg>
                   <span>资源商店</span>
                   {location.pathname.startsWith('/store') && (
-                    <motion.span 
+                    <motion.span
                       className="ml-auto text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full"
                       initial={{ scale: 0, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
@@ -966,15 +947,14 @@ const MobileNav: React.FC<MobileNavProps> = ({
               >
                 <Link
                   to="/api-docs"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
-                    location.pathname === '/api-docs' ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm' : 'hover:bg-indigo-50'
-                  }`}
+                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/api-docs' ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm' : 'hover:bg-indigo-50'
+                    }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <motion.svg 
-                    className={`w-5 h-5 ${location.pathname === '/api-docs' ? 'text-indigo-500' : 'text-gray-400'}`} 
-                    fill="none" 
-                    stroke="currentColor" 
+                  <motion.svg
+                    className={`w-5 h-5 ${location.pathname === '/api-docs' ? 'text-indigo-500' : 'text-gray-400'}`}
+                    fill="none"
+                    stroke="currentColor"
                     viewBox="0 0 24 24"
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
@@ -982,7 +962,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   </motion.svg>
                   <span>API 文档</span>
                   {location.pathname === '/api-docs' && (
-                    <motion.span 
+                    <motion.span
                       className="ml-auto text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full"
                       initial={{ scale: 0, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
@@ -1001,24 +981,22 @@ const MobileNav: React.FC<MobileNavProps> = ({
               >
                 <Link
                   to="/lottery"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
-                    location.pathname === '/lottery' ? 'bg-green-50 text-green-700 font-semibold shadow-sm' : 'hover:bg-green-50'
-                  }`}
+                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/lottery' ? 'bg-green-50 text-green-700 font-semibold shadow-sm' : 'hover:bg-green-50'
+                    }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <motion.svg 
-                    className={`w-5 h-5 ${location.pathname === '/lottery' ? 'text-green-500' : 'text-gray-400'}`} 
-                    fill="none" 
-                    stroke="currentColor" 
+                  <motion.svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
                     viewBox="0 0 24 24"
-                    whileHover={{ scale: 1.1, rotate: 5 }}
+                    whileHover={{ rotate: 5 }}
                   >
-                    <circle cx="12" cy="12" r="10" strokeWidth="2" />
-                    <path d="M8 12l2 2 4-4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </motion.svg>
                   <span>抽奖系统</span>
                   {location.pathname === '/lottery' && (
-                    <motion.span 
+                    <motion.span
                       className="ml-auto text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full"
                       initial={{ scale: 0, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
@@ -1038,15 +1016,14 @@ const MobileNav: React.FC<MobileNavProps> = ({
               >
                 <Link
                   to="/anti-counterfeit"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
-                    location.pathname === '/anti-counterfeit' ? 'bg-red-50 text-red-700 font-semibold shadow-sm' : 'hover:bg-red-50'
-                  }`}
+                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/anti-counterfeit' ? 'bg-red-50 text-red-700 font-semibold shadow-sm' : 'hover:bg-red-50'
+                    }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <motion.svg 
-                    className={`w-5 h-5 ${location.pathname === '/anti-counterfeit' ? 'text-red-500' : 'text-gray-400'}`} 
-                    fill="none" 
-                    stroke="currentColor" 
+                  <motion.svg
+                    className={`w-5 h-5 ${location.pathname === '/anti-counterfeit' ? 'text-red-500' : 'text-gray-400'}`}
+                    fill="none"
+                    stroke="currentColor"
                     viewBox="0 0 24 24"
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
@@ -1054,7 +1031,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   </motion.svg>
                   <span>安踏防伪</span>
                   {location.pathname === '/anti-counterfeit' && (
-                    <motion.span 
+                    <motion.span
                       className="ml-auto text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full"
                       initial={{ scale: 0, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
@@ -1074,15 +1051,14 @@ const MobileNav: React.FC<MobileNavProps> = ({
               >
                 <Link
                   to="/tiger-adventure"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
-                    location.pathname === '/tiger-adventure' ? 'bg-orange-50 text-orange-700 font-semibold shadow-sm' : 'hover:bg-orange-50'
-                  }`}
+                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/tiger-adventure' ? 'bg-orange-50 text-orange-700 font-semibold shadow-sm' : 'hover:bg-orange-50'
+                    }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <motion.svg 
-                    className={`w-5 h-5 ${location.pathname === '/tiger-adventure' ? 'text-orange-500' : 'text-gray-400'}`} 
-                    fill="none" 
-                    stroke="currentColor" 
+                  <motion.svg
+                    className={`w-5 h-5 ${location.pathname === '/tiger-adventure' ? 'text-orange-500' : 'text-gray-400'}`}
+                    fill="none"
+                    stroke="currentColor"
                     viewBox="0 0 24 24"
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
@@ -1090,7 +1066,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   </motion.svg>
                   <span>老虎冒险</span>
                   {location.pathname === '/tiger-adventure' && (
-                    <motion.span 
+                    <motion.span
                       className="ml-auto text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full"
                       initial={{ scale: 0, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
@@ -1110,15 +1086,14 @@ const MobileNav: React.FC<MobileNavProps> = ({
               >
                 <Link
                   to="/coin-flip"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
-                    location.pathname === '/coin-flip' ? 'bg-yellow-50 text-yellow-700 font-semibold shadow-sm' : 'hover:bg-yellow-50'
-                  }`}
+                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/coin-flip' ? 'bg-yellow-50 text-yellow-700 font-semibold shadow-sm' : 'hover:bg-yellow-50'
+                    }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <motion.svg 
-                    className={`w-5 h-5 ${location.pathname === '/coin-flip' ? 'text-yellow-500' : 'text-gray-400'}`} 
-                    fill="none" 
-                    stroke="currentColor" 
+                  <motion.svg
+                    className={`w-5 h-5 ${location.pathname === '/coin-flip' ? 'text-yellow-500' : 'text-gray-400'}`}
+                    fill="none"
+                    stroke="currentColor"
                     viewBox="0 0 24 24"
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
@@ -1127,7 +1102,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   </motion.svg>
                   <span>抛硬币</span>
                   {location.pathname === '/coin-flip' && (
-                    <motion.span 
+                    <motion.span
                       className="ml-auto text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full"
                       initial={{ scale: 0, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
@@ -1145,15 +1120,14 @@ const MobileNav: React.FC<MobileNavProps> = ({
               >
                 <Link
                   to="/image-upload"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
-                    location.pathname === '/image-upload' ? 'bg-blue-50 text-blue-700 font-semibold shadow-sm' : 'hover:bg-blue-50'
-                  }`}
+                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/image-upload' ? 'bg-blue-50 text-blue-700 font-semibold shadow-sm' : 'hover:bg-blue-50'
+                    }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <motion.svg 
-                    className={`w-5 h-5 ${location.pathname === '/image-upload' ? 'text-blue-500' : 'text-gray-400'}`} 
-                    fill="none" 
-                    stroke="currentColor" 
+                  <motion.svg
+                    className={`w-5 h-5 ${location.pathname === '/image-upload' ? 'text-blue-500' : 'text-gray-400'}`}
+                    fill="none"
+                    stroke="currentColor"
                     viewBox="0 0 24 24"
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
@@ -1161,7 +1135,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   </motion.svg>
                   <span>图片上传</span>
                   {location.pathname === '/image-upload' && (
-                    <motion.span 
+                    <motion.span
                       className="ml-auto text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full"
                       initial={{ scale: 0, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
@@ -1181,15 +1155,14 @@ const MobileNav: React.FC<MobileNavProps> = ({
               >
                 <Link
                   to="/fbi-wanted"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
-                    location.pathname === '/fbi-wanted' ? 'bg-red-50 text-red-700 font-semibold shadow-sm' : 'hover:bg-red-50'
-                  }`}
+                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/fbi-wanted' ? 'bg-red-50 text-red-700 font-semibold shadow-sm' : 'hover:bg-red-50'
+                    }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <motion.svg 
-                    className={`w-5 h-5 ${location.pathname === '/fbi-wanted' ? 'text-red-500' : 'text-gray-400'}`} 
-                    fill="none" 
-                    stroke="currentColor" 
+                  <motion.svg
+                    className={`w-5 h-5 ${location.pathname === '/fbi-wanted' ? 'text-red-500' : 'text-gray-400'}`}
+                    fill="none"
+                    stroke="currentColor"
                     viewBox="0 0 24 24"
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
@@ -1197,7 +1170,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   </motion.svg>
                   <span>FBI通缉犯</span>
                   {location.pathname === '/fbi-wanted' && (
-                    <motion.span 
+                    <motion.span
                       className="ml-auto text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full"
                       initial={{ scale: 0, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
@@ -1217,15 +1190,14 @@ const MobileNav: React.FC<MobileNavProps> = ({
               >
                 <Link
                   to="/markdown-export"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
-                    location.pathname === '/markdown-export' ? 'bg-purple-50 text-purple-700 font-semibold shadow-sm' : 'hover:bg-purple-50'
-                  }`}
+                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/markdown-export' ? 'bg-purple-50 text-purple-700 font-semibold shadow-sm' : 'hover:bg-purple-50'
+                    }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <motion.svg 
-                    className={`w-5 h-5 ${location.pathname === '/markdown-export' ? 'text-purple-500' : 'text-gray-400'}`} 
-                    fill="none" 
-                    stroke="currentColor" 
+                  <motion.svg
+                    className={`w-5 h-5 ${location.pathname === '/markdown-export' ? 'text-purple-500' : 'text-gray-400'}`}
+                    fill="none"
+                    stroke="currentColor"
                     viewBox="0 0 24 24"
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
@@ -1233,7 +1205,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   </motion.svg>
                   <span>Markdown导出</span>
                   {location.pathname === '/markdown-export' && (
-                    <motion.span 
+                    <motion.span
                       className="ml-auto text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full"
                       initial={{ scale: 0, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
@@ -1253,15 +1225,14 @@ const MobileNav: React.FC<MobileNavProps> = ({
               >
                 <Link
                   to="/librechat"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
-                    location.pathname === '/librechat' ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm' : 'hover:bg-indigo-50'
-                  }`}
+                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/librechat' ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm' : 'hover:bg-indigo-50'
+                    }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <motion.svg 
-                    className={`w-5 h-5 ${location.pathname === '/librechat' ? 'text-indigo-500' : 'text-gray-400'}`} 
-                    fill="none" 
-                    stroke="currentColor" 
+                  <motion.svg
+                    className={`w-5 h-5 ${location.pathname === '/librechat' ? 'text-indigo-500' : 'text-gray-400'}`}
+                    fill="none"
+                    stroke="currentColor"
                     viewBox="0 0 24 24"
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
@@ -1269,7 +1240,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   </motion.svg>
                   <span>LibreChat</span>
                   {location.pathname === '/librechat' && (
-                    <motion.span 
+                    <motion.span
                       className="ml-auto text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full"
                       initial={{ scale: 0, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
@@ -1282,7 +1253,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
               </motion.div>
 
               {/* 分割线 */}
-              <motion.div 
+              <motion.div
                 className="border-t border-gray-200 my-2"
                 initial={{ scaleX: 0 }}
                 animate={{ scaleX: 1 }}
@@ -1301,10 +1272,10 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   whileHover={{ x: 5, scale: 1.02 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  <motion.svg 
-                    className="w-5 h-5 text-red-500" 
-                    fill="none" 
-                    stroke="currentColor" 
+                  <motion.svg
+                    className="w-5 h-5 text-red-500"
+                    fill="none"
+                    stroke="currentColor"
                     viewBox="0 0 24 24"
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
