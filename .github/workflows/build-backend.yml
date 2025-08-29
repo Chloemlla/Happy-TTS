@@ -218,7 +218,7 @@ jobs:
           # 创建可执行文件输出目录
           mkdir -p executables
 
-          # 根据平台设置 pkg 目标 (使用 node18，pkg 支持的最新版本)
+          # 根据平台设置 pkg 目标
           case ${{ matrix.platform }} in
             "windows")
               TARGET="node18-win-x64"
