@@ -1,6 +1,13 @@
 name: Build Docker Image For pull_request
 
 on:
+  push:
+    branches:
+      - main
+      - dev
+    paths-ignore:
+      - .github/**
+      - "!.github/workflows/pr-docker.yml"
   pull_request:
   workflow_dispatch:
 permissions:
