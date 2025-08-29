@@ -72,6 +72,7 @@ export interface QueryStatsResponse {
     queryCount: number;
     lastQueried: string;
   };
+  error?: string;
 }
 
 // 配置接口

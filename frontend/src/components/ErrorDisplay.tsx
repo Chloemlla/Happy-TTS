@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { AntiCounterfeitError, AntiCounterfeitErrorType, getErrorMessage } from '../types/anta';
 
 interface ErrorDisplayProps {
@@ -122,7 +122,7 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({ error, onRetry, onReset }) 
   const errorMessage = getErrorMessage(error);
 
   // 动画变体
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: { 
       opacity: 0, 
       y: 30, 
@@ -149,7 +149,7 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({ error, onRetry, onReset }) 
       rotateX: -15,
       transition: {
         duration: 0.3,
-        ease: "easeInOut"
+        ease: [0.4, 0, 0.2, 1]
       }
     }
   };
