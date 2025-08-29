@@ -73,12 +73,69 @@ export class IPFSController {
 
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : '上传失败';
+            const ip = IPFSController.getClientIp(req);
             
-            logger.error('IPFS上传失败', {
-                ip: IPFSController.getClientIp(req),
-                error: errorMessage,
-                timestamp: new Date().toISOString()
-            });
+            // 检查是否为403错误，提供详细的调试信息
+            const isAxiosError = error && typeof error === 'object' && 'response' in error;
+            const statusCode = isAxiosError ? (error as any).response?.status : null;
+            
+            if (statusCode === 403) {
+                // 获取详细的请求构建信息用于调试
+                try {
+                    const ipfsUploadUrl = await IPFSService.getCurrentIPFSUploadURL();
+                    const ipfsUserAgent = await IPFSService.getCurrentIPFSUserAgent();
+                    const { buffer, originalname, mimetype } = req.file || {};
+                    
+                    // 构建完整的URL
+                    const fullUrl = `${ipfsUploadUrl}?stream-channels=true&pin=false&wrap-with-directory=false&progress=false`;
+                    
+                    // 生成curl命令用于调试
+                    const curlCommand = IPFSController.generateCurlCommand(
+                        fullUrl,
+                        ipfsUserAgent,
+                        originalname || 'unknown_file',
+                        mimetype || 'application/octet-stream'
+                    );
+                    
+                    logger.error('IPFS上传403错误 - 详细调试信息', {
+                        ip,
+                        error: errorMessage,
+                        statusCode,
+                        requestDetails: {
+                            ipfsUploadUrl,
+                            ipfsUserAgent,
+                            filename: originalname,
+                            mimetype,
+                            fileSize: buffer?.length || 0,
+                            fullUrl,
+                            queryParams: {
+                                'stream-channels': 'true',
+                                'pin': 'false',
+                                'wrap-with-directory': 'false',
+                                'progress': 'false'
+                            }
+                        },
+                        curlCommand,
+                        timestamp: new Date().toISOString()
+                    });
+                } catch (configError) {
+                    logger.error('IPFS上传403错误 - 无法获取配置信息', {
+                        ip,
+                        error: errorMessage,
+                        statusCode,
+                        configError: configError instanceof Error ? configError.message : String(configError),
+                        timestamp: new Date().toISOString()
+                    });
+                }
+            } else {
+                // 非403错误的常规日志
+                logger.error('IPFS上传失败', {
+                    ip,
+                    error: errorMessage,
+                    statusCode,
+                    timestamp: new Date().toISOString()
+                });
+            }
 
             res.status(500).json({
                 success: false,
@@ -245,6 +302,41 @@ export class IPFSController {
                 error: `IPFS配置测试失败: ${errorMessage}`
             });
         }
+    }
+
+    /**
+     * 生成curl命令用于调试IPFS上传请求
+     */
+    private static generateCurlCommand(
+        url: string,
+        userAgent: string,
+        filename: string,
+        mimetype: string
+    ): string {
+        // 解析URL获取基础URL和查询参数
+        const urlObj = new URL(url);
+        const baseUrl = `${urlObj.protocol}//${urlObj.host}${urlObj.pathname}`;
+        const origin = `${urlObj.protocol}//${urlObj.host}`;
+        
+        // 构建curl命令
+        const curlCommand = [
+            "curl -X POST",
+            `'${url}'`,
+            `-H 'User-Agent: ${userAgent}'`,
+            `-H 'accept-language: zh-CN,zh;q=0.9,en;q=0.8'`,
+            `-H 'origin: ${origin}'`,
+            `-H 'priority: u=1, i'`,
+            `-H 'referer: ${origin}/'`,
+            `-H 'sec-ch-ua: "Not;A=Brand";v="99", "Google Chrome";v="139", "Chromium";v="139"'`,
+            `-H 'sec-ch-ua-mobile: ?0'`,
+            `-H 'sec-ch-ua-platform: "Windows"'`,
+            `-H 'sec-fetch-dest: empty'`,
+            `-H 'sec-fetch-mode: cors'`,
+            `-H 'sec-fetch-site: same-origin'`,
+            `-F 'file=@"${filename}";filename="${filename}";headers="Content-Type: ${mimetype}"'`
+        ].join(' ');
+        
+        return curlCommand;
     }
 
     /**
