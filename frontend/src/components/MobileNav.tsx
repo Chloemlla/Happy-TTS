@@ -384,6 +384,31 @@ const MobileNav: React.FC<MobileNavProps> = ({
               <span className="hidden sm:inline">FBI通缉犯</span>
             </Link>
           </motion.div>
+
+          <motion.div
+            whileHover={{ scale: 1.05, y: -2 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Link 
+              to="/anti-counterfeit" 
+              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${
+                location.pathname === '/anti-counterfeit'
+                  ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg'
+                  : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-red-600 border border-gray-200/50'
+              }`}
+            >
+              <motion.svg 
+                className="w-4 h-4" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+                whileHover={{ rotate: 5 }}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </motion.svg>
+              <span className="hidden sm:inline">安踏防伪</span>
+            </Link>
+          </motion.div>
         </div>
 
         {/* 管理员功能组 */}
@@ -1005,11 +1030,47 @@ const MobileNav: React.FC<MobileNavProps> = ({
                 </Link>
               </motion.div>
 
+              {/* 安踏防伪查询 */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.52 }}
+              >
+                <Link
+                  to="/anti-counterfeit"
+                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${
+                    location.pathname === '/anti-counterfeit' ? 'bg-red-50 text-red-700 font-semibold shadow-sm' : 'hover:bg-red-50'
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <motion.svg 
+                    className={`w-5 h-5 ${location.pathname === '/anti-counterfeit' ? 'text-red-500' : 'text-gray-400'}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </motion.svg>
+                  <span>安踏防伪</span>
+                  {location.pathname === '/anti-counterfeit' && (
+                    <motion.span 
+                      className="ml-auto text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full"
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                    >
+                      当前
+                    </motion.span>
+                  )}
+                </Link>
+              </motion.div>
+
               {/* 老虎冒险 */}
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.5 }}
+                transition={{ duration: 0.4, delay: 0.54 }}
               >
                 <Link
                   to="/tiger-adventure"
@@ -1045,7 +1106,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.54 }}
+                transition={{ duration: 0.4, delay: 0.56 }}
               >
                 <Link
                   to="/coin-flip"
@@ -1152,7 +1213,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.51 }}
+                transition={{ duration: 0.4, delay: 0.53 }}
               >
                 <Link
                   to="/markdown-export"
@@ -1188,7 +1249,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.52 }}
+                transition={{ duration: 0.4, delay: 0.54 }}
               >
                 <Link
                   to="/librechat"
@@ -1232,7 +1293,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.57 }}
+                transition={{ duration: 0.4, delay: 0.59 }}
               >
                 <motion.button
                   onClick={handleLogout}

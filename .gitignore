@@ -11,6 +11,7 @@ scripts/test-mongo-connection.js
 LogPaste/
 .windsurf/
 .kiro/
+*.pem
 
 # 构建输出
 dist/

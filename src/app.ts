@@ -44,8 +44,10 @@ import socialRoutes from './routes/socialRoutes';
 import lifeRoutes from './routes/lifeRoutes';
 import { PasskeyDataRepairService } from './services/passkeyDataRepairService';
 import miniapiRoutes from './routes/miniapiRoutes';
+import antaRoutes from './routes/antaRoutes';
 import lotteryRoutes from './routes/lotteryRoutes';
 import { connectMongo } from './services/mongoService';
+
 import { UserStorage } from './utils/userStorage';
 import modlistRoutes from './routes/modlistRoutes';
 import imageDataRoutes from './routes/imageDataRoutes';
@@ -631,6 +633,17 @@ const miniapiLimiter = rateLimit({
   skip: (req: Request): boolean => req.isLocalIp || false
 });
 
+// 安踏防伪查询路由限流器
+const antaLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1分钟
+  max: 30, // 限制每个IP每分钟30次安踏防伪查询请求
+  message: { error: '安踏防伪查询请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => req.ip || (req.socket?.remoteAddress) || 'unknown',
+  skip: (req: Request): boolean => req.isLocalIp || false
+});
+
 // 状态路由限流器
 const statusLimiter = rateLimit({
   windowMs: 60 * 1000, // 1分钟
@@ -854,6 +867,15 @@ app.use('/api/passkey', passkeyAutoFixMiddleware);
 app.use('/api/passkey', passkeyRoutes);
 app.use('/api/email', emailRoutes);
 app.use('/api/miniapi', miniapiLimiter, miniapiRoutes);
+// 安踏防伪查询路由 - 添加限流和请求日志
+app.use('/api/anta', antaLimiter, (req: Request, res: Response, next: NextFunction) => {
+  logger.info(`安踏防伪查询请求: ${req.method} ${req.url}`, {
+    ip: req.ip,
+    userAgent: req.get('User-Agent'),
+    productId: req.params?.productId || req.body?.productId || 'unknown'
+  });
+  next();
+}, antaRoutes);
 // 额外在挂载点增加一层限流，叠加路由内部限流，缓解扫接口类滥用
 const modlistMountLimiter = rateLimit({
   windowMs: 60 * 1000, // 1分钟

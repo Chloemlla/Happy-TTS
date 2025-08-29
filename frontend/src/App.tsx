@@ -55,6 +55,9 @@ const LibreChatPage = React.lazy(() => import('./components/LibreChatPage'));
 // SmartHumanCheckTestPage 懒加载
 const SmartHumanCheckTestPage = React.lazy(() => import('./components/SmartHumanCheckTestPage'));
 
+// 安踏防伪查询页面懒加载
+const AntiCounterfeitPage = React.lazy(() => import('./components/AntiCounterfeitPage'));
+
 // 恢复 EmailSender 懒加载
 const EmailSenderPage: React.FC = () => {
   const [to, setTo] = React.useState('');
@@ -865,6 +868,23 @@ const App: React.FC = () => {
                         transition={pageTransition}
                       >
                         <LotteryPage />
+                      </m.div>
+                    </Suspense>
+                  ) : (
+                    <Navigate to="/welcome" replace state={{ from: location.pathname }} />
+                  )
+                } />
+                <Route path="/anti-counterfeit" element={
+                  user ? (
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <m.div
+                        variants={pageVariants}
+                        initial="initial"
+                        animate="in"
+                        exit="out"
+                        transition={pageTransition}
+                      >
+                        <AntiCounterfeitPage />
                       </m.div>
                     </Suspense>
                   ) : (
