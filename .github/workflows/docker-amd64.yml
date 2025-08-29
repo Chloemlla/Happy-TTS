@@ -24,7 +24,7 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@main
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Set Node.js memory limits
         run: |
@@ -103,26 +103,21 @@ jobs:
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
-      - name: Set up Python 3
-        uses: actions/setup-python@main
-        with:
-          python-version: "3.13"
-
-      - name: Cache Python packages
+      - name: Cache Node.js packages
         uses: actions/cache@main
         with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-pip-
+            ${{ runner.os }}-node-
 
-      - name: Install paramiko library
+      - name: Install Node.js dependencies
         run: |
-          pip install paramiko python-dotenv requests logging
+          npm install ssh2 dotenv axios
 
       - name: Set script permissions
         run: |
-          chmod +x scripts/deploy_image.py
+          chmod +x scripts/deploy_image.js
 
       - name: Run deployment script
         if: github.event_name != 'pull_request'
@@ -135,4 +130,4 @@ jobs:
           IMAGE_URL: happyclo/tts-node:${{ steps.meta.outputs.short_sha }}-amd64
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
         run: |
-          python scripts/deploy_image.py
+          node scripts/deploy_image.js

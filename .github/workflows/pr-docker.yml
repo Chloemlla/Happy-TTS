@@ -1,0 +1,60 @@
+name: Build Docker Image For pull_request
+
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    if: (github.actor == 'happy-clo' || github.actor == 'actions-user' || github.actor == 'hapxscom' || github.actor == 'devhappys') && !contains(github.event.head_commit.message, 'npm(deps):')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@main
+
+      - name: Use Node.js
+        uses: actions/setup-node@main
+        with:
+          node-version: 22
+
+      - name: Set Node.js memory limits
+        run: |
+          echo "NODE_OPTIONS=--max-old-space-size=5096" >> $GITHUB_ENV
+          echo "NPM_CONFIG_CACHE=/tmp/.npm" >> $GITHUB_ENV
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@master
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@master
+
+
+      - name: Prepare buildx cache dirs
+        run: |
+          mkdir -p /tmp/.buildx-cache
+          mkdir -p /tmp/.buildx-cache-new
+
+      - name: Build with memory optimization
+        uses: docker/build-push-action@master
+        env:
+          BUILDKIT_MEM_LIMIT: 13g
+        with:
+          context: .
+          platforms: linux/amd64
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+            NODE_OPTIONS=--max-old-space-size=13000
+          cache-from: |
+            type=local,src=/tmp/.buildx-cache
+            type=gha
+          cache-to: |
+            type=local,dest=/tmp/.buildx-cache-new,mode=max
+            type=gha,mode=max
+
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
