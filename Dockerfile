@@ -61,7 +61,14 @@ RUN npm install -g vitest && \
 COPY frontend/ .
 
 # 构建前端（增加内存优化和重试机制，修复 Rollup 依赖问题）
-RUN npm run build || (echo "第一次构建失败，清理缓存后重试..." && rm -rf node_modules/.cache && npm run build) || (echo "第二次构建失败，使用简化构建..." && npm run build:simple) || (echo "简化构建失败，使用最小构建..." && npm run build:minimal) || (echo "所有构建失败，尝试修复 Rollup 依赖..." && npm install @rollup/rollup-linux-x64-musl --save-dev && npm run build:minimal)
+RUN npm run build \
+    || (echo "第一次构建失败，清理缓存后重试..." && rm -rf node_modules/.cache && npm run build) \
+    || (echo "第二次构建失败，使用简化构建..." && npm run build:simple) \
+    || (echo "简化构建失败，使用最小构建..." && npm run build:minimal) \
+    || (echo "所有构建失败，尝试修复依赖（Rollup/Canvg）..." \
+        && npm install @rollup/rollup-linux-x64-musl --save-dev --no-optional || true \
+        && npm install canvg --no-optional || true \
+        && npm run build:minimal)
 
 # 确保favicon.ico存在
 RUN touch dist/favicon.ico
