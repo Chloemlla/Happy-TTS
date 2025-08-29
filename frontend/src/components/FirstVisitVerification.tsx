@@ -49,6 +49,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
   const [isLandscape, setIsLandscape] = useState(false);
   const [showParticles, setShowParticles] = useState(false); // 控制背景粒子显示
   const [retryCount, setRetryCount] = useState(0); // 重试次数
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false); // 隐私信息模态框
 
   // 检测设备类型、方向和缩放
   useEffect(() => {
@@ -1058,15 +1059,12 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
               className={`text-gray-500 leading-relaxed cursor-help ${isMobile ? 'text-xs' : 'text-sm'
                 }`}
               onClick={() => {
-                setNotification({
-                  message: '我们使用 Cloudflare Turnstile 进行安全验证，保护您的隐私',
-                  type: 'info'
-                });
+                setShowPrivacyModal(true);
               }}
               onMouseEnter={() => {
                 if (!isMobile) {
                   setNotification({
-                    message: '点击了解更多隐私保护信息',
+                    message: '点击查看详细的隐私保护说明',
                     type: 'info'
                   });
                 }
@@ -1128,7 +1126,163 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
             )}
           </motion.div>
         </motion.div>
+
+        {/* 隐私保护详情模态框 */}
+        <AnimatePresence>
+          {showPrivacyModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
+              onClick={() => setShowPrivacyModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                className={`bg-white rounded-2xl shadow-2xl border border-gray-200 ${isMobile ? 'w-full max-w-sm max-h-[80vh]' : 'max-w-lg w-full max-h-[85vh]'} overflow-hidden`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* 模态框头部 */}
+                <div className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      <h3 className={`font-bold ${isMobile ? 'text-lg' : 'text-xl'}`}>隐私保护说明</h3>
+                    </div>
+                    <button
+                      onClick={() => setShowPrivacyModal(false)}
+                      className="text-white/80 hover:text-white transition-colors p-1 rounded-full hover:bg-white/20"
+                    >
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 模态框内容 */}
+                <div className={`overflow-y-auto ${isMobile ? 'p-4 max-h-[60vh]' : 'p-6 max-h-[70vh]'}`}>
+                  {/* Cloudflare Turnstile 介绍 */}
+                  <div className="mb-6">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                        <svg className="w-4 h-4 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <h4 className="font-semibold text-gray-800">Cloudflare Turnstile 验证</h4>
+                    </div>
+                    <p className={`text-gray-600 leading-relaxed ${isMobile ? 'text-sm' : 'text-base'}`}>
+                      我们使用 Cloudflare Turnstile 作为人机验证解决方案，这是一个注重隐私的验证系统，旨在替代传统的验证码。
+                    </p>
+                  </div>
+
+                  {/* 隐私保护措施 */}
+                  <div className="mb-6">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                        <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <h4 className="font-semibold text-gray-800">隐私保护措施</h4>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className="w-2 h-2 bg-green-400 rounded-full mt-2 flex-shrink-0"></div>
+                        <p className={`text-gray-600 ${isMobile ? 'text-sm' : 'text-base'}`}>
+                          <strong>无个人信息收集：</strong>验证过程不会收集您的个人身份信息
+                        </p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <div className="w-2 h-2 bg-green-400 rounded-full mt-2 flex-shrink-0"></div>
+                        <p className={`text-gray-600 ${isMobile ? 'text-sm' : 'text-base'}`}>
+                          <strong>数据最小化：</strong>仅收集验证所需的最少技术信息
+                        </p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <div className="w-2 h-2 bg-green-400 rounded-full mt-2 flex-shrink-0"></div>
+                        <p className={`text-gray-600 ${isMobile ? 'text-sm' : 'text-base'}`}>
+                          <strong>临时存储：</strong>验证令牌仅在本地临时存储，5分钟后自动失效
+                        </p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <div className="w-2 h-2 bg-green-400 rounded-full mt-2 flex-shrink-0"></div>
+                        <p className={`text-gray-600 ${isMobile ? 'text-sm' : 'text-base'}`}>
+                          <strong>加密传输：</strong>所有数据传输均使用 HTTPS 加密保护
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 验证目的 */}
+                  <div className="mb-6">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <h4 className="font-semibold text-gray-800">验证目的</h4>
+                    </div>
+                    <div className="space-y-2">
+                      <p className={`text-gray-600 ${isMobile ? 'text-sm' : 'text-base'}`}>
+                        • 防止恶意机器人和自动化攻击
+                      </p>
+                      <p className={`text-gray-600 ${isMobile ? 'text-sm' : 'text-base'}`}>
+                        • 保护服务器资源和用户体验
+                      </p>
+                      <p className={`text-gray-600 ${isMobile ? 'text-sm' : 'text-base'}`}>
+                        • 确保服务的稳定性和安全性
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 用户权利 */}
+                  <div className="mb-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                        <svg className="w-4 h-4 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <h4 className="font-semibold text-gray-800">您的权利</h4>
+                    </div>
+                    <div className="bg-purple-50 rounded-lg p-3">
+                      <p className={`text-purple-700 ${isMobile ? 'text-sm' : 'text-base'}`}>
+                        您有权了解我们如何处理验证数据，如有任何隐私相关问题，
+                        请通过页面底部的联系方式与我们取得联系。
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 技术说明 */}
+                  <div className="border-t pt-4">
+                    <p className={`text-gray-500 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                      <strong>技术说明：</strong>Turnstile 通过分析浏览器行为模式来区分人类用户和机器人，
+                      无需用户进行复杂的图像识别或文字输入操作。
+                    </p>
+                  </div>
+                </div>
+
+                {/* 模态框底部 */}
+                <div className="bg-gray-50 px-6 py-4 flex justify-end">
+                  <button
+                    onClick={() => setShowPrivacyModal(false)}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+                  >
+                    我已了解
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </AnimatePresence>
   );
-}; 
+};
