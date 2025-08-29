@@ -32,6 +32,23 @@ export class IPFSController {
                 const shortLinkFlag = req.body && req.body.source === 'imgupload';
                 const userId = (req as any).user?.id || 'admin';
                 const username = (req as any).user?.username || 'admin';
+                const isAdmin = (req as any).user?.role === 'admin';
+                
+                // 检查是否为本地开发环境的管理员请求
+                const isLocalIp = ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(ip);
+                const isDev = process.env.NODE_ENV !== 'production';
+                const shouldSkipTurnstile = isAdmin && isLocalIp && isDev;
+                
+                if (shouldSkipTurnstile) {
+                    logger.info('本地开发环境管理员请求，将跳过Turnstile验证', {
+                        ip,
+                        userId,
+                        username,
+                        isAdmin,
+                        isDev,
+                        environment: process.env.NODE_ENV || 'development'
+                    });
+                }
                 
                 // 从请求中提取cfToken（Turnstile验证token）
                 const cfToken = req.body.cfToken;
@@ -43,7 +60,12 @@ export class IPFSController {
                     mimetype,
                     { shortLink: !!shortLinkFlag, userId, username },
                     cfToken,
-                    { clientIp: ip, isAdmin: (req as any).user?.role === 'admin' }
+                    { 
+                        clientIp: ip, 
+                        isAdmin,
+                        isDev,
+                        shouldSkipTurnstile 
+                    }
                 );
 
                 logger.info('IPFS上传成功', {

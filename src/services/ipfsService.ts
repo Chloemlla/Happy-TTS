@@ -105,12 +105,20 @@ export class IPFSService {
         mimetype: string,
         options?: { shortLink?: boolean; userId?: string; username?: string },
         cfToken?: string,
-        context?: { clientIp?: string; isAdmin?: boolean }
+        context?: { clientIp?: string; isAdmin?: boolean; isDev?: boolean; shouldSkipTurnstile?: boolean }
     ): Promise<IPFSUploadResponse> {
-        // 对于本机(127.0.0.1/::1)且管理员请求，免除Turnstile验证
+        // 对于本地开发环境的管理员请求，免除Turnstile验证
         const isLocalIp = context?.clientIp ? ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(context.clientIp) : false;
-        if (context?.isAdmin && isLocalIp) {
-            logger.info('[IPFS] 本机管理员请求，跳过Turnstile验证');
+        const shouldSkipTurnstile = context?.shouldSkipTurnstile || (context?.isAdmin && isLocalIp && context?.isDev);
+        
+        if (shouldSkipTurnstile) {
+            logger.info('[IPFS] 本地开发环境管理员请求，跳过Turnstile验证', {
+                clientIp: context?.clientIp,
+                isAdmin: context?.isAdmin,
+                isDev: context?.isDev,
+                isLocalIp,
+                environment: process.env.NODE_ENV || 'development'
+            });
         } else {
             // 如果提供了cfToken，进行Turnstile验证（保持现有行为，不强制要求所有请求必须提供cfToken）
             if (cfToken) {
