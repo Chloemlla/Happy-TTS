@@ -25,11 +25,15 @@ class InMemoryLogHandler {
         this.logs = [];
     }
 
-    emit(level, message) {
+    emit(level, message, options = {}) {
         const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 19);
         const logEntry = `${timestamp} - ${level} - ${message}`;
         this.logs.push(logEntry);
-        console.log(logEntry);
+        
+        // 如果标记为敏感信息，只记录到日志文件，不输出到控制台
+        if (!options.sensitive) {
+            console.log(logEntry);
+        }
     }
 
     getLogs() {
@@ -41,20 +45,25 @@ class InMemoryLogHandler {
 const inMemoryHandler = new InMemoryLogHandler();
 
 // 日志函数
-function log(message, level = 'INFO') {
-    inMemoryHandler.emit(level, message);
+function log(message, level = 'INFO', options = {}) {
+    inMemoryHandler.emit(level, message, options);
 }
 
-function logInfo(message) {
-    log(message, 'INFO');
+function logInfo(message, options = {}) {
+    log(message, 'INFO', options);
 }
 
-function logError(message) {
-    log(message, 'ERROR');
+function logError(message, options = {}) {
+    log(message, 'ERROR', options);
 }
 
-function logWarning(message) {
-    log(message, 'WARNING');
+function logWarning(message, options = {}) {
+    log(message, 'WARNING', options);
+}
+
+// 敏感信息日志函数 - 只记录到日志文件，不输出到控制台
+function logSensitive(message, level = 'INFO') {
+    log(message, level, { sensitive: true });
 }
 
 /**
@@ -153,8 +162,8 @@ async function pullDockerImage(ssh, imageUrl) {
     logInfo(`正在拉取镜像: ${imageUrl}`);
     try {
         const result = await execSSHCommand(ssh, `docker pull ${imageUrl}`);
-        if (result.stdout) logInfo(result.stdout);
-        if (result.stderr) logError(result.stderr);
+        if (result.stdout) logSensitive(result.stdout);
+        if (result.stderr) logSensitive(result.stderr, 'ERROR');
     } catch (err) {
         logError(`拉取镜像失败: ${err.message}`);
     }
@@ -609,19 +618,31 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
             createCommand += `--runtime ${hostConfig.Runtime} `;
         }
 
-        // 继承控制台大小（较新版本支持）
-        if (hostConfig.ConsoleSize && hostConfig.ConsoleSize.length === 2 && compatibility.supportsAdvanced) {
-            createCommand += `--console-size ${hostConfig.ConsoleSize[0]},${hostConfig.ConsoleSize[1]} `;
-        }
+        // 跳过控制台大小设置 - 该参数在大多数 Docker 版本中不被支持
+        // if (hostConfig.ConsoleSize && hostConfig.ConsoleSize.length === 2) {
+        //     createCommand += `--console-size ${hostConfig.ConsoleSize[0]},${hostConfig.ConsoleSize[1]} `;
+        // }
 
         // 继承隔离技术（Windows平台）
         if (hostConfig.Isolation && hostConfig.Isolation !== 'default' && compatibility.isWindows) {
             createCommand += `--isolation ${hostConfig.Isolation} `;
         }
 
+        // 继承启动参数（Args）
+        if (config.Args && config.Args.length > 0) {
+            // 将 Args 数组拼接成启动命令
+            const argsCommand = config.Args.join(' ');
+            logInfo(`继承启动参数: ${argsCommand}`);
+        }
+
         // 等待5秒
         await new Promise(resolve => setTimeout(resolve, 5000));
         createCommand += newImageUrl;
+        
+        // 添加启动参数作为容器命令
+        if (config.Args && config.Args.length > 0) {
+            createCommand += ` ${config.Args.join(' ')}`;
+        }
 
         // 检查并删除可能存在的旧容器
         const finalListResult = await execSSHCommand(ssh, "docker ps -a --format '{{.Names}}'");
@@ -636,13 +657,13 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
         await new Promise(resolve => setTimeout(resolve, 5000));
         logInfo('已休眠5s，正在创建新容器');
         
-        // 输出创建命令用于调试
-        logInfo(`创建命令: ${createCommand}`);
+        // 输出创建命令用于调试（敏感信息只记录到日志文件）
+        logSensitive(`创建命令: ${createCommand}`);
         
         // 创建新容器
         const createResult = await execSSHCommand(ssh, createCommand);
-        if (createResult.stdout) logInfo(createResult.stdout);
-        if (createResult.stderr) logError(createResult.stderr);
+        if (createResult.stdout) logSensitive(createResult.stdout);
+        if (createResult.stderr) logSensitive(createResult.stderr, 'ERROR');
         
         logInfo(`容器重新创建完成: ${oldContainerName}`);
     } catch (err) {
@@ -658,8 +679,8 @@ async function cleanupUnusedImages(ssh) {
     logInfo('正在清理未使用的 Docker 镜像...');
     try {
         const result = await execSSHCommand(ssh, 'docker image prune -a -f');
-        if (result.stdout) logInfo(result.stdout);
-        if (result.stderr) logError(result.stderr);
+        if (result.stdout) logSensitive(result.stdout);
+        if (result.stderr) logSensitive(result.stderr, 'ERROR');
     } catch (err) {
         logError(`清理镜像失败: ${err.message}`);
     }
