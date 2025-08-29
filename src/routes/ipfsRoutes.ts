@@ -136,7 +136,7 @@ router.post('/upload', uploadLimiter, upload.single('file'), IPFSController.uplo
  * /api/ipfs/settings:
  *   get:
  *     summary: 获取IPFS配置
- *     description: 获取当前IPFS上传URL配置
+ *     description: 获取当前IPFS上传URL与User-Agent配置
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -156,6 +156,9 @@ router.post('/upload', uploadLimiter, upload.single('file'), IPFSController.uplo
  *                     ipfsUploadUrl:
  *                       type: string
  *                       description: IPFS上传URL
+ *                     ipfsUa:
+ *                       type: string
+ *                       description: IPFS上传User-Agent
  *       401:
  *         description: 未授权
  *       500:
@@ -168,7 +171,7 @@ router.get('/settings', authenticateAdmin, IPFSController.getConfig);
  * /api/ipfs/settings:
  *   post:
  *     summary: 设置IPFS配置
- *     description: 设置IPFS上传URL配置
+ *     description: 设置IPFS上传URL与User-Agent配置（至少提供其一）
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -182,6 +185,10 @@ router.get('/settings', authenticateAdmin, IPFSController.getConfig);
  *                 type: string
  *                 description: IPFS上传URL
  *                 example: "https://ipfs-webui.hapxs.com/api/v0/add"
+ *               ipfsUa:
+ *                 type: string
+ *                 description: IPFS上传User-Agent
+ *                 example: "Synapse-IPFS-Uploader/1.0 (+https://example.com)"
  *     responses:
  *       200:
  *         description: 设置配置成功

@@ -86,6 +86,7 @@ interface WebhookSecretSetting {
 
 interface IPFSConfigSetting {
   ipfsUploadUrl: string;
+  ipfsUa?: string;
   updatedAt?: string;
 }
 
@@ -345,6 +346,7 @@ const EnvManager: React.FC = () => {
   const [ipfsConfigSaving, setIpfsConfigSaving] = useState(false);
   const [ipfsConfigTesting, setIpfsConfigTesting] = useState(false);
   const [ipfsUploadUrlInput, setIpfsUploadUrlInput] = useState('');
+  const [ipfsUserAgentInput, setIpfsUserAgentInput] = useState('');
 
   // Turnstile Config Setting
   const [turnstileConfig, setTurnstileConfig] = useState<TurnstileConfigSetting | null>(null);
@@ -1298,7 +1300,7 @@ const EnvManager: React.FC = () => {
         setIpfsConfigLoading(false);
         return;
       }
-      setIpfsConfig({ ipfsUploadUrl: data.data.ipfsUploadUrl });
+      setIpfsConfig({ ipfsUploadUrl: data.data.ipfsUploadUrl, ipfsUa: data.data.ipfsUa });
     } catch (e) {
       setNotification({ message: '获取IPFS配置失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
     } finally {
@@ -1309,8 +1311,9 @@ const EnvManager: React.FC = () => {
   const handleSaveIpfsConfig = useCallback(async () => {
     if (ipfsConfigSaving) return;
     const url = ipfsUploadUrlInput.trim();
-    if (!url) {
-      setNotification({ message: '请填写IPFS上传URL', type: 'error' });
+    const ua = ipfsUserAgentInput.trim();
+    if (!url && !ua) {
+      setNotification({ message: '请填写IPFS上传URL或User-Agent至少一项', type: 'error' });
       return;
     }
     setIpfsConfigSaving(true);
@@ -1318,7 +1321,7 @@ const EnvManager: React.FC = () => {
       const res = await fetch(IPFS_CONFIG_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ ipfsUploadUrl: url })
+        body: JSON.stringify({ ...(url ? { ipfsUploadUrl: url } : {}), ...(ua ? { ipfsUa: ua } : {}) })
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -1327,13 +1330,14 @@ const EnvManager: React.FC = () => {
       }
       setNotification({ message: '保存成功', type: 'success' });
       setIpfsUploadUrlInput('');
+      setIpfsUserAgentInput('');
       await fetchIpfsConfig();
     } catch (e) {
       setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
     } finally {
       setIpfsConfigSaving(false);
     }
-  }, [ipfsConfigSaving, ipfsUploadUrlInput, fetchIpfsConfig, setNotification]);
+  }, [ipfsConfigSaving, ipfsUploadUrlInput, ipfsUserAgentInput, fetchIpfsConfig, setNotification]);
 
   const handleTestIpfsConfig = useCallback(async () => {
     if (ipfsConfigTesting) return;
@@ -2218,6 +2222,24 @@ const EnvManager: React.FC = () => {
             </div>
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">IPFS User-Agent</label>
+              <input
+                value={ipfsUserAgentInput}
+                onChange={(e) => setIpfsUserAgentInput(e.target.value)}
+                placeholder="例如：Synapse-IPFS-Uploader/1.0 (+https://example.com)"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">当前User-Agent</label>
+              <div className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700 min-h-[40px] flex items-center break-all">
+                {ipfsConfigLoading ? '加载中...' : (ipfsConfig?.ipfsUa || '未设置')}
+              </div>
+            </div>
+          </div>
+
           <div className="flex items-center justify-end gap-3">
             <m.button
               onClick={handleTestIpfsConfig}
@@ -2238,7 +2260,7 @@ const EnvManager: React.FC = () => {
           </div>
 
           <div className="mt-4 text-xs text-gray-500">
-            说明：IPFS上传URL用于文件上传到IPFS网络，支持动态配置，无需重启服务
+            说明：IPFS上传URL与User-Agent用于文件上传到IPFS网络，支持动态配置（仅管理员可修改），保存后立即生效，无需重启服务。
           </div>
         </m.div>
 

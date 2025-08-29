@@ -889,7 +889,20 @@ router.post('/user/avatar', authMiddleware, upload.single('avatar'), async (req,
     let result;
     try {
       console.log(`[avatar upload] 开始上传头像: ${req.file.originalname}, 大小: ${req.file.size} bytes`);
-      result = await IPFSService.uploadFile(req.file.buffer, req.file.originalname, req.file.mimetype);
+      const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]
+        || (req.headers['x-real-ip'] as string)
+        || req.ip
+        || (req.connection as any).remoteAddress
+        || (req.socket as any).remoteAddress
+        || 'unknown';
+      result = await IPFSService.uploadFile(
+        req.file.buffer,
+        req.file.originalname,
+        req.file.mimetype,
+        undefined,
+        undefined,
+        { clientIp, isAdmin: (req as any).user?.role === 'admin' }
+      );
       if (!result || !result.web2url) {
         console.error('[avatar upload] IPFS上传失败，返回值:', result);
         return res.status(500).json({ error: 'IPFS上传失败，请稍后重试' });

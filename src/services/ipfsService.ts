@@ -38,6 +38,25 @@ async function getIPFSUploadURL(): Promise<string> {
   throw new Error('IPFS_UPLOAD_URL配置未设置，请在MongoDB的shorturl_settings集合中设置key为"IPFS_UPLOAD_URL"的配置');
 }
 
+async function getIPFSUserAgent(): Promise<string> {
+  try {
+    if (mongoose.connection.readyState === 1) {
+      const doc = await IPFSSettingModel.findOne({ key: 'IPFS_UA' }).lean().exec();
+      if (doc && typeof doc.value === 'string' && doc.value.trim().length > 0) {
+        logger.info('[IPFS] 从MongoDB读取到IPFS_UA配置:', doc.value);
+        return doc.value.trim();
+      }
+    }
+  } catch (e) {
+    logger.error('[IPFS] 读取IPFS_UA配置失败', e);
+  }
+  
+  // 如果没有配置，使用默认User-Agent
+  const defaultUA = 'Synapse-IPFS-Client/1.0';
+  logger.info('[IPFS] 使用默认User-Agent:', defaultUA);
+  return defaultUA;
+}
+
 
 export interface IPFSUploadResponse {
     status: string;
@@ -85,26 +104,33 @@ export class IPFSService {
         filename: string,
         mimetype: string,
         options?: { shortLink?: boolean; userId?: string; username?: string },
-        cfToken?: string
+        cfToken?: string,
+        context?: { clientIp?: string; isAdmin?: boolean }
     ): Promise<IPFSUploadResponse> {
-        // 如果提供了cfToken，进行Turnstile验证
-        if (cfToken) {
-            if (await TurnstileService.isEnabled()) {
-                try {
-                    const isValid = await TurnstileService.verifyToken(cfToken);
-                    if (!isValid) {
+        // 对于本机(127.0.0.1/::1)且管理员请求，免除Turnstile验证
+        const isLocalIp = context?.clientIp ? ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(context.clientIp) : false;
+        if (context?.isAdmin && isLocalIp) {
+            logger.info('[IPFS] 本机管理员请求，跳过Turnstile验证');
+        } else {
+            // 如果提供了cfToken，进行Turnstile验证（保持现有行为，不强制要求所有请求必须提供cfToken）
+            if (cfToken) {
+                if (await TurnstileService.isEnabled()) {
+                    try {
+                        const isValid = await TurnstileService.verifyToken(cfToken);
+                        if (!isValid) {
+                            throw new Error('人机验证失败，请重新验证');
+                        }
+                        logger.info('[IPFS] Turnstile验证通过');
+                    } catch (error) {
+                        logger.error('[IPFS] Turnstile验证失败:', error instanceof Error ? error.message : String(error));
                         throw new Error('人机验证失败，请重新验证');
                     }
-                    logger.info('[IPFS] Turnstile验证通过');
-                } catch (error) {
-                    logger.error('[IPFS] Turnstile验证失败:', error instanceof Error ? error.message : String(error));
-                    throw new Error('人机验证失败，请重新验证');
+                } else {
+                    logger.warn('[IPFS] Turnstile服务未启用，跳过验证');
                 }
             } else {
-                logger.warn('[IPFS] Turnstile服务未启用，跳过验证');
+                logger.info('[IPFS] 未提供cfToken，跳过Turnstile验证');
             }
-        } else {
-            logger.info('[IPFS] 未提供cfToken，跳过Turnstile验证');
         }
         
         // 检查文件大小
@@ -233,10 +259,12 @@ export class IPFSService {
                     contentType: mimetype
                 });
                 
-                // 动态获取IPFS上传URL
+                // 动态获取IPFS上传URL和User-Agent
                 let ipfsUploadUrl;
+                let ipfsUserAgent;
                 try {
                     ipfsUploadUrl = await getIPFSUploadURL();
+                    ipfsUserAgent = await getIPFSUserAgent();
                 } catch (configError) {
                     logger.error('[IPFS] 获取IPFS配置失败:', configError instanceof Error ? configError.message : String(configError));
                     throw new Error('IPFS服务配置未设置，请联系管理员配置IPFS_UPLOAD_URL');
@@ -249,6 +277,7 @@ export class IPFSService {
                     {
                         headers: {
                             ...formData.getHeaders(),
+                            'User-Agent': ipfsUserAgent,
                         },
                         timeout: 30000, // 30秒超时
                     }
@@ -746,6 +775,44 @@ export class IPFSService {
     }
 
     /**
+     * 设置IPFS User-Agent配置
+     * @param userAgent User-Agent字符串
+     * @returns 设置结果
+     */
+    public static async setIPFSUserAgent(userAgent: string): Promise<boolean> {
+        try {
+            if (!userAgent || typeof userAgent !== 'string' || userAgent.trim().length === 0) {
+                throw new Error('IPFS User-Agent 不能为空');
+            }
+
+            const trimmedUA = userAgent.trim();
+            if (trimmedUA.length > 256) {
+                throw new Error('IPFS User-Agent 长度不能超过256字符');
+            }
+
+            // 确保MongoDB连接
+            await ensureMongoConnected();
+
+            // 更新或创建配置
+            await IPFSSettingModel.findOneAndUpdate(
+                { key: 'IPFS_UA' },
+                {
+                    key: 'IPFS_UA',
+                    value: trimmedUA,
+                    updatedAt: new Date()
+                },
+                { upsert: true, new: true }
+            );
+
+            logger.info('[IPFS] IPFS_UA 配置已更新:', trimmedUA);
+            return true;
+        } catch (error) {
+            logger.error('[IPFS] 设置IPFS_UA失败:', error);
+            throw error;
+        }
+    }
+
+    /**
      * 获取当前IPFS上传URL配置
      * @returns 当前配置的URL
      * @throws 如果配置未设置
@@ -757,6 +824,14 @@ export class IPFSService {
             logger.error('[IPFS] 获取当前IPFS配置失败:', error instanceof Error ? error.message : String(error));
             throw new Error('IPFS_UPLOAD_URL配置未设置，请先使用setIPFSUploadURL方法设置配置');
         }
+    }
+
+    /**
+     * 获取当前IPFS User-Agent配置
+     * @returns 当前配置的User-Agent（若未设置则返回默认UA）
+     */
+    public static async getCurrentIPFSUserAgent(): Promise<string> {
+        return await getIPFSUserAgent();
     }
 
     /**

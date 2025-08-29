@@ -36,12 +36,15 @@ export class IPFSController {
                 // 从请求中提取cfToken（Turnstile验证token）
                 const cfToken = req.body.cfToken;
                 
-                // 使用IPFS服务上传文件
-                const uploadResult = await IPFSService.uploadFile(buffer, originalname, mimetype, { 
-                    shortLink: !!shortLinkFlag, 
-                    userId, 
-                    username 
-                }, cfToken);
+                // 使用IPFS服务上传文件（传递上下文用于本机管理员免除Turnstile验证）
+                const uploadResult = await IPFSService.uploadFile(
+                    buffer,
+                    originalname,
+                    mimetype,
+                    { shortLink: !!shortLinkFlag, userId, username },
+                    cfToken,
+                    { clientIp: ip, isAdmin: (req as any).user?.role === 'admin' }
+                );
 
                 logger.info('IPFS上传成功', {
                     ip,
@@ -99,11 +102,13 @@ export class IPFSController {
             });
 
             const ipfsUploadUrl = await IPFSService.getCurrentIPFSUploadURL();
+            const ipfsUa = await IPFSService.getCurrentIPFSUserAgent();
             
             res.json({
                 success: true,
                 data: {
-                    ipfsUploadUrl
+                    ipfsUploadUrl,
+                    ipfsUa
                 }
             });
         } catch (error) {
@@ -129,23 +134,28 @@ export class IPFSController {
         try {
             const ip = IPFSController.getClientIp(req);
             const userId = (req as any).user?.id || 'unknown';
-            const { ipfsUploadUrl } = req.body;
+            const { ipfsUploadUrl, ipfsUa } = req.body;
             
             logger.info('设置IPFS配置请求', {
                 ip,
                 userId,
                 ipfsUploadUrl,
+                ipfsUa,
                 timestamp: new Date().toISOString()
             });
 
-            if (!ipfsUploadUrl || typeof ipfsUploadUrl !== 'string') {
-                return res.status(400).json({
-                    success: false,
-                    error: '请提供有效的IPFS上传URL'
-                });
+            // 至少需要提供一个可更新的字段
+            if ((!ipfsUploadUrl || typeof ipfsUploadUrl !== 'string' || !ipfsUploadUrl.trim()) &&
+                (!ipfsUa || typeof ipfsUa !== 'string' || !ipfsUa.trim())) {
+                return res.status(400).json({ success: false, error: '请提供IPFS上传URL或User-Agent中的至少一个' });
             }
 
-            await IPFSService.setIPFSUploadURL(ipfsUploadUrl);
+            if (ipfsUploadUrl && typeof ipfsUploadUrl === 'string' && ipfsUploadUrl.trim()) {
+                await IPFSService.setIPFSUploadURL(ipfsUploadUrl);
+            }
+            if (typeof ipfsUa === 'string' && ipfsUa.trim()) {
+                await IPFSService.setIPFSUserAgent(ipfsUa);
+            }
             
             res.json({
                 success: true,
@@ -182,6 +192,7 @@ export class IPFSController {
             });
 
             const ipfsUploadUrl = await IPFSService.getCurrentIPFSUploadURL();
+            const ipfsUa = await IPFSService.getCurrentIPFSUserAgent();
             
             // 创建一个简单的测试文件
             const testBuffer = Buffer.from('IPFS配置测试文件', 'utf-8');
@@ -200,6 +211,7 @@ export class IPFSController {
                 {
                     headers: {
                         ...formData.getHeaders(),
+                        'User-Agent': ipfsUa,
                     },
                     timeout: 10000, // 10秒超时
                 }

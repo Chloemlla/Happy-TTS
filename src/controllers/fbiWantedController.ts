@@ -134,11 +134,19 @@ export const fbiWantedController = {
             }
 
             // 上传到 IPFS（仅允许图片，大小上限在服务内校验）
+            const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]
+              || (req.headers['x-real-ip'] as string)
+              || req.ip
+              || (req.connection as any).remoteAddress
+              || (req.socket as any).remoteAddress
+              || 'unknown';
             const uploadRes = await IPFSService.uploadFile(
                 file.buffer,
                 file.originalname || 'avatar.jpg',
                 file.mimetype,
-                { shortLink: false }
+                { shortLink: false },
+                undefined,
+                { clientIp, isAdmin: (req as any).user?.role === 'admin' }
             );
 
             const photoUrl = uploadRes.web2url || uploadRes.url; // 优先使用可直接访问的 Web2 URL
