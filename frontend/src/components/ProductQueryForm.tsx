@@ -164,8 +164,19 @@ const ProductQueryForm: React.FC<ProductQueryFormProps> = ({
     try {
       if (navigator.clipboard && navigator.clipboard.readText) {
         const text = await navigator.clipboard.readText();
-        if (text && text.includes('ascm.anta.com')) {
-          setImportUrl(text);
+        
+        // 安全地验证URL，防止恶意URL注入
+        if (text && typeof text === 'string') {
+          try {
+            const url = new URL(text);
+            // 严格验证域名，确保只接受安踏官方域名
+            if (url.hostname === 'ascm.anta.com' && url.protocol === 'https:') {
+              setImportUrl(text);
+            }
+          } catch (urlError) {
+            // URL格式无效，忽略
+            console.log('无效的URL格式:', urlError);
+          }
         }
       }
     } catch (error) {

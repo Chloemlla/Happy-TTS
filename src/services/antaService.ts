@@ -361,7 +361,7 @@ export class AntaService {
                 const response = await axios.get(queryUrl, {
                     timeout: this.timeout,
                     httpsAgent: new https.Agent({
-                        rejectUnauthorized: false,
+                        rejectUnauthorized: true, // 启用证书验证以确保安全连接
                         secureProtocol: 'TLSv1_2_method',
                         keepAlive: true
                     }),
@@ -482,7 +482,7 @@ export class AntaService {
                 const response = await axios.get(queryUrl, {
                     timeout: this.timeout,
                     httpsAgent: new https.Agent({
-                        rejectUnauthorized: false,
+                        rejectUnauthorized: true, // 启用证书验证以确保安全连接
                         secureProtocol: 'TLSv1_2_method',
                         keepAlive: true
                     }),
@@ -544,7 +544,7 @@ export class AntaService {
                     const testResponse = await axios.get(testUrl, {
                         timeout: this.timeout,
                         httpsAgent: new https.Agent({
-                            rejectUnauthorized: false,
+                            rejectUnauthorized: true, // 启用证书验证以确保安全连接
                             secureProtocol: 'TLSv1_2_method',
                             keepAlive: true
                         }),

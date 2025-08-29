@@ -181,12 +181,38 @@ export class AntaController {
      */
     public static async getRecentHistory(req: Request, res: Response) {
         try {
-            const { productId } = req.query as { productId?: string };
-            const limitRaw = (req.query.limit as string) || '50';
-            let limit = parseInt(limitRaw, 10);
+            // 安全地提取和验证 productId 参数，防止类型混淆攻击
+            const productIdRaw = req.query.productId;
+            let productId: string | undefined;
+            
+            if (productIdRaw) {
+                // 确保 productId 是字符串类型，如果是数组则取第一个值
+                if (typeof productIdRaw === 'string') {
+                    productId = productIdRaw;
+                } else if (Array.isArray(productIdRaw) && productIdRaw.length > 0 && typeof productIdRaw[0] === 'string') {
+                    productId = productIdRaw[0];
+                } else {
+                    return res.status(400).json({ success: false, error: '产品ID参数格式不正确' });
+                }
+            }
+
+            // 安全地提取和验证 limit 参数
+            const limitRaw = req.query.limit;
+            let limitStr: string;
+            
+            if (typeof limitRaw === 'string') {
+                limitStr = limitRaw;
+            } else if (Array.isArray(limitRaw) && limitRaw.length > 0 && typeof limitRaw[0] === 'string') {
+                limitStr = limitRaw[0];
+            } else {
+                limitStr = '50';
+            }
+            
+            let limit = parseInt(limitStr, 10);
             if (isNaN(limit) || limit <= 0) limit = 50;
             if (limit > 200) limit = 200;
 
+            // 验证 productId 格式（如果提供了的话）
             if (productId) {
                 const productIdPattern = /^[a-zA-Z0-9\-_\.]+$/;
                 if (!productIdPattern.test(productId) || productId.length > 50) {

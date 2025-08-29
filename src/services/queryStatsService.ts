@@ -170,7 +170,15 @@ export class QueryStatsService {
     public static async getRecentHistory(productId?: string, limit = 50): Promise<QueryHistoryRecord[]> {
         try {
             if ((this.STORAGE_MODE || '').toLowerCase() === 'mongo') {
-                const query = productId ? { productId } : {};
+                // 安全地构建查询条件，防止NoSQL注入攻击
+                let query: any = {};
+                if (productId && typeof productId === 'string') {
+                    // 验证和清理productId以防止注入攻击
+                    const sanitizedProductId = productId.replace(/[^a-zA-Z0-9\-_\.]/g, '');
+                    if (sanitizedProductId.length > 0 && sanitizedProductId.length <= 50) {
+                        query = { productId: sanitizedProductId };
+                    }
+                }
                 const docs = await QueryHistoryModel.find(query).sort({ timestamp: -1 }).limit(limit).lean() as IQueryHistoryDoc[];
                 return docs.map(d => ({
                     productId: d.productId,
