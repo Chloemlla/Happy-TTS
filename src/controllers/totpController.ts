@@ -19,17 +19,17 @@ export class TOTPController {
      */
     private static checkTOTPAttempts(userId: string): { allowed: boolean; remainingAttempts: number; lockedUntil?: number } {
         const attempts = totpAttempts.get(userId);
-        
+
         if (!attempts) {
             return { allowed: true, remainingAttempts: TOTP_ATTEMPT_LIMIT };
         }
 
         // 检查是否在锁定期间
         if (attempts.lockedUntil && Date.now() < attempts.lockedUntil) {
-            return { 
-                allowed: false, 
-                remainingAttempts: 0, 
-                lockedUntil: attempts.lockedUntil 
+            return {
+                allowed: false,
+                remainingAttempts: 0,
+                lockedUntil: attempts.lockedUntil
             };
         }
 
@@ -48,7 +48,7 @@ export class TOTPController {
      */
     private static recordTOTPAttempt(userId: string, success: boolean): void {
         const attempts = totpAttempts.get(userId) || { count: 0, lastAttempt: 0 };
-        
+
         if (success) {
             // 验证成功，重置尝试次数
             totpAttempts.delete(userId);
@@ -56,13 +56,13 @@ export class TOTPController {
             // 验证失败，增加尝试次数
             attempts.count += 1;
             attempts.lastAttempt = Date.now();
-            
+
             // 如果达到限制，设置锁定时间
             if (attempts.count >= TOTP_ATTEMPT_LIMIT) {
                 attempts.lockedUntil = Date.now() + TOTP_LOCKOUT_DURATION;
                 logger.warn('TOTP验证尝试次数超限，账户被锁定:', { userId, lockoutDuration: TOTP_LOCKOUT_DURATION });
             }
-            
+
             totpAttempts.set(userId, attempts);
         }
     }
@@ -73,12 +73,18 @@ export class TOTPController {
     public static async generateSetup(req: Request, res: Response) {
         try {
             // @ts-ignore
-            const user = req.user as any;
-            if (!user) {
+            const jwtUser = req.user as any;
+            if (!jwtUser) {
                 return res.status(401).json({ error: '未授权访问' });
             }
 
-            const userId = user.id;
+            const userId = jwtUser.id;
+
+            // 从数据库获取完整的用户信息，包括TOTP相关字段
+            const user = await UserStorage.getUserById(userId);
+            if (!user) {
+                return res.status(404).json({ error: '用户不存在' });
+            }
 
             // 如果已经启用了TOTP，返回错误
             if (user.totpEnabled) {
@@ -87,18 +93,27 @@ export class TOTPController {
 
             // 生成新的TOTP密钥
             const secret = TOTPService.generateSecret(user.username);
-            
+
             // 生成otpauth URL和QR码
             const otpauthUrl = TOTPService.generateOTPAuthURL(secret, user.username);
             const qrCodeDataUrl = await TOTPService.generateQRCodeDataURL(secret, user.username);
-            
+
             // 生成备用恢复码
             const backupCodes = TOTPService.generateBackupCodes();
 
             // 临时保存密钥到用户数据中（还未启用）
             await TOTPController.updateUserTOTP(userId, secret, false, backupCodes);
 
-            logger.info('TOTP设置生成成功:', { userId, username: user.username });
+            // 验证保存是否成功
+            const updatedUser = await UserStorage.getUserById(userId);
+            logger.info('TOTP设置生成成功:', { 
+                userId, 
+                username: user.username,
+                secretSaved: !!(updatedUser?.totpSecret),
+                secretLength: updatedUser?.totpSecret ? updatedUser.totpSecret.length : 0,
+                backupCodesSaved: !!(updatedUser?.backupCodes && updatedUser.backupCodes.length > 0),
+                backupCodesCount: updatedUser?.backupCodes ? updatedUser.backupCodes.length : 0
+            });
 
             res.json({
                 secret,
@@ -120,12 +135,12 @@ export class TOTPController {
         let currentUser: any = null;
         try {
             // @ts-ignore
-            currentUser = req.user as any;
-            if (!currentUser) {
+            const jwtUser = req.user as any;
+            if (!jwtUser) {
                 return res.status(401).json({ error: '未授权访问' });
             }
 
-            const userId = currentUser.id;
+            const userId = jwtUser.id;
             const { token } = req.body;
 
             if (!token) {
@@ -133,13 +148,39 @@ export class TOTPController {
                 return res.status(400).json({ error: '请提供验证码' });
             }
 
+            // 从数据库获取完整的用户信息，包括TOTP相关字段
+            currentUser = await UserStorage.getUserById(userId);
+            if (!currentUser) {
+                logger.warn('verifyAndEnable: 用户不存在', { userId });
+                return res.status(404).json({ error: '用户不存在' });
+            }
+
             if (currentUser.totpEnabled) {
                 logger.warn('verifyAndEnable: TOTP已经启用', { userId, username: currentUser.username });
                 return res.status(400).json({ error: 'TOTP已经启用' });
             }
 
-            if (!currentUser.totpSecret) {
-                logger.warn('verifyAndEnable: 未生成TOTP设置', { userId, username: currentUser.username });
+            // 详细调试用户TOTP状态
+            logger.info('verifyAndEnable: 用户TOTP状态详情', {
+                userId,
+                username: currentUser.username,
+                totpSecret: currentUser.totpSecret ? '***已设置***' : '未设置',
+                totpSecretLength: currentUser.totpSecret ? currentUser.totpSecret.length : 0,
+                totpSecretType: typeof currentUser.totpSecret,
+                totpEnabled: currentUser.totpEnabled,
+                hasBackupCodes: !!(currentUser.backupCodes && currentUser.backupCodes.length > 0),
+                backupCodesCount: currentUser.backupCodes ? currentUser.backupCodes.length : 0,
+                userKeys: Object.keys(currentUser)
+            });
+
+            if (!currentUser.totpSecret || currentUser.totpSecret.trim() === '') {
+                logger.warn('verifyAndEnable: 未生成TOTP设置', { 
+                    userId, 
+                    username: currentUser.username,
+                    totpSecret: currentUser.totpSecret,
+                    totpSecretType: typeof currentUser.totpSecret,
+                    totpSecretLength: currentUser.totpSecret ? currentUser.totpSecret.length : 0
+                });
                 return res.status(400).json({ error: '请先生成TOTP设置' });
             }
 
@@ -148,7 +189,7 @@ export class TOTPController {
             if (!attemptCheck.allowed) {
                 const remainingTime = Math.ceil((attemptCheck.lockedUntil! - Date.now()) / 1000 / 60);
                 logger.warn('verifyAndEnable: 验证尝试次数过多', { userId, username: currentUser.username, lockedUntil: attemptCheck.lockedUntil });
-                return res.status(429).json({ 
+                return res.status(429).json({
                     error: `验证尝试次数过多，请${remainingTime}分钟后再试`,
                     lockedUntil: attemptCheck.lockedUntil
                 });
@@ -157,29 +198,29 @@ export class TOTPController {
             // 验证令牌
             const isValid = TOTPService.verifyToken(token, currentUser.totpSecret);
             logger.info('verifyAndEnable: 验证TOTP令牌', { userId, username: currentUser.username, token, isValid });
-            
+
             // 记录验证尝试
             TOTPController.recordTOTPAttempt(userId, isValid);
-            
+
             if (!isValid) {
                 const remainingAttempts = attemptCheck.remainingAttempts - 1;
-                
+
                 // 生成当前时间窗口的期望验证码用于调试
                 const expectedToken = TOTPDebugger.generateTestToken(currentUser.totpSecret, 0);
                 const prevToken = TOTPDebugger.generateTestToken(currentUser.totpSecret, -30);
                 const nextToken = TOTPDebugger.generateTestToken(currentUser.totpSecret, 30);
-                
-                logger.warn('verifyAndEnable: 验证码错误', { 
-                    userId, 
-                    username: currentUser.username, 
-                    token, 
+
+                logger.warn('verifyAndEnable: 验证码错误', {
+                    userId,
+                    username: currentUser.username,
+                    token,
                     remainingAttempts,
                     expectedToken,
                     prevToken,
                     nextToken
                 });
-                
-                return res.status(400).json({ 
+
+                return res.status(400).json({
                     error: '验证码错误',
                     remainingAttempts,
                     lockedUntil: remainingAttempts === 0 ? Date.now() + TOTP_LOCKOUT_DURATION : undefined,
@@ -238,7 +279,7 @@ export class TOTPController {
                 const attemptCheck = TOTPController.checkTOTPAttempts(userId);
                 if (!attemptCheck.allowed) {
                     const remainingTime = Math.ceil((attemptCheck.lockedUntil! - Date.now()) / 1000 / 60);
-                    return res.status(429).json({ 
+                    return res.status(429).json({
                         error: `验证尝试次数过多，请${remainingTime}分钟后再试`,
                         lockedUntil: attemptCheck.lockedUntil
                     });
@@ -250,7 +291,7 @@ export class TOTPController {
             if (token) {
                 // 验证TOTP令牌
                 isValid = TOTPService.verifyToken(token, user.totpSecret!);
-                
+
                 // 记录验证尝试
                 TOTPController.recordTOTPAttempt(userId, isValid);
             } else if (backupCode) {
@@ -258,47 +299,47 @@ export class TOTPController {
                 if (!user.backupCodes || user.backupCodes.length === 0) {
                     return res.status(400).json({ error: '用户没有设置备用恢复码' });
                 }
-                
+
                 // 记录验证前的恢复码数量
                 const originalCount = user.backupCodes.length;
                 const backupCodes = [...user.backupCodes];
-                
+
                 isValid = TOTPService.verifyBackupCode(backupCode, backupCodes);
-                
+
                 if (isValid) {
                     // 更新用户的备用恢复码（报废已使用的恢复码）
                     await TOTPController.updateUserBackupCodes(userId, backupCodes);
-                    
+
                     // 记录详细的报废信息
                     const usedCode = (typeof backupCode === 'string' ? backupCode : String(backupCode ?? '')).toUpperCase().replace(/[^A-Z0-9]/g, '');
                     const remainingCount = backupCodes.length;
-                    
-                    logger.info('备用恢复码验证成功并已报废:', { 
-                        userId, 
+
+                    logger.info('备用恢复码验证成功并已报废:', {
+                        userId,
                         username: user.username,
                         usedCode,
                         originalCount,
                         remainingCount,
                         codesRemoved: originalCount - remainingCount
                     });
-                    
+
                     // 如果恢复码用完，记录警告
                     if (remainingCount === 0) {
-                        logger.warn('用户所有备用恢复码已用完:', { 
-                            userId, 
-                            username: user.username 
+                        logger.warn('用户所有备用恢复码已用完:', {
+                            userId,
+                            username: user.username
                         });
                     } else if (remainingCount <= 3) {
-                        logger.warn('用户备用恢复码数量不足:', { 
-                            userId, 
+                        logger.warn('用户备用恢复码数量不足:', {
+                            userId,
                             username: user.username,
-                            remainingCount 
+                            remainingCount
                         });
                     }
                 } else {
                     // 记录失败的验证尝试
-                    logger.warn('备用恢复码验证失败:', { 
-                        userId, 
+                    logger.warn('备用恢复码验证失败:', {
+                        userId,
                         username: user.username,
                         attemptedCode: (typeof backupCode === 'string' ? backupCode : String(backupCode ?? '')).toUpperCase().replace(/[^A-Z0-9]/g, ''),
                         availableCodes: user.backupCodes.length
@@ -310,23 +351,23 @@ export class TOTPController {
                 if (token) {
                     const attemptCheck = TOTPController.checkTOTPAttempts(userId);
                     const remainingAttempts = attemptCheck.remainingAttempts - 1;
-                    
+
                     // 生成当前时间窗口的期望验证码用于调试
                     const expectedToken = TOTPDebugger.generateTestToken(user.totpSecret!, 0);
                     const prevToken = TOTPDebugger.generateTestToken(user.totpSecret!, -30);
                     const nextToken = TOTPDebugger.generateTestToken(user.totpSecret!, 30);
-                    
-                    logger.warn('verifyToken: TOTP验证码错误', { 
-                        userId, 
-                        username: user.username, 
-                        token, 
+
+                    logger.warn('verifyToken: TOTP验证码错误', {
+                        userId,
+                        username: user.username,
+                        token,
                         remainingAttempts,
                         expectedToken,
                         prevToken,
                         nextToken
                     });
-                    
-                    return res.status(400).json({ 
+
+                    return res.status(400).json({
                         error: '验证码错误',
                         remainingAttempts,
                         lockedUntil: remainingAttempts === 0 ? Date.now() + TOTP_LOCKOUT_DURATION : undefined,
@@ -348,9 +389,9 @@ export class TOTPController {
             const jwt = require('jsonwebtoken');
             const config = require('../config/config').config;
             const jwtToken = jwt.sign({ userId: user.id }, config.jwtSecret, { expiresIn: '2h' });
-            
-            logger.info('TOTP验证成功，生成JWT token', { 
-                userId: user.id, 
+
+            logger.info('TOTP验证成功，生成JWT token', {
+                userId: user.id,
                 username: user.username,
                 tokenType: 'JWT'
             });
@@ -372,13 +413,19 @@ export class TOTPController {
     public static async disable(req: Request, res: Response) {
         try {
             // @ts-ignore
-            const user = req.user as any;
-            if (!user) {
+            const jwtUser = req.user as any;
+            if (!jwtUser) {
                 return res.status(401).json({ error: '未授权访问' });
             }
 
-            const userId = user.id;
+            const userId = jwtUser.id;
             const { token } = req.body;
+
+            // 从数据库获取完整的用户信息，包括TOTP相关字段
+            const user = await UserStorage.getUserById(userId);
+            if (!user) {
+                return res.status(404).json({ error: '用户不存在' });
+            }
 
             if (!user.totpEnabled) {
                 return res.status(400).json({ error: 'TOTP未启用' });
@@ -388,7 +435,7 @@ export class TOTPController {
             const attemptCheck = TOTPController.checkTOTPAttempts(userId);
             if (!attemptCheck.allowed) {
                 const remainingTime = Math.ceil((attemptCheck.lockedUntil! - Date.now()) / 1000 / 60);
-                return res.status(429).json({ 
+                return res.status(429).json({
                     error: `验证尝试次数过多，请${remainingTime}分钟后再试`,
                     lockedUntil: attemptCheck.lockedUntil
                 });
@@ -396,29 +443,29 @@ export class TOTPController {
 
             // 验证令牌
             const isValid = TOTPService.verifyToken(token, user.totpSecret!);
-            
+
             // 记录验证尝试
             TOTPController.recordTOTPAttempt(userId, isValid);
-            
+
             if (!isValid) {
                 const remainingAttempts = attemptCheck.remainingAttempts - 1;
-                
+
                 // 生成当前时间窗口的期望验证码用于调试
                 const expectedToken = TOTPDebugger.generateTestToken(user.totpSecret!, 0);
                 const prevToken = TOTPDebugger.generateTestToken(user.totpSecret!, -30);
                 const nextToken = TOTPDebugger.generateTestToken(user.totpSecret!, 30);
-                
-                logger.warn('disable: TOTP验证码错误', { 
-                    userId, 
-                    username: user.username, 
-                    token, 
+
+                logger.warn('disable: TOTP验证码错误', {
+                    userId,
+                    username: user.username,
+                    token,
                     remainingAttempts,
                     expectedToken,
                     prevToken,
                     nextToken
                 });
-                
-                return res.status(400).json({ 
+
+                return res.status(400).json({
                     error: '验证码错误',
                     remainingAttempts,
                     lockedUntil: remainingAttempts === 0 ? Date.now() + TOTP_LOCKOUT_DURATION : undefined,
@@ -452,9 +499,15 @@ export class TOTPController {
     public static async getStatus(req: Request, res: Response) {
         try {
             // @ts-ignore
-            const user = req.user as any;
-            if (!user) {
+            const jwtUser = req.user as any;
+            if (!jwtUser) {
                 return res.status(401).json({ error: '未授权访问' });
+            }
+
+            // 从数据库获取完整的用户信息，包括TOTP相关字段
+            const user = await UserStorage.getUserById(jwtUser.id);
+            if (!user) {
+                return res.status(404).json({ error: '用户不存在' });
             }
 
             res.json({
@@ -473,9 +526,15 @@ export class TOTPController {
     public static async getBackupCodes(req: Request, res: Response) {
         try {
             // @ts-ignore
-            const user = req.user as any;
-            if (!user) {
+            const jwtUser = req.user as any;
+            if (!jwtUser) {
                 return res.status(401).json({ error: '未授权访问' });
+            }
+
+            // 从数据库获取完整的用户信息，包括TOTP相关字段
+            const user = await UserStorage.getUserById(jwtUser.id);
+            if (!user) {
+                return res.status(404).json({ error: '用户不存在' });
             }
 
             if (!user.totpEnabled) {
@@ -505,12 +564,18 @@ export class TOTPController {
     public static async regenerateBackupCodes(req: Request, res: Response) {
         try {
             // @ts-ignore
-            const user = req.user as any;
-            if (!user) {
+            const jwtUser = req.user as any;
+            if (!jwtUser) {
                 return res.status(401).json({ error: '未授权访问' });
             }
 
-            const userId = user.id;
+            const userId = jwtUser.id;
+
+            // 从数据库获取完整的用户信息，包括TOTP相关字段
+            const user = await UserStorage.getUserById(userId);
+            if (!user) {
+                return res.status(404).json({ error: '用户不存在' });
+            }
 
             if (!user.totpEnabled) {
                 return res.status(400).json({ error: 'TOTP未启用' });
@@ -518,13 +583,13 @@ export class TOTPController {
 
             // 生成新的备用恢复码
             const newBackupCodes = TOTPService.generateBackupCodes();
-            
+
             // 更新用户的备用恢复码
             await TOTPController.updateUserBackupCodes(userId, newBackupCodes);
 
-            logger.info('备用恢复码重新生成成功:', { 
-                userId, 
-                username: user.username, 
+            logger.info('备用恢复码重新生成成功:', {
+                userId,
+                username: user.username,
                 newCodesCount: newBackupCodes.length,
                 previousCodesCount: user.backupCodes?.length || 0
             });

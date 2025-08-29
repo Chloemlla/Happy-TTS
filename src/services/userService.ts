@@ -67,7 +67,7 @@ export const getUserById = async (id: string): Promise<UserType | null> => {
   // 调试日志：记录查询条件和耗时
   const start = Date.now();
   // 修复：select 字段包含所有passkey相关字段
-  const doc = await UserModel.findOne({ id }).select('id username email role password avatarUrl passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprints').lean();
+  const doc = await UserModel.findOne({ id }).select('id username email role password avatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprints').lean();
 
   const duration = Date.now() - start;
   console.log('[MongoDB getUserById] 查询条件:', { id }, '耗时:', duration + 'ms', '返回字段:', doc ? Object.keys(doc) : 'null');
@@ -79,7 +79,7 @@ export const getUserByUsername = async (username: string): Promise<UserType | nu
   if (typeof username !== 'string' || !/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
     throw new Error('非法的用户名');
   }
-  const doc = await UserModel.findOne({ username }).select('id username email role token tokenExpiresAt password avatarUrl passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprints').lean();
+  const doc = await UserModel.findOne({ username }).select('id username email role token tokenExpiresAt password avatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprints').lean();
 
   if (!doc) return null;
   return removeAvatarBase64(doc) as unknown as UserType;
@@ -90,7 +90,7 @@ export const getUserByEmail = async (email: string): Promise<UserType | null> =>
   if (typeof email !== 'string') return null;
   const safeEmail = email.trim();
   if (!validator.isEmail(safeEmail)) return null;
-  const doc = await UserModel.findOne({ email: safeEmail }).select('id username email role token tokenExpiresAt password avatarUrl passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprints').lean();
+  const doc = await UserModel.findOne({ email: safeEmail }).select('id username email role token tokenExpiresAt password avatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprints').lean();
 
   if (!doc) return null;
   return removeAvatarBase64(doc) as unknown as UserType;
