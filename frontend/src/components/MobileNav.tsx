@@ -60,33 +60,61 @@ const MobileNav: React.FC<MobileNavProps> = ({
     await db.put(AVATAR_STORE, blobUrl, key);
   }
 
-  // 检测是否为移动设备或溢出
+  // 优化的移动设备和溢出检测
   useEffect(() => {
+    let resizeTimer: NodeJS.Timeout;
+    
     const checkMobileOrOverflow = () => {
-      const isMobileScreen = window.innerWidth < 768;
-      let overflow = false;
-      if (navRef.current && !isMobileScreen) {
-        const nav = navRef.current;
-        // 多策略检测溢出/变形
-        const sw = nav.scrollWidth;
-        const cw = nav.clientWidth;
-        const ow = nav.offsetWidth;
-        const rect = nav.getBoundingClientRect();
-        // 1. scrollWidth > clientWidth
-        if (sw > cw + 2) overflow = true;
-        // 2. offsetWidth < scrollWidth
-        if (ow < sw - 2) overflow = true;
-        // 3. 实际高度大于单行高度（按钮换行/变形）
-        if (rect.height > 60) overflow = true; // 60px 视为单行最大高度
-        // 4. 按钮数量过多
-        if (nav.children && nav.children.length > 6) overflow = true;
-      }
-      setIsOverflow(overflow);
-      setIsMobile(isMobileScreen || overflow);
+      // 防抖处理，避免频繁计算
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        const isMobileScreen = window.innerWidth < 768;
+        let overflow = false;
+        
+        if (navRef.current && !isMobileScreen) {
+          const nav = navRef.current;
+          const rect = nav.getBoundingClientRect();
+          
+          // 优化的溢出检测策略
+          const checks = {
+            // 1. 滚动宽度检测（最可靠）
+            scrollOverflow: nav.scrollWidth > nav.clientWidth + 1,
+            // 2. 高度检测（检测换行）
+            heightOverflow: rect.height > 50, // 调整为更合理的阈值
+            // 3. 视口宽度检测（预防性）
+            viewportTight: window.innerWidth < 1200 && nav.children.length > 5,
+            // 4. 内容密度检测
+            contentDensity: nav.scrollWidth / window.innerWidth > 0.85
+          };
+          
+          // 任一条件满足即认为需要切换到移动模式
+          overflow = Object.values(checks).some(Boolean);
+          
+          // 调试信息（开发环境）
+          if (process.env.NODE_ENV === 'development') {
+            console.debug('Navigation overflow checks:', {
+              ...checks,
+              scrollWidth: nav.scrollWidth,
+              clientWidth: nav.clientWidth,
+              height: rect.height,
+              childrenCount: nav.children.length,
+              finalOverflow: overflow
+            });
+          }
+        }
+        
+        setIsOverflow(overflow);
+        setIsMobile(isMobileScreen || overflow);
+      }, 100); // 100ms 防抖
     };
+    
     checkMobileOrOverflow();
     window.addEventListener('resize', checkMobileOrOverflow);
-    return () => window.removeEventListener('resize', checkMobileOrOverflow);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobileOrOverflow);
+      clearTimeout(resizeTimer);
+    };
   }, []);
 
   // 关闭菜单当路由改变时
@@ -94,82 +122,229 @@ const MobileNav: React.FC<MobileNavProps> = ({
     setIsMenuOpen(false);
   }, [location.pathname]);
 
+  // 优化的头像存在检测
   useEffect(() => {
-    if (user) {
-      fetch(getApiBaseUrl() + '/api/admin/user/avatar/exist', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      })
-        .then(res => res.json())
-        .then(data => setHasAvatar(!!data.hasAvatar))
-        .catch(() => setHasAvatar(false));
-    }
+    let isCancelled = false;
+    
+    const checkAvatarExistence = async () => {
+      if (!user) {
+        setHasAvatar(false);
+        return;
+      }
+      
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          setHasAvatar(false);
+          return;
+        }
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒超时
+        
+        const response = await fetch(getApiBaseUrl() + '/api/admin/user/avatar/exist', {
+          headers: { 'Authorization': `Bearer ${token}` },
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (!isCancelled) {
+          setHasAvatar(!!data.hasAvatar);
+        }
+      } catch (error) {
+        if (!isCancelled && error instanceof Error && error.name !== 'AbortError') {
+          console.warn('Avatar existence check failed:', error);
+          setHasAvatar(false);
+        } else if (!isCancelled) {
+          console.warn('Avatar existence check failed:', error);
+          setHasAvatar(false);
+        }
+      }
+    };
+    
+    checkAvatarExistence();
+    
+    return () => {
+      isCancelled = true;
+    };
   }, [user]);
 
-  // 1. 在 useEffect 里获取 profile 时，保存 avatarHash 到 state
+  // 优化的用户资料和头像哈希获取
   useEffect(() => {
-    if (user) {
-      fetch(getApiBaseUrl() + '/api/admin/user/profile', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      })
-        .then(res => res.json())
-        .then(data => setAvatarHash(data.avatarHash))
-        .catch(() => setAvatarHash(undefined));
-    }
+    let isCancelled = false;
+    
+    const fetchUserProfile = async () => {
+      if (!user) {
+        setAvatarHash(undefined);
+        return;
+      }
+      
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          setAvatarHash(undefined);
+          return;
+        }
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8秒超时
+        
+        const response = await fetch(getApiBaseUrl() + '/api/admin/user/profile', {
+          headers: { 'Authorization': `Bearer ${token}` },
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (!isCancelled) {
+          setAvatarHash(data.avatarHash);
+        }
+      } catch (error) {
+        if (!isCancelled && error instanceof Error && error.name !== 'AbortError') {
+          console.warn('User profile fetch failed:', error);
+          setAvatarHash(undefined);
+        } else if (!isCancelled) {
+          console.warn('User profile fetch failed:', error);
+          setAvatarHash(undefined);
+        }
+      }
+    };
+    
+    fetchUserProfile();
+    
+    return () => {
+      isCancelled = true;
+    };
   }, [user]);
 
-  // 2. 缓存key用 user.id:avatarHash
+  // 优化的头像加载逻辑
   useEffect(() => {
     let cancelled = false;
     let currentObjectUrl: string | undefined;
-    async function loadAvatar() {
-      if (hasAvatar && typeof user?.avatarUrl === 'string' && typeof user?.id === 'string' && typeof avatarHash === 'string') {
-        // 优先使用远程 http/https 链接
-        if (/^https?:\/\//.test(user.avatarUrl)) {
-          setAvatarImg(user.avatarUrl);
-          lastAvatarUrl.current = avatarHash;
-          // 释放旧 blob
-          if (currentObjectUrl && currentObjectUrl.startsWith('blob:')) {
-            URL.revokeObjectURL(currentObjectUrl);
-            currentObjectUrl = undefined;
-          }
-          return;
-        }
-        // 查IndexedDB缓存
-        const cached = await getCachedAvatar(user.id as string, avatarHash as string);
-        if (cached && cached.startsWith('blob:')) {
-          setAvatarImg(cached);
-          lastAvatarUrl.current = avatarHash;
-          return;
-        }
-        // 极端兜底：下载并生成 blob（不再写入缓存）
-        fetch(user.avatarUrl)
-          .then(res => res.blob())
-          .then(async blob => {
-            if (cancelled) return;
-            const url = URL.createObjectURL(blob);
-            setAvatarImg(url);
-            lastAvatarUrl.current = avatarHash;
-            if (currentObjectUrl && currentObjectUrl.startsWith('blob:') && currentObjectUrl !== url) {
-              URL.revokeObjectURL(currentObjectUrl);
-            }
-            currentObjectUrl = url;
-            lastObjectUrl.current = url;
-          })
-          .catch(() => setAvatarImg(undefined));
-      } else {
-        // 释放旧 blob
-        if (currentObjectUrl && currentObjectUrl.startsWith('blob:')) {
+    let loadTimeout: NodeJS.Timeout;
+    
+    const loadAvatar = async () => {
+      // 清理之前的超时
+      clearTimeout(loadTimeout);
+      
+      // 验证必要参数
+      const isValidParams = hasAvatar && 
+        typeof user?.avatarUrl === 'string' && 
+        typeof user?.id === 'string' && 
+        typeof avatarHash === 'string';
+        
+      if (!isValidParams) {
+        // 清理资源
+        if (currentObjectUrl?.startsWith('blob:')) {
           URL.revokeObjectURL(currentObjectUrl);
           currentObjectUrl = undefined;
         }
         setAvatarImg(undefined);
         lastAvatarUrl.current = undefined;
+        return;
       }
-    }
+      
+      try {
+        // 检查是否已经是相同的头像
+        if (lastAvatarUrl.current === avatarHash) {
+          return;
+        }
+        
+        // 1. 优先使用远程 HTTP/HTTPS 链接
+        if (/^https?:\/\//.test(user.avatarUrl!)) {
+          setAvatarImg(user.avatarUrl!);
+          lastAvatarUrl.current = avatarHash;
+          
+          // 释放旧 blob
+          if (currentObjectUrl?.startsWith('blob:')) {
+            URL.revokeObjectURL(currentObjectUrl);
+            currentObjectUrl = undefined;
+          }
+          return;
+        }
+        
+        // 2. 检查 IndexedDB 缓存
+        const cached = await getCachedAvatar(user.id, avatarHash);
+        if (cached?.startsWith('blob:') && !cancelled) {
+          // 验证 blob URL 是否仍然有效
+          try {
+            const response = await fetch(cached, { method: 'HEAD' });
+            if (response.ok) {
+              setAvatarImg(cached);
+              lastAvatarUrl.current = avatarHash;
+              return;
+            }
+          } catch {
+            // 缓存的 blob 无效，继续下载
+          }
+        }
+        
+        // 3. 下载头像并创建 blob URL
+        loadTimeout = setTimeout(() => {
+          if (!cancelled) {
+            console.warn('Avatar loading timeout');
+            setAvatarImg(undefined);
+          }
+        }, 10000); // 10秒超时
+        
+        const response = await fetch(user.avatarUrl!);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const blob = await response.blob();
+        
+        if (cancelled) return;
+        
+        clearTimeout(loadTimeout);
+        
+        // 创建新的 blob URL
+        const newUrl = URL.createObjectURL(blob);
+        
+        // 释放旧的 blob URL
+        if (currentObjectUrl?.startsWith('blob:') && currentObjectUrl !== newUrl) {
+          URL.revokeObjectURL(currentObjectUrl);
+        }
+        
+        currentObjectUrl = newUrl;
+        lastObjectUrl.current = newUrl;
+        setAvatarImg(newUrl);
+        lastAvatarUrl.current = avatarHash;
+        
+        // 异步缓存到 IndexedDB（不阻塞 UI）
+        setCachedAvatar(user.id, avatarHash, newUrl).catch(error => {
+          console.warn('Failed to cache avatar:', error);
+        });
+        
+      } catch (error) {
+        if (!cancelled) {
+          console.warn('Avatar loading failed:', error);
+          setAvatarImg(undefined);
+        }
+      } finally {
+        clearTimeout(loadTimeout);
+      }
+    };
+    
     loadAvatar();
+    
     return () => {
       cancelled = true;
-      if (currentObjectUrl && currentObjectUrl.startsWith('blob:')) {
+      clearTimeout(loadTimeout);
+      if (currentObjectUrl?.startsWith('blob:')) {
         URL.revokeObjectURL(currentObjectUrl);
         currentObjectUrl = undefined;
       }
