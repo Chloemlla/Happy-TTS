@@ -111,15 +111,20 @@ export class GitHubBillingService {
       cookies: ''
     };
 
-    // 提取 URL - 使用更安全的非贪婪匹配
-    const urlMatch = curlCommand.match(/'([^']*?github\.com[^']*?)'/);
-    if (urlMatch) {
-      result.url = urlMatch[1];
-      
-      // 提取 customer_id
-      const customerIdMatch = result.url.match(/customer_id=(\d+)/);
-      if (customerIdMatch) {
-        result.customerId = customerIdMatch[1];
+    // 提取 URL - 使用安全的解析方法避免ReDoS
+    const urlPattern = /'([^']+)'/g;
+    let urlMatch;
+    while ((urlMatch = urlPattern.exec(curlCommand)) !== null) {
+      const url = urlMatch[1];
+      if (url.includes('github.com')) {
+        result.url = url;
+        
+        // 提取 customer_id
+        const customerIdMatch = url.match(/customer_id=(\d+)/);
+        if (customerIdMatch) {
+          result.customerId = customerIdMatch[1];
+        }
+        break;
       }
     }
 
@@ -129,14 +134,22 @@ export class GitHubBillingService {
       result.method = methodMatch[1];
     }
 
-    // 提取所有 headers - 使用更安全的非贪婪匹配
-    const headerMatches = curlCommand.matchAll(/-H\s+'([^:]+?):\s*([^']*?)'/g);
-    for (const match of headerMatches) {
-      const [, key, value] = match;
-      if (key.toLowerCase() === 'cookie') {
-        result.cookies = value;
-      } else {
-        result.headers[key] = value;
+    // 提取所有 headers - 使用安全的解析方法避免ReDoS
+    const headerPattern = /-H\s+'([^']+)'/g;
+    let headerMatch;
+    while ((headerMatch = headerPattern.exec(curlCommand)) !== null) {
+      const headerValue = headerMatch[1];
+      const colonIndex = headerValue.indexOf(':');
+      
+      if (colonIndex > 0) {
+        const key = headerValue.substring(0, colonIndex).trim();
+        const value = headerValue.substring(colonIndex + 1).trim();
+        
+        if (key.toLowerCase() === 'cookie') {
+          result.cookies = value;
+        } else {
+          result.headers[key] = value;
+        }
       }
     }
 
