@@ -294,7 +294,14 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
+        buffer: 'buffer',
+        process: 'process/browser',
+        util: 'util',
       },
+    },
+    define: {
+      global: 'globalThis',
+      process: 'process',
     },
     esbuild: {
       sourcemap: false,
@@ -385,7 +392,10 @@ export default defineConfig(({ mode }) => {
         'react-router-dom',
         'axios',
         'clsx',
-        'tailwind-merge'
+        'tailwind-merge',
+        'buffer',
+        'process/browser',
+        'util'
       ],
       exclude: [
         'javascript-obfuscator'
