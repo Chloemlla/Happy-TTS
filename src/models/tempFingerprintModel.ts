@@ -32,7 +32,6 @@ const TempFingerprintSchema = new mongoose.Schema<TempFingerprintDoc>({
   expiresAt: {
     type: Date,
     required: true,
-    index: true,
   },
 }, {
   timestamps: true, // 自动管理 createdAt 和 updatedAt

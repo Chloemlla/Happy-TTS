@@ -15,7 +15,7 @@ const AccessTokenSchema = new mongoose.Schema<AccessTokenDoc>({
   ipAddress: { type: String, required: true, index: true }, // 新增：IP地址字段
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
-  expiresAt: { type: Date, required: true, index: true },
+  expiresAt: { type: Date, required: true },
 }, { timestamps: true });
 
 // TTL索引，5分钟后自动删除

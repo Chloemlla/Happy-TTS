@@ -15,7 +15,7 @@ const IpBanSchema = new mongoose.Schema<IpBanDoc>({
   reason: { type: String, required: true },
   violationCount: { type: Number, required: true, default: 1 },
   bannedAt: { type: Date, default: Date.now },
-  expiresAt: { type: Date, required: true, index: true },
+  expiresAt: { type: Date, required: true },
   fingerprint: { type: String, index: true },
   userAgent: { type: String },
 }, { timestamps: true });
