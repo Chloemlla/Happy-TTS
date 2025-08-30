@@ -116,15 +116,26 @@ export class GitHubBillingService {
     let urlMatch;
     while ((urlMatch = urlPattern.exec(curlCommand)) !== null) {
       const url = urlMatch[1];
-      if (url.includes('github.com')) {
-        result.url = url;
+      
+      // 安全的 URL 验证：检查主机名是否为 github.com 或其子域名
+      try {
+        const parsedUrl = new URL(url);
+        const hostname = parsedUrl.hostname.toLowerCase();
         
-        // 提取 customer_id
-        const customerIdMatch = url.match(/customer_id=(\d+)/);
-        if (customerIdMatch) {
-          result.customerId = customerIdMatch[1];
+        // 只允许 github.com 和其官方子域名
+        if (hostname === 'github.com' || hostname.endsWith('.github.com')) {
+          result.url = url;
+          
+          // 提取 customer_id
+          const customerIdMatch = url.match(/customer_id=(\d+)/);
+          if (customerIdMatch) {
+            result.customerId = customerIdMatch[1];
+          }
+          break;
         }
-        break;
+      } catch (error) {
+        // URL 解析失败，跳过这个 URL
+        continue;
       }
     }
 
