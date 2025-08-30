@@ -2,14 +2,28 @@ name: Build Docker Image For pull_request
 
 on:
   push:
-    branches:
-      - main
-      - dev
-    paths-ignore:
-      - .github/**
-      - "!.github/workflows/pr-docker.yml"
   pull_request:
   workflow_dispatch:
+  issues:
+  issue_comment:
+  release:
+  create:
+  delete:
+  fork:
+  watch:
+  star:
+  deployment:
+  deployment_status:
+  page_build:
+  public:
+  status:
+  milestone:
+  project:
+  project_card:
+  project_column:
+  repository_dispatch:
+  schedule:
+    - cron: '0 0 * * *'  # 每天触发一次
 permissions:
   contents: read
   packages: read
