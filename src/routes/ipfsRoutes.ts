@@ -17,22 +17,9 @@ const upload = multer({
         files: 1 // 只允许上传一个文件
     },
     fileFilter: (req, file, cb) => {
-        // 只允许图片文件
-        const allowedMimeTypes = [
-            'image/jpeg',
-            'image/jpg',
-            'image/png',
-            'image/gif',
-            'image/webp',
-            'image/bmp',
-            'image/svg+xml'
-        ];
-
-        if (allowedMimeTypes.includes(file.mimetype.toLowerCase())) {
-            cb(null, true);
-        } else {
-            cb(new Error('只支持图片文件格式：JPEG, PNG, GIF, WebP, BMP, SVG'));
-        }
+        // 文件类型检查将在服务层动态处理，这里允许所有文件通过
+        // 实际的文件类型限制由IPFS_ALLOW_ALL_FILE_TYPES配置控制
+        cb(null, true);
     }
 });
 
@@ -159,6 +146,13 @@ router.post('/upload', uploadLimiter, upload.single('file'), IPFSController.uplo
  *                     ipfsUa:
  *                       type: string
  *                       description: IPFS上传User-Agent
+ *                     bypassUAKeyword:
+ *                       type: string
+ *                       description: UA绕过Turnstile验证的关键字
+ *                       nullable: true
+ *                     allowAllFileTypes:
+ *                       type: boolean
+ *                       description: 是否允许上传所有文件类型
  *       401:
  *         description: 未授权
  *       500:
@@ -189,6 +183,14 @@ router.get('/settings', authenticateAdmin, IPFSController.getConfig);
  *                 type: string
  *                 description: IPFS上传User-Agent
  *                 example: "Synapse-IPFS-Uploader/1.0 (+https://example.com)"
+ *               bypassUAKeyword:
+ *                 type: string
+ *                 description: UA绕过Turnstile验证的关键字
+ *                 example: "BYPASS_TURNSTILE"
+ *               allowAllFileTypes:
+ *                 type: boolean
+ *                 description: 是否允许上传所有文件类型（true=允许任意文件，false=仅允许图片）
+ *                 example: false
  *     responses:
  *       200:
  *         description: 设置配置成功

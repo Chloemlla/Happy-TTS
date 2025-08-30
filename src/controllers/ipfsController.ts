@@ -64,7 +64,8 @@ export class IPFSController {
                         clientIp: ip, 
                         isAdmin,
                         isDev,
-                        shouldSkipTurnstile 
+                        shouldSkipTurnstile,
+                        userAgent: req.headers['user-agent'] || ''
                     }
                 );
 
@@ -127,12 +128,16 @@ export class IPFSController {
 
             const ipfsUploadUrl = await IPFSService.getCurrentIPFSUploadURL();
             const ipfsUa = await IPFSService.getCurrentIPFSUserAgent();
+            const bypassUAKeyword = await IPFSService.getCurrentBypassUAKeyword();
+            const allowAllFileTypes = await IPFSService.getCurrentAllowAllFileTypes();
             
             res.json({
                 success: true,
                 data: {
                     ipfsUploadUrl,
-                    ipfsUa
+                    ipfsUa,
+                    bypassUAKeyword,
+                    allowAllFileTypes
                 }
             });
         } catch (error) {
@@ -158,27 +163,38 @@ export class IPFSController {
         try {
             const ip = IPFSController.getClientIp(req);
             const userId = (req as any).user?.id || 'unknown';
-            const { ipfsUploadUrl, ipfsUa } = req.body;
+            const { ipfsUploadUrl, ipfsUa, bypassUAKeyword, allowAllFileTypes } = req.body;
             
             logger.info('设置IPFS配置请求', {
                 ip,
                 userId,
                 ipfsUploadUrl,
                 ipfsUa,
+                bypassUAKeyword,
+                allowAllFileTypes,
                 timestamp: new Date().toISOString()
             });
 
             // 至少需要提供一个可更新的字段
             if ((!ipfsUploadUrl || typeof ipfsUploadUrl !== 'string' || !ipfsUploadUrl.trim()) &&
-                (!ipfsUa || typeof ipfsUa !== 'string' || !ipfsUa.trim())) {
-                return res.status(400).json({ success: false, error: '请提供IPFS上传URL或User-Agent中的至少一个' });
+                (!ipfsUa || typeof ipfsUa !== 'string' || !ipfsUa.trim()) &&
+                (!bypassUAKeyword || typeof bypassUAKeyword !== 'string' || !bypassUAKeyword.trim()) &&
+                typeof allowAllFileTypes !== 'boolean') {
+                return res.status(400).json({ success: false, error: '请提供至少一个配置项进行更新' });
             }
 
+            // 更新各项配置
             if (ipfsUploadUrl && typeof ipfsUploadUrl === 'string' && ipfsUploadUrl.trim()) {
                 await IPFSService.setIPFSUploadURL(ipfsUploadUrl);
             }
             if (typeof ipfsUa === 'string' && ipfsUa.trim()) {
                 await IPFSService.setIPFSUserAgent(ipfsUa);
+            }
+            if (typeof bypassUAKeyword === 'string' && bypassUAKeyword.trim()) {
+                await IPFSService.setBypassUAKeyword(bypassUAKeyword);
+            }
+            if (typeof allowAllFileTypes === 'boolean') {
+                await IPFSService.setAllowAllFileTypes(allowAllFileTypes);
             }
             
             res.json({

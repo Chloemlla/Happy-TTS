@@ -57,6 +57,40 @@ async function getIPFSUserAgent(): Promise<string> {
   return defaultUA;
 }
 
+async function getBypassUAKeyword(): Promise<string | null> {
+  try {
+    if (mongoose.connection.readyState === 1) {
+      const doc = await IPFSSettingModel.findOne({ key: 'IPFS_BYPASS_UA_KEYWORD' }).lean().exec();
+      if (doc && typeof doc.value === 'string' && doc.value.trim().length > 0) {
+        logger.info('[IPFS] 从MongoDB读取到IPFS_BYPASS_UA_KEYWORD配置:', doc.value);
+        return doc.value.trim();
+      }
+    }
+  } catch (e) {
+    logger.error('[IPFS] 读取IPFS_BYPASS_UA_KEYWORD配置失败', e);
+  }
+  
+  return null;
+}
+
+async function getAllowAllFileTypes(): Promise<boolean> {
+  try {
+    if (mongoose.connection.readyState === 1) {
+      const doc = await IPFSSettingModel.findOne({ key: 'IPFS_ALLOW_ALL_FILE_TYPES' }).lean().exec();
+      if (doc && typeof doc.value === 'string') {
+        const value = doc.value.trim().toLowerCase();
+        const result = value === 'true' || value === '1';
+        logger.info('[IPFS] 从MongoDB读取到IPFS_ALLOW_ALL_FILE_TYPES配置:', result);
+        return result;
+      }
+    }
+  } catch (e) {
+    logger.error('[IPFS] 读取IPFS_ALLOW_ALL_FILE_TYPES配置失败', e);
+  }
+  
+  return false;
+}
+
 
 export interface IPFSUploadResponse {
     status: string;
@@ -105,13 +139,22 @@ export class IPFSService {
         mimetype: string,
         options?: { shortLink?: boolean; userId?: string; username?: string },
         cfToken?: string,
-        context?: { clientIp?: string; isAdmin?: boolean; isDev?: boolean; shouldSkipTurnstile?: boolean }
+        context?: { clientIp?: string; isAdmin?: boolean; isDev?: boolean; shouldSkipTurnstile?: boolean; userAgent?: string }
     ): Promise<IPFSUploadResponse> {
+        // 检查UA是否包含绕过关键字
+        const bypassUAKeyword = await getBypassUAKeyword();
+        const shouldBypassByUA = bypassUAKeyword && context?.userAgent && context.userAgent.includes(bypassUAKeyword);
+        
         // 对于本地开发环境的管理员请求，免除Turnstile验证
         const isLocalIp = context?.clientIp ? ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(context.clientIp) : false;
-        const shouldSkipTurnstile = context?.shouldSkipTurnstile || (context?.isAdmin && isLocalIp && context?.isDev);
+        const shouldSkipTurnstile = context?.shouldSkipTurnstile || (context?.isAdmin && isLocalIp && context?.isDev) || shouldBypassByUA;
         
-        if (shouldSkipTurnstile) {
+        if (shouldBypassByUA) {
+            logger.info('[IPFS] 检测到UA包含绕过关键字，跳过Turnstile验证', {
+                userAgent: context?.userAgent,
+                bypassKeyword: bypassUAKeyword
+            });
+        } else if (shouldSkipTurnstile) {
             logger.info('[IPFS] 本地开发环境管理员请求，跳过Turnstile验证', {
                 clientIp: context?.clientIp,
                 isAdmin: context?.isAdmin,
@@ -146,18 +189,17 @@ export class IPFSService {
             throw new Error(`文件大小不能超过 ${this.MAX_FILE_SIZE / 1024 / 1024}MB`);
         }
         
-        // 检查文件类型（只允许图片）
-        const allowedMimeTypes = [
-            'image/jpeg',
-            'image/jpg',
-            'image/png',
-            'image/gif',
-            'image/webp',
-            'image/bmp',
-            'image/svg+xml'
-        ];
-        if (!allowedMimeTypes.includes(mimetype.toLowerCase())) {
-            throw new Error('只支持图片文件格式：JPEG, PNG, GIF, WebP, BMP, SVG');
+        // 检查文件类型限制
+        const allowAllFileTypes = await getAllowAllFileTypes();
+        if (!allowAllFileTypes) {
+            // 默认允许所有图片文件格式
+            const isImageFile = mimetype.toLowerCase().startsWith('image/');
+            if (!isImageFile) {
+                throw new Error('默认只支持图片文件格式，如需上传其他文件类型请联系管理员开启');
+            }
+            logger.info('[IPFS] 允许上传图片文件', { mimetype, filename });
+        } else {
+            logger.info('[IPFS] 允许上传任意文件类型', { mimetype, filename });
         }
 
         // 规范化文件名，特别是SVG文件
@@ -894,6 +936,89 @@ export class IPFSService {
      */
     public static async getCurrentIPFSUserAgent(): Promise<string> {
         return await getIPFSUserAgent();
+    }
+
+    /**
+     * 设置UA绕过关键字配置
+     * @param keyword UA绕过关键字
+     * @returns 设置结果
+     */
+    public static async setBypassUAKeyword(keyword: string): Promise<boolean> {
+        try {
+            if (!keyword || typeof keyword !== 'string' || keyword.trim().length === 0) {
+                throw new Error('UA绕过关键字不能为空');
+            }
+
+            const trimmedKeyword = keyword.trim();
+            if (trimmedKeyword.length > 100) {
+                throw new Error('UA绕过关键字长度不能超过100字符');
+            }
+
+            // 确保MongoDB连接
+            await ensureMongoConnected();
+
+            // 更新或创建配置
+            await IPFSSettingModel.findOneAndUpdate(
+                { key: 'IPFS_BYPASS_UA_KEYWORD' },
+                {
+                    key: 'IPFS_BYPASS_UA_KEYWORD',
+                    value: trimmedKeyword,
+                    updatedAt: new Date()
+                },
+                { upsert: true, new: true }
+            );
+
+            logger.info('[IPFS] IPFS_BYPASS_UA_KEYWORD 配置已更新:', trimmedKeyword);
+            return true;
+        } catch (error) {
+            logger.error('[IPFS] 设置IPFS_BYPASS_UA_KEYWORD失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 设置文件类型限制配置
+     * @param allowAll 是否允许所有文件类型
+     * @returns 设置结果
+     */
+    public static async setAllowAllFileTypes(allowAll: boolean): Promise<boolean> {
+        try {
+            // 确保MongoDB连接
+            await ensureMongoConnected();
+
+            // 更新或创建配置
+            await IPFSSettingModel.findOneAndUpdate(
+                { key: 'IPFS_ALLOW_ALL_FILE_TYPES' },
+                {
+                    key: 'IPFS_ALLOW_ALL_FILE_TYPES',
+                    value: allowAll ? 'true' : 'false',
+                    updatedAt: new Date()
+                },
+                { upsert: true, new: true }
+            );
+
+            logger.info('[IPFS] IPFS_ALLOW_ALL_FILE_TYPES 配置已更新:', allowAll);
+            return true;
+        } catch (error) {
+            logger.error('[IPFS] 设置IPFS_ALLOW_ALL_FILE_TYPES失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 获取当前UA绕过关键字配置
+     * @returns 当前配置的关键字（若未设置则返回null）
+     */
+    public static async getCurrentBypassUAKeyword(): Promise<string | null> {
+        return await getBypassUAKeyword();
+    }
+
+    /**
+     * 获取当前文件类型限制配置
+     * @returns 是否允许所有文件类型
+     */
+    public static async getCurrentAllowAllFileTypes(): Promise<boolean> {
+        return await getAllowAllFileTypes();
     }
 
     /**
