@@ -32,15 +32,6 @@ const ProductQueryForm: React.FC<ProductQueryFormProps> = ({
     if (!formData.barcode.trim()) {
       return '请输入条码';
     }
-    if (!formData.itemNumber?.trim()) {
-      return '请输入货号';
-    }
-    if (!formData.ean?.trim()) {
-      return '请输入EAN码';
-    }
-    if (!formData.size?.trim()) {
-      return '请输入尺码';
-    }
 
     // 条码格式验证
     const barcodePattern = /^[a-zA-Z0-9\-_]{3,50}$/;
@@ -53,9 +44,6 @@ const ProductQueryForm: React.FC<ProductQueryFormProps> = ({
 
   // 检查表单是否可以提交
   const canSubmit = formData.barcode.trim() && 
-    formData.itemNumber?.trim() && 
-    formData.ean?.trim() && 
-    formData.size?.trim() && 
     !validationError && 
     !loading;
 
@@ -68,7 +56,7 @@ const ProductQueryForm: React.FC<ProductQueryFormProps> = ({
 
     setFormData(newFormData);
 
-    // 实时验证 - 使用更新后的数据进行验证
+    // 实时验证 - 只验证条码字段
     if (field === 'barcode') {
       if (value.trim()) {
         // 使用新的条码值进行验证
@@ -81,22 +69,9 @@ const ProductQueryForm: React.FC<ProductQueryFormProps> = ({
       } else {
         setValidationError('请输入条码');
       }
-    } else if (field === 'itemNumber') {
-      if (!value.trim()) {
-        setValidationError('请输入货号');
-      } else {
-        setValidationError(null);
-      }
-    } else if (field === 'ean') {
-      if (!value.trim()) {
-        setValidationError('请输入EAN码');
-      } else {
-        setValidationError(null);
-      }
-    } else if (field === 'size') {
-      if (!value.trim()) {
-        setValidationError('请输入尺码');
-      } else {
+    } else {
+      // 其他字段不进行必填验证，只清除错误
+      if (validationError && !validationError.includes('条码')) {
         setValidationError(null);
       }
     }
@@ -251,22 +226,22 @@ const ProductQueryForm: React.FC<ProductQueryFormProps> = ({
     {
       key: 'itemNumber' as keyof ProductQueryParams,
       label: '货号',
-      placeholder: '请输入货号（必填，如：112535584-1）',
-      required: true,
+      placeholder: '请输入货号（选填，如：112535584-1）',
+      required: false,
       icon: <FaTag className="w-4 h-4" />
     },
     {
       key: 'ean' as keyof ProductQueryParams,
       label: 'EAN码',
-      placeholder: '请输入EAN码（必填，如：2000000134554）',
-      required: true,
+      placeholder: '请输入EAN码（选填，如：2000000134554）',
+      required: false,
       icon: <FaFileAlt className="w-4 h-4" />
     },
     {
       key: 'size' as keyof ProductQueryParams,
       label: '尺码',
-      placeholder: '请输入尺码（必填，如：11）',
-      required: true,
+      placeholder: '请输入尺码（选填，如：11）',
+      required: false,
       icon: <FaRulerCombined className="w-4 h-4" />
     }
   ];
@@ -322,7 +297,7 @@ const ProductQueryForm: React.FC<ProductQueryFormProps> = ({
                       focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400
                       disabled:bg-blue-50/30 disabled:cursor-not-allowed
                       placeholder:text-blue-300
-                      ${validationError && field.required && !formData[field.key]?.trim()
+                      ${validationError && field.key === 'barcode' && !formData[field.key]?.trim()
                           ? 'border-blue-300 focus:border-blue-500 bg-blue-50/50 text-blue-900'
                           : focusedField === field.key
                             ? 'border-blue-400 bg-blue-50/30 text-blue-900 shadow-md'
@@ -443,7 +418,7 @@ const ProductQueryForm: React.FC<ProductQueryFormProps> = ({
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </m.svg>
-                <span className="text-sm font-medium text-blue-700">所有字段均为必填项</span>
+                <span className="text-sm font-medium text-blue-700">仅条码为必填项</span>
               </div>
               <div className="hidden sm:block w-px h-4 bg-blue-300"></div>
               <div className="flex items-center">
@@ -457,7 +432,7 @@ const ProductQueryForm: React.FC<ProductQueryFormProps> = ({
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </m.svg>
-                <span className="text-sm font-medium text-blue-600">请完整填写所有信息以确保查询准确性</span>
+                <span className="text-sm font-medium text-blue-600">其他字段选填，填写更多信息可提高查询准确性</span>
               </div>
             </div>
           </m.div>
