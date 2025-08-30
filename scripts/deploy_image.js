@@ -643,6 +643,9 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
         if (config.Args && config.Args.length > 0) {
             createCommand += ` ${config.Args.join(' ')}`;
         }
+        
+        // 添加 npm start 启动命令
+        createCommand += ' npm start';
 
         // 检查并删除可能存在的旧容器
         const finalListResult = await execSSHCommand(ssh, "docker ps -a --format '{{.Names}}'");
