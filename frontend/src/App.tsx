@@ -58,6 +58,9 @@ const SmartHumanCheckTestPage = React.lazy(() => import('./components/SmartHuman
 // 安踏防伪查询页面懒加载
 const AntiCounterfeitPage = React.lazy(() => import('./components/AntiCounterfeitPage'));
 
+// GitHub Billing Dashboard 懒加载
+const GitHubBillingDashboard = React.lazy(() => import('./components/GitHubBillingDashboard'));
+
 // 恢复 EmailSender 懒加载
 const EmailSenderPage: React.FC = () => {
   const [to, setTo] = React.useState('');
@@ -418,7 +421,7 @@ const App: React.FC = () => {
 
         if (response.ok) {
           const config = await response.json();
-          
+
           if (config.enabled && config.projectId) {
             clarity.init(config.projectId);
             setClarityInitialized(true);
@@ -934,6 +937,23 @@ const App: React.FC = () => {
                         transition={pageTransition}
                       >
                         <AdminDashboard />
+                      </m.div>
+                    </Suspense>
+                  ) : (
+                    <Navigate to="/" replace />
+                  )
+                } />
+                <Route path="/admin/github-billing" element={
+                  user?.role === 'admin' ? (
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <m.div
+                        variants={pageVariants}
+                        initial="initial"
+                        animate="in"
+                        exit="out"
+                        transition={pageTransition}
+                      >
+                        <GitHubBillingDashboard />
                       </m.div>
                     </Suspense>
                   ) : (

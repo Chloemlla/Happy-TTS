@@ -68,6 +68,7 @@ import { authenticateToken } from './middleware/authenticateToken';
 import { totpStatusHandler } from './routes/totpRoutes';
 import turnstileRoutes from './routes/turnstileRoutes';
 import { schedulerService } from './services/schedulerService';
+import githubBillingRoutes from './routes/githubBillingRoutes';
 
 // 扩展 Request 类型
 declare global {
@@ -905,6 +906,8 @@ app.use('/api/fbi-wanted', adminLimiter, fbiWantedRoutes);
 app.use('/api/fbi-wanted-public', frontendLimiter, fbiWantedPublicRoutes);
 // 额外公开别名（非 /api 前缀，绕过任何潜在的 /api 层鉴权拦截）- 添加前端限流
 app.use('/public/fbi-wanted', frontendLimiter, fbiWantedPublicRoutes);
+// GitHub Billing 路由（需要认证）
+app.use('/api/github-billing', githubBillingRoutes);
 // app.use('/api', shortUrlRoutes);
 
 // 完整性检测相关兜底接口限速

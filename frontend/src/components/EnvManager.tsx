@@ -28,6 +28,7 @@ const DEBUG_CONSOLE_API = getApiBaseUrl() + '/api/debug-console';
 const IPFS_CONFIG_API = getApiBaseUrl() + '/api/ipfs/settings';
 const TURNSTILE_CONFIG_API = getApiBaseUrl() + '/api/turnstile/config';
 const CLARITY_CONFIG_API = getApiBaseUrl() + '/api/tts/clarity/config';
+const GITHUB_BILLING_CONFIG_API = getApiBaseUrl() + '/api/github-billing/config';
 
 // 统一的进入动画与过渡配置，结合 useReducedMotion 可降级
 const ENTER_INITIAL = { opacity: 0, y: 20 } as const;
@@ -100,6 +101,15 @@ interface TurnstileConfigSetting {
 interface ClarityConfigSetting {
   enabled: boolean;
   projectId: string | null;
+  updatedAt?: string;
+}
+
+interface GitHubBillingConfigSetting {
+  url?: string;
+  method?: string;
+  customerId?: string;
+  headersCount?: number;
+  hasCookies?: boolean;
   updatedAt?: string;
 }
 
@@ -362,6 +372,12 @@ const EnvManager: React.FC = () => {
   const [clarityConfigSaving, setClarityConfigSaving] = useState(false);
   const [clarityConfigDeleting, setClarityConfigDeleting] = useState(false);
   const [clarityProjectIdInput, setClarityProjectIdInput] = useState('');
+
+  // GitHub Billing Config Setting
+  const [githubBillingConfig, setGithubBillingConfig] = useState<GitHubBillingConfigSetting | null>(null);
+  const [githubBillingConfigLoading, setGithubBillingConfigLoading] = useState(false);
+  const [githubBillingConfigSaving, setGithubBillingConfigSaving] = useState(false);
+  const [githubBillingCurlInput, setGithubBillingCurlInput] = useState('');
 
   // Debug Console Access Logs
   const [debugLogs, setDebugLogs] = useState<DebugConsoleAccessLog[]>([]);
@@ -1522,6 +1538,69 @@ const EnvManager: React.FC = () => {
     }
   }, [clarityConfigDeleting, fetchClarityConfig, setNotification]);
 
+  // GitHub Billing Config handlers
+  const fetchGithubBillingConfig = useCallback(async () => {
+    setGithubBillingConfigLoading(true);
+    try {
+      const res = await fetch(GITHUB_BILLING_CONFIG_API, { headers: { ...getAuthHeaders() } });
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status !== 404) {
+          setNotification({ message: data.error || '获取GitHub Billing配置失败', type: 'error' });
+        }
+        setGithubBillingConfigLoading(false);
+        return;
+      }
+      if (data.success) {
+        setGithubBillingConfig({
+          url: data.data?.url,
+          method: data.data?.method,
+          customerId: data.data?.customerId,
+          headersCount: data.data?.headersCount,
+          hasCookies: data.data?.hasCookies,
+          updatedAt: data.data?.updatedAt
+        });
+      }
+    } catch (e) {
+      setNotification({ message: '获取GitHub Billing配置失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
+    } finally {
+      setGithubBillingConfigLoading(false);
+    }
+  }, [setNotification]);
+
+  const handleSaveGithubBillingConfig = useCallback(async () => {
+    if (githubBillingConfigSaving) return;
+    const curlCommand = githubBillingCurlInput.trim();
+    if (!curlCommand) {
+      setNotification({ message: '请填写 curl 命令', type: 'error' });
+      return;
+    }
+    if (!curlCommand.includes('github.com/settings/billing')) {
+      setNotification({ message: '请提供有效的 GitHub Billing curl 命令', type: 'error' });
+      return;
+    }
+    setGithubBillingConfigSaving(true);
+    try {
+      const res = await fetch(GITHUB_BILLING_CONFIG_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ curlCommand })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setNotification({ message: data.error || '保存失败', type: 'error' });
+        return;
+      }
+      setNotification({ message: '保存成功', type: 'success' });
+      setGithubBillingCurlInput('');
+      await fetchGithubBillingConfig();
+    } catch (e) {
+      setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
+    } finally {
+      setGithubBillingConfigSaving(false);
+    }
+  }, [githubBillingConfigSaving, githubBillingCurlInput, fetchGithubBillingConfig, setNotification]);
+
   const handleConfirmDelete = useCallback(() => {
     switch (deleteType) {
       case 'single':
@@ -1552,6 +1631,7 @@ const EnvManager: React.FC = () => {
   useEffect(() => { fetchIpfsConfig(); }, [fetchIpfsConfig]);
   useEffect(() => { fetchTurnstileConfig(); }, [fetchTurnstileConfig]);
   useEffect(() => { fetchClarityConfig(); }, [fetchClarityConfig]);
+  useEffect(() => { fetchGithubBillingConfig(); }, [fetchGithubBillingConfig]);
 
   // 当过滤条件改变时重新获取日志
   useEffect(() => {
@@ -2451,6 +2531,106 @@ const EnvManager: React.FC = () => {
             </div>
             <div className="mt-2 text-xs text-blue-600">
               说明：Microsoft Clarity 用于用户行为分析和网站性能监控。Project ID 用于标识您的 Clarity 项目。
+            </div>
+          </div>
+        </m.div>
+
+        {/* GitHub Billing 配置设置 */}
+        <m.div
+          className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200"
+          initial={ENTER_INITIAL}
+          animate={ENTER_ANIMATE}
+          transition={trans06}
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4">
+            <h3 className="text-lg font-semibold text-gray-800">GitHub Billing 配置设置</h3>
+            <m.button
+              onClick={fetchGithubBillingConfig}
+              disabled={githubBillingConfigLoading}
+              className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
+              whileTap={{ scale: 0.95 }}
+            >
+              <FaSync className={`w-4 h-4 ${githubBillingConfigLoading ? 'animate-spin' : ''}`} />
+              刷新
+            </m.button>
+          </div>
+
+          {/* Curl 命令配置 */}
+          <div className="mb-4">
+            <h4 className="text-md font-semibold text-gray-700 mb-3">Curl 命令配置</h4>
+            <div className="grid grid-cols-1 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">GitHub Billing Curl 命令</label>
+                <textarea
+                  value={githubBillingCurlInput}
+                  onChange={(e) => setGithubBillingCurlInput(e.target.value)}
+                  placeholder="请粘贴从浏览器开发者工具复制的 GitHub Billing curl 命令..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base min-h-[120px] font-mono"
+                  rows={6}
+                />
+                <div className="mt-1 text-xs text-gray-500">
+                  提示：从浏览器开发者工具的网络标签页中复制 GitHub Billing 相关的 curl 命令
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3">
+              <m.button
+                onClick={handleSaveGithubBillingConfig}
+                disabled={githubBillingConfigSaving}
+                className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 text-sm font-medium"
+                whileTap={{ scale: 0.96 }}
+              >
+                {githubBillingConfigSaving ? '保存中...' : '保存/更新'}
+              </m.button>
+            </div>
+          </div>
+
+          {/* 当前配置状态 */}
+          {githubBillingConfig && (
+            <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+              <h5 className="text-sm font-semibold text-gray-700 mb-2">当前配置信息</h5>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span className="font-medium text-gray-600">URL:</span>
+                  <span className="ml-2 text-gray-800 break-all">{githubBillingConfig.url || '未设置'}</span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-600">方法:</span>
+                  <span className="ml-2 text-gray-800">{githubBillingConfig.method || '未设置'}</span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-600">Customer ID:</span>
+                  <span className="ml-2 text-gray-800">{githubBillingConfig.customerId || '未设置'}</span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-600">Headers:</span>
+                  <span className="ml-2 text-gray-800">{githubBillingConfig.headersCount || 0} 个</span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-600">Cookies:</span>
+                  <span className="ml-2 text-gray-800">{githubBillingConfig.hasCookies ? '已配置' : '未配置'}</span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-600">更新时间:</span>
+                  <span className="ml-2 text-gray-800">
+                    {githubBillingConfig.updatedAt ? new Date(githubBillingConfig.updatedAt).toLocaleString() : '未知'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 状态信息 */}
+          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center gap-2 text-sm text-blue-700">
+              <div className={`w-2 h-2 rounded-full ${githubBillingConfig ? 'bg-green-500' : 'bg-red-500'}`}></div>
+              <span className="font-medium">
+                GitHub Billing 状态：{githubBillingConfig ? '已配置' : '未配置'}
+              </span>
+            </div>
+            <div className="mt-2 text-xs text-blue-600">
+              说明：GitHub Billing 配置用于获取 GitHub 账单使用情况数据。需要从浏览器开发者工具复制有效的 curl 命令。
             </div>
           </div>
         </m.div>
