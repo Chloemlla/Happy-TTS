@@ -98,7 +98,7 @@
     "multer": "^2.0.2",
     "mysql2": "^3.14.3",
     "nanoid": "^5.1.5",
-    "openai": "^5.12.2",
+    "openai": "^5.16.0",
     "path-to-regexp": "^8.2.0",
     "qrcode": "^1.5.4",
     "react-syntax-highlighter": "^15.6.1",
