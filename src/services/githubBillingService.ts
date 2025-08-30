@@ -111,8 +111,8 @@ export class GitHubBillingService {
       cookies: ''
     };
 
-    // 提取 URL
-    const urlMatch = curlCommand.match(/'([^']*github\.com[^']*)'/);
+    // 提取 URL - 使用更安全的非贪婪匹配
+    const urlMatch = curlCommand.match(/'([^']*?github\.com[^']*?)'/);
     if (urlMatch) {
       result.url = urlMatch[1];
       
@@ -129,8 +129,8 @@ export class GitHubBillingService {
       result.method = methodMatch[1];
     }
 
-    // 提取所有 headers
-    const headerMatches = curlCommand.matchAll(/-H\s+'([^:]+):\s*([^']*)'/g);
+    // 提取所有 headers - 使用更安全的非贪婪匹配
+    const headerMatches = curlCommand.matchAll(/-H\s+'([^:]+?):\s*([^']*?)'/g);
     for (const match of headerMatches) {
       const [, key, value] = match;
       if (key.toLowerCase() === 'cookie') {
