@@ -12,8 +12,6 @@ on:
 permissions:
   contents: read
   packages: write
-  id-token: write
-  attestations: write
 
 jobs:
   docker:
@@ -56,19 +54,25 @@ jobs:
         id: prev_commit
         run: echo "prev_sha=$(git rev-parse HEAD^1)" >> $GITHUB_OUTPUT
 
+      - name: Login to Docker Hub
+        uses: docker/login-action@master
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Login to GitHub Container Registry
         uses: docker/login-action@master
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.GHCR_USERNAME }}
+          password: ${{ secrets.GHCR_TOKEN }}
 
       - name: Prepare buildx cache dirs
         run: |
           mkdir -p /tmp/.buildx-cache
           mkdir -p /tmp/.buildx-cache-new
 
-      - name: Build and push AMD64
+      - name: Build and push with memory optimization
         if: github.event_name != 'pull_request'
         uses: docker/build-push-action@master
         env:
@@ -83,16 +87,16 @@ jobs:
           cache-from: |
             type=local,src=/tmp/.buildx-cache
             type=gha
-            type=registry,ref=ghcr.io/${{ steps.meta.outputs.lower_repo }}:cache
+            type=registry,ref=happyclo/tts-node:cache
           cache-to: |
             type=local,dest=/tmp/.buildx-cache-new,mode=max
             type=gha,mode=max
-            type=registry,ref=ghcr.io/${{ steps.meta.outputs.lower_repo }}:cache,mode=max
+            type=registry,ref=happyclo/tts-node:cache,mode=max
           tags: |
+            happyclo/tts-node:${{ github.ref_name }}-amd64
             happyclo/tts-node:${{ steps.meta.outputs.short_sha }}-amd64
-            ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ github.ref_name }}
-            ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ steps.meta.outputs.short_sha }}
-            ghcr.io/${{ steps.meta.outputs.lower_repo }}:latest
+            ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ github.ref_name }}-amd64
+            ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ steps.meta.outputs.short_sha }}-amd64
 
       - name: Move cache
         run: |
@@ -123,7 +127,7 @@ jobs:
           PORT: ${{ secrets.PORT }}
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           CONTAINER_NAMES: ${{ secrets.CONTAINER_NAMES }}
-          IMAGE_URL: ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ steps.meta.outputs.short_sha }}
+          IMAGE_URL: happyclo/tts-node:${{ steps.meta.outputs.short_sha }}-amd64
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
         run: |
           node scripts/deploy_image.js
