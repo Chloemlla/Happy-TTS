@@ -313,7 +313,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                             user: result.user,
                             userId: result.user.id,
                             token: result.token,
-                            username: sanitizedUsername
+                            username: sanitizedUsername,
+                            twoFactorType: result.twoFactorType // 从顶级字段获取
                         });
                         startTransition(() => setShowVerificationSelector(true));
                     } else if (hasPasskey) {
@@ -817,7 +818,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                     onSelectMethod={handleVerificationMethodSelect}
                     username={pendingVerificationData.username}
                     loading={loading}
-                    availableMethods={pendingVerificationData.user.twoFactorType?.map((type: string) =>
+                    availableMethods={pendingVerificationData.twoFactorType?.map((type: string) =>
                         type === 'Passkey' ? 'passkey' : type === 'TOTP' ? 'totp' : null
                     ).filter(Boolean) as ('passkey' | 'totp')[] || []}
                 />

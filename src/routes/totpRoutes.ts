@@ -50,12 +50,12 @@ router.post('/verify-and-enable', authenticateToken, totpLimiter, TOTPController
  * @openapi
  * /totp/verify-token:
  *   post:
- *     summary: 验证TOTP令牌
+ *     summary: 验证TOTP令牌（登录时使用，无需JWT认证）
  *     responses:
  *       200:
  *         description: 验证TOTP令牌
  */
-router.post('/verify-token', authenticateToken, totpLimiter, TOTPController.verifyToken);
+router.post('/verify-token', totpLimiter, TOTPController.verifyToken);
 
 /**
  * @openapi

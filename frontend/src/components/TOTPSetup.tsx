@@ -6,7 +6,7 @@ import { TOTPSetupData } from '../types/auth';
 import { handleTOTPError, cleanTOTPToken, validateTOTPToken } from '../utils/totpUtils';
 import { PasskeySetup } from './PasskeySetup';
 import { useNotification } from './Notification';
-import { FaLock, FaQrcode, FaKey, FaCheck, FaTimes, FaExclamationTriangle } from 'react-icons/fa';
+import { FaLock, FaQrcode, FaKey, FaCheck, FaTimes, FaExclamationTriangle, FaBan, FaUserPlus } from 'react-icons/fa';
 
 interface TOTPSetupProps {
   isOpen: boolean;
@@ -117,25 +117,37 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
           onClick={(e) => e.stopPropagation()}
         >
           {/* 可滚动的内容容器 */}
-          <div className="max-h-[90vh] overflow-y-auto flex flex-col items-center w-full p-8">
+          <div className="max-h-[90vh] overflow-y-auto space-y-4 p-6">
             {/* 标题 */}
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="text-2xl font-bold flex items-center gap-2">
+                <motion.div
+                  animate={{ rotate: rotation }}
+                  whileHover={{ rotate: 20 }}
+                  onHoverEnd={() => setRotation(0)}
+                  transition={{ type: "spring", stiffness: 200, damping: 20 }}
+                >
+                  <FaLock className="w-7 h-7 text-indigo-500" />
+                </motion.div>
+                二次验证设置
+              </h2>
+              <motion.button
+                onClick={handleClose}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all duration-200"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                title="关闭页面"
+              >
+                <FaTimes className="w-5 h-5" />
+              </motion.button>
+            </div>
+            
+            {/* 标签页 */}
             <div className="text-center mb-4 w-full">
               <div className="flex flex-col items-center">
-                <div className="flex items-center gap-2 mb-2">
-                  <motion.div
-                    animate={{ rotate: rotation }}
-                    whileHover={{ rotate: 20 }}
-                    onHoverEnd={() => setRotation(0)}
-                    transition={{ type: "spring", stiffness: 200, damping: 20 }}
-                    className="flex items-center"
-                  >
-                    <FaLock className="w-6 h-6 text-indigo-500" />
-                  </motion.div>
-                  <span className="text-lg sm:text-2xl font-bold text-gray-900 leading-normal select-none">二次验证</span>
-                </div>
                 <div className="flex mb-4 gap-2">
                   <motion.button
-                    className={`px-4 py-2 rounded-t-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 ${activeTab === 'totp' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                    className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 ${activeTab === 'totp' ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                     onClick={() => setActiveTab('totp')}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
@@ -144,7 +156,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                     动态口令（TOTP）
                   </motion.button>
                   <motion.button
-                    className={`px-4 py-2 rounded-t-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 ${activeTab === 'passkey' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                    className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 ${activeTab === 'passkey' ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                     onClick={() => setActiveTab('passkey')}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
@@ -160,6 +172,13 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
             </div>
 
             {/* 内容区条件渲染 */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              transition={{ duration: 0.5, ease: 'easeOut' }}
+              className="bg-white rounded-2xl p-6 shadow-lg"
+            >
             {activeTab === 'totp' ? (
               <AnimatePresence mode="wait">
                 {step === 'loading' && (
@@ -384,11 +403,11 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                     >
                       <motion.button
                         onClick={handleClose}
-                        className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all duration-200 w-full flex items-center justify-center gap-2"
-                        whileHover={{ scale: 1.02, y: -1 }}
+                        className="flex-1 px-4 py-3 border border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all duration-200 w-full flex items-center justify-center gap-2"
+                        whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                       >
-                        <FaTimes className="w-4 h-4" />
+                        <FaBan className="w-4 h-4" />
                         取消
                       </motion.button>
                       <motion.button
@@ -409,7 +428,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                           </>
                         ) : (
                           <>
-                            <FaCheck className="w-4 h-4" />
+                            <FaUserPlus className="w-4 h-4" />
                             验证并启用
                           </>
                         )}
@@ -421,10 +440,11 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
             ) : (
               <div className="w-full flex flex-col items-center">
                 <div className="w-full max-w-lg mx-auto">
-                  <PasskeySetup />
+                  <PasskeySetup onClose={() => {}} />
                 </div>
               </div>
             )}
+            </motion.div>
           </div>
         </motion.div>
       </motion.div>

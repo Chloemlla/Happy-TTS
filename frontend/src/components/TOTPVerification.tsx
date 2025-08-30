@@ -34,8 +34,7 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
   const api = axios.create({
     baseURL: getApiBaseUrl(),
     headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
+      'Content-Type': 'application/json'
     }
   });
 

@@ -23,11 +23,14 @@ interface TotpStatus {
 }
 
 interface ApiResponse<T = any> {
-  success: boolean;
+  success?: boolean;
+  verified?: boolean;
   data?: T;
   error?: string;
   retryable?: boolean;
   detail?: string;
+  message?: string;
+  token?: string;
 }
 
 const fetchProfile = async (): Promise<UserProfileData | null> => {
@@ -88,13 +91,13 @@ const verifyUser = async (verificationCode: string, userId: string): Promise<Api
     const token = localStorage.getItem('token');
     if (!token) throw new Error('No authentication token');
 
-    const res = await fetch(`${getApiBaseUrl()}/api/user/verify`, {
+    const res = await fetch(`${getApiBaseUrl()}/api/totp/verify-token`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ userId, verificationCode }),
+      body: JSON.stringify({ userId, token: verificationCode }),
     });
 
     const result = await res.json();
@@ -172,6 +175,7 @@ const UserProfile: React.FC = () => {
 
   // Authentication state
   const [totpStatus, setTotpStatus] = useState<TotpStatus | null>(null);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
 
   // Password change state
   const [changePwdMode, setChangePwdMode] = useState(false);
@@ -487,7 +491,7 @@ const UserProfile: React.FC = () => {
         }
 
         const res = await verifyUser(verificationCode, profile.id);
-        if (res.success) {
+        if (res.verified) {
           setVerified(true);
           setNotification({ message: '验证成功，请继续修改', type: 'success' });
         } else {
@@ -497,8 +501,8 @@ const UserProfile: React.FC = () => {
       }
 
       if (totpStatus?.hasPasskey && totpStatus?.enabled) {
-        // Both methods available - could extend with selection modal
-        setNotification({ message: '已同时设置 Passkey 和 TOTP，请在安全设置中选择验证方式。', type: 'info' });
+        // Both methods available - show selection modal
+        setShowVerificationModal(true);
         return;
       }
 
@@ -607,6 +611,58 @@ const UserProfile: React.FC = () => {
       setLoading(false);
     }
   }, [oldPwd, newPwd, setNotification]);
+
+  // Handle TOTP verification in modal
+  const handleTotpVerification = useCallback(async () => {
+    if (!profile?.id || !verificationCode) {
+      setNotification({ message: '请输入验证码', type: 'warning' });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await verifyUser(verificationCode, profile.id);
+      if (res.verified) {
+        setVerified(true);
+        setShowVerificationModal(false);
+        setNotification({ message: '验证成功，请继续修改', type: 'success' });
+      } else {
+        setNotification({ message: res.error || '验证失败', type: 'error' });
+      }
+    } catch (error) {
+      console.error('[UserProfile] TOTP verification error:', error);
+      const errorMessage = error instanceof Error ? error.message : '验证失败';
+      setNotification({ message: errorMessage, type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  }, [profile, verificationCode, setNotification]);
+
+  // Handle Passkey verification in modal
+  const handlePasskeyVerification = useCallback(async () => {
+    if (!profile?.username) {
+      setNotification({ message: '无法获取用户名', type: 'error' });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const success = await authenticateWithPasskey(profile.username);
+      if (success) {
+        setVerified(true);
+        setShowVerificationModal(false);
+        setNotification({ message: 'Passkey 验证成功，请继续修改', type: 'success' });
+      } else {
+        setNotification({ message: 'Passkey 验证失败', type: 'error' });
+      }
+    } catch (error) {
+      console.error('[UserProfile] Passkey verification error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Passkey 验证失败';
+      setNotification({ message: errorMessage, type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  }, [profile, authenticateWithPasskey, setNotification]);
 
   // Memoized authentication check
   const isAuthenticated = useMemo(() => {
@@ -797,7 +853,7 @@ const UserProfile: React.FC = () => {
                   二次验证（TOTP/Passkey）
                 </label>
                 <VerifyCodeInput
-                  length={8}
+                  length={6}
                   onComplete={setVerificationCode}
                   loading={loading}
                   error={undefined}
@@ -806,7 +862,7 @@ const UserProfile: React.FC = () => {
                 <motion.button
                   onClick={handleVerify}
                   className="mt-3 px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 shadow-lg font-medium"
-                  disabled={loading || verificationCode.length !== 8}
+                  disabled={loading || verificationCode.length !== 6}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
@@ -876,6 +932,96 @@ const UserProfile: React.FC = () => {
             </motion.button>
           </div>
         </motion.div>
+
+        {/* 验证方式选择模态框 */}
+        {showVerificationModal && (
+          <motion.div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowVerificationModal(false)}
+          >
+            <motion.div
+              className="bg-white rounded-2xl shadow-2xl p-6 m-4 max-w-md w-full"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <FaShieldAlt className="text-white text-2xl" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">选择验证方式</h3>
+                <p className="text-gray-600 text-sm">为 admin 选择一种验证方式</p>
+              </div>
+
+              <div className="space-y-4">
+                {/* TOTP验证选项 */}
+                <div className="border-2 border-gray-200 rounded-xl p-4 hover:border-blue-400 transition-colors">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <FaShieldAlt className="text-blue-600 text-sm" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-800">TOTP 验证码</h4>
+                      <p className="text-gray-500 text-xs">使用认证器应用生成的6位验证码</p>
+                    </div>
+                  </div>
+                  <VerifyCodeInput
+                    length={6}
+                    onComplete={setVerificationCode}
+                    loading={loading}
+                    error={undefined}
+                    inputClassName="bg-white border-2 border-gray-300 text-gray-700 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 rounded-lg px-2 py-1 text-sm transition-all outline-none mx-1"
+                  />
+                  <motion.button
+                    onClick={handleTotpVerification}
+                    className="w-full mt-3 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 font-medium text-sm disabled:opacity-50"
+                    disabled={loading || verificationCode.length !== 6}
+                    whileHover={{ scale: loading ? 1 : 1.02 }}
+                    whileTap={{ scale: loading ? 1 : 0.98 }}
+                  >
+                    {loading ? '验证中...' : '使用 TOTP 验证'}
+                  </motion.button>
+                </div>
+
+                {/* Passkey验证选项 */}
+                <div className="border-2 border-gray-200 rounded-xl p-4 hover:border-green-400 transition-colors">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                      <FaLock className="text-green-600 text-sm" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-800">Passkey 验证</h4>
+                      <p className="text-gray-500 text-xs">使用生物识别或安全密钥进行验证</p>
+                    </div>
+                  </div>
+                  <motion.button
+                    onClick={handlePasskeyVerification}
+                    className="w-full py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 font-medium text-sm disabled:opacity-50"
+                    disabled={loading}
+                    whileHover={{ scale: loading ? 1 : 1.02 }}
+                    whileTap={{ scale: loading ? 1 : 0.98 }}
+                  >
+                    {loading ? '验证中...' : '使用 Passkey 验证'}
+                  </motion.button>
+                </div>
+              </div>
+
+              <div className="mt-6 text-center">
+                <button
+                  onClick={() => setShowVerificationModal(false)}
+                  className="px-4 py-2 text-gray-500 hover:text-gray-700 text-sm font-medium"
+                  disabled={loading}
+                >
+                  取消
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
       </div>
     </div>
   );
