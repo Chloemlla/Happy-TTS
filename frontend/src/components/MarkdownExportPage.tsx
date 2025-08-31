@@ -9,8 +9,7 @@ import DOMPurify from 'dompurify';
 import MarkdownPreview from './MarkdownExportPage/MarkdownPreview';
 import { useKatex } from './MarkdownExportPage/useKatex';
 import { exportToPdf as exportPdfUtil } from './MarkdownExportPage/pdfExport';
-
-// 简单的DOCX导出实现（使用RTF格式作为替代）
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, UnderlineType } from 'docx';
 
 // KaTeX 逻辑已拆分至 useKatex 钩子与独立模块
 
@@ -101,7 +100,7 @@ c & d
         }
     };
 
-    // 导出为DOCX（使用RTF格式作为替代）
+    // 导出为DOCX（使用docx包）
     const exportToDocx = async () => {
         setIsExporting(true);
         try {
@@ -121,9 +120,8 @@ c & d
             // 将处理后的Markdown转换为HTML（已消毒）
             const htmlContent = await renderMarkdown(processedMarkdown);
             
-            // 创建一个临时div来解析HTML并提取文本
+            // 创建一个临时div来解析HTML
             const tempDiv = document.createElement('div');
-            // 再次确保赋值到DOM前进行消毒
             tempDiv.innerHTML = DOMPurify.sanitize(htmlContent, {
                 ALLOWED_TAGS: [
                     'p','br','pre','code','span','div','h1','h2','h3','h4','h5','h6',
@@ -133,12 +131,13 @@ c & d
                 ALLOWED_ATTR: ['href','title','alt','src','class','id','target','rel']
             });
             
-            // 简单的RTF格式转换
-            let rtfContent = '{\\rtf1\\ansi\\deff0 {\\fonttbl {\\f0 Times New Roman;}{\\f1 Courier New;}}\\f0\\fs24';
+            // 创建DOCX文档
+            const children: Paragraph[] = [];
             
-            // 递归处理HTML元素转换为RTF
-            const processNode = (node: Node): string => {
-                let result = '';
+            // 递归处理HTML元素转换为DOCX段落
+            const processNode = (node: Node, formatting: { bold?: boolean; italics?: boolean; font?: string; size?: number; color?: string; underline?: any } = {}): TextRun[] => {
+                const runs: TextRun[] = [];
+                
                 if (node.nodeType === Node.TEXT_NODE) {
                     let textContent = node.textContent || '';
                     
@@ -148,11 +147,12 @@ c & d
                     });
                     
                     textContent = textContent.replace(/\[BLOCK_MATH\]([^[]+)\[\/BLOCK_MATH\]/g, (match, formula) => {
-                        return `\\par[块级公式: $$${formula}$$]\\par`;
+                        return `[块级公式: $$${formula}$$]`;
                     });
                     
-                    // 正确处理RTF转义字符
-                    return textContent.replace(/\\/g, '\\\\').replace(/{/g, '\\{').replace(/}/g, '\\}');
+                    if (textContent.trim()) {
+                        runs.push(new TextRun({ text: textContent, ...formatting }));
+                    }
                 }
                 
                 if (node.nodeType === Node.ELEMENT_NODE) {
@@ -160,159 +160,165 @@ c & d
                     const tagName = element.tagName.toLowerCase();
                     
                     switch (tagName) {
-                        case 'h1':
-                        case 'h2':
-                        case 'h3':
-                        case 'h4':
-                        case 'h5':
-                        case 'h6':
-                            const headingSize = tagName === 'h1' ? '\\fs36' : tagName === 'h2' ? '\\fs32' : '\\fs28';
-                            result += `\\par${headingSize}\\b `;
-                            for (const child of Array.from(element.childNodes)) {
-                                result += processNode(child);
-                            }
-                            result += '\\b0\\fs24\\par';
-                            break;
-                        case 'p':
-                            result += '\\par ';
-                            for (const child of Array.from(element.childNodes)) {
-                                result += processNode(child);
-                            }
-                            result += '\\par';
-                            break;
                         case 'strong':
                         case 'b':
-                            result += '\\b ';
                             for (const child of Array.from(element.childNodes)) {
-                                result += processNode(child);
+                                runs.push(...processNode(child, { ...formatting, bold: true }));
                             }
-                            result += '\\b0';
                             break;
                         case 'em':
                         case 'i':
-                            result += '\\i ';
                             for (const child of Array.from(element.childNodes)) {
-                                result += processNode(child);
+                                runs.push(...processNode(child, { ...formatting, italics: true }));
                             }
-                            result += '\\i0';
                             break;
                         case 'code':
-                            result += '\\f1 ';
                             for (const child of Array.from(element.childNodes)) {
-                                result += processNode(child);
+                                runs.push(...processNode(child, { 
+                                    ...formatting, 
+                                    font: 'Courier New',
+                                    size: 20
+                                }));
                             }
-                            result += '\\f0';
                             break;
-                        case 'ul':
-                        case 'ol':
-                            let listIndex = 1;
+                        case 'a':
+                            const href = element.getAttribute('href');
                             for (const child of Array.from(element.childNodes)) {
-                                if (child.nodeType === Node.ELEMENT_NODE && (child as Element).tagName.toLowerCase() === 'li') {
-                                    const bullet = tagName === 'ul' ? '• ' : `${listIndex}. `;
-                                    result += `\\par\\li360 ${bullet}`;
-                                    for (const liChild of Array.from(child.childNodes)) {
-                                        result += processNode(liChild);
+                                runs.push(...processNode(child, { 
+                                    ...formatting, 
+                                    color: '0066CC',
+                                    underline: {
+                                        type: UnderlineType.SINGLE,
+                                        color: '0066CC'
                                     }
-                                    result += '\\li0';
-                                    listIndex++;
-                                }
+                                }));
                             }
-                            result += '\\par';
-                            break;
-                        case 'blockquote':
-                            result += '\\par\\li720 ';
-                            for (const child of Array.from(element.childNodes)) {
-                                result += processNode(child);
-                            }
-                            result += '\\li0\\par';
-                            break;
-                        case 'table':
-                            result += '\\par';
-                            for (const child of Array.from(element.childNodes)) {
-                                result += processNode(child);
-                            }
-                            result += '\\par';
-                            break;
-                        case 'tr':
-                            result += '\\par';
-                            for (const child of Array.from(element.childNodes)) {
-                                result += processNode(child);
-                                result += ' | ';
-                            }
-                            break;
-                        case 'th':
-                        case 'td':
-                            result += '\\b ';
-                            for (const child of Array.from(element.childNodes)) {
-                                result += processNode(child);
-                            }
-                            result += '\\b0';
-                            break;
-                        case 'pre':
-                            result += '\\par\\f1 ';
-                            for (const child of Array.from(element.childNodes)) {
-                                result += processNode(child);
-                            }
-                            result += '\\f0\\par';
-                            break;
-                        case 'br':
-                            result += '\\par';
-                            break;
-                        // 处理KaTeX渲染的数学公式
-                        case 'span':
-                            if (element.classList.contains('katex')) {
-                                // 提取LaTeX源码
-                                const annotation = element.querySelector('annotation[encoding="application/x-tex"]');
-                                if (annotation) {
-                                    result += `[数学公式: ${annotation.textContent}]`;
-                                } else {
-                                    // 如果没有找到源码，使用显示文本
-                                    result += `[数学公式: ${element.textContent}]`;
-                                }
-                            } else {
-                                for (const child of Array.from(element.childNodes)) {
-                                    result += processNode(child);
-                                }
-                            }
-                            break;
-                        case 'math':
-                            // 处理MathML格式的数学公式
-                            const annotation = element.querySelector('annotation[encoding="application/x-tex"]');
-                            if (annotation) {
-                                result += `[数学公式: ${annotation.textContent}]`;
-                            } else {
-                                result += `[数学公式: ${element.textContent}]`;
+                            if (href) {
+                                runs.push(new TextRun({ text: ` (${href})`, color: '666666' }));
                             }
                             break;
                         default:
                             for (const child of Array.from(element.childNodes)) {
-                                result += processNode(child);
+                                runs.push(...processNode(child, formatting));
                             }
                             break;
                     }
                 }
-                return result;
+                return runs;
             };
             
+            // 处理每个顶级元素
             for (const child of Array.from(tempDiv.childNodes)) {
-                rtfContent += processNode(child);
+                if (child.nodeType === Node.ELEMENT_NODE) {
+                    const element = child as Element;
+                    const tagName = element.tagName.toLowerCase();
+                    
+                    switch (tagName) {
+                        case 'h1':
+                            children.push(new Paragraph({
+                                children: processNode(element),
+                                heading: HeadingLevel.HEADING_1
+                            }));
+                            break;
+                        case 'h2':
+                            children.push(new Paragraph({
+                                children: processNode(element),
+                                heading: HeadingLevel.HEADING_2
+                            }));
+                            break;
+                        case 'h3':
+                            children.push(new Paragraph({
+                                children: processNode(element),
+                                heading: HeadingLevel.HEADING_3
+                            }));
+                            break;
+                        case 'h4':
+                            children.push(new Paragraph({
+                                children: processNode(element),
+                                heading: HeadingLevel.HEADING_4
+                            }));
+                            break;
+                        case 'h5':
+                            children.push(new Paragraph({
+                                children: processNode(element),
+                                heading: HeadingLevel.HEADING_5
+                            }));
+                            break;
+                        case 'h6':
+                            children.push(new Paragraph({
+                                children: processNode(element),
+                                heading: HeadingLevel.HEADING_6
+                            }));
+                            break;
+                        case 'p':
+                            const runs = processNode(element);
+                            if (runs.length > 0) {
+                                children.push(new Paragraph({ children: runs }));
+                            }
+                            break;
+                        case 'blockquote':
+                            children.push(new Paragraph({
+                                children: processNode(element),
+                                indent: { left: 720 }
+                            }));
+                            break;
+                        case 'pre':
+                            children.push(new Paragraph({
+                                children: [new TextRun({ 
+                                    text: element.textContent || '',
+                                    font: 'Courier New',
+                                    color: '333333'
+                                })]
+                            }));
+                            break;
+                        case 'ul':
+                        case 'ol':
+                            let listIndex = 1;
+                            for (const li of Array.from(element.children)) {
+                                if (li.tagName.toLowerCase() === 'li') {
+                                    const bullet = tagName === 'ul' ? '• ' : `${listIndex}. `;
+                                    const liRuns = processNode(li);
+                                    children.push(new Paragraph({
+                                        children: [new TextRun(bullet), ...liRuns],
+                                        indent: { left: 360 }
+                                    }));
+                                    listIndex++;
+                                }
+                            }
+                            break;
+                        default:
+                            const defaultRuns = processNode(element);
+                            if (defaultRuns.length > 0) {
+                                children.push(new Paragraph({ children: defaultRuns }));
+                            }
+                            break;
+                    }
+                } else if (child.nodeType === Node.TEXT_NODE && child.textContent?.trim()) {
+                    children.push(new Paragraph({ children: [new TextRun(child.textContent)] }));
+                }
             }
             
-            rtfContent += '}';
+            // 创建文档
+            const doc = new Document({
+                sections: [{
+                    properties: {},
+                    children: children
+                }]
+            });
             
-            // 创建Blob并下载
-            const blob = new Blob([rtfContent], { type: 'application/rtf' });
-            const url = URL.createObjectURL(blob);
+            // 生成并下载文件
+            const buffer = await Packer.toBlob(doc);
+            const url = URL.createObjectURL(buffer);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `markdown-export-${new Date().getTime()}.rtf`;
+            link.download = `markdown-export-${new Date().getTime()}.docx`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
         } catch (error) {
-            console.error('导出RTF失败:', error);
-            alert('导出RTF失败，请检查内容格式');
+            console.error('导出DOCX失败:', error);
+            alert('导出DOCX失败，请检查内容格式');
         } finally {
             setIsExporting(false);
         }
@@ -393,7 +399,7 @@ c & d
                                 whileTap={{ scale: 0.98 }}
                             >
                                 <FaFileWord />
-                                {isExporting ? '导出中...' : '导出RTF'}
+                                {isExporting ? '导出中...' : '导出DOCX'}
                             </motion.button>
 
                             <motion.button
@@ -517,7 +523,7 @@ c & d
                         <div>
                             <h4 className="font-semibold text-gray-800 mb-2">导出功能：</h4>
                             <ul className="space-y-1 list-disc list-inside">
-                                <li><strong>RTF导出：</strong>兼容Word的富文本格式文档</li>
+                                <li><strong>DOCX导出：</strong>标准的Microsoft Word文档格式</li>
                                 <li><strong>PDF导出：</strong>高质量的PDF文件</li>
                                 <li><strong>实时预览：</strong>编辑时即时查看效果</li>
                                 <li><strong>复制功能：</strong>快速复制内容到剪贴板</li>

@@ -16,8 +16,8 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "baseUrl": "src",
-    "types": ["@testing-library/jest-dom"]
+    "types": ["vite/client", "@testing-library/jest-dom", "vitest/globals"]
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "vitest.setup.ts"],
   "exclude": ["node_modules"]
-} 
+}

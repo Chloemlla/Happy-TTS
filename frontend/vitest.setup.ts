@@ -23,11 +23,11 @@ vi.mock('framer-motion', () => ({
 // Mock crypto-js
 vi.mock('crypto-js', () => ({
   default: {
-    MD5: jest.fn().mockReturnValue({ toString: () => 'mock-md5-hash' }),
-    SHA256: jest.fn().mockReturnValue({ toString: () => 'mock-sha256-hash' }),
+    MD5: vi.fn().mockReturnValue({ toString: () => 'mock-md5-hash' }),
+    SHA256: vi.fn().mockReturnValue({ toString: () => 'mock-sha256-hash' }),
     AES: {
-      encrypt: jest.fn().mockReturnValue({ toString: () => 'mock-encrypted' }),
-      decrypt: jest.fn().mockReturnValue({ toString: () => 'mock-decrypted' })
+      encrypt: vi.fn().mockReturnValue({ toString: () => 'mock-encrypted' }),
+      decrypt: vi.fn().mockReturnValue({ toString: () => 'mock-decrypted' })
     }
   }
 }));
