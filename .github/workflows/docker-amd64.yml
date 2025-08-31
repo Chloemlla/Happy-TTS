@@ -88,15 +88,20 @@ jobs:
             type=local,src=/tmp/.buildx-cache
             type=gha
             type=registry,ref=happyclo/tts-node:cache
+            type=registry,ref=ghcr.io/${{ steps.meta.outputs.lower_repo }}:cache
           cache-to: |
             type=local,dest=/tmp/.buildx-cache-new,mode=max
             type=gha,mode=max
             type=registry,ref=happyclo/tts-node:cache,mode=max
+            type=registry,ref=ghcr.io/${{ steps.meta.outputs.lower_repo }}:cache,mode=max
           tags: |
             happyclo/tts-node:${{ github.ref_name }}-amd64
             happyclo/tts-node:${{ steps.meta.outputs.short_sha }}-amd64
             ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ github.ref_name }}-amd64
             ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ steps.meta.outputs.short_sha }}-amd64
+            ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ github.ref_name }}
+            ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ steps.meta.outputs.short_sha }}
+            ghcr.io/${{ steps.meta.outputs.lower_repo }}:latest
 
       - name: Move cache
         run: |
