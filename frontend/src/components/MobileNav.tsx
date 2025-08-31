@@ -963,6 +963,40 @@ const MobileNav: React.FC<MobileNavProps> = ({
                       )}
                     </Link>
                   </motion.div>
+                  {/* GitHub账单管理 */}
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.4, delay: 0.32 }}
+                  >
+                    <Link
+                      to="/admin/github-billing"
+                      className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/admin/github-billing' ? 'bg-blue-50 text-blue-700 font-semibold shadow-sm' : 'hover:bg-blue-50'
+                        }`}
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <motion.svg
+                        className={`w-5 h-5 ${location.pathname === '/admin/github-billing' ? 'text-blue-500' : 'text-gray-400'}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        whileHover={{ scale: 1.1, rotate: 5 }}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m-6-9h12a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V9a2 2 0 012-2z" />
+                      </motion.svg>
+                      <span>GitHub账单</span>
+                      {location.pathname === '/admin/github-billing' && (
+                        <motion.span
+                          className="ml-auto text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full"
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                        >
+                          当前
+                        </motion.span>
+                      )}
+                    </Link>
+                  </motion.div>
                 </>
               )}
 
