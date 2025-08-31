@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence, HTMLMotionProps } from 'framer-motion';
 import { useNotification } from './Notification';
-import getApiBaseUrl, { getApiBaseUrl as namedGetApiBaseUrl } from '../api';
+import getApiBaseUrl from '../api';
 import { useAuth } from '../hooks/useAuth';
 import CryptoJS from 'crypto-js';
-import { 
-  FaList, 
-  FaPlus, 
-  FaEdit, 
-  FaTrash, 
-  FaSave, 
+import {
+  FaList,
+  FaPlus,
+  FaEdit,
+  FaTrash,
+  FaSave,
   FaDownload,
   FaUpload,
   FaCopy,
@@ -25,13 +25,13 @@ function decryptAES256(encryptedData: string, iv: string, key: string): string {
     console.log('   密钥长度:', key.length);
     console.log('   加密数据长度:', encryptedData.length);
     console.log('   IV长度:', iv.length);
-    
+
     const keyBytes = CryptoJS.SHA256(key);
     const ivBytes = CryptoJS.enc.Hex.parse(iv);
     const encryptedBytes = CryptoJS.enc.Hex.parse(encryptedData);
-    
+
     console.log('   密钥哈希完成，开始解密...');
-    
+
     const decrypted = CryptoJS.AES.decrypt(
       { ciphertext: encryptedBytes },
       keyBytes,
@@ -41,10 +41,10 @@ function decryptAES256(encryptedData: string, iv: string, key: string): string {
         padding: CryptoJS.pad.Pkcs7
       }
     );
-    
+
     const result = decrypted.toString(CryptoJS.enc.Utf8);
     console.log('   解密完成，结果长度:', result.length);
-    
+
     return result;
   } catch (error) {
     console.error('❌ AES-256解密失败:', error);
@@ -62,12 +62,12 @@ interface Mod {
 
 const fetchMods = async (withHash = false, withMd5 = false) => {
   try {
-  let url = getApiBaseUrl() + '/api/modlist';
-  const params = [];
-  if (withHash) params.push('withHash=1');
-  if (withMd5) params.push('withMd5=1');
-  if (params.length) url += '?' + params.join('&');
-    
+    let url = getApiBaseUrl() + '/api/modlist';
+    const params = [];
+    if (withHash) params.push('withHash=1');
+    if (withMd5) params.push('withMd5=1');
+    if (params.length) url += '?' + params.join('&');
+
     const token = localStorage.getItem('token');
     const res = await fetch(url, {
       headers: {
@@ -75,14 +75,14 @@ const fetchMods = async (withHash = false, withMd5 = false) => {
         ...(token && { 'Authorization': `Bearer ${token}` }),
       },
     });
-    
+
     if (!res.ok) {
       console.error('API请求失败:', res.status, res.statusText);
       return [];
     }
-    
+
     const data = await res.json();
-    
+
     // 检查是否为加密数据
     if (data.data && data.iv && typeof data.data === 'string' && typeof data.iv === 'string') {
       try {
@@ -90,11 +90,11 @@ const fetchMods = async (withHash = false, withMd5 = false) => {
         console.log('   加密数据长度:', data.data.length);
         console.log('   IV:', data.iv);
         console.log('   使用Token进行解密，Token长度:', token?.length || 0);
-        
+
         // 解密数据
         const decryptedJson = decryptAES256(data.data, data.iv, token || '');
         const decryptedData = JSON.parse(decryptedJson);
-        
+
         if (decryptedData.mods && Array.isArray(decryptedData.mods)) {
           console.log('✅ 解密成功，获取到', decryptedData.mods.length, '个MOD');
           return decryptedData.mods as Mod[];
@@ -124,12 +124,12 @@ const fetchMods = async (withHash = false, withMd5 = false) => {
 
 const fetchModsJson = async (withHash = false, withMd5 = false) => {
   try {
-  let url = getApiBaseUrl() + '/api/modlist/json';
-  const params = [];
-  if (withHash) params.push('withHash=1');
-  if (withMd5) params.push('withMd5=1');
-  if (params.length) url += '?' + params.join('&');
-    
+    let url = getApiBaseUrl() + '/api/modlist/json';
+    const params = [];
+    if (withHash) params.push('withHash=1');
+    if (withMd5) params.push('withMd5=1');
+    if (params.length) url += '?' + params.join('&');
+
     const token = localStorage.getItem('token');
     const res = await fetch(url, {
       headers: {
@@ -137,14 +137,14 @@ const fetchModsJson = async (withHash = false, withMd5 = false) => {
         ...(token && { 'Authorization': `Bearer ${token}` }),
       },
     });
-    
+
     if (!res.ok) {
       console.error('API请求失败:', res.status, res.statusText);
       return [];
     }
-    
+
     const data = await res.json();
-    
+
     // 检查是否为加密数据
     if (data.data && data.iv && typeof data.data === 'string' && typeof data.iv === 'string') {
       try {
@@ -152,11 +152,11 @@ const fetchModsJson = async (withHash = false, withMd5 = false) => {
         console.log('   加密数据长度:', data.data.length);
         console.log('   IV:', data.iv);
         console.log('   使用Token进行解密，Token长度:', token?.length || 0);
-        
+
         // 解密数据
         const decryptedJson = decryptAES256(data.data, data.iv, token || '');
         const decryptedData = JSON.parse(decryptedJson);
-        
+
         console.log('✅ 解密成功，获取到MOD JSON数据');
         return decryptedData;
       } catch (decryptError) {
@@ -250,10 +250,10 @@ const ModListEditor: React.FC = () => {
 
   const loadMods = async () => {
     try {
-    if (jsonMode) {
-      const data = await fetchModsJson(true, true);
-      setJsonValue(JSON.stringify(data, null, 2));
-    } else {
+      if (jsonMode) {
+        const data = await fetchModsJson(true, true);
+        setJsonValue(JSON.stringify(data, null, 2));
+      } else {
         const modsData = await fetchMods(true, true);
         setMods(Array.isArray(modsData) ? modsData : []);
       }
@@ -345,13 +345,13 @@ const ModListEditor: React.FC = () => {
 
   if (!user || user.role !== 'admin') {
     return (
-      <motion.div 
+      <motion.div
         className="space-y-6"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <motion.div 
+        <motion.div
           className="bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-6 border border-red-100"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -373,14 +373,14 @@ const ModListEditor: React.FC = () => {
   }
 
   return (
-    <motion.div 
+    <motion.div
       className="space-y-6"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
     >
       {/* 标题和说明 */}
-      <motion.div 
+      <motion.div
         className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -408,7 +408,7 @@ const ModListEditor: React.FC = () => {
       </motion.div>
 
       {/* 主要功能区域 */}
-      <motion.div 
+      <motion.div
         className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -454,8 +454,8 @@ const ModListEditor: React.FC = () => {
 
             <div className="space-y-2">
               {(mods || []).map((mod, idx) => (
-                <motion.div 
-                  key={mod.id} 
+                <motion.div
+                  key={mod.id}
                   className="flex items-center justify-between p-3 border-2 border-gray-200 rounded-lg bg-gray-50"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -484,7 +484,7 @@ const ModListEditor: React.FC = () => {
                   </div>
                 </motion.div>
               ))}
-              
+
               {mods.length === 0 && (
                 <div className="text-center py-8 text-gray-500">
                   <FaList className="w-12 h-12 mx-auto mb-4 text-gray-300" />
@@ -514,11 +514,10 @@ const ModListEditor: React.FC = () => {
               </motion.button>
               <motion.button
                 onClick={() => setJsonEdit(e => !e)}
-                className={`px-4 py-2 rounded-lg transition font-medium ${
-                  jsonEdit 
-                    ? 'bg-gray-500 text-white hover:bg-gray-600' 
+                className={`px-4 py-2 rounded-lg transition font-medium ${jsonEdit
+                    ? 'bg-gray-500 text-white hover:bg-gray-600'
                     : 'bg-blue-500 text-white hover:bg-blue-600'
-                }`}
+                  }`}
                 whileTap={{ scale: 0.95 }}
               >
                 {jsonEdit ? '取消编辑' : '编辑JSON'}
