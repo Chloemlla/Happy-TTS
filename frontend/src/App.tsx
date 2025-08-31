@@ -878,21 +878,17 @@ const App: React.FC = () => {
                   )
                 } />
                 <Route path="/anti-counterfeit" element={
-                  user ? (
-                    <Suspense fallback={<LoadingSpinner />}>
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <AntiCounterfeitPage />
-                      </m.div>
-                    </Suspense>
-                  ) : (
-                    <Navigate to="/welcome" replace state={{ from: location.pathname }} />
-                  )
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <m.div
+                      variants={pageVariants}
+                      initial="initial"
+                      animate="in"
+                      exit="out"
+                      transition={pageTransition}
+                    >
+                      <AntiCounterfeitPage />
+                    </m.div>
+                  </Suspense>
                 } />
                 <Route path="/admin/lottery" element={
                   user?.role === 'admin' ? (
