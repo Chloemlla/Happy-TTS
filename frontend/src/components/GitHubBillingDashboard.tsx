@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion as m } from 'framer-motion';
 import { FaSync, FaGithub, FaDollarSign, FaCalendarAlt, FaUser, FaTrash } from 'react-icons/fa';
 import { useNotification } from './Notification';
+import { getApiBaseUrl } from '../api/api';
 
 // 动画配置
 const ENTER_INITIAL = { opacity: 0, y: 20 };
@@ -43,7 +44,7 @@ const GitHubBillingDashboard: React.FC = () => {
   const fetchCachedCustomers = useCallback(async () => {
     setCustomersLoading(true);
     try {
-      const res = await fetch('/api/github-billing/customers', {
+      const res = await fetch(`${getApiBaseUrl()}/api/github-billing/customers`, {
         headers: { ...getAuthHeaders() }
       });
       const data = await res.json();
@@ -65,7 +66,7 @@ const GitHubBillingDashboard: React.FC = () => {
   const fetchBillingData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/github-billing/usage', {
+      const res = await fetch(`${getApiBaseUrl()}/api/github-billing/usage`, {
         headers: { ...getAuthHeaders() }
       });
       const data = await res.json();
@@ -91,8 +92,8 @@ const GitHubBillingDashboard: React.FC = () => {
     setClearingCache(true);
     try {
       const url = customerId 
-        ? `/api/github-billing/cache/${customerId}`
-        : '/api/github-billing/cache/expired';
+        ? `${getApiBaseUrl()}/api/github-billing/cache/${customerId}`
+        : `${getApiBaseUrl()}/api/github-billing/cache/expired`;
       
       const res = await fetch(url, {
         method: 'DELETE',
