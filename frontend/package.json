@@ -65,7 +65,7 @@
     "katex": "^0.16.22",
     "lodash.merge": "^4.6.2",
     "lucide-react": "^0.542.0",
-    "marked": "^16.2.0",
+    "marked": "^16.2.1",
     "marked-katex-extension": "^5.1.5",
     "md5": "^2.3.0",
     "mermaid": "^11.10.1",
