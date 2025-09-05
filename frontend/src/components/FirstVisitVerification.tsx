@@ -5,6 +5,7 @@ import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
 import { getFingerprint, verifyTempFingerprint, storeAccessToken } from '../utils/fingerprint';
 import { useNotification } from './Notification';
 import { integrityChecker } from '../utils/integrityCheck';
+import clarity from '@microsoft/clarity';
 
 interface FirstVisitVerificationProps {
   onVerificationComplete: () => void;
@@ -172,6 +173,15 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     setTurnstileError(false);
     setError('');
 
+    // Microsoft Clarity事件记录：Turnstile验证成功
+    try {
+      if (typeof clarity !== 'undefined' && clarity.event) {
+        clarity.event('turnstile_verify_success');
+      }
+    } catch (err) {
+      console.warn('Failed to send Clarity event:', err);
+    }
+
     // 显示验证成功通知
     setNotification({
       message: '人机验证通过！',
@@ -184,6 +194,15 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     setTurnstileToken('');
     setTurnstileVerified(false);
     setTurnstileError(false);
+
+    // Microsoft Clarity事件记录：Turnstile验证过期
+    try {
+      if (typeof clarity !== 'undefined' && clarity.event) {
+        clarity.event('turnstile_verify_expire');
+      }
+    } catch (err) {
+      console.warn('Failed to send Clarity event:', err);
+    }
 
     // 显示验证过期通知
     setNotification({
@@ -198,6 +217,15 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     setTurnstileVerified(false);
     setTurnstileError(true);
     setError('人机验证失败，请重试');
+
+    // Microsoft Clarity事件记录：Turnstile验证错误
+    try {
+      if (typeof clarity !== 'undefined' && clarity.event) {
+        clarity.event('turnstile_verify_error');
+      }
+    } catch (err) {
+      console.warn('Failed to send Clarity event:', err);
+    }
 
     // 显示验证错误通知
     setNotification({
@@ -231,6 +259,15 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
       if (result.success) {
         console.log('首次访问验证成功');
 
+        // Microsoft Clarity事件记录：验证成功
+        try {
+          if (typeof clarity !== 'undefined' && clarity.event) {
+            clarity.event('first_visit_verification_success');
+          }
+        } catch (err) {
+          console.warn('Failed to send Clarity event:', err);
+        }
+
         // 存储访问密钥
         if (result.accessToken) {
           storeAccessToken(fingerprint, result.accessToken);
@@ -258,6 +295,15 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
         }, 1000);
       } else {
         const errorMsg = '验证失败，请重试';
+        
+        // Microsoft Clarity事件记录：验证失败（基础信息）
+        try {
+          if (typeof clarity !== 'undefined' && clarity.event) {
+            clarity.event('first_visit_verification_failed');
+          }
+        } catch (err) {
+          console.warn('Failed to send Clarity event:', err);
+        }
         setError(errorMsg);
         setNotification({
           message: errorMsg,
@@ -270,9 +316,19 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     } catch (err) {
       console.error('验证失败:', err);
       let errorMsg = '验证失败，请重试';
+      let errorType = 'unknown_error';
+      let clarityErrorData: any = {
+        component: 'FirstVisitVerification',
+        fingerprint: fingerprint?.substring(0, 8) + '...',
+        clientIP: clientIP || 'unknown',
+        timestamp: new Date().toISOString(),
+        retryCount: retryCount,
+        errorMessage: err instanceof Error ? err.message : 'Unknown error'
+      };
 
       // 检查是否是IP封禁错误
       if (err instanceof Error && err.message.includes('IP已被封禁')) {
+        errorType = 'ip_banned';
         // 从错误对象中提取封禁信息
         const banData = (err as any).banData;
         if (banData && banData.expiresAt) {
@@ -281,6 +337,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
             // 这里可以通过回调函数更新父组件的状态
             console.log('封禁到期时间:', banData.expiresAt);
           }
+          clarityErrorData.banExpiresAt = banData.expiresAt;
         }
         errorMsg = '您的IP地址已被封禁，请稍后再试';
         setNotification({
@@ -288,12 +345,14 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
           type: 'error'
         });
       } else if (err instanceof Error && err.message.includes('网络')) {
+        errorType = 'network_error';
         errorMsg = '网络连接异常，请检查网络后重试';
         setNotification({
           message: '网络连接异常',
           type: 'error'
         });
       } else if (err instanceof Error && err.message.includes('超时')) {
+        errorType = 'timeout_error';
         errorMsg = '验证超时，请重试';
         setNotification({
           message: '验证超时，请重试',
@@ -306,6 +365,15 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
         });
       }
 
+      // Microsoft Clarity事件记录：验证异常失败
+      try {
+        if (typeof clarity !== 'undefined' && clarity.event) {
+          clarity.event('first_visit_verification_exception');
+        }
+      } catch (clarityError) {
+        console.warn('Failed to send Clarity event:', clarityError);
+      }
+
       setError(errorMsg);
       setTurnstileToken('');
       setTurnstileVerified(false);
@@ -314,6 +382,16 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
       // 增加重试次数并显示重试提示
       setRetryCount(prev => {
         const newCount = prev + 1;
+        
+        // Microsoft Clarity事件记录：重试计数更新
+        try {
+          if (typeof clarity !== 'undefined' && clarity.event) {
+            clarity.event('first_visit_verification_retry');
+          }
+        } catch (clarityError) {
+          console.warn('Failed to send Clarity event:', clarityError);
+        }
+        
         if (newCount <= 3) {
           setTimeout(() => {
             setNotification({
@@ -334,7 +412,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     } finally {
       setVerifying(false);
     }
-  }, [turnstileVerified, turnstileToken, fingerprint, onVerificationComplete, setNotification, banExpiresAt]);
+  }, [turnstileVerified, turnstileToken, fingerprint, onVerificationComplete, setNotification, banExpiresAt, clientIP, retryCount]);
 
   // 简化的键盘快捷键支持
   useEffect(() => {
@@ -348,7 +426,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [turnstileVerified, verifying, handleVerify, setNotification]);
+  }, [turnstileVerified, verifying, handleVerify]);
 
   // 重置重试计数器 - 静默重置
   const resetRetryCount = useCallback(() => {
@@ -357,6 +435,20 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
 
   // 如果IP被封禁，显示封禁页面
   console.log('显示封禁页面:', { isIpBanned, banReason, banExpiresAt, clientIP });
+  
+  // Microsoft Clarity事件记录：IP被封禁页面显示
+  useEffect(() => {
+    if (isIpBanned) {
+      try {
+        if (typeof clarity !== 'undefined' && clarity.event) {
+          clarity.event('first_visit_ip_banned_displayed');
+        }
+      } catch (err) {
+        console.warn('Failed to send Clarity event:', err);
+      }
+    }
+  }, [isIpBanned, banReason, banExpiresAt, clientIP, fingerprint]);
+  
   if (isIpBanned) {
     return (
       <AnimatePresence>
