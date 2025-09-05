@@ -28,7 +28,7 @@ RUN npm install -g pnpm@latest
 
 # 修复 Rollup 依赖问题
 RUN echo "🔧 修复 Rollup 依赖问题..." && \
-    pnpm cache clean --force
+    pnpm store prune
 
 # 先安装依赖，根据平台安装合适的 rollup 依赖
 RUN pnpm install --no-optional --no-audit --no-fund \
