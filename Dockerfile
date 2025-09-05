@@ -173,14 +173,13 @@ WORKDIR /app
 # 安装pnpm和生产环境依赖（这层会被缓存）
 COPY package*.json ./
 COPY pnpm-lock.yaml* ./
-RUN npm install -g pnpm@latest && \
-    pnpm setup && \
+ENV SHELL=/bin/sh
+RUN npm install -g pnpm@latest concurrently serve && \
     if [ -f "pnpm-lock.yaml" ]; then \
         pnpm install --prod --frozen-lockfile; \
     else \
         pnpm install --prod; \
-    fi && \
-    npm install -g concurrently serve
+    fi
 
 # 从构建阶段复制文件
 COPY --from=backend-builder /app/dist-obfuscated ./dist
