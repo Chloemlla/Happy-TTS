@@ -31,22 +31,22 @@ RUN echo "🔧 修复 Rollup 依赖问题..." && \
     pnpm store prune
 
 # 先安装依赖，根据平台安装合适的 rollup 依赖
-RUN pnpm install --no-optional \
+RUN pnpm install \
     && if [ "$(uname -m)" = "x86_64" ] || [ "$(uname -m)" = "amd64" ]; then \
     echo "x64 platform detected, installing x64 rollup dependencies..." && \
-    pnpm install rollup @rollup/rollup-linux-x64-musl --no-optional; \
+    pnpm install rollup @rollup/rollup-linux-x64-musl; \
     elif [ "$(uname -m)" = "aarch64" ] || [ "$(uname -m)" = "arm64" ]; then \
     echo "ARM64 platform detected, skipping platform-specific rollup dependencies..." && \
-    pnpm install rollup @rollup/rollup-linux-arm64-musl --no-optional; \
+    pnpm install rollup @rollup/rollup-linux-arm64-musl; \
     else \
     echo "Unknown platform, installing generic rollup..." && \
-    pnpm install rollup --no-optional; \
+    pnpm install rollup; \
     fi \
-    || (echo "依赖安装失败，尝试修复..." && rm -rf node_modules package-lock.json && pnpm install --no-optional && pnpm install rollup --no-optional)
+    || (echo "依赖安装失败，尝试修复..." && rm -rf node_modules package-lock.json && pnpm install && pnpm install rollup)
 
-RUN pnpm install @fingerprintjs/fingerprintjs --no-optional && \
-    pnpm install crypto-js --no-optional && \
-    pnpm install --save-dev @types/crypto-js --no-optional
+RUN pnpm install @fingerprintjs/fingerprintjs && \
+    pnpm install crypto-js && \
+    pnpm install --save-dev @types/crypto-js
 RUN npm install -g vitest @testing-library/jest-dom @testing-library/react @testing-library/user-event @babel/preset-env @babel/preset-react @babel/preset-typescript @babel/preset-stage-2 @babel/preset-stage-3
 
 # 复制前端源代码（这层会在源代码变化时重新构建）
@@ -58,8 +58,8 @@ RUN pnpm run build \
     || (echo "第二次构建失败，使用简化构建..." && pnpm run build:simple) \
     || (echo "简化构建失败，使用最小构建..." && pnpm run build:minimal) \
     || (echo "所有构建失败，尝试修复依赖（Rollup/Canvg）..." \
-        && pnpm install @rollup/rollup-linux-x64-musl --save-dev --no-optional || true \
-        && pnpm install canvg --no-optional || true \
+        && pnpm install @rollup/rollup-linux-x64-musl --save-dev || true \
+        && pnpm install canvg || true \
         && pnpm run build:minimal)
 
 # 确保favicon.ico存在
@@ -128,7 +128,7 @@ COPY package*.json ./
 # 安装后端依赖（包括开发依赖，因为需要TypeScript编译器）
 RUN npm install -g pnpm@latest
 RUN pnpm store prune && \
-    pnpm install --no-optional && \
+    pnpm install && \
     npm install -g javascript-obfuscator
 
 # 复制后端源代码和配置文件（这层会在源代码变化时重新构建）
