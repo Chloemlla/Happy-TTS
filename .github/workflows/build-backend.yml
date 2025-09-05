@@ -78,7 +78,7 @@ jobs:
           path: |
             node_modules
             /tmp/.npm
-          key: ${{ runner.os }}-node${{ matrix.node-version }}-backend-modules-${{ hashFiles('package-lock.json') }}
+          key: ${{ runner.os }}-node${{ matrix.node-version }}-backend-modules-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-node${{ matrix.node-version }}-backend-modules-
 

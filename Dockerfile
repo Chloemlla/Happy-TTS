@@ -170,9 +170,10 @@ ENV OPENAPI_JSON_PATH="/app/openapi.json"
 
 WORKDIR /app
 
-# 安装生产环境依赖（这层会被缓存）
+# 安装pnpm和生产环境依赖（这层会被缓存）
 COPY package*.json ./
-RUN pnpm ci --only=production --no-optional --no-audit --no-fund && \
+RUN npm install -g pnpm@latest && \
+    pnpm ci --only=production --no-optional --no-audit --no-fund && \
     pnpm install -g concurrently serve
 
 # 从构建阶段复制文件
