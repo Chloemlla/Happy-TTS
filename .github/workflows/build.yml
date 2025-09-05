@@ -27,6 +27,11 @@ jobs:
     steps:
       - uses: actions/checkout@main
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@master
+        with:
+          version: latest
+
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@main
         with:
@@ -77,11 +82,6 @@ jobs:
             echo "Non-x64 platform, skipping native Rollup dependencies"
           fi
           cd ..
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@master
-        with:
-          version: latest
 
       - name: Generate pnpm-lock.yaml
         run: pnpm install --lockfile-only

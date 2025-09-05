@@ -171,9 +171,14 @@ ENV OPENAPI_JSON_PATH="/app/openapi.json"
 WORKDIR /app
 
 # 安装pnpm和生产环境依赖（这层会被缓存）
-COPY package*.json pnpm-lock.yaml ./
+COPY package*.json ./
+COPY pnpm-lock.yaml* ./
 RUN npm install -g pnpm@latest && \
-    pnpm install --prod --frozen-lockfile && \
+    if [ -f "pnpm-lock.yaml" ]; then \
+        pnpm install --prod --frozen-lockfile; \
+    else \
+        pnpm install --prod; \
+    fi && \
     pnpm add -g concurrently serve
 
 # 从构建阶段复制文件
