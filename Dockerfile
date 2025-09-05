@@ -137,7 +137,7 @@ COPY package*.json ./
 RUN npm install -g pnpm@latest
 RUN pnpm store prune && \
     pnpm install --no-optional && \
-    pnpm add -g javascript-obfuscator
+    npm install -g javascript-obfuscator
 
 # 复制后端源代码和配置文件（这层会在源代码变化时重新构建）
 COPY scripts/ ./scripts/
