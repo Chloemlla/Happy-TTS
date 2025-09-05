@@ -31,7 +31,7 @@ RUN echo "🔧 修复 Rollup 依赖问题..." && \
     pnpm store prune
 
 # 先安装依赖，根据平台安装合适的 rollup 依赖
-RUN pnpm install --no-optional --no-audit --no-fund \
+RUN pnpm install --no-optional \
     && if [ "$(uname -m)" = "x86_64" ] || [ "$(uname -m)" = "amd64" ]; then \
     echo "x64 platform detected, installing x64 rollup dependencies..." && \
     pnpm install rollup @rollup/rollup-linux-x64-musl --no-optional; \
@@ -42,7 +42,7 @@ RUN pnpm install --no-optional --no-audit --no-fund \
     echo "Unknown platform, installing generic rollup..." && \
     pnpm install rollup --no-optional; \
     fi \
-    || (echo "依赖安装失败，尝试修复..." && rm -rf node_modules package-lock.json && pnpm install --no-optional --no-audit --no-fund && pnpm install rollup --no-optional)
+    || (echo "依赖安装失败，尝试修复..." && rm -rf node_modules package-lock.json && pnpm install --no-optional && pnpm install rollup --no-optional)
 
 RUN pnpm install @fingerprintjs/fingerprintjs --no-optional && \
     pnpm install crypto-js --no-optional && \
@@ -108,7 +108,7 @@ COPY frontend/docs/ ./docs/
 WORKDIR /app/docs
 RUN npm install -g pnpm@latest
 RUN pnpm store prune && \
-    pnpm install --no-optional --no-audit --no-fund && \
+    pnpm install --no-optional && \
     (pnpm run build:no-git || (echo "第一次构建失败，重试..." && pnpm run build:docker) || (echo "第二次构建失败，使用简化构建..." && pnpm run build:simple))
 
 # 构建后端
@@ -136,7 +136,7 @@ COPY package*.json ./
 # 安装后端依赖（包括开发依赖，因为需要TypeScript编译器）
 RUN npm install -g pnpm@latest
 RUN pnpm store prune && \
-    pnpm install --no-optional --no-audit --no-fund && \
+    pnpm install --no-optional && \
     pnpm add -g javascript-obfuscator
 
 # 复制后端源代码和配置文件（这层会在源代码变化时重新构建）
