@@ -47,15 +47,7 @@ RUN pnpm install --no-optional \
 RUN pnpm install @fingerprintjs/fingerprintjs --no-optional && \
     pnpm install crypto-js --no-optional && \
     pnpm install --save-dev @types/crypto-js --no-optional
-RUN pnpm install -g vitest && \
-    pnpm install -g @testing-library/jest-dom && \
-    pnpm install -g @testing-library/react && \
-    pnpm install -g @testing-library/user-event && \
-    pnpm install -g @babel/preset-env && \
-    pnpm install -g @babel/preset-react && \
-    pnpm install -g @babel/preset-typescript && \
-    pnpm install -g @babel/preset-stage-2 && \
-    pnpm install -g @babel/preset-stage-3
+RUN npm install -g vitest @testing-library/jest-dom @testing-library/react @testing-library/user-event @babel/preset-env @babel/preset-react @babel/preset-typescript @babel/preset-stage-2 @babel/preset-stage-3
 
 # 复制前端源代码（这层会在源代码变化时重新构建）
 COPY frontend/ .
