@@ -96,19 +96,9 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     };
   }, []);
 
-  // 监听 Turnstile 配置加载状态
+  // 监听 Turnstile 配置加载状态 - 仅在失败时提醒
   useEffect(() => {
-    if (turnstileConfigLoading) {
-      setNotification({
-        message: '正在加载验证配置...',
-        type: 'info'
-      });
-    } else if (turnstileConfig.siteKey) {
-      setNotification({
-        message: '验证配置加载完成',
-        type: 'success'
-      });
-    } else if (!turnstileConfig.siteKey && !turnstileConfigLoading) {
+    if (!turnstileConfig.siteKey && !turnstileConfigLoading) {
       setNotification({
         message: '验证配置加载失败，请刷新页面重试',
         type: 'error'
@@ -126,19 +116,9 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     }
   }, [isIpBanned, banReason, setNotification]);
 
-  // 组件挂载时的欢迎通知
-  useEffect(() => {
-    const welcomeTimer = setTimeout(() => {
-      setNotification({
-        message: '欢迎访问 Synapse！',
-        type: 'info'
-      });
-    }, 500);
+  // 移除欢迎通知 - 减少干扰
 
-    return () => clearTimeout(welcomeTimer);
-  }, [setNotification]);
-
-  // 验证完整性检查豁免状态（开发模式）
+  // 验证完整性检查豁免状态（开发模式）- 仅控制台输出
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
       const checkExemptStatus = () => {
@@ -147,16 +127,8 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
         
         if (!status.isExempt) {
           console.warn('⚠️ FirstVisitVerification 组件未被豁免，可能会触发完整性检查');
-          setNotification({
-            message: '开发提示：组件未被完整性检查豁免',
-            type: 'warning'
-          });
         } else {
           console.log('✅ FirstVisitVerification 组件已被正确豁免');
-          setNotification({
-            message: '完整性检查豁免已生效',
-            type: 'success'
-          });
         }
       };
 
@@ -164,7 +136,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
       const checkTimer = setTimeout(checkExemptStatus, 1000);
       return () => clearTimeout(checkTimer);
     }
-  }, [setNotification]);
+  }, []);
 
   // 网络状态监听
   useEffect(() => {
@@ -191,25 +163,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     };
   }, [setNotification]);
 
-  // 页面可见性变化监听
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        setNotification({
-          message: '页面已切换到后台',
-          type: 'info'
-        });
-      } else {
-        setNotification({
-          message: '欢迎回来！',
-          type: 'success'
-        });
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [setNotification]);
+  // 移除页面可见性变化监听 - 减少不必要的通知
 
   const handleTurnstileVerify = useCallback((token: string) => {
     console.log('Turnstile验证成功，token:', token);
@@ -382,42 +336,13 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     }
   }, [turnstileVerified, turnstileToken, fingerprint, onVerificationComplete, setNotification, banExpiresAt]);
 
-  // 键盘快捷键支持（移动到此处，依赖 handleVerify）
+  // 简化的键盘快捷键支持
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Enter 键快速验证
+      // Enter 键快速验证 - 静默执行，不显示通知
       if (event.key === 'Enter' && turnstileVerified && !verifying) {
         event.preventDefault();
         handleVerify();
-        setNotification({
-          message: '使用 Enter 键快速验证',
-          type: 'info'
-        });
-      }
-
-      // F5 或 Ctrl+R 刷新提示
-      if (event.key === 'F5' || (event.ctrlKey && event.key === 'r')) {
-        setNotification({
-          message: '页面即将刷新，验证状态将重置',
-          type: 'warning'
-        });
-      }
-
-      // Escape 键提示
-      if (event.key === 'Escape') {
-        setNotification({
-          message: '无法取消验证，请完成验证后继续',
-          type: 'info'
-        });
-      }
-
-      // 显示快捷键帮助
-      if (event.key === 'F1' || (event.ctrlKey && event.key === '/')) {
-        event.preventDefault();
-        setNotification({
-          message: 'Enter: 快速验证 | F5: 刷新页面 | Esc: 显示帮助',
-          type: 'info'
-        });
       }
     };
 
@@ -425,14 +350,10 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [turnstileVerified, verifying, handleVerify, setNotification]);
 
-  // 重置重试计数器
+  // 重置重试计数器 - 静默重置
   const resetRetryCount = useCallback(() => {
     setRetryCount(0);
-    setNotification({
-      message: '重试计数器已重置',
-      type: 'success'
-    });
-  }, [setNotification]);
+  }, []);
 
   // 如果IP被封禁，显示封禁页面
   console.log('显示封禁页面:', { isIpBanned, banReason, banExpiresAt, clientIP });
@@ -613,7 +534,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
               >
                 <div className="flex items-center gap-2 text-yellow-600 mb-2">
                   <svg className={`${isMobile && window.innerWidth < 400 ? 'w-4 h-4' : 'w-5 h-5'} flex-shrink-0`} fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                   </svg>
                   <span className="font-medium" style={{ fontSize: isMobile && window.innerWidth < 400 ? '0.75rem' : undefined }}>封禁到期时间</span>
                 </div>
@@ -649,7 +570,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                 <div className="w-1 h-1 bg-red-400 rounded-full"></div>
                 <div className="w-1 h-1 bg-red-400 rounded-full"></div>
               </div>
-              <p className={`text-gray-500 leading-relaxed ${isMobile ? (window.innerWidth < 400 ? 'text-xs' : 'text-xs') : 'text-sm'
+              <p className={`text-gray-500 leading-relaxed ${isMobile ? 'text-xs' : 'text-sm'
                 }`}
                 style={{
                   fontSize: isMobile && window.innerWidth < 400 ? '0.75rem' : undefined,
@@ -881,7 +802,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.5 }}
-            className={`text-center text-gray-600 leading-relaxed ${isMobile ? 'text-sm mb-4' : 'text-base mb-8'
+            className={`text-center text-gray-600 leading-relaxed mb-6 ${isMobile ? 'text-sm' : 'text-base'
               }`}
           >
             为了确保您是人类用户
@@ -889,16 +810,35 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
             请完成下方验证以继续访问
           </motion.p>
 
+          {/* 加载状态显示 */}
+          {turnstileConfigLoading && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="flex flex-col items-center justify-center py-8 mb-6"
+            >
+              <motion.div
+                className="w-8 h-8 border-3 border-indigo-200 border-t-indigo-600 rounded-full mb-3"
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+              />
+              <p className={`text-gray-500 ${isMobile ? 'text-sm' : 'text-base'}`}>
+                正在加载验证组件...
+              </p>
+            </motion.div>
+          )}
+
           {/* Turnstile组件 */}
           {!turnstileConfigLoading && turnstileConfig.siteKey && typeof turnstileConfig.siteKey === 'string' && (
             <motion.div
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.6 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
               className={`mb-6 ${isMobile ? 'mb-4' : 'mb-6'}`}
             >
               <div className="flex justify-center mb-4">
-                <div className={`p-4 bg-gray-50 rounded-xl border border-gray-200 ${isMobile ? 'w-full' : ''
+                <div className={`p-4 bg-gray-50 rounded-xl border border-gray-200 transition-all duration-300 hover:border-indigo-300 hover:bg-indigo-50/50 ${isMobile ? 'w-full' : ''
                   }`}>
                   <TurnstileWidget
                     key={turnstileKey}
@@ -919,35 +859,66 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.3 }}
               >
-                {turnstileVerified ? (
-                  <motion.div
-                    className={`flex items-center justify-center gap-2 text-green-600 bg-green-50 px-4 py-2 rounded-full border border-green-200 ${isMobile ? 'text-sm' : 'text-base'
-                      }`}
-                    initial={{ scale: 0.8 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                  >
-                    <motion.svg
-                      className="w-5 h-5"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                      initial={{ rotate: -180, scale: 0 }}
-                      animate={{ rotate: 0, scale: 1 }}
-                      transition={{ duration: 0.5, type: "spring" }}
+                <AnimatePresence mode="wait">
+                  {turnstileVerified ? (
+                    <motion.div
+                      key="verified"
+                      className={`flex items-center justify-center gap-2 text-green-600 bg-green-50 px-4 py-2 rounded-full border border-green-200 ${isMobile ? 'text-sm' : 'text-base'
+                        }`}
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.8, opacity: 0 }}
+                      transition={{ type: "spring", stiffness: 300, damping: 20 }}
                     >
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </motion.svg>
-                    <span className="font-medium">验证通过</span>
-                  </motion.div>
-                ) : (
-                  <div className={`flex items-center justify-center gap-2 text-gray-500 bg-gray-50 px-4 py-2 rounded-full border border-gray-200 ${isMobile ? 'text-sm' : 'text-base'
-                    }`}>
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                    </svg>
-                    <span>请完成验证</span>
-                  </div>
-                )}
+                      <motion.svg
+                        className="w-5 h-5"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                        initial={{ rotate: -180, scale: 0 }}
+                        animate={{ rotate: 0, scale: 1 }}
+                        transition={{ duration: 0.5, type: "spring" }}
+                      >
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </motion.svg>
+                      <span className="font-medium">验证通过</span>
+                    </motion.div>
+                  ) : turnstileError ? (
+                    <motion.div
+                      key="error"
+                      className={`flex items-center justify-center gap-2 text-red-600 bg-red-50 px-4 py-2 rounded-full border border-red-200 ${isMobile ? 'text-sm' : 'text-base'
+                        }`}
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.8, opacity: 0 }}
+                      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                    >
+                      <motion.svg
+                        className="w-5 h-5"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                        animate={{ rotate: [0, 10, -10, 0] }}
+                        transition={{ duration: 0.5, repeat: 1 }}
+                      >
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </motion.svg>
+                      <span className="font-medium">验证失败</span>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="pending"
+                      className={`flex items-center justify-center gap-2 text-gray-500 bg-gray-50 px-4 py-2 rounded-full border border-gray-200 ${isMobile ? 'text-sm' : 'text-base'
+                        }`}
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.8, opacity: 0 }}
+                    >
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                      <span>请完成验证</span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
             </motion.div>
           )}
@@ -998,49 +969,80 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
           <motion.button
             onClick={handleVerify}
             disabled={!turnstileVerified || verifying}
-            className={`w-full text-white rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] bg-gradient-to-r from-indigo-600 to-purple-600 ${isMobile
+            className={`w-full rounded-xl font-semibold transition-all duration-300 shadow-lg relative overflow-hidden ${
+              !turnstileVerified || verifying
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed border-2 border-gray-200'
+                : 'text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 hover:shadow-xl border-2 border-transparent'
+            } ${isMobile
                 ? 'py-3 px-4 text-base'
                 : 'py-4 px-6 text-lg'
               }`}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+            whileHover={turnstileVerified && !verifying ? { scale: 1.02 } : {}}
+            whileTap={turnstileVerified && !verifying ? { scale: 0.98 } : {}}
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.7 }}
-            onMouseEnter={() => {
-              if (!turnstileVerified) {
-                setNotification({
-                  message: '请先完成上方的人机验证',
-                  type: 'info'
-                });
-              }
-            }}
-            onFocus={() => {
-              if (!turnstileVerified) {
-                setNotification({
-                  message: '需要先通过人机验证才能继续',
-                  type: 'warning'
-                });
-              }
-            }}
+            title={!turnstileVerified ? '请先完成人机验证后才能继续' : verifying ? '正在验证中...' : '点击继续访问'}
           >
-            {verifying ? (
-              <div className="flex items-center justify-center gap-3">
-                <motion.svg
-                  className="w-5 h-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            {/* 禁用状态遮罩 */}
+            {!turnstileVerified && !verifying && (
+              <motion.div
+                className="absolute inset-0 bg-gray-100 bg-opacity-50 flex items-center justify-center"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+              >
+                <motion.div
+                  className="flex items-center gap-2 text-gray-600"
+                  animate={{ scale: [1, 1.05, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
                 >
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </motion.svg>
-                <span>验证中...</span>
-              </div>
-            ) : (
-              <span>继续访问</span>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  <span className={isMobile ? 'text-xs' : 'text-sm'}>需要验证</span>
+                </motion.div>
+              </motion.div>
             )}
+            
+            <AnimatePresence mode="wait">
+              {verifying ? (
+                <motion.div
+                  key="verifying"
+                  className="flex items-center justify-center gap-3"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  <motion.svg
+                    className="w-5 h-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  >
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </motion.svg>
+                  <motion.span
+                    animate={{ opacity: [1, 0.5, 1] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                  >
+                    验证中...
+                  </motion.span>
+                </motion.div>
+              ) : (
+                <motion.span
+                  key="ready"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className={!turnstileVerified ? 'opacity-50' : 'opacity-100'}
+                >
+                  继续访问
+                </motion.span>
+              )}
+            </AnimatePresence>
           </motion.button>
 
           {/* 底部说明 */}
@@ -1061,14 +1063,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
               onClick={() => {
                 setShowPrivacyModal(true);
               }}
-              onMouseEnter={() => {
-                if (!isMobile) {
-                  setNotification({
-                    message: '点击查看详细的隐私保护说明',
-                    type: 'info'
-                  });
-                }
-              }}
+              title="点击查看详细的隐私保护说明"
             >
               此验证仅用于防止自动化访问
               <br />
@@ -1085,11 +1080,13 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                   type: 'info'
                 });
               }}
+              title="获取帮助信息"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
               <div className="flex items-center justify-center gap-1">
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                 </svg>
                 <span>遇到问题？</span>
@@ -1270,13 +1267,36 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                 </div>
 
                 {/* 模态框底部 */}
-                <div className="bg-gray-50 px-6 py-4 flex justify-end">
-                  <button
+                <div className={`bg-gray-50 px-6 py-4 flex gap-3 ${
+                  isMobile ? 'flex-col' : 'flex-row justify-end'
+                }`}>
+                  <motion.button
                     onClick={() => setShowPrivacyModal(false)}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+                    className={`px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium ${
+                      isMobile ? 'order-2' : ''
+                    }`}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                   >
                     我已了解
-                  </button>
+                  </motion.button>
+                  <motion.button
+                    onClick={() => {
+                      setShowPrivacyModal(false);
+                      // 滚动到验证区域
+                      const turnstileElement = document.querySelector('.cf-turnstile');
+                      if (turnstileElement) {
+                        turnstileElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      }
+                    }}
+                    className={`px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium ${
+                      isMobile ? 'order-1' : ''
+                    }`}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    {isMobile ? '开始验证' : '了解并开始验证'}
+                  </motion.button>
                 </div>
               </motion.div>
             </motion.div>
