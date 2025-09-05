@@ -107,7 +107,7 @@ COPY frontend/docs/ ./docs/
 # 安装文档依赖并构建
 WORKDIR /app/docs
 RUN npm install -g pnpm@latest
-RUN pnpm cache clean --force && \
+RUN pnpm store prune && \
     pnpm install --no-optional --no-audit --no-fund && \
     (pnpm run build:no-git || (echo "第一次构建失败，重试..." && pnpm run build:docker) || (echo "第二次构建失败，使用简化构建..." && pnpm run build:simple))
 
@@ -135,9 +135,9 @@ COPY package*.json ./
 
 # 安装后端依赖（包括开发依赖，因为需要TypeScript编译器）
 RUN npm install -g pnpm@latest
-RUN pnpm cache clean --force && \
+RUN pnpm store prune && \
     pnpm install --no-optional --no-audit --no-fund && \
-    pnpm install -g javascript-obfuscator
+    pnpm add -g javascript-obfuscator
 
 # 复制后端源代码和配置文件（这层会在源代码变化时重新构建）
 COPY scripts/ ./scripts/
