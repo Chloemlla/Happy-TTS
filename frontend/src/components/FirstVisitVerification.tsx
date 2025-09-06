@@ -24,20 +24,6 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
   banExpiresAt,
   clientIP,
 }) => {
-  // 响应式工具函数
-  const getResponsiveSize = (mobile: number, desktop: number) => {
-    if (isMobile) {
-      return window.innerWidth < 400 ? mobile * 0.8 : mobile;
-    }
-    return desktop;
-  };
-
-  const getResponsiveFontSize = (mobile: string, desktop: string) => {
-    if (isMobile) {
-      return window.innerWidth < 400 ? mobile : mobile;
-    }
-    return desktop;
-  };
   const { config: turnstileConfig, loading: turnstileConfigLoading } = useTurnstileConfig({ usePublicConfig: true });
   const { setNotification } = useNotification();
   const [turnstileToken, setTurnstileToken] = useState<string>('');
@@ -48,12 +34,31 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
   const [error, setError] = useState<string>('');
   const [isMobile, setIsMobile] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
-  const [showParticles, setShowParticles] = useState(false); // 控制背景粒子显示
-  const [retryCount, setRetryCount] = useState(0); // 重试次数
-  const [showPrivacyModal, setShowPrivacyModal] = useState(false); // 隐私信息模态框
+  const [showParticles, setShowParticles] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
-  // 检测设备类型、方向和缩放
+  // 响应式工具函数 - 安全的window访问
+  const getResponsiveSize = useCallback((mobile: number, desktop: number) => {
+    if (typeof window === 'undefined') return desktop;
+    if (isMobile) {
+      return window.innerWidth < 400 ? mobile * 0.8 : mobile;
+    }
+    return desktop;
+  }, [isMobile]);
+
+  const getResponsiveFontSize = useCallback((mobile: string, desktop: string) => {
+    if (typeof window === 'undefined') return desktop;
+    if (isMobile) {
+      return window.innerWidth < 400 ? mobile : mobile;
+    }
+    return desktop;
+  }, [isMobile]);
+
+  // 检测设备类型、方向和缩放 - 安全的window访问
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
     const checkDevice = () => {
       const width = window.innerWidth;
       const height = window.innerHeight;
@@ -61,7 +66,6 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
 
       // 考虑缩放因素，调整移动端判断逻辑
       const effectiveWidth = width * zoomLevel;
-      const effectiveHeight = height * zoomLevel;
 
       // 移动端判断：考虑缩放后的实际像素密度
       const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -74,12 +78,18 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     checkDevice();
 
     // 监听窗口大小变化
-    window.addEventListener('resize', checkDevice);
-    window.addEventListener('orientationchange', checkDevice);
+    const handleResize = () => checkDevice();
+    const handleOrientationChange = () => {
+      // 延迟执行以确保获取正确的尺寸
+      setTimeout(checkDevice, 100);
+    };
+
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleOrientationChange);
 
     // 监听缩放变化（部分浏览器支持）
-    if ('visualViewport' in window) {
-      window.visualViewport?.addEventListener('resize', checkDevice);
+    if ('visualViewport' in window && window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleResize);
     }
 
     // 延迟显示背景粒子，避免加载时的视觉问题
@@ -88,10 +98,10 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     }, 100);
 
     return () => {
-      window.removeEventListener('resize', checkDevice);
-      window.removeEventListener('orientationchange', checkDevice);
-      if ('visualViewport' in window) {
-        window.visualViewport?.removeEventListener('resize', checkDevice);
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleOrientationChange);
+      if ('visualViewport' in window && window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleResize);
       }
       clearTimeout(timer);
     };
@@ -99,7 +109,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
 
   // 监听 Turnstile 配置加载状态 - 仅在失败时提醒
   useEffect(() => {
-    if (!turnstileConfig.siteKey && !turnstileConfigLoading) {
+    if (!turnstileConfigLoading && !turnstileConfig.siteKey) {
       setNotification({
         message: '验证配置加载失败，请刷新页面重试',
         type: 'error'
@@ -139,8 +149,10 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     }
   }, []);
 
-  // 网络状态监听
+  // 网络状态监听 - 安全的window访问
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
     const handleOnline = () => {
       setNotification({
         message: '网络连接已恢复',
@@ -317,14 +329,6 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
       console.error('验证失败:', err);
       let errorMsg = '验证失败，请重试';
       let errorType = 'unknown_error';
-      let clarityErrorData: any = {
-        component: 'FirstVisitVerification',
-        fingerprint: fingerprint?.substring(0, 8) + '...',
-        clientIP: clientIP || 'unknown',
-        timestamp: new Date().toISOString(),
-        retryCount: retryCount,
-        errorMessage: err instanceof Error ? err.message : 'Unknown error'
-      };
 
       // 检查是否是IP封禁错误
       if (err instanceof Error && err.message.includes('IP已被封禁')) {
@@ -332,12 +336,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
         // 从错误对象中提取封禁信息
         const banData = (err as any).banData;
         if (banData && banData.expiresAt) {
-          // 如果组件接收到了封禁到期时间，更新它
-          if (banExpiresAt !== new Date(banData.expiresAt)) {
-            // 这里可以通过回调函数更新父组件的状态
-            console.log('封禁到期时间:', banData.expiresAt);
-          }
-          clarityErrorData.banExpiresAt = banData.expiresAt;
+          console.log('封禁到期时间:', banData.expiresAt);
         }
         errorMsg = '您的IP地址已被封禁，请稍后再试';
         setNotification({
@@ -383,7 +382,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
       setRetryCount(prev => {
         const newCount = prev + 1;
         
-        // Microsoft Clarity事件记录：重试计数更新
+        // 记录重试事件
         try {
           if (typeof clarity !== 'undefined' && clarity.event) {
             clarity.event('first_visit_verification_retry');
@@ -414,10 +413,12 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     }
   }, [turnstileVerified, turnstileToken, fingerprint, onVerificationComplete, setNotification, banExpiresAt, clientIP, retryCount]);
 
-  // 简化的键盘快捷键支持
+  // 简化的键盘快捷键支持 - 安全的window访问
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Enter 键快速验证 - 静默执行，不显示通知
+      // Enter 键快速验证
       if (event.key === 'Enter' && turnstileVerified && !verifying) {
         event.preventDefault();
         handleVerify();
@@ -428,14 +429,11 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [turnstileVerified, verifying, handleVerify]);
 
-  // 重置重试计数器 - 静默重置
+  // 重置重试计数器
   const resetRetryCount = useCallback(() => {
     setRetryCount(0);
   }, []);
 
-  // 如果IP被封禁，显示封禁页面
-  console.log('显示封禁页面:', { isIpBanned, banReason, banExpiresAt, clientIP });
-  
   // Microsoft Clarity事件记录：IP被封禁页面显示
   useEffect(() => {
     if (isIpBanned) {
@@ -447,7 +445,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
         console.warn('Failed to send Clarity event:', err);
       }
     }
-  }, [isIpBanned, banReason, banExpiresAt, clientIP, fingerprint]);
+  }, [isIpBanned]);
   
   if (isIpBanned) {
     return (
@@ -464,13 +462,11 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
           style={{
             minHeight: '100dvh',
             padding: isMobile ? '0.25rem' : '1.5rem',
-            // 支持动态视口高度，适配移动端浏览器地址栏
             height: '100dvh',
             width: '100vw',
             overflow: 'hidden',
-            // 添加CSS变量用于响应式设计
-            '--mobile-scale': isMobile && window.innerWidth < 400 ? '0.85' : '1',
-            '--mobile-padding': isMobile && window.innerWidth < 400 ? '0.5rem' : '1rem',
+            '--mobile-scale': (isMobile && typeof window !== 'undefined' && window.innerWidth < 400) ? '0.85' : '1',
+            '--mobile-padding': (isMobile && typeof window !== 'undefined' && window.innerWidth < 400) ? '0.5rem' : '1rem',
           } as React.CSSProperties}
         >
           <motion.div
@@ -491,13 +487,13 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
               overflowY: 'auto',
               overflowX: 'hidden',
               // 动态缩放适配
-              transform: isMobile && window.innerWidth < 400
+              transform: (isMobile && typeof window !== 'undefined' && window.innerWidth < 400)
                 ? `scale(${Math.min(window.innerWidth / 350, 0.9)})`
                 : 'scale(1)',
               transformOrigin: 'center center',
               // 确保在小屏幕上不会溢出
-              width: isMobile && window.innerWidth < 400 ? '95vw' : undefined,
-              maxWidth: isMobile && window.innerWidth < 400 ? '95vw' : undefined,
+              width: (isMobile && typeof window !== 'undefined' && window.innerWidth < 400) ? '95vw' : undefined,
+              maxWidth: (isMobile && typeof window !== 'undefined' && window.innerWidth < 400) ? '95vw' : undefined,
             }}
           >
             {/* 顶部装饰线 */}
@@ -511,8 +507,8 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
               className="relative mx-auto mb-6"
             >
               <svg
-                width={isMobile ? (window.innerWidth < 400 ? 60 : 80) : 100}
-                height={isMobile ? (window.innerWidth < 400 ? 60 : 80) : 100}
+                width={isMobile ? (typeof window !== 'undefined' && window.innerWidth < 400 ? 60 : 80) : 100}
+                height={isMobile ? (typeof window !== 'undefined' && window.innerWidth < 400 ? 60 : 80) : 100}
                 viewBox="0 0 24 24"
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
@@ -533,10 +529,10 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ duration: 0.5, delay: 0.3 }}
-              className={`text-center text-gray-800 mb-3 bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent font-bold ${isMobile ? (window.innerWidth < 400 ? 'text-xl' : 'text-2xl') : 'text-3xl'
+              className={`text-center text-gray-800 mb-3 bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent font-bold ${isMobile ? (typeof window !== 'undefined' && window.innerWidth < 400 ? 'text-xl' : 'text-2xl') : 'text-3xl'
                 }`}
               style={{
-                fontSize: isMobile ? (window.innerWidth < 400 ? '1.25rem' : '1.5rem') : '1.875rem',
+                fontSize: isMobile ? (typeof window !== 'undefined' && window.innerWidth < 400 ? '1.25rem' : '1.5rem') : '1.875rem',
                 lineHeight: '1.2',
               }}
             >
@@ -548,10 +544,10 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ duration: 0.5, delay: 0.4 }}
-              className={`text-center text-gray-600 leading-relaxed mb-4 ${isMobile ? (window.innerWidth < 400 ? 'text-xs' : 'text-sm') : 'text-base'
+              className={`text-center text-gray-600 leading-relaxed mb-4 ${isMobile ? (typeof window !== 'undefined' && window.innerWidth < 400 ? 'text-xs' : 'text-sm') : 'text-base'
                 }`}
               style={{
-                fontSize: isMobile ? (window.innerWidth < 400 ? '0.75rem' : '0.875rem') : '1rem',
+                fontSize: isMobile ? (typeof window !== 'undefined' && window.innerWidth < 400 ? '0.75rem' : '0.875rem') : '1rem',
                 lineHeight: '1.4',
               }}
             >
@@ -566,20 +562,20 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.5, delay: 0.5 }}
-                className={`mb-4 p-3 bg-red-50 border border-red-200 rounded-xl ${isMobile ? (window.innerWidth < 400 ? 'text-xs' : 'text-sm') : 'text-base'
+                className={`mb-4 p-3 bg-red-50 border border-red-200 rounded-xl ${isMobile ? (typeof window !== 'undefined' && window.innerWidth < 400 ? 'text-xs' : 'text-sm') : 'text-base'
                   }`}
                 style={{
-                  padding: isMobile ? (window.innerWidth < 400 ? '0.75rem' : '1rem') : '1rem',
+                  padding: isMobile ? (typeof window !== 'undefined' && window.innerWidth < 400 ? '0.75rem' : '1rem') : '1rem',
                 }}
               >
                 <div className="flex items-center gap-2 text-red-600 mb-2">
-                  <svg className={`${isMobile && window.innerWidth < 400 ? 'w-4 h-4' : 'w-5 h-5'} flex-shrink-0`} fill="currentColor" viewBox="0 0 20 20">
+                  <svg className={`${isMobile && typeof window !== 'undefined' && window.innerWidth < 400 ? 'w-4 h-4' : 'w-5 h-5'} flex-shrink-0`} fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                   </svg>
-                  <span className="font-medium" style={{ fontSize: isMobile && window.innerWidth < 400 ? '0.75rem' : undefined }}>封禁原因</span>
+                  <span className="font-medium" style={{ fontSize: isMobile && typeof window !== 'undefined' && window.innerWidth < 400 ? '0.75rem' : undefined }}>封禁原因</span>
                 </div>
                 <p className="text-red-700" style={{
-                  fontSize: isMobile && window.innerWidth < 400 ? '0.75rem' : undefined,
+                  fontSize: isMobile && typeof window !== 'undefined' && window.innerWidth < 400 ? '0.75rem' : undefined,
                   wordBreak: 'break-word',
                   lineHeight: '1.3'
                 }}>{banReason}</p>
@@ -592,20 +588,20 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.5, delay: 0.55 }}
-                className={`mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl ${isMobile ? (window.innerWidth < 400 ? 'text-xs' : 'text-sm') : 'text-base'
+                className={`mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl ${isMobile ? (typeof window !== 'undefined' && window.innerWidth < 400 ? 'text-xs' : 'text-sm') : 'text-base'
                   }`}
                 style={{
-                  padding: isMobile ? (window.innerWidth < 400 ? '0.75rem' : '1rem') : '1rem',
+                  padding: isMobile ? (typeof window !== 'undefined' && window.innerWidth < 400 ? '0.75rem' : '1rem') : '1rem',
                 }}
               >
                 <div className="flex items-center gap-2 text-blue-600 mb-2">
-                  <svg className={`${isMobile && window.innerWidth < 400 ? 'w-4 h-4' : 'w-5 h-5'} flex-shrink-0`} fill="currentColor" viewBox="0 0 20 20">
+                  <svg className={`${isMobile && typeof window !== 'undefined' && window.innerWidth < 400 ? 'w-4 h-4' : 'w-5 h-5'} flex-shrink-0`} fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" clipRule="evenodd" />
                   </svg>
-                  <span className="font-medium" style={{ fontSize: isMobile && window.innerWidth < 400 ? '0.75rem' : undefined }}>客户端IP地址</span>
+                  <span className="font-medium" style={{ fontSize: isMobile && typeof window !== 'undefined' && window.innerWidth < 400 ? '0.75rem' : undefined }}>客户端IP地址</span>
                 </div>
                 <p className="text-blue-700 font-mono" style={{
-                  fontSize: isMobile && window.innerWidth < 400 ? '0.75rem' : undefined,
+                  fontSize: isMobile && typeof window !== 'undefined' && window.innerWidth < 400 ? '0.75rem' : undefined,
                   wordBreak: 'break-all',
                   lineHeight: '1.3'
                 }}>{clientIP}</p>
@@ -618,24 +614,23 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.5, delay: 0.6 }}
-                className={`mb-6 p-3 bg-yellow-50 border border-yellow-200 rounded-xl ${isMobile ? (window.innerWidth < 400 ? 'text-xs' : 'text-sm') : 'text-base'
+                className={`mb-6 p-3 bg-yellow-50 border border-yellow-200 rounded-xl ${isMobile ? (typeof window !== 'undefined' && window.innerWidth < 400 ? 'text-xs' : 'text-sm') : 'text-base'
                   }`}
                 style={{
-                  padding: isMobile ? (window.innerWidth < 400 ? '0.75rem' : '1rem') : '1rem',
+                  padding: isMobile ? (typeof window !== 'undefined' && window.innerWidth < 400 ? '0.75rem' : '1rem') : '1rem',
                 }}
               >
                 <div className="flex items-center gap-2 text-yellow-600 mb-2">
-                  <svg className={`${isMobile && window.innerWidth < 400 ? 'w-4 h-4' : 'w-5 h-5'} flex-shrink-0`} fill="currentColor" viewBox="0 0 20 20">
+                  <svg className={`${isMobile && typeof window !== 'undefined' && window.innerWidth < 400 ? 'w-4 h-4' : 'w-5 h-5'} flex-shrink-0`} fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                   </svg>
-                  <span className="font-medium" style={{ fontSize: isMobile && window.innerWidth < 400 ? '0.75rem' : undefined }}>封禁到期时间</span>
+                  <span className="font-medium" style={{ fontSize: isMobile && typeof window !== 'undefined' && window.innerWidth < 400 ? '0.75rem' : undefined }}>封禁到期时间</span>
                 </div>
                 <p className="text-yellow-700" style={{
-                  fontSize: isMobile && window.innerWidth < 400 ? '0.75rem' : undefined,
+                  fontSize: isMobile && typeof window !== 'undefined' && window.innerWidth < 400 ? '0.75rem' : undefined,
                   lineHeight: '1.3'
                 }}>
                   {(() => {
-                    console.log('渲染封禁到期时间:', banExpiresAt, typeof banExpiresAt);
                     return banExpiresAt.toLocaleString('zh-CN', {
                       year: 'numeric',
                       month: '2-digit',
@@ -665,7 +660,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
               <p className={`text-gray-500 leading-relaxed ${isMobile ? 'text-xs' : 'text-sm'
                 }`}
                 style={{
-                  fontSize: isMobile && window.innerWidth < 400 ? '0.75rem' : undefined,
+                  fontSize: isMobile && typeof window !== 'undefined' && window.innerWidth < 400 ? '0.75rem' : undefined,
                   lineHeight: '1.3'
                 }}>
                 如有疑问，请联系系统管理员
@@ -679,8 +674,8 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     );
   }
 
-  // 响应式Logo组件
-  const Logo = () => {
+  // 响应式Logo组件 - 优化性能
+  const Logo = React.memo(() => {
     const logoSize = isMobile ? (isLandscape ? 80 : 100) : 140;
 
     return (
@@ -765,11 +760,13 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
         </svg>
       </motion.div>
     );
-  };
+  });
 
-  // 响应式背景粒子效果
-  const BackgroundParticles = () => {
+  // 响应式背景粒子效果 - 优化性能和安全性
+  const BackgroundParticles = React.memo(() => {
     const particleCount = isMobile ? 10 : 20;
+    const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
+    const screenHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
 
     return (
       <motion.div
@@ -780,8 +777,8 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
       >
         {Array.from({ length: particleCount }).map((_, i) => {
           // 使用固定的初始位置，避免随机位置导致的视觉问题
-          const initialX = ((i * 137) % (typeof window !== 'undefined' ? window.innerWidth : 1200));
-          const initialY = ((i * 193) % (typeof window !== 'undefined' ? window.innerHeight : 800));
+          const initialX = (i * 137) % screenWidth;
+          const initialY = (i * 193) % screenHeight;
 
           return (
             <motion.div
@@ -794,8 +791,8 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                 scale: 0,
               }}
               animate={{
-                x: Math.random() * (typeof window !== 'undefined' ? window.innerWidth : 1200),
-                y: Math.random() * (typeof window !== 'undefined' ? window.innerHeight : 800),
+                x: Math.random() * screenWidth,
+                y: Math.random() * screenHeight,
                 opacity: 0.2,
                 scale: 1,
               }}
@@ -820,7 +817,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
         })}
       </motion.div>
     );
-  };
+  });
 
   return (
     <AnimatePresence>
@@ -834,7 +831,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
         data-page="FirstVisitVerification"
         data-view="FirstVisitVerification"
         style={{
-          minHeight: '100dvh', // 支持动态视口高度
+          minHeight: '100dvh',
           padding: isMobile ? '1rem' : '1.5rem',
         }}
       >
@@ -930,8 +927,12 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
               className={`mb-6 ${isMobile ? 'mb-4' : 'mb-6'}`}
             >
               <div className="flex justify-center mb-4">
-                <div className={`p-4 bg-gray-50 rounded-xl border border-gray-200 transition-all duration-300 hover:border-indigo-300 hover:bg-indigo-50/50 ${isMobile ? 'w-full' : ''
-                  }`}>
+                <div
+                  className={`p-4 bg-gray-50 rounded-xl border border-gray-200 transition-all duration-300 hover:border-indigo-300 hover:bg-indigo-50/50 ${isMobile ? 'w-full' : ''
+                  }`}
+                  role="region"
+                  aria-label="人机验证区域"
+                >
                   <TurnstileWidget
                     key={turnstileKey}
                     siteKey={turnstileConfig.siteKey}
@@ -940,6 +941,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                     onError={handleTurnstileError}
                     theme="light"
                     size={isMobile ? "compact" : "normal"}
+                    aria-label="Cloudflare Turnstile 人机验证"
                   />
                 </div>
               </div>
@@ -1075,6 +1077,8 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.7 }}
             title={!turnstileVerified ? '请先完成人机验证后才能继续' : verifying ? '正在验证中...' : '点击继续访问'}
+            aria-label={!turnstileVerified ? '请先完成人机验证后才能继续' : verifying ? '正在验证中，请稍候' : '继续访问网站'}
+            aria-describedby="verification-status"
           >
             {/* 禁用状态遮罩 */}
             {!turnstileVerified && !verifying && (
@@ -1149,18 +1153,19 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
               <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
               <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
             </div>
-            <p
-              className={`text-gray-500 leading-relaxed cursor-help ${isMobile ? 'text-xs' : 'text-sm'
+            <button
+              className={`text-gray-500 leading-relaxed cursor-help hover:text-indigo-500 transition-colors duration-200 bg-transparent border-none ${isMobile ? 'text-xs' : 'text-sm'
                 }`}
               onClick={() => {
                 setShowPrivacyModal(true);
               }}
               title="点击查看详细的隐私保护说明"
+              aria-label="查看隐私保护详情"
             >
               此验证仅用于防止自动化访问
               <br />
               您的隐私将得到充分保护
-            </p>
+            </button>
 
             {/* 添加帮助按钮 */}
             <motion.button
@@ -1173,6 +1178,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                 });
               }}
               title="获取帮助信息"
+              aria-label="获取验证帮助"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
@@ -1201,6 +1207,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                     type: status.isExempt ? 'success' : 'warning'
                   });
                 }}
+                aria-label="检查完整性豁免状态"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
@@ -1225,6 +1232,9 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
               onClick={() => setShowPrivacyModal(false)}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="privacy-modal-title"
             >
               <motion.div
                 initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -1240,11 +1250,12 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                       <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                       </svg>
-                      <h3 className={`font-bold ${isMobile ? 'text-lg' : 'text-xl'}`}>隐私保护说明</h3>
+                      <h3 id="privacy-modal-title" className={`font-bold ${isMobile ? 'text-lg' : 'text-xl'}`}>隐私保护说明</h3>
                     </div>
                     <button
                       onClick={() => setShowPrivacyModal(false)}
                       className="text-white/80 hover:text-white transition-colors p-1 rounded-full hover:bg-white/20"
+                      aria-label="关闭隐私保护说明对话框"
                     >
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -1369,6 +1380,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                     }`}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
+                    aria-label="我已了解隐私保护说明"
                   >
                     我已了解
                   </motion.button>
@@ -1386,6 +1398,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                     }`}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
+                    aria-label="了解隐私保护说明并开始验证"
                   >
                     {isMobile ? '开始验证' : '了解并开始验证'}
                   </motion.button>

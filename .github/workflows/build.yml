@@ -27,20 +27,15 @@ jobs:
     steps:
       - uses: actions/checkout@main
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@master
-        with:
-          version: latest
-
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@main
         with:
           node-version: ${{ matrix.node-version }}
-          cache: "pnpm"
+          cache: "npm"
           cache-dependency-path: |
-            pnpm-lock.yaml
-            frontend/pnpm-lock.yaml
-            frontend/docs/pnpm-lock.yaml
+            package-lock.json
+            frontend/package-lock.json
+            frontend/docs/package-lock.json
 
       - name: Set Node.js memory limits
         run: |
@@ -55,60 +50,65 @@ jobs:
 
       - name: Clean node_modules and lock (root)
         run: |
-          rm -rf node_modules pnpm-lock.yaml
+          rm -rf node_modules package-lock.json
 
       - name: Clean node_modules and lock (frontend)
         run: |
-          rm -rf frontend/node_modules frontend/pnpm-lock.yaml
+          rm -rf frontend/node_modules frontend/package-lock.json
 
       - name: Clean node_modules and lock (frontend/docs)
         run: |
-          rm -rf frontend/docs/node_modules frontend/docs/pnpm-lock.yaml
+          rm -rf frontend/docs/node_modules frontend/docs/package-lock.json
 
       - name: Fix Rollup dependencies
         run: |
           echo "🔧 修复 Rollup 依赖问题..."
           cd frontend
-          # 清理 pnpm 缓存
-          pnpm store prune
+          # 清理 npm 缓存
+          npm cache clean --force
           # 根据平台安装正确的 Rollup Linux 依赖
           if [[ "$(uname -m)" == "x86_64" ]]; then
             if [[ "$(ldd --version 2>/dev/null | head -1)" == *"musl"* ]]; then
-              pnpm install @rollup/rollup-linux-x64-musl --save-dev || echo "Rollup musl dependency installation failed, continuing..."
+              npm install @rollup/rollup-linux-x64-musl --save-dev || echo "Rollup musl dependency installation failed, continuing..."
             else
-              pnpm install @rollup/rollup-linux-x64-gnu --save-dev || echo "Rollup gnu dependency installation failed, continuing..."
+              npm install @rollup/rollup-linux-x64-gnu --save-dev || echo "Rollup gnu dependency installation failed, continuing..."
             fi
           else
             echo "Non-x64 platform, skipping native Rollup dependencies"
           fi
           cd ..
 
-      - name: Generate pnpm-lock.yaml
-        run: pnpm install --lockfile-only
+      - name: Generate package-lock.json
+        run: npm install --package-lock-only
 
-      - name: Cache pnpm store
-        uses: actions/cache@v4
+      - name: Cache node_modules and npm cache
+        uses: actions/cache@main
         with:
-          path: ~/.pnpm-store
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          path: |
+            node_modules
+            frontend/node_modules
+            frontend/docs/node_modules
+            /tmp/.npm
+          key: ${{ runner.os }}-node${{ matrix.node-version }}-modules-${{ hashFiles('package-lock.json','frontend/package-lock.json','frontend/docs/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-pnpm-store-
+            ${{ runner.os }}-node${{ matrix.node-version }}-modules-
 
       - name: Install dependencies with retry
         run: |
-          pnpm install --no-optional
+          npm install -g npm@latest
+          npm install --no-optional --no-audit --no-fund
           cd frontend
           # 修复依赖问题
-          pnpm install --no-optional
+          npm install --no-optional --no-audit --no-fund
           # 特别安装缺失的依赖
-          pnpm install @fingerprintjs/fingerprintjs@^4.2.0 crypto-js@^4.2.0 --save
-          pnpm install @testing-library/react@^14.2.1 --save-dev
+          npm install @fingerprintjs/fingerprintjs@^4.2.0 crypto-js@^4.2.0 --save
+          npm install @testing-library/react@^14.2.1 --save-dev
           # 根据平台安装正确的 Rollup Linux 依赖
           if [[ "$(uname -m)" == "x86_64" ]]; then
             if [[ "$(ldd --version 2>/dev/null | head -1)" == *"musl"* ]]; then
-              pnpm install @rollup/rollup-linux-x64-musl --save-dev || echo "Rollup musl dependency installation failed, continuing..."
+              npm install @rollup/rollup-linux-x64-musl --save-dev || echo "Rollup musl dependency installation failed, continuing..."
             else
-              pnpm install @rollup/rollup-linux-x64-gnu --save-dev || echo "Rollup gnu dependency installation failed, continuing..."
+              npm install @rollup/rollup-linux-x64-gnu --save-dev || echo "Rollup gnu dependency installation failed, continuing..."
             fi
           else
             echo "Non-x64 platform, skipping native Rollup dependencies"
@@ -116,15 +116,15 @@ jobs:
           # 验证 Rollup 依赖
           ls node_modules/@rollup/ || echo "Rollup dependencies not found, but continuing..."
           cd docs
-          pnpm install --no-optional
+          npm install --no-optional --no-audit --no-fund
         env:
           NODE_OPTIONS: --max-old-space-size=10240
 
       - name: Test with memory optimization
         run: |
-          pnpm install -g rollup@latest vite@latest
-          pnpm install --save-dev ts-jest typescript
-          pnpm test -- --detectOpenHandles --maxWorkers=2 || echo "测试失败，但继续执行构建..."
+          npm install -g rollup@latest vite@latest --save-dev
+          npm install --save-dev ts-jest typescript
+          npm test -- --detectOpenHandles --maxWorkers=2 || echo "测试失败，但继续执行构建..."
         continue-on-error: true
         env:
           NODE_OPTIONS: --max-old-space-size=10240
@@ -146,7 +146,7 @@ jobs:
             echo "📊 开始前端构建分析..." >> ../frontend-build-analysis/build-timeline.log
             
             # 监控构建过程
-            pnpm run build 2>&1 | tee ../frontend-build-analysis/build-output.log | while IFS= read -r line; do
+            npm run build 2>&1 | tee ../frontend-build-analysis/build-output.log | while IFS= read -r line; do
               # 实时分析构建输出
               if [[ $line == *"built in"* ]]; then
                 echo "⚡ 构建步骤完成: $line" >> ../frontend-build-analysis/build-timeline.log
@@ -293,9 +293,9 @@ jobs:
 
           **构建时间**: $(date)  
           **Node.js 版本**: $(node --version)  
-          **PNPM 版本**: $(pnpm --version)  
-          **Vite 版本**: $(cd frontend && pnpm list vite | grep vite)  
-          **React 版本**: $(cd frontend && pnpm list react | grep react)
+          **NPM 版本**: $(npm --version)  
+          **Vite 版本**: $(cd frontend && npm list vite | grep vite)  
+          **React 版本**: $(cd frontend && npm list react | grep react)
 
           ---
 
@@ -418,23 +418,23 @@ jobs:
           cd ..
 
           # 第一次尝试构建
-          pnpm run build || (
+          npm run build || (
             echo "第一次构建失败，清理缓存和依赖后重试..."
-            rm -rf node_modules pnpm-lock.yaml frontend/node_modules frontend/pnpm-lock.yaml frontend/docs/node_modules frontend/docs/pnpm-lock.yaml
+            rm -rf node_modules package-lock.json frontend/node_modules frontend/package-lock.json frontend/docs/node_modules frontend/docs/package-lock.json
             rm -rf node_modules/.cache frontend/node_modules/.cache frontend/docs/node_modules/.cache
-            pnpm install --no-optional
+            npm install --no-optional --no-audit --no-fund
             cd frontend 
-            pnpm install --no-optional
-            pnpm install @rollup/rollup-linux-x64-gnu --save-dev || echo "Rollup Linux dependency installation failed, continuing..."
+            npm install --no-optional --no-audit --no-fund
+            npm install @rollup/rollup-linux-x64-gnu --save-dev || echo "Rollup Linux dependency installation failed, continuing..."
             cd ..
-            cd frontend/docs && pnpm install --no-optional && cd ../..
-            pnpm run build
+            cd frontend/docs && npm install --no-optional --no-audit --no-fund && cd ../..
+            npm run build
           ) || (
             echo "第二次构建失败，使用简化构建..."
-            pnpm run build:simple
+            npm run build:simple
           ) || (
             echo "简化构建失败，使用最小构建..."
-            pnpm run build:minimal
+            npm run build:minimal
           )
         env:
           NODE_OPTIONS: --max-old-space-size=10240
@@ -459,7 +459,7 @@ jobs:
 
           # 检查 TypeScript 编译错误
           echo "📝 检查 TypeScript 编译错误..."
-          if pnpm exec tsc --noEmit --project tsconfig.json 2>&1; then
+          if npx tsc --noEmit --project tsconfig.json 2>&1; then
             echo "✅ TypeScript 检查通过" >> $GITHUB_STEP_SUMMARY
           else
             echo "⚠️ TypeScript 检查发现问题" >> $GITHUB_STEP_SUMMARY
@@ -467,7 +467,7 @@ jobs:
 
           # 检查 ESLint 错误
           echo "🔧 检查 ESLint 错误..."
-          if pnpm exec eslint src/ --ext .ts,.tsx --max-warnings 0 2>&1; then
+          if npx eslint src/ --ext .ts,.tsx --max-warnings 0 2>&1; then
             echo "✅ ESLint 检查通过" >> $GITHUB_STEP_SUMMARY
           else
             echo "⚠️ ESLint 检查发现问题" >> $GITHUB_STEP_SUMMARY
@@ -475,11 +475,11 @@ jobs:
 
           # 检查代码复杂度
           echo "📊 分析代码复杂度..."
-          pnpm exec complexity-report src/ 2>&1 | head -10 >> $GITHUB_STEP_SUMMARY || echo "复杂度分析完成"
+          npx complexity-report src/ 2>&1 | head -10 >> $GITHUB_STEP_SUMMARY || echo "复杂度分析完成"
 
           # 检查重复代码
           echo "🔄 检查重复代码..."
-          pnpm exec jscpd src/ --reporters console 2>&1 | head -10 >> $GITHUB_STEP_SUMMARY || echo "重复代码检查完成"
+          npx jscpd src/ --reporters console 2>&1 | head -10 >> $GITHUB_STEP_SUMMARY || echo "重复代码检查完成"
 
       - name: Build Analysis - Dependency Analysis
         run: |
@@ -487,19 +487,19 @@ jobs:
 
           # 检查依赖大小
           echo "📏 分析依赖包大小..."
-          pnpm exec cost-of-modules || echo "依赖大小分析完成"
+          npx cost-of-modules || echo "依赖大小分析完成"
 
           # 检查过时的依赖
           echo "🕐 检查过时依赖..."
-          pnpm outdated || echo "过时依赖检查完成"
+          npm outdated || echo "过时依赖检查完成"
 
           # 检查安全漏洞
           echo "🔒 检查安全漏洞..."
-          pnpm audit --audit-level moderate || echo "安全漏洞检查完成"
+          npm audit --audit-level moderate || echo "安全漏洞检查完成"
 
           # 分析依赖树
           echo "🌳 分析依赖树..."
-          pnpm list --depth=0 || echo "依赖树分析完成"
+          npm ls --depth=0 || echo "依赖树分析完成"
 
       - name: Build Analysis - Bundle Analysis
         run: |
@@ -515,11 +515,11 @@ jobs:
 
           # 分析 JavaScript 包
           echo "📦 分析 JavaScript 包..."
-          pnpm exec webpack-bundle-analyzer dist/assets/*.js --mode static --report || echo "包分析完成"
+          npx webpack-bundle-analyzer dist/assets/*.js --mode static --report || echo "包分析完成"
 
           # 检查未使用的代码
           echo "🗑️ 检查未使用的代码..."
-          pnpm exec depcheck || echo "未使用代码检查完成"
+          npx depcheck || echo "未使用代码检查完成"
 
           cd ..
 
@@ -549,7 +549,7 @@ jobs:
 
           # 运行测试并生成覆盖率报告
           echo "🧪 运行测试并生成覆盖率..."
-          pnpm run test:coverage || echo "覆盖率测试完成"
+          npm run test:coverage || echo "覆盖率测试完成"
 
           # 检查覆盖率阈值
           echo "🎯 检查覆盖率阈值..."
@@ -574,7 +574,7 @@ jobs:
 
           # 检查不安全的依赖
           echo "⚠️ 检查不安全依赖..."
-          pnpm audit --audit-level high || echo "不安全依赖检查完成"
+          npm audit --audit-level high || echo "不安全依赖检查完成"
 
       - name: Build Analysis - Documentation Check
         run: |
@@ -622,7 +622,7 @@ jobs:
 
           ## 📦 依赖统计
           \`\`\`
-          $(pnpm list --depth=0 2>/dev/null | head -15)
+          $(npm list --depth=0 2>/dev/null | head -15)
           \`\`\`
 
           ## ⚡ 构建性能
@@ -632,7 +632,7 @@ jobs:
 
           ## 🔒 安全检查结果
           \`\`\`
-          $(pnpm audit --audit-level moderate --json 2>/dev/null | jq -r '.metadata.vulnerabilities | to_entries[] | "\(.key): \(.value)"' || echo "安全检查完成")
+          $(npm audit --audit-level moderate --json 2>/dev/null | jq -r '.metadata.vulnerabilities | to_entries[] | "\(.key): \(.value)"' || echo "安全检查完成")
           \`\`\`
 
           ## 📈 代码质量指标
@@ -656,7 +656,7 @@ jobs:
 
           **构建时间**: $(date)  
           **Node.js 版本**: $(node --version)  
-          **PNPM 版本**: $(pnpm --version)  
+          **NPM 版本**: $(npm --version)  
           **操作系统**: $(uname -s -r)  
           **工作流**: ${{ github.workflow }}  
           **运行器**: ${{ runner.os }}  
@@ -701,12 +701,12 @@ jobs:
 
           ### 直接依赖
           \`\`\`bash
-          $(pnpm list --depth=0 2>/dev/null | head -20)
+          $(npm list --depth=0 2>/dev/null | head -20)
           \`\`\`
 
           ### 依赖大小分析
           \`\`\`bash
-          $(pnpm exec cost-of-modules 2>/dev/null | head -15 || echo "依赖大小分析工具不可用")
+          $(npx cost-of-modules 2>/dev/null | head -15 || echo "依赖大小分析工具不可用")
           \`\`\`
 
           ---
@@ -734,12 +734,12 @@ jobs:
 
           ### 安全漏洞
           \`\`\`json
-          $(pnpm audit --audit-level moderate --json 2>/dev/null | jq '.metadata.vulnerabilities' || echo "安全检查完成")
+          $(npm audit --audit-level moderate --json 2>/dev/null | jq '.metadata.vulnerabilities' || echo "安全检查完成")
           \`\`\`
 
           ### 过时依赖
           \`\`\`bash
-          $(pnpm outdated 2>/dev/null || echo "无过时依赖")
+          $(npm outdated 2>/dev/null || echo "无过时依赖")
           \`\`\`
 
           ---
@@ -760,7 +760,7 @@ jobs:
 
           ### 代码复杂度分析
           \`\`\`bash
-          $(pnpm exec complexity-report src/ 2>&1 | head -15 || echo "复杂度分析工具不可用")
+          $(npx complexity-report src/ 2>&1 | head -15 || echo "复杂度分析工具不可用")
           \`\`\`
 
           ---
@@ -823,7 +823,7 @@ jobs:
           echo "📄 详细 Markdown 报告已生成到 build-analysis/build-report.md"
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@main
         with:
           name: build-artifacts
           path: |
