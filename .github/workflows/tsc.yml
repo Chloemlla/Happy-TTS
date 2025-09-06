@@ -29,7 +29,7 @@ jobs:
         run: pnpm install
 
       - name: Run TypeScript compilation check
-        run: pnpm run tsc --noEmit
+        run: pnpm exec tsc --noEmit
 
       - name: Check for path-to-regexp issues
         run: |
