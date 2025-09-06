@@ -1359,13 +1359,13 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                 </div>
 
                 {/* 模态框底部 */}
-                <div className={`bg-gray-50 px-6 py-4 flex gap-3 ${
-                  isMobile ? 'flex-col' : 'flex-row justify-end'
+                <div className={`bg-gray-50 px-4 py-4 flex gap-3 ${
+                  isMobile ? 'flex-col space-y-2' : 'flex-row justify-end'
                 }`}>
                   <motion.button
                     onClick={() => setShowPrivacyModal(false)}
                     className={`px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium ${
-                      isMobile ? 'order-2' : ''
+                      isMobile ? 'order-2 w-full text-center' : 'flex-shrink-0'
                     }`}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
@@ -1382,7 +1382,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                       }
                     }}
                     className={`px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium ${
-                      isMobile ? 'order-1' : ''
+                      isMobile ? 'order-1 w-full text-center' : 'flex-shrink-0'
                     }`}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
