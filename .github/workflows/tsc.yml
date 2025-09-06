@@ -21,10 +21,10 @@ jobs:
           node-version: "20"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install
 
       - name: Run TypeScript compilation check
-        run: npx tsc --noEmit
+        run: pnpm run tsc --noEmit
 
       - name: Check for path-to-regexp issues
         run: |

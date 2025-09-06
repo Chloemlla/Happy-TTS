@@ -193,15 +193,15 @@ jobs:
 
           # 检查 TypeScript 编译错误
           echo " TypeScript 检查:" >> backend-build-analysis/quality.log
-          npx tsc --noEmit --project tsconfig.json 2>&1 >> backend-build-analysis/quality.log || echo "TypeScript 检查发现问题" >> backend-build-analysis/quality.log
+          pnpm exec tsc --noEmit --project tsconfig.json 2>&1 >> backend-build-analysis/quality.log || echo "TypeScript 检查发现问题" >> backend-build-analysis/quality.log
 
           # 检查未使用的代码
           echo " 未使用代码检查:" >> backend-build-analysis/quality.log
-          npx depcheck 2>&1 >> backend-build-analysis/quality.log || echo "未使用代码检查完成" >> backend-build-analysis/quality.log
+          pnpm exec depcheck 2>&1 >> backend-build-analysis/quality.log || echo "未使用代码检查完成" >> backend-build-analysis/quality.log
 
           # 检查代码复杂度
           echo " 代码复杂度检查:" >> backend-build-analysis/quality.log
-          npx complexity-report src/ 2>&1 | head -10 >> backend-build-analysis/quality.log || echo "复杂度分析完成" >> backend-build-analysis/quality.log
+          pnpm exec complexity-report src/ 2>&1 | head -10 >> backend-build-analysis/quality.log || echo "复杂度分析完成" >> backend-build-analysis/quality.log
 
       - name: Build executable for ${{ matrix.platform }}
         run: |
