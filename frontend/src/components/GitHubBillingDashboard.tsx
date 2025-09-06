@@ -36,31 +36,26 @@ const GitHubBillingDashboard: React.FC = () => {
   };
 
   // 格式化金额显示（保留两位小数）
-  const formatAmount = (amount: number): string => {
+  const formatAmount = (amount: number | undefined | null): string => {
+    if (amount === undefined || amount === null || isNaN(amount)) {
+      return '0.00';
+    }
     return amount.toFixed(2);
   };
 
-  // 获取缓存的客户列表
-  const fetchCachedCustomers = useCallback(async () => {
-    setCustomersLoading(true);
-    try {
-      const res = await fetch(`${getApiBaseUrl()}/api/github-billing/customers`, {
-        headers: { ...getAuthHeaders() }
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setNotification({ message: data.error || '获取客户列表失败', type: 'error' });
-        return;
+  // 初始化时加载缓存数据（如果有的话）
+  const initializeCachedData = useCallback(() => {
+    // 从localStorage获取上次的缓存数据
+    const savedData = localStorage.getItem('github-billing-cache');
+    if (savedData) {
+      try {
+        const parsedData = JSON.parse(savedData);
+        setCachedCustomers(parsedData);
+      } catch (e) {
+        // 忽略解析错误
       }
-      if (data.success) {
-        setCachedCustomers(data.data || []);
-      }
-    } catch (e) {
-      setNotification({ message: '获取客户列表失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setCustomersLoading(false);
     }
-  }, [setNotification]);
+  }, []);
 
   // 获取账单数据
   const fetchBillingData = useCallback(async () => {
@@ -75,17 +70,34 @@ const GitHubBillingDashboard: React.FC = () => {
         return;
       }
       if (data.success) {
-        setBillingData(data.data);
+        // 处理嵌套的usage数据结构
+        const processedData = data.data.usage ? {
+          billableAmount: data.data.usage.billableAmount,
+          customerId: data.data.customerId,
+          ...data.data
+        } : data.data;
+        
+        setBillingData(processedData);
         setNotification({ message: '账单数据获取成功', type: 'success' });
-        // 刷新客户列表
-        await fetchCachedCustomers();
+        
+        // 将当前获取的数据作为缓存客户数据
+        if (processedData.customerId) {
+          const customerData = {
+            customerId: processedData.customerId,
+            lastFetched: new Date().toISOString(),
+            billableAmount: processedData.billableAmount || 0
+          };
+          setCachedCustomers([customerData]);
+          // 保存到localStorage
+          localStorage.setItem('github-billing-cache', JSON.stringify([customerData]));
+        }
       }
     } catch (e) {
       setNotification({ message: '获取账单数据失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
     } finally {
       setLoading(false);
     }
-  }, [setNotification, fetchCachedCustomers]);
+  }, [setNotification]);
 
   // 清除缓存
   const clearCache = useCallback(async (customerId?: string) => {
@@ -106,8 +118,9 @@ const GitHubBillingDashboard: React.FC = () => {
       }
       if (data.success) {
         setNotification({ message: '缓存清除成功', type: 'success' });
-        // 刷新客户列表
-        await fetchCachedCustomers();
+        // 清空本地缓存数据
+        setCachedCustomers([]);
+        localStorage.removeItem('github-billing-cache');
         // 如果清除的是当前显示的数据，则清空显示
         if (customerId && billingData?.customerId === customerId) {
           setBillingData(null);
@@ -118,12 +131,12 @@ const GitHubBillingDashboard: React.FC = () => {
     } finally {
       setClearingCache(false);
     }
-  }, [setNotification, fetchCachedCustomers, billingData]);
+  }, [setNotification, billingData]);
 
-  // 组件加载时获取客户列表
+  // 组件加载时初始化缓存数据
   useEffect(() => {
-    fetchCachedCustomers();
-  }, [fetchCachedCustomers]);
+    initializeCachedData();
+  }, [initializeCachedData]);
 
   return (
     <div className="space-y-6">
@@ -258,12 +271,12 @@ const GitHubBillingDashboard: React.FC = () => {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-800">缓存的客户数据</h3>
             <m.button
-              onClick={fetchCachedCustomers}
-              disabled={customersLoading}
+              onClick={() => fetchBillingData()}
+              disabled={loading}
               className="px-3 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition disabled:opacity-50 text-sm flex items-center gap-2"
               whileTap={{ scale: 0.95 }}
             >
-              <FaSync className={`w-3 h-3 ${customersLoading ? 'animate-spin' : ''}`} />
+              <FaSync className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
               刷新
             </m.button>
           </div>
@@ -280,14 +293,17 @@ const GitHubBillingDashboard: React.FC = () => {
               </thead>
               <tbody>
                 {cachedCustomers.map((customer, index) => (
-                  <tr key={customer.customerId} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                  <tr key={`customer-${customer.customerId}-${index}`} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
                     <td className="py-2 px-3 font-mono text-xs break-all">{customer.customerId}</td>
                     <td className="py-2 px-3 font-bold text-green-600">
                       ${formatAmount(customer.billableAmount)}
                       <div className="text-xs text-gray-500">原始: {customer.billableAmount}</div>
                     </td>
                     <td className="py-2 px-3 text-xs text-gray-600">
-                      {new Date(customer.lastFetched).toLocaleString()}
+                      {customer.lastFetched ? 
+                        new Date(customer.lastFetched).toLocaleString() : 
+                        '未知时间'
+                      }
                     </td>
                     <td className="py-2 px-3">
                       <div className="flex gap-1">
@@ -326,7 +342,7 @@ const GitHubBillingDashboard: React.FC = () => {
         <h3 className="text-lg font-semibold text-blue-800 mb-3">使用说明</h3>
         <ul className="text-sm text-blue-700 space-y-2">
           <li>• <strong>获取数据：</strong>点击"获取数据"按钮从 GitHub API 获取最新的账单数据</li>
-          <li>• <strong>Customer ID：</strong>可以指定特定的 Customer ID，留空则使用配置中的默认值</li>
+          <li>• <strong>Customer ID：</strong>系统自动使用后端配置的默认值</li>
           <li>• <strong>数据缓存：</strong>系统会自动缓存获取的数据，避免频繁调用 GitHub API</li>
           <li>• <strong>金额显示：</strong>billableAmount 会自动格式化为两位小数，同时显示原始值</li>
           <li>• <strong>缓存管理：</strong>可以清除特定客户的缓存或清除所有过期缓存</li>
