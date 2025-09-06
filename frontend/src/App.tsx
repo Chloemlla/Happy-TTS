@@ -939,22 +939,18 @@ const App: React.FC = () => {
                     <Navigate to="/" replace />
                   )
                 } />
-                <Route path="/admin/github-billing" element={
-                  user?.role === 'admin' ? (
-                    <Suspense fallback={<LoadingSpinner />}>
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <GitHubBillingDashboard />
-                      </m.div>
-                    </Suspense>
-                  ) : (
-                    <Navigate to="/" replace />
-                  )
+                <Route path="/github-billing" element={
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <m.div
+                      variants={pageVariants}
+                      initial="initial"
+                      animate="in"
+                      exit="out"
+                      transition={pageTransition}
+                    >
+                      <GitHubBillingDashboard />
+                    </m.div>
+                  </Suspense>
                 } />
                 <Route path="/logshare" element={
                   <m.div

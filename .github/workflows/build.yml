@@ -96,10 +96,10 @@ jobs:
       - name: Install dependencies with retry
         run: |
           npm install -g npm@latest
-          npm install --no-optional --no-audit --no-fund
+          npm install --no-optional 
           cd frontend
           # 修复依赖问题
-          npm install --no-optional --no-audit --no-fund
+          npm install --no-optional
           # 特别安装缺失的依赖
           npm install @fingerprintjs/fingerprintjs@^4.2.0 crypto-js@^4.2.0 --save
           npm install @testing-library/react@^14.2.1 --save-dev
@@ -116,7 +116,7 @@ jobs:
           # 验证 Rollup 依赖
           ls node_modules/@rollup/ || echo "Rollup dependencies not found, but continuing..."
           cd docs
-          npm install --no-optional --no-audit --no-fund
+          npm install --no-optional
         env:
           NODE_OPTIONS: --max-old-space-size=10240
 

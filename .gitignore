@@ -12,6 +12,7 @@ LogPaste/
 .windsurf/
 .kiro/
 *.pem
+*.exe
 
 # 构建输出
 dist/

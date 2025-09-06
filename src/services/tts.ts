@@ -1,7 +1,8 @@
 import { OpenAI } from 'openai';
-import { writeFile } from 'fs/promises';
+import { writeFile, mkdir } from 'fs/promises';
 import { join, basename } from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { existsSync } from 'fs';
 import config from '../config';
 
 const openai = new OpenAI({
@@ -73,8 +74,21 @@ export async function generateSpeech(options: TTSOptions): Promise<string> {
 
     // 安全处理文件名
     const safeFileName = generateSafeFileName(customFileName, outputFormat);
-    const filePath = join(config.paths.finish, safeFileName);
+    
+    // For pkg executables, use absolute path relative to executable location
+    let outputDir: string;
+    if ((process as any).pkg) {
+      outputDir = join(process.cwd(), 'finish');
+    } else {
+      outputDir = config.paths.finish;
+    }
 
+    // Ensure output directory exists
+    if (!existsSync(outputDir)) {
+      await mkdir(outputDir, { recursive: true });
+    }
+
+    const filePath = join(outputDir, safeFileName);
     await writeFile(filePath, Buffer.from(await response.arrayBuffer()));
 
     return filePath;

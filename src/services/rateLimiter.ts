@@ -26,7 +26,12 @@ export class RateLimiter {
   private dataFile: string;
 
   constructor() {
-    this.dataFile = config.paths.lcData;
+    // For pkg executables, use absolute path relative to executable location
+    if ((process as any).pkg) {
+      this.dataFile = join(process.cwd(), 'data', 'lc_data.json');
+    } else {
+      this.dataFile = config.paths.lcData;
+    }
     this.loadData();
   }
 
@@ -71,7 +76,8 @@ export class RateLimiter {
       logger.error('MongoDB 保存速率限制数据失败，降级为本地文件:', error);
     }
     try {
-      const dir = config.paths.data;
+      // Get the directory from the data file path
+      const dir = (process as any).pkg ? join(process.cwd(), 'data') : config.paths.data;
       if (!existsSync(dir)) {
         mkdirSync(dir, { recursive: true });
       }

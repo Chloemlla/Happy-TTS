@@ -24,51 +24,43 @@ WORKDIR /app/frontend
 RUN rm -rf node_modules package-lock.json
 
 # 安装最新npm
-RUN npm install -g npm@latest
+RUN npm install -g pnpm@latest
 
 # 修复 Rollup 依赖问题
 RUN echo "🔧 修复 Rollup 依赖问题..." && \
-    npm cache clean --force
+    pnpm store prune
 
 # 先安装依赖，根据平台安装合适的 rollup 依赖
-RUN npm install --no-optional --no-audit --no-fund \
+RUN pnpm install \
     && if [ "$(uname -m)" = "x86_64" ] || [ "$(uname -m)" = "amd64" ]; then \
     echo "x64 platform detected, installing x64 rollup dependencies..." && \
-    npm install rollup @rollup/rollup-linux-x64-musl --no-optional; \
+    pnpm install rollup @rollup/rollup-linux-x64-musl; \
     elif [ "$(uname -m)" = "aarch64" ] || [ "$(uname -m)" = "arm64" ]; then \
     echo "ARM64 platform detected, skipping platform-specific rollup dependencies..." && \
-    npm install rollup @rollup/rollup-linux-arm64-musl --no-optional; \
+    pnpm install rollup @rollup/rollup-linux-arm64-musl; \
     else \
     echo "Unknown platform, installing generic rollup..." && \
-    npm install rollup --no-optional; \
+    pnpm install rollup; \
     fi \
-    || (echo "依赖安装失败，尝试修复..." && rm -rf node_modules package-lock.json && npm install --no-optional --no-audit --no-fund && npm install rollup --no-optional)
+    || (echo "依赖安装失败，尝试修复..." && rm -rf node_modules package-lock.json && pnpm install && pnpm install rollup)
 
-RUN npm install @fingerprintjs/fingerprintjs --no-optional && \
-    npm install crypto-js --no-optional && \
-    npm install --save-dev @types/crypto-js --no-optional
-RUN npm install -g vitest && \
-    npm install -g @testing-library/jest-dom && \
-    npm install -g @testing-library/react && \
-    npm install -g @testing-library/user-event && \
-    npm install -g @babel/preset-env && \
-    npm install -g @babel/preset-react && \
-    npm install -g @babel/preset-typescript && \
-    npm install -g @babel/preset-stage-2 && \
-    npm install -g @babel/preset-stage-3
+RUN pnpm install @fingerprintjs/fingerprintjs && \
+    pnpm install crypto-js && \
+    pnpm install --save-dev @types/crypto-js
+RUN npm install -g vitest @testing-library/jest-dom @testing-library/react @testing-library/user-event @babel/preset-env @babel/preset-react @babel/preset-typescript @babel/preset-stage-2 @babel/preset-stage-3
 
 # 复制前端源代码（这层会在源代码变化时重新构建）
 COPY frontend/ .
 
 # 构建前端（增加内存优化和重试机制，修复 Rollup 依赖问题）
-RUN npm run build \
-    || (echo "第一次构建失败，清理缓存后重试..." && rm -rf node_modules/.cache && npm run build) \
-    || (echo "第二次构建失败，使用简化构建..." && npm run build:simple) \
-    || (echo "简化构建失败，使用最小构建..." && npm run build:minimal) \
+RUN pnpm run build \
+    || (echo "第一次构建失败，清理缓存后重试..." && rm -rf node_modules/.cache && pnpm run build) \
+    || (echo "第二次构建失败，使用简化构建..." && pnpm run build:simple) \
+    || (echo "简化构建失败，使用最小构建..." && pnpm run build:minimal) \
     || (echo "所有构建失败，尝试修复依赖（Rollup/Canvg）..." \
-        && npm install @rollup/rollup-linux-x64-musl --save-dev --no-optional || true \
-        && npm install canvg --no-optional || true \
-        && npm run build:minimal)
+        && pnpm install @rollup/rollup-linux-x64-musl --save-dev || true \
+        && pnpm install canvg || true \
+        && pnpm run build:minimal)
 
 # 确保favicon.ico存在
 RUN touch dist/favicon.ico
@@ -106,10 +98,10 @@ COPY frontend/docs/ ./docs/
 
 # 安装文档依赖并构建
 WORKDIR /app/docs
-RUN npm install -g npm@latest
-RUN npm cache clean --force && \
-    npm install --no-optional --no-audit --no-fund && \
-    (npm run build:no-git || (echo "第一次构建失败，重试..." && npm run build:docker) || (echo "第二次构建失败，使用简化构建..." && npm run build:simple))
+RUN npm install -g pnpm@latest
+RUN pnpm store prune && \
+    pnpm install --no-optional && \
+    (pnpm run build:no-git || (echo "第一次构建失败，重试..." && pnpm run build:docker) || (echo "第二次构建失败，使用简化构建..." && pnpm run build:simple))
 
 # 构建后端
 FROM node:22-alpine AS backend-builder
@@ -134,9 +126,9 @@ WORKDIR /app
 COPY package*.json ./
 
 # 安装后端依赖（包括开发依赖，因为需要TypeScript编译器）
-RUN npm install -g npm@latest
-RUN npm cache clean --force && \
-    npm install --no-optional --no-audit --no-fund && \
+RUN npm install -g pnpm@latest
+RUN pnpm store prune && \
+    pnpm install && \
     npm install -g javascript-obfuscator
 
 # 复制后端源代码和配置文件（这层会在源代码变化时重新构建）
@@ -145,10 +137,10 @@ COPY src/ ./src/
 COPY tsconfig.json ./
 
 # 构建后端（增加重试机制）
-RUN npm run build:backend || (echo "第一次构建失败，重试..." && npm run build:backend)
+RUN pnpm run build:backend || (echo "第一次构建失败，重试..." && pnpm run build:backend)
 
 # 生成 openapi.json
-RUN npm run generate:openapi
+RUN pnpm run generate:openapi
 
 # 生产环境
 FROM node:22-alpine
@@ -170,10 +162,16 @@ ENV OPENAPI_JSON_PATH="/app/openapi.json"
 
 WORKDIR /app
 
-# 安装生产环境依赖（这层会被缓存）
+# 安装pnpm和生产环境依赖（这层会被缓存）
 COPY package*.json ./
-RUN npm ci --only=production --no-optional --no-audit --no-fund && \
-    npm install -g concurrently serve
+COPY pnpm-lock.yaml* ./
+ENV SHELL=/bin/sh
+RUN npm install -g pnpm@latest concurrently serve && \
+    if [ -f "pnpm-lock.yaml" ]; then \
+        pnpm install --prod --frozen-lockfile; \
+    else \
+        pnpm install --prod; \
+    fi
 
 # 从构建阶段复制文件
 COPY --from=backend-builder /app/dist-obfuscated ./dist
@@ -193,4 +191,4 @@ USER nodejs
 EXPOSE 3000 3001 3002
 
 # 启动服务
-CMD ["npm", "start"]
+CMD ["pnpm", "start"]

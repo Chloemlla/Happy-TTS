@@ -123,7 +123,7 @@ function generateSitemapXml() {
     const distDir = path.resolve(__dirname, 'dist');
     if (!fs.existsSync(distDir)) return;
 
-    const siteUrlRaw = process.env.SITE_URL || process.env.VITE_SITE_URL || 'https://tts.hapxs.com';
+    const siteUrlRaw = 'https://tts.hapxs.com';
     const siteUrl = String(siteUrlRaw).replace(/\/$/, '');
 
     // 注意：仅列出静态公共路由；排除需要鉴权的管理/用户页与动态参数路由
@@ -301,7 +301,7 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       global: 'globalThis',
-      process: 'process',
+      'process.env': '{}',
     },
     esbuild: {
       sourcemap: false,
@@ -330,7 +330,7 @@ export default defineConfig(({ mode }) => {
         treeshake: true, // 启用tree shaking
         external: (id: string) => {
           // 避免 Rollup 尝试处理可选依赖
-          if (process.env.VITE_SKIP_ROLLUP_NATIVE === 'true') {
+          if (false) { // Disabled rollup native skip
             return id.includes('@rollup/rollup-linux-x64-gnu') ||
               id.includes('@rollup/rollup-darwin-x64') ||
               id.includes('@rollup/rollup-win32-x64-msvc') ||
