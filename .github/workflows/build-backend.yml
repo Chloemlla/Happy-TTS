@@ -58,9 +58,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: "pnpm"
-          cache-dependency-path: |
-            pnpm-lock.yaml
 
       - name: Set Node.js memory limits
         run: |
@@ -77,13 +74,6 @@ jobs:
           rm -rf node_modules pnpm-lock.yaml
           rm -rf dist dist-obfuscated
 
-      - name: Cache pnpm store
-        uses: actions/cache@v4
-        with:
-          path: ~/.pnpm-store
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
 
       - name: Install dependencies with retry
         run: |
