@@ -33,7 +33,7 @@ jobs:
           version: latest
 
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@main
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: "pnpm"
@@ -86,17 +86,13 @@ jobs:
       - name: Generate pnpm-lock.yaml
         run: pnpm install --lockfile-only
 
-      - name: Cache node_modules and npm cache
-        uses: actions/cache@main
+      - name: Cache pnpm store
+        uses: actions/cache@v4
         with:
-          path: |
-            node_modules
-            frontend/node_modules
-            frontend/docs/node_modules
-            /tmp/.npm
-          key: ${{ runner.os }}-node${{ matrix.node-version }}-modules-${{ hashFiles('pnpm-lock.yaml','frontend/pnpm-lock.yaml','frontend/docs/pnpm-lock.yaml') }}
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-node${{ matrix.node-version }}-modules-
+            ${{ runner.os }}-pnpm-store-
 
       - name: Install dependencies with retry
         run: |
@@ -827,7 +823,7 @@ jobs:
           echo "📄 详细 Markdown 报告已生成到 build-analysis/build-report.md"
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@main
+        uses: actions/upload-artifact@v4
         with:
           name: build-artifacts
           path: |

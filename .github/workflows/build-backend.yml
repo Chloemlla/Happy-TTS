@@ -47,20 +47,20 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@main
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
 
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@main
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: "pnpm"
           cache-dependency-path: |
             pnpm-lock.yaml
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@master
-        with:
-          version: 8
 
       - name: Set Node.js memory limits
         run: |
@@ -77,15 +77,13 @@ jobs:
           rm -rf node_modules pnpm-lock.yaml
           rm -rf dist dist-obfuscated
 
-      - name: Cache node_modules and npm cache
-        uses: actions/cache@main
+      - name: Cache pnpm store
+        uses: actions/cache@v4
         with:
-          path: |
-            node_modules
-            /tmp/.pnpm
-          key: ${{ runner.os }}-node${{ matrix.node-version }}-backend-modules-${{ hashFiles('pnpm-lock.yaml') }}
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-node${{ matrix.node-version }}-backend-modules-
+            ${{ runner.os }}-pnpm-store-
 
       - name: Install dependencies with retry
         run: |
@@ -420,7 +418,7 @@ jobs:
           echo "📄 后端分析报告已生成"
 
       - name: Upload backend artifacts
-        uses: actions/upload-artifact@main
+        uses: actions/upload-artifact@v4
         with:
           name: backend-executables-${{ matrix.platform }}
           path: |
@@ -437,7 +435,7 @@ jobs:
 
     steps:
       - name: Download all platform artifacts
-        uses: actions/download-artifact@main
+        uses: actions/download-artifact@v4
         with:
           pattern: backend-executables-*
           merge-multiple: true
@@ -496,7 +494,7 @@ jobs:
           EOF
 
       - name: Upload release package
-        uses: actions/upload-artifact@main
+        uses: actions/upload-artifact@v4
         with:
           name: synapse-backend-release
           path: |
