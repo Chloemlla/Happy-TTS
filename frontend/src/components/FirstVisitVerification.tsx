@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TurnstileWidget } from './TurnstileWidget';
 import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
@@ -35,27 +35,36 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
   const [isMobile, setIsMobile] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
   const [showParticles, setShowParticles] = useState(false);
+  const resizeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const deviceCheckRef = useRef({ isMobile: false, isLandscape: false });
   const [retryCount, setRetryCount] = useState(0);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
-  // 响应式工具函数 - 安全的window访问
+  // 优化的响应式计算 - 使用 useMemo 缓存计算结果
+  const deviceInfo = useMemo(() => {
+    if (typeof window === 'undefined') {
+      return { isMobile: false, isLandscape: false, screenWidth: 1200 };
+    }
+    return {
+      isMobile,
+      isLandscape,
+      screenWidth: window.innerWidth
+    };
+  }, [isMobile, isLandscape]);
+
+  // 响应式工具函数 - 优化性能
   const getResponsiveSize = useCallback((mobile: number, desktop: number) => {
-    if (typeof window === 'undefined') return desktop;
-    if (isMobile) {
-      return window.innerWidth < 400 ? mobile * 0.8 : mobile;
+    if (deviceInfo.isMobile) {
+      return deviceInfo.screenWidth < 400 ? mobile * 0.8 : mobile;
     }
     return desktop;
-  }, [isMobile]);
+  }, [deviceInfo]);
 
   const getResponsiveFontSize = useCallback((mobile: string, desktop: string) => {
-    if (typeof window === 'undefined') return desktop;
-    if (isMobile) {
-      return window.innerWidth < 400 ? mobile : mobile;
-    }
-    return desktop;
-  }, [isMobile]);
+    return deviceInfo.isMobile ? mobile : desktop;
+  }, [deviceInfo]);
 
-  // 检测设备类型、方向和缩放 - 安全的window访问
+  // 优化的设备检测 - 防抖和缓存
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -63,47 +72,64 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
       const width = window.innerWidth;
       const height = window.innerHeight;
       const zoomLevel = window.devicePixelRatio || 1;
-
-      // 考虑缩放因素，调整移动端判断逻辑
       const effectiveWidth = width * zoomLevel;
 
-      // 移动端判断：考虑缩放后的实际像素密度
       const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       const isSmallScreen = width <= 768 || effectiveWidth <= 768;
+      const newIsMobile = isMobileDevice || isSmallScreen;
+      const newIsLandscape = width > height;
 
-      setIsMobile(isMobileDevice || isSmallScreen);
-      setIsLandscape(width > height);
+      // 只在值实际改变时才更新状态，避免不必要的重渲染
+      if (deviceCheckRef.current.isMobile !== newIsMobile) {
+        deviceCheckRef.current.isMobile = newIsMobile;
+        setIsMobile(newIsMobile);
+      }
+      if (deviceCheckRef.current.isLandscape !== newIsLandscape) {
+        deviceCheckRef.current.isLandscape = newIsLandscape;
+        setIsLandscape(newIsLandscape);
+      }
     };
 
     checkDevice();
 
-    // 监听窗口大小变化
-    const handleResize = () => checkDevice();
-    const handleOrientationChange = () => {
-      // 延迟执行以确保获取正确的尺寸
-      setTimeout(checkDevice, 100);
+    // 防抖的resize处理器
+    const handleResize = () => {
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
+      resizeTimeoutRef.current = setTimeout(checkDevice, 150);
     };
 
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('orientationchange', handleOrientationChange);
+    const handleOrientationChange = () => {
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
+      resizeTimeoutRef.current = setTimeout(checkDevice, 200);
+    };
+
+    window.addEventListener('resize', handleResize, { passive: true });
+    window.addEventListener('orientationchange', handleOrientationChange, { passive: true });
 
     // 监听缩放变化（部分浏览器支持）
     if ('visualViewport' in window && window.visualViewport) {
-      window.visualViewport.addEventListener('resize', handleResize);
+      window.visualViewport.addEventListener('resize', handleResize, { passive: true });
     }
 
     // 延迟显示背景粒子，避免加载时的视觉问题
-    const timer = setTimeout(() => {
+    const particleTimer = setTimeout(() => {
       setShowParticles(true);
     }, 100);
 
     return () => {
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
+      clearTimeout(particleTimer);
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('orientationchange', handleOrientationChange);
       if ('visualViewport' in window && window.visualViewport) {
         window.visualViewport.removeEventListener('resize', handleResize);
       }
-      clearTimeout(timer);
     };
   }, []);
 
@@ -178,71 +204,87 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
 
   // 移除页面可见性变化监听 - 减少不必要的通知
 
+  // 优化的 Turnstile 事件处理器 - 批量状态更新
   const handleTurnstileVerify = useCallback((token: string) => {
     console.log('Turnstile验证成功，token:', token);
-    setTurnstileToken(token);
-    setTurnstileVerified(true);
-    setTurnstileError(false);
-    setError('');
+    
+    // 批量状态更新，减少重渲染
+    React.startTransition(() => {
+      setTurnstileToken(token);
+      setTurnstileVerified(true);
+      setTurnstileError(false);
+      setError('');
+    });
 
-    // Microsoft Clarity事件记录：Turnstile验证成功
-    try {
-      if (typeof clarity !== 'undefined' && clarity.event) {
-        clarity.event('turnstile_verify_success');
+    // 异步处理 Clarity 事件和通知
+    requestIdleCallback(() => {
+      try {
+        if (typeof clarity !== 'undefined' && clarity.event) {
+          clarity.event('turnstile_verify_success');
+        }
+      } catch (err) {
+        console.warn('Failed to send Clarity event:', err);
       }
-    } catch (err) {
-      console.warn('Failed to send Clarity event:', err);
-    }
 
-    // 显示验证成功通知
-    setNotification({
-      message: '人机验证通过！',
-      type: 'success'
+      setNotification({
+        message: '人机验证通过！',
+        type: 'success'
+      });
     });
   }, [setNotification]);
 
   const handleTurnstileExpire = useCallback(() => {
     console.log('Turnstile验证过期');
-    setTurnstileToken('');
-    setTurnstileVerified(false);
-    setTurnstileError(false);
+    
+    // 批量状态更新
+    React.startTransition(() => {
+      setTurnstileToken('');
+      setTurnstileVerified(false);
+      setTurnstileError(false);
+    });
 
-    // Microsoft Clarity事件记录：Turnstile验证过期
-    try {
-      if (typeof clarity !== 'undefined' && clarity.event) {
-        clarity.event('turnstile_verify_expire');
+    // 异步处理事件记录和通知
+    requestIdleCallback(() => {
+      try {
+        if (typeof clarity !== 'undefined' && clarity.event) {
+          clarity.event('turnstile_verify_expire');
+        }
+      } catch (err) {
+        console.warn('Failed to send Clarity event:', err);
       }
-    } catch (err) {
-      console.warn('Failed to send Clarity event:', err);
-    }
 
-    // 显示验证过期通知
-    setNotification({
-      message: '验证已过期，请重新验证',
-      type: 'warning'
+      setNotification({
+        message: '验证已过期，请重新验证',
+        type: 'warning'
+      });
     });
   }, [setNotification]);
 
   const handleTurnstileError = useCallback(() => {
     console.log('Turnstile验证错误');
-    setTurnstileToken('');
-    setTurnstileVerified(false);
-    setTurnstileError(true);
-    setError('人机验证失败，请重试');
+    
+    // 批量状态更新
+    React.startTransition(() => {
+      setTurnstileToken('');
+      setTurnstileVerified(false);
+      setTurnstileError(true);
+      setError('人机验证失败，请重试');
+    });
 
-    // Microsoft Clarity事件记录：Turnstile验证错误
-    try {
-      if (typeof clarity !== 'undefined' && clarity.event) {
-        clarity.event('turnstile_verify_error');
+    // 异步处理事件记录和通知
+    requestIdleCallback(() => {
+      try {
+        if (typeof clarity !== 'undefined' && clarity.event) {
+          clarity.event('turnstile_verify_error');
+        }
+      } catch (err) {
+        console.warn('Failed to send Clarity event:', err);
       }
-    } catch (err) {
-      console.warn('Failed to send Clarity event:', err);
-    }
 
-    // 显示验证错误通知
-    setNotification({
-      message: '人机验证失败，请重试',
-      type: 'error'
+      setNotification({
+        message: '人机验证失败，请重试',
+        type: 'error'
+      });
     });
   }, [setNotification]);
 
@@ -674,15 +716,17 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     );
   }
 
-  // 响应式Logo组件 - 优化性能
+  // 优化的Logo组件 - 缓存尺寸计算和减少动画复杂度
   const Logo = React.memo(() => {
-    const logoSize = isMobile ? (isLandscape ? 80 : 100) : 140;
+    const logoSize = useMemo(() => {
+      return deviceInfo.isMobile ? (deviceInfo.isLandscape ? 80 : 100) : 140;
+    }, [deviceInfo.isMobile, deviceInfo.isLandscape]);
 
     return (
       <motion.div
-        initial={{ scale: 0.8, opacity: 0 }}
+        initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
         className="relative"
       >
         <svg
@@ -715,16 +759,16 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
           {/* 内圈装饰 */}
           <circle cx="70" cy="70" r="45" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
 
-          {/* 笑脸眼睛 - 添加动画 */}
+          {/* 笑脸眼睛 - 简化动画 */}
           <motion.circle
             cx="55" cy="60" r="5" fill="white"
-            animate={{ scale: [1, 1.1, 1] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            animate={{ scale: [1, 1.05, 1] }}
+            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
           />
           <motion.circle
             cx="85" cy="60" r="5" fill="white"
-            animate={{ scale: [1, 1.1, 1] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+            animate={{ scale: [1, 1.05, 1] }}
+            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 1 }}
           />
 
           {/* 笑脸嘴巴 */}
@@ -736,85 +780,93 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
             strokeLinecap="round"
           />
 
-          {/* 装饰性元素 - 添加浮动动画 */}
+          {/* 装饰性元素 - 优化动画性能 */}
           <motion.circle
-            cx="35" cy="35" r="4" fill="#A78BFA" opacity="0.7"
-            animate={{ y: [0, -5, 0] }}
-            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-          />
-          <motion.circle
-            cx="105" cy="45" r="3" fill="#A78BFA" opacity="0.7"
-            animate={{ y: [0, 5, 0] }}
-            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-          />
-          <motion.circle
-            cx="30" cy="95" r="3" fill="#A78BFA" opacity="0.7"
+            cx="35" cy="35" r="4" fill="#A78BFA" opacity="0.6"
             animate={{ y: [0, -3, 0] }}
-            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
           />
           <motion.circle
-            cx="110" cy="90" r="4" fill="#A78BFA" opacity="0.7"
+            cx="105" cy="45" r="3" fill="#A78BFA" opacity="0.6"
             animate={{ y: [0, 3, 0] }}
-            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
+            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+          />
+          <motion.circle
+            cx="30" cy="95" r="3" fill="#A78BFA" opacity="0.6"
+            animate={{ y: [0, -2, 0] }}
+            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+          />
+          <motion.circle
+            cx="110" cy="90" r="4" fill="#A78BFA" opacity="0.6"
+            animate={{ y: [0, 2, 0] }}
+            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 3 }}
           />
         </svg>
       </motion.div>
     );
   });
 
-  // 响应式背景粒子效果 - 优化性能和安全性
+  // 高性能背景粒子效果 - 大幅优化性能
   const BackgroundParticles = React.memo(() => {
-    const particleCount = isMobile ? 10 : 20;
-    const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
-    const screenHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+    const particleData = useMemo(() => {
+      const count = deviceInfo.isMobile ? 6 : 12;
+      const width = deviceInfo.screenWidth;
+      const height = typeof window !== 'undefined' ? window.innerHeight : 800;
+      
+      return Array.from({ length: count }, (_, i) => ({
+        id: i,
+        initialX: (i * 137) % width,
+        initialY: (i * 193) % height,
+        targetX: (i * 211) % width,
+        targetY: (i * 167) % height,
+        duration: 25 + (i % 3) * 5,
+        delay: i * 0.3
+      }));
+    }, [deviceInfo.isMobile, deviceInfo.screenWidth]);
 
     return (
       <motion.div
         className="absolute inset-0 overflow-hidden pointer-events-none"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 1, delay: 0.5 }}
+        transition={{ duration: 0.8, delay: 0.3 }}
       >
-        {Array.from({ length: particleCount }).map((_, i) => {
-          // 使用固定的初始位置，避免随机位置导致的视觉问题
-          const initialX = (i * 137) % screenWidth;
-          const initialY = (i * 193) % screenHeight;
-
-          return (
-            <motion.div
-              key={i}
-              className="absolute w-2 h-2 bg-gradient-to-r from-indigo-400 to-purple-400 rounded-full opacity-20"
-              initial={{
-                x: initialX,
-                y: initialY,
-                opacity: 0,
-                scale: 0,
-              }}
-              animate={{
-                x: Math.random() * screenWidth,
-                y: Math.random() * screenHeight,
-                opacity: 0.2,
-                scale: 1,
-              }}
-              transition={{
-                opacity: { duration: 0.8, delay: 1.2 + i * 0.05 },
-                scale: { duration: 0.5, delay: 1.2 + i * 0.05 },
-                x: {
-                  duration: Math.random() * 20 + 20,
-                  repeat: Infinity,
-                  ease: "linear",
-                  delay: 2 + i * 0.1
-                },
-                y: {
-                  duration: Math.random() * 20 + 20,
-                  repeat: Infinity,
-                  ease: "linear",
-                  delay: 2 + i * 0.1
-                }
-              }}
-            />
-          );
-        })}
+        {particleData.map((particle) => (
+          <motion.div
+            key={particle.id}
+            className="absolute w-1.5 h-1.5 bg-gradient-to-r from-indigo-300 to-purple-300 rounded-full"
+            initial={{
+              x: particle.initialX,
+              y: particle.initialY,
+              opacity: 0,
+              scale: 0,
+            }}
+            animate={{
+              x: particle.targetX,
+              y: particle.targetY,
+              opacity: 0.15,
+              scale: 1,
+            }}
+            transition={{
+              opacity: { duration: 0.6, delay: 0.8 + particle.delay },
+              scale: { duration: 0.4, delay: 0.8 + particle.delay },
+              x: {
+                duration: particle.duration,
+                repeat: Infinity,
+                repeatType: "reverse",
+                ease: "easeInOut",
+                delay: 1.5 + particle.delay
+              },
+              y: {
+                duration: particle.duration + 5,
+                repeat: Infinity,
+                repeatType: "reverse",
+                ease: "easeInOut",
+                delay: 1.5 + particle.delay
+              }
+            }}
+          />
+        ))}
       </motion.div>
     );
   });
@@ -848,14 +900,15 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
             ease: "easeOut",
             delay: 0.1
           }}
-          className={`relative bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 ${isMobile
-              ? 'w-full max-w-sm mx-2 p-4'
-              : 'max-w-md w-full mx-4 p-8'
-            }`}
+          className={`relative bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 ${deviceInfo.isMobile
+            ? 'w-full max-w-sm mx-2 p-4'
+            : 'max-w-md w-full mx-4 p-8'
+          }`}
           style={{
-            maxHeight: isMobile ? '90vh' : '80vh',
+            maxHeight: deviceInfo.isMobile ? '90vh' : '80vh',
             overflowY: 'auto',
-            overflowX: 'hidden', // 防止水平滚动条
+            overflowX: 'hidden',
+            willChange: 'transform', // 优化动画性能
           }}
         >
           {/* 顶部装饰线 */}
