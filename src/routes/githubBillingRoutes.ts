@@ -36,11 +36,11 @@ router.post('/test-parse', configLimiter, authenticateToken, authenticateAdmin, 
 // 数据获取路由（公开访问）
 router.get('/usage', GitHubBillingController.getBillingUsage);
 
-// 缓存管理路由（需要管理员权限）
-router.delete('/cache/:customerId', authenticateToken, authenticateAdmin, GitHubBillingController.clearCache);
-router.delete('/cache/expired', authenticateToken, authenticateAdmin, GitHubBillingController.clearExpiredCache);
+// 缓存管理路由（公开访问）
+router.delete('/cache/:customerId', GitHubBillingController.clearCache);
+router.delete('/cache/expired', GitHubBillingController.clearExpiredCache);
 
-// 客户列表路由（需要管理员权限）
-router.get('/customers', authenticateToken, authenticateAdmin, GitHubBillingController.getCachedCustomers);
+// 客户列表路由（公开访问）
+router.get('/customers', GitHubBillingController.getCachedCustomers);
 
 export default router;

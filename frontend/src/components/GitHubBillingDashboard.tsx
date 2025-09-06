@@ -29,10 +29,11 @@ const GitHubBillingDashboard: React.FC = () => {
   const [customersLoading, setCustomersLoading] = useState(false);
   const [clearingCache, setClearingCache] = useState(false);
 
-  // 获取认证头
-  const getAuthHeaders = (): Record<string, string> => {
-    const token = localStorage.getItem('token');
-    return token ? { Authorization: `Bearer ${token}` } : {};
+  // 获取基础请求头（无需认证）
+  const getHeaders = (): Record<string, string> => {
+    return {
+      'Content-Type': 'application/json'
+    };
   };
 
   // 格式化金额显示（保留两位小数）
@@ -62,7 +63,7 @@ const GitHubBillingDashboard: React.FC = () => {
     setLoading(true);
     try {
       const res = await fetch(`${getApiBaseUrl()}/api/github-billing/usage`, {
-        headers: { ...getAuthHeaders() }
+        headers: { ...getHeaders() }
       });
       const data = await res.json();
       if (!res.ok) {
@@ -109,7 +110,7 @@ const GitHubBillingDashboard: React.FC = () => {
       
       const res = await fetch(url, {
         method: 'DELETE',
-        headers: { ...getAuthHeaders() }
+        headers: { ...getHeaders() }
       });
       const data = await res.json();
       if (!res.ok) {
@@ -341,6 +342,7 @@ const GitHubBillingDashboard: React.FC = () => {
       >
         <h3 className="text-lg font-semibold text-blue-800 mb-3">使用说明</h3>
         <ul className="text-sm text-blue-700 space-y-2">
+          <li>• <strong>公开访问：</strong>此功能无需登录即可使用，所有用户均可查看 GitHub 账单数据</li>
           <li>• <strong>获取数据：</strong>点击"获取数据"按钮从 GitHub API 获取最新的账单数据</li>
           <li>• <strong>Customer ID：</strong>系统自动使用后端配置的默认值</li>
           <li>• <strong>数据缓存：</strong>系统会自动缓存获取的数据，避免频繁调用 GitHub API</li>
