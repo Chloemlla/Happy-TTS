@@ -6,13 +6,30 @@ export class Logger {
   private logStream: NodeJS.WritableStream;
 
   constructor() {
-    const logDir = config.paths.logs;
-    if (!existsSync(logDir)) {
-      mkdirSync(logDir, { recursive: true });
+    // For pkg executables, use absolute path relative to executable location
+    // For development, use relative path as before
+    let logDir: string;
+    
+    if ((process as any).pkg) {
+      // Running as pkg executable - use directory next to executable
+      logDir = join(process.cwd(), 'logs');
+    } else {
+      // Running in development - use config path
+      logDir = config.paths.logs;
     }
 
-    const logFile = join(logDir, `${new Date().toISOString().split('T')[0]}.log`);
-    this.logStream = createWriteStream(logFile, { flags: 'a' });
+    try {
+      if (!existsSync(logDir)) {
+        mkdirSync(logDir, { recursive: true });
+      }
+
+      const logFile = join(logDir, `${new Date().toISOString().split('T')[0]}.log`);
+      this.logStream = createWriteStream(logFile, { flags: 'a' });
+    } catch (error) {
+      // If we can't create log files, fall back to console logging
+      console.warn('Failed to create log file, falling back to console logging:', error);
+      this.logStream = process.stdout;
+    }
   }
 
   log(message: string, data?: any) {
