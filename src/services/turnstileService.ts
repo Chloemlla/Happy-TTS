@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { config } from '../config/config';
 import logger from '../utils/logger';
-import { mongoose } from './mongoService';
+import { mongoose, connectMongo } from './mongoService';
 import { TempFingerprintModel, TempFingerprintDoc } from '../models/tempFingerprintModel';
 import { AccessTokenModel, AccessTokenDoc } from '../models/accessTokenModel';
 import { IpBanModel, IpBanDoc } from '../models/ipBanModel';
@@ -143,6 +143,13 @@ interface TurnstileResponse {
   hostname?: string;
 }
 
+// 风险评估结构
+interface RiskAssessment {
+  riskLevel: string;
+  riskScore: number;
+  riskReasons: string[];
+}
+
 // 详细的验证失败响应结构，仿照 SmartHumanCheck
 interface TurnstileVerificationFailure {
   success: false;
@@ -156,16 +163,13 @@ interface TurnstileVerificationFailure {
     userAgent?: string;
     fingerprint?: string;
   };
-  riskAssessment: {
-    riskLevel: 'low' | 'medium' | 'high';
-    riskScore: number;
-    riskReasons: string[];
-  };
+  riskAssessment?: RiskAssessment;
   violationInfo?: {
     violationCount: number;
     banned: boolean;
     banExpiresAt?: Date;
   };
+  traceId?: string;
 }
 
 // 成功响应结构
@@ -178,6 +182,7 @@ interface TurnstileVerificationSuccess {
     fingerprint?: string;
   };
   accessToken?: string;
+  traceId?: string;
 }
 
 type TurnstileVerificationResult = TurnstileVerificationSuccess | TurnstileVerificationFailure;
@@ -204,6 +209,56 @@ export class TurnstileService {
   private static readonly VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
   private static readonly MAX_VIOLATIONS = 3; // 最大违规次数
   private static readonly BAN_DURATION = 60 * 60 * 1000; // 封禁时长：60分钟
+
+  /** 获取/复用 Turnstile 溯源模型（使用与SmartHumanCheck相同的集合） */
+  private static getTraceModel() {
+    const schema = new mongoose.Schema({
+      traceId: { type: String, required: true, unique: true },
+      time: { type: Date, default: Date.now },
+      ip: String,
+      ua: String,
+      success: Boolean,
+      reason: String,
+      errorCode: String,
+      errorMessage: String,
+      score: Number,
+      thresholdBase: Number,
+      thresholdUsed: Number,
+      passRateIp: Number,
+      passRateUa: Number,
+      policy: String,
+      riskLevel: String,
+      riskScore: Number,
+      riskReasons: [String],
+      challengeRequired: Boolean,
+      // Turnstile 特有字段
+      verificationMethod: { type: String, default: 'turnstile' },
+      fingerprint: String,
+      violationCount: Number,
+      banned: Boolean,
+      banExpiresAt: Date,
+      cfErrorCodes: [String]
+    }, { collection: 'shc_traces', timestamps: false });
+    // @ts-ignore
+    return mongoose.models.SHCTrace || mongoose.model('SHCTrace', schema);
+  }
+
+  /**
+   * 持久化 Turnstile 验证溯源信息到数据库
+   * @param traceData 溯源数据
+   */
+  private static async persistTurnstileTrace(traceData: any): Promise<void> {
+    try {
+      await connectMongo();
+      const TraceModel = this.getTraceModel();
+      await TraceModel.create({
+        ...traceData,
+        verificationMethod: 'turnstile'
+      });
+    } catch (error) {
+      logger.warn('[Turnstile] 持久化溯源信息失败', error);
+    }
+  }
 
   /**
    * 检查IP是否被封禁
@@ -414,12 +469,31 @@ export class TurnstileService {
    * @returns 验证结果
    */
   public static async verifyToken(token: string, remoteIp?: string): Promise<boolean> {
+    const traceId = crypto.randomBytes(12).toString('hex');
+    
     try {
       // 验证输入参数
       const validatedToken = validateToken(token);
 
       if (!validatedToken) {
-        logger.warn('Turnstile token 验证失败：输入参数无效', { tokenLength: token?.length });
+        logger.warn('Turnstile token 验证失败：输入参数无效', { tokenLength: token?.length, traceId });
+        
+        // 记录到溯源数据库
+        await this.persistTurnstileTrace({
+          traceId,
+          time: new Date(),
+          ip: remoteIp || 'unknown',
+          ua: undefined,
+          success: false,
+          reason: 'invalid_input',
+          errorCode: 'INVALID_INPUT',
+          errorMessage: '输入参数无效',
+          fingerprint: undefined,
+          riskLevel: 'HIGH',
+          riskScore: 100,
+          riskReasons: ['invalid_token']
+        });
+        
         return false;
       }
 
@@ -428,7 +502,24 @@ export class TurnstileService {
 
       // 检查是否配置了密钥
       if (!secretKey) {
-        logger.warn('Turnstile 密钥未配置，跳过验证');
+        logger.warn('Turnstile 密钥未配置，跳过验证', { traceId });
+        
+        // 记录服务未配置到溯源数据库
+        await this.persistTurnstileTrace({
+          traceId,
+          time: new Date(),
+          ip: remoteIp || 'unknown',
+          ua: undefined,
+          success: false,
+          reason: 'service_unavailable',
+          errorCode: 'SERVICE_UNAVAILABLE',
+          errorMessage: 'Turnstile服务未配置',
+          fingerprint: undefined,
+          riskLevel: 'MEDIUM',
+          riskScore: 50,
+          riskReasons: ['service_not_configured']
+        });
+        
         return true;
       }
 
@@ -464,7 +555,25 @@ export class TurnstileService {
           remoteIp,
           timestamp: result.challenge_ts,
           hostname: result.hostname,
+          traceId
         });
+        
+        // 记录验证失败到溯源数据库
+        await this.persistTurnstileTrace({
+          traceId,
+          time: now,
+          ip: remoteIp || 'unknown',
+          ua: undefined,
+          success: false,
+          reason: 'verification_failed',
+          errorCode: result['error-codes']?.[0] || 'VERIFICATION_FAILED',
+          errorMessage: `Turnstile验证失败: ${result['error-codes']?.join(', ') || 'unknown'}`,
+          fingerprint: undefined,
+          riskLevel: 'HIGH',
+          riskScore: 90,
+          riskReasons: ['turnstile_verification_failed']
+        });
+        
         return false;
       }
 
@@ -475,6 +584,23 @@ export class TurnstileService {
         remoteIp,
         timestamp: result.challenge_ts,
         hostname: result.hostname,
+        traceId
+      });
+
+      // 记录成功验证到溯源数据库
+      await this.persistTurnstileTrace({
+        traceId,
+        time: now,
+        ip: remoteIp || 'unknown',
+        ua: undefined,
+        success: true,
+        reason: 'verification_success',
+        errorCode: null,
+        errorMessage: null,
+        fingerprint: undefined,
+        riskLevel: 'LOW',
+        riskScore: 0,
+        riskReasons: []
       });
 
       return true;
@@ -486,7 +612,25 @@ export class TurnstileService {
       logger.error('Turnstile 验证请求失败', {
         error: error instanceof Error ? error.message : 'Unknown error',
         remoteIp,
+        traceId
       });
+      
+      // 记录网络错误到溯源数据库
+      await this.persistTurnstileTrace({
+        traceId,
+        time: now,
+        ip: remoteIp || 'unknown',
+        ua: undefined,
+        success: false,
+        reason: 'network_error',
+        errorCode: 'NETWORK_ERROR',
+        errorMessage: error instanceof Error ? error.message : '网络请求失败',
+        fingerprint: undefined,
+        riskLevel: 'MEDIUM',
+        riskScore: 50,
+        riskReasons: ['network_error']
+      });
+      
       return false;
     }
   }
@@ -626,20 +770,24 @@ export class TurnstileService {
       // 开发环境下本地IP的特殊处理
       const isDev = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev';
       const isLocalhost = validatedIp === '127.0.0.1' || validatedIp === '::1' || validatedIp === '::ffff:127.0.0.1';
+      
+      // 开发环境本地IP自动验证开关（默认启用）
+      const enableDevAutoVerify = process.env.TURNSTILE_DEV_AUTO_VERIFY !== 'false';
 
       // 检查指纹是否已存在
       const existingDoc = await TempFingerprintModel.findOne({ fingerprint: validatedFingerprint }).lean().exec();
 
       if (existingDoc) {
-        // 开发环境本地IP自动标记为已验证
-        if (isDev && isLocalhost && !existingDoc.verified) {
+        // 开发环境本地IP自动标记为已验证（需要开关启用）
+        if (isDev && isLocalhost && enableDevAutoVerify && !existingDoc.verified) {
           await TempFingerprintModel.updateOne(
             { fingerprint: validatedFingerprint },
             { verified: true, updatedAt: new Date() }
           );
           logger.info('开发环境：本地IP指纹自动标记为已验证', {
             fingerprint: validatedFingerprint.substring(0, 8) + '...',
-            ipAddress: validatedIp
+            ipAddress: validatedIp,
+            autoVerifyEnabled: enableDevAutoVerify
           });
           return {
             isFirstVisit: false,
@@ -656,7 +804,7 @@ export class TurnstileService {
 
       // 首次访问，创建新记录
       const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5分钟后过期
-      const isVerified = isDev && isLocalhost; // 开发环境本地IP自动验证
+      const isVerified = isDev && isLocalhost && enableDevAutoVerify; // 开发环境本地IP自动验证（需要开关启用）
 
       await TempFingerprintModel.create({
         fingerprint: validatedFingerprint,
@@ -667,12 +815,16 @@ export class TurnstileService {
       if (isVerified) {
         logger.info('开发环境：本地IP临时指纹自动验证', {
           fingerprint: validatedFingerprint.substring(0, 8) + '...',
-          ipAddress: validatedIp
+          ipAddress: validatedIp,
+          autoVerifyEnabled: enableDevAutoVerify
         });
       } else {
         logger.info('临时指纹上报成功', {
           fingerprint: validatedFingerprint.substring(0, 8) + '...',
-          ipAddress: validatedIp
+          ipAddress: validatedIp,
+          isDev,
+          isLocalhost,
+          autoVerifyEnabled: enableDevAutoVerify
         });
       }
 
@@ -702,6 +854,7 @@ export class TurnstileService {
   ): Promise<TurnstileVerificationResult> {
     const timestamp = new Date().toISOString();
     const clientInfo = { ip: remoteIp, userAgent, fingerprint };
+    const traceId = crypto.randomBytes(12).toString('hex');
 
     try {
       // 验证输入参数
@@ -712,6 +865,22 @@ export class TurnstileService {
         const riskAssessment = this.assessClientRisk(remoteIp, userAgent, fingerprint);
         this.recordVerificationOutcome(remoteIp, userAgent, false, new Date(), fingerprint);
         
+        // 记录到溯源数据库
+        await this.persistTurnstileTrace({
+          traceId,
+          time: new Date(),
+          ip: remoteIp,
+          ua: userAgent,
+          success: false,
+          reason: 'invalid_input',
+          errorCode: 'INVALID_INPUT',
+          errorMessage: '输入参数无效',
+          fingerprint,
+          riskLevel: riskAssessment?.riskLevel,
+          riskScore: riskAssessment?.riskScore,
+          riskReasons: riskAssessment?.riskReasons
+        });
+        
         return {
           success: false,
           reason: 'invalid_input',
@@ -720,7 +889,8 @@ export class TurnstileService {
           retryable: true,
           timestamp,
           clientInfo,
-          riskAssessment
+          riskAssessment,
+          traceId
         };
       }
 
@@ -729,6 +899,24 @@ export class TurnstileService {
       if (banStatus.banned) {
         const riskAssessment = this.assessClientRisk(validatedIp, userAgent, fingerprint);
         this.recordVerificationOutcome(validatedIp, userAgent, false, new Date(), fingerprint);
+        
+        // 记录到溯源数据库
+        await this.persistTurnstileTrace({
+          traceId,
+          time: new Date(),
+          ip: validatedIp,
+          ua: userAgent,
+          success: false,
+          reason: 'ip_banned',
+          errorCode: 'IP_BANNED',
+          errorMessage: 'IP地址已被封禁',
+          fingerprint,
+          riskLevel: riskAssessment?.riskLevel,
+          riskScore: riskAssessment?.riskScore,
+          riskReasons: riskAssessment?.riskReasons,
+          banned: true,
+          banExpiresAt: banStatus.expiresAt
+        });
         
         return {
           success: false,
@@ -743,7 +931,8 @@ export class TurnstileService {
             violationCount: 0, // 需要从数据库获取实际值
             banned: true,
             banExpiresAt: banStatus.expiresAt
-          }
+          },
+          traceId
         };
       }
 
@@ -753,6 +942,22 @@ export class TurnstileService {
         const riskAssessment = this.assessClientRisk(validatedIp, userAgent, fingerprint);
         this.recordVerificationOutcome(validatedIp, userAgent, false, new Date(), fingerprint);
         
+        // 记录到溯源数据库
+        await this.persistTurnstileTrace({
+          traceId,
+          time: new Date(),
+          ip: validatedIp,
+          ua: userAgent,
+          success: false,
+          reason: 'service_unavailable',
+          errorCode: 'SERVICE_UNAVAILABLE',
+          errorMessage: 'Turnstile服务未配置',
+          fingerprint,
+          riskLevel: riskAssessment?.riskLevel,
+          riskScore: riskAssessment?.riskScore,
+          riskReasons: riskAssessment?.riskReasons
+        });
+        
         return {
           success: false,
           reason: 'service_unavailable',
@@ -761,7 +966,8 @@ export class TurnstileService {
           retryable: true,
           timestamp,
           clientInfo,
-          riskAssessment
+          riskAssessment,
+          traceId
         };
       }
 
@@ -796,6 +1002,26 @@ export class TurnstileService {
         
         this.recordVerificationOutcome(validatedIp, userAgent, false, now, fingerprint);
         
+        // 记录到溯源数据库
+        await this.persistTurnstileTrace({
+          traceId,
+          time: now,
+          ip: validatedIp,
+          ua: userAgent,
+          success: false,
+          reason: 'verification_failed',
+          errorCode: 'VERIFICATION_FAILED',
+          errorMessage: `Turnstile验证失败: ${result['error-codes']?.join(', ') || '未知错误'}`,
+          fingerprint,
+          riskLevel: riskAssessment?.riskLevel,
+          riskScore: riskAssessment?.riskScore,
+          riskReasons: riskAssessment?.riskReasons,
+          violationCount: banned ? this.MAX_VIOLATIONS : undefined,
+          banned: !!banned,
+          banExpiresAt: banned ? new Date(Date.now() + this.BAN_DURATION) : undefined,
+          cfErrorCodes: result['error-codes'] || []
+        });
+        
         return {
           success: false,
           reason: 'verification_failed',
@@ -809,22 +1035,56 @@ export class TurnstileService {
             violationCount: this.MAX_VIOLATIONS,
             banned: true,
             banExpiresAt: new Date(Date.now() + this.BAN_DURATION)
-          } : undefined
+          } : undefined,
+          traceId
         };
       }
 
       // 验证成功
       this.recordVerificationOutcome(validatedIp, userAgent, true, now, fingerprint);
       
+      // 记录成功验证到溯源数据库
+      await this.persistTurnstileTrace({
+        traceId,
+        time: now,
+        ip: validatedIp,
+        ua: userAgent,
+        success: true,
+        reason: 'verification_success',
+        errorCode: null,
+        errorMessage: null,
+        fingerprint,
+        riskLevel: 'LOW',
+        riskScore: 0,
+        riskReasons: []
+      });
+      
       return {
         success: true,
         timestamp,
-        clientInfo
+        clientInfo,
+        traceId
       };
 
     } catch (error) {
       const riskAssessment = this.assessClientRisk(remoteIp, userAgent, fingerprint);
       this.recordVerificationOutcome(remoteIp, userAgent, false, new Date(), fingerprint);
+      
+      // 记录网络错误到溯源数据库
+      await this.persistTurnstileTrace({
+        traceId,
+        time: new Date(),
+        ip: remoteIp,
+        ua: userAgent,
+        success: false,
+        reason: 'network_error',
+        errorCode: 'NETWORK_ERROR',
+        errorMessage: error instanceof Error ? error.message : '网络请求失败',
+        fingerprint,
+        riskLevel: riskAssessment?.riskLevel,
+        riskScore: riskAssessment?.riskScore,
+        riskReasons: riskAssessment?.riskReasons
+      });
       
       return {
         success: false,
@@ -834,7 +1094,8 @@ export class TurnstileService {
         retryable: true,
         timestamp,
         clientInfo,
-        riskAssessment
+        riskAssessment,
+        traceId
       };
     }
   }
@@ -852,7 +1113,9 @@ export class TurnstileService {
     cfToken: string,
     remoteIp?: string,
     userAgent?: string
-  ): Promise<{ success: boolean; accessToken?: string; details?: TurnstileVerificationResult }> {
+  ): Promise<{ success: boolean; accessToken?: string; details?: TurnstileVerificationResult; traceId?: string }> {
+    const traceId = crypto.randomBytes(12).toString('hex');
+    
     try {
       // 验证输入参数
       const validatedFingerprint = validateFingerprint(fingerprint);
@@ -863,9 +1126,27 @@ export class TurnstileService {
         logger.warn('临时指纹验证失败：输入参数无效', {
           fingerprintLength: fingerprint?.length,
           tokenLength: cfToken?.length,
-          ipAddress: remoteIp
+          ipAddress: remoteIp,
+          traceId
         });
-        return { success: false };
+        
+        // 记录到溯源数据库
+        await this.persistTurnstileTrace({
+          traceId,
+          time: new Date(),
+          ip: remoteIp || 'unknown',
+          ua: userAgent,
+          success: false,
+          reason: 'invalid_input',
+          errorCode: 'INVALID_INPUT',
+          errorMessage: '临时指纹验证输入参数无效',
+          fingerprint: validatedFingerprint,
+          riskLevel: 'HIGH',
+          riskScore: 100,
+          riskReasons: ['invalid_fingerprint', 'invalid_token', 'invalid_ip']
+        });
+        
+        return { success: false, traceId };
       }
 
       // 检查IP是否被封禁
@@ -873,14 +1154,51 @@ export class TurnstileService {
       if (banStatus.banned) {
         logger.warn(`IP ${validatedIp} 已被封禁，拒绝验证`, {
           reason: banStatus.reason,
-          expiresAt: banStatus.expiresAt
+          expiresAt: banStatus.expiresAt,
+          traceId
         });
-        return { success: false };
+        
+        // 记录IP封禁到溯源数据库
+        await this.persistTurnstileTrace({
+          traceId,
+          time: new Date(),
+          ip: validatedIp,
+          ua: userAgent,
+          success: false,
+          reason: 'ip_banned',
+          errorCode: 'IP_BANNED',
+          errorMessage: 'IP地址已被封禁',
+          fingerprint: validatedFingerprint,
+          riskLevel: 'EXTREME',
+          riskScore: 100,
+          riskReasons: ['ip_banned'],
+          banned: true,
+          banExpiresAt: banStatus.expiresAt
+        });
+        
+        return { success: false, traceId };
       }
 
       if (mongoose.connection.readyState !== 1) {
-        logger.error('数据库连接不可用，无法验证临时指纹');
-        return { success: false };
+        logger.error('数据库连接不可用，无法验证临时指纹', { traceId });
+        
+        // 记录数据库连接错误
+        await this.persistTurnstileTrace({
+          traceId,
+          time: new Date(),
+          ip: validatedIp,
+          ua: userAgent,
+          success: false,
+          reason: 'database_unavailable',
+          errorCode: 'DATABASE_UNAVAILABLE',
+          errorMessage: '数据库连接不可用',
+          fingerprint: validatedFingerprint,
+          riskLevel: 'MEDIUM',
+          riskScore: 50,
+          riskReasons: ['database_error']
+        });
+        
+        return { success: false, traceId };
       }
 
       // 查找指纹记录
@@ -888,9 +1206,27 @@ export class TurnstileService {
       if (!doc) {
         logger.warn('临时指纹不存在或已过期', {
           fingerprint: validatedFingerprint.substring(0, 8) + '...',
-          ipAddress: validatedIp
+          ipAddress: validatedIp,
+          traceId
         });
-        return { success: false };
+        
+        // 记录指纹不存在错误
+        await this.persistTurnstileTrace({
+          traceId,
+          time: new Date(),
+          ip: validatedIp,
+          ua: userAgent,
+          success: false,
+          reason: 'fingerprint_not_found',
+          errorCode: 'FINGERPRINT_NOT_FOUND',
+          errorMessage: '临时指纹不存在或已过期',
+          fingerprint: validatedFingerprint,
+          riskLevel: 'HIGH',
+          riskScore: 80,
+          riskReasons: ['invalid_fingerprint', 'expired_fingerprint']
+        });
+        
+        return { success: false, traceId };
       }
 
       // 开发环境下本地IP跳过Turnstile验证
@@ -917,9 +1253,10 @@ export class TurnstileService {
             ipAddress: validatedIp,
             reason: !detailedResult.success ? detailedResult.reason : 'unknown',
             errorCode: !detailedResult.success ? detailedResult.errorCode : 'unknown',
-            riskLevel: !detailedResult.success ? detailedResult.riskAssessment?.riskLevel : 'unknown'
+            riskLevel: !detailedResult.success ? detailedResult.riskAssessment?.riskLevel : 'unknown',
+            traceId
           });
-          return { success: false, details: detailedResult };
+          return { success: false, details: detailedResult, traceId };
         }
       }
 
@@ -934,13 +1271,47 @@ export class TurnstileService {
       logger.info('临时指纹验证成功，已生成访问密钥', {
         fingerprint: validatedFingerprint.substring(0, 8) + '...',
         ipAddress: validatedIp,
-        accessToken: accessToken.substring(0, 8) + '...'
+        accessToken: accessToken.substring(0, 8) + '...',
+        traceId
       });
 
-      return { success: true, accessToken };
+      // 记录成功验证到溯源数据库
+      await this.persistTurnstileTrace({
+        traceId,
+        time: new Date(),
+        ip: validatedIp,
+        ua: userAgent,
+        success: true,
+        reason: 'temp_fingerprint_verification_success',
+        errorCode: null,
+        errorMessage: null,
+        fingerprint: validatedFingerprint,
+        riskLevel: 'LOW',
+        riskScore: 0,
+        riskReasons: []
+      });
+
+      return { success: true, accessToken, traceId };
     } catch (error) {
-      logger.error('临时指纹验证失败', error);
-      return { success: false };
+      logger.error('临时指纹验证失败', { error, traceId });
+      
+      // 记录异常错误到溯源数据库
+      await this.persistTurnstileTrace({
+        traceId,
+        time: new Date(),
+        ip: remoteIp || 'unknown',
+        ua: userAgent,
+        success: false,
+        reason: 'unexpected_error',
+        errorCode: 'UNEXPECTED_ERROR',
+        errorMessage: error instanceof Error ? error.message : '未知错误',
+        fingerprint,
+        riskLevel: 'MEDIUM',
+        riskScore: 50,
+        riskReasons: ['unexpected_error']
+      });
+      
+      return { success: false, traceId };
     }
   }
 
