@@ -897,7 +897,7 @@ const cdkMountLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
-app.use('/api', cdkMountLimiter, authenticateToken, cdkRoutes);
+app.use('/api/cdks', cdkMountLimiter, authenticateToken, cdkRoutes);
 // Webhook事件管理 - 需要管理员认证（添加管理员限流）
 app.use('/api/webhook-events', authenticateToken, adminLimiter, webhookEventRoutes);
 // FBI通缉犯路由（管理员端，添加管理员限流）
@@ -906,8 +906,9 @@ app.use('/api/fbi-wanted', adminLimiter, fbiWantedRoutes);
 app.use('/api/fbi-wanted-public', frontendLimiter, fbiWantedPublicRoutes);
 // 额外公开别名（非 /api 前缀，绕过任何潜在的 /api 层鉴权拦截）- 添加前端限流
 app.use('/public/fbi-wanted', frontendLimiter, fbiWantedPublicRoutes);
-// GitHub Billing 路由（需要认证）
+// GitHub Billing 路由（公开访问，无需认证）
 app.use('/api/github-billing', githubBillingRoutes);
+
 // app.use('/api', shortUrlRoutes);
 
 // 完整性检测相关兜底接口限速

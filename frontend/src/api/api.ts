@@ -160,5 +160,10 @@ export const apiWithRetry = {
     }
 };
 
+// 获取认证token
+export const getAuthToken = (): string | null => {
+    return localStorage.getItem('token');
+};
+
 export { getApiBaseUrl };
 export default api;

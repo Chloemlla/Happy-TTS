@@ -15,6 +15,14 @@ const billingLimiter = rateLimit({
     legacyHeaders: false,
 });
 
+const cacheLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 15分钟
+    max: 5, // 每个IP每15分钟最多100次请求
+    message: { error: '请求过于频繁，请稍后再试' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
 const configLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1小时
     max: 10, // 每个IP每小时最多10次配置更新
@@ -37,8 +45,8 @@ router.post('/test-parse', configLimiter, authenticateToken, authenticateAdmin, 
 router.get('/usage', GitHubBillingController.getBillingUsage);
 
 // 缓存管理路由（公开访问）
-router.delete('/cache/:customerId', GitHubBillingController.clearCache);
-router.delete('/cache/expired', GitHubBillingController.clearExpiredCache);
+router.delete('/cache/:customerId', cacheLimiter, authenticateToken, authenticateAdmin, GitHubBillingController.clearCache);
+router.delete('/cache/expired', cacheLimiter, authenticateToken, authenticateAdmin, GitHubBillingController.clearExpiredCache);
 
 // 客户列表路由（公开访问）
 router.get('/customers', GitHubBillingController.getCachedCustomers);

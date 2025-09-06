@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion as m } from 'framer-motion';
 import { FaSync, FaGithub, FaDollarSign, FaCalendarAlt, FaUser, FaTrash } from 'react-icons/fa';
 import { useNotification } from './Notification';
-import { getApiBaseUrl } from '../api/api';
+import { getApiBaseUrl, getAuthToken } from '../api/api';
 
 // 动画配置
 const ENTER_INITIAL = { opacity: 0, y: 20 };
@@ -77,10 +77,10 @@ const GitHubBillingDashboard: React.FC = () => {
           customerId: data.data.customerId,
           ...data.data
         } : data.data;
-        
+
         setBillingData(processedData);
         setNotification({ message: '账单数据获取成功', type: 'success' });
-        
+
         // 将当前获取的数据作为缓存客户数据
         if (processedData.customerId) {
           const customerData = {
@@ -104,13 +104,19 @@ const GitHubBillingDashboard: React.FC = () => {
   const clearCache = useCallback(async (customerId?: string) => {
     setClearingCache(true);
     try {
-      const url = customerId 
+      const url = customerId
         ? `${getApiBaseUrl()}/api/github-billing/cache/${customerId}`
         : `${getApiBaseUrl()}/api/github-billing/cache/expired`;
+
+      const token = getAuthToken();
+      const headers = { ...getHeaders() };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
       
       const res = await fetch(url, {
         method: 'DELETE',
-        headers: { ...getHeaders() }
+        headers
       });
       const data = await res.json();
       if (!res.ok) {
@@ -200,7 +206,7 @@ const GitHubBillingDashboard: React.FC = () => {
             <FaDollarSign className="w-5 h-5 text-green-600" />
             <h3 className="text-lg font-semibold text-gray-800">当前账单数据</h3>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* 可计费金额 */}
             <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg border border-green-200">
@@ -281,7 +287,7 @@ const GitHubBillingDashboard: React.FC = () => {
               刷新
             </m.button>
           </div>
-          
+
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -301,8 +307,8 @@ const GitHubBillingDashboard: React.FC = () => {
                       <div className="text-xs text-gray-500">原始: {customer.billableAmount}</div>
                     </td>
                     <td className="py-2 px-3 text-xs text-gray-600">
-                      {customer.lastFetched ? 
-                        new Date(customer.lastFetched).toLocaleString() : 
+                      {customer.lastFetched ?
+                        new Date(customer.lastFetched).toLocaleString() :
                         '未知时间'
                       }
                     </td>
