@@ -77,7 +77,7 @@ jobs:
 
       - name: Install dependencies with retry
         run: |
-          pnpm install --no-optional --no-audit --no-fund
+          pnpm install --no-optional
           # Install pkg globally for executable building
           pnpm add -g pkg@latest
         env:
