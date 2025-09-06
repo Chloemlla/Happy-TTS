@@ -619,6 +619,15 @@ router.get('/sse', async (req, res) => {
       }
     }
 
+    // 设置SSE响应头
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Cache-Control'
+    });
+
     // 注册SSE客户端
     const clientId = libreChatService.registerSSEClient(userId || '', token || '', res);
 

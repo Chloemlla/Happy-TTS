@@ -63,18 +63,18 @@ const MobileNav: React.FC<MobileNavProps> = ({
   // 优化的移动设备和溢出检测
   useEffect(() => {
     let resizeTimer: NodeJS.Timeout;
-    
+
     const checkMobileOrOverflow = () => {
       // 防抖处理，避免频繁计算
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
         const isMobileScreen = window.innerWidth < 768;
         let overflow = false;
-        
+
         if (navRef.current && !isMobileScreen) {
           const nav = navRef.current;
           const rect = nav.getBoundingClientRect();
-          
+
           // 优化的溢出检测策略
           const checks = {
             // 1. 滚动宽度检测（最可靠）
@@ -86,10 +86,10 @@ const MobileNav: React.FC<MobileNavProps> = ({
             // 4. 内容密度检测
             contentDensity: nav.scrollWidth / window.innerWidth > 0.85
           };
-          
+
           // 任一条件满足即认为需要切换到移动模式
           overflow = Object.values(checks).some(Boolean);
-          
+
           // 调试信息（开发环境）
           if (process.env.NODE_ENV === 'development') {
             console.debug('Navigation overflow checks:', {
@@ -102,15 +102,15 @@ const MobileNav: React.FC<MobileNavProps> = ({
             });
           }
         }
-        
+
         setIsOverflow(overflow);
         setIsMobile(isMobileScreen || overflow);
       }, 100); // 100ms 防抖
     };
-    
+
     checkMobileOrOverflow();
     window.addEventListener('resize', checkMobileOrOverflow);
-    
+
     return () => {
       window.removeEventListener('resize', checkMobileOrOverflow);
       clearTimeout(resizeTimer);
@@ -125,36 +125,36 @@ const MobileNav: React.FC<MobileNavProps> = ({
   // 优化的头像存在检测
   useEffect(() => {
     let isCancelled = false;
-    
+
     const checkAvatarExistence = async () => {
       if (!user) {
         setHasAvatar(false);
         return;
       }
-      
+
       try {
         const token = localStorage.getItem('token');
         if (!token) {
           setHasAvatar(false);
           return;
         }
-        
+
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒超时
-        
+
         const response = await fetch(getApiBaseUrl() + '/api/admin/user/avatar/exist', {
           headers: { 'Authorization': `Bearer ${token}` },
           signal: controller.signal
         });
-        
+
         clearTimeout(timeoutId);
-        
+
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         if (!isCancelled) {
           setHasAvatar(!!data.hasAvatar);
         }
@@ -168,9 +168,9 @@ const MobileNav: React.FC<MobileNavProps> = ({
         }
       }
     };
-    
+
     checkAvatarExistence();
-    
+
     return () => {
       isCancelled = true;
     };
@@ -179,36 +179,36 @@ const MobileNav: React.FC<MobileNavProps> = ({
   // 优化的用户资料和头像哈希获取
   useEffect(() => {
     let isCancelled = false;
-    
+
     const fetchUserProfile = async () => {
       if (!user) {
         setAvatarHash(undefined);
         return;
       }
-      
+
       try {
         const token = localStorage.getItem('token');
         if (!token) {
           setAvatarHash(undefined);
           return;
         }
-        
+
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 8000); // 8秒超时
-        
+
         const response = await fetch(getApiBaseUrl() + '/api/admin/user/profile', {
           headers: { 'Authorization': `Bearer ${token}` },
           signal: controller.signal
         });
-        
+
         clearTimeout(timeoutId);
-        
+
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         if (!isCancelled) {
           setAvatarHash(data.avatarHash);
         }
@@ -222,9 +222,9 @@ const MobileNav: React.FC<MobileNavProps> = ({
         }
       }
     };
-    
+
     fetchUserProfile();
-    
+
     return () => {
       isCancelled = true;
     };
@@ -235,17 +235,17 @@ const MobileNav: React.FC<MobileNavProps> = ({
     let cancelled = false;
     let currentObjectUrl: string | undefined;
     let loadTimeout: NodeJS.Timeout;
-    
+
     const loadAvatar = async () => {
       // 清理之前的超时
       clearTimeout(loadTimeout);
-      
+
       // 验证必要参数
-      const isValidParams = hasAvatar && 
-        typeof user?.avatarUrl === 'string' && 
-        typeof user?.id === 'string' && 
+      const isValidParams = hasAvatar &&
+        typeof user?.avatarUrl === 'string' &&
+        typeof user?.id === 'string' &&
         typeof avatarHash === 'string';
-        
+
       if (!isValidParams) {
         // 清理资源
         if (currentObjectUrl?.startsWith('blob:')) {
@@ -256,18 +256,18 @@ const MobileNav: React.FC<MobileNavProps> = ({
         lastAvatarUrl.current = undefined;
         return;
       }
-      
+
       try {
         // 检查是否已经是相同的头像
         if (lastAvatarUrl.current === avatarHash) {
           return;
         }
-        
+
         // 1. 优先使用远程 HTTP/HTTPS 链接
         if (/^https?:\/\//.test(user.avatarUrl!)) {
           setAvatarImg(user.avatarUrl!);
           lastAvatarUrl.current = avatarHash;
-          
+
           // 释放旧 blob
           if (currentObjectUrl?.startsWith('blob:')) {
             URL.revokeObjectURL(currentObjectUrl);
@@ -275,7 +275,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
           }
           return;
         }
-        
+
         // 2. 检查 IndexedDB 缓存
         const cached = await getCachedAvatar(user.id, avatarHash);
         if (cached?.startsWith('blob:') && !cancelled) {
@@ -291,7 +291,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
             // 缓存的 blob 无效，继续下载
           }
         }
-        
+
         // 3. 下载头像并创建 blob URL
         loadTimeout = setTimeout(() => {
           if (!cancelled) {
@@ -299,36 +299,36 @@ const MobileNav: React.FC<MobileNavProps> = ({
             setAvatarImg(undefined);
           }
         }, 10000); // 10秒超时
-        
+
         const response = await fetch(user.avatarUrl!);
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
-        
+
         const blob = await response.blob();
-        
+
         if (cancelled) return;
-        
+
         clearTimeout(loadTimeout);
-        
+
         // 创建新的 blob URL
         const newUrl = URL.createObjectURL(blob);
-        
+
         // 释放旧的 blob URL
         if (currentObjectUrl?.startsWith('blob:') && currentObjectUrl !== newUrl) {
           URL.revokeObjectURL(currentObjectUrl);
         }
-        
+
         currentObjectUrl = newUrl;
         lastObjectUrl.current = newUrl;
         setAvatarImg(newUrl);
         lastAvatarUrl.current = avatarHash;
-        
+
         // 异步缓存到 IndexedDB（不阻塞 UI）
         setCachedAvatar(user.id, avatarHash, newUrl).catch(error => {
           console.warn('Failed to cache avatar:', error);
         });
-        
+
       } catch (error) {
         if (!cancelled) {
           console.warn('Avatar loading failed:', error);
@@ -338,9 +338,9 @@ const MobileNav: React.FC<MobileNavProps> = ({
         clearTimeout(loadTimeout);
       }
     };
-    
+
     loadAvatar();
-    
+
     return () => {
       cancelled = true;
       clearTimeout(loadTimeout);
@@ -970,13 +970,13 @@ const MobileNav: React.FC<MobileNavProps> = ({
                     transition={{ duration: 0.4, delay: 0.32 }}
                   >
                     <Link
-                      to="/admin/github-billing"
-                      className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/admin/github-billing' ? 'bg-blue-50 text-blue-700 font-semibold shadow-sm' : 'hover:bg-blue-50'
+                      to="/github-billing"
+                      className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/github-billing' ? 'bg-blue-50 text-blue-700 font-semibold shadow-sm' : 'hover:bg-blue-50'
                         }`}
                       onClick={() => setIsMenuOpen(false)}
                     >
                       <motion.svg
-                        className={`w-5 h-5 ${location.pathname === '/admin/github-billing' ? 'text-blue-500' : 'text-gray-400'}`}
+                        className={`w-5 h-5 ${location.pathname === '/github-billing' ? 'text-blue-500' : 'text-gray-400'}`}
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -985,7 +985,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m-6-9h12a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V9a2 2 0 012-2z" />
                       </motion.svg>
                       <span>GitHub账单</span>
-                      {location.pathname === '/admin/github-billing' && (
+                      {location.pathname === '/github-billing' && (
                         <motion.span
                           className="ml-auto text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full"
                           initial={{ scale: 0, opacity: 0 }}
