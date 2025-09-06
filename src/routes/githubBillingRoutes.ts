@@ -33,8 +33,8 @@ router.get('/config', authenticateToken, authenticateAdmin, GitHubBillingControl
 // 测试解析路由（需要管理员权限，不保存配置）
 router.post('/test-parse', configLimiter, authenticateToken, authenticateAdmin, GitHubBillingController.testParseCurl);
 
-// 数据获取路由（需要认证）
-router.get('/usage', authenticateToken, GitHubBillingController.getBillingUsage);
+// 数据获取路由（公开访问）
+router.get('/usage', GitHubBillingController.getBillingUsage);
 
 // 缓存管理路由（需要管理员权限）
 router.delete('/cache/:customerId', authenticateToken, authenticateAdmin, GitHubBillingController.clearCache);
