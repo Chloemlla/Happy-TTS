@@ -899,7 +899,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
           >
             为了确保您是人类用户
             <br />
-            请完成下方验证以继续访问
+            请完成下方人机验证
           </motion.p>
 
           {/* 加载状态显示 */}
