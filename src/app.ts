@@ -906,8 +906,16 @@ app.use('/api/fbi-wanted', adminLimiter, fbiWantedRoutes);
 app.use('/api/fbi-wanted-public', frontendLimiter, fbiWantedPublicRoutes);
 // 额外公开别名（非 /api 前缀，绕过任何潜在的 /api 层鉴权拦截）- 添加前端限流
 app.use('/public/fbi-wanted', frontendLimiter, fbiWantedPublicRoutes);
-// GitHub Billing 路由（公开访问，无需认证）
-app.use('/api/github-billing', githubBillingRoutes);
+// GitHub Billing 路由限流器
+const githubBillingLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1分钟
+  max: 10, // 限制每个IP每分钟10次请求
+  message: { error: 'GitHub Billing请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+// GitHub Billing 路由（公开访问，无需认证，添加限流）
+app.use('/api/github-billing', githubBillingLimiter, githubBillingRoutes);
 
 // app.use('/api', shortUrlRoutes);
 
