@@ -5,9 +5,18 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/x-icon" href="/favicon.ico" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-TLCQ4KHRNR"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+
+    gtag('config', 'G-TLCQ4KHRNR');
+  </script>
   <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';
-      script-src 'self' 'unsafe-eval' https: http: blob: https://challenges.cloudflare.com;
+      script-src 'self' 'unsafe-eval' https: http: blob: https://challenges.cloudflare.com https://www.googletagmanager.com;
       worker-src 'self' blob:;
       child-src blob:; 
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
@@ -17,7 +26,7 @@
       font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net data:;
       object-src 'none';
       media-src 'self' blob:;
-      frame-src 'self' https://tts-api-docs.hapxs.com https://challenges.cloudflare.com https://*.cloudflare.com https://*.clarity.ms;
+      frame-src 'self' https://tts-api-docs.hapxs.com https://challenges.cloudflare.com https://*.cloudflare.com https://*.clarity.ms https://www.googletagmanager.com;
       base-uri 'self';
       form-action 'self';
     ">
