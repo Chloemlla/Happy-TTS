@@ -137,7 +137,7 @@ export const useSecureCaptchaSelection = (options: UseSecureCaptchaSelectionOpti
     // 便利方法
     isTurnstile: captchaConfig?.captchaType === CaptchaType.TURNSTILE,
     isHCaptcha: captchaConfig?.captchaType === CaptchaType.HCAPTCHA,
-    siteKey: captchaConfig?.config.siteKey || '',
+    siteKey: typeof captchaConfig?.config.siteKey === 'string' ? captchaConfig.config.siteKey : '',
     enabled: captchaConfig?.config.enabled || false
   };
 };
