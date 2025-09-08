@@ -1623,14 +1623,16 @@ export class TurnstileService {
         return false;
       }
 
-      // 开发环境下本地IP始终有有效的访问密钥
+      // 开发环境下本地IP自动拥有有效访问密钥的开关（默认启用）
       const isDev = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev';
       const isLocalhost = validatedIp === '127.0.0.1' || validatedIp === '::1' || validatedIp === '::ffff:127.0.0.1';
+      const enableDevAutoAccess = process.env.TURNSTILE_DEV_AUTO_ACCESS !== 'false';
 
-      if (isDev && isLocalhost) {
+      if (isDev && isLocalhost && enableDevAutoAccess) {
         logger.info('开发环境：本地IP自动拥有有效访问密钥', {
           fingerprint: validatedFingerprint.substring(0, 8) + '...',
-          ipAddress: validatedIp
+          ipAddress: validatedIp,
+          autoAccessEnabled: enableDevAutoAccess
         });
         return true;
       }

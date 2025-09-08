@@ -1180,17 +1180,16 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                     验证中...
                   </motion.span>
                 </motion.div>
-              ) : (
+              ) : turnstileVerified ? (
                 <motion.span
                   key="ready"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className={!turnstileVerified ? 'opacity-50' : 'opacity-100'}
                 >
                   继续访问
                 </motion.span>
-              )}
+              ) : null}
             </AnimatePresence>
           </motion.button>
 

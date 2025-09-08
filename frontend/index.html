@@ -22,7 +22,7 @@
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
       style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net;
       img-src 'self' data: blob: https:;
-      connect-src 'self' http://localhost:3000 http://localhost:3001 https://*.hapxs.com https://api.ipify.org https://ipapi.co https://ipinfo.io https://cdn.shopimgs.com https://api.ip.sb https://ipfs.crossbell.io https://*.clarity.ms ws: wss:;
+      connect-src 'self' http://localhost:3000 http://localhost:3001 https://*.hapxs.com https://api.ipify.org https://ipapi.co https://ipinfo.io https://cdn.shopimgs.com https://api.ip.sb https://ipfs.crossbell.io https://*.clarity.ms https://www.google-analytics.com https://analytics.google.com https://challenges.cloudflare.com https://*.cloudflare.com ws: wss:;
       font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net data:;
       object-src 'none';
       media-src 'self' blob:;
@@ -35,6 +35,9 @@
   <title>Synapse - 文本转语音服务</title>
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <!-- Preload Cloudflare Turnstile resources -->
+  <link rel="preconnect" href="https://challenges.cloudflare.com">
+  <link rel="dns-prefetch" href="https://challenges.cloudflare.com">
 </head>
 
 <body>
