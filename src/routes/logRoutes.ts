@@ -16,6 +16,55 @@ import { IPFSService } from '../services/ipfsService';
 import * as tar from 'tar';
 import ArchiveModel from '../models/archiveModel';
 
+// Security helper functions
+function sanitizeFileName(fileName: string): string {
+  if (!fileName || typeof fileName !== 'string') {
+    return 'unknown';
+  }
+  // Remove dangerous characters and path traversal attempts
+  return fileName
+    .replace(/[<>:"/\\|?*\x00-\x1f]/g, '_')
+    .replace(/^\.+/, '_')
+    .replace(/\.+$/, '_')
+    .slice(0, 255);
+}
+
+function sanitizePathComponent(component: string): string {
+  if (!component || typeof component !== 'string') {
+    return '';
+  }
+  // Remove path traversal attempts and dangerous characters
+  return component
+    .replace(/[\.]{2,}/g, '_')
+    .replace(/[/\\]/g, '_')
+    .replace(/[<>:"|?*\x00-\x1f]/g, '_')
+    .slice(0, 255);
+}
+
+function sanitizeRegexPattern(pattern: string): string {
+  if (!pattern || typeof pattern !== 'string') {
+    return '';
+  }
+  // Escape special regex characters to prevent injection
+  return pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').slice(0, 100);
+}
+
+function validateFileId(fileId: string): boolean {
+  if (!fileId || typeof fileId !== 'string') {
+    return false;
+  }
+  // Only allow alphanumeric characters and hyphens, max 64 chars
+  return /^[a-zA-Z0-9-]{1,64}$/.test(fileId);
+}
+
+function validateArchiveName(archiveName: string): boolean {
+  if (!archiveName || typeof archiveName !== 'string') {
+    return false;
+  }
+  // Only allow safe characters for archive names
+  return /^[a-zA-Z0-9-_]{1,100}$/.test(archiveName);
+}
+
 const router = express.Router();
 const DATA_DIR = path.join(process.cwd(), 'data');
 const SHARELOGS_DIR = path.join(DATA_DIR, 'sharelogs');
@@ -149,7 +198,8 @@ router.post('/sharelog', logLimiter, upload.single('file'), async (req, res) => 
   const fileName = req.file?.originalname;
   try {
     // 验证文件名安全性
-    if (fileName && (fileName.includes('..') || fileName.includes('/') || fileName.includes('\\'))) {
+    const sanitizedFileName = sanitizeFileName(fileName || '');
+    if (fileName && fileName !== sanitizedFileName) {
       logger.warn(`上传 | IP:${ip} | 文件:${fileName} | 结果:失败 | 原因:文件名包含危险字符`);
       return res.status(400).json({ error: '文件名包含危险字符' });
     }
@@ -184,7 +234,7 @@ router.post('/sharelog', logLimiter, upload.single('file'), async (req, res) => 
       fileId, 
       ext, 
       content, 
-      fileName: fileName || 'unknown',
+      fileName: sanitizedFileName || 'unknown',
       mimeType: req.file.mimetype,
       fileSize: req.file.size,
       createdAt: new Date() 
@@ -277,6 +327,12 @@ router.post('/sharelog/:id', logLimiter, async (req, res) => {
   const { adminPassword } = req.body;
   const { id } = req.params;
   try {
+    // 验证文件ID格式
+    if (!validateFileId(id)) {
+      logger.warn(`查询 | IP:${ip} | 文件ID:${id} | 结果:失败 | 原因:无效的文件ID格式`);
+      return res.status(400).json({ error: '无效的文件ID格式' });
+    }
+    
     if (!adminPassword) {
       logger.warn(`查询 | IP:${ip} | 文件ID:${id} | 结果:失败 | 原因:缺少管理员密码`);
       return res.status(400).json({ error: '缺少管理员密码' });
@@ -308,7 +364,20 @@ router.post('/sharelog/:id', logLimiter, async (req, res) => {
       logger.warn(`查询 | IP:${ip} | 文件ID:${id} | 结果:失败 | 原因:日志不存在`);
       return res.status(404).json({ error: '日志不存在' });
     }
+    // 验证文件名安全性，防止路径遍历
+    const sanitizedFileName = sanitizeFileName(fileName);
+    if (fileName !== sanitizedFileName) {
+      logger.warn(`查询 | IP:${ip} | 文件ID:${id} | 文件:${fileName} | 结果:失败 | 原因:文件名不安全`);
+      return res.status(400).json({ error: '文件名不安全' });
+    }
     const filePath = path.join(SHARELOGS_DIR, fileName);
+    // 确保文件路径在预期目录内
+    const resolvedPath = path.resolve(filePath);
+    const resolvedSharelogsDir = path.resolve(SHARELOGS_DIR);
+    if (!resolvedPath.startsWith(resolvedSharelogsDir)) {
+      logger.warn(`查询 | IP:${ip} | 文件ID:${id} | 文件:${fileName} | 结果:失败 | 原因:路径遍历攻击`);
+      return res.status(400).json({ error: '非法的文件路径' });
+    }
     const ext = path.extname(fileName).toLowerCase() || '.txt';
     logger.info(`[调试] 查询文件路径: filePath=${filePath}, ext=${ext}`);
     // 只处理二进制
@@ -334,6 +403,12 @@ router.delete('/sharelog/:id', logLimiter, authenticateToken, async (req, res) =
   const ip = req.ip;
   const { id } = req.params;
   try {
+    // 验证文件ID格式
+    if (!validateFileId(id)) {
+      logger.warn(`删除日志 | IP:${ip} | 文件ID:${id} | 结果:失败 | 原因:无效的文件ID格式`);
+      return res.status(400).json({ error: '无效的文件ID格式' });
+    }
+    
     // @ts-ignore
     if (!req.user || req.user.role !== 'admin') {
       logger.warn(`删除日志 | IP:${ip} | 结果:失败 | 原因:非管理员用户`);
@@ -349,8 +424,22 @@ router.delete('/sharelog/:id', logLimiter, authenticateToken, async (req, res) =
       const files = await fs.promises.readdir(SHARELOGS_DIR);
       const fileName = files.find(f => f.startsWith(id));
       if (fileName) {
-        await fs.promises.unlink(path.join(SHARELOGS_DIR, fileName));
-        fileDeleted = true;
+        // 验证文件名安全性
+        const sanitizedFileName = sanitizeFileName(fileName);
+        if (fileName !== sanitizedFileName) {
+          logger.warn(`删除日志 | IP:${ip} | 文件ID:${id} | 文件:${fileName} | 结果:失败 | 原因:文件名不安全`);
+        } else {
+          const filePath = path.join(SHARELOGS_DIR, fileName);
+          // 确保文件路径在预期目录内
+          const resolvedPath = path.resolve(filePath);
+          const resolvedSharelogsDir = path.resolve(SHARELOGS_DIR);
+          if (resolvedPath.startsWith(resolvedSharelogsDir)) {
+            await fs.promises.unlink(filePath);
+            fileDeleted = true;
+          } else {
+            logger.warn(`删除日志 | IP:${ip} | 文件ID:${id} | 文件:${fileName} | 结果:失败 | 原因:路径遍历攻击`);
+          }
+        }
       }
     } catch (err) {
       // 忽略本地不存在的情况
@@ -389,10 +478,31 @@ router.post('/sharelog/delete-batch', logLimiter, authenticateToken, async (req,
     try {
       const files = await fs.promises.readdir(SHARELOGS_DIR);
       for (const id of ids) {
+        // 验证每个ID格式
+        if (!validateFileId(id)) {
+          logger.warn(`批量删除 | IP:${ip} | 文件ID:${id} | 结果:跳过 | 原因:无效的文件ID格式`);
+          continue;
+        }
+        
         const fileName = files.find(f => f.startsWith(id));
         if (fileName) {
-          await fs.promises.unlink(path.join(SHARELOGS_DIR, fileName));
-          fileDeleted++;
+          // 验证文件名安全性
+          const sanitizedFileName = sanitizeFileName(fileName);
+          if (fileName !== sanitizedFileName) {
+            logger.warn(`批量删除 | IP:${ip} | 文件ID:${id} | 文件:${fileName} | 结果:跳过 | 原因:文件名不安全`);
+            continue;
+          }
+          
+          const filePath = path.join(SHARELOGS_DIR, fileName);
+          // 确保文件路径在预期目录内
+          const resolvedPath = path.resolve(filePath);
+          const resolvedSharelogsDir = path.resolve(SHARELOGS_DIR);
+          if (resolvedPath.startsWith(resolvedSharelogsDir)) {
+            await fs.promises.unlink(filePath);
+            fileDeleted++;
+          } else {
+            logger.warn(`批量删除 | IP:${ip} | 文件ID:${id} | 文件:${fileName} | 结果:跳过 | 原因:路径遍历攻击`);
+          }
         }
       }
     } catch (err) {
@@ -423,8 +533,23 @@ router.delete('/sharelog/all', logLimiter, authenticateToken, async (req, res) =
     try {
       const files = await fs.promises.readdir(SHARELOGS_DIR);
       for (const file of files) {
-        await fs.promises.unlink(path.join(SHARELOGS_DIR, file));
-        fileDeleted++;
+        // 验证文件名安全性
+        const sanitizedFileName = sanitizeFileName(file);
+        if (file !== sanitizedFileName) {
+          logger.warn(`全部删除 | IP:${ip} | 文件:${file} | 结果:跳过 | 原因:文件名不安全`);
+          continue;
+        }
+        
+        const filePath = path.join(SHARELOGS_DIR, file);
+        // 确保文件路径在预期目录内
+        const resolvedPath = path.resolve(filePath);
+        const resolvedSharelogsDir = path.resolve(SHARELOGS_DIR);
+        if (resolvedPath.startsWith(resolvedSharelogsDir)) {
+          await fs.promises.unlink(filePath);
+          fileDeleted++;
+        } else {
+          logger.warn(`全部删除 | IP:${ip} | 文件:${file} | 结果:跳过 | 原因:路径遍历攻击`);
+        }
       }
     } catch (err) {
       // 忽略
@@ -443,6 +568,12 @@ router.put('/sharelog/:id', logLimiter, authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { fileName, note } = req.body || {};
   try {
+    // 验证文件ID格式
+    if (!validateFileId(id)) {
+      logger.warn(`修改日志 | IP:${ip} | 文件ID:${id} | 结果:失败 | 原因:无效的文件ID格式`);
+      return res.status(400).json({ error: '无效的文件ID格式' });
+    }
+    
     // @ts-ignore
     if (!req.user || req.user.role !== 'admin') {
       logger.warn(`修改日志 | IP:${ip} | 结果:失败 | 原因:非管理员用户`);
@@ -454,7 +585,7 @@ router.put('/sharelog/:id', logLimiter, authenticateToken, async (req, res) => {
     await connectMongo();
     const LogShareModel = getLogShareModel();
     const update: any = {};
-    if (fileName) update.fileName = String(fileName).slice(0, 200);
+    if (fileName) update.fileName = sanitizeFileName(String(fileName)).slice(0, 200);
     if (typeof note !== 'undefined') update.note = String(note).slice(0, 1000);
 
     const result = await LogShareModel.findOneAndUpdate({ fileId: id }, { $set: update }, { new: true });
@@ -490,7 +621,14 @@ router.post('/logs/archive', logLimiter, authenticateToken, async (req, res) => 
 
     // 生成归档名称（如果未提供）
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const finalArchiveName = archiveName || `logs-archive-${timestamp}`;
+    const sanitizedArchiveName = sanitizePathComponent(archiveName || `logs-archive-${timestamp}`);
+    const finalArchiveName = sanitizedArchiveName || `logs-archive-${timestamp}`;
+    
+    // 验证归档名称安全性
+    if (!validateArchiveName(finalArchiveName)) {
+      logger.warn(`归档日志 | IP:${ip} | 结果:失败 | 原因:无效的归档名称`);
+      return res.status(400).json({ error: '无效的归档名称' });
+    }
     
     // 创建归档目录
     const archiveSubDir = path.join(ARCHIVE_DIR, finalArchiveName);
@@ -515,13 +653,15 @@ router.post('/logs/archive', logLimiter, authenticateToken, async (req, res) => 
       
       // 应用包含模式
       if (includePattern) {
-        const regex = new RegExp(includePattern, 'i');
+        const sanitizedPattern = sanitizeRegexPattern(includePattern);
+        const regex = new RegExp(sanitizedPattern, 'i');
         if (!regex.test(fileName)) continue;
       }
       
       // 应用排除模式
       if (excludePattern) {
-        const regex = new RegExp(excludePattern, 'i');
+        const sanitizedPattern = sanitizeRegexPattern(excludePattern);
+        const regex = new RegExp(sanitizedPattern, 'i');
         if (regex.test(fileName)) continue;
       }
       
@@ -540,13 +680,15 @@ router.post('/logs/archive', logLimiter, authenticateToken, async (req, res) => 
       
       // 应用包含模式
       if (includePattern) {
-        const regex = new RegExp(includePattern, 'i');
+        const sanitizedPattern = sanitizeRegexPattern(includePattern);
+        const regex = new RegExp(sanitizedPattern, 'i');
         if (!regex.test(file)) return false;
       }
       
       // 应用排除模式
       if (excludePattern) {
-        const regex = new RegExp(excludePattern, 'i');
+        const sanitizedPattern = sanitizeRegexPattern(excludePattern);
+        const regex = new RegExp(sanitizedPattern, 'i');
         if (regex.test(file)) return false;
       }
       
@@ -772,7 +914,10 @@ router.post('/logs/archive', logLimiter, authenticateToken, async (req, res) => 
     
     // 清理临时数据库日志目录
     try {
-      if (fs.existsSync(tempDbLogsDir)) {
+      // 验证临时目录路径安全性
+      const resolvedTempDir = path.resolve(tempDbLogsDir);
+      const resolvedArchiveDir = path.resolve(archiveSubDir);
+      if (resolvedTempDir.startsWith(resolvedArchiveDir) && fs.existsSync(tempDbLogsDir)) {
         await fs.promises.rm(tempDbLogsDir, { recursive: true, force: true });
         logger.info(`清理临时数据库日志目录 | 路径:${tempDbLogsDir}`);
       }
@@ -854,13 +999,21 @@ router.delete('/logs/archives/:archiveName', logLimiter, authenticateToken, asyn
       return res.status(403).json({ error: '需要管理员权限' });
     }
 
-    // 验证归档名称安全性
-    if (archiveName.includes('..') || archiveName.includes('/') || archiveName.includes('\\')) {
-      logger.warn(`删除归档 | IP:${ip} | 归档:${archiveName} | 结果:失败 | 原因:归档名包含危险字符`);
-      return res.status(400).json({ error: '归档名包含危险字符' });
+    // 验证归档名称格式
+    if (!validateArchiveName(archiveName)) {
+      logger.warn(`删除归档 | IP:${ip} | 归档:${archiveName} | 结果:失败 | 原因:无效的归档名称格式`);
+      return res.status(400).json({ error: '无效的归档名称格式' });
     }
 
     const archivePath = path.join(ARCHIVE_DIR, archiveName);
+    
+    // 确保归档路径在预期目录内
+    const resolvedArchivePath = path.resolve(archivePath);
+    const resolvedArchiveDir = path.resolve(ARCHIVE_DIR);
+    if (!resolvedArchivePath.startsWith(resolvedArchiveDir)) {
+      logger.warn(`删除归档 | IP:${ip} | 归档:${archiveName} | 结果:失败 | 原因:路径遍历攻击`);
+      return res.status(400).json({ error: '非法的归档路径' });
+    }
     
     // 检查归档是否存在
     if (!fs.existsSync(archivePath)) {
