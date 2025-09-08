@@ -715,11 +715,15 @@ export class TurnstileService {
    */
   public static async updateConfig(key: 'TURNSTILE_SECRET_KEY' | 'TURNSTILE_SITE_KEY', value: string): Promise<boolean> {
     try {
-      // 验证输入参数
-      const validatedKey = validateConfigKey(key);
+      // 严格验证输入参数 - 防止NoSQL注入
+      const allowedKeys = ['TURNSTILE_SECRET_KEY', 'TURNSTILE_SITE_KEY'] as const;
+      if (!allowedKeys.includes(key as any)) {
+        logger.warn('Turnstile配置更新失败：不允许的配置键', { key });
+        return false;
+      }
+      
       const validatedValue = validateConfigValue(value);
-
-      if (!validatedKey || !validatedValue) {
+      if (!validatedValue) {
         logger.warn('Turnstile配置更新失败：输入参数无效', { key, valueLength: value?.length });
         return false;
       }
@@ -729,17 +733,30 @@ export class TurnstileService {
         return false;
       }
 
+      // 使用字面量对象防止NoSQL注入
+      const updateQuery = key === 'TURNSTILE_SECRET_KEY' 
+        ? { key: 'TURNSTILE_SECRET_KEY' }
+        : { key: 'TURNSTILE_SITE_KEY' };
+      
+      const updateData = key === 'TURNSTILE_SECRET_KEY'
+        ? {
+            key: 'TURNSTILE_SECRET_KEY',
+            value: validatedValue,
+            updatedAt: new Date()
+          }
+        : {
+            key: 'TURNSTILE_SITE_KEY',
+            value: validatedValue,
+            updatedAt: new Date()
+          };
+
       await TurnstileSettingModel.findOneAndUpdate(
-        { key: validatedKey },
-        {
-          key: validatedKey,
-          value: validatedValue,
-          updatedAt: new Date()
-        },
+        updateQuery,
+        updateData,
         { upsert: true, new: true }
       );
 
-      logger.info(`Turnstile配置更新成功: ${validatedKey}`);
+      logger.info(`Turnstile配置更新成功: ${key}`);
       return true;
     } catch (error) {
       logger.error(`更新Turnstile配置失败: ${key}`, error);
@@ -2196,11 +2213,15 @@ export class TurnstileService {
    */
   public static async updateHCaptchaConfig(key: 'HCAPTCHA_SECRET_KEY' | 'HCAPTCHA_SITE_KEY', value: string): Promise<boolean> {
     try {
-      // 验证输入参数
-      const validatedKey = key === 'HCAPTCHA_SECRET_KEY' || key === 'HCAPTCHA_SITE_KEY' ? key : null;
+      // 严格验证输入参数 - 防止NoSQL注入
+      const allowedKeys = ['HCAPTCHA_SECRET_KEY', 'HCAPTCHA_SITE_KEY'] as const;
+      if (!allowedKeys.includes(key as any)) {
+        logger.warn('hCaptcha配置更新失败：不允许的配置键', { key });
+        return false;
+      }
+      
       const validatedValue = validateConfigValue(value);
-
-      if (!validatedKey || !validatedValue) {
+      if (!validatedValue) {
         logger.warn('hCaptcha配置更新失败：输入参数无效', { key, valueLength: value?.length });
         return false;
       }
@@ -2210,17 +2231,35 @@ export class TurnstileService {
         return false;
       }
 
-      await HCaptchaSettingModel.findOneAndUpdate(
-        { key: validatedKey },
-        {
-          key: validatedKey,
-          value: validatedValue,
-          updatedAt: new Date()
-        },
-        { upsert: true, new: true }
-      );
+      // 使用完全静态的查询对象防止NoSQL注入
+      // 不直接使用用户输入构建查询条件
+      if (key === 'HCAPTCHA_SECRET_KEY') {
+        await HCaptchaSettingModel.findOneAndUpdate(
+          { key: 'HCAPTCHA_SECRET_KEY' }, // 静态字面量
+          {
+            key: 'HCAPTCHA_SECRET_KEY', // 静态字面量
+            value: validatedValue,
+            updatedAt: new Date()
+          },
+          { upsert: true, new: true }
+        );
+      } else if (key === 'HCAPTCHA_SITE_KEY') {
+        await HCaptchaSettingModel.findOneAndUpdate(
+          { key: 'HCAPTCHA_SITE_KEY' }, // 静态字面量
+          {
+            key: 'HCAPTCHA_SITE_KEY', // 静态字面量
+            value: validatedValue,
+            updatedAt: new Date()
+          },
+          { upsert: true, new: true }
+        );
+      } else {
+        // 额外的安全检查
+        logger.error('hCaptcha配置更新失败：未知的配置键', { key });
+        return false;
+      }
 
-      logger.info(`hCaptcha配置更新成功: ${validatedKey}`);
+      logger.info(`hCaptcha配置更新成功: ${key}`);
       return true;
     } catch (error) {
       logger.error(`更新hCaptcha配置失败: ${key}`, error);
