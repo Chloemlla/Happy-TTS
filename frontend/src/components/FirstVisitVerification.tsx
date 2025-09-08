@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TurnstileWidget } from './TurnstileWidget';
+import HCaptchaWidget from './HCaptchaWidget';
 import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
+import { useHCaptchaConfig } from '../hooks/useHCaptchaConfig';
+import { useSecureCaptchaSelection } from '../hooks/useSecureCaptchaSelection';
+import { CaptchaType } from '../utils/captchaSelection';
 import { getFingerprint, verifyTempFingerprint, storeAccessToken } from '../utils/fingerprint';
 import { useNotification } from './Notification';
 import { integrityChecker } from '../utils/integrityCheck';
@@ -24,12 +28,41 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
   banExpiresAt,
   clientIP,
 }) => {
-  const { config: turnstileConfig, loading: turnstileConfigLoading } = useTurnstileConfig({ usePublicConfig: true });
+  // 通知系统
   const { setNotification } = useNotification();
+
+  // 获取 Turnstile 和 hCaptcha 配置（备用）
+  const { config: turnstileConfig, loading: turnstileConfigLoading, error: turnstileConfigError } = useTurnstileConfig({ usePublicConfig: true });
+  const { config: hcaptchaConfig, loading: hcaptchaConfigLoading, error: hcaptchaConfigError } = useHCaptchaConfig({ usePublicConfig: true });
+
+  // 安全的随机CAPTCHA选择
+  const {
+    captchaConfig: secureCaptchaConfig,
+    loading: secureSelectionLoading,
+    error: secureSelectionError,
+    regenerateSelection,
+    isTurnstile,
+    isHCaptcha,
+    siteKey: secureSiteKey,
+    enabled: secureEnabled
+  } = useSecureCaptchaSelection({
+    fingerprint,
+    availableTypes: [CaptchaType.TURNSTILE, CaptchaType.HCAPTCHA]
+  });
+
+  // Turnstile 状态
   const [turnstileToken, setTurnstileToken] = useState<string>('');
   const [turnstileVerified, setTurnstileVerified] = useState(false);
   const [turnstileError, setTurnstileError] = useState(false);
   const [turnstileKey, setTurnstileKey] = useState(0);
+  
+  // hCaptcha 状态
+  const [hcaptchaToken, setHCaptchaToken] = useState<string>('');
+  const [hcaptchaVerified, setHCaptchaVerified] = useState(false);
+  const [hcaptchaError, setHCaptchaError] = useState(false);
+  const [hcaptchaKey, setHCaptchaKey] = useState(0);
+  
+  // 通用状态
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState<string>('');
   const [isMobile, setIsMobile] = useState(false);
@@ -39,6 +72,14 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
   const deviceCheckRef = useRef({ isMobile: false, isLandscape: false });
   const [retryCount, setRetryCount] = useState(0);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+
+  // 验证模式状态（基于安全选择结果）
+  const verificationMode = useMemo(() => {
+    if (secureCaptchaConfig) {
+      return secureCaptchaConfig.captchaType === CaptchaType.TURNSTILE ? 'turnstile' : 'hcaptcha';
+    }
+    return 'turnstile';
+  }, [secureCaptchaConfig]);
 
   // 优化的响应式计算 - 使用 useMemo 缓存计算结果
   const deviceInfo = useMemo(() => {
@@ -133,15 +174,27 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     };
   }, []);
 
-  // 监听 Turnstile 配置加载状态 - 仅在失败时提醒
+  // 监听验证配置加载状态
   useEffect(() => {
-    if (!turnstileConfigLoading && !turnstileConfig.siteKey) {
-      setNotification({
-        message: '验证配置加载失败，请刷新页面重试',
-        type: 'error'
-      });
+    const turnstileReady = !turnstileConfigLoading && turnstileConfig.siteKey;
+    const hcaptchaReady = !hcaptchaConfigLoading && hcaptchaConfig.enabled && hcaptchaConfig.siteKey;
+    
+    if (!turnstileConfigLoading && !hcaptchaConfigLoading) {
+      if (!turnstileReady && !hcaptchaReady) {
+        setNotification({
+          message: '配置加载失败，请刷新页面重试',
+          type: 'error'
+        });
+      } else {
+        // 验证模式由安全选择自动确定，无需手动设置
+        if (verificationMode === 'turnstile') {
+          console.log('使用Turnstile验证');
+        } else {
+          console.log('使用hCaptcha验证');
+        }
+      }
     }
-  }, [turnstileConfigLoading, turnstileConfig.siteKey, setNotification]);
+  }, [turnstileConfigLoading, turnstileConfig.siteKey, hcaptchaConfigLoading, hcaptchaConfig.enabled, hcaptchaConfig.siteKey, setNotification, verificationMode]);
 
   // 监听IP封禁状态变化
   useEffect(() => {
@@ -288,12 +341,119 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     });
   }, [setNotification]);
 
+  // hCaptcha 事件处理器
+  const handleHCaptchaVerify = useCallback((token: string) => {
+    console.log('hCaptcha验证成功，token:', token);
+    
+    // 批量状态更新，减少重渲染
+    React.startTransition(() => {
+      setHCaptchaToken(token);
+      setHCaptchaVerified(true);
+      setHCaptchaError(false);
+      setError('');
+    });
+
+    // 异步处理 Clarity 事件和通知
+    requestIdleCallback(() => {
+      try {
+        if (typeof clarity !== 'undefined' && clarity.event) {
+          clarity.event('hcaptcha_verify_success');
+        }
+      } catch (err) {
+        console.warn('Failed to send Clarity event:', err);
+      }
+
+      setNotification({
+        message: 'hCaptcha验证通过！',
+        type: 'success'
+      });
+    });
+  }, [setNotification]);
+
+  const handleHCaptchaExpire = useCallback(() => {
+    console.log('hCaptcha验证过期');
+    
+    // 批量状态更新
+    React.startTransition(() => {
+      setHCaptchaToken('');
+      setHCaptchaVerified(false);
+      setHCaptchaError(false);
+    });
+
+    // 异步处理事件记录和通知
+    requestIdleCallback(() => {
+      try {
+        if (typeof clarity !== 'undefined' && clarity.event) {
+          clarity.event('hcaptcha_verify_expire');
+        }
+      } catch (err) {
+        console.warn('Failed to send Clarity event:', err);
+      }
+
+      setNotification({
+        message: 'hCaptcha验证已过期，请重新验证',
+        type: 'warning'
+      });
+    });
+  }, [setNotification]);
+
+  const handleHCaptchaError = useCallback(() => {
+    console.log('hCaptcha验证错误');
+    
+    // 批量状态更新
+    React.startTransition(() => {
+      setHCaptchaToken('');
+      setHCaptchaVerified(false);
+      setHCaptchaError(true);
+      setError('hCaptcha验证失败，请重试');
+    });
+
+    // 异步处理事件记录和通知
+    requestIdleCallback(() => {
+      try {
+        if (typeof clarity !== 'undefined' && clarity.event) {
+          clarity.event('hcaptcha_verify_error');
+        }
+      } catch (err) {
+        console.warn('Failed to send Clarity event:', err);
+      }
+
+      setNotification({
+        message: 'hCaptcha验证失败，请重试',
+        type: 'error'
+      });
+    });
+  }, [setNotification]);
+
+  // 计算当前验证状态
+  const isVerified = useMemo(() => {
+    if (verificationMode === 'turnstile') {
+      return turnstileVerified && turnstileToken;
+    } else {
+      return hcaptchaVerified && hcaptchaToken;
+    }
+  }, [verificationMode, turnstileVerified, turnstileToken, hcaptchaVerified, hcaptchaToken]);
+
+  const getCurrentToken = useCallback(() => {
+    return verificationMode === 'turnstile' ? turnstileToken : hcaptchaToken;
+  }, [verificationMode, turnstileToken, hcaptchaToken]);
+
   // 将验证逻辑提前定义，避免在依赖数组中引用未初始化变量
   const handleVerify = useCallback(async () => {
-    if (!turnstileVerified || !turnstileToken) {
+    if (!isVerified) {
       setError('请先完成人机验证');
       setNotification({
         message: '请先完成人机验证',
+        type: 'warning'
+      });
+      return;
+    }
+
+    const token = getCurrentToken();
+    if (!token) {
+      setError('验证令牌无效，请重新验证');
+      setNotification({
+        message: '验证令牌无效，请重新验证',
         type: 'warning'
       });
       return;
@@ -309,7 +469,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     });
 
     try {
-      const result = await verifyTempFingerprint(fingerprint, turnstileToken);
+      const result = await verifyTempFingerprint(fingerprint, token);
       if (result.success) {
         console.log('首次访问验证成功');
 
@@ -363,9 +523,16 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
           message: errorMsg,
           type: 'error'
         });
-        setTurnstileToken('');
-        setTurnstileVerified(false);
-        setTurnstileKey(k => k + 1);
+        // 重置当前验证方式的状态
+        if (verificationMode === 'turnstile') {
+          setTurnstileToken('');
+          setTurnstileVerified(false);
+          setTurnstileKey(k => k + 1);
+        } else {
+          setHCaptchaToken('');
+          setHCaptchaVerified(false);
+          setHCaptchaKey(k => k + 1);
+        }
       }
     } catch (err) {
       console.error('验证失败:', err);
@@ -416,9 +583,16 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
       }
 
       setError(errorMsg);
-      setTurnstileToken('');
-      setTurnstileVerified(false);
-      setTurnstileKey(k => k + 1);
+      // 重置当前验证方式的状态
+      if (verificationMode === 'turnstile') {
+        setTurnstileToken('');
+        setTurnstileVerified(false);
+        setTurnstileKey(k => k + 1);
+      } else {
+        setHCaptchaToken('');
+        setHCaptchaVerified(false);
+        setHCaptchaKey(k => k + 1);
+      }
 
       // 增加重试次数并显示重试提示
       setRetryCount(prev => {
@@ -453,7 +627,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     } finally {
       setVerifying(false);
     }
-  }, [turnstileVerified, turnstileToken, fingerprint, onVerificationComplete, setNotification, banExpiresAt, clientIP, retryCount]);
+  }, [isVerified, getCurrentToken, fingerprint, onVerificationComplete, setNotification, banExpiresAt, clientIP, retryCount, verificationMode]);
 
   // 简化的键盘快捷键支持 - 安全的window访问
   useEffect(() => {
@@ -461,7 +635,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       // Enter 键快速验证
-      if (event.key === 'Enter' && turnstileVerified && !verifying) {
+      if (event.key === 'Enter' && isVerified && !verifying) {
         event.preventDefault();
         handleVerify();
       }
@@ -469,7 +643,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [turnstileVerified, verifying, handleVerify]);
+  }, [isVerified, verifying, handleVerify]);
 
   // 重置重试计数器
   const resetRetryCount = useCallback(() => {
@@ -953,7 +1127,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
           </motion.p>
 
           {/* 加载状态显示 */}
-          {turnstileConfigLoading && (
+          {(turnstileConfigLoading || hcaptchaConfigLoading) && (
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -971,8 +1145,41 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
             </motion.div>
           )}
 
-          {/* Turnstile组件 */}
-          {!turnstileConfigLoading && turnstileConfig.siteKey && typeof turnstileConfig.siteKey === 'string' && (
+          {/* 验证方式选择 */}
+          {!turnstileConfigLoading && !hcaptchaConfigLoading && 
+           ((turnstileConfig.siteKey && typeof turnstileConfig.siteKey === 'string') || 
+            (hcaptchaConfig.enabled && hcaptchaConfig.siteKey)) && (
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className={`mb-4 ${isMobile ? 'mb-3' : 'mb-4'}`}
+            >
+              {/* 只有当两种验证方式都可用时才显示选择器 */}
+              {secureCaptchaConfig && (
+                <div className="flex justify-center mb-4">
+                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg px-4 py-2 border border-blue-200">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                      <span className="text-sm font-medium text-gray-700">
+                        使用 {verificationMode === 'turnstile' ? 'Cloudflare Turnstile' : 'hCaptcha'} 验证
+                      </span>
+                      <button
+                        onClick={regenerateSelection}
+                        className="ml-2 text-xs text-blue-600 hover:text-blue-800 underline"
+                        disabled={secureSelectionLoading}
+                      >
+                        {secureSelectionLoading ? '重新选择中...' : '重新选择'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* 验证组件 */}
+          {secureCaptchaConfig && secureEnabled && secureSiteKey && (
             <motion.div
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -986,16 +1193,27 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                   role="region"
                   aria-label="人机验证区域"
                 >
-                  <TurnstileWidget
-                    key={turnstileKey}
-                    siteKey={turnstileConfig.siteKey}
-                    onVerify={handleTurnstileVerify}
-                    onExpire={handleTurnstileExpire}
-                    onError={handleTurnstileError}
-                    theme="light"
-                    size={isMobile ? "compact" : "normal"}
-                    aria-label="Cloudflare Turnstile 人机验证"
-                  />
+                  {verificationMode === 'turnstile' ? (
+                    <TurnstileWidget
+                      key={turnstileKey}
+                      siteKey={secureSiteKey}
+                      onVerify={handleTurnstileVerify}
+                      onError={handleTurnstileError}
+                      onExpire={handleTurnstileExpire}
+                      theme="light"
+                      size={isMobile ? 'compact' : 'normal'}
+                    />
+                  ) : (
+                    <HCaptchaWidget
+                      key={hcaptchaKey}
+                      siteKey={secureSiteKey}
+                      onVerify={handleHCaptchaVerify}
+                      onError={handleHCaptchaError}
+                      onExpire={handleHCaptchaExpire}
+                      theme="light"
+                      size={isMobile ? 'compact' : 'normal'}
+                    />
+                  )}
                 </div>
               </div>
 
@@ -1007,7 +1225,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                 transition={{ duration: 0.3 }}
               >
                 <AnimatePresence mode="wait">
-                  {turnstileVerified ? (
+                  {isVerified ? (
                     <motion.div
                       key="verified"
                       className={`flex items-center justify-center gap-2 text-green-600 bg-green-50 px-4 py-2 rounded-full border border-green-200 ${isMobile ? 'text-sm' : 'text-base'
@@ -1029,7 +1247,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                       </motion.svg>
                       <span className="font-medium">验证通过</span>
                     </motion.div>
-                  ) : turnstileError ? (
+                  ) : (verificationMode === 'turnstile' ? turnstileError : hcaptchaError) ? (
                     <motion.div
                       key="error"
                       className={`flex items-center justify-center gap-2 text-red-600 bg-red-50 px-4 py-2 rounded-full border border-red-200 ${isMobile ? 'text-sm' : 'text-base'
@@ -1115,26 +1333,26 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
           {/* 验证按钮 */}
           <motion.button
             onClick={handleVerify}
-            disabled={!turnstileVerified || verifying}
+            disabled={!isVerified || verifying}
             className={`w-full rounded-xl font-semibold transition-all duration-300 shadow-lg relative overflow-hidden ${
-              !turnstileVerified || verifying
+              !isVerified || verifying
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed border-2 border-gray-200'
                 : 'text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 hover:shadow-xl border-2 border-transparent'
             } ${isMobile
                 ? 'py-3 px-4 text-base'
                 : 'py-4 px-6 text-lg'
               }`}
-            whileHover={turnstileVerified && !verifying ? { scale: 1.02 } : {}}
-            whileTap={turnstileVerified && !verifying ? { scale: 0.98 } : {}}
+            whileHover={isVerified && !verifying ? { scale: 1.02 } : {}}
+            whileTap={isVerified && !verifying ? { scale: 0.98 } : {}}
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.7 }}
-            title={!turnstileVerified ? '请先完成人机验证后才能继续' : verifying ? '正在验证中...' : '点击继续访问'}
-            aria-label={!turnstileVerified ? '请先完成人机验证后才能继续' : verifying ? '正在验证中，请稍候' : '继续访问网站'}
+            title={!isVerified ? '请先完成人机验证后才能继续' : verifying ? '正在验证中...' : '点击继续访问'}
+            aria-label={!isVerified ? '请先完成人机验证后才能继续' : verifying ? '正在验证中，请稍候' : '继续访问网站'}
             aria-describedby="verification-status"
           >
             {/* 禁用状态遮罩 */}
-            {!turnstileVerified && !verifying && (
+            {!isVerified && !verifying && (
               <motion.div
                 className="absolute inset-0 bg-gray-100 bg-opacity-50 flex items-center justify-center"
                 initial={{ opacity: 0 }}
@@ -1180,7 +1398,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                     验证中...
                   </motion.span>
                 </motion.div>
-              ) : turnstileVerified ? (
+              ) : isVerified ? (
                 <motion.span
                   key="ready"
                   initial={{ opacity: 0 }}

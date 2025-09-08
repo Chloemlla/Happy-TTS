@@ -126,6 +126,13 @@ interface TurnstileSettingDoc {
   updatedAt?: Date
 }
 
+// hCaptcha配置文档接口
+interface HCaptchaSettingDoc {
+  key: string;
+  value: string;
+  updatedAt?: Date
+}
+
 // Turnstile配置Schema
 const TurnstileSettingSchema = new mongoose.Schema<TurnstileSettingDoc>({
   key: { type: String, required: true },
@@ -133,14 +140,35 @@ const TurnstileSettingSchema = new mongoose.Schema<TurnstileSettingDoc>({
   updatedAt: { type: Date, default: Date.now }
 }, { collection: 'turnstile_settings' });
 
+// hCaptcha配置Schema
+const HCaptchaSettingSchema = new mongoose.Schema<HCaptchaSettingDoc>({
+  key: { type: String, required: true },
+  value: { type: String, required: true },
+  updatedAt: { type: Date, default: Date.now }
+}, { collection: 'hcaptcha_settings' });
+
 const TurnstileSettingModel = (mongoose.models.TurnstileSetting as mongoose.Model<TurnstileSettingDoc>) ||
   mongoose.model<TurnstileSettingDoc>('TurnstileSetting', TurnstileSettingSchema);
+
+const HCaptchaSettingModel = (mongoose.models.HCaptchaSetting as mongoose.Model<HCaptchaSettingDoc>) ||
+  mongoose.model<HCaptchaSettingDoc>('HCaptchaSetting', HCaptchaSettingSchema);
 
 interface TurnstileResponse {
   success: boolean;
   'error-codes'?: string[];
   challenge_ts?: string;
   hostname?: string;
+}
+
+// hCaptcha响应接口
+interface HCaptchaResponse {
+  success: boolean;
+  'error-codes'?: string[];
+  challenge_ts?: string;
+  hostname?: string;
+  credit?: boolean;
+  score?: number;
+  score_reason?: string[];
 }
 
 // 风险评估结构
@@ -205,8 +233,27 @@ async function getTurnstileKey(keyName: 'TURNSTILE_SECRET_KEY' | 'TURNSTILE_SITE
   return envKey && envKey.length > 0 ? envKey : null;
 }
 
+// 从数据库获取hCaptcha密钥
+async function getHCaptchaKey(keyName: 'HCAPTCHA_SECRET_KEY' | 'HCAPTCHA_SITE_KEY'): Promise<string | null> {
+  try {
+    if (mongoose.connection.readyState === 1) {
+      const doc = await HCaptchaSettingModel.findOne({ key: keyName }).lean().exec();
+      if (doc && typeof doc.value === 'string' && doc.value.trim().length > 0) {
+        return doc.value.trim();
+      }
+    }
+  } catch (e) {
+    logger.error(`读取hCaptcha ${keyName} 失败，回退到环境变量`, e);
+  }
+
+  // 回退到环境变量
+  const envKey = process.env[keyName]?.trim();
+  return envKey && envKey.length > 0 ? envKey : null;
+}
+
 export class TurnstileService {
   private static readonly VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+  private static readonly HCAPTCHA_VERIFY_URL = 'https://api.hcaptcha.com/siteverify';
   private static readonly MAX_VIOLATIONS = 3; // 最大违规次数
   private static readonly BAN_DURATION = 60 * 60 * 1000; // 封禁时长：60分钟
 
@@ -1927,6 +1974,283 @@ export class TurnstileService {
       return false;
     } catch (error) {
       logger.error('手动解除IP封禁失败', error);
+      return false;
+    }
+  }
+
+  // ==================== hCaptcha 验证功能 ====================
+
+  /**
+   * 验证 hCaptcha token
+   * @param token hCaptcha 返回的 token
+   * @param remoteIp 用户 IP 地址
+   * @param siteKey 站点密钥（可选）
+   * @returns 验证结果
+   */
+  public static async verifyHCaptchaToken(token: string, remoteIp?: string, siteKey?: string): Promise<boolean> {
+    const traceId = crypto.randomBytes(12).toString('hex');
+
+    try {
+      // 验证输入参数
+      const validatedToken = validateToken(token);
+
+      if (!validatedToken) {
+        logger.warn('hCaptcha token 验证失败：输入参数无效', { tokenLength: token?.length, traceId });
+
+        // 记录到溯源数据库
+        await this.persistTurnstileTrace({
+          traceId,
+          time: new Date(),
+          ip: remoteIp || 'unknown',
+          ua: undefined,
+          success: false,
+          reason: 'invalid_input',
+          errorCode: 'INVALID_INPUT',
+          errorMessage: '输入参数无效',
+          fingerprint: undefined,
+          riskLevel: 'HIGH',
+          riskScore: 100,
+          riskReasons: ['invalid_token'],
+          verificationMethod: 'hcaptcha'
+        });
+
+        return false;
+      }
+
+      // 从数据库获取密钥
+      const secretKey = await getHCaptchaKey('HCAPTCHA_SECRET_KEY');
+
+      // 检查是否配置了密钥
+      if (!secretKey) {
+        logger.warn('hCaptcha 密钥未配置，跳过验证', { traceId });
+
+        // 记录服务未配置到溯源数据库
+        await this.persistTurnstileTrace({
+          traceId,
+          time: new Date(),
+          ip: remoteIp || 'unknown',
+          ua: undefined,
+          success: false,
+          reason: 'service_unavailable',
+          errorCode: 'SERVICE_UNAVAILABLE',
+          errorMessage: 'hCaptcha服务未配置',
+          fingerprint: undefined,
+          riskLevel: 'MEDIUM',
+          riskScore: 50,
+          riskReasons: ['service_not_configured'],
+          verificationMethod: 'hcaptcha'
+        });
+
+        return true;
+      }
+
+      const formData = new URLSearchParams();
+      formData.append('secret', secretKey);
+      formData.append('response', validatedToken);
+
+      if (remoteIp) {
+        formData.append('remoteip', remoteIp);
+      }
+
+      if (siteKey) {
+        formData.append('sitekey', siteKey);
+      }
+
+      const response = await axios.post<HCaptchaResponse>(
+        this.HCAPTCHA_VERIFY_URL,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          timeout: 10000, // 10秒超时
+        }
+      );
+
+      const result = response.data;
+      const now = new Date();
+
+      if (!result.success) {
+        // 记录失败结果
+        this.recordVerificationOutcome(remoteIp || 'unknown', undefined, false, now);
+
+        logger.warn('hCaptcha 验证失败', {
+          errorCodes: result['error-codes'],
+          remoteIp,
+          timestamp: result.challenge_ts,
+          hostname: result.hostname,
+          traceId
+        });
+
+        // 记录验证失败到溯源数据库
+        await this.persistTurnstileTrace({
+          traceId,
+          time: now,
+          ip: remoteIp || 'unknown',
+          ua: undefined,
+          success: false,
+          reason: 'verification_failed',
+          errorCode: result['error-codes']?.[0] || 'VERIFICATION_FAILED',
+          errorMessage: `hCaptcha验证失败: ${result['error-codes']?.join(', ') || 'unknown'}`,
+          fingerprint: undefined,
+          riskLevel: 'HIGH',
+          riskScore: 90,
+          riskReasons: ['hcaptcha_verification_failed'],
+          verificationMethod: 'hcaptcha'
+        });
+
+        return false;
+      }
+
+      // 记录成功结果
+      this.recordVerificationOutcome(remoteIp || 'unknown', undefined, true, now);
+
+      logger.info('hCaptcha 验证成功', {
+        remoteIp,
+        timestamp: result.challenge_ts,
+        hostname: result.hostname,
+        score: result.score,
+        traceId
+      });
+
+      // 记录成功验证到溯源数据库
+      await this.persistTurnstileTrace({
+        traceId,
+        time: now,
+        ip: remoteIp || 'unknown',
+        ua: undefined,
+        success: true,
+        reason: 'verification_success',
+        errorCode: null,
+        errorMessage: null,
+        fingerprint: undefined,
+        riskLevel: 'LOW',
+        riskScore: 0,
+        riskReasons: [],
+        verificationMethod: 'hcaptcha'
+      });
+
+      return true;
+    } catch (error) {
+      // 记录异常失败
+      const now = new Date();
+      this.recordVerificationOutcome(remoteIp || 'unknown', undefined, false, now);
+
+      logger.error('hCaptcha 验证请求失败', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        remoteIp,
+        traceId
+      });
+
+      // 记录网络错误到溯源数据库
+      await this.persistTurnstileTrace({
+        traceId,
+        time: now,
+        ip: remoteIp || 'unknown',
+        ua: undefined,
+        success: false,
+        reason: 'network_error',
+        errorCode: 'NETWORK_ERROR',
+        errorMessage: error instanceof Error ? error.message : '网络请求失败',
+        fingerprint: undefined,
+        riskLevel: 'MEDIUM',
+        riskScore: 50,
+        riskReasons: ['network_error'],
+        verificationMethod: 'hcaptcha'
+      });
+
+      return false;
+    }
+  }
+
+  /**
+   * 检查是否启用了 hCaptcha
+   */
+  public static async isHCaptchaEnabled(): Promise<boolean> {
+    const secretKey = await getHCaptchaKey('HCAPTCHA_SECRET_KEY');
+    return !!secretKey;
+  }
+
+  /**
+   * 获取hCaptcha配置
+   */
+  public static async getHCaptchaConfig(): Promise<{
+    enabled: boolean;
+    siteKey: string | null;
+    secretKey: string | null;
+  }> {
+    const [secretKey, siteKey] = await Promise.all([
+      getHCaptchaKey('HCAPTCHA_SECRET_KEY'),
+      getHCaptchaKey('HCAPTCHA_SITE_KEY')
+    ]);
+
+    return {
+      enabled: !!secretKey,
+      siteKey,
+      secretKey
+    };
+  }
+
+  /**
+   * 更新hCaptcha配置
+   */
+  public static async updateHCaptchaConfig(key: 'HCAPTCHA_SECRET_KEY' | 'HCAPTCHA_SITE_KEY', value: string): Promise<boolean> {
+    try {
+      // 验证输入参数
+      const validatedKey = key === 'HCAPTCHA_SECRET_KEY' || key === 'HCAPTCHA_SITE_KEY' ? key : null;
+      const validatedValue = validateConfigValue(value);
+
+      if (!validatedKey || !validatedValue) {
+        logger.warn('hCaptcha配置更新失败：输入参数无效', { key, valueLength: value?.length });
+        return false;
+      }
+
+      if (mongoose.connection.readyState !== 1) {
+        logger.error('数据库连接不可用，无法更新hCaptcha配置');
+        return false;
+      }
+
+      await HCaptchaSettingModel.findOneAndUpdate(
+        { key: validatedKey },
+        {
+          key: validatedKey,
+          value: validatedValue,
+          updatedAt: new Date()
+        },
+        { upsert: true, new: true }
+      );
+
+      logger.info(`hCaptcha配置更新成功: ${validatedKey}`);
+      return true;
+    } catch (error) {
+      logger.error(`更新hCaptcha配置失败: ${key}`, error);
+      return false;
+    }
+  }
+
+  /**
+   * 删除hCaptcha配置
+   */
+  public static async deleteHCaptchaConfig(key: 'HCAPTCHA_SECRET_KEY' | 'HCAPTCHA_SITE_KEY'): Promise<boolean> {
+    try {
+      // 验证输入参数
+      const validatedKey = key === 'HCAPTCHA_SECRET_KEY' || key === 'HCAPTCHA_SITE_KEY' ? key : null;
+
+      if (!validatedKey) {
+        logger.warn('hCaptcha配置删除失败：输入参数无效', { key });
+        return false;
+      }
+
+      if (mongoose.connection.readyState !== 1) {
+        logger.error('数据库连接不可用，无法删除hCaptcha配置');
+        return false;
+      }
+
+      await HCaptchaSettingModel.findOneAndDelete({ key: validatedKey });
+      logger.info(`hCaptcha配置删除成功: ${validatedKey}`);
+      return true;
+    } catch (error) {
+      logger.error(`删除hCaptcha配置失败: ${key}`, error);
       return false;
     }
   }

@@ -990,8 +990,8 @@ router.get('/config', authenticateToken, configLimiter, async (req, res) => {
  * @openapi
  * /api/turnstile/public-config:
  *   get:
- *     summary: 获取Turnstile公共配置
- *     description: 获取Turnstile公共配置信息（无需认证，用于首次访问验证）
+ *     summary: 获取Turnstile和hCaptcha公共配置
+ *     description: 获取Turnstile和hCaptcha公共配置信息（无需认证，用于首次访问验证）
  *     responses:
  *       200:
  *         description: 获取成功
@@ -1002,26 +1002,201 @@ router.get('/config', authenticateToken, configLimiter, async (req, res) => {
  *               properties:
  *                 enabled:
  *                   type: boolean
- *                   description: 是否启用
+ *                   description: Turnstile是否启用
  *                 siteKey:
  *                   type: string
- *                   description: 站点密钥
+ *                   description: Turnstile站点密钥
+ *                 hcaptchaEnabled:
+ *                   type: boolean
+ *                   description: hCaptcha是否启用
+ *                 hcaptchaSiteKey:
+ *                   type: string
+ *                   description: hCaptcha站点密钥
  *       500:
  *         description: 服务器内部错误
  */
 router.get('/public-config', publicLimiter, async (req, res) => {
     try {
         const config = await TurnstileService.getConfig();
+        const hcaptchaConfig = await TurnstileService.getHCaptchaConfig();
         
-        // 只返回前端需要的公共信息
+        // 返回前端需要的公共信息，包括 Turnstile 和 hCaptcha 配置
         res.json({
             enabled: config.enabled,
-            siteKey: config.siteKey
+            siteKey: config.siteKey,
+            hcaptchaEnabled: hcaptchaConfig.enabled,
+            hcaptchaSiteKey: hcaptchaConfig.siteKey
         });
     } catch (error) {
-        console.error('获取Turnstile公共配置失败:', error);
+        console.error('获取公共配置失败:', error);
         res.status(500).json({
             error: '获取配置失败'
+        });
+    }
+});
+
+/**
+ * @openapi
+ * /api/turnstile/secure-captcha-config:
+ *   post:
+ *     summary: 获取安全的CAPTCHA配置
+ *     description: 基于加密的随机选择返回对应的CAPTCHA配置信息
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - encryptedData
+ *               - timestamp
+ *               - hash
+ *               - fingerprint
+ *             properties:
+ *               encryptedData:
+ *                 type: string
+ *                 description: 加密的选择数据
+ *               timestamp:
+ *                 type: number
+ *                 description: 时间戳
+ *               hash:
+ *                 type: string
+ *                 description: 完整性哈希
+ *               fingerprint:
+ *                 type: string
+ *                 description: 浏览器指纹
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 captchaType:
+ *                   type: string
+ *                   enum: [turnstile, hcaptcha]
+ *                 config:
+ *                   type: object
+ *                   properties:
+ *                     enabled:
+ *                       type: boolean
+ *                     siteKey:
+ *                       type: string
+ *       400:
+ *         description: 请求参数无效
+ *       500:
+ *         description: 服务器内部错误
+ */
+router.post('/secure-captcha-config', publicLimiter, async (req, res) => {
+    try {
+        const { encryptedData, timestamp, hash, fingerprint } = req.body;
+        
+        // 验证请求参数
+        if (!encryptedData || !timestamp || !hash || !fingerprint) {
+            return res.status(400).json({
+                success: false,
+                error: '请求参数不完整'
+            });
+        }
+        
+        // 验证时间戳（5分钟内有效）
+        const now = Date.now();
+        const timeDiff = now - timestamp;
+        if (timeDiff < 0 || timeDiff > 5 * 60 * 1000) {
+            return res.status(400).json({
+                success: false,
+                error: '请求已过期'
+            });
+        }
+        
+        // 验证完整性哈希
+        const expectedHashData = `${encryptedData}_${timestamp}_${fingerprint}`;
+        const crypto = require('crypto');
+        const expectedHash = crypto.createHash('sha256').update(expectedHashData).digest('hex');
+        
+        if (hash !== expectedHash) {
+            return res.status(400).json({
+                success: false,
+                error: '请求完整性验证失败'
+            });
+        }
+        
+        // 解密选择数据（兼容crypto-js格式）
+        const keyMaterial = `${fingerprint}_${Math.floor(timestamp / 60000)}`;
+        const decryptionKey = crypto.createHash('sha256').update(keyMaterial).digest('hex');
+        
+        let decryptedSelection;
+        try {
+            // crypto-js使用不同的格式，需要兼容处理
+            const CryptoJS = require('crypto-js');
+            const decryptedBytes = CryptoJS.AES.decrypt(encryptedData, decryptionKey);
+            const decryptedText = decryptedBytes.toString(CryptoJS.enc.Utf8);
+            
+            if (!decryptedText) {
+                throw new Error('解密结果为空');
+            }
+            
+            decryptedSelection = JSON.parse(decryptedText);
+        } catch (decryptError) {
+            console.error('解密CAPTCHA选择失败:', decryptError);
+            return res.status(400).json({
+                success: false,
+                error: '解密失败'
+            });
+        }
+        
+        // 验证解密后的数据
+        if (decryptedSelection.timestamp !== timestamp || decryptedSelection.fingerprint !== fingerprint) {
+            return res.status(400).json({
+                success: false,
+                error: '解密数据不一致'
+            });
+        }
+        
+        // 根据选择的类型返回对应配置
+        const captchaType = decryptedSelection.type;
+        let config;
+        
+        if (captchaType === 'turnstile') {
+            const turnstileConfig = await TurnstileService.getConfig();
+            config = {
+                enabled: turnstileConfig.enabled,
+                siteKey: turnstileConfig.siteKey
+            };
+        } else if (captchaType === 'hcaptcha') {
+            const hcaptchaConfig = await TurnstileService.getHCaptchaConfig();
+            config = {
+                enabled: hcaptchaConfig.enabled,
+                siteKey: hcaptchaConfig.siteKey
+            };
+        } else {
+            return res.status(400).json({
+                success: false,
+                error: '无效的验证类型'
+            });
+        }
+        
+        // 记录选择日志（用于审计）
+        console.log('安全CAPTCHA选择:', {
+            type: captchaType,
+            fingerprint: fingerprint.substring(0, 8) + '...',
+            timestamp: new Date(timestamp).toISOString(),
+            clientIp: req.ip || 'unknown'
+        });
+        
+        res.json({
+            success: true,
+            captchaType,
+            config
+        });
+    } catch (error) {
+        console.error('获取安全CAPTCHA配置失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '服务器内部错误'
         });
     }
 });
@@ -1162,6 +1337,206 @@ router.delete('/config/:key', authenticateToken, configLimiter, async (req, res)
         }
     } catch (error) {
         console.error('删除Turnstile配置失败:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: '服务器内部错误' 
+        });
+    }
+});
+
+/**
+ * @openapi
+ * /api/turnstile/hcaptcha-config:
+ *   get:
+ *     summary: 获取hCaptcha配置
+ *     description: 获取hCaptcha配置信息（需要管理员权限）
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 enabled:
+ *                   type: boolean
+ *                 siteKey:
+ *                   type: string
+ *                 secretKey:
+ *                   type: string
+ *                 updatedAt:
+ *                   type: string
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 权限不足
+ */
+router.get('/hcaptcha-config', authenticateToken, configLimiter, async (req, res) => {
+    try {
+        const userRole = (req as any).user?.role;
+        const isAdmin = userRole === 'admin' || userRole === 'administrator';
+        
+        if (!isAdmin) {
+            return res.status(403).json({ 
+                success: false, 
+                error: '权限不足' 
+            });
+        }
+
+        const config = await TurnstileService.getHCaptchaConfig();
+        
+        res.json({
+            enabled: config.enabled,
+            siteKey: config.siteKey,
+            secretKey: config.secretKey ? '***已设置***' : null
+        });
+    } catch (error) {
+        console.error('获取hCaptcha配置失败:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: '服务器内部错误' 
+        });
+    }
+});
+
+/**
+ * @openapi
+ * /api/turnstile/hcaptcha-config:
+ *   post:
+ *     summary: 更新hCaptcha配置
+ *     description: 更新hCaptcha配置信息（需要管理员权限）
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - key
+ *               - value
+ *             properties:
+ *               key:
+ *                 type: string
+ *                 enum: [HCAPTCHA_SECRET_KEY, HCAPTCHA_SITE_KEY]
+ *                 description: 配置键名
+ *               value:
+ *                 type: string
+ *                 description: 配置值
+ *     responses:
+ *       200:
+ *         description: 更新成功
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 权限不足
+ */
+router.post('/hcaptcha-config', authenticateToken, configLimiter, async (req, res) => {
+    try {
+        const userRole = (req as any).user?.role;
+        const isAdmin = userRole === 'admin' || userRole === 'administrator';
+        
+        if (!isAdmin) {
+            return res.status(403).json({ 
+                success: false, 
+                error: '权限不足' 
+            });
+        }
+
+        const { key, value } = req.body;
+        
+        if (!key || !value || !['HCAPTCHA_SECRET_KEY', 'HCAPTCHA_SITE_KEY'].includes(key)) {
+            return res.status(400).json({ 
+                success: false, 
+                error: '参数无效' 
+            });
+        }
+
+        const success = await TurnstileService.updateHCaptchaConfig(key as 'HCAPTCHA_SECRET_KEY' | 'HCAPTCHA_SITE_KEY', value);
+        
+        if (success) {
+            res.json({ 
+                success: true, 
+                message: '配置更新成功' 
+            });
+        } else {
+            res.status(500).json({ 
+                success: false, 
+                error: '配置更新失败' 
+            });
+        }
+    } catch (error) {
+        console.error('更新hCaptcha配置失败:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: '服务器内部错误' 
+        });
+    }
+});
+
+/**
+ * @openapi
+ * /api/turnstile/hcaptcha-config/{key}:
+ *   delete:
+ *     summary: 删除hCaptcha配置
+ *     description: 删除指定的hCaptcha配置项（需要管理员权限）
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: key
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [HCAPTCHA_SECRET_KEY, HCAPTCHA_SITE_KEY]
+ *         description: 配置键名
+ *     responses:
+ *       200:
+ *         description: 删除成功
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 权限不足
+ */
+router.delete('/hcaptcha-config/:key', authenticateToken, configLimiter, async (req, res) => {
+    try {
+        const userRole = (req as any).user?.role;
+        const isAdmin = userRole === 'admin' || userRole === 'administrator';
+        
+        if (!isAdmin) {
+            return res.status(403).json({ 
+                success: false, 
+                error: '权限不足' 
+            });
+        }
+
+        const { key } = req.params;
+        
+        if (!key || !['HCAPTCHA_SECRET_KEY', 'HCAPTCHA_SITE_KEY'].includes(key)) {
+            return res.status(400).json({ 
+                success: false, 
+                error: '参数无效' 
+            });
+        }
+
+        const success = await TurnstileService.deleteHCaptchaConfig(key as 'HCAPTCHA_SECRET_KEY' | 'HCAPTCHA_SITE_KEY');
+        
+        if (success) {
+            res.json({ 
+                success: true, 
+                message: '配置删除成功' 
+            });
+        } else {
+            res.status(500).json({ 
+                success: false, 
+                error: '配置删除失败' 
+            });
+        }
+    } catch (error) {
+        console.error('删除hCaptcha配置失败:', error);
         res.status(500).json({ 
             success: false, 
             error: '服务器内部错误' 

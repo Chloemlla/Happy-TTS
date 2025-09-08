@@ -362,17 +362,60 @@ app.use(cors({
   preflightContinue: false,
   optionsSuccessStatus: 200
 }));
+
 // 安全头配置
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      styleSrc: [
+        "'self'", 
+        "'unsafe-inline'", 
+        "https://fonts.googleapis.com",
+        "https://challenges.cloudflare.com", 
+        "https://*.cloudflare.com", 
+        "https://js.hcaptcha.com", 
+        "https://*.hcaptcha.com"
+      ],
+      fontSrc: [
+        "'self'", 
+        "https://fonts.gstatic.com",
+        "https://fonts.googleapis.com"
+      ],
       imgSrc: ["'self'", "data:", "blob:", "https:"],
-      scriptSrc: ["'self'", "https://challenges.cloudflare.com"],
-      connectSrc: ["'self'", "https://api.openai.com", "https://api.hapxs.com", "http://localhost:3000", "http://localhost:3001"],
-      frameSrc: ["'self'", "https://challenges.cloudflare.com", "https://*.cloudflare.com"],
+      scriptSrc: [
+        "'self'", 
+        "'unsafe-inline'", 
+        "'unsafe-eval'",
+        "https://challenges.cloudflare.com", 
+        "https://*.cloudflare.com", 
+        "https://js.hcaptcha.com", 
+        "https://*.hcaptcha.com", 
+        "https://www.google-analytics.com", 
+        "https://analytics.google.com",
+        "https://www.clarity.ms",
+        "https://*.clarity.ms"
+      ],
+      connectSrc: [
+        "'self'", 
+        "https://api.openai.com", 
+        "https://api.hapxs.com", 
+        "http://localhost:3000", 
+        "http://localhost:3001",
+        "https://api.hcaptcha.com",
+        "https://*.hcaptcha.com",
+        "https://www.google-analytics.com",
+        "https://analytics.google.com",
+        "https://www.clarity.ms",
+        "https://*.clarity.ms"
+      ],
+      frameSrc: [
+        "'self'", 
+        "https://challenges.cloudflare.com", 
+        "https://*.cloudflare.com",
+        "https://js.hcaptcha.com",
+        "https://*.hcaptcha.com"
+      ],
       objectSrc: ["'none'"],
       upgradeInsecureRequests: []
     }
