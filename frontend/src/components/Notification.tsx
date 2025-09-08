@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 export interface NotificationData {
     message: string;
     type: 'success' | 'error' | 'warning' | 'info';
+    details?: string[]; // 可选的详细信息数组
+    title?: string; // 可选的标题
 }
 
 interface NotificationContextProps {
@@ -179,19 +181,37 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                         initial={{ opacity: 0, y: -32, scale: 0.92 }}
                         animate={{ opacity: 1, y: 0, scale: 1, transition: { duration: 0.32, ease: [0.4, 0, 0.2, 1] } }}
                         exit={{ opacity: 0, y: -24, scale: 0.96, transition: { duration: 0.18, ease: [0.4, 0, 0.2, 1] } }}
-                        className={`fixed top-4 right-4 z-[9999] bg-white/90 text-gray-800 px-3 sm:px-4 py-2 sm:py-3 rounded-lg shadow-lg backdrop-blur-sm border flex flex-col items-stretch min-w-[200px] max-w-xs cursor-pointer select-none ${isPaused ? 'ring-2 ring-blue-200' : ''}`}
+                        className={`fixed top-4 right-4 z-[9999] bg-white/90 text-gray-800 px-3 sm:px-4 py-2 sm:py-3 rounded-lg shadow-lg backdrop-blur-sm border flex flex-col items-stretch min-w-[200px] max-w-sm cursor-pointer select-none ${isPaused ? 'ring-2 ring-blue-200' : ''}`}
                         style={{ gap: 8 }}
                         onMouseEnter={handleMouseEnter}
                         onMouseLeave={handleMouseLeave}
                     >
-                        <div className="flex items-center" style={{ gap: 12 }}>
+                        <div className="flex items-start" style={{ gap: 12 }}>
                             <StatusIcon type={notification.type} />
-                            <div className="text-sm sm:text-base font-medium break-all pr-2 flex-1">{notification.message}</div>
+                            <div className="flex-1 pr-2">
+                                {notification.title && (
+                                    <div className="text-sm sm:text-base font-semibold mb-1 break-all">
+                                        {notification.title}
+                                    </div>
+                                )}
+                                <div className="text-sm sm:text-base font-medium break-all">
+                                    {notification.message}
+                                </div>
+                                {notification.details && notification.details.length > 0 && (
+                                    <div className="mt-2 space-y-1">
+                                        {notification.details.map((detail, index) => (
+                                            <div key={index} className="text-xs sm:text-sm text-gray-600 break-all pl-2 border-l-2 border-gray-200">
+                                                {detail}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                             <button
                                 onClick={handleClose}
-                                className="p-1 sm:p-2 rounded-full hover:bg-gray-100 focus:outline-none transition-all duration-150 flex items-center justify-center"
+                                className="p-1 sm:p-2 rounded-full hover:bg-gray-100 focus:outline-none transition-all duration-150 flex items-center justify-center flex-shrink-0"
                                 aria-label="关闭通知"
-                                style={{ alignSelf: 'center', marginLeft: 4 }}
+                                style={{ alignSelf: 'flex-start', marginTop: -2 }}
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

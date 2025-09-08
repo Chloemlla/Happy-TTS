@@ -253,34 +253,34 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
       port: 3001,
       proxy: mode === 'development' ? {
-        '/api': {
-          target: 'http://127.0.0.1:3000',
-          changeOrigin: true,
-          secure: false,
-          ws: true,
-          configure: (proxy, _options) => {
-            proxy.on('error', (err, _req, _res) => {
-              console.log('proxy error', err);
-            });
-            proxy.on('proxyReq', (proxyReq, req, _res) => {
-              console.log('Sending Request:', req.method, req.url);
-            });
-            proxy.on('proxyRes', (proxyRes, req, _res) => {
-              console.log('Received Response:', proxyRes.statusCode, req.url);
-            });
-          }
-        },
-        '/static': {
-          target: 'http://127.0.0.1:3000',
-          changeOrigin: true,
-          secure: false,
-        },
-        '/collect_data': {
-          target: 'http://127.0.0.1:3000',
-          changeOrigin: true,
-          secure: false,
-          rewrite: (path) => '/api/data-collection/collect_data'
-        }
+        // '/api': {
+        //   target: 'http://127.0.0.1:3000',
+        //   changeOrigin: true,
+        //   secure: false,
+        //   ws: true,
+        //   configure: (proxy, _options) => {
+        //     proxy.on('error', (err, _req, _res) => {
+        //       console.log('proxy error', err);
+        //     });
+        //     proxy.on('proxyReq', (proxyReq, req, _res) => {
+        //       console.log('Sending Request:', req.method, req.url);
+        //     });
+        //     proxy.on('proxyRes', (proxyRes, req, _res) => {
+        //       console.log('Received Response:', proxyRes.statusCode, req.url);
+        //     });
+        //   }
+        // },
+        // '/static': {
+        //   target: 'http://127.0.0.1:3000',
+        //   changeOrigin: true,
+        //   secure: false,
+        // },
+        // '/collect_data': {
+        //   target: 'http://127.0.0.1:3000',
+        //   changeOrigin: true,
+        //   secure: false,
+        //   rewrite: (path) => '/api/data-collection/collect_data'
+        // }
       } : undefined,
       allowedHosts: [
         'tts.hapx.one',

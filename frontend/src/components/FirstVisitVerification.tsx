@@ -181,8 +181,49 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     
     if (!turnstileConfigLoading && !hcaptchaConfigLoading) {
       if (!turnstileReady && !hcaptchaReady) {
+        // 构建详细的错误信息
+        const errorDetails = [];
+        
+        // Turnstile 配置详情
+        if (!turnstileReady) {
+          if (turnstileConfigError) {
+            errorDetails.push(`Turnstile配置错误: ${turnstileConfigError}`);
+          } else if (!turnstileConfig.siteKey) {
+            errorDetails.push('Turnstile配置缺失: 未找到有效的站点密钥');
+          } else {
+            errorDetails.push('Turnstile配置异常: 配置不完整');
+          }
+        }
+        
+        // hCaptcha 配置详情
+        if (!hcaptchaReady) {
+          if (hcaptchaConfigError) {
+            errorDetails.push(`hCaptcha配置错误: ${hcaptchaConfigError}`);
+          } else if (!hcaptchaConfig.enabled) {
+            errorDetails.push('hCaptcha配置状态: 服务未启用');
+          } else if (!hcaptchaConfig.siteKey) {
+            errorDetails.push('hCaptcha配置缺失: 未找到有效的站点密钥');
+          } else {
+            errorDetails.push('hCaptcha配置异常: 配置不完整');
+          }
+        }
+        
+        // 安全选择服务详情
+        if (secureSelectionError) {
+          errorDetails.push(`安全选择服务错误: ${secureSelectionError}`);
+        }
+        
         setNotification({
-          message: '配置加载失败，请刷新页面重试',
+          title: '验证服务配置加载失败',
+          message: '无法继续访问，请查看详细信息',
+          details: [
+            ...errorDetails,
+            '',
+            '解决方案：',
+            '• 刷新页面重试',
+            '• 检查网络连接',
+            '• 如问题持续存在请联系管理员'
+          ],
           type: 'error'
         });
       } else {
