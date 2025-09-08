@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getApiBaseUrl } from '../api/api';
+import getApiBaseUrl from '../api';
 
 interface TurnstileConfig {
   enabled: boolean;
