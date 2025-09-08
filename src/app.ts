@@ -377,6 +377,11 @@ app.use(helmet({
         "https://js.hcaptcha.com", 
         "https://*.hcaptcha.com"
       ],
+      styleSrcElem: [
+        "'self'",
+        "'unsafe-inline'",
+        "https://fonts.googleapis.com"
+      ],
       fontSrc: [
         "'self'", 
         "https://fonts.gstatic.com",
@@ -395,6 +400,18 @@ app.use(helmet({
         "https://analytics.google.com",
         "https://www.clarity.ms",
         "https://*.clarity.ms"
+      ],
+      scriptSrcElem: [
+        "'self'",
+        "'unsafe-inline'",
+        "https://www.clarity.ms",
+        "https://*.clarity.ms",
+        "https://www.google-analytics.com",
+        "https://analytics.google.com",
+        "https://challenges.cloudflare.com",
+        "https://*.cloudflare.com",
+        "https://js.hcaptcha.com",
+        "https://*.hcaptcha.com"
       ],
       connectSrc: [
         "'self'", 
