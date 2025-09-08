@@ -10,11 +10,15 @@ import {
   FaClipboard, 
   FaUpload, 
   FaDownload,
-  FaTrash,
+  FaLink,
   FaCopy,
   FaEye,
   FaEyeSlash,
-  FaSync
+  FaSync,
+  FaArchive,
+  FaCloud,
+  FaCompress,
+  FaTrash
 } from 'react-icons/fa';
 import {
   getStoredHistory,
@@ -118,6 +122,15 @@ const LogShare: React.FC = () => {
   const [editingLog, setEditingLog] = useState<{ id: string, fileName?: string, note?: string } | null>(null);
   const [editFileName, setEditFileName] = useState('');
   const [editNote, setEditNote] = useState('');
+  
+  // Archive related state
+  const [archives, setArchives] = useState<any[]>([]);
+  const [isLoadingArchives, setIsLoadingArchives] = useState(false);
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [archiveName, setArchiveName] = useState('');
+  const [includePattern, setIncludePattern] = useState('');
+  const [excludePattern, setExcludePattern] = useState('');
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
 
   // 加载历史记录
   const loadHistory = async () => {
@@ -207,6 +220,78 @@ const LogShare: React.FC = () => {
       await loadAllLogs();
     } catch (e: any) {
       setNotification({ message: e.response?.data?.error || '清空失败', type: 'error' });
+    }
+  };
+
+  // Archive related functions
+  const loadArchives = async () => {
+    setIsLoadingArchives(true);
+    try {
+      const res = await axios.get(getApiBaseUrl() + '/api/logs/archives', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      setArchives(res.data.archives || []);
+      setNotification({ message: '归档列表加载成功', type: 'success' });
+    } catch (e: any) {
+      setNotification({ message: e.response?.data?.error || '加载归档列表失败', type: 'error' });
+    } finally {
+      setIsLoadingArchives(false);
+    }
+  };
+
+  const handleCreateArchive = async () => {
+    if (!adminPassword) {
+      setNotification({ message: '请先输入管理员密码', type: 'warning' });
+      return;
+    }
+    
+    setArchiveLoading(true);
+    try {
+      const res = await axios.post(getApiBaseUrl() + '/api/logs/archive', {
+        archiveName: archiveName || undefined,
+        includePattern: includePattern || undefined,
+        excludePattern: excludePattern || undefined
+      }, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      setNotification({ 
+        message: `归档创建成功！已归档 ${res.data.archivedFiles} 个文件，压缩率 ${res.data.overallCompressionRatio}，IPFS上传 ${res.data.ipfsUpload.uploadedFiles} 个文件`, 
+        type: 'success' 
+      });
+      
+      setShowArchiveModal(false);
+      setArchiveName('');
+      setIncludePattern('');
+      setExcludePattern('');
+      await loadArchives();
+    } catch (e: any) {
+      setNotification({ message: e.response?.data?.error || '创建归档失败', type: 'error' });
+    } finally {
+      setArchiveLoading(false);
+    }
+  };
+
+  const handleDeleteArchive = async (archiveName: string) => {
+    if (!confirm(`确定要删除归档 "${archiveName}" 吗？此操作不可恢复！`)) {
+      return;
+    }
+    
+    try {
+      await axios.delete(getApiBaseUrl() + `/api/logs/archives/${archiveName}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      setNotification({ message: '归档删除成功', type: 'success' });
+      await loadArchives();
+    } catch (e: any) {
+      setNotification({ message: e.response?.data?.error || '删除归档失败', type: 'error' });
     }
   };
 
@@ -1336,6 +1421,309 @@ const LogShare: React.FC = () => {
           </div>
         </motion.div>
         
+        {/* 日志归档管理区块 */}
+        <motion.div 
+          className="bg-purple-50 rounded-xl p-6 shadow-sm border border-gray-200"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+              <FaArchive className="text-lg text-purple-500" />
+              日志归档管理
+            </h3>
+            <div className="flex items-center gap-2">
+              <input 
+                type="password" 
+                className="border-2 border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all w-40" 
+                value={adminPassword} 
+                onChange={e => setAdminPassword(e.target.value)} 
+                placeholder="管理员密码"
+                autoComplete="off"
+              />
+            </div>
+          </div>
+          <div className="flex gap-2 mb-4">
+            <motion.button
+              onClick={() => setShowArchiveModal(true)}
+              className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition font-medium flex items-center gap-2 disabled:opacity-50"
+              whileTap={{ scale: 0.95 }}
+              disabled={!adminPassword}
+            >
+              <FaCompress className="text-sm" />
+              创建归档
+            </motion.button>
+            <motion.button
+              onClick={loadArchives}
+              className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium flex items-center gap-2"
+              whileTap={{ scale: 0.95 }}
+              disabled={isLoadingArchives}
+            >
+              <FaSync className={`text-sm ${isLoadingArchives ? 'animate-spin' : ''}`} />
+              刷新列表
+            </motion.button>
+          </div>
+          
+          <div className="bg-purple-100 border border-purple-200 rounded-lg p-3 mb-4">
+            <div className="text-sm text-purple-800 font-medium mb-1">📦 归档功能说明</div>
+            <div className="text-xs text-purple-600 space-y-1">
+              <div>• <strong>压缩存储：</strong>自动使用gzip压缩，节省存储空间</div>
+              <div>• <strong>IPFS上传：</strong>压缩文件自动上传到IPFS分布式存储</div>
+              <div>• <strong>本地清理：</strong>上传成功后自动删除本地压缩文件</div>
+              <div>• <strong>模式匹配：</strong>支持正则表达式过滤文件</div>
+            </div>
+          </div>
+
+          {/* 归档列表 */}
+          <div className="space-y-3">
+            {isLoadingArchives ? (
+              <div className="text-center py-4">
+                <div className="inline-flex items-center gap-2 text-gray-600">
+                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  加载归档列表中...
+                </div>
+              </div>
+            ) : archives.length === 0 ? (
+              <div className="text-center py-4 text-gray-500">
+                暂无归档记录
+              </div>
+            ) : (
+              archives.map((archive, idx) => (
+                <motion.div
+                  key={archive.name}
+                  className="bg-white border border-gray-200 rounded-lg p-4"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.1 * idx }}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <FaArchive className="text-purple-500" />
+                        <span className="font-semibold text-gray-800">{archive.name}</span>
+                        {archive.metadata?.ipfsUpload?.enabled && (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
+                            <FaCloud className="text-xs" />
+                            IPFS已上传
+                          </span>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-700">创建时间</span>
+                          <span className="text-sm text-gray-600">{new Date(archive.createdAt).toLocaleString()}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-700">创建者</span>
+                          <span className="text-sm text-gray-600">{archive.createdBy}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-700">文件数量</span>
+                          <span className="text-sm text-gray-600">{archive.totalFiles}</span>
+                        </div>
+                        {archive.databaseLogsIncluded !== undefined && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-700">数据库日志</span>
+                            <span className="text-sm text-blue-600">{archive.databaseLogsIncluded}</span>
+                          </div>
+                        )}
+                        {archive.fileSystemLogsIncluded !== undefined && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-700">文件系统日志</span>
+                            <span className="text-sm text-purple-600">{archive.fileSystemLogsIncluded}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-700">原始大小</span>
+                          <span className="text-sm text-gray-600">{formatFileSize(archive.originalTotalSize)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-700">压缩后大小</span>
+                          <span className="text-sm text-gray-600">{formatFileSize(archive.compressedTotalSize)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-700">压缩率</span>
+                          <span className="text-sm text-green-600 font-medium">{archive.overallCompressionRatio}</span>
+                        </div>
+                        {archive.ipfsUpload && (
+                          <>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-gray-700">IPFS上传</span>
+                              <span className={`text-sm font-medium ${archive.ipfsUpload.uploadedFiles > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {archive.ipfsUpload.uploadedFiles}/{archive.ipfsUpload.totalFiles}
+                              </span>
+                            </div>
+                            {archive.ipfsUpload.uploadResults && archive.ipfsUpload.uploadResults.length > 0 && archive.ipfsUpload.uploadResults[0].uploadSuccess && (
+                              <>
+                                <div className="pt-2 border-t border-gray-200">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-sm font-medium text-gray-700">IPFS CID</span>
+                                    <button
+                                      onClick={() => navigator.clipboard.writeText(archive.ipfsUpload.uploadResults[0].ipfsCid)}
+                                      className="text-xs text-blue-600 hover:text-blue-800 font-mono bg-blue-50 px-2 py-1 rounded"
+                                      title="点击复制CID"
+                                    >
+                                      {archive.ipfsUpload.uploadResults[0].ipfsCid?.substring(0, 20)}...
+                                    </button>
+                                  </div>
+                                  <div className="flex flex-col space-y-1">
+                                    <a
+                                      href={archive.ipfsUpload.uploadResults[0].web2Url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-xs text-green-600 hover:text-green-800 underline flex items-center gap-1"
+                                    >
+                                      <FaCloud className="w-3 h-3" />
+                                      Web2 下载链接
+                                    </a>
+                                    <a
+                                      href={archive.ipfsUpload.uploadResults[0].ipfsUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-xs text-purple-600 hover:text-purple-800 underline flex items-center gap-1"
+                                    >
+                                      <FaLink className="w-3 h-3" />
+                                      IPFS 协议链接
+                                    </a>
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <motion.button
+                      onClick={() => handleDeleteArchive(archive.name)}
+                      className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition text-sm"
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <FaTrash className="text-xs" />
+                    </motion.button>
+                  </div>
+                </motion.div>
+              ))
+            )}
+          </div>
+        </motion.div>
+
+        {/* 创建归档弹窗 */}
+        <AnimatePresence>
+          {showArchiveModal && (
+            <motion.div
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <motion.div
+                className="bg-white w-full max-w-lg rounded-xl shadow-xl p-6 border border-gray-200"
+                initial={{ scale: 0.95, y: 20, opacity: 0 }}
+                animate={{ scale: 1, y: 0, opacity: 1 }}
+                exit={{ scale: 0.95, y: 20, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                    <FaArchive className="text-purple-500" />
+                    创建日志归档
+                  </h3>
+                  <button 
+                    className="text-gray-400 hover:text-gray-600" 
+                    onClick={() => setShowArchiveModal(false)}
+                  >
+                    ✕
+                  </button>
+                </div>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      归档名称（可选）
+                    </label>
+                    <input
+                      className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all"
+                      placeholder="留空将自动生成时间戳名称"
+                      value={archiveName}
+                      onChange={(e) => setArchiveName(e.target.value)}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      包含模式（正则表达式，可选）
+                    </label>
+                    <input
+                      className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all"
+                      placeholder="例如: \.log$ 只包含.log文件"
+                      value={includePattern}
+                      onChange={(e) => setIncludePattern(e.target.value)}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      排除模式（正则表达式，可选）
+                    </label>
+                    <input
+                      className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all"
+                      placeholder="例如: temp 排除包含temp的文件"
+                      value={excludePattern}
+                      onChange={(e) => setExcludePattern(e.target.value)}
+                    />
+                  </div>
+                  
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                    <div className="text-sm text-purple-800 font-medium mb-1">🔄 归档流程</div>
+                    <div className="text-xs text-purple-600 space-y-1">
+                      <div>1. 扫描日志目录中的文件</div>
+                      <div>2. 根据模式过滤文件</div>
+                      <div>3. 使用gzip压缩文件</div>
+                      <div>4. 上传压缩文件到IPFS</div>
+                      <div>5. 删除本地压缩文件</div>
+                      <div>6. 保存归档元数据</div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="mt-6 flex items-center justify-end gap-3">
+                  <button
+                    className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+                    onClick={() => setShowArchiveModal(false)}
+                    disabled={archiveLoading}
+                  >
+                    取消
+                  </button>
+                  <button
+                    className="px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 flex items-center gap-2 disabled:opacity-50"
+                    onClick={handleCreateArchive}
+                    disabled={archiveLoading || !adminPassword}
+                  >
+                    {archiveLoading ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        创建中...
+                      </>
+                    ) : (
+                      <>
+                        <FaCompress className="text-sm" />
+                        创建归档
+                      </>
+                    )}
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* 编辑元数据弹窗 */}
         <AnimatePresence>
           {editingLog && (

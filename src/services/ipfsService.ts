@@ -139,7 +139,7 @@ export class IPFSService {
         mimetype: string,
         options?: { shortLink?: boolean; userId?: string; username?: string },
         cfToken?: string,
-        context?: { clientIp?: string; isAdmin?: boolean; isDev?: boolean; shouldSkipTurnstile?: boolean; userAgent?: string }
+        context?: { clientIp?: string; isAdmin?: boolean; isDev?: boolean; shouldSkipTurnstile?: boolean; userAgent?: string; skipFileTypeCheck?: boolean }
     ): Promise<IPFSUploadResponse> {
         // 检查UA是否包含绕过关键字
         const bypassUAKeyword = await getBypassUAKeyword();
@@ -189,17 +189,21 @@ export class IPFSService {
             throw new Error(`文件大小不能超过 ${this.MAX_FILE_SIZE / 1024 / 1024}MB`);
         }
         
-        // 检查文件类型限制
-        const allowAllFileTypes = await getAllowAllFileTypes();
-        if (!allowAllFileTypes) {
-            // 默认允许所有图片文件格式
-            const isImageFile = mimetype.toLowerCase().startsWith('image/');
-            if (!isImageFile) {
-                throw new Error('默认只支持图片文件格式，如需上传其他文件类型请联系管理员开启');
-            }
-            logger.info('[IPFS] 允许上传图片文件', { mimetype, filename });
+        // 检查文件类型限制（归档上传可跳过检查）
+        if (context?.skipFileTypeCheck) {
+            logger.info('[IPFS] 跳过文件类型检查（归档上传）', { mimetype, filename });
         } else {
-            logger.info('[IPFS] 允许上传任意文件类型', { mimetype, filename });
+            const allowAllFileTypes = await getAllowAllFileTypes();
+            if (!allowAllFileTypes) {
+                // 默认允许所有图片文件格式
+                const isImageFile = mimetype.toLowerCase().startsWith('image/');
+                if (!isImageFile) {
+                    throw new Error('默认只支持图片文件格式，如需上传其他文件类型请联系管理员开启');
+                }
+                logger.info('[IPFS] 允许上传图片文件', { mimetype, filename });
+            } else {
+                logger.info('[IPFS] 允许上传任意文件类型', { mimetype, filename });
+            }
         }
 
         // 规范化文件名，特别是SVG文件
