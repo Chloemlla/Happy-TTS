@@ -22,11 +22,19 @@ function sanitizeFileName(fileName: string): string {
     return 'unknown';
   }
   // Remove dangerous characters and path traversal attempts
-  return fileName
-    .replace(/[<>:"/\\|?*\x00-\x1f]/g, '_')
-    .replace(/^\.+/, '_')
-    .replace(/\.+$/, '_')
-    .slice(0, 255);
+  let result = fileName.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_');
+  
+  // Remove leading dots safely (avoid ReDoS)
+  while (result.startsWith('.')) {
+    result = '_' + result.slice(1);
+  }
+  
+  // Remove trailing dots safely (avoid ReDoS)
+  while (result.endsWith('.')) {
+    result = result.slice(0, -1) + '_';
+  }
+  
+  return result.slice(0, 255);
 }
 
 function sanitizePathComponent(component: string): string {
