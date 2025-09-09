@@ -1592,6 +1592,9 @@ router.delete('/hcaptcha-config/:key', authenticateToken, configLimiter, async (
  *               token:
  *                 type: string
  *                 description: hCaptcha返回的验证token
+ *               fingerprint:
+ *                 type: string
+ *                 description: 浏览器指纹（可选，用于生成访问令牌）
  *               timestamp:
  *                 type: string
  *                 description: 验证时间戳
@@ -1607,6 +1610,11 @@ router.delete('/hcaptcha-config/:key', authenticateToken, configLimiter, async (
  *                   type: boolean
  *                 message:
  *                   type: string
+ *                 verified:
+ *                   type: boolean
+ *                 accessToken:
+ *                   type: string
+ *                   description: 访问令牌（如果提供了指纹）
  *                 timestamp:
  *                   type: string
  *                 details:
@@ -1618,7 +1626,7 @@ router.delete('/hcaptcha-config/:key', authenticateToken, configLimiter, async (
  */
 router.post('/hcaptcha-verify', publicLimiter, async (req, res) => {
     try {
-        const { token, timestamp } = req.body;
+        const { token, timestamp, fingerprint } = req.body;
         const clientIp = req.ip || req.socket.remoteAddress || (Array.isArray(req.headers['x-forwarded-for']) ? req.headers['x-forwarded-for'][0] : req.headers['x-forwarded-for']) || 'unknown';
         const validatedClientIp = typeof clientIp === 'string' ? clientIp : 'unknown';
 
@@ -1648,16 +1656,31 @@ router.post('/hcaptcha-verify', publicLimiter, async (req, res) => {
         const isValid = await TurnstileService.verifyHCaptchaToken(token, validatedClientIp);
 
         if (isValid) {
-            // hCaptcha验证成功后直接通过，无需其他检查
+            // hCaptcha验证成功后生成访问令牌，确保与Turnstile一致的处理
+            const { fingerprint } = req.body;
+            let accessToken = null;
+            
+            // 如果提供了指纹，生成访问令牌
+            if (fingerprint && typeof fingerprint === 'string') {
+                try {
+                    accessToken = await TurnstileService.generateAccessToken(fingerprint, validatedClientIp);
+                } catch (error) {
+                    console.warn('生成访问令牌失败，但hCaptcha验证成功', error);
+                }
+            }
+
             console.log('✅ hCaptcha验证成功，直接通过', {
                 ip: validatedClientIp,
-                token: token.substring(0, 8) + '...'
+                token: token.substring(0, 8) + '...',
+                accessToken: accessToken ? accessToken.substring(0, 8) + '...' : 'null'
             });
 
             res.json({
                 success: true,
                 message: '验证成功',
                 timestamp: new Date().toISOString(),
+                verified: true,
+                accessToken: accessToken,
                 details: {
                     hostname: req.hostname,
                     challenge_ts: timestamp || new Date().toISOString()
