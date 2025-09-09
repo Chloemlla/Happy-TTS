@@ -380,8 +380,7 @@ export const reportTempFingerprint = async (): Promise<{ isFirstVisit: boolean; 
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/temp-fingerprint`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': navigator.userAgent
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ 
         fingerprint,
@@ -433,10 +432,7 @@ export const verifyTempFingerprint = async (fingerprint: string, cfToken: string
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/verify-temp-fingerprint`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': navigator.userAgent,
-        'X-Forwarded-For': '', // 将由后端从请求中获取真实IP
-        'X-Real-IP': ''
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ 
         fingerprint, 
@@ -524,8 +520,7 @@ export const verifyAccessToken = async (token: string, fingerprint: string): Pro
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/verify-access-token`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': navigator.userAgent
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ 
         token, 

@@ -413,7 +413,7 @@ const App: React.FC = () => {
 
       try {
         // 从后端获取 Clarity 配置
-        const response = await fetch('/api/tts/clarity/config', {
+        const response = await fetch('/tts/clarity/config', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -433,7 +433,7 @@ const App: React.FC = () => {
             console.log('Microsoft Clarity is disabled or project ID not configured');
           }
         } else {
-          console.warn('Failed to fetch Clarity config from server');
+          console.warn('Failed to fetch Clarity config from server, status:', response.status);
         }
       } catch (error) {
         console.warn('Failed to initialize Microsoft Clarity:', error);
