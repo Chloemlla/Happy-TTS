@@ -507,7 +507,8 @@ export class TurnstileService {
       userAgentScore: 0,
       fingerprintScore: 0,
       devMultiplier: 1,
-      finalScore: 0
+      finalScore: 0,
+      userAgentSkipped: true // 标记已跳过用户代理验证
     };
 
     // 开发环境特殊处理
@@ -526,34 +527,39 @@ export class TurnstileService {
       score += 0.15;
     }
 
-    // User-Agent风险评估（放宽标准）
-    if (userAgent) {
-      const ua = userAgent.toLowerCase();
-      if (ua.includes('bot') || ua.includes('crawler') || ua.includes('spider')) {
-        scoreBreakdown.userAgentScore = 0.4; // 降低机器人风险评分
-        scoreBreakdown.userAgentType = 'bot';
-        score += 0.4;
-        reasons.push('疑似机器人用户代理');
-      } else if (ua.includes('curl') || ua.includes('wget') || ua.includes('python')) {
-        scoreBreakdown.userAgentScore = 0.6; // 降低自动化工具风险评分
-        scoreBreakdown.userAgentType = 'automation_tool';
-        score += 0.6;
-        reasons.push('自动化工具用户代理');
-      } else if (!ua.includes('mozilla') && !ua.includes('chrome') && !ua.includes('safari') && !ua.includes('firefox') && !ua.includes('edge')) {
-        scoreBreakdown.userAgentScore = 0.2; // 降低异常UA风险评分
-        scoreBreakdown.userAgentType = 'unusual';
-        score += 0.2;
-        reasons.push('异常用户代理');
-      } else {
-        scoreBreakdown.userAgentScore = 0;
-        scoreBreakdown.userAgentType = 'normal';
-      }
-    } else {
-      scoreBreakdown.userAgentScore = 0.2; // 降低缺少UA的风险评分
-      scoreBreakdown.userAgentType = 'missing';
-      score += 0.2;
-      reasons.push('缺少用户代理信息');
-    }
+    // // User-Agent风险评估（放宽标准）
+    // if (userAgent) {
+    //   const ua = userAgent.toLowerCase();
+    //   if (ua.includes('bot') || ua.includes('crawler') || ua.includes('spider')) {
+    //     scoreBreakdown.userAgentScore = 0.4; // 降低机器人风险评分
+    //     scoreBreakdown.userAgentType = 'bot';
+    //     score += 0.4;
+    //     reasons.push('疑似机器人用户代理');
+    //   } else if (ua.includes('curl') || ua.includes('wget') || ua.includes('python')) {
+    //     scoreBreakdown.userAgentScore = 0.6; // 降低自动化工具风险评分
+    //     scoreBreakdown.userAgentType = 'automation_tool';
+    //     score += 0.6;
+    //     reasons.push('自动化工具用户代理');
+    //   } else if (!ua.includes('mozilla') && !ua.includes('chrome') && !ua.includes('safari') && !ua.includes('firefox') && !ua.includes('edge')) {
+    //     scoreBreakdown.userAgentScore = 0.2; // 降低异常UA风险评分
+    //     scoreBreakdown.userAgentType = 'unusual';
+    //     score += 0.2;
+    //     reasons.push('异常用户代理');
+    //   } else {
+    //     scoreBreakdown.userAgentScore = 0;
+    //     scoreBreakdown.userAgentType = 'normal';
+    //   }
+    // } else {
+    //   scoreBreakdown.userAgentScore = 0.2; // 降低缺少UA的风险评分
+    //   scoreBreakdown.userAgentType = 'missing';
+    //   score += 0.2;
+    //   reasons.push('缺少用户代理信息');
+    // }
+    // 跳过 User-Agent 风险评估
+    scoreBreakdown.userAgentScore = 0;
+    scoreBreakdown.userAgentType = 'skipped';
+    // 不再基于用户代理添加风险评分或原因
+
 
     // 指纹风险评估（放宽标准）
     if (!fingerprint || fingerprint.length < 8) {
