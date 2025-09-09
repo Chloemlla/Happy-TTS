@@ -186,7 +186,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                         onMouseEnter={handleMouseEnter}
                         onMouseLeave={handleMouseLeave}
                     >
-                        <div className="flex items-start" style={{ gap: 12 }}>
+                        <div className={`flex ${notification.details && notification.details.length > 0 ? 'items-start' : 'items-center'}`} style={{ gap: 12 }}>
                             <StatusIcon type={notification.type} />
                             <div className="flex-1 pr-2">
                                 {notification.title && (

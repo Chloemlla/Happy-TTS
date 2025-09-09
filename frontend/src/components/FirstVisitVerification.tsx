@@ -70,7 +70,6 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
   const [showParticles, setShowParticles] = useState(false);
   const resizeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const deviceCheckRef = useRef({ isMobile: false, isLandscape: false });
-  const [retryCount, setRetryCount] = useState(0);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
   // 验证模式状态（基于安全选择结果）
@@ -541,13 +540,11 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
           type: 'success'
         });
 
-        // 重置重试计数器
-        setRetryCount(0);
 
         // 延迟一下再跳转，让用户看到成功消息
         setTimeout(() => {
           onVerificationComplete();
-        }, 1000);
+        }, 1500); // Changed from 1000 to 1500
       } else {
         const errorMsg = '验证失败，请重试';
         
@@ -635,40 +632,10 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
         setHCaptchaKey(k => k + 1);
       }
 
-      // 增加重试次数并显示重试提示
-      setRetryCount(prev => {
-        const newCount = prev + 1;
-        
-        // 记录重试事件
-        try {
-          if (typeof clarity !== 'undefined' && clarity.event) {
-            clarity.event('first_visit_verification_retry');
-          }
-        } catch (clarityError) {
-          console.warn('Failed to send Clarity event:', clarityError);
-        }
-        
-        if (newCount <= 3) {
-          setTimeout(() => {
-            setNotification({
-              message: `第 ${newCount} 次重试，还可重试 ${3 - newCount} 次`,
-              type: 'warning'
-            });
-          }, 1000);
-        } else {
-          setTimeout(() => {
-            setNotification({
-              message: '重试次数过多，请刷新页面后重试',
-              type: 'error'
-            });
-          }, 1000);
-        }
-        return newCount;
-      });
     } finally {
       setVerifying(false);
     }
-  }, [isVerified, getCurrentToken, fingerprint, onVerificationComplete, setNotification, banExpiresAt, clientIP, retryCount, verificationMode]);
+  }, [isVerified, getCurrentToken, fingerprint, onVerificationComplete, setNotification, banExpiresAt, clientIP, verificationMode]);
 
   // 简化的键盘快捷键支持 - 安全的window访问
   useEffect(() => {
@@ -686,10 +653,6 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isVerified, verifying, handleVerify]);
 
-  // 重置重试计数器
-  const resetRetryCount = useCallback(() => {
-    setRetryCount(0);
-  }, []);
 
   // Microsoft Clarity事件记录：IP被封禁页面显示
   useEffect(() => {
@@ -1352,19 +1315,6 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                   </motion.svg>
                   <div className="flex-1">
                     <span className={`font-medium ${isMobile ? 'text-sm' : 'text-base'}`}>{error}</span>
-                    {retryCount > 0 && (
-                      <div className={`mt-2 text-red-500 ${isMobile ? 'text-xs' : 'text-sm'}`}>
-                        已重试 {retryCount} 次 {retryCount >= 3 ? '(已达上限)' : `(还可重试 ${3 - retryCount} 次)`}
-                        {retryCount >= 3 && (
-                          <button
-                            onClick={resetRetryCount}
-                            className="ml-2 text-blue-600 hover:text-blue-800 underline"
-                          >
-                            重置
-                          </button>
-                        )}
-                      </div>
-                    )}
                   </div>
                 </div>
               </motion.div>

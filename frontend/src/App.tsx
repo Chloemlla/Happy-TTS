@@ -61,6 +61,9 @@ const AntiCounterfeitPage = React.lazy(() => import('./components/AntiCounterfei
 // GitHub Billing Dashboard 懒加载
 const GitHubBillingDashboard = React.lazy(() => import('./components/GitHubBillingDashboard'));
 
+// hCaptcha 验证页面懒加载
+const HCaptchaVerificationPage = React.lazy(() => import('./components/HCaptchaVerificationPage'));
+
 // 恢复 EmailSender 懒加载
 const EmailSenderPage: React.FC = () => {
   const [to, setTo] = React.useState('');
@@ -1036,6 +1039,19 @@ const App: React.FC = () => {
                       transition={pageTransition}
                     >
                       <SmartHumanCheckTestPage />
+                    </m.div>
+                  </Suspense>
+                } />
+                <Route path="/hcaptcha-verify" element={
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <m.div
+                      variants={pageVariants}
+                      initial="initial"
+                      animate="in"
+                      exit="out"
+                      transition={pageTransition}
+                    >
+                      <HCaptchaVerificationPage />
                     </m.div>
                   </Suspense>
                 } />

@@ -20,6 +20,7 @@ export const useSecureCaptchaSelection = (options: UseSecureCaptchaSelectionOpti
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [encryptedSelection, setEncryptedSelection] = useState<EncryptedCaptchaSelection | null>(null);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   const { fingerprint, availableTypes = [CaptchaType.TURNSTILE, CaptchaType.HCAPTCHA] } = options;
 
@@ -32,6 +33,12 @@ export const useSecureCaptchaSelection = (options: UseSecureCaptchaSelectionOpti
       return;
     }
 
+    // 防止重复请求
+    if (loading) {
+      console.log('请求正在进行中，跳过重复请求');
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -41,10 +48,11 @@ export const useSecureCaptchaSelection = (options: UseSecureCaptchaSelectionOpti
       setEncryptedSelection(selection);
 
       // 向后端请求对应的配置
+
       const response = await fetch(`${getApiBaseUrl()}/api/turnstile/secure-captcha-config`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
         credentials: 'include',
         body: JSON.stringify({
@@ -77,6 +85,8 @@ export const useSecureCaptchaSelection = (options: UseSecureCaptchaSelectionOpti
         timestamp: new Date(selection.timestamp).toISOString()
       });
 
+      setHasInitialized(true);
+
     } catch (err) {
       console.error('安全CAPTCHA选择失败:', err);
       setError(err instanceof Error ? err.message : '未知错误');
@@ -85,7 +95,7 @@ export const useSecureCaptchaSelection = (options: UseSecureCaptchaSelectionOpti
     } finally {
       setLoading(false);
     }
-  }, [fingerprint, availableTypes]);
+  }, [fingerprint, availableTypes, loading]);
 
   /**
    * 重新生成选择
@@ -94,6 +104,7 @@ export const useSecureCaptchaSelection = (options: UseSecureCaptchaSelectionOpti
     setCaptchaConfig(null);
     setEncryptedSelection(null);
     setError(null);
+    setHasInitialized(false);
     generateAndFetchConfig();
   }, [generateAndFetchConfig]);
 
@@ -109,23 +120,14 @@ export const useSecureCaptchaSelection = (options: UseSecureCaptchaSelectionOpti
   }, [encryptedSelection]);
 
   /**
-   * 自动刷新过期的选择
+   * 初始化时生成选择（只执行一次）
    */
   useEffect(() => {
-    if (encryptedSelection && isSelectionExpired()) {
-      console.log('CAPTCHA选择已过期，自动重新生成');
-      regenerateSelection();
-    }
-  }, [encryptedSelection, isSelectionExpired, regenerateSelection]);
-
-  /**
-   * 初始化时生成选择
-   */
-  useEffect(() => {
-    if (fingerprint && !captchaConfig && !loading) {
+    if (fingerprint && !hasInitialized && !loading && !captchaConfig) {
+      console.log('初始化CAPTCHA配置');
       generateAndFetchConfig();
     }
-  }, [fingerprint, captchaConfig, loading, generateAndFetchConfig]);
+  }, [fingerprint, hasInitialized, loading, captchaConfig, generateAndFetchConfig]);
 
   return {
     captchaConfig,

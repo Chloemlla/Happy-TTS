@@ -1105,10 +1105,32 @@ router.post('/secure-captcha-config', publicLimiter, async (req, res) => {
         // 验证时间戳（5分钟内有效）
         const now = Date.now();
         const timeDiff = now - timestamp;
+        
+        // 详细的时间戳调试日志
+        console.log('=== 时间戳验证调试 ===');
+        console.log('客户端时间戳:', timestamp);
+        console.log('服务器当前时间:', now);
+        console.log('时间差 (ms):', timeDiff);
+        console.log('时间差 (分钟):', Math.round(timeDiff / 60000 * 100) / 100);
+        console.log('客户端时间:', new Date(timestamp).toISOString());
+        console.log('服务器时间:', new Date(now).toISOString());
+        console.log('允许的最大时间差:', 5 * 60 * 1000, 'ms (5分钟)');
+        console.log('时间戳是否过期:', timeDiff < 0 || timeDiff > 5 * 60 * 1000);
+        console.log('========================');
+        
         if (timeDiff < 0 || timeDiff > 5 * 60 * 1000) {
+            console.log('时间戳验证失败 - 请求被拒绝');
             return res.status(400).json({
                 success: false,
-                error: '请求已过期'
+                error: '请求已过期',
+                debug: {
+                    clientTimestamp: timestamp,
+                    serverTimestamp: now,
+                    timeDiff: timeDiff,
+                    timeDiffMinutes: Math.round(timeDiff / 60000 * 100) / 100,
+                    clientTime: new Date(timestamp).toISOString(),
+                    serverTime: new Date(now).toISOString()
+                }
             });
         }
         
@@ -1540,6 +1562,109 @@ router.delete('/hcaptcha-config/:key', authenticateToken, configLimiter, async (
         res.status(500).json({ 
             success: false, 
             error: '服务器内部错误' 
+        });
+    }
+});
+
+/**
+ * @openapi
+ * /api/turnstile/hcaptcha-verify:
+ *   post:
+ *     summary: 验证hCaptcha token
+ *     description: 验证hCaptcha返回的token（无需认证）
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: hCaptcha返回的验证token
+ *               timestamp:
+ *                 type: string
+ *                 description: 验证时间戳
+ *     responses:
+ *       200:
+ *         description: 验证成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 timestamp:
+ *                   type: string
+ *                 details:
+ *                   type: object
+ *       400:
+ *         description: 验证失败
+ *       500:
+ *         description: 服务器内部错误
+ */
+router.post('/hcaptcha-verify', publicLimiter, async (req, res) => {
+    try {
+        const { token, timestamp } = req.body;
+        const clientIp = req.ip || req.socket.remoteAddress || (Array.isArray(req.headers['x-forwarded-for']) ? req.headers['x-forwarded-for'][0] : req.headers['x-forwarded-for']) || 'unknown';
+        const validatedClientIp = typeof clientIp === 'string' ? clientIp : 'unknown';
+        
+        if (!token || typeof token !== 'string') {
+            return res.status(400).json({ 
+                success: false, 
+                message: '验证令牌无效',
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        // 检查IP是否被封禁
+        const banStatus = await TurnstileService.isIpBanned(validatedClientIp);
+        if (banStatus.banned) {
+            return res.status(403).json({
+                success: false,
+                message: 'IP已被封禁',
+                details: {
+                    reason: banStatus.reason,
+                    expiresAt: banStatus.expiresAt
+                },
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        // 验证hCaptcha token
+        const isValid = await TurnstileService.verifyHCaptchaToken(token, validatedClientIp);
+
+        if (isValid) {
+            res.json({
+                success: true,
+                message: '验证成功',
+                timestamp: new Date().toISOString(),
+                details: {
+                    hostname: req.hostname,
+                    challenge_ts: timestamp || new Date().toISOString()
+                }
+            });
+        } else {
+            res.status(400).json({
+                success: false,
+                message: '验证失败，请重试',
+                timestamp: new Date().toISOString(),
+                details: {
+                    error_codes: ['verification-failed']
+                }
+            });
+        }
+    } catch (error) {
+        console.error('hCaptcha验证失败:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: '服务器内部错误',
+            timestamp: new Date().toISOString()
         });
     }
 });
