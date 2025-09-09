@@ -1013,6 +1013,11 @@ router.delete('/logs/archives/:archiveName', logLimiter, authenticateToken, asyn
       return res.status(400).json({ error: '无效的归档名称格式' });
     }
 
+    await connectMongo();
+    
+    // 首先检查数据库中是否存在该归档
+    const dbArchive = await ArchiveModel.findOne({ archiveName });
+    
     const archivePath = path.join(ARCHIVE_DIR, archiveName);
     
     // 确保归档路径在预期目录内
@@ -1023,17 +1028,38 @@ router.delete('/logs/archives/:archiveName', logLimiter, authenticateToken, asyn
       return res.status(400).json({ error: '非法的归档路径' });
     }
     
-    // 检查归档是否存在
-    if (!fs.existsSync(archivePath)) {
+    // 检查归档是否存在（数据库或文件系统）
+    const fileSystemExists = fs.existsSync(archivePath);
+    
+    if (!dbArchive && !fileSystemExists) {
       logger.warn(`删除归档 | IP:${ip} | 归档:${archiveName} | 结果:失败 | 原因:归档不存在`);
       return res.status(404).json({ error: '归档不存在' });
     }
 
-    // 递归删除归档目录
-    await fs.promises.rm(archivePath, { recursive: true, force: true });
+    let deletedFromDb = false;
+    let deletedFromFs = false;
 
-    logger.info(`删除归档 | IP:${ip} | 归档:${archiveName} | 结果:成功`);
-    return res.json({ success: true, deletedArchive: archiveName });
+    // 从数据库删除归档记录
+    if (dbArchive) {
+      await ArchiveModel.deleteOne({ archiveName });
+      deletedFromDb = true;
+      logger.info(`从数据库删除归档 | 归档:${archiveName} | ID:${dbArchive._id}`);
+    }
+
+    // 从文件系统删除归档目录
+    if (fileSystemExists) {
+      await fs.promises.rm(archivePath, { recursive: true, force: true });
+      deletedFromFs = true;
+      logger.info(`从文件系统删除归档 | 归档:${archiveName} | 路径:${archivePath}`);
+    }
+
+    logger.info(`删除归档 | IP:${ip} | 归档:${archiveName} | 结果:成功 | 数据库:${deletedFromDb} | 文件系统:${deletedFromFs}`);
+    return res.json({ 
+      success: true, 
+      deletedArchive: archiveName,
+      deletedFromDatabase: deletedFromDb,
+      deletedFromFileSystem: deletedFromFs
+    });
 
   } catch (e: any) {
     logger.error(`删除归档 | IP:${ip} | 归档:${archiveName} | 结果:异常 | 错误:${e?.message}`, e);

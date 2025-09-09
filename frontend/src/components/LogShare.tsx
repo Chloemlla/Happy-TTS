@@ -1494,7 +1494,7 @@ const LogShare: React.FC = () => {
             ) : (
               archives.map((archive, idx) => (
                 <motion.div
-                  key={archive.name}
+                  key={archive.archiveName}
                   className="bg-white border border-gray-200 rounded-lg p-4"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -1504,8 +1504,8 @@ const LogShare: React.FC = () => {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <FaArchive className="text-purple-500" />
-                        <span className="font-semibold text-gray-800">{archive.name}</span>
-                        {archive.metadata?.ipfsUpload?.enabled && (
+                        <span className="font-semibold text-gray-800">{archive.archiveName}</span>
+                        {archive.ipfsUpload?.enabled && (
                           <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
                             <FaCloud className="text-xs" />
                             IPFS已上传
@@ -1598,7 +1598,7 @@ const LogShare: React.FC = () => {
                       </div>
                     </div>
                     <motion.button
-                      onClick={() => handleDeleteArchive(archive.name)}
+                      onClick={() => handleDeleteArchive(archive.archiveName)}
                       className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition text-sm"
                       whileTap={{ scale: 0.95 }}
                     >
