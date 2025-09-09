@@ -236,6 +236,13 @@ router.post('/verify-temp-fingerprint', fingerprintLimiter, async (req, res) => 
             });
         }
 
+        // Turnstile验证成功后直接通过，无需其他检查
+        console.log('✅ Turnstile验证成功，直接通过', {
+            fingerprint: fingerprint.substring(0, 8) + '...',
+            ip: validatedClientIp,
+            accessToken: result.accessToken ? result.accessToken.substring(0, 8) + '...' : 'null'
+        });
+
         res.json({
             success: true,
             verified: true,
@@ -1641,6 +1648,12 @@ router.post('/hcaptcha-verify', publicLimiter, async (req, res) => {
         const isValid = await TurnstileService.verifyHCaptchaToken(token, validatedClientIp);
 
         if (isValid) {
+            // hCaptcha验证成功后直接通过，无需其他检查
+            console.log('✅ hCaptcha验证成功，直接通过', {
+                ip: validatedClientIp,
+                token: token.substring(0, 8) + '...'
+            });
+
             res.json({
                 success: true,
                 message: '验证成功',

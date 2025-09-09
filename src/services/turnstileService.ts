@@ -418,6 +418,31 @@ export class TurnstileService {
   }
 
   /**
+   * 翻译Turnstile错误代码为可读消息
+   * @param errorCodes Cloudflare返回的错误代码数组
+   * @returns 错误消息数组
+   */
+  private static translateTurnstileErrors(errorCodes: string[]): string[] {
+    const errorMap: Record<string, string> = {
+      'missing-input-secret': '缺少密钥参数',
+      'invalid-input-secret': '密钥无效',
+      'missing-input-response': '缺少响应令牌',
+      'invalid-input-response': '响应令牌无效或已过期',
+      'bad-request': '请求格式错误',
+      'timeout-or-duplicate': '令牌超时或重复使用',
+      'internal-error': 'Cloudflare内部错误',
+      'invalid-widget-id': '无效的组件ID',
+      'invalid-parsed-secret': '解析的密钥无效',
+      'invalid-request': '无效请求',
+      'challenge-expired': '挑战已过期',
+      'challenge-already-used': '挑战已被使用',
+      'challenge-not-found': '挑战未找到'
+    };
+
+    return errorCodes.map(code => errorMap[code] || `未知错误代码: ${code}`);
+  }
+
+  /**
    * 评估客户端风险等级
    * @param ip IP地址
    * @param userAgent 用户代理
@@ -442,7 +467,7 @@ export class TurnstileService {
 
     // 开发环境特殊处理
     const isDev = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev';
-    
+
     // IP风险评估
     if (ip === '127.0.0.1' || ip === '::1' || ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.')) {
       // 本地IP，低风险
@@ -916,27 +941,21 @@ export class TurnstileService {
       const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5分钟后过期
       const isVerified = isDev && isLocalhost && enableDevAutoVerify; // 开发环境本地IP自动验证（需要开关启用）
 
-      await TempFingerprintModel.create({
+      const newDoc = await TempFingerprintModel.create({
         fingerprint: validatedFingerprint,
+        ipAddress: validatedIp,
         verified: isVerified,
         expiresAt,
+        createdAt: new Date(),
+        updatedAt: new Date()
       });
 
-      if (isVerified) {
-        logger.info('开发环境：本地IP临时指纹自动验证', {
-          fingerprint: validatedFingerprint.substring(0, 8) + '...',
-          ipAddress: validatedIp,
-          autoVerifyEnabled: enableDevAutoVerify
-        });
-      } else {
-        logger.info('临时指纹上报成功', {
-          fingerprint: validatedFingerprint.substring(0, 8) + '...',
-          ipAddress: validatedIp,
-          isDev,
-          isLocalhost,
-          autoVerifyEnabled: enableDevAutoVerify
-        });
-      }
+      logger.info('创建新的临时指纹记录', {
+        fingerprint: validatedFingerprint.substring(0, 8) + '...',
+        ipAddress: validatedIp,
+        verified: isVerified,
+        expiresAt
+      });
 
       return {
         isFirstVisit: true,
@@ -1048,12 +1067,51 @@ export class TurnstileService {
 
       // 开发环境特殊处理
       const isDev = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev';
-      const isLocalhost = validatedIp === '127.0.0.1' || validatedIp === '::1' || validatedIp.startsWith('192.168.') || validatedIp.startsWith('10.');
-      
+      const isLocalhost = validatedIp === '127.0.0.1' || validatedIp === '::1' || validatedIp.startsWith('192.168.') || validatedIp.startsWith('10.') || validatedIp.startsWith('172.');
+
+      // 开发环境自动通过开关
+      const devAutoPass = process.env.TURNSTILE_DEV_AUTO_PASS !== 'false';
+
+      // 开发环境且启用自动通过时，跳过所有验证
+      if (isDev && isLocalhost && devAutoPass) {
+        const riskAssessment = this.assessClientRisk(validatedIp, userAgent, fingerprint);
+        this.recordVerificationOutcome(validatedIp, userAgent, true, new Date(), fingerprint);
+
+        logger.info('开发环境：自动通过Turnstile验证', {
+          ip: validatedIp,
+          fingerprint: fingerprint?.substring(0, 16),
+          devAutoPass,
+          traceId
+        });
+
+        // 记录开发环境自动通过到溯源数据库
+        await this.persistTurnstileTrace({
+          traceId,
+          time: new Date(),
+          ip: validatedIp,
+          ua: userAgent,
+          success: true,
+          reason: 'dev_auto_pass',
+          errorCode: null,
+          errorMessage: null,
+          fingerprint,
+          riskLevel: 'LOW',
+          riskScore: 0,
+          riskReasons: ['开发环境自动通过']
+        });
+
+        return {
+          success: true,
+          timestamp,
+          clientInfo,
+          traceId
+        };
+      }
+
       // 从数据库获取密钥
       const secretKey = await getTurnstileKey('TURNSTILE_SECRET_KEY');
       if (!secretKey) {
-        // 开发环境本地IP自动通过验证
+        // 开发环境本地IP自动通过验证（密钥未配置时的后备方案）
         if (isDev && isLocalhost) {
           const riskAssessment = this.assessClientRisk(validatedIp, userAgent, fingerprint);
           this.recordVerificationOutcome(validatedIp, userAgent, true, new Date(), fingerprint);
@@ -1135,12 +1193,18 @@ export class TurnstileService {
       if (!result.success) {
         const riskAssessment = this.assessClientRisk(validatedIp, userAgent, fingerprint);
 
-        // 详细记录验证失败信息，包含评分细节
+        // 详细记录验证失败信息，包含评分细节和具体错误代码
+        const errorCodes = result['error-codes'] || [];
+        const errorMessages = this.translateTurnstileErrors(errorCodes);
+
         logger.warn('Turnstile验证失败 - 详细评分信息', {
           ip: validatedIp,
           userAgent: userAgent?.substring(0, 100),
           fingerprint: fingerprint?.substring(0, 16),
-          cfErrorCodes: result['error-codes'],
+          cfErrorCodes: errorCodes,
+          errorMessages: errorMessages,
+          challengeTs: result.challenge_ts,
+          hostname: result.hostname,
           riskAssessment: {
             level: riskAssessment.riskLevel,
             score: riskAssessment.riskScore,
@@ -1198,8 +1262,14 @@ export class TurnstileService {
         };
       }
 
-      // 验证成功
+      // 验证成功 - 直接通过，不进行额外检查
       this.recordVerificationOutcome(validatedIp, userAgent, true, now, fingerprint);
+
+      logger.info('Turnstile验证成功，直接通过所有检查', {
+        ip: validatedIp,
+        fingerprint: fingerprint?.substring(0, 16),
+        traceId
+      });
 
       // 记录成功验证到溯源数据库
       await this.persistTurnstileTrace({
@@ -1208,7 +1278,7 @@ export class TurnstileService {
         ip: validatedIp,
         ua: userAgent,
         success: true,
-        reason: 'verification_success',
+        reason: 'verification_success_auto_pass',
         errorCode: null,
         errorMessage: null,
         fingerprint,
@@ -1389,16 +1459,35 @@ export class TurnstileService {
 
       // 开发环境下本地IP跳过Turnstile验证
       const isDev = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev';
-      const isLocalhost = validatedIp === '127.0.0.1' || validatedIp === '::1' || validatedIp === '::ffff:127.0.0.1';
+      const isLocalhost = validatedIp === '127.0.0.1' || validatedIp === '::1' || validatedIp === '::ffff:127.0.0.1' || validatedIp.startsWith('192.168.') || validatedIp.startsWith('10.') || validatedIp.startsWith('172.');
+      const devAutoPass = process.env.TURNSTILE_DEV_AUTO_PASS !== 'false';
 
       let isValid = false;
 
-      if (isDev && isLocalhost) {
+      if (isDev && isLocalhost && devAutoPass) {
         // 开发环境本地IP自动通过验证
         isValid = true;
         logger.info('开发环境：本地IP跳过Turnstile验证', {
           fingerprint: validatedFingerprint.substring(0, 8) + '...',
-          ipAddress: validatedIp
+          ipAddress: validatedIp,
+          devAutoPass,
+          traceId
+        });
+
+        // 记录开发环境跳过验证到溯源数据库
+        await this.persistTurnstileTrace({
+          traceId,
+          time: new Date(),
+          ip: validatedIp,
+          ua: userAgent,
+          success: true,
+          reason: 'dev_temp_fingerprint_auto_pass',
+          errorCode: null,
+          errorMessage: null,
+          fingerprint: validatedFingerprint,
+          riskLevel: 'LOW',
+          riskScore: 0,
+          riskReasons: ['开发环境临时指纹自动通过']
         });
       } else {
         // 使用详细验证方法
@@ -1416,6 +1505,13 @@ export class TurnstileService {
           });
           return { success: false, details: detailedResult, traceId };
         }
+
+        // 人机验证成功，记录成功日志
+        logger.info('Turnstile验证成功，直接通过', {
+          fingerprint: validatedFingerprint.substring(0, 8) + '...',
+          ipAddress: validatedIp,
+          traceId
+        });
       }
 
       // 标记为已验证
