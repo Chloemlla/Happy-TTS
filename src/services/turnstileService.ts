@@ -306,7 +306,7 @@ export class TurnstileService {
     try {
       await connectMongo();
       const TraceModel = this.getTraceModel();
-      
+
       // 如果 traceId 已存在，尝试更新而不是插入
       const existingTrace = await TraceModel.findOne({ traceId: traceData.traceId });
       if (existingTrace) {
@@ -597,9 +597,9 @@ export class TurnstileService {
   }
 
   /**
-   * 记录验证结果（成功或失败）
+   * 记录验证结果到内存统计（跳过用户代理验证）
    * @param ip IP地址
-   * @param userAgent 用户代理
+   * @param userAgent 用户代理（已跳过验证）
    * @param success 是否成功
    * @param timestamp 时间戳
    * @param fingerprint 浏览器指纹
@@ -610,15 +610,15 @@ export class TurnstileService {
     success: boolean,
     timestamp: Date,
     fingerprint?: string
-  ): void {
+  ) {
     try {
       const outcome = success ? '成功' : '失败';
       logger.info(`[Turnstile] 验证${outcome}`, {
         ip: ip,
-        userAgent: userAgent?.substring(0, 100),
         fingerprint: fingerprint?.substring(0, 16),
         timestamp: timestamp.toISOString(),
-        success
+        success,
+        userAgentSkipped: true // 标记已跳过用户代理验证
       });
     } catch (error) {
       logger.error('[Turnstile] 记录验证结果失败', error);
