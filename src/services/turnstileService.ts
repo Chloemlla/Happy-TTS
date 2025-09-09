@@ -428,54 +428,102 @@ export class TurnstileService {
     ip: string,
     userAgent?: string,
     fingerprint?: string
-  ): { riskLevel: 'low' | 'medium' | 'high'; riskScore: number; riskReasons: string[] } {
+  ): { riskLevel: 'low' | 'medium' | 'high'; riskScore: number; riskReasons: string[]; scoreBreakdown: any } {
     const reasons: string[] = [];
     let score = 0;
+    const scoreBreakdown: any = {
+      baseScore: 0,
+      ipScore: 0,
+      userAgentScore: 0,
+      fingerprintScore: 0,
+      devMultiplier: 1,
+      finalScore: 0
+    };
 
+    // 开发环境特殊处理
+    const isDev = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev';
+    
     // IP风险评估
-    if (ip === '127.0.0.1' || ip === '::1' || ip.startsWith('192.168.') || ip.startsWith('10.')) {
+    if (ip === '127.0.0.1' || ip === '::1' || ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.')) {
       // 本地IP，低风险
-      score += 0.1;
+      scoreBreakdown.ipScore = 0.05;
+      scoreBreakdown.ipType = 'local';
+      score += 0.05;
     } else {
-      // 公网IP，中等风险
-      score += 0.3;
+      // 公网IP，轻微风险（降低评分）
+      scoreBreakdown.ipScore = 0.15;
+      scoreBreakdown.ipType = 'public';
+      score += 0.15;
     }
 
-    // User-Agent风险评估
+    // User-Agent风险评估（放宽标准）
     if (userAgent) {
       const ua = userAgent.toLowerCase();
       if (ua.includes('bot') || ua.includes('crawler') || ua.includes('spider')) {
-        score += 0.6;
+        scoreBreakdown.userAgentScore = 0.4; // 降低机器人风险评分
+        scoreBreakdown.userAgentType = 'bot';
+        score += 0.4;
         reasons.push('疑似机器人用户代理');
       } else if (ua.includes('curl') || ua.includes('wget') || ua.includes('python')) {
-        score += 0.8;
+        scoreBreakdown.userAgentScore = 0.6; // 降低自动化工具风险评分
+        scoreBreakdown.userAgentType = 'automation_tool';
+        score += 0.6;
         reasons.push('自动化工具用户代理');
-      } else if (!ua.includes('mozilla') && !ua.includes('chrome') && !ua.includes('safari')) {
-        score += 0.4;
+      } else if (!ua.includes('mozilla') && !ua.includes('chrome') && !ua.includes('safari') && !ua.includes('firefox') && !ua.includes('edge')) {
+        scoreBreakdown.userAgentScore = 0.2; // 降低异常UA风险评分
+        scoreBreakdown.userAgentType = 'unusual';
+        score += 0.2;
         reasons.push('异常用户代理');
+      } else {
+        scoreBreakdown.userAgentScore = 0;
+        scoreBreakdown.userAgentType = 'normal';
       }
     } else {
-      score += 0.5;
+      scoreBreakdown.userAgentScore = 0.2; // 降低缺少UA的风险评分
+      scoreBreakdown.userAgentType = 'missing';
+      score += 0.2;
       reasons.push('缺少用户代理信息');
     }
 
-    // 指纹风险评估
+    // 指纹风险评估（放宽标准）
     if (!fingerprint || fingerprint.length < 8) {
-      score += 0.3;
+      scoreBreakdown.fingerprintScore = 0.1; // 降低指纹缺失的风险评分
+      scoreBreakdown.fingerprintStatus = 'invalid_or_missing';
+      score += 0.1;
       reasons.push('无效或缺失浏览器指纹');
+    } else {
+      scoreBreakdown.fingerprintScore = 0;
+      scoreBreakdown.fingerprintStatus = 'valid';
     }
 
-    // 确定风险等级
+    scoreBreakdown.baseScore = score;
+
+    // 开发环境进一步降低风险评分
+    if (isDev) {
+      scoreBreakdown.devMultiplier = 0.3;
+      score = score * 0.3; // 开发环境风险评分降低70%
+      reasons.push('开发环境');
+    }
+
+    scoreBreakdown.finalScore = Math.min(score, 1);
+
+    // 确定风险等级（提高阈值，降低风险等级）
     let riskLevel: 'low' | 'medium' | 'high';
-    if (score >= 0.7) {
+    if (score >= 0.8) {
       riskLevel = 'high';
-    } else if (score >= 0.4) {
+    } else if (score >= 0.5) {
       riskLevel = 'medium';
     } else {
       riskLevel = 'low';
     }
 
-    return { riskLevel, riskScore: Math.min(score, 1), riskReasons: reasons };
+    scoreBreakdown.thresholds = {
+      high: 0.8,
+      medium: 0.5,
+      low: 0
+    };
+
+    return { riskLevel, riskScore: Math.min(score, 1), riskReasons: reasons, scoreBreakdown };
   }
 
   /**
@@ -998,9 +1046,42 @@ export class TurnstileService {
         };
       }
 
+      // 开发环境特殊处理
+      const isDev = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev';
+      const isLocalhost = validatedIp === '127.0.0.1' || validatedIp === '::1' || validatedIp.startsWith('192.168.') || validatedIp.startsWith('10.');
+      
       // 从数据库获取密钥
       const secretKey = await getTurnstileKey('TURNSTILE_SECRET_KEY');
       if (!secretKey) {
+        // 开发环境本地IP自动通过验证
+        if (isDev && isLocalhost) {
+          const riskAssessment = this.assessClientRisk(validatedIp, userAgent, fingerprint);
+          this.recordVerificationOutcome(validatedIp, userAgent, true, new Date(), fingerprint);
+
+          // 记录开发环境自动通过到溯源数据库
+          await this.persistTurnstileTrace({
+            traceId,
+            time: new Date(),
+            ip: validatedIp,
+            ua: userAgent,
+            success: true,
+            reason: 'dev_auto_pass',
+            errorCode: null,
+            errorMessage: null,
+            fingerprint,
+            riskLevel: 'LOW',
+            riskScore: 0,
+            riskReasons: ['开发环境自动通过']
+          });
+
+          return {
+            success: true,
+            timestamp,
+            clientInfo,
+            traceId
+          };
+        }
+
         const riskAssessment = this.assessClientRisk(validatedIp, userAgent, fingerprint);
         this.recordVerificationOutcome(validatedIp, userAgent, false, new Date(), fingerprint);
 
@@ -1053,6 +1134,21 @@ export class TurnstileService {
 
       if (!result.success) {
         const riskAssessment = this.assessClientRisk(validatedIp, userAgent, fingerprint);
+
+        // 详细记录验证失败信息，包含评分细节
+        logger.warn('Turnstile验证失败 - 详细评分信息', {
+          ip: validatedIp,
+          userAgent: userAgent?.substring(0, 100),
+          fingerprint: fingerprint?.substring(0, 16),
+          cfErrorCodes: result['error-codes'],
+          riskAssessment: {
+            level: riskAssessment.riskLevel,
+            score: riskAssessment.riskScore,
+            reasons: riskAssessment.riskReasons,
+            scoreBreakdown: riskAssessment.scoreBreakdown
+          },
+          traceId
+        });
 
         // 记录违规并可能封禁IP
         const banned = await this.recordViolation(
