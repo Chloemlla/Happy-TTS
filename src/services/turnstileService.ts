@@ -289,6 +289,16 @@ export class TurnstileService {
   }
 
   /**
+   * 生成唯一的 traceId
+   * @returns 唯一的 traceId
+   */
+  private static generateUniqueTraceId(): string {
+    const timestamp = Date.now().toString(36);
+    const randomPart = crypto.randomBytes(8).toString('hex');
+    return `${timestamp}-${randomPart}`;
+  }
+
+  /**
    * 持久化 Turnstile 验证溯源信息到数据库
    * @param traceData 溯源数据
    */
@@ -296,12 +306,47 @@ export class TurnstileService {
     try {
       await connectMongo();
       const TraceModel = this.getTraceModel();
-      await TraceModel.create({
-        ...traceData,
-        verificationMethod: 'turnstile'
-      });
+      
+      // 如果 traceId 已存在，尝试更新而不是插入
+      const existingTrace = await TraceModel.findOne({ traceId: traceData.traceId });
+      if (existingTrace) {
+        await TraceModel.updateOne(
+          { traceId: traceData.traceId },
+          {
+            ...traceData,
+            verificationMethod: 'turnstile',
+            time: new Date() // 更新时间
+          }
+        );
+        logger.info('[Turnstile] 更新现有溯源信息', { traceId: traceData.traceId });
+      } else {
+        await TraceModel.create({
+          ...traceData,
+          verificationMethod: 'turnstile'
+        });
+        logger.info('[Turnstile] 创建新溯源信息', { traceId: traceData.traceId });
+      }
     } catch (error) {
-      logger.warn('[Turnstile] 持久化溯源信息失败', error);
+      // Type guard to check if error is a MongoDB duplicate key error
+      if (error && typeof error === 'object' && 'code' in error && (error as any).code === 11000) {
+        // 处理重复键错误，尝试更新
+        try {
+          const TraceModel = this.getTraceModel();
+          await TraceModel.updateOne(
+            { traceId: traceData.traceId },
+            {
+              ...traceData,
+              verificationMethod: 'turnstile',
+              time: new Date()
+            }
+          );
+          logger.info('[Turnstile] 处理重复键，更新溯源信息', { traceId: traceData.traceId });
+        } catch (updateError) {
+          logger.warn('[Turnstile] 更新溯源信息失败', updateError);
+        }
+      } else {
+        logger.warn('[Turnstile] 持久化溯源信息失败', error);
+      }
     }
   }
 
@@ -587,7 +632,7 @@ export class TurnstileService {
    * @returns 验证结果
    */
   public static async verifyToken(token: string, remoteIp?: string): Promise<boolean> {
-    const traceId = crypto.randomBytes(12).toString('hex');
+    const traceId = this.generateUniqueTraceId();
 
     try {
       // 验证输入参数
@@ -983,7 +1028,7 @@ export class TurnstileService {
   ): Promise<TurnstileVerificationResult> {
     const timestamp = new Date().toISOString();
     const clientInfo = { ip: remoteIp, userAgent, fingerprint };
-    const traceId = crypto.randomBytes(12).toString('hex');
+    const traceId = this.generateUniqueTraceId();
 
     try {
       // 验证输入参数
@@ -1342,7 +1387,7 @@ export class TurnstileService {
     remoteIp?: string,
     userAgent?: string
   ): Promise<{ success: boolean; accessToken?: string; details?: TurnstileVerificationResult; traceId?: string }> {
-    const traceId = crypto.randomBytes(12).toString('hex');
+    const traceId = this.generateUniqueTraceId();
 
     try {
       // 验证输入参数
@@ -2195,7 +2240,7 @@ export class TurnstileService {
    * @returns 验证结果
    */
   public static async verifyHCaptchaToken(token: string, remoteIp?: string, siteKey?: string): Promise<boolean> {
-    const traceId = crypto.randomBytes(12).toString('hex');
+    const traceId = this.generateUniqueTraceId();
 
     try {
       // 验证输入参数
