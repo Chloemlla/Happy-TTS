@@ -1102,9 +1102,10 @@ router.post('/secure-captcha-config', publicLimiter, async (req, res) => {
             });
         }
         
-        // 验证时间戳（5分钟内有效）
+        // 验证时间戳（15分钟内有效，放宽时间窗口以处理时钟偏差）
         const now = Date.now();
         const timeDiff = now - timestamp;
+        const timeWindowMs = 15 * 60 * 1000; // 15分钟
         
         // 详细的时间戳调试日志
         console.log('=== 时间戳验证调试 ===');
@@ -1112,13 +1113,13 @@ router.post('/secure-captcha-config', publicLimiter, async (req, res) => {
         console.log('服务器当前时间:', now);
         console.log('时间差 (ms):', timeDiff);
         console.log('时间差 (分钟):', Math.round(timeDiff / 60000 * 100) / 100);
-        console.log('客户端时间:', new Date(timestamp).toISOString());
-        console.log('服务器时间:', new Date(now).toISOString());
-        console.log('允许的最大时间差:', 5 * 60 * 1000, 'ms (5分钟)');
-        console.log('时间戳是否过期:', timeDiff < 0 || timeDiff > 5 * 60 * 1000);
+        console.log('客户端时间 (上海):', new Date(timestamp).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }));
+        console.log('服务器时间 (上海):', new Date(now).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }));
+        console.log('允许的最大时间差:', timeWindowMs, 'ms (15分钟)');
+        console.log('时间戳是否过期:', timeDiff < 0 || timeDiff > timeWindowMs);
         console.log('========================');
         
-        if (timeDiff < 0 || timeDiff > 5 * 60 * 1000) {
+        if (timeDiff < 0 || timeDiff > timeWindowMs) {
             console.log('时间戳验证失败 - 请求被拒绝');
             return res.status(400).json({
                 success: false,
@@ -1128,8 +1129,8 @@ router.post('/secure-captcha-config', publicLimiter, async (req, res) => {
                     serverTimestamp: now,
                     timeDiff: timeDiff,
                     timeDiffMinutes: Math.round(timeDiff / 60000 * 100) / 100,
-                    clientTime: new Date(timestamp).toISOString(),
-                    serverTime: new Date(now).toISOString()
+                    clientTime: new Date(timestamp).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }),
+                    serverTime: new Date(now).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })
                 }
             });
         }
