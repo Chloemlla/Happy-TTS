@@ -380,9 +380,26 @@ export const reportTempFingerprint = async (): Promise<{ isFirstVisit: boolean; 
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/temp-fingerprint`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'User-Agent': navigator.userAgent
       },
-      body: JSON.stringify({ fingerprint })
+      body: JSON.stringify({ 
+        fingerprint,
+        userAgent: navigator.userAgent,
+        timestamp: Date.now(),
+        clientInfo: {
+          language: navigator.language,
+          platform: navigator.platform,
+          cookieEnabled: navigator.cookieEnabled,
+          doNotTrack: navigator.doNotTrack,
+          hardwareConcurrency: navigator.hardwareConcurrency,
+          maxTouchPoints: navigator.maxTouchPoints,
+          screenResolution: `${screen.width}x${screen.height}`,
+          colorDepth: screen.colorDepth,
+          pixelDepth: screen.pixelDepth,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        }
+      })
     });
 
     if (!response.ok) {
@@ -416,9 +433,29 @@ export const verifyTempFingerprint = async (fingerprint: string, cfToken: string
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/verify-temp-fingerprint`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'User-Agent': navigator.userAgent,
+        'X-Forwarded-For': '', // 将由后端从请求中获取真实IP
+        'X-Real-IP': ''
       },
-      body: JSON.stringify({ fingerprint, cfToken })
+      body: JSON.stringify({ 
+        fingerprint, 
+        cfToken,
+        userAgent: navigator.userAgent,
+        timestamp: Date.now(),
+        clientInfo: {
+          language: navigator.language,
+          platform: navigator.platform,
+          cookieEnabled: navigator.cookieEnabled,
+          doNotTrack: navigator.doNotTrack,
+          hardwareConcurrency: navigator.hardwareConcurrency,
+          maxTouchPoints: navigator.maxTouchPoints,
+          screenResolution: `${screen.width}x${screen.height}`,
+          colorDepth: screen.colorDepth,
+          pixelDepth: screen.pixelDepth,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        }
+      })
     });
 
     if (!response.ok) {
@@ -487,9 +524,27 @@ export const verifyAccessToken = async (token: string, fingerprint: string): Pro
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/verify-access-token`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'User-Agent': navigator.userAgent
       },
-      body: JSON.stringify({ token, fingerprint })
+      body: JSON.stringify({ 
+        token, 
+        fingerprint,
+        userAgent: navigator.userAgent,
+        timestamp: Date.now(),
+        clientInfo: {
+          language: navigator.language,
+          platform: navigator.platform,
+          cookieEnabled: navigator.cookieEnabled,
+          doNotTrack: navigator.doNotTrack,
+          hardwareConcurrency: navigator.hardwareConcurrency,
+          maxTouchPoints: navigator.maxTouchPoints,
+          screenResolution: `${screen.width}x${screen.height}`,
+          colorDepth: screen.colorDepth,
+          pixelDepth: screen.pixelDepth,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        }
+      })
     });
 
     if (!response.ok) {
