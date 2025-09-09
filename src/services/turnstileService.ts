@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { config } from '../config/config';
 import logger from '../utils/logger';
-import { mongoose, connectMongo } from './mongoService';
+import { mongoose, connectMongo, isConnected } from './mongoService';
 import { TempFingerprintModel, TempFingerprintDoc } from '../models/tempFingerprintModel';
 import { AccessTokenModel, AccessTokenDoc } from '../models/accessTokenModel';
 import { IpBanModel, IpBanDoc } from '../models/ipBanModel';
@@ -213,30 +213,28 @@ interface TurnstileVerificationSuccess {
   traceId?: string;
 }
 
+
 type TurnstileVerificationResult = TurnstileVerificationSuccess | TurnstileVerificationFailure;
 
 // 从数据库获取Turnstile密钥
 async function getTurnstileKey(keyName: 'TURNSTILE_SECRET_KEY' | 'TURNSTILE_SITE_KEY'): Promise<string | null> {
   try {
-    if (mongoose.connection.readyState === 1) {
+    if (isConnected()) {
       const doc = await TurnstileSettingModel.findOne({ key: keyName }).lean().exec();
       if (doc && typeof doc.value === 'string' && doc.value.trim().length > 0) {
         return doc.value.trim();
       }
     }
-  } catch (e) {
-    logger.error(`读取Turnstile ${keyName} 失败，回退到环境变量`, e);
+  } catch (error) {
+    logger.error('获取Turnstile密钥失败', { keyName, error: error instanceof Error ? error.message : String(error) });
   }
-
-  // 回退到环境变量
-  const envKey = process.env[keyName]?.trim();
-  return envKey && envKey.length > 0 ? envKey : null;
+  return null;
 }
 
 // 从数据库获取hCaptcha密钥
 async function getHCaptchaKey(keyName: 'HCAPTCHA_SECRET_KEY' | 'HCAPTCHA_SITE_KEY'): Promise<string | null> {
   try {
-    if (mongoose.connection.readyState === 1) {
+    if (isConnected()) {
       const doc = await HCaptchaSettingModel.findOne({ key: keyName }).lean().exec();
       if (doc && typeof doc.value === 'string' && doc.value.trim().length > 0) {
         return doc.value.trim();
@@ -319,7 +317,7 @@ export class TurnstileService {
         return { banned: false };
       }
 
-      if (mongoose.connection.readyState !== 1) {
+      if (!isConnected()) {
         return { banned: false };
       }
 
@@ -721,34 +719,34 @@ export class TurnstileService {
         logger.warn('Turnstile配置更新失败：不允许的配置键', { key });
         return false;
       }
-      
+
       const validatedValue = validateConfigValue(value);
       if (!validatedValue) {
         logger.warn('Turnstile配置更新失败：输入参数无效', { key, valueLength: value?.length });
         return false;
       }
 
-      if (mongoose.connection.readyState !== 1) {
+      if (!isConnected()) {
         logger.error('数据库连接不可用，无法更新Turnstile配置');
         return false;
       }
 
       // 使用字面量对象防止NoSQL注入
-      const updateQuery = key === 'TURNSTILE_SECRET_KEY' 
+      const updateQuery = key === 'TURNSTILE_SECRET_KEY'
         ? { key: 'TURNSTILE_SECRET_KEY' }
         : { key: 'TURNSTILE_SITE_KEY' };
-      
+
       const updateData = key === 'TURNSTILE_SECRET_KEY'
         ? {
-            key: 'TURNSTILE_SECRET_KEY',
-            value: validatedValue,
-            updatedAt: new Date()
-          }
+          key: 'TURNSTILE_SECRET_KEY',
+          value: validatedValue,
+          updatedAt: new Date()
+        }
         : {
-            key: 'TURNSTILE_SITE_KEY',
-            value: validatedValue,
-            updatedAt: new Date()
-          };
+          key: 'TURNSTILE_SITE_KEY',
+          value: validatedValue,
+          updatedAt: new Date()
+        };
 
       await TurnstileSettingModel.findOneAndUpdate(
         updateQuery,
@@ -777,7 +775,7 @@ export class TurnstileService {
         return false;
       }
 
-      if (mongoose.connection.readyState !== 1) {
+      if (!isConnected()) {
         logger.error('数据库连接不可用，无法删除Turnstile配置');
         return false;
       }
@@ -826,7 +824,7 @@ export class TurnstileService {
         return { isFirstVisit: false, verified: false };
       }
 
-      if (mongoose.connection.readyState !== 1) {
+      if (!isConnected()) {
         logger.error('数据库连接不可用，无法上报临时指纹');
         return { isFirstVisit: false, verified: false };
       }
@@ -2219,7 +2217,7 @@ export class TurnstileService {
         logger.warn('hCaptcha配置更新失败：不允许的配置键', { key });
         return false;
       }
-      
+
       const validatedValue = validateConfigValue(value);
       if (!validatedValue) {
         logger.warn('hCaptcha配置更新失败：输入参数无效', { key, valueLength: value?.length });
