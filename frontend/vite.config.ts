@@ -17,13 +17,13 @@ function obfuscateDistJs() {
     const code = fs.readFileSync(filePath, 'utf-8');
     const obfuscated = JavaScriptObfuscator.obfuscate(code, {
       compact: true,
-      controlFlowFlattening: false,
-      deadCodeInjection: false,
+      controlFlowFlattening: true,
+      deadCodeInjection: true,
       stringArray: true,
-      stringArrayEncoding: ['base64'],
-      stringArrayThreshold: 0.5,
-      selfDefending: false,
-      disableConsoleOutput: false,
+      stringArrayEncoding: ['rc4'],
+      stringArrayThreshold: 0.75,
+      selfDefending: true,
+      disableConsoleOutput: true,
       unicodeEscapeSequence: true,
     }).getObfuscatedCode();
     fs.writeFileSync(filePath, obfuscated, 'utf-8');
@@ -215,9 +215,9 @@ export default defineConfig(({ mode }) => {
               compact: true, // 压缩输出体积，去除多余空白与换行
               controlFlowFlattening: false, // 关闭控制流扁平化（性能开销大，影响运行速度）
               deadCodeInjection: false, // 不注入死代码（避免包体积大幅增长）
-              debugProtection: false, // 允许使用 DevTools 调试
-              debugProtectionInterval: 0, // 禁用调试防护轮询
-              disableConsoleOutput: false, // 保留 console 输出以便调试
+              debugProtection: true, // 阻止使用 DevTools 调试（检测 debugger 等）
+              debugProtectionInterval: 2000, // 调试防护轮询间隔（毫秒），与 debugProtection 配合
+              disableConsoleOutput: true, // 移除/替换 console 输出，降低信息泄露
               identifierNamesGenerator: 'hexadecimal', // 标识符改写为十六进制格式
               log: false, // 关闭混淆器自身日志
               numbersToExpressions: true, // 将字面量数字替换为等价表达式，增加阅读难度
@@ -318,9 +318,9 @@ export default defineConfig(({ mode }) => {
       minify: 'terser' as const,
       terserOptions: {
         compress: {
-          drop_console: false, // 保留console.log以便调试
-          drop_debugger: false, // 保留debugger以便调试
-          pure_funcs: [], // 不移除console函数调用
+          drop_console: true, // 移除console.log
+          drop_debugger: true, // 移除debugger
+          pure_funcs: ['console.log', 'console.info', 'console.debug'], // 移除特定函数调用
         },
         mangle: {
           toplevel: true, // 混淆顶级变量名

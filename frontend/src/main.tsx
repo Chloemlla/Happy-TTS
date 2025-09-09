@@ -1557,10 +1557,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // FirstVisitVerification页面F12控制台豁免检查
 function isFirstVisitVerificationPage(): boolean {
-  // 检查环境变量开关
-  // const allowF12OnFirstVisit = process.env.REACT_APP_ALLOW_F12_ON_FIRST_VISIT === 'true';
-  const allowF12OnFirstVisit = 'true';
-  if (allowF12OnFirstVisit !== 'true') {
+  // 强制禁用F12豁免功能 - 无论环境变量如何设置都不允许
+  const allowF12OnFirstVisit = false;
+  
+  // 即使环境变量被设置，也强制返回false以确保安全
+  if (process.env.REACT_APP_ALLOW_F12_ON_FIRST_VISIT === 'true') {
+    console.warn(' REACT_APP_ALLOW_F12_ON_FIRST_VISIT被强制禁用，F12豁免功能已被永久关闭');
     return false;
   }
 
@@ -1580,12 +1582,8 @@ function isFirstVisitVerificationPage(): boolean {
     document.title.includes('首次访问') ||
     document.title.includes('First Visit');
 
-  if (isFirstVisitPage) {
-    console.log('🔧 检测到FirstVisitVerification页面，F12控制台豁免已启用');
-    console.log('🛠️ 环境变量 REACT_APP_ALLOW_F12_ON_FIRST_VISIT =', allowF12OnFirstVisit);
-  }
-
-  return isFirstVisitPage;
+  // 强制返回false，永远不允许F12豁免
+  return false;
 }
 
 // 禁止右键和常见调试快捷键（仅生产环境生效）
