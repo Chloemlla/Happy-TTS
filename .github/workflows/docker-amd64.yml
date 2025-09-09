@@ -97,11 +97,13 @@ jobs:
           tags: |
             happyclo/tts-node:${{ github.ref_name }}-amd64
             happyclo/tts-node:${{ steps.meta.outputs.short_sha }}-amd64
-            # ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ github.ref_name }}-amd64
-            # ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ steps.meta.outputs.short_sha }}-amd64
-            # ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ github.ref_name }}
-            # ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ steps.meta.outputs.short_sha }}
-            # ghcr.io/${{ steps.meta.outputs.lower_repo }}:latest
+
+            
+# ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ github.ref_name }}-amd64
+# ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ steps.meta.outputs.short_sha }}-amd64
+# ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ github.ref_name }}
+# ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ steps.meta.outputs.short_sha }}
+# ghcr.io/${{ steps.meta.outputs.lower_repo }}:latest
 
       - name: Move cache
         run: |
