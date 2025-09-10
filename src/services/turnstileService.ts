@@ -521,11 +521,13 @@ export class TurnstileService {
       scoreBreakdown.ipScore = 0.05;
       scoreBreakdown.ipType = 'local';
       score += 0.05;
+      reasons.push('本地IP');
     } else {
       // 公网IP，轻微风险（降低评分）
       scoreBreakdown.ipScore = 0.15;
       scoreBreakdown.ipType = 'public';
       score += 0.15;
+      reasons.push('公网IP');
     }
 
     // // User-Agent风险评估（放宽标准）
@@ -600,7 +602,12 @@ export class TurnstileService {
       low: 0
     };
 
-    return { riskLevel, riskScore: Math.min(score, 1), riskReasons: reasons, scoreBreakdown };
+    const finalScore = Math.min(score, 1);
+    if (finalScore > 0 && reasons.length === 0) {
+      reasons.push('基础风险评分');
+    }
+
+    return { riskLevel, riskScore: finalScore, riskReasons: reasons, scoreBreakdown };
   }
 
   /**
