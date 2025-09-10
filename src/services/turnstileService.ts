@@ -575,11 +575,11 @@ export class TurnstileService {
     scoreBreakdown.baseScore = score;
 
     // 开发环境进一步降低风险评分
-    if (isDev) {
-      scoreBreakdown.devMultiplier = 0.3;
-      score = score * 0.3; // 开发环境风险评分降低70%
-      reasons.push('开发环境');
-    }
+    // if (isDev) {
+    //   scoreBreakdown.devMultiplier = 0.3;
+    //   score = score * 0.3; // 开发环境风险评分降低70%
+    //   reasons.push('开发环境');
+    // }
 
     scoreBreakdown.finalScore = Math.min(score, 1);
 
@@ -1030,7 +1030,8 @@ export class TurnstileService {
     token: string,
     remoteIp: string,
     userAgent?: string,
-    fingerprint?: string
+    fingerprint?: string,
+    captchaType: 'turnstile' | 'hcaptcha' = 'turnstile'
   ): Promise<TurnstileVerificationResult> {
     const timestamp = new Date().toISOString();
     const clientInfo = { ip: remoteIp, userAgent, fingerprint };
@@ -1159,8 +1160,21 @@ export class TurnstileService {
         };
       }
 
-      // 从数据库获取密钥
-      const secretKey = await getTurnstileKey('TURNSTILE_SECRET_KEY');
+      // 根据验证类型获取对应的密钥
+      let secretKey: string | null;
+      let verifyUrl: string;
+      let serviceName: string;
+
+      if (captchaType === 'hcaptcha') {
+        secretKey = await getHCaptchaKey('HCAPTCHA_SECRET_KEY');
+        verifyUrl = this.HCAPTCHA_VERIFY_URL;
+        serviceName = 'hCaptcha';
+      } else {
+        secretKey = await getTurnstileKey('TURNSTILE_SECRET_KEY');
+        verifyUrl = this.VERIFY_URL;
+        serviceName = 'Turnstile';
+      }
+
       if (!secretKey) {
         // 开发环境本地IP自动通过验证（密钥未配置时的后备方案）
         if (isDev && isLocalhost) {
@@ -1203,7 +1217,7 @@ export class TurnstileService {
           success: false,
           reason: 'service_unavailable',
           errorCode: 'SERVICE_UNAVAILABLE',
-          errorMessage: 'Turnstile服务未配置',
+          errorMessage: `${serviceName}服务未配置`,
           fingerprint,
           riskLevel: riskAssessment?.riskLevel,
           riskScore: riskAssessment?.riskScore,
@@ -1214,7 +1228,7 @@ export class TurnstileService {
           success: false,
           reason: 'service_unavailable',
           errorCode: 'SERVICE_UNAVAILABLE',
-          errorMessage: 'Turnstile服务未配置',
+          errorMessage: `${serviceName}服务未配置`,
           retryable: true,
           timestamp,
           clientInfo,
@@ -1223,14 +1237,14 @@ export class TurnstileService {
         };
       }
 
-      // 调用Cloudflare API验证
+      // 调用对应的 CAPTCHA API 验证
       const formData = new URLSearchParams();
       formData.append('secret', secretKey);
       formData.append('response', validatedToken);
       formData.append('remoteip', validatedIp);
 
-      const response = await axios.post<TurnstileResponse>(
-        this.VERIFY_URL,
+      const response = await axios.post<TurnstileResponse | HCaptchaResponse>(
+        verifyUrl,
         formData,
         {
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -1246,9 +1260,11 @@ export class TurnstileService {
 
         // 详细记录验证失败信息，包含评分细节和具体错误代码
         const errorCodes = result['error-codes'] || [];
-        const errorMessages = this.translateTurnstileErrors(errorCodes);
+        const errorMessages = captchaType === 'hcaptcha' ? 
+          errorCodes.map(code => `hCaptcha错误: ${code}`) : 
+          this.translateTurnstileErrors(errorCodes);
 
-        logger.warn('Turnstile验证失败 - 详细评分信息', {
+        logger.warn(`${serviceName}验证失败 - 详细评分信息`, {
           ip: validatedIp,
           userAgent: userAgent?.substring(0, 100),
           fingerprint: fingerprint?.substring(0, 16),
@@ -1268,7 +1284,7 @@ export class TurnstileService {
         // 记录违规并可能封禁IP
         const banned = await this.recordViolation(
           validatedIp,
-          'Turnstile验证失败',
+          `${serviceName}验证失败`,
           fingerprint,
           userAgent
         );
@@ -1284,7 +1300,7 @@ export class TurnstileService {
           success: false,
           reason: 'verification_failed',
           errorCode: 'VERIFICATION_FAILED',
-          errorMessage: `Turnstile验证失败: ${result['error-codes']?.join(', ') || '未知错误'}`,
+          errorMessage: `${serviceName}验证失败: ${result['error-codes']?.join(', ') || '未知错误'}`,
           fingerprint,
           riskLevel: riskAssessment?.riskLevel,
           riskScore: riskAssessment?.riskScore,
@@ -1299,7 +1315,7 @@ export class TurnstileService {
           success: false,
           reason: 'verification_failed',
           errorCode: 'VERIFICATION_FAILED',
-          errorMessage: `Turnstile验证失败: ${result['error-codes']?.join(', ') || '未知错误'}`,
+          errorMessage: `${serviceName}验证失败: ${result['error-codes']?.join(', ') || '未知错误'}`,
           retryable: !banned,
           timestamp,
           clientInfo,
@@ -1316,7 +1332,7 @@ export class TurnstileService {
       // 验证成功 - 直接通过，不进行额外检查
       this.recordVerificationOutcome(validatedIp, userAgent, true, now, fingerprint);
 
-      logger.info('Turnstile验证成功，直接通过所有检查', {
+      logger.info(`${serviceName}验证成功，直接通过所有检查`, {
         ip: validatedIp,
         fingerprint: fingerprint?.substring(0, 16),
         traceId
@@ -1391,7 +1407,8 @@ export class TurnstileService {
     fingerprint: string,
     cfToken: string,
     remoteIp?: string,
-    userAgent?: string
+    userAgent?: string,
+    captchaType: 'turnstile' | 'hcaptcha' = 'turnstile'
   ): Promise<{ success: boolean; accessToken?: string; details?: TurnstileVerificationResult; traceId?: string }> {
     const traceId = this.generateUniqueTraceId();
 
@@ -1542,11 +1559,11 @@ export class TurnstileService {
         });
       } else {
         // 使用详细验证方法
-        const detailedResult = await this.verifyTokenDetailed(validatedToken, validatedIp, userAgent, validatedFingerprint);
+        const detailedResult = await this.verifyTokenDetailed(validatedToken, validatedIp, userAgent, validatedFingerprint, captchaType);
         isValid = detailedResult.success;
 
         if (!isValid) {
-          logger.warn('Turnstile详细验证失败', {
+          logger.warn(`${captchaType === 'hcaptcha' ? 'hCaptcha' : 'Turnstile'}详细验证失败`, {
             fingerprint: validatedFingerprint.substring(0, 8) + '...',
             ipAddress: validatedIp,
             reason: !detailedResult.success ? detailedResult.reason : 'unknown',

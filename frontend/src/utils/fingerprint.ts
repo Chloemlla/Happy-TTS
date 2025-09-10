@@ -427,7 +427,7 @@ export const reportTempFingerprint = async (): Promise<{ isFirstVisit: boolean; 
 };
 
 // 验证临时指纹
-export const verifyTempFingerprint = async (fingerprint: string, cfToken: string): Promise<{ success: boolean; accessToken?: string }> => {
+export const verifyTempFingerprint = async (fingerprint: string, cfToken: string, captchaType: 'turnstile' | 'hcaptcha' = 'turnstile'): Promise<{ success: boolean; accessToken?: string }> => {
   try {
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/verify-temp-fingerprint`, {
       method: 'POST',
@@ -437,6 +437,7 @@ export const verifyTempFingerprint = async (fingerprint: string, cfToken: string
       body: JSON.stringify({ 
         fingerprint, 
         cfToken,
+        captchaType,
         userAgent: navigator.userAgent,
         timestamp: Date.now(),
         clientInfo: {

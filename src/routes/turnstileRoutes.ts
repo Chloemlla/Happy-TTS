@@ -198,9 +198,10 @@ router.post('/temp-fingerprint', publicLimiter, async (req, res) => {
 // 验证临时指纹接口（无需认证）
 router.post('/verify-temp-fingerprint', fingerprintLimiter, async (req, res) => {
     try {
-        const { fingerprint, cfToken } = req.body;
+        const { fingerprint, cfToken, userAgent, captchaType } = req.body;
         const clientIp = req.ip || req.socket.remoteAddress || (Array.isArray(req.headers['x-forwarded-for']) ? req.headers['x-forwarded-for'][0] : req.headers['x-forwarded-for']) || 'unknown';
         const validatedClientIp = typeof clientIp === 'string' ? clientIp : 'unknown';
+        const clientUserAgent = userAgent || req.headers['user-agent'] || 'unknown';
 
         if (!fingerprint || typeof fingerprint !== 'string') {
             return res.status(400).json({
@@ -227,7 +228,7 @@ router.post('/verify-temp-fingerprint', fingerprintLimiter, async (req, res) => 
             });
         }
 
-        const result = await TurnstileService.verifyTempFingerprint(fingerprint, cfToken, validatedClientIp);
+        const result = await TurnstileService.verifyTempFingerprint(fingerprint, cfToken, validatedClientIp, clientUserAgent, captchaType || 'turnstile');
 
         if (!result.success) {
             return res.status(400).json({
@@ -236,8 +237,9 @@ router.post('/verify-temp-fingerprint', fingerprintLimiter, async (req, res) => 
             });
         }
 
-        // Turnstile验证成功后直接通过，无需其他检查
-        console.log('✅ Turnstile验证成功，直接通过', {
+        // CAPTCHA验证成功后直接通过，无需其他检查
+        const serviceName = (captchaType === 'hcaptcha') ? 'hCaptcha' : 'Turnstile';
+        console.log(`✅ ${serviceName}验证成功，直接通过`, {
             fingerprint: fingerprint.substring(0, 8) + '...',
             ip: validatedClientIp,
             accessToken: result.accessToken ? result.accessToken.substring(0, 8) + '...' : 'null'

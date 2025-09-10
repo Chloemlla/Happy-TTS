@@ -509,7 +509,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     });
 
     try {
-      const result = await verifyTempFingerprint(fingerprint, token);
+      const result = await verifyTempFingerprint(fingerprint, token, secureCaptchaConfig?.captchaType === CaptchaType.HCAPTCHA ? 'hcaptcha' : 'turnstile');
       if (result.success) {
         console.log('首次访问验证成功');
 
