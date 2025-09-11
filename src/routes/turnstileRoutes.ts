@@ -1111,10 +1111,10 @@ router.post('/secure-captcha-config', publicLimiter, async (req, res) => {
             });
         }
 
-        // 验证时间戳（5分钟内有效，放宽时间窗口以处理时钟偏差）
+        // 验证时间戳（2分钟内有效，放宽时间窗口以处理时钟偏差）
         const now = Date.now();
         const timeDiff = now - timestamp;
-        const timeWindowMs = 5 * 60 * 1000; // 5分钟
+        const timeWindowMs = 2 * 60 * 1000; // 2分钟
 
         // 详细的时间戳调试日志
         console.log('=== 时间戳验证调试 ===');
@@ -1124,7 +1124,7 @@ router.post('/secure-captcha-config', publicLimiter, async (req, res) => {
         console.log('时间差 (分钟):', Math.round(timeDiff / 60000 * 100) / 100);
         console.log('客户端时间 (上海):', new Date(timestamp).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }));
         console.log('服务器时间 (上海):', new Date(now).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }));
-        console.log('允许的最大时间差:', timeWindowMs, 'ms (5分钟)');
+        console.log('允许的最大时间差:', timeWindowMs, 'ms (2分钟)');
         console.log('时间戳是否过期:', Math.abs(timeDiff) > timeWindowMs);
         console.log('========================');
 
@@ -1661,7 +1661,7 @@ router.post('/hcaptcha-verify', publicLimiter, async (req, res) => {
             // hCaptcha验证成功后生成访问令牌，确保与Turnstile一致的处理
             const { fingerprint } = req.body;
             let accessToken = null;
-            
+
             // 如果提供了指纹，生成访问令牌
             if (fingerprint && typeof fingerprint === 'string') {
                 try {
