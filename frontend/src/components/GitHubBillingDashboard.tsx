@@ -128,7 +128,7 @@ const GitHubBillingDashboard: React.FC = () => {
       if (!res.ok) {
         if (res.status === 401) {
           setNotification({
-            message: 'Turnstile访问令牌无效或已过期，请重新验证',
+            message: '请刷新页面',
             type: 'error'
           });
         } else {
@@ -188,7 +188,7 @@ const GitHubBillingDashboard: React.FC = () => {
       if (!res.ok) {
         if (res.status === 401) {
           setNotification({
-            message: 'Turnstile访问令牌无效或已过期，请重新验证',
+            message: '请刷新页面',
             type: 'error'
           });
         } else {
