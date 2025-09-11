@@ -1,7 +1,7 @@
 ---
 title: 首次访问检测系统实现
 description: 基于浏览器指纹的首次访问检测和人机验证系统
-date: 2025-01-15
+date: 2025-09-15
 author: Synapse Team
 tags: [前端, 后端, 安全, 指纹检测, Turnstile]
 ---

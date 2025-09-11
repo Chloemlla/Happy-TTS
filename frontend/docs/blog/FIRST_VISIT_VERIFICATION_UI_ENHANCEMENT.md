@@ -1,7 +1,7 @@
 ---
 title: 首次访问验证页面UI美化
 description: 优化FirstVisitVerification组件的视觉效果和用户体验
-date: 2025-01-15
+date: 2025-09-15
 author: Synapse Team
 tags: [前端, UI设计, 动画效果, 用户体验, Framer Motion]
 ---

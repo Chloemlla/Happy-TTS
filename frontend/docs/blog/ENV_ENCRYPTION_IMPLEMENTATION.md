@@ -1,6 +1,6 @@
 ---
 title: EnvManager AES-256 加密传输实现
-date: 2025-01-27
+date: 2025-09-27
 slug: env-encryption-implementation
 tags: [security, encryption, aes-256, env-manager]
 ---

@@ -1,7 +1,7 @@
 ---
 title: 访问密钥系统实现
 description: 实现5分钟有效期的访问密钥系统，避免重复的首次访问验证
-date: 2025-01-15
+date: 2025-09-15
 author: Synapse Team
 tags: [后端, 前端, 安全, 用户体验, MongoDB, 访问控制]
 ---

@@ -1,7 +1,7 @@
 ---
 title: 临时指纹存储MongoDB优化
 description: 将临时指纹存储从内存改为MongoDB，并实现定时清理任务
-date: 2025-01-15
+date: 2025-09-15
 author: Synapse Team
 tags: [后端, 数据库, MongoDB, 性能优化, 定时任务]
 ---
