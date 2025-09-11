@@ -35,21 +35,21 @@ const GitHubBillingDashboard: React.FC = () => {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json'
     };
-    
+
     // 获取浏览器指纹
     const fingerprint = await getFingerprint();
     if (!fingerprint) {
       throw new Error('无法生成浏览器指纹');
     }
-    
+
     // 获取Turnstile访问令牌
     const turnstileToken = getAccessToken(fingerprint);
     if (turnstileToken) {
       headers['Authorization'] = `Bearer ${turnstileToken}`;
     }
-    
+
     headers['X-Fingerprint'] = fingerprint;
-    
+
     return headers;
   };
 
@@ -87,26 +87,26 @@ const GitHubBillingDashboard: React.FC = () => {
     try {
       const fingerprint = await getFingerprint();
       if (!fingerprint) {
-        setNotification({ 
-          message: '无法生成浏览器指纹', 
-          type: 'error' 
+        setNotification({
+          message: '缺少访问令牌。',
+          type: 'error'
         });
         return false;
       }
-      
+
       const token = getAccessToken(fingerprint);
       if (!token) {
-        setNotification({ 
-          message: '缺少Turnstile访问令牌，请先通过Turnstile验证获取访问权限', 
-          type: 'error' 
+        setNotification({
+          message: '缺少访问令牌。',
+          type: 'error'
         });
         return false;
       }
       return true;
     } catch (error) {
-      setNotification({ 
-        message: '检查访问令牌失败：' + (error instanceof Error ? error.message : '未知错误'), 
-        type: 'error' 
+      setNotification({
+        message: '检查访问令牌失败：' + (error instanceof Error ? error.message : '未知错误'),
+        type: 'error'
       });
       return false;
     }
@@ -127,9 +127,9 @@ const GitHubBillingDashboard: React.FC = () => {
       const data = await res.json();
       if (!res.ok) {
         if (res.status === 401) {
-          setNotification({ 
-            message: 'Turnstile访问令牌无效或已过期，请重新验证', 
-            type: 'error' 
+          setNotification({
+            message: 'Turnstile访问令牌无效或已过期，请重新验证',
+            type: 'error'
           });
         } else {
           setNotification({ message: data.error || '获取账单数据失败', type: 'error' });
@@ -179,7 +179,7 @@ const GitHubBillingDashboard: React.FC = () => {
         : `${getApiBaseUrl()}/api/github-billing/cache/expired`;
 
       const headers = await getTurnstileAuthHeaders();
-      
+
       const res = await fetch(url, {
         method: 'DELETE',
         headers
@@ -187,9 +187,9 @@ const GitHubBillingDashboard: React.FC = () => {
       const data = await res.json();
       if (!res.ok) {
         if (res.status === 401) {
-          setNotification({ 
-            message: 'Turnstile访问令牌无效或已过期，请重新验证', 
-            type: 'error' 
+          setNotification({
+            message: 'Turnstile访问令牌无效或已过期，请重新验证',
+            type: 'error'
           });
         } else {
           setNotification({ message: data.error || '清除缓存失败', type: 'error' });
