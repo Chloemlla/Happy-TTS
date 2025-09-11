@@ -3,6 +3,7 @@ import { motion as m } from 'framer-motion';
 import { FaSync, FaGithub, FaDollarSign, FaCalendarAlt, FaUser, FaTrash } from 'react-icons/fa';
 import { useNotification } from './Notification';
 import { getApiBaseUrl, getAuthToken } from '../api/api';
+import { getFingerprint, getAccessToken } from '../utils/fingerprint';
 
 // 动画配置
 const ENTER_INITIAL = { opacity: 0, y: 20 };
@@ -28,6 +29,29 @@ const GitHubBillingDashboard: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [customersLoading, setCustomersLoading] = useState(false);
   const [clearingCache, setClearingCache] = useState(false);
+
+  // 获取带Turnstile访问令牌的请求头
+  const getTurnstileAuthHeaders = async (): Promise<Record<string, string>> => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+    
+    // 获取浏览器指纹
+    const fingerprint = await getFingerprint();
+    if (!fingerprint) {
+      throw new Error('无法生成浏览器指纹');
+    }
+    
+    // 获取Turnstile访问令牌
+    const turnstileToken = getAccessToken(fingerprint);
+    if (turnstileToken) {
+      headers['Authorization'] = `Bearer ${turnstileToken}`;
+    }
+    
+    headers['X-Fingerprint'] = fingerprint;
+    
+    return headers;
+  };
 
   // 获取基础请求头（无需认证）
   const getHeaders = (): Record<string, string> => {
@@ -58,16 +82,58 @@ const GitHubBillingDashboard: React.FC = () => {
     }
   }, []);
 
+  // 检查是否有Turnstile访问令牌
+  const checkTurnstileToken = async (): Promise<boolean> => {
+    try {
+      const fingerprint = await getFingerprint();
+      if (!fingerprint) {
+        setNotification({ 
+          message: '无法生成浏览器指纹', 
+          type: 'error' 
+        });
+        return false;
+      }
+      
+      const token = getAccessToken(fingerprint);
+      if (!token) {
+        setNotification({ 
+          message: '缺少Turnstile访问令牌，请先通过Turnstile验证获取访问权限', 
+          type: 'error' 
+        });
+        return false;
+      }
+      return true;
+    } catch (error) {
+      setNotification({ 
+        message: '检查访问令牌失败：' + (error instanceof Error ? error.message : '未知错误'), 
+        type: 'error' 
+      });
+      return false;
+    }
+  };
+
   // 获取账单数据
   const fetchBillingData = useCallback(async () => {
+    if (!(await checkTurnstileToken())) {
+      return;
+    }
+
     setLoading(true);
     try {
+      const headers = await getTurnstileAuthHeaders();
       const res = await fetch(`${getApiBaseUrl()}/api/github-billing/usage`, {
-        headers: { ...getHeaders() }
+        headers
       });
       const data = await res.json();
       if (!res.ok) {
-        setNotification({ message: data.error || '获取账单数据失败', type: 'error' });
+        if (res.status === 401) {
+          setNotification({ 
+            message: 'Turnstile访问令牌无效或已过期，请重新验证', 
+            type: 'error' 
+          });
+        } else {
+          setNotification({ message: data.error || '获取账单数据失败', type: 'error' });
+        }
         return;
       }
       if (data.success) {
@@ -102,17 +168,17 @@ const GitHubBillingDashboard: React.FC = () => {
 
   // 清除缓存
   const clearCache = useCallback(async (customerId?: string) => {
+    if (!(await checkTurnstileToken())) {
+      return;
+    }
+
     setClearingCache(true);
     try {
       const url = customerId
         ? `${getApiBaseUrl()}/api/github-billing/cache/${customerId}`
         : `${getApiBaseUrl()}/api/github-billing/cache/expired`;
 
-      const token = getAuthToken();
-      const headers = { ...getHeaders() };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
+      const headers = await getTurnstileAuthHeaders();
       
       const res = await fetch(url, {
         method: 'DELETE',
@@ -120,7 +186,14 @@ const GitHubBillingDashboard: React.FC = () => {
       });
       const data = await res.json();
       if (!res.ok) {
-        setNotification({ message: data.error || '清除缓存失败', type: 'error' });
+        if (res.status === 401) {
+          setNotification({ 
+            message: 'Turnstile访问令牌无效或已过期，请重新验证', 
+            type: 'error' 
+          });
+        } else {
+          setNotification({ message: data.error || '清除缓存失败', type: 'error' });
+        }
         return;
       }
       if (data.success) {
@@ -348,7 +421,9 @@ const GitHubBillingDashboard: React.FC = () => {
       >
         <h3 className="text-lg font-semibold text-blue-800 mb-3">使用说明</h3>
         <ul className="text-sm text-blue-700 space-y-2">
-          <li>• <strong>公开访问：</strong>此功能无需登录即可使用，所有用户均可查看 GitHub 账单数据</li>
+          <li>• <strong>需要Turnstile认证：</strong>此功能需要通过Turnstile验证获取访问令牌</li>
+          <li>• <strong>获取令牌：</strong>如果没有访问令牌，请先访问其他页面完成Turnstile验证</li>
+          <li>• <strong>令牌有效期：</strong>访问令牌有时间限制，过期后需要重新验证</li>
           <li>• <strong>获取数据：</strong>点击"获取数据"按钮从 GitHub API 获取最新的账单数据</li>
           <li>• <strong>Customer ID：</strong>系统自动使用后端配置的默认值</li>
           <li>• <strong>数据缓存：</strong>系统会自动缓存获取的数据，避免频繁调用 GitHub API</li>
