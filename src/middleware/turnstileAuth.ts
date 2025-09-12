@@ -125,4 +125,90 @@ export const optionalTurnstileAuth = async (
   }
 };
 
+/**
+ * Turnstile访问令牌验证中间件（用于已有管理员认证的情况）
+ * 从X-Turnstile-Token头部获取Turnstile令牌进行验证
+ */
+export const authenticateTurnstileTokenForAdmin = async (
+  req: TurnstileAuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    // 从X-Turnstile-Token头部获取Turnstile访问令牌
+    const turnstileToken = req.headers['x-turnstile-token'] as string;
+    if (!turnstileToken) {
+      logger.warn('Turnstile认证失败：缺少X-Turnstile-Token头部', {
+        ip: req.ip,
+        userAgent: req.get('User-Agent')
+      });
+      res.status(401).json({
+        success: false,
+        error: 'Turnstile access token required in X-Turnstile-Token header'
+      });
+      return;
+    }
+
+    // 从请求头获取指纹和IP
+    const fingerprint = req.headers['x-fingerprint'] as string;
+    const ipAddress = req.ip || req.connection.remoteAddress || 'unknown';
+
+    if (!fingerprint) {
+      logger.warn('Turnstile认证失败：缺少指纹信息', {
+        ip: ipAddress,
+        userAgent: req.get('User-Agent')
+      });
+      res.status(401).json({
+        success: false,
+        error: 'Turnstile fingerprint information required'
+      });
+      return;
+    }
+
+    // 验证访问令牌
+    const isValid = await TurnstileService.verifyAccessToken(turnstileToken, fingerprint, ipAddress);
+
+    if (!isValid) {
+      logger.warn('Turnstile认证失败：访问令牌无效', {
+        ip: ipAddress,
+        fingerprint: fingerprint.substring(0, 8) + '...',
+        token: turnstileToken.substring(0, 8) + '...',
+        userAgent: req.get('User-Agent')
+      });
+      res.status(401).json({
+        success: false,
+        error: 'The Turnstile access token is invalid or expired'
+      });
+      return;
+    }
+
+    // 将认证信息附加到请求对象
+    req.turnstileAuth = {
+      token: turnstileToken,
+      fingerprint,
+      ipAddress,
+      verified: true
+    };
+
+    logger.info('Turnstile认证成功（管理员模式）', {
+      ip: ipAddress,
+      fingerprint: fingerprint.substring(0, 8) + '...',
+      token: turnstileToken.substring(0, 8) + '...'
+    });
+
+    next();
+  } catch (error) {
+    logger.error('Turnstile认证中间件错误（管理员模式）', {
+      error: error instanceof Error ? error.message : String(error),
+      ip: req.ip,
+      userAgent: req.get('User-Agent')
+    });
+
+    res.status(500).json({
+      success: false,
+      error: '认证服务暂时不可用'
+    });
+  }
+};
+
 export { TurnstileAuthRequest };

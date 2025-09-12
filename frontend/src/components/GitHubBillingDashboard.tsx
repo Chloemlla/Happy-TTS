@@ -53,6 +53,39 @@ const GitHubBillingDashboard: React.FC = () => {
     return headers;
   };
 
+  // 获取带管理员令牌和Turnstile访问令牌的请求头（用于缓存操作）
+  const getAdminTurnstileAuthHeaders = async (): Promise<Record<string, string>> => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+
+    // 获取管理员令牌
+    const adminToken = getAuthToken();
+    if (!adminToken) {
+      throw new Error('缺少管理员访问令牌');
+    }
+
+    // 获取浏览器指纹
+    const fingerprint = await getFingerprint();
+    if (!fingerprint) {
+      throw new Error('无法生成浏览器指纹');
+    }
+
+    // 获取Turnstile访问令牌
+    const turnstileToken = getAccessToken(fingerprint);
+    if (!turnstileToken) {
+      throw new Error('缺少Turnstile访问令牌');
+    }
+
+    // 设置管理员令牌作为主要认证
+    headers['Authorization'] = `Bearer ${adminToken}`;
+    // 设置Turnstile令牌作为额外认证头
+    headers['X-Turnstile-Token'] = turnstileToken;
+    headers['X-Fingerprint'] = fingerprint;
+
+    return headers;
+  };
+
   // 获取基础请求头（无需认证）
   const getHeaders = (): Record<string, string> => {
     return {
@@ -166,9 +199,50 @@ const GitHubBillingDashboard: React.FC = () => {
     }
   }, [setNotification]);
 
+  // 检查是否有管理员和Turnstile访问令牌
+  const checkAdminAndTurnstileToken = async (): Promise<boolean> => {
+    try {
+      // 检查管理员令牌
+      const adminToken = getAuthToken();
+      if (!adminToken) {
+        setNotification({
+          message: '缺少管理员访问令牌',
+          type: 'error'
+        });
+        return false;
+      }
+
+      // 检查Turnstile令牌
+      const fingerprint = await getFingerprint();
+      if (!fingerprint) {
+        setNotification({
+          message: '缺少访问令牌。',
+          type: 'error'
+        });
+        return false;
+      }
+
+      const turnstileToken = getAccessToken(fingerprint);
+      if (!turnstileToken) {
+        setNotification({
+          message: '缺少访问令牌。',
+          type: 'error'
+        });
+        return false;
+      }
+      return true;
+    } catch (error) {
+      setNotification({
+        message: '检查访问令牌失败：' + (error instanceof Error ? error.message : '未知错误'),
+        type: 'error'
+      });
+      return false;
+    }
+  };
+
   // 清除缓存
   const clearCache = useCallback(async (customerId?: string) => {
-    if (!(await checkTurnstileToken())) {
+    if (!(await checkAdminAndTurnstileToken())) {
       return;
     }
 
@@ -178,7 +252,7 @@ const GitHubBillingDashboard: React.FC = () => {
         ? `${getApiBaseUrl()}/api/github-billing/cache/${customerId}`
         : `${getApiBaseUrl()}/api/github-billing/cache/expired`;
 
-      const headers = await getTurnstileAuthHeaders();
+      const headers = await getAdminTurnstileAuthHeaders();
 
       const res = await fetch(url, {
         method: 'DELETE',

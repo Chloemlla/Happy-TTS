@@ -114,6 +114,8 @@ export class GitHubBillingService {
     // 提取 URL - 使用安全的解析方法避免ReDoS
     const urlPattern = /'([^']+)'/g;
     let urlMatch;
+    let foundValidUrl = false;
+    
     while ((urlMatch = urlPattern.exec(curlCommand)) !== null) {
       const url = urlMatch[1];
       
@@ -125,6 +127,7 @@ export class GitHubBillingService {
         // 只允许 github.com 和其官方子域名
         if (hostname === 'github.com' || hostname.endsWith('.github.com')) {
           result.url = url;
+          foundValidUrl = true;
           
           // 提取 customer_id
           const customerIdMatch = url.match(/customer_id=(\d+)/);
@@ -137,6 +140,10 @@ export class GitHubBillingService {
         // URL 解析失败，跳过这个 URL
         continue;
       }
+    }
+
+    if (!foundValidUrl) {
+      throw new Error('curl 命令中未找到有效的 GitHub URL');
     }
 
     // 提取方法
@@ -162,6 +169,15 @@ export class GitHubBillingService {
           result.headers[key] = value;
         }
       }
+    }
+
+    if (!result.customerId) {
+      throw new Error('curl 命令中未找到 customer_id 参数');
+    }
+
+    // 验证必要的 headers 是否存在
+    if (Object.keys(result.headers).length === 0 && !result.cookies) {
+      throw new Error('curl 命令中未找到认证信息（headers 或 cookies）');
     }
 
     return result;
@@ -193,7 +209,7 @@ export class GitHubBillingService {
     try {
       const url = await this.getConfigValue('GITHUB_BILLING_URL');
       if (!url) {
-        return null;
+        throw new Error('未找到保存的 curl 配置，请先保存 curl 命令配置');
       }
 
       const method = await this.getConfigValue('GITHUB_BILLING_METHOD', 'GET');
@@ -201,16 +217,27 @@ export class GitHubBillingService {
       const cookies = await this.getConfigValue('GITHUB_BILLING_COOKIES', '');
       const customerId = await this.getConfigValue('GITHUB_BILLING_CUSTOMER_ID');
 
+      let parsedHeaders: Record<string, string> = {};
+      try {
+        parsedHeaders = JSON.parse(headersStr!);
+      } catch (error) {
+        console.error('解析保存的 headers 失败:', error);
+        throw new Error('保存的配置格式错误，请重新保存 curl 命令');
+      }
+
       return {
         url,
         method: method!,
-        headers: JSON.parse(headersStr!),
+        headers: parsedHeaders,
         cookies: cookies!,
         customerId
       };
     } catch (error) {
       console.error('获取保存的 curl 配置失败:', error);
-      return null;
+      if (error instanceof Error && error.message.includes('未找到保存的 curl 配置')) {
+        throw error;
+      }
+      throw new Error('获取配置失败: ' + (error instanceof Error ? error.message : '未知错误'));
     }
   }
 
@@ -259,6 +286,7 @@ export class GitHubBillingService {
       console.log(`GitHub Billing 数据已缓存，客户ID: ${customerId}, 过期时间: ${expiresAt}`);
     } catch (error) {
       console.error('缓存 GitHub Billing 数据失败:', error);
+      // 缓存失败不应该影响主要功能，所以不抛出错误
     }
   }
 
@@ -364,6 +392,7 @@ export class GitHubBillingService {
       }
     } catch (error) {
       console.error('清除缓存失败:', error);
+      throw new Error('清除缓存失败: ' + (error instanceof Error ? error.message : '未知错误'));
     }
   }
 
@@ -380,6 +409,7 @@ export class GitHubBillingService {
       }
     } catch (error) {
       console.error('清除过期缓存失败:', error);
+      throw new Error('清除过期缓存失败: ' + (error instanceof Error ? error.message : '未知错误'));
     }
   }
 

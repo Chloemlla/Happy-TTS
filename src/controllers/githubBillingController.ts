@@ -19,10 +19,11 @@ export class GitHubBillingController {
         return;
       }
 
-      if (!curlCommand.includes('github.com/settings/billing')) {
+      // URL 验证将在 parseCurlCommand 中进行，这里只做基本检查
+      if (!curlCommand.includes('github.com')) {
         res.status(400).json({ 
           error: '无效的 curl 命令',
-          message: 'curl 命令必须包含 GitHub billing 相关的 URL'
+          message: 'curl 命令必须包含 GitHub 相关的 URL'
         });
         return;
       }

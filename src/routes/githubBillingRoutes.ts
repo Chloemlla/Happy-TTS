@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { GitHubBillingController } from '../controllers/githubBillingController';
 import { authenticateToken } from '../middleware/authenticateToken';
 import { authenticateAdmin } from '../middleware/auth';
-import { authenticateTurnstileToken } from '../middleware/turnstileAuth';
+import { authenticateTurnstileToken, authenticateTurnstileTokenForAdmin } from '../middleware/turnstileAuth';
 import rateLimit from 'express-rate-limit';
 
 const router = Router();
@@ -45,9 +45,9 @@ router.post('/test-parse', configLimiter, authenticateToken, authenticateAdmin, 
 // 数据获取路由（需要Turnstile访问令牌认证）
 router.get('/usage', authenticateTurnstileToken, GitHubBillingController.getBillingUsage);
 
-// 缓存管理路由（需要Turnstile访问令牌认证）
-router.delete('/cache/:customerId', cacheLimiter, authenticateTurnstileToken, GitHubBillingController.clearCache);
-router.delete('/cache/expired', cacheLimiter, authenticateTurnstileToken, GitHubBillingController.clearExpiredCache);
+// 缓存管理路由（需要管理员权限和Turnstile访问令牌认证）
+router.delete('/cache/:customerId', cacheLimiter, authenticateToken, authenticateAdmin, authenticateTurnstileTokenForAdmin, GitHubBillingController.clearCache);
+router.delete('/cache/expired', cacheLimiter, authenticateToken, authenticateAdmin, authenticateTurnstileTokenForAdmin, GitHubBillingController.clearExpiredCache);
 
 // 客户列表路由（公开访问）
 router.get('/customers', GitHubBillingController.getCachedCustomers);

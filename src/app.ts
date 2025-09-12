@@ -132,7 +132,7 @@ app.options('/s/*path', (req: Request, res: Response) => {
     res.header('Access-Control-Allow-Origin', '*');
   }
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Access-Control-Request-Method, Access-Control-Request-Headers, Cache-Control, X-Fingerprint');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Access-Control-Request-Method, Access-Control-Request-Headers, Cache-Control, X-Fingerprint, X-Turnstile-Token');
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Access-Control-Max-Age', '86400');
   res.status(200).end();
@@ -174,7 +174,7 @@ app.options('/api/shorturl/*path', (req: Request, res: Response) => {
     res.header('Access-Control-Allow-Origin', '*');
   }
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Access-Control-Request-Method, Access-Control-Request-Headers, Cache-Control, X-Fingerprint');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Access-Control-Request-Method, Access-Control-Request-Headers, Cache-Control, X-Fingerprint, X-Turnstile-Token');
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Access-Control-Max-Age', '86400');
   res.status(200).end();
@@ -349,7 +349,8 @@ app.use(cors({
     'Access-Control-Request-Method',
     'Access-Control-Request-Headers',
     'Cache-Control',
-    'X-Fingerprint'
+    'X-Fingerprint',
+    'X-Turnstile-Token'
   ],
   exposedHeaders: [
     'Content-Length',
