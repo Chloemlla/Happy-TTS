@@ -1168,13 +1168,6 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                       <span className="text-sm font-medium text-gray-700">
                         使用 {verificationMode === 'turnstile' ? 'Cloudflare Turnstile' : 'hCaptcha'} 验证
                       </span>
-                      <button
-                        onClick={regenerateSelection}
-                        className="ml-2 text-xs text-blue-600 hover:text-blue-800 underline"
-                        disabled={secureSelectionLoading}
-                      >
-                        {secureSelectionLoading ? '重新选择中...' : '重新选择'}
-                      </button>
                     </div>
                   </div>
                 </div>
