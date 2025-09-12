@@ -19,11 +19,12 @@ export class GitHubBillingController {
         return;
       }
 
-      // URL 验证将在 parseCurlCommand 中进行，这里只做基本检查
-      if (!curlCommand.includes('github.com')) {
+      // 严格的 URL 验证：确保是真正的 GitHub API URL
+      const githubUrlRegex = /https?:\/\/(?:api\.)?github\.com\//i;
+      if (!githubUrlRegex.test(curlCommand)) {
         res.status(400).json({ 
           error: '无效的 curl 命令',
-          message: 'curl 命令必须包含 GitHub 相关的 URL'
+          message: 'curl 命令必须包含有效的 GitHub API URL (https://api.github.com/ 或 https://github.com/)'
         });
         return;
       }
