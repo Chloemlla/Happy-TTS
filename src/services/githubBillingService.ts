@@ -838,19 +838,19 @@ export class GitHubBillingService {
         // 尝试多种可能的字段名来获取计费金额
         let billableAmount = 0;
         if (item.data) {
-          // 先尝试标准的 GitHub API 字段名
-          billableAmount = item.data.billable_usage ||
-            item.data.total_usage ||
-            0;
-
-          // 如果数据是嵌套的，尝试访问嵌套字段
-          if (billableAmount === 0 && typeof item.data === 'object') {
-            const data = item.data as any;
-            billableAmount = data?.usage?.billable_usage ||
-              data?.billing?.billable_usage ||
-              data?.amount ||
-              0;
-          }
+          const data = item.data as any;
+          
+          // 优先尝试实际的API响应结构 data.usage.billableAmount
+          billableAmount = data?.usage?.billableAmount ||
+                          data?.data?.usage?.billableAmount ||
+                          // 备用：标准的 GitHub API 字段名
+                          data.billable_usage ||
+                          data.total_usage ||
+                          // 其他可能的嵌套字段
+                          data?.usage?.billable_usage ||
+                          data?.billing?.billable_usage ||
+                          data?.amount ||
+                          0;
         }
 
         console.log(`[getCachedCustomersDetails] 处理客户 ${item.customerId}:`);

@@ -371,12 +371,12 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: [
-        "'self'", 
-        "'unsafe-inline'", 
+        "'self'",
+        "'unsafe-inline'",
         "https://fonts.googleapis.com",
-        "https://challenges.cloudflare.com", 
-        "https://*.cloudflare.com", 
-        "https://js.hcaptcha.com", 
+        "https://challenges.cloudflare.com",
+        "https://*.cloudflare.com",
+        "https://js.hcaptcha.com",
         "https://*.hcaptcha.com"
       ],
       styleSrcElem: [
@@ -385,20 +385,20 @@ app.use(helmet({
         "https://fonts.googleapis.com"
       ],
       fontSrc: [
-        "'self'", 
+        "'self'",
         "https://fonts.gstatic.com",
         "https://fonts.googleapis.com"
       ],
       imgSrc: ["'self'", "data:", "blob:", "https:"],
       scriptSrc: [
-        "'self'", 
-        "'unsafe-inline'", 
+        "'self'",
+        "'unsafe-inline'",
         "'unsafe-eval'",
-        "https://challenges.cloudflare.com", 
-        "https://*.cloudflare.com", 
-        "https://js.hcaptcha.com", 
-        "https://*.hcaptcha.com", 
-        "https://www.google-analytics.com", 
+        "https://challenges.cloudflare.com",
+        "https://*.cloudflare.com",
+        "https://js.hcaptcha.com",
+        "https://*.hcaptcha.com",
+        "https://www.google-analytics.com",
         "https://analytics.google.com",
         "https://www.clarity.ms",
         "https://*.clarity.ms"
@@ -416,10 +416,10 @@ app.use(helmet({
         "https://*.hcaptcha.com"
       ],
       connectSrc: [
-        "'self'", 
-        "https://api.openai.com", 
-        "https://api.hapxs.com", 
-        "http://localhost:3000", 
+        "'self'",
+        "https://api.openai.com",
+        "https://api.hapxs.com",
+        "http://localhost:3000",
         "http://localhost:3001",
         "https://api.hcaptcha.com",
         "https://*.hcaptcha.com",
@@ -429,8 +429,8 @@ app.use(helmet({
         "https://*.clarity.ms"
       ],
       frameSrc: [
-        "'self'", 
-        "https://challenges.cloudflare.com", 
+        "'self'",
+        "https://challenges.cloudflare.com",
         "https://*.cloudflare.com",
         "https://js.hcaptcha.com",
         "https://*.hcaptcha.com"
