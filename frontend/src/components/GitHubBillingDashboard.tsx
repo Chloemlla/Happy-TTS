@@ -146,7 +146,7 @@ const GitHubBillingDashboard: React.FC = () => {
   };
 
   // 获取账单数据
-  const fetchBillingData = useCallback(async () => {
+  const fetchBillingData = useCallback(async (forceRefresh: boolean = false) => {
     if (!(await checkTurnstileToken())) {
       return;
     }
@@ -154,7 +154,11 @@ const GitHubBillingDashboard: React.FC = () => {
     setLoading(true);
     try {
       const headers = await getTurnstileAuthHeaders();
-      const res = await fetch(`${getApiBaseUrl()}/api/github-billing/usage`, {
+      const url = forceRefresh 
+        ? `${getApiBaseUrl()}/api/github-billing/usage?force=true`
+        : `${getApiBaseUrl()}/api/github-billing/usage`;
+      
+      const res = await fetch(url, {
         headers
       });
       const data = await res.json();
@@ -178,7 +182,8 @@ const GitHubBillingDashboard: React.FC = () => {
         } : data.data;
 
         setBillingData(processedData);
-        setNotification({ message: '账单数据获取成功', type: 'success' });
+        const message = forceRefresh ? '账单数据强制刷新成功' : '账单数据获取成功';
+        setNotification({ message, type: 'success' });
 
         // 将当前获取的数据作为缓存客户数据
         if (processedData.customerId) {
@@ -320,13 +325,22 @@ const GitHubBillingDashboard: React.FC = () => {
         <div className="flex flex-col lg:flex-row gap-4 items-end">
           <div className="flex gap-2">
             <m.button
-              onClick={() => fetchBillingData()}
+              onClick={() => fetchBillingData(false)}
               disabled={loading}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
               whileTap={{ scale: 0.95 }}
             >
               <FaSync className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               {loading ? '获取中...' : '获取数据'}
+            </m.button>
+            <m.button
+              onClick={() => fetchBillingData(true)}
+              disabled={loading}
+              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
+              whileTap={{ scale: 0.95 }}
+            >
+              <FaSync className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              {loading ? '刷新中...' : '强制刷新'}
             </m.button>
             <m.button
               onClick={() => clearCache()}

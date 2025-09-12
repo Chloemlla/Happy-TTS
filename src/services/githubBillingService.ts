@@ -50,13 +50,21 @@ interface GitHubBillingCacheDoc {
   data: GitHubBillingUsage;
   lastUpdated: Date;
   expiresAt: Date;
+  accessCount: number;
+  lastAccessed: Date;
+  createdAt: Date;
+  priority: 'low' | 'medium' | 'high';
 }
 
 const GitHubBillingCacheSchema = new mongoose.Schema<GitHubBillingCacheDoc>({
   customerId: { type: String, required: true, unique: true },
   data: { type: mongoose.Schema.Types.Mixed, required: true },
   lastUpdated: { type: Date, default: Date.now },
-  expiresAt: { type: Date, required: true }
+  expiresAt: { type: Date, required: true },
+  accessCount: { type: Number, default: 0 },
+  lastAccessed: { type: Date, default: Date.now },
+  createdAt: { type: Date, default: Date.now },
+  priority: { type: String, enum: ['low', 'medium', 'high'], default: 'medium' }
 }, { collection: 'github_billing_cache' });
 
 const GitHubBillingCacheModel = (mongoose.models.GitHubBillingCache as mongoose.Model<GitHubBillingCacheDoc>) || 
@@ -242,7 +250,7 @@ export class GitHubBillingService {
   }
 
   /**
-   * 从缓存获取 GitHub Billing 数据
+   * 从缓存获取 GitHub Billing 数据（智能缓存策略）
    */
   static async getCachedBillingData(customerId: string): Promise<GitHubBillingUsage | null> {
     try {
@@ -255,7 +263,32 @@ export class GitHubBillingService {
         expiresAt: { $gt: new Date() }
       });
 
-      return cached ? cached.data : null;
+      if (cached) {
+        // 更新访问统计
+        await GitHubBillingCacheModel.updateOne(
+          { customerId },
+          { 
+            $inc: { accessCount: 1 },
+            $set: { lastAccessed: new Date() }
+          }
+        );
+
+        // 检查是否需要预热缓存（距离过期时间小于25%时）
+        const now = new Date();
+        const timeToExpire = cached.expiresAt.getTime() - now.getTime();
+        const totalTTL = cached.expiresAt.getTime() - cached.createdAt.getTime();
+        
+        if (timeToExpire < totalTTL * 0.25) {
+          // 异步预热缓存，不阻塞当前请求
+          this.warmupCache(customerId).catch((error: Error) => {
+            console.warn(`缓存预热失败 (客户ID: ${customerId}):`, error);
+          });
+        }
+
+        return cached.data;
+      }
+
+      return null;
     } catch (error) {
       console.error('获取缓存的 GitHub Billing 数据失败:', error);
       return null;
@@ -263,7 +296,113 @@ export class GitHubBillingService {
   }
 
   /**
-   * 缓存 GitHub Billing 数据
+   * 缓存预热 - 异步刷新即将过期的缓存
+   */
+  static async warmupCache(customerId: string): Promise<void> {
+    try {
+      console.log(`开始预热缓存 (客户ID: ${customerId})`);
+      
+      // 获取配置并刷新数据
+      const config = await this.getSavedCurlConfig();
+      if (!config) {
+        throw new Error('未找到保存的配置');
+      }
+      
+      const freshData = await this.fetchBillingData();
+      
+      // 计算智能TTL
+      const intelligentTTL = await this.calculateIntelligentTTL(customerId);
+      
+      // 更新缓存
+      await this.cacheBillingData(customerId, freshData, intelligentTTL);
+      
+      console.log(`缓存预热完成 (客户ID: ${customerId}), TTL: ${intelligentTTL}分钟`);
+    } catch (error) {
+      console.error(`缓存预热失败 (客户ID: ${customerId}):`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * 计算智能TTL - 基于访问模式调整缓存时间
+   */
+  static async calculateIntelligentTTL(customerId: string): Promise<number> {
+    try {
+      const cached = await GitHubBillingCacheModel.findOne({ customerId });
+      
+      if (!cached) {
+        return 60; // 默认60分钟
+      }
+
+      const accessCount = cached.accessCount || 0;
+      const priority = cached.priority || 'medium';
+      
+      // 基础TTL
+      let baseTTL = 60;
+      
+      // 根据优先级调整
+      switch (priority) {
+        case 'high':
+          baseTTL = 120; // 高优先级缓存更长时间
+          break;
+        case 'low':
+          baseTTL = 30;  // 低优先级缓存较短时间
+          break;
+        default:
+          baseTTL = 60;  // 中等优先级
+      }
+      
+      // 根据访问频率调整
+      if (accessCount > 50) {
+        baseTTL *= 1.5; // 高频访问延长50%
+      } else if (accessCount > 20) {
+        baseTTL *= 1.2; // 中频访问延长20%
+      } else if (accessCount < 5) {
+        baseTTL *= 0.8; // 低频访问减少20%
+      }
+      
+      // 限制TTL范围在15分钟到4小时之间
+      return Math.max(15, Math.min(240, Math.round(baseTTL)));
+    } catch (error) {
+      console.error('计算智能TTL失败:', error);
+      return 60; // 出错时返回默认值
+    }
+  }
+
+  /**
+   * 缓存大小限制和LRU淘汰
+   */
+  static async enforceCacheLimit(): Promise<void> {
+    try {
+      const MAX_CACHE_SIZE = 1000; // 最大缓存条目数
+      
+      const totalCount = await GitHubBillingCacheModel.countDocuments();
+      
+      if (totalCount > MAX_CACHE_SIZE) {
+        const excessCount = totalCount - MAX_CACHE_SIZE;
+        
+        // 按最后访问时间排序，删除最久未访问的记录
+        const oldestEntries = await GitHubBillingCacheModel
+          .find()
+          .sort({ lastAccessed: 1, accessCount: 1 })
+          .limit(excessCount)
+          .select('customerId');
+        
+        const customerIdsToDelete = oldestEntries.map(entry => entry.customerId);
+        
+        await GitHubBillingCacheModel.deleteMany({
+          customerId: { $in: customerIdsToDelete }
+        });
+        
+        console.log(`LRU淘汰: 删除了 ${excessCount} 个最久未访问的缓存条目`);
+      }
+    } catch (error) {
+      console.error('执行缓存限制失败:', error);
+    }
+  }
+
+  /**
+   * 缓存 GitHub Billing 数据（增强版）
    */
   static async cacheBillingData(customerId: string, data: GitHubBillingUsage, ttlMinutes: number = 60): Promise<void> {
     try {
@@ -271,14 +410,26 @@ export class GitHubBillingService {
         return;
       }
 
+      // 执行缓存大小限制
+      await this.enforceCacheLimit();
+
       const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
+      const now = new Date();
 
       await GitHubBillingCacheModel.findOneAndUpdate(
         { customerId },
         {
-          data,
-          lastUpdated: new Date(),
-          expiresAt
+          $set: {
+            data,
+            lastUpdated: now,
+            expiresAt,
+            lastAccessed: now
+          },
+          $setOnInsert: {
+            createdAt: now,
+            accessCount: 0,
+            priority: 'medium'
+          }
         },
         { upsert: true }
       );
@@ -287,6 +438,106 @@ export class GitHubBillingService {
     } catch (error) {
       console.error('缓存 GitHub Billing 数据失败:', error);
       // 缓存失败不应该影响主要功能，所以不抛出错误
+    }
+  }
+
+  /**
+   * 获取缓存性能统计
+   */
+  static async getCachePerformanceMetrics(): Promise<{
+    totalEntries: number;
+    hitRate: number;
+    avgAccessCount: number;
+    cacheSize: number;
+    expiredEntries: number;
+    topAccessedEntries: Array<{customerId: string; accessCount: number}>;
+  }> {
+    try {
+      if (mongoose.connection.readyState !== 1) {
+        return {
+          totalEntries: 0,
+          hitRate: 0,
+          avgAccessCount: 0,
+          cacheSize: 0,
+          expiredEntries: 0,
+          topAccessedEntries: []
+        };
+      }
+
+      const now = new Date();
+      
+      // 基础统计
+      const totalEntries = await GitHubBillingCacheModel.countDocuments();
+      const expiredEntries = await GitHubBillingCacheModel.countDocuments({
+        expiresAt: { $lt: now }
+      });
+      
+      // 访问统计
+      const accessStats = await GitHubBillingCacheModel.aggregate([
+        {
+          $group: {
+            _id: null,
+            avgAccessCount: { $avg: '$accessCount' },
+            totalAccessCount: { $sum: '$accessCount' }
+          }
+        }
+      ]);
+      
+      // 热门缓存条目
+      const topAccessed = await GitHubBillingCacheModel
+        .find()
+        .sort({ accessCount: -1 })
+        .limit(10)
+        .select('customerId accessCount');
+      
+      // 计算缓存大小（估算）
+      const sampleEntry = await GitHubBillingCacheModel.findOne();
+      const estimatedEntrySize = sampleEntry ? 
+        JSON.stringify(sampleEntry.toObject()).length : 1024;
+      const cacheSize = totalEntries * estimatedEntrySize;
+      
+      // 计算命中率（基于访问次数）
+      const avgAccessCount = accessStats[0]?.avgAccessCount || 0;
+      const hitRate = totalEntries > 0 ? Math.min(avgAccessCount / 10, 1) : 0;
+      
+      return {
+        totalEntries,
+        hitRate: Math.round(hitRate * 100) / 100,
+        avgAccessCount: Math.round(avgAccessCount * 100) / 100,
+        cacheSize,
+        expiredEntries,
+        topAccessedEntries: topAccessed.map(entry => ({
+          customerId: entry.customerId,
+          accessCount: entry.accessCount
+        }))
+      };
+    } catch (error) {
+      console.error('获取缓存性能统计失败:', error);
+      return {
+        totalEntries: 0,
+        hitRate: 0,
+        avgAccessCount: 0,
+        cacheSize: 0,
+        expiredEntries: 0,
+        topAccessedEntries: []
+      };
+    }
+  }
+
+  /**
+   * 记录缓存命中/未命中
+   */
+  static async recordCacheMetrics(customerId: string, hit: boolean): Promise<void> {
+    try {
+      // 这里可以扩展为更详细的指标收集
+      // 目前通过 getCachedBillingData 中的 accessCount 更新来跟踪
+      if (hit) {
+        console.log(`缓存命中: ${customerId}`);
+      } else {
+        console.log(`缓存未命中: ${customerId}`);
+      }
+    } catch (error) {
+      console.error('记录缓存指标失败:', error);
     }
   }
 
@@ -307,9 +558,13 @@ export class GitHubBillingService {
     // 检查缓存
     const cached = await this.getCachedBillingData(targetCustomerId);
     if (cached) {
+      await this.recordCacheMetrics(targetCustomerId, true);
       console.log(`使用缓存的 GitHub Billing 数据，客户ID: ${targetCustomerId}`);
       return cached;
     }
+
+    // 记录缓存未命中
+    await this.recordCacheMetrics(targetCustomerId, false);
 
     // 使用配置中的 URL，不做任何修改
     const requestUrl = config.url;

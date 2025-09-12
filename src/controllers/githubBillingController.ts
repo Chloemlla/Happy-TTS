@@ -166,29 +166,42 @@ export class GitHubBillingController {
   }
 
   /**
-   * 清除所有过期缓存
-   * DELETE /api/github-billing/cache/expired
+   * 清理过期缓存
    */
   static async clearExpiredCache(req: Request, res: Response): Promise<void> {
     try {
       await GitHubBillingService.clearExpiredCache();
-
-      res.json({
-        success: true,
-        message: '过期缓存已清除'
-      });
+      res.json({ success: true, message: '过期缓存已清理' });
     } catch (error) {
-      console.error('清除过期缓存失败:', error);
+      console.error('清理过期缓存失败:', error);
       res.status(500).json({ 
-        error: '清除过期缓存失败',
-        message: error instanceof Error ? error.message : '未知错误'
+        success: false, 
+        message: '清理过期缓存失败: ' + (error instanceof Error ? error.message : '未知错误')
       });
     }
   }
 
   /**
-   * 获取缓存的客户ID列表
-   * GET /api/github-billing/customers
+   * 获取缓存性能指标
+   */
+  static async getCacheMetrics(req: Request, res: Response): Promise<void> {
+    try {
+      const metrics = await GitHubBillingService.getCachePerformanceMetrics();
+      res.json({ 
+        success: true, 
+        data: metrics 
+      });
+    } catch (error) {
+      console.error('获取缓存性能指标失败:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: '获取缓存性能指标失败: ' + (error instanceof Error ? error.message : '未知错误')
+      });
+    }
+  }
+
+  /**
+   * 获取缓存的客户列表
    */
   static async getCachedCustomers(req: Request, res: Response): Promise<void> {
     try {

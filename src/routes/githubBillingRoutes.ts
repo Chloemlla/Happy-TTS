@@ -45,9 +45,11 @@ router.post('/test-parse', configLimiter, authenticateToken, authenticateAdmin, 
 // 数据获取路由（需要Turnstile访问令牌认证）
 router.get('/usage', authenticateTurnstileToken, GitHubBillingController.getBillingUsage);
 
-// 缓存管理路由（需要管理员权限和Turnstile访问令牌认证）
+// 管理员缓存管理路由（需要管理员权限和 Turnstile 验证）
 router.delete('/cache/:customerId', cacheLimiter, authenticateToken, authenticateAdmin, authenticateTurnstileTokenForAdmin, GitHubBillingController.clearCache);
 router.delete('/cache/expired', cacheLimiter, authenticateToken, authenticateAdmin, authenticateTurnstileTokenForAdmin, GitHubBillingController.clearExpiredCache);
+router.get('/cache/metrics', authenticateToken, authenticateAdmin, authenticateTurnstileTokenForAdmin, GitHubBillingController.getCacheMetrics);
+router.get('/cache/customers', authenticateToken, authenticateAdmin, authenticateTurnstileTokenForAdmin, GitHubBillingController.getCachedCustomers);
 
 // 客户列表路由（公开访问）
 router.get('/customers', GitHubBillingController.getCachedCustomers);

@@ -20,6 +20,7 @@ import { useNotification } from './Notification';
 import { getApiBaseUrl } from '../api/api';
 import { FaCog, FaUsers, FaShieldAlt } from 'react-icons/fa';
 const SmartHumanCheckTraces = React.lazy(() => import('./SmartHumanCheckTraces'));
+const GitHubBillingCacheManager = React.lazy(() => import('./GitHubBillingCacheManager'));
 
 const AdminDashboard: React.FC = () => {
   const [tab, setTab] = useState('users');
@@ -45,6 +46,7 @@ const AdminDashboard: React.FC = () => {
     { key: 'fbiwanted', label: 'FBI通缉犯管理' },
     { key: 'webhookevents', label: 'Webhook事件' },
     { key: 'data-collection', label: '数据收集管理' },
+    { key: 'github-billing-cache', label: 'GitHub账单缓存管理' },
   ] as const), []);
 
   // 多重权限验证
@@ -499,6 +501,19 @@ const AdminDashboard: React.FC = () => {
                   >
                     <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
                       <DataCollectionManager />
+                    </Suspense>
+                  </motion.div>
+                )}
+                {tab === 'github-billing-cache' && (
+                  <motion.div
+                    key="github-billing-cache"
+                    initial={{ opacity: 0, x: 40 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -40 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
+                      <GitHubBillingCacheManager />
                     </Suspense>
                   </motion.div>
                 )}
