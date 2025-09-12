@@ -206,12 +206,12 @@ export class GitHubBillingController {
    */
   static async getCachedCustomers(req: Request, res: Response): Promise<void> {
     try {
-      const customerIds = await GitHubBillingService.getCachedCustomerIds();
+      const customers = await GitHubBillingService.getCachedCustomersDetails();
 
       res.json({
         success: true,
-        data: customerIds,
-        count: customerIds.length
+        data: customers,
+        count: customers.length
       });
     } catch (error) {
       console.error('获取缓存客户列表失败:', error);

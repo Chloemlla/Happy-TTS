@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion as m } from 'framer-motion';
 import { FaDatabase, FaClock, FaTrash, FaSync, FaUsers, FaChartLine, FaEye, FaHdd, FaFire } from 'react-icons/fa';
 import { getFingerprint, getAccessToken } from '../utils/fingerprint';
-import { getAuthToken, getApiBaseUrl } from '../api/api';
-import { useNotification } from './Notification';
+import { useNotification } from '../components/Notification';
+import { getApiBaseUrl, getAuthToken } from '../api/api';
 
 interface CachedCustomer {
     customerId: string;
@@ -265,117 +265,119 @@ const GitHubBillingCacheManager: React.FC = () => {
                     </div>
                 </div>
 
-                        {/* 缓存大小和热门条目 */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <div className="bg-gray-50 rounded-lg p-4">
-                                <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
-                                    <FaHdd className="mr-2 text-gray-600" />
-                                    缓存大小
-                                </h3>
-                                <p className="text-3xl font-bold text-gray-700">
-                                    {(cacheStats.cacheSize / 1024 / 1024).toFixed(2)} MB
-                                </p>
-                                <p className="text-sm text-gray-500 mt-1">估算值</p>
-                            </div>
+                {/* 缓存大小和热门条目 */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                    <div className="bg-gray-50 rounded-lg p-4">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                            <FaHdd className="mr-2 text-gray-600" />
+                            缓存大小
+                        </h3>
+                        <p className="text-3xl font-bold text-gray-700">
+                            {(cacheStats.cacheSize / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                        <p className="text-sm text-gray-500 mt-1">估算值</p>
+                    </div>
 
-                            <div className="bg-yellow-50 rounded-lg p-4">
-                                <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
-                                    <FaFire className="mr-2 text-yellow-600" />
-                                    热门缓存 (Top 5)
-                                </h3>
-                                <div className="space-y-2">
-                                    {cacheStats.topAccessedEntries.slice(0, 5).map((entry, index) => (
-                                        <div key={entry.customerId} className="flex justify-between items-center">
-                                            <span className="text-sm font-medium text-gray-700">
-                                                #{index + 1} {entry.customerId}
-                                            </span>
-                                            <span className="text-sm text-yellow-600 font-semibold">
-                                                {entry.accessCount} 次
-                                            </span>
-                                        </div>
-                                    ))}
-                                    {cacheStats.topAccessedEntries.length === 0 && (
-                                        <p className="text-sm text-gray-500">暂无数据</p>
-                                    )}
+                    <div className="bg-yellow-50 rounded-lg p-4">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                            <FaFire className="mr-2 text-yellow-600" />
+                            热门缓存 (Top 5)
+                        </h3>
+                        <div className="space-y-2">
+                            {cacheStats.topAccessedEntries.slice(0, 5).map((entry, index) => (
+                                <div key={`top-entry-${entry.customerId}-${entry.accessCount}-${index}`} className="flex justify-between items-center">
+                                    <span className="text-sm font-medium text-gray-700">
+                                        #{index + 1} {entry.customerId}
+                                    </span>
+                                    <span className="text-sm text-yellow-600 font-semibold">
+                                        {entry.accessCount} 次
+                                    </span>
                                 </div>
-                            </div>
-                        </div>
-                    </m.div>
-
-                    {/* 操作面板 */}
-                    <m.div
-                        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
-                        initial={ENTER_INITIAL}
-                        animate={ENTER_ANIMATE}
-                        transition={{ ...trans06, delay: 0.2 }}
-                    >
-                        <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-                            <FaTrash className="mr-2 text-red-500" />
-                            缓存管理操作
-                        </h2>
-
-                        <div className="flex flex-col sm:flex-row gap-4">
-                            <m.button
-                                onClick={clearExpiredCache}
-                                disabled={clearingExpired}
-                                className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50 font-medium flex items-center justify-center gap-2"
-                                whileTap={{ scale: 0.95 }}
-                            >
-                                <FaClock className={`w-4 h-4 ${clearingExpired ? 'animate-spin' : ''}`} />
-                                {clearingExpired ? '清理中...' : '清理过期缓存'}
-                            </m.button>
-                        </div>
-                    </m.div>
-
-                    {/* 缓存列表 */}
-                    <m.div
-                        className="bg-white rounded-xl shadow-sm border border-gray-200"
-                        initial={ENTER_INITIAL}
-                        animate={ENTER_ANIMATE}
-                        transition={{ ...trans06, delay: 0.4 }}
-                    >
-                        <div className="p-6">
-                            <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-                                <FaUsers className="mr-2 text-blue-500" />
-                                缓存客户列表 ({cachedCustomers.length})
-                            </h2>
-
-                            {cachedCustomers.length === 0 ? (
-                                <div className="text-center py-8">
-                                    <FaDatabase className="mx-auto text-4xl text-gray-300 mb-4" />
-                                    <p className="text-gray-500">暂无缓存数据</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {cachedCustomers.map((customer) => (
-                                        <div key={customer.customerId} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-3">
-                                                    <span className="font-medium text-gray-800">{customer.customerId}</span>
-                                                    <span className="text-sm text-gray-500">最后获取: {customer.lastFetched}</span>
-                                                </div>
-                                                <div className="text-sm text-gray-600 mt-1">
-                                                    计费金额: ${customer.billableAmount}
-                                                </div>
-                                            </div>
-
-                                            <m.button
-                                                onClick={() => clearCustomerCache(customer.customerId)}
-                                                disabled={clearingCache === customer.customerId}
-                                                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
-                                                whileTap={{ scale: 0.95 }}
-                                            >
-                                                <FaTrash className={`w-3 h-3 ${clearingCache === customer.customerId ? 'animate-spin' : ''}`} />
-                                                {clearingCache === customer.customerId ? '清除中...' : '清除'}
-                                            </m.button>
-                                        </div>
-                                    ))}
-                                </div>
+                            ))}
+                            {cacheStats.topAccessedEntries.length === 0 && (
+                                <p className="text-sm text-gray-500">暂无数据</p>
                             )}
                         </div>
-                    </m.div>
+                    </div>
                 </div>
-                );
-    };
+            </m.div>
 
-    export default GitHubBillingCacheManager;
+            {/* 操作面板 */}
+            <m.div
+                className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+                initial={ENTER_INITIAL}
+                animate={ENTER_ANIMATE}
+                transition={{ ...trans06, delay: 0.2 }}
+            >
+                <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                    <FaTrash className="mr-2 text-red-500" />
+                    缓存管理操作
+                </h2>
+
+                <div className="flex flex-col sm:flex-row gap-4">
+                    <m.button
+                        onClick={clearExpiredCache}
+                        disabled={clearingExpired}
+                        className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50 font-medium flex items-center justify-center gap-2"
+                        whileTap={{ scale: 0.95 }}
+                    >
+                        <FaClock className={`w-4 h-4 ${clearingExpired ? 'animate-spin' : ''}`} />
+                        {clearingExpired ? '清理中...' : '清理过期缓存'}
+                    </m.button>
+                </div>
+            </m.div>
+
+            {/* 缓存列表 */}
+            <m.div
+                className="bg-white rounded-xl shadow-sm border border-gray-200"
+                initial={ENTER_INITIAL}
+                animate={ENTER_ANIMATE}
+                transition={{ ...trans06, delay: 0.4 }}
+            >
+                <div className="p-6">
+                    <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                        <FaUsers className="mr-2 text-blue-500" />
+                        缓存客户列表 ({cachedCustomers.length})
+                    </h2>
+
+                    {cachedCustomers.length === 0 ? (
+                        <div className="text-center py-8">
+                            <FaDatabase className="mx-auto text-4xl text-gray-300 mb-4" />
+                            <p className="text-gray-500">暂无缓存数据</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {cachedCustomers.map((customer) => (
+                                <div key={customer.customerId} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-3">
+                                            <span className="font-medium text-gray-800">{customer.customerId}</span>
+                                            <span className="text-sm text-gray-500">
+                                                最后获取: {customer.lastFetched || '未知时间'}
+                                            </span>
+                                        </div>
+                                        <div className="text-sm text-gray-600 mt-1">
+                                            计费金额: ${customer.billableAmount !== undefined && customer.billableAmount !== null ? customer.billableAmount.toFixed(2) : '0.00'}
+                                        </div>
+                                    </div>
+
+                                    <m.button
+                                        onClick={() => clearCustomerCache(customer.customerId)}
+                                        disabled={clearingCache === customer.customerId}
+                                        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
+                                        whileTap={{ scale: 0.95 }}
+                                    >
+                                        <FaTrash className={`w-3 h-3 ${clearingCache === customer.customerId ? 'animate-spin' : ''}`} />
+                                        {clearingCache === customer.customerId ? '清除中...' : '清除'}
+                                    </m.button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </m.div>
+        </div>
+    );
+};
+
+export default GitHubBillingCacheManager;
