@@ -1557,15 +1557,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // FirstVisitVerification页面F12控制台豁免检查
 function isFirstVisitVerificationPage(): boolean {
-  const allowF12OnFirstVisit = true;
+  // const allowF12OnFirstVisit = true;
   // // 强制禁用F12豁免功能 - 无论环境变量如何设置都不允许
-  // const allowF12OnFirstVisit = false;
+  const allowF12OnFirstVisit = false;
 
-  // // 即使环境变量被设置，也强制返回false以确保安全
-  // if (process.env.REACT_APP_ALLOW_F12_ON_FIRST_VISIT === 'true') {
-  //   console.warn(' REACT_APP_ALLOW_F12_ON_FIRST_VISIT被强制禁用，F12豁免功能已被永久关闭');
-  //   return false;
-  // }
+  // 即使环境变量被设置，也强制返回false以确保安全
+  if (process.env.REACT_APP_ALLOW_F12_ON_FIRST_VISIT === 'true') {
+    console.warn(' REACT_APP_ALLOW_F12_ON_FIRST_VISIT被强制禁用，F12豁免功能已被永久关闭');
+    return false;
+  }
 
   // 检查是否为FirstVisitVerification页面
   const isFirstVisitPage =

@@ -1901,6 +1901,40 @@ export class TurnstileService {
   }
 
   /**
+   * 生成开发环境永久令牌
+   * @param fingerprint 浏览器指纹 (可选)
+   * @param ipAddress IP地址 (可选)
+   * @returns 开发环境令牌信息
+   */
+  public static generateDevToken(fingerprint?: string, ipAddress?: string): {
+    fixedToken: string;
+    fingerprintToken?: string;
+    usage: string;
+  } {
+    const FIXED_DEV_TOKEN = 'dev-permanent-token-2025';
+    
+    let fingerprintToken: string | undefined;
+    if (fingerprint && ipAddress) {
+      fingerprintToken = crypto.createHash('sha256')
+        .update(`dev-token-${fingerprint}-${ipAddress}`)
+        .digest('hex');
+    }
+    
+    return {
+      fixedToken: FIXED_DEV_TOKEN,
+      fingerprintToken,
+      usage: `开发环境永久令牌:
+1. 固定令牌: "${FIXED_DEV_TOKEN}"
+2. 指纹令牌: ${fingerprintToken || '需要提供fingerprint和ipAddress参数'}
+
+使用方法:
+- 在开发环境(NODE_ENV=development)且本地IP(127.0.0.1)下有效
+- 可以直接使用固定令牌，无需动态生成
+- 也支持基于指纹的动态令牌`
+    };
+  }
+
+  /**
    * 验证访问密钥
    * @param token 访问密钥
    * @param fingerprint 浏览器指纹
@@ -1928,16 +1962,22 @@ export class TurnstileService {
       const isLocalhost = validatedIp === '127.0.0.1' || validatedIp === '::1' || validatedIp === '::ffff:127.0.0.1';
 
       if (isDev && isLocalhost) {
-        // 生成期望的开发环境令牌
+        // 固定的开发环境永久令牌
+        const FIXED_DEV_TOKEN = 'dev-permanent-token-2025';
+        
+        // 生成基于指纹的开发环境令牌
         const expectedDevToken = crypto.createHash('sha256')
           .update(`dev-token-${validatedFingerprint}-${validatedIp}`)
           .digest('hex');
 
-        if (validatedToken === expectedDevToken) {
-          logger.info('开发环境：永久访问密钥验证成功', {
+        // 验证固定令牌或基于指纹的令牌
+        if (validatedToken === FIXED_DEV_TOKEN || validatedToken === expectedDevToken) {
+          const tokenType = validatedToken === FIXED_DEV_TOKEN ? '固定令牌' : '指纹令牌';
+          logger.info(`开发环境：永久访问密钥验证成功 (${tokenType})`, {
             fingerprint: validatedFingerprint.substring(0, 8) + '...',
             ipAddress: validatedIp,
-            token: validatedToken.substring(0, 8) + '...'
+            token: validatedToken.substring(0, 8) + '...',
+            tokenType
           });
           return true;
         }
