@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion as m } from 'framer-motion';
 import { FaDatabase, FaClock, FaTrash, FaSync, FaUsers, FaChartLine, FaEye, FaHdd, FaFire } from 'react-icons/fa';
 import { getFingerprint, getAccessToken } from '../utils/fingerprint';
@@ -32,8 +32,10 @@ const GitHubBillingCacheManager: React.FC = () => {
         topAccessedEntries: [] as Array<{ customerId: string; accessCount: number }>
     });
     const [loading, setLoading] = useState(false);
+    const [metricsLoading, setMetricsLoading] = useState(false);
     const [clearingCache, setClearingCache] = useState<string | null>(null);
     const [clearingExpired, setClearingExpired] = useState(false);
+    const [loadingStage, setLoadingStage] = useState<'idle' | 'customers' | 'metrics' | 'complete'>('idle');
     const { setNotification } = useNotification();
 
     // 获取管理员和Turnstile认证头部
@@ -62,22 +64,19 @@ const GitHubBillingCacheManager: React.FC = () => {
     };
 
     // 加载缓存客户列表
-    const loadCachedCustomers = async () => {
+    const loadCachedCustomers = useCallback(async () => {
         setLoading(true);
+        setLoadingStage('customers');
         try {
             const res = await fetch(`${getApiBaseUrl()}/api/github-billing/customers`);
             const data = await res.json();
 
             if (res.ok && data.success) {
                 setCachedCustomers(data.data || []);
-                setCacheStats({
-                    totalCached: data.count || 0,
-                    totalExpired: 0,
-                    hitRate: 0,
-                    avgAccessCount: 0,
-                    cacheSize: 0,
-                    topAccessedEntries: []
-                });
+                setCacheStats(prevStats => ({
+                    ...prevStats,
+                    totalCached: data.count || 0
+                }));
             } else {
                 setNotification({ message: data.error || '获取缓存列表失败', type: 'error' });
             }
@@ -89,10 +88,12 @@ const GitHubBillingCacheManager: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [setNotification]);
 
     // 获取详细缓存性能指标
-    const fetchCacheMetrics = async () => {
+    const fetchCacheMetrics = useCallback(async () => {
+        setMetricsLoading(true);
+        setLoadingStage('metrics');
         try {
             const headers = await getAdminTurnstileAuthHeaders();
             const response = await fetch(`${getApiBaseUrl()}/api/github-billing/cache/metrics`, {
@@ -113,11 +114,14 @@ const GitHubBillingCacheManager: React.FC = () => {
                     cacheSize: data.data.cacheSize || 0,
                     topAccessedEntries: data.data.topAccessedEntries || []
                 }));
+                setLoadingStage('complete');
             }
         } catch (error) {
             console.error('获取缓存性能指标失败:', error);
+        } finally {
+            setMetricsLoading(false);
         }
-    };
+    }, []);
 
     // 清除指定客户缓存
     const clearCustomerCache = async (customerId: string) => {
@@ -133,6 +137,8 @@ const GitHubBillingCacheManager: React.FC = () => {
             if (res.ok && data.success) {
                 setNotification({ message: `客户 ${customerId} 的缓存已清除`, type: 'success' });
                 await loadCachedCustomers(); // 重新加载列表
+                // 延迟加载指标以避免过于频繁的请求
+                setTimeout(() => fetchCacheMetrics(), 500);
             } else {
                 setNotification({ message: data.error || '清除缓存失败', type: 'error' });
             }
@@ -160,6 +166,8 @@ const GitHubBillingCacheManager: React.FC = () => {
             if (res.ok && data.success) {
                 setNotification({ message: '过期缓存已清除', type: 'success' });
                 await loadCachedCustomers(); // 重新加载列表
+                // 延迟加载指标以避免过于频繁的请求
+                setTimeout(() => fetchCacheMetrics(), 500);
             } else {
                 setNotification({ message: data.error || '清除过期缓存失败', type: 'error' });
             }
@@ -173,13 +181,19 @@ const GitHubBillingCacheManager: React.FC = () => {
         }
     };
 
+    // 渐进式数据加载
     useEffect(() => {
-        const loadData = async () => {
+        const loadDataProgressively = async () => {
+            // 第一阶段：立即加载基础客户数据
             await loadCachedCustomers();
-            await fetchCacheMetrics();
+            
+            // 第二阶段：延迟加载性能指标（避免同时请求造成阻塞）
+            setTimeout(() => {
+                fetchCacheMetrics();
+            }, 800);
         };
-        loadData();
-    }, []);
+        loadDataProgressively();
+    }, [loadCachedCustomers, fetchCacheMetrics]);
 
     const ENTER_INITIAL = { opacity: 0, y: 20 };
     const ENTER_ANIMATE = { opacity: 1, y: 0 };
@@ -241,7 +255,11 @@ const GitHubBillingCacheManager: React.FC = () => {
                             <FaClock className="text-red-500 text-xl mr-3" />
                             <div>
                                 <p className="text-sm text-gray-600">过期缓存</p>
-                                <p className="text-2xl font-bold text-red-600">{cacheStats.totalExpired}</p>
+                                {metricsLoading ? (
+                                    <div className="h-8 bg-red-200 rounded animate-pulse"></div>
+                                ) : (
+                                    <p className="text-2xl font-bold text-red-600">{cacheStats.totalExpired}</p>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -250,7 +268,11 @@ const GitHubBillingCacheManager: React.FC = () => {
                             <FaEye className="text-purple-500 text-xl mr-3" />
                             <div>
                                 <p className="text-sm text-gray-600">平均访问次数</p>
-                                <p className="text-2xl font-bold text-purple-600">{cacheStats.avgAccessCount.toFixed(1)}</p>
+                                {metricsLoading ? (
+                                    <div className="h-8 bg-purple-200 rounded animate-pulse"></div>
+                                ) : (
+                                    <p className="text-2xl font-bold text-purple-600">{cacheStats.avgAccessCount.toFixed(1)}</p>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -259,7 +281,11 @@ const GitHubBillingCacheManager: React.FC = () => {
                             <FaChartLine className="text-green-500 text-xl mr-3" />
                             <div>
                                 <p className="text-sm text-gray-600">命中率</p>
-                                <p className="text-2xl font-bold text-green-600">{(cacheStats.hitRate * 100).toFixed(1)}%</p>
+                                {metricsLoading ? (
+                                    <div className="h-8 bg-green-200 rounded animate-pulse"></div>
+                                ) : (
+                                    <p className="text-2xl font-bold text-green-600">{(cacheStats.hitRate * 100).toFixed(1)}%</p>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -272,10 +298,19 @@ const GitHubBillingCacheManager: React.FC = () => {
                             <FaHdd className="mr-2 text-gray-600" />
                             缓存大小
                         </h3>
-                        <p className="text-3xl font-bold text-gray-700">
-                            {(cacheStats.cacheSize / 1024 / 1024).toFixed(2)} MB
-                        </p>
-                        <p className="text-sm text-gray-500 mt-1">估算值</p>
+                        {metricsLoading ? (
+                            <div className="space-y-2">
+                                <div className="h-10 bg-gray-200 rounded animate-pulse"></div>
+                                <div className="h-4 bg-gray-200 rounded animate-pulse w-16"></div>
+                            </div>
+                        ) : (
+                            <>
+                                <p className="text-3xl font-bold text-gray-700">
+                                    {(cacheStats.cacheSize / 1024 / 1024).toFixed(2)} MB
+                                </p>
+                                <p className="text-sm text-gray-500 mt-1">估算值</p>
+                            </>
+                        )}
                     </div>
 
                     <div className="bg-yellow-50 rounded-lg p-4">
@@ -283,21 +318,32 @@ const GitHubBillingCacheManager: React.FC = () => {
                             <FaFire className="mr-2 text-yellow-600" />
                             热门缓存 (Top 5)
                         </h3>
-                        <div className="space-y-2">
-                            {cacheStats.topAccessedEntries.slice(0, 5).map((entry, index) => (
-                                <div key={`top-entry-${entry.customerId}-${entry.accessCount}-${index}`} className="flex justify-between items-center">
-                                    <span className="text-sm font-medium text-gray-700">
-                                        #{index + 1} {entry.customerId}
-                                    </span>
-                                    <span className="text-sm text-yellow-600 font-semibold">
-                                        {entry.accessCount} 次
-                                    </span>
-                                </div>
-                            ))}
-                            {cacheStats.topAccessedEntries.length === 0 && (
-                                <p className="text-sm text-gray-500">暂无数据</p>
-                            )}
-                        </div>
+                        {metricsLoading ? (
+                            <div className="space-y-2">
+                                {[...Array(3)].map((_, index) => (
+                                    <div key={index} className="flex justify-between items-center">
+                                        <div className="h-4 bg-yellow-200 rounded animate-pulse w-32"></div>
+                                        <div className="h-4 bg-yellow-200 rounded animate-pulse w-12"></div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                {cacheStats.topAccessedEntries.slice(0, 5).map((entry, index) => (
+                                    <div key={`top-entry-${entry.customerId}-${entry.accessCount}-${index}`} className="flex justify-between items-center">
+                                        <span className="text-sm font-medium text-gray-700">
+                                            #{index + 1} {entry.customerId}
+                                        </span>
+                                        <span className="text-sm text-yellow-600 font-semibold">
+                                            {entry.accessCount} 次
+                                        </span>
+                                    </div>
+                                ))}
+                                {cacheStats.topAccessedEntries.length === 0 && !metricsLoading && (
+                                    <p className="text-sm text-gray-500">暂无数据</p>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             </m.div>

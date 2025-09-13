@@ -29,6 +29,7 @@ const GitHubBillingDashboard: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [customersLoading, setCustomersLoading] = useState(false);
   const [clearingCache, setClearingCache] = useState(false);
+  const [loadingStage, setLoadingStage] = useState<'idle' | 'initial' | 'cached' | 'complete'>('idle');
 
   // 获取带Turnstile访问令牌的请求头
   const getTurnstileAuthHeaders = async (): Promise<Record<string, string>> => {
@@ -103,15 +104,20 @@ const GitHubBillingDashboard: React.FC = () => {
 
   // 初始化时加载缓存数据（如果有的话）
   const initializeCachedData = useCallback(() => {
+    setLoadingStage('initial');
     // 从localStorage获取上次的缓存数据
     const savedData = localStorage.getItem('github-billing-cache');
     if (savedData) {
       try {
         const parsedData = JSON.parse(savedData);
         setCachedCustomers(parsedData);
+        setLoadingStage('cached');
       } catch (e) {
         // 忽略解析错误
+        setLoadingStage('complete');
       }
+    } else {
+      setLoadingStage('complete');
     }
   }, []);
 
@@ -195,6 +201,7 @@ const GitHubBillingDashboard: React.FC = () => {
           setCachedCustomers([customerData]);
           // 保存到localStorage
           localStorage.setItem('github-billing-cache', JSON.stringify([customerData]));
+          setLoadingStage('complete');
         }
       }
     } catch (e) {
@@ -292,9 +299,38 @@ const GitHubBillingDashboard: React.FC = () => {
     }
   }, [setNotification, billingData]);
 
-  // 组件加载时初始化缓存数据
+  // 渐进式数据加载
   useEffect(() => {
-    initializeCachedData();
+    const loadDataProgressively = async () => {
+      // 第一阶段：立即加载本地缓存数据
+      initializeCachedData();
+      
+      // 第二阶段：延迟加载远程缓存客户列表（如果需要）
+      setTimeout(async () => {
+        try {
+          setCustomersLoading(true);
+          const res = await fetch(`${getApiBaseUrl()}/api/github-billing/customers`);
+          const data = await res.json();
+          
+          if (res.ok && data.success && data.data?.length > 0) {
+            // 合并远程数据和本地数据，去重
+            const remoteCustomers = data.data;
+            setCachedCustomers(prevCustomers => {
+              const existingIds = new Set(prevCustomers.map(c => c.customerId));
+              const newCustomers = remoteCustomers.filter((c: CachedCustomer) => !existingIds.has(c.customerId));
+              return [...prevCustomers, ...newCustomers];
+            });
+          }
+        } catch (error) {
+          console.log('远程缓存数据加载失败，使用本地数据:', error);
+        } finally {
+          setCustomersLoading(false);
+          setLoadingStage('complete');
+        }
+      }, 1200);
+    };
+    
+    loadDataProgressively();
   }, [initializeCachedData]);
 
   return (
@@ -429,7 +465,7 @@ const GitHubBillingDashboard: React.FC = () => {
       )}
 
       {/* 缓存的客户列表 */}
-      {cachedCustomers.length > 0 && (
+      {(cachedCustomers.length > 0 || customersLoading || loadingStage !== 'complete') && (
         <m.div
           className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
           initial={ENTER_INITIAL}
@@ -437,7 +473,12 @@ const GitHubBillingDashboard: React.FC = () => {
           transition={trans06}
         >
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">缓存的客户数据</h3>
+            <h3 className="text-lg font-semibold text-gray-800">
+              缓存的客户数据
+              {customersLoading && (
+                <span className="ml-2 text-sm text-blue-600">正在同步...</span>
+              )}
+            </h3>
             <m.button
               onClick={() => fetchBillingData()}
               disabled={loading}
@@ -449,54 +490,78 @@ const GitHubBillingDashboard: React.FC = () => {
             </m.button>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-2 px-3 font-medium text-gray-700">Customer ID</th>
-                  <th className="text-left py-2 px-3 font-medium text-gray-700">可计费金额</th>
-                  <th className="text-left py-2 px-3 font-medium text-gray-700">缓存时间</th>
-                  <th className="text-left py-2 px-3 font-medium text-gray-700">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {cachedCustomers.map((customer, index) => (
-                  <tr key={`customer-${customer.customerId}-${index}`} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                    <td className="py-2 px-3 font-mono text-xs break-all">{customer.customerId}</td>
-                    <td className="py-2 px-3 font-bold text-green-600">
-                      ${formatAmount(customer.billableAmount)}
-                      <div className="text-xs text-gray-500">原始: {customer.billableAmount}</div>
-                    </td>
-                    <td className="py-2 px-3 text-xs text-gray-600">
-                      {customer.lastFetched ?
-                        new Date(customer.lastFetched).toLocaleString() :
-                        '未知时间'
-                      }
-                    </td>
-                    <td className="py-2 px-3">
-                      <div className="flex gap-1">
-                        <m.button
-                          onClick={() => fetchBillingData()}
-                          className="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition"
-                          whileTap={{ scale: 0.95 }}
-                        >
-                          查看
-                        </m.button>
-                        <m.button
-                          onClick={() => clearCache(customer.customerId)}
-                          disabled={clearingCache}
-                          className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 transition disabled:opacity-50"
-                          whileTap={{ scale: 0.95 }}
-                        >
-                          清除
-                        </m.button>
-                      </div>
-                    </td>
+          {customersLoading && cachedCustomers.length === 0 ? (
+            <div className="space-y-3">
+              {[...Array(3)].map((_, index) => (
+                <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg animate-pulse">
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-gray-300 rounded w-48"></div>
+                    <div className="h-3 bg-gray-300 rounded w-32"></div>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="h-6 bg-gray-300 rounded w-12"></div>
+                    <div className="h-6 bg-gray-300 rounded w-12"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-2 px-3 font-medium text-gray-700">Customer ID</th>
+                    <th className="text-left py-2 px-3 font-medium text-gray-700">可计费金额</th>
+                    <th className="text-left py-2 px-3 font-medium text-gray-700">缓存时间</th>
+                    <th className="text-left py-2 px-3 font-medium text-gray-700">操作</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {cachedCustomers.map((customer, index) => (
+                    <tr key={`customer-${customer.customerId}-${index}`} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                      <td className="py-2 px-3 font-mono text-xs break-all">{customer.customerId}</td>
+                      <td className="py-2 px-3 font-bold text-green-600">
+                        ${formatAmount(customer.billableAmount)}
+                        <div className="text-xs text-gray-500">原始: {customer.billableAmount}</div>
+                      </td>
+                      <td className="py-2 px-3 text-xs text-gray-600">
+                        {customer.lastFetched ?
+                          new Date(customer.lastFetched).toLocaleString() :
+                          '未知时间'
+                        }
+                      </td>
+                      <td className="py-2 px-3">
+                        <div className="flex gap-1">
+                          <m.button
+                            onClick={() => fetchBillingData()}
+                            className="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition"
+                            whileTap={{ scale: 0.95 }}
+                          >
+                            查看
+                          </m.button>
+                          <m.button
+                            onClick={() => clearCache(customer.customerId)}
+                            disabled={clearingCache}
+                            className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 transition disabled:opacity-50"
+                            whileTap={{ scale: 0.95 }}
+                          >
+                            清除
+                          </m.button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {customersLoading && cachedCustomers.length > 0 && (
+                    <tr className="animate-pulse">
+                      <td colSpan={4} className="py-2 px-3 text-center text-sm text-blue-600">
+                        正在同步更多数据...
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </m.div>
       )}
 
