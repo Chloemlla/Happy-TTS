@@ -6,6 +6,27 @@ import ReactDOM from 'react-dom';
 import { useTwoFactorStatus } from '../hooks/useTwoFactorStatus';
 import getApiBaseUrl from '../api';
 import { openDB } from 'idb';
+import {
+  FaVolumeUp,
+  FaList,
+  FaFileAlt,
+  FaGift,
+  FaImage,
+  FaExclamationTriangle,
+  FaShieldAlt,
+  FaBars,
+  FaEnvelope,
+  FaUser,
+  FaLock,
+  FaSignOutAlt,
+  FaStore,
+  FaDollarSign,
+  FaExternalLinkAlt,
+  FaCheckCircle,
+  FaClipboard,
+  FaCoins,
+  FaComments
+} from 'react-icons/fa';
 
 interface MobileNavProps {
   user: User | null;
@@ -393,16 +414,13 @@ const MobileNav: React.FC<MobileNavProps> = ({
               : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-indigo-600 border border-gray-200/50'
               }`}
           >
-            <motion.svg
+            <motion.div
               className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
               animate={location.pathname === '/' ? { rotate: [0, 10, -10, 0] } : {}}
               transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-            </motion.svg>
+              <FaVolumeUp className="w-4 h-4" />
+            </motion.div>
             <span className="hidden sm:inline">语音合成</span>
           </Link>
         </motion.div>
@@ -420,15 +438,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                 : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-green-600 border border-gray-200/50'
                 }`}
             >
-              <motion.svg
+              <motion.div
                 className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
                 whileHover={{ rotate: 5 }}
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </motion.svg>
+                <FaList className="w-4 h-4" />
+              </motion.div>
               <span className="hidden sm:inline">大小写转换</span>
             </Link>
           </motion.div>
@@ -444,15 +459,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                 : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-blue-600 border border-gray-200/50'
                 }`}
             >
-              <motion.svg
+              <motion.div
                 className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
                 whileHover={{ rotate: 5 }}
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </motion.svg>
+                <FaFileAlt className="w-4 h-4" />
+              </motion.div>
               <span className="hidden sm:inline">API 文档</span>
             </Link>
           </motion.div>
@@ -468,15 +480,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                 : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-purple-600 border border-gray-200/50'
                 }`}
             >
-              <motion.svg
+              <motion.div
                 className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
                 whileHover={{ rotate: 5 }}
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </motion.svg>
+                <FaFileAlt className="w-4 h-4" />
+              </motion.div>
               <span className="text-xs sm:text-sm">Markdown导出</span>
             </Link>
           </motion.div>
@@ -492,15 +501,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                 : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-green-600 border border-gray-200/50'
                 }`}
             >
-              <motion.svg
+              <motion.div
                 className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
                 whileHover={{ rotate: 5 }}
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </motion.svg>
+                <FaGift className="w-4 h-4" />
+              </motion.div>
               <span className="hidden sm:inline">抽奖系统</span>
             </Link>
           </motion.div>
@@ -515,15 +521,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                 : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-blue-600 border border-gray-200/50'
                 }`}
             >
-              <motion.svg
+              <motion.div
                 className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
                 whileHover={{ rotate: 5 }}
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v-4a4 4 0 014-4h8a4 4 0 014 4v4M4 16l4-4a4 4 0 015.656 0L20 16" />
-              </motion.svg>
+                <FaImage className="w-4 h-4" />
+              </motion.div>
               <span className="hidden sm:inline">图片上传</span>
             </Link>
           </motion.div>
@@ -539,15 +542,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                 : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-red-600 border border-gray-200/50'
                 }`}
             >
-              <motion.svg
+              <motion.div
                 className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
                 whileHover={{ rotate: 5 }}
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-              </motion.svg>
+                <FaExclamationTriangle className="w-4 h-4" />
+              </motion.div>
               <span className="hidden sm:inline">FBI通缉犯</span>
             </Link>
           </motion.div>
@@ -563,15 +563,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                 : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-red-600 border border-gray-200/50'
                 }`}
             >
-              <motion.svg
+              <motion.div
                 className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
                 whileHover={{ rotate: 5 }}
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </motion.svg>
+                <FaShieldAlt className="w-4 h-4" />
+              </motion.div>
               <span className="hidden sm:inline">安踏防伪</span>
             </Link>
           </motion.div>
@@ -592,15 +589,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-pink-600 border border-gray-200/50'
                   }`}
               >
-                <motion.svg
+                <motion.div
                   className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
                   whileHover={{ rotate: 5 }}
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M3 12h18M3 17h18" />
-                </motion.svg>
+                  <FaBars className="w-4 h-4" />
+                </motion.div>
                 <span className="hidden sm:inline">管理后台</span>
               </Link>
             </motion.div>
@@ -616,15 +610,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-purple-600 border border-gray-200/50'
                   }`}
               >
-                <motion.svg
+                <motion.div
                   className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
                   whileHover={{ rotate: 5 }}
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </motion.svg>
+                  <FaEnvelope className="w-4 h-4" />
+                </motion.div>
                 <span className="hidden sm:inline">邮件发送</span>
               </Link>
             </motion.div>
@@ -644,15 +635,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                 : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-yellow-600 border border-gray-200/50'
                 }`}
             >
-              <motion.svg
+              <motion.div
                 className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
                 whileHover={{ rotate: 5 }}
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </motion.svg>
+                <FaUser className="w-4 h-4" />
+              </motion.div>
               <span className="hidden sm:inline">个人主页</span>
             </Link>
           </motion.div>
@@ -663,16 +651,13 @@ const MobileNav: React.FC<MobileNavProps> = ({
             whileTap={{ scale: 0.95 }}
             className="flex items-center space-x-2 px-3 py-2 rounded-xl font-medium bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-indigo-600 border border-gray-200/50 transition-all duration-300 shadow-sm hover:shadow-lg"
           >
-            <motion.svg
+            <motion.div
               className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
               animate={{ rotate: [0, 5, -5, 0] }}
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </motion.svg>
+              <FaLock className="w-4 h-4" />
+            </motion.div>
             <span className="hidden sm:inline">二次验证</span>
             {twoFactorStatus.enabled && (
               <motion.span
@@ -691,15 +676,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
           whileTap={{ scale: 0.95 }}
           className="flex items-center space-x-2 px-3 py-2 rounded-xl font-medium bg-gradient-to-r from-red-500 to-pink-500 text-white hover:from-red-600 hover:to-pink-600 transition-all duration-300 shadow-sm hover:shadow-lg"
         >
-          <motion.svg
+          <motion.div
             className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
             whileHover={{ rotate: 5 }}
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </motion.svg>
+            <FaSignOutAlt className="w-4 h-4" />
+          </motion.div>
           <span className="hidden sm:inline">退出</span>
         </motion.button>
       </motion.div>
@@ -717,21 +699,13 @@ const MobileNav: React.FC<MobileNavProps> = ({
         className="flex items-center justify-center p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors duration-200 shadow-sm"
         aria-label="打开菜单"
       >
-        <motion.svg
+        <motion.div
           className="w-5 h-5"
           animate={{ rotate: isMenuOpen ? 90 : 0 }}
           transition={{ duration: 0.3, ease: "easeInOut" }}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M4 6h16M4 12h16M4 18h16"
-          />
-        </motion.svg>
+          <FaBars className="w-5 h-5" />
+        </motion.div>
       </motion.button>
 
       {/* 下拉菜单（Portal渲染） */}
@@ -784,17 +758,14 @@ const MobileNav: React.FC<MobileNavProps> = ({
                       onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
                     />
                   ) : (
-                    <motion.svg
+                    <motion.div
                       className="w-6 h-6 text-white drop-shadow"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.3, delay: 0.4 }}
                     >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </motion.svg>
+                      <FaUser className="w-6 h-6" />
+                    </motion.div>
                   )}
                 </motion.div>
                 <motion.div
@@ -836,15 +807,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                     }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <motion.svg
+                  <motion.div
                     className={`w-5 h-5 ${location.pathname === '/' ? 'text-indigo-500' : 'text-gray-400'}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                  </motion.svg>
+                    <FaVolumeUp className="w-5 h-5" />
+                  </motion.div>
                   <span>语音合成</span>
                   {location.pathname === '/' && (
                     <motion.span
@@ -873,15 +841,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                         }`}
                       onClick={() => setIsMenuOpen(false)}
                     >
-                      <motion.svg
+                      <motion.div
                         className={`w-5 h-5 ${location.pathname === '/admin' ? 'text-pink-500' : 'text-gray-400'}`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
                         whileHover={{ scale: 1.1, rotate: 5 }}
                       >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M3 12h18M3 17h18" />
-                      </motion.svg>
+                        <FaBars className="w-5 h-5" />
+                      </motion.div>
                       <span>管理后台</span>
                       {location.pathname === '/admin' && (
                         <motion.span
@@ -907,15 +872,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                         }`}
                       onClick={() => setIsMenuOpen(false)}
                     >
-                      <motion.svg
+                      <motion.div
                         className={`w-5 h-5 ${location.pathname.startsWith('/admin/store') ? 'text-blue-500' : 'text-gray-400'}`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
                         whileHover={{ scale: 1.1, rotate: 5 }}
                       >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                      </motion.svg>
+                        <FaStore className="w-5 h-5" />
+                      </motion.div>
                       <span>资源商店管理</span>
                       {location.pathname.startsWith('/admin/store') && (
                         <motion.span
@@ -941,15 +903,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                         }`}
                       onClick={() => setIsMenuOpen(false)}
                     >
-                      <motion.svg
+                      <motion.div
                         className={`w-5 h-5 ${location.pathname === '/email-sender' ? 'text-purple-500' : 'text-gray-400'}`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
                         whileHover={{ scale: 1.1, rotate: 5 }}
                       >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                      </motion.svg>
+                        <FaEnvelope className="w-5 h-5" />
+                      </motion.div>
                       <span>邮件发送</span>
                       {location.pathname === '/email-sender' && (
                         <motion.span
@@ -975,15 +934,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                         }`}
                       onClick={() => setIsMenuOpen(false)}
                     >
-                      <motion.svg
+                      <motion.div
                         className={`w-5 h-5 ${location.pathname === '/github-billing' ? 'text-blue-500' : 'text-gray-400'}`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
                         whileHover={{ scale: 1.1, rotate: 5 }}
                       >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m-6-9h12a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V9a2 2 0 012-2z" />
-                      </motion.svg>
+                        <FaDollarSign className="w-5 h-5" />
+                      </motion.div>
                       <span>GitHub账单</span>
                       {location.pathname === '/github-billing' && (
                         <motion.span
@@ -1012,15 +968,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   whileHover={{ x: 5 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  <motion.svg
+                  <motion.div
                     className={`w-5 h-5 ${twoFactorStatus.enabled ? 'text-purple-500' : 'text-gray-400'}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </motion.svg>
+                    <FaLock className="w-5 h-5" />
+                  </motion.div>
                   <span>二次验证</span>
                   {twoFactorStatus.enabled && (
                     <motion.span
@@ -1046,15 +999,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                     }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <motion.svg
+                  <motion.div
                     className={`w-5 h-5 ${location.pathname === '/policy' ? 'text-green-500' : 'text-gray-400'}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </motion.svg>
+                    <FaFileAlt className="w-5 h-5" />
+                  </motion.div>
                   <span>服务条款</span>
                   {location.pathname === '/policy' && (
                     <motion.span
@@ -1066,15 +1016,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                       当前
                     </motion.span>
                   )}
-                  <motion.svg
+                  <motion.div
                     className="w-4 h-4 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
                     whileHover={{ scale: 1.1, x: 2 }}
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </motion.svg>
+                    <FaExternalLinkAlt className="w-4 h-4" />
+                  </motion.div>
                 </Link>
               </motion.div>
 
@@ -1090,15 +1037,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                     }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <motion.svg
+                  <motion.div
                     className={`w-5 h-5 ${location.pathname === '/case-converter' ? 'text-green-500' : 'text-gray-400'}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                  </motion.svg>
+                    <FaList className="w-5 h-5" />
+                  </motion.div>
                   <span>字母转换</span>
                   {location.pathname === '/case-converter' && (
                     <motion.span
@@ -1125,15 +1069,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                     }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <motion.svg
+                  <motion.div
                     className={`w-5 h-5 ${location.pathname.startsWith('/store') ? 'text-orange-500' : 'text-gray-400'}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                  </motion.svg>
+                    <FaStore className="w-5 h-5" />
+                  </motion.div>
                   <span>资源商店</span>
                   {location.pathname.startsWith('/store') && (
                     <motion.span
@@ -1160,15 +1101,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                     }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <motion.svg
+                  <motion.div
                     className={`w-5 h-5 ${location.pathname === '/api-docs' ? 'text-indigo-500' : 'text-gray-400'}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </motion.svg>
+                    <FaFileAlt className="w-5 h-5" />
+                  </motion.div>
                   <span>API 文档</span>
                   {location.pathname === '/api-docs' && (
                     <motion.span
@@ -1194,15 +1132,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                     }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <motion.svg
+                  <motion.div
                     className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
                     whileHover={{ rotate: 5 }}
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </motion.svg>
+                    <FaGift className="w-4 h-4" />
+                  </motion.div>
                   <span>抽奖系统</span>
                   {location.pathname === '/lottery' && (
                     <motion.span
@@ -1229,15 +1164,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                     }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <motion.svg
+                  <motion.div
                     className={`w-5 h-5 ${location.pathname === '/anti-counterfeit' ? 'text-red-500' : 'text-gray-400'}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </motion.svg>
+                    <FaShieldAlt className="w-5 h-5" />
+                  </motion.div>
                   <span>安踏防伪</span>
                   {location.pathname === '/anti-counterfeit' && (
                     <motion.span
@@ -1264,15 +1196,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                     }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <motion.svg
+                  <motion.div
                     className={`w-5 h-5 ${location.pathname === '/tiger-adventure' ? 'text-orange-500' : 'text-gray-400'}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2m-9 0h10m-10 0a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2" />
-                  </motion.svg>
+                    <FaClipboard className="w-5 h-5" />
+                  </motion.div>
                   <span>老虎冒险</span>
                   {location.pathname === '/tiger-adventure' && (
                     <motion.span
@@ -1299,16 +1228,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                     }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <motion.svg
+                  <motion.div
                     className={`w-5 h-5 ${location.pathname === '/coin-flip' ? 'text-yellow-500' : 'text-gray-400'}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
-                    <circle cx="12" cy="12" r="10" strokeWidth="2" />
-                    <path d="M12 2v20M2 12h20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </motion.svg>
+                    <FaCoins className="w-5 h-5" />
+                  </motion.div>
                   <span>抛硬币</span>
                   {location.pathname === '/coin-flip' && (
                     <motion.span
@@ -1333,15 +1258,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                     }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <motion.svg
+                  <motion.div
                     className={`w-5 h-5 ${location.pathname === '/image-upload' ? 'text-blue-500' : 'text-gray-400'}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v-4a4 4 0 014-4h8a4 4 0 014 4v4M4 16l4-4a4 4 0 015.656 0L20 16" />
-                  </motion.svg>
+                    <FaImage className="w-5 h-5" />
+                  </motion.div>
                   <span>图片上传</span>
                   {location.pathname === '/image-upload' && (
                     <motion.span
@@ -1368,15 +1290,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                     }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <motion.svg
+                  <motion.div
                     className={`w-5 h-5 ${location.pathname === '/fbi-wanted' ? 'text-red-500' : 'text-gray-400'}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </motion.svg>
+                    <FaExclamationTriangle className="w-5 h-5" />
+                  </motion.div>
                   <span>FBI通缉犯</span>
                   {location.pathname === '/fbi-wanted' && (
                     <motion.span
@@ -1403,15 +1322,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                     }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <motion.svg
+                  <motion.div
                     className={`w-5 h-5 ${location.pathname === '/markdown-export' ? 'text-purple-500' : 'text-gray-400'}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </motion.svg>
+                    <FaFileAlt className="w-5 h-5" />
+                  </motion.div>
                   <span>Markdown导出</span>
                   {location.pathname === '/markdown-export' && (
                     <motion.span
@@ -1438,15 +1354,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                     }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <motion.svg
+                  <motion.div
                     className={`w-5 h-5 ${location.pathname === '/librechat' ? 'text-indigo-500' : 'text-gray-400'}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4-.8L3 20l.8-4A8.99 8.99 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </motion.svg>
+                    <FaComments className="w-5 h-5" />
+                  </motion.div>
                   <span>LibreChat</span>
                   {location.pathname === '/librechat' && (
                     <motion.span
@@ -1481,15 +1394,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   whileHover={{ x: 5, scale: 1.02 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  <motion.svg
+                  <motion.div
                     className="w-5 h-5 text-red-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </motion.svg>
+                    <FaSignOutAlt className="w-5 h-5" />
+                  </motion.div>
                   <span>退出登录</span>
                 </motion.button>
               </motion.div>
