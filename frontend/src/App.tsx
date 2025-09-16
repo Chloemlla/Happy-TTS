@@ -64,6 +64,9 @@ const GitHubBillingDashboard = React.lazy(() => import('./components/GitHubBilli
 // hCaptcha 验证页面懒加载
 const HCaptchaVerificationPage = React.lazy(() => import('./components/HCaptchaVerificationPage'));
 
+// 通知测试页面懒加载
+const NotificationTestPage = React.lazy(() => import('./components/NotificationTestPage'));
+
 // 恢复 EmailSender 懒加载
 const EmailSenderPage: React.FC = () => {
   const [to, setTo] = React.useState('');
@@ -1039,6 +1042,19 @@ const App: React.FC = () => {
                       transition={pageTransition}
                     >
                       <SmartHumanCheckTestPage />
+                    </m.div>
+                  </Suspense>
+                } />
+                <Route path="/notification-test" element={
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <m.div
+                      variants={pageVariants}
+                      initial="initial"
+                      animate="in"
+                      exit="out"
+                      transition={pageTransition}
+                    >
+                      <NotificationTestPage />
                     </m.div>
                   </Suspense>
                 } />

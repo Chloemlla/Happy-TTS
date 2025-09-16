@@ -272,7 +272,7 @@ class LibreChatService {
         this.chatHistory = this.chatHistory.slice(-this.MAX_MEMORY_MESSAGES);
         logger.info(`内存清理：从 ${oldLength} 条消息清理到 ${this.chatHistory.length} 条消息`);
       }
-      
+
       await writeFile(this.CHAT_HISTORY_FILE, JSON.stringify(this.chatHistory, null, 2));
       logger.info(`已保存聊天历史到本地文件: ${this.chatHistory.length} 条消息`);
     } catch (error) {
@@ -335,17 +335,17 @@ class LibreChatService {
       if (mongoose.connection.readyState === 1) {
         // 限制单次写入的消息数量，防止文档过大
         const limitedMessages = messages.slice(-this.MAX_USER_MESSAGES);
-        
+
         await (mongoose.models.LibreChatHistory as any).findOneAndUpdate(
           { userId: safeKey },
-          { 
-            $set: { 
-              messages: limitedMessages, 
-              updatedAt: new Date() 
-            } 
+          {
+            $set: {
+              messages: limitedMessages,
+              updatedAt: new Date()
+            }
           },
-          { 
-            upsert: true, 
+          {
+            upsert: true,
             setDefaultsOnInsert: true,
             // 设置最大文档大小限制
             maxTimeMS: 10000 // 10秒超时
@@ -363,11 +363,11 @@ class LibreChatService {
           const reducedMessages = messages.slice(-100); // 只保存最近100条
           await (mongoose.models.LibreChatHistory as any).findOneAndUpdate(
             { userId: sanitizeId(keyId) },
-            { 
-              $set: { 
-                messages: reducedMessages, 
-                updatedAt: new Date() 
-              } 
+            {
+              $set: {
+                messages: reducedMessages,
+                updatedAt: new Date()
+              }
             },
             { upsert: true, setDefaultsOnInsert: true }
           );
@@ -453,20 +453,20 @@ class LibreChatService {
     this.sseCleanupInterval = setInterval(() => {
       const now = Date.now();
       const timeout = 5 * 60 * 1000; // 5分钟超时
-      
+
       // 检查连接数量限制
       if (this.sseClients.size > this.MAX_SSE_CLIENTS) {
         // 按最后活跃时间排序，删除最旧的连接
         const sortedClients = Array.from(this.sseClients.entries())
           .sort(([, a], [, b]) => a.lastPing - b.lastPing);
-        
+
         const toRemove = sortedClients.slice(0, this.sseClients.size - this.MAX_SSE_CLIENTS);
         for (const [clientId] of toRemove) {
           this.removeSSEClient(clientId);
           logger.info(`因连接数超限清理SSE连接: ${clientId}`);
         }
       }
-      
+
       // 清理超时连接
       for (const [clientId, client] of this.sseClients.entries()) {
         if (now - client.lastPing > timeout) {
@@ -474,8 +474,8 @@ class LibreChatService {
           logger.info(`清理超时的SSE连接: ${clientId}`);
         }
       }
-      
-      logger.debug(`SSE连接清理完成，当前连接数: ${this.sseClients.size}`);
+
+      logger.info(`SSE连接清理完成，当前连接数: ${this.sseClients.size}`);
     }, 30000);
   }
 
@@ -490,11 +490,11 @@ class LibreChatService {
       res.end('Service Unavailable: Too many connections');
       return '';
     }
-    
+
     const safeUserId = sanitizeId(userId);
     const safeToken = sanitizeId(token);
     const clientId = `${safeUserId || safeToken}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+
     // 发送初始连接消息
     res.write(`data: ${JSON.stringify({ type: 'connected', clientId, timestamp: Date.now() })}\n\n`);
 
@@ -531,7 +531,7 @@ class LibreChatService {
    * 向指定用户发送SSE通知
    */
   private sendSSENotification(userId: string, token: string, eventType: string, data: any): void {
-    const targetClients = Array.from(this.sseClients.values()).filter(client => 
+    const targetClients = Array.from(this.sseClients.values()).filter(client =>
       (userId && client.userId === userId) || (!userId && client.token === token)
     );
 
@@ -570,41 +570,41 @@ class LibreChatService {
         logger.warn('非管理员用户缺少 Turnstile token，拒绝发送消息', { userId, userRole });
         throw new Error('需要完成人机验证才能发送消息');
       }
-      
+
       try {
         // 验证 Turnstile token
         const verificationUrl = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
         const formData = new URLSearchParams();
         formData.append('secret', process.env.TURNSTILE_SECRET_KEY);
         formData.append('response', cfToken);
-        
+
         const verificationResponse = await axios.post(verificationUrl, formData, {
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded'
           },
           timeout: 10000
         });
-        
+
         const verificationResult = verificationResponse.data;
         if (!verificationResult.success) {
-          logger.warn('Turnstile 验证失败', { 
-            userId, 
-            userRole, 
+          logger.warn('Turnstile 验证失败', {
+            userId,
+            userRole,
             errorCodes: verificationResult['error-codes'],
             challengeTs: verificationResult['challenge_ts'],
             hostname: verificationResult.hostname
           });
           throw new Error('人机验证失败，请重新验证');
         }
-        
+
         logger.info('Turnstile 验证成功', { userId, userRole, hostname: verificationResult.hostname });
-             } catch (error) {
-         if (error instanceof Error && (error.message.includes('人机验证') || error.message.includes('Turnstile'))) {
-           throw error;
-         }
-         logger.error('Turnstile 验证请求失败', { userId, userRole, error: error instanceof Error ? error.message : String(error) });
-         throw new Error('人机验证服务暂时不可用，请稍后重试');
-       }
+      } catch (error) {
+        if (error instanceof Error && (error.message.includes('人机验证') || error.message.includes('Turnstile'))) {
+          throw error;
+        }
+        logger.error('Turnstile 验证请求失败', { userId, userRole, error: error instanceof Error ? error.message : String(error) });
+        throw new Error('人机验证服务暂时不可用，请稍后重试');
+      }
     } else if (!isAdmin) {
       logger.info('非管理员用户但未配置 Turnstile，跳过验证', { userId, userRole });
     } else {
@@ -623,18 +623,18 @@ class LibreChatService {
     // 检查单个用户消息数量限制
     const keyId = userId || token;
     const currentUserMessages = this.chatHistory.filter(m => userId ? m.userId === userId : m.token === token);
-    
+
     if (currentUserMessages.length >= this.MAX_USER_MESSAGES) {
       // 删除该用户最旧的消息，保持在限制内
       const userMessagesToRemove = currentUserMessages.slice(0, currentUserMessages.length - this.MAX_USER_MESSAGES + 1);
       this.chatHistory = this.chatHistory.filter(m => !userMessagesToRemove.some(rm => rm.id === m.id));
       logger.info(`用户 ${keyId} 消息数量超限，已清理 ${userMessagesToRemove.length} 条旧消息`);
     }
-    
+
     this.chatHistory.push(userMsg);
     await this.saveChatHistory();
     logger.info(`已保存用户消息到内存/文件，token: ${token}, userId: ${userId}`);
-    
+
     // 同步写入 MongoDB（用户消息）
     const currentMessages = this.chatHistory.filter(m => userId ? m.userId === userId : m.token === token);
     await this.upsertTokenHistory(keyId, currentMessages);
@@ -685,7 +685,7 @@ class LibreChatService {
       this.chatHistory.push(aiMsg);
       await this.saveChatHistory();
       logger.info(`已保存降级回复到内存/文件，token: ${token}, userId: ${userId}`);
-      
+
       const updatedUserMessages = this.chatHistory.filter(m => userId ? m.userId === userId : m.token === token);
       await this.upsertTokenHistory(keyId, updatedUserMessages);
       logger.info(`已更新MongoDB（降级回复），用户消息总数: ${updatedUserMessages.length}`);
@@ -768,7 +768,7 @@ class LibreChatService {
         this.chatHistory.push(aiMsg);
         await this.saveChatHistory();
         logger.info(`已保存AI回复到内存/文件，token: ${token}, userId: ${userId}`);
-        
+
         const updatedUserMessages = this.chatHistory.filter(m => userId ? m.userId === userId : m.token === token);
         await this.upsertTokenHistory(keyId, updatedUserMessages);
         logger.info(`已更新MongoDB，用户消息总数: ${updatedUserMessages.length}`);
@@ -803,7 +803,7 @@ class LibreChatService {
     this.chatHistory.push(aiMsg);
     await this.saveChatHistory();
     logger.info(`已保存错误降级回复到内存/文件，token: ${token}, userId: ${userId}`);
-    
+
     const updatedUserMessages = this.chatHistory.filter(m => userId ? m.userId === userId : m.token === token);
     await this.upsertTokenHistory(keyId, updatedUserMessages);
     logger.info(`已更新MongoDB（错误降级），用户消息总数: ${updatedUserMessages.length}`);
@@ -843,7 +843,7 @@ class LibreChatService {
     } else {
       logger.warn('MongoDB 未连接，使用内存/文件存储');
     }
-    
+
     if (!userMessages) {
       // 回退到内存/文件存储
       const safeUserId = sanitizeId(userId);
@@ -857,7 +857,7 @@ class LibreChatService {
       });
       logger.info(`从内存/文件获取到 ${userMessages.length} 条消息，token: ${token}, userId: ${userId}`);
     }
-    
+
     const total = userMessages.length;
     const startIndex = (options.page - 1) * options.limit;
     const endIndex = startIndex + options.limit;
@@ -876,7 +876,7 @@ class LibreChatService {
   public async clearHistory(token: string, userId?: string): Promise<void> {
     const safeUserId = sanitizeId(userId);
     const safeToken = sanitizeId(token);
-    
+
     // 从内存中删除该用户的消息
     const beforeCount = this.chatHistory.length;
     this.chatHistory = this.chatHistory.filter(msg => {
@@ -887,36 +887,36 @@ class LibreChatService {
       }
     });
     const removedCount = beforeCount - this.chatHistory.length;
-    
+
     logger.info(`清除历史记录: 用户ID=${userId || token}, 从内存中删除了 ${removedCount} 条消息`);
-    
+
     // 保存更新后的内存数据到文件
     await this.saveChatHistory();
-    
+
     // MongoDB 中软删除该用户的记录
     if (mongoose.connection.readyState === 1) {
       try {
         const keyId = sanitizeId(userId || token);
         logger.info(`在 MongoDB 中软删除用户记录: ${keyId}`);
-        
+
         // 使用 findOneAndUpdate 确保原子操作，如果记录不存在则创建
         const result = await (mongoose.models.LibreChatHistory as any).findOneAndUpdate(
           { userId: keyId },
-          { 
-            $set: { 
-              deleted: true, 
+          {
+            $set: {
+              deleted: true,
               deletedAt: new Date(),
               messages: [], // 清空消息数组
               updatedAt: new Date()
-            } 
+            }
           },
-          { 
-            upsert: true, 
+          {
+            upsert: true,
             setDefaultsOnInsert: true,
             new: true // 返回更新后的文档
           }
         );
-        
+
         logger.info(`MongoDB 软删除成功: ${result ? '记录已更新' : '记录已创建'}`);
       } catch (err) {
         logger.error('MongoDB 软删除聊天历史失败:', err);
@@ -1009,33 +1009,33 @@ class LibreChatService {
         logger.warn('非管理员用户重试消息时缺少 Turnstile token，拒绝操作', { userId, userRole });
         throw new Error('需要完成人机验证才能重试消息');
       }
-      
+
       try {
         // 验证 Turnstile token
         const verificationUrl = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
         const formData = new URLSearchParams();
         formData.append('secret', process.env.TURNSTILE_SECRET_KEY);
         formData.append('response', cfToken);
-        
+
         const verificationResponse = await axios.post(verificationUrl, formData, {
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded'
           },
           timeout: 10000
         });
-        
+
         const verificationResult = verificationResponse.data;
         if (!verificationResult.success) {
-          logger.warn('重试消息时 Turnstile 验证失败', { 
-            userId, 
-            userRole, 
+          logger.warn('重试消息时 Turnstile 验证失败', {
+            userId,
+            userRole,
             errorCodes: verificationResult['error-codes'],
             challengeTs: verificationResult['challenge_ts'],
             hostname: verificationResult.hostname
           });
           throw new Error('人机验证失败，请重新验证');
         }
-        
+
         logger.info('重试消息时 Turnstile 验证成功', { userId, userRole, hostname: verificationResult.hostname });
       } catch (error) {
         if (error instanceof Error && (error.message.includes('人机验证') || error.message.includes('Turnstile'))) {
@@ -1182,36 +1182,36 @@ class LibreChatService {
   }
 
   // 仅管理员使用：列出所有用户最新概览（分页）
-    public async adminListUsers(keyword = '', page = 1, limit = 20, includeDeleted = false): Promise<{ users: any[]; total: number }> {
-     if (mongoose.connection.readyState !== 1) return { users: [], total: 0 };
-     
-     // 安全处理搜索关键词，防止 NoSQL 注入
-     const sanitizedKeyword = sanitizeId(keyword.trim());
-     const q: any = {};
-     
-     if (sanitizedKeyword) {
-       // 使用安全的字符串匹配而不是正则表达式，防止 ReDoS 攻击
-       q.userId = { $regex: `^${escapeRegex(sanitizedKeyword)}`, $options: 'i' };
-     }
-     
-     if (!includeDeleted) q.deleted = { $ne: true };
-     const total = await (mongoose.models.LibreChatHistory as any).countDocuments(q);
-     const docs = await (mongoose.models.LibreChatHistory as any)
-       .find(q, { userId: 1, messages: 1, updatedAt: 1, deleted: 1, deletedAt: 1 })
-       .sort({ updatedAt: -1 })
-       .skip((page - 1) * limit)
-       .limit(limit)
-       .lean();
-     const users = (docs || []).map((d: any) => {
-       const msgs: ChatMessage[] = Array.isArray(d.messages) ? d.messages : [];
-       const totalMsgs = msgs.length;
-       const times = msgs.map(m => m.timestamp).filter(Boolean).sort();
-       const firstTs = times[0] || null;
-       const lastTs = times[times.length - 1] || null;
-       return { userId: d.userId, total: totalMsgs, updatedAt: d.updatedAt, firstTs, lastTs };
-     });
-     return { users, total };
-   }
+  public async adminListUsers(keyword = '', page = 1, limit = 20, includeDeleted = false): Promise<{ users: any[]; total: number }> {
+    if (mongoose.connection.readyState !== 1) return { users: [], total: 0 };
+
+    // 安全处理搜索关键词，防止 NoSQL 注入
+    const sanitizedKeyword = sanitizeId(keyword.trim());
+    const q: any = {};
+
+    if (sanitizedKeyword) {
+      // 使用安全的字符串匹配而不是正则表达式，防止 ReDoS 攻击
+      q.userId = { $regex: `^${escapeRegex(sanitizedKeyword)}`, $options: 'i' };
+    }
+
+    if (!includeDeleted) q.deleted = { $ne: true };
+    const total = await (mongoose.models.LibreChatHistory as any).countDocuments(q);
+    const docs = await (mongoose.models.LibreChatHistory as any)
+      .find(q, { userId: 1, messages: 1, updatedAt: 1, deleted: 1, deletedAt: 1 })
+      .sort({ updatedAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
+    const users = (docs || []).map((d: any) => {
+      const msgs: ChatMessage[] = Array.isArray(d.messages) ? d.messages : [];
+      const totalMsgs = msgs.length;
+      const times = msgs.map(m => m.timestamp).filter(Boolean).sort();
+      const firstTs = times[0] || null;
+      const lastTs = times[times.length - 1] || null;
+      return { userId: d.userId, total: totalMsgs, updatedAt: d.updatedAt, firstTs, lastTs };
+    });
+    return { users, total };
+  }
 
   // 仅管理员使用：获取指定用户的历史（分页）
   public async adminGetUserHistory(userId: string, page = 1, limit = 20): Promise<ChatHistory> {

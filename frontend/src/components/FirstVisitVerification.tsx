@@ -46,8 +46,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     siteKey: secureSiteKey,
     enabled: secureEnabled
   } = useSecureCaptchaSelection({
-    fingerprint,
-    availableTypes: [CaptchaType.TURNSTILE, CaptchaType.HCAPTCHA]
+    fingerprint
   });
 
   // Turnstile 状态
@@ -312,7 +311,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     // 异步处理 Clarity 事件和通知
     requestIdleCallback(() => {
       try {
-        if (typeof clarity !== 'undefined' && clarity.event) {
+        if (typeof clarity !== 'undefined' && typeof clarity.event === 'function') {
           clarity.event('turnstile_verify_success');
         }
       } catch (err) {
@@ -339,7 +338,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     // 异步处理事件记录和通知
     requestIdleCallback(() => {
       try {
-        if (typeof clarity !== 'undefined' && clarity.event) {
+        if (typeof clarity !== 'undefined' && typeof clarity.event === 'function') {
           clarity.event('turnstile_verify_expire');
         }
       } catch (err) {
@@ -367,7 +366,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     // 异步处理事件记录和通知
     requestIdleCallback(() => {
       try {
-        if (typeof clarity !== 'undefined' && clarity.event) {
+        if (typeof clarity !== 'undefined' && typeof clarity.event === 'function') {
           clarity.event('turnstile_verify_error');
         }
       } catch (err) {
@@ -396,7 +395,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     // 异步处理 Clarity 事件和通知
     requestIdleCallback(() => {
       try {
-        if (typeof clarity !== 'undefined' && clarity.event) {
+        if (typeof clarity !== 'undefined' && typeof clarity.event === 'function') {
           clarity.event('hcaptcha_verify_success');
         }
       } catch (err) {
@@ -423,7 +422,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     // 异步处理事件记录和通知
     requestIdleCallback(() => {
       try {
-        if (typeof clarity !== 'undefined' && clarity.event) {
+        if (typeof clarity !== 'undefined' && typeof clarity.event === 'function') {
           clarity.event('hcaptcha_verify_expire');
         }
       } catch (err) {
@@ -451,7 +450,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     // 异步处理事件记录和通知
     requestIdleCallback(() => {
       try {
-        if (typeof clarity !== 'undefined' && clarity.event) {
+        if (typeof clarity !== 'undefined' && typeof clarity.event === 'function') {
           clarity.event('hcaptcha_verify_error');
         }
       } catch (err) {
@@ -515,7 +514,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
 
         // Microsoft Clarity事件记录：验证成功
         try {
-          if (typeof clarity !== 'undefined' && clarity.event) {
+          if (typeof clarity !== 'undefined' && typeof clarity.event === 'function') {
             clarity.event('first_visit_verification_success');
           }
         } catch (err) {
@@ -550,7 +549,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
         
         // Microsoft Clarity事件记录：验证失败（基础信息）
         try {
-          if (typeof clarity !== 'undefined' && clarity.event) {
+          if (typeof clarity !== 'undefined' && typeof clarity.event === 'function') {
             clarity.event('first_visit_verification_failed');
           }
         } catch (err) {
@@ -613,7 +612,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
 
       // Microsoft Clarity事件记录：验证异常失败
       try {
-        if (typeof clarity !== 'undefined' && clarity.event) {
+        if (typeof clarity !== 'undefined' && typeof clarity.event === 'function') {
           clarity.event('first_visit_verification_exception');
         }
       } catch (clarityError) {
@@ -658,7 +657,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
   useEffect(() => {
     if (isIpBanned) {
       try {
-        if (typeof clarity !== 'undefined' && clarity.event) {
+        if (typeof clarity !== 'undefined' && typeof clarity.event === 'function') {
           clarity.event('first_visit_ip_banned_displayed');
         }
       } catch (err) {

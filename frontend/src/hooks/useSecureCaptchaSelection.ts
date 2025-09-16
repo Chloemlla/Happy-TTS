@@ -12,7 +12,7 @@ interface SecureCaptchaConfig {
 
 interface UseSecureCaptchaSelectionOptions {
   fingerprint: string;
-  availableTypes?: CaptchaType[];
+  // availableTypes 已移除，由后端决定
 }
 
 export const useSecureCaptchaSelection = (options: UseSecureCaptchaSelectionOptions) => {
@@ -22,7 +22,7 @@ export const useSecureCaptchaSelection = (options: UseSecureCaptchaSelectionOpti
   const [encryptedSelection, setEncryptedSelection] = useState<EncryptedCaptchaSelection | null>(null);
   const [hasInitialized, setHasInitialized] = useState(false);
 
-  const { fingerprint, availableTypes = [CaptchaType.TURNSTILE, CaptchaType.HCAPTCHA] } = options;
+  const { fingerprint } = options;
 
   /**
    * 生成安全的CAPTCHA选择并获取配置
@@ -43,8 +43,8 @@ export const useSecureCaptchaSelection = (options: UseSecureCaptchaSelectionOpti
       setLoading(true);
       setError(null);
 
-      // 生成加密的随机选择
-      const selection = generateSecureCaptchaSelection(fingerprint, availableTypes);
+      // 生成加密的随机选择（后端会忽略选择结果，自行决定验证码类型）
+      const selection = generateSecureCaptchaSelection(fingerprint, [CaptchaType.TURNSTILE, CaptchaType.HCAPTCHA]);
       setEncryptedSelection(selection);
 
       // 向后端请求对应的配置
@@ -79,10 +79,11 @@ export const useSecureCaptchaSelection = (options: UseSecureCaptchaSelectionOpti
         config: data.config
       });
 
-      console.log('安全CAPTCHA选择成功:', {
+      console.log('后端CAPTCHA选择成功:', {
         type: data.captchaType,
         enabled: data.config.enabled,
-        timestamp: new Date(selection.timestamp).toISOString()
+        timestamp: new Date(selection.timestamp).toISOString(),
+        note: '验证码类型由后端决定'
       });
 
       setHasInitialized(true);
@@ -95,7 +96,7 @@ export const useSecureCaptchaSelection = (options: UseSecureCaptchaSelectionOpti
     } finally {
       setLoading(false);
     }
-  }, [fingerprint, availableTypes, loading]);
+  }, [fingerprint, loading]);
 
   /**
    * 重新生成选择

@@ -40,10 +40,10 @@ function encryptAES256(data: string, key: string): { encryptedData: string; iv: 
     const keyHash = crypto.createHash('sha256').update(key).digest();
     const iv = crypto.randomBytes(16);
     const cipher = crypto.createCipheriv('aes-256-cbc', keyHash, iv);
-    
+
     let encrypted = cipher.update(data, 'utf8', 'hex');
     encrypted += cipher.final('hex');
-    
+
     return {
       encryptedData: encrypted,
       iv: iv.toString('hex')
@@ -60,10 +60,10 @@ function decryptAES256(encryptedData: string, iv: string, key: string): string {
     const keyHash = crypto.createHash('sha256').update(key).digest();
     const ivBuffer = Buffer.from(iv, 'hex');
     const decipher = crypto.createDecipheriv('aes-256-cbc', keyHash, ivBuffer);
-    
+
     let decrypted = decipher.update(encryptedData, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
-    
+
     return decrypted;
   } catch (error) {
     logger.error('AES-256 解密失败:', error);
@@ -96,7 +96,7 @@ const DebugConsoleConfigSchema = new mongoose.Schema({
   iv: { type: String }
 }, { collection: 'debug_console_configs' });
 
-const DebugConsoleConfigModel = (mongoose.models.DebugConsoleConfig as any) || 
+const DebugConsoleConfigModel = (mongoose.models.DebugConsoleConfig as any) ||
   mongoose.model('DebugConsoleConfig', DebugConsoleConfigSchema);
 
 // 调试控制台访问记录接口
@@ -125,7 +125,7 @@ const DebugConsoleAccessLogSchema = new mongoose.Schema({
   lockoutUntil: { type: Date }
 }, { collection: 'debug_console_access_logs' });
 
-const DebugConsoleAccessLogModel = (mongoose.models.DebugConsoleAccessLog as any) || 
+const DebugConsoleAccessLogModel = (mongoose.models.DebugConsoleAccessLog as any) ||
   mongoose.model('DebugConsoleAccessLog', DebugConsoleAccessLogSchema);
 
 // 调试控制台服务类
@@ -140,13 +140,13 @@ class DebugConsoleService {
     setTimeout(() => {
       this.initializeService();
     }, 2000); // 等待2秒让MongoDB服务先启动
-    
+
     // 监听MongoDB连接状态变化
     mongoose.connection.on('connected', () => {
       logger.info('MongoDB连接成功，重新初始化调试控制台服务');
       this.initializeService();
     });
-    
+
     mongoose.connection.on('disconnected', () => {
       logger.warn('MongoDB连接断开，调试控制台服务将使用默认配置');
     });
@@ -167,7 +167,7 @@ class DebugConsoleService {
         logger.info('调试控制台服务初始化成功');
       } else {
         logger.warn('MongoDB 未连接，调试控制台服务将使用默认配置');
-        
+
         // 如果MongoDB未连接，等待一段时间后重试（仅在首次初始化时）
         if (!this.configLoadedAt) {
           setTimeout(async () => {
@@ -191,7 +191,7 @@ class DebugConsoleService {
         logger.debug('MongoDB未连接，跳过配置加载');
         return [];
       }
-      
+
       const docs: DebugConsoleConfigDoc[] = await DebugConsoleConfigModel.find({ enabled: { $ne: false } }).lean();
       const normalized = (docs || [])
         .map(d => ({
@@ -207,7 +207,7 @@ class DebugConsoleService {
 
       this.configCache = normalized;
       this.configLoadedAt = Date.now();
-      logger.debug(`调试控制台配置加载完成，共${normalized.length}个配置`);
+      logger.info(`调试控制台配置加载完成，共${normalized.length}个配置`);
       return this.configCache;
     } catch (error) {
       logger.error('加载调试控制台配置失败:', error);
@@ -217,17 +217,17 @@ class DebugConsoleService {
 
   private async getConfigsFresh(): Promise<DebugConsoleConfigDoc[]> {
     const now = Date.now();
-    
+
     // 如果MongoDB连接状态发生变化，重新加载配置
     const isConnected = this.isMongoConnected();
     const wasConnected = this.configCache.length > 0 || this.configLoadedAt > 0;
-    
-    if (!this.configLoadedAt || 
-        now - this.configLoadedAt > this.CONFIG_TTL_MS || 
-        (isConnected && !wasConnected)) {
+
+    if (!this.configLoadedAt ||
+      now - this.configLoadedAt > this.CONFIG_TTL_MS ||
+      (isConnected && !wasConnected)) {
       await this.loadConfigs();
     }
-    
+
     return this.configCache;
   }
 
@@ -249,7 +249,7 @@ class DebugConsoleService {
   }> {
     try {
       const configs = await this.getConfigsFresh();
-      
+
       // 如果没有配置，使用默认配置
       if (configs.length === 0) {
         const defaultConfig: DebugConsoleConfigDoc = {
@@ -308,7 +308,7 @@ class DebugConsoleService {
 
       // 验证验证码
       const isValid = verificationCode === config.verificationCode;
-      
+
       if (isValid) {
         // 验证成功，重置尝试次数
         await this.resetAttempts(ip);
@@ -322,7 +322,7 @@ class DebugConsoleService {
           attempts: 0,
           timestamp: new Date()
         });
-        
+
         logger.info('调试控制台访问验证成功', { ip, userId });
         return {
           success: true,
@@ -334,7 +334,7 @@ class DebugConsoleService {
         // 验证失败，增加尝试次数
         const attempts = await this.incrementAttempts(ip, config);
         const remainingAttempts = config.maxAttempts - attempts;
-        
+
         let lockoutUntil: Date | undefined;
         if (remainingAttempts <= 0) {
           lockoutUntil = new Date(Date.now() + config.lockoutDuration);
@@ -353,17 +353,17 @@ class DebugConsoleService {
           timestamp: new Date()
         });
 
-        logger.warn('调试控制台访问验证失败', { 
-          ip, 
-          userId, 
-          attempts, 
+        logger.warn('调试控制台访问验证失败', {
+          ip,
+          userId,
+          attempts,
           remainingAttempts,
-          lockoutUntil 
+          lockoutUntil
         });
 
         return {
           success: false,
-          message: remainingAttempts > 0 
+          message: remainingAttempts > 0
             ? `验证码错误，剩余尝试次数: ${remainingAttempts}`
             : `验证码错误次数过多，已锁定 ${config.lockoutDuration / 1000 / 60} 分钟`,
           attempts,
@@ -424,7 +424,7 @@ class DebugConsoleService {
       const attemptsKey = `debug_console_attempts:${ip}`;
       const currentAttempts = this.getFromCache(attemptsKey) || 0;
       const newAttempts = currentAttempts + 1;
-      
+
       this.setCache(attemptsKey, newAttempts, 60 * 60); // 1小时过期
       return newAttempts;
     } catch (error) {
@@ -440,7 +440,7 @@ class DebugConsoleService {
     try {
       const attemptsKey = `debug_console_attempts:${ip}`;
       const lockoutKey = `debug_console_lockout:${ip}`;
-      
+
       this.removeFromCache(attemptsKey);
       this.removeFromCache(lockoutKey);
     } catch (error) {
@@ -529,7 +529,7 @@ class DebugConsoleService {
       }
 
       const configs = await this.getConfigsFresh();
-      
+
       if (configs.length === 0) {
         return { success: false, error: '没有找到配置' };
       }
@@ -545,9 +545,9 @@ class DebugConsoleService {
       };
     } catch (error) {
       logger.error('获取加密调试控制台配置失败:', error);
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : '获取配置失败' 
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '获取配置失败'
       };
     }
   }
@@ -616,7 +616,7 @@ class DebugConsoleService {
 
       // 清除缓存
       this.configLoadedAt = 0;
-      
+
       logger.info('调试控制台配置已更新', { group: safeGroup, updates: safeUpdates });
       return result;
     } catch (error) {
@@ -641,10 +641,10 @@ class DebugConsoleService {
       }
 
       const result = await DebugConsoleConfigModel.deleteOne({ group });
-      
+
       // 清除缓存
       this.configLoadedAt = 0;
-      
+
       logger.info('调试控制台配置已删除', { group, deletedCount: result.deletedCount });
       return result.deletedCount > 0;
     } catch (error) {
@@ -678,7 +678,7 @@ class DebugConsoleService {
       }
 
       const query: any = {};
-      
+
       // 仅允许严格等值匹配，拒绝/忽略无法通过白名单校验的输入
       if (filters.ip) {
         const ipStr = String(filters.ip).trim();
@@ -744,7 +744,7 @@ class DebugConsoleService {
       }
 
       const result = await DebugConsoleAccessLogModel.deleteOne({ _id: logId });
-      
+
       logger.info('调试控制台访问日志已删除', { logId, deletedCount: result.deletedCount });
       return result.deletedCount > 0;
     } catch (error) {
@@ -779,25 +779,25 @@ class DebugConsoleService {
       }
 
       const result = await DebugConsoleAccessLogModel.deleteMany({ _id: { $in: validIds } });
-      
-      logger.info('调试控制台访问日志批量删除完成', { 
+
+      logger.info('调试控制台访问日志批量删除完成', {
         totalRequested: logIds.length,
         valid: validIds.length,
         invalid: invalidCount,
-        deletedCount: result.deletedCount 
+        deletedCount: result.deletedCount
       });
-      
-      return { 
-        success: true, 
+
+      return {
+        success: true,
         deletedCount: result.deletedCount,
         errors: invalidCount > 0 ? [`忽略无效ID数量: ${invalidCount}`] : []
       };
     } catch (error) {
       logger.error('批量删除调试控制台访问日志失败:', error);
-      return { 
-        success: false, 
-        deletedCount: 0, 
-        errors: [error instanceof Error ? error.message : '未知错误'] 
+      return {
+        success: false,
+        deletedCount: 0,
+        errors: [error instanceof Error ? error.message : '未知错误']
       };
     }
   }
@@ -817,19 +817,19 @@ class DebugConsoleService {
       }
 
       const result = await DebugConsoleAccessLogModel.deleteMany({});
-      
+
       logger.info('所有调试控制台访问日志已删除', { deletedCount: result.deletedCount });
-      
-      return { 
-        success: true, 
-        deletedCount: result.deletedCount 
+
+      return {
+        success: true,
+        deletedCount: result.deletedCount
       };
     } catch (error) {
       logger.error('删除所有调试控制台访问日志失败:', error);
-      return { 
-        success: false, 
-        deletedCount: 0, 
-        error: error instanceof Error ? error.message : '未知错误' 
+      return {
+        success: false,
+        deletedCount: 0,
+        error: error instanceof Error ? error.message : '未知错误'
       };
     }
   }
@@ -868,24 +868,24 @@ class DebugConsoleService {
         }
 
         const result = await DebugConsoleAccessLogModel.deleteMany({ _id: { $in: validIds } });
-        
-        logger.info('删除选中的调试控制台访问日志完成', { 
+
+        logger.info('删除选中的调试控制台访问日志完成', {
           totalRequested: data.logIds.length,
           valid: validIds.length,
           invalid: invalidCount,
-          deletedCount: result.deletedCount 
+          deletedCount: result.deletedCount
         });
-        
-        return { 
-          success: true, 
-          deletedCount: result.deletedCount 
+
+        return {
+          success: true,
+          deletedCount: result.deletedCount
         };
       }
 
       // 如果没有选中日志，则处理过滤条件（向后兼容）
       if (data.filters) {
         const query: any = {};
-        
+
         // 仅允许严格等值匹配，拒绝非法过滤条件
         if (data.filters.ip) {
           const ipStr = String(data.filters.ip).trim();
@@ -904,7 +904,7 @@ class DebugConsoleService {
         }
         if (data.filters.startDate || data.filters.endDate) {
           const range: any = {};
-          
+
           // 处理 startDate
           if (data.filters.startDate) {
             const startDate = typeof data.filters.startDate === 'string' ? new Date(data.filters.startDate) : data.filters.startDate;
@@ -912,7 +912,7 @@ class DebugConsoleService {
               range.$gte = startDate;
             }
           }
-          
+
           // 处理 endDate
           if (data.filters.endDate) {
             const endDate = typeof data.filters.endDate === 'string' ? new Date(data.filters.endDate) : data.filters.endDate;
@@ -920,7 +920,7 @@ class DebugConsoleService {
               range.$lte = endDate;
             }
           }
-          
+
           if (range.$gte || range.$lte) {
             // 限制删除操作的时间范围最大为31天
             const startMs = range.$gte ? range.$gte.getTime() : 0;
@@ -940,15 +940,15 @@ class DebugConsoleService {
         }
 
         const result = await DebugConsoleAccessLogModel.deleteMany(query);
-        
-        logger.info('根据条件删除调试控制台访问日志完成', { 
-          filters: data.filters, 
-          deletedCount: result.deletedCount 
+
+        logger.info('根据条件删除调试控制台访问日志完成', {
+          filters: data.filters,
+          deletedCount: result.deletedCount
         });
-        
-        return { 
-          success: true, 
-          deletedCount: result.deletedCount 
+
+        return {
+          success: true,
+          deletedCount: result.deletedCount
         };
       }
 
@@ -960,10 +960,10 @@ class DebugConsoleService {
         stack: error instanceof Error ? error.stack : undefined,
         data
       });
-      return { 
-        success: false, 
-        deletedCount: 0, 
-        error: error instanceof Error ? error.message : '未知错误' 
+      return {
+        success: false,
+        deletedCount: 0,
+        error: error instanceof Error ? error.message : '未知错误'
       };
     }
   }
