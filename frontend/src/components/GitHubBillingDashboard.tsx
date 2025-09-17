@@ -29,7 +29,7 @@ const GitHubBillingDashboard: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [customersLoading, setCustomersLoading] = useState(false);
   const [clearingCache, setClearingCache] = useState(false);
-  const [loadingStage, setLoadingStage] = useState<'idle' | 'initial' | 'cached' | 'complete'>('idle');
+  const [, setLoadingStage] = useState<'idle' | 'initial' | 'cached' | 'complete'>('idle');
 
   // 获取带Turnstile访问令牌的请求头
   const getTurnstileAuthHeaders = async (): Promise<Record<string, string>> => {
@@ -465,7 +465,7 @@ const GitHubBillingDashboard: React.FC = () => {
       )}
 
       {/* 缓存的客户列表 */}
-      {(cachedCustomers.length > 0 || customersLoading || loadingStage !== 'complete') && (
+      {(cachedCustomers.length > 0 || customersLoading) && (
         <m.div
           className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
           initial={ENTER_INITIAL}

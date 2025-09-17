@@ -1188,52 +1188,50 @@ router.post('/secure-captcha-config', publicLimiter, async (req, res) => {
             });
         }
 
-        // 后端决定验证码类型，忽略前端选择
-        const isDev = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev';
+        // 后端决定验证码类型（随机枚举），忽略前端选择
+        // 规则：
+        // - 同时可用：在可用集合中随机选择
+        // - 只有一个可用：返回该可用项
+        // - 都不可用：返回禁用的 Turnstile
         let captchaType;
         let config;
 
-        if (isDev) {
-            // 开发环境始终使用Turnstile
+        const turnstileConfig = await TurnstileService.getConfig();
+        const hcaptchaConfig = await TurnstileService.getHCaptchaConfig();
+
+        const candidates = [];
+        if (turnstileConfig.enabled && turnstileConfig.siteKey) {
+            candidates.push({
+                type: 'turnstile',
+                config: { enabled: turnstileConfig.enabled, siteKey: turnstileConfig.siteKey }
+            });
+        }
+        if (hcaptchaConfig.enabled && hcaptchaConfig.siteKey) {
+            candidates.push({
+                type: 'hcaptcha',
+                config: { enabled: hcaptchaConfig.enabled, siteKey: hcaptchaConfig.siteKey }
+            });
+        }
+
+        if (candidates.length === 0) {
             captchaType = 'turnstile';
-            const turnstileConfig = await TurnstileService.getConfig();
-            config = {
-                enabled: turnstileConfig.enabled,
-                siteKey: turnstileConfig.siteKey
-            };
-            console.log('开发环境：强制选择Turnstile验证码');
+            config = { enabled: false, siteKey: null };
+        } else if (candidates.length === 1) {
+            captchaType = candidates[0].type;
+            config = candidates[0].config;
         } else {
-            // 生产环境的后端选择逻辑
-            const turnstileConfig = await TurnstileService.getConfig();
-            const hcaptchaConfig = await TurnstileService.getHCaptchaConfig();
-            
-            // 优先选择已配置且启用的验证码服务
-            if (turnstileConfig.enabled && turnstileConfig.siteKey) {
-                captchaType = 'turnstile';
-                config = {
-                    enabled: turnstileConfig.enabled,
-                    siteKey: turnstileConfig.siteKey
-                };
-            } else if (hcaptchaConfig.enabled && hcaptchaConfig.siteKey) {
-                captchaType = 'hcaptcha';
-                config = {
-                    enabled: hcaptchaConfig.enabled,
-                    siteKey: hcaptchaConfig.siteKey
-                };
-            } else {
-                // 都未配置时默认返回Turnstile（但disabled状态）
-                captchaType = 'turnstile';
-                config = {
-                    enabled: false,
-                    siteKey: null
-                };
-            }
+            // 两者都可用，随机选择
+            const index = (typeof crypto.randomInt === 'function')
+                ? crypto.randomInt(0, candidates.length)
+                : Math.floor(Math.random() * candidates.length);
+            captchaType = candidates[index].type;
+            config = candidates[index].config;
         }
 
         // 记录后端选择日志（用于审计）
         console.log('后端CAPTCHA选择:', {
             type: captchaType,
-            environment: isDev ? 'development' : 'production',
+            selectionMethod: candidates.length > 1 ? 'random' : (candidates.length === 1 ? 'single-available' : 'fallback-disabled'),
             fingerprint: fingerprint.substring(0, 8) + '...',
             timestamp: new Date(timestamp).toISOString(),
             clientIp: req.ip || 'unknown',
