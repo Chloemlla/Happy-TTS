@@ -3,7 +3,19 @@ import { reportFingerprintOnce } from '../utils/fingerprint';
 
 // 获取API基础URL
 const getApiBaseUrl = () => {
-    if (import.meta.env.DEV) return 'http://localhost:3000';
+    if (import.meta.env.DEV) {
+        // 在开发环境下，根据当前访问的URL自动切换后端地址
+        const currentHost = window.location.hostname;
+        const currentPort = window.location.port;
+        
+        // 如果访问的是 192.168.10.7:3001，后端地址切换为 192.168.10.7:3000
+        if (currentHost === '192.168.10.7' && currentPort === '3001') {
+            return 'http://192.168.10.7:3000';
+        }
+        
+        // 默认本地开发地址
+        return 'http://localhost:3000';
+    }
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
     return 'https://api.hapxs.com';
 };

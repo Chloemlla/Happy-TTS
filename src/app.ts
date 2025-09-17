@@ -115,6 +115,7 @@ const execAsync = promisify(exec);
 const allowedOrigins = [
   'https://tts.hapx.one',
   'https://tts.hapxs.com',
+  "http://192.168.10.7:3001",
   'https://api.hapxs.com',
   'http://localhost:3000',
   'http://localhost:3001',
@@ -421,6 +422,7 @@ app.use(helmet({
         "https://api.hapxs.com",
         "http://localhost:3000",
         "http://localhost:3001",
+        "http://192.168.10.7:3001",
         "https://api.hcaptcha.com",
         "https://*.hcaptcha.com",
         "https://www.google-analytics.com",

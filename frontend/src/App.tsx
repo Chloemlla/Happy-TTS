@@ -55,6 +55,9 @@ const LibreChatPage = React.lazy(() => import('./components/LibreChatPage'));
 // SmartHumanCheckTestPage 懒加载
 const SmartHumanCheckTestPage = React.lazy(() => import('./components/SmartHumanCheckTestPage'));
 
+// 校园紧急情况页面懒加载
+const CampusEmergencyPage = React.lazy(() => import('./components/CampusEmergencyPage'));
+
 // 安踏防伪查询页面懒加载
 const AntiCounterfeitPage = React.lazy(() => import('./components/AntiCounterfeitPage'));
 
@@ -1143,6 +1146,19 @@ const App: React.FC = () => {
                   ) : (
                     <Navigate to="/welcome" replace state={{ from: location.pathname }} />
                   )
+                } />
+                <Route path="/campus-emergency" element={
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <m.div
+                      variants={pageVariants}
+                      initial="initial"
+                      animate="in"
+                      exit="out"
+                      transition={pageTransition}
+                    >
+                      <CampusEmergencyPage />
+                    </m.div>
+                  </Suspense>
                 } />
 
                 {/* 资源商店相关路由 */}
