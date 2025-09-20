@@ -14,6 +14,7 @@ permissions:
   contents: write
   pull-requests: write
   checks: read
+  actions: write
 
 jobs:
   auto-merge:
@@ -202,8 +203,8 @@ jobs:
             return shouldAutoMerge;
 
       - name: Enable auto-merge for eligible PRs
-        if: steps.check-ready.outputs.should-merge == 'true' && steps.check-ready.outputs.pr-number != 'all'
-        uses: actions/github-script@v7
+        if: ${{ steps.check-ready.outputs.should-merge == 'true' && steps.check-ready.outputs.pr-number != 'all' }}
+        uses: actions/github-script@main
         with:
           script: |
             const { owner, repo } = context.repo;
