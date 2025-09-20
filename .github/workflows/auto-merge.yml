@@ -32,6 +32,89 @@ jobs:
 
             if (context.eventName === 'pull_request' || context.eventName === 'pull_request_review') {
               pull_number = context.payload.pull_request?.number || context.payload.number;
+            } else if (context.eventName === 'workflow_dispatch') {
+              // 对于手动触发，检查所有开放的 PR
+              console.log('Manual workflow dispatch - checking all open PRs');
+              
+              const { data: openPRs } = await github.rest.pulls.list({
+                owner,
+                repo,
+                state: 'open',
+                sort: 'updated',
+                direction: 'desc'
+              });
+              
+              console.log(`Found ${openPRs.length} open PRs`);
+              
+              // 处理所有开放的 PR
+              const results = [];
+              for (const pr of openPRs) {
+                const prNumber = pr.number;
+                console.log(`\n=== 检查 PR #${prNumber}: ${pr.title} ===`);
+                
+                // 检查是否为 dependabot PR
+                const isDependabot = pr.user.login === 'dependabot[bot]';
+                
+                // 检查是否有自动合并标签
+                const hasAutoMergeLabel = pr.labels.some(label => 
+                  ['auto-merge', 'automerge', '自动合并'].includes(label.name.toLowerCase())
+                );
+                
+                // 检查 PR 状态
+                const isApproved = pr.mergeable_state === 'clean';
+                const hasConflicts = pr.mergeable === false;
+                
+                console.log(`Dependabot PR: ${isDependabot}`);
+                console.log(`Has auto-merge label: ${hasAutoMergeLabel}`);
+                console.log(`Mergeable state: ${pr.mergeable_state}`);
+                console.log(`Has conflicts: ${hasConflicts}`);
+                
+                // 决定是否启用自动合并
+                const shouldAutoMerge = (isDependabot || hasAutoMergeLabel) && !hasConflicts;
+                
+                if (shouldAutoMerge) {
+                  try {
+                    // 启用自动合并
+                    await github.rest.pulls.enableAutoMerge({
+                      owner,
+                      repo,
+                      pull_number: prNumber,
+                      merge_method: 'squash'
+                    });
+                    
+                    console.log(`✅ 已为 PR #${prNumber} 启用自动合并`);
+                    
+                    // 添加评论说明
+                    await github.rest.issues.createComment({
+                      owner,
+                      repo,
+                      issue_number: prNumber,
+                      body: '🤖 自动合并已启用！当所有检查通过后，此 PR 将自动合并。'
+                    });
+                    
+                    results.push({ pr: prNumber, status: 'enabled', title: pr.title });
+                  } catch (error) {
+                    console.log(`❌ 无法为 PR #${prNumber} 启用自动合并: ${error.message}`);
+                    results.push({ pr: prNumber, status: 'failed', title: pr.title, error: error.message });
+                  }
+                } else {
+                  console.log(`⏭️ 跳过 PR #${prNumber} (不满足自动合并条件)`);
+                  results.push({ pr: prNumber, status: 'skipped', title: pr.title, reason: '不满足自动合并条件' });
+                }
+              }
+              
+              // 输出总结
+              console.log('\n=== 手动触发总结 ===');
+              console.log(`总共检查: ${openPRs.length} 个 PR`);
+              console.log(`已启用自动合并: ${results.filter(r => r.status === 'enabled').length} 个`);
+              console.log(`跳过: ${results.filter(r => r.status === 'skipped').length} 个`);
+              console.log(`失败: ${results.filter(r => r.status === 'failed').length} 个`);
+              
+              core.setOutput('should-merge', 'true');
+              core.setOutput('pr-number', 'all');
+              core.setOutput('results', JSON.stringify(results));
+              
+              return true;
             } else if (context.eventName === 'check_suite' || context.eventName === 'status') {
               // 对于 check_suite 和 status 事件，需要从 commits 中查找关联的 PR
               const commits = context.payload.check_suite?.head_sha ? 
@@ -104,7 +187,7 @@ jobs:
             return shouldAutoMerge;
 
       - name: Enable auto-merge for eligible PRs
-        if: steps.check-ready.outputs.should-merge == 'true'
+        if: steps.check-ready.outputs.should-merge == 'true' && steps.check-ready.outputs.pr-number != 'all'
         uses: actions/github-script@v7
         with:
           script: |
@@ -133,6 +216,12 @@ jobs:
             } catch (error) {
               console.log(`❌ 无法为 PR #${pull_number} 启用自动合并: ${error.message}`);
             }
+
+      - name: Summary for manual dispatch
+        if: steps.check-ready.outputs.pr-number == 'all'
+        run: |
+          echo "手动触发完成！"
+          echo "结果: ${{ steps.check-ready.outputs.results }}"
 
   # 专门处理 Dependabot PRs 的作业
   dependabot-auto-merge:
