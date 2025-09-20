@@ -74,13 +74,28 @@ jobs:
                 
                 if (shouldAutoMerge) {
                   try {
-                    // 启用自动合并
-                    await github.rest.pulls.enableAutoMerge({
-                      owner,
-                      repo,
-                      pull_number: prNumber,
-                      merge_method: 'squash'
-                    });
+                    // 使用 GraphQL API 启用自动合并
+                    const mutation = `
+                      mutation enableAutoMerge($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) {
+                        enablePullRequestAutoMerge(input: {
+                          pullRequestId: $pullRequestId,
+                          mergeMethod: $mergeMethod
+                        }) {
+                          pullRequest {
+                            autoMergeRequest {
+                              enabledAt
+                            }
+                          }
+                        }
+                      }
+                    `;
+                    
+                    const variables = {
+                      pullRequestId: pr.node_id,
+                      mergeMethod: 'SQUASH'
+                    };
+                    
+                    await github.graphql(mutation, variables);
                     
                     console.log(`✅ 已为 PR #${prNumber} 启用自动合并`);
                     
@@ -195,13 +210,35 @@ jobs:
             const pull_number = ${{ steps.check-ready.outputs.pr-number }};
 
             try {
-              // 启用自动合并
-              await github.rest.pulls.enableAutoMerge({
+              // 获取 PR 的 node_id
+              const { data: prData } = await github.rest.pulls.get({
                 owner,
                 repo,
-                pull_number,
-                merge_method: 'squash' // 可以改为 'merge' 或 'rebase'
+                pull_number
               });
+
+              // 使用 GraphQL API 启用自动合并
+              const mutation = `
+                mutation enableAutoMerge($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) {
+                  enablePullRequestAutoMerge(input: {
+                    pullRequestId: $pullRequestId,
+                    mergeMethod: $mergeMethod
+                  }) {
+                    pullRequest {
+                      autoMergeRequest {
+                        enabledAt
+                      }
+                    }
+                  }
+                }
+              `;
+              
+              const variables = {
+                pullRequestId: prData.node_id,
+                mergeMethod: 'SQUASH'
+              };
+              
+              await github.graphql(mutation, variables);
 
               console.log(`✅ 已为 PR #${pull_number} 启用自动合并`);
 
