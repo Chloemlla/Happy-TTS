@@ -1247,9 +1247,20 @@ router.post('/secure-captcha-config', publicLimiter, async (req, res) => {
             config = candidates[0].config;
         } else {
             // 两者都可用，随机选择
-            const index = (typeof crypto.randomInt === 'function')
-                ? crypto.randomInt(0, candidates.length)
-                : Math.floor(Math.random() * candidates.length);
+            let index;
+            try {
+                // 尝试使用加密安全的随机数生成
+                if (typeof crypto.randomInt === 'function') {
+                    index = crypto.randomInt(0, candidates.length);
+                } else {
+                    throw new Error('crypto.randomInt not available');
+                }
+            } catch (error) {
+                // 数学公式运算失败，使用随机枚举作为后备方案
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                console.warn('crypto.randomInt failed, falling back to Math.random:', errorMessage);
+                index = Math.floor(Math.random() * candidates.length);
+            }
             captchaType = candidates[index].type;
             config = candidates[index].config;
         }
