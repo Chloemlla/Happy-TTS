@@ -1,0 +1,126 @@
+name: Auto Merge
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  pull_request_review:
+    types: [submitted]
+  check_suite:
+    types: [completed]
+  status:
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    steps:
+      - name: Check if PR is ready for auto-merge
+        id: check-ready
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pull_number = context.payload.pull_request?.number || context.payload.number;
+            
+            if (!pull_number) {
+              console.log('No pull request number found');
+              return false;
+            }
+
+            // 获取 PR 信息
+            const { data: pr } = await github.rest.pulls.get({
+              owner,
+              repo,
+              pull_number
+            });
+
+            console.log(`检查 PR #${pull_number}: ${pr.title}`);
+
+            // 检查是否为 dependabot PR
+            const isDependabot = pr.user.login === 'dependabot[bot]';
+            
+            // 检查是否有自动合并标签
+            const hasAutoMergeLabel = pr.labels.some(label => 
+              ['auto-merge', 'automerge', '自动合并'].includes(label.name.toLowerCase())
+            );
+
+            // 检查 PR 状态
+            const isApproved = pr.mergeable_state === 'clean';
+            const hasConflicts = pr.mergeable === false;
+
+            console.log(`Dependabot PR: ${isDependabot}`);
+            console.log(`Has auto-merge label: ${hasAutoMergeLabel}`);
+            console.log(`Mergeable state: ${pr.mergeable_state}`);
+            console.log(`Has conflicts: ${hasConflicts}`);
+
+            // 决定是否启用自动合并
+            const shouldAutoMerge = (isDependabot || hasAutoMergeLabel) && !hasConflicts;
+            
+            core.setOutput('should-merge', shouldAutoMerge);
+            core.setOutput('pr-number', pull_number);
+            
+            return shouldAutoMerge;
+
+      - name: Enable auto-merge for eligible PRs
+        if: steps.check-ready.outputs.should-merge == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pull_number = ${{ steps.check-ready.outputs.pr-number }};
+
+            try {
+              // 启用自动合并
+              await github.rest.pulls.enableAutoMerge({
+                owner,
+                repo,
+                pull_number,
+                merge_method: 'squash' // 可以改为 'merge' 或 'rebase'
+              });
+
+              console.log(`✅ 已为 PR #${pull_number} 启用自动合并`);
+
+              // 添加评论说明
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: pull_number,
+                body: '🤖 自动合并已启用！当所有检查通过后，此 PR 将自动合并。'
+              });
+
+            } catch (error) {
+              console.log(`❌ 无法为 PR #${pull_number} 启用自动合并: ${error.message}`);
+            }
+
+  # 专门处理 Dependabot PRs 的作业
+  dependabot-auto-merge:
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+    steps:
+      - name: Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v1
+        with:
+          github-token: "${{ secrets.USER_PAT }}"
+
+      - name: Auto-approve and enable auto-merge for Dependabot PRs
+        if: steps.metadata.outputs.update-type == 'version-update:semver-patch' || steps.metadata.outputs.update-type == 'version-update:semver-minor'
+        run: |
+          gh pr review --approve "$PR_URL"
+          gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{github.event.pull_request.html_url}}
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+
+      - name: Comment on major version updates
+        if: steps.metadata.outputs.update-type == 'version-update:semver-major'
+        run: |
+          gh pr comment "$PR_URL" --body "🚨 这是一个主版本更新，需要手动审查和合并。"
+        env:
+          PR_URL: ${{github.event.pull_request.html_url}}
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
