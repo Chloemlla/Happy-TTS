@@ -464,49 +464,52 @@ const GitHubBillingDashboard: React.FC = () => {
         </m.div>
       )}
 
-      {/* 缓存的客户列表 */}
-      {(cachedCustomers.length > 0 || customersLoading) && (
-        <m.div
-          className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
-          initial={ENTER_INITIAL}
-          animate={ENTER_ANIMATE}
-          transition={trans06}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">
-              缓存的客户数据
-              {customersLoading && (
-                <span className="ml-2 text-sm text-blue-600">正在同步...</span>
-              )}
-            </h3>
-            <m.button
-              onClick={() => fetchBillingData()}
-              disabled={loading}
-              className="px-3 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition disabled:opacity-50 text-sm flex items-center gap-2"
-              whileTap={{ scale: 0.95 }}
-            >
-              <FaSync className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
-              刷新
-            </m.button>
-          </div>
+      {/* 缓存的客户列表：始终挂载面板以避免表格闪现，内部根据状态切换内容 */}
+      <m.div
+        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+        initial={ENTER_INITIAL}
+        animate={ENTER_ANIMATE}
+        transition={trans06}
+        style={{ minHeight: 160 }}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-800">
+            缓存的客户数据
+            {customersLoading && (
+              <span className="ml-2 text-sm text-blue-600">正在同步...</span>
+            )}
+          </h3>
+          <m.button
+            onClick={() => fetchBillingData()}
+            disabled={loading}
+            className="px-3 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition disabled:opacity-50 text-sm flex items-center gap-2"
+            whileTap={{ scale: 0.95 }}
+          >
+            <FaSync className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+            刷新
+          </m.button>
+        </div>
 
-          {customersLoading && cachedCustomers.length === 0 ? (
-            <div className="space-y-3">
-              {[...Array(3)].map((_, index) => (
-                <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg animate-pulse">
-                  <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-gray-300 rounded w-48"></div>
-                    <div className="h-3 bg-gray-300 rounded w-32"></div>
-                  </div>
-                  <div className="flex gap-2">
-                    <div className="h-6 bg-gray-300 rounded w-12"></div>
-                    <div className="h-6 bg-gray-300 rounded w-12"></div>
-                  </div>
+        {customersLoading && cachedCustomers.length === 0 ? (
+          <div className="space-y-3">
+            {[...Array(3)].map((_, index) => (
+              <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg animate-pulse">
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-gray-300 rounded w-48"></div>
+                  <div className="h-3 bg-gray-300 rounded w-32"></div>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
+                <div className="flex gap-2">
+                  <div className="h-6 bg-gray-300 rounded w-12"></div>
+                  <div className="h-6 bg-gray-300 rounded w-12"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            {cachedCustomers.length === 0 ? (
+              <div className="text-center text-sm text-gray-600 py-6">暂无缓存数据</div>
+            ) : (
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-200">
@@ -560,10 +563,10 @@ const GitHubBillingDashboard: React.FC = () => {
                   )}
                 </tbody>
               </table>
-            </div>
-          )}
-        </m.div>
-      )}
+            )}
+          </div>
+        )}
+      </m.div>
 
       {/* 使用说明 */}
       <m.div
