@@ -8,6 +8,7 @@ on:
   check_suite:
     types: [completed]
   status:
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -26,7 +27,7 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const pull_number = context.payload.pull_request?.number || context.payload.number;
-            
+
             if (!pull_number) {
               console.log('No pull request number found');
               return false;
@@ -43,7 +44,7 @@ jobs:
 
             // 检查是否为 dependabot PR
             const isDependabot = pr.user.login === 'dependabot[bot]';
-            
+
             // 检查是否有自动合并标签
             const hasAutoMergeLabel = pr.labels.some(label => 
               ['auto-merge', 'automerge', '自动合并'].includes(label.name.toLowerCase())
@@ -60,10 +61,10 @@ jobs:
 
             // 决定是否启用自动合并
             const shouldAutoMerge = (isDependabot || hasAutoMergeLabel) && !hasConflicts;
-            
+
             core.setOutput('should-merge', shouldAutoMerge);
             core.setOutput('pr-number', pull_number);
-            
+
             return shouldAutoMerge;
 
       - name: Enable auto-merge for eligible PRs
@@ -104,7 +105,7 @@ jobs:
     steps:
       - name: Dependabot metadata
         id: metadata
-        uses: dependabot/fetch-metadata@v1
+        uses: dependabot/fetch-metadata@main
         with:
           github-token: "${{ secrets.USER_PAT }}"
 
