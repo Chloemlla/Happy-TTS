@@ -18,18 +18,54 @@ permissions:
 jobs:
   auto-merge:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.draft == false
+    if: github.event.pull_request.draft == false || github.event_name != 'pull_request'
     steps:
       - name: Check if PR is ready for auto-merge
         id: check-ready
-        uses: actions/github-script@v7
+        uses: actions/github-script@main
         with:
           script: |
             const { owner, repo } = context.repo;
-            const pull_number = context.payload.pull_request?.number || context.payload.number;
+
+            // 尝试从不同的事件类型中获取 PR 编号
+            let pull_number = null;
+
+            if (context.eventName === 'pull_request' || context.eventName === 'pull_request_review') {
+              pull_number = context.payload.pull_request?.number || context.payload.number;
+            } else if (context.eventName === 'check_suite' || context.eventName === 'status') {
+              // 对于 check_suite 和 status 事件，需要从 commits 中查找关联的 PR
+              const commits = context.payload.check_suite?.head_sha ? 
+                [context.payload.check_suite.head_sha] : 
+                (context.payload.commits || []).map(c => c.sha);
+              
+              if (commits.length > 0) {
+                // 查找与这些提交关联的 PR
+                const { data: prs } = await github.rest.pulls.list({
+                  owner,
+                  repo,
+                  state: 'open',
+                  head: `${owner}:${context.payload.repository?.default_branch || 'main'}`
+                });
+                
+                // 查找包含这些提交的 PR
+                for (const pr of prs) {
+                  const { data: prCommits } = await github.rest.pulls.listCommits({
+                    owner,
+                    repo,
+                    pull_number: pr.number
+                  });
+                  
+                  const prCommitShas = prCommits.map(c => c.sha);
+                  if (commits.some(sha => prCommitShas.includes(sha))) {
+                    pull_number = pr.number;
+                    break;
+                  }
+                }
+              }
+            }
 
             if (!pull_number) {
-              console.log('No pull request number found');
+              console.log('No pull request number found for event:', context.eventName);
               return false;
             }
 
