@@ -131,14 +131,40 @@ router.post('/fingerprint/report', authenticateToken, authenticatedFingerprintLi
             });
         }
 
-        // 这里可以添加指纹存储逻辑，目前只是记录日志
-        // 可以考虑将指纹信息存储到数据库中，用于用户行为分析
-        console.log('✅ 指纹上报成功:', {
-            fingerprint: fingerprint.substring(0, 8) + '...',
-            userId,
-            clientIp: validatedClientIp,
-            timestamp: new Date().toISOString()
-        });
+        // 保存指纹到用户记录中
+        try {
+            const { updateUser, getUserById } = require('../services/userService');
+            const current = await getUserById(userId);
+            const existing = (current && (current as any).fingerprints) || [];
+            
+            // 创建指纹记录
+            const fingerprintRecord = { 
+                id: fingerprint, 
+                ts: Date.now(), 
+                ua: String(userAgent), 
+                ip: String(validatedClientIp) 
+            };
+            
+            // 保留最新的20条指纹记录
+            const next = [fingerprintRecord, ...existing].slice(0, 20);
+
+            // 保存指纹并清除一次性上报需求标记及时间戳
+            await updateUser(userId, { 
+                fingerprints: next, 
+                requireFingerprint: false, 
+                requireFingerprintAt: 0 
+            } as any);
+            
+            console.log('✅ 指纹上报并保存成功:', {
+                fingerprint: fingerprint.substring(0, 8) + '...',
+                userId,
+                clientIp: validatedClientIp,
+                timestamp: new Date().toISOString()
+            });
+        } catch (saveError) {
+            console.error('❌ 保存指纹到用户记录失败:', saveError);
+            // 即使保存失败，也返回成功，避免影响用户体验
+        }
 
         res.json({
             success: true,

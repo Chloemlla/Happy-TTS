@@ -16,7 +16,7 @@ permissions:
 jobs:
   docker:
     runs-on: ubuntu-latest
-    if: (github.actor == 'happy-clo' || github.actor == 'actions-user' || github.actor == 'hapxscom' || github.actor == 'devhappys') && !contains(github.event.head_commit.message, 'npm(deps):')
+    if: (github.actor == 'happy-clo' || github.actor == 'Happy-clo' || github.actor == 'actions-user' || github.actor == 'hapxscom' || github.actor == 'devhappys') && !contains(github.event.head_commit.message, 'npm(deps):')
     steps:
       - name: Checkout
         uses: actions/checkout@main
@@ -98,12 +98,11 @@ jobs:
             happyclo/tts-node:${{ github.ref_name }}-amd64
             happyclo/tts-node:${{ steps.meta.outputs.short_sha }}-amd64
 
-            
-# ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ github.ref_name }}-amd64
-# ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ steps.meta.outputs.short_sha }}-amd64
-# ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ github.ref_name }}
-# ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ steps.meta.outputs.short_sha }}
-# ghcr.io/${{ steps.meta.outputs.lower_repo }}:latest
+      # ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ github.ref_name }}-amd64
+      # ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ steps.meta.outputs.short_sha }}-amd64
+      # ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ github.ref_name }}
+      # ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ steps.meta.outputs.short_sha }}
+      # ghcr.io/${{ steps.meta.outputs.lower_repo }}:latest
 
       - name: Move cache
         run: |

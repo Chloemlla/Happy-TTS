@@ -16,7 +16,7 @@ permissions:
 jobs:
   docker:
     runs-on: ubuntu-latest
-    if: (github.actor == 'happy-clo' || github.actor == 'actions-user' || github.actor == 'hapxscom' || github.actor == 'devhappys') && !contains(github.event.head_commit.message, 'npm(deps):')
+    if: (github.actor == 'happy-clo' || github.actor == 'Happy-clo' || github.actor == 'actions-user' || github.actor == 'hapxscom' || github.actor == 'devhappys') && !contains(github.event.head_commit.message, 'npm(deps):')
     steps:
       - name: Checkout
         uses: actions/checkout@main
@@ -57,7 +57,7 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@master
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }} 
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Login to GitHub Container Registry

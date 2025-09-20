@@ -309,6 +309,16 @@ export const reportFingerprintOnce = async (): Promise<void> => {
     return;
   }
 
+  // 检查是否已经上报过指纹（避免重复上报）
+  const lastReportTime = localStorage.getItem('lastFingerprintReport');
+  const now = Date.now();
+  const REPORT_INTERVAL = 5 * 60 * 1000; // 5分钟内不重复上报
+  
+  if (lastReportTime && (now - parseInt(lastReportTime)) < REPORT_INTERVAL) {
+    console.log('⏰ 指纹已在上报间隔内上报过，跳过本次上报');
+    return;
+  }
+
   console.log('✅ 用户已登录，开始生成指纹...');
   const fingerprint = await getFingerprint();
   if (!fingerprint) {
@@ -349,6 +359,9 @@ export const reportFingerprintOnce = async (): Promise<void> => {
         fingerprint: fingerprint.substring(0, 8) + '...',
         url: apiUrl
       });
+      
+      // 记录成功上报的时间戳
+      localStorage.setItem('lastFingerprintReport', now.toString());
     } else {
       const errorData = await response.json().catch(() => ({}));
       console.warn('⚠️ 指纹上报失败:', {

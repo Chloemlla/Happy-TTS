@@ -961,6 +961,8 @@ router.get('/user/avatar/exist', authMiddleware, async (req, res) => {
 });
 
 // 用户指纹信息接口（需登录）
+// 注意：此接口已废弃，请使用 /api/turnstile/fingerprint/report 接口
+// 保留此接口仅用于向后兼容，新功能请使用 turnstile 路由中的接口
 router.post('/user/fingerprint', authMiddleware, async (req, res) => {
   try {
     const user = req.user;
