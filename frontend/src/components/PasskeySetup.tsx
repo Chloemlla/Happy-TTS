@@ -27,6 +27,12 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
     const [credentialName, setCredentialName] = useState('');
     const [removingId, setRemovingId] = useState<string | null>(null);
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+    // 保持对最新 credentials 的引用，便于在异步流程中校验注册是否生效
+    const latestCredentialsRef = React.useRef(credentials);
+
+    React.useEffect(() => {
+        latestCredentialsRef.current = credentials;
+    }, [credentials]);
 
     // 浏览器Passkey支持性检测（异步）
     const [isPasskeySupported, setIsPasskeySupported] = useState<boolean | null>(null);
@@ -44,6 +50,60 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
         loadCredentials();
     }, [loadCredentials]);
 
+    // 连续按三次 F12（短时间内）在当前登录为管理员时尝试打开开发者工具
+    useEffect(() => {
+        const f12Timestamps: number[] = [];
+
+        const tryOpenDevTools = () => {
+            try {
+                // 方法1: 触发 F12 键事件
+                document.dispatchEvent(new KeyboardEvent('keydown', { key: 'F12', code: 'F12', keyCode: 123, which: 123, bubbles: true }));
+
+                // 方法2: 触发 Ctrl+Shift+I
+                setTimeout(() => {
+                    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'I', code: 'KeyI', keyCode: 73, which: 73, ctrlKey: true, shiftKey: true, bubbles: true }));
+                }, 100);
+
+                // 方法3: 触发 Ctrl+Shift+J（控制台）
+                setTimeout(() => {
+                    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'J', code: 'KeyJ', keyCode: 74, which: 74, ctrlKey: true, shiftKey: true, bubbles: true }));
+                }, 250);
+
+                // 记录尝试
+                console.log('Attempted to open devtools via synthetic key events');
+            } catch (err) {
+                console.warn('openDevTools attempt failed:', err);
+            }
+        };
+
+        const handler = (e: KeyboardEvent) => {
+            if (e.key !== 'F12') return;
+            const now = Date.now();
+            // 保留近 2000ms 的按键记录
+            f12Timestamps.push(now);
+            while (f12Timestamps.length > 0 && now - f12Timestamps[0] > 2000) {
+                f12Timestamps.shift();
+            }
+
+            if (f12Timestamps.length >= 3) {
+                // 管理员判断：与 main.tsx 一致，基于 token 简单判断
+                const token = localStorage.getItem('token');
+                const isAdmin = !!(token && token.length > 10);
+                if (isAdmin) {
+                    setNotification({ message: '检测到管理员快捷键（F12 x3），正在尝试打开开发者工具...', type: 'info' });
+                    tryOpenDevTools();
+                } else {
+                    setNotification({ message: '只有管理员可以通过快捷键打开开发者工具', type: 'warning' });
+                }
+                // 重置记录
+                f12Timestamps.length = 0;
+            }
+        };
+
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    }, [setNotification]);
+
     // 打印 credentials 用于线上排查
     useEffect(() => {
         console.log('credentials:', credentials);
@@ -52,15 +112,98 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
     // 注册 Passkey
     const handleRegister = async () => {
         if (!credentialName.trim()) return;
+
+        // 1) 调用注册接口
+        let registerResult: any = null;
         try {
-            await registerAuthenticator(credentialName);
-            setNotification({ message: 'Passkey 注册成功', type: 'success' });
+            registerResult = await registerAuthenticator(credentialName);
         } catch (error) {
             console.error('Passkey registration failed:', error);
-            setNotification({ message: 'Passkey 注册失败', type: 'error' });
+            setNotification({ message: 'Passkey 注册失败（请求错误）', type: 'error' });
+            return;
         }
-        setCredentialName('');
-        setIsOpen(false);
+
+        // 尝试从返回结果中获取 credential id（如果后端返回）
+        const newId = registerResult && (registerResult.id || (registerResult.credential && registerResult.credential.id));
+
+        // 2) 主动刷新并轮询 credentials，确认后端已真正创建并可读
+        const maxAttempts = 6;
+        const delayMs = 500;
+        let confirmed = false;
+
+        try {
+            for (let i = 0; i < maxAttempts; i++) {
+                // 请求刷新 credentials
+                try {
+                    await loadCredentials();
+                } catch (err) {
+                    // 如果刷新失败，也继续重试几次
+                    console.warn('loadCredentials failed during confirmation', err);
+                }
+
+                // 等待 state 更新传播
+                // eslint-disable-next-line no-await-in-loop
+                await new Promise((res) => setTimeout(res, 200));
+
+                const list = latestCredentialsRef.current || [];
+                if (newId) {
+                    if (list.find((c: any) => c.id === newId)) {
+                        confirmed = true;
+                        break;
+                    }
+                } else {
+                    // 如果后端没有返回 id，则尝试通过名称匹配（宽松匹配）
+                    if (list.find((c: any) => String(c.name).trim() === credentialName.trim())) {
+                        confirmed = true;
+                        break;
+                    }
+                }
+
+                // 等待下次重试
+                // eslint-disable-next-line no-await-in-loop
+                await new Promise((res) => setTimeout(res, delayMs));
+            }
+        } catch (err) {
+            console.error('Error while confirming passkey creation', err);
+        }
+
+        if (confirmed) {
+            setNotification({ message: 'Passkey 注册成功并已确认', type: 'success' });
+            setCredentialName('');
+            setIsOpen(false);
+        } else {
+            console.error('Passkey registration not confirmed after polling', registerResult);
+
+            // 构建详细上下文信息并通过 Notification 的 details 数组展示，便于快速排查
+            const details: string[] = [];
+            try {
+                details.push('registerResult: ' + JSON.stringify(registerResult));
+            } catch (e) {
+                details.push('registerResult: <stringify error>');
+            }
+
+            try {
+                const creds = latestCredentialsRef.current || [];
+                details.push(`credentials_count: ${creds.length}`);
+                if (creds.length > 0) {
+                    const sample = creds.slice(0, 5).map((c: any) => ({ id: c.id, name: c.name, createdAt: c.createdAt }));
+                    details.push('credentials_sample: ' + JSON.stringify(sample));
+                }
+            } catch (e) {
+                details.push('credentials: <read error>');
+            }
+
+            details.push(`polling_attempts: ${maxAttempts}, delayMs: ${delayMs}`);
+            details.push('建议：检查后端 /passkey 注册接口日志、数据库中是否存在新凭证；若后端无返回 id，则检查 finishRegistration 的入参与校验逻辑。');
+
+            setNotification({
+                message: 'Passkey 注册未确认，请检查后端或稍后重试',
+                type: 'error',
+                details
+            });
+
+            // 保持弹窗打开以便用户重试或查看错误
+        }
     };
 
     // 删除 Passkey（弹窗确认）
@@ -100,7 +243,7 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 20 }}
                 transition={{ duration: 0.5, ease: 'easeOut' }}
-                className="space-y-3 sm:space-y-4 bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-lg"
+                className="space-y-3 sm:space-y-4 bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-lg overflow-visible"
             >
                 {/* 新增：Passkey唯一性提示 */}
                 <motion.div 
@@ -128,9 +271,9 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
                         <span className="truncate">Passkey 无密码认证</span>
                     </h2>
                 </div>
-                <div className="w-full flex flex-col items-center justify-center">
-                    <div className="w-full flex justify-center px-2 sm:px-4">
-                        <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 w-full max-w-7xl auto-rows-fr place-items-stretch">
+                <div className="w-full flex flex-col items-start justify-center mt-2 sm:mt-4">
+                    <div className="w-full flex justify-start px-2 sm:px-4">
+                        <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 w-full max-w-7xl auto-rows-fr place-items-stretch justify-items-start">
                             <AnimatePresence>
                                 {Array.isArray(credentials) && credentials.length > 0 ? credentials.map((credential, index) => (
                                     <motion.div
@@ -139,8 +282,8 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
                                         animate={{ opacity: 1, scale: 1, y: 0 }}
                                         exit={{ opacity: 0, scale: 0.95, y: -20 }}
                                         transition={{ duration: 0.4, delay: index * 0.1 }}
-                                        className="group bg-gradient-to-br from-white to-gray-50 rounded-lg sm:rounded-xl shadow-lg border border-gray-100 hover:shadow-2xl hover:border-indigo-200 transition-all duration-300 p-3 sm:p-4 md:p-5 flex flex-col gap-3 sm:gap-4 min-h-[100px] sm:min-h-[120px] md:min-h-[140px] w-full h-full"
-                                        whileHover={{ scale: 1.03, y: -2, boxShadow: '0 12px 40px 0 rgba(99,102,241,0.2)' }}
+                                    className="group bg-gradient-to-br from-white to-gray-50 rounded-lg sm:rounded-xl shadow-lg border border-gray-100 hover:border-indigo-200 transition-all duration-300 p-3 sm:p-4 md:p-5 flex flex-col gap-3 sm:gap-4 min-h-[120px] sm:min-h-[140px] md:min-h-[160px] min-w-[220px] max-w-[360px] h-full z-10"
+                                        whileHover={{ translateY: -3, scale: 1.02 }}
                                     >
                                         <div className="flex items-center justify-center">
                                             <motion.div

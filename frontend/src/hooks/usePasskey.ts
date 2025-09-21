@@ -2,14 +2,12 @@ import { useState, useCallback } from 'react';
 import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
 import { passkeyApi, Authenticator } from '../api/passkey';
 import { useAuth } from './useAuth';
-import { CredentialIdModal } from '../components/ui/CredentialIdModal';
-import { DebugInfoModal } from '../components/DebugInfoModal';
 
 interface UsePasskeyReturn {
     credentials: Authenticator[];
     isLoading: boolean;
     loadCredentials: () => Promise<void>;
-    registerAuthenticator: (name: string) => Promise<void>;
+    registerAuthenticator: (name: string) => Promise<{ attRespId: any; finishData: any } | undefined>;
     removeAuthenticator: (id: string) => Promise<void>;
     authenticateWithPasskey: (username: string) => Promise<boolean>;
 }
@@ -98,6 +96,8 @@ export const usePasskey = (): UsePasskeyReturn & {
                 await loadCredentials();
             }
             // 成功提示交由外部 setNotification 统一管理
+            // 返回结构供上层严格确认：attResp id 与后端返回的 finishResp.data
+            return { attRespId: attResp?.id, finishData: finishResp?.data };
         } catch (error: any) {
             if (attResp && attResp.id) {
                 setCurrentCredentialId(attResp.id);
@@ -118,6 +118,7 @@ export const usePasskey = (): UsePasskeyReturn & {
                 msg = '用户取消了操作';
             }
             // 失败提示交由外部 setNotification 统一管理
+            return { attRespId: attResp?.id, finishData: null };
         } finally {
             setIsLoading(false);
         }
