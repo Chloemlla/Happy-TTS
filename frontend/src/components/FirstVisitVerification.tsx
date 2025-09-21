@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import useReducedMotion from '../hooks/useReducedMotion';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TurnstileWidget } from './TurnstileWidget';
 import HCaptchaWidget from './HCaptchaWidget';
@@ -67,6 +68,10 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
   const [isMobile, setIsMobile] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
   const [showParticles, setShowParticles] = useState(false);
+  // 无障碍与偏好：使用共享 hook 检测用户是否请求减少动画
+  const prefersReducedMotion = useReducedMotion();
+  // 主操作按钮引用，用于自动聚焦与无障碍管理
+  const mainButtonRef = useRef<HTMLButtonElement | null>(null);
   const resizeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const deviceCheckRef = useRef({ isMobile: false, isLandscape: false });
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
@@ -154,22 +159,45 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
       window.visualViewport.addEventListener('resize', handleResize, { passive: true });
     }
 
-    // 延迟显示背景粒子，避免加载时的视觉问题
-    const particleTimer = setTimeout(() => {
-      setShowParticles(true);
-    }, 100);
+    // 延迟显示背景粒子，避免加载时的视觉问题（具体由单独 effect 管理）
 
     return () => {
       if (resizeTimeoutRef.current) {
         clearTimeout(resizeTimeoutRef.current);
       }
-      clearTimeout(particleTimer);
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('orientationchange', handleOrientationChange);
       if ('visualViewport' in window && window.visualViewport) {
         window.visualViewport.removeEventListener('resize', handleResize);
       }
     };
+  }, []);
+
+  
+
+  // 根据用户动画偏好来控制粒子展示（减少动画时关闭）
+  useEffect(() => {
+    let timer: NodeJS.Timeout | null = null;
+    if (!prefersReducedMotion) {
+      timer = setTimeout(() => setShowParticles(true), 100);
+    } else {
+      setShowParticles(false);
+    }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [prefersReducedMotion]);
+
+  // 首次渲染时自动把焦点放到主按钮，改善键盘与屏幕阅读器体验
+  useEffect(() => {
+    if (mainButtonRef.current) {
+      try {
+        mainButtonRef.current.focus();
+      } catch (e) {
+        // ignore
+      }
+    }
   }, []);
 
   // 监听验证配置加载状态
@@ -902,8 +930,8 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     return (
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
+        animate={prefersReducedMotion ? undefined : { scale: 1, opacity: 1 }}
+        transition={prefersReducedMotion ? undefined : { duration: 0.4, ease: "easeOut" }}
         className="relative"
       >
         <svg
@@ -939,13 +967,13 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
           {/* 笑脸眼睛 - 简化动画 */}
           <motion.circle
             cx="55" cy="60" r="5" fill="white"
-            animate={{ scale: [1, 1.05, 1] }}
-            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+            animate={prefersReducedMotion ? undefined : { scale: [1, 1.05, 1] }}
+            transition={prefersReducedMotion ? undefined : { duration: 3, repeat: Infinity, ease: "easeInOut" }}
           />
           <motion.circle
             cx="85" cy="60" r="5" fill="white"
-            animate={{ scale: [1, 1.05, 1] }}
-            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+            animate={prefersReducedMotion ? undefined : { scale: [1, 1.05, 1] }}
+            transition={prefersReducedMotion ? undefined : { duration: 3, repeat: Infinity, ease: "easeInOut", delay: 1 }}
           />
 
           {/* 笑脸嘴巴 */}
@@ -960,23 +988,23 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
           {/* 装饰性元素 - 优化动画性能 */}
           <motion.circle
             cx="35" cy="35" r="4" fill="#A78BFA" opacity="0.6"
-            animate={{ y: [0, -3, 0] }}
-            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+            animate={prefersReducedMotion ? undefined : { y: [0, -3, 0] }}
+            transition={prefersReducedMotion ? undefined : { duration: 4, repeat: Infinity, ease: "easeInOut" }}
           />
           <motion.circle
             cx="105" cy="45" r="3" fill="#A78BFA" opacity="0.6"
-            animate={{ y: [0, 3, 0] }}
-            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+            animate={prefersReducedMotion ? undefined : { y: [0, 3, 0] }}
+            transition={prefersReducedMotion ? undefined : { duration: 4, repeat: Infinity, ease: "easeInOut", delay: 2 }}
           />
           <motion.circle
             cx="30" cy="95" r="3" fill="#A78BFA" opacity="0.6"
-            animate={{ y: [0, -2, 0] }}
-            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+            animate={prefersReducedMotion ? undefined : { y: [0, -2, 0] }}
+            transition={prefersReducedMotion ? undefined : { duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
           />
           <motion.circle
             cx="110" cy="90" r="4" fill="#A78BFA" opacity="0.6"
-            animate={{ y: [0, 2, 0] }}
-            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 3 }}
+            animate={prefersReducedMotion ? undefined : { y: [0, 2, 0] }}
+            transition={prefersReducedMotion ? undefined : { duration: 5, repeat: Infinity, ease: "easeInOut", delay: 3 }}
           />
         </svg>
       </motion.div>
@@ -1000,6 +1028,9 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
         delay: i * 0.3
       }));
     }, [deviceInfo.isMobile, deviceInfo.screenWidth]);
+
+    // 如果用户偏好减少动画或设备为移动，则返回空，减少视觉噪音和性能开销
+    if (prefersReducedMotion || deviceInfo.isMobile) return null;
 
     return (
       <motion.div
@@ -1213,7 +1244,9 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                 </div>
               </div>
 
-              {/* 验证状态 */}
+          {/* 验证状态 */}
+          {/* 无障碍：用于向屏幕阅读器通告验证状态变更 */}
+          <div id="verification-status" aria-live="polite" className="sr-only" />
               <motion.div
                 className="text-center mb-4"
                 initial={{ scale: 0.9, opacity: 0 }}
@@ -1317,14 +1350,25 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
           <motion.button
             onClick={handleVerify}
             disabled={!isVerified || verifying}
-            className={`w-full rounded-xl font-semibold transition-all duration-300 shadow-lg relative overflow-hidden ${
-              !isVerified || verifying
+            className={[
+              'w-full',
+              'rounded-xl',
+              'font-semibold',
+              'transition-all',
+              'duration-300',
+              'shadow-lg',
+              'relative',
+              'overflow-hidden',
+              // 水平/垂直居中内容
+              'flex',
+              'items-center',
+              'justify-center',
+              (!isVerified || verifying)
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed border-2 border-gray-200'
-                : 'text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 hover:shadow-xl border-2 border-transparent'
-            } ${isMobile
-                ? 'py-3 px-4 text-base'
-                : 'py-4 px-6 text-lg'
-              }`}
+                : 'text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 hover:shadow-xl border-2 border-transparent',
+              // 使用 tailwind.config.js 中的自定义最小高度
+              isMobile ? 'py-3 px-4 text-base min-h-btn-mobile' : 'py-4 px-6 text-lg min-h-btn-desktop'
+            ].join(' ')}
             whileHover={isVerified && !verifying ? { scale: 1.02 } : {}}
             whileTap={isVerified && !verifying ? { scale: 0.98 } : {}}
             initial={{ y: 20, opacity: 0 }}
@@ -1333,6 +1377,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
             title={!isVerified ? '请先完成人机验证后才能继续' : verifying ? '正在验证中...' : '点击继续访问'}
             aria-label={!isVerified ? '请先完成人机验证后才能继续' : verifying ? '正在验证中，请稍候' : '继续访问网站'}
             aria-describedby="verification-status"
+            ref={mainButtonRef}
           >
             {/* 禁用状态遮罩 */}
             {!isVerified && !verifying && (

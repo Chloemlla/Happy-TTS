@@ -19,6 +19,12 @@ export default {
         'thumb-hover': '#a8a8a8',
         'corner': '#f1f1f1'
       }
+      ,
+      // 自定义最小高度，用于组件按钮统一样式
+      minHeight: {
+        'btn-mobile': '3rem',
+        'btn-desktop': '3.5rem'
+      }
     },
   },
   plugins: [
