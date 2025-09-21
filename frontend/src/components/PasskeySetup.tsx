@@ -288,7 +288,7 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
                 </div>
                 <div className="w-full flex flex-col items-start justify-center mt-6 sm:mt-8">
                     <div className="w-full flex justify-start px-2 sm:px-4">
-                        <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 w-full max-w-7xl auto-rows-fr place-items-stretch justify-items-start">
+                        <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 w-full max-w-5xl auto-rows-fr place-items-stretch justify-items-start">
                             <AnimatePresence>
                         {Array.isArray(credentials) && credentials.length > 0 ? credentials.map((credential, index) => (
                                     <motion.div
@@ -297,7 +297,7 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
                                         animate={{ opacity: 1, scale: 1, y: 0 }}
                                         exit={{ opacity: 0, scale: 0.95, y: -20 }}
                                         transition={{ duration: 0.4, delay: index * 0.1 }}
-                                    className="group bg-gradient-to-br from-white to-gray-50 rounded-lg sm:rounded-xl shadow-lg border border-gray-100 hover:border-indigo-200 transition-all duration-300 p-3 sm:p-4 md:p-5 flex flex-col gap-3 sm:gap-4 min-h-[120px] sm:min-h-[140px] md:min-h-[160px] w-full min-w-0 h-full z-10"
+                                    className="group bg-gradient-to-br from-white to-gray-50 rounded-lg sm:rounded-xl shadow-lg border border-gray-100 hover:border-indigo-200 transition-all duration-300 p-3 sm:p-4 md:p-5 flex flex-col gap-3 sm:gap-4 min-h-[120px] sm:min-h-[140px] md:min-h-[160px] w-full sm:w-auto min-w-0 sm:min-w-[220px] md:min-w-[240px] lg:min-w-[260px] max-w-[360px] h-full z-10"
                                         whileHover={{ translateY: -3, scale: 1.02 }}
                                     >
                                         <div className="flex items-center justify-center">

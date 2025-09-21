@@ -221,8 +221,17 @@ class DebugConsoleManager {
       let configs: any[] = [];
 
       if (response.ok) {
-        data = await response.json();
-        if (data.success && data.data && data.iv) {
+        try {
+          data = await response.json();
+        } catch (jsonErr) {
+          // 非 JSON 响应（如 HTML 错误页）时，尝试读取文本并给出更明确的日志
+          const textBody = await response.text().catch(() => '<no body>');
+          console.warn('[调试] 从后端读取到非 JSON 响应，可能是 HTML 错误页或代理返回，状态：', response.status, response.statusText);
+          console.debug('[调试] 响应前 500 字符：', textBody.slice(0, 500));
+          data = null;
+        }
+
+        if (data && data.success && data.data && data.iv) {
           try {
             // 解密配置数据
             const decryptedJson = decryptAES256(data.data, data.iv, token!);
@@ -250,8 +259,16 @@ class DebugConsoleManager {
         }
 
         if (response.ok) {
-          data = await response.json();
-          if (data.success && data.data && data.data.length > 0) {
+          try {
+            data = await response.json();
+          } catch (jsonErr) {
+            const textBody = await response.text().catch(() => '<no body>');
+            console.warn('[调试] 回退获取未加密配置时收到非 JSON 响应，状态：', response.status, response.statusText);
+            console.debug('[调试] 响应前 500 字符：', textBody.slice(0, 500));
+            data = null;
+          }
+
+          if (data && data.success && data.data && data.data.length > 0) {
             configs = data.data;
           }
         }
