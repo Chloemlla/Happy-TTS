@@ -252,16 +252,17 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4, delay: 0.1 }}
                 >
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 text-blue-800 rounded-lg sm:rounded-xl px-3 sm:px-4 py-2 sm:py-3 flex items-start gap-2 sm:gap-3 shadow-sm">
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 text-blue-800 rounded-lg sm:rounded-xl px-3 sm:px-4 py-2 sm:py-3 flex items-center gap-3 shadow-sm justify-center text-center">
                         <motion.div
-                            whileHover={{ scale: 1.1, rotate: 5 }}
-                            transition={{ type: "spring", stiffness: 300 }}
+                            whileHover={{ scale: 1.05, rotate: 3 }}
+                            transition={{ type: "spring", stiffness: 200 }}
+                            className="flex-shrink-0"
                         >
-                            <FaKey className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                            <FaKey className="w-5 h-5 text-blue-500" />
                         </motion.div>
                         <div className="flex-1 min-w-0">
-                            <span className="font-semibold block text-xs sm:text-sm md:text-base leading-relaxed">每个账户仅允许设置<strong>一个</strong>Passkey作为无密码验证方式。</span>
-                            <span className="text-xs sm:text-sm text-blue-600 mt-0.5 sm:mt-1 block leading-relaxed">如需更换设备或认证方式，请先删除原有Passkey后再注册新Passkey。</span>
+                            <span className="font-semibold block text-sm sm:text-base md:text-lg leading-relaxed">每个账户仅允许设置<strong>一个</strong>Passkey作为无密码验证方式。</span>
+                            <span className="text-xs sm:text-sm text-blue-600 mt-1 block leading-relaxed">如需更换设备或认证方式，请先删除原有Passkey后再注册新Passkey。</span>
                         </div>
                     </div>
                 </motion.div>
@@ -330,17 +331,17 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: 20 }}
                                 transition={{ duration: 0.5 }}
-                                className="flex flex-col items-center py-8 sm:py-12 text-gray-400"
+                                className="w-full mx-auto max-w-[420px] flex flex-col items-center py-8 sm:py-12 text-gray-400"
                             >
-                                <FaKey className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 mb-2 sm:mb-3" />
-                                <div className="mb-2 text-base sm:text-lg text-center px-4">还没有添加任何 Passkey</div>
+                                <FaKey className="w-14 h-14 sm:w-16 sm:h-16 md:w-18 md:h-18 mb-3 text-gray-400" />
+                                <div className="mb-4 text-lg sm:text-xl text-center px-4">还没有添加任何 Passkey</div>
                                 <motion.button
                                     onClick={() => setIsOpen(true)}
-                                    className="mt-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg px-4 sm:px-6 py-2 sm:py-3 shadow-lg hover:shadow-xl flex items-center gap-2 font-semibold transition-all duration-200 text-sm sm:text-base"
-                                    whileHover={{ scale: 1.05, y: -2 }}
+                                    className="mt-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg px-6 py-3 shadow-lg hover:shadow-xl flex items-center gap-3 font-semibold transition-all duration-200 text-sm sm:text-base"
+                                    whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.97 }}
                                 >
-                                    <FaPlus className="w-3 h-3 sm:w-4 sm:h-4" /> <span className="whitespace-nowrap">立即添加 Passkey</span>
+                                    <FaPlus className="w-4 h-4 sm:w-5 sm:h-5" /> <span className="whitespace-nowrap">立即添加 Passkey</span>
                                 </motion.button>
                             </motion.div>
                         )}
