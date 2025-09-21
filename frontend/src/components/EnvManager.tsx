@@ -1745,8 +1745,40 @@ const EnvManager: React.FC = () => {
   }, [debugLogsFilterIp, debugLogsFilterSuccess, debugLogsFilterUserId, debugLogsFilterStartDate, debugLogsFilterEndDate, debugLogsLimit]);
 
   const handleSourceClick = useCallback((source: string) => {
+    // 记录当前位置
+    const currentScrollY = window.scrollY;
+    sessionStorage.setItem('envManagerScrollPosition', currentScrollY.toString());
+    
     setSelectedSource(source);
     setShowSourceModal(true);
+    
+    // 自动滚动到弹窗位置
+    setTimeout(() => {
+      const modal = document.querySelector('[data-source-modal]');
+      if (modal) {
+        modal.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center',
+          inline: 'center'
+        });
+      }
+    }, 100);
+  }, []);
+
+  const handleSourceModalClose = useCallback(() => {
+    setShowSourceModal(false);
+    
+    // 恢复原位置
+    setTimeout(() => {
+      const savedScrollY = sessionStorage.getItem('envManagerScrollPosition');
+      if (savedScrollY) {
+        window.scrollTo({
+          top: parseInt(savedScrollY, 10),
+          behavior: 'smooth'
+        });
+        sessionStorage.removeItem('envManagerScrollPosition');
+      }
+    }, 300); // 等待弹窗关闭动画完成
   }, []);
 
   // 管理员校验
@@ -1778,6 +1810,7 @@ const EnvManager: React.FC = () => {
 
   return (
     <LazyMotion features={domAnimation}>
+      <div className="relative">
       {/* 标题和说明 */}
         <m.div 
         className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 sm:p-6 border border-blue-100"
@@ -1969,6 +2002,7 @@ const EnvManager: React.FC = () => {
             </m.div>
           )}
         </AnimatePresence>
+        </m.div>
 
         {/* 对外邮件校验码设置 */}
         <m.div
@@ -3610,7 +3644,7 @@ const EnvManager: React.FC = () => {
           )}
         </m.div>
 
-      {/* 数据来源弹窗 */}
+      {/* 数据来源弹窗（相对于当前屏幕居中） */}
       <AnimatePresence>
         {showSourceModal && (
             <m.div
@@ -3619,7 +3653,8 @@ const EnvManager: React.FC = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
               transition={modalTrans}
-            onClick={() => setShowSourceModal(false)}
+            onClick={handleSourceModalClose}
+            data-source-modal
           >
               <m.div
               className="bg-white rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] p-8 w-full max-w-md mx-4 relative z-[10000] border border-gray-100"
@@ -3636,7 +3671,7 @@ const EnvManager: React.FC = () => {
                 <h3 className="text-xl font-bold text-gray-900 mb-2">数据来源</h3>
                 <p className="text-gray-600 mb-6">{selectedSource}</p>
                 <button
-                  onClick={() => setShowSourceModal(false)}
+                  onClick={handleSourceModalClose}
                   className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
                 >
                   确定
@@ -3697,7 +3732,7 @@ const EnvManager: React.FC = () => {
           </m.div>
         )}
       </AnimatePresence>
-      </m.div>
+      </div>
     </LazyMotion>
   );
 };
