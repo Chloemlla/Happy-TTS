@@ -123,8 +123,13 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
             return;
         }
 
-        // 尝试从返回结果中获取 credential id（如果后端返回）
-        const newId = registerResult && (registerResult.id || (registerResult.credential && registerResult.credential.id));
+        // 尝试从返回结果中获取 credential id（兼容多种返回结构）
+        const newId = registerResult && (
+            registerResult.id ||
+            (registerResult.credential && registerResult.credential.id) ||
+            registerResult.attRespId ||
+            (registerResult.finishData && Array.isArray(registerResult.finishData.passkeyCredentials) && registerResult.finishData.passkeyCredentials[0] && registerResult.finishData.passkeyCredentials[0].id)
+        );
 
         // 2) 主动刷新并轮询 credentials，确认后端已真正创建并可读
         const maxAttempts = 6;
@@ -195,6 +200,15 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
 
             details.push(`polling_attempts: ${maxAttempts}, delayMs: ${delayMs}`);
             details.push('建议：检查后端 /passkey 注册接口日志、数据库中是否存在新凭证；若后端无返回 id，则检查 finishRegistration 的入参与校验逻辑。');
+
+            // 如果后端返回了 finishData 中的错误信息，也把它展示出来
+            try {
+                if (registerResult && registerResult.finishData && registerResult.finishData.error) {
+                    details.push('finishData.error: ' + JSON.stringify(registerResult.finishData.error));
+                }
+            } catch (e) {
+                // ignore
+            }
 
             setNotification({
                 message: 'Passkey 注册未确认，请检查后端或稍后重试',

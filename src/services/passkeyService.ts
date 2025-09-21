@@ -211,7 +211,8 @@ export class PasskeyService {
             options = await generateRegistrationOptions({
                 rpName: 'Synapse',
                 rpID: getRpId(),
-                userID: Buffer.from(user.id),
+                // 使用 Uint8Array(user.id) 以兼容 @simplewebauthn/server 要求的 userID 类型
+                userID: Buffer.from(String(user.id)),
                 userName: user.username,
                 attestationType: 'none',
                 authenticatorSelection: {
@@ -220,7 +221,8 @@ export class PasskeyService {
                     userVerification: 'required'
                 },
                 excludeCredentials: userAuthenticators.map(authenticator => ({
-                    id: authenticator.credentialID,
+                    // ensure id is ArrayBuffer/Buffer for correct client options
+                    id: Buffer.from(authenticator.credentialID, 'base64url'),
                     type: 'public-key',
                     transports: ['internal']
                 } as any))

@@ -55,14 +55,22 @@ export const usePasskey = (): UsePasskeyReturn & {
         try {
             // 获取注册选项
             const optionsResponse = await passkeyApi.startRegistration(credentialName);
-            if (!optionsResponse.data || !optionsResponse.data.options) {
+            // 兼容多种后端返回结构：优先 options 字段，其次直接使用 data
+            // 将响应视为 any 以兼容不同后端实现的字段命名
+            const anyResp: any = optionsResponse;
+            const rawOptions = anyResp?.data?.options ?? anyResp?.data ?? anyResp?.data?.publicKey ?? anyResp?.data?.optionsJSON;
+            if (!rawOptions) {
+                addDebugInfo({ action: 'startRegistration returned no options', response: optionsResponse, timestamp: new Date().toISOString() });
                 // 失败提示交由外部 setNotification 统一管理
-                return;
+                return { attRespId: null, finishData: null };
             }
+
             // 调用浏览器的 Passkey API
             try {
-                attResp = await startRegistration({ optionsJSON: optionsResponse.data.options });
+                // startRegistration 接受 { optionsJSON }，这里传入规范化后的 rawOptions
+                attResp = await startRegistration({ optionsJSON: rawOptions });
             } catch (error: any) {
+                addDebugInfo({ action: 'startRegistration failed', error: error instanceof Error ? error.message : String(error), attResp, optionsSample: JSON.stringify((rawOptions && typeof rawOptions === 'object') ? Object.keys(rawOptions).slice(0,5) : rawOptions), timestamp: new Date().toISOString() });
                 if (attResp && attResp.id) {
                     setCurrentCredentialId(attResp.id);
                     setShowModal(true);
@@ -74,7 +82,7 @@ export const usePasskey = (): UsePasskeyReturn & {
                     };
                 }
                 // 失败提示交由外部 setNotification 统一管理
-                return;
+                return { attRespId: attResp?.id ?? null, finishData: null };
             }
             // 完成注册
             const finishResp = await passkeyApi.finishRegistration(credentialName, attResp);
@@ -89,15 +97,24 @@ export const usePasskey = (): UsePasskeyReturn & {
                     timestamp: new Date().toISOString()
                 };
             }
-            // 优先使用后端返回的passkeyCredentials
-            if (finishResp?.data?.passkeyCredentials) {
-                setCredentials(finishResp.data.passkeyCredentials);
+            // 优先使用后端返回的 passkeyCredentials 或 credentials
+            const finishData = finishResp?.data;
+            if (finishData) {
+                addDebugInfo({ action: 'finishRegistration returned', finishData, timestamp: new Date().toISOString() });
+            }
+            if (finishData?.passkeyCredentials) {
+                setCredentials(finishData.passkeyCredentials);
+            } else if (Array.isArray(finishData)) {
+                // 有些实现直接返回数组
+                setCredentials(finishData as any[]);
+            } else if (finishData?.credentials) {
+                setCredentials(finishData.credentials);
             } else {
                 await loadCredentials();
             }
             // 成功提示交由外部 setNotification 统一管理
             // 返回结构供上层严格确认：attResp id 与后端返回的 finishResp.data
-            return { attRespId: attResp?.id, finishData: finishResp?.data };
+            return { attRespId: attResp?.id ?? null, finishData: finishResp?.data ?? null };
         } catch (error: any) {
             if (attResp && attResp.id) {
                 setCurrentCredentialId(attResp.id);
@@ -118,7 +135,7 @@ export const usePasskey = (): UsePasskeyReturn & {
                 msg = '用户取消了操作';
             }
             // 失败提示交由外部 setNotification 统一管理
-            return { attRespId: attResp?.id, finishData: null };
+            return { attRespId: attResp?.id ?? null, finishData: null };
         } finally {
             setIsLoading(false);
         }
