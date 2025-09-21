@@ -1,5 +1,5 @@
 # 构建前端
-FROM node:22-alpine AS frontend-builder
+FROM node:24.3.0-alpine AS frontend-builder
 
 # 设置时区为上海
 RUN apk add --no-cache tzdata && \
@@ -58,15 +58,15 @@ RUN pnpm run build \
     || (echo "第二次构建失败，使用简化构建..." && pnpm run build:simple) \
     || (echo "简化构建失败，使用最小构建..." && pnpm run build:minimal) \
     || (echo "所有构建失败，尝试修复依赖（Rollup/Canvg）..." \
-        && pnpm install @rollup/rollup-linux-x64-musl --save-dev || true \
-        && pnpm install canvg || true \
-        && pnpm run build:minimal)
+    && pnpm install @rollup/rollup-linux-x64-musl --save-dev || true \
+    && pnpm install canvg || true \
+    && pnpm run build:minimal)
 
 # 确保favicon.ico存在
 RUN touch dist/favicon.ico
 
 # 构建 Docusaurus 文档
-FROM node:22-alpine AS docs-builder
+FROM node:24.3.0-alpine AS docs-builder
 
 # 设置时区为上海
 RUN apk add --no-cache tzdata && \
@@ -104,7 +104,7 @@ RUN pnpm store prune && \
     (pnpm run build:no-git || (echo "第一次构建失败，重试..." && pnpm run build:docker) || (echo "第二次构建失败，使用简化构建..." && pnpm run build:simple))
 
 # 构建后端
-FROM node:22-alpine AS backend-builder
+FROM node:24.3.0-alpine AS backend-builder
 
 # 设置时区为上海
 RUN apk add --no-cache tzdata && \
@@ -143,7 +143,7 @@ RUN pnpm run build:backend || (echo "第一次构建失败，重试..." && pnpm 
 RUN pnpm run generate:openapi
 
 # 生产环境
-FROM node:22-alpine
+FROM node:24.3.0-alpine
 
 # 设置时区为上海
 RUN apk add --no-cache tzdata && \
@@ -168,9 +168,9 @@ COPY pnpm-lock.yaml* ./
 ENV SHELL=/bin/sh
 RUN npm install -g pnpm@latest concurrently serve && \
     if [ -f "pnpm-lock.yaml" ]; then \
-        pnpm install --prod --frozen-lockfile; \
+    pnpm install --prod --frozen-lockfile; \
     else \
-        pnpm install --prod; \
+    pnpm install --prod; \
     fi
 
 # 从构建阶段复制文件

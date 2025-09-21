@@ -6,6 +6,8 @@ import { authenticateToken } from '../middleware/authenticateToken';
 import { UserStorage, User } from '../utils/userStorage';
 import logger from '../utils/logger';
 import { rateLimitMiddleware } from '../middleware/rateLimit';
+// 使用 require 避免类型声明解析问题
+const adminOnly = require('../middleware/adminOnly').default;
 
 const router = express.Router();
 
@@ -61,6 +63,17 @@ router.post('/register/start', authenticateToken, rateLimitMiddleware, async (re
             return res.status(500).json({ error: '生成注册选项失败', details: err instanceof Error ? err.message : String(err) });
         }
         logger.info('[Passkey] /register/start options', { userId, options });
+
+        // 记录本次 start 的简短 payload 以便管理员调试（只包含非敏感字段）
+        try {
+            const payload = { userId, credentialName, challenge: options.challenge, excludeCount: (user.passkeyCredentials || []).length };
+            const repairService = require('../services/passkeyDataRepairService');
+            if (repairService && repairService.PasskeyDataRepairService && typeof repairService.PasskeyDataRepairService.setLastStartPayload === 'function') {
+                repairService.PasskeyDataRepairService.setLastStartPayload(payload);
+            }
+        } catch (err) {
+            logger.warn('[Passkey] 记录 start payload 失败', { err });
+        }
         if (!options) {
             logger.error('[Passkey] options 为 undefined', { userId, credentialName });
             return res.status(500).json({ error: '生成注册选项失败', details: { userId, credentialName, options } });
@@ -98,6 +111,18 @@ router.post('/register/finish', authenticateToken, rateLimitMiddleware, async (r
         const verification = await PasskeyService.verifyRegistration(user, response, credentialName, requestOrigin);
         // 注册成功后，返回最新的passkeyCredentials
         const updatedUser = await UserStorage.getUserById(userId);
+
+        // 记录本次 finish 的简短 payload 以便管理员调试（只包含非敏感字段）
+        try {
+            const payload = { userId, credentialName, verified: verification?.verified, hasRegistrationInfo: !!verification?.registrationInfo };
+            const repairService = require('../services/passkeyDataRepairService');
+            if (repairService && repairService.PasskeyDataRepairService && typeof repairService.PasskeyDataRepairService.setLastFinishPayload === 'function') {
+                repairService.PasskeyDataRepairService.setLastFinishPayload(payload);
+            }
+        } catch (err) {
+            logger.warn('[Passkey] 记录 finish payload 失败', { err });
+        }
+
         res.json({ ...verification, passkeyCredentials: updatedUser?.passkeyCredentials || [] });
     } catch (error) {
         console.error('完成 Passkey 注册失败:', error);
@@ -480,6 +505,21 @@ router.post('/credential-id/fix', authenticateToken, async (req, res) => {
     }
 });
 
+// 管理员调试路由：返回最近一次 start/finish 简短 payload（仅管理员）
+router.get('/admin/debug/last-payloads', authenticateToken, adminOnly, async (req, res) => {
+    try {
+        const repairService = require('../services/passkeyDataRepairService');
+        if (repairService && repairService.PasskeyDataRepairService && typeof repairService.PasskeyDataRepairService.getLastPayloads === 'function') {
+            const payloads = repairService.PasskeyDataRepairService.getLastPayloads();
+            return res.json({ success: true, data: payloads });
+        }
+        return res.status(500).json({ success: false, error: '调试服务不可用' });
+    } catch (err) {
+        logger.error('[Passkey] 获取调试 payload 失败', { err });
+        return res.status(500).json({ success: false, error: '获取调试 payload 失败' });
+    }
+});
+
 // 检查当前用户的credentialID状态（需要认证）
 router.get('/credential-id/check', authenticateToken, async (req, res) => {
     try {
@@ -560,3 +600,4 @@ router.post('/admin/credential-id/fix-all', authenticateToken, async (req, res) 
 });
 
 export default router; 
+

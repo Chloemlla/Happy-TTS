@@ -344,4 +344,23 @@ export class PasskeyDataRepairService {
             };
         }
     }
+
+    // 暴露最近一次 start/finish 的原始payload到内存（仅用于管理员调试）
+    private static _lastStartPayload: any = null;
+    private static _lastFinishPayload: any = null;
+
+    public static setLastStartPayload(payload: any) {
+        this._lastStartPayload = payload;
+    }
+
+    public static setLastFinishPayload(payload: any) {
+        this._lastFinishPayload = payload;
+    }
+
+    public static getLastPayloads() {
+        return {
+            start: this._lastStartPayload,
+            finish: this._lastFinishPayload
+        };
+    }
 } 

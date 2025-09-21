@@ -225,7 +225,10 @@ export class PasskeyService {
                     id: Buffer.from(authenticator.credentialID, 'base64url'),
                     type: 'public-key',
                     transports: ['internal']
-                } as any))
+                } as any)),
+                // 仅在全局开启调试时附加调试信息，避免生产泄露
+                // @ts-ignore
+                ...(global as any).__passkey_debug_enabled ? { _debug: { userId: user.id, username: user.username, excludeCount: userAuthenticators.length } } : {}
             });
         } catch (err) {
             logger.error('[PasskeyService] generateRegistrationOptions 调用底层库异常:', err);
