@@ -1072,6 +1072,102 @@ router.get('/public-config', publicLimiter, async (req, res) => {
 
 /**
  * @openapi
+ * /api/turnstile/public-turnstile:
+ *   get:
+ *     summary: 获取公共 Turnstile 配置
+ *     description: 返回 Turnstile 是否启用及站点密钥（无需鉴权，用于前端首次加载）
+ *     responses:
+ *       200:
+ *         description: Turnstile 配置
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 enabled:
+ *                   type: boolean
+ *                 siteKey:
+ *                   type: string
+ *       500:
+ *         description: 服务器错误
+ */
+// 公共：仅返回 Turnstile 配置（无需鉴权）
+router.get('/public-turnstile', publicLimiter, async (req, res) => {
+    try {
+        const config = await TurnstileService.getConfig();
+        res.json({
+            enabled: config.enabled,
+            siteKey: config.siteKey
+        });
+    } catch (error) {
+        console.error('获取Turnstile公共配置失败:', error);
+        res.status(500).json({ error: '获取配置失败' });
+    }
+});
+
+/**
+ * @openapi
+ * /api/turnstile/verify-token:
+ *   post:
+ *     summary: 验证 Turnstile token
+ *     description: 后端使用 Turnstile secret 验证前端提交的 token（无需鉴权）
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: 来自 Turnstile 小组件的验证 token
+ *     responses:
+ *       200:
+ *         description: 验证成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 verified:
+ *                   type: boolean
+ *       400:
+ *         description: 验证失败或参数错误
+ *       500:
+ *         description: 服务器错误
+ */
+// 公共：验证 Turnstile token（无需鉴权）
+// 前端调用后端以验证 token，后端使用 TURNSTILE_SECRET_KEY 与 Cloudflare 校验
+router.post('/verify-token', publicLimiter, async (req, res) => {
+    try {
+        const { token } = req.body;
+        const clientIp = req.ip || req.socket.remoteAddress || (Array.isArray(req.headers['x-forwarded-for']) ? req.headers['x-forwarded-for'][0] : req.headers['x-forwarded-for']) || 'unknown';
+
+        if (!token || typeof token !== 'string') {
+            return res.status(400).json({ success: false, error: 'token 参数无效' });
+        }
+
+        const validatedClientIp = typeof clientIp === 'string' ? clientIp : 'unknown';
+
+        const ok = await TurnstileService.verifyToken(token, validatedClientIp);
+
+        if (ok) {
+            return res.json({ success: true, verified: true });
+        }
+
+        return res.status(400).json({ success: false, verified: false });
+    } catch (error) {
+        console.error('验证 Turnstile token 失败:', error);
+        res.status(500).json({ success: false, error: '服务器内部错误' });
+    }
+});
+
+/**
+ * @openapi
  * /api/turnstile/secure-captcha-config:
  *   post:
  *     summary: 获取安全的CAPTCHA配置
