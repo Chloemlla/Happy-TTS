@@ -116,6 +116,7 @@ const allowedOrigins = [
   'https://tts.hapx.one',
   'https://tts.hapxs.com',
   'https://951100.xyz',
+  'https://tts.951100.xyz',
   "http://192.168.10.7:3001",
   'https://api.hapxs.com',
   'http://localhost:3000',
