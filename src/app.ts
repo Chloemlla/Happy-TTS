@@ -196,6 +196,40 @@ app.use('/api/shorturl/*path', (req: Request, res: Response, next: NextFunction)
   next();
 });
 
+// 为 Turnstile 特定端点添加无限制 CORS 处理 - 必须在全局 CORS 之前
+app.options('/api/turnstile/verify-token', (req: Request, res: Response) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Access-Control-Request-Method, Access-Control-Request-Headers, Cache-Control, X-Fingerprint, X-Turnstile-Token');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Max-Age', '86400');
+  res.status(200).end();
+});
+
+app.options('/api/turnstile/public-turnstile', (req: Request, res: Response) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Access-Control-Request-Method, Access-Control-Request-Headers, Cache-Control, X-Fingerprint, X-Turnstile-Token');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Max-Age', '86400');
+  res.status(200).end();
+});
+
+// 为 Turnstile 特定端点添加无限制 CORS 响应头中间件
+app.use('/api/turnstile/verify-token', (req: Request, res: Response, next: NextFunction) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Expose-Headers', 'Content-Length, X-RateLimit-Limit, X-RateLimit-Remaining, Content-Disposition, Content-Type, Cache-Control');
+  next();
+});
+
+app.use('/api/turnstile/public-turnstile', (req: Request, res: Response, next: NextFunction) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Expose-Headers', 'Content-Length, X-RateLimit-Limit, X-RateLimit-Remaining, Content-Disposition, Content-Type, Cache-Control');
+  next();
+});
+
 // 为前端管理面板提供 /api 前缀的别名挂载，便于通过代理访问管理接口
 app.use('/api/shorturl', shortUrlRoutes);
 
