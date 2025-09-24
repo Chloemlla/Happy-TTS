@@ -279,7 +279,7 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const pull_number = context.payload.pull_request.number;
-            
+
             try {
               // 批准 PR
               await github.rest.pulls.createReview({
@@ -332,4 +332,4 @@ jobs:
           gh pr comment "$PR_URL" --body "🚨 这是一个主版本更新，需要手动审查和合并。"
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          GITHUB_TOKEN: ${{secrets.USER_PAT}}
