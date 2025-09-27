@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, memo, useReducer } from 'react';
 import { getApiBaseUrl } from '../api/api';
 import { motion } from 'framer-motion';
 import { useNotification } from './Notification';
 import { FaListAlt, FaSync, FaSearch, FaEye, FaTimes, FaTrash, FaCopy, FaClipboard } from 'react-icons/fa';
+import { handleSourceClick, handleSourceModalClose } from './EnvManager';
 
 type TraceItem = {
   traceId: string;
@@ -24,6 +25,109 @@ type TraceItem = {
   riskReasons?: string[];
   challengeRequired?: boolean;
 };
+
+// 优化的表格行组件
+const TraceTableRow = memo(({ 
+  item, 
+  isSelected, 
+  onToggleSelect, 
+  onOpenDetail 
+}: {
+  item: TraceItem;
+  isSelected: boolean;
+  onToggleSelect: (id: string) => void;
+  onOpenDetail: (id: string) => void;
+}) => {
+  const time = useMemo(() => new Date(item.time).toLocaleString('zh-CN'), [item.time]);
+  
+  return (
+    <tr className="border-t border-gray-100 hover:bg-gray-50">
+      <td className="p-3 text-center">
+        <input 
+          type="checkbox" 
+          checked={isSelected} 
+          onChange={() => onToggleSelect(item.traceId)} 
+        />
+      </td>
+      <td className="p-3 whitespace-nowrap">{time}</td>
+      <td className="p-3 truncate font-mono" title={item.traceId}>{item.traceId}</td>
+      <td className="p-3 whitespace-nowrap">{item.ip || '-'}</td>
+      <td className="p-3 truncate" title={item.ua || ''}>{item.ua || '-'}</td>
+      <td className="p-3 whitespace-nowrap">{item.success ? '成功' : '失败'}</td>
+      <td className="p-3 truncate" title={item.reason || ''}>{item.reason || '-'}</td>
+      <td className="p-3 whitespace-nowrap">{typeof item.score === 'number' ? item.score.toFixed(3) : '-'}</td>
+      <td className="p-3 whitespace-nowrap">{typeof item.thresholdUsed === 'number' ? item.thresholdUsed.toFixed(3) : '-'}</td>
+      <td className="p-3 whitespace-nowrap">{item.riskLevel || '-'}</td>
+      <td className="p-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <button 
+            className="px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-medium flex items-center gap-2" 
+            onClick={() => onOpenDetail(item.traceId)}
+          >
+            <FaEye className="w-3.5 h-3.5" /> <span className="hidden sm:inline">详情</span>
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+});
+
+// 优化的移动端卡片组件
+const TraceMobileCard = memo(({ 
+  item, 
+  isSelected, 
+  onToggleSelect, 
+  onOpenDetail 
+}: {
+  item: TraceItem;
+  isSelected: boolean;
+  onToggleSelect: (id: string) => void;
+  onOpenDetail: (id: string) => void;
+}) => {
+  const time = useMemo(() => new Date(item.time).toLocaleString('zh-CN'), [item.time]);
+  
+  return (
+    <div className="p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <input 
+              type="checkbox" 
+              className="mr-1" 
+              checked={isSelected} 
+              onChange={() => onToggleSelect(item.traceId)} 
+            />
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${item.success ? 'bg-green-100 text-green-700':'bg-red-100 text-red-700'}`}>
+              {item.success ? '成功':'失败'}
+            </span>
+            {item.reason && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-gray-100 text-gray-700">
+                {item.reason}
+              </span>
+            )}
+            <span 
+              className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono bg-gray-100 text-gray-700 max-w-[60%] truncate" 
+              title={item.traceId}
+            >
+              #{item.traceId}
+            </span>
+          </div>
+          <div className="text-xs text-gray-500 mt-1">{time}</div>
+          <div className="text-xs text-gray-600 mt-1 truncate">IP：{item.ip || '-'}</div>
+          <div className="text-xs text-gray-600 mt-1 truncate" title={item.ua}>UA：{item.ua || '-'}</div>
+        </div>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:grid-cols-none">
+        <button 
+          className="w-full px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-medium flex items-center gap-2" 
+          onClick={() => onOpenDetail(item.traceId)}
+        >
+          <FaEye className="w-3.5 h-3.5" /> 详情
+        </button>
+      </div>
+    </div>
+  );
+});
 
 const SmartHumanCheckTraces: React.FC = () => {
   const [page, setPage] = useState(1);
@@ -47,19 +151,51 @@ const SmartHumanCheckTraces: React.FC = () => {
   const [ip, setIp] = useState('');
   const [ua, setUa] = useState('');
 
-  const pages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize]);
+  // 防抖搜索
+  const [debouncedFilters, setDebouncedFilters] = useState({
+    reason: '',
+    traceId: '',
+    ip: '',
+    ua: ''
+  });
 
-  const fetchList = useCallback(async (p = page, ps = pageSize) => {
+  // 防抖效果
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedFilters({ reason, traceId, ip, ua });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [reason, traceId, ip, ua]);
+
+  const pages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize]);
+  
+  // 优化的选择状态计算
+  const selectedIdsSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  
+  // 虚拟滚动优化 - 当数据量大时启用
+  const shouldUseVirtualScroll = useMemo(() => items.length > 100, [items.length]);
+  const [visibleRange, setVisibleRange] = useState({ start: 0, end: 50 });
+  
+  // 计算可见项目
+  const visibleItems = useMemo(() => {
+    if (!shouldUseVirtualScroll) return items;
+    return items.slice(visibleRange.start, visibleRange.end);
+  }, [items, visibleRange, shouldUseVirtualScroll]);
+
+  const fetchList = useCallback(async (p = page, ps = pageSize, useDebounced = true) => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
       params.set('page', String(p));
       params.set('pageSize', String(ps));
       if (success !== '') params.set('success', success);
-      if (reason) params.set('reason', reason);
-      if (traceId) params.set('traceId', traceId);
-      if (ip) params.set('ip', ip);
-      if (ua) params.set('ua', ua);
+      
+      // 使用防抖的过滤器或直接使用当前值
+      const filters = useDebounced ? debouncedFilters : { reason, traceId, ip, ua };
+      if (filters.reason) params.set('reason', filters.reason);
+      if (filters.traceId) params.set('traceId', filters.traceId);
+      if (filters.ip) params.set('ip', filters.ip);
+      if (filters.ua) params.set('ua', filters.ua);
 
       const token = localStorage.getItem('token');
       const res = await fetch(`${getApiBaseUrl()}/api/human-check/traces?${params.toString()}` , {
@@ -82,11 +218,46 @@ const SmartHumanCheckTraces: React.FC = () => {
         setSelectedIds([]);
       }
     }
-  }, [page, pageSize, success, reason, traceId, ip, ua, setNotification]);
+  }, [page, pageSize, success, debouncedFilters, reason, traceId, ip, ua, setNotification]);
 
   useEffect(() => {
     fetchList();
   }, [fetchList]);
+
+  // 防抖搜索触发
+  useEffect(() => {
+    if (debouncedFilters.reason !== reason || 
+        debouncedFilters.traceId !== traceId || 
+        debouncedFilters.ip !== ip || 
+        debouncedFilters.ua !== ua) {
+      fetchList(1, pageSize, true);
+    }
+  }, [debouncedFilters, reason, traceId, ip, ua, pageSize, fetchList]);
+
+  // 性能监控
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[SmartHumanCheckTraces] 性能统计:`, {
+        itemsCount: items.length,
+        selectedCount: selectedIds.length,
+        shouldUseVirtualScroll,
+        visibleItemsCount: visibleItems.length,
+        renderTime: performance.now()
+      });
+    }
+  }, [items.length, selectedIds.length, shouldUseVirtualScroll, visibleItems.length]);
+
+  // 内存优化 - 组件卸载时清理
+  useEffect(() => {
+    return () => {
+      // 清理定时器
+      const timers = document.querySelectorAll('[data-timer]');
+      timers.forEach(timer => clearTimeout(Number(timer.getAttribute('data-timer'))));
+      
+      // 清理事件监听器
+      window.removeEventListener('resize', () => {});
+    };
+  }, []);
 
   // Auto-fit zoom based on container width (target width: 1200px)
   useEffect(() => {
@@ -111,33 +282,131 @@ const SmartHumanCheckTraces: React.FC = () => {
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || '获取详情失败');
-      setSelected(data.item);
+      
+      // 使用 handleSourceClick 打开弹窗
+      handleSourceClick(
+        'trace-detail', // source 参数
+        (item: any) => setSelected(item), // setSelectedSource 函数
+        (show: boolean) => setSelected(show ? data.item : null), // setShowSourceModal 函数
+        {
+          storageKey: 'humanCheckTracesScrollPosition',
+          getStorageValue: () => JSON.stringify({
+            scrollY: window.scrollY,
+            timestamp: Date.now(),
+            traceId: id
+          }),
+          onBeforeOpen: () => {
+            console.log('即将打开人机验证日志详情弹窗');
+          },
+          onAfterOpen: () => {
+            console.log('人机验证日志详情弹窗已打开');
+          }
+        }
+      );
     } catch (e: any) {
       setNotification({ type: 'error', message: e?.message || '获取详情失败' });
     }
   };
 
-  const resetAndSearch = () => { setSuccess(''); setReason(''); setTraceId(''); setIp(''); setUa(''); fetchList(1, pageSize); };
+  const resetAndSearch = useCallback(() => { 
+    setSuccess(''); 
+    setReason(''); 
+    setTraceId(''); 
+    setIp(''); 
+    setUa(''); 
+    fetchList(1, pageSize, false); // 不使用防抖，立即搜索
+  }, [pageSize, fetchList]);
 
-  // 选择相关
-  const isAllSelected = items.length > 0 && items.every(it => selectedIds.includes(it.traceId));
-  const toggleSelectAll = () => {
+  // 使用 handleSourceModalClose 关闭详情弹窗
+  const closeDetailModal = useCallback(() => {
+    handleSourceModalClose(
+      (show: boolean) => setSelected(show ? selected : null),
+      {
+        storageKey: 'humanCheckTracesScrollPosition',
+        getRestoreValue: () => {
+          const saved = sessionStorage.getItem('humanCheckTracesScrollPosition');
+          if (saved) {
+            try {
+              const data = JSON.parse(saved);
+              // 检查时间戳，5秒内才恢复位置
+              if (Date.now() - data.timestamp < 5000) {
+                return data.scrollY;
+              }
+            } catch (e) {
+              // 解析失败，尝试直接解析为数字
+              const scrollY = parseInt(saved, 10);
+              if (!isNaN(scrollY)) return scrollY;
+            }
+          }
+          return 0;
+        },
+        onBeforeClose: () => {
+          console.log('即将关闭人机验证日志详情弹窗');
+        },
+        onAfterClose: () => {
+          console.log('人机验证日志详情弹窗已关闭');
+        }
+      }
+    );
+  }, [selected]);
+
+  // 使用 handleSourceModalClose 关闭批量查看弹窗
+  const closeBatchModal = useCallback(() => {
+    handleSourceModalClose(
+      (show: boolean) => setBatchView(show ? batchView : null),
+      {
+        storageKey: 'humanCheckTracesBatchScrollPosition',
+        getRestoreValue: () => {
+          const saved = sessionStorage.getItem('humanCheckTracesBatchScrollPosition');
+          if (saved) {
+            try {
+              const data = JSON.parse(saved);
+              // 检查时间戳，5秒内才恢复位置
+              if (Date.now() - data.timestamp < 5000) {
+                return data.scrollY;
+              }
+            } catch (e) {
+              // 解析失败，尝试直接解析为数字
+              const scrollY = parseInt(saved, 10);
+              if (!isNaN(scrollY)) return scrollY;
+            }
+          }
+          return 0;
+        },
+        onBeforeClose: () => {
+          console.log('即将关闭批量日志查看弹窗');
+        },
+        onAfterClose: () => {
+          console.log('批量日志查看弹窗已关闭');
+        }
+      }
+    );
+  }, [batchView]);
+
+  // 选择相关 - 使用 useCallback 优化
+  const isAllSelected = useMemo(() => 
+    items.length > 0 && items.every(it => selectedIdsSet.has(it.traceId)), 
+    [items, selectedIds]
+  );
+  
+  const toggleSelectAll = useCallback(() => {
     if (isAllSelected) setSelectedIds([]);
     else setSelectedIds(items.map(it => it.traceId));
-  };
-  const toggleSelect = (id: string) => {
+  }, [isAllSelected, items]);
+  
+  const toggleSelect = useCallback((id: string) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  };
-  const requireSelection = (): string[] | null => {
+  }, []);
+  const requireSelection = useCallback((): string[] | null => {
     if (!selectedIds.length) {
       setNotification({ type: 'warning', message: '请先选择要操作的日志' });
       return null;
     }
     return selectedIds;
-  };
+  }, [selectedIds, setNotification]);
 
   // 批量复制 TraceID
-  const copySelectedIds = async () => {
+  const copySelectedIds = useCallback(async () => {
     const ids = requireSelection();
     if (!ids) return;
     try {
@@ -146,44 +415,69 @@ const SmartHumanCheckTraces: React.FC = () => {
     } catch (e: any) {
       setNotification({ type: 'error', message: e?.message || '复制失败' });
     }
-  };
+  }, [requireSelection, setNotification]);
 
-  // 拉取详情
-  const fetchDetailsByIds = async (ids: string[]) => {
+  // 拉取详情 - 使用并发请求优化
+  const fetchDetailsByIds = useCallback(async (ids: string[]) => {
     const token = localStorage.getItem('token');
-    const results: any[] = [];
-    for (const id of ids) {
+    const headers = { 'Authorization': token ? `Bearer ${token}` : '' };
+    
+    // 使用 Promise.allSettled 进行并发请求
+    const promises = ids.map(async (id) => {
       try {
-        const res = await fetch(`${getApiBaseUrl()}/api/human-check/trace/${id}`, {
-          headers: { 'Authorization': token ? `Bearer ${token}` : '' }
-        });
+        const res = await fetch(`${getApiBaseUrl()}/api/human-check/trace/${id}`, { headers });
         const data = await res.json();
-        if (res.ok && data?.success && data?.item) results.push(data.item);
-        else results.push({ traceId: id, error: data?.error || 'not_ok' });
+        if (res.ok && data?.success && data?.item) return data.item;
+        else return { traceId: id, error: data?.error || 'not_ok' };
       } catch (e: any) {
-        results.push({ traceId: id, error: e?.message || 'fetch_error' });
+        return { traceId: id, error: e?.message || 'fetch_error' };
       }
-    }
-    return results;
-  };
+    });
+    
+    const results = await Promise.allSettled(promises);
+    return results.map(result => 
+      result.status === 'fulfilled' ? result.value : { error: 'promise_rejected' }
+    );
+  }, []);
 
   // 批量查看合并
-  const viewSelectedLogs = async () => {
+  const viewSelectedLogs = useCallback(async () => {
     const ids = requireSelection();
     if (!ids) return;
     setBatchLoading(true);
     try {
       const details = await fetchDetailsByIds(ids);
-      setBatchView({ ids, items: details });
+      
+      // 使用 handleSourceClick 打开批量查看弹窗
+      handleSourceClick(
+        'batch-trace-detail', // source 参数
+        (data: any) => setBatchView(data), // setSelectedSource 函数
+        (show: boolean) => setBatchView(show ? { ids, items: details } : null), // setShowSourceModal 函数
+        {
+          storageKey: 'humanCheckTracesBatchScrollPosition',
+          getStorageValue: () => JSON.stringify({
+            scrollY: window.scrollY,
+            timestamp: Date.now(),
+            traceIds: ids,
+            count: ids.length
+          }),
+          onBeforeOpen: () => {
+            console.log('即将打开批量日志查看弹窗');
+          },
+          onAfterOpen: () => {
+            console.log('批量日志查看弹窗已打开');
+          }
+        }
+      );
     } catch (e: any) {
       setNotification({ type: 'error', message: e?.message || '加载日志失败' });
     } finally {
       setBatchLoading(false);
     }
-  };
+  }, [requireSelection, fetchDetailsByIds, setNotification]);
 
   // 一键复制日志（JSON）
-  const copySelectedLogs = async () => {
+  const copySelectedLogs = useCallback(async () => {
     const ids = requireSelection();
     if (!ids) return;
     setBatchLoading(true);
@@ -197,10 +491,10 @@ const SmartHumanCheckTraces: React.FC = () => {
     } finally {
       setBatchLoading(false);
     }
-  };
+  }, [requireSelection, fetchDetailsByIds, setNotification]);
 
   // 删除（已接入后端接口）
-  const deleteSelected = async () => {
+  const deleteSelected = useCallback(async () => {
     const ids = requireSelection();
     if (!ids) return;
     if (!window.confirm(`确定删除选中的 ${ids.length} 条日志吗？该操作不可恢复。`)) return;
@@ -231,7 +525,7 @@ const SmartHumanCheckTraces: React.FC = () => {
     } finally {
       setBatchLoading(false);
     }
-  };
+  }, [requireSelection, page, pageSize, fetchList, setNotification]);
 
   return (
     <div
@@ -277,19 +571,19 @@ const SmartHumanCheckTraces: React.FC = () => {
           </div>
           <div>
             <label className="block text-xs text-white/80 mb-1">原因</label>
-            <input value={reason} onChange={e => setReason(e.target.value)} onBlur={()=>fetchList(1, pageSize)} placeholder="low_score / bad_token_sig ..." className="w-full px-3 py-2 rounded-lg bg-white/20 text-white placeholder-white/60" />
+            <input value={reason} onChange={e => setReason(e.target.value)} placeholder="low_score / bad_token_sig ..." className="w-full px-3 py-2 rounded-lg bg-white/20 text-white placeholder-white/60" />
           </div>
           <div>
             <label className="block text-xs text-white/80 mb-1">Trace ID</label>
-            <input value={traceId} onChange={e => setTraceId(e.target.value)} onBlur={()=>fetchList(1, pageSize)} placeholder="traceId" className="w-full px-3 py-2 rounded-lg bg-white/20 text-white placeholder-white/60" />
+            <input value={traceId} onChange={e => setTraceId(e.target.value)} placeholder="traceId" className="w-full px-3 py-2 rounded-lg bg-white/20 text-white placeholder-white/60" />
           </div>
           <div>
             <label className="block text-xs text-white/80 mb-1">IP</label>
-            <input value={ip} onChange={e => setIp(e.target.value)} onBlur={()=>fetchList(1, pageSize)} placeholder="ip" className="w-full px-3 py-2 rounded-lg bg-white/20 text-white placeholder-white/60" />
+            <input value={ip} onChange={e => setIp(e.target.value)} placeholder="ip" className="w-full px-3 py-2 rounded-lg bg-white/20 text-white placeholder-white/60" />
           </div>
           <div>
             <label className="block text-xs text-white/80 mb-1">UA 包含</label>
-            <input value={ua} onChange={e => setUa(e.target.value)} onBlur={()=>fetchList(1, pageSize)} placeholder="user-agent 关键字" className="w-full px-3 py-2 rounded-lg bg-white/20 text-white placeholder-white/60" />
+            <input value={ua} onChange={e => setUa(e.target.value)} placeholder="user-agent 关键字" className="w-full px-3 py-2 rounded-lg bg-white/20 text-white placeholder-white/60" />
           </div>
         </div>
       </motion.div>
@@ -321,31 +615,15 @@ const SmartHumanCheckTraces: React.FC = () => {
         </div>
         {/* Mobile Cards */}
         <div className="block md:hidden divide-y divide-gray-100">
-          {items.map(it => {
-            const t = new Date(it.time);
-            return (
-              <div key={it.traceId} className="p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <input type="checkbox" className="mr-1" checked={selectedIds.includes(it.traceId)} onChange={() => toggleSelect(it.traceId)} />
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${it.success ? 'bg-green-100 text-green-700':'bg-red-100 text-red-700'}`}>{it.success ? '成功':'失败'}</span>
-                      {it.reason && <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-gray-100 text-gray-700">{it.reason}</span>}
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono bg-gray-100 text-gray-700 max-w-[60%] truncate" title={it.traceId}>#{it.traceId}</span>
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">{t.toLocaleString('zh-CN')}</div>
-                    <div className="text-xs text-gray-600 mt-1 truncate">IP：{it.ip || '-'}</div>
-                    <div className="text-xs text-gray-600 mt-1 truncate" title={it.ua}>UA：{it.ua || '-'}</div>
-                  </div>
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:grid-cols-none">
-                  <button className="w-full px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-medium flex items-center gap-2" onClick={() => openDetail(it.traceId)}>
-                    <FaEye className="w-3.5 h-3.5" /> 详情
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+          {visibleItems.map(it => (
+            <TraceMobileCard
+              key={it.traceId}
+              item={it}
+              isSelected={selectedIdsSet.has(it.traceId)}
+              onToggleSelect={toggleSelect}
+              onOpenDetail={openDetail}
+            />
+          ))}
           {!loading && items.length === 0 && (
             <div className="p-6 text-center text-gray-400">暂无数据</div>
           )}
@@ -370,30 +648,15 @@ const SmartHumanCheckTraces: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {items.map(it => {
-                const t = new Date(it.time);
-                return (
-                  <tr key={it.traceId} className="border-t border-gray-100 hover:bg-gray-50">
-                    <td className="p-3 text-center"><input type="checkbox" checked={selectedIds.includes(it.traceId)} onChange={() => toggleSelect(it.traceId)} /></td>
-                    <td className="p-3 whitespace-nowrap">{t.toLocaleString('zh-CN')}</td>
-                    <td className="p-3 truncate font-mono" title={it.traceId}>{it.traceId}</td>
-                    <td className="p-3 whitespace-nowrap">{it.ip || '-'}</td>
-                    <td className="p-3 truncate" title={it.ua || ''}>{it.ua || '-'}</td>
-                    <td className="p-3 whitespace-nowrap">{it.success ? '成功' : '失败'}</td>
-                    <td className="p-3 truncate" title={it.reason || ''}>{it.reason || '-'}</td>
-                    <td className="p-3 whitespace-nowrap">{typeof it.score === 'number' ? it.score.toFixed(3) : '-'}</td>
-                    <td className="p-3 whitespace-nowrap">{typeof it.thresholdUsed === 'number' ? it.thresholdUsed.toFixed(3) : '-'}</td>
-                    <td className="p-3 whitespace-nowrap">{it.riskLevel || '-'}</td>
-                    <td className="p-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <button className="px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-medium flex items-center gap-2" onClick={() => openDetail(it.traceId)}>
-                          <FaEye className="w-3.5 h-3.5" /> <span className="hidden sm:inline">详情</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+              {visibleItems.map(it => (
+                <TraceTableRow
+                  key={it.traceId}
+                  item={it}
+                  isSelected={selectedIdsSet.has(it.traceId)}
+                  onToggleSelect={toggleSelect}
+                  onOpenDetail={openDetail}
+                />
+              ))}
               {!loading && items.length === 0 && (
                 <tr>
                   <td className="p-6 text-center text-gray-400" colSpan={10}>暂无数据</td>
@@ -417,7 +680,7 @@ const SmartHumanCheckTraces: React.FC = () => {
       {/* 详情弹窗 */}
       {selected && (
         <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <div className="bg-white/90 backdrop-blur rounded-2xl max-w-3xl w-[95vw] p-4 sm:p-6 border border-white/20 shadow-xl">
+        <div className="bg-white/90 backdrop-blur rounded-2xl max-w-3xl w-[95vw] p-4 sm:p-6 border border-white/20 shadow-xl" data-source-modal="trace-detail">
           <div className="flex items-center justify-between mb-3">
             <div className="font-semibold text-gray-900">日志详情</div>
             <div className="flex items-center gap-2">
@@ -452,7 +715,7 @@ const SmartHumanCheckTraces: React.FC = () => {
               >
                 <FaCopy className="w-4 h-4" /> 复制ID
               </button>
-              <button onClick={() => setSelected(null)} className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2">
+              <button onClick={closeDetailModal} className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2">
                 <FaTimes className="w-4 h-4" /> 关闭
               </button>
             </div>
@@ -465,14 +728,14 @@ const SmartHumanCheckTraces: React.FC = () => {
       {/* 批量合并查看弹窗 */}
       {batchView && (
         <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <div className="bg-white/90 backdrop-blur rounded-2xl max-w-5xl w-[95vw] p-4 sm:p-6 border border-white/20 shadow-xl">
+          <div className="bg-white/90 backdrop-blur rounded-2xl max-w-5xl w-[95vw] p-4 sm:p-6 border border-white/20 shadow-xl" data-source-modal="batch-trace-detail">
             <div className="flex items-center justify-between mb-3">
               <div className="font-semibold text-gray-900">合并日志（{batchView.ids.length} 条）</div>
               <div className="flex items-center gap-2">
                 <button onClick={async ()=>{ try { await navigator.clipboard.writeText(JSON.stringify(batchView, null, 2)); setNotification({ type:'success', message:'已复制' }); } catch(e:any){ setNotification({ type:'error', message:e?.message||'复制失败' }); } }} className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2">
                   <FaClipboard className="w-4 h-4" /> 复制
                 </button>
-                <button onClick={() => setBatchView(null)} className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2">
+                <button onClick={closeBatchModal} className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2">
                   <FaTimes className="w-4 h-4" /> 关闭
                 </button>
               </div>

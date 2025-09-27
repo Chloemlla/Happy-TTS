@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { getApiBaseUrl } from '../api/api';
 import { useNotification } from './Notification';
 import { FaChartBar, FaSync, FaPlus, FaEdit, FaTrash, FaEye, FaTimes } from 'react-icons/fa';
 import { useRef } from 'react';
+import { handleSourceClick, handleSourceModalClose } from './EnvManager';
 
 interface WebhookEventItem {
   _id: string;
@@ -193,6 +194,133 @@ const WebhookEventsManager: React.FC = () => {
     }
   };
 
+  // 使用 handleSourceClick 的包装函数
+  const openDetail = useCallback((item: WebhookEventItem) => {
+    handleSourceClick(
+      'webhook-event-detail',
+      (source: string) => setSelected(source === 'webhook-event-detail' ? item : null),
+      (show: boolean) => setSelected(show ? item : null),
+      {
+        storageKey: 'webhookEventsScrollPosition',
+        getStorageValue: () => JSON.stringify({
+          scrollY: window.scrollY,
+          timestamp: Date.now(),
+          eventId: item._id
+        }),
+        onBeforeOpen: () => { console.log('即将打开 Webhook 事件详情弹窗'); },
+        onAfterOpen: () => { console.log('Webhook 事件详情弹窗已打开'); }
+      }
+    );
+  }, []);
+
+  const openEdit = useCallback((item: WebhookEventItem) => {
+    handleSourceClick(
+      'webhook-event-edit',
+      (source: string) => setEditing(source === 'webhook-event-edit' ? item : null),
+      (show: boolean) => setEditing(show ? item : null),
+      {
+        storageKey: 'webhookEventsEditScrollPosition',
+        getStorageValue: () => JSON.stringify({
+          scrollY: window.scrollY,
+          timestamp: Date.now(),
+          eventId: item._id
+        }),
+        onBeforeOpen: () => { console.log('即将打开 Webhook 事件编辑弹窗'); },
+        onAfterOpen: () => { console.log('Webhook 事件编辑弹窗已打开'); }
+      }
+    );
+  }, []);
+
+  const openCreate = useCallback(() => {
+    const newItem = { _id: '', type: '', provider: 'resend' } as any;
+    handleSourceClick(
+      'webhook-event-edit',
+      (source: string) => {
+        if (source === 'webhook-event-edit') {
+          setCreating(true);
+          setEditing(newItem);
+        }
+      },
+      (show: boolean) => {
+        if (show) {
+          setCreating(true);
+          setEditing(newItem);
+        } else {
+          setCreating(false);
+          setEditing(null);
+        }
+      },
+      {
+        storageKey: 'webhookEventsCreateScrollPosition',
+        getStorageValue: () => JSON.stringify({
+          scrollY: window.scrollY,
+          timestamp: Date.now(),
+          action: 'create'
+        }),
+        onBeforeOpen: () => { console.log('即将打开 Webhook 事件创建弹窗'); },
+        onAfterOpen: () => { console.log('Webhook 事件创建弹窗已打开'); }
+      }
+    );
+  }, []);
+
+  // 关闭弹窗的包装函数
+  const closeDetailModal = useCallback(() => {
+    handleSourceModalClose(
+      (show: boolean) => setSelected(show ? selected : null),
+      {
+        storageKey: 'webhookEventsScrollPosition',
+        getRestoreValue: () => {
+          const saved = sessionStorage.getItem('webhookEventsScrollPosition');
+          if (saved) {
+            try {
+              const data = JSON.parse(saved);
+              if (Date.now() - data.timestamp < 5000) {
+                return data.scrollY;
+              }
+            } catch (e) {
+              const scrollY = parseInt(saved, 10);
+              if (!isNaN(scrollY)) return scrollY;
+            }
+          }
+          return 0;
+        },
+        onBeforeClose: () => { console.log('即将关闭 Webhook 事件详情弹窗'); },
+        onAfterClose: () => { console.log('Webhook 事件详情弹窗已关闭'); }
+      }
+    );
+  }, [selected]);
+
+  const closeEditModal = useCallback(() => {
+    handleSourceModalClose(
+      (show: boolean) => {
+        if (!show) {
+          setEditing(null);
+          setCreating(false);
+        }
+      },
+      {
+        storageKey: 'webhookEventsEditScrollPosition',
+        getRestoreValue: () => {
+          const saved = sessionStorage.getItem('webhookEventsEditScrollPosition');
+          if (saved) {
+            try {
+              const data = JSON.parse(saved);
+              if (Date.now() - data.timestamp < 5000) {
+                return data.scrollY;
+              }
+            } catch (e) {
+              const scrollY = parseInt(saved, 10);
+              if (!isNaN(scrollY)) return scrollY;
+            }
+          }
+          return 0;
+        },
+        onBeforeClose: () => { console.log('即将关闭 Webhook 事件编辑弹窗'); },
+        onAfterClose: () => { console.log('Webhook 事件编辑弹窗已关闭'); }
+      }
+    );
+  }, []);
+
   return (
     <div ref={containerRef} className="max-w-7xl mx-auto px-2 sm:px-4 space-y-6">
       {/* Header */}
@@ -222,7 +350,7 @@ const WebhookEventsManager: React.FC = () => {
               <span className="inline-flex items-center gap-2"><FaSync className="w-4 h-4" /> 刷新</span>
             </motion.button>
             <motion.button
-              onClick={() => { setCreating(true); setEditing({ _id: '', type: '', provider: 'resend' } as any); }}
+              onClick={openCreate}
               className="px-3 py-2 rounded-lg bg-white/20 hover:bg-white/30 transition text-sm font-medium"
               whileHover={hoverScale(1.02)}
               whileTap={tapScale(0.98)}
@@ -300,10 +428,10 @@ const WebhookEventsManager: React.FC = () => {
                 </div>
               </div>
               <div className="mt-3 grid grid-cols-3 gap-2 sm:flex sm:flex-row sm:grid-cols-none">
-                <motion.button className="w-full px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-medium flex items-center gap-2" onClick={() => setSelected(it)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                <motion.button className="w-full px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-medium flex items-center gap-2" onClick={() => openDetail(it)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                   <FaEye className="w-3.5 h-3.5" /> 详情
                 </motion.button>
-                <motion.button className="w-full px-3 py-2 rounded-lg bg-amber-500 text-white hover:bg-amber-600 text-xs font-medium flex items-center gap-2" onClick={() => setEditing(it)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                <motion.button className="w-full px-3 py-2 rounded-lg bg-amber-500 text-white hover:bg-amber-600 text-xs font-medium flex items-center gap-2" onClick={() => openEdit(it)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                   <FaEdit className="w-3.5 h-3.5" /> 编辑
                 </motion.button>
                 <motion.button className="w-full px-3 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 text-xs font-medium flex items-center gap-2" onClick={() => handleDelete(it._id)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
@@ -344,10 +472,10 @@ const WebhookEventsManager: React.FC = () => {
                   <td className="p-3 whitespace-nowrap">{it.receivedAt ? new Date(it.receivedAt).toLocaleString('zh-CN') : '-'}</td>
                   <td className="p-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <motion.button className="px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-medium flex items-center gap-2" onClick={() => setSelected(it)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                      <motion.button className="px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-medium flex items-center gap-2" onClick={() => openDetail(it)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                         <FaEye className="w-3.5 h-3.5" /> <span className="hidden sm:inline">详情</span>
                       </motion.button>
-                      <motion.button className="px-2 py-1 rounded-lg bg-amber-500 text-white hover:bg-amber-600 text-xs font-medium" onClick={() => setEditing(it)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                      <motion.button className="px-2 py-1 rounded-lg bg-amber-500 text-white hover:bg-amber-600 text-xs font-medium" onClick={() => openEdit(it)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                         <FaEdit className="w-3.5 h-3.5" /> <span className="hidden sm:inline">编辑</span>
                       </motion.button>
                       <motion.button className="px-2 py-1 rounded-lg bg-red-500 text-white hover:bg-red-600 text-xs font-medium" onClick={() => handleDelete(it._id)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
@@ -381,10 +509,10 @@ const WebhookEventsManager: React.FC = () => {
       <AnimatePresence>
         {selected && (
           <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <motion.div className="bg-white/90 backdrop-blur rounded-2xl max-w-3xl w-[95vw] p-4 sm:p-6 border border-white/20 shadow-xl" initial={{ scale: 0.95, y: 10, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 10, opacity: 0 }}>
+            <motion.div className="bg-white/90 backdrop-blur rounded-2xl max-w-3xl w-[95vw] p-4 sm:p-6 border border-white/20 shadow-xl" initial={{ scale: 0.95, y: 10, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 10, opacity: 0 }} data-source-modal="webhook-event-detail">
               <div className="flex items-center justify-between mb-3">
                 <div className="font-semibold text-gray-900">事件详情</div>
-                <motion.button onClick={() => setSelected(null)} className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                <motion.button onClick={closeDetailModal} className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                   <FaTimes className="w-4 h-4" /> 关闭
                 </motion.button>
               </div>
@@ -398,10 +526,10 @@ const WebhookEventsManager: React.FC = () => {
       <AnimatePresence>
         {(editing || creating) && (
           <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <motion.div className="bg-white/90 backdrop-blur rounded-2xl max-w-2xl w-[95vw] p-4 sm:p-6 space-y-4 border border-white/20 shadow-xl" initial={{ scale: 0.95, y: 10, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 10, opacity: 0 }}>
+            <motion.div className="bg-white/90 backdrop-blur rounded-2xl max-w-2xl w-[95vw] p-4 sm:p-6 space-y-4 border border-white/20 shadow-xl" initial={{ scale: 0.95, y: 10, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 10, opacity: 0 }} data-source-modal="webhook-event-edit">
               <div className="flex items-center justify-between">
                 <div className="font-semibold text-gray-900">{creating ? '新增事件' : '编辑事件'}</div>
-                <motion.button onClick={() => { setEditing(null); setCreating(false); }} className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                <motion.button onClick={closeEditModal} className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                   <FaTimes className="w-4 h-4" /> 关闭
                 </motion.button>
               </div>
