@@ -328,7 +328,6 @@ const UserProfile: React.FC = () => {
     };
   }, [profile, loadAvatar]);
 
-
   // 新增头像上传限制
   const MAX_AVATAR_SIZE = 2 * 1024 * 1024; // 2MB
   const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -458,7 +457,7 @@ const UserProfile: React.FC = () => {
     };
   }, [avatarLoading]);
 
-  // Optimized verification flow
+  // Optimized verification flow - only require 2FA if enabled
   const handleVerify = useCallback(async () => {
     if (!profile?.id) {
       setNotification({ message: '用户信息不完整', type: 'error' });
@@ -468,6 +467,27 @@ const UserProfile: React.FC = () => {
     setLoading(true);
 
     try {
+      // Check if user has any 2FA methods enabled
+      const has2FA = totpStatus?.enabled || totpStatus?.hasPasskey;
+      
+      if (!has2FA) {
+        // No 2FA enabled - verify with current password only
+        if (!password) {
+          setNotification({ message: '请输入当前密码', type: 'warning' });
+          return;
+        }
+
+        const res = await updateProfile({ password });
+        if (res && !res.error) {
+          setVerified(true);
+          setNotification({ message: '密码验证成功，请继续修改', type: 'success' });
+        } else {
+          setNotification({ message: res?.error || '密码验证失败', type: 'error' });
+        }
+        return;
+      }
+
+      // User has 2FA enabled - proceed with 2FA verification
       if (totpStatus?.hasPasskey && !totpStatus?.enabled) {
         // Passkey only verification
         const username = profile.username;
@@ -506,24 +526,6 @@ const UserProfile: React.FC = () => {
         return;
       }
 
-      // No 2FA - verify with current password
-      if (!totpStatus?.hasPasskey && !totpStatus?.enabled) {
-        if (!password) {
-          setNotification({ message: '请输入当前密码', type: 'warning' });
-          return;
-        }
-
-        const res = await updateProfile({ password });
-        if (res && !res.error) {
-          setVerified(true);
-          setNotification({ message: '密码验证成功，请继续修改', type: 'success' });
-        } else {
-          setNotification({ message: res?.error || '密码验证失败', type: 'error' });
-        }
-        return;
-      }
-
-      setNotification({ message: '未检测到二次验证方式', type: 'error' });
     } catch (error) {
       console.error('[UserProfile] Verification error:', error);
       const errorMessage = error instanceof Error ? error.message : '验证失败';
@@ -533,15 +535,19 @@ const UserProfile: React.FC = () => {
     }
   }, [profile, totpStatus, verificationCode, password, authenticateWithPasskey, setNotification]);
 
-  // Optimized profile update logic
+  // Optimized profile update logic - only require verification if 2FA is enabled
   const handleUpdate = useCallback(async () => {
-    // Validation
-    if (totpStatus && !totpStatus.enabled && !totpStatus.hasPasskey) {
+    const has2FA = totpStatus?.enabled || totpStatus?.hasPasskey;
+    
+    // Validation based on 2FA status
+    if (!has2FA) {
+      // No 2FA - only require current password
       if (!password) {
         setNotification({ message: '请输入当前密码', type: 'warning' });
         return;
       }
     } else {
+      // 2FA enabled - require verification
       if (!verified) {
         setNotification({ message: '请先通过二次验证', type: 'warning' });
         return;
@@ -553,9 +559,9 @@ const UserProfile: React.FC = () => {
     try {
       const updateData = {
         email,
-        password: totpStatus && !totpStatus.enabled && !totpStatus.hasPasskey ? password : undefined,
+        password: !has2FA ? password : undefined,
         newPassword: newPassword || undefined,
-        verificationCode: totpStatus && (totpStatus.enabled || totpStatus.hasPasskey) ? verificationCode : undefined,
+        verificationCode: has2FA ? verificationCode : undefined,
       };
 
       const res = await updateProfile(updateData);
@@ -680,6 +686,7 @@ const UserProfile: React.FC = () => {
       </div>
     );
   }
+
   if (loadError) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8 px-4 rounded-lg">
@@ -702,6 +709,7 @@ const UserProfile: React.FC = () => {
       </div>
     );
   }
+
   if (loading || !profile) {
     if (loadTimeout) {
       return (
@@ -832,11 +840,11 @@ const UserProfile: React.FC = () => {
                 placeholder="请输入邮箱地址"
               />
             </motion.div>
-            {totpStatus && !totpStatus.enabled && !totpStatus.hasPasskey ? (
+            {!totpStatus?.enabled && !totpStatus?.hasPasskey ? (
               <motion.div className="mb-6" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: 0.24 }}>
                 <label className="flex items-center gap-2 text-gray-700 mb-2 font-medium">
                   <FaLock className="text-blue-600" />
-                  当前密码（未绑定二次认证时用于身份校验）
+                  当前密码（用于身份验证）
                 </label>
                 <motion.input
                   type="password"
@@ -844,6 +852,8 @@ const UserProfile: React.FC = () => {
                   onChange={e => setPassword(e.target.value)}
                   className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all bg-white/50 backdrop-blur-sm"
                   whileFocus={{ scale: 1.02 }}
+                  disabled={loading}
+                  placeholder="请输入当前密码"
                 />
               </motion.div>
             ) : (
@@ -852,6 +862,11 @@ const UserProfile: React.FC = () => {
                   <FaShieldAlt className="text-blue-600" />
                   二次验证（TOTP/Passkey）
                 </label>
+                <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-sm text-blue-700">
+                    检测到您已启用二次验证，请完成验证后再修改信息
+                  </p>
+                </div>
                 <VerifyCodeInput
                   length={6}
                   onComplete={setVerificationCode}
@@ -861,13 +876,21 @@ const UserProfile: React.FC = () => {
                 />
                 <motion.button
                   onClick={handleVerify}
-                  className="mt-3 px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 shadow-lg font-medium"
-                  disabled={loading || verificationCode.length !== 6}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                  className="mt-3 px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 shadow-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={loading || (totpStatus?.enabled && verificationCode.length !== 6)}
+                  whileHover={{ scale: loading ? 1 : 1.05 }}
+                  whileTap={{ scale: loading ? 1 : 0.95 }}
                 >
-                  验证
+                  {loading ? '验证中...' : '验证'}
                 </motion.button>
+                {verified && (
+                  <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                    <p className="text-sm text-green-700 flex items-center gap-2">
+                      <FaShieldAlt className="text-green-600" />
+                      验证成功，现在可以修改信息
+                    </p>
+                  </div>
+                )}
               </motion.div>
             )}
             <div className="mb-6">
@@ -954,7 +977,7 @@ const UserProfile: React.FC = () => {
                   <FaShieldAlt className="text-white text-2xl" />
                 </div>
                 <h3 className="text-xl font-bold text-gray-800 mb-2">选择验证方式</h3>
-                <p className="text-gray-600 text-sm">为 admin 选择一种验证方式</p>
+                <p className="text-gray-600 text-sm">为 {profile.username} 选择一种验证方式</p>
               </div>
 
               <div className="space-y-4">

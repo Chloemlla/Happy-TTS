@@ -7,12 +7,75 @@ import { logger } from './logger';
 import cheerio from 'cheerio';
 import { mongoose } from './mongoService';
 
-// MongoDB IP信息 Schema
+// 性能监控和统计
+interface IPServiceStats {
+  totalQueries: number;
+  cacheHits: number;
+  mongoHits: number;
+  apiCalls: number;
+  errors: number;
+  avgResponseTime: number;
+  bulkWriteCount: number;
+  lastResetTime: Date;
+}
+
+const serviceStats: IPServiceStats = {
+  totalQueries: 0,
+  cacheHits: 0,
+  mongoHits: 0,
+  apiCalls: 0,
+  errors: 0,
+  avgResponseTime: 0,
+  bulkWriteCount: 0,
+  lastResetTime: new Date()
+};
+
+const responseTimes: number[] = [];
+const MAX_RESPONSE_TIME_SAMPLES = 100;
+
+// MongoDB IP信息 Schema - 优化版本
 const IPInfoSchema = new mongoose.Schema({
-  ip: { type: String, required: true, unique: true },
-  info: { type: Object, required: true },
-  timestamp: { type: Number, required: true },
-}, { collection: 'ip_infos' });
+  ip: { 
+    type: String, 
+    required: true, 
+    unique: true,
+    index: true // 主查询字段索引
+  },
+  // 展开info对象为独立字段，提升查询性能
+  country: { type: String, required: true, default: '未知' },
+  region: { type: String, required: true, default: '未知' },
+  city: { type: String, required: true, default: '未知' },
+  isp: { type: String, required: true, default: '未知' },
+  timestamp: { 
+    type: Date, 
+    required: true, 
+    default: Date.now,
+    index: true // 用于TTL和时间范围查询
+  },
+  // 添加查询统计字段
+  queryCount: { type: Number, default: 1 },
+  lastQueried: { type: Date, default: Date.now }
+}, { 
+  collection: 'ip_infos',
+  // 优化选项
+  timestamps: false, // 使用自定义timestamp字段
+  versionKey: false, // 移除__v字段
+  // 添加复合索引
+  index: [
+    { ip: 1 }, // 单字段索引
+    { timestamp: 1 }, // TTL索引
+    { country: 1, region: 1 }, // 地理位置复合索引
+    { queryCount: -1, lastQueried: -1 } // 热点数据索引
+  ]
+});
+
+// 添加TTL索引 - 1小时后自动过期
+IPInfoSchema.index({ timestamp: 1 }, { expireAfterSeconds: 3600 });
+
+// 添加复合索引优化常见查询
+IPInfoSchema.index({ country: 1, region: 1, city: 1 });
+IPInfoSchema.index({ queryCount: -1, lastQueried: -1 });
+
 const IPInfoModel = mongoose.models.IPInfo || mongoose.model('IPInfo', IPInfoSchema);
 
 interface IPInfo {
@@ -271,58 +334,146 @@ async function tryAllProviders(ip: string): Promise<IPInfo> {
   throw new Error('所有API提供商都查询失败');
 }
 
-// 本地存储相关配置
 const DATA_DIR = join(process.cwd(), 'data');
 const IP_DATA_FILE = join(DATA_DIR, 'ip-info.json');
 const LOCAL_CACHE: { [key: string]: IPInfo } = {};
 
-// MongoDB写入速率限制队列
-const mongoWriteQueue: (() => Promise<void>)[] = [];
-let mongoWriteCount = 0;
-let mongoWriteTimer: NodeJS.Timeout | null = null;
-
-function scheduleMongoWrite(task: () => Promise<void>) {
-  mongoWriteQueue.push(task);
-  processMongoWriteQueue();
+// MongoDB批量写入优化
+interface BulkWriteItem {
+  ip: string;
+  country: string;
+  region: string;
+  city: string;
+  isp: string;
+  timestamp: Date;
+  queryCount: number;
+  lastQueried: Date;
 }
 
-function processMongoWriteQueue() {
-  if (mongoWriteCount >= 20) {
-    if (!mongoWriteTimer) {
-      mongoWriteTimer = setTimeout(() => {
-        mongoWriteCount = 0;
-        mongoWriteTimer = null;
-        processMongoWriteQueue();
-      }, 1000);
-    }
+const bulkWriteQueue: BulkWriteItem[] = [];
+const BULK_WRITE_SIZE = 50; // 批量写入大小
+const BULK_WRITE_INTERVAL = 2000; // 2秒批量写入间隔
+let bulkWriteTimer: NodeJS.Timeout | null = null;
+let isProcessingBulkWrite = false;
+
+// 批量写入处理函数
+async function processBulkWrite(): Promise<void> {
+  if (isProcessingBulkWrite || bulkWriteQueue.length === 0) {
     return;
   }
-  while (mongoWriteQueue.length && mongoWriteCount < 20) {
-    const task = mongoWriteQueue.shift();
-    if (task) {
-      mongoWriteCount++;
-      task().catch(e => logger.error('MongoDB写入队列任务失败', e));
+
+  isProcessingBulkWrite = true;
+  const itemsToWrite = bulkWriteQueue.splice(0, BULK_WRITE_SIZE);
+  
+  try {
+    if (mongoose.connection.readyState === 1 && itemsToWrite.length > 0) {
+      // 使用bulkWrite进行批量操作
+      const bulkOps = itemsToWrite.map(item => ({
+        updateOne: {
+          filter: { ip: item.ip },
+          update: {
+            $set: {
+              country: item.country,
+              region: item.region,
+              city: item.city,
+              isp: item.isp,
+              timestamp: item.timestamp,
+              lastQueried: item.lastQueried
+            },
+            $inc: { queryCount: 1 }
+          },
+          upsert: true
+        }
+      }));
+
+      await IPInfoModel.bulkWrite(bulkOps, {
+        ordered: false, // 非顺序执行，提升性能
+        writeConcern: { w: 1, j: false }, // 优化写入关注点
+        bypassDocumentValidation: false // 保持文档验证
+      });
+
+      incrementStat('bulkWriteCount');
+
+      logger.log(`批量写入${itemsToWrite.length}条IP信息到MongoDB`);
+      
+      // 更新本地缓存
+      itemsToWrite.forEach(item => {
+        LOCAL_CACHE[item.ip] = {
+          ip: item.ip,
+          country: item.country,
+          region: item.region,
+          city: item.city,
+          isp: item.isp,
+          timestamp: item.timestamp.getTime()
+        };
+      });
     }
-  }
-  if (mongoWriteQueue.length && !mongoWriteTimer) {
-    mongoWriteTimer = setTimeout(() => {
-      mongoWriteCount = 0;
-      mongoWriteTimer = null;
-      processMongoWriteQueue();
-    }, 1000);
+  } catch (error) {
+    logger.error('MongoDB批量写入失败:', error);
+    // 失败的项目重新加入队列
+    bulkWriteQueue.unshift(...itemsToWrite);
+  } finally {
+    isProcessingBulkWrite = false;
+    
+    // 如果还有待处理项目，继续处理
+    if (bulkWriteQueue.length > 0) {
+      scheduleBulkWrite();
+    }
   }
 }
 
-// 初始化本地存储
+// 调度批量写入
+function scheduleBulkWrite(): void {
+  if (bulkWriteTimer) {
+    return;
+  }
+  
+  bulkWriteTimer = setTimeout(async () => {
+    bulkWriteTimer = null;
+    await processBulkWrite();
+  }, BULK_WRITE_INTERVAL);
+}
+
+// 添加项目到批量写入队列
+function addToBulkWriteQueue(item: BulkWriteItem): void {
+  bulkWriteQueue.push(item);
+  
+  // 如果队列达到批量大小，立即处理
+  if (bulkWriteQueue.length >= BULK_WRITE_SIZE) {
+    if (bulkWriteTimer) {
+      clearTimeout(bulkWriteTimer);
+      bulkWriteTimer = null;
+    }
+    processBulkWrite();
+  } else {
+    scheduleBulkWrite();
+  }
+}
+
+// 初始化本地存储 - 优化版本
 async function initializeLocalStorage(): Promise<void> {
   try {
     if (mongoose.connection.readyState === 1) {
-      // MongoDB: 加载所有IP到本地缓存
-      const all = await IPInfoModel.find().lean();
+      // MongoDB: 使用projection和lean()优化查询
+      const all = await IPInfoModel.find(
+        {}, 
+        { ip: 1, country: 1, region: 1, city: 1, isp: 1, timestamp: 1, _id: 0 } // 只查询需要的字段
+      )
+      .lean() // 返回普通JS对象，提升性能
+      .limit(10000) // 限制查询数量，防止内存溢出
+      .sort({ lastQueried: -1 }); // 按最近查询时间排序，优先加载热点数据
+      
       for (const doc of all) {
-        LOCAL_CACHE[doc.ip] = { ...doc.info, timestamp: doc.timestamp };
+        LOCAL_CACHE[doc.ip] = {
+          ip: doc.ip,
+          country: doc.country,
+          region: doc.region,
+          city: doc.city,
+          isp: doc.isp,
+          timestamp: doc.timestamp instanceof Date ? doc.timestamp.getTime() : doc.timestamp
+        };
       }
-      logger.log(`Loaded ${all.length} IP records from MongoDB`);
+      logger.log(`从MongoDB加载${all.length}条IP记录到本地缓存`);
       return;
     }
   } catch (error) {
@@ -353,20 +504,30 @@ async function initializeLocalStorage(): Promise<void> {
   }
 }
 
-// 保存 IP 信息到本地文件
+// 保存 IP 信息到本地存储 - 优化版本
 async function saveIPInfoToLocal(info: IPInfo): Promise<void> {
   try {
     if (mongoose.connection.readyState === 1) {
-      // 限速写入MongoDB，后台排队
-      scheduleMongoWrite(async () => {
-        await IPInfoModel.findOneAndUpdate(
-          { ip: info.ip },
-          { info, timestamp: Date.now() },
-          { upsert: true }
-        );
-        LOCAL_CACHE[info.ip] = { ...info, timestamp: Date.now() };
-      });
-      // 优先返回，不等待写入完成
+      // 添加到批量写入队列
+      const bulkItem: BulkWriteItem = {
+        ip: info.ip,
+        country: info.country,
+        region: info.region,
+        city: info.city,
+        isp: info.isp,
+        timestamp: new Date(),
+        queryCount: 1,
+        lastQueried: new Date()
+      };
+      
+      addToBulkWriteQueue(bulkItem);
+      
+      // 立即更新本地缓存
+      LOCAL_CACHE[info.ip] = {
+        ...info,
+        timestamp: Date.now()
+      };
+      
       return;
     }
   } catch (error) {
@@ -384,10 +545,14 @@ async function saveIPInfoToLocal(info: IPInfo): Promise<void> {
   }
 }
 
-// 从本地获取 IP 信息
+// 从本地获取 IP 信息 - 优化版本
 function getIPInfoFromLocal(ip: string): IPInfo | null {
   const info = LOCAL_CACHE[ip];
-  if (!info) return null;
+  if (!info) {
+    // 如果本地缓存没有，尝试从MongoDB查询
+    queryIPFromMongoDB(ip);
+    return null;
+  }
 
   // 检查是否过期（1小时）
   if (info.timestamp && Date.now() - info.timestamp < CACHE_TTL) {
@@ -399,82 +564,309 @@ function getIPInfoFromLocal(ip: string): IPInfo | null {
   return null;
 }
 
+// 异步从MongoDB查询单个IP（不阻塞主流程）
+async function queryIPFromMongoDB(ip: string): Promise<void> {
+  try {
+    if (mongoose.connection.readyState === 1) {
+      const doc = await IPInfoModel.findOne(
+        { ip }, 
+        { ip: 1, country: 1, region: 1, city: 1, isp: 1, timestamp: 1, _id: 0 }
+      ).lean();
+      
+      if (doc) {
+        LOCAL_CACHE[ip] = {
+          ip: (doc as any).ip as string,
+          country: (doc as any).country as string,
+          region: (doc as any).region as string,
+          city: (doc as any).city as string,
+          isp: (doc as any).isp as string,
+          timestamp: (doc as any).timestamp instanceof Date ? (doc as any).timestamp.getTime() : ((doc as any).timestamp as number)
+        };
+        
+        // 更新查询统计（异步执行，不等待结果）
+        IPInfoModel.updateOne(
+          { ip },
+          { 
+            $inc: { queryCount: 1 },
+            $set: { lastQueried: new Date() }
+          },
+          { writeConcern: { w: 1, j: false } } // 优化写入关注点
+        ).exec().catch(err => {
+          logger.log('更新IP查询统计失败:', { ip, error: err.message });
+        });
+      }
+    }
+  } catch (error) {
+    // 静默处理错误，不影响主流程
+    logger.log('异步MongoDB查询失败:', { ip, error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
 // 初始化本地存储
 initializeLocalStorage();
 
+// 优化内存缓存管理
 function setIpCache(ip: string, value: { info: IPInfo; timestamp: number }) {
+  // LRU缓存清理策略
   if (ipCache.size >= MAX_CACHE_SIZE) {
-    // 删除最早的key
-    const firstKey = ipCache.keys().next().value;
-    if (firstKey) ipCache.delete(firstKey);
+    // 找到最旧的条目并删除
+    let oldestKey = '';
+    let oldestTime = Date.now();
+    
+    for (const [key, val] of ipCache.entries()) {
+      if (val.timestamp < oldestTime) {
+        oldestTime = val.timestamp;
+        oldestKey = key;
+      }
+    }
+    
+    if (oldestKey) {
+      ipCache.delete(oldestKey);
+    }
   }
   ipCache.set(ip, value);
 }
 
-export async function getIPInfo(ip: string): Promise<IPInfo> {
-  if (!isValidPublicIPv4(ip)) {
-    return {
-      ip,
-      country: '非法IP',
-      region: '非法IP',
-      city: '非法IP',
-      isp: '非法IP'
-    };
-  }
-  let lastError: any = null;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      // 处理特殊IP
-      if (!ip || ip === '::1' || ip === 'localhost') {
-        ip = '127.0.0.1';
-      }
-      ip = ip.replace(/^::ffff:/, '');
-      if (isPrivateIP(ip)) {
-        logger.log('检测到内网IP，返回本地信息', { ip });
-        return getPrivateIPInfo(ip);
-      }
-      const cached = ipCache.get(ip);
-      if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-        logger.log('使用内存缓存的IP信息', { ip });
-        return cached.info;
-      }
-      const localInfo = getIPInfoFromLocal(ip);
-      if (localInfo) {
-        setIpCache(ip, { info: localInfo, timestamp: Date.now() });
-        logger.log('使用本地存储的IP信息', { ip });
-        return localInfo;
-      }
-      logger.log('开始查询外部API获取IP信息', { ip });
-      return await withConcurrencyLimit(async () => {
-        return await withRetry(async () => {
-          const info = await tryAllProviders(ip);
-          setIpCache(ip, { info, timestamp: Date.now() });
-          await saveIPInfoToLocal(info);
-          logger.log('成功获取IP信息', { ip, info });
-          return info;
-        });
-      });
-    } catch (error) {
-      lastError = error;
-      logger.error(`IP信息查询失败（第${attempt + 1}次），2秒后重试...`, { ip, error: error instanceof Error ? error.message : String(error) });
-      if (attempt < 2) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
+// 添加缓存统计和清理功能
+function getCacheStats(): { size: number; hitRate: number; memoryUsage: string } {
+  const memoryUsage = process.memoryUsage();
+  return {
+    size: ipCache.size,
+    hitRate: 0, // 可以添加命中率统计
+    memoryUsage: `${Math.round(memoryUsage.heapUsed / 1024 / 1024)}MB`
+  };
+}
+
+// 定期清理过期缓存
+setInterval(() => {
+  const now = Date.now();
+  const expiredKeys: string[] = [];
+  
+  for (const [key, value] of ipCache.entries()) {
+    if (now - value.timestamp > CACHE_TTL) {
+      expiredKeys.push(key);
     }
   }
-  // 全部失败后兜底
-  logger.error('IP信息查询连续失败，返回默认信息', { ip, error: lastError instanceof Error ? lastError.message : String(lastError) });
+  
+  expiredKeys.forEach(key => ipCache.delete(key));
+  
+  if (expiredKeys.length > 0) {
+    logger.log(`清理${expiredKeys.length}个过期IP缓存`);
+  }
+}, 300000); // 5分钟清理一次
+
+// 性能监控函数
+function recordResponseTime(time: number): void {
+  responseTimes.push(time);
+  if (responseTimes.length > MAX_RESPONSE_TIME_SAMPLES) {
+    responseTimes.shift();
+  }
+  
+  // 计算平均响应时间
+  serviceStats.avgResponseTime = responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length;
+}
+
+function incrementStat(statName: keyof IPServiceStats, value: number = 1): void {
+  if (typeof serviceStats[statName] === 'number') {
+    (serviceStats[statName] as number) += value;
+  }
+}
+
+// 获取性能统计信息
+function getIPServiceStats(): IPServiceStats & {
+  cacheHitRate: number;
+  mongoHitRate: number;
+  errorRate: number;
+  memoryUsage: string;
+  bulkQueueSize: number;
+} {
+  const memoryUsage = process.memoryUsage();
   return {
-    ip,
-    country: '未知',
-    region: '未知',
-    city: '未知',
-    isp: '未知'
+    ...serviceStats,
+    cacheHitRate: serviceStats.totalQueries > 0 ? (serviceStats.cacheHits / serviceStats.totalQueries) * 100 : 0,
+    mongoHitRate: serviceStats.totalQueries > 0 ? (serviceStats.mongoHits / serviceStats.totalQueries) * 100 : 0,
+    errorRate: serviceStats.totalQueries > 0 ? (serviceStats.errors / serviceStats.totalQueries) * 100 : 0,
+    memoryUsage: `${Math.round(memoryUsage.heapUsed / 1024 / 1024)}MB`,
+    bulkQueueSize: bulkWriteQueue.length
   };
+}
+
+// 重置统计信息
+function resetIPServiceStats(): void {
+  Object.keys(serviceStats).forEach(key => {
+    if (key !== 'lastResetTime') {
+      (serviceStats as any)[key] = 0;
+    }
+  });
+  serviceStats.lastResetTime = new Date();
+  responseTimes.length = 0;
+  logger.log('IP服务统计信息已重置');
+}
+
+// 定期输出性能统计
+setInterval(() => {
+  const stats = getIPServiceStats();
+  if (stats.totalQueries > 0) {
+    logger.log('IP服务性能统计:', {
+      总查询数: stats.totalQueries,
+      缓存命中率: `${stats.cacheHitRate.toFixed(2)}%`,
+      MongoDB命中率: `${stats.mongoHitRate.toFixed(2)}%`,
+      错误率: `${stats.errorRate.toFixed(2)}%`,
+      平均响应时间: `${stats.avgResponseTime.toFixed(2)}ms`,
+      批量写入次数: stats.bulkWriteCount,
+      队列大小: stats.bulkQueueSize,
+      内存使用: stats.memoryUsage
+    });
+  }
+}, 600000); // 10分钟输出一次统计
+
+export async function getIPInfo(ip: string): Promise<IPInfo> {
+  const startTime = Date.now();
+  incrementStat('totalQueries');
+  
+  try {
+    if (!isValidPublicIPv4(ip)) {
+      return {
+        ip,
+        country: '非法IP',
+        region: '非法IP',
+        city: '非法IP',
+        isp: '非法IP'
+      };
+    }
+    
+    let lastError: any = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        // 处理特殊IP
+        if (!ip || ip === '::1' || ip === 'localhost') {
+          ip = '127.0.0.1';
+        }
+        ip = ip.replace(/^::ffff:/, '');
+        
+        if (isPrivateIP(ip)) {
+          logger.log('检测到内网IP，返回本地信息', { ip });
+          return getPrivateIPInfo(ip);
+        }
+        
+        // 检查内存缓存
+        const cached = ipCache.get(ip);
+        if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+          incrementStat('cacheHits');
+          logger.log('使用内存缓存的IP信息', { ip });
+          return cached.info;
+        }
+        
+        // 检查本地存储/MongoDB
+        const localInfo = getIPInfoFromLocal(ip);
+        if (localInfo) {
+          incrementStat('mongoHits');
+          setIpCache(ip, { info: localInfo, timestamp: Date.now() });
+          logger.log('使用本地存储的IP信息', { ip });
+          return localInfo;
+        }
+        
+        // 调用外部API
+        logger.log('开始查询外部API获取IP信息', { ip });
+        const result = await withConcurrencyLimit(async () => {
+          return await withRetry(async () => {
+            const info = await tryAllProviders(ip);
+            incrementStat('apiCalls');
+            setIpCache(ip, { info, timestamp: Date.now() });
+            await saveIPInfoToLocal(info);
+            logger.log('成功获取IP信息', { ip, info });
+            return info;
+          });
+        });
+        
+        return result;
+      } catch (error) {
+        lastError = error;
+        incrementStat('errors');
+        logger.error(`IP信息查询失败（第${attempt + 1}次），2秒后重试...`, { 
+          ip, 
+          error: error instanceof Error ? error.message : String(error) 
+        });
+        
+        if (attempt < 2) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+    }
+    
+    // 全部失败后兜底
+    incrementStat('errors');
+    logger.error('IP信息查询连续失败，返回默认信息', { 
+      ip, 
+      error: lastError instanceof Error ? lastError.message : String(lastError) 
+    });
+    
+    return {
+      ip,
+      country: '未知',
+      region: '未知',
+      city: '未知',
+      isp: '未知'
+    };
+  } finally {
+    // 记录响应时间
+    const responseTime = Date.now() - startTime;
+    recordResponseTime(responseTime);
+  }
 }
 
 export function isIPAllowed(ip: string): boolean {
   const whitelist = (config as any).ip?.whitelist || [];
   if (!whitelist.length) return true;
   return whitelist.includes(ip);
-} 
+}
+
+// 优雅关闭函数
+async function gracefulShutdown(): Promise<void> {
+  logger.log('开始IP服务优雅关闭...');
+  
+  try {
+    // 等待批量写入队列处理完成
+    let waitCount = 0;
+    const maxWait = 30; // 最多等待30秒
+    
+    while (bulkWriteQueue.length > 0 && waitCount < maxWait) {
+      logger.log(`等待批量写入队列处理完成，剩余${bulkWriteQueue.length}项...`);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      waitCount++;
+    }
+    
+    // 强制处理剩余的批量写入
+    if (bulkWriteQueue.length > 0) {
+      logger.log(`强制处理剩余的${bulkWriteQueue.length}项批量写入...`);
+      await processBulkWrite();
+    }
+    
+    // 清理定时器
+    if (bulkWriteTimer) {
+      clearTimeout(bulkWriteTimer);
+      bulkWriteTimer = null;
+    }
+    
+    // 输出最终统计信息
+    const finalStats = getIPServiceStats();
+    logger.log('IP服务最终统计信息:', finalStats);
+    
+    logger.log('IP服务优雅关闭完成');
+  } catch (error) {
+    logger.error('IP服务关闭过程中发生错误:', error);
+  }
+}
+
+// 监听进程退出信号
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);
+process.on('SIGUSR2', gracefulShutdown); // nodemon重启信号
+
+// 导出额外的工具函数
+export {
+  getCacheStats,
+  getIPServiceStats,
+  resetIPServiceStats,
+  gracefulShutdown
+}; 

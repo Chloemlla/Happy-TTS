@@ -57,9 +57,16 @@ const logger = winston.createLogger({
     ]
 });
 
-// 敏感信息过滤
+// 敏感信息过滤配置
+const DISABLE_SENSITIVE_FILTER = process.env.DISABLE_SENSITIVE_FILTER === 'true';
 const sensitiveFields = ['password', 'token', 'secret', 'key', 'adminPassword', 'jwt', 'apiKey'];
+
 const maskSensitiveData = (obj: any, seen: WeakSet<object> = new WeakSet()): any => {
+  // 如果环境变量设置为禁用敏感信息过滤，直接返回原始对象
+  if (DISABLE_SENSITIVE_FILTER) {
+    return obj;
+  }
+
   if (typeof obj !== 'object' || obj === null) return obj;
   if (seen.has(obj as object)) return '[Circular]';
   seen.add(obj as object);
