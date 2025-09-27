@@ -264,6 +264,82 @@ const EnvRow = React.memo(function EnvRow({ item, idx, prefersReducedMotion, onS
   );
 });
 
+// 公共方法：处理数据来源点击
+export const handleSourceClick = (
+  source: string, 
+  setSelectedSource: (source: string) => void, 
+  setShowSourceModal: (show: boolean) => void,
+  options?: {
+    storageKey?: string;
+    getStorageValue?: () => string;
+    onBeforeOpen?: () => void;
+    onAfterOpen?: () => void;
+  }
+) => {
+  // 执行前置回调
+  options?.onBeforeOpen?.();
+  
+  // 记录当前位置 - 支持自定义存储键和值
+  const currentScrollY = window.scrollY;
+  const storageKey = options?.storageKey || 'envManagerScrollPosition';
+  const storageValue = options?.getStorageValue ? options.getStorageValue() : currentScrollY.toString();
+  
+  sessionStorage.setItem(storageKey, storageValue);
+  
+  setSelectedSource(source);
+  setShowSourceModal(true);
+  
+  // 自动滚动到弹窗位置
+  setTimeout(() => {
+    const modal = document.querySelector('[data-source-modal]');
+    if (modal) {
+      modal.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center',
+        inline: 'center'
+      });
+    }
+    
+    // 执行后置回调
+    options?.onAfterOpen?.();
+  }, 100);
+};
+
+// 公共方法：处理数据来源弹窗关闭
+export const handleSourceModalClose = (
+  setShowSourceModal: (show: boolean) => void,
+  options?: {
+    storageKey?: string;
+    getRestoreValue?: () => number;
+    onBeforeClose?: () => void;
+    onAfterClose?: () => void;
+    closeDelay?: number;
+  }
+) => {
+  // 执行前置回调
+  options?.onBeforeClose?.();
+  
+  setShowSourceModal(false);
+  
+  // 恢复原位置 - 支持自定义存储键和恢复值
+  setTimeout(() => {
+    const storageKey = options?.storageKey || 'envManagerScrollPosition';
+    const savedScrollY = sessionStorage.getItem(storageKey);
+    
+    if (savedScrollY) {
+      const scrollY = options?.getRestoreValue ? options.getRestoreValue() : parseInt(savedScrollY, 10);
+      window.scrollTo({
+        top: scrollY,
+        behavior: 'smooth'
+      });
+      sessionStorage.removeItem(storageKey);
+    }
+    
+    // 执行后置回调
+    options?.onAfterClose?.();
+  }, options?.closeDelay || 300); // 等待弹窗关闭动画完成
+};
+
 const EnvManager: React.FC = () => {
   const { user } = useAuth();
   const [envs, setEnvs] = useState<EnvItem[]>([]);
@@ -1744,41 +1820,14 @@ const EnvManager: React.FC = () => {
     }
   }, [debugLogsFilterIp, debugLogsFilterSuccess, debugLogsFilterUserId, debugLogsFilterStartDate, debugLogsFilterEndDate, debugLogsLimit]);
 
-  const handleSourceClick = useCallback((source: string) => {
-    // 记录当前位置
-    const currentScrollY = window.scrollY;
-    sessionStorage.setItem('envManagerScrollPosition', currentScrollY.toString());
-    
-    setSelectedSource(source);
-    setShowSourceModal(true);
-    
-    // 自动滚动到弹窗位置
-    setTimeout(() => {
-      const modal = document.querySelector('[data-source-modal]');
-      if (modal) {
-        modal.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center',
-          inline: 'center'
-        });
-      }
-    }, 100);
+  // 使用公共方法处理数据来源点击
+  const handleSourceClickWrapper = useCallback((source: string) => {
+    handleSourceClick(source, setSelectedSource, setShowSourceModal);
   }, []);
 
-  const handleSourceModalClose = useCallback(() => {
-    setShowSourceModal(false);
-    
-    // 恢复原位置
-    setTimeout(() => {
-      const savedScrollY = sessionStorage.getItem('envManagerScrollPosition');
-      if (savedScrollY) {
-        window.scrollTo({
-          top: parseInt(savedScrollY, 10),
-          behavior: 'smooth'
-        });
-        sessionStorage.removeItem('envManagerScrollPosition');
-      }
-    }, 300); // 等待弹窗关闭动画完成
+  // 使用公共方法处理弹窗关闭
+  const handleSourceModalCloseWrapper = useCallback(() => {
+    handleSourceModalClose(setShowSourceModal);
   }, []);
 
   // 管理员校验
@@ -1922,7 +1971,7 @@ const EnvManager: React.FC = () => {
                           <div className="flex items-start gap-2 sm:gap-3">
                             {item.source && (
                               <button
-                                onClick={() => handleSourceClick(item.source!)}
+                                onClick={() => handleSourceClickWrapper(item.source!)}
                                 className="flex-shrink-0 focus:outline-none self-center"
                                 aria-label="数据来源"
                               >
@@ -1958,7 +2007,7 @@ const EnvManager: React.FC = () => {
                               item={item}
                               idx={idx}
                               prefersReducedMotion={!!prefersReducedMotion}
-                              onSourceClick={handleSourceClick}
+                              onSourceClick={handleSourceClickWrapper}
                             />
                         ))}
                       </tbody>
@@ -3653,7 +3702,7 @@ const EnvManager: React.FC = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
               transition={modalTrans}
-            onClick={handleSourceModalClose}
+            onClick={handleSourceModalCloseWrapper}
             data-source-modal
           >
               <m.div
@@ -3671,7 +3720,7 @@ const EnvManager: React.FC = () => {
                 <h3 className="text-xl font-bold text-gray-900 mb-2">数据来源</h3>
                 <p className="text-gray-600 mb-6">{selectedSource}</p>
                 <button
-                  onClick={handleSourceModalClose}
+                  onClick={handleSourceModalCloseWrapper}
                   className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
                 >
                   确定
