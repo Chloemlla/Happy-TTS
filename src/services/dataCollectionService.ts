@@ -7,6 +7,26 @@ import type { FilterQuery } from 'mongoose';
 import crypto from 'crypto';
 import { RiskEvaluationEngine, type DeviceFingerprint } from './riskEvaluationEngine';
 
+// 性能监控接口
+interface PerformanceStats {
+  totalWrites: number;
+  batchWrites: number;
+  singleWrites: number;
+  avgBatchSize: number;
+  avgWriteTime: number;
+  cacheHitRate: number;
+  queueSize: number;
+  errorCount: number;
+  lastFlushTime: number;
+}
+
+// 批量写入项接口
+interface BatchWriteItem {
+  data: any;
+  timestamp: number;
+  retryCount: number;
+}
+
 // MongoDB 数据收集 Schema（开启 strict 以拒绝未声明字段）
 const DataCollectionSchema = new mongoose.Schema({
   userId: { type: String, required: true },
@@ -39,8 +59,39 @@ class DataCollectionService {
   private readonly hashSeenAt = new Map<string, number>();
   private readonly rawSecret = process.env.DATA_COLLECTION_RAW_SECRET || '';
 
+  // =============== 批量写入优化配置 ===============
+  private readonly BATCH_SIZE = parseInt(process.env.DATA_COLLECTION_BATCH_SIZE || '50');
+  private readonly BATCH_TIMEOUT = parseInt(process.env.DATA_COLLECTION_BATCH_TIMEOUT || '2000'); // 2秒
+  private readonly MAX_QUEUE_SIZE = parseInt(process.env.DATA_COLLECTION_MAX_QUEUE_SIZE || '1000');
+  private readonly MAX_RETRY_COUNT = 3;
+  
+  // 批量写入队列和状态
+  private writeQueue: BatchWriteItem[] = [];
+  private batchTimer: NodeJS.Timeout | null = null;
+  private isProcessingBatch = false;
+  private isShuttingDown = false;
+  
+  // 性能统计
+  private stats: PerformanceStats = {
+    totalWrites: 0,
+    batchWrites: 0,
+    singleWrites: 0,
+    avgBatchSize: 0,
+    avgWriteTime: 0,
+    cacheHitRate: 0,
+    queueSize: 0,
+    errorCount: 0,
+    lastFlushTime: Date.now()
+  };
+  
+  // 写入时间样本（用于计算平均值）
+  private writeTimeSamples: number[] = [];
+  private readonly MAX_SAMPLES = 100;
+
   private constructor() {
     this.initializeService();
+    this.setupBatchProcessor();
+    this.setupGracefulShutdown();
   }
 
   public static getInstance(): DataCollectionService {
@@ -57,9 +108,243 @@ class DataCollectionService {
         await mkdir(this.DATA_DIR, { recursive: true });
         logger.info('Created data directory for data collection');
       }
+      
+      // 启动性能监控
+      this.startPerformanceMonitoring();
+      
+      logger.info('[DataCollection] Service initialized with batch optimization', {
+        batchSize: this.BATCH_SIZE,
+        batchTimeout: this.BATCH_TIMEOUT,
+        maxQueueSize: this.MAX_QUEUE_SIZE
+      });
     } catch (error) {
       logger.error('Error initializing data collection service:', error);
     }
+  }
+
+  // =============== 批量写入优化实现 ===============
+  
+  private setupBatchProcessor() {
+    // 定期处理批量写入
+    setInterval(() => {
+      if (this.writeQueue.length > 0 && !this.isProcessingBatch) {
+        this.processBatch();
+      }
+    }, this.BATCH_TIMEOUT);
+  }
+  
+  private setupGracefulShutdown() {
+    const gracefulShutdown = async () => {
+      logger.info('[DataCollection] Graceful shutdown initiated');
+      this.isShuttingDown = true;
+      
+      // 等待批量写入完成
+      let waitCount = 0;
+      const maxWaitTime = 30000; // 最多等待30秒
+      
+      while (this.writeQueue.length > 0 && waitCount < maxWaitTime) {
+        logger.info(`[DataCollection] Waiting for queue to empty: ${this.writeQueue.length} items remaining`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        waitCount++;
+      }
+      
+      // 强制处理剩余队列
+      if (this.writeQueue.length > 0) {
+        logger.warn(`[DataCollection] Force processing ${this.writeQueue.length} remaining items`);
+        await this.processBatch();
+      }
+      
+      // 清理定时器
+      if (this.batchTimer) {
+        clearTimeout(this.batchTimer);
+      }
+      
+      // 输出最终统计
+      logger.info('[DataCollection] Final performance stats:', this.getPerformanceStats());
+      
+      process.exit(0);
+    };
+    
+    process.on('SIGTERM', gracefulShutdown);
+    process.on('SIGINT', gracefulShutdown);
+  }
+  
+  private async processBatch() {
+    if (this.isProcessingBatch || this.writeQueue.length === 0) {
+      return;
+    }
+    
+    this.isProcessingBatch = true;
+    const startTime = Date.now();
+    
+    try {
+      // 取出批量数据
+      const batchSize = Math.min(this.BATCH_SIZE, this.writeQueue.length);
+      const batch = this.writeQueue.splice(0, batchSize);
+      
+      if (batch.length === 0) {
+        this.isProcessingBatch = false;
+        return;
+      }
+      
+      logger.debug(`[DataCollection] Processing batch of ${batch.length} items`);
+      
+      // 执行批量写入
+      await this.executeBulkWrite(batch);
+      
+      // 更新统计
+      const writeTime = Date.now() - startTime;
+      this.updatePerformanceStats(batch.length, writeTime, true);
+      
+      logger.info(`[DataCollection] Batch write completed: ${batch.length} items in ${writeTime}ms`);
+      
+    } catch (error) {
+      logger.error('[DataCollection] Batch processing failed:', error);
+      this.stats.errorCount++;
+      
+      // 重试机制：将失败的项目重新加入队列（增加重试计数）
+      const retryItems = this.writeQueue.splice(0, Math.min(this.BATCH_SIZE, this.writeQueue.length))
+        .filter(item => item.retryCount < this.MAX_RETRY_COUNT)
+        .map(item => ({ ...item, retryCount: item.retryCount + 1 }));
+      
+      if (retryItems.length > 0) {
+        this.writeQueue.unshift(...retryItems);
+        logger.warn(`[DataCollection] ${retryItems.length} items queued for retry`);
+      }
+    } finally {
+      this.isProcessingBatch = false;
+      this.stats.queueSize = this.writeQueue.length;
+    }
+  }
+  
+  private async executeBulkWrite(batch: BatchWriteItem[]) {
+    if (mongoose.connection.readyState !== 1) {
+      throw new Error('MongoDB 未连接');
+    }
+    
+    const Model = DataCollectionModel;
+    const operations = batch.map(item => ({
+      insertOne: {
+        document: {
+          userId: item.data.userId,
+          action: item.data.action,
+          timestamp: item.data.timestamp,
+          details: item.data.details,
+          riskScore: Number(item.data.riskScore || 0),
+          riskLevel: item.data.riskLevel || 'LOW',
+          analysis: item.data.analysis || {},
+          hash: item.data.hash || undefined,
+          duplicate: Boolean(item.data.duplicate),
+          category: item.data.category || undefined,
+          tags: Array.isArray(item.data.tags) ? item.data.tags.slice(0, 50) : [],
+          encryptedRaw: item.data.encryptedRaw || undefined,
+        }
+      }
+    }));
+    
+    // 使用 bulkWrite 进行批量操作
+    const result = await Model.bulkWrite(operations, {
+      ordered: false, // 非顺序执行，提升并发性能
+      writeConcern: { w: 1, j: false } // 优化写入关注点
+    });
+    
+    logger.debug(`[DataCollection] BulkWrite result:`, {
+      insertedCount: result.insertedCount,
+      modifiedCount: result.modifiedCount,
+      upsertedCount: result.upsertedCount
+    });
+    
+    return result;
+  }
+  
+  private updatePerformanceStats(itemCount: number, writeTime: number, isBatch: boolean) {
+    this.stats.totalWrites += itemCount;
+    
+    if (isBatch) {
+      this.stats.batchWrites++;
+      this.stats.avgBatchSize = (this.stats.avgBatchSize * (this.stats.batchWrites - 1) + itemCount) / this.stats.batchWrites;
+    } else {
+      this.stats.singleWrites++;
+    }
+    
+    // 更新写入时间样本
+    this.writeTimeSamples.push(writeTime);
+    if (this.writeTimeSamples.length > this.MAX_SAMPLES) {
+      this.writeTimeSamples.shift();
+    }
+    
+    // 计算平均写入时间
+    this.stats.avgWriteTime = this.writeTimeSamples.reduce((a, b) => a + b, 0) / this.writeTimeSamples.length;
+    this.stats.lastFlushTime = Date.now();
+  }
+  
+  private startPerformanceMonitoring() {
+    // 每10分钟输出性能统计
+    setInterval(() => {
+      const stats = this.getPerformanceStats();
+      logger.info('[DataCollection] Performance stats:', stats);
+      
+      // 清理过期的去重缓存
+      this.cleanupDedupeCache(Date.now());
+      
+    }, 10 * 60 * 1000); // 10分钟
+  }
+  
+  public getPerformanceStats(): PerformanceStats {
+    return {
+      ...this.stats,
+      queueSize: this.writeQueue.length,
+      cacheHitRate: this.hashSeenAt.size > 0 ? 
+        (this.stats.totalWrites - this.hashSeenAt.size) / this.stats.totalWrites : 0
+    };
+  }
+  
+  public resetPerformanceStats() {
+    this.stats = {
+      totalWrites: 0,
+      batchWrites: 0,
+      singleWrites: 0,
+      avgBatchSize: 0,
+      avgWriteTime: 0,
+      cacheHitRate: 0,
+      queueSize: 0,
+      errorCount: 0,
+      lastFlushTime: Date.now()
+    };
+    this.writeTimeSamples = [];
+    logger.info('[DataCollection] Performance stats reset');
+  }
+  
+  // 优雅关闭服务
+  public async gracefulShutdown(): Promise<void> {
+    logger.info('[DataCollection] Graceful shutdown requested');
+    this.isShuttingDown = true;
+    
+    // 等待批量写入队列处理完成
+    let waitTime = 0;
+    const maxWaitTime = 30000; // 最多等待30秒
+    
+    while (this.writeQueue.length > 0 && waitTime < maxWaitTime) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      waitTime += 1000;
+      logger.debug(`[DataCollection] Waiting for queue: ${this.writeQueue.length} items, ${waitTime/1000}s elapsed`);
+    }
+    
+    // 强制处理剩余的批量写入
+    if (this.writeQueue.length > 0) {
+      logger.warn(`[DataCollection] Force processing ${this.writeQueue.length} remaining items`);
+      await this.processBatch();
+    }
+    
+    // 清理定时器
+    if (this.batchTimer) {
+      clearTimeout(this.batchTimer);
+      this.batchTimer = null;
+    }
+    
+    // 输出最终统计
+    const finalStats = this.getPerformanceStats();
+    logger.info('[DataCollection] Graceful shutdown completed. Final stats:', finalStats);
   }
 
   // 递归清洗：
@@ -340,6 +625,9 @@ class DataCollectionService {
     if (mongoose.connection.readyState !== 1) {
       throw new Error('MongoDB 未连接');
     }
+    
+    const startTime = Date.now();
+    
     const doc = {
       userId: data.userId,
       action: data.action,
@@ -354,9 +642,45 @@ class DataCollectionService {
       tags: Array.isArray(data.tags) ? data.tags.slice(0, 50) : [],
       encryptedRaw: data.encryptedRaw || undefined,
     } as any;
+    
     const created = await DataCollectionModel.create(doc);
-    logger.info('Data saved to MongoDB');
+    
+    // 更新性能统计
+    const writeTime = Date.now() - startTime;
+    this.updatePerformanceStats(1, writeTime, false);
+    
+    logger.debug('Data saved to MongoDB (single write)');
     return (created && (created as any)._id) ? String((created as any)._id) : '';
+  }
+  
+  // 批量写入入口方法
+  private async addToBatchQueue(data: any): Promise<void> {
+    // 检查队列大小限制
+    if (this.writeQueue.length >= this.MAX_QUEUE_SIZE) {
+      logger.warn(`[DataCollection] Queue size limit reached (${this.MAX_QUEUE_SIZE}), forcing batch process`);
+      await this.processBatch();
+    }
+    
+    // 添加到批量队列
+    const batchItem: BatchWriteItem = {
+      data,
+      timestamp: Date.now(),
+      retryCount: 0
+    };
+    
+    this.writeQueue.push(batchItem);
+    this.stats.queueSize = this.writeQueue.length;
+    
+    // 如果达到批量大小，立即处理
+    if (this.writeQueue.length >= this.BATCH_SIZE) {
+      setImmediate(() => this.processBatch());
+    } else if (!this.batchTimer) {
+      // 设置超时处理
+      this.batchTimer = setTimeout(() => {
+        this.batchTimer = null;
+        this.processBatch();
+      }, this.BATCH_TIMEOUT);
+    }
   }
 
   private async saveToFile(data: any): Promise<void> {
@@ -383,28 +707,69 @@ class DataCollectionService {
     logger.info('Data saved to local file');
   }
 
-  public async saveData(data: any, mode: StorageMode = 'both'): Promise<{ savedTo: StorageMode | 'mongo_fallback_file'; id?: string }>{
+  public async saveData(data: any, mode: StorageMode = 'both', forceBatch = true): Promise<{ savedTo: StorageMode | 'mongo_fallback_file' | 'batch_queued'; id?: string }>{
     this.validate(data);
     // 智能预处理与分析
     const prepared = await this.prepareRecord(data);
 
-    if (mode === 'mongo') {
-      const id = await this.saveToMongo(prepared);
-      return { savedTo: 'mongo', id };
-    }
     if (mode === 'file') {
       await this.saveToFile(prepared);
       return { savedTo: 'file' };
     }
+    
+    // 如果服务正在关闭，强制同步写入
+    if (this.isShuttingDown) {
+      forceBatch = false;
+    }
+    
+    if (mode === 'mongo') {
+      if (forceBatch && !this.isShuttingDown) {
+        // 使用批量写入队列
+        await this.addToBatchQueue(prepared);
+        return { savedTo: 'mongo' };
+      } else {
+        // 直接写入
+        const id = await this.saveToMongo(prepared);
+        return { savedTo: 'mongo', id };
+      }
+    }
+    
     // both: 优先 Mongo，失败则文件兜底
     try {
-      const id = await this.saveToMongo(prepared);
-      return { savedTo: 'both', id };
+      if (forceBatch && !this.isShuttingDown) {
+        // 使用批量写入队列
+        await this.addToBatchQueue(prepared);
+        return { savedTo: 'both' };
+      } else {
+        // 直接写入
+        const id = await this.saveToMongo(prepared);
+        return { savedTo: 'both', id };
+      }
     } catch (err) {
       logger.error('MongoDB 保存失败，回退到本地文件:', err);
       await this.saveToFile(prepared);
       return { savedTo: 'mongo_fallback_file' };
     }
+  }
+  
+  // 强制刷新批量队列（用于测试或紧急情况）
+  public async flushBatchQueue(): Promise<{ flushedCount: number; remainingCount: number }> {
+    const initialCount = this.writeQueue.length;
+    
+    if (initialCount === 0) {
+      return { flushedCount: 0, remainingCount: 0 };
+    }
+    
+    logger.info(`[DataCollection] Manual flush requested: ${initialCount} items in queue`);
+    
+    await this.processBatch();
+    
+    const remainingCount = this.writeQueue.length;
+    const flushedCount = initialCount - remainingCount;
+    
+    logger.info(`[DataCollection] Manual flush completed: ${flushedCount} flushed, ${remainingCount} remaining`);
+    
+    return { flushedCount, remainingCount };
   }
 
   // =============== Admin management helpers (Mongo only) ===============
@@ -495,7 +860,7 @@ class DataCollectionService {
     return { statusCode: 200, body: { success: true, deletedCount } };
   }
 
-  public async stats() {
+  public async getStats() {
     if (!this.isMongoReady()) throw new Error('MongoDB 未连接');
     const Model = mongoose.models.DataCollection as any;
     const total = await Model.estimatedDocumentCount();

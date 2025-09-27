@@ -13,7 +13,7 @@ const guard = [dataCollectionLimiter, authenticateToken, authenticateAdmin] as c
 // GET /api/data-collection/admin/stats
 router.get('/stats', ...guard, async (req: Request, res: Response) => {
   try {
-    const stats = await dataCollectionService.stats();
+    const stats = await dataCollectionService.getStats();
     res.json({ success: true, data: stats });
   } catch (e: any) {
     logger.error('[DataCollectionAdmin] stats error:', e);

@@ -7,6 +7,7 @@ import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import jsonLang from 'react-syntax-highlighter/dist/esm/languages/prism/json';
 import jsLang from 'react-syntax-highlighter/dist/esm/languages/prism/javascript';
+import { handleSourceClick, handleSourceModalClose } from './EnvManager';
 
 SyntaxHighlighter.registerLanguage('json', jsonLang);
 SyntaxHighlighter.registerLanguage('javascript', jsLang);
@@ -27,8 +28,8 @@ const jsonPretty = (obj: any) => {
 };
 
 // Memoized desktop row
-const DataRow = React.memo(({ item, checked, onToggle, onView, onDelete }: {
-    item: Item; checked: boolean; onToggle: (id: string) => void; onView: (it: Item) => void; onDelete: (id: string) => void;
+const DataRow = React.memo(({ item, checked, onToggle, onView, onDelete, openDetail }: {
+    item: Item; checked: boolean; onToggle: (id: string) => void; onView: (it: Item) => void; onDelete: (id: string) => void; openDetail: (item: Item) => void;
 }) => {
     const { setNotification } = useNotification();
     const prefersReducedMotion = useReducedMotion();
@@ -68,7 +69,7 @@ const DataRow = React.memo(({ item, checked, onToggle, onView, onDelete }: {
             <td className="p-3 break-words whitespace-normal" title={item.action}>{item.action}</td>
             <td className="p-3">
                 <div className="flex flex-wrap gap-2">
-                    <motion.button className="px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-medium flex items-center gap-2" onClick={() => onView(item)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                    <motion.button className="px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-medium flex items-center gap-2" onClick={() => openDetail(item)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                         <FaEye className="w-3.5 h-3.5" /> 查看
                     </motion.button>
                     <motion.button className="px-2 py-1 rounded-lg bg-red-500 text-white hover:bg-red-600 text-xs font-medium" onClick={() => onDelete(item._id)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
@@ -81,8 +82,8 @@ const DataRow = React.memo(({ item, checked, onToggle, onView, onDelete }: {
 });
 
 // Memoized mobile card
-const DataCard = React.memo(({ item, checked, onToggle, onView, onDelete }: {
-    item: Item; checked: boolean; onToggle: (id: string) => void; onView: (it: Item) => void; onDelete: (id: string) => void;
+const DataCard = React.memo(({ item, checked, onToggle, onView, onDelete, openDetail }: {
+    item: Item; checked: boolean; onToggle: (id: string) => void; onView: (it: Item) => void; onDelete: (id: string) => void; openDetail: (item: Item) => void;
 }) => {
     const { setNotification } = useNotification();
     const prefersReducedMotion = useReducedMotion();
@@ -127,7 +128,7 @@ const DataCard = React.memo(({ item, checked, onToggle, onView, onDelete }: {
                 </div>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2">
-                <motion.button className="w-full px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-medium flex items-center justify-center gap-1" onClick={() => onView(item)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                <motion.button className="w-full px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-medium flex items-center justify-center gap-1" onClick={() => openDetail(item)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                     <FaEye className="w-3.5 h-3.5" /> 查看
                 </motion.button>
                 <motion.button className="w-full px-3 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 text-xs font-medium" onClick={() => onDelete(item._id)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
@@ -422,6 +423,173 @@ const DataCollectionManager: React.FC = () => {
 
     const onView = useCallback((it: Item) => setViewItem(it), []);
 
+    // 使用 handleSourceClick 的包装函数
+    const openDetail = useCallback((item: Item) => {
+        handleSourceClick(
+            'data-collection-detail',
+            (source: string) => setViewItem(source === 'data-collection-detail' ? item : null),
+            (show: boolean) => setViewItem(show ? item : null),
+            {
+                storageKey: 'dataCollectionScrollPosition',
+                getStorageValue: () => JSON.stringify({
+                    scrollY: window.scrollY,
+                    timestamp: Date.now(),
+                    itemId: item._id
+                }),
+                onBeforeOpen: () => { console.log('即将打开数据收集详情弹窗'); },
+                onAfterOpen: () => { console.log('数据收集详情弹窗已打开'); }
+            }
+        );
+    }, []);
+
+    const openCreate = useCallback(() => {
+        handleSourceClick(
+            'data-collection-create',
+            (source: string) => {
+                if (source === 'data-collection-create') {
+                    setCreating(true);
+                    setNewUserId('');
+                    setNewAction('');
+                    setNewTsLocal(new Date().toISOString().slice(0, 16));
+                    setNewDetailsRaw('');
+                }
+            },
+            (show: boolean) => {
+                if (show) {
+                    setCreating(true);
+                    setNewUserId('');
+                    setNewAction('');
+                    setNewTsLocal(new Date().toISOString().slice(0, 16));
+                    setNewDetailsRaw('');
+                } else {
+                    setCreating(false);
+                }
+            },
+            {
+                storageKey: 'dataCollectionCreateScrollPosition',
+                getStorageValue: () => JSON.stringify({
+                    scrollY: window.scrollY,
+                    timestamp: Date.now(),
+                    action: 'create'
+                }),
+                onBeforeOpen: () => { console.log('即将打开数据收集创建弹窗'); },
+                onAfterOpen: () => { console.log('数据收集创建弹窗已打开'); }
+            }
+        );
+    }, []);
+
+    const openBatchView = useCallback(async () => {
+        const ids = requireSelection();
+        if (!ids) return;
+        setBatchLoading(true);
+        try {
+            const details = await fetchDetailsByIds(ids);
+            const batchData = { ids, items: details };
+            handleSourceClick(
+                'data-collection-batch',
+                (source: string) => setBatchView(source === 'data-collection-batch' ? batchData : null),
+                (show: boolean) => setBatchView(show ? batchData : null),
+                {
+                    storageKey: 'dataCollectionBatchScrollPosition',
+                    getStorageValue: () => JSON.stringify({
+                        scrollY: window.scrollY,
+                        timestamp: Date.now(),
+                        batchIds: ids
+                    }),
+                    onBeforeOpen: () => { console.log('即将打开数据收集批量查看弹窗'); },
+                    onAfterOpen: () => { console.log('数据收集批量查看弹窗已打开'); }
+                }
+            );
+        } catch (e: any) {
+            setNotification({ type: 'error', message: e?.message || '加载日志失败' });
+        } finally {
+            setBatchLoading(false);
+        }
+    }, [requireSelection, fetchDetailsByIds, setNotification]);
+
+    // 关闭弹窗的包装函数
+    const closeDetailModal = useCallback(() => {
+        handleSourceModalClose(
+            (show: boolean) => setViewItem(show ? viewItem : null),
+            {
+                storageKey: 'dataCollectionScrollPosition',
+                getRestoreValue: () => {
+                    const saved = sessionStorage.getItem('dataCollectionScrollPosition');
+                    if (saved) {
+                        try {
+                            const data = JSON.parse(saved);
+                            if (Date.now() - data.timestamp < 5000) {
+                                return data.scrollY;
+                            }
+                        } catch (e) {
+                            const scrollY = parseInt(saved, 10);
+                            if (!isNaN(scrollY)) return scrollY;
+                        }
+                    }
+                    return 0;
+                },
+                onBeforeClose: () => { console.log('即将关闭数据收集详情弹窗'); },
+                onAfterClose: () => { console.log('数据收集详情弹窗已关闭'); }
+            }
+        );
+    }, [viewItem]);
+
+    const closeCreateModal = useCallback(() => {
+        handleSourceModalClose(
+            (show: boolean) => {
+                if (!show) {
+                    setCreating(false);
+                }
+            },
+            {
+                storageKey: 'dataCollectionCreateScrollPosition',
+                getRestoreValue: () => {
+                    const saved = sessionStorage.getItem('dataCollectionCreateScrollPosition');
+                    if (saved) {
+                        try {
+                            const data = JSON.parse(saved);
+                            if (Date.now() - data.timestamp < 5000) {
+                                return data.scrollY;
+                            }
+                        } catch (e) {
+                            const scrollY = parseInt(saved, 10);
+                            if (!isNaN(scrollY)) return scrollY;
+                        }
+                    }
+                    return 0;
+                },
+                onBeforeClose: () => { console.log('即将关闭数据收集创建弹窗'); },
+                onAfterClose: () => { console.log('数据收集创建弹窗已关闭'); }
+            }
+        );
+    }, []);
+
+    const closeBatchModal = useCallback(() => {
+        handleSourceModalClose(
+            (show: boolean) => setBatchView(show ? batchView : null),
+            {
+                storageKey: 'dataCollectionBatchScrollPosition',
+                getRestoreValue: () => {
+                    const saved = sessionStorage.getItem('dataCollectionBatchScrollPosition');
+                    if (saved) {
+                        try {
+                            const data = JSON.parse(saved);
+                            if (Date.now() - data.timestamp < 5000) {
+                                return data.scrollY;
+                            }
+                        } catch (e) {
+                            const scrollY = parseInt(saved, 10);
+                            if (!isNaN(scrollY)) return scrollY;
+                        }
+                    }
+                    return 0;
+                },
+                onBeforeClose: () => { console.log('即将关闭数据收集批量查看弹窗'); },
+                onAfterClose: () => { console.log('数据收集批量查看弹窗已关闭'); }
+            }
+        );
+    }, [batchView]);
+
     return (
         <div className="max-w-7xl mx-auto px-4 space-y-6">
             {/* Header */}
@@ -458,14 +626,14 @@ const DataCollectionManager: React.FC = () => {
                             <FaSync className="w-4 h-4" /> 刷新统计
                         </motion.button>
                         <motion.button
-                            onClick={() => { setCreating(true); setNewUserId(''); setNewAction(''); setNewTsLocal(new Date().toISOString().slice(0, 16)); setNewDetailsRaw(''); }}
+                            onClick={openCreate}
                             className="w-full sm:w-auto px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium flex items-center gap-2"
                             whileHover={hoverScale(1.02)}
                             whileTap={tapScale(0.98)}
                         >
                             <FaPlus className="w-4 h-4" /> 新增记录
                         </motion.button>
-                        <motion.button onClick={viewSelectedLogs} disabled={batchLoading || selected.size === 0} className="w-full sm:w-auto px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02, !(batchLoading || selected.size === 0))} whileTap={tapScale(0.98, !(batchLoading || selected.size === 0))}>
+                        <motion.button onClick={openBatchView} disabled={batchLoading || selected.size === 0} className="w-full sm:w-auto px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02, !(batchLoading || selected.size === 0))} whileTap={tapScale(0.98, !(batchLoading || selected.size === 0))}>
                           <FaEye className="w-4 h-4" /> 查看合并
                         </motion.button>
                         <motion.button onClick={copySelectedIds} disabled={selected.size === 0} className="w-full sm:w-auto px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02, selected.size > 0)} whileTap={tapScale(0.98, selected.size > 0)}>
@@ -590,7 +758,7 @@ const DataCollectionManager: React.FC = () => {
                 {/* Mobile Cards */}
                 <div className="block md:hidden divide-y divide-gray-100">
                     {deferredItems.map(item => (
-                        <DataCard key={item._id} item={item} checked={selected.has(item._id)} onToggle={toggleOne} onView={onView} onDelete={deleteOne} />
+                        <DataCard key={item._id} item={item} checked={selected.has(item._id)} onToggle={toggleOne} onView={onView} onDelete={deleteOne} openDetail={openDetail} />
                     ))}
                     {deferredItems.length === 0 && (
                         <div className="p-6 text-center text-gray-400">{loading ? '加载中…' : '暂无数据'}</div>
@@ -612,7 +780,7 @@ const DataCollectionManager: React.FC = () => {
                         </thead>
                         <tbody>
                             {deferredItems.map(item => (
-                                <DataRow key={item._id} item={item} checked={selected.has(item._id)} onToggle={toggleOne} onView={onView} onDelete={deleteOne} />
+                                <DataRow key={item._id} item={item} checked={selected.has(item._id)} onToggle={toggleOne} onView={onView} onDelete={deleteOne} openDetail={openDetail} />
                             ))}
                             {deferredItems.length === 0 && (
                                 <tr><td className="p-6 text-center text-gray-400" colSpan={6}>{loading ? '加载中…' : '暂无数据'}</td></tr>
@@ -641,6 +809,7 @@ const DataCollectionManager: React.FC = () => {
                         exit={{ scale: 0.95, y: 10, opacity: 0 }}
                         className="w-[95vw] max-w-5xl max-h-[80vh] overflow-auto rounded-2xl bg-white/90 backdrop-blur p-4 sm:p-6 border border-white/20 shadow-xl"
                         onClick={e => e.stopPropagation()}
+                        data-source-modal="data-collection-detail"
                     >
                         <div className="flex items-center justify-between mb-3">
                             <div className="font-semibold text-gray-900">记录详情</div>
@@ -677,7 +846,7 @@ const DataCollectionManager: React.FC = () => {
                               >
                                 <FaCopy className="w-4 h-4" /> 复制ID
                               </motion.button>
-                              <motion.button className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2" onClick={() => setViewItem(null)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                              <motion.button className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2" onClick={closeDetailModal} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                                   <FaTimes className="w-4 h-4" /> 关闭
                               </motion.button>
                             </div>
@@ -826,10 +995,11 @@ const DataCollectionManager: React.FC = () => {
                         exit={{ scale: 0.95, y: 10, opacity: 0 }}
                         className="w-[95vw] max-w-2xl max-h-[80vh] overflow-auto rounded-2xl bg-white/90 backdrop-blur p-4 sm:p-6 border border-white/20 shadow-xl"
                         onClick={e => e.stopPropagation()}
+                        data-source-modal="data-collection-create"
                     >
                         <div className="flex items-center justify-between mb-3">
                             <div className="font-semibold text-gray-900">新增数据收集记录</div>
-                            <motion.button className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2" onClick={() => setCreating(false)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                            <motion.button className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2" onClick={closeCreateModal} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                                 <FaTimes className="w-4 h-4" /> 关闭
                             </motion.button>
                         </div>
@@ -865,14 +1035,14 @@ const DataCollectionManager: React.FC = () => {
             <AnimatePresence>
             {batchView && (
               <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setBatchView(null)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <motion.div initial={{ scale: 0.95, y: 10, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 10, opacity: 0 }} className="w-[95vw] max-w-5xl max-h-[80vh] overflow-auto rounded-2xl bg-white/90 backdrop-blur p-4 sm:p-6 border border-white/20 shadow-xl" onClick={e => e.stopPropagation()}>
+                <motion.div initial={{ scale: 0.95, y: 10, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 10, opacity: 0 }} className="w-[95vw] max-w-5xl max-h-[80vh] overflow-auto rounded-2xl bg-white/90 backdrop-blur p-4 sm:p-6 border border-white/20 shadow-xl" onClick={e => e.stopPropagation()} data-source-modal="data-collection-batch">
                   <div className="flex items-center justify-between mb-3">
                     <div className="font-semibold text-gray-900">合并日志（{batchView.ids.length} 条）</div>
                     <div className="flex items-center gap-2">
                       <motion.button onClick={async ()=>{ try { await navigator.clipboard.writeText(JSON.stringify(batchView, null, 2)); setNotification({ type:'success', message:'已复制' }); } catch(e:any){ setNotification({ type:'error', message:e?.message||'复制失败' }); } }} className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                         <FaClipboard className="w-4 h-4" /> 复制
                       </motion.button>
-                      <motion.button onClick={() => setBatchView(null)} className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                      <motion.button onClick={closeBatchModal} className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                         <FaTimes className="w-4 h-4" /> 关闭
                       </motion.button>
                     </div>
