@@ -9,6 +9,20 @@ interface GitHubBillingSettingDoc {
   updatedAt?: Date;
 }
 
+// GitHub Billing 多配置文档接口
+interface GitHubBillingMultiConfigDoc {
+  configKey: 'config1' | 'config2' | 'config3';
+  url: string;
+  method: string;
+  headers: Record<string, string>;
+  cookies: string;
+  customerId?: string;
+  headersCount: number;
+  hasCookies: boolean;
+  updatedAt: Date;
+  createdAt: Date;
+}
+
 // GitHub Billing 配置 Schema
 const GitHubBillingSettingSchema = new mongoose.Schema<GitHubBillingSettingDoc>({
   key: { type: String, required: true, unique: true },
@@ -16,8 +30,25 @@ const GitHubBillingSettingSchema = new mongoose.Schema<GitHubBillingSettingDoc>(
   updatedAt: { type: Date, default: Date.now }
 }, { collection: 'github_billing_settings' });
 
+// GitHub Billing 多配置 Schema
+const GitHubBillingMultiConfigSchema = new mongoose.Schema<GitHubBillingMultiConfigDoc>({
+  configKey: { type: String, enum: ['config1', 'config2', 'config3'], required: true, unique: true },
+  url: { type: String, required: true },
+  method: { type: String, required: true, default: 'GET' },
+  headers: { type: mongoose.Schema.Types.Mixed, required: true, default: {} },
+  cookies: { type: String, required: true, default: '' },
+  customerId: { type: String },
+  headersCount: { type: Number, default: 0 },
+  hasCookies: { type: Boolean, default: false },
+  updatedAt: { type: Date, default: Date.now },
+  createdAt: { type: Date, default: Date.now }
+}, { collection: 'github_billing_multi_configs' });
+
 const GitHubBillingSettingModel = (mongoose.models.GitHubBillingSetting as mongoose.Model<GitHubBillingSettingDoc>) ||
   mongoose.model<GitHubBillingSettingDoc>('GitHubBillingSetting', GitHubBillingSettingSchema);
+
+const GitHubBillingMultiConfigModel = (mongoose.models.GitHubBillingMultiConfig as mongoose.Model<GitHubBillingMultiConfigDoc>) ||
+  mongoose.model<GitHubBillingMultiConfigDoc>('GitHubBillingMultiConfig', GitHubBillingMultiConfigSchema);
 
 // curl 命令解析结果接口
 interface ParsedCurlCommand {
@@ -28,21 +59,127 @@ interface ParsedCurlCommand {
   customerId?: string;
 }
 
+// 多配置 curl 命令接口
+interface MultiCurlConfig {
+  config1?: ParsedCurlCommand;
+  config2?: ParsedCurlCommand;
+  config3?: ParsedCurlCommand;
+  lastUpdated: Date;
+}
+
+// 聚合计费数据接口
+interface AggregatedBillingData {
+  totalBillableAmount: number;
+  totalDiscountAmount: number;
+  configCount: number;
+  configs: {
+    config1?: GitHubBillingUsage;
+    config2?: GitHubBillingUsage;
+    config3?: GitHubBillingUsage;
+  };
+  aggregatedRepoBreakdown: Record<string, number>;
+  aggregatedOrgBreakdown: Record<string, number>;
+  aggregatedDailyBreakdown: Record<string, number>;
+  timestamp: string;
+}
+
+// GitHub Billing 折扣目标接口
+interface DiscountTarget {
+  id: string;
+  type: string;
+}
+
+// GitHub Billing 折扣详情接口
+interface DiscountDetail {
+  targets: DiscountTarget[];
+  percentage: number;
+  targetAmount: number;
+  uuid: string;
+  startDate: number;
+  endDate: number;
+  discountType: string;
+  fundingSource: string;
+}
+
+// GitHub Billing 使用项接口（新格式）
+interface GitHubUsageItem {
+  billedAmount: number;
+  totalAmount: number;
+  discountAmount: number;
+  quantity: number | null;
+  product: string | null;
+  repo: {
+    name: string;
+  };
+  org: {
+    name: string;
+    avatarSrc: string;
+    login: string;
+  };
+  usageAt: string;
+}
+
+// GitHub Billing 其他项接口（新格式）
+interface GitHubOtherItem {
+  billedAmount: number;
+  netAmount: number;
+  discountAmount: number;
+  usageAt: string;
+}
+
+// GitHub Billing 新响应格式接口
+interface GitHubBillingNewResponse {
+  usage: GitHubUsageItem[];
+  other: GitHubOtherItem[];
+}
+
+// GitHub Billing 折扣项接口
+interface BillingDiscount {
+  isFullyApplied: boolean;
+  currentAmount: number;
+  targetAmount: number;
+  percentage: number;
+  uuid: string;
+  targets: DiscountTarget[];
+  discount: DiscountDetail;
+  name: string | null;
+}
+
+// GitHub Billing 折扣响应接口
+interface GitHubBillingDiscountResponse {
+  discounts: BillingDiscount[];
+}
+
 // GitHub Billing 使用情况响应接口
 interface GitHubBillingUsage {
-  total_usage: number;
-  included_usage: number;
-  billable_usage: number;
-  usage_breakdown: {
+  total_usage?: number;
+  included_usage?: number;
+  billable_usage?: number;
+  usage_breakdown?: {
     actions: number;
     packages: number;
     codespaces: number;
     copilot: number;
   };
-  billing_cycle: {
+  billing_cycle?: {
     start_date: string;
     end_date: string;
   };
+  // 新增字段：从折扣数据中提取的计费金额
+  billable_amount?: number;
+  discount_details?: BillingDiscount[];
+  // 新增字段：支持新的usage数组格式
+  total_discount_amount?: number;
+  usage_details?: GitHubUsageItem[];
+  other_details?: GitHubOtherItem[];
+  repo_breakdown?: Record<string, number>;
+  org_breakdown?: Record<string, number>;
+  daily_breakdown?: Record<string, number>;
+  // 兼容字段
+  total_paid_minutes_used?: number;
+  included_minutes?: number;
+  minutes_used_breakdown?: Record<string, number>;
+  timestamp?: string;
 }
 
 // GitHub Billing 缓存数据接口
@@ -100,6 +237,128 @@ const GitHubBillingLogModel = (mongoose.models.GitHubBillingLog as mongoose.Mode
   mongoose.model<GitHubBillingLogDoc>('GitHubBillingLog', GitHubBillingLogSchema);
 
 export class GitHubBillingService {
+
+  /**
+   * 处理折扣数据格式，提取计费金额
+   */
+  private static processDiscountData(discountResponse: GitHubBillingDiscountResponse, customerId?: string): GitHubBillingUsage {
+    logger.info(`[processDiscountData] 开始处理折扣数据，折扣项数量: ${discountResponse.discounts.length}`);
+    
+    // 计算总的计费金额（所有折扣项的 currentAmount 之和）
+    let totalBillableAmount = 0;
+    const processedDiscounts: BillingDiscount[] = [];
+    
+    discountResponse.discounts.forEach((discount, index) => {
+      logger.info(`[processDiscountData] 处理折扣项 ${index + 1}:`);
+      logger.info(`  - UUID: ${discount.uuid}`);
+      logger.info(`  - 名称: ${discount.name || '未命名'}`);
+      logger.info(`  - 当前金额: $${discount.currentAmount}`);
+      logger.info(`  - 目标金额: $${discount.targetAmount}`);
+      logger.info(`  - 是否完全应用: ${discount.isFullyApplied}`);
+      logger.info(`  - 百分比: ${discount.percentage}%`);
+      logger.info(`  - 目标数量: ${discount.targets.length}`);
+      
+      // 累加当前金额作为计费金额
+      totalBillableAmount += discount.currentAmount || 0;
+      processedDiscounts.push(discount);
+    });
+    
+    logger.info(`[processDiscountData] 计算完成，总计费金额: $${totalBillableAmount}`);
+    
+    // 构造标准的 GitHubBillingUsage 格式
+    const billingData: GitHubBillingUsage = {
+      total_usage: totalBillableAmount,
+      included_usage: 0,
+      billable_usage: totalBillableAmount,
+      usage_breakdown: {
+        actions: 0,
+        packages: 0,
+        codespaces: 0,
+        copilot: 0
+      },
+      billing_cycle: {
+        start_date: new Date().toISOString().split('T')[0],
+        end_date: new Date().toISOString().split('T')[0]
+      },
+      // 新增字段：从折扣数据中提取的计费金额
+      billable_amount: totalBillableAmount,
+      discount_details: processedDiscounts
+    };
+    
+    // 如果提供了客户ID，则添加到结果中
+    if (customerId && customerId !== 'default') {
+      (billingData as any).customerId = customerId;
+    }
+    
+    logger.info(`[processDiscountData] 返回处理后的计费数据:`, {
+      billable_amount: billingData.billable_amount,
+      total_usage: billingData.total_usage,
+      discount_count: processedDiscounts.length
+    });
+    
+    return billingData;
+  }
+
+  /**
+   * 处理新的usage数组格式数据
+   */
+  private static processUsageArrayData(usageResponse: GitHubBillingNewResponse, customerId?: string): GitHubBillingUsage {
+    let totalBillableAmount = 0;
+    let totalDiscountAmount = 0;
+    const repoBreakdown: Record<string, number> = {};
+    const orgBreakdown: Record<string, number> = {};
+    const dailyBreakdown: Record<string, number> = {};
+
+    // 处理usage数组
+    usageResponse.usage.forEach((item) => {
+      totalBillableAmount += item.billedAmount || 0;
+      totalDiscountAmount += item.discountAmount || 0;
+      
+      // 按仓库统计
+      if (item.repo?.name) {
+        repoBreakdown[item.repo.name] = (repoBreakdown[item.repo.name] || 0) + item.billedAmount;
+      }
+      
+      // 按组织统计
+      if (item.org?.name) {
+        orgBreakdown[item.org.name] = (orgBreakdown[item.org.name] || 0) + item.billedAmount;
+      }
+      
+      // 按日期统计
+      if (item.usageAt) {
+        const date = item.usageAt.split('T')[0];
+        dailyBreakdown[date] = (dailyBreakdown[date] || 0) + item.billedAmount;
+      }
+    });
+
+    // 处理other数组
+    usageResponse.other.forEach((item) => {
+      totalBillableAmount += item.billedAmount || 0;
+      totalDiscountAmount += item.discountAmount || 0;
+    });
+
+    // 构建标准化的计费数据
+    const billingData: GitHubBillingUsage = {
+      billable_amount: totalBillableAmount,
+      total_discount_amount: totalDiscountAmount,
+      usage_details: usageResponse.usage,
+      other_details: usageResponse.other,
+      repo_breakdown: repoBreakdown,
+      org_breakdown: orgBreakdown,
+      daily_breakdown: dailyBreakdown,
+      total_paid_minutes_used: 0,
+      included_minutes: 0,
+      minutes_used_breakdown: {},
+      timestamp: new Date().toISOString()
+    };
+
+    // 如果有客户ID，添加到数据中
+    if (customerId && customerId !== 'default') {
+      (billingData as any).customerId = customerId;
+    }
+
+    return billingData;
+  }
 
   /**
    * 记录API日志到数据库
@@ -224,8 +483,9 @@ export class GitHubBillingService {
       }
     }
 
+    // customer_id 现在是可选的，因为新的折扣格式可能不需要它
     if (!result.customerId) {
-      throw new Error('curl 命令中未找到 customer_id 参数');
+      logger.warn('curl 命令中未找到 customer_id 参数，将使用默认值或跳过客户ID验证');
     }
 
     // 验证必要的 headers 是否存在
@@ -237,56 +497,107 @@ export class GitHubBillingService {
   }
 
   /**
-   * 保存解析的 curl 命令配置
+   * 保存解析的 curl 命令配置到 MongoDB（支持多配置）
    */
-  static async saveCurlConfig(curlCommand: string): Promise<ParsedCurlCommand> {
+  static async saveCurlConfig(curlCommand: string, configKey: 'config1' | 'config2' | 'config3' = 'config1'): Promise<ParsedCurlCommand> {
     const parsed = this.parseCurlCommand(curlCommand);
 
-    // 保存各个配置项
-    await this.setConfigValue('GITHUB_BILLING_URL', parsed.url);
-    await this.setConfigValue('GITHUB_BILLING_METHOD', parsed.method);
-    await this.setConfigValue('GITHUB_BILLING_HEADERS', JSON.stringify(parsed.headers));
-    await this.setConfigValue('GITHUB_BILLING_COOKIES', parsed.cookies);
-    if (parsed.customerId) {
-      await this.setConfigValue('GITHUB_BILLING_CUSTOMER_ID', parsed.customerId);
+    try {
+      if (mongoose.connection.readyState === 1) {
+        // 保存到多配置集合
+        const configDoc: Partial<GitHubBillingMultiConfigDoc> = {
+          configKey,
+          url: parsed.url,
+          method: parsed.method,
+          headers: parsed.headers,
+          cookies: parsed.cookies,
+          customerId: parsed.customerId,
+          headersCount: Object.keys(parsed.headers).length,
+          hasCookies: Boolean(parsed.cookies),
+          updatedAt: new Date()
+        };
+
+        await GitHubBillingMultiConfigModel.findOneAndUpdate(
+          { configKey },
+          configDoc,
+          { upsert: true, new: true }
+        );
+
+        // 如果是 config1，同时保存到原有的单配置位置（向后兼容）
+        if (configKey === 'config1') {
+          await this.setConfigValue('GITHUB_BILLING_URL', parsed.url);
+          await this.setConfigValue('GITHUB_BILLING_METHOD', parsed.method);
+          await this.setConfigValue('GITHUB_BILLING_HEADERS', JSON.stringify(parsed.headers));
+          await this.setConfigValue('GITHUB_BILLING_COOKIES', parsed.cookies);
+          
+          if (parsed.customerId) {
+            await this.setConfigValue('GITHUB_BILLING_CUSTOMER_ID', parsed.customerId);
+          }
+        }
+
+        logger.info(`成功保存 GitHub Billing curl 配置 ${configKey} 到 MongoDB`);
+      } else {
+        throw new Error('MongoDB 连接未就绪');
+      }
+    } catch (error) {
+      logger.error(`保存 GitHub Billing curl 配置 ${configKey} 失败:`, error);
+      throw error;
     }
 
-    logger.info('GitHub Billing curl 配置已保存');
     return parsed;
   }
 
   /**
-   * 获取保存的 curl 配置
+   * 获取保存的 curl 配置（从 MongoDB）
    */
-  static async getSavedCurlConfig(): Promise<ParsedCurlCommand | null> {
+  static async getSavedCurlConfig(configKey: 'config1' | 'config2' | 'config3' = 'config1'): Promise<ParsedCurlCommand | null> {
     try {
-      const url = await this.getConfigValue('GITHUB_BILLING_URL');
-      if (!url) {
-        throw new Error('未找到保存的 curl 配置，请先保存 curl 命令配置');
+      if (mongoose.connection.readyState === 1) {
+        // 首先尝试从多配置集合获取
+        const multiConfig = await GitHubBillingMultiConfigModel.findOne({ configKey });
+        if (multiConfig) {
+          return {
+            url: multiConfig.url,
+            method: multiConfig.method,
+            headers: multiConfig.headers,
+            cookies: multiConfig.cookies,
+            customerId: multiConfig.customerId
+          };
+        }
       }
 
-      const method = await this.getConfigValue('GITHUB_BILLING_METHOD', 'GET');
-      const headersStr = await this.getConfigValue('GITHUB_BILLING_HEADERS', '{}');
-      const cookies = await this.getConfigValue('GITHUB_BILLING_COOKIES', '');
-      const customerId = await this.getConfigValue('GITHUB_BILLING_CUSTOMER_ID');
+      // 如果是 config1 且多配置中没有找到，回退到原有的单配置方式（向后兼容）
+      if (configKey === 'config1') {
+        const url = await this.getConfigValue('GITHUB_BILLING_URL');
+        if (!url) {
+          return null;
+        }
 
-      let parsedHeaders: Record<string, string> = {};
-      try {
-        parsedHeaders = JSON.parse(headersStr!);
-      } catch (error) {
-        logger.error('解析保存的 headers 失败:', error);
-        throw new Error('保存的配置格式错误，请重新保存 curl 命令');
+        const method = await this.getConfigValue('GITHUB_BILLING_METHOD', 'GET');
+        const headersStr = await this.getConfigValue('GITHUB_BILLING_HEADERS', '{}');
+        const cookies = await this.getConfigValue('GITHUB_BILLING_COOKIES', '');
+        const customerId = await this.getConfigValue('GITHUB_BILLING_CUSTOMER_ID');
+
+        let parsedHeaders: Record<string, string> = {};
+        try {
+          parsedHeaders = JSON.parse(headersStr!);
+        } catch (error) {
+          logger.error('解析保存的 headers 失败:', error);
+          throw new Error('保存的配置格式错误，请重新保存 curl 命令');
+        }
+
+        return {
+          url,
+          method: method!,
+          headers: parsedHeaders,
+          cookies: cookies!,
+          customerId
+        };
       }
 
-      return {
-        url,
-        method: method!,
-        headers: parsedHeaders,
-        cookies: cookies!,
-        customerId
-      };
+      return null;
     } catch (error) {
-      logger.error('获取保存的 curl 配置失败:', error);
+      logger.error(`获取保存的 curl 配置 ${configKey} 失败:`, error);
       if (error instanceof Error && error.message.includes('未找到保存的 curl 配置')) {
         throw error;
       }
@@ -612,15 +923,12 @@ export class GitHubBillingService {
       throw new Error('未找到保存的 curl 配置，请先调用 saveCurlConfig 方法');
     }
 
-    const targetCustomerId = config.customerId;
-    if (!targetCustomerId) {
-      throw new Error('配置中未找到 customer_id');
-    }
-
+    const targetCustomerId = config.customerId || 'default';
+    
     logger.info(`[GitHub Billing API] 开始获取数据 - 客户ID: ${targetCustomerId}, 时间: ${new Date().toISOString()}`);
 
-    // 检查缓存
-    const cached = await this.getCachedBillingData(targetCustomerId);
+    // 检查缓存（如果有客户ID的话）
+    const cached = config.customerId ? await this.getCachedBillingData(targetCustomerId) : null;
     if (cached) {
       await this.recordCacheMetrics(targetCustomerId, true);
       const duration = Date.now() - startTime;
@@ -688,7 +996,28 @@ export class GitHubBillingService {
         throw new Error(`GitHub API 返回错误状态码: ${response.status} - ${response.statusText}`);
       }
 
-      const billingData: GitHubBillingUsage = response.data;
+      let billingData: GitHubBillingUsage;
+      
+      // 检查数据格式并相应处理
+      if (response.data && response.data.usage && Array.isArray(response.data.usage)) {
+        logger.info('检测到新的usage数组格式数据，开始处理');
+        const usageResponse = response.data as GitHubBillingNewResponse;
+        billingData = this.processUsageArrayData(usageResponse, targetCustomerId);
+      } else if (response.data && response.data.discounts && Array.isArray(response.data.discounts)) {
+        logger.info('检测到折扣格式数据，开始处理');
+        const discountResponse = response.data as GitHubBillingDiscountResponse;
+        billingData = this.processDiscountData(discountResponse, targetCustomerId);
+      } else {
+        // 传统格式处理
+        logger.info('使用传统格式处理数据');
+        billingData = response.data as GitHubBillingUsage;
+        
+        // 如果有客户ID，添加到数据中
+        if (targetCustomerId && targetCustomerId !== 'default') {
+          (billingData as any).customerId = targetCustomerId;
+        }
+      }
+      
       const dataSize = JSON.stringify(billingData).length;
 
       // 记录成功的API请求到数据库
@@ -704,8 +1033,12 @@ export class GitHubBillingService {
 
       logger.info(`[GitHub Billing API] 请求成功 - 客户ID: ${targetCustomerId}, API耗时: ${apiDuration}ms, 数据大小: ${dataSize} bytes`);
 
-      // 缓存数据
-      await this.cacheBillingData(targetCustomerId, billingData);
+      // 缓存数据（仅当有有效的客户ID时）
+      if (config.customerId) {
+        await this.cacheBillingData(targetCustomerId, billingData);
+      } else {
+        logger.info(`[GitHub Billing API] 跳过缓存，因为没有客户ID - 使用折扣格式`);
+      }
 
       const totalDuration = Date.now() - startTime;
       logger.info(`[GitHub Billing API] 完成数据获取和缓存 - 客户ID: ${targetCustomerId}, 总耗时: ${totalDuration}ms`);
@@ -840,8 +1173,10 @@ export class GitHubBillingService {
         if (item.data) {
           const data = item.data as any;
 
-          // 优先尝试实际的API响应结构 data.usage.billableAmount
-          billableAmount = data?.usage?.billableAmount ||
+          // 优先尝试新的折扣格式中的 billable_amount
+          billableAmount = data?.billable_amount ||
+            // 实际的API响应结构 data.usage.billableAmount
+            data?.usage?.billableAmount ||
             data?.data?.usage?.billableAmount ||
             // 备用：标准的 GitHub API 字段名
             data.billable_usage ||
@@ -851,6 +1186,13 @@ export class GitHubBillingService {
             data?.billing?.billable_usage ||
             data?.amount ||
             0;
+            
+          // 如果有折扣详情，尝试计算总金额
+          if (billableAmount === 0 && data?.discount_details && Array.isArray(data.discount_details)) {
+            billableAmount = data.discount_details.reduce((total: number, discount: any) => {
+              return total + (discount.currentAmount || 0);
+            }, 0);
+          }
         }
 
         logger.info(`[getCachedCustomersDetails] 处理客户 ${item.customerId}:`);
@@ -874,4 +1216,256 @@ export class GitHubBillingService {
       return [];
     }
   }
+
+  /**
+   * 获取所有多配置 curl 命令（从 MongoDB）
+   */
+  static async getAllMultiConfigs(): Promise<MultiCurlConfig | null> {
+    try {
+      if (mongoose.connection.readyState !== 1) {
+        logger.warn('MongoDB 连接未就绪，无法获取多配置');
+        return null;
+      }
+
+      const configs = await GitHubBillingMultiConfigModel.find({});
+      if (configs.length === 0) {
+        return null;
+      }
+
+      const multiConfig: MultiCurlConfig = {
+        lastUpdated: new Date()
+      };
+
+      configs.forEach(config => {
+        multiConfig[config.configKey] = {
+          url: config.url,
+          method: config.method,
+          headers: config.headers,
+          cookies: config.cookies,
+          customerId: config.customerId
+        };
+        
+        // 使用最新的更新时间
+        if (config.updatedAt > multiConfig.lastUpdated) {
+          multiConfig.lastUpdated = config.updatedAt;
+        }
+      });
+
+      logger.info(`成功获取 ${configs.length} 个多配置`);
+      return multiConfig;
+    } catch (error) {
+      logger.error('获取多配置失败:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 删除指定的配置
+   */
+  static async deleteConfig(configKey: 'config1' | 'config2' | 'config3'): Promise<void> {
+    try {
+      if (mongoose.connection.readyState !== 1) {
+        throw new Error('MongoDB 连接未就绪');
+      }
+
+      const result = await GitHubBillingMultiConfigModel.deleteOne({ configKey });
+      
+      if (result.deletedCount === 0) {
+        throw new Error(`配置 ${configKey} 不存在`);
+      }
+
+      // 如果删除的是 config1，同时清理原有的单配置数据（向后兼容）
+      if (configKey === 'config1') {
+        await GitHubBillingSettingModel.deleteMany({
+          key: {
+            $in: [
+              'GITHUB_BILLING_URL',
+              'GITHUB_BILLING_METHOD', 
+              'GITHUB_BILLING_HEADERS',
+              'GITHUB_BILLING_COOKIES',
+              'GITHUB_BILLING_CUSTOMER_ID'
+            ]
+          }
+        });
+      }
+
+      logger.info(`成功删除配置 ${configKey}`);
+    } catch (error) {
+      logger.error(`删除配置 ${configKey} 失败:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取聚合的 GitHub 计费数据
+   */
+  static async fetchAggregatedBillingData(forceRefresh: boolean = false): Promise<AggregatedBillingData> {
+    const multiConfig = await this.getAllMultiConfigs();
+    if (!multiConfig) {
+      throw new Error('未找到保存的 curl 配置');
+    }
+
+    const results: AggregatedBillingData = {
+      totalBillableAmount: 0,
+      totalDiscountAmount: 0,
+      configCount: 0,
+      configs: {},
+      aggregatedRepoBreakdown: {},
+      aggregatedOrgBreakdown: {},
+      aggregatedDailyBreakdown: {},
+      timestamp: new Date().toISOString()
+    };
+
+    // 并发获取所有配置的数据
+    const fetchPromises: Promise<void>[] = [];
+
+    for (const configKey of ['config1', 'config2', 'config3'] as const) {
+      const config = multiConfig[configKey];
+      if (config) {
+        fetchPromises.push(
+          this.fetchSingleConfigData(config, forceRefresh)
+            .then(data => {
+              results.configs[configKey] = data;
+              results.configCount++;
+              
+              // 聚合数据
+              results.totalBillableAmount += data.billable_amount || 0;
+              results.totalDiscountAmount += data.total_discount_amount || 0;
+              
+              // 聚合仓库分布
+              if (data.repo_breakdown) {
+                Object.entries(data.repo_breakdown).forEach(([repo, amount]) => {
+                  results.aggregatedRepoBreakdown[repo] = (results.aggregatedRepoBreakdown[repo] || 0) + amount;
+                });
+              }
+              
+              // 聚合组织分布
+              if (data.org_breakdown) {
+                Object.entries(data.org_breakdown).forEach(([org, amount]) => {
+                  results.aggregatedOrgBreakdown[org] = (results.aggregatedOrgBreakdown[org] || 0) + amount;
+                });
+              }
+              
+              // 聚合日期分布
+              if (data.daily_breakdown) {
+                Object.entries(data.daily_breakdown).forEach(([date, amount]) => {
+                  results.aggregatedDailyBreakdown[date] = (results.aggregatedDailyBreakdown[date] || 0) + amount;
+                });
+              }
+            })
+            .catch(error => {
+              logger.error(`获取 ${configKey} 数据失败:`, error);
+              // 继续处理其他配置
+            })
+        );
+      }
+    }
+
+    await Promise.all(fetchPromises);
+    
+    if (results.configCount === 0) {
+      throw new Error('所有配置都获取数据失败');
+    }
+
+    logger.info(`成功聚合 ${results.configCount} 个配置的数据`);
+    return results;
+  }
+
+  /**
+   * 获取单个配置的 GitHub 计费数据
+   */
+  private static async fetchSingleConfigData(config: ParsedCurlCommand, forceRefresh: boolean = false): Promise<GitHubBillingUsage> {
+    const targetCustomerId = config.customerId || 'default';
+    const cached = config.customerId ? await this.getCachedBillingData(targetCustomerId) : null;
+
+    // 如果不强制刷新且有缓存，返回缓存数据
+    if (!forceRefresh && cached) {
+      logger.info(`使用缓存数据: ${targetCustomerId}`);
+      return cached;
+    }
+
+    const startTime = Date.now();
+    
+    try {
+      logger.info(`开始获取 GitHub 计费数据: ${config.url}`);
+      
+      const response = await axios({
+        method: config.method as any,
+        url: config.url,
+        headers: config.headers,
+        timeout: 30000,
+        validateStatus: () => true
+      });
+
+      const apiDuration = Date.now() - startTime;
+      
+      if (response.status !== 200) {
+        await this.logApiActivity({
+          action: 'fetch',
+          success: false,
+          statusCode: response.status,
+          customerId: targetCustomerId,
+          duration: apiDuration
+        });
+        throw new Error(`GitHub API 返回错误状态码: ${response.status} - ${response.statusText}`);
+      }
+
+      let billingData: GitHubBillingUsage;
+      
+      // 检查数据格式并相应处理
+      if (response.data && response.data.usage && Array.isArray(response.data.usage)) {
+        logger.info('检测到新的usage数组格式数据，开始处理');
+        const usageResponse = response.data as GitHubBillingNewResponse;
+        billingData = this.processUsageArrayData(usageResponse, targetCustomerId);
+      } else if (response.data && response.data.discounts && Array.isArray(response.data.discounts)) {
+        logger.info('检测到折扣格式数据，开始处理');
+        const discountResponse = response.data as GitHubBillingDiscountResponse;
+        billingData = this.processDiscountData(discountResponse, targetCustomerId);
+      } else {
+        // 传统格式处理
+        logger.info('使用传统格式处理数据');
+        billingData = response.data as GitHubBillingUsage;
+        
+        // 如果有客户ID，添加到数据中
+        if (targetCustomerId && targetCustomerId !== 'default') {
+          (billingData as any).customerId = targetCustomerId;
+        }
+      }
+      
+      const dataSize = JSON.stringify(billingData).length;
+
+      // 记录成功的API请求到数据库
+      await this.logApiActivity({
+        customerId: targetCustomerId,
+        action: 'fetch',
+        duration: apiDuration,
+        success: true,
+        statusCode: response.status,
+        dataSize: dataSize
+      });
+
+      // 仅在有有效customerId时缓存数据
+      if (config.customerId) {
+        await this.cacheBillingData(targetCustomerId, billingData);
+      }
+      
+      logger.info(`成功获取计费数据: ${targetCustomerId}, 数据大小: ${dataSize} 字节`);
+      return billingData;
+      
+    } catch (error) {
+      const apiDuration = Date.now() - startTime;
+      
+      await this.logApiActivity({
+        customerId: targetCustomerId,
+        action: 'fetch',
+        duration: apiDuration,
+        success: false,
+        errorMessage: error instanceof Error ? error.message : String(error)
+      });
+      
+      logger.error(`获取计费数据失败: ${targetCustomerId}`, error);
+      throw error;
+    }
+  }
+
 }

@@ -4,11 +4,11 @@ import getApiBaseUrl from '../api';
 import { useNotification } from './Notification';
 import { useAuth } from '../hooks/useAuth';
 import CryptoJS from 'crypto-js';
-import { 
-  FaCog, 
-  FaLock, 
-  FaList, 
-  FaSync, 
+import {
+  FaCog,
+  FaLock,
+  FaList,
+  FaSync,
   FaInfoCircle,
   FaTimes,
   FaChevronDown,
@@ -121,6 +121,13 @@ interface GitHubBillingConfigSetting {
   updatedAt?: string;
 }
 
+interface MultiGitHubBillingConfig {
+  config1?: GitHubBillingConfigSetting;
+  config2?: GitHubBillingConfigSetting;
+  config3?: GitHubBillingConfigSetting;
+  lastUpdated?: string;
+}
+
 interface DebugConsoleConfig {
   enabled: boolean;
   keySequence: string;
@@ -151,13 +158,13 @@ function decryptAES256(encryptedData: string, iv: string, key: string): string {
     console.log('   密钥长度:', key.length);
     console.log('   加密数据长度:', encryptedData.length);
     console.log('   IV长度:', iv.length);
-    
+
     const keyBytes = CryptoJS.SHA256(key);
     const ivBytes = CryptoJS.enc.Hex.parse(iv);
     const encryptedBytes = CryptoJS.enc.Hex.parse(encryptedData);
-    
+
     console.log('   密钥哈希完成，开始解密...');
-    
+
     const decrypted = CryptoJS.AES.decrypt(
       { ciphertext: encryptedBytes },
       keyBytes,
@@ -167,10 +174,10 @@ function decryptAES256(encryptedData: string, iv: string, key: string): string {
         padding: CryptoJS.pad.Pkcs7
       }
     );
-    
+
     const result = decrypted.toString(CryptoJS.enc.Utf8);
     console.log('   解密完成，结果长度:', result.length);
-    
+
     return result;
   } catch (error) {
     console.error('❌ AES-256解密失败:', error);
@@ -181,42 +188,42 @@ function decryptAES256(encryptedData: string, iv: string, key: string): string {
 // 根据环境变量名判断数据来源
 function getEnvSource(key: string): string | undefined {
   const keyLower = key.toLowerCase();
-  
+
   // 数据库相关
   if (keyLower.includes('db_') || keyLower.includes('database_') || keyLower.includes('mongo')) {
     return '数据库配置';
   }
-  
+
   // 邮件相关
   if (keyLower.includes('email_') || keyLower.includes('mail_') || keyLower.includes('smtp')) {
     return '邮件服务配置';
   }
-  
+
   // API相关
   if (keyLower.includes('api_') || keyLower.includes('openai') || keyLower.includes('token')) {
     return 'API配置';
   }
-  
+
   // 安全相关
   if (keyLower.includes('secret_') || keyLower.includes('key_') || keyLower.includes('password')) {
     return '安全配置';
   }
-  
+
   // 服务器相关
   if (keyLower.includes('port') || keyLower.includes('host') || keyLower.includes('url')) {
     return '服务器配置';
   }
-  
+
   // 管理员相关
   if (keyLower.includes('admin_')) {
     return '管理员配置';
   }
-  
+
   // 环境相关
   if (keyLower.includes('env') || keyLower.includes('node_env')) {
     return '环境配置';
   }
-  
+
   return undefined; // 没有明确来源
 }
 
@@ -233,10 +240,9 @@ const EnvRow = React.memo(function EnvRow({ item, idx, prefersReducedMotion, onS
   ), [prefersReducedMotion, idx]);
 
   return (
-    <m.tr 
-      className={`border-b border-gray-100 last:border-b-0 ${
-        idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-      }`}
+    <m.tr
+      className={`border-b border-gray-100 last:border-b-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+        }`}
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={rowTransition}
@@ -266,8 +272,8 @@ const EnvRow = React.memo(function EnvRow({ item, idx, prefersReducedMotion, onS
 
 // 公共方法：处理数据来源点击
 export const handleSourceClick = (
-  source: string, 
-  setSelectedSource: (source: string) => void, 
+  source: string,
+  setSelectedSource: (source: string) => void,
   setShowSourceModal: (show: boolean) => void,
   options?: {
     storageKey?: string;
@@ -278,28 +284,28 @@ export const handleSourceClick = (
 ) => {
   // 执行前置回调
   options?.onBeforeOpen?.();
-  
+
   // 记录当前位置 - 支持自定义存储键和值
   const currentScrollY = window.scrollY;
   const storageKey = options?.storageKey || 'envManagerScrollPosition';
   const storageValue = options?.getStorageValue ? options.getStorageValue() : currentScrollY.toString();
-  
+
   sessionStorage.setItem(storageKey, storageValue);
-  
+
   setSelectedSource(source);
   setShowSourceModal(true);
-  
+
   // 自动滚动到弹窗位置
   setTimeout(() => {
     const modal = document.querySelector('[data-source-modal]');
     if (modal) {
-      modal.scrollIntoView({ 
-        behavior: 'smooth', 
+      modal.scrollIntoView({
+        behavior: 'smooth',
         block: 'center',
         inline: 'center'
       });
     }
-    
+
     // 执行后置回调
     options?.onAfterOpen?.();
   }, 100);
@@ -318,14 +324,14 @@ export const handleSourceModalClose = (
 ) => {
   // 执行前置回调
   options?.onBeforeClose?.();
-  
+
   setShowSourceModal(false);
-  
+
   // 恢复原位置 - 支持自定义存储键和恢复值
   setTimeout(() => {
     const storageKey = options?.storageKey || 'envManagerScrollPosition';
     const savedScrollY = sessionStorage.getItem(storageKey);
-    
+
     if (savedScrollY) {
       const scrollY = options?.getRestoreValue ? options.getRestoreValue() : parseInt(savedScrollY, 10);
       window.scrollTo({
@@ -334,7 +340,7 @@ export const handleSourceModalClose = (
       });
       sessionStorage.removeItem(storageKey);
     }
-    
+
     // 执行后置回调
     options?.onAfterClose?.();
   }, options?.closeDelay || 300); // 等待弹窗关闭动画完成
@@ -465,11 +471,13 @@ const EnvManager: React.FC = () => {
   const [clarityConfigDeleting, setClarityConfigDeleting] = useState(false);
   const [clarityProjectIdInput, setClarityProjectIdInput] = useState('');
 
-  // GitHub Billing Config Setting
-  const [githubBillingConfig, setGithubBillingConfig] = useState<GitHubBillingConfigSetting | null>(null);
+  // GitHub Billing Config Setting (Multi-Config)
+  const [multiGithubBillingConfig, setMultiGithubBillingConfig] = useState<MultiGitHubBillingConfig | null>(null);
   const [githubBillingConfigLoading, setGithubBillingConfigLoading] = useState(false);
   const [githubBillingConfigSaving, setGithubBillingConfigSaving] = useState(false);
   const [githubBillingCurlInput, setGithubBillingCurlInput] = useState('');
+  const [selectedConfigKey, setSelectedConfigKey] = useState<'config1' | 'config2' | 'config3'>('config1');
+  const [showConfigSelector, setShowConfigSelector] = useState(false);
 
   // Debug Console Access Logs
   const [debugLogs, setDebugLogs] = useState<DebugConsoleAccessLog[]>([]);
@@ -523,17 +531,17 @@ const EnvManager: React.FC = () => {
         setLoading(false);
         return;
       }
-      
+
       if (data.success) {
         let envArr: EnvItem[] = [];
-        
+
         // 检查是否为加密数据（通过检测data和iv字段来判断）
         if (data.data && data.iv && typeof data.data === 'string' && typeof data.iv === 'string') {
           try {
             console.log('🔐 开始解密环境变量数据...');
             console.log('   加密数据长度:', data.data.length);
             console.log('   IV:', data.iv);
-            
+
             const token = localStorage.getItem('token');
             if (!token) {
               console.error('❌ Token不存在，无法解密数据');
@@ -541,13 +549,13 @@ const EnvManager: React.FC = () => {
               setLoading(false);
               return;
             }
-            
+
             console.log('   使用Token进行解密，Token长度:', token.length);
-            
+
             // 解密数据
             const decryptedJson = decryptAES256(data.data, data.iv, token);
             const decryptedData = JSON.parse(decryptedJson);
-            
+
             if (Array.isArray(decryptedData)) {
               console.log('✅ 解密成功，获取到', decryptedData.length, '个环境变量');
               envArr = decryptedData;
@@ -557,7 +565,7 @@ const EnvManager: React.FC = () => {
               setLoading(false);
               return;
             }
-            
+
             // 为环境变量添加数据来源信息
             envArr = envArr.map(item => {
               const source = getEnvSource(item.key);
@@ -577,7 +585,7 @@ const EnvManager: React.FC = () => {
             envArr = Object.entries(data.envs).map(([key, value]) => ({ key, value: String(value) }));
           }
         }
-        
+
         setEnvs(envArr);
       } else {
         setNotification({ message: data.error || '获取失败', type: 'error' });
@@ -1059,12 +1067,12 @@ const EnvManager: React.FC = () => {
     setDebugConfigsLoading(true);
     try {
       // 尝试获取加密配置
-      const encryptedUrl = debugConfigFilterGroup ? 
-        `${DEBUG_CONSOLE_API}/configs/encrypted?group=${encodeURIComponent(debugConfigFilterGroup)}` : 
+      const encryptedUrl = debugConfigFilterGroup ?
+        `${DEBUG_CONSOLE_API}/configs/encrypted?group=${encodeURIComponent(debugConfigFilterGroup)}` :
         `${DEBUG_CONSOLE_API}/configs/encrypted`;
-      
+
       const encryptedRes = await fetch(encryptedUrl, { headers: { ...getAuthHeaders() } });
-      
+
       if (encryptedRes.ok) {
         const encryptedData = await encryptedRes.json();
         if (encryptedData.success && encryptedData.data && encryptedData.iv) {
@@ -1074,10 +1082,10 @@ const EnvManager: React.FC = () => {
             if (!token) {
               throw new Error('缺少认证token');
             }
-            
+
             const decryptedJson = decryptAES256(encryptedData.data, encryptedData.iv, token);
             const decryptedData = JSON.parse(decryptedJson);
-            
+
             if (Array.isArray(decryptedData)) {
               setDebugConfigs(decryptedData);
               return;
@@ -1087,20 +1095,20 @@ const EnvManager: React.FC = () => {
           }
         }
       }
-      
+
       // 回退到未加密配置
-      const url = debugConfigFilterGroup ? 
-        `${DEBUG_CONSOLE_API}/configs?group=${encodeURIComponent(debugConfigFilterGroup)}` : 
+      const url = debugConfigFilterGroup ?
+        `${DEBUG_CONSOLE_API}/configs?group=${encodeURIComponent(debugConfigFilterGroup)}` :
         `${DEBUG_CONSOLE_API}/configs`;
       const res = await fetch(url, { headers: { ...getAuthHeaders() } });
       const data = await res.json();
-      
+
       if (!res.ok || !data.success) {
         setNotification({ message: data.error || '获取调试控制台配置失败', type: 'error' });
         setDebugConfigsLoading(false);
         return;
       }
-      
+
       setDebugConfigs(Array.isArray(data.data) ? data.data : []);
     } catch (e) {
       setNotification({ message: '获取调试控制台配置失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
@@ -1126,21 +1134,21 @@ const EnvManager: React.FC = () => {
     const verificationCode = debugConfigVerificationCode.trim();
     const maxAttempts = Math.max(1, Math.min(20, Number(debugConfigMaxAttempts || 5)));
     const lockoutDuration = Math.max(1, Math.min(1440, Number(debugConfigLockoutDuration || 30))) * 60 * 1000; // 转换为毫秒
-    
+
     if (!keySequence || !verificationCode) {
       setNotification({ message: '请填写按键序列和验证码', type: 'error' });
       return;
     }
-    
+
     setDebugConfigSaving(true);
     (async () => {
       try {
-        const body = { 
-          enabled, 
-          keySequence, 
-          verificationCode, 
-          maxAttempts, 
-          lockoutDuration 
+        const body = {
+          enabled,
+          keySequence,
+          verificationCode,
+          maxAttempts,
+          lockoutDuration
         };
         const res = await fetch(`${DEBUG_CONSOLE_API}/configs/${encodeURIComponent(group)}`, {
           method: 'PUT',
@@ -1225,8 +1233,8 @@ const EnvManager: React.FC = () => {
       if (debugLogsFilterStartDate) params.set('startDate', debugLogsFilterStartDate);
       if (debugLogsFilterEndDate) params.set('endDate', debugLogsFilterEndDate);
 
-      const res = await fetch(`${DEBUG_CONSOLE_API}/logs?${params.toString()}`, { 
-        headers: { ...getAuthHeaders() } 
+      const res = await fetch(`${DEBUG_CONSOLE_API}/logs?${params.toString()}`, {
+        headers: { ...getAuthHeaders() }
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -1234,7 +1242,7 @@ const EnvManager: React.FC = () => {
         setDebugLogsLoading(false);
         return;
       }
-      
+
       const result = data.data;
       setDebugLogs(result.logs || []);
       setDebugLogsTotal(result.total || 0);
@@ -1270,12 +1278,12 @@ const EnvManager: React.FC = () => {
         headers: { ...getAuthHeaders() }
       });
       const data = await res.json();
-      
+
       if (!res.ok || !data.success) {
         setNotification({ message: data.error || '删除日志失败', type: 'error' });
         return;
       }
-      
+
       setNotification({ message: '日志删除成功', type: 'success' });
       fetchDebugLogs(); // 重新获取日志列表
     } catch (e) {
@@ -1295,19 +1303,19 @@ const EnvManager: React.FC = () => {
     try {
       const res = await fetch(`${DEBUG_CONSOLE_API}/logs`, {
         method: 'DELETE',
-        headers: { 
+        headers: {
           ...getAuthHeaders(),
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ logIds: selectedLogIds })
       });
       const data = await res.json();
-      
+
       if (!res.ok || !data.success) {
         setNotification({ message: data.error || '批量删除日志失败', type: 'error' });
         return;
       }
-      
+
       setNotification({ message: `成功删除 ${data.deletedCount} 条日志`, type: 'success' });
       setSelectedLogIds([]); // 清空选择
       fetchDebugLogs(); // 重新获取日志列表
@@ -1326,12 +1334,12 @@ const EnvManager: React.FC = () => {
         headers: { ...getAuthHeaders() }
       });
       const data = await res.json();
-      
+
       if (!res.ok || !data.success) {
         setNotification({ message: data.error || '删除所有日志失败', type: 'error' });
         return;
       }
-      
+
       setNotification({ message: `成功删除所有日志（共 ${data.deletedCount} 条）`, type: 'success' });
       setSelectedLogIds([]); // 清空选择
       fetchDebugLogs(); // 重新获取日志列表
@@ -1353,19 +1361,19 @@ const EnvManager: React.FC = () => {
 
       const res = await fetch(`${DEBUG_CONSOLE_API}/logs`, {
         method: 'DELETE',
-        headers: { 
+        headers: {
           ...getAuthHeaders(),
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ logIds: selectedLogIds })
       });
       const data = await res.json();
-      
+
       if (!res.ok || !data.success) {
         setNotification({ message: data.error || '删除选中日志失败', type: 'error' });
         return;
       }
-      
+
       setNotification({ message: `成功删除 ${data.deletedCount} 条选中日志`, type: 'success' });
       setSelectedLogIds([]); // 清空选择
       fetchDebugLogs(); // 重新获取日志列表
@@ -1710,36 +1718,33 @@ const EnvManager: React.FC = () => {
       await fetchClarityConfig();
     } catch (e) {
       setNotification({ message: '删除失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
       setClarityConfigDeleting(false);
     }
   }, [clarityConfigDeleting, fetchClarityConfig, setNotification]);
 
-  // GitHub Billing Config handlers
+  // GitHub Billing Multi-Config handlers
   const fetchGithubBillingConfig = useCallback(async () => {
     setGithubBillingConfigLoading(true);
     try {
-      const res = await fetch(GITHUB_BILLING_CONFIG_API, { headers: { ...getAuthHeaders() } });
+      const res = await fetch(getApiBaseUrl() + '/api/github-billing/multi-config', { headers: { ...getAuthHeaders() } });
       const data = await res.json();
       if (!res.ok) {
-        if (res.status !== 404) {
-          setNotification({ message: data.error || '获取GitHub Billing配置失败', type: 'error' });
+        if (res.status === 404) {
+          // 没有配置时设置为空
+          setMultiGithubBillingConfig(null);
+        } else {
+          setNotification({ message: data.error || '获取 GitHub Billing 配置失败', type: 'error' });
         }
         setGithubBillingConfigLoading(false);
         return;
       }
-      if (data.success) {
-        setGithubBillingConfig({
-          url: data.data?.url,
-          method: data.data?.method,
-          customerId: data.data?.customerId,
-          headersCount: data.data?.headersCount,
-          hasCookies: data.data?.hasCookies,
-          updatedAt: data.data?.updatedAt
-        });
+      if (data && data.success) {
+        setMultiGithubBillingConfig(data.data || null);
+      } else {
+        setMultiGithubBillingConfig(null);
       }
     } catch (e) {
-      setNotification({ message: '获取GitHub Billing配置失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
+      setNotification({ message: '获取 GitHub Billing 配置失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
     } finally {
       setGithubBillingConfigLoading(false);
     }
@@ -1752,13 +1757,13 @@ const EnvManager: React.FC = () => {
       setNotification({ message: '请填写 curl 命令', type: 'error' });
       return;
     }
-    if (!curlCommand.includes('github.com/settings/billing')) {
-      setNotification({ message: '请提供有效的 GitHub Billing curl 命令', type: 'error' });
+    if (!curlCommand.includes('github.com')) {
+      setNotification({ message: '请提供有效的 GitHub API curl 命令', type: 'error' });
       return;
     }
     setGithubBillingConfigSaving(true);
     try {
-      const res = await fetch(GITHUB_BILLING_CONFIG_API, {
+      const res = await fetch(getApiBaseUrl() + `/api/github-billing/multi-config/${selectedConfigKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ curlCommand })
@@ -1768,7 +1773,7 @@ const EnvManager: React.FC = () => {
         setNotification({ message: data.error || '保存失败', type: 'error' });
         return;
       }
-      setNotification({ message: '保存成功', type: 'success' });
+      setNotification({ message: `配置 ${selectedConfigKey} 保存成功`, type: 'success' });
       setGithubBillingCurlInput('');
       await fetchGithubBillingConfig();
     } catch (e) {
@@ -1776,7 +1781,29 @@ const EnvManager: React.FC = () => {
     } finally {
       setGithubBillingConfigSaving(false);
     }
-  }, [githubBillingConfigSaving, githubBillingCurlInput, fetchGithubBillingConfig, setNotification]);
+  }, [githubBillingConfigSaving, githubBillingCurlInput, selectedConfigKey, fetchGithubBillingConfig, setNotification]);
+
+  const handleDeleteGithubBillingConfig = useCallback(async (configKey: 'config1' | 'config2' | 'config3') => {
+    if (githubBillingConfigSaving) return;
+    setGithubBillingConfigSaving(true);
+    try {
+      const res = await fetch(getApiBaseUrl() + `/api/github-billing/multi-config/${configKey}`, {
+        method: 'DELETE',
+        headers: { ...getAuthHeaders() }
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setNotification({ message: data.error || '删除失败', type: 'error' });
+        return;
+      }
+      setNotification({ message: `配置 ${configKey} 删除成功`, type: 'success' });
+      await fetchGithubBillingConfig();
+    } catch (e) {
+      setNotification({ message: '删除失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
+    } finally {
+      setGithubBillingConfigSaving(false);
+    }
+  }, [githubBillingConfigSaving, fetchGithubBillingConfig, setNotification]);
 
   const handleConfirmDelete = useCallback(() => {
     switch (deleteType) {
@@ -1832,25 +1859,25 @@ const EnvManager: React.FC = () => {
 
   // 管理员校验
   if (!user || user.role !== 'admin') {
-      return (
-    <LazyMotion features={domAnimation}>
-      <m.div className="space-y-6">
-          <m.div 
+    return (
+      <LazyMotion features={domAnimation}>
+        <m.div className="space-y-6">
+          <m.div
             className="bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-6 border border-red-100"
             initial={ENTER_INITIAL}
             animate={ENTER_ANIMATE}
             transition={trans06}
-        >
-          <h2 className="text-2xl font-bold text-red-700 mb-3 flex items-center gap-2">
-            <FaLock className="text-2xl text-red-600" />
-            访问被拒绝
-          </h2>
-          <div className="text-gray-600 space-y-2">
-            <p>你不是管理员，禁止访问！请用管理员账号登录后再来。</p>
-            <div className="text-sm text-red-500 italic">
-              环境变量管理仅限管理员使用
+          >
+            <h2 className="text-2xl font-bold text-red-700 mb-3 flex items-center gap-2">
+              <FaLock className="text-2xl text-red-600" />
+              访问被拒绝
+            </h2>
+            <div className="text-gray-600 space-y-2">
+              <p>你不是管理员，禁止访问！请用管理员账号登录后再来。</p>
+              <div className="text-sm text-red-500 italic">
+                环境变量管理仅限管理员使用
+              </div>
             </div>
-          </div>
           </m.div>
         </m.div>
       </LazyMotion>
@@ -1860,45 +1887,45 @@ const EnvManager: React.FC = () => {
   return (
     <LazyMotion features={domAnimation}>
       <div className="relative">
-      {/* 标题和说明 */}
-        <m.div 
-        className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 sm:p-6 border border-blue-100"
+        {/* 标题和说明 */}
+        <m.div
+          className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 sm:p-6 border border-blue-100"
           initial={ENTER_INITIAL}
           animate={ENTER_ANIMATE}
           transition={trans06}
-      >
-        <h2 className="text-xl sm:text-2xl font-bold text-blue-700 mb-2 sm:mb-3 flex items-center gap-2">
-          <FaCog className="text-xl sm:text-2xl text-blue-600" />
-          环境变量管理
-        </h2>
-        <div className="text-gray-600 space-y-2">
-          <p className="text-sm sm:text-base">查看系统环境变量配置，支持加密存储和传输。</p>
-          <div className="flex items-start gap-2 text-sm">
-            <div>
-              <p className="font-semibold text-blue-700">功能说明：</p>
-              <ul className="list-disc list-inside space-y-1 mt-1">
-                <li className="leading-relaxed">实时查看系统环境变量</li>
-                <li className="leading-relaxed">支持AES-256加密传输</li>
-                <li className="leading-relaxed">自动解密显示数据</li>
-                <li className="leading-relaxed">仅管理员可访问</li>
-              </ul>
+        >
+          <h2 className="text-xl sm:text-2xl font-bold text-blue-700 mb-2 sm:mb-3 flex items-center gap-2">
+            <FaCog className="text-xl sm:text-2xl text-blue-600" />
+            环境变量管理
+          </h2>
+          <div className="text-gray-600 space-y-2">
+            <p className="text-sm sm:text-base">查看系统环境变量配置，支持加密存储和传输。</p>
+            <div className="flex items-start gap-2 text-sm">
+              <div>
+                <p className="font-semibold text-blue-700">功能说明：</p>
+                <ul className="list-disc list-inside space-y-1 mt-1">
+                  <li className="leading-relaxed">实时查看系统环境变量</li>
+                  <li className="leading-relaxed">支持AES-256加密传输</li>
+                  <li className="leading-relaxed">自动解密显示数据</li>
+                  <li className="leading-relaxed">仅管理员可访问</li>
+                </ul>
+              </div>
             </div>
           </div>
-        </div>
         </m.div>
 
-      {/* 环境变量表格 */}
-        <m.div 
-        className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200"
+        {/* 环境变量表格 */}
+        <m.div
+          className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200"
           initial={ENTER_INITIAL}
           animate={ENTER_ANIMATE}
           transition={trans06}
-      >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <FaList className="text-lg text-blue-500" />
-            环境变量列表
-          </h3>
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4">
+            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+              <FaList className="text-lg text-blue-500" />
+              环境变量列表
+            </h3>
             <div className="flex items-center gap-2">
               <m.button
                 onClick={() => setIsEnvCollapsed(prev => !prev)}
@@ -1924,133 +1951,133 @@ const EnvManager: React.FC = () => {
                 刷新
               </m.button>
             </div>
-        </div>
+          </div>
 
-        <AnimatePresence initial={false}>
-          {!isEnvCollapsed && (
-            <m.div
-              key="env-list-wrap"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={prefersReducedMotion ? NO_DURATION : { duration: 0.25 }}
-            >
-              {/* 数据来源图例 */}
-              <div className="mb-4 p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-start gap-2 sm:gap-3 text-sm sm:text-base text-blue-700">
-                  <FaInfoCircle className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 flex-shrink-0 mt-0.5 sm:mt-0" />
-                  <span className="font-medium leading-relaxed">带蓝色感叹号图标的变量表示有明确的数据来源信息</span>
+          <AnimatePresence initial={false}>
+            {!isEnvCollapsed && (
+              <m.div
+                key="env-list-wrap"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={prefersReducedMotion ? NO_DURATION : { duration: 0.25 }}
+              >
+                {/* 数据来源图例 */}
+                <div className="mb-4 p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-start gap-2 sm:gap-3 text-sm sm:text-base text-blue-700">
+                    <FaInfoCircle className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 flex-shrink-0 mt-0.5 sm:mt-0" />
+                    <span className="font-medium leading-relaxed">带蓝色感叹号图标的变量表示有明确的数据来源信息</span>
+                  </div>
                 </div>
-              </div>
 
-              {loading ? (
-                <div className="text-center py-6 sm:py-8 text-gray-500">
-                  <svg className="animate-spin h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-3 sm:mb-4 text-blue-500" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  <span className="text-sm sm:text-base">加载中...</span>
-                </div>
-              ) : envs.length === 0 ? (
-                <div className="text-center py-6 sm:py-8 text-gray-500">
-                  <FaList className="w-8 h-8 sm:w-12 sm:h-12 mx-auto mb-3 sm:mb-4 text-gray-400" />
-                  <span className="text-sm sm:text-base">暂无环境变量数据</span>
-                </div>
-              ) : (
-                <div className="overflow-x-auto border border-gray-200 rounded-lg">
-                  {isMobile ? (
-                    <div className="space-y-3 p-2">
-                      {envs.map((item, idx) => (
-                        <m.div
-                          key={item.key}
-                          className={`rounded-2xl border border-gray-200 bg-white p-3 sm:p-4 shadow-sm hover:shadow transition ${idx % 2 === 0 ? '' : ''}`}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={prefersReducedMotion ? NO_DURATION : { duration: 0.25, delay: idx * 0.02 }}
-                        >
-                          <div className="flex items-start gap-2 sm:gap-3">
-                            {item.source && (
-                              <button
-                                onClick={() => handleSourceClickWrapper(item.source!)}
-                                className="flex-shrink-0 focus:outline-none self-center"
-                                aria-label="数据来源"
-                              >
-                                <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
-                                  <FaInfoCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                                </span>
-                              </button>
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm sm:text-base font-semibold text-gray-900 tracking-wide break-words">
-                                {item.key.split(':').pop() || item.key}
-                              </div>
-                              <div className="mt-2 px-2 sm:px-3 py-2 bg-gray-50 rounded-lg font-mono text-xs sm:text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed">
-                                {item.value}
+                {loading ? (
+                  <div className="text-center py-6 sm:py-8 text-gray-500">
+                    <svg className="animate-spin h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-3 sm:mb-4 text-blue-500" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span className="text-sm sm:text-base">加载中...</span>
+                  </div>
+                ) : envs.length === 0 ? (
+                  <div className="text-center py-6 sm:py-8 text-gray-500">
+                    <FaList className="w-8 h-8 sm:w-12 sm:h-12 mx-auto mb-3 sm:mb-4 text-gray-400" />
+                    <span className="text-sm sm:text-base">暂无环境变量数据</span>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                    {isMobile ? (
+                      <div className="space-y-3 p-2">
+                        {envs.map((item, idx) => (
+                          <m.div
+                            key={item.key}
+                            className={`rounded-2xl border border-gray-200 bg-white p-3 sm:p-4 shadow-sm hover:shadow transition ${idx % 2 === 0 ? '' : ''}`}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={prefersReducedMotion ? NO_DURATION : { duration: 0.25, delay: idx * 0.02 }}
+                          >
+                            <div className="flex items-start gap-2 sm:gap-3">
+                              {item.source && (
+                                <button
+                                  onClick={() => handleSourceClickWrapper(item.source!)}
+                                  className="flex-shrink-0 focus:outline-none self-center"
+                                  aria-label="数据来源"
+                                >
+                                  <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                                    <FaInfoCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                                  </span>
+                                </button>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm sm:text-base font-semibold text-gray-900 tracking-wide break-words">
+                                  {item.key.split(':').pop() || item.key}
+                                </div>
+                                <div className="mt-2 px-2 sm:px-3 py-2 bg-gray-50 rounded-lg font-mono text-xs sm:text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed">
+                                  {item.value}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </m.div>
-                      ))}
-                    </div>
-                  ) : (
-                    <table className="min-w-full">
-                      <thead>
-                        <tr className="bg-gray-50 border-b border-gray-200">
-                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-[200px] w-1/3">变量名</th>
-                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-[300px] w-2/3">值</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {envs.map((item, idx) => (
+                          </m.div>
+                        ))}
+                      </div>
+                    ) : (
+                      <table className="min-w-full">
+                        <thead>
+                          <tr className="bg-gray-50 border-b border-gray-200">
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-[200px] w-1/3">变量名</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-[300px] w-2/3">值</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {envs.map((item, idx) => (
                             <EnvRow
-                            key={item.key} 
+                              key={item.key}
                               item={item}
                               idx={idx}
                               prefersReducedMotion={!!prefersReducedMotion}
                               onSourceClick={handleSourceClickWrapper}
                             />
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              )}
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                )}
 
-              {/* 统计信息 */}
-              {!loading && envs.length > 0 && (
+                {/* 统计信息 */}
+                {!loading && envs.length > 0 && (
                   <m.div
                     initial={ENTER_INITIAL}
                     animate={ENTER_ANIMATE}
                     transition={trans03}
-                  className="mt-6 pt-4 border-t border-gray-200"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                        <span className="text-sm font-semibold text-blue-700">
-                          总计 {envs.length} 个环境变量
-                        </span>
+                    className="mt-6 pt-4 border-t border-gray-200"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
+                          <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                          <span className="text-sm font-semibold text-blue-700">
+                            总计 {envs.length} 个环境变量
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg">
+                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                          <span className="text-xs sm:text-sm font-medium text-green-700">
+                            数据正常
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span className="text-xs sm:text-sm font-medium text-green-700">
-                          数据正常
+                      <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 rounded-lg">
+                        <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                        <span className="text-xs sm:text-sm text-gray-600">
+                          最后更新: {new Date().toLocaleString()}
                         </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 rounded-lg">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                      <span className="text-xs sm:text-sm text-gray-600">
-                        最后更新: {new Date().toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
                   </m.div>
                 )}
-            </m.div>
-          )}
-        </AnimatePresence>
+              </m.div>
+            )}
+          </AnimatePresence>
         </m.div>
 
         {/* 对外邮件校验码设置 */}
@@ -2888,34 +2915,34 @@ const EnvManager: React.FC = () => {
           </div>
 
           {/* 当前配置状态 */}
-          {githubBillingConfig && (
+          {multiGithubBillingConfig && multiGithubBillingConfig[selectedConfigKey] && (
             <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-              <h5 className="text-sm font-semibold text-gray-700 mb-2">当前配置信息</h5>
+              <h5 className="text-sm font-semibold text-gray-700 mb-2">当前配置信息 ({selectedConfigKey})</h5>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                 <div>
                   <span className="font-medium text-gray-600">URL:</span>
-                  <span className="ml-2 text-gray-800 break-all">{githubBillingConfig.url || '未设置'}</span>
+                  <span className="ml-2 text-gray-800 break-all">{multiGithubBillingConfig[selectedConfigKey]?.url || '未设置'}</span>
                 </div>
                 <div>
                   <span className="font-medium text-gray-600">方法:</span>
-                  <span className="ml-2 text-gray-800">{githubBillingConfig.method || '未设置'}</span>
+                  <span className="ml-2 text-gray-800">{multiGithubBillingConfig[selectedConfigKey]?.method || '未设置'}</span>
                 </div>
                 <div>
                   <span className="font-medium text-gray-600">Customer ID:</span>
-                  <span className="ml-2 text-gray-800">{githubBillingConfig.customerId || '未设置'}</span>
+                  <span className="ml-2 text-gray-800">{multiGithubBillingConfig[selectedConfigKey]?.customerId || '未设置'}</span>
                 </div>
                 <div>
                   <span className="font-medium text-gray-600">Headers:</span>
-                  <span className="ml-2 text-gray-800">{githubBillingConfig.headersCount || 0} 个</span>
+                  <span className="ml-2 text-gray-800">{multiGithubBillingConfig[selectedConfigKey]?.headersCount || 0} 个</span>
                 </div>
                 <div>
                   <span className="font-medium text-gray-600">Cookies:</span>
-                  <span className="ml-2 text-gray-800">{githubBillingConfig.hasCookies ? '已配置' : '未配置'}</span>
+                  <span className="ml-2 text-gray-800">{multiGithubBillingConfig[selectedConfigKey]?.hasCookies ? '已配置' : '未配置'}</span>
                 </div>
                 <div>
                   <span className="font-medium text-gray-600">更新时间:</span>
                   <span className="ml-2 text-gray-800">
-                    {githubBillingConfig.updatedAt ? new Date(githubBillingConfig.updatedAt).toLocaleString() : '未知'}
+                    {multiGithubBillingConfig[selectedConfigKey]?.updatedAt ? new Date(multiGithubBillingConfig[selectedConfigKey]!.updatedAt!).toLocaleString() : '未知'}
                   </span>
                 </div>
               </div>
@@ -2925,9 +2952,9 @@ const EnvManager: React.FC = () => {
           {/* 状态信息 */}
           <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex items-center gap-2 text-sm text-blue-700">
-              <div className={`w-2 h-2 rounded-full ${githubBillingConfig ? 'bg-green-500' : 'bg-red-500'}`}></div>
+              <div className={`w-2 h-2 rounded-full ${multiGithubBillingConfig && multiGithubBillingConfig[selectedConfigKey] ? 'bg-green-500' : 'bg-red-500'}`}></div>
               <span className="font-medium">
-                GitHub Billing 状态：{githubBillingConfig ? '已配置' : '未配置'}
+                GitHub Billing 状态：{multiGithubBillingConfig && multiGithubBillingConfig[selectedConfigKey] ? '已配置' : '未配置'}
               </span>
             </div>
             <div className="mt-2 text-xs text-blue-600">
@@ -3048,45 +3075,45 @@ const EnvManager: React.FC = () => {
           ) : providers.length === 0 ? (
             <div className="text-gray-500 text-sm">暂无提供者</div>
           ) : (
-                          <div className="overflow-x-auto border border-gray-200 rounded-lg">
-                {isMobile ? (
-                  <div className="space-y-3 p-2">
-                    {providers.map((p, i) => (
-                      <m.div
-                        key={p.id}
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={prefersReducedMotion ? NO_DURATION : { duration: 0.25, delay: i * 0.04 }}
-                        className="border rounded-lg p-3 bg-white"
-                      >
-                        <div className="text-sm text-gray-800 break-all">
-                          <div className="font-semibold">{p.baseUrl}</div>
-                          <div className="mt-1">Model：{p.model}</div>
-                          <div className="mt-1">Group：{p.group || '-'}</div>
-                          <div className="mt-1">Enabled：{p.enabled ? '是' : '否'}｜Weight：{p.weight}</div>
-                          <div className="mt-1 font-mono text-xs text-gray-700">{p.apiKey}</div>
-                          <div className="mt-1 text-xs text-gray-500">{p.updatedAt ? new Date(p.updatedAt).toLocaleString() : '-'}</div>
-                        </div>
-                        <div className="mt-2 flex items-center justify-end gap-2">
-                          <m.button
-                            onClick={() => handleEditProvider(p)}
-                            className="px-2 sm:px-3 py-1.5 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition text-sm"
-                            whileTap={{ scale: 0.95 }}
-                          >
-                            编辑
-                          </m.button>
-                          <m.button
-                            onClick={() => handleDeleteProvider(p.id)}
-                            disabled={providerDeletingId === p.id}
-                            className="px-2 sm:px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm"
-                            whileTap={{ scale: 0.95 }}
-                          >
-                            {providerDeletingId === p.id ? '删除中...' : '删除'}
-                          </m.button>
-                        </div>
-                      </m.div>
-                    ))}
-                  </div>
+            <div className="overflow-x-auto border border-gray-200 rounded-lg">
+              {isMobile ? (
+                <div className="space-y-3 p-2">
+                  {providers.map((p, i) => (
+                    <m.div
+                      key={p.id}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={prefersReducedMotion ? NO_DURATION : { duration: 0.25, delay: i * 0.04 }}
+                      className="border rounded-lg p-3 bg-white"
+                    >
+                      <div className="text-sm text-gray-800 break-all">
+                        <div className="font-semibold">{p.baseUrl}</div>
+                        <div className="mt-1">Model：{p.model}</div>
+                        <div className="mt-1">Group：{p.group || '-'}</div>
+                        <div className="mt-1">Enabled：{p.enabled ? '是' : '否'}｜Weight：{p.weight}</div>
+                        <div className="mt-1 font-mono text-xs text-gray-700">{p.apiKey}</div>
+                        <div className="mt-1 text-xs text-gray-500">{p.updatedAt ? new Date(p.updatedAt).toLocaleString() : '-'}</div>
+                      </div>
+                      <div className="mt-2 flex items-center justify-end gap-2">
+                        <m.button
+                          onClick={() => handleEditProvider(p)}
+                          className="px-2 sm:px-3 py-1.5 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition text-sm"
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          编辑
+                        </m.button>
+                        <m.button
+                          onClick={() => handleDeleteProvider(p.id)}
+                          disabled={providerDeletingId === p.id}
+                          className="px-2 sm:px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm"
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          {providerDeletingId === p.id ? '删除中...' : '删除'}
+                        </m.button>
+                      </div>
+                    </m.div>
+                  ))}
+                </div>
               ) : (
                 <table className="min-w-full">
                   <thead>
@@ -3269,43 +3296,43 @@ const EnvManager: React.FC = () => {
           ) : (
             <div className="overflow-x-auto border border-gray-200 rounded-lg">
               {isMobile ? (
-                                      <div className="space-y-3 p-2">
-                        {debugConfigs.map((config, i) => (
-                          <m.div
-                            key={config.group}
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={prefersReducedMotion ? NO_DURATION : { duration: 0.25, delay: i * 0.04 }}
-                            className="border rounded-lg p-3 bg-white"
-                          >
-                            <div className="text-sm text-gray-800">
-                              <div className="font-semibold">{config.group}</div>
-                              <div className="mt-1 font-mono text-xs text-gray-700">KeySeq：{config.keySequence}</div>
-                              <div className="mt-1">最大尝试：{config.maxAttempts}</div>
-                              <div className="mt-1">锁定：{Math.floor(config.lockoutDuration / 1000 / 60)} 分钟</div>
-                              <div className="mt-1">启用：{config.enabled ? '是' : '否'}</div>
-                              <div className="mt-1 text-xs text-gray-500">{config.updatedAt ? new Date(config.updatedAt).toLocaleString() : '-'}</div>
-                            </div>
-                            <div className="mt-2 flex items-center justify-end gap-2">
-                              <m.button
-                                onClick={() => handleEditDebugConfig(config)}
-                                className="px-2 sm:px-3 py-1.5 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition text-sm"
-                                whileTap={{ scale: 0.95 }}
-                              >
-                                编辑
-                              </m.button>
-                              <m.button
-                                onClick={() => handleDeleteDebugConfig(config.group)}
-                                disabled={debugConfigDeletingGroup === config.group}
-                                className="px-2 sm:px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm"
-                                whileTap={{ scale: 0.95 }}
-                              >
-                                {debugConfigDeletingGroup === config.group ? '删除中...' : '删除'}
-                              </m.button>
-                            </div>
-                          </m.div>
-                        ))}
+                <div className="space-y-3 p-2">
+                  {debugConfigs.map((config, i) => (
+                    <m.div
+                      key={config.group}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={prefersReducedMotion ? NO_DURATION : { duration: 0.25, delay: i * 0.04 }}
+                      className="border rounded-lg p-3 bg-white"
+                    >
+                      <div className="text-sm text-gray-800">
+                        <div className="font-semibold">{config.group}</div>
+                        <div className="mt-1 font-mono text-xs text-gray-700">KeySeq：{config.keySequence}</div>
+                        <div className="mt-1">最大尝试：{config.maxAttempts}</div>
+                        <div className="mt-1">锁定：{Math.floor(config.lockoutDuration / 1000 / 60)} 分钟</div>
+                        <div className="mt-1">启用：{config.enabled ? '是' : '否'}</div>
+                        <div className="mt-1 text-xs text-gray-500">{config.updatedAt ? new Date(config.updatedAt).toLocaleString() : '-'}</div>
                       </div>
+                      <div className="mt-2 flex items-center justify-end gap-2">
+                        <m.button
+                          onClick={() => handleEditDebugConfig(config)}
+                          className="px-2 sm:px-3 py-1.5 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition text-sm"
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          编辑
+                        </m.button>
+                        <m.button
+                          onClick={() => handleDeleteDebugConfig(config.group)}
+                          disabled={debugConfigDeletingGroup === config.group}
+                          className="px-2 sm:px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm"
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          {debugConfigDeletingGroup === config.group ? '删除中...' : '删除'}
+                        </m.button>
+                      </div>
+                    </m.div>
+                  ))}
+                </div>
               ) : (
                 <table className="min-w-full">
                   <thead>
@@ -3506,8 +3533,8 @@ const EnvManager: React.FC = () => {
                     className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                   />
                   <span className="font-medium">
-                    {selectedLogIds.length === debugLogs.length && debugLogs.length > 0 
-                      ? '取消全选' 
+                    {selectedLogIds.length === debugLogs.length && debugLogs.length > 0
+                      ? '取消全选'
                       : `全选 (${debugLogs.length} 条记录)`
                     }
                   </span>
@@ -3519,13 +3546,12 @@ const EnvManager: React.FC = () => {
                 {debugLogs.map((log, i) => {
                   const logId = log._id || `${log.timestamp}-${log.ip}-${i}`;
                   const isSelected = selectedLogIds.includes(logId);
-                  
+
                   return (
                     <m.div
                       key={logId}
-                      className={`rounded-2xl border border-gray-200 bg-white p-3 sm:p-4 shadow-sm hover:shadow transition ${
-                        log.success ? 'border-l-4 border-l-green-500' : 'border-l-4 border-l-red-500'
-                      }`}
+                      className={`rounded-2xl border border-gray-200 bg-white p-3 sm:p-4 shadow-sm hover:shadow transition ${log.success ? 'border-l-4 border-l-green-500' : 'border-l-4 border-l-red-500'
+                        }`}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={prefersReducedMotion ? NO_DURATION : { duration: 0.25, delay: i * 0.02 }}
@@ -3538,16 +3564,15 @@ const EnvManager: React.FC = () => {
                           onChange={(e) => handleSelectLog(logId, e.target.checked)}
                           className="w-4 h-4 mt-1 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 flex-shrink-0"
                         />
-                        
+
                         <div className="flex-1 min-w-0">
                           {/* 状态和时间 */}
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 mb-3">
                             <div className="flex items-center gap-2">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                log.success 
-                                  ? 'bg-green-100 text-green-800' 
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${log.success
+                                  ? 'bg-green-100 text-green-800'
                                   : 'bg-red-100 text-red-800'
-                              }`}>
+                                }`}>
                                 {log.success ? '✓ 成功' : '✗ 失败'}
                               </span>
                               <span className="text-xs sm:text-sm text-gray-500">
@@ -3558,7 +3583,7 @@ const EnvManager: React.FC = () => {
                               {new Date(log.timestamp).toLocaleString()}
                             </div>
                           </div>
-                          
+
                           {/* 详细信息网格 */}
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mb-3">
                             <div>
@@ -3586,7 +3611,7 @@ const EnvManager: React.FC = () => {
                               </div>
                             </div>
                           </div>
-                          
+
                           {/* 锁定状态（如果有） */}
                           {log.lockoutUntil && (
                             <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-lg">
@@ -3596,7 +3621,7 @@ const EnvManager: React.FC = () => {
                               </div>
                             </div>
                           )}
-                          
+
                           {/* 操作按钮 */}
                           <div className="flex justify-end">
                             <m.button
@@ -3616,7 +3641,7 @@ const EnvManager: React.FC = () => {
               </div>
 
               {/* 统计信息 */}
-              <m.div 
+              <m.div
                 className="mt-4 pt-4 border-t border-gray-200"
                 initial={ENTER_INITIAL}
                 animate={ENTER_ANIMATE}
@@ -3693,94 +3718,94 @@ const EnvManager: React.FC = () => {
           )}
         </m.div>
 
-      {/* 数据来源弹窗（相对于当前屏幕居中） */}
-      <AnimatePresence>
-        {showSourceModal && (
+        {/* 数据来源弹窗（相对于当前屏幕居中） */}
+        <AnimatePresence>
+          {showSourceModal && (
             <m.div
-            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-[9999]"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-              transition={modalTrans}
-            onClick={handleSourceModalCloseWrapper}
-            data-source-modal
-          >
-              <m.div
-              className="bg-white rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] p-8 w-full max-w-md mx-4 relative z-[10000] border border-gray-100"
+              className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-[9999]"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-                transition={modalTrans}
-              onClick={(e) => e.stopPropagation()}
+              transition={modalTrans}
+              onClick={handleSourceModalCloseWrapper}
+              data-source-modal
             >
-              <div className="text-center">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <FaInfoCircle className="w-8 h-8 text-blue-500" />
+              <m.div
+                className="bg-white rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] p-8 w-full max-w-md mx-4 relative z-[10000] border border-gray-100"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={modalTrans}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <FaInfoCircle className="w-8 h-8 text-blue-500" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">数据来源</h3>
+                  <p className="text-gray-600 mb-6">{selectedSource}</p>
+                  <button
+                    onClick={handleSourceModalCloseWrapper}
+                    className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+                  >
+                    确定
+                  </button>
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">数据来源</h3>
-                <p className="text-gray-600 mb-6">{selectedSource}</p>
-                <button
-                  onClick={handleSourceModalCloseWrapper}
-                  className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
-                >
-                  确定
-                </button>
-              </div>
               </m.div>
             </m.div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>
 
-      {/* 删除确认弹窗 */}
-      <AnimatePresence>
-        {showDeleteConfirm && (
-          <m.div
-            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-[9999]"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={modalTrans}
-            onClick={() => setShowDeleteConfirm(false)}
-          >
+        {/* 删除确认弹窗 */}
+        <AnimatePresence>
+          {showDeleteConfirm && (
             <m.div
-              className="bg-white rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] p-8 w-full max-w-md mx-4 relative z-[10000] border border-gray-100"
+              className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-[9999]"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={modalTrans}
-              onClick={(e) => e.stopPropagation()}
+              onClick={() => setShowDeleteConfirm(false)}
             >
-              <div className="text-center">
-                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <FaTimes className="w-8 h-8 text-red-500" />
+              <m.div
+                className="bg-white rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] p-8 w-full max-w-md mx-4 relative z-[10000] border border-gray-100"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={modalTrans}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <FaTimes className="w-8 h-8 text-red-500" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">确认删除</h3>
+                  <p className="text-gray-600 mb-6">
+                    {deleteType === 'single' && '确定要删除这条访问日志吗？'}
+                    {deleteType === 'batch' && `确定要删除选中的 ${selectedLogIds.length} 条访问日志吗？`}
+                    {deleteType === 'all' && '确定要删除所有访问日志吗？此操作不可恢复！'}
+                    {deleteType === 'filter' && `确定要删除选中的 ${selectedLogIds.length} 条访问日志吗？此操作不可恢复！`}
+                  </p>
+                  <div className="flex items-center justify-center gap-3">
+                    <button
+                      onClick={() => setShowDeleteConfirm(false)}
+                      className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium"
+                    >
+                      取消
+                    </button>
+                    <button
+                      onClick={handleConfirmDelete}
+                      disabled={deleteLogsLoading}
+                      className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium disabled:opacity-50"
+                    >
+                      {deleteLogsLoading ? '删除中...' : '确认删除'}
+                    </button>
+                  </div>
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">确认删除</h3>
-                <p className="text-gray-600 mb-6">
-                  {deleteType === 'single' && '确定要删除这条访问日志吗？'}
-                  {deleteType === 'batch' && `确定要删除选中的 ${selectedLogIds.length} 条访问日志吗？`}
-                  {deleteType === 'all' && '确定要删除所有访问日志吗？此操作不可恢复！'}
-                  {deleteType === 'filter' && `确定要删除选中的 ${selectedLogIds.length} 条访问日志吗？此操作不可恢复！`}
-                </p>
-                <div className="flex items-center justify-center gap-3">
-                  <button
-                    onClick={() => setShowDeleteConfirm(false)}
-                    className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium"
-                  >
-                    取消
-                  </button>
-                  <button
-                    onClick={handleConfirmDelete}
-                    disabled={deleteLogsLoading}
-                    className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium disabled:opacity-50"
-                  >
-                    {deleteLogsLoading ? '删除中...' : '确认删除'}
-                  </button>
-                </div>
-              </div>
+              </m.div>
             </m.div>
-          </m.div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>
       </div>
     </LazyMotion>
   );
