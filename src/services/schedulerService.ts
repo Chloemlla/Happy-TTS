@@ -1,5 +1,6 @@
 import { TurnstileService } from './turnstileService';
 import { GitHubBillingService } from './githubBillingService';
+import { cleanupExpiredIPData, getIPDataStats } from './ip';
 import logger from '../utils/logger';
 
 class SchedulerService {
@@ -13,6 +14,15 @@ class SchedulerService {
     }
 
     this.isRunning = true;
+    
+    // 启动时先执行一次清理任务
+    logger.info('定时任务服务启动中，执行初始清理...');
+    this.cleanupExpiredData().then(() => {
+      logger.info('初始清理完成');
+    }).catch((error) => {
+      logger.error('初始清理失败', error);
+    });
+    
     this.cleanupInterval = setInterval(() => {
       this.cleanupExpiredData();
     }, 5 * 60 * 1000); // 每5分钟执行一次
@@ -40,11 +50,14 @@ class SchedulerService {
       // 清理过期的IP封禁记录
       const ipBanCount = await TurnstileService.cleanupExpiredIpBans();
 
+      // 清理过期的IP信息数据
+      const ipDataCount = await cleanupExpiredIPData();
+
       // 清理过期的GitHub Billing缓存
       await GitHubBillingService.clearExpiredCache();
 
-      if (fingerprintCount > 0 || accessTokenCount > 0 || ipBanCount > 0) {
-        logger.info(`定时清理完成: 临时指纹 ${fingerprintCount} 条, 访问密钥 ${accessTokenCount} 条, IP封禁 ${ipBanCount} 条`);
+      if (fingerprintCount > 0 || accessTokenCount > 0 || ipBanCount > 0 || ipDataCount > 0) {
+        logger.info(`定时清理完成: 临时指纹 ${fingerprintCount} 条, 访问密钥 ${accessTokenCount} 条, IP封禁 ${ipBanCount} 条, IP数据 ${ipDataCount} 条`);
       }
 
       this.lastCleanup = new Date();
@@ -66,12 +79,15 @@ class SchedulerService {
       const accessTokenCount = await TurnstileService.cleanupExpiredAccessTokens();
       const ipBanCount = await TurnstileService.cleanupExpiredIpBans();
       
+      // 清理过期的IP信息数据
+      const ipDataCount = await cleanupExpiredIPData();
+      
       // 清理GitHub Billing缓存
       await GitHubBillingService.clearExpiredCache();
       
-      const totalCount = fingerprintCount + accessTokenCount + ipBanCount;
+      const totalCount = fingerprintCount + accessTokenCount + ipBanCount + ipDataCount;
 
-      logger.info(`手动清理完成: 临时指纹 ${fingerprintCount} 条, 访问密钥 ${accessTokenCount} 条, IP封禁 ${ipBanCount} 条`);
+      logger.info(`手动清理完成: 临时指纹 ${fingerprintCount} 条, 访问密钥 ${accessTokenCount} 条, IP封禁 ${ipBanCount} 条, IP数据 ${ipDataCount} 条`);
 
       return {
         success: true,

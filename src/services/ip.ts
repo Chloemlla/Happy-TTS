@@ -863,10 +863,111 @@ process.on('SIGTERM', gracefulShutdown);
 process.on('SIGINT', gracefulShutdown);
 process.on('SIGUSR2', gracefulShutdown); // nodemon重启信号
 
+// IP数据清理函数
+async function cleanupExpiredIPData(): Promise<number> {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      logger.warn('MongoDB连接不可用，跳过IP数据清理');
+      return 0;
+    }
+
+    // 清理1小时前的过期数据
+    const expireTime = new Date(Date.now() - CACHE_TTL);
+    const result = await IPInfoModel.deleteMany({
+      timestamp: { $lt: expireTime }
+    });
+
+    // 同步清理本地缓存中的过期数据
+    const now = Date.now();
+    const expiredLocalKeys: string[] = [];
+    
+    for (const [key, value] of Object.entries(LOCAL_CACHE)) {
+      if (value.timestamp && now - value.timestamp > CACHE_TTL) {
+        expiredLocalKeys.push(key);
+      }
+    }
+    
+    expiredLocalKeys.forEach(key => delete LOCAL_CACHE[key]);
+
+    if (result.deletedCount > 0 || expiredLocalKeys.length > 0) {
+      logger.info(`IP数据清理完成: MongoDB删除 ${result.deletedCount} 条, 本地缓存清理 ${expiredLocalKeys.length} 条`);
+    }
+
+    return result.deletedCount + expiredLocalKeys.length;
+  } catch (error) {
+    logger.error('IP数据清理失败:', error);
+    throw error;
+  }
+}
+
+// 强制清理所有IP数据
+async function clearAllIPData(): Promise<number> {
+  try {
+    let totalDeleted = 0;
+
+    // 清理MongoDB数据
+    if (mongoose.connection.readyState === 1) {
+      const result = await IPInfoModel.deleteMany({});
+      totalDeleted += result.deletedCount;
+      logger.info(`清理MongoDB IP数据: ${result.deletedCount} 条`);
+    }
+
+    // 清理本地缓存
+    const localCount = Object.keys(LOCAL_CACHE).length;
+    Object.keys(LOCAL_CACHE).forEach(key => delete LOCAL_CACHE[key]);
+    totalDeleted += localCount;
+    
+    // 清理内存缓存
+    const memoryCount = ipCache.size;
+    ipCache.clear();
+    totalDeleted += memoryCount;
+
+    logger.info(`IP数据全部清理完成: 总计 ${totalDeleted} 条 (MongoDB + 本地缓存 ${localCount} + 内存缓存 ${memoryCount})`);
+    return totalDeleted;
+  } catch (error) {
+    logger.error('清理所有IP数据失败:', error);
+    throw error;
+  }
+}
+
+// 获取IP数据统计信息
+async function getIPDataStats(): Promise<{
+  mongoCount: number;
+  localCacheCount: number;
+  memoryCacheCount: number;
+  bulkQueueSize: number;
+}> {
+  try {
+    let mongoCount = 0;
+    
+    if (mongoose.connection.readyState === 1) {
+      mongoCount = await IPInfoModel.countDocuments();
+    }
+
+    return {
+      mongoCount,
+      localCacheCount: Object.keys(LOCAL_CACHE).length,
+      memoryCacheCount: ipCache.size,
+      bulkQueueSize: bulkWriteQueue.length
+    };
+  } catch (error) {
+    logger.error('获取IP数据统计失败:', error);
+    return {
+      mongoCount: 0,
+      localCacheCount: Object.keys(LOCAL_CACHE).length,
+      memoryCacheCount: ipCache.size,
+      bulkQueueSize: bulkWriteQueue.length
+    };
+  }
+}
+
 // 导出额外的工具函数
 export {
   getCacheStats,
   getIPServiceStats,
   resetIPServiceStats,
-  gracefulShutdown
+  gracefulShutdown,
+  cleanupExpiredIPData,
+  clearAllIPData,
+  getIPDataStats
 }; 
