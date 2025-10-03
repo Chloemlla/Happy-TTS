@@ -17,8 +17,8 @@ class SchedulerService {
     
     // 启动时先执行一次清理任务
     logger.info('定时任务服务启动中，执行初始清理...');
-    this.cleanupExpiredData().then(() => {
-      logger.info('初始清理完成');
+    this.cleanupExpiredData().then((result) => {
+      logger.info('初始清理完成', result);
     }).catch((error) => {
       logger.error('初始清理失败', error);
     });
@@ -39,7 +39,7 @@ class SchedulerService {
     logger.info('定时任务服务已停止');
   }
 
-  private async cleanupExpiredData(): Promise<void> {
+  private async cleanupExpiredData(): Promise<{ fingerprintCount: number; accessTokenCount: number; ipBanCount: number; ipDataCount: number; totalCount: number } | void> {
     try {
       // 清理过期的临时指纹
       const fingerprintCount = await TurnstileService.cleanupExpiredFingerprints();
@@ -56,11 +56,15 @@ class SchedulerService {
       // 清理过期的GitHub Billing缓存
       await GitHubBillingService.clearExpiredCache();
 
-      if (fingerprintCount > 0 || accessTokenCount > 0 || ipBanCount > 0 || ipDataCount > 0) {
+      const totalCount = fingerprintCount + accessTokenCount + ipBanCount + ipDataCount;
+      const result = { fingerprintCount, accessTokenCount, ipBanCount, ipDataCount, totalCount };
+
+      if (totalCount > 0) {
         logger.info(`定时清理完成: 临时指纹 ${fingerprintCount} 条, 访问密钥 ${accessTokenCount} 条, IP封禁 ${ipBanCount} 条, IP数据 ${ipDataCount} 条`);
       }
 
       this.lastCleanup = new Date();
+      return result;
     } catch (error) {
       logger.error('定时清理任务失败', error);
     }
