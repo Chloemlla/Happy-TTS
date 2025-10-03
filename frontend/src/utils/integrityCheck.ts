@@ -273,6 +273,9 @@ class IntegrityChecker {
       criticalTexts.forEach((text, index) => {
         this.setIntegrity(`critical-text-${index}`, text);
       });
+      
+      // 设置品牌保护区域的完整性基准
+      this.setupBrandProtectionBaseline();
     } catch (error) {
       this.safeLog('error', '❌ 捕获基准内容时出错:', error);
       // 延迟重试
@@ -1154,12 +1157,18 @@ class IntegrityChecker {
   }
 
   private checkPageIntegrity(): void {
-    // 检查关键元素
+    // 检查关键元素（包括新增的品牌保护区域）
     const criticalElements = [
       'app-header',
-      'app-footer',
+      'app-footer', 
       'tts-form',
-      'legal-notice'
+      'legal-notice',
+      // 新增：品牌标识关键区域
+      'app-header-container',
+      'app-header-content',
+      'app-brand-logo',
+      'app-brand-icon',
+      'app-brand-text'
     ];
 
     criticalElements.forEach(id => {
@@ -1168,14 +1177,22 @@ class IntegrityChecker {
         const currentContent = element.innerHTML;
         if (!this.verifyIntegrity(id, currentContent)) {
           console.error(`检测到页面元素 ${id} 被篡改！`);
-          // 可以在这里添加恢复或报警逻辑
-          this.handleTampering(id);
+          
+          // 对品牌标识区域进行特殊处理
+          if (this.isBrandProtectedElement(id)) {
+            this.handleBrandTampering(id, element);
+          } else {
+            this.handleTampering(id);
+          }
         }
       }
     });
 
     // 检查特定文本
     this.checkTextIntegrity();
+    
+    // 新增：专门检查品牌保护区域
+    this.checkBrandProtectionIntegrity();
   }
 
   private checkTextIntegrity(): void {
@@ -1902,6 +1919,338 @@ class IntegrityChecker {
       tamperedUrls,
       message: tamperedUrls.length === 0 ? '网络完整性正常' : `发现 ${tamperedUrls.length} 个被篡改的网络响应`
     };
+  }
+
+  // ========== 品牌保护专用方法 ==========
+  
+  /**
+   * 检查是否为品牌保护元素
+   */
+  private isBrandProtectedElement(elementId: string): boolean {
+    const brandProtectedIds = [
+      'app-header-container',
+      'app-header-content', 
+      'app-brand-logo',
+      'app-brand-icon',
+      'app-brand-text'
+    ];
+    return brandProtectedIds.includes(elementId);
+  }
+  
+  /**
+   * 处理品牌标识篡改（最高优先级）
+   */
+  private handleBrandTampering(elementId: string, element: Element): void {
+    if (this.debugMode) {
+      this.safeLog('error', '🚨 检测到品牌标识篡改！', { elementId, element: element.outerHTML });
+    }
+    
+    // 立即恢复品牌内容
+    this.restoreBrandElement(elementId, element);
+    
+    // 显示最高级别警告
+    this.showCriticalBrandWarning(elementId);
+    
+    // 上报品牌篡改事件
+    this.handleTampering(elementId, undefined, undefined, 'dom', 'brand-protection');
+    
+    // 启动品牌保护模式
+    this.activateBrandProtectionMode();
+  }
+  
+  /**
+   * 恢复品牌元素内容
+   */
+  private restoreBrandElement(elementId: string, element: Element): void {
+    try {
+      switch (elementId) {
+        case 'app-brand-text':
+          // 恢复品牌文本
+          if (element.textContent !== 'Synapse') {
+            element.textContent = 'Synapse';
+            element.setAttribute('data-original-text', 'Synapse');
+            element.setAttribute('data-critical-text', 'Synapse');
+          }
+          break;
+          
+        case 'app-brand-icon':
+          // 恢复品牌图标路径
+          const path = element.querySelector('path');
+          if (path) {
+            path.setAttribute('d', 'M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z');
+          }
+          break;
+          
+        case 'app-brand-logo':
+        case 'app-header-content':
+        case 'app-header-container':
+          // 对于容器元素，检查并恢复子元素
+          this.restoreBrandContainerContent(element);
+          break;
+      }
+      
+      if (this.debugMode) {
+        this.safeLog('log', '✅ 品牌元素已恢复:', elementId);
+      }
+    } catch (error) {
+      this.safeLog('error', '❌ 恢复品牌元素失败:', { elementId, error });
+    }
+  }
+  
+  /**
+   * 恢复品牌容器内容
+   */
+  private restoreBrandContainerContent(container: Element): void {
+    // 检查品牌文本
+    const brandTextElement = container.querySelector('#app-brand-text');
+    if (brandTextElement && brandTextElement.textContent !== 'Synapse') {
+      brandTextElement.textContent = 'Synapse';
+    }
+    
+    // 检查品牌图标
+    const brandIcon = container.querySelector('#app-brand-icon path');
+    if (brandIcon) {
+      const expectedPath = 'M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z';
+      if (brandIcon.getAttribute('d') !== expectedPath) {
+        brandIcon.setAttribute('d', expectedPath);
+      }
+    }
+  }
+  
+  /**
+   * 显示关键品牌警告
+   */
+  private showCriticalBrandWarning(elementId: string): void {
+    const warning = document.createElement('div');
+    warning.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(255, 0, 0, 0.95);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 99999;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      animation: criticalPulse 1s infinite;
+    `;
+    
+    warning.innerHTML = `
+      <div style="font-size: 3em; margin-bottom: 20px;">🚨</div>
+      <h1 style="font-size: 2em; margin-bottom: 10px;">严重安全警告</h1>
+      <p style="font-size: 1.2em; margin-bottom: 20px;">检测到品牌标识被恶意篡改！</p>
+      <p style="font-size: 1em; opacity: 0.9;">元素ID: ${elementId}</p>
+      <p style="font-size: 1em; opacity: 0.9;">系统已自动恢复并记录此事件</p>
+      <div style="margin-top: 30px; font-size: 0.9em;">
+        页面将在 <span id="brand-countdown">10</span> 秒后自动关闭
+      </div>
+    `;
+    
+    // 添加动画样式
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes criticalPulse {
+        0%, 100% { background: rgba(255, 0, 0, 0.95); }
+        50% { background: rgba(255, 100, 100, 0.95); }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    document.body.appendChild(warning);
+    
+    // 倒计时关闭
+    let countdown = 10;
+    const interval = setInterval(() => {
+      countdown--;
+      const countdownElement = warning.querySelector('#brand-countdown');
+      if (countdownElement) {
+        countdownElement.textContent = countdown.toString();
+      }
+      
+      if (countdown <= 0) {
+        clearInterval(interval);
+        window.close();
+      }
+    }, 1000);
+  }
+  
+  /**
+   * 激活品牌保护模式
+   */
+  private activateBrandProtectionMode(): void {
+    if (this.debugMode) {
+      this.safeLog('log', '🛡️ 激活品牌保护模式');
+    }
+    
+    // 增加检查频率
+    this.networkCheckInterval = 100; // 100ms检查一次
+    
+    // 启动品牌保护监控
+    const brandProtectionInterval = setInterval(() => {
+      this.checkBrandProtectionIntegrity();
+    }, 50); // 每50ms检查一次品牌区域
+    
+    // 5分钟后恢复正常频率
+    setTimeout(() => {
+      clearInterval(brandProtectionInterval);
+      this.networkCheckInterval = 1000;
+      if (this.debugMode) {
+        this.safeLog('log', '🛡️ 品牌保护模式已结束，恢复正常监控');
+      }
+    }, 300000);
+  }
+  
+  /**
+   * 检查品牌保护区域完整性
+   */
+  private checkBrandProtectionIntegrity(): void {
+    // 检查品牌文本
+    const brandTextElement = document.getElementById('app-brand-text');
+    if (brandTextElement) {
+      const expectedText = 'Synapse';
+      if (brandTextElement.textContent !== expectedText) {
+        if (this.debugMode) {
+          this.safeLog('warn', '🚨 品牌文本被篡改:', {
+            expected: expectedText,
+            actual: brandTextElement.textContent
+          });
+        }
+        this.handleBrandTampering('app-brand-text', brandTextElement);
+      }
+    }
+    
+    // 检查品牌图标
+    const brandIcon = document.querySelector('#app-brand-icon path');
+    if (brandIcon) {
+      const expectedPath = 'M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z';
+      const actualPath = brandIcon.getAttribute('d');
+      if (actualPath !== expectedPath) {
+        if (this.debugMode) {
+          this.safeLog('warn', '🚨 品牌图标被篡改');
+        }
+        this.handleBrandTampering('app-brand-icon', brandIcon.parentElement!);
+      }
+    }
+    
+    // 检查关键属性
+    const protectedElements = [
+      'app-header-container',
+      'app-header-content',
+      'app-brand-logo',
+      'app-brand-icon',
+      'app-brand-text'
+    ];
+    
+    protectedElements.forEach(id => {
+      const element = document.getElementById(id);
+      if (element) {
+        // 检查关键属性是否被移除
+        const requiredAttributes = ['data-integrity', 'data-protection'];
+        const missingAttributes = requiredAttributes.filter(attr => !element.hasAttribute(attr));
+        
+        if (missingAttributes.length > 0) {
+          if (this.debugMode) {
+            this.safeLog('warn', '🚨 品牌元素关键属性被移除:', {
+              elementId: id,
+              missingAttributes
+            });
+          }
+          
+          // 恢复关键属性
+          this.restoreBrandElementAttributes(element, id);
+        }
+      }
+    });
+  }
+  
+  /**
+   * 设置品牌保护区域的完整性基准
+   */
+  private setupBrandProtectionBaseline(): void {
+    try {
+      const brandProtectedIds = [
+        'app-header-container',
+        'app-header-content',
+        'app-brand-logo', 
+        'app-brand-icon',
+        'app-brand-text'
+      ];
+      
+      brandProtectedIds.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+          // 为品牌保护元素设置完整性基准
+          this.setIntegrity(id, element.innerHTML);
+          
+          if (this.debugMode) {
+            this.safeLog('log', `🛡️ 品牌保护基准已设置: ${id}`, {
+              contentLength: element.innerHTML.length,
+              textContent: element.textContent?.substring(0, 50) + '...'
+            });
+          }
+        }
+      });
+      
+      // 特别设置品牌文本的基准
+      const brandTextElement = document.getElementById('app-brand-text');
+      if (brandTextElement) {
+        this.setIntegrity('brand-text-content', brandTextElement.textContent || '');
+      }
+      
+      // 设置品牌图标路径的基准
+      const brandIconPath = document.querySelector('#app-brand-icon path');
+      if (brandIconPath) {
+        const pathData = brandIconPath.getAttribute('d') || '';
+        this.setIntegrity('brand-icon-path', pathData);
+      }
+      
+    } catch (error) {
+      this.safeLog('error', '❌ 设置品牌保护基准失败:', error);
+    }
+  }
+
+  /**
+   * 恢复品牌元素属性
+   */
+  private restoreBrandElementAttributes(element: Element, elementId: string): void {
+    switch (elementId) {
+      case 'app-header-container':
+        element.setAttribute('data-integrity', 'critical');
+        element.setAttribute('data-protection', 'maximum');
+        element.setAttribute('data-component', 'AppHeader');
+        break;
+        
+      case 'app-header-content':
+        element.setAttribute('data-integrity', 'critical');
+        break;
+        
+      case 'app-brand-logo':
+        element.setAttribute('data-integrity', 'critical');
+        element.setAttribute('data-protection', 'brand-identity');
+        element.setAttribute('data-critical-text', 'Synapse');
+        break;
+        
+      case 'app-brand-icon':
+        element.setAttribute('data-integrity', 'critical');
+        element.setAttribute('data-protection', 'brand-icon');
+        break;
+        
+      case 'app-brand-text':
+        element.setAttribute('data-integrity', 'critical');
+        element.setAttribute('data-protection', 'brand-text');
+        element.setAttribute('data-critical-text', 'Synapse');
+        element.setAttribute('data-original-text', 'Synapse');
+        break;
+    }
+    
+    if (this.debugMode) {
+      this.safeLog('log', '✅ 品牌元素属性已恢复:', elementId);
+    }
   }
 
   // 检查当前页面是否被豁免（调试用）
