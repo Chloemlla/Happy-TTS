@@ -70,6 +70,9 @@ const HCaptchaVerificationPage = React.lazy(() => import('./components/HCaptchaV
 // 通知测试页面懒加载
 const NotificationTestPage = React.lazy(() => import('./components/NotificationTestPage'));
 
+// 篡改检测演示页面懒加载
+const TamperDetectionDemo = React.lazy(() => import('./components/TamperDetectionDemo'));
+
 // 恢复 EmailSender 懒加载
 const EmailSenderPage: React.FC = () => {
   const [to, setTo] = React.useState('');
@@ -1159,6 +1162,23 @@ const App: React.FC = () => {
                       <CampusEmergencyPage />
                     </m.div>
                   </Suspense>
+                } />
+                <Route path="/tamper-detection-demo" element={
+                  user?.role === 'admin' ? (
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <m.div
+                        variants={pageVariants}
+                        initial="initial"
+                        animate="in"
+                        exit="out"
+                        transition={pageTransition}
+                      >
+                        <TamperDetectionDemo />
+                      </m.div>
+                    </Suspense>
+                  ) : (
+                    <Navigate to="/" replace />
+                  )
                 } />
 
                 {/* 资源商店相关路由 */}

@@ -1,4 +1,5 @@
 import CryptoJS from 'crypto-js';
+import { getApiBaseUrl } from '../api/api';
 
 interface IntegrityData {
   content: string;
@@ -9,14 +10,27 @@ interface IntegrityData {
 }
 
 interface TamperEvent {
-  elementId: string;
+  // 基础信息
+  elementId?: string;
   timestamp: string;
   url: string;
-  originalContent?: string;
-  tamperContent?: string;
-  attempts?: number;
+  
+  // 篡改类型和检测方法
+  eventType?: string;
   tamperType?: 'dom' | 'network' | 'proxy' | 'injection';
   detectionMethod?: string;
+  
+  // 内容相关
+  originalContent?: string;
+  tamperContent?: string;
+  filePath?: string;
+  checksum?: string;
+  
+  // 统计信息
+  attempts?: number;
+  
+  // 额外信息
+  additionalInfo?: Record<string, any>;
 }
 
 interface NetworkIntegrityData {
@@ -67,7 +81,8 @@ class IntegrityChecker {
     'https://tts-api-docs.hapx.one',
     'https://tts-api-docs.hapxs.com',
     'https://api.hapxs.com',
-    'https://tts.hapxs.com'
+    'https://tts.hapxs.com',
+    'https://951100.xyz'
   ];
   private readonly COMPONENT_EXEMPT_MARKERS: string[] = [
     'MarkdownExportPage', 'MarkdownPreview',
@@ -1177,15 +1192,49 @@ class IntegrityChecker {
   }
 
   private handleTampering(elementId: string, originalContent?: string, tamperContent?: string, tamperType?: 'dom' | 'network' | 'proxy' | 'injection', detectionMethod?: string): void {
+    // 确定事件类型
+    let eventType = 'unknown';
+    if (tamperType === 'dom') {
+      eventType = 'dom_modification';
+    } else if (tamperType === 'network') {
+      eventType = 'network_tampering';
+    } else if (tamperType === 'proxy') {
+      eventType = 'proxy_tampering';
+    } else if (tamperType === 'injection') {
+      eventType = 'script_injection';
+    }
+
+    // 计算内容校验和
+    let checksum: string | undefined;
+    if (originalContent) {
+      checksum = this.calculateChecksum(originalContent);
+    }
+
+    // 确定文件路径（如果是DOM元素）
+    let filePath: string | undefined;
+    if (elementId && elementId !== 'unknown-element') {
+      filePath = window.location.pathname;
+    }
+
     const tamperEvent: TamperEvent = {
       elementId,
       timestamp: new Date().toISOString(),
       url: window.location.href,
+      eventType,
+      tamperType,
+      detectionMethod,
       originalContent,
       tamperContent,
+      filePath,
+      checksum,
       attempts: this.tamperAttempts.get(elementId),
-      tamperType,
-      detectionMethod
+      additionalInfo: {
+        userAgent: navigator.userAgent,
+        screenResolution: `${screen.width}x${screen.height}`,
+        timestamp: Date.now(),
+        pageTitle: document.title,
+        referrer: document.referrer
+      }
     };
     
     this.reportTampering(tamperEvent);
@@ -1194,13 +1243,27 @@ class IntegrityChecker {
 
   private reportTampering(event: TamperEvent): void {
     // 发送篡改事件到服务器
-    fetch('/api/report-tampering', {
+    const apiUrl = `${getApiBaseUrl()}/api/tamper/report-tampering`;
+    
+    fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(event)
-    }).catch(console.error);
+    }).then(response => {
+      if (!response.ok) {
+        if (this.debugMode) {
+          this.safeLog('warn', `⚠️ 篡改报告发送失败: ${response.status} ${response.statusText}`);
+        }
+      } else if (this.debugMode) {
+        this.safeLog('log', '✅ 篡改报告已成功发送');
+      }
+    }).catch(error => {
+      if (this.debugMode) {
+        this.safeLog('error', '❌ 篡改报告发送错误:', error);
+      }
+    });
   }
 
   private showTamperWarning(event: TamperEvent): void {
@@ -1222,9 +1285,9 @@ class IntegrityChecker {
     warning.innerHTML = `
       <div>警告：检测到页面内容被篡改！</div>
       <div style="font-size: 0.8em; margin-top: 5px;">
-        元素: ${event.elementId} | 
+        ${event.eventType ? `类型: ${event.eventType}` : ''} ${event.elementId ? `| 元素: ${event.elementId}` : ''} | 
         时间: ${new Date(event.timestamp).toLocaleTimeString()} | 
-        尝试次数: ${event.attempts}/${this.MAX_ATTEMPTS}
+        尝试次数: ${event.attempts || 0}/${this.MAX_ATTEMPTS}
       </div>
       <div id="tamper-countdown" style="margin-top: 5px; font-size: 1em;">
         页面将在 <span id="tamper-seconds">${countdown}</span> 秒后自动关闭并显示水印
@@ -1533,6 +1596,312 @@ class IntegrityChecker {
         }
       }
     });
+  }
+
+  // ========== 手动触发篡改检测的公共接口 ==========
+  
+  /**
+   * 手动触发完整性检查
+   * @param options 检查选项
+   */
+  public manualCheck(options: {
+    checkType?: 'all' | 'dom' | 'network' | 'text' | 'baseline';
+    elementId?: string;
+    forceCheck?: boolean;
+  } = {}): Promise<{
+    success: boolean;
+    results: any[];
+    errors: string[];
+  }> {
+    return new Promise((resolve) => {
+      const results: any[] = [];
+      const errors: string[] = [];
+      
+      try {
+        if (this.debugMode) {
+          this.safeLog('log', '🔍 手动触发完整性检查...', options);
+        }
+        
+        const { checkType = 'all', elementId, forceCheck = false } = options;
+        
+        // 如果系统被禁用且不是强制检查，直接返回
+        if (this.isDisabled() && !forceCheck) {
+          errors.push('完整性检查系统已被禁用');
+          return resolve({ success: false, results, errors });
+        }
+        
+        // 如果在豁免页面且不是强制检查，跳过
+        if (this.isExemptPage() && !forceCheck) {
+          results.push({ type: 'exempt', message: '当前页面已豁免完整性检查' });
+          return resolve({ success: true, results, errors });
+        }
+        
+        // 执行不同类型的检查
+        if (checkType === 'all' || checkType === 'baseline') {
+          const baselineResult = this.checkBaselineIntegrity();
+          results.push({ type: 'baseline', ...baselineResult });
+        }
+        
+        if (checkType === 'all' || checkType === 'dom') {
+          const domResult = this.checkDOMIntegrity(elementId);
+          results.push({ type: 'dom', ...domResult });
+        }
+        
+        if (checkType === 'all' || checkType === 'text') {
+          const textResult = this.checkCriticalTexts();
+          results.push({ type: 'text', ...textResult });
+        }
+        
+        if (checkType === 'all' || checkType === 'network') {
+          const networkResult = this.checkNetworkIntegrityStatus();
+          results.push({ type: 'network', ...networkResult });
+        }
+        
+        resolve({ success: errors.length === 0, results, errors });
+        
+      } catch (error) {
+        errors.push(`检查过程中发生错误: ${error instanceof Error ? error.message : String(error)}`);
+        resolve({ success: false, results, errors });
+      }
+    });
+  }
+  
+  /**
+   * 手动报告篡改事件
+   * @param eventData 篡改事件数据
+   */
+  public manualReportTampering(eventData: {
+    eventType: string;
+    elementId?: string;
+    originalContent?: string;
+    tamperContent?: string;
+    tamperType?: 'dom' | 'network' | 'proxy' | 'injection';
+    detectionMethod?: string;
+    additionalInfo?: Record<string, any>;
+  }): Promise<{ success: boolean; message: string }> {
+    return new Promise((resolve) => {
+      try {
+        if (this.debugMode) {
+          this.safeLog('log', '📤 手动报告篡改事件...', eventData);
+        }
+        
+        const tamperEvent: TamperEvent = {
+          elementId: eventData.elementId || 'manual-report',
+          timestamp: new Date().toISOString(),
+          url: window.location.href,
+          eventType: eventData.eventType,
+          tamperType: eventData.tamperType || 'dom',
+          detectionMethod: eventData.detectionMethod || 'manual-report',
+          originalContent: eventData.originalContent,
+          tamperContent: eventData.tamperContent,
+          filePath: window.location.pathname,
+          checksum: eventData.originalContent ? this.calculateChecksum(eventData.originalContent) : undefined,
+          attempts: 1,
+          additionalInfo: {
+            ...eventData.additionalInfo,
+            manualReport: true,
+            userAgent: navigator.userAgent,
+            screenResolution: `${screen.width}x${screen.height}`,
+            timestamp: Date.now(),
+            pageTitle: document.title,
+            referrer: document.referrer
+          }
+        };
+        
+        this.reportTampering(tamperEvent);
+        resolve({ success: true, message: '篡改事件已成功报告' });
+        
+      } catch (error) {
+        const message = `报告篡改事件失败: ${error instanceof Error ? error.message : String(error)}`;
+        resolve({ success: false, message });
+      }
+    });
+  }
+  
+  /**
+   * 手动触发恢复模式
+   * @param options 恢复选项
+   */
+  public manualRecovery(options: {
+    recoveryType?: 'emergency' | 'soft' | 'baseline';
+    showWarning?: boolean;
+  } = {}): { success: boolean; message: string } {
+    try {
+      const { recoveryType = 'soft', showWarning = true } = options;
+      
+      if (this.debugMode) {
+        this.safeLog('log', '🔄 手动触发恢复模式...', options);
+      }
+      
+      if (recoveryType === 'emergency') {
+        this.performEmergencyRecovery();
+        if (showWarning) {
+          this.showProxyTamperWarning();
+        }
+        return { success: true, message: '紧急恢复模式已启动' };
+      } else if (recoveryType === 'baseline') {
+        this.captureBaselineContent();
+        return { success: true, message: '基准内容已重新捕获' };
+      } else {
+        this.performRecovery();
+        return { success: true, message: '软恢复模式已启动' };
+      }
+      
+    } catch (error) {
+      const message = `恢复模式启动失败: ${error instanceof Error ? error.message : String(error)}`;
+      return { success: false, message };
+    }
+  }
+  
+  /**
+   * 手动模拟篡改事件（测试用）
+   * @param options 模拟选项
+   */
+  public simulateTampering(options: {
+    tamperType: 'dom' | 'network' | 'proxy' | 'injection';
+    elementId?: string;
+    testContent?: string;
+  }): { success: boolean; message: string } {
+    try {
+      if (this.debugMode) {
+        this.safeLog('log', '🧪 模拟篡改事件...', options);
+      }
+      
+      const { tamperType, elementId = 'test-element', testContent = 'Test Tampered Content' } = options;
+      
+      // 模拟不同类型的篡改
+      switch (tamperType) {
+        case 'dom':
+          this.handleTampering(elementId, 'Original Content', testContent, 'dom', 'simulation');
+          break;
+        case 'network':
+          this.handleNetworkTampering('/test-url', 'Original Response', testContent);
+          break;
+        case 'proxy':
+          this.handleProxyTampering({
+            hasProxyTampering: true,
+            replacedTexts: ['Synapse'],
+            addedContent: [],
+            removedContent: [],
+            confidence: 80
+          });
+          break;
+        case 'injection':
+          this.handleTampering(elementId, 'Original Script', testContent, 'injection', 'simulation');
+          break;
+      }
+      
+      return { success: true, message: `${tamperType} 类型的篡改事件已模拟` };
+      
+    } catch (error) {
+      const message = `模拟篡改事件失败: ${error instanceof Error ? error.message : String(error)}`;
+      return { success: false, message };
+    }
+  }
+  
+  // ========== 内部检查方法 ==========
+  
+  private checkBaselineIntegrity(): { 
+    isValid: boolean; 
+    currentLength: number; 
+    baselineLength: number; 
+    checksum: string; 
+    message: string;
+  } {
+    const currentContent = document.documentElement.outerHTML;
+    const currentChecksum = this.calculateChecksum(currentContent);
+    const currentLength = currentContent.length;
+    const baselineLength = this.originalPageContent.length;
+    
+    const isValid = currentChecksum === this.baselineChecksum && baselineLength > 0;
+    
+    return {
+      isValid,
+      currentLength,
+      baselineLength,
+      checksum: currentChecksum,
+      message: isValid ? '基准内容完整' : '基准内容已被修改'
+    };
+  }
+  
+  private checkDOMIntegrity(targetElementId?: string): {
+    checkedElements: number;
+    tamperedElements: string[];
+    message: string;
+  } {
+    const tamperedElements: string[] = [];
+    let checkedElements = 0;
+    
+    if (targetElementId) {
+      // 检查特定元素
+      const element = document.getElementById(targetElementId);
+      if (element) {
+        checkedElements = 1;
+        const currentContent = element.innerHTML;
+        if (!this.verifyIntegrity(targetElementId, currentContent)) {
+          tamperedElements.push(targetElementId);
+        }
+      }
+    } else {
+      // 检查所有关键元素
+      const criticalElements = ['app-header', 'app-footer', 'tts-form', 'legal-notice'];
+      criticalElements.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+          checkedElements++;
+          const currentContent = element.innerHTML;
+          if (!this.verifyIntegrity(id, currentContent)) {
+            tamperedElements.push(id);
+          }
+        }
+      });
+    }
+    
+    return {
+      checkedElements,
+      tamperedElements,
+      message: tamperedElements.length === 0 ? 'DOM元素完整' : `发现 ${tamperedElements.length} 个被篡改的元素`
+    };
+  }
+  
+  private checkCriticalTexts(): {
+    checkedTexts: string[];
+    missingTexts: string[];
+    message: string;
+  } {
+    const protectedTexts = ['Happy-clo', 'Synapse', 'Happy'];
+    const bodyText = document.body.innerText;
+    const missingTexts: string[] = [];
+    
+    protectedTexts.forEach(text => {
+      const regex = new RegExp(text.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
+      if (!regex.test(bodyText)) {
+        missingTexts.push(text);
+      }
+    });
+    
+    return {
+      checkedTexts: protectedTexts,
+      missingTexts,
+      message: missingTexts.length === 0 ? '关键文本完整' : `缺失关键文本: ${missingTexts.join(', ')}`
+    };
+  }
+  
+  private checkNetworkIntegrityStatus(): {
+    monitoredUrls: number;
+    tamperedUrls: string[];
+    message: string;
+  } {
+    const tamperedUrls: string[] = [];
+    const monitoredUrls = this.networkIntegrityMap.size;
+    
+    // 这里可以添加更详细的网络完整性检查逻辑
+    
+    return {
+      monitoredUrls,
+      tamperedUrls,
+      message: tamperedUrls.length === 0 ? '网络完整性正常' : `发现 ${tamperedUrls.length} 个被篡改的网络响应`
+    };
   }
 
   // 检查当前页面是否被豁免（调试用）

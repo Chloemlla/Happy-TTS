@@ -1308,6 +1308,21 @@ const notFoundLimiter = rateLimit({
 // 应用全局默认限流器
 app.use(globalDefaultLimiter);
 
+// 全局 JSON 解析错误处理中间件（必须在所有路由之后，404之前）
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  if (err instanceof SyntaxError && 'body' in err) {
+    logger.warn('JSON parse error', {
+      ip: req.ip || req.connection.remoteAddress,
+      path: req.path,
+      method: req.method,
+      userAgent: req.headers['user-agent'],
+      error: err.message
+    });
+    return res.status(400).json({ error: '无效的JSON格式' });
+  }
+  next(err);
+});
+
 // 404 处理
 app.use(notFoundLimiter, (req: Request, res: Response) => {
   logger.warn(`404 Not Found: ${req.method} ${req.url}`, {

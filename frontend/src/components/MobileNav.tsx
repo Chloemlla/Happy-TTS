@@ -25,7 +25,8 @@ import {
   FaCheckCircle,
   FaClipboard,
   FaCoins,
-  FaComments
+  FaComments,
+  FaBug
 } from 'react-icons/fa';
 
 interface MobileNavProps {
@@ -598,6 +599,28 @@ const MobileNav: React.FC<MobileNavProps> = ({
                 <span className="hidden sm:inline">管理后台</span>
               </Link>
             </motion.div>
+
+            {/* 篡改检测演示 */}
+            <motion.div
+              whileHover={{ scale: 1.05, y: -2 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Link
+                to="/tamper-detection-demo"
+                className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/tamper-detection-demo'
+                  ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-lg'
+                  : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-red-600 border border-gray-200/50'
+                  }`}
+              >
+                <motion.div
+                  className="w-4 h-4"
+                  whileHover={{ rotate: 5 }}
+                >
+                  <FaBug className="w-4 h-4" />
+                </motion.div>
+                <span className="hidden sm:inline">篡改检测</span>
+              </Link>
+            </motion.div>
             {/* 邮件发送 */}
             <motion.div
               whileHover={{ scale: 1.05, y: -2 }}
@@ -851,6 +874,37 @@ const MobileNav: React.FC<MobileNavProps> = ({
                       {location.pathname === '/admin' && (
                         <motion.span
                           className="ml-auto text-xs bg-pink-100 text-pink-700 px-2 py-1 rounded-full"
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                        >
+                          当前
+                        </motion.span>
+                      )}
+                    </Link>
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.4, delay: 0.3 }}
+                  >
+                    <Link
+                      to="/tamper-detection-demo"
+                      className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/tamper-detection-demo' ? 'bg-red-50 text-red-700 font-semibold shadow-sm' : 'hover:bg-red-50'
+                        }`}
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <motion.div
+                        className={`w-5 h-5 ${location.pathname === '/tamper-detection-demo' ? 'text-red-500' : 'text-gray-400'}`}
+                        whileHover={{ scale: 1.1, rotate: 5 }}
+                      >
+                        <FaBug className="w-5 h-5" />
+                      </motion.div>
+                      <span>篡改检测演示</span>
+                      {location.pathname === '/tamper-detection-demo' && (
+                        <motion.span
+                          className="ml-auto text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full"
                           initial={{ scale: 0, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
                           transition={{ type: "spring", stiffness: 500, damping: 15 }}

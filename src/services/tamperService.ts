@@ -12,14 +12,29 @@ const BlockedIPSchema = new mongoose.Schema({
 const BlockedIPModel = mongoose.models.BlockedIP || mongoose.model('BlockedIP', BlockedIPSchema);
 
 interface TamperEvent {
-  elementId: string;
+  // 基础信息
+  elementId?: string;
   timestamp: string;
   url: string;
-  originalContent?: string;
-  tamperContent?: string;
-  attempts?: number;
   ip?: string;
   userAgent?: string;
+  
+  // 篡改类型和检测方法
+  eventType?: string;
+  tamperType?: 'dom' | 'network' | 'proxy' | 'injection';
+  detectionMethod?: string;
+  
+  // 内容相关
+  originalContent?: string;
+  tamperContent?: string;
+  filePath?: string;
+  checksum?: string;
+  
+  // 统计信息
+  attempts?: number;
+  
+  // 额外信息
+  additionalInfo?: Record<string, any>;
 }
 
 interface BlockedIP {
