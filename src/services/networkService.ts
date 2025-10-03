@@ -198,7 +198,7 @@ export class NetworkService {
             logger.info('开始精准IP查询', { ip });
 
             const response = await axios.get(`${this.BASE_URL}/ipv2`, {
-                params: { ip },
+                params: { ip,key: process.env.IP_QUERY_KEY },
                 timeout: 10000, // 10秒超时
             });
 
