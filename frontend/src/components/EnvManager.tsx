@@ -1783,10 +1783,40 @@ const EnvManager: React.FC = () => {
       setNotification({ message: '请填写 curl 命令', type: 'error' });
       return;
     }
-    if (!curlCommand.includes('github.com')) {
-      setNotification({ message: '请提供有效的 GitHub API curl 命令', type: 'error' });
+    
+    // 安全的 GitHub URL 验证
+    try {
+      // 从 curl 命令中提取 URL（匹配引号内的 URL 或空格后的第一个 URL）
+      const urlMatch = curlCommand.match(/(?:['"])(https?:\/\/[^\s'"]+)(?:['"])|(?:\s)(https?:\/\/[^\s'"]+)/);
+      if (!urlMatch) {
+        setNotification({ message: '无法从 curl 命令中提取有效的 URL', type: 'error' });
+        return;
+      }
+      
+      const url = new URL(urlMatch[1] || urlMatch[2]);
+      
+      // 严格验证主机名：必须是 github.com 或其子域名
+      const hostname = url.hostname.toLowerCase();
+      const isValidGithubDomain = hostname === 'github.com' || hostname.endsWith('.github.com');
+      
+      // 验证协议必须是 https
+      const isSecureProtocol = url.protocol === 'https:';
+      
+      if (!isValidGithubDomain || !isSecureProtocol) {
+        setNotification({ 
+          message: '请提供有效的 GitHub API curl 命令（必须使用 https://github.com 或其子域名）', 
+          type: 'error' 
+        });
+        return;
+      }
+    } catch (e) {
+      setNotification({ 
+        message: '无效的 curl 命令格式，请确保包含有效的 GitHub API URL', 
+        type: 'error' 
+      });
       return;
     }
+    
     setGithubBillingConfigSaving(true);
     try {
       const res = await fetch(getApiBaseUrl() + `/api/github-billing/multi-config/${selectedConfigKey}`, {
