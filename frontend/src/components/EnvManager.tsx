@@ -1674,11 +1674,24 @@ const EnvManager: React.FC = () => {
 
   const handleSaveClarityConfig = useCallback(async () => {
     if (clarityConfigSaving) return;
-    const value = clarityProjectIdInput.trim();
+    const value = clarityProjectIdInput.trim().toLowerCase();
+    
+    // 前端格式验证
     if (!value) {
       setNotification({ message: '请填写 Clarity Project ID', type: 'error' });
       return;
     }
+    
+    // 验证格式：10位小写字母数字组合
+    const clarityIdPattern = /^[a-z0-9]{10}$/;
+    if (!clarityIdPattern.test(value)) {
+      setNotification({ 
+        message: 'Project ID 格式无效，应为10位小写字母数字组合（例如：t1dkcavsyz）', 
+        type: 'error' 
+      });
+      return;
+    }
+    
     setClarityConfigSaving(true);
     try {
       const res = await fetch(CLARITY_CONFIG_API, {
@@ -1687,10 +1700,16 @@ const EnvManager: React.FC = () => {
         body: JSON.stringify({ projectId: value })
       });
       const data = await res.json();
+      
       if (!res.ok || !data.success) {
-        setNotification({ message: data.error || '保存失败', type: 'error' });
+        // 显示详细的错误信息
+        const errorMsg = data.error || data.message || '保存失败';
+        const errorCode = data.code;
+        const fullMessage = errorCode ? `${errorMsg} (${errorCode})` : errorMsg;
+        setNotification({ message: fullMessage, type: 'error' });
         return;
       }
+      
       setNotification({ message: '保存成功', type: 'success' });
       setClarityProjectIdInput('');
       await fetchClarityConfig();
@@ -1710,14 +1729,21 @@ const EnvManager: React.FC = () => {
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }
       });
       const data = await res.json();
+      
       if (!res.ok || !data.success) {
-        setNotification({ message: data.error || '删除失败', type: 'error' });
+        // 显示详细的错误信息
+        const errorMsg = data.error || data.message || '删除失败';
+        const errorCode = data.code;
+        const fullMessage = errorCode ? `${errorMsg} (${errorCode})` : errorMsg;
+        setNotification({ message: fullMessage, type: 'error' });
         return;
       }
+      
       setNotification({ message: '删除成功', type: 'success' });
       await fetchClarityConfig();
     } catch (e) {
       setNotification({ message: '删除失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
+    } finally {
       setClarityConfigDeleting(false);
     }
   }, [clarityConfigDeleting, fetchClarityConfig, setNotification]);
@@ -2813,17 +2839,24 @@ const EnvManager: React.FC = () => {
             <h4 className="text-md font-semibold text-gray-700 mb-3">Project ID 配置</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Project ID</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Project ID
+                  <span className="ml-2 text-xs text-gray-500">(10位小写字母数字组合)</span>
+                </label>
                 <input
                   value={clarityProjectIdInput}
-                  onChange={(e) => setClarityProjectIdInput(e.target.value)}
-                  placeholder="请输入 Microsoft Clarity Project ID（例如：abcd1234）"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
+                  onChange={(e) => setClarityProjectIdInput(e.target.value.toLowerCase())}
+                  placeholder="例如：t1dkcavsyz（10位小写字母数字）"
+                  maxLength={10}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base font-mono"
                 />
+                <div className="mt-1 text-xs text-gray-500">
+                  提示：自动转换为小写，仅支持字母和数字，长度必须为10位
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">当前配置</label>
-                <div className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700 min-h-[40px] flex items-center">
+                <div className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700 min-h-[40px] flex items-center font-mono">
                   {clarityConfigLoading ? '加载中...' : (clarityConfig?.projectId || '未设置')}
                 </div>
               </div>
@@ -2857,8 +2890,16 @@ const EnvManager: React.FC = () => {
                 Microsoft Clarity 状态：{clarityConfig?.enabled ? '已启用' : '未启用'}
               </span>
             </div>
-            <div className="mt-2 text-xs text-blue-600">
-              说明：Microsoft Clarity 用于用户行为分析和网站性能监控。Project ID 用于标识您的 Clarity 项目。
+            <div className="mt-2 text-xs text-blue-600 space-y-1">
+              <div>
+                <strong>说明：</strong>Microsoft Clarity 用于用户行为分析和网站性能监控。
+              </div>
+              <div>
+                <strong>Project ID 格式：</strong>必须为10位小写字母数字组合（如：t1dkcavsyz）
+              </div>
+              <div>
+                <strong>获取方式：</strong>登录 <a href="https://clarity.microsoft.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-800">clarity.microsoft.com</a> 创建项目后获取
+              </div>
             </div>
           </div>
         </m.div>

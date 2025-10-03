@@ -182,17 +182,26 @@ router.post('/clarity/config', async (req, res) => {
             });
         }
 
-        const success = await ClarityService.updateConfig(projectId);
+        // 获取请求元数据（可选）
+        const metadata = {
+            ip: req.ip || req.socket.remoteAddress,
+            userAgent: req.headers['user-agent']
+        };
 
-        if (success) {
+        const result = await ClarityService.updateConfig(projectId, metadata);
+
+        if (result.success) {
             res.json({
                 success: true,
-                message: 'Clarity配置更新成功'
+                message: 'Clarity配置更新成功',
+                data: result.data
             });
         } else {
-            res.status(500).json({
+            const statusCode = result.error?.code === 'INVALID_FORMAT' || result.error?.code === 'INVALID_INPUT' ? 400 : 500;
+            res.status(statusCode).json({
                 success: false,
-                error: '配置更新失败'
+                error: result.error?.message || '配置更新失败',
+                code: result.error?.code
             });
         }
     } catch (error) {
@@ -225,9 +234,15 @@ router.post('/clarity/config', async (req, res) => {
  */
 router.delete('/clarity/config', async (req, res) => {
     try {
-        const success = await ClarityService.deleteConfig();
+        // 获取请求元数据（可选）
+        const metadata = {
+            ip: req.ip || req.socket.remoteAddress,
+            userAgent: req.headers['user-agent']
+        };
 
-        if (success) {
+        const result = await ClarityService.deleteConfig(metadata);
+
+        if (result.success) {
             res.json({
                 success: true,
                 message: 'Clarity配置删除成功'
@@ -235,7 +250,8 @@ router.delete('/clarity/config', async (req, res) => {
         } else {
             res.status(500).json({
                 success: false,
-                error: '配置删除失败'
+                error: result.error?.message || '配置删除失败',
+                code: result.error?.code
             });
         }
     } catch (error) {
@@ -243,6 +259,71 @@ router.delete('/clarity/config', async (req, res) => {
         res.status(500).json({
             success: false,
             error: '配置删除失败'
+        });
+    }
+});
+
+/**
+ * @openapi
+ * /tts/clarity/history:
+ *   get:
+ *     summary: 获取 Clarity 配置历史
+ *     description: 获取 Clarity 配置的变更历史记录
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: 返回的记录数量（最多100条）
+ *     responses:
+ *       200:
+ *         description: 配置历史记录
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       key:
+ *                         type: string
+ *                       oldValue:
+ *                         type: string
+ *                       newValue:
+ *                         type: string
+ *                       operation:
+ *                         type: string
+ *                       changedAt:
+ *                         type: string
+ */
+router.get('/clarity/history', async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit as string) || 20;
+        const result = await ClarityService.getConfigHistory(limit);
+
+        if (result.success) {
+            res.json({
+                success: true,
+                data: result.data
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                error: result.error?.message || '获取配置历史失败',
+                code: result.error?.code
+            });
+        }
+    } catch (error) {
+        console.error('获取Clarity配置历史失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '获取配置历史失败'
         });
     }
 });
