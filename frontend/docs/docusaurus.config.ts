@@ -180,6 +180,7 @@ const config: Config = {
     require.resolve('./src/clientModules/scrollNavbar.js'),
     require.resolve('./src/clientModules/routeModules.js'),
     require.resolve('./src/clientModules/emailProtection.js'),
+    require.resolve('./src/clientModules/policyEnforcement.js'),
   ],
 };
 

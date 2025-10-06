@@ -46,6 +46,7 @@ import { PasskeyDataRepairService } from './services/passkeyDataRepairService';
 import miniapiRoutes from './routes/miniapiRoutes';
 import antaRoutes from './routes/antaRoutes';
 import lotteryRoutes from './routes/lotteryRoutes';
+import policyRoutes from './routes/policyRoutes';
 import { connectMongo } from './services/mongoService';
 
 import { UserStorage } from './utils/userStorage';
@@ -121,9 +122,17 @@ const allowedOrigins = [
   'https://api.hapxs.com',
   'http://localhost:3000',
   'http://localhost:3001',
+  'http://localhost:6000',
+  'http://localhost:6001',
   'http://127.0.0.1:3001',
+  'http://127.0.0.1:6000',
+  'http://127.0.0.1:6001',
   'http://192.168.137.1:3001',
-  'http://192.168.10.7:3001'
+  'http://192.168.137.1:6000',
+  'http://192.168.137.1:6001',
+  'http://192.168.10.7:3001',
+  'http://192.168.10.7:6000',
+  'http://192.168.10.7:6001'
 ];
 
 // 为所有 /s/* 路由添加 OPTIONS 处理器 - 必须在路由挂载之前
@@ -229,6 +238,7 @@ app.use('/api/turnstile/public-turnstile', (req: Request, res: Response, next: N
   res.header('Access-Control-Expose-Headers', 'Content-Length, X-RateLimit-Limit, X-RateLimit-Remaining, Content-Disposition, Content-Type, Cache-Control');
   next();
 });
+
 
 // 为前端管理面板提供 /api 前缀的别名挂载，便于通过代理访问管理接口
 app.use('/api/shorturl', shortUrlRoutes);
@@ -458,7 +468,14 @@ app.use(helmet({
         "https://api.hapxs.com",
         "http://localhost:3000",
         "http://localhost:3001",
+        "http://localhost:6000",
+        "http://localhost:6001",
+        "http://127.0.0.1:3001",
+        "http://127.0.0.1:6000",
+        "http://127.0.0.1:6001",
         "http://192.168.10.7:3001",
+        "http://192.168.10.7:6000",
+        "http://192.168.10.7:6001",
         "https://api.hcaptcha.com",
         "https://*.hcaptcha.com",
         "https://www.google-analytics.com",
@@ -944,6 +961,7 @@ app.use('/api/totp/status', authenticateToken, totpStatusHandler as RequestHandl
 app.use('/api/admin', adminLimiter, adminRoutes);
 app.use('/api/status', statusRouter);
 app.use('/api/turnstile', turnstileRoutes);
+app.use('/api/policy', policyRoutes);
 
 // 注册篡改路由（无需认证，用于接收篡改报告）
 app.use('/api/tamper', tamperRoutes);
