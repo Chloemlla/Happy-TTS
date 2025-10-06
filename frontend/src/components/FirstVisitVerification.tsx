@@ -1,16 +1,32 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import useReducedMotion from '../hooks/useReducedMotion';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TurnstileWidget } from './TurnstileWidget';
-import HCaptchaWidget from './HCaptchaWidget';
-import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
-import { useHCaptchaConfig } from '../hooks/useHCaptchaConfig';
-import { useSecureCaptchaSelection } from '../hooks/useSecureCaptchaSelection';
 import { CaptchaType } from '../utils/captchaSelection';
 import { getFingerprint, verifyTempFingerprint, storeAccessToken } from '../utils/fingerprint';
 import { useNotification } from './Notification';
 import { integrityChecker } from '../utils/integrityCheck';
-import clarity from '@microsoft/clarity';
+
+// 懒加载组件以减少初始包大小
+const TurnstileWidget = lazy(() => import('./TurnstileWidget').then(module => ({ default: module.TurnstileWidget })));
+const HCaptchaWidget = lazy(() => import('./HCaptchaWidget'));
+
+// 正常导入hooks（hooks不能懒加载）
+import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
+import { useHCaptchaConfig } from '../hooks/useHCaptchaConfig';
+import { useSecureCaptchaSelection } from '../hooks/useSecureCaptchaSelection';
+
+// 动态导入clarity以避免阻塞主线程
+let clarity: any = null;
+const loadClarity = async () => {
+  if (!clarity) {
+    try {
+      clarity = await import('@microsoft/clarity');
+    } catch (err) {
+      console.warn('Failed to load Microsoft Clarity:', err);
+    }
+  }
+  return clarity;
+};
 
 interface FirstVisitVerificationProps {
   onVerificationComplete: () => void;
@@ -337,10 +353,11 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     });
 
     // 异步处理 Clarity 事件和通知
-    requestIdleCallback(() => {
+    requestIdleCallback(async () => {
       try {
-        if (typeof clarity !== 'undefined' && typeof clarity.event === 'function') {
-          clarity.event('turnstile_verify_success');
+        const clarityModule = await loadClarity();
+        if (clarityModule && typeof clarityModule.event === 'function') {
+          clarityModule.event('turnstile_verify_success');
         }
       } catch (err) {
         console.warn('Failed to send Clarity event:', err);
@@ -364,10 +381,11 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     });
 
     // 异步处理事件记录和通知
-    requestIdleCallback(() => {
+    requestIdleCallback(async () => {
       try {
-        if (typeof clarity !== 'undefined' && typeof clarity.event === 'function') {
-          clarity.event('turnstile_verify_expire');
+        const clarityModule = await loadClarity();
+        if (clarityModule && typeof clarityModule.event === 'function') {
+          clarityModule.event('turnstile_verify_expire');
         }
       } catch (err) {
         console.warn('Failed to send Clarity event:', err);
@@ -392,10 +410,11 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     });
 
     // 异步处理事件记录和通知
-    requestIdleCallback(() => {
+    requestIdleCallback(async () => {
       try {
-        if (typeof clarity !== 'undefined' && typeof clarity.event === 'function') {
-          clarity.event('turnstile_verify_error');
+        const clarityModule = await loadClarity();
+        if (clarityModule && typeof clarityModule.event === 'function') {
+          clarityModule.event('turnstile_verify_error');
         }
       } catch (err) {
         console.warn('Failed to send Clarity event:', err);
@@ -421,10 +440,11 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     });
 
     // 异步处理 Clarity 事件和通知
-    requestIdleCallback(() => {
+    requestIdleCallback(async () => {
       try {
-        if (typeof clarity !== 'undefined' && typeof clarity.event === 'function') {
-          clarity.event('hcaptcha_verify_success');
+        const clarityModule = await loadClarity();
+        if (clarityModule && typeof clarityModule.event === 'function') {
+          clarityModule.event('hcaptcha_verify_success');
         }
       } catch (err) {
         console.warn('Failed to send Clarity event:', err);
@@ -448,10 +468,11 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     });
 
     // 异步处理事件记录和通知
-    requestIdleCallback(() => {
+    requestIdleCallback(async () => {
       try {
-        if (typeof clarity !== 'undefined' && typeof clarity.event === 'function') {
-          clarity.event('hcaptcha_verify_expire');
+        const clarityModule = await loadClarity();
+        if (clarityModule && typeof clarityModule.event === 'function') {
+          clarityModule.event('hcaptcha_verify_expire');
         }
       } catch (err) {
         console.warn('Failed to send Clarity event:', err);
@@ -476,10 +497,11 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     });
 
     // 异步处理事件记录和通知
-    requestIdleCallback(() => {
+    requestIdleCallback(async () => {
       try {
-        if (typeof clarity !== 'undefined' && typeof clarity.event === 'function') {
-          clarity.event('hcaptcha_verify_error');
+        const clarityModule = await loadClarity();
+        if (clarityModule && typeof clarityModule.event === 'function') {
+          clarityModule.event('hcaptcha_verify_error');
         }
       } catch (err) {
         console.warn('Failed to send Clarity event:', err);
@@ -542,8 +564,9 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
 
         // Microsoft Clarity事件记录：验证成功
         try {
-          if (typeof clarity !== 'undefined' && typeof clarity.event === 'function') {
-            clarity.event('first_visit_verification_success');
+          const clarityModule = await loadClarity();
+          if (clarityModule && typeof clarityModule.event === 'function') {
+            clarityModule.event('first_visit_verification_success');
           }
         } catch (err) {
           console.warn('Failed to send Clarity event:', err);
@@ -577,8 +600,9 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
         
         // Microsoft Clarity事件记录：验证失败（基础信息）
         try {
-          if (typeof clarity !== 'undefined' && typeof clarity.event === 'function') {
-            clarity.event('first_visit_verification_failed');
+          const clarityModule = await loadClarity();
+          if (clarityModule && typeof clarityModule.event === 'function') {
+            clarityModule.event('first_visit_verification_failed');
           }
         } catch (err) {
           console.warn('Failed to send Clarity event:', err);
@@ -640,8 +664,9 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
 
       // Microsoft Clarity事件记录：验证异常失败
       try {
-        if (typeof clarity !== 'undefined' && typeof clarity.event === 'function') {
-          clarity.event('first_visit_verification_exception');
+        const clarityModule = await loadClarity();
+        if (clarityModule && typeof clarityModule.event === 'function') {
+          clarityModule.event('first_visit_verification_exception');
         }
       } catch (clarityError) {
         console.warn('Failed to send Clarity event:', clarityError);
@@ -684,13 +709,16 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
   // Microsoft Clarity事件记录：IP被封禁页面显示
   useEffect(() => {
     if (isIpBanned) {
-      try {
-        if (typeof clarity !== 'undefined' && typeof clarity.event === 'function') {
-          clarity.event('first_visit_ip_banned_displayed');
+      (async () => {
+        try {
+          const clarityModule = await loadClarity();
+          if (clarityModule && typeof clarityModule.event === 'function') {
+            clarityModule.event('first_visit_ip_banned_displayed');
+          }
+        } catch (err) {
+          console.warn('Failed to send Clarity event:', err);
         }
-      } catch (err) {
-        console.warn('Failed to send Clarity event:', err);
-      }
+      })();
     }
   }, [isIpBanned]);
   
@@ -959,10 +987,11 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
           <circle cx="70" cy="70" r="65" fill="url(#glow)" />
 
           {/* 主圆形背景 */}
-          <circle cx="70" cy="70" r="55" fill="url(#mainGradient)" stroke="#6366F1" strokeWidth="3" />
+          <circle cx="70" cy="70" r="55" fill="url(#mainGradient)" stroke="#6366F1" strokeWidth="2" />
 
           {/* 内圈装饰 */}
-          <circle cx="70" cy="70" r="45" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
+          <circle cx="70" cy="70" r="45" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
+          <circle cx="70" cy="70" r="35" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="0.5" />
 
           {/* 笑脸眼睛 - 简化动画 */}
           <motion.circle
@@ -1011,10 +1040,10 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     );
   });
 
-  // 高性能背景粒子效果 - 大幅优化性能
+  // 高性能背景粒子效果 - 美化和优化性能
   const BackgroundParticles = React.memo(() => {
     const particleData = useMemo(() => {
-      const count = deviceInfo.isMobile ? 6 : 12;
+      const count = deviceInfo.isMobile ? 8 : 16;
       const width = deviceInfo.screenWidth;
       const height = typeof window !== 'undefined' ? window.innerHeight : 800;
       
@@ -1024,25 +1053,47 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
         initialY: (i * 193) % height,
         targetX: (i * 211) % width,
         targetY: (i * 167) % height,
-        duration: 25 + (i % 3) * 5,
-        delay: i * 0.3
+        duration: 20 + (i % 4) * 8,
+        delay: i * 0.2,
+        size: 1 + (i % 3) * 0.5,
+        opacity: 0.1 + (i % 3) * 0.05
       }));
     }, [deviceInfo.isMobile, deviceInfo.screenWidth]);
 
-    // 如果用户偏好减少动画或设备为移动，则返回空，减少视觉噪音和性能开销
-    if (prefersReducedMotion || deviceInfo.isMobile) return null;
+    // 如果用户偏好减少动画，则返回静态版本
+    if (prefersReducedMotion) {
+      return (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-30">
+          {particleData.slice(0, 6).map((particle) => (
+            <div
+              key={particle.id}
+              className="absolute w-1 h-1 bg-gradient-to-r from-indigo-200 to-purple-200 rounded-full"
+              style={{
+                left: particle.initialX,
+                top: particle.initialY,
+                opacity: particle.opacity
+              }}
+            />
+          ))}
+        </div>
+      );
+    }
 
     return (
       <motion.div
         className="absolute inset-0 overflow-hidden pointer-events-none"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 0.8, delay: 0.3 }}
+        transition={{ duration: 1, delay: 0.5 }}
       >
         {particleData.map((particle) => (
           <motion.div
             key={particle.id}
-            className="absolute w-1.5 h-1.5 bg-gradient-to-r from-indigo-300 to-purple-300 rounded-full"
+            className="absolute bg-gradient-to-r from-indigo-300/60 to-purple-300/60 rounded-full blur-[0.5px]"
+            style={{
+              width: `${particle.size * 6}px`,
+              height: `${particle.size * 6}px`,
+            }}
             initial={{
               x: particle.initialX,
               y: particle.initialY,
@@ -1052,25 +1103,25 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
             animate={{
               x: particle.targetX,
               y: particle.targetY,
-              opacity: 0.15,
+              opacity: particle.opacity,
               scale: 1,
             }}
             transition={{
-              opacity: { duration: 0.6, delay: 0.8 + particle.delay },
-              scale: { duration: 0.4, delay: 0.8 + particle.delay },
+              opacity: { duration: 0.8, delay: 1 + particle.delay },
+              scale: { duration: 0.6, delay: 1 + particle.delay },
               x: {
                 duration: particle.duration,
                 repeat: Infinity,
                 repeatType: "reverse",
                 ease: "easeInOut",
-                delay: 1.5 + particle.delay
+                delay: 2 + particle.delay
               },
               y: {
-                duration: particle.duration + 5,
+                duration: particle.duration + 8,
                 repeat: Infinity,
                 repeatType: "reverse",
                 ease: "easeInOut",
-                delay: 1.5 + particle.delay
+                delay: 2 + particle.delay
               }
             }}
           />
@@ -1086,7 +1137,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.5 }}
-        className="fixed inset-0 bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center z-50"
+        className="fixed inset-0 bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center z-50 overflow-hidden"
         data-component="FirstVisitVerification"
         data-page="FirstVisitVerification"
         data-view="FirstVisitVerification"
@@ -1108,10 +1159,10 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
             ease: "easeOut",
             delay: 0.1
           }}
-          className={`relative bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 ${deviceInfo.isMobile
+          className={`relative bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/30 ${deviceInfo.isMobile
             ? 'w-full max-w-sm mx-2 p-4'
             : 'max-w-md w-full mx-4 p-8'
-          }`}
+          } before:absolute before:inset-0 before:rounded-3xl before:bg-gradient-to-br before:from-white/20 before:to-transparent before:pointer-events-none`}
           style={{
             maxHeight: deviceInfo.isMobile ? '90vh' : '80vh',
             overflowY: 'auto',
@@ -1120,7 +1171,8 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
           }}
         >
           {/* 顶部装饰线 */}
-          <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-20 h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent rounded-full"></div>
+          <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-24 h-1.5 bg-gradient-to-r from-transparent via-indigo-500 to-transparent rounded-full shadow-sm"></div>
+          <div className="absolute top-1 left-1/2 transform -translate-x-1/2 w-16 h-0.5 bg-gradient-to-r from-transparent via-purple-400/50 to-transparent rounded-full"></div>
 
           {/* Logo */}
           <Logo />
@@ -1160,7 +1212,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
             请完成下方人机验证
           </motion.p>
 
-          {/* 加载状态显示 */}
+          {/* 加载状态显示 - 美化的骨架屏 */}
           {(turnstileConfigLoading || hcaptchaConfigLoading) && (
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
@@ -1168,14 +1220,42 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
               exit={{ opacity: 0, scale: 0.9 }}
               className="flex flex-col items-center justify-center py-8 mb-6"
             >
-              <motion.div
-                className="w-8 h-8 border-3 border-indigo-200 border-t-indigo-600 rounded-full mb-3"
-                animate={{ rotate: 360 }}
-                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-              />
-              <p className={`text-gray-500 ${isMobile ? 'text-sm' : 'text-base'}`}>
+              {/* 美化的加载动画 */}
+              <div className="relative mb-4">
+                <motion.div
+                  className="w-12 h-12 border-4 border-indigo-100 rounded-full"
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                />
+                <motion.div
+                  className="absolute inset-0 w-12 h-12 border-4 border-transparent border-t-indigo-600 border-r-purple-600 rounded-full"
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                />
+                <motion.div
+                  className="absolute inset-2 w-8 h-8 border-2 border-transparent border-b-indigo-400 rounded-full"
+                  animate={{ rotate: -360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                />
+              </div>
+              
+              {/* 加载文字 */}
+              <motion.p
+                className={`text-gray-600 font-medium ${isMobile ? 'text-sm' : 'text-base'}`}
+                animate={{ opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              >
                 正在加载验证组件...
-              </p>
+              </motion.p>
+              
+              {/* 骨架屏 */}
+              <div className="mt-6 w-full max-w-xs">
+                <div className="animate-pulse">
+                  <div className="h-20 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 rounded-xl mb-4"></div>
+                  <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 rounded-full w-3/4 mx-auto mb-2"></div>
+                  <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 rounded-full w-1/2 mx-auto"></div>
+                </div>
+              </div>
             </motion.div>
           )}
 
@@ -1215,32 +1295,45 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
             >
               <div className="flex justify-center mb-4">
                 <div
-                  className={`p-4 bg-gray-50 rounded-xl border border-gray-200 transition-all duration-300 hover:border-indigo-300 hover:bg-indigo-50/50 ${isMobile ? 'w-full' : ''
+                  className={`p-4 bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-2xl border border-gray-200/60 shadow-sm transition-all duration-300 hover:border-indigo-300 hover:bg-gradient-to-br hover:from-indigo-50/30 hover:to-purple-50/30 hover:shadow-md ${isMobile ? 'w-full' : ''
                   }`}
                   role="region"
                   aria-label="人机验证区域"
                 >
-                  {verificationMode === 'turnstile' ? (
-                    <TurnstileWidget
-                      key={turnstileKey}
-                      siteKey={secureSiteKey}
-                      onVerify={handleTurnstileVerify}
-                      onError={handleTurnstileError}
-                      onExpire={handleTurnstileExpire}
-                      theme="light"
-                      size={isMobile ? 'compact' : 'normal'}
-                    />
-                  ) : (
-                    <HCaptchaWidget
-                      key={hcaptchaKey}
-                      siteKey={secureSiteKey}
-                      onVerify={handleHCaptchaVerify}
-                      onError={handleHCaptchaError}
-                      onExpire={handleHCaptchaExpire}
-                      theme="light"
-                      size={isMobile ? 'compact' : 'normal'}
-                    />
-                  )}
+                  <Suspense fallback={
+                    <div className="flex flex-col items-center justify-center py-8">
+                      <motion.div
+                        className="w-8 h-8 border-3 border-indigo-200 border-t-indigo-600 rounded-full mb-3"
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      />
+                      <p className={`text-gray-500 ${isMobile ? 'text-sm' : 'text-base'}`}>
+                        正在加载验证组件...
+                      </p>
+                    </div>
+                  }>
+                    {verificationMode === 'turnstile' ? (
+                      <TurnstileWidget
+                        key={turnstileKey}
+                        siteKey={secureSiteKey}
+                        onVerify={handleTurnstileVerify}
+                        onError={handleTurnstileError}
+                        onExpire={handleTurnstileExpire}
+                        theme="light"
+                        size={isMobile ? 'compact' : 'normal'}
+                      />
+                    ) : (
+                      <HCaptchaWidget
+                        key={hcaptchaKey}
+                        siteKey={secureSiteKey}
+                        onVerify={handleHCaptchaVerify}
+                        onError={handleHCaptchaError}
+                        onExpire={handleHCaptchaExpire}
+                        theme="light"
+                        size={isMobile ? 'compact' : 'normal'}
+                      />
+                    )}
+                  </Suspense>
                 </div>
               </div>
 
@@ -1257,59 +1350,88 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                   {isVerified ? (
                     <motion.div
                       key="verified"
-                      className={`flex items-center justify-center gap-2 text-green-600 bg-green-50 px-4 py-2 rounded-full border border-green-200 ${isMobile ? 'text-sm' : 'text-base'
+                      className={`flex items-center justify-center gap-2 text-green-700 bg-gradient-to-r from-green-50 to-emerald-50 px-6 py-3 rounded-2xl border border-green-200/60 shadow-sm ${isMobile ? 'text-sm' : 'text-base'
                         }`}
                       initial={{ scale: 0.8, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
                       exit={{ scale: 0.8, opacity: 0 }}
                       transition={{ type: "spring", stiffness: 300, damping: 20 }}
                     >
-                      <motion.svg
-                        className="w-5 h-5"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
+                      <motion.div
+                        className="relative"
                         initial={{ rotate: -180, scale: 0 }}
                         animate={{ rotate: 0, scale: 1 }}
                         transition={{ duration: 0.5, type: "spring" }}
                       >
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </motion.svg>
-                      <span className="font-medium">验证通过</span>
+                        <svg
+                          className="w-5 h-5"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        <motion.div
+                          className="absolute inset-0 w-5 h-5 bg-green-400 rounded-full opacity-30"
+                          animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0, 0.3] }}
+                          transition={{ duration: 2, repeat: Infinity }}
+                        />
+                      </motion.div>
+                      <span className="font-semibold">验证通过</span>
                     </motion.div>
                   ) : (verificationMode === 'turnstile' ? turnstileError : hcaptchaError) ? (
                     <motion.div
                       key="error"
-                      className={`flex items-center justify-center gap-2 text-red-600 bg-red-50 px-4 py-2 rounded-full border border-red-200 ${isMobile ? 'text-sm' : 'text-base'
+                      className={`flex items-center justify-center gap-2 text-red-700 bg-gradient-to-r from-red-50 to-rose-50 px-6 py-3 rounded-2xl border border-red-200/60 shadow-sm ${isMobile ? 'text-sm' : 'text-base'
                         }`}
                       initial={{ scale: 0.8, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
                       exit={{ scale: 0.8, opacity: 0 }}
                       transition={{ type: "spring", stiffness: 300, damping: 20 }}
                     >
-                      <motion.svg
-                        className="w-5 h-5"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
+                      <motion.div
+                        className="relative"
                         animate={{ rotate: [0, 10, -10, 0] }}
                         transition={{ duration: 0.5, repeat: 2 }}
                       >
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </motion.svg>
-                      <span className="font-medium">验证失败</span>
+                        <svg
+                          className="w-5 h-5"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        <motion.div
+                          className="absolute inset-0 w-5 h-5 bg-red-400 rounded-full opacity-30"
+                          animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0, 0.3] }}
+                          transition={{ duration: 1.5, repeat: Infinity }}
+                        />
+                      </motion.div>
+                      <span className="font-semibold">验证失败</span>
                     </motion.div>
                   ) : (
                     <motion.div
                       key="pending"
-                      className={`flex items-center justify-center gap-2 text-gray-500 bg-gray-50 px-4 py-2 rounded-full border border-gray-200 ${isMobile ? 'text-sm' : 'text-base'
+                      className={`flex items-center justify-center gap-2 text-gray-600 bg-gradient-to-r from-gray-50 to-slate-50 px-6 py-3 rounded-2xl border border-gray-200/60 shadow-sm ${isMobile ? 'text-sm' : 'text-base'
                         }`}
                       initial={{ scale: 0.8, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
                       exit={{ scale: 0.8, opacity: 0 }}
                     >
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                      </svg>
-                      <span>请完成验证</span>
+                      <motion.div
+                        className="relative"
+                        animate={{ scale: [1, 1.1, 1] }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                      >
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                        </svg>
+                        <motion.div
+                          className="absolute inset-0 w-5 h-5 bg-gray-400 rounded-full opacity-20"
+                          animate={{ scale: [1, 1.4, 1], opacity: [0.2, 0, 0.2] }}
+                          transition={{ duration: 3, repeat: Infinity }}
+                        />
+                      </motion.div>
+                      <span className="font-medium">请完成验证</span>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -1317,7 +1439,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
             </motion.div>
           )}
 
-          {/* 错误信息 */}
+          {/* 错误信息 - 美化设计 */}
           <AnimatePresence>
             {error && (
               <motion.div
@@ -1325,21 +1447,31 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
                 transition={{ duration: 0.3 }}
-                className={`mb-4 p-4 bg-red-50 border border-red-200 rounded-xl ${isMobile ? 'text-sm' : 'text-base'
+                className={`mb-4 p-4 bg-gradient-to-r from-red-50 to-rose-50 border border-red-200/60 rounded-2xl shadow-sm ${isMobile ? 'text-sm' : 'text-base'
                   }`}
               >
-                <div className="flex items-center gap-3 text-red-600">
-                  <motion.svg
-                    className="w-5 h-5 flex-shrink-0"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
+                <div className="flex items-start gap-3 text-red-700">
+                  <motion.div
+                    className="relative mt-0.5"
                     animate={{ rotate: [0, 10, -10, 0] }}
                     transition={{ duration: 0.5, repeat: 2 }}
                   >
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </motion.svg>
+                    <svg
+                      className="w-5 h-5 flex-shrink-0"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    <motion.div
+                      className="absolute inset-0 w-5 h-5 bg-red-400 rounded-full opacity-20"
+                      animate={{ scale: [1, 1.5, 1], opacity: [0.2, 0, 0.2] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                    />
+                  </motion.div>
                   <div className="flex-1">
-                    <span className={`font-medium ${isMobile ? 'text-sm' : 'text-base'}`}>{error}</span>
+                    <div className="font-semibold text-red-800 mb-1">验证失败</div>
+                    <span className={`text-red-700 leading-relaxed ${isMobile ? 'text-sm' : 'text-base'}`}>{error}</span>
                   </div>
                 </div>
               </motion.div>
@@ -1352,7 +1484,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
             disabled={!isVerified || verifying}
             className={[
               'w-full',
-              'rounded-xl',
+              'rounded-2xl',
               'font-semibold',
               'transition-all',
               'duration-300',
@@ -1363,9 +1495,10 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
               'flex',
               'items-center',
               'justify-center',
+              'group',
               (!isVerified || verifying)
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed border-2 border-gray-200'
-                : 'text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 hover:shadow-xl border-2 border-transparent',
+                ? 'bg-gradient-to-r from-gray-300 to-gray-400 text-gray-500 cursor-not-allowed border-2 border-gray-200/50'
+                : 'text-white bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 hover:from-indigo-700 hover:via-purple-700 hover:to-indigo-800 hover:shadow-2xl hover:shadow-indigo-500/25 border-2 border-transparent active:scale-[0.98]',
               // 使用 tailwind.config.js 中的自定义最小高度
               isMobile ? 'py-3 px-4 text-base min-h-btn-mobile' : 'py-4 px-6 text-lg min-h-btn-desktop'
             ].join(' ')}
@@ -1379,23 +1512,34 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
             aria-describedby="verification-status"
             ref={mainButtonRef}
           >
-            {/* 禁用状态遮罩 */}
+            {/* 禁用状态遮罩 - 美化设计 */}
             {!isVerified && !verifying && (
               <motion.div
-                className="absolute inset-0 bg-gray-100 bg-opacity-50 flex items-center justify-center"
+                className="absolute inset-0 bg-gradient-to-r from-gray-100/80 to-gray-200/80 backdrop-blur-[1px] flex items-center justify-center rounded-2xl"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.3 }}
               >
                 <motion.div
                   className="flex items-center gap-2 text-gray-600"
-                  animate={{ scale: [1, 1.05, 1] }}
-                  transition={{ duration: 2, repeat: Infinity }}
+                  animate={{ scale: [1, 1.02, 1] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                  <span className={isMobile ? 'text-xs' : 'text-sm'}>需要验证</span>
+                  <motion.div
+                    className="relative"
+                    animate={{ rotate: [0, 5, -5, 0] }}
+                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    <motion.div
+                      className="absolute inset-0 w-4 h-4 bg-gray-400 rounded-full opacity-20"
+                      animate={{ scale: [1, 1.3, 1], opacity: [0.2, 0, 0.2] }}
+                      transition={{ duration: 2.5, repeat: Infinity }}
+                    />
+                  </motion.div>
+                  <span className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>需要验证</span>
                 </motion.div>
               </motion.div>
             )}
@@ -1405,65 +1549,111 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                 <motion.div
                   key="verifying"
                   className="flex items-center justify-center gap-3"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.2 }}
                 >
-                  <motion.svg
-                    className="w-5 h-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                  >
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </motion.svg>
+                  <div className="relative">
+                    <motion.svg
+                      className="w-5 h-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    >
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </motion.svg>
+                    <motion.div
+                      className="absolute inset-0 w-5 h-5 bg-white rounded-full opacity-30"
+                      animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0, 0.3] }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                    />
+                  </div>
                   <motion.span
-                    animate={{ opacity: [1, 0.5, 1] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
+                    className="font-semibold"
+                    animate={{ opacity: [1, 0.7, 1] }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
                   >
                     验证中...
                   </motion.span>
                 </motion.div>
               ) : isVerified ? (
-                <motion.span
+                <motion.div
                   key="ready"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
+                  className="flex items-center justify-center gap-2"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.2 }}
                 >
-                  继续访问
-                </motion.span>
+                  <motion.svg
+                    className="w-5 h-5"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ duration: 0.3, type: "spring" }}
+                  >
+                    <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </motion.svg>
+                  <span className="font-semibold">继续访问</span>
+                </motion.div>
               ) : null}
             </AnimatePresence>
           </motion.button>
 
-          {/* 底部说明 */}
+          {/* 底部说明 - 美化设计 */}
           <motion.div
             className={`text-center ${isMobile ? 'mt-4' : 'mt-8'}`}
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.8 }}
           >
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-              <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-              <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
+            {/* 装饰性分隔线 */}
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <motion.div 
+                className="w-1.5 h-1.5 bg-gradient-to-r from-indigo-400 to-purple-400 rounded-full"
+                animate={{ scale: [1, 1.2, 1], opacity: [0.6, 1, 0.6] }}
+                transition={{ duration: 3, repeat: Infinity, delay: 0 }}
+              />
+              <motion.div 
+                className="w-1 h-1 bg-gradient-to-r from-indigo-300 to-purple-300 rounded-full"
+                animate={{ scale: [1, 1.2, 1], opacity: [0.6, 1, 0.6] }}
+                transition={{ duration: 3, repeat: Infinity, delay: 0.5 }}
+              />
+              <motion.div 
+                className="w-1.5 h-1.5 bg-gradient-to-r from-indigo-400 to-purple-400 rounded-full"
+                animate={{ scale: [1, 1.2, 1], opacity: [0.6, 1, 0.6] }}
+                transition={{ duration: 3, repeat: Infinity, delay: 1 }}
+              />
             </div>
-            <button
-              className={`text-gray-500 leading-relaxed cursor-help hover:text-indigo-500 transition-colors duration-200 bg-transparent border-none ${isMobile ? 'text-xs' : 'text-sm'
+            
+            {/* 隐私说明按钮 */}
+            <motion.button
+              className={`text-gray-500 leading-relaxed cursor-help hover:text-indigo-600 transition-all duration-300 bg-transparent border-none group ${isMobile ? 'text-xs' : 'text-sm'
                 }`}
               onClick={() => {
                 setShowPrivacyModal(true);
               }}
               title="点击查看详细的隐私保护说明"
               aria-label="查看隐私保护详情"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
             >
-              此验证仅用于防止自动化访问
-              <br />
-              您的隐私将得到充分保护
-            </button>
+              <div className="relative inline-block">
+                <span className="relative z-10">
+                  此验证仅用于防止自动化访问
+                  <br />
+                  您的隐私将得到充分保护
+                </span>
+                <motion.div
+                  className="absolute inset-0 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                  style={{ margin: '-4px' }}
+                />
+              </div>
+            </motion.button>
 
             {/* 添加帮助按钮 */}
             <motion.button
