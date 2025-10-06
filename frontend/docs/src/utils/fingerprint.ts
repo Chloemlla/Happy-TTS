@@ -1,6 +1,6 @@
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
 import CryptoJS from 'crypto-js';
-import { getApiBaseUrl } from '../../src/utils/api';
+import { getApiBaseUrl } from './api';
 
 const FP_STORAGE_KEY = 'hapx_fingerprint_v2';
 const FP_VERSION = '2';
