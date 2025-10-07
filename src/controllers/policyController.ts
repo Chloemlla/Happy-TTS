@@ -49,10 +49,49 @@ export const recordPolicyConsent = async (req: Request, res: Response): Promise<
       return;
     }
 
+    // 输入验证和清理
+    if (typeof consent.fingerprint !== 'string' || 
+        consent.fingerprint.trim().length === 0 || 
+        consent.fingerprint.trim().length > 100) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid fingerprint format',
+        code: 'INVALID_FINGERPRINT'
+      });
+      return;
+    }
+
+    if (typeof consent.version !== 'string' || 
+        consent.version.trim().length === 0 || 
+        consent.version.trim().length > 50) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid version format',
+        code: 'INVALID_VERSION'
+      });
+      return;
+    }
+
+    if (typeof consent.checksum !== 'string' || 
+        consent.checksum.trim().length === 0 || 
+        consent.checksum.trim().length > 100) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid checksum format',
+        code: 'INVALID_CHECKSUM'
+      });
+      return;
+    }
+
+    // 清理输入
+    const sanitizedFingerprint = consent.fingerprint.trim();
+    const sanitizedVersion = consent.version.trim();
+    const sanitizedChecksum = consent.checksum.trim();
+
     // 验证校验和
-    if (!verifyChecksum(consent, consent.checksum)) {
+    if (!verifyChecksum(consent, sanitizedChecksum)) {
       logger.warn('Policy consent checksum verification failed', {
-        fingerprint: consent.fingerprint,
+        fingerprint: sanitizedFingerprint,
         ip: clientIP,
         userAgent: userAgent?.substring(0, 100)
       });
@@ -77,7 +116,7 @@ export const recordPolicyConsent = async (req: Request, res: Response): Promise<
         currentTimestamp: now,
         timeDifference: Math.abs(consent.timestamp - now),
         allowedRange: '±20 seconds',
-        fingerprint: consent.fingerprint,
+        fingerprint: sanitizedFingerprint,
         ip: clientIP
       });
       
@@ -96,23 +135,23 @@ export const recordPolicyConsent = async (req: Request, res: Response): Promise<
     }
 
     // 验证版本
-    if (consent.version !== CURRENT_POLICY_VERSION) {
+    if (sanitizedVersion !== CURRENT_POLICY_VERSION) {
       res.status(400).json({
         success: false,
         error: 'Unsupported policy version',
         currentVersion: CURRENT_POLICY_VERSION,
-        providedVersion: consent.version,
+        providedVersion: sanitizedVersion,
         code: 'UNSUPPORTED_VERSION'
       });
       return;
     }
 
     // 检查是否已存在有效的同意记录
-    const existingConsent = await PolicyConsent.findValidConsent(consent.fingerprint, consent.version);
+    const existingConsent = await PolicyConsent.findValidConsent(sanitizedFingerprint, sanitizedVersion);
     if (existingConsent) {
       logger.info('Policy consent already exists', {
         consentId: existingConsent.id,
-        fingerprint: consent.fingerprint,
+        fingerprint: sanitizedFingerprint,
         ip: clientIP
       });
       
@@ -132,9 +171,9 @@ export const recordPolicyConsent = async (req: Request, res: Response): Promise<
     const newConsent = new PolicyConsent({
       id: consentId,
       timestamp: consent.timestamp,
-      version: consent.version,
-      fingerprint: consent.fingerprint,
-      checksum: consent.checksum,
+      version: sanitizedVersion,
+      fingerprint: sanitizedFingerprint,
+      checksum: sanitizedChecksum,
       userAgent: userAgent?.substring(0, 500),
       ipAddress: clientIP,
       expiresAt
@@ -145,8 +184,8 @@ export const recordPolicyConsent = async (req: Request, res: Response): Promise<
     // 记录日志
     logger.info('Policy consent recorded successfully', {
       consentId,
-      version: consent.version,
-      fingerprint: consent.fingerprint,
+      version: sanitizedVersion,
+      fingerprint: sanitizedFingerprint,
       ip: clientIP,
       userAgent: userAgent?.substring(0, 100),
       expiresAt
@@ -180,17 +219,49 @@ export const verifyPolicyConsent = async (req: Request, res: Response): Promise<
     const { fingerprint, version } = req.query;
     const clientIP = getClientIP(req);
 
-    if (!fingerprint || !version) {
+    // 输入验证和清理
+    if (!fingerprint || typeof fingerprint !== 'string') {
       res.status(400).json({
         success: false,
-        error: 'Missing fingerprint or version',
-        code: 'MISSING_PARAMS'
+        error: 'Missing or invalid fingerprint',
+        code: 'MISSING_FINGERPRINT'
+      });
+      return;
+    }
+
+    if (!version || typeof version !== 'string') {
+      res.status(400).json({
+        success: false,
+        error: 'Missing or invalid version',
+        code: 'MISSING_VERSION'
+      });
+      return;
+    }
+
+    // 清理和验证输入
+    const sanitizedFingerprint = fingerprint.trim();
+    const sanitizedVersion = version.trim();
+
+    if (sanitizedFingerprint.length === 0 || sanitizedFingerprint.length > 100) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid fingerprint format',
+        code: 'INVALID_FINGERPRINT'
+      });
+      return;
+    }
+
+    if (sanitizedVersion.length === 0 || sanitizedVersion.length > 50) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid version format',
+        code: 'INVALID_VERSION'
       });
       return;
     }
 
     // 查找有效的同意记录
-    const consent = await PolicyConsent.findValidConsent(fingerprint as string, version as string);
+    const consent = await PolicyConsent.findValidConsent(sanitizedFingerprint, sanitizedVersion);
     
     if (!consent) {
       res.json({
@@ -254,22 +325,63 @@ export const revokePolicyConsent = async (req: Request, res: Response): Promise<
     const { fingerprint, version } = req.body;
     const clientIP = getClientIP(req);
 
-    if (!fingerprint) {
+    // 输入验证和清理
+    if (!fingerprint || typeof fingerprint !== 'string') {
       res.status(400).json({
         success: false,
-        error: 'Missing fingerprint',
+        error: 'Missing or invalid fingerprint',
         code: 'MISSING_FINGERPRINT'
       });
       return;
     }
 
+    // 清理和验证指纹
+    const sanitizedFingerprint = fingerprint.trim();
+    if (sanitizedFingerprint.length === 0 || sanitizedFingerprint.length > 100) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid fingerprint format',
+        code: 'INVALID_FINGERPRINT'
+      });
+      return;
+    }
+
+    // 验证版本号（如果提供）
+    let sanitizedVersion: string | undefined;
+    if (version) {
+      if (typeof version !== 'string') {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid version format',
+          code: 'INVALID_VERSION'
+        });
+        return;
+      }
+      sanitizedVersion = version.trim();
+      if (sanitizedVersion.length === 0 || sanitizedVersion.length > 50) {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid version format',
+          code: 'INVALID_VERSION'
+        });
+        return;
+      }
+    }
+
+    // 构建安全的查询对象
+    const queryFilter: any = {
+      fingerprint: sanitizedFingerprint,
+      isValid: true
+    };
+
+    // 只有在版本号有效时才添加到查询中
+    if (sanitizedVersion) {
+      queryFilter.version = sanitizedVersion;
+    }
+
     // 查找并撤销同意记录
     const result = await PolicyConsent.updateMany(
-      { 
-        fingerprint,
-        ...(version && { version }),
-        isValid: true
-      },
+      queryFilter,
       { 
         isValid: false,
         revokedAt: new Date(),
@@ -278,8 +390,8 @@ export const revokePolicyConsent = async (req: Request, res: Response): Promise<
     );
 
     logger.info('Policy consent revoked', {
-      fingerprint,
-      version,
+      fingerprint: sanitizedFingerprint,
+      version: sanitizedVersion,
       ip: clientIP,
       modifiedCount: result.modifiedCount
     });
