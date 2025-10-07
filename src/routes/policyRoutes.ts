@@ -10,13 +10,19 @@ import {
 import { authenticateToken } from '../middleware/authenticateToken';
 import { adminOnly } from '../middleware/adminOnly';
 import rateLimit from 'express-rate-limit';
+import logger from '../utils/logger';
 
 const router = Router();
+
+// 检查是否为本地开发环境
+const isLocalDevelopment = process.env.NODE_ENV === 'development' || 
+                          process.env.NODE_ENV === 'dev' ||
+                          process.env.NODE_ENV === 'local';
 
 // 速率限制配置
 const policyRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000, // 15分钟
-  max: 10, // 每个IP最多10次请求
+  max: isLocalDevelopment ? 1000 : 10, // 本地环境放宽限制
   message: {
     success: false,
     error: 'Too many policy requests, please try again later',
@@ -24,11 +30,23 @@ const policyRateLimit = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // 本地环境跳过速率限制
+  skip: (req) => {
+    if (isLocalDevelopment) {
+      logger.info('Skipping rate limit for local development:', {
+        ip: req.ip,
+        hostname: req.hostname,
+        url: req.url
+      });
+      return true;
+    }
+    return false;
+  }
 });
 
 const adminRateLimit = rateLimit({
   windowMs: 5 * 60 * 1000, // 5分钟
-  max: 50, // 管理员接口更宽松的限制
+  max: isLocalDevelopment ? 2000 : 50, // 本地环境放宽限制
   message: {
     success: false,
     error: 'Too many admin requests, please try again later',
@@ -36,6 +54,18 @@ const adminRateLimit = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // 本地环境跳过速率限制
+  skip: (req) => {
+    if (isLocalDevelopment) {
+      logger.info('Skipping admin rate limit for local development:', {
+        ip: req.ip,
+        hostname: req.hostname,
+        url: req.url
+      });
+      return true;
+    }
+    return false;
+  }
 });
 
 /**

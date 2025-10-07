@@ -12,18 +12,24 @@ const getApiBaseUrl = () => {
     const isDev = typeof process !== 'undefined' && process.env?.NODE_ENV === 'development';
 
     if (isDev) {
-        // 在开发环境下，根据当前访问的URL自动切换后端地址
+        // 在开发环境下，当浏览器地址栏是本地地址特征时统一使用 localhost:3000
         const currentHost = window.location.hostname;
+        
+        // 检查是否为本地地址特征
+        const isLocalAddress = currentHost === 'localhost' || 
+                               currentHost === '127.0.0.1' || 
+                               currentHost.startsWith('192.168.') ||
+                               currentHost.startsWith('10.') ||
+                               currentHost.startsWith('172.');
+        
+        // 检查端口是否为本地开发端口
         const currentPort = window.location.port;
-
-        // 如果访问的是文档站点端口，后端地址指向API服务器
-        if (currentHost === '192.168.10.7' && (currentPort === '6000' || currentPort === '3001')) {
-            return 'http://192.168.10.7:3000';
-        }
-
-        // 如果是本地文档站点，指向本地API服务器
-        if ((currentHost === 'localhost' || currentHost === '127.0.0.1') &&
-            (currentPort === '6000' || currentPort === '3001')) {
+        const isLocalPort = currentPort === '3001' || 
+                           currentPort === '3002' || 
+                           currentPort === '6000' || 
+                           currentPort === '6001';
+        
+        if (isLocalAddress || isLocalPort) {
             return 'http://localhost:3000';
         }
 

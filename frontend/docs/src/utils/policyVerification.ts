@@ -3,8 +3,6 @@
  * 提供更安全的验证机制，防止绕过
  */
 
-import { getApiBaseUrl } from './api';
-
 interface PolicyConsent {
   timestamp: number;
   version: string;
@@ -163,7 +161,7 @@ class PolicyVerificationSystem {
     }
 
     try {
-      const baseUrl = getApiBaseUrl();
+      const baseUrl = this.getApiBaseUrl();
       const fullUrl = `${baseUrl}${this.VERIFICATION_ENDPOINT}`;
       
       const response = await fetch(fullUrl, {
@@ -203,7 +201,7 @@ class PolicyVerificationSystem {
     const startTime = Date.now();
     
     try {
-      const baseUrl = getApiBaseUrl();
+      const baseUrl = this.getApiBaseUrl();
       const currentFingerprint = fingerprint || await this.generateFingerprint();
       const url = `${baseUrl}/api/policy/check?fingerprint=${encodeURIComponent(currentFingerprint)}&version=${encodeURIComponent(this.POLICY_VERSION)}`;
       
@@ -380,12 +378,21 @@ class PolicyVerificationSystem {
   // 检查是否应该显示模态框
   public shouldShowModal(): boolean {
     if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      console.log('Browser environment not available, modal will not be shown');
       return false;
     }
 
     try {
       const hasShown = localStorage.getItem(this.MODAL_STORAGE_KEY);
-      return !hasShown;
+      const shouldShow = !hasShown;
+      
+      console.log('Modal display check:', {
+        storageKey: this.MODAL_STORAGE_KEY,
+        hasShown: hasShown,
+        shouldShow: shouldShow
+      });
+      
+      return shouldShow;
     } catch (error) {
       console.error('Error checking modal status:', error);
       return false;
@@ -400,8 +407,37 @@ class PolicyVerificationSystem {
 
     try {
       localStorage.setItem(this.MODAL_STORAGE_KEY, '1');
+      console.log('Modal marked as shown in localStorage:', this.MODAL_STORAGE_KEY);
     } catch (error) {
       console.error('Error marking modal as shown:', error);
+    }
+  }
+
+  // 清除模态框显示状态（用于测试或重置）
+  public clearModalStatus(): void {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      return;
+    }
+
+    try {
+      localStorage.removeItem(this.MODAL_STORAGE_KEY);
+      console.log('Modal status cleared from localStorage:', this.MODAL_STORAGE_KEY);
+    } catch (error) {
+      console.error('Error clearing modal status:', error);
+    }
+  }
+
+  // 获取模态框显示状态（用于调试）
+  public getModalStatus(): string | null {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      return null;
+    }
+
+    try {
+      return localStorage.getItem(this.MODAL_STORAGE_KEY);
+    } catch (error) {
+      console.error('Error getting modal status:', error);
+      return null;
     }
   }
 
@@ -412,24 +448,27 @@ class PolicyVerificationSystem {
     }
 
     try {
-      // 检查是否应该显示模态框
-      if (this.shouldShowModal()) {
-        this.showModal();
-        return false; // 需要用户同意
-      }
-
-      // 验证现有同意状态
-      const hasValidConsent = await this.hasValidConsent();
+      // 检查是否已经显示过模态框
+      const shouldShow = this.shouldShowModal();
       
-      if (!hasValidConsent) {
-        this.showModal();
-        return false;
+      if (!shouldShow) {
+        console.log('Modal already shown before, skipping display');
+        return true;
       }
 
-      return true;
+      // 如果还没有显示过模态框，显示一次并立即标记为已显示
+      console.log('Showing modal for first time (regardless of consent status)');
+      this.showModal();
+      
+      // 立即标记模态框已显示，防止重复显示
+      this.markModalAsShown();
+      
+      return false;
     } catch (error) {
       console.error('Error initializing policy check:', error);
       this.showModal();
+      // 即使出错也要标记为已显示，避免无限循环
+      this.markModalAsShown();
       return false;
     }
   }
@@ -437,14 +476,69 @@ class PolicyVerificationSystem {
   // 处理用户同意
   public async handleUserConsent(): Promise<void> {
     try {
+      // 记录用户同意
       await this.recordConsent();
+      
+      // 标记模态框已显示（防止重复显示）
       this.markModalAsShown();
+      
+      // 隐藏模态框
       this.hideModal();
-      console.log('Policy consent recorded successfully');
+      
+      console.log('Policy consent recorded successfully, modal will not show again');
     } catch (error) {
       console.error('Error handling user consent:', error);
       throw error;
     }
+  }
+
+  // 获取API基础URL（与api.ts保持一致）
+  private getApiBaseUrl(): string {
+    // 检查是否在浏览器环境中
+    if (typeof window === 'undefined') {
+      // 在服务器环境中，使用默认值
+      return 'https://api.hapxs.com';
+    }
+
+    // 检查是否为本地地址特征（优先判断）
+    const currentHost = window.location.hostname;
+    const currentPort = window.location.port;
+    
+    // 检查是否为本地地址特征
+    const isLocalAddress = currentHost === 'localhost' || 
+                           currentHost === '127.0.0.1' || 
+                           currentHost.startsWith('192.168.') ||
+                           currentHost.startsWith('10.') ||
+                           currentHost.startsWith('172.');
+    
+    // 检查端口是否为本地开发端口
+    const isLocalPort = currentPort === '3001' || 
+                       currentPort === '3002' || 
+                       currentPort === '6000' || 
+                       currentPort === '6001';
+    
+    // 如果是本地地址或本地端口，直接使用 localhost:3000
+    if (isLocalAddress || isLocalPort) {
+      console.log('Detected local environment, using localhost:3000', {
+        hostname: currentHost,
+        port: currentPort,
+        isLocalAddress,
+        isLocalPort
+      });
+      return 'http://localhost:3000';
+    }
+
+    // 检查 NODE_ENV（作为备用判断）
+    const isDev = typeof process !== 'undefined' && process.env?.NODE_ENV === 'development';
+    
+    if (isDev) {
+      console.log('Development environment detected via NODE_ENV, using localhost:3000');
+      return 'http://localhost:3000';
+    }
+
+    // 生产环境
+    console.log('Production environment detected, using api.hapxs.com');
+    return 'https://api.hapxs.com';
   }
 }
 
