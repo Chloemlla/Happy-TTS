@@ -16,6 +16,10 @@ class PolicyVerificationSystem {
   private readonly STORAGE_KEY = 'hapxtts_policy_consent';
   private readonly POLICY_VERSION = '2.0';
   private readonly VERIFICATION_ENDPOINT = '/api/policy/verify';
+  private readonly MODAL_STORAGE_KEY = 'hapxtts_support_modal_shown';
+  
+  // 模态框状态管理
+  private modalCallbacks: ((show: boolean) => void)[] = [];
   
   // 生成设备指纹
   private async generateFingerprint(): Promise<string> {
@@ -353,6 +357,93 @@ class PolicyVerificationSystem {
     } catch (error) {
       console.error('Integrity check failed:', error);
       return false;
+    }
+  }
+
+  // 模态框管理方法
+  public registerModalCallback(callback: (show: boolean) => void): void {
+    this.modalCallbacks.push(callback);
+  }
+
+  public unregisterModalCallback(callback: (show: boolean) => void): void {
+    this.modalCallbacks = this.modalCallbacks.filter(cb => cb !== callback);
+  }
+
+  public showModal(): void {
+    this.modalCallbacks.forEach(callback => callback(true));
+  }
+
+  public hideModal(): void {
+    this.modalCallbacks.forEach(callback => callback(false));
+  }
+
+  // 检查是否应该显示模态框
+  public shouldShowModal(): boolean {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      return false;
+    }
+
+    try {
+      const hasShown = localStorage.getItem(this.MODAL_STORAGE_KEY);
+      return !hasShown;
+    } catch (error) {
+      console.error('Error checking modal status:', error);
+      return false;
+    }
+  }
+
+  // 标记模态框已显示
+  public markModalAsShown(): void {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      return;
+    }
+
+    try {
+      localStorage.setItem(this.MODAL_STORAGE_KEY, '1');
+    } catch (error) {
+      console.error('Error marking modal as shown:', error);
+    }
+  }
+
+  // 初始化隐私政策检查
+  public async initializePolicyCheck(): Promise<boolean> {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
+    try {
+      // 检查是否应该显示模态框
+      if (this.shouldShowModal()) {
+        this.showModal();
+        return false; // 需要用户同意
+      }
+
+      // 验证现有同意状态
+      const hasValidConsent = await this.hasValidConsent();
+      
+      if (!hasValidConsent) {
+        this.showModal();
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error initializing policy check:', error);
+      this.showModal();
+      return false;
+    }
+  }
+
+  // 处理用户同意
+  public async handleUserConsent(): Promise<void> {
+    try {
+      await this.recordConsent();
+      this.markModalAsShown();
+      this.hideModal();
+      console.log('Policy consent recorded successfully');
+    } catch (error) {
+      console.error('Error handling user consent:', error);
+      throw error;
     }
   }
 }

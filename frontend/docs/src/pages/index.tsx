@@ -6,6 +6,7 @@ import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
 import HomepageFeatures from '@site/src/components/HomepageFeatures';
 import Heading from '@theme/Heading';
+import { policyVerification } from '@site/src/utils/policyVerification';
 
 import styles from './index.module.css';
 
@@ -105,7 +106,18 @@ function SupportModal({ open, onClose }: { open: boolean; onClose: () => void })
         </div>
         <div style={{marginTop: 16}}>
           <button
-            onClick={handleClose}
+            onClick={async () => {
+              if (checked) {
+                try {
+                  await policyVerification.handleUserConsent();
+                  handleClose();
+                } catch (error) {
+                  console.error('Failed to record consent:', error);
+                  // 即使记录失败也关闭模态框，避免阻塞用户
+                  handleClose();
+                }
+              }
+            }}
             disabled={!checked}
             style={{
               padding: '10px 32px',
@@ -138,13 +150,22 @@ export default function Home(): ReactNode {
   const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const hasShown = localStorage.getItem('hapxtts_support_modal_shown');
-      if (!hasShown) {
-        setShowModal(true);
-        localStorage.setItem('hapxtts_support_modal_shown', '1');
-      }
-    }
+    // 注册模态框回调
+    const handleModalChange = (show: boolean) => {
+      setShowModal(show);
+    };
+
+    policyVerification.registerModalCallback(handleModalChange);
+
+    // 初始化隐私政策检查
+    policyVerification.initializePolicyCheck().catch(error => {
+      console.error('Policy verification initialization failed:', error);
+    });
+
+    // 清理回调
+    return () => {
+      policyVerification.unregisterModalCallback(handleModalChange);
+    };
   }, []);
 
   return (

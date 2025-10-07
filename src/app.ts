@@ -118,21 +118,25 @@ const allowedOrigins = [
   'https://tts.hapxs.com',
   'https://951100.xyz',
   'https://tts.951100.xyz',
-  "http://192.168.10.7:3001",
   'https://api.hapxs.com',
-  'http://localhost:3000',
-  'http://localhost:3001',
-  'http://localhost:6000',
-  'http://localhost:6001',
-  'http://127.0.0.1:3001',
-  'http://127.0.0.1:6000',
-  'http://127.0.0.1:6001',
-  'http://192.168.137.1:3001',
-  'http://192.168.137.1:6000',
-  'http://192.168.137.1:6001',
-  'http://192.168.10.7:3001',
-  'http://192.168.10.7:6000',
-  'http://192.168.10.7:6001'
+  // 开发环境下的本地域名
+  ...(process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev' ? [
+    "http://192.168.10.7:3001",
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:6000',
+    'http://localhost:6001',
+    'http://localhost:3002',
+    'http://127.0.0.1:3001',
+    'http://127.0.0.1:6000',
+    'http://127.0.0.1:6001',
+    'http://192.168.137.1:3001',
+    'http://192.168.137.1:6000',
+    'http://192.168.137.1:6001',
+    'http://192.168.10.7:3001',
+    'http://192.168.10.7:6000',
+    'http://192.168.10.7:6001'
+  ] : [])
 ];
 
 // 为所有 /s/* 路由添加 OPTIONS 处理器 - 必须在路由挂载之前
