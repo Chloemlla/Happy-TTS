@@ -19,6 +19,11 @@ class PolicyVerificationSystem {
   
   // 生成设备指纹
   private async generateFingerprint(): Promise<string> {
+    // 检查是否在浏览器环境中
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      throw new Error('Browser environment required for fingerprint generation');
+    }
+
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     if (ctx) {
@@ -68,6 +73,11 @@ class PolicyVerificationSystem {
   
   // 检查是否已同意最新版本的隐私政策（必须从服务器验证）
   public async hasValidConsent(): Promise<boolean> {
+    // 检查是否在浏览器环境中
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
     try {
       // 生成当前设备指纹
       const currentFingerprint = await this.generateFingerprint();
@@ -95,6 +105,11 @@ class PolicyVerificationSystem {
   
   // 记录用户同意
   public async recordConsent(): Promise<void> {
+    // 检查是否在浏览器环境中
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      throw new Error('Browser environment required for consent recording');
+    }
+
     try {
       const fingerprint = await this.generateFingerprint();
       const timestamp = Date.now();
@@ -122,6 +137,11 @@ class PolicyVerificationSystem {
   
   // 清除同意记录
   public clearConsent(): void {
+    // 检查是否在浏览器环境中
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      return;
+    }
+
     try {
       localStorage.removeItem(this.STORAGE_KEY);
       // 清除旧版本的存储
@@ -133,6 +153,11 @@ class PolicyVerificationSystem {
   
   // 发送同意记录到服务器（可选）
   private async sendConsentToServer(consent: PolicyConsent): Promise<void> {
+    // 检查是否在浏览器环境中
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+      return;
+    }
+
     try {
       const baseUrl = getApiBaseUrl();
       const fullUrl = `${baseUrl}${this.VERIFICATION_ENDPOINT}`;
@@ -166,6 +191,11 @@ class PolicyVerificationSystem {
   
   // 从服务器验证同意状态（必选）
   public async verifyConsentWithServer(fingerprint?: string): Promise<boolean> {
+    // 检查是否在浏览器环境中
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
     const startTime = Date.now();
     
     try {
@@ -251,6 +281,11 @@ class PolicyVerificationSystem {
 
   // 带降级策略的验证（服务器不可用时直接失败）
   public async hasValidConsentWithFallback(): Promise<boolean> {
+    // 检查是否在浏览器环境中
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
     try {
       // 只使用服务器验证，不提供本地降级
       const serverValid = await this.hasValidConsent();
@@ -275,6 +310,11 @@ class PolicyVerificationSystem {
   
   // 检查是否为开发环境
   public isDevelopment(): boolean {
+    // 检查是否在浏览器环境中
+    if (typeof window === 'undefined') {
+      return process.env.NODE_ENV === 'development';
+    }
+
     return process.env.NODE_ENV === 'development' || 
            window.location.hostname === 'localhost' ||
            window.location.hostname === '127.0.0.1';
@@ -282,6 +322,11 @@ class PolicyVerificationSystem {
   
   // 防篡改检查
   public performIntegrityCheck(): boolean {
+    // 检查是否在浏览器环境中
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      return true; // 在服务器环境中返回true，避免阻塞SSR
+    }
+
     try {
       // 检查关键函数是否被修改
       const originalSetItem = localStorage.setItem;

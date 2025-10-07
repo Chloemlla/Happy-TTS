@@ -7,8 +7,8 @@
   'use strict';
 
   // 防止多次执行
-  if (window.__policyEnforcementLoaded) return;
-  window.__policyEnforcementLoaded = true;
+  if (typeof window !== 'undefined' && window.__policyEnforcementLoaded) return;
+  if (typeof window !== 'undefined') window.__policyEnforcementLoaded = true;
 
   const STORAGE_KEY = 'hapxtts_policy_consent';
   const POLICY_VERSION = '2.0';
@@ -16,6 +16,8 @@
   // 获取API基础URL（内联版本）
   function getApiBaseUrl() {
     // 检查是否为开发环境
+    if (typeof window === 'undefined') return 'https://api.hapxs.com';
+    
     const isDev = window.location.hostname === 'localhost' ||
                   window.location.hostname === '127.0.0.1' ||
                   window.location.port === '6000' ||
@@ -47,6 +49,8 @@
   let devToolsWarningShown = false;
   
   function detectDevTools() {
+    if (typeof window === 'undefined') return;
+    
     const threshold = 160;
     const widthThreshold = window.outerWidth - window.innerWidth > threshold;
     const heightThreshold = window.outerHeight - window.innerHeight > threshold;
@@ -118,6 +122,8 @@
 
   // 防止页面被嵌入到其他网站
   function preventFraming() {
+    if (typeof window === 'undefined') return;
+    
     if (window.top !== window.self) {
       console.error('检测到页面被嵌入，这可能是安全风险');
       window.top.location = window.self.location;
@@ -126,6 +132,8 @@
 
   // 监控页面可见性变化
   function monitorVisibility() {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+    
     document.addEventListener('visibilitychange', function() {
       if (document.hidden) {
         // 页面隐藏时检查同意状态
@@ -139,6 +147,8 @@
 
   // 防止右键菜单和某些快捷键
   function preventBypass() {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+    
     // 禁用右键菜单（在政策模态框显示时）
     document.addEventListener('contextmenu', function(e) {
       const consent = localStorage.getItem(STORAGE_KEY);
@@ -165,6 +175,8 @@
 
   // 定期验证同意状态（纯服务器验证）
   function periodicVerification() {
+    if (typeof window === 'undefined') return;
+    
     let verificationInProgress = false;
     
     setInterval(async function() {
@@ -240,6 +252,8 @@
 
   // 页面卸载时的检查
   function onPageUnload() {
+    if (typeof window === 'undefined') return;
+    
     window.addEventListener('beforeunload', function() {
       const consent = localStorage.getItem(STORAGE_KEY);
       if (!consent) {
@@ -250,6 +264,8 @@
 
   // 初始化所有保护机制
   function initialize() {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+    
     try {
       preventFraming();
       monitorStorage();
@@ -269,14 +285,16 @@
   }
 
   // 等待 DOM 加载完成
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initialize);
-  } else {
-    initialize();
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initialize);
+    } else {
+      initialize();
+    }
   }
 
   // 导出一些调试方法（仅在开发环境）
-  if (process.env.NODE_ENV === 'development') {
+  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
     window.__policyEnforcement = {
       checkConsent: function() {
         const consent = localStorage.getItem(STORAGE_KEY);

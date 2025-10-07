@@ -1,6 +1,5 @@
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
 import CryptoJS from 'crypto-js';
-import { getApiBaseUrl } from './api';
 
 const FP_STORAGE_KEY = 'hapx_fingerprint_v2';
 const FP_VERSION = '2';
@@ -18,6 +17,11 @@ function safeHash(input: string): string {
 }
 
 function readCache(): string | null {
+  // 检查是否在浏览器环境中
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    return null;
+  }
+
   try {
     const raw = localStorage.getItem(FP_STORAGE_KEY);
     if (!raw) return null;
@@ -31,6 +35,11 @@ function readCache(): string | null {
 }
 
 function writeCache(id: string): void {
+  // 检查是否在浏览器环境中
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    return;
+  }
+
   try {
     const payload: CachedFingerprint = { id, v: FP_VERSION, ts: Date.now() };
     localStorage.setItem(FP_STORAGE_KEY, JSON.stringify(payload));
@@ -40,6 +49,11 @@ function writeCache(id: string): void {
 }
 
 function getOrCreateStableRandomId(): string {
+  // 检查是否在浏览器环境中
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    return Math.random().toString(36).slice(2) + Date.now().toString(36);
+  }
+
   const key = 'hapx_fp_rand';
   try {
     const existing = localStorage.getItem(key);
@@ -60,6 +74,11 @@ function getOrCreateStableRandomId(): string {
 }
 
 function getNavigatorSignals() {
+  // 检查是否在浏览器环境中
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return {};
+  }
+
   try {
     const n = navigator as any;
     return {
@@ -83,6 +102,11 @@ function getNavigatorSignals() {
 }
 
 function getScreenSignals() {
+  // 检查是否在浏览器环境中
+  if (typeof window === 'undefined' || typeof screen === 'undefined') {
+    return {};
+  }
+
   try {
     return {
       w: screen.width,
@@ -109,6 +133,11 @@ function getTimezoneSignals() {
 }
 
 function getCanvasFingerprint(): string {
+  // 检查是否在浏览器环境中
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return '';
+  }
+
   try {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -134,6 +163,11 @@ function getCanvasFingerprint(): string {
 }
 
 function getWebGLFingerprint(): string {
+  // 检查是否在浏览器环境中
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return '';
+  }
+
   try {
     const canvas = document.createElement('canvas');
     const gl = canvas.getContext('webgl') || (canvas.getContext('experimental-webgl') as WebGLRenderingContext | null);
@@ -197,13 +231,25 @@ async function getWithFingerprintJS(timeoutMs = 1500): Promise<string | null> {
 
 // 检查用户是否已登录
 function isUserLoggedIn(): boolean {
+  // 检查是否在浏览器环境中
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    return false;
+  }
+
   const token = localStorage.getItem('token');
   return !!token;
 }
 
 // 获取客户端IP地址
 export const getClientIP = async (): Promise<string> => {
+  // 检查是否在浏览器环境中
+  if (typeof window === 'undefined') {
+    return 'unknown';
+  }
+
   try {
+    // 动态导入 getApiBaseUrl 以避免循环依赖
+    const { getApiBaseUrl } = await import('./api');
     const response = await fetch(`${getApiBaseUrl()}/ip`, {
       method: 'GET',
       headers: {
@@ -225,6 +271,11 @@ export const getClientIP = async (): Promise<string> => {
 
 // 生成浏览器指纹
 export const getFingerprint = async (): Promise<string | null> => {
+  // 检查是否在浏览器环境中
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
   try {
     const fp = await FingerprintJS.load();
     const result = await fp.get();
@@ -301,6 +352,11 @@ const fetchWithRetry = async (url: string, options: RequestInit, maxRetries: num
 
 // 上报指纹（仅登录用户）
 export const reportFingerprintOnce = async (): Promise<void> => {
+  // 检查是否在浏览器环境中
+  if (typeof window === 'undefined') {
+    return;
+  }
+
   console.log('🔍 开始指纹上报流程...');
 
   // 未登录用户不进行请求
@@ -327,6 +383,8 @@ export const reportFingerprintOnce = async (): Promise<void> => {
   }
 
   console.log('🔑 指纹生成成功:', fingerprint.substring(0, 8) + '...');
+  // 动态导入 getApiBaseUrl 以避免循环依赖
+  const { getApiBaseUrl } = await import('./api');
   const apiUrl = `${getApiBaseUrl()}/api/turnstile/fingerprint/report`;
   const token = localStorage.getItem('token');
 
@@ -384,12 +442,19 @@ export const reportFingerprintOnce = async (): Promise<void> => {
 
 // 临时指纹上报（用于首次访问检测）
 export const reportTempFingerprint = async (): Promise<{ isFirstVisit: boolean; verified: boolean }> => {
+  // 检查是否在浏览器环境中
+  if (typeof window === 'undefined') {
+    throw new Error('浏览器环境不可用');
+  }
+
   const fingerprint = await getFingerprint();
   if (!fingerprint) {
     throw new Error('无法生成指纹');
   }
 
   try {
+    // 动态导入 getApiBaseUrl 以避免循环依赖
+    const { getApiBaseUrl } = await import('./api');
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/temp-fingerprint`, {
       method: 'POST',
       headers: {
@@ -441,7 +506,14 @@ export const reportTempFingerprint = async (): Promise<{ isFirstVisit: boolean; 
 
 // 验证临时指纹
 export const verifyTempFingerprint = async (fingerprint: string, cfToken: string, captchaType: 'turnstile' | 'hcaptcha' = 'turnstile'): Promise<{ success: boolean; accessToken?: string }> => {
+  // 检查是否在浏览器环境中
+  if (typeof window === 'undefined') {
+    throw new Error('浏览器环境不可用');
+  }
+
   try {
+    // 动态导入 getApiBaseUrl 以避免循环依赖
+    const { getApiBaseUrl } = await import('./api');
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/verify-temp-fingerprint`, {
       method: 'POST',
       headers: {
@@ -496,6 +568,8 @@ export const verifyTempFingerprint = async (fingerprint: string, cfToken: string
 // 检查临时指纹状态
 export const checkTempFingerprintStatus = async (fingerprint: string): Promise<{ exists: boolean; verified: boolean }> => {
   try {
+    // 动态导入 getApiBaseUrl 以避免循环依赖
+    const { getApiBaseUrl } = await import('./api');
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/temp-fingerprint/${fingerprint}`, {
       method: 'GET',
       headers: {
@@ -530,6 +604,11 @@ export const checkTempFingerprintStatus = async (fingerprint: string): Promise<{
 
 // 验证访问密钥
 export const verifyAccessToken = async (token: string, fingerprint: string): Promise<boolean> => {
+  // 检查是否在浏览器环境中
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
   try {
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/verify-access-token`, {
       method: 'POST',
@@ -575,6 +654,11 @@ export const verifyAccessToken = async (token: string, fingerprint: string): Pro
 
 // 检查指纹是否有有效访问密钥
 export const checkAccessToken = async (fingerprint: string): Promise<boolean> => {
+  // 检查是否在浏览器环境中
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
   try {
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/check-access-token/${fingerprint}`, {
       method: 'GET',
@@ -602,6 +686,11 @@ export const checkAccessToken = async (fingerprint: string): Promise<boolean> =>
 
 // 存储访问密钥到本地存储
 export const storeAccessToken = (fingerprint: string, token: string): void => {
+  // 检查是否在浏览器环境中
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    return;
+  }
+
   try {
     const accessTokens = JSON.parse(localStorage.getItem('accessTokens') || '{}');
     accessTokens[fingerprint] = {
@@ -617,6 +706,11 @@ export const storeAccessToken = (fingerprint: string, token: string): void => {
 
 // 从本地存储获取访问密钥
 export const getAccessToken = (fingerprint: string): string | null => {
+  // 检查是否在浏览器环境中
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    return null;
+  }
+
   try {
     const accessTokens = JSON.parse(localStorage.getItem('accessTokens') || '{}');
     const tokenData = accessTokens[fingerprint];
@@ -642,6 +736,11 @@ export const getAccessToken = (fingerprint: string): string | null => {
 
 // 清理过期的访问密钥
 export const cleanupExpiredAccessTokens = (): void => {
+  // 检查是否在浏览器环境中
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    return;
+  }
+
   try {
     const accessTokens = JSON.parse(localStorage.getItem('accessTokens') || '{}');
     const now = Date.now();

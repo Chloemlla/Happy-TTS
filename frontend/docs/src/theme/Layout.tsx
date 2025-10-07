@@ -9,40 +9,45 @@ export default function Layout(props) {
   const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      // 异步检查同意状态
-      const checkConsent = async () => {
-        try {
-          // 清理旧版本的存储
-          const oldConsent = localStorage.getItem('hapxtts_support_modal_shown');
-          if (oldConsent) {
-            localStorage.removeItem('hapxtts_support_modal_shown');
-          }
-
-          // 使用新的验证系统（现在是异步的）
-          const hasValidConsent = await policyVerification.hasValidConsent();
-          setAgreed(hasValidConsent);
-          
-          // 在开发环境下记录调试信息
-          if (policyVerification.isDevelopment()) {
-            console.log('Policy consent status:', hasValidConsent);
-          }
-        } catch (error) {
-          console.error('Error checking policy consent:', error);
-          setAgreed(false);
-        } finally {
-          setIsChecking(false);
-          setLoaded(true);
-        }
-      };
-
-      checkConsent();
+    // 检查是否在浏览器环境中
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      setLoaded(true);
+      setIsChecking(false);
+      return;
     }
+
+    // 异步检查同意状态
+    const checkConsent = async () => {
+      try {
+        // 清理旧版本的存储
+        const oldConsent = localStorage.getItem('hapxtts_support_modal_shown');
+        if (oldConsent) {
+          localStorage.removeItem('hapxtts_support_modal_shown');
+        }
+
+        // 使用新的验证系统（现在是异步的）
+        const hasValidConsent = await policyVerification.hasValidConsent();
+        setAgreed(hasValidConsent);
+        
+        // 在开发环境下记录调试信息
+        if (policyVerification.isDevelopment()) {
+          console.log('Policy consent status:', hasValidConsent);
+        }
+      } catch (error) {
+        console.error('Error checking policy consent:', error);
+        setAgreed(false);
+      } finally {
+        setIsChecking(false);
+        setLoaded(true);
+      }
+    };
+
+    checkConsent();
   }, []);
 
   // 监听路径变化，重新检查同意状态
   useEffect(() => {
-    if (typeof window !== 'undefined' && loaded) {
+    if (typeof window !== 'undefined' && typeof document !== 'undefined' && loaded) {
       const handleLocationChange = async () => {
         // 每次路径变化时重新验证（异步）
         try {

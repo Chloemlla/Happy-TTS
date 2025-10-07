@@ -3,7 +3,7 @@ import { policyVerification } from '../utils/policyVerification';
 
 // 检测暗黑模式
 const isDarkMode = () => {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === 'undefined' || typeof document === 'undefined') return false;
   
   // 检查 Docusaurus 暗黑模式
   const htmlElement = document.documentElement;
@@ -474,7 +474,7 @@ export default function PolicyConsentModal({ open, onAgree }: PolicyConsentModal
       </div>
 
       {/* CSS动画 */}
-      <style jsx>{`
+      <style>{`
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }

@@ -1,39 +1,44 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
-import { reportFingerprintOnce } from '../../src/utils/fingerprint';
 
 // 获取API基础URL
 const getApiBaseUrl = () => {
+    // 检查是否在浏览器环境中
+    if (typeof window === 'undefined') {
+        // 在服务器环境中，使用环境变量或默认值
+        return process.env.VITE_API_URL || 'https://api.hapxs.com';
+    }
+
     // 检查是否为开发环境
-    const isDev = process.env.NODE_ENV === 'development' || 
-                  window.location.hostname === 'localhost' ||
-                  window.location.hostname === '127.0.0.1' ||
-                  window.location.port === '6000' ||
-                  window.location.port === '3001';
-    
+    const isDev = process.env.NODE_ENV === 'development' ||
+        window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1' ||
+        window.location.port === '6000' ||
+        window.location.port === '3001';
+
     if (isDev) {
         // 在开发环境下，根据当前访问的URL自动切换后端地址
         const currentHost = window.location.hostname;
         const currentPort = window.location.port;
-        
+
         // 如果访问的是文档站点端口，后端地址指向API服务器
         if (currentHost === '192.168.10.7' && (currentPort === '6000' || currentPort === '3001')) {
             return 'http://192.168.10.7:3000';
         }
-        
+
         // 如果是本地文档站点，指向本地API服务器
-        if ((currentHost === 'localhost' || currentHost === '127.0.0.1') && 
+        if ((currentHost === 'localhost' || currentHost === '127.0.0.1') &&
             (currentPort === '6000' || currentPort === '3001')) {
             return 'http://localhost:3000';
         }
-        
+
         // 默认本地开发地址
         return 'http://localhost:3000';
     }
-    
+
     // 生产环境
-    const apiUrl = process.env.VITE_API_URL || 
-                   (typeof window !== 'undefined' && (window as any).VITE_API_URL);
-    
+    const apiUrl = process.env.VITE_API_URL ||
+        (typeof window !== 'undefined' && (window as any).VITE_API_URL);
+
     return apiUrl || 'https://api.hapxs.com';
 };
 
@@ -69,18 +74,30 @@ api.interceptors.response.use(
             const flag = response.headers?.['x-require-fingerprint'] || response.headers?.['X-Require-Fingerprint'];
             if (flag === '1') {
                 // 异步触发上报（不阻塞当前请求）
-                reportFingerprintOnce();
+                if (typeof window !== 'undefined') {
+                    import('../../src/utils/fingerprint').then(({ reportFingerprintOnce }) => {
+                        reportFingerprintOnce();
+                    }).catch(() => {
+                        // 忽略导入错误
+                    });
+                }
             }
         } catch { }
         return response;
     },
     async (error) => {
         const originalRequest = error.config;
-        
+
         try {
             const flag = error?.response?.headers?.['x-require-fingerprint'] || error?.response?.headers?.['X-Require-Fingerprint'];
             if (flag === '1') {
-                reportFingerprintOnce();
+                if (typeof window !== 'undefined') {
+                    import('../../src/utils/fingerprint').then(({ reportFingerprintOnce }) => {
+                        reportFingerprintOnce();
+                    }).catch(() => {
+                        // 忽略导入错误
+                    });
+                }
             }
         } catch { }
 
@@ -128,7 +145,7 @@ api.interceptors.response.use(
             try {
                 // 等待指定时间后重试
                 await delay(RETRY_DELAY);
-                
+
                 console.log(`🔄 开始重试API请求:`, {
                     url: originalRequest.url,
                     method: originalRequest.method,
@@ -145,7 +162,7 @@ api.interceptors.response.use(
                     retryError: retryError instanceof Error ? retryError.message : retryError,
                     totalAttempts: 2
                 });
-                
+
                 // 重试失败，返回原始错误
                 return Promise.reject(error);
             }
@@ -171,19 +188,19 @@ export const apiWithRetry = {
     get: <T = any>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
         return api.get<T>(url, config);
     },
-    
+
     post: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
         return api.post<T>(url, data, config);
     },
-    
+
     put: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
         return api.put<T>(url, data, config);
     },
-    
+
     delete: <T = any>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
         return api.delete<T>(url, config);
     },
-    
+
     patch: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
         return api.patch<T>(url, data, config);
     }
