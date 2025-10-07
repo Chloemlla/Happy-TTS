@@ -4,16 +4,12 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 const getApiBaseUrl = () => {
     // 检查是否在浏览器环境中
     if (typeof window === 'undefined') {
-        // 在服务器环境中，使用环境变量或默认值
-        return process.env.VITE_API_URL || 'https://api.hapxs.com';
+        // 在服务器环境中，使用默认值
+        return 'https://api.hapxs.com';
     }
 
-    // 检查是否为开发环境
-    const isDev = process.env.NODE_ENV === 'development' ||
-        window.location.hostname === 'localhost' ||
-        window.location.hostname === '127.0.0.1' ||
-        window.location.port === '6000' ||
-        window.location.port === '3001';
+    // 全局只依赖 NODE_ENV 判断环境
+    const isDev = typeof process !== 'undefined' && process.env?.NODE_ENV === 'development';
 
     if (isDev) {
         // 在开发环境下，根据当前访问的URL自动切换后端地址
@@ -36,10 +32,7 @@ const getApiBaseUrl = () => {
     }
 
     // 生产环境
-    const apiUrl = process.env.VITE_API_URL ||
-        (typeof window !== 'undefined' && (window as any).VITE_API_URL);
-
-    return apiUrl || 'https://api.hapxs.com';
+    return 'https://api.hapxs.com';
 };
 
 // 延迟函数
