@@ -105,29 +105,29 @@ export const recordPolicyConsent = async (req: Request, res: Response): Promise<
       return;
     }
 
-    // 验证时间戳（允许20秒的时间差）
+    // 验证时间戳（允许80秒的时间差）
     const now = Date.now();
-    const twentySecondsAgo = now - (20 * 1000);
-    const twentySecondsLater = now + (20 * 1000);
+    const eightySecondsAgo = now - (80 * 1000);
+    const eightySecondsLater = now + (80 * 1000);
     
-    if (consent.timestamp < twentySecondsAgo || consent.timestamp > twentySecondsLater) {
+    if (consent.timestamp < eightySecondsAgo || consent.timestamp > eightySecondsLater) {
       logger.warn('Policy consent invalid timestamp', {
         consentTimestamp: consent.timestamp,
         currentTimestamp: now,
         timeDifference: Math.abs(consent.timestamp - now),
-        allowedRange: '±20 seconds',
+        allowedRange: '±80 seconds',
         fingerprint: sanitizedFingerprint,
         ip: clientIP
       });
       
       res.status(400).json({
         success: false,
-        error: 'Invalid timestamp - must be within 20 seconds of server time',
+        error: 'Invalid timestamp - must be within 80 seconds of server time',
         details: {
           serverTime: now,
           clientTime: consent.timestamp,
           timeDifference: Math.abs(consent.timestamp - now),
-          allowedRange: '±20 seconds'
+          allowedRange: '±80 seconds'
         },
         code: 'INVALID_TIMESTAMP'
       });
