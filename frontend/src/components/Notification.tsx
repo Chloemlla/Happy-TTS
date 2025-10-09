@@ -27,6 +27,57 @@ const NotificationContext = createContext<NotificationContextProps>({
 
 export const useNotification = () => useContext(NotificationContext);
 
+// Toast 兼容接口（支持 shadcn/ui 风格）
+interface ToastOptions {
+    title?: string;
+    description?: string;
+    variant?: 'default' | 'destructive' | 'success' | 'warning' | 'info' | 'error';
+}
+
+// 提供 useToast hook 用于兼容性
+export const useToast = () => {
+    const { setNotification } = useNotification();
+    
+    const toast = (options: ToastOptions) => {
+        // 智能类型推断
+        let type: NotificationData['type'] = 'info';
+        
+        if (options.variant) {
+            // 直接映射标准类型
+            if (options.variant === 'destructive' || options.variant === 'error') {
+                type = 'error';
+            } else if (options.variant === 'success') {
+                type = 'success';
+            } else if (options.variant === 'warning') {
+                type = 'warning';
+            } else if (options.variant === 'info' || options.variant === 'default') {
+                type = 'info';
+            }
+        } else {
+            // 根据标题内容智能推断
+            const title = options.title?.toLowerCase() || '';
+            const description = options.description?.toLowerCase() || '';
+            const content = title + ' ' + description;
+            
+            if (content.includes('成功') || content.includes('完成') || content.includes('success')) {
+                type = 'success';
+            } else if (content.includes('错误') || content.includes('失败') || content.includes('error') || content.includes('failed')) {
+                type = 'error';
+            } else if (content.includes('警告') || content.includes('注意') || content.includes('warning')) {
+                type = 'warning';
+            }
+        }
+        
+        setNotification({
+            type,
+            title: options.title,
+            message: options.description || options.title || '通知',
+        });
+    };
+    
+    return { toast };
+};
+
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [notifications, setNotifications] = useState<NotificationItem[]>([]);
     const notificationIdRef = React.useRef<number>(0);
