@@ -349,7 +349,9 @@ export class IPFSService {
                 // 从ipfsUploadUrl提取origin和检测是否为特殊域名
                 const ipfsUrlObj = new URL(ipfsUploadUrl);
                 const origin = `${ipfsUrlObj.protocol}//${ipfsUrlObj.host}`;
-                const isCrossbellRelay = ipfsUrlObj.hostname.includes('ipfs-relay.crossbell.io');
+                // 安全的域名检查：精确匹配或有效子域名
+                const isCrossbellRelay = ipfsUrlObj.hostname === 'ipfs-relay.crossbell.io' || 
+                    ipfsUrlObj.hostname.endsWith('.ipfs-relay.crossbell.io');
                 
                 // 创建FormData
                 const formData = new (require('form-data'))();
