@@ -91,6 +91,27 @@ async function getAllowAllFileTypes(): Promise<boolean> {
   return false;
 }
 
+async function getDevSkipTurnstile(): Promise<boolean> {
+  try {
+    if (mongoose.connection.readyState === 1) {
+      const doc = await IPFSSettingModel.findOne({ key: 'IPFS_DEV_SKIP_TURNSTILE' }).lean().exec();
+      if (doc && typeof doc.value === 'string') {
+        const value = doc.value.trim().toLowerCase();
+        const result = value === 'true' || value === '1';
+        logger.info('[IPFS] 从MongoDB读取到IPFS_DEV_SKIP_TURNSTILE配置:', result);
+        return result;
+      }
+    }
+  } catch (e) {
+    logger.error('[IPFS] 读取IPFS_DEV_SKIP_TURNSTILE配置失败', e);
+  }
+  
+  // 开发环境默认跳过 Turnstile 验证
+  const isDev = process.env.NODE_ENV !== 'production';
+  logger.info('[IPFS] 使用默认IPFS_DEV_SKIP_TURNSTILE配置:', isDev);
+  return isDev;
+}
+
 
 export interface IPFSUploadResponse {
     status: string;
@@ -145,14 +166,22 @@ export class IPFSService {
         const bypassUAKeyword = await getBypassUAKeyword();
         const shouldBypassByUA = bypassUAKeyword && context?.userAgent && context.userAgent.includes(bypassUAKeyword);
         
+        // 检查开发环境是否跳过 Turnstile 验证
+        const devSkipTurnstile = await getDevSkipTurnstile();
+        
         // 对于本地开发环境的管理员请求，免除Turnstile验证
         const isLocalIp = context?.clientIp ? ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(context.clientIp) : false;
-        const shouldSkipTurnstile = context?.shouldSkipTurnstile || (context?.isAdmin && isLocalIp && context?.isDev) || shouldBypassByUA;
+        const shouldSkipTurnstile = context?.shouldSkipTurnstile || (context?.isAdmin && isLocalIp && context?.isDev) || shouldBypassByUA || devSkipTurnstile;
         
         if (shouldBypassByUA) {
             logger.info('[IPFS] 检测到UA包含绕过关键字，跳过Turnstile验证', {
                 userAgent: context?.userAgent,
                 bypassKeyword: bypassUAKeyword
+            });
+        } else if (devSkipTurnstile) {
+            logger.info('[IPFS] 开发环境配置跳过Turnstile验证', {
+                environment: process.env.NODE_ENV || 'development',
+                devSkipTurnstile
             });
         } else if (shouldSkipTurnstile) {
             logger.info('[IPFS] 本地开发环境管理员请求，跳过Turnstile验证', {
@@ -317,36 +346,83 @@ export class IPFSService {
             try {
                 logger.info(`[IPFS] 尝试上传文件 (第${attempt + 1}次): ${filename}`);
                 
-                // 创建FormData
-                const formData = new (require('form-data'))();
-                formData.append('file', fileBuffer, {
-                    filename,
-                    contentType: mimetype
-                });
-                
-                // 从ipfsUploadUrl提取origin
+                // 从ipfsUploadUrl提取origin和检测是否为特殊域名
                 const ipfsUrlObj = new URL(ipfsUploadUrl);
                 const origin = `${ipfsUrlObj.protocol}//${ipfsUrlObj.host}`;
+                const isCrossbellRelay = ipfsUrlObj.hostname.includes('ipfs-relay.crossbell.io');
+                
+                // 创建FormData
+                const formData = new (require('form-data'))();
+                
+                // 为 ipfs-relay.crossbell.io 使用特殊的格式
+                if (isCrossbellRelay) {
+                    logger.info(`[IPFS] 检测到 Crossbell Relay 域名，使用专用上传格式`);
+                    // Crossbell Relay 需要明确指定 filename 和 Content-Type header
+                    formData.append('file', fileBuffer, {
+                        filename: filename,
+                        contentType: mimetype,
+                        knownLength: fileBuffer.length
+                    });
+                } else {
+                    // 标准格式
+                    formData.append('file', fileBuffer, {
+                        filename,
+                        contentType: mimetype
+                    });
+                }
+                
+                // 构建请求配置
+                let requestUrl = ipfsUploadUrl;
+                let requestConfig: any = {
+                    headers: {
+                        ...formData.getHeaders(),
+                        'User-Agent': ipfsUserAgent,
+                    },
+                    timeout: 30000, // 30秒超时
+                };
+                
+                // 根据域名调整请求配置
+                if (isCrossbellRelay) {
+                    // Crossbell Relay 使用简洁的 URL，不需要额外查询参数
+                    // 保持原始 URL，不添加额外参数
+                    logger.info(`[IPFS] Crossbell Relay 请求配置:`, {
+                        url: requestUrl,
+                        filename: filename,
+                        mimetype: mimetype,
+                        size: fileBuffer.length
+                    });
+                } else {
+                    // 其他 IPFS 网关使用标准参数
+                    requestUrl = `${ipfsUploadUrl}?stream-channels=true&pin=false&wrap-with-directory=false&progress=false`;
+                    requestConfig.headers['Origin'] = origin;
+                }
                 
                 // 发送请求到IPFS
                 const response = await (require('axios')).post(
-                    `${ipfsUploadUrl}?stream-channels=true&pin=false&wrap-with-directory=false&progress=false`,
+                    requestUrl,
                     formData,
-                    {
-                        headers: {
-                            ...formData.getHeaders(),
-                            'User-Agent': ipfsUserAgent,
-                            'Origin': origin,
-                        },
-                        timeout: 30000, // 30秒超时
-                    }
+                    requestConfig
                 );
                 
-                // 新API返回格式：{ "Name": "文件名", "Hash": "CID", "Size": "文件大小" }
-                const cid = response.data.Hash;
-                const web2url = `https://ipfs.hapxs.com/ipfs/${cid}`;
+                // 根据域名适配不同的响应格式
+                let cid: string;
+                let web2url: string;
+                let fileSize: string;
                 
-                logger.info(`[IPFS] 上传成功: ${filename}, CID: ${cid}, 文件大小: ${response.data.Size} bytes`);
+                if (isCrossbellRelay) {
+                    // Crossbell Relay 响应格式: { "status": "ok", "cid": "...", "url": "ipfs://...", "web2url": "https://...", "fileSize": "..." }
+                    cid = response.data.cid || '';
+                    web2url = response.data.web2url || `https://ipfs.crossbell.io/ipfs/${cid}`;
+                    fileSize = response.data.fileSize || fileBuffer.length.toString();
+                    logger.info(`[IPFS] Crossbell Relay 上传成功: ${filename}, CID: ${cid}, 文件大小: ${fileSize} bytes`);
+                } else {
+                    // 标准 IPFS API 响应格式: { "Name": "文件名", "Hash": "CID", "Size": "文件大小" }
+                    cid = response.data.Hash || '';
+                    web2url = `https://ipfs.hapxs.com/ipfs/${cid}`;
+                    fileSize = response.data.Size || fileBuffer.length.toString();
+                    logger.info(`[IPFS] 标准 IPFS 上传成功: ${filename}, CID: ${cid}, 文件大小: ${fileSize} bytes`);
+                }
+                
                 logger.info(`[IPFS] API响应:`, response.data);
                 
                 // 构建标准化的响应格式
@@ -355,7 +431,7 @@ export class IPFSService {
                     cid,
                     url: `ipfs://${cid}`,
                     web2url,
-                    fileSize: response.data.Size || fileBuffer.length.toString(),
+                    fileSize,
                     gnfd_id: null,
                     gnfd_txn: null
                 };
@@ -1023,6 +1099,43 @@ export class IPFSService {
      */
     public static async getCurrentAllowAllFileTypes(): Promise<boolean> {
         return await getAllowAllFileTypes();
+    }
+
+    /**
+     * 设置开发环境跳过 Turnstile 验证配置
+     * @param skipTurnstile 是否跳过 Turnstile 验证
+     * @returns 设置结果
+     */
+    public static async setDevSkipTurnstile(skipTurnstile: boolean): Promise<boolean> {
+        try {
+            // 确保MongoDB连接
+            await ensureMongoConnected();
+
+            // 更新或创建配置
+            await IPFSSettingModel.findOneAndUpdate(
+                { key: 'IPFS_DEV_SKIP_TURNSTILE' },
+                {
+                    key: 'IPFS_DEV_SKIP_TURNSTILE',
+                    value: skipTurnstile ? 'true' : 'false',
+                    updatedAt: new Date()
+                },
+                { upsert: true, new: true }
+            );
+
+            logger.info('[IPFS] IPFS_DEV_SKIP_TURNSTILE 配置已更新:', skipTurnstile);
+            return true;
+        } catch (error) {
+            logger.error('[IPFS] 设置IPFS_DEV_SKIP_TURNSTILE失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 获取当前开发环境跳过 Turnstile 验证配置
+     * @returns 是否跳过 Turnstile 验证（开发环境默认 true）
+     */
+    public static async getCurrentDevSkipTurnstile(): Promise<boolean> {
+        return await getDevSkipTurnstile();
     }
 
     /**
