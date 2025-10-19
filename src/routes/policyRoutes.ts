@@ -21,8 +21,8 @@ const isLocalDevelopment = process.env.NODE_ENV === 'development' ||
 
 // 速率限制配置
 const policyRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15分钟
-  max: isLocalDevelopment ? 1000 : 10, // 本地环境放宽限制
+  windowMs: 1 * 60 * 1000, // 1分钟
+  max: isLocalDevelopment ? 1000 : 120, // 本地环境放宽限制，生产环境120次/分钟
   message: {
     success: false,
     error: 'Too many policy requests, please try again later',
@@ -45,8 +45,8 @@ const policyRateLimit = rateLimit({
 });
 
 const adminRateLimit = rateLimit({
-  windowMs: 5 * 60 * 1000, // 5分钟
-  max: isLocalDevelopment ? 2000 : 50, // 本地环境放宽限制
+  windowMs: 1 * 60 * 1000, // 1分钟
+  max: isLocalDevelopment ? 2000 : 120, // 本地环境放宽限制，生产环境120次/分钟
   message: {
     success: false,
     error: 'Too many admin requests, please try again later',
