@@ -93,7 +93,7 @@ export async function generateSpeech(options: TTSOptions): Promise<string> {
 
     return filePath;
   } catch (error) {
-    console.error('TTS generation error:', error);
+    console.error('TTS 生成错误:', error);
     throw new Error('生成语音时出现错误，请向站点管理员报告。');
   }
 } 

@@ -83,13 +83,13 @@ export const WebhookEventService = {
   },
   async get(id: string) {
     if (!mongoose.isValidObjectId(id)) {
-      throw new Error('Invalid id');
+      throw new Error('无效的 ID');
     }
     return WebhookEventModel.findById(id).lean();
   },
   async update(id: string, patch: any) {
     if (!mongoose.isValidObjectId(id)) {
-      throw new Error('Invalid id');
+      throw new Error('无效的 ID');
     }
     // Whitelist fields to avoid arbitrary query injection
     const allowed: Record<string, boolean> = {
@@ -117,7 +117,7 @@ export const WebhookEventService = {
   },
   async remove(id: string) {
     if (!mongoose.isValidObjectId(id)) {
-      throw new Error('Invalid id');
+      throw new Error('无效的 ID');
     }
     await WebhookEventModel.findByIdAndDelete(id);
     return { success: true };

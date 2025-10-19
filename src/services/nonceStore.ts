@@ -44,7 +44,7 @@ export class NonceStore {
      */
     storeNonce(nonceId: string, clientIp?: string, userAgent?: string): void {
         if (!nonceId || typeof nonceId !== 'string') {
-            throw new Error('Invalid nonce ID provided');
+            throw new Error('无效的 nonce ID');
         }
 
         // 如果存储已满，先清理过期项
@@ -56,7 +56,7 @@ export class NonceStore {
                 const oldestKey = this.store.keys().next().value;
                 if (oldestKey) {
                     this.store.delete(oldestKey);
-                    logger.debug('[NonceStore] Evicted oldest nonce due to size limit', {
+                    logger.debug('[NonceStore] 因大小限制移除最旧的 nonce', {
                         evictedNonceId: oldestKey.slice(0, 8) + '...',
                         maxSize: this.maxSize
                     });
@@ -73,7 +73,7 @@ export class NonceStore {
 
         this.store.set(nonceId, record);
 
-        logger.debug('[NonceStore] Stored nonce', {
+        logger.debug('[NonceStore] 已存储 nonce', {
             nonceId: nonceId.slice(0, 8) + '...',
             clientIp,
             storeSize: this.store.size
@@ -98,7 +98,7 @@ export class NonceStore {
         const now = Date.now();
         if (now - record.issuedAt > this.ttlMs) {
             this.store.delete(nonceId);
-            logger.debug('[NonceStore] Removed expired nonce during consumption', {
+            logger.debug('[NonceStore] 消费时移除过期的 nonce', {
                 nonceId: nonceId.slice(0, 8) + '...',
                 age: now - record.issuedAt
             });
@@ -107,7 +107,7 @@ export class NonceStore {
 
         // 检查是否已被消费
         if (record.consumedAt) {
-            logger.warn('[NonceStore] Attempted to reuse consumed nonce', {
+            logger.warn('[NonceStore] 尝试重复使用已消费的 nonce', {
                 nonceId: nonceId.slice(0, 8) + '...',
                 originalConsumedAt: record.consumedAt,
                 clientIp: record.clientIp
@@ -119,7 +119,7 @@ export class NonceStore {
         record.consumedAt = now;
         this.store.set(nonceId, record);
 
-        logger.debug('[NonceStore] Consumed nonce', {
+        logger.debug('[NonceStore] 已消费 nonce', {
             nonceId: nonceId.slice(0, 8) + '...',
             issuedAt: record.issuedAt,
             consumedAt: record.consumedAt,
@@ -162,7 +162,7 @@ export class NonceStore {
         }
 
         if (cleanedCount > 0) {
-            logger.debug('[NonceStore] Cleaned up expired nonces', {
+            logger.debug('[NonceStore] 已清理过期的 nonce', {
                 cleanedCount,
                 remainingCount: this.store.size
             });
@@ -259,7 +259,7 @@ export class NonceStore {
 
         // 检查清理定时器
         if (!this.cleanupTimer) {
-            issues.push('Cleanup timer not running');
+            issues.push('清理定时器未运行');
         }
 
         return {
@@ -278,7 +278,7 @@ export class NonceStore {
             this.cleanupTimer = undefined;
         }
         this.store.clear();
-        logger.debug('[NonceStore] Destroyed store and cleanup timer');
+        logger.debug('[NonceStore] 已销毁存储和清理定时器');
     }
 }
 

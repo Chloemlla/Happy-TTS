@@ -60,11 +60,11 @@ class TamperService {
       // 确保 data 目录存在
       if (!existsSync(this.DATA_DIR)) {
         await mkdir(this.DATA_DIR, { recursive: true });
-        logger.info('Created data directory');
+        logger.info('已创建数据目录');
       }
       await this.loadBlockedIPs();
     } catch (error) {
-      logger.error('Error initializing data directory:', error);
+      logger.error('初始化数据目录失败:', error);
     }
   }
 
@@ -81,7 +81,7 @@ class TamperService {
       const blockedList: BlockedIP[] = JSON.parse(data);
       this.blockedIPs = new Map(blockedList.map(item => [item.ip, item]));
     } catch (error) {
-      logger.warn('No blocked IPs file found, creating new one');
+      logger.warn('未找到封禁 IP 文件，创建新文件');
       await this.saveBlockedIPs();
     }
   }
@@ -108,7 +108,7 @@ class TamperService {
       const blockedList = Array.from(this.blockedIPs.values());
       await writeFile(this.BLOCKED_IPS_PATH, JSON.stringify(blockedList, null, 2));
     } catch (error) {
-      logger.error('Error saving blocked IPs:', error);
+      logger.error('保存封禁 IP 失败:', error);
     }
   }
 
@@ -125,7 +125,7 @@ class TamperService {
         const data = await readFile(this.TAMPER_LOG_PATH, 'utf-8');
         events = JSON.parse(data);
       } catch (error) {
-        logger.warn('No tamper events file found, creating new one');
+        logger.warn('未找到篡改事件文件，创建新文件');
       }
 
       // 添加新事件
@@ -142,7 +142,7 @@ class TamperService {
         await this.checkAndBlockIP(event.ip, events);
       }
     } catch (error) {
-      logger.error('Error recording tamper event:', error);
+      logger.error('记录篡改事件失败:', error);
     }
   }
 
@@ -164,7 +164,7 @@ class TamperService {
       });
 
       await this.saveBlockedIPs();
-      logger.warn(`IP ${ip} has been blocked for tampering`);
+      logger.warn(`IP ${ip} 因篡改行为被封禁`);
     }
   }
 

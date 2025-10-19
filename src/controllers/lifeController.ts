@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { LifeService } from '../services/lifeService';
+import { lifeService } from '../services/lifeService';
 import logger from '../utils/logger';
 
 export class LifeController {
@@ -32,7 +32,7 @@ export class LifeController {
                 });
             }
 
-            const result = await LifeService.phoneAddress(phone);
+            const result = await lifeService.phoneAddress(phone);
 
             if (result.success) {
                 res.json({
@@ -84,7 +84,7 @@ export class LifeController {
                 });
             }
 
-            const result = await LifeService.oilPrice(city as string);
+            const result = await lifeService.oilPrice(city as string);
 
             if (result.success) {
                 res.json({

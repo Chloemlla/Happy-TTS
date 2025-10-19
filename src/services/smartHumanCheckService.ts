@@ -246,7 +246,7 @@ export class SmartHumanCheckService {
           .update(entropySources.join('|'))
           .digest('base64');
         
-        logger.info('[SmartHumanCheck] Auto-generated high-entropy secret for production environment', {
+        logger.info('[SmartHumanCheck] 生产环境自动生成高熵值密钥', {
           secretLength: secret.length,
           entropySources: entropySources.length,
           timestamp: new Date().toISOString()
@@ -254,7 +254,7 @@ export class SmartHumanCheckService {
       } else {
         // 开发环境：使用默认密钥
         secret = 'change-me-in-prod';
-        logger.warn('[SmartHumanCheck] Using default secret for development. Set SMART_HUMAN_CHECK_SECRET in production.');
+        logger.warn('[SmartHumanCheck] 开发环境使用默认密钥。生产环境请设置 SMART_HUMAN_CHECK_SECRET。');
       }
     }
     
@@ -293,7 +293,7 @@ export class SmartHumanCheckService {
 
     // 密钥初始化完成后的日志
     if (process.env.NODE_ENV === 'production' && !opts?.secret && !process.env.SMART_HUMAN_CHECK_SECRET) {
-      logger.info('[SmartHumanCheck] Using auto-generated secret in production environment');
+      logger.info('[SmartHumanCheck] 生产环境使用自动生成的密钥');
     }
   }
 
@@ -914,7 +914,7 @@ export class SmartHumanCheckService {
       const until = now + this.banDurationMs;
       this.bannedUntilByIp.set(ip, until);
       try {
-        logger.warn('[SmartHumanCheck] IP temporarily banned due to pattern', { ip, pattern, until, count: fresh.length });
+        logger.warn('[SmartHumanCheck] IP 因异常模式被临时封禁', { ip, pattern, until, count: fresh.length });
       } catch {}
     }
   }
@@ -954,7 +954,7 @@ export class SmartHumanCheckService {
       const until = now + this.banDurationMs;
       this.bannedUntilByIp.set(ip, until);
       try {
-        logger.warn('[SmartHumanCheck] IP temporarily banned due to abuse', { ip, until });
+        logger.warn('[SmartHumanCheck] IP 因滥用被临时封禁', { ip, until });
       } catch {}
     }
   }

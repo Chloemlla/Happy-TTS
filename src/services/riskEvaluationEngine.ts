@@ -166,7 +166,7 @@ export class RiskEvaluationEngine {
       reason
     };
 
-    logger.info('[RiskEvaluation] Assessment completed', {
+    logger.info('[风险评估] 评估完成', {
       ip: ip.slice(0, 8) + '...',
       riskLevel,
       overallRisk: Math.round(overallRisk * 100) / 100,
@@ -233,7 +233,7 @@ export class RiskEvaluationEngine {
 
       return Math.min(risk, 1.0);
     } catch (error) {
-      logger.error('[RiskEvaluation] Error calculating IP risk', { ip, error });
+      logger.error('[风险评估] 计算 IP 风险失败', { ip, error });
       return 0.5; // Default risk for errors
     }
   }
@@ -319,7 +319,7 @@ export class RiskEvaluationEngine {
 
       return 0.5; // Default risk
     } catch (error) {
-      logger.error('[RiskEvaluation] Error calculating geographic risk', { ip, error });
+      logger.error('[风险评估] 计算地理风险失败', { ip, error });
       return 0.5;
     }
   }

@@ -483,24 +483,24 @@ async function initializeLocalStorage(): Promise<void> {
   try {
     if (!existsSync(DATA_DIR)) {
       await mkdir(DATA_DIR, { recursive: true });
-      logger.log('Created data directory for IP info');
+        logger.log('已创建 IP 信息数据目录');
     }
     if (!existsSync(IP_DATA_FILE)) {
       await writeFile(IP_DATA_FILE, JSON.stringify({}, null, 2));
-      logger.log('Created empty IP info file');
+        logger.log('已创建空的 IP 信息文件');
     } else {
       try {
         const data = await readFile(IP_DATA_FILE, 'utf-8');
         Object.assign(LOCAL_CACHE, JSON.parse(data));
-        logger.log(`Loaded ${Object.keys(LOCAL_CACHE).length} IP records from local storage`);
+        logger.log(`从本地存储加载了 ${Object.keys(LOCAL_CACHE).length} 条 IP 记录`);
       } catch (error) {
-        logger.error('Error reading IP info file, creating new one:', error);
+        logger.error('读取 IP 信息文件失败，创建新文件:', error);
         await writeFile(IP_DATA_FILE, JSON.stringify({}, null, 2));
         Object.keys(LOCAL_CACHE).forEach(key => delete LOCAL_CACHE[key]);
       }
     }
   } catch (error) {
-    logger.error('Error initializing IP local storage:', error);
+    logger.error('初始化 IP 本地存储失败:', error);
   }
 }
 
@@ -541,7 +541,7 @@ async function saveIPInfoToLocal(info: IPInfo): Promise<void> {
     };
     await writeFile(IP_DATA_FILE, JSON.stringify(LOCAL_CACHE, null, 2));
   } catch (error) {
-    logger.error('Error saving IP info to local storage:', error);
+    logger.error('保存 IP 信息到本地存储失败:', error);
   }
 }
 

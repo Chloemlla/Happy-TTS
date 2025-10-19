@@ -27,7 +27,7 @@ export class Logger {
       this.logStream = createWriteStream(logFile, { flags: 'a' });
     } catch (error) {
       // If we can't create log files, fall back to console logging
-      console.warn('Failed to create log file, falling back to console logging:', error);
+      console.warn('无法创建日志文件，回退到控制台日志输出:', error);
       this.logStream = process.stdout;
     }
   }

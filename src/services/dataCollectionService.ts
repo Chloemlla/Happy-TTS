@@ -162,7 +162,7 @@ class DataCollectionService {
       // 确保数据目录存在
       if (!existsSync(this.DATA_DIR)) {
         await mkdir(this.DATA_DIR, { recursive: true });
-        logger.info('Created data directory for data collection');
+        logger.info('已创建数据收集目录');
       }
       
       // 启动性能监控
@@ -182,7 +182,7 @@ class DataCollectionService {
         rateLimitEnabled: true
       });
     } catch (error) {
-      logger.error('Error initializing data collection service:', error);
+      logger.error('初始化数据收集服务失败:', error);
       this.recordError('Service initialization failed', error);
     }
   }
@@ -200,7 +200,7 @@ class DataCollectionService {
   
   private setupGracefulShutdown() {
     const gracefulShutdown = async () => {
-      logger.info('[DataCollection] Graceful shutdown initiated');
+      logger.info('[数据收集] 开始优雅关闭');
       this.isShuttingDown = true;
       
       // 等待批量写入完成
@@ -208,7 +208,7 @@ class DataCollectionService {
       const maxWaitTime = 30000; // 最多等待30秒
       
       while (this.writeQueue.length > 0 && waitCount < maxWaitTime) {
-        logger.info(`[DataCollection] Waiting for queue to empty: ${this.writeQueue.length} items remaining`);
+        logger.info(`[数据收集] 等待队列清空: 剩余 ${this.writeQueue.length} 项`);
         await new Promise(resolve => setTimeout(resolve, 1000));
         waitCount++;
       }

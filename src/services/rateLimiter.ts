@@ -52,7 +52,7 @@ export class RateLimiter {
       try {
         this.data = JSON.parse(readFileSync(this.dataFile, 'utf-8'));
       } catch (error) {
-        logger.error('Failed to load rate limit data', error);
+        logger.error('加载速率限制数据失败', error);
         this.data = {};
       }
     } else {
@@ -83,7 +83,7 @@ export class RateLimiter {
       }
       writeFileSync(this.dataFile, JSON.stringify(this.data, null, 2));
     } catch (error) {
-      logger.error('Failed to save rate limit data', error);
+      logger.error('保存速率限制数据失败', error);
     }
   }
 

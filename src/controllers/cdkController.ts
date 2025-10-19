@@ -7,7 +7,7 @@ interface AuthRequest extends Request {
 import { CDKService } from '../services/cdkService';
 import { join, basename } from 'path';
 
-const cdkService = new CDKService();
+const cdkService = CDKService.getInstance();
 
 // CDK兑换
 export const redeemCDK = async (req: AuthRequest, res: Response) => {
