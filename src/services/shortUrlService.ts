@@ -104,7 +104,7 @@ export class ShortUrlService {
       const code = nanoid(baseLength);
       const existing = await ShortUrlModel.findOne({ code }).session(session);
       if (!existing) {
-        logger.debug(`策略1成功: nanoid(${baseLength}), 重试${i}次`);
+        logger.debug(`[短链服务] 策略1成功: nanoid(${baseLength}), 重试${i}次`);
         return code;
       }
     }
@@ -117,7 +117,7 @@ export class ShortUrlService {
       const code = nanoid(mediumLength);
       const existing = await ShortUrlModel.findOne({ code }).session(session);
       if (!existing) {
-        logger.debug(`策略2成功: nanoid(${mediumLength}), 重试${i}次`);
+        logger.debug(`[短链服务] 策略2成功: nanoid(${mediumLength}), 重试${i}次`);
         return code;
       }
     }
@@ -130,7 +130,7 @@ export class ShortUrlService {
       const code = nanoid(longLength);
       const existing = await ShortUrlModel.findOne({ code }).session(session);
       if (!existing) {
-        logger.debug(`策略3成功: nanoid(${longLength}), 重试${i}次`);
+        logger.debug(`[短链服务] 策略3成功: nanoid(${longLength}), 重试${i}次`);
         return code;
       }
     }
@@ -144,7 +144,7 @@ export class ShortUrlService {
       const code = `${randomPart}${timeCode}`; // 总长度约10位
       const existing = await ShortUrlModel.findOne({ code }).session(session);
       if (!existing) {
-        logger.debug(`策略4成功: 时间戳后缀, 重试${i}次`);
+        logger.debug(`[短链服务] 策略4成功: 时间戳后缀, 重试${i}次`);
         return code;
       }
     }
@@ -157,7 +157,7 @@ export class ShortUrlService {
     
     const existing = await ShortUrlModel.findOne({ code: hash }).session(session);
     if (!existing) {
-      logger.debug('策略5成功: 哈希算法');
+      logger.debug('[短链服务] 策略5成功: 哈希算法');
       return hash;
     }
 
@@ -167,7 +167,7 @@ export class ShortUrlService {
     
     const finalCheck = await ShortUrlModel.findOne({ code: finalCode }).session(session);
     if (!finalCheck) {
-      logger.warn('使用策略6: UUID保底策略');
+      logger.warn('[短链服务] 使用策略6: UUID保底策略');
       return finalCode;
     }
 
@@ -187,7 +187,7 @@ export class ShortUrlService {
         // 最终安全检查：创建前再次验证代码是否已存在
         const existingCode = await ShortUrlModel.findOne({ code }).session(session);
         if (existingCode) {
-          logger.error('最终检查发现代码已存在', { code });
+          logger.error('[短链服务] 最终检查发现代码已存在', { code });
           throw new Error(`短链代码 ${code} 已存在，请重试`);
         }
 
@@ -198,7 +198,7 @@ export class ShortUrlService {
           username
         }], { session });
 
-        logger.info('短链创建成功', {
+        logger.info('[短链服务] 短链创建成功', {
           code,
           codeLength: code.length,
           target,
@@ -211,7 +211,7 @@ export class ShortUrlService {
 
       return `${process.env.VITE_API_URL || process.env.BASE_URL || 'https://api.hapxs.com'}/s/${shortUrlData.code}`;
     } catch (error) {
-      logger.error('短链创建失败:', error);
+      logger.error('[短链服务] 短链创建失败:', error);
       throw error;
     }
   }
