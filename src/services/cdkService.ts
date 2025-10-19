@@ -8,17 +8,366 @@ import logger from '../utils/logger';
 import { writeFile, mkdir } from 'fs/promises';
 import { join, resolve, sep, basename } from 'path';
 import { existsSync } from 'fs';
+import crypto from 'crypto';
+
+// 性能监控接口
+interface PerformanceStats {
+  totalRedemptions: number;
+  successfulRedemptions: number;
+  failedRedemptions: number;
+  avgRedemptionTime: number;
+  cacheHitRate: number;
+  rateLimitHits: number;
+  duplicateAttempts: number;
+}
+
+// 健康状态接口
+interface HealthStatus {
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  uptime: number;
+  errorRate: number;
+  avgResponseTime: number;
+  mongoConnected: boolean;
+  lastError?: string;
+  lastErrorTime?: number;
+}
 
 export class CDKService {
+  private static instance: CDKService;
   private resourceService = new ResourceService();
   private readonly EXPORT_DIR = join(process.cwd(), 'data', 'exports');
+  
+  // 性能统计
+  private stats: PerformanceStats = {
+    totalRedemptions: 0,
+    successfulRedemptions: 0,
+    failedRedemptions: 0,
+    avgRedemptionTime: 0,
+    cacheHitRate: 0,
+    rateLimitHits: 0,
+    duplicateAttempts: 0
+  };
+  
+  // 响应时间样本
+  private responseTimeSamples: number[] = [];
+  private readonly MAX_SAMPLES = 100;
+  
+  // 健康监控
+  private readonly serviceStartTime = Date.now();
+  private lastError: string | undefined;
+  private lastErrorTime: number | undefined;
+  
+  // 限流器（Rate Limiter）
+  private readonly rateLimiter = new Map<string, { count: number; resetTime: number }>();
+  private readonly RATE_LIMIT_WINDOW = 60000; // 1分钟窗口
+  private readonly RATE_LIMIT_MAX_REQUESTS = 50; // 每分钟最多50次CDK兑换请求
+  
+  // 验证缓存
+  private readonly validationCache = new Map<string, { valid: boolean; data?: any; timestamp: number }>();
+  private readonly VALIDATION_CACHE_TTL = 300000; // 5分钟
+  
+  // CDK代码缓存（防止重复查询）
+  private readonly cdkCache = new Map<string, { exists: boolean; timestamp: number }>();
+  private readonly CDK_CACHE_TTL = 60000; // 1分钟
+  
+  // 断路器模式
+  private circuitBreakerState: 'CLOSED' | 'OPEN' | 'HALF_OPEN' = 'CLOSED';
+  private circuitBreakerFailureCount = 0;
+  private circuitBreakerLastFailureTime = 0;
+  private readonly CIRCUIT_BREAKER_THRESHOLD = 5;
+  private readonly CIRCUIT_BREAKER_TIMEOUT = 60000;
+  private readonly CIRCUIT_BREAKER_SUCCESS_THRESHOLD = 3;
+  
+  private constructor() {
+    this.initializeService();
+  }
+  
+  public static getInstance(): CDKService {
+    if (!CDKService.instance) {
+      CDKService.instance = new CDKService();
+    }
+    return CDKService.instance;
+  }
+  
+  private async initializeService() {
+    try {
+      // 确保导出目录存在
+      if (!existsSync(this.EXPORT_DIR)) {
+        await mkdir(this.EXPORT_DIR, { recursive: true });
+      }
+      
+      // 启动性能监控
+      this.startPerformanceMonitoring();
+      
+      // 启动健康检查
+      this.startHealthCheck();
+      
+      // 启动缓存清理
+      this.startCacheCleanup();
+      
+      logger.info('[CDKService] Service initialized with production enhancements', {
+        rateLimitEnabled: true,
+        cacheEnabled: true,
+        circuitBreakerEnabled: true
+      });
+    } catch (error) {
+      logger.error('[CDKService] Error initializing service:', error);
+      this.recordError('Service initialization failed', error);
+    }
+  }
+
+  // =============== 辅助方法 ===============
+  
+  private startPerformanceMonitoring() {
+    setInterval(() => {
+      const stats = this.getPerformanceStats();
+      logger.info('[CDKService] Performance stats:', stats);
+    }, 10 * 60 * 1000); // 10分钟
+  }
+  
+  private startHealthCheck() {
+    setInterval(() => {
+      const health = this.getHealthStatus();
+      
+      if (health.status === 'unhealthy') {
+        logger.error('[CDKService] Service is UNHEALTHY:', health);
+      } else if (health.status === 'degraded') {
+        logger.warn('[CDKService] Service is DEGRADED:', health);
+      }
+    }, 30000); // 30秒
+  }
+  
+  private startCacheCleanup() {
+    setInterval(() => {
+      this.cleanupValidationCache();
+      this.cleanupRateLimiter();
+      this.cleanupCDKCache();
+    }, 5 * 60 * 1000); // 5分钟
+  }
+  
+  private checkRateLimit(userId: string): boolean {
+    const now = Date.now();
+    const key = `rate_limit_${userId}`;
+    
+    let limiter = this.rateLimiter.get(key);
+    
+    if (!limiter || now >= limiter.resetTime) {
+      this.rateLimiter.set(key, {
+        count: 1,
+        resetTime: now + this.RATE_LIMIT_WINDOW
+      });
+      return true;
+    }
+    
+    if (limiter.count >= this.RATE_LIMIT_MAX_REQUESTS) {
+      this.stats.rateLimitHits++;
+      logger.warn(`[CDKService] Rate limit exceeded for user: ${userId}`);
+      return false;
+    }
+    
+    limiter.count++;
+    return true;
+  }
+  
+  private cleanupRateLimiter(): void {
+    const now = Date.now();
+    let cleaned = 0;
+    
+    for (const [key, limiter] of this.rateLimiter.entries()) {
+      if (now >= limiter.resetTime) {
+        this.rateLimiter.delete(key);
+        cleaned++;
+      }
+    }
+    
+    if (cleaned > 0) {
+      logger.debug(`[CDKService] Cleaned ${cleaned} expired rate limiters`);
+    }
+  }
+  
+  private getCachedValidation(key: string): { valid: boolean; data?: any } | null {
+    const cached = this.validationCache.get(key);
+    
+    if (!cached) {
+      return null;
+    }
+    
+    const now = Date.now();
+    if (now - cached.timestamp >= this.VALIDATION_CACHE_TTL) {
+      this.validationCache.delete(key);
+      return null;
+    }
+    
+    this.stats.cacheHitRate = (this.stats.cacheHitRate * 0.9) + 0.1;
+    return { valid: cached.valid, data: cached.data };
+  }
+  
+  private setCachedValidation(key: string, valid: boolean, data?: any): void {
+    this.validationCache.set(key, {
+      valid,
+      data,
+      timestamp: Date.now()
+    });
+  }
+  
+  private cleanupValidationCache(): void {
+    const now = Date.now();
+    let cleaned = 0;
+    
+    for (const [key, cache] of this.validationCache.entries()) {
+      if (now - cache.timestamp >= this.VALIDATION_CACHE_TTL) {
+        this.validationCache.delete(key);
+        cleaned++;
+      }
+    }
+    
+    if (cleaned > 0) {
+      logger.debug(`[CDKService] Cleaned ${cleaned} expired validation cache entries`);
+    }
+  }
+  
+  private cleanupCDKCache(): void {
+    const now = Date.now();
+    let cleaned = 0;
+    
+    for (const [key, cache] of this.cdkCache.entries()) {
+      if (now - cache.timestamp >= this.CDK_CACHE_TTL) {
+        this.cdkCache.delete(key);
+        cleaned++;
+      }
+    }
+    
+    if (cleaned > 0) {
+      logger.debug(`[CDKService] Cleaned ${cleaned} expired CDK cache entries`);
+    }
+  }
+  
+  private checkCircuitBreaker(): boolean {
+    const now = Date.now();
+    
+    if (this.circuitBreakerState === 'CLOSED') {
+      return true;
+    }
+    
+    if (this.circuitBreakerState === 'OPEN') {
+      if (now - this.circuitBreakerLastFailureTime >= this.CIRCUIT_BREAKER_TIMEOUT) {
+        logger.info('[CDKService] Circuit breaker transitioning to HALF_OPEN');
+        this.circuitBreakerState = 'HALF_OPEN';
+        this.circuitBreakerFailureCount = 0;
+        return true;
+      }
+      return false;
+    }
+    
+    return true;
+  }
+  
+  private recordCircuitBreakerSuccess(): void {
+    if (this.circuitBreakerState === 'HALF_OPEN') {
+      this.circuitBreakerFailureCount++;
+      
+      if (this.circuitBreakerFailureCount >= this.CIRCUIT_BREAKER_SUCCESS_THRESHOLD) {
+        logger.info('[CDKService] Circuit breaker closing after successful operations');
+        this.circuitBreakerState = 'CLOSED';
+        this.circuitBreakerFailureCount = 0;
+      }
+    } else if (this.circuitBreakerState === 'CLOSED') {
+      this.circuitBreakerFailureCount = 0;
+    }
+  }
+  
+  private recordCircuitBreakerFailure(): void {
+    this.circuitBreakerFailureCount++;
+    this.circuitBreakerLastFailureTime = Date.now();
+    
+    if (this.circuitBreakerState === 'CLOSED') {
+      if (this.circuitBreakerFailureCount >= this.CIRCUIT_BREAKER_THRESHOLD) {
+        logger.error('[CDKService] Circuit breaker OPENING after consecutive failures');
+        this.circuitBreakerState = 'OPEN';
+      }
+    } else if (this.circuitBreakerState === 'HALF_OPEN') {
+      logger.warn('[CDKService] Circuit breaker reopening after failure in HALF_OPEN state');
+      this.circuitBreakerState = 'OPEN';
+      this.circuitBreakerFailureCount = 0;
+    }
+  }
+  
+  private recordError(message: string, error: any): void {
+    this.lastError = `${message}: ${error instanceof Error ? error.message : String(error)}`;
+    this.lastErrorTime = Date.now();
+  }
+  
+  private updateResponseTime(responseTime: number): void {
+    this.responseTimeSamples.push(responseTime);
+    if (this.responseTimeSamples.length > this.MAX_SAMPLES) {
+      this.responseTimeSamples.shift();
+    }
+    
+    this.stats.avgRedemptionTime = this.responseTimeSamples.reduce((a, b) => a + b, 0) / this.responseTimeSamples.length;
+  }
+  
+  public getPerformanceStats(): PerformanceStats {
+    return { ...this.stats };
+  }
+  
+  public getHealthStatus(): HealthStatus {
+    const now = Date.now();
+    const uptime = now - this.serviceStartTime;
+    const errorRate = this.stats.totalRedemptions > 0 ? 
+      this.stats.failedRedemptions / this.stats.totalRedemptions : 0;
+    
+    let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
+    
+    if (
+      this.circuitBreakerState === 'OPEN' ||
+      errorRate > 0.5 ||
+      !this.isMongoReady()
+    ) {
+      status = 'unhealthy';
+    } else if (
+      this.circuitBreakerState === 'HALF_OPEN' ||
+      errorRate > 0.2 ||
+      this.stats.avgRedemptionTime > 3000
+    ) {
+      status = 'degraded';
+    }
+    
+    return {
+      status,
+      uptime,
+      errorRate,
+      avgResponseTime: this.stats.avgRedemptionTime,
+      mongoConnected: this.isMongoReady(),
+      lastError: this.lastError,
+      lastErrorTime: this.lastErrorTime
+    };
+  }
+  
+  private isMongoReady(): boolean {
+    return mongoose.connection.readyState === 1;
+  }
+  
+  // =============== 核心业务方法 ===============
 
   async redeemCDK(code: string, userInfo?: { userId: string; username: string }, forceRedeem?: boolean, cfToken?: string, userRole?: string) {
+    const startTime = Date.now();
+    this.stats.totalRedemptions++;
+    
     try {
+      // 检查断路器
+      if (!this.checkCircuitBreaker()) {
+        throw new Error('服务暂时不可用，请稍后重试');
+      }
+      
       // 验证CDK代码格式
       if (!code || typeof code !== 'string' || code.length !== 16 || !/^[A-Z0-9]{16}$/.test(code)) {
-        logger.warn('无效的CDK代码格式', { code });
+        logger.warn('[CDKService] 无效的CDK代码格式', { code });
         throw new Error('无效的CDK代码格式');
+      }
+      
+      // 限流检查
+      if (userInfo && !this.checkRateLimit(userInfo.userId)) {
+        throw new Error('请求过于频繁，请稍后重试');
       }
 
       // 验证和清理用户信息以防止NoSQL注入
@@ -162,14 +511,26 @@ export class CDKService {
         throw new Error('资源不存在');
       }
 
-      logger.info('CDK兑换成功', { code, resourceId: cdk.resourceId, resourceTitle: resource.title, forceRedeem });
+      logger.info('[CDKService] CDK兑换成功', { code, resourceId: cdk.resourceId, resourceTitle: resource.title, forceRedeem });
+      
+      // 记录成功统计
+      this.stats.successfulRedemptions++;
+      this.recordCircuitBreakerSuccess();
+      this.updateResponseTime(Date.now() - startTime);
+      
       return {
         resource,
         cdk: cdk.toObject()
       };
     } catch (error) {
-      logger.error('CDK兑换失败:', error);
+      this.stats.failedRedemptions++;
+      this.recordCircuitBreakerFailure();
+      this.recordError('CDK redemption failed', error);
+      
+      logger.error('[CDKService] CDK兑换失败:', error);
       throw error;
+    } finally {
+      this.updateResponseTime(Date.now() - startTime);
     }
   }
 
@@ -199,15 +560,26 @@ export class CDKService {
         queryFilter.isUsed = true;
       }
 
-      const [cdks, total] = await Promise.all([
-        CDKModel.find(queryFilter).skip(skip).limit(pageSize).sort({ createdAt: -1 }),
-        CDKModel.countDocuments(queryFilter)
-      ]);
+      // 添加超时保护的并发查询
+      const [cdks, total] = await Promise.race([
+        Promise.all([
+          CDKModel.find(queryFilter)
+            .skip(skip)
+            .limit(pageSize)
+            .sort({ createdAt: -1 })
+            .lean()
+            .maxTimeMS(5000), // 5秒超时
+          CDKModel.countDocuments(queryFilter).maxTimeMS(5000)
+        ]),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Query timeout')), 10000)
+        )
+      ]) as [any[], number];
 
-      logger.info('获取CDK列表成功', { page: validatedPage, resourceId: validatedResourceId, total });
+      logger.info('[CDKService] 获取CDK列表成功', { page: validatedPage, resourceId: validatedResourceId, total });
       return {
         cdks: cdks.map(c => {
-          const obj = c.toObject();
+          const obj = c as any;
           // 确保id字段存在，将_id转换为id
           obj.id = obj._id.toString();
           delete obj._id;
@@ -219,26 +591,33 @@ export class CDKService {
         pageSize
       };
     } catch (error) {
-      logger.error('获取CDK列表失败:', error);
+      logger.error('[CDKService] 获取CDK列表失败:', error);
+      this.recordError('Get CDKs failed', error);
       throw error;
     }
   }
 
   async getCDKStats() {
     try {
-      const [total, used] = await Promise.all([
-        CDKModel.countDocuments(),
-        CDKModel.countDocuments({ isUsed: true })
-      ]);
+      const [total, used] = await Promise.race([
+        Promise.all([
+          CDKModel.countDocuments().maxTimeMS(5000),
+          CDKModel.countDocuments({ isUsed: true }).maxTimeMS(5000)
+        ]),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Stats query timeout')), 10000)
+        )
+      ]) as [number, number];
 
-      logger.info('获取CDK统计成功', { total, used, available: total - used });
+      logger.info('[CDKService] 获取CDK统计成功', { total, used, available: total - used });
       return {
         total,
         used,
         available: total - used
       };
     } catch (error) {
-      logger.error('获取CDK统计失败:', error);
+      logger.error('[CDKService] 获取CDK统计失败:', error);
+      this.recordError('Get CDK stats failed', error);
       throw error;
     }
   }
@@ -356,6 +735,11 @@ export class CDKService {
       // 验证输入参数
       if (!Array.isArray(ids) || ids.length === 0) {
         throw new Error('请提供有效的CDK ID列表');
+      }
+      
+      // 限制批量删除数量，防止DoS攻击
+      if (ids.length > 100) {
+        throw new Error('批量删除数量不能超过100个');
       }
 
       // 验证每个ID的格式

@@ -21,6 +21,30 @@ export enum ClarityErrorCode {
     UPDATE_FAILED = 'UPDATE_FAILED',
     DELETE_FAILED = 'DELETE_FAILED',
     READ_FAILED = 'READ_FAILED',
+    RATE_LIMIT_EXCEEDED = 'RATE_LIMIT_EXCEEDED',
+    CIRCUIT_BREAKER_OPEN = 'CIRCUIT_BREAKER_OPEN',
+}
+
+/** 性能统计接口 */
+interface PerformanceStats {
+    totalOperations: number;
+    successfulOperations: number;
+    failedOperations: number;
+    avgResponseTime: number;
+    cacheHitRate: number;
+    rateLimitHits: number;
+}
+
+/** 健康状态接口 */
+interface HealthStatus {
+    status: 'healthy' | 'degraded' | 'unhealthy';
+    uptime: number;
+    errorRate: number;
+    avgResponseTime: number;
+    mongoConnected: boolean;
+    cacheAge: number | null;
+    lastError?: string;
+    lastErrorTime?: number;
 }
 
 // =============== 验证函数 ===============
@@ -86,27 +110,37 @@ export interface ClarityHistoryDoc {
     };
 }
 
-// Clarity配置Schema
+// Clarity配置Schema（增强版）
 const ClaritySettingSchema = new mongoose.Schema<ClaritySettingDoc>({
-    key: { type: String, required: true, unique: true, index: true },
-    value: { type: String, required: true },
-    updatedAt: { type: Date, default: Date.now }
-}, { collection: 'clarity_settings' });
+    key: { type: String, required: true, unique: true, index: true, maxlength: 64 },
+    value: { type: String, required: true, maxlength: 256 },
+    updatedAt: { type: Date, default: Date.now, index: true }
+}, { 
+    collection: 'clarity_settings',
+    strict: true // 严格模式，拒绝未声明字段
+});
 
-// Clarity配置历史Schema
+// Clarity配置历史Schema（增强版）
 const ClarityHistorySchema = new mongoose.Schema<ClarityHistoryDoc>({
-    key: { type: String, required: true, index: true },
-    oldValue: { type: String, default: null },
-    newValue: { type: String, default: null },
-    operation: { type: String, required: true, enum: ['create', 'update', 'delete'] },
-    changedBy: { type: String, default: null },
+    key: { type: String, required: true, index: true, maxlength: 64 },
+    oldValue: { type: String, default: null, maxlength: 256 },
+    newValue: { type: String, default: null, maxlength: 256 },
+    operation: { type: String, required: true, enum: ['create', 'update', 'delete'], index: true },
+    changedBy: { type: String, default: null, maxlength: 128 },
     changedAt: { type: Date, default: Date.now, index: true },
     metadata: {
-        ip: { type: String },
-        userAgent: { type: String },
-        reason: { type: String }
+        ip: { type: String, maxlength: 64 },
+        userAgent: { type: String, maxlength: 512 },
+        reason: { type: String, maxlength: 256 }
     }
-}, { collection: 'clarity_history' });
+}, { 
+    collection: 'clarity_history',
+    strict: true
+});
+
+// 复合索引优化
+ClarityHistorySchema.index({ key: 1, changedAt: -1 }); // 按key和时间查询
+ClarityHistorySchema.index({ operation: 1, changedAt: -1 }); // 按操作类型和时间查询
 
 const ClaritySettingModel = (mongoose.models.ClaritySetting as mongoose.Model<ClaritySettingDoc>) ||
     mongoose.model<ClaritySettingDoc>('ClaritySetting', ClaritySettingSchema);
@@ -184,6 +218,37 @@ export class ClarityService {
     } | null = null;
     
     private static readonly CACHE_TTL_MS = 60_000; // 60秒缓存
+    
+    // =============== 性能统计 ===============
+    private static stats: PerformanceStats = {
+        totalOperations: 0,
+        successfulOperations: 0,
+        failedOperations: 0,
+        avgResponseTime: 0,
+        cacheHitRate: 0,
+        rateLimitHits: 0
+    };
+    
+    private static responseTimeSamples: number[] = [];
+    private static readonly MAX_SAMPLES = 100;
+    
+    // =============== 健康监控 ===============
+    private static readonly serviceStartTime = Date.now();
+    private static lastError: string | undefined;
+    private static lastErrorTime: number | undefined;
+    
+    // =============== 限流器 ===============
+    private static readonly rateLimiter = new Map<string, { count: number; resetTime: number }>();
+    private static readonly RATE_LIMIT_WINDOW = 60000; // 1分钟窗口
+    private static readonly RATE_LIMIT_MAX_REQUESTS = 20; // 每分钟最多20次配置更新
+    
+    // =============== 断路器模式 ===============
+    private static circuitBreakerState: 'CLOSED' | 'OPEN' | 'HALF_OPEN' = 'CLOSED';
+    private static circuitBreakerFailureCount = 0;
+    private static circuitBreakerLastFailureTime = 0;
+    private static readonly CIRCUIT_BREAKER_THRESHOLD = 5;
+    private static readonly CIRCUIT_BREAKER_TIMEOUT = 60000;
+    private static readonly CIRCUIT_BREAKER_SUCCESS_THRESHOLD = 3;
 
     /**
      * 检查缓存是否有效
@@ -198,7 +263,7 @@ export class ClarityService {
      */
     public static clearCache(): void {
         this.configCache = null;
-        logger.debug('Clarity配置缓存已清除');
+        logger.debug('[ClarityService] 配置缓存已清除');
     }
 
     /**
@@ -208,6 +273,158 @@ export class ClarityService {
         this.configCache = {
             projectId,
             cachedAt: Date.now()
+        };
+    }
+    
+    // =============== 辅助方法 ===============
+    
+    /**
+     * 限流检查
+     */
+    private static checkRateLimit(userId: string): boolean {
+        const now = Date.now();
+        const key = `rate_limit_${userId}`;
+        
+        let limiter = this.rateLimiter.get(key);
+        
+        if (!limiter || now >= limiter.resetTime) {
+            this.rateLimiter.set(key, {
+                count: 1,
+                resetTime: now + this.RATE_LIMIT_WINDOW
+            });
+            return true;
+        }
+        
+        if (limiter.count >= this.RATE_LIMIT_MAX_REQUESTS) {
+            this.stats.rateLimitHits++;
+            logger.warn(`[ClarityService] Rate limit exceeded for user: ${userId}`);
+            return false;
+        }
+        
+        limiter.count++;
+        return true;
+    }
+    
+    /**
+     * 断路器检查
+     */
+    private static checkCircuitBreaker(): boolean {
+        const now = Date.now();
+        
+        if (this.circuitBreakerState === 'CLOSED') {
+            return true;
+        }
+        
+        if (this.circuitBreakerState === 'OPEN') {
+            if (now - this.circuitBreakerLastFailureTime >= this.CIRCUIT_BREAKER_TIMEOUT) {
+                logger.info('[ClarityService] Circuit breaker transitioning to HALF_OPEN');
+                this.circuitBreakerState = 'HALF_OPEN';
+                this.circuitBreakerFailureCount = 0;
+                return true;
+            }
+            return false;
+        }
+        
+        return true;
+    }
+    
+    /**
+     * 记录断路器成功
+     */
+    private static recordCircuitBreakerSuccess(): void {
+        if (this.circuitBreakerState === 'HALF_OPEN') {
+            this.circuitBreakerFailureCount++;
+            
+            if (this.circuitBreakerFailureCount >= this.CIRCUIT_BREAKER_SUCCESS_THRESHOLD) {
+                logger.info('[ClarityService] Circuit breaker closing after successful operations');
+                this.circuitBreakerState = 'CLOSED';
+                this.circuitBreakerFailureCount = 0;
+            }
+        } else if (this.circuitBreakerState === 'CLOSED') {
+            this.circuitBreakerFailureCount = 0;
+        }
+    }
+    
+    /**
+     * 记录断路器失败
+     */
+    private static recordCircuitBreakerFailure(): void {
+        this.circuitBreakerFailureCount++;
+        this.circuitBreakerLastFailureTime = Date.now();
+        
+        if (this.circuitBreakerState === 'CLOSED') {
+            if (this.circuitBreakerFailureCount >= this.CIRCUIT_BREAKER_THRESHOLD) {
+                logger.error('[ClarityService] Circuit breaker OPENING after consecutive failures');
+                this.circuitBreakerState = 'OPEN';
+            }
+        } else if (this.circuitBreakerState === 'HALF_OPEN') {
+            logger.warn('[ClarityService] Circuit breaker reopening after failure in HALF_OPEN state');
+            this.circuitBreakerState = 'OPEN';
+            this.circuitBreakerFailureCount = 0;
+        }
+    }
+    
+    /**
+     * 记录错误
+     */
+    private static recordError(message: string, error: any): void {
+        this.lastError = `${message}: ${error instanceof Error ? error.message : String(error)}`;
+        this.lastErrorTime = Date.now();
+    }
+    
+    /**
+     * 更新响应时间
+     */
+    private static updateResponseTime(responseTime: number): void {
+        this.responseTimeSamples.push(responseTime);
+        if (this.responseTimeSamples.length > this.MAX_SAMPLES) {
+            this.responseTimeSamples.shift();
+        }
+        
+        this.stats.avgResponseTime = this.responseTimeSamples.reduce((a, b) => a + b, 0) / this.responseTimeSamples.length;
+    }
+    
+    /**
+     * 获取性能统计
+     */
+    public static getPerformanceStats(): PerformanceStats {
+        return { ...this.stats };
+    }
+    
+    /**
+     * 获取健康状态
+     */
+    public static getHealthStatus(): HealthStatus {
+        const now = Date.now();
+        const uptime = now - this.serviceStartTime;
+        const errorRate = this.stats.totalOperations > 0 ? 
+            this.stats.failedOperations / this.stats.totalOperations : 0;
+        
+        let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
+        
+        if (
+            this.circuitBreakerState === 'OPEN' ||
+            errorRate > 0.5 ||
+            mongoose.connection.readyState !== 1
+        ) {
+            status = 'unhealthy';
+        } else if (
+            this.circuitBreakerState === 'HALF_OPEN' ||
+            errorRate > 0.2 ||
+            this.stats.avgResponseTime > 2000
+        ) {
+            status = 'degraded';
+        }
+        
+        return {
+            status,
+            uptime,
+            errorRate,
+            avgResponseTime: this.stats.avgResponseTime,
+            mongoConnected: mongoose.connection.readyState === 1,
+            cacheAge: this.configCache ? now - this.configCache.cachedAt : null,
+            lastError: this.lastError,
+            lastErrorTime: this.lastErrorTime
         };
     }
 
@@ -230,12 +447,21 @@ export class ClarityService {
         enabled: boolean;
         projectId: string | null;
     }> {
-        const projectId = await this.getProjectIdWithCache();
+        const startTime = Date.now();
+        
+        try {
+            const projectId = await this.getProjectIdWithCache();
 
-        return {
-            enabled: !!projectId,
-            projectId
-        };
+            this.updateResponseTime(Date.now() - startTime);
+            
+            return {
+                enabled: !!projectId,
+                projectId
+            };
+        } catch (error) {
+            this.recordError('Get config failed', error);
+            throw error;
+        }
     }
 
     /**
@@ -244,12 +470,21 @@ export class ClarityService {
     private static async getProjectIdWithCache(): Promise<string | null> {
         // 检查缓存
         if (this.isCacheValid() && this.configCache) {
-            logger.debug('使用Clarity配置缓存');
+            logger.debug('[ClarityService] 使用配置缓存');
+            this.stats.cacheHitRate = (this.stats.cacheHitRate * 0.9) + 0.1;
             return this.configCache.projectId;
         }
 
-        // 从数据库获取
-        const projectId = await getClarityProjectId();
+        // 从数据库获取（带超时保护）
+        const projectId = await Promise.race([
+            getClarityProjectId(),
+            new Promise<null>((_, reject) => 
+                setTimeout(() => reject(new Error('Get project ID timeout')), 5000)
+            )
+        ]).catch(error => {
+            logger.error('[ClarityService] Failed to get project ID:', error);
+            return null;
+        });
         
         // 更新缓存
         this.updateCache(projectId);
@@ -272,22 +507,52 @@ export class ClarityService {
             reason?: string;
         }
     ): Promise<ClarityServiceResult<string>> {
+        const startTime = Date.now();
+        this.stats.totalOperations++;
+        
         try {
-            // 1. 验证 Project ID 格式
+            // 1. 检查限流
+            if (metadata?.changedBy && !this.checkRateLimit(metadata.changedBy)) {
+                this.stats.failedOperations++;
+                return {
+                    success: false,
+                    error: {
+                        code: ClarityErrorCode.RATE_LIMIT_EXCEEDED,
+                        message: '请求过于频繁，请稍后重试'
+                    }
+                };
+            }
+            
+            // 2. 检查断路器
+            if (!this.checkCircuitBreaker()) {
+                this.stats.failedOperations++;
+                return {
+                    success: false,
+                    error: {
+                        code: ClarityErrorCode.CIRCUIT_BREAKER_OPEN,
+                        message: '服务暂时不可用，请稍后重试'
+                    }
+                };
+            }
+            
+            // 3. 验证 Project ID 格式
             const validationResult = validateClarityProjectId(value);
             if (!validationResult.success) {
-                logger.warn('Clarity配置更新失败：格式验证失败', { 
+                logger.warn('[ClarityService] 配置更新失败：格式验证失败', { 
                     error: validationResult.error,
                     valueLength: value?.length 
                 });
+                this.stats.failedOperations++;
                 return validationResult;
             }
 
             const validatedValue = validationResult.data!;
 
-            // 2. 检查数据库连接
+            // 4. 检查数据库连接
             if (mongoose.connection.readyState !== 1) {
-                logger.error('数据库连接不可用，无法更新Clarity配置');
+                logger.error('[ClarityService] 数据库连接不可用，无法更新配置');
+                this.stats.failedOperations++;
+                this.recordCircuitBreakerFailure();
                 return {
                     success: false,
                     error: {
@@ -297,29 +562,44 @@ export class ClarityService {
                 };
             }
 
-            // 3. 获取旧值（用于历史记录）
-            const oldDoc = await ClaritySettingModel.findOne({ key: 'CLARITY_PROJECT_ID' }).lean().exec();
-            const oldValue = oldDoc?.value || null;
+            // 5. 获取旧值（用于历史记录，带超时）
+            const oldDoc = await Promise.race([
+                ClaritySettingModel.findOne({ key: 'CLARITY_PROJECT_ID' }).lean().maxTimeMS(5000).exec(),
+                new Promise<null>((_, reject) => 
+                    setTimeout(() => reject(new Error('Query timeout')), 10000)
+                )
+            ]);
+            const oldValue = (oldDoc as any)?.value || null;
 
-            // 4. 更新配置
-            await ClaritySettingModel.findOneAndUpdate(
-                { key: 'CLARITY_PROJECT_ID' },
-                {
-                    key: 'CLARITY_PROJECT_ID',
-                    value: validatedValue,
-                    updatedAt: new Date()
-                },
-                { upsert: true, new: true }
-            );
+            // 6. 更新配置（带超时保护）
+            await Promise.race([
+                ClaritySettingModel.findOneAndUpdate(
+                    { key: 'CLARITY_PROJECT_ID' },
+                    {
+                        key: 'CLARITY_PROJECT_ID',
+                        value: validatedValue,
+                        updatedAt: new Date()
+                    },
+                    { upsert: true, new: true }
+                ).maxTimeMS(5000),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Update timeout')), 10000)
+                )
+            ]);
 
-            // 5. 记录历史
+            // 7. 记录历史
             const operation = oldValue ? 'update' : 'create';
             await recordHistory('CLARITY_PROJECT_ID', oldValue, validatedValue, operation, metadata);
 
-            // 6. 清除缓存
+            // 8. 清除缓存
             this.clearCache();
 
-            logger.info('Clarity配置更新成功', { 
+            // 9. 记录成功
+            this.stats.successfulOperations++;
+            this.recordCircuitBreakerSuccess();
+            this.updateResponseTime(Date.now() - startTime);
+
+            logger.info('[ClarityService] 配置更新成功', { 
                 operation,
                 oldValue: oldValue ? '***' : null,
                 newValue: '***' 
@@ -330,7 +610,12 @@ export class ClarityService {
                 data: validatedValue
             };
         } catch (error) {
-            logger.error('更新Clarity配置失败', error);
+            this.stats.failedOperations++;
+            this.recordCircuitBreakerFailure();
+            this.recordError('Update config failed', error);
+            this.updateResponseTime(Date.now() - startTime);
+            
+            logger.error('[ClarityService] 更新配置失败', error);
             return {
                 success: false,
                 error: {
@@ -354,10 +639,39 @@ export class ClarityService {
             reason?: string;
         }
     ): Promise<ClarityServiceResult> {
+        const startTime = Date.now();
+        this.stats.totalOperations++;
+        
         try {
-            // 1. 检查数据库连接
+            // 1. 检查限流
+            if (metadata?.changedBy && !this.checkRateLimit(metadata.changedBy)) {
+                this.stats.failedOperations++;
+                return {
+                    success: false,
+                    error: {
+                        code: ClarityErrorCode.RATE_LIMIT_EXCEEDED,
+                        message: '请求过于频繁，请稍后重试'
+                    }
+                };
+            }
+            
+            // 2. 检查断路器
+            if (!this.checkCircuitBreaker()) {
+                this.stats.failedOperations++;
+                return {
+                    success: false,
+                    error: {
+                        code: ClarityErrorCode.CIRCUIT_BREAKER_OPEN,
+                        message: '服务暂时不可用，请稍后重试'
+                    }
+                };
+            }
+            
+            // 3. 检查数据库连接
             if (mongoose.connection.readyState !== 1) {
-                logger.error('数据库连接不可用，无法删除Clarity配置');
+                logger.error('[ClarityService] 数据库连接不可用，无法删除配置');
+                this.stats.failedOperations++;
+                this.recordCircuitBreakerFailure();
                 return {
                     success: false,
                     error: {
@@ -367,26 +681,46 @@ export class ClarityService {
                 };
             }
 
-            // 2. 获取旧值（用于历史记录）
-            const oldDoc = await ClaritySettingModel.findOne({ key: 'CLARITY_PROJECT_ID' }).lean().exec();
-            const oldValue = oldDoc?.value || null;
+            // 4. 获取旧值（用于历史记录，带超时）
+            const oldDoc = await Promise.race([
+                ClaritySettingModel.findOne({ key: 'CLARITY_PROJECT_ID' }).lean().maxTimeMS(5000).exec(),
+                new Promise<null>((_, reject) => 
+                    setTimeout(() => reject(new Error('Query timeout')), 10000)
+                )
+            ]);
+            const oldValue = (oldDoc as any)?.value || null;
 
-            // 3. 删除配置
-            await ClaritySettingModel.findOneAndDelete({ key: 'CLARITY_PROJECT_ID' });
+            // 5. 删除配置（带超时保护）
+            await Promise.race([
+                ClaritySettingModel.findOneAndDelete({ key: 'CLARITY_PROJECT_ID' }).maxTimeMS(5000),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Delete timeout')), 10000)
+                )
+            ]);
 
-            // 4. 记录历史
+            // 6. 记录历史
             await recordHistory('CLARITY_PROJECT_ID', oldValue, null, 'delete', metadata);
 
-            // 5. 清除缓存
+            // 7. 清除缓存
             this.clearCache();
 
-            logger.info('Clarity配置删除成功', { oldValue: oldValue ? '***' : null });
+            // 8. 记录成功
+            this.stats.successfulOperations++;
+            this.recordCircuitBreakerSuccess();
+            this.updateResponseTime(Date.now() - startTime);
+
+            logger.info('[ClarityService] 配置删除成功', { oldValue: oldValue ? '***' : null });
 
             return {
                 success: true
             };
         } catch (error) {
-            logger.error('删除Clarity配置失败', error);
+            this.stats.failedOperations++;
+            this.recordCircuitBreakerFailure();
+            this.recordError('Delete config failed', error);
+            this.updateResponseTime(Date.now() - startTime);
+            
+            logger.error('[ClarityService] 删除配置失败', error);
             return {
                 success: false,
                 error: {
@@ -403,7 +737,10 @@ export class ClarityService {
      * @returns 历史记录列表
      */
     public static async getConfigHistory(limit: number = 20): Promise<ClarityServiceResult<ClarityHistoryDoc[]>> {
+        const startTime = Date.now();
+        
         try {
+            // 检查数据库连接
             if (mongoose.connection.readyState !== 1) {
                 return {
                     success: false,
@@ -413,20 +750,37 @@ export class ClarityService {
                     }
                 };
             }
+            
+            // 验证limit参数
+            const safeLimit = Math.min(Math.max(1, Math.floor(limit)), 100); // 1-100之间
 
-            const history = await ClarityHistoryModel
-                .find({ key: 'CLARITY_PROJECT_ID' })
-                .sort({ changedAt: -1 })
-                .limit(Math.min(limit, 100)) // 最多返回100条
-                .lean()
-                .exec();
+            // 查询历史记录（带超时保护）
+            const history = await Promise.race([
+                ClarityHistoryModel
+                    .find({ key: 'CLARITY_PROJECT_ID' })
+                    .sort({ changedAt: -1 })
+                    .limit(safeLimit)
+                    .lean()
+                    .maxTimeMS(5000) // 5秒超时
+                    .exec(),
+                new Promise<never>((_, reject) => 
+                    setTimeout(() => reject(new Error('Query timeout')), 10000)
+                )
+            ]);
+
+            this.updateResponseTime(Date.now() - startTime);
+            
+            logger.debug('[ClarityService] 获取配置历史成功', { count: history.length });
 
             return {
                 success: true,
                 data: history as ClarityHistoryDoc[]
             };
         } catch (error) {
-            logger.error('获取Clarity配置历史失败', error);
+            this.recordError('Get config history failed', error);
+            this.updateResponseTime(Date.now() - startTime);
+            
+            logger.error('[ClarityService] 获取配置历史失败', error);
             return {
                 success: false,
                 error: {
