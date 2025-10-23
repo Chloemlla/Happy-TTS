@@ -73,6 +73,13 @@ const NotificationTestPage = React.lazy(() => import('./components/NotificationT
 // 篡改检测演示页面懒加载
 const TamperDetectionDemo = React.lazy(() => import('./components/TamperDetectionDemo'));
 
+// UI展示页面懒加载
+const DemoHub = React.lazy(() => import('./components/DemoHub'));
+const XiaohongshuDemo = React.lazy(() => import('./components/XiaohongshuDemo'));
+const MeditationAppDemo = React.lazy(() => import('./components/MeditationAppDemo'));
+const MusicPlayerDemo = React.lazy(() => import('./components/MusicPlayerDemo'));
+const FinanceAppDemo = React.lazy(() => import('./components/FinanceAppDemo'));
+
 // 恢复 EmailSender 懒加载
 const EmailSenderPage: React.FC = () => {
   const [to, setTo] = React.useState('');
@@ -1206,6 +1213,73 @@ const App: React.FC = () => {
                   ) : (
                     <Navigate to="/" replace />
                   )
+                } />
+
+                {/* UI展示页面路由 */}
+                <Route path="/demo" element={
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <m.div
+                      variants={pageVariants}
+                      initial="initial"
+                      animate="in"
+                      exit="out"
+                      transition={pageTransition}
+                    >
+                      <DemoHub />
+                    </m.div>
+                  </Suspense>
+                } />
+                <Route path="/demo/xiaohongshu" element={
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <m.div
+                      variants={pageVariants}
+                      initial="initial"
+                      animate="in"
+                      exit="out"
+                      transition={pageTransition}
+                    >
+                      <XiaohongshuDemo />
+                    </m.div>
+                  </Suspense>
+                } />
+                <Route path="/demo/meditation" element={
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <m.div
+                      variants={pageVariants}
+                      initial="initial"
+                      animate="in"
+                      exit="out"
+                      transition={pageTransition}
+                    >
+                      <MeditationAppDemo />
+                    </m.div>
+                  </Suspense>
+                } />
+                <Route path="/demo/music" element={
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <m.div
+                      variants={pageVariants}
+                      initial="initial"
+                      animate="in"
+                      exit="out"
+                      transition={pageTransition}
+                    >
+                      <MusicPlayerDemo />
+                    </m.div>
+                  </Suspense>
+                } />
+                <Route path="/demo/finance" element={
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <m.div
+                      variants={pageVariants}
+                      initial="initial"
+                      animate="in"
+                      exit="out"
+                      transition={pageTransition}
+                    >
+                      <FinanceAppDemo />
+                    </m.div>
+                  </Suspense>
                 } />
 
                 {/* 资源商店相关路由 */}
