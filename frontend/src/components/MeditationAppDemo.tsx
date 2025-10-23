@@ -10,9 +10,50 @@ import {
 const MeditationAppDemo: React.FC = () => {
   const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
   
+  // 交互状态
+  const [selectedCategory, setSelectedCategory] = React.useState('全部');
+  const [likedScenes, setLikedScenes] = React.useState<Set<string>>(new Set(['雨声', '森林', '山谷风', '音钵']));
+  const [isPlaying, setIsPlaying] = React.useState(false);
+  const [breathingEnabled, setBreathingEnabled] = React.useState(true);
+  const [volume, setVolume] = React.useState(75);
+  const [vibration, setVibration] = React.useState(false);
+  const [brightness, setBrightness] = React.useState(50);
+  const [dailyReminder, setDailyReminder] = React.useState(true);
+  const [dataSync, setDataSync] = React.useState(true);
+  const [currentDuration, setCurrentDuration] = React.useState(20);
+  const [currentMonth, setCurrentMonth] = React.useState(10);
+  
   // 设置Canvas引用
   const setCanvasRef = (index: number) => (el: HTMLCanvasElement | null) => {
     canvasRefs.current[index] = el;
+  };
+
+  // 切换喜欢状态
+  const toggleLike = (sceneName: string) => {
+    setLikedScenes(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(sceneName)) {
+        newSet.delete(sceneName);
+      } else {
+        newSet.add(sceneName);
+      }
+      return newSet;
+    });
+  };
+
+  // 调整时长
+  const adjustDuration = (delta: number) => {
+    setCurrentDuration(prev => Math.max(5, Math.min(60, prev + delta)));
+  };
+
+  // 切换月份
+  const changeMonth = (delta: number) => {
+    setCurrentMonth(prev => {
+      let newMonth = prev + delta;
+      if (newMonth < 1) newMonth = 12;
+      if (newMonth > 12) newMonth = 1;
+      return newMonth;
+    });
   };
 
   // Canvas动画效果
@@ -392,13 +433,22 @@ const MeditationAppDemo: React.FC = () => {
 
                   {/* 控制按钮 */}
                   <div className="flex items-center gap-5 mt-12">
-                    <button className="w-[50px] h-[50px] rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white">
+                    <button 
+                      onClick={() => setCurrentDuration(20)}
+                      className="w-[50px] h-[50px] rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30 transition-all"
+                    >
                       <RotateCcw className="w-5 h-5" />
                     </button>
-                    <button className="w-20 h-20 rounded-full bg-white/30 backdrop-blur-sm flex items-center justify-center text-white">
-                      <Pause className="w-8 h-8 fill-white" />
+                    <button 
+                      onClick={() => setIsPlaying(!isPlaying)}
+                      className="w-20 h-20 rounded-full bg-white/30 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/40 hover:scale-110 transition-all"
+                    >
+                      {isPlaying ? <Pause className="w-8 h-8 fill-white" /> : <Play className="w-8 h-8 fill-white" />}
                     </button>
-                    <button className="w-[50px] h-[50px] rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white">
+                    <button 
+                      onClick={() => setIsPlaying(false)}
+                      className="w-[50px] h-[50px] rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30 transition-all"
+                    >
                       <Square className="w-5 h-5" />
                     </button>
                   </div>
@@ -408,28 +458,37 @@ const MeditationAppDemo: React.FC = () => {
                     <div className="flex items-center justify-between px-8 text-white">
                       <span className="text-sm">时长</span>
                       <div className="flex items-center gap-3">
-                        <button className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                        <button 
+                          onClick={() => adjustDuration(-5)}
+                          className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition-all"
+                        >
                           <Minus className="w-4 h-4" />
                         </button>
-                        <span className="text-base">20分钟</span>
-                        <button className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                        <span className="text-base w-20 text-center">{currentDuration}分钟</span>
+                        <button 
+                          onClick={() => adjustDuration(5)}
+                          className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition-all"
+                        >
                           <Plus className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
                     <div className="flex items-center justify-between px-8 text-white">
                       <span className="text-sm">呼吸引导</span>
-                      <div className="w-12 h-6 rounded-full bg-[#52c41a] relative">
-                        <div className="absolute right-0.5 top-0.5 w-5 h-5 rounded-full bg-white" />
-                      </div>
+                      <button 
+                        onClick={() => setBreathingEnabled(!breathingEnabled)}
+                        className={`w-12 h-6 rounded-full relative transition-colors ${breathingEnabled ? 'bg-[#52c41a]' : 'bg-[#d0d0d0]'}`}
+                      >
+                        <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${breathingEnabled ? 'right-0.5' : 'left-0.5'}`} />
+                      </button>
                     </div>
                     <div className="flex items-center justify-between px-8 text-white">
                       <span className="text-sm">音量</span>
                       <div className="flex items-center gap-2">
                         <div className="w-24 h-1 bg-white/30 rounded-full">
-                          <div className="w-3/4 h-full bg-white rounded-full" />
+                          <div className="h-full bg-white rounded-full" style={{ width: `${volume}%` }} />
                         </div>
-                        <span className="text-xs">75%</span>
+                        <span className="text-xs w-10 text-right">{volume}%</span>
                       </div>
                     </div>
                   </div>
@@ -649,11 +708,17 @@ const MeditationAppDemo: React.FC = () => {
                 {/* 顶部横幅 */}
                 <div className="bg-gradient-to-br from-[#667eea] to-[#764ba2] px-5 pt-9 pb-5 text-white">
                   <div className="flex items-center justify-between mb-4">
-                    <button className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                    <button 
+                      onClick={() => changeMonth(-1)}
+                      className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center hover:bg-white/30 transition-all"
+                    >
                       <ChevronLeft className="w-5 h-5" />
                     </button>
-                    <span className="text-xl font-light">2025年10月</span>
-                    <button className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                    <span className="text-xl font-light">2025年{currentMonth}月</span>
+                    <button 
+                      onClick={() => changeMonth(1)}
+                      className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center hover:bg-white/30 transition-all"
+                    >
                       <ChevronRight className="w-5 h-5" />
                     </button>
                   </div>
@@ -754,14 +819,15 @@ const MeditationAppDemo: React.FC = () => {
                   {/* 分类标签 */}
                   <div className="flex items-center gap-2 mt-4 overflow-x-auto scrollbar-hide">
                     {['全部', '自然', '城市', '白噪音', '音乐'].map((cat, idx) => (
-                      <div
+                      <button
                         key={idx}
-                        className={`px-4 py-2 rounded-[20px] text-sm whitespace-nowrap border-2 
-                          ${idx === 0 ? 'bg-[#667eea] text-white border-[#667eea]' : 'border-[#e0e0e0] text-[#95a5a6]'}
+                        onClick={() => setSelectedCategory(cat)}
+                        className={`px-4 py-2 rounded-[20px] text-sm whitespace-nowrap border-2 transition-all hover:scale-105
+                          ${selectedCategory === cat ? 'bg-[#667eea] text-white border-[#667eea]' : 'border-[#e0e0e0] text-[#95a5a6] hover:border-[#667eea]'}
                         `}
                       >
                         {cat}
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -780,11 +846,16 @@ const MeditationAppDemo: React.FC = () => {
                   ].map((scene, idx) => (
                     <div
                       key={idx}
-                      className={`relative aspect-square rounded-[12px] bg-gradient-to-br ${scene.color} overflow-hidden`}
+                      className={`relative aspect-square rounded-[12px] bg-gradient-to-br ${scene.color} overflow-hidden cursor-pointer hover:scale-105 transition-transform`}
                     >
                       <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60" />
-                      <button className="absolute top-2 right-2 text-xl z-10">
-                        {scene.liked ? '❤️' : '🤍'}
+                      <button 
+                        onClick={() => toggleLike(scene.name)}
+                        className="absolute top-2 right-2 z-10 hover:scale-125 transition-transform"
+                      >
+                        <Heart 
+                          className={`w-6 h-6 text-white ${likedScenes.has(scene.name) ? 'fill-white' : ''}`}
+                        />
                       </button>
                       <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
                         <div className="text-4xl mb-2">{scene.icon}</div>
@@ -835,33 +906,58 @@ const MeditationAppDemo: React.FC = () => {
                       { label: '音效音量', value: '75%', type: 'slider' },
                       { label: '振动反馈', value: '', type: 'toggle', enabled: false },
                       { label: '背景亮度', value: '50%', type: 'slider' }
-                    ].map((setting, idx, arr) => (
-                      <div
-                        key={idx}
-                        className={`flex items-center justify-between px-4 py-4 ${idx < arr.length - 1 ? 'border-b border-[#f5f7fa]' : ''}`}
-                      >
-                        <span className="text-[15px] text-[#2c3e50]">{setting.label}</span>
-                        {setting.type === 'arrow' && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-[15px] text-[#95a5a6]">{setting.value}</span>
-                            <span className="text-[#95a5a6]">›</span>
-                          </div>
-                        )}
-                        {setting.type === 'toggle' && (
-                          <div className={`w-[48px] h-[28px] rounded-full relative ${setting.enabled ? 'bg-[#52c41a]' : 'bg-[#d0d0d0]'}`}>
-                            <div className={`absolute top-0.5 w-[24px] h-[24px] rounded-full bg-white transition-transform ${setting.enabled ? 'right-0.5' : 'left-0.5'}`} />
-                          </div>
-                        )}
-                        {setting.type === 'slider' && (
-                          <div className="flex items-center gap-2">
-                            <div className="w-20 h-1 bg-[#e0e0e0] rounded-full overflow-hidden">
-                              <div className="h-full bg-[#667eea] rounded-full" style={{ width: setting.value }} />
+                    ].map((setting, idx, arr) => {
+                      const getToggleValue = (label: string) => {
+                        if (label === '启用呼吸引导') return breathingEnabled;
+                        if (label === '振动反馈') return vibration;
+                        return false;
+                      };
+                      
+                      const handleToggle = (label: string) => {
+                        if (label === '启用呼吸引导') setBreathingEnabled(!breathingEnabled);
+                        if (label === '振动反馈') setVibration(!vibration);
+                      };
+
+                      const getSliderValue = (label: string) => {
+                        if (label === '音效音量') return volume;
+                        if (label === '背景亮度') return brightness;
+                        return 50;
+                      };
+
+                      const enabled = getToggleValue(setting.label);
+                      const sliderVal = getSliderValue(setting.label);
+
+                      return (
+                        <div
+                          key={idx}
+                          className={`flex items-center justify-between px-4 py-4 ${idx < arr.length - 1 ? 'border-b border-[#f5f7fa]' : ''}`}
+                        >
+                          <span className="text-[15px] text-[#2c3e50]">{setting.label}</span>
+                          {setting.type === 'arrow' && (
+                            <button className="flex items-center gap-2 hover:opacity-70 transition-opacity">
+                              <span className="text-[15px] text-[#95a5a6]">{setting.value}</span>
+                              <ChevronRight className="w-4 h-4 text-[#95a5a6]" />
+                            </button>
+                          )}
+                          {setting.type === 'toggle' && (
+                            <button 
+                              onClick={() => handleToggle(setting.label)}
+                              className={`w-[48px] h-[28px] rounded-full relative transition-colors ${enabled ? 'bg-[#52c41a]' : 'bg-[#d0d0d0]'}`}
+                            >
+                              <div className={`absolute top-0.5 w-[24px] h-[24px] rounded-full bg-white shadow transition-transform ${enabled ? 'right-0.5' : 'left-0.5'}`} />
+                            </button>
+                          )}
+                          {setting.type === 'slider' && (
+                            <div className="flex items-center gap-2">
+                              <div className="w-20 h-1 bg-[#e0e0e0] rounded-full overflow-hidden">
+                                <div className="h-full bg-[#667eea] rounded-full" style={{ width: `${sliderVal}%` }} />
+                              </div>
+                              <span className="text-xs text-[#95a5a6] w-10 text-right">{sliderVal}%</span>
                             </div>
-                            <span className="text-xs text-[#95a5a6]">{setting.value}</span>
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 

@@ -10,8 +10,46 @@ import {
 const FinanceAppDemo: React.FC = () => {
   const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
   
+  // 交互状态
+  const [recordType, setRecordType] = React.useState<'expense' | 'income'>('expense');
+  const [amount, setAmount] = React.useState('0');
+  const [selectedCategory, setSelectedCategory] = React.useState('餐饮');
+  const [selectedDate, setSelectedDate] = React.useState('本月');
+  const [currentMonth, setCurrentMonth] = React.useState(10);
+  const [currentYear, setCurrentYear] = React.useState(2025);
+  const [remindersEnabled, setRemindersEnabled] = React.useState(true);
+  const [fingerprintEnabled, setFingerprintEnabled] = React.useState(true);
+
   const setCanvasRef = (index: number) => (el: HTMLCanvasElement | null) => {
     canvasRefs.current[index] = el;
+  };
+
+  // 处理数字输入
+  const handleNumberClick = (num: string) => {
+    if (num === '⌫') {
+      setAmount(prev => prev.length > 1 ? prev.slice(0, -1) : '0');
+    } else if (num === '.') {
+      if (!amount.includes('.')) {
+        setAmount(prev => prev + '.');
+      }
+    } else {
+      setAmount(prev => prev === '0' ? num : prev + num);
+    }
+  };
+
+  // 切换月份
+  const changeMonth = (delta: number) => {
+    let newMonth = currentMonth + delta;
+    let newYear = currentYear;
+    if (newMonth < 1) {
+      newMonth = 12;
+      newYear--;
+    } else if (newMonth > 12) {
+      newMonth = 1;
+      newYear++;
+    }
+    setCurrentMonth(newMonth);
+    setCurrentYear(newYear);
   };
 
   // Canvas图表绘制
@@ -389,10 +427,24 @@ const FinanceAppDemo: React.FC = () => {
               <div className="h-full flex flex-col bg-white">
                 {/* 类型切换 */}
                 <div className="flex gap-2.5 p-5 bg-white">
-                  <button className="flex-1 py-2.5 bg-[#ff6b6b] text-white rounded-xl text-sm font-bold">
+                  <button 
+                    onClick={() => setRecordType('expense')}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                      recordType === 'expense' 
+                        ? 'bg-[#ff6b6b] text-white' 
+                        : 'bg-[#ff6b6b]/10 text-[#ff6b6b]'
+                    }`}
+                  >
                     支出
                   </button>
-                  <button className="flex-1 py-2.5 bg-[#52c41a]/10 text-[#52c41a] rounded-xl text-sm font-bold">
+                  <button 
+                    onClick={() => setRecordType('income')}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                      recordType === 'income' 
+                        ? 'bg-[#52c41a] text-white' 
+                        : 'bg-[#52c41a]/10 text-[#52c41a]'
+                    }`}
+                  >
                     收入
                   </button>
                 </div>
@@ -400,7 +452,9 @@ const FinanceAppDemo: React.FC = () => {
                 {/* 金额显示 */}
                 <div className="bg-white py-10 px-5 text-center">
                   <div className="text-2xl text-[#95a5a6] mb-2.5">¥</div>
-                  <div className="text-[56px] font-light text-[#2c3e50] min-h-[70px]">0</div>
+                  <div className={`text-[56px] font-light min-h-[70px] ${recordType === 'expense' ? 'text-[#ff6b6b]' : 'text-[#52c41a]'}`}>
+                    {amount}
+                  </div>
                 </div>
 
                 {/* 分类选择 */}
@@ -416,15 +470,16 @@ const FinanceAppDemo: React.FC = () => {
                       { icon: '📚', name: '教育' },
                       { icon: '⋯', name: '其他' }
                     ].map((cat, idx) => (
-                      <div
+                      <button
                         key={idx}
-                        className={`flex flex-col items-center py-4 px-2.5 rounded-[16px] bg-white border-2 border-black/6 hover:border-[#667eea] hover:scale-105 transition-all duration-300
-                          ${idx === 0 ? 'bg-gradient-to-br from-[#667eea] to-[#764ba2] text-white border-transparent scale-110 shadow-lg' : ''}
+                        onClick={() => setSelectedCategory(cat.name)}
+                        className={`flex flex-col items-center py-4 px-2.5 rounded-[16px] bg-white border-2 border-black/6 hover:border-[#667eea] hover:scale-105 transition-all duration-300 cursor-pointer
+                          ${selectedCategory === cat.name ? 'bg-gradient-to-br from-[#667eea] to-[#764ba2] text-white border-transparent scale-110 shadow-lg' : ''}
                         `}
                       >
                         <span className="text-[28px] mb-1">{cat.icon}</span>
                         <span className="text-xs">{cat.name}</span>
-                      </div>
+                      </button>
                     ))}
                   </div>
 
@@ -452,12 +507,19 @@ const FinanceAppDemo: React.FC = () => {
                   {['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫'].map((key, idx) => (
                     <button
                       key={idx}
+                      onClick={() => handleNumberClick(key)}
                       className={`py-4 bg-white border-2 border-black/6 rounded-[16px] text-xl font-bold text-[#2c3e50] shadow-sm hover:border-[#667eea] hover:-translate-y-0.5 active:scale-95 transition-all duration-200`}
                     >
                       {key}
                     </button>
                   ))}
-                  <button className="col-span-3 py-4 bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white rounded-[16px] text-[17px] font-bold shadow-md hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
+                  <button 
+                    onClick={() => {
+                      // 记账确认逻辑
+                      setAmount('0');
+                    }}
+                    className="col-span-3 py-4 bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white rounded-[16px] text-[17px] font-bold shadow-md hover:-translate-y-1 hover:shadow-lg active:scale-95 transition-all duration-300"
+                  >
                     确认
                   </button>
                 </div>
@@ -475,14 +537,15 @@ const FinanceAppDemo: React.FC = () => {
                 {/* 日期筛选 */}
                 <div className="flex gap-2.5 p-5 overflow-x-auto scrollbar-hide">
                   {['本月', '上月', '本年', '2024', '2023', '2022'].map((date, idx) => (
-                    <div
+                    <button
                       key={idx}
+                      onClick={() => setSelectedDate(date)}
                       className={`px-4 py-2.5 rounded-[20px] text-[13px] font-medium whitespace-nowrap border-2 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#667eea]
-                        ${idx === 0 ? 'bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white border-transparent shadow-md' : 'bg-white text-[#2c3e50] border-black/6'}
+                        ${selectedDate === date ? 'bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white border-transparent shadow-md' : 'bg-white text-[#2c3e50] border-black/6'}
                       `}
                     >
                       {date}
-                    </div>
+                    </button>
                   ))}
                 </div>
 
@@ -555,11 +618,17 @@ const FinanceAppDemo: React.FC = () => {
               <div className="h-full overflow-y-auto scrollbar-hide bg-[#f8f9fa] pb-20">
                 {/* 月份选择器 */}
                 <div className="flex items-center justify-between p-5 bg-white">
-                  <button className="w-8 h-8 rounded-full bg-[#f5f7fa] flex items-center justify-center hover:bg-[#e8ecef]">
+                  <button 
+                    onClick={() => changeMonth(-1)}
+                    className="w-8 h-8 rounded-full bg-[#f5f7fa] flex items-center justify-center hover:bg-[#e8ecef] transition-all"
+                  >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
-                  <span className="text-lg font-bold text-[#2c3e50]">2025年10月</span>
-                  <button className="w-8 h-8 rounded-full bg-[#f5f7fa] flex items-center justify-center hover:bg-[#e8ecef]">
+                  <span className="text-lg font-bold text-[#2c3e50]">{currentYear}年{currentMonth}月</span>
+                  <button 
+                    onClick={() => changeMonth(1)}
+                    className="w-8 h-8 rounded-full bg-[#f5f7fa] flex items-center justify-center hover:bg-[#e8ecef] transition-all"
+                  >
                     <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
@@ -858,29 +927,41 @@ const FinanceAppDemo: React.FC = () => {
                     <h3 className="text-sm font-semibold text-[#95a5a6] uppercase tracking-wide mb-3">通用设置</h3>
                     <div className="bg-white rounded-[20px] overflow-hidden shadow-sm border border-black/6 hover:shadow-lg transition-shadow">
                       {[
-                        { label: '货币单位', value: '人民币（¥）', type: 'arrow' },
-                        { label: '月度预算', value: '5,000', type: 'arrow' },
-                        { label: '记账提醒', value: '', type: 'toggle', enabled: true },
-                        { label: '面容/指纹解锁', value: '', type: 'toggle', enabled: true }
-                      ].map((item, idx) => (
-                        <div
-                          key={idx}
-                          className={`flex items-center justify-between px-4 py-4 ${idx < 3 ? 'border-b border-[#f5f7fa]' : ''} hover:bg-[#f8f9fa] hover:pl-5 transition-all`}
-                        >
-                          <span className="text-[15px] text-[#2c3e50]">{item.label}</span>
-                          {item.type === 'arrow' && (
-                            <div className="flex items-center gap-2">
-                              <span className="text-[15px] text-[#95a5a6]">{item.value}</span>
-                              <span className="text-[#d0d0d0]">›</span>
-                            </div>
-                          )}
-                          {item.type === 'toggle' && (
-                            <div className={`w-12 h-7 rounded-full relative ${item.enabled ? 'bg-[#52c41a]' : 'bg-[#d0d0d0]'}`}>
-                              <div className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform ${item.enabled ? 'right-0.5' : 'left-0.5'}`} />
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                      { label: '货币单位', value: '人民币（¥）', type: 'arrow' },
+                      { label: '月度预算', value: '5,000', type: 'arrow' },
+                      { label: '记账提醒', value: '', type: 'toggle', enabled: true },
+                      { label: '面容/指纹解锁', value: '', type: 'toggle', enabled: true }
+                      ].map((item, idx) => {
+                        const enabled = item.label === '记账提醒' ? remindersEnabled : 
+                                       item.label === '面容/指纹解锁' ? fingerprintEnabled : false;
+                        const handleToggle = () => {
+                          if (item.label === '记账提醒') setRemindersEnabled(!remindersEnabled);
+                          if (item.label === '面容/指纹解锁') setFingerprintEnabled(!fingerprintEnabled);
+                        };
+
+                        return (
+                          <div
+                            key={idx}
+                            className={`flex items-center justify-between px-4 py-4 ${idx < 3 ? 'border-b border-[#f5f7fa]' : ''} hover:bg-[#f8f9fa] hover:pl-5 transition-all`}
+                          >
+                            <span className="text-[15px] text-[#2c3e50]">{item.label}</span>
+                            {item.type === 'arrow' && (
+                              <button className="flex items-center gap-2 hover:opacity-70 transition-opacity">
+                                <span className="text-[15px] text-[#95a5a6]">{item.value}</span>
+                                <ArrowRight className="w-4 h-4 text-[#d0d0d0]" />
+                              </button>
+                            )}
+                            {item.type === 'toggle' && (
+                              <button 
+                                onClick={handleToggle}
+                                className={`w-12 h-7 rounded-full relative transition-colors ${enabled ? 'bg-[#52c41a]' : 'bg-[#d0d0d0]'}`}
+                              >
+                                <div className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform ${enabled ? 'right-0.5' : 'left-0.5'}`} />
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
 

@@ -8,6 +8,56 @@ import {
 
 // 音乐播放器UI展示页面 (类似Spotify深色主题)
 const MusicPlayerDemo: React.FC = () => {
+  // 交互状态
+  const [isPlaying, setIsPlaying] = React.useState(false);
+  const [likedSongs, setLikedSongs] = React.useState<Set<number>>(new Set([1, 3]));
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [showSearchHistory, setShowSearchHistory] = React.useState(false);
+  const [searchHistory, setSearchHistory] = React.useState(['晴天 周杰伦', '告白气球', '稻香', '夜曲']);
+  const [currentSongIndex, setCurrentSongIndex] = React.useState(0);
+  const [currentProgress, setCurrentProgress] = React.useState(45);
+
+  // 歌曲列表
+  const songs = [
+    { id: 1, name: '晴天', artist: '周杰伦', time: '4:03' },
+    { id: 2, name: '告白气球', artist: '周杰伦', time: '3:23' },
+    { id: 3, name: '稻香', artist: '周杰伦', time: '3:43' },
+    { id: 4, name: '夜曲', artist: '周杰伦', time: '3:46' },
+    { id: 5, name: '七里香', artist: '周杰伦', time: '5:05' }
+  ];
+
+  // 切换播放状态
+  const togglePlay = () => {
+    setIsPlaying(!isPlaying);
+  };
+
+  // 切换喜欢
+  const toggleLike = (songId: number) => {
+    setLikedSongs(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(songId)) {
+        newSet.delete(songId);
+      } else {
+        newSet.add(songId);
+      }
+      return newSet;
+    });
+  };
+
+  // 切换歌曲
+  const changeSong = (direction: 'prev' | 'next') => {
+    if (direction === 'prev') {
+      setCurrentSongIndex(prev => (prev - 1 + songs.length) % songs.length);
+    } else {
+      setCurrentSongIndex(prev => (prev + 1) % songs.length);
+    }
+  };
+
+  // 删除搜索历史
+  const removeHistory = (history: string) => {
+    setSearchHistory(prev => prev.filter(h => h !== history));
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#667eea] to-[#764ba2] py-10 px-4">
       <div className="max-w-[1800px] mx-auto">
@@ -67,17 +117,24 @@ const MusicPlayerDemo: React.FC = () => {
                       { num: '4', name: '夜曲', artist: '周杰伦' },
                       { num: '5', name: '七里香', artist: '周杰伦' }
                     ].map((song, idx) => (
-                      <div key={idx} className="flex items-center gap-3 py-2">
+                      <button 
+                        key={idx}
+                        onClick={() => {
+                          setCurrentSongIndex(idx);
+                          setIsPlaying(true);
+                        }}
+                        className="flex items-center gap-3 py-2 hover:bg-[#2a2a2a] rounded-lg px-2 -mx-2 transition-all"
+                      >
                         <div className="w-5 text-center text-sm text-[#b3b3b3] font-medium">{song.num}</div>
                         <div className="w-[45px] h-[45px] bg-gradient-to-br from-[#4facfe] to-[#00f2fe] rounded-[8px]" />
-                        <div className="flex-1">
+                        <div className="flex-1 text-left">
                           <div className="text-sm text-white font-medium">{song.name}</div>
                           <div className="text-xs text-[#b3b3b3]">{song.artist}</div>
                         </div>
-                        <button className="w-[22px] h-[22px] rounded-full bg-[#1DB954] flex items-center justify-center">
+                        <div className="w-[22px] h-[22px] rounded-full bg-[#1DB954] flex items-center justify-center">
                           <Play className="w-3 h-3 text-white fill-white" />
-                        </button>
-                      </div>
+                        </div>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -165,32 +222,44 @@ const MusicPlayerDemo: React.FC = () => {
 
                 {/* 控制按钮 */}
                 <div className="flex items-center justify-center gap-6 mt-6">
-                  <button className="text-[#b3b3b3]">
+                  <button className="text-[#b3b3b3] hover:text-white transition-colors">
                     <Shuffle className="w-5 h-5" />
                   </button>
-                  <button className="text-white">
+                  <button 
+                    onClick={() => changeSong('prev')}
+                    className="text-white hover:scale-110 transition-transform"
+                  >
                     <SkipBack className="w-6 h-6 fill-white" />
                   </button>
-                  <button className="w-14 h-14 rounded-full bg-[#1DB954] flex items-center justify-center text-white">
-                    <Pause className="w-7 h-7 fill-white" />
+                  <button 
+                    onClick={togglePlay}
+                    className="w-14 h-14 rounded-full bg-[#1DB954] flex items-center justify-center text-white hover:scale-110 transition-transform"
+                  >
+                    {isPlaying ? <Pause className="w-7 h-7 fill-white" /> : <Play className="w-7 h-7 fill-white ml-1" />}
                   </button>
-                  <button className="text-white">
+                  <button 
+                    onClick={() => changeSong('next')}
+                    className="text-white hover:scale-110 transition-transform"
+                  >
                     <SkipForward className="w-6 h-6 fill-white" />
                   </button>
-                  <button className="text-[#b3b3b3]">
+                  <button className="text-[#b3b3b3] hover:text-white transition-colors">
                     <Repeat className="w-5 h-5" />
                   </button>
                 </div>
 
                 {/* 底部操作 */}
                 <div className="flex items-center justify-center gap-8 mt-8">
-                  <button className="text-[#ff4d4d] animate-heartbeat">
-                    <Heart className="w-6 h-6 fill-current" />
+                  <button 
+                    onClick={() => toggleLike(songs[currentSongIndex].id)}
+                    className={`transition-all hover:scale-110 ${likedSongs.has(songs[currentSongIndex].id) ? 'text-[#ff4d4d] animate-heartbeat' : 'text-white'}`}
+                  >
+                    <Heart className={`w-6 h-6 ${likedSongs.has(songs[currentSongIndex].id) ? 'fill-current' : ''}`} />
                   </button>
-                  <button className="text-white">
+                  <button className="text-white hover:scale-110 transition-transform">
                     <MessageCircle className="w-6 h-6" />
                   </button>
-                  <button className="text-white">
+                  <button className="text-white hover:scale-110 transition-transform">
                     <MoreHorizontal className="w-6 h-6" />
                   </button>
                 </div>
@@ -245,13 +314,22 @@ const MusicPlayerDemo: React.FC = () => {
                 {/* 底部迷你控制 */}
                 <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-6">
                   <div className="flex items-center justify-center gap-6">
-                    <button className="text-white">
+                    <button 
+                      onClick={() => changeSong('prev')}
+                      className="text-white hover:scale-110 transition-transform"
+                    >
                       <SkipBack className="w-5 h-5 fill-white" />
                     </button>
-                    <button className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white">
-                      <Pause className="w-5 h-5 fill-white" />
+                    <button 
+                      onClick={togglePlay}
+                      className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30 transition-all"
+                    >
+                      {isPlaying ? <Pause className="w-5 h-5 fill-white" /> : <Play className="w-5 h-5 fill-white ml-0.5" />}
                     </button>
-                    <button className="text-white">
+                    <button 
+                      onClick={() => changeSong('next')}
+                      className="text-white hover:scale-110 transition-transform"
+                    >
                       <SkipForward className="w-5 h-5 fill-white" />
                     </button>
                   </div>
@@ -354,10 +432,21 @@ const MusicPlayerDemo: React.FC = () => {
                       <input
                         type="text"
                         placeholder="搜索歌曲、歌手或专辑"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onFocus={() => setShowSearchHistory(true)}
                         className="flex-1 bg-transparent border-none outline-none text-sm text-white placeholder-[#b3b3b3]"
                       />
                     </div>
-                    <button className="text-[#1DB954] text-sm font-medium">取消</button>
+                    <button 
+                      onClick={() => {
+                        setSearchQuery('');
+                        setShowSearchHistory(false);
+                      }}
+                      className="text-[#1DB954] text-sm font-medium hover:text-[#1ed760] transition-colors"
+                    >
+                      取消
+                    </button>
                   </div>
                 </div>
 
@@ -375,12 +464,13 @@ const MusicPlayerDemo: React.FC = () => {
                       '粤语歌曲',
                       '民谣音乐'
                     ].map((tag, idx) => (
-                      <div
+                      <button
                         key={idx}
-                        className="px-4 py-3 bg-[#2a2a2a] border border-[#3a3a3a] rounded-[12px] text-[13px] text-white text-center hover:bg-[#1DB954] hover:border-[#1DB954] transition-all duration-300 cursor-pointer"
+                        onClick={() => setSearchQuery(tag)}
+                        className="px-4 py-3 bg-[#2a2a2a] border border-[#3a3a3a] rounded-[12px] text-[13px] text-white text-center hover:bg-[#1DB954] hover:border-[#1DB954] transition-all duration-300"
                       >
                         {tag}
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -389,21 +479,27 @@ const MusicPlayerDemo: React.FC = () => {
                 <div className="px-4 mt-6 pb-24">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-base font-bold text-white">搜索历史</h3>
-                    <button className="text-sm text-[#b3b3b3]">清空</button>
+                    <button 
+                      onClick={() => setSearchHistory([])}
+                      className="text-sm text-[#b3b3b3] hover:text-white transition-colors"
+                    >
+                      清空
+                    </button>
                   </div>
                   <div className="space-y-1">
-                    {[
-                      '晴天 周杰伦',
-                      '告白气球',
-                      '稻香',
-                      '夜曲'
-                    ].map((history, idx) => (
+                    {searchHistory.map((history, idx) => (
                       <div key={idx} className="flex items-center justify-between py-3 border-b border-[#282828]">
-                        <div className="flex items-center gap-3">
+                        <button 
+                          onClick={() => setSearchQuery(history)}
+                          className="flex items-center gap-3 flex-1 text-left hover:text-[#1DB954] transition-colors"
+                        >
                           <Clock className="w-4 h-4 text-[#b3b3b3]" />
                           <span className="text-sm text-white">{history}</span>
-                        </div>
-                        <button className="text-[#b3b3b3]">
+                        </button>
+                        <button 
+                          onClick={() => removeHistory(history)}
+                          className="text-[#b3b3b3] hover:text-white transition-colors"
+                        >
                           <X className="w-4 h-4" />
                         </button>
                       </div>
@@ -612,8 +708,11 @@ const MusicPlayerDemo: React.FC = () => {
                     <div className="text-sm text-white font-medium">晴天</div>
                     <div className="text-[11px] text-[#b3b3b3]">周杰伦</div>
                   </div>
-                  <button className="w-6 h-6 flex items-center justify-center text-white mr-2">
-                    <Pause className="w-5 h-5 fill-white" />
+                  <button 
+                    onClick={togglePlay}
+                    className="w-6 h-6 flex items-center justify-center text-white mr-2 hover:scale-110 transition-transform"
+                  >
+                    {isPlaying ? <Pause className="w-5 h-5 fill-white" /> : <Play className="w-5 h-5 fill-white ml-0.5" />}
                   </button>
                   <button className="w-[22px] h-[22px] flex items-center justify-center text-[#b3b3b3]">
                     <List className="w-4 h-4" />
