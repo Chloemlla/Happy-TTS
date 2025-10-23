@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, Activity } from 'react';
 import {
   Home, Star, BarChart3, User, ChevronLeft, ChevronRight, MoreHorizontal,
   Search, Settings, Play, RotateCcw, Pause, Square, Plus, Minus,
@@ -10,7 +10,10 @@ import {
 const MeditationAppDemo: React.FC = () => {
   const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
   
-  // 交互状态
+  // 交互状态 - 屏幕切换
+  const [activeScreen, setActiveScreen] = React.useState(0); // 0-8代表9个屏幕
+  
+  // 其他交互状态
   const [selectedCategory, setSelectedCategory] = React.useState('全部');
   const [likedScenes, setLikedScenes] = React.useState<Set<string>>(new Set(['雨声', '森林', '山谷风', '音钵']));
   const [isPlaying, setIsPlaying] = React.useState(false);
@@ -304,14 +307,40 @@ const MeditationAppDemo: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-[#f5f7fa] to-[#c3cfe2] py-10 px-5">
       <div className="max-w-[1200px] mx-auto">
         {/* 标题 */}
-        <h1 className="text-4xl font-bold text-center mb-12 text-[#2c3e50]">
+        <h1 className="text-4xl font-bold text-center mb-8 text-[#2c3e50]">
           冥想APP UI展示
         </h1>
 
-        {/* 手机屏幕网格 */}
+        {/* 屏幕切换按钮 */}
+        <div className="flex items-center justify-center gap-2 mb-8 flex-wrap">
+          {['首页', '计时器', '完成', '统计', '成就', '日历', '场景库', '设置', '呼吸'].map((name, idx) => (
+            <button
+              key={idx}
+              onClick={() => setActiveScreen(idx)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                activeScreen === idx
+                  ? 'bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white shadow-lg scale-105'
+                  : 'bg-white text-[#2c3e50] hover:bg-gray-100'
+              }`}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+
+        {/* 使用Activity优化性能提示 */}
+        <div className="text-center mb-8 px-4">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+            <span className="text-lg">⚡</span>
+            <span>使用 React 19 <code className="px-1 py-0.5 bg-blue-100 rounded">&lt;Activity&gt;</code> 组件优化性能 - 保留状态但清理副作用</span>
+          </div>
+        </div>
+
+        {/* 手机屏幕网格 - 使用Activity包裹每个屏幕 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
           {/* 第1屏: 首页 */}
-          <div className="flex flex-col items-center">
+          <Activity mode={activeScreen === 0 ? 'visible' : 'hidden'}>
+            <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-[#2c3e50] mb-4">首页 - 场景选择</h3>
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               {/* 刘海 */}
@@ -390,10 +419,12 @@ const MeditationAppDemo: React.FC = () => {
                 </div>
               </div>
             </div>
-          </div>
+            </div>
+          </Activity>
 
           {/* 第2屏: 计时器页面 */}
-          <div className="flex flex-col items-center">
+          <Activity mode={activeScreen === 1 ? 'visible' : 'hidden'}>
+            <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-[#2c3e50] mb-4">计时器页面</h3>
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
@@ -495,10 +526,12 @@ const MeditationAppDemo: React.FC = () => {
                 </div>
               </div>
             </div>
-          </div>
+            </div>
+          </Activity>
 
           {/* 第3屏: 完成页面 */}
-          <div className="flex flex-col items-center">
+          <Activity mode={activeScreen === 2 ? 'visible' : 'hidden'}>
+            <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-[#2c3e50] mb-4">完成页面</h3>
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
@@ -560,10 +593,12 @@ const MeditationAppDemo: React.FC = () => {
                 </div>
               </div>
             </div>
-          </div>
+            </div>
+          </Activity>
 
           {/* 第4屏: 统计总览 */}
-          <div className="flex flex-col items-center">
+          <Activity mode={activeScreen === 3 ? 'visible' : 'hidden'}>
+            <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-[#2c3e50] mb-4">统计总览</h3>
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
@@ -639,10 +674,12 @@ const MeditationAppDemo: React.FC = () => {
                 </div>
               </div>
             </div>
-          </div>
+            </div>
+          </Activity>
 
           {/* 第5屏: 成就页面 */}
-          <div className="flex flex-col items-center">
+          <Activity mode={activeScreen === 4 ? 'visible' : 'hidden'}>
+            <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-[#2c3e50] mb-4">成就页面</h3>
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
@@ -696,10 +733,12 @@ const MeditationAppDemo: React.FC = () => {
                 </div>
               </div>
             </div>
-          </div>
+            </div>
+          </Activity>
 
           {/* 第6屏: 日历页面 */}
-          <div className="flex flex-col items-center">
+          <Activity mode={activeScreen === 5 ? 'visible' : 'hidden'}>
+            <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-[#2c3e50] mb-4">日历页面</h3>
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
@@ -795,10 +834,12 @@ const MeditationAppDemo: React.FC = () => {
                 </div>
               </div>
             </div>
-          </div>
+            </div>
+          </Activity>
 
           {/* 第7屏: 场景库 */}
-          <div className="flex flex-col items-center">
+          <Activity mode={activeScreen === 6 ? 'visible' : 'hidden'}>
+            <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-[#2c3e50] mb-4">场景库</h3>
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
@@ -871,10 +912,12 @@ const MeditationAppDemo: React.FC = () => {
                 </div>
               </div>
             </div>
-          </div>
+            </div>
+          </Activity>
 
           {/* 第8屏: 设置页面 */}
-          <div className="flex flex-col items-center">
+          <Activity mode={activeScreen === 7 ? 'visible' : 'hidden'}>
+            <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-[#2c3e50] mb-4">设置页面</h3>
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
@@ -1058,10 +1101,12 @@ const MeditationAppDemo: React.FC = () => {
                 </div>
               </div>
             </div>
-          </div>
+            </div>
+          </Activity>
 
           {/* 第9屏: 呼吸引导页面 */}
-          <div className="flex flex-col items-center">
+          <Activity mode={activeScreen === 8 ? 'visible' : 'hidden'}>
+            <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-[#2c3e50] mb-4">呼吸引导页面</h3>
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
@@ -1104,7 +1149,13 @@ const MeditationAppDemo: React.FC = () => {
                 </div>
               </div>
             </div>
-          </div>
+            </div>
+          </Activity>
+        </div>
+
+        {/* 底部提示 */}
+        <div className="mt-8 text-center text-sm text-[#95a5a6]">
+          <p>💡 点击上方按钮切换屏幕 · Canvas动画在后台自动优化 · 状态完整保留</p>
         </div>
       </div>
 
