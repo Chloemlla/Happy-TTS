@@ -27,9 +27,9 @@ router.get('/credentials', authenticateToken, async (req, res) => {
 router.post('/register/start', authenticateToken, rateLimitMiddleware, async (req, res) => {
     try {
         const userId = (req as any).user?.id;
-        const { credentialName } = req.body;
+        const { credentialName, clientOrigin } = req.body;
         const ip = req.headers['x-real-ip'] || req.ip || 'unknown';
-        logger.info('[Passkey] /register/start 收到请求', { userId, credentialName, ip, headers: req.headers });
+        logger.info('[Passkey] /register/start 收到请求', { userId, credentialName, clientOrigin, ip, headers: req.headers });
 
         if (!credentialName || typeof credentialName !== 'string') {
             logger.warn('[Passkey] credentialName 缺失或类型错误', { userId, credentialName, body: req.body });
@@ -57,9 +57,9 @@ router.post('/register/start', authenticateToken, rateLimitMiddleware, async (re
 
         let options;
         try {
-            options = await PasskeyService.generateRegistrationOptions(user, credentialName);
+            options = await PasskeyService.generateRegistrationOptions(user, credentialName, clientOrigin);
         } catch (err) {
-            logger.error('[Passkey] generateRegistrationOptions error', { userId, credentialName, err });
+            logger.error('[Passkey] generateRegistrationOptions error', { userId, credentialName, clientOrigin, err });
             return res.status(500).json({ error: '生成注册选项失败', details: err instanceof Error ? err.message : String(err) });
         }
         logger.info('[Passkey] /register/start options', { userId, options });
@@ -98,7 +98,7 @@ router.post('/register/start', authenticateToken, rateLimitMiddleware, async (re
 router.post('/register/finish', authenticateToken, rateLimitMiddleware, async (req, res) => {
     try {
         const userId = (req as any).user.id;
-        const { credentialName, response } = req.body;
+        const { credentialName, response, clientOrigin } = req.body;
         if (!credentialName || !response) {
             return res.status(400).json({ error: '认证器名称和响应是必需的' });
         }
@@ -106,9 +106,9 @@ router.post('/register/finish', authenticateToken, rateLimitMiddleware, async (r
         if (!user) {
             return res.status(404).json({ error: '用户不存在' });
         }
-        // 自动获取请求origin
-        const requestOrigin = req.headers.origin || req.headers.referer || 'http://localhost:3001';
-        const verification = await PasskeyService.verifyRegistration(user, response, credentialName, requestOrigin);
+        // 优先使用 clientOrigin，其次自动获取请求origin
+        const requestOrigin = clientOrigin || req.headers.origin || req.headers.referer || 'http://localhost:3001';
+        const verification = await PasskeyService.verifyRegistration(user, response, credentialName, clientOrigin, requestOrigin);
         // 注册成功后，返回最新的passkeyCredentials
         const updatedUser = await UserStorage.getUserById(userId);
 
@@ -133,10 +133,10 @@ router.post('/register/finish', authenticateToken, rateLimitMiddleware, async (r
 // 开始认证
 router.post('/authenticate/start', rateLimitMiddleware, async (req, res) => {
     try {
-        const { username } = req.body;
+        const { username, clientOrigin } = req.body;
         const ip = req.headers['x-real-ip'] || req.ip || 'unknown';
         
-        logger.info('[Passkey] /authenticate/start 收到请求', { username, ip, headers: req.headers });
+        logger.info('[Passkey] /authenticate/start 收到请求', { username, clientOrigin, ip, headers: req.headers });
 
         if (!username) {
             logger.warn('[Passkey] 用户名缺失', { body: req.body });
@@ -166,7 +166,7 @@ router.post('/authenticate/start', rateLimitMiddleware, async (req, res) => {
             return res.status(400).json({ error: '用户未启用 Passkey 或没有注册的凭证' });
         }
 
-        const options = await PasskeyService.generateAuthenticationOptions(user);
+        const options = await PasskeyService.generateAuthenticationOptions(user, clientOrigin);
         
         logger.info('[Passkey] 生成认证选项成功', { 
             userId: user.id, 
@@ -197,7 +197,7 @@ router.post('/authenticate/start', rateLimitMiddleware, async (req, res) => {
 // 完成认证
 router.post('/authenticate/finish', rateLimitMiddleware, async (req, res) => {
     try {
-        const { username, response } = req.body;
+        const { username, response, clientOrigin } = req.body;
         if (!username || !response) {
             return res.status(400).json({ error: '用户名和响应是必需的' });
         }
@@ -205,6 +205,7 @@ router.post('/authenticate/finish', rateLimitMiddleware, async (req, res) => {
         // 调试日志：记录接收到的响应对象
         logger.info('[Passkey] /authenticate/finish 收到请求', {
             username,
+            clientOrigin,
             responseKeys: Object.keys(response),
             hasId: !!response.id,
             hasRawId: !!response.rawId,
@@ -244,11 +245,11 @@ router.post('/authenticate/finish', rateLimitMiddleware, async (req, res) => {
             return res.status(400).json({ error: '用户名验证失败' });
         }
         
-        // 自动获取请求origin
-        const requestOrigin = req.headers.origin || req.headers.referer || 'http://localhost:3001';
+        // 优先使用 clientOrigin，其次自动获取请求origin
+        const requestOrigin = clientOrigin || req.headers.origin || req.headers.referer || 'http://localhost:3001';
         
         // 执行Passkey验证
-        const verification = await PasskeyService.verifyAuthentication(user, response, requestOrigin);
+        const verification = await PasskeyService.verifyAuthentication(user, response, clientOrigin, requestOrigin);
         
         if (!verification.verified) {
             logger.warn('[Passkey] 认证失败：验证未通过', { 

@@ -28,8 +28,50 @@ const getRpId = () => {
     return env.RP_ID;
 };
 
-// 获取 RP 原点
-const getRpOrigin = () => {
+/**
+ * 验证并提取 origin 的主机名部分
+ * 例如: https://example.com -> example.com
+ */
+const extractHostFromOrigin = (origin: string): string => {
+    try {
+        const url = new URL(origin);
+        return url.hostname;
+    } catch {
+        return '';
+    }
+};
+
+/**
+ * 验证 clientOrigin 是否在允许列表中
+ */
+const isOriginAllowed = (clientOrigin: string): boolean => {
+    const allowedOriginsStr = (env as any).ALLOWED_ORIGINS || (env as any).RP_ORIGIN || 'https://tts.hapx.one';
+    const allowedOrigins = allowedOriginsStr
+        .split(',')
+        .map((o: string) => o.trim())
+        .filter((o: string) => o.length > 0);
+    
+    return allowedOrigins.includes(clientOrigin);
+};
+
+// 获取 RP 原点（支持动态和固定两种模式）
+const getRpOrigin = (clientOrigin?: string): string => {
+    const mode = (env as any).RP_ORIGIN_MODE || 'fixed';
+    
+    if (mode === 'dynamic' && clientOrigin) {
+        // 动态模式：从客户端获取，但需验证白名单
+        if (isOriginAllowed(clientOrigin)) {
+            logger.info('[Passkey] 使用动态 RP_ORIGIN', { clientOrigin });
+            return clientOrigin;
+        } else {
+            logger.warn('[Passkey] 客户端提交的 origin 不在允许列表中，使用默认值', {
+                clientOrigin,
+                allowedOrigins: (env as any).ALLOWED_ORIGINS
+            });
+        }
+    }
+    
+    // 固定模式或 clientOrigin 验证失败时使用配置的值
     return env.RP_ORIGIN;
 };
 
@@ -194,7 +236,7 @@ export class PasskeyService {
     }
 
     // 生成注册选项
-    public static async generateRegistrationOptions(user: User, credentialName: string) {
+    public static async generateRegistrationOptions(user: User, credentialName: string, clientOrigin?: string) {
         await fixUserPasskeyCredentialIDs(user);
         if (!user) {
             throw new Error('generateRegistrationOptions: user 为空');
@@ -208,7 +250,9 @@ export class PasskeyService {
         const userAuthenticators = user.passkeyCredentials || [];
         let options;
         try {
-            options = await generateRegistrationOptions({
+            // 注意：@simplewebauthn/server 不直接接受 origin 参数
+            // origin 验证在 verifyRegistrationResponse 时进行
+            const registrationOptions = await generateRegistrationOptions({
                 rpName: 'Synapse',
                 rpID: getRpId(),
                 // 使用 Uint8Array(user.id) 以兼容 @simplewebauthn/server 要求的 userID 类型
@@ -230,6 +274,7 @@ export class PasskeyService {
                 // @ts-ignore
                 ...(global as any).__passkey_debug_enabled ? { _debug: { userId: user.id, username: user.username, excludeCount: userAuthenticators.length } } : {}
             });
+            options = registrationOptions;
         } catch (err) {
             logger.error('[PasskeyService] generateRegistrationOptions 调用底层库异常:', err);
             throw new Error('generateRegistrationOptions: 调用底层库异常: ' + (err instanceof Error ? err.message : String(err)));
@@ -252,6 +297,7 @@ export class PasskeyService {
         user: User,
         response: any,
         credentialName: string,
+        clientOrigin?: string,
         requestOrigin?: string
     ): Promise<VerifiedRegistrationResponse> {
         if (!user.pendingChallenge) {
@@ -260,10 +306,12 @@ export class PasskeyService {
 
         let verification: VerifiedRegistrationResponse;
         try {
+            // 优先使用 clientOrigin，其次使用 requestOrigin，最后使用配置的 getRpOrigin
+            const finalOrigin = getRpOrigin(clientOrigin) || requestOrigin || getRpOrigin();
             verification = await verifyRegistrationResponse({
                 response,
                 expectedChallenge: user.pendingChallenge,
-                expectedOrigin: requestOrigin || getRpOrigin(),
+                expectedOrigin: finalOrigin,
                 expectedRPID: getRpId()
             });
         } catch (error) {
@@ -338,7 +386,7 @@ export class PasskeyService {
     }
 
     // 生成认证选项
-    public static async generateAuthenticationOptions(user: User) {
+    public static async generateAuthenticationOptions(user: User, clientOrigin?: string) {
         if (!user) {
             throw new Error('用户对象为空');
         }
@@ -530,6 +578,7 @@ export class PasskeyService {
     public static async verifyAuthentication(
         user: User,
         response: any,
+        clientOrigin?: string,
         requestOrigin?: string,
         retryCount: number = 0
     ): Promise<VerifiedAuthenticationResponse> {
