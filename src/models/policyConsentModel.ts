@@ -34,8 +34,7 @@ const policyConsentSchema = new Schema<IPolicyConsent>({
   },
   timestamp: {
     type: Number,
-    required: true,
-    index: true
+    required: true
   },
   version: {
     type: String,
@@ -71,15 +70,15 @@ const policyConsentSchema = new Schema<IPolicyConsent>({
   },
   expiresAt: {
     type: Date,
-    required: true,
-    index: true
+    required: true
   }
 }, {
   timestamps: true,
   collection: 'policy_consents'
 });
 
-// 创建复合索引
+// 创建索引
+policyConsentSchema.index({ timestamp: 1 }); // 单字段索引
 policyConsentSchema.index({ fingerprint: 1, version: 1 });
 policyConsentSchema.index({ ipAddress: 1, recordedAt: -1 });
 policyConsentSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 }); // TTL索引
