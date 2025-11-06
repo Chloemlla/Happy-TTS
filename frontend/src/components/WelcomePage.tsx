@@ -79,7 +79,7 @@ const FeatureCard = memo(function FeatureCard({ title, desc, Icon, variants, tra
   );
 });
 
-function WelcomePageComponent(): React.ReactElement {
+function WelcomePageComponent(): React.ReactElement<any> {
   const { setNotification } = useNotification();
   const prefersReducedMotion = useReducedMotion();
 

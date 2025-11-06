@@ -100,7 +100,7 @@ export const TtsPage: React.FC = () => {
                         </div>
                         
                         <div
-                            ref={noticeRef as React.RefObject<HTMLDivElement>}
+                            ref={noticeRef as React.RefObject<HTMLDivElement | null>}
                             className="space-y-4"
                         >
                                     <div className="bg-red-50 border border-red-200 rounded-xl p-4">

@@ -4,7 +4,7 @@ import { FaEye } from 'react-icons/fa';
 interface Props {
   html: string;
   isKatexLoaded: boolean;
-  previewRef: React.RefObject<HTMLDivElement>;
+  previewRef: React.RefObject<HTMLDivElement | null>;
 }
 
 const MarkdownPreview: React.FC<Props> = ({ html, isKatexLoaded, previewRef }) => {
