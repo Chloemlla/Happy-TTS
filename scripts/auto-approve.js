@@ -41,7 +41,7 @@
                 repo,
                 pull_number: pr.number,
                 event: 'APPROVE',
-                body: 'Automatically approved by dependabot-auto-approve script'
+                body: '✅ 由 dependabot-auto-approve 脚本自动批准'
               });
               
               console.log(`✅ Approved PR #${pr.number}: ${pr.title}`);
