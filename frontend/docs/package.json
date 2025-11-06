@@ -20,9 +20,9 @@
   "dependencies": {
     "@docusaurus/core": "3.8.1",
     "@docusaurus/preset-classic": "3.8.1",
-    "@fingerprintjs/fingerprintjs": "^4.6.2",
+    "@fingerprintjs/fingerprintjs": "^5.0.1",
     "@mdx-js/react": "^3.1.1",
-    "axios": "^1.12.2",
+    "axios": "^1.13.1",
     "cheerio-select": "^1.6.0",
     "clsx": "^2.0.0",
     "crypto-js": "^4.2.0",
@@ -35,7 +35,7 @@
   },
   "devDependencies": {
     "@docusaurus/module-type-aliases": "3.8.1",
-    "@docusaurus/tsconfig": "3.8.1",
+    "@docusaurus/tsconfig": "3.9.2",
     "@docusaurus/types": "3.8.1",
     "typescript": "~5.9.3"
   },
