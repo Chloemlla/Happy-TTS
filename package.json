@@ -122,7 +122,7 @@
     "@types/cheerio": "^1.0.0",
     "@types/cors": "^2.8.17",
     "@types/crypto-js": "^4.2.2",
-    "@types/express": "^4.17.21",
+    "@types/express": "^5.0.5",
     "@types/jest": "^30.0.0",
     "@types/morgan": "^1.9.4",
     "@types/multer": "^2.0.0",
