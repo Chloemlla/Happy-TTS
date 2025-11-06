@@ -29,7 +29,7 @@
     "fix:rollup:smart": "chmod +x fix-rollup-deps.sh && ./fix-rollup-deps.sh"
   },
   "dependencies": {
-    "@fingerprintjs/fingerprintjs": "^4.2.0",
+    "@fingerprintjs/fingerprintjs": "^5.0.1",
     "@heroicons/react": "^2.2.0",
     "@microsoft/clarity": "^1.0.0",
     "@prisma/client": "^6.14.0",
