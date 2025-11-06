@@ -55,12 +55,18 @@ export const usePasskey = (): UsePasskeyReturn & {
         try {
             // 获取注册选项
             const optionsResponse = await passkeyApi.startRegistration(credentialName);
-            // 兼容多种后端返回结构：优先 options 字段，其次直接使用 data
-            // 将响应视为 any 以兼容不同后端实现的字段命名
-            const anyResp: any = optionsResponse;
-            const rawOptions = anyResp?.data?.options ?? anyResp?.data ?? anyResp?.data?.publicKey ?? anyResp?.data?.optionsJSON;
+            
+            // 提取注册选项
+            // 后端返回格式: { data: { options: PublicKeyCredentialCreationOptionsJSON } }
+            const rawOptions = optionsResponse?.data?.options;
+            
             if (!rawOptions) {
-                addDebugInfo({ action: 'startRegistration returned no options', response: optionsResponse, timestamp: new Date().toISOString() });
+                addDebugInfo({ 
+                    action: 'startRegistration returned no options', 
+                    response: optionsResponse, 
+                    receivedData: optionsResponse?.data,
+                    timestamp: new Date().toISOString() 
+                });
                 // 失败提示交由外部 setNotification 统一管理
                 return { attRespId: null, finishData: null };
             }
@@ -204,7 +210,18 @@ export const usePasskey = (): UsePasskeyReturn & {
             // 调用浏览器的 Passkey API
             try {
                 // 确保认证选项格式正确
-                const options = optionsResponse.data.options;
+                // 后端返回格式: { data: { options: PublicKeyCredentialRequestOptionsJSON } }
+                const options = optionsResponse?.data?.options;
+                
+                if (!options) {
+                    addDebugInfo({
+                        action: '认证选项提取失败',
+                        receivedData: optionsResponse?.data,
+                        timestamp: new Date().toISOString()
+                    });
+                    throw new Error('无法获取认证选项');
+                }
+                
                 addDebugInfo({
                     action: '准备调用startAuthentication',
                     hasOptions: !!options,
