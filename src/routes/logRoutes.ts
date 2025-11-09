@@ -23,17 +23,17 @@ function sanitizeFileName(fileName: string): string {
   }
   // Remove dangerous characters and path traversal attempts
   let result = fileName.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_');
-  
+
   // Remove leading dots safely (avoid ReDoS)
   while (result.startsWith('.')) {
     result = '_' + result.slice(1);
   }
-  
+
   // Remove trailing dots safely (avoid ReDoS)
   while (result.endsWith('.')) {
     result = result.slice(0, -1) + '_';
   }
-  
+
   return result.slice(0, 255);
 }
 
@@ -99,7 +99,7 @@ const upload = multer({
     // 文件扩展名白名单
     const allowedExtensions = ['.txt', '.log', '.json', '.md', '.xml', '.csv'];
     const fileExtension = path.extname(file.originalname).toLowerCase();
-    
+
     // 只检查文件扩展名，不检查MIME类型（因为MIME类型可能不准确）
     if (allowedExtensions.includes(fileExtension)) {
       cb(null, true);
@@ -123,20 +123,20 @@ async function checkAdminPassword(password: string) {
   console.log('🔐 [LogShare] 验证管理员密码...');
   console.log('    输入密码长度:', password ? password.length : 0);
   console.log('    输入密码预览:', password ? password.substring(0, 3) + '***' : 'undefined');
-  
+
   const users = await UserStorage.getAllUsers();
   console.log('    用户总数:', users.length);
-  
+
   const admin = users.find(u => u.role === 'admin');
   if (!admin) {
     console.log('    ❌ 未找到管理员用户');
     return false;
   }
-  
+
   console.log('    ✅ 找到管理员用户:', admin.username);
   console.log('    管理员密码长度:', admin.password ? admin.password.length : 0);
   console.log('    管理员密码预览:', admin.password ? admin.password.substring(0, 3) + '***' : 'undefined');
-  
+
   // 检查密码是否是 bcrypt 哈希格式（以 $2b$ 开头）
   if (admin.password.startsWith('$2b$')) {
     // 使用 bcrypt 验证
@@ -173,25 +173,25 @@ function encryptData(data: any, key: string): { data: string, iv: string } {
   console.log('🔐 [LogShare] 开始加密数据...');
   console.log('    数据类型:', typeof data);
   console.log('    数据长度:', JSON.stringify(data).length);
-  
+
   const jsonString = JSON.stringify(data);
   const iv = crypto.randomBytes(16);
-  
+
   // 使用PBKDF2密钥派生，与前端保持一致
   const salt = 'logshare-salt';
   const iterations = 10000;
   const keyLength = 32; // 256位
-  
+
   const keyHash = crypto.pbkdf2Sync(key, salt, iterations, keyLength, 'sha512');
   const cipher = crypto.createCipheriv('aes-256-cbc', keyHash, iv);
-  
+
   let encrypted = cipher.update(jsonString, 'utf8', 'hex');
   encrypted += cipher.final('hex');
-  
+
   console.log('🔐 [LogShare] 加密完成');
   console.log('    IV长度:', iv.length);
   console.log('    加密数据长度:', encrypted.length);
-  
+
   return {
     data: encrypted,
     iv: iv.toString('hex')
@@ -211,7 +211,7 @@ router.post('/sharelog', logLimiter, upload.single('file'), async (req, res) => 
       logger.warn(`上传 | IP:${ip} | 文件:${fileName} | 结果:失败 | 原因:文件名包含危险字符`);
       return res.status(400).json({ error: '文件名包含危险字符' });
     }
-    
+
     if (!req.file || !adminPassword) {
       logger.warn(`上传 | IP:${ip} | 文件:${fileName} | 结果:失败 | 原因:缺少参数`);
       return res.status(400).json({ error: '缺少参数' });
@@ -224,11 +224,11 @@ router.post('/sharelog', logLimiter, upload.single('file'), async (req, res) => 
       logger.warn(`上传 | IP:${ip} | 文件:${fileName} | 结果:失败 | 原因:管理员密码错误`);
       return res.status(403).json({ error: '管理员密码错误' });
     }
-    
+
     // 生成随机文件名，保留原扩展名
     const ext = path.extname(req.file.originalname) || '.txt';
     const fileId = crypto.randomBytes(8).toString('hex');
-    
+
     // 所有文件都存储到MongoDB，避免本地文件系统风险
     const LogShareModel = getLogShareModel();
     let content = '';
@@ -237,21 +237,21 @@ router.post('/sharelog', logLimiter, upload.single('file'), async (req, res) => 
     } catch (e) {
       content = '';
     }
-    
-    await LogShareModel.create({ 
-      fileId, 
-      ext, 
-      content, 
+
+    await LogShareModel.create({
+      fileId,
+      ext,
+      content,
       fileName: sanitizedFileName || 'unknown',
       mimeType: req.file.mimetype,
       fileSize: req.file.size,
-      createdAt: new Date() 
+      createdAt: new Date()
     });
-    
+
     logger.info(`[logshare] 已存入MongoDB: fileId=${fileId}, ext=${ext}, fileName=${fileName}, contentPreview=${content.slice(0, 100)}`);
-    
+
     // 构造前端访问链接
-    const baseUrl = 'https://tts.hapx.one';
+    const baseUrl = 'https://tts.hapxs.com';
     const link = `${baseUrl}/logshare?id=${fileId}`;
     logger.info(`上传 | IP:${ip} | 文件:${fileName} | 结果:成功 | ID:${fileId}`);
     return res.json({ id: fileId, link, ext });
@@ -264,7 +264,7 @@ router.post('/sharelog', logLimiter, upload.single('file'), async (req, res) => 
 // 获取所有日志列表（GET，需要管理员权限）
 router.get('/sharelog/all', logLimiter, authenticateToken, async (req, res) => {
   const ip = req.ip;
-  
+
   try {
     // 检查管理员权限
     // @ts-ignore
@@ -276,7 +276,7 @@ router.get('/sharelog/all', logLimiter, authenticateToken, async (req, res) => {
     await connectMongo();
     const LogShareModel = getLogShareModel();
     const mongoLogs = await LogShareModel.find({}, { fileId: 1, ext: 1, createdAt: 1, content: 1 }).sort({ createdAt: -1 });
-    
+
     // 获取本地文件系统中的非文本类型日志
     const localFiles = await fs.promises.readdir(SHARELOGS_DIR);
     const localLogs = localFiles
@@ -340,7 +340,7 @@ router.post('/sharelog/:id', logLimiter, async (req, res) => {
       logger.warn(`查询 | IP:${ip} | 文件ID:${id} | 结果:失败 | 原因:无效的文件ID格式`);
       return res.status(400).json({ error: '无效的文件ID格式' });
     }
-    
+
     if (!adminPassword) {
       logger.warn(`查询 | IP:${ip} | 文件ID:${id} | 结果:失败 | 原因:缺少管理员密码`);
       return res.status(400).json({ error: '缺少管理员密码' });
@@ -355,7 +355,7 @@ router.post('/sharelog/:id', logLimiter, async (req, res) => {
     if (doc && [".txt", ".log", ".json", ".md"].includes(doc.ext)) {
       logger.info(`[logshare] MongoDB命中: fileId=${id}, ext=${doc.ext}, fileName=${doc.fileName}`);
       const result = { content: doc.content, ext: doc.ext };
-      
+
       // 使用管理员密码加密数据
       const encrypted = encryptData(result, adminPassword);
       logger.info(`查询 | IP:${ip} | 文件ID:${id} | 结果:成功 | 类型:文本 | 已加密`);
@@ -391,7 +391,7 @@ router.post('/sharelog/:id', logLimiter, async (req, res) => {
     // 只处理二进制
     const content = await fs.promises.readFile(filePath);
     logger.info(`[调试] 读取二进制内容长度: ${content.length}`);
-    
+
     const result = { content: content.toString('base64'), ext, encoding: 'base64' };
     // 使用管理员密码加密数据
     const encrypted = encryptData(result, adminPassword);
@@ -416,7 +416,7 @@ router.delete('/sharelog/:id', logLimiter, authenticateToken, async (req, res) =
       logger.warn(`删除日志 | IP:${ip} | 文件ID:${id} | 结果:失败 | 原因:无效的文件ID格式`);
       return res.status(400).json({ error: '无效的文件ID格式' });
     }
-    
+
     // @ts-ignore
     if (!req.user || req.user.role !== 'admin') {
       logger.warn(`删除日志 | IP:${ip} | 结果:失败 | 原因:非管理员用户`);
@@ -491,7 +491,7 @@ router.post('/sharelog/delete-batch', logLimiter, authenticateToken, async (req,
           logger.warn(`批量删除 | IP:${ip} | 文件ID:${id} | 结果:跳过 | 原因:无效的文件ID格式`);
           continue;
         }
-        
+
         const fileName = files.find(f => f.startsWith(id));
         if (fileName) {
           // 验证文件名安全性
@@ -500,7 +500,7 @@ router.post('/sharelog/delete-batch', logLimiter, authenticateToken, async (req,
             logger.warn(`批量删除 | IP:${ip} | 文件ID:${id} | 文件:${fileName} | 结果:跳过 | 原因:文件名不安全`);
             continue;
           }
-          
+
           const filePath = path.join(SHARELOGS_DIR, fileName);
           // 确保文件路径在预期目录内
           const resolvedPath = path.resolve(filePath);
@@ -547,7 +547,7 @@ router.delete('/sharelog/all', logLimiter, authenticateToken, async (req, res) =
           logger.warn(`全部删除 | IP:${ip} | 文件:${file} | 结果:跳过 | 原因:文件名不安全`);
           continue;
         }
-        
+
         const filePath = path.join(SHARELOGS_DIR, file);
         // 确保文件路径在预期目录内
         const resolvedPath = path.resolve(filePath);
@@ -581,7 +581,7 @@ router.put('/sharelog/:id', logLimiter, authenticateToken, async (req, res) => {
       logger.warn(`修改日志 | IP:${ip} | 文件ID:${id} | 结果:失败 | 原因:无效的文件ID格式`);
       return res.status(400).json({ error: '无效的文件ID格式' });
     }
-    
+
     // @ts-ignore
     if (!req.user || req.user.role !== 'admin') {
       logger.warn(`修改日志 | IP:${ip} | 结果:失败 | 原因:非管理员用户`);
@@ -613,7 +613,7 @@ router.put('/sharelog/:id', logLimiter, authenticateToken, async (req, res) => {
 router.post('/logs/archive', logLimiter, authenticateToken, async (req, res) => {
   const ip = req.ip;
   const { archiveName, includePattern, excludePattern } = req.body || {};
-  
+
   try {
     // @ts-ignore
     if (!req.user || req.user.role !== 'admin') {
@@ -631,13 +631,13 @@ router.post('/logs/archive', logLimiter, authenticateToken, async (req, res) => 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const sanitizedArchiveName = sanitizePathComponent(archiveName || `logs-archive-${timestamp}`);
     const finalArchiveName = sanitizedArchiveName || `logs-archive-${timestamp}`;
-    
+
     // 验证归档名称安全性
     if (!validateArchiveName(finalArchiveName)) {
       logger.warn(`归档日志 | IP:${ip} | 结果:失败 | 原因:无效的归档名称`);
       return res.status(400).json({ error: '无效的归档名称' });
     }
-    
+
     // 创建归档目录
     const archiveSubDir = path.join(ARCHIVE_DIR, finalArchiveName);
     await fs.promises.mkdir(archiveSubDir, { recursive: true });
@@ -646,63 +646,63 @@ router.post('/logs/archive', logLimiter, authenticateToken, async (req, res) => 
     await connectMongo();
     const LogShareModel = getLogShareModel();
     const mongoLogs = await LogShareModel.find({}).sort({ createdAt: -1 });
-    
+
     // 获取日志目录中的所有文件
     const logFiles = await fs.promises.readdir(logDir);
-    
+
     // 创建数据库日志文件到临时目录
     const tempDbLogsDir = path.join(archiveSubDir, 'temp-db-logs');
     await fs.promises.mkdir(tempDbLogsDir, { recursive: true });
-    
+
     const dbLogFiles = [];
     for (const log of mongoLogs) {
       const fileName = `${log.fileId}${log.ext || '.txt'}`;
       const tempFilePath = path.join(tempDbLogsDir, fileName);
-      
+
       // 应用包含模式
       if (includePattern) {
         const sanitizedPattern = sanitizeRegexPattern(includePattern);
         const regex = new RegExp(sanitizedPattern, 'i');
         if (!regex.test(fileName)) continue;
       }
-      
+
       // 应用排除模式
       if (excludePattern) {
         const sanitizedPattern = sanitizeRegexPattern(excludePattern);
         const regex = new RegExp(sanitizedPattern, 'i');
         if (regex.test(fileName)) continue;
       }
-      
+
       // 写入数据库日志内容到临时文件
       await fs.promises.writeFile(tempFilePath, log.content || '', 'utf-8');
       dbLogFiles.push(fileName);
     }
-    
+
     // 过滤文件系统文件（支持包含和排除模式）
     let filesToArchive = logFiles.filter(file => {
       const filePath = path.join(logDir, file);
       const stats = fs.statSync(filePath);
-      
+
       // 只处理文件，不处理目录
       if (!stats.isFile()) return false;
-      
+
       // 应用包含模式
       if (includePattern) {
         const sanitizedPattern = sanitizeRegexPattern(includePattern);
         const regex = new RegExp(sanitizedPattern, 'i');
         if (!regex.test(file)) return false;
       }
-      
+
       // 应用排除模式
       if (excludePattern) {
         const sanitizedPattern = sanitizeRegexPattern(excludePattern);
         const regex = new RegExp(sanitizedPattern, 'i');
         if (regex.test(file)) return false;
       }
-      
+
       return true;
     });
-    
+
     // 合并数据库日志文件和文件系统日志文件
     const allFilesToArchive = [...dbLogFiles, ...filesToArchive];
 
@@ -720,18 +720,18 @@ router.post('/logs/archive', logLimiter, authenticateToken, async (req, res) => 
         // 判断是数据库日志还是文件系统日志
         const isDbLog = dbLogFiles.includes(file);
         const sourcePath = isDbLog ? path.join(tempDbLogsDir, file) : path.join(logDir, file);
-        
+
         // 获取原文件信息
         const stats = fs.statSync(sourcePath);
         totalSize += stats.size;
-        
+
         archiveInfo.push({
           fileName: file,
           originalSize: stats.size,
           modifiedAt: stats.mtime.toISOString(),
           source: isDbLog ? 'database' : 'filesystem'
         });
-        
+
         logger.info(`准备归档文件 | 文件:${file} | 大小:${stats.size} | 来源:${isDbLog ? '数据库' : '文件系统'}`);
       } catch (fileError) {
         logger.error(`获取文件信息失败 | 文件:${file} | 错误:${fileError}`);
@@ -741,46 +741,46 @@ router.post('/logs/archive', logLimiter, authenticateToken, async (req, res) => 
     // 创建单个压缩归档文件
     const archiveFileName = `${finalArchiveName}.tar.gz`;
     const archivePath = path.join(archiveSubDir, archiveFileName);
-    
+
     // 准备要打包的文件列表
     const filesToTar = [];
-    
+
     // 添加数据库日志文件
     for (const file of dbLogFiles) {
       if (allFilesToArchive.includes(file)) {
         const sourcePath = path.join(tempDbLogsDir, file);
         const destPath = path.join(archiveSubDir, 'database-logs', file);
         const destDir = path.dirname(destPath);
-        
+
         // 确保目标目录存在
         if (!fs.existsSync(destDir)) {
           fs.mkdirSync(destDir, { recursive: true });
         }
-        
+
         // 复制文件到归档目录
         fs.copyFileSync(sourcePath, destPath);
         filesToTar.push(`database-logs/${file}`);
       }
     }
-    
+
     // 添加文件系统日志文件
     for (const file of filesToArchive) {
       if (allFilesToArchive.includes(file)) {
         const sourcePath = path.join(logDir, file);
         const destPath = path.join(archiveSubDir, 'filesystem-logs', file);
         const destDir = path.dirname(destPath);
-        
+
         // 确保目标目录存在
         if (!fs.existsSync(destDir)) {
           fs.mkdirSync(destDir, { recursive: true });
         }
-        
+
         // 复制文件到归档目录
         fs.copyFileSync(sourcePath, destPath);
         filesToTar.push(`filesystem-logs/${file}`);
       }
     }
-    
+
     // 使用tar创建压缩归档
     await tar.create(
       {
@@ -790,23 +790,23 @@ router.post('/logs/archive', logLimiter, authenticateToken, async (req, res) => 
       },
       filesToTar
     );
-    
+
     // 清理临时复制的文件
     const dbLogsDir = path.join(archiveSubDir, 'database-logs');
     const fsLogsDir = path.join(archiveSubDir, 'filesystem-logs');
-    
+
     if (fs.existsSync(dbLogsDir)) {
       fs.rmSync(dbLogsDir, { recursive: true, force: true });
     }
     if (fs.existsSync(fsLogsDir)) {
       fs.rmSync(fsLogsDir, { recursive: true, force: true });
     }
-    
+
     // 获取压缩后文件大小
     const compressedStats = fs.statSync(archivePath);
     const compressedSize = compressedStats.size;
     const compressionRatio = totalSize > 0 ? ((1 - compressedSize / totalSize) * 100).toFixed(2) + '%' : '0%';
-    
+
     logger.info(`创建压缩归档 | 文件:${archiveFileName} | 原总大小:${totalSize} | 压缩后:${compressedSize} | 压缩率:${compressionRatio}`);
 
     // 创建归档信息文件
@@ -833,25 +833,25 @@ router.post('/logs/archive', logLimiter, authenticateToken, async (req, res) => 
     await fs.promises.writeFile(metadataPath, JSON.stringify(archiveMetadata, null, 2), 'utf-8');
 
     logger.info(`归档日志 | IP:${ip} | 归档名:${finalArchiveName} | 文件数:${allFilesToArchive.length} | 原总大小:${totalSize} | 压缩后:${compressedSize} | 总压缩率:${compressionRatio} | 结果:成功`);
-    
+
     // 上传单个压缩归档文件到IPFS并删除本地文件
     let ipfsUploadCount = 0;
     let ipfsFailedCount = 0;
     let ipfsResults = [];
-    
+
     try {
       // 读取压缩归档文件
       const compressedFileBuffer = await fs.promises.readFile(archivePath);
-      
+
       // 上传到IPFS
       const ipfsResponse = await IPFSService.uploadFile(
         compressedFileBuffer,
         archiveFileName,
         'application/gzip',
-        { 
-          shortLink: false, 
-          userId: req.user?.username || 'admin', 
-          username: req.user?.username || 'admin' 
+        {
+          shortLink: false,
+          userId: req.user?.username || 'admin',
+          username: req.user?.username || 'admin'
         },
         undefined, // cfToken
         {
@@ -863,7 +863,7 @@ router.post('/logs/archive', logLimiter, authenticateToken, async (req, res) => 
           skipFileTypeCheck: true // 归档上传跳过文件类型检查
         }
       );
-      
+
       ipfsResults.push({
         archiveFileName: archiveFileName,
         ipfsCid: ipfsResponse.cid,
@@ -872,16 +872,16 @@ router.post('/logs/archive', logLimiter, authenticateToken, async (req, res) => 
         fileSize: compressedSize,
         uploadSuccess: true
       });
-      
+
       // 上传成功后删除本地压缩文件
       await fs.promises.unlink(archivePath);
       logger.info(`IPFS上传成功并删除本地文件 | 文件:${archiveFileName} | CID:${ipfsResponse.cid} | 本地文件已删除`);
-      
+
       ipfsUploadCount = 1;
-      
+
     } catch (ipfsError) {
       logger.error(`IPFS上传失败 | 文件:${archiveFileName} | 错误:${ipfsError instanceof Error ? ipfsError.message : String(ipfsError)}`);
-      
+
       ipfsResults.push({
         archiveFileName: archiveFileName,
         ipfsCid: null,
@@ -891,10 +891,10 @@ router.post('/logs/archive', logLimiter, authenticateToken, async (req, res) => 
         uploadSuccess: false,
         error: ipfsError instanceof Error ? ipfsError.message : String(ipfsError)
       });
-      
+
       ipfsFailedCount = 1;
     }
-    
+
     // 更新归档元数据，包含IPFS信息
     const updatedArchiveMetadata = {
       ...archiveMetadata,
@@ -907,10 +907,10 @@ router.post('/logs/archive', logLimiter, authenticateToken, async (req, res) => 
         uploadedAt: new Date().toISOString()
       }
     };
-    
+
     // 重新写入更新后的元数据
     await fs.promises.writeFile(metadataPath, JSON.stringify(updatedArchiveMetadata, null, 2), 'utf-8');
-    
+
     // 保存归档信息到数据库
     try {
       const archiveDoc = new ArchiveModel(updatedArchiveMetadata);
@@ -919,7 +919,7 @@ router.post('/logs/archive', logLimiter, authenticateToken, async (req, res) => 
     } catch (dbError) {
       logger.error(`保存归档信息到数据库失败 | 归档名:${finalArchiveName} | 错误:${dbError instanceof Error ? dbError.message : String(dbError)}`);
     }
-    
+
     // 清理临时数据库日志目录
     try {
       // 验证临时目录路径安全性
@@ -932,14 +932,14 @@ router.post('/logs/archive', logLimiter, authenticateToken, async (req, res) => 
     } catch (cleanupError) {
       logger.warn(`清理临时数据库日志目录失败 | 路径:${tempDbLogsDir} | 错误:${cleanupError}`);
     }
-    
+
     // 如果压缩归档文件成功上传到IPFS
     if (ipfsUploadCount === 1 && ipfsFailedCount === 0) {
       logger.info(`压缩归档文件已成功上传到IPFS | 归档:${finalArchiveName} | 上传文件数:${ipfsUploadCount}`);
     } else {
       logger.warn(`压缩归档文件IPFS上传失败 | 归档:${finalArchiveName} | 成功:${ipfsUploadCount} | 失败:${ipfsFailedCount}`);
     }
-    
+
     return res.json({
       success: true,
       archiveName: finalArchiveName,
@@ -969,7 +969,7 @@ router.post('/logs/archive', logLimiter, authenticateToken, async (req, res) => 
 // 获取归档列表（GET，需要管理员权限）
 router.get('/logs/archives', logLimiter, authenticateToken, async (req, res) => {
   const ip = req.ip;
-  
+
   try {
     // 检查管理员权限
     // @ts-ignore
@@ -979,7 +979,7 @@ router.get('/logs/archives', logLimiter, authenticateToken, async (req, res) => 
     }
 
     await connectMongo();
-    
+
     // 从数据库获取归档列表
     const archives = await ArchiveModel.find({})
       .sort({ createdAt: -1 })
@@ -999,7 +999,7 @@ router.get('/logs/archives', logLimiter, authenticateToken, async (req, res) => 
 router.delete('/logs/archives/:archiveName', logLimiter, authenticateToken, async (req, res) => {
   const ip = req.ip;
   const { archiveName } = req.params;
-  
+
   try {
     // @ts-ignore
     if (!req.user || req.user.role !== 'admin') {
@@ -1014,12 +1014,12 @@ router.delete('/logs/archives/:archiveName', logLimiter, authenticateToken, asyn
     }
 
     await connectMongo();
-    
+
     // 首先检查数据库中是否存在该归档
     const dbArchive = await ArchiveModel.findOne({ archiveName });
-    
+
     const archivePath = path.join(ARCHIVE_DIR, archiveName);
-    
+
     // 确保归档路径在预期目录内
     const resolvedArchivePath = path.resolve(archivePath);
     const resolvedArchiveDir = path.resolve(ARCHIVE_DIR);
@@ -1027,10 +1027,10 @@ router.delete('/logs/archives/:archiveName', logLimiter, authenticateToken, asyn
       logger.warn(`删除归档 | IP:${ip} | 归档:${archiveName} | 结果:失败 | 原因:路径遍历攻击`);
       return res.status(400).json({ error: '非法的归档路径' });
     }
-    
+
     // 检查归档是否存在（数据库或文件系统）
     const fileSystemExists = fs.existsSync(archivePath);
-    
+
     if (!dbArchive && !fileSystemExists) {
       logger.warn(`删除归档 | IP:${ip} | 归档:${archiveName} | 结果:失败 | 原因:归档不存在`);
       return res.status(404).json({ error: '归档不存在' });
@@ -1054,8 +1054,8 @@ router.delete('/logs/archives/:archiveName', logLimiter, authenticateToken, asyn
     }
 
     logger.info(`删除归档 | IP:${ip} | 归档:${archiveName} | 结果:成功 | 数据库:${deletedFromDb} | 文件系统:${deletedFromFs}`);
-    return res.json({ 
-      success: true, 
+    return res.json({
+      success: true,
       deletedArchive: archiveName,
       deletedFromDatabase: deletedFromDb,
       deletedFromFileSystem: deletedFromFs
