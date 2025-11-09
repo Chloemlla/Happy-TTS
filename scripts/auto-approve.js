@@ -2,7 +2,7 @@
 (async () => {
   try {
     const { Octokit } = await import('@octokit/rest');
-    
+
     // 初始化 Octokit 实例
     const octokit = new Octokit({
       auth: process.env.GITHUB_TOKEN // 从环境变量获取 GitHub token
@@ -12,7 +12,7 @@
       try {
         // 获取仓库信息
         const [owner, repo] = process.env.GITHUB_REPOSITORY.split('/');
-        
+
         // 获取所有由 dependabot 打开的 PR
         const { data: pullRequests } = await octokit.pulls.list({
           owner,
@@ -20,7 +20,7 @@
           state: 'open',
           head: 'dependabot'
         });
-        
+
         // 遍历每个 PR
         for (const pr of pullRequests) {
           try {
@@ -30,10 +30,10 @@
               repo,
               ref: pr.head.sha
             });
-            
+
             // 检查所有状态是否都是成功
             const allChecksPassed = statuses.statuses.every(status => status.state === 'success');
-            
+
             if (allChecksPassed) {
               // 创建 approve 评论
               await octokit.pulls.createReview({
@@ -41,9 +41,9 @@
                 repo,
                 pull_number: pr.number,
                 event: 'APPROVE',
-                body: '✅ 由 dependabot-auto-approve 脚本自动批准'
+                body: '✅ Approved automatically by the dependabot-auto-approve script'
               });
-              
+
               console.log(`✅ Approved PR #${pr.number}: ${pr.title}`);
             } else {
               console.log(`⏳ PR #${pr.number}: ${pr.title} does not have all checks passing`);

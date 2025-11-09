@@ -105,7 +105,7 @@ jobs:
                       owner,
                       repo,
                       issue_number: prNumber,
-                      body: '🤖 自动合并已启用！当所有检查通过后，此 PR 将自动合并。'
+                      body: '🤖 Automatic merging is enabled! This PR will be automatically merged once all checks pass.'
                     });
                     
                     results.push({ pr: prNumber, status: 'enabled', title: pr.title });
