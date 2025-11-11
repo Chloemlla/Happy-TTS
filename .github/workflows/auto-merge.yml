@@ -248,7 +248,7 @@ jobs:
                 owner,
                 repo,
                 issue_number: pull_number,
-                body: '🤖 自动合并已启用！当所有检查通过后，此 PR 将自动合并。'
+                body: '🤖 Automatic merging is enabled! This PR will be automatically merged once all checks pass.'
               });
 
             } catch (error) {
