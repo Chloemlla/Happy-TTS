@@ -91,7 +91,7 @@
     "jsonwebtoken": "^9.0.2",
     "liquid-glass-react": "^1.1.1",
     "lodash": "^4.17.21",
-    "marked": "^16.2.0",
+    "marked": "^17.0.0",
     "mongodb": "^7.0.0",
     "mongodb-connection-string-url": "^7.0.0",
     "mongoose": "^8.19.3",
