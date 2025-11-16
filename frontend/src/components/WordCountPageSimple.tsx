@@ -9,7 +9,8 @@ import {
   FaHandPointer, 
   FaChartPie, 
   FaEraser, 
-  FaStar
+  FaStar,
+  FaCalculator
 } from 'react-icons/fa';
 import { useNotification } from './Notification';
 
@@ -156,69 +157,77 @@ const WordCountPageSimple: React.FC = () => {
     ], [stats]);
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-            {/* Hero Section */}
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-16">
-                <div className="max-w-7xl mx-auto px-4 text-center">
-                    <motion.h1 
-                        className="text-[clamp(2.5rem,5vw,3.5rem)] font-bold mb-4"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.6 }}
-                    >
-                        在线<span className="text-yellow-300">字数统计</span>工具
-                    </motion.h1>
-                    <motion.p 
-                        className="text-lg opacity-90 max-w-4xl mx-auto"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.6, delay: 0.2 }}
-                    >
-                        精准高效的在线字数统计工具，支持统计文字、字符、单词、标点和数字，满足您的多种场景需求。
-                    </motion.p>
-                </div>
-            </div>
-
-            {/* Page Container */}
-            <div className="max-w-7xl mx-auto px-4 py-12">
-                <div className="text-center mb-10">
-                    <motion.h2 
-                        className="text-3xl md:text-4xl font-bold text-gray-800 mb-2"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.6, delay: 0.4 }}
-                    >
-                        在线字数与字符统计工具
-                    </motion.h2>
-                    <motion.p 
-                        className="text-sm text-gray-500"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.6, delay: 0.6 }}
-                    >
-                        更新日期：{updateDate}
-                    </motion.p>
-                </div>
-
-                {/* Feature Tags */}
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8 rounded-3xl">
+            <div className="max-w-7xl mx-auto px-4 space-y-8">
+                {/* Header Section */}
                 <motion.div 
-                    className="flex flex-wrap justify-center gap-3 mb-10"
+                    className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6 }}
+                >
+                    <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
+                        <div className="text-center">
+                            <motion.div 
+                                className="flex items-center justify-center gap-3 mb-4"
+                                initial={{ scale: 0.9 }}
+                                animate={{ scale: 1 }}
+                                transition={{ duration: 0.5, delay: 0.2 }}
+                            >
+                                <FaCalculator className="text-4xl" />
+                                <h1 className="text-4xl font-bold">在线<span className="text-yellow-300">字数统计</span>工具</h1>
+                            </motion.div>
+                            <motion.p 
+                                className="text-blue-100 text-lg"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ duration: 0.5, delay: 0.4 }}
+                            >
+                                精准高效的在线字数统计工具，支持统计文字、字符、单词、标点和数字，满足您的多种场景需求。
+                            </motion.p>
+                        </div>
+                    </div>
+                </motion.div>
+
+                {/* Feature Tags Section */}
+                <motion.div 
+                    className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: 0.8 }}
                 >
-                    {['精准统计', '多种指标', '实时计算', '隐私保护'].map((feature, index) => (
-                        <motion.div
-                            key={feature}
-                            className="flex items-center space-x-2 bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-medium"
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ duration: 0.3, delay: 1 + index * 0.1 }}
+                    <div className="text-center">
+                        <motion.h2 
+                            className="text-3xl md:text-4xl font-bold text-gray-800 mb-2"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.6, delay: 0.4 }}
                         >
-                            <FaStar className="text-xs" />
-                            <span>{feature}</span>
-                        </motion.div>
-                    ))}
+                            在线字数与字符统计工具
+                        </motion.h2>
+                        <motion.p 
+                            className="text-sm text-gray-500 mb-6"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.6, delay: 0.6 }}
+                        >
+                            更新日期：{updateDate}
+                        </motion.p>
+                        <div className="flex flex-wrap justify-center gap-3">
+                            {['精准统计', '多种指标', '实时计算', '隐私保护'].map((feature, index) => (
+                                <motion.div
+                                    key={feature}
+                                    className="flex items-center space-x-2 bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-medium"
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ duration: 0.3, delay: 1 + index * 0.1 }}
+                                >
+                                    <FaStar className="text-xs" />
+                                    <span>{feature}</span>
+                                </motion.div>
+                            ))}
+                        </div>
+                    </div>
                 </motion.div>
 
                 {/* Tool Section */}
@@ -339,9 +348,9 @@ const WordCountPageSimple: React.FC = () => {
                     </div>
                 </motion.section>
 
-                {/* Feature Details */}
+                {/* Feature Details Section */}
                 <motion.section 
-                    className="pt-6"
+                    className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6 md:p-8"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: 2.2 }}
@@ -380,9 +389,9 @@ const WordCountPageSimple: React.FC = () => {
                     </div>
                 </motion.section>
 
-                {/* Usage Instructions */}
+                {/* Usage Instructions Section */}
                 <motion.section 
-                    className="pt-12"
+                    className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6 md:p-8"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: 2.8 }}
