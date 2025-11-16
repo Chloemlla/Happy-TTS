@@ -55,7 +55,7 @@ import {
 
 interface CaseConverterProps {}
 
-const CaseConverter: React.FC<CaseConverterProps> = () => {
+const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
   const [inputText, setInputText] = useState('');
   const [outputText, setOutputText] = useState('');
   const [isEnglish, setIsEnglish] = useState(false);
@@ -1582,8 +1582,8 @@ const CaseConverter: React.FC<CaseConverterProps> = () => {
             </li>
           </ul>
         </motion.div>
-    </motion.div>
+      </motion.div>
   );
-};
+});
 
-export { CaseConverter }; 
+export { CaseConverter };
