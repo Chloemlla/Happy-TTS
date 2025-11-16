@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  FaExclamationTriangle, 
-  FaRocket, 
+import {
+  FaExclamationTriangle,
+  FaRocket,
   FaGlobe,
   FaMapMarkerAlt
 } from 'react-icons/fa';
@@ -23,17 +23,17 @@ const Footer: React.FC = () => {
 
   useEffect(() => {
     const startDate = new Date('2025-06-15T09:30:00');
-    
+
     const updateUptime = () => {
       const now = new Date();
       const diff = now.getTime() - startDate.getTime();
-      
+
       if (diff > 0) {
         const days = Math.floor(diff / (1000 * 60 * 60 * 24));
         const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-        
+
         setUptime({ days, hours, minutes, seconds });
       }
     };
@@ -52,20 +52,20 @@ const Footer: React.FC = () => {
         const response = await fetch(url, {
           headers: { 'Accept': 'application/json' }
         });
-        
+
         // 检查响应状态
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
-        
+
         // 检查内容类型
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
           throw new Error(`预期JSON响应，但收到: ${contentType}`);
         }
-        
+
         const raw: any = await response.json();
-        
+
         // 兼容多种字段命名
         const info: IPInfo = {
           ip: raw?.ip || raw?.query || '',
@@ -74,11 +74,11 @@ const Footer: React.FC = () => {
           city: raw?.city || '',
           isp: raw?.isp || raw?.org || raw?.as || raw?.operator || ''
         };
-        
+
         if (!info.ip) {
           throw new Error('IP信息数据格式无效');
         }
-        
+
         setIpInfo(info);
       } catch (error) {
         console.error('获取IP信息失败:', error);
@@ -94,16 +94,7 @@ const Footer: React.FC = () => {
   return (
     <footer className="text-center text-gray-500 mt-8 mb-2 text-sm select-none flex flex-col items-center gap-1">
       <div>
-        Copyright ©{' '}
-        <a 
-          href="https://github.com/Happy-clo" 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          className="hover:text-blue-500 transition-colors duration-200"
-        >
-          Individual Developer Happy-clo
-        </a>{' '}
-        {year}
+        Copyright ©{year} Synapse. All rights reserved.
       </div>
       <div className="mt-1 px-2 py-1 bg-yellow-50 border border-yellow-200 rounded text-yellow-700 text-xs max-w-xs">
         <FaExclamationTriangle className="inline mr-1" /> 本站为个人独立开发项目，与 OpenAI 官方无任何隶属或合作关系。请勿将本站内容视为 OpenAI 官方服务。
