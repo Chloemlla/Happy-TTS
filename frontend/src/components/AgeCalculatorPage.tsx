@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useActionState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FaCalculator, 
@@ -31,8 +31,56 @@ const AgeCalculatorPage: React.FC = () => {
   
   // State for calculation results
   const [ageResult, setAgeResult] = useState<AgeResult | null>(null);
-  const [error, setError] = useState<string>('');
-  const [isCalculating, setIsCalculating] = useState(false);
+
+  // React 19: 使用useActionState替换手动状态管理
+  const [error, submitAction, isCalculating] = useActionState(
+    async (previousState: string | null, formData: FormData) => {
+      const year = parseInt(formData.get('birthYear') as string);
+      const month = parseInt(formData.get('birthMonth') as string);
+      const day = parseInt(formData.get('birthDay') as string);
+      const endDateString = formData.get('endDate') as string;
+      
+      try {
+        // 模拟计算延迟，提供更好的用户体验
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        const result = calculateAge(year, month, day, endDateString ? new Date(endDateString) : new Date());
+        
+        if ('error' in result) {
+          setAgeResult(null);
+          return result.error;
+        } else {
+          setAgeResult(result);
+          return null;
+        }
+      } catch (err) {
+        return '计算过程中发生错误，请重试';
+      }
+    },
+    null
+  );
+
+  // React 19: 文档元数据 - 动态页面标题和SEO
+  useEffect(() => {
+    // React 19: 动态设置页面标题
+    document.title = ageResult 
+      ? `年龄计算器 - ${ageResult.exactAge.years}岁 | 在线工具`
+      : '在线年龄计算器 - 精准计算日期差';
+        
+    // React 19: 动态设置页面描述
+    const description = ageResult
+      ? `年龄计算结果：${ageResult.exactAge.years}岁${ageResult.exactAge.months}个月${ageResult.exactAge.days}天，总计${ageResult.daysLived}天。免费在线年龄计算器，支持精确到天的日期计算。`
+      : '免费在线年龄计算器，精确计算两个日期之间的年龄差。支持年月日详细计算，适用于各种年龄计算场景。';
+        
+    // 更新或创建meta description
+    let metaDescription = document.querySelector('meta[name="description"]');
+    if (!metaDescription) {
+      metaDescription = document.createElement('meta');
+      metaDescription.setAttribute('name', 'description');
+      document.head.appendChild(metaDescription);
+    }
+    metaDescription.setAttribute('content', description);
+  }, [ageResult]);
 
   // Generate year options (1910 to current year + 10)
   const yearOptions = useMemo(() => {
@@ -61,27 +109,6 @@ const AgeCalculatorPage: React.FC = () => {
       setBirthDay(maxDays);
     }
   }, [birthYear, birthMonth, birthDay]);
-
-  // Calculate age
-  const handleCalculate = useCallback(() => {
-    setIsCalculating(true);
-    setError('');
-    
-    // Simulate calculation delay for better UX
-    setTimeout(() => {
-      const result = calculateAge(birthYear, birthMonth, birthDay, endDate);
-      
-      if ('error' in result) {
-        setError(result.error);
-        setAgeResult(null);
-      } else {
-        setAgeResult(result);
-        setError('');
-      }
-      
-      setIsCalculating(false);
-    }, 500);
-  }, [birthYear, birthMonth, birthDay, endDate]);
 
   // Handle date changes
   const handleYearChange = useCallback((year: number) => {
@@ -224,7 +251,14 @@ const AgeCalculatorPage: React.FC = () => {
           {/* Calculate Button */}
           <div className="text-center mb-8">
             <motion.button
-              onClick={handleCalculate}
+              onClick={() => {
+                const formData = new FormData();
+                formData.append('birthYear', birthYear.toString());
+                formData.append('birthMonth', birthMonth.toString());
+                formData.append('birthDay', birthDay.toString());
+                formData.append('endDate', formatDateForInput(endDate));
+                submitAction(formData);
+              }}
               disabled={isCalculating}
               className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-bold py-3 px-8 rounded-lg inline-flex items-center transition-all duration-300 transform hover:-translate-y-0.5 shadow-lg disabled:transform-none disabled:shadow-none"
               whileHover={{ scale: !isCalculating ? 1.05 : 1 }}

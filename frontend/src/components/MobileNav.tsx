@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
 import { User } from '../types/auth';
@@ -31,6 +31,34 @@ import {
   FaBirthdayCake
 } from 'react-icons/fa';
 
+// 优化性能：将缓存函数移到组件外部，避免每次渲染时重新创建
+const AVATAR_DB = 'avatar-store';
+const AVATAR_STORE = 'avatars';
+
+async function getCachedAvatar(userId: string, avatarUrl: string): Promise<string | undefined> {
+  const db = await openDB(AVATAR_DB, 1, {
+    upgrade(db) {
+      if (!db.objectStoreNames.contains(AVATAR_STORE)) {
+        db.createObjectStore(AVATAR_STORE);
+      }
+    },
+  });
+  const key = `${userId}:${avatarUrl}`;
+  return await db.get(AVATAR_STORE, key);
+}
+
+async function setCachedAvatar(userId: string, avatarUrl: string, blobUrl: string) {
+  const db = await openDB(AVATAR_DB, 1, {
+    upgrade(db) {
+      if (!db.objectStoreNames.contains(AVATAR_STORE)) {
+        db.createObjectStore(AVATAR_STORE);
+      }
+    },
+  });
+  const key = `${userId}:${avatarUrl}`;
+  await db.put(AVATAR_STORE, blobUrl, key);
+}
+
 interface MobileNavProps {
   user: User | null;
   logout: () => void;
@@ -38,7 +66,7 @@ interface MobileNavProps {
   totpStatus?: { enabled: boolean } | null;
 }
 
-const MobileNav: React.FC<MobileNavProps> = ({
+const MobileNav: React.FC<MobileNavProps> = React.memo(({
   user,
   logout,
   onTOTPManagerOpen,
@@ -57,33 +85,6 @@ const MobileNav: React.FC<MobileNavProps> = ({
   // 1. 在 useEffect 里获取 profile 时，保存 avatarHash 到 state
   const [avatarHash, setAvatarHash] = useState<string | undefined>(undefined);
 
-  const AVATAR_DB = 'avatar-store';
-  const AVATAR_STORE = 'avatars';
-
-  async function getCachedAvatar(userId: string, avatarUrl: string): Promise<string | undefined> {
-    const db = await openDB(AVATAR_DB, 1, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains(AVATAR_STORE)) {
-          db.createObjectStore(AVATAR_STORE);
-        }
-      },
-    });
-    const key = `${userId}:${avatarUrl}`;
-    return await db.get(AVATAR_STORE, key);
-  }
-
-  async function setCachedAvatar(userId: string, avatarUrl: string, blobUrl: string) {
-    const db = await openDB(AVATAR_DB, 1, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains(AVATAR_STORE)) {
-          db.createObjectStore(AVATAR_STORE);
-        }
-      },
-    });
-    const key = `${userId}:${avatarUrl}`;
-    await db.put(AVATAR_STORE, blobUrl, key);
-  }
-
   // 优化的移动设备和溢出检测
   useEffect(() => {
     let resizeTimer: NodeJS.Timeout;
@@ -99,7 +100,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
           const nav = navRef.current;
           const rect = nav.getBoundingClientRect();
 
-          // 优化的溢出检测策略
+          // 优化的溢出检测策略 - 移除useMemo（hooks不能在回调中使用）
           const checks = {
             // 1. 滚动宽度检测（最可靠）
             scrollOverflow: nav.scrollWidth > nav.clientWidth + 1,
@@ -375,19 +376,19 @@ const MobileNav: React.FC<MobileNavProps> = ({
     };
   }, [hasAvatar, user?.avatarUrl, user?.id, avatarHash]);
 
-  const toggleMenu = () => {
+  const toggleMenu = useCallback(() => {
     setIsMenuOpen(!isMenuOpen);
-  };
+  }, [isMenuOpen]);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     setIsMenuOpen(false);
     logout();
-  };
+  }, [logout]);
 
-  const handleTOTPManager = () => {
+  const handleTOTPManager = useCallback(() => {
     setIsMenuOpen(false);
     onTOTPManagerOpen();
-  };
+  }, [onTOTPManagerOpen]);
 
   // 如果用户未登录，不显示导航
   if (!user) {
@@ -1572,6 +1573,6 @@ const MobileNav: React.FC<MobileNavProps> = ({
       )}
     </div>
   );
-};
+});
 
 export default MobileNav; 
