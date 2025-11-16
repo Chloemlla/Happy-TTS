@@ -39,6 +39,12 @@ const TigerAdventure = React.lazy(() => import('./components/TigerAdventure'));
 const CoinFlip = React.lazy(() => import('./components/CoinFlip'));
 const MarkdownExportPage = React.lazy(() => import('./components/MarkdownExportPage'));
 
+// 字数统计页面懒加载
+const WordCountPageSimple = React.lazy(() => import('./components/WordCountPageSimple'));
+
+// 年龄计算器页面懒加载
+const AgeCalculatorPage = React.lazy(() => import('./components/AgeCalculatorPage'));
+
 // 资源商店相关组件懒加载
 const AdminStoreDashboard = React.lazy(() => import('./components/AdminStoreDashboard'));
 const ResourceStoreApp = React.lazy(() => import('./components/ResourceStoreApp'));
@@ -1019,6 +1025,32 @@ const App: React.FC = () => {
                   >
                     <CaseConverter />
                   </m.div>
+                } />
+                <Route path="/word-count" element={
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <m.div
+                      variants={pageVariants}
+                      initial="initial"
+                      animate="in"
+                      exit="out"
+                      transition={pageTransition}
+                    >
+                      <WordCountPageSimple />
+                    </m.div>
+                  </Suspense>
+                } />
+                <Route path="/age-calculator" element={
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <m.div
+                      variants={pageVariants}
+                      initial="initial"
+                      animate="in"
+                      exit="out"
+                      transition={pageTransition}
+                    >
+                      <AgeCalculatorPage />
+                    </m.div>
+                  </Suspense>
                 } />
                 <Route path="/email-sender" element={
                   user?.role === 'admin' ? (

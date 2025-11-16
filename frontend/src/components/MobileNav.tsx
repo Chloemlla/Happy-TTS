@@ -26,7 +26,9 @@ import {
   FaClipboard,
   FaCoins,
   FaComments,
-  FaBug
+  FaBug,
+  FaCalculator,
+  FaBirthdayCake
 } from 'react-icons/fa';
 
 interface MobileNavProps {
@@ -446,6 +448,48 @@ const MobileNav: React.FC<MobileNavProps> = ({
                 <FaList className="w-4 h-4" />
               </motion.div>
               <span className="hidden sm:inline">大小写转换</span>
+            </Link>
+          </motion.div>
+
+          <motion.div
+            whileHover={{ scale: 1.05, y: -2 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Link
+              to="/word-count"
+              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/word-count'
+                ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg'
+                : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-indigo-600 border border-gray-200/50'
+                }`}
+            >
+              <motion.div
+                className="w-4 h-4"
+                whileHover={{ rotate: 5 }}
+              >
+                <FaCalculator className="w-4 h-4" />
+              </motion.div>
+              <span className="hidden sm:inline">字数统计</span>
+            </Link>
+          </motion.div>
+
+          <motion.div
+            whileHover={{ scale: 1.05, y: -2 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Link
+              to="/age-calculator"
+              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/age-calculator'
+                ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg'
+                : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-orange-600 border border-gray-200/50'
+                }`}
+            >
+              <motion.div
+                className="w-4 h-4"
+                whileHover={{ rotate: 5 }}
+              >
+                <FaBirthdayCake className="w-4 h-4" />
+              </motion.div>
+              <span className="hidden sm:inline">年龄计算</span>
             </Link>
           </motion.div>
 
@@ -1097,10 +1141,74 @@ const MobileNav: React.FC<MobileNavProps> = ({
                   >
                     <FaList className="w-5 h-5" />
                   </motion.div>
-                  <span>字母转换</span>
+                  <span>大小写转换</span>
                   {location.pathname === '/case-converter' && (
                     <motion.span
                       className="ml-auto text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full"
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                    >
+                      当前
+                    </motion.span>
+                  )}
+                </Link>
+              </motion.div>
+
+              {/* 字数统计 */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.42 }}
+              >
+                <Link
+                  to="/word-count"
+                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/word-count' ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm' : 'hover:bg-indigo-50'
+                    }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <motion.div
+                    className={`w-5 h-5 ${location.pathname === '/word-count' ? 'text-indigo-500' : 'text-gray-400'}`}
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                  >
+                    <FaCalculator className="w-5 h-5" />
+                  </motion.div>
+                  <span>字数统计</span>
+                  {location.pathname === '/word-count' && (
+                    <motion.span
+                      className="ml-auto text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full"
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                    >
+                      当前
+                    </motion.span>
+                  )}
+                </Link>
+              </motion.div>
+
+              {/* 年龄计算 */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.44 }}
+              >
+                <Link
+                  to="/age-calculator"
+                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/age-calculator' ? 'bg-orange-50 text-orange-700 font-semibold shadow-sm' : 'hover:bg-orange-50'
+                    }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <motion.div
+                    className={`w-5 h-5 ${location.pathname === '/age-calculator' ? 'text-orange-500' : 'text-gray-400'}`}
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                  >
+                    <FaBirthdayCake className="w-5 h-5" />
+                  </motion.div>
+                  <span>年龄计算</span>
+                  {location.pathname === '/age-calculator' && (
+                    <motion.span
+                      className="ml-auto text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full"
                       initial={{ scale: 0, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
                       transition={{ type: "spring", stiffness: 500, damping: 15 }}
