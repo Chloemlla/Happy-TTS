@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import React, { createContext, use, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export interface NotificationData {
@@ -25,7 +25,7 @@ const NotificationContext = createContext<NotificationContextProps>({
     setNotification: () => { },
 });
 
-export const useNotification = () => useContext(NotificationContext);
+export const useNotification = () => use(NotificationContext);
 
 // Toast 兼容接口（支持 shadcn/ui 风格）
 interface ToastOptions {
@@ -37,11 +37,11 @@ interface ToastOptions {
 // 提供 useToast hook 用于兼容性
 export const useToast = () => {
     const { setNotification } = useNotification();
-    
+
     const toast = (options: ToastOptions) => {
         // 智能类型推断
         let type: NotificationData['type'] = 'info';
-        
+
         if (options.variant) {
             // 直接映射标准类型
             if (options.variant === 'destructive' || options.variant === 'error') {
@@ -58,7 +58,7 @@ export const useToast = () => {
             const title = options.title?.toLowerCase() || '';
             const description = options.description?.toLowerCase() || '';
             const content = title + ' ' + description;
-            
+
             if (content.includes('成功') || content.includes('完成') || content.includes('success')) {
                 type = 'success';
             } else if (content.includes('错误') || content.includes('失败') || content.includes('error') || content.includes('failed')) {
@@ -67,14 +67,14 @@ export const useToast = () => {
                 type = 'warning';
             }
         }
-        
+
         setNotification({
             type,
             title: options.title,
             message: options.description || options.title || '通知',
         });
     };
-    
+
     return { toast };
 };
 
@@ -263,7 +263,7 @@ const NotificationCard = React.memo(React.forwardRef<HTMLDivElement, Notificatio
             const now = Date.now();
             const elapsed = now - notification.startTime;
             const targetProgress = Math.max(0, Math.min(100, 100 - (elapsed / duration) * 100));
-            
+
             // 直接设置目标进度，不使用插值（避免延迟）
             setCurrentProgress(targetProgress);
 
@@ -284,7 +284,7 @@ const NotificationCard = React.memo(React.forwardRef<HTMLDivElement, Notificatio
         const elapsed = now - notification.startTime;
         const currentTargetProgress = Math.max(0, Math.min(100, 100 - (elapsed / duration) * 100));
         setCurrentProgress(currentTargetProgress);
-        
+
         // 开始RAF动画循环
         animationRef.current = requestAnimationFrame(updateProgress);
 
