@@ -24,7 +24,7 @@ import {
 } from 'react-icons/fa';
 
 // 区块链数据展示组件
-const BlockchainDisplay: React.FC<{ data: any }> = ({ data }) => (
+const BlockchainDisplay: React.FC<{ data: any }> = React.memo(({ data }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -56,7 +56,7 @@ const BlockchainDisplay: React.FC<{ data: any }> = ({ data }) => (
       </div>
     </div>
   </motion.div>
-);
+));
 
 // 奖品展示组件
 const PrizeDisplay: React.FC<{ prize: any }> = ({ prize }) => {

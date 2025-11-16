@@ -7,8 +7,8 @@ import { useAuth } from '../hooks/useAuth';
 import { useLocation } from 'react-router-dom';
 import CryptoJS from 'crypto-js';
 import {
-  FaClipboard, 
-  FaUpload, 
+  FaClipboard,
+  FaUpload,
   FaDownload,
   FaLink,
   FaCopy,
@@ -32,6 +32,7 @@ import {
   LogShareHistory
 } from '../utils/logShareStorage';
 
+// 优化性能：将工具函数移到组件外部，避免每次渲染时重新创建
 const isTextExt = (ext: string) => ['.txt', '.log', '.json', '.md'].includes(ext);
 
 // 安全的解码函数，支持多种编码格式
@@ -39,7 +40,7 @@ const safeDecode = (decrypted: any): any => {
   console.log('🔓 [LogShare] 开始解码解密数据...');
   console.log('    解密数据类型:', typeof decrypted);
   console.log('    解密数据长度:', decrypted ? decrypted.length : 'undefined');
-  
+
   // 首先尝试直接转换为UTF-8字符串
   try {
     const utf8String = decrypted.toString(CryptoJS.enc.Utf8);
@@ -50,21 +51,27 @@ const safeDecode = (decrypted: any): any => {
   } catch (error) {
     console.log('🔓 [LogShare] UTF-8解码失败:', error);
   }
-  
+
   // 如果UTF-8失败，尝试其他编码
   const encodings = [
-    { name: 'Base64', decoder: () => {
-      const base64 = decrypted.toString(CryptoJS.enc.Base64);
-      return atob(base64);
-    }},
-    { name: 'Hex', decoder: () => {
-      const hex = decrypted.toString(CryptoJS.enc.Hex);
-      const hexBytes = new Uint8Array(hex.match(/.{1,2}/g)?.map((byte: string) => parseInt(byte, 16)) || []);
-      return new TextDecoder().decode(hexBytes);
-    }},
-    { name: 'Latin1', decoder: () => {
-      return decrypted.toString(CryptoJS.enc.Latin1);
-    }}
+    {
+      name: 'Base64', decoder: () => {
+        const base64 = decrypted.toString(CryptoJS.enc.Base64);
+        return atob(base64);
+      }
+    },
+    {
+      name: 'Hex', decoder: () => {
+        const hex = decrypted.toString(CryptoJS.enc.Hex);
+        const hexBytes = new Uint8Array(hex.match(/.{1,2}/g)?.map((byte: string) => parseInt(byte, 16)) || []);
+        return new TextDecoder().decode(hexBytes);
+      }
+    },
+    {
+      name: 'Latin1', decoder: () => {
+        return decrypted.toString(CryptoJS.enc.Latin1);
+      }
+    }
   ];
 
   for (const encoding of encodings) {
@@ -80,7 +87,7 @@ const safeDecode = (decrypted: any): any => {
       continue;
     }
   }
-  
+
   // 如果所有编码都失败，尝试直接返回原始数据
   console.log('🔓 [LogShare] 所有编码方式都失败，尝试直接使用原始数据');
   try {
@@ -90,11 +97,11 @@ const safeDecode = (decrypted: any): any => {
   } catch (error) {
     console.log('🔓 [LogShare] 直接使用原始数据也失败:', error);
   }
-  
+
   throw new Error('所有解码方式都失败，无法处理解密后的数据');
 };
 
-const LogShare: React.FC = () => {
+const LogShare: React.FC = React.memo(() => {
   const { user } = useAuth();
   const location = useLocation();
   const [adminPassword, setAdminPassword] = useState('');
@@ -122,7 +129,7 @@ const LogShare: React.FC = () => {
   const [editingLog, setEditingLog] = useState<{ id: string, fileName?: string, note?: string } | null>(null);
   const [editFileName, setEditFileName] = useState('');
   const [editNote, setEditNote] = useState('');
-  
+
   // Archive related state
   const [archives, setArchives] = useState<any[]>([]);
   const [isLoadingArchives, setIsLoadingArchives] = useState(false);
@@ -137,7 +144,7 @@ const LogShare: React.FC = () => {
     try {
       await checkAndFixLogShareDB();
       const history = await getStoredHistory();
-      
+
       const uploadItems = history
         .filter(item => item.type === 'upload' && item.data.link && item.data.ext)
         .map(item => ({
@@ -146,7 +153,7 @@ const LogShare: React.FC = () => {
           time: item.data.time
         }))
         .slice(0, 10);
-      
+
       const queryItems = history
         .filter(item => item.type === 'query' && item.data.queryId)
         .map(item => ({
@@ -155,7 +162,7 @@ const LogShare: React.FC = () => {
           time: item.data.time
         }))
         .slice(0, 10);
-      
+
       setUploadHistory(uploadItems);
       setQueryHistory(queryItems);
     } catch (error) {
@@ -246,7 +253,7 @@ const LogShare: React.FC = () => {
       setNotification({ message: '请先输入管理员密码', type: 'warning' });
       return;
     }
-    
+
     setArchiveLoading(true);
     try {
       const res = await axios.post(getApiBaseUrl() + '/api/logs/archive', {
@@ -258,12 +265,12 @@ const LogShare: React.FC = () => {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
-      
-      setNotification({ 
-        message: `归档创建成功！已归档 ${res.data.archivedFiles} 个文件，压缩率 ${res.data.overallCompressionRatio}，IPFS上传 ${res.data.ipfsUpload.uploadedFiles} 个文件`, 
-        type: 'success' 
+
+      setNotification({
+        message: `归档创建成功！已归档 ${res.data.archivedFiles} 个文件，压缩率 ${res.data.overallCompressionRatio}，IPFS上传 ${res.data.ipfsUpload.uploadedFiles} 个文件`,
+        type: 'success'
       });
-      
+
       setShowArchiveModal(false);
       setArchiveName('');
       setIncludePattern('');
@@ -280,14 +287,14 @@ const LogShare: React.FC = () => {
     if (!confirm(`确定要删除归档 "${archiveName}" 吗？此操作不可恢复！`)) {
       return;
     }
-    
+
     try {
       await axios.delete(getApiBaseUrl() + `/api/logs/archives/${archiveName}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
-      
+
       setNotification({ message: '归档删除成功', type: 'success' });
       await loadArchives();
     } catch (e: any) {
@@ -409,19 +416,19 @@ const LogShare: React.FC = () => {
     setError('');
     setSuccess('');
     setUploadResult(null);
-    
+
     // 客户端文件大小验证
     if (file && file.size > 10 * 1024 * 1024) {
       setError(`文件过大！当前文件大小：${(file.size / 1024 / 1024).toFixed(2)}MB，最大支持10MB`);
       return;
     }
-    
+
     // 客户端文本大小验证
     if (!file && logContent && isTextTooLarge) {
       setError(`文本内容过大！当前大小：${formatFileSize(currentTextSize)}，最大支持10MB`);
       return;
     }
-    
+
     setLoading(true);
     try {
       let res;
@@ -445,7 +452,7 @@ const LogShare: React.FC = () => {
       if (res.data.link) {
         setUploadResult({ link: res.data.link, ext: res.data.ext });
         setSuccess('上传成功！');
-        
+
         // 保存到 IndexedDB
         const historyItem: LogShareHistory = {
           id: generateHistoryId(),
@@ -457,7 +464,7 @@ const LogShare: React.FC = () => {
           },
           createdAt: new Date().toISOString()
         };
-        
+
         await saveHistoryToStorage(historyItem);
         await loadHistory(); // 重新加载历史记录
       } else {
@@ -476,51 +483,51 @@ const LogShare: React.FC = () => {
     setSuccess('');
     setQueryResult(null);
     setLoading(true);
-    
+
     console.log('🔓 [LogShare] 发送查询请求...');
     console.log('    查询ID:', queryId);
     console.log('    管理员密码长度:', adminPassword ? adminPassword.length : 0);
     console.log('    管理员密码预览:', adminPassword ? adminPassword.substring(0, 3) + '***' : 'undefined');
-    
+
     try {
       const res = await axios.post(getApiBaseUrl() + `/api/sharelog/${queryId}`, {
         adminPassword,
         id: queryId
       });
-      
+
       // 检查是否为加密数据
       if (res.data.data && res.data.iv) {
         console.log('🔓 [LogShare] 检测到加密数据，开始解密...');
         console.log('    数据类型:', typeof res.data);
         console.log('    数据字段:', Object.keys(res.data));
-        
+
         if (!adminPassword) {
           throw new Error('管理员密码不存在，无法解密');
         }
-        
+
         try {
           // 替换 CryptoJS.SHA256(adminPassword) 为 PBKDF2 派生
-          const keyHash = CryptoJS.PBKDF2(adminPassword, 'logshare-salt', { keySize: 256/32, iterations: 10000, hasher: CryptoJS.algo.SHA512 }).toString(CryptoJS.enc.Hex);
+          const keyHash = CryptoJS.PBKDF2(adminPassword, 'logshare-salt', { keySize: 256 / 32, iterations: 10000, hasher: CryptoJS.algo.SHA512 }).toString(CryptoJS.enc.Hex);
           const key = CryptoJS.enc.Hex.parse(keyHash);
           const iv = CryptoJS.enc.Hex.parse(res.data.iv);
           const encryptedData = CryptoJS.enc.Hex.parse(res.data.data);
-          
+
           const decrypted = CryptoJS.AES.decrypt(
             { ciphertext: encryptedData },
             key,
             { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }
           );
-          
+
           console.log('🔓 [LogShare] CryptoJS解密结果:', decrypted);
           console.log('    解密结果类型:', typeof decrypted);
           console.log('    解密结果toString:', decrypted.toString());
-          
+
           // 使用安全的解码函数
           const decryptedData = safeDecode(decrypted);
-          
+
           console.log('🔓 [LogShare] 解密成功');
           console.log('    文件类型:', decryptedData.ext);
-          
+
           setQueryResult(decryptedData);
         } catch (decryptError: any) {
           console.error('🔓 [LogShare] 解密失败:', decryptError);
@@ -532,14 +539,14 @@ const LogShare: React.FC = () => {
         console.log('🔓 [LogShare] 未加密数据，直接使用');
         setQueryResult(res.data);
       }
-      
+
       setSuccess('查询成功！');
-      
+
       // 保存到 IndexedDB
-      const ext = (res.data.data && res.data.iv) ? 
-        (queryResult?.ext || 'unknown') : 
+      const ext = (res.data.data && res.data.iv) ?
+        (queryResult?.ext || 'unknown') :
         (res.data.ext || 'unknown');
-      
+
       const historyItem: LogShareHistory = {
         id: generateHistoryId(),
         type: 'query',
@@ -550,7 +557,7 @@ const LogShare: React.FC = () => {
         },
         createdAt: new Date().toISOString()
       };
-      
+
       await saveHistoryToStorage(historyItem);
       await loadHistory(); // 重新加载历史记录
     } catch (e: any) {
@@ -569,41 +576,41 @@ const LogShare: React.FC = () => {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
-      
+
       // 检查是否为加密数据
       if (res.data.data && res.data.iv) {
         console.log('🔓 [LogShare] 检测到加密数据，开始解密...');
         console.log('    数据类型:', typeof res.data);
         console.log('    数据字段:', Object.keys(res.data));
-        
+
         const token = localStorage.getItem('token');
         if (!token) {
           throw new Error('Token不存在，无法解密');
         }
-        
+
         try {
           // 替换 CryptoJS.SHA256(token) 为 PBKDF2 派生
-          const keyHash = CryptoJS.PBKDF2(token, 'logshare-salt', { keySize: 256/32, iterations: 10000, hasher: CryptoJS.algo.SHA512 }).toString(CryptoJS.enc.Hex);
+          const keyHash = CryptoJS.PBKDF2(token, 'logshare-salt', { keySize: 256 / 32, iterations: 10000, hasher: CryptoJS.algo.SHA512 }).toString(CryptoJS.enc.Hex);
           const key = CryptoJS.enc.Hex.parse(keyHash);
           const iv = CryptoJS.enc.Hex.parse(res.data.iv);
           const encryptedData = CryptoJS.enc.Hex.parse(res.data.data);
-          
+
           const decrypted = CryptoJS.AES.decrypt(
             { ciphertext: encryptedData },
             key,
             { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }
           );
-          
+
           console.log('🔓 [LogShare] CryptoJS解密结果:', decrypted);
           console.log('    解密结果类型:', typeof decrypted);
           console.log('    解密结果toString:', decrypted.toString());
-          
+
           // 使用安全的解码函数
           const decryptedData = safeDecode(decrypted);
-          
+
           console.log('🔓 [LogShare] 解密成功');
           console.log('    日志数量:', decryptedData.logs?.length || 0);
-          
+
           setAllLogs(decryptedData.logs || []);
         } catch (decryptError: any) {
           console.error('🔓 [LogShare] 解密失败:', decryptError);
@@ -615,7 +622,7 @@ const LogShare: React.FC = () => {
         console.log('🔓 [LogShare] 未加密数据，直接使用');
         setAllLogs(res.data.logs || []);
       }
-      
+
       // 刷新列表后清空选择
       setSelectedIds([]);
       setNotification({ message: '日志列表加载成功', type: 'success' });
@@ -634,40 +641,40 @@ const LogShare: React.FC = () => {
         adminPassword,
         id: logId
       });
-      
+
       // 检查是否为加密数据
       if (res.data.data && res.data.iv) {
         console.log('🔓 [LogShare] 检测到加密数据，开始解密...');
         console.log('    数据类型:', typeof res.data);
         console.log('    数据字段:', Object.keys(res.data));
-        
+
         if (!adminPassword) {
           throw new Error('管理员密码不存在，无法解密');
         }
-        
+
         try {
           // 替换 CryptoJS.SHA256(adminPassword) 为 PBKDF2 派生
-          const keyHash = CryptoJS.PBKDF2(adminPassword, 'logshare-salt', { keySize: 256/32, iterations: 10000, hasher: CryptoJS.algo.SHA512 }).toString(CryptoJS.enc.Hex);
+          const keyHash = CryptoJS.PBKDF2(adminPassword, 'logshare-salt', { keySize: 256 / 32, iterations: 10000, hasher: CryptoJS.algo.SHA512 }).toString(CryptoJS.enc.Hex);
           const key = CryptoJS.enc.Hex.parse(keyHash);
           const iv = CryptoJS.enc.Hex.parse(res.data.iv);
           const encryptedData = CryptoJS.enc.Hex.parse(res.data.data);
-          
+
           const decrypted = CryptoJS.AES.decrypt(
             { ciphertext: encryptedData },
             key,
             { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }
           );
-          
+
           console.log('🔓 [LogShare] CryptoJS解密结果:', decrypted);
           console.log('    解密结果类型:', typeof decrypted);
           console.log('    解密结果toString:', decrypted.toString());
-          
+
           // 使用安全的解码函数
           const decryptedData = safeDecode(decrypted);
-          
+
           console.log('🔓 [LogShare] 解密成功');
           console.log('    文件类型:', decryptedData.ext);
-          
+
           setQueryResult(decryptedData);
         } catch (decryptError: any) {
           console.error('🔓 [LogShare] 解密失败:', decryptError);
@@ -679,7 +686,7 @@ const LogShare: React.FC = () => {
         console.log('🔓 [LogShare] 未加密数据，直接使用');
         setQueryResult(res.data);
       }
-      
+
       setQueryId(logId);
       setSuccess('查看成功！');
     } catch (e: any) {
@@ -704,7 +711,7 @@ const LogShare: React.FC = () => {
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     try {
       const newCount = await importHistoryData(file);
       await loadHistory();
@@ -712,7 +719,7 @@ const LogShare: React.FC = () => {
     } catch (error: any) {
       setNotification({ message: error.message, type: 'error' });
     }
-    
+
     e.target.value = '';
   };
 
@@ -774,13 +781,13 @@ const LogShare: React.FC = () => {
   // 管理员校验
   if (!user || user.role !== 'admin') {
     return (
-      <motion.div 
+      <motion.div
         className="space-y-6"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <motion.div 
+        <motion.div
           className="bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-6 border border-red-100"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -846,14 +853,14 @@ const LogShare: React.FC = () => {
         )}
       </AnimatePresence>
       {/* 主体内容 */}
-      <motion.div 
+      <motion.div
         className="space-y-6"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
         {/* 标题和说明 */}
-        <motion.div 
+        <motion.div
           className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -878,9 +885,9 @@ const LogShare: React.FC = () => {
             </div>
           </div>
         </motion.div>
-        
+
         {/* 上传区块 */}
-        <motion.div 
+        <motion.div
           className="bg-blue-50 rounded-xl p-6 shadow-sm border border-gray-200"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -892,50 +899,48 @@ const LogShare: React.FC = () => {
               上传日志/文件
             </h3>
           </div>
-          
+
           <div className="space-y-4">
             <div>
               <label className="block mb-2 font-semibold text-gray-700">
                 管理员密码
               </label>
-              <input 
-                type="password" 
-                className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all" 
-                value={adminPassword} 
-                onChange={e => setAdminPassword(e.target.value)} 
+              <input
+                type="password"
+                className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                value={adminPassword}
+                onChange={e => setAdminPassword(e.target.value)}
                 autoComplete="off"
               />
             </div>
-            
+
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="font-semibold text-gray-700">
                   日志内容（粘贴或输入）或选择文件
                 </label>
                 {logContent && (
-                  <div className={`text-xs px-2 py-1 rounded-full ${
-                    isTextTooLarge 
-                      ? 'bg-red-100 text-red-700 border border-red-200' 
-                      : currentTextSize > maxSize * 0.8 
-                        ? 'bg-yellow-100 text-yellow-700 border border-yellow-200'
-                        : 'bg-green-100 text-green-700 border border-green-200'
-                  }`}>
+                  <div className={`text-xs px-2 py-1 rounded-full ${isTextTooLarge
+                    ? 'bg-red-100 text-red-700 border border-red-200'
+                    : currentTextSize > maxSize * 0.8
+                      ? 'bg-yellow-100 text-yellow-700 border border-yellow-200'
+                      : 'bg-green-100 text-green-700 border border-green-200'
+                    }`}>
                     {formatFileSize(currentTextSize)} / 10MB
                   </div>
                 )}
               </div>
-              <textarea 
-                className={`w-full border-2 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 transition-all ${
-                  isTextTooLarge 
-                    ? 'border-red-300 focus:ring-red-400 bg-red-50' 
-                    : currentTextSize > maxSize * 0.8
-                      ? 'border-yellow-300 focus:ring-yellow-400 bg-yellow-50'
-                      : 'border-gray-200 focus:ring-blue-400'
-                }`}
-                rows={6} 
-                value={logContent} 
-                onChange={e => setLogContent(e.target.value)} 
-                disabled={!!file} 
+              <textarea
+                className={`w-full border-2 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 transition-all ${isTextTooLarge
+                  ? 'border-red-300 focus:ring-red-400 bg-red-50'
+                  : currentTextSize > maxSize * 0.8
+                    ? 'border-yellow-300 focus:ring-yellow-400 bg-yellow-50'
+                    : 'border-gray-200 focus:ring-blue-400'
+                  }`}
+                rows={6}
+                value={logContent}
+                onChange={e => setLogContent(e.target.value)}
+                disabled={!!file}
                 placeholder="可直接粘贴日志内容，或选择文件上传"
               />
               {isTextTooLarge && (
@@ -955,12 +960,12 @@ const LogShare: React.FC = () => {
                 </div>
               )}
             </div>
-            
+
             <div>
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                className="mb-2" 
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="mb-2"
                 onChange={e => setFile(e.target.files?.[0] || null)}
               />
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-2">
@@ -972,19 +977,19 @@ const LogShare: React.FC = () => {
                 </div>
               </div>
             </div>
-            
+
             <AnimatePresence>
               {file && (
-                <motion.div 
+                <motion.div
                   className="text-sm text-gray-600 mb-2"
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.3 }}
                 >
-                  已选择文件: {file.name} 
-                  <button 
-                    className="ml-2 text-red-500 hover:underline" 
+                  已选择文件: {file.name}
+                  <button
+                    className="ml-2 text-red-500 hover:underline"
                     onClick={() => { setFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
                   >
                     移除
@@ -992,10 +997,10 @@ const LogShare: React.FC = () => {
                 </motion.div>
               )}
             </AnimatePresence>
-            
-            <motion.button 
-              className={`px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 font-medium flex items-center gap-2`} 
-              onClick={handleUpload} 
+
+            <motion.button
+              className={`px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 font-medium flex items-center gap-2`}
+              onClick={handleUpload}
               disabled={loading || !adminPassword || (!logContent && !file)}
               whileTap={{ scale: 0.95 }}
             >
@@ -1011,10 +1016,10 @@ const LogShare: React.FC = () => {
               )}
               {loading ? '上传中...' : '上传日志/文件'}
             </motion.button>
-            
+
             <AnimatePresence>
               {uploadResult && uploadResult.link && (
-                <motion.div 
+                <motion.div
                   className="mt-3 text-green-600 font-semibold flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg p-3"
                   initial={{ opacity: 0, scale: 0.95, y: -10 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -1024,11 +1029,11 @@ const LogShare: React.FC = () => {
                   上传成功，访问链接：
                   <a href={uploadResult.link} className="underline" target="_blank" rel="noopener noreferrer">
                     {uploadResult.link}
-                  </a> 
+                  </a>
                   <span className="text-gray-500">({uploadResult.ext})</span>
                   <AnimatePresence>
                     {copied && (
-                      <motion.span 
+                      <motion.span
                         className="ml-2 text-green-500 text-sm"
                         initial={{ opacity: 0, scale: 0.8 }}
                         animate={{ opacity: 1, scale: 1 }}
@@ -1044,9 +1049,9 @@ const LogShare: React.FC = () => {
             </AnimatePresence>
           </div>
         </motion.div>
-        
+
         {/* 查询区块 */}
-        <motion.div 
+        <motion.div
           className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1121,9 +1126,8 @@ const LogShare: React.FC = () => {
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.1 }}
-                      className={`p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 ${
-                        selectedLogIndex === index ? 'bg-blue-50 border-blue-200' : ''
-                      }`}
+                      className={`p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 ${selectedLogIndex === index ? 'bg-blue-50 border-blue-200' : ''
+                        }`}
                       whileHover={{ scale: 1.01 }}
                       whileTap={{ scale: 0.99 }}
                     >
@@ -1150,35 +1154,35 @@ const LogShare: React.FC = () => {
                 </div>
               </motion.div>
             )}
-            
+
             <div>
               <label className="block mb-2 font-semibold text-gray-700">
                 日志/文件ID
               </label>
-              <input 
-                className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all" 
-                value={queryId} 
-                onChange={e => setQueryId(e.target.value)} 
+              <input
+                className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                value={queryId}
+                onChange={e => setQueryId(e.target.value)}
                 placeholder="请输入上传后返回的ID"
               />
             </div>
-            
+
             <div>
               <label className="block mb-2 font-semibold text-gray-700">
                 管理员密码
               </label>
-              <input 
-                type="password" 
-                className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all" 
-                value={adminPassword} 
-                onChange={e => setAdminPassword(e.target.value)} 
+              <input
+                type="password"
+                className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                value={adminPassword}
+                onChange={e => setAdminPassword(e.target.value)}
                 autoComplete="off"
               />
             </div>
-            
-            <motion.button 
-              className={`px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition disabled:opacity-50 font-medium flex items-center gap-2`} 
-              onClick={handleQuery} 
+
+            <motion.button
+              className={`px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition disabled:opacity-50 font-medium flex items-center gap-2`}
+              onClick={handleQuery}
               disabled={loading || !adminPassword || !queryId}
               whileTap={{ scale: 0.95 }}
             >
@@ -1194,10 +1198,10 @@ const LogShare: React.FC = () => {
               )}
               {loading ? '查询中...' : '查询日志/文件'}
             </motion.button>
-            
+
             <AnimatePresence>
               {queryResult && (
-                <motion.div 
+                <motion.div
                   className="mt-4"
                   initial={{ opacity: 0, y: 20, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -1215,8 +1219,8 @@ const LogShare: React.FC = () => {
                       <pre className="bg-gray-100 p-2 rounded text-sm whitespace-pre-wrap max-h-64 overflow-auto border border-gray-200 mb-3">
                         {queryResult.content}
                       </pre>
-                      <motion.button 
-                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-200 flex items-center gap-2" 
+                      <motion.button
+                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-200 flex items-center gap-2"
                         onClick={handleDownload}
                         whileTap={{ scale: 0.95 }}
                       >
@@ -1231,8 +1235,8 @@ const LogShare: React.FC = () => {
                       <div className="mb-2 text-yellow-700">
                         二进制/非文本文件，点击下载：
                       </div>
-                      <motion.button 
-                        className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-all duration-200 flex items-center gap-2" 
+                      <motion.button
+                        className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-all duration-200 flex items-center gap-2"
                         onClick={handleDownload}
                         whileTap={{ scale: 0.95 }}
                       >
@@ -1248,9 +1252,9 @@ const LogShare: React.FC = () => {
             </AnimatePresence>
           </div>
         </motion.div>
-        
+
         {/* 历史记录 */}
-        <motion.div 
+        <motion.div
           className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1282,7 +1286,7 @@ const LogShare: React.FC = () => {
                   导入
                 </motion.button>
               </div>
-              
+
               {/* 导出菜单 */}
               <div className="relative export-menu-container">
                 <motion.button
@@ -1295,7 +1299,7 @@ const LogShare: React.FC = () => {
                   </svg>
                   导出
                 </motion.button>
-                
+
                 <AnimatePresence>
                   {showExportMenu && (
                     <motion.div
@@ -1343,7 +1347,7 @@ const LogShare: React.FC = () => {
                   )}
                 </AnimatePresence>
               </div>
-              
+
               {/* 清除按钮 */}
               <motion.button
                 onClick={handleClear}
@@ -1357,7 +1361,7 @@ const LogShare: React.FC = () => {
               </motion.button>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* 上传历史 */}
             <div>
@@ -1367,18 +1371,18 @@ const LogShare: React.FC = () => {
                   <div className="text-gray-400 text-sm">暂无上传记录</div>
                 )}
                 {uploadHistory.map((item, idx) => (
-                  <motion.div 
-                    key={idx} 
+                  <motion.div
+                    key={idx}
                     className="text-sm flex items-center gap-2 p-2 hover:bg-gray-50 rounded-lg"
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.3, delay: 0.1 * idx }}
                     whileHover={{ scale: 1.02, x: 5 }}
                   >
-                    <a 
-                      href={item.link} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
+                    <a
+                      href={item.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="underline text-blue-600 truncate flex-1"
                     >
                       {item.link}
@@ -1389,7 +1393,7 @@ const LogShare: React.FC = () => {
                 ))}
               </div>
             </div>
-            
+
             {/* 查询历史 */}
             <div>
               <h4 className="text-md font-semibold text-green-700 mb-3">查询历史</h4>
@@ -1398,16 +1402,16 @@ const LogShare: React.FC = () => {
                   <div className="text-gray-400 text-sm">暂无查询记录</div>
                 )}
                 {queryHistory.map((item, idx) => (
-                  <motion.div 
-                    key={idx} 
+                  <motion.div
+                    key={idx}
                     className="text-sm flex items-center gap-2 p-2 hover:bg-gray-50 rounded-lg"
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.3, delay: 0.1 * idx }}
                     whileHover={{ scale: 1.02, x: -5 }}
                   >
-                    <button 
-                      className="underline text-green-600 truncate flex-1 text-left" 
+                    <button
+                      className="underline text-green-600 truncate flex-1 text-left"
                       onClick={() => { setQueryId(item.id); setQueryResult(null); setSuccess(''); setError(''); }}
                     >
                       {item.id}
@@ -1420,9 +1424,9 @@ const LogShare: React.FC = () => {
             </div>
           </div>
         </motion.div>
-        
+
         {/* 日志归档管理区块 */}
-        <motion.div 
+        <motion.div
           className="bg-purple-50 rounded-xl p-6 shadow-sm border border-gray-200"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1434,11 +1438,11 @@ const LogShare: React.FC = () => {
               日志归档管理
             </h3>
             <div className="flex items-center gap-2">
-              <input 
-                type="password" 
-                className="border-2 border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all w-40" 
-                value={adminPassword} 
-                onChange={e => setAdminPassword(e.target.value)} 
+              <input
+                type="password"
+                className="border-2 border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all w-40"
+                value={adminPassword}
+                onChange={e => setAdminPassword(e.target.value)}
                 placeholder="管理员密码"
                 autoComplete="off"
               />
@@ -1464,7 +1468,7 @@ const LogShare: React.FC = () => {
               刷新列表
             </motion.button>
           </div>
-          
+
           <div className="bg-purple-100 border border-purple-200 rounded-lg p-3 mb-4">
             <div className="text-sm text-purple-800 font-medium mb-1">📦 归档功能说明</div>
             <div className="text-xs text-purple-600 space-y-1">
@@ -1632,14 +1636,14 @@ const LogShare: React.FC = () => {
                     <FaArchive className="text-purple-500" />
                     创建日志归档
                   </h3>
-                  <button 
-                    className="text-gray-400 hover:text-gray-600" 
+                  <button
+                    className="text-gray-400 hover:text-gray-600"
                     onClick={() => setShowArchiveModal(false)}
                   >
                     ✕
                   </button>
                 </div>
-                
+
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1652,7 +1656,7 @@ const LogShare: React.FC = () => {
                       onChange={(e) => setArchiveName(e.target.value)}
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       包含模式（正则表达式，可选）
@@ -1664,7 +1668,7 @@ const LogShare: React.FC = () => {
                       onChange={(e) => setIncludePattern(e.target.value)}
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       排除模式（正则表达式，可选）
@@ -1676,7 +1680,7 @@ const LogShare: React.FC = () => {
                       onChange={(e) => setExcludePattern(e.target.value)}
                     />
                   </div>
-                  
+
                   <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
                     <div className="text-sm text-purple-800 font-medium mb-1">🔄 归档流程</div>
                     <div className="text-xs text-purple-600 space-y-1">
@@ -1689,7 +1693,7 @@ const LogShare: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="mt-6 flex items-center justify-end gap-3">
                   <button
                     className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
@@ -1727,13 +1731,13 @@ const LogShare: React.FC = () => {
         {/* 编辑元数据弹窗 */}
         <AnimatePresence>
           {editingLog && (
-            <motion.div 
+            <motion.div
               className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
-              <motion.div 
+              <motion.div
                 className="bg-white w-full max-w-lg rounded-xl shadow-xl p-6 border border-gray-200"
                 initial={{ scale: 0.95, y: 20, opacity: 0 }}
                 animate={{ scale: 1, y: 0, opacity: 1 }}
@@ -1747,7 +1751,7 @@ const LogShare: React.FC = () => {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">文件名（可选）</label>
-                    <input 
+                    <input
                       className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
                       placeholder="例如：error-2025-08-10.txt"
                       value={editFileName}
@@ -1756,7 +1760,7 @@ const LogShare: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">备注（可选）</label>
-                    <textarea 
+                    <textarea
                       className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all min-h-[100px]"
                       placeholder="补充说明、标签等"
                       value={editNote}
@@ -1765,13 +1769,13 @@ const LogShare: React.FC = () => {
                   </div>
                 </div>
                 <div className="mt-6 flex items-center justify-end gap-3">
-                  <button 
+                  <button
                     className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
                     onClick={() => { setEditingLog(null); setEditFileName(''); setEditNote(''); }}
                   >
                     取消
                   </button>
-                  <button 
+                  <button
                     className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
                     onClick={handleEditSave}
                   >
@@ -1788,6 +1792,6 @@ const LogShare: React.FC = () => {
       </motion.div>
     </>
   );
-};
+});
 
 export default LogShare;
