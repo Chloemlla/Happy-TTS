@@ -42,7 +42,8 @@ const FingerprintRequestModal: React.FC<FingerprintRequestModalProps> = ({
 
         try {
             console.log('🔍 用户确认上报指纹...');
-            await reportFingerprintOnce();
+            // 用户主动点击上报按钮，强制立即上报（绕过5分钟节流限制）
+            await reportFingerprintOnce(true);
 
             setIsSubmitted(true);
             setNotification({ type: 'success', message: '指纹上报成功，感谢您的配合！' });

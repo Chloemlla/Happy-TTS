@@ -164,9 +164,13 @@ export const useFingerprintRequest = () => {
   // 标记指纹请求为已完成（清除请求标志）
   // 注意：此函数现在不需要调用后端，因为 /api/turnstile/fingerprint/report 已经清除了标志
   const markFingerprintRequestCompleted = useCallback((): void => {
-    // 本地状态已经在指纹上报成功后通过轮询更新
-    // 这里不需要额外的后端调用
-    console.log('✅ 指纹请求完成，本地状态将通过轮询自动更新');
+    console.log('✅ 指纹请求完成，立即更新本地状态');
+    // 立即更新本地状态，允许弹窗关闭
+    setRequestStatus(prev => ({
+      ...prev,
+      requireFingerprint: false,
+      requireFingerprintAt: 0
+    }));
   }, []);
 
   // 初始化检查

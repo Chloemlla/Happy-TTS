@@ -300,8 +300,8 @@ const fetchWithRetry = async (url: string, options: RequestInit, maxRetries: num
 };
 
 // 上报指纹（仅登录用户）
-export const reportFingerprintOnce = async (): Promise<void> => {
-  console.log('🔍 开始指纹上报流程...');
+export const reportFingerprintOnce = async (forceReport: boolean = false): Promise<void> => {
+  console.log('🔍 开始指纹上报流程...', forceReport ? '(强制上报)' : '');
 
   // 未登录用户不进行请求
   if (!isUserLoggedIn()) {
@@ -310,13 +310,18 @@ export const reportFingerprintOnce = async (): Promise<void> => {
   }
 
   // 检查是否已经上报过指纹（避免重复上报）
-  const lastReportTime = localStorage.getItem('lastFingerprintReport');
+  // 如果是强制上报（用户主动点击），则跳过节流检查
   const now = Date.now();
-  const REPORT_INTERVAL = 5 * 60 * 1000; // 5分钟内不重复上报
-  
-  if (lastReportTime && (now - parseInt(lastReportTime)) < REPORT_INTERVAL) {
-    console.log('⏰ 指纹已在上报间隔内上报过，跳过本次上报');
-    return;
+  if (!forceReport) {
+    const lastReportTime = localStorage.getItem('lastFingerprintReport');
+    const REPORT_INTERVAL = 5 * 60 * 1000; // 5分钟内不重复上报
+    
+    if (lastReportTime && (now - parseInt(lastReportTime)) < REPORT_INTERVAL) {
+      console.log('⏰ 指纹已在上报间隔内上报过，跳过本次上报');
+      return;
+    }
+  } else {
+    console.log('⚡ 用户主动请求，强制立即上报');
   }
 
   console.log('✅ 用户已登录，开始生成指纹...');
