@@ -1875,7 +1875,11 @@ router.post('/hcaptcha-verify', publicLimiter, async (req, res) => {
     }
 });
 
-// 手动触发 IP 封禁同步（管理员专用）
+/**
+ * 手动触发 IP 封禁同步（管理员专用）
+ * @security Rate limited by adminLimiter (50 req/min)
+ * @security Requires authentication and admin role
+ */
 router.post('/sync-ipbans', authenticateToken, adminLimiter, async (req, res) => {
     try {
         const userRole = (req as any).user?.role;
@@ -1915,7 +1919,11 @@ router.post('/sync-ipbans', authenticateToken, adminLimiter, async (req, res) =>
     }
 });
 
-// 获取同步状态（管理员专用）
+/**
+ * 获取同步状态（管理员专用）
+ * @security Rate limited by adminLimiter (50 req/min)
+ * @security Requires authentication and admin role
+ */
 router.get('/sync-status', authenticateToken, adminLimiter, async (req, res) => {
     try {
         const userRole = (req as any).user?.role;

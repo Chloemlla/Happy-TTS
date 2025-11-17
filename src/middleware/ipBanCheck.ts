@@ -1,7 +1,28 @@
 import { Request, Response, NextFunction } from 'express';
+import rateLimit from 'express-rate-limit';
 import { IpBanModel } from '../models/ipBanModel';
 import logger from '../utils/logger';
 import { config } from '../config/config';
+
+// IP 封禁检查速率限制器 - 防止恶意 IP 频繁查询封禁状态
+const ipBanCheckLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1分钟
+  max: 100, // 每分钟最多100次请求
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true, // 只计算被拒绝的请求
+  keyGenerator: (req: Request) => {
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    return ip.replace(/^::ffff:/, '');
+  },
+  handler: (req: Request, res: Response) => {
+    logger.warn(`⚠️ IP 封禁检查速率限制触发: ${req.ip}`);
+    res.status(429).json({
+      error: '请求过于频繁，请稍后再试',
+      retryAfter: 60
+    });
+  }
+});
 
 // 白名单路径 - 这些路径不进行IP封禁检查
 const WHITELIST_PATHS = [
@@ -113,3 +134,9 @@ export const ipBanCheckMiddleware = async (
     next();
   }
 };
+
+/**
+ * 带速率限制的 IP 封禁检查中间件（推荐使用）
+ * 组合了速率限制和 IP 封禁检查，提供更好的安全保护
+ */
+export const ipBanCheckWithRateLimit = [ipBanCheckLimiter, ipBanCheckMiddleware];
