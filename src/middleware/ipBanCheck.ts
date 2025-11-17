@@ -8,7 +8,24 @@ const WHITELIST_PATHS = [
   '/health',
   '/api/health',
   '/status',
-  '/api/status'
+  '/api/status',
+  // 人机验证相关端点 - 必须放行以允许验证流程
+  '/api/turnstile/verify',
+  '/api/turnstile/verify-token',
+  '/api/turnstile/public-turnstile',
+  '/api/turnstile/public-config',
+  '/api/turnstile/hcaptcha-verify',
+  '/api/turnstile/secure-captcha-config',
+  // 指纹相关端点（包括认证和非认证）
+  '/api/turnstile/fingerprint/report',
+  '/api/turnstile/fingerprint/status',
+  '/api/turnstile/fingerprint/dismiss',
+  '/api/turnstile/temp-fingerprint',
+  '/api/turnstile/verify-temp-fingerprint',
+  '/api/turnstile/verify-access-token',
+  // 访问令牌和指纹状态查询
+  '/api/turnstile/check-access-token',
+  '/api/turnstile/temp-fingerprint'
 ];
 
 /**
