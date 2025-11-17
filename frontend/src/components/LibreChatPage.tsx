@@ -23,7 +23,7 @@ import {
   FaCompress,
   FaQuestionCircle
 } from 'react-icons/fa';
-import { marked } from 'marked';
+import { marked, type MarkedOptions } from 'marked';
 import markedKatex from 'marked-katex-extension';
 import 'katex/dist/katex.min.css';
 import DOMPurify from 'dompurify';
@@ -120,6 +120,22 @@ function sanitizeAssistantText(text: string): string {
 //   }
 // }
 
+// React 19: TypeScript 类型定义
+interface RequestBody {
+  token?: string;
+  message?: string;
+  turnstileToken?: string;
+}
+
+interface HistoryMessage {
+  id?: string;
+  role?: string;
+  message?: string;
+  content?: string;
+  timestamp?: string;
+  createdAt?: string;
+}
+
 // 配置 marked 支持 KaTeX
 marked.use(markedKatex({ nonStandard: true }));
 
@@ -136,7 +152,7 @@ marked.setOptions({
       return code;
     }
   }
-} as any);
+} as MarkedOptions);
 
 // 增强的 Markdown 渲染组件
 const EnhancedMarkdownRenderer: React.FC<{ 
@@ -269,7 +285,7 @@ const EnhancedMarkdownRenderer: React.FC<{
         processedText = processedText.replace(`__MATH_INLINE_${index}__`, processedBlock);
       });
 
-      const rawHtml = marked.parse(processedText, { async: false } as any) as unknown as string;
+      const rawHtml = marked.parse(processedText, { async: false } as MarkedOptions) as unknown as string;
       
       // 使用DOMPurify清理HTML，允许更多标签和属性
       return DOMPurify.sanitize(rawHtml, {
@@ -621,20 +637,6 @@ const EnhancedMarkdownRenderer: React.FC<{
           { pattern: /(\]|\))\s+([A-Za-z][A-Za-z0-9_]*)\s*--[!>]*>/g, replacement: '$1\n$2 -->' },
           // 在纯节点后紧接另一个节点/连接时也换行
           { pattern: /([A-Za-z][A-Za-z0-9_]*)\s*\[([^\]]*)\]\s+([A-Za-z][A-Za-z0-9_]*)\s*--[!>]*>/g, replacement: '$1[$2]\n$3 -->' },
-          // 修复同一行多个语句：在节点定义后遇到另一个节点时换行
-          { pattern: /([A-Za-z][A-Za-z0-9_]*)\s*\[([^\]]*)\]\s+([A-Za-z][A-Za-z0-9_]*)(?!\s*--[!>]*>)/g, replacement: '$1[$2]\n$3' },
-          // 修复同一行多个语句：在节点定义后遇到另一个节点定义时换行
-          { pattern: /([A-Za-z][A-Za-z0-9_]*)\s*\[([^\]]*)\]\s+([A-Za-z][A-Za-z0-9_]*)\s*\[/g, replacement: '$1[$2]\n$3[' },
-          // 修复节点之间缺少换行的情况：在节点定义后直接跟另一个节点
-          { pattern: /([A-Za-z][A-Za-z0-9_]*)\s*\[([^\]]*)\]([A-Za-z][A-Za-z0-9_]*)/g, replacement: '$1[$2]\n$3' },
-          // 修复节点之间缺少换行的情况：在节点定义后直接跟另一个节点定义
-          { pattern: /([A-Za-z][A-Za-z0-9_]*)\s*\[([^\]]*)\]([A-Za-z][A-Za-z0-9_]*)\s*\[/g, replacement: '$1[$2]\n$3[' },
-          // 修复边标签语法错误：将 "X -- 标签 --> Y" 转换为 "X -->|标签| Y"
-          { pattern: /([A-Za-z][A-Za-z0-9_]*)\s*--\s*([^>\n\r|]+?)\s*--[!>]*>\s*([A-Za-z][A-Za-z0-9_]*)/g, replacement: '$1 -->|$2| $3' },
-          // 修复边标签语法错误：将 "X -- 标签 → Y" 转换为 "X -->|标签| Y"
-          { pattern: /([A-Za-z][A-Za-z0-9_]*)\s*--\s*([^>\n\r|]+?)\s*→\s*([A-Za-z][A-Za-z0-9_]*)/g, replacement: '$1 -->|$2| $3' },
-          // 修复边标签语法错误：将 "X -- 标签 --> Y" 转换为 "X -->|标签| Y"（无空格版本）
-          { pattern: /([A-Za-z][A-Za-z0-9_]*)\s*--([^>\n\r|]+?)--[!>]*>\s*([A-Za-z][A-Za-z0-9_]*)/g, replacement: '$1 -->|$2| $3' },
           // 修复同一行多个语句：在节点定义后遇到边标签时换行
           { pattern: /([A-Za-z][A-Za-z0-9_]*)\s*\[([^\]]*)\]\s+([A-Za-z][A-Za-z0-9_]*)\s*--/g, replacement: '$1[$2]\n$3 --' },
           // 修复同一行多个语句：在节点定义后遇到连接时换行
@@ -1382,7 +1384,7 @@ const EnhancedMarkdownRenderer: React.FC<{
 // 兼容性函数：保持原有API - 使用 react-syntax-highlighter
 function renderMarkdown(content: string): string {
   try {
-    const rawHtml = marked.parse(content || '', { async: false } as any) as unknown as string;
+    const rawHtml = marked.parse(content || '', { async: false } as MarkedOptions) as unknown as string;
     return DOMPurify.sanitize(rawHtml, {
       ALLOWED_TAGS: [
         'p', 'br', 'pre', 'code', 'span', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
@@ -1428,6 +1430,8 @@ interface HistoryItem {
   id?: string; // 可选：后端如返回则支持按消息删除
   role: 'user' | 'assistant' | string;
   content: string;
+  message?: string;
+  timestamp?: string;
   createdAt?: string;
 }
 
@@ -1525,7 +1529,7 @@ const LibreChatPage: React.FC = () => {
       const errorStack = event.error?.stack || '';
       
       // 检查是否是 Mermaid 相关的错误
-      if (errorMessage.includes('Syntax error in text') || 
+      if (errorMessage.includes('Syntax error in text') && 
           errorMessage.includes('mermaid') || 
           errorMessage.includes('Mermaid') ||
           errorStack.includes('mermaid') ||
@@ -1543,7 +1547,7 @@ const LibreChatPage: React.FC = () => {
       const errorMessage = reason?.message || String(reason);
       
       // 检查是否是 Mermaid 相关的 Promise 错误
-      if (errorMessage.includes('Syntax error in text') || 
+      if (errorMessage.includes('Syntax error in text') && 
           errorMessage.includes('mermaid') || 
           errorMessage.includes('Mermaid')) {
         // 阻止 Mermaid Promise 错误传播
@@ -1675,6 +1679,7 @@ const LibreChatPage: React.FC = () => {
 
   const [latest, setLatest] = useState<LatestRecord | null>(null);
   const [loadingLatest, setLoadingLatest] = useState(false);
+  const [initializing, setInitializing] = useState(false);
 
   const [history, setHistory] = useState<HistoryResponse | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -1702,6 +1707,10 @@ const LibreChatPage: React.FC = () => {
   const [rtHistory, setRtHistory] = useState<HistoryItem[]>([]);
   // 持有实时对话的本地流式 interval，便于关闭对话框或卸载时清理
   const rtIntervalRef = useRef<number | null>(null);
+  // 组件挂载追踪，避免在卸载后设置状态
+  const isMountedRef = useRef(true);
+  // 初始化状态追踪，使用ref避免useCallback依赖项循环
+  const initializingRef = useRef(false);
 
   // 自定义弹窗状态
   const [alertModal, setAlertModal] = useState<{ open: boolean; title?: string; message: string; type?: 'warning' | 'danger' | 'info' | 'success' }>({ open: false, message: '' });
@@ -1777,6 +1786,58 @@ const LibreChatPage: React.FC = () => {
       // 忽略错误：可能未启用游客模式或网络异常
     }
   };
+
+  // 统一的页面初始化函数，避免竞态条件
+  const initializePage = useCallback(async () => {
+    // 防止重复初始化（使用ref避免依赖项循环）
+    if (initializingRef.current) {
+      console.log('Already initializing, skipping...');
+      return;
+    }
+
+    try {
+      initializingRef.current = true;
+      setInitializing(true);
+      console.log('Initializing page, token:', token);
+
+      // 如果没有token，先获取游客token
+      if (!token) {
+        await ensureGuestToken();
+      }
+
+      // 并行获取数据，但等待完成后再更新状态
+      const results = await Promise.allSettled([
+        fetchLatest(),
+        fetchHistory(1)
+      ]);
+
+      // 只在组件仍然挂载时设置通知
+      if (!isMountedRef.current) return;
+
+      // 根据结果设置通知
+      const failures = results.filter(r => r.status === 'rejected');
+      if (failures.length === 0) {
+        if (!token) {
+          setNotification({ type: 'info', message: '已切换到游客模式' });
+        } else {
+          setNotification({ type: 'success', message: '已切换到用户模式' });
+        }
+      } else {
+        console.error('Some initialization requests failed:', failures);
+        setNotification({ type: 'warning', message: '部分数据加载失败，请刷新重试' });
+      }
+    } catch (error) {
+      console.error('Initialization error:', error);
+      if (isMountedRef.current) {
+        setNotification({ type: 'error', message: '初始化失败，请刷新页面' });
+      }
+    } finally {
+      if (isMountedRef.current) {
+        initializingRef.current = false;
+        setInitializing(false);
+      }
+    }
+  }, [token]);
 
   const fetchLatest = async () => {
     try {
@@ -1856,8 +1917,9 @@ const LibreChatPage: React.FC = () => {
       } else {
         setNotification({ type: 'error', message: '批量删除失败' });
       }
-    } catch (e: any) {
-      setNotification({ type: 'error', message: e?.message || '批量删除失败' });
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : '批量删除失败';
+      setNotification({ type: 'error', message: errorMessage });
     }
       }
     });
@@ -1897,8 +1959,9 @@ const LibreChatPage: React.FC = () => {
       } else {
         setNotification({ type: 'error', message: '修改失败' });
       }
-    } catch (e: any) {
-      setNotification({ type: 'error', message: e?.message || '修改失败' });
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : '修改失败';
+      setNotification({ type: 'error', message: errorMessage });
     }
       }
     });
@@ -1924,8 +1987,9 @@ const LibreChatPage: React.FC = () => {
       } else {
         setNotification({ type: 'error', message: '重试失败' });
       }
-    } catch (e: any) {
-      setNotification({ type: 'error', message: e?.message || '重试失败' });
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : '重试失败';
+      setNotification({ type: 'error', message: errorMessage });
     }
   };
 
@@ -2052,12 +2116,13 @@ const LibreChatPage: React.FC = () => {
       console.log('Fetching history from:', url); // 调试信息
       const res = await fetch(url, { credentials: 'include' });
       if (res.ok) {
-        const data: any = await res.json();
+        const data: unknown = await res.json();
         console.log('History API response:', data); // 调试信息
         // 后端返回的消息字段为 message/timestamp/role，这里映射到前端使用的字段
+        const responseData = data as { history?: HistoryItem[]; total?: number; currentPage?: number; totalPages?: number };
         const mapped: HistoryResponse = {
-          history: Array.isArray(data.history)
-            ? data.history.map((m: any) => {
+          history: Array.isArray(responseData.history)
+            ? responseData.history.map((m: HistoryItem) => {
                 console.log('Processing message:', m); // 调试信息
                 return {
                   id: m.id || `msg_${Date.now()}_${Math.random()}`, // 确保有ID
@@ -2066,10 +2131,10 @@ const LibreChatPage: React.FC = () => {
                   createdAt: m.timestamp || m.createdAt
                 };
               })
-            : [],
-          total: data.total || 0,
-          currentPage: data.currentPage || toPage,
-          totalPages: data.totalPages || 1
+              : [],
+          total: responseData.total || 0,
+          currentPage: responseData.currentPage || toPage,
+          totalPages: responseData.totalPages || 1
         };
         console.log('Mapped history:', mapped); // 调试信息
         setHistory(mapped);
@@ -2141,11 +2206,11 @@ const LibreChatPage: React.FC = () => {
       console.log('Sending message:', toSend); // 调试信息
       
       // 构建请求体
-      const requestBody: any = token ? { token, message: toSend } : { message: toSend };
+      const requestBody: RequestBody = token ? { token, message: toSend } : { message: toSend };
       
       // 如果不是管理员且Turnstile已启用，添加验证token
       if (!isAdmin && !!turnstileConfig.siteKey && turnstileToken) {
-        requestBody.cfToken = turnstileToken;
+        requestBody.turnstileToken = turnstileToken;
       }
       
       const res = await fetch(`${apiBase}/api/librechat/send`, {
@@ -2187,7 +2252,7 @@ const LibreChatPage: React.FC = () => {
             if (checkData.history && Array.isArray(checkData.history)) {
               // 检查最新的几条记录中是否有助手回复
               const recentMessages = checkData.history.slice(0, 5); // 检查最新的5条
-              const hasAssistantResponse = recentMessages.some((msg: any) => {
+              const hasAssistantResponse = recentMessages.some((msg: HistoryMessage) => {
                 const role = msg.role || 'user';
                 const content = msg.message || msg.content || '';
                 return role === 'assistant' && content.trim().length > 0;
@@ -2296,7 +2361,7 @@ const LibreChatPage: React.FC = () => {
       setNotification({ type: 'info', message: '正在清除历史记录...' });
       
       // 构建请求体，确保包含token信息
-      const requestBody: any = {};
+      const requestBody: RequestBody = {};
       if (token && token.trim()) {
         requestBody.token = token;
       }
@@ -2332,18 +2397,13 @@ const LibreChatPage: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchLatest();
-    fetchHistory(1); // 立即加载历史记录
-    if (!token) {
-      ensureGuestToken();
-      setNotification({ type: 'info', message: '已切换到游客模式' });
-    }
-  }, []);
+  // 移除重复的初始化逻辑，避免与下面的token useEffect产生冲突
 
   // 组件卸载时，确保清理实时流式 interval 和 SSE 连接，避免遗留计时器导致状态异常
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
+      isMountedRef.current = false;
       if (rtIntervalRef.current) {
         clearInterval(rtIntervalRef.current);
         rtIntervalRef.current = null;
@@ -2356,17 +2416,11 @@ const LibreChatPage: React.FC = () => {
     };
   }, []);
 
+  // token 变更时统一初始化，避免竞态条件
   useEffect(() => {
-    // token 变更时刷新；无 token 也尝试从后端（会话）拉取
-    console.log('useEffect triggered, token:', token); // 调试信息
-    fetchHistory(1);
-    if (!token) {
-      ensureGuestToken();
-      setNotification({ type: 'info', message: '已切换到游客模式' });
-    } else {
-      setNotification({ type: 'success', message: '已切换到用户模式' });
-    }
-  }, [token]);
+    console.log('Token changed, initializing page...', token);
+    initializePage();
+  }, [token, initializePage]);
 
   // 打开/关闭单次实时对话框
   const openRealtimeDialog = () => {
@@ -2430,11 +2484,11 @@ const LibreChatPage: React.FC = () => {
       setRtHistory((prev) => [...prev, userEntry]);
       setRtMessage('');
       // 构建请求体
-      const requestBody: any = token ? { token, message: toSend } : { message: toSend };
+      const requestBody: RequestBody = token ? { token, message: toSend } : { message: toSend };
       
       // 如果不是管理员且Turnstile已启用，添加验证token
       if (!isAdmin && !!turnstileConfig.siteKey && turnstileToken) {
-        requestBody.cfToken = turnstileToken;
+        requestBody.turnstileToken = turnstileToken;
       }
       
       const res = await fetch(`${apiBase}/api/librechat/send`, {
@@ -2468,7 +2522,7 @@ const LibreChatPage: React.FC = () => {
             if (checkData.history && Array.isArray(checkData.history)) {
               // 检查最新的几条记录中是否有助手回复
               const recentMessages = checkData.history.slice(0, 5); // 检查最新的5条
-              const hasAssistantResponse = recentMessages.some((msg: any) => {
+              const hasAssistantResponse = recentMessages.some((msg: HistoryMessage) => {
                 const role = msg.role || 'user';
                 const content = msg.message || msg.content || '';
                 return role === 'assistant' && content.trim().length > 0;
@@ -2736,6 +2790,18 @@ const LibreChatPage: React.FC = () => {
       disconnectSSE();
     };
   }, [token, guestMode, connectSSE, disconnectSSE]);
+
+  // 初始化加载指示器
+  if (initializing && !latest && !history) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center space-y-4">
+          <UnifiedLoadingSpinner size="lg" />
+          <p className="text-gray-600">正在初始化页面...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <motion.div

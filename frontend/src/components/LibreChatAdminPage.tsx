@@ -141,35 +141,7 @@ const MarkdownRenderer: React.FC<{ content: string; className?: string; onCopy?:
     });
     }, [content, showRaw]);
   
-  // 静默 Mermaid 相关告警/错误日志（仅本组件作用域）
-  useEffect(() => {
-    const originalWarn = console.warn;
-    const originalError = console.error;
-    console.warn = (...args: any[]) => {
-      const msg = args.join(' ');
-      if (
-        msg.includes('mermaid') || msg.includes('Mermaid') ||
-        msg.includes('No theme found for error') ||
-        msg.includes('Graph at first') || msg.includes('Extract') ||
-        msg.includes('dagre') || msg.includes('WARN :')
-      ) return;
-      originalWarn.apply(console, args as any);
-    };
-    console.error = (...args: any[]) => {
-      const msg = args.join(' ');
-      if (
-        msg.includes('Error parsing') ||
-        msg.includes('Parse error on line') ||
-        msg.includes('Error executing queue') ||
-        msg.includes('Syntax error in text')
-      ) return;
-      originalError.apply(console, args as any);
-    };
-    return () => {
-      console.warn = originalWarn;
-      console.error = originalError;
-    };
-  }, []);
+  // 移除重复的console重定向代码，避免与上面的useEffect冲突
   
   const renderMarkdown = (text: string) => {
     try {
