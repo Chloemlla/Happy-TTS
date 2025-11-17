@@ -23,7 +23,6 @@ const FingerprintRequestModal: React.FC<FingerprintRequestModalProps> = ({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [error, setError] = useState('');
-    const [localClosed, setLocalClosed] = useState(false);
     const { setNotification } = useNotification();
 
     // 重置状态当弹窗打开时
@@ -32,7 +31,6 @@ const FingerprintRequestModal: React.FC<FingerprintRequestModalProps> = ({
             setIsSubmitted(false);
             setError('');
             setIsSubmitting(false);
-            setLocalClosed(false);
         }
     }, [isOpen]);
 
@@ -87,12 +85,13 @@ const FingerprintRequestModal: React.FC<FingerprintRequestModalProps> = ({
             setIsSubmitting(false);
 
             if (success) {
-                setLocalClosed(true);
                 setNotification({ 
                     type: 'warning', 
                     message: '已记录您的关闭操作，这是您唯一一次关闭机会，下次必须上报' 
                 });
-                onClose(true); // 传递 true 表示这是主动跳过
+                setTimeout(() => {
+                    onClose(true);
+                }, 100);
             } else {
                 setNotification({ 
                     type: 'error', 
@@ -101,9 +100,10 @@ const FingerprintRequestModal: React.FC<FingerprintRequestModalProps> = ({
             }
         } else {
             // 降级处理：如果没有提供回调，使用原有逻辑
-            setLocalClosed(true);
             setNotification({ type: 'warning', message: '您暂时跳过了指纹上报，管理员可能再次请求' });
-            onClose(true);
+            setTimeout(() => {
+                onClose(true);
+            }, 100);
         }
     };
 
@@ -119,26 +119,31 @@ const FingerprintRequestModal: React.FC<FingerprintRequestModalProps> = ({
             return;
         }
 
-        // 否则允许关闭
-        setLocalClosed(true);
-        onClose(false); // 传递 false 表示这是普通关闭，不需要 dismissal tracking
+        // 否则允许关闭，延迟执行让动画完成
+        setTimeout(() => {
+            onClose(false);
+        }, 100);
     };
 
     return (
-        <AnimatePresence>
-            {isOpen && !localClosed && (
+        <AnimatePresence mode="wait">
+            {isOpen && (
                 <motion.div
+                    key="fingerprint-modal-backdrop"
                     className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
                     onClick={hasDismissedOnce ? undefined : handleClose}
                 >
                     <motion.div
+                        key="fingerprint-modal-content"
                         className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 relative"
                         initial={{ scale: 0.9, y: 20, opacity: 0 }}
                         animate={{ scale: 1, y: 0, opacity: 1 }}
                         exit={{ scale: 0.9, y: 20, opacity: 0 }}
+                        transition={{ duration: 0.2, ease: "easeOut" }}
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* 关闭按钮 - 如果用户已经关闭过一次则不显示 */}
@@ -235,8 +240,9 @@ const FingerprintRequestModal: React.FC<FingerprintRequestModalProps> = ({
                             {isSubmitted && (
                                 <button
                                     onClick={() => {
-                                        setLocalClosed(true);
-                                        onClose(false); // 成功提交后关闭，不需要 dismissal tracking
+                                        setTimeout(() => {
+                                            onClose(false); // 成功提交后关闭，不需要 dismissal tracking
+                                        }, 100);
                                     }}
                                     className="w-full px-4 py-2 text-green-600 bg-green-100 rounded-lg hover:bg-green-200 transition-colors flex items-center justify-center gap-2"
                                 >
