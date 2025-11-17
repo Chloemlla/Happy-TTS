@@ -241,9 +241,10 @@ const FingerprintRequestModal: React.FC<FingerprintRequestModalProps> = ({
                             {isSubmitted && (
                                 <button
                                     onClick={() => {
-                                        setTimeout(() => {
-                                            onClose(false); // 成功提交后关闭，不需要 dismissal tracking
-                                        }, 100);
+                                        // 确保状态已更新，shouldShowRequest 会变为 false，弹窗自动关闭
+                                        if (onRequestComplete) {
+                                            onRequestComplete();
+                                        }
                                     }}
                                     className="w-full px-4 py-2 text-green-600 bg-green-100 rounded-lg hover:bg-green-200 transition-colors flex items-center justify-center gap-2"
                                 >
