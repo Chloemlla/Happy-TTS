@@ -90,7 +90,12 @@ export const ipBanCheckMiddleware = async (
 
     // 如果IP被封禁，拒绝请求
     if (bannedInfo) {
-      logger.warn(`🚫 封禁IP尝试访问: ${normalizedIP}, 原因: ${bannedInfo.reason}, 到期时间: ${bannedInfo.expiresAt}`);
+      logger.warn(
+        `🚫 封禁IP尝试访问: ${normalizedIP}, ` +
+        `路径: ${req.method} ${req.path}, ` +
+        `原因: ${bannedInfo.reason}, ` +
+        `到期时间: ${bannedInfo.expiresAt}`
+      );
       
       res.status(403).json({
         error: '您的IP地址已被封禁，无法访问此服务',
