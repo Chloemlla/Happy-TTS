@@ -43,7 +43,7 @@ interface EmailQuota {
   resetAt: string; // ISO 时间
 }
 
-const EmailSender: React.FC<EmailSenderProps> = (props) => {
+const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
   const [form, setForm] = useState<EmailForm>({
     from: `noreply@${import.meta.env.VITE_RESEND_DOMAIN || 'hapxs.com'}`,
     to: [''],
@@ -1374,5 +1374,5 @@ const EmailSender: React.FC<EmailSenderProps> = (props) => {
       </div>
     </motion.div>
   );
-};
+});
 export default EmailSender;
