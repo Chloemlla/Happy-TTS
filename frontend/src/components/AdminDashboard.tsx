@@ -21,6 +21,9 @@ import { getApiBaseUrl } from '../api/api';
 import { FaCog, FaUsers, FaShieldAlt } from 'react-icons/fa';
 const SmartHumanCheckTraces = React.lazy(() => import('./SmartHumanCheckTraces'));
 const GitHubBillingCacheManager = React.lazy(() => import('./GitHubBillingCacheManager'));
+const IPBanManager = React.lazy(() => import('./IPBanManager'));
+const FingerprintManager = React.lazy(() => import('./FingerprintManager'));
+const SystemManager = React.lazy(() => import('./SystemManager'));
 
 const AdminDashboard: React.FC = () => {
   const [tab, setTab] = useState('users');
@@ -47,6 +50,9 @@ const AdminDashboard: React.FC = () => {
     { key: 'webhookevents', label: 'Webhook事件' },
     { key: 'data-collection', label: '数据收集管理' },
     { key: 'github-billing-cache', label: 'GitHub账单缓存管理' },
+    { key: 'ip-ban', label: 'IP封禁管理' },
+    { key: 'fingerprint', label: '指纹管理' },
+    { key: 'system', label: '系统管理' },
   ] as const), []);
 
   // 多重权限验证
@@ -514,6 +520,45 @@ const AdminDashboard: React.FC = () => {
                   >
                     <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
                       <GitHubBillingCacheManager />
+                    </Suspense>
+                  </motion.div>
+                )}
+                {tab === 'ip-ban' && (
+                  <motion.div
+                    key="ip-ban"
+                    initial={{ opacity: 0, x: 40 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -40 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
+                      <IPBanManager />
+                    </Suspense>
+                  </motion.div>
+                )}
+                {tab === 'fingerprint' && (
+                  <motion.div
+                    key="fingerprint"
+                    initial={{ opacity: 0, x: 40 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -40 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
+                      <FingerprintManager />
+                    </Suspense>
+                  </motion.div>
+                )}
+                {tab === 'system' && (
+                  <motion.div
+                    key="system"
+                    initial={{ opacity: 0, x: 40 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -40 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
+                      <SystemManager />
                     </Suspense>
                   </motion.div>
                 )}
