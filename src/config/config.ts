@@ -56,4 +56,14 @@ export const config = {
     password: process.env.MYSQL_PASSWORD || 'root',
     database: MYSQL_DATABASE,
   },
-}; 
+
+  // Redis 配置
+  redis: {
+    url: process.env.REDIS_URL || '', // 例如: redis://localhost:6379
+    enabled: !!process.env.REDIS_URL, // 如果配置了 REDIS_URL 则启用
+  },
+
+  // IP 封禁存储方式: 'redis' 或 'mongo'
+  // 如果配置了 Redis 则优先使用 Redis，否则使用 MongoDB
+  ipBanStorage: process.env.REDIS_URL ? 'redis' : 'mongo',
+};

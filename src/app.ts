@@ -70,6 +70,7 @@ import { totpStatusHandler } from './routes/totpRoutes';
 import turnstileRoutes from './routes/turnstileRoutes';
 import { schedulerService } from './services/schedulerService';
 import githubBillingRoutes from './routes/githubBillingRoutes';
+import { ipBanCheckMiddleware } from './middleware/ipBanCheck';
 
 // 扩展 Request 类型
 declare global {
@@ -164,6 +165,9 @@ app.use('/', dataCollectionRoutes);
 // JSON body parser middleware - 必须在短链路由之前
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// 全局IP封禁检查中间件 - 检查所有请求的IP是否在封禁列表中
+app.use(ipBanCheckMiddleware);
 
 // 为所有 /s/* 路由添加 CORS 响应头中间件 - 必须在路由挂载之前
 app.use('/s/*path', (req: Request, res: Response, next: NextFunction) => {

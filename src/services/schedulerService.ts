@@ -1,11 +1,14 @@
 import { TurnstileService } from './turnstileService';
 import { GitHubBillingService } from './githubBillingService';
 import { cleanupExpiredIPData, getIPDataStats } from './ip';
+import { ipBanSyncService } from './ipBanSyncService';
 import logger from '../utils/logger';
 
 class SchedulerService {
   private cleanupInterval: NodeJS.Timeout | null = null;
+  private syncInterval: NodeJS.Timeout | null = null;
   private isRunning = false;
+  private isSyncEnabled = false;
 
   public start(): void {
     if (this.isRunning) {
@@ -27,6 +30,9 @@ class SchedulerService {
       this.cleanupExpiredData();
     }, 5 * 60 * 1000); // 每5分钟执行一次
 
+    // 启动 IP 封禁同步服务（如果 Redis 可用）
+    this.startIPBanSync();
+
     logger.info('定时任务服务已启动，每5分钟清理一次过期数据');
   }
 
@@ -35,7 +41,14 @@ class SchedulerService {
       clearInterval(this.cleanupInterval);
       this.cleanupInterval = null;
     }
+    if (this.syncInterval) {
+      clearInterval(this.syncInterval);
+      this.syncInterval = null;
+    }
+    // 停止 IP 封禁同步服务
+    ipBanSyncService.stop();
     this.isRunning = false;
+    this.isSyncEnabled = false;
     logger.info('定时任务服务已停止');
   }
 
@@ -70,10 +83,90 @@ class SchedulerService {
     }
   }
 
-  public getStatus(): { isRunning: boolean; lastCleanup?: Date } {
+  /**
+   * 启动 IP 封禁同步服务
+   */
+  private startIPBanSync(): void {
+    try {
+      // 启动同步服务
+      ipBanSyncService.start();
+      this.isSyncEnabled = true;
+      
+      // 每5分钟执行一次双向同步
+      this.syncInterval = setInterval(() => {
+        this.syncIPBans();
+      }, 5 * 60 * 1000);
+      
+      logger.info('✅ IP 封禁同步服务已启动');
+    } catch (error) {
+      logger.warn('⚠️ IP 封禁同步服务启动失败（可能 Redis 未配置）:', error);
+    }
+  }
+
+  /**
+   * 执行 IP 封禁同步
+   */
+  private async syncIPBans(): Promise<void> {
+    try {
+      const result = await ipBanSyncService.bidirectionalSync();
+      
+      const mongoToRedisTotal = result.mongoToRedis.synced + result.mongoToRedis.merged;
+      const redisToMongoTotal = result.redisToMongo.synced + result.redisToMongo.updated;
+      
+      if (mongoToRedisTotal > 0 || redisToMongoTotal > 0) {
+        logger.info(
+          `🔄 IP 封禁同步完成: ` +
+          `MongoDB->Redis (新增${result.mongoToRedis.synced}, 合并${result.mongoToRedis.merged}), ` +
+          `Redis->MongoDB (新增${result.redisToMongo.synced}, 更新${result.redisToMongo.updated})`
+        );
+      }
+      
+      this.lastSync = new Date();
+    } catch (error) {
+      logger.error('❌ IP 封禁同步失败:', error);
+    }
+  }
+
+  /**
+   * 手动触发同步
+   */
+  public async manualSync(): Promise<{
+    success: boolean;
+    mongoToRedis?: any;
+    redisToMongo?: any;
+    error?: string;
+  }> {
+    try {
+      const result = await ipBanSyncService.bidirectionalSync();
+      logger.info('✅ 手动同步完成');
+      return {
+        success: true,
+        mongoToRedis: result.mongoToRedis,
+        redisToMongo: result.redisToMongo
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '未知错误';
+      logger.error('❌ 手动同步失败:', error);
+      return {
+        success: false,
+        error: errorMessage
+      };
+    }
+  }
+
+  public getStatus(): {
+    isRunning: boolean;
+    isSyncEnabled: boolean;
+    lastCleanup?: Date;
+    lastSync?: Date;
+    ipBanSyncStatus?: any;
+  } {
     return {
       isRunning: this.isRunning,
-      lastCleanup: this.lastCleanup
+      isSyncEnabled: this.isSyncEnabled,
+      lastCleanup: this.lastCleanup,
+      lastSync: this.lastSync,
+      ipBanSyncStatus: this.isSyncEnabled ? ipBanSyncService.getStatus() : undefined
     };
   }
 
@@ -109,6 +202,7 @@ class SchedulerService {
   }
 
   private lastCleanup?: Date;
+  private lastSync?: Date;
 }
 
 const schedulerService = new SchedulerService();

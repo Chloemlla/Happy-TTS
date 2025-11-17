@@ -1875,4 +1875,73 @@ router.post('/hcaptcha-verify', publicLimiter, async (req, res) => {
     }
 });
 
-export default router; 
+// 手动触发 IP 封禁同步（管理员专用）
+router.post('/sync-ipbans', authenticateToken, adminLimiter, async (req, res) => {
+    try {
+        const userRole = (req as any).user?.role;
+        const isAdmin = userRole === 'admin' || userRole === 'administrator';
+
+        if (!isAdmin) {
+            return res.status(403).json({
+                success: false,
+                error: '权限不足'
+            });
+        }
+
+        const { schedulerService } = await import('../services/schedulerService');
+        const result = await schedulerService.manualSync();
+
+        if (result.success) {
+            res.json({
+                success: true,
+                message: 'IP 封禁同步完成',
+                data: {
+                    mongoToRedis: result.mongoToRedis,
+                    redisToMongo: result.redisToMongo
+                }
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                error: result.error || '同步失败'
+            });
+        }
+    } catch (error) {
+        console.error('手动同步失败:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : '同步失败'
+        });
+    }
+});
+
+// 获取同步状态（管理员专用）
+router.get('/sync-status', authenticateToken, adminLimiter, async (req, res) => {
+    try {
+        const userRole = (req as any).user?.role;
+        const isAdmin = userRole === 'admin' || userRole === 'administrator';
+
+        if (!isAdmin) {
+            return res.status(403).json({
+                success: false,
+                error: '权限不足'
+            });
+        }
+
+        const { schedulerService } = await import('../services/schedulerService');
+        const status = schedulerService.getStatus();
+
+        res.json({
+            success: true,
+            data: status
+        });
+    } catch (error) {
+        console.error('获取同步状态失败:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : '获取状态失败'
+        });
+    }
+});
+
+export default router;
