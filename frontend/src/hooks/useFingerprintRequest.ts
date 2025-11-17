@@ -4,12 +4,16 @@ import { getApiBaseUrl } from '../api/api';
 interface FingerprintRequestStatus {
   requireFingerprint: boolean;
   requireFingerprintAt: number;
+  fingerprintRequestDismissedOnce: boolean;
+  fingerprintRequestDismissedAt: number;
 }
 
 export const useFingerprintRequest = () => {
   const [requestStatus, setRequestStatus] = useState<FingerprintRequestStatus>({
     requireFingerprint: false,
-    requireFingerprintAt: 0
+    requireFingerprintAt: 0,
+    fingerprintRequestDismissedOnce: false,
+    fingerprintRequestDismissedAt: 0
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -50,6 +54,45 @@ export const useFingerprintRequest = () => {
     return (now - dismissTime) < oneHour;
   }, [getUserId]);
 
+  // 记录用户永久关闭（一生只能关闭一次）
+  const recordDismissOnce = useCallback(async (): Promise<boolean> => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return false;
+
+      const response = await fetch(`${getApiBaseUrl()}/api/admin/user/fingerprint/dismiss`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin'
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        console.error('记录关闭失败:', error);
+        return false;
+      }
+
+      const data = await response.json();
+      console.log('✅ 已记录用户永久关闭指纹请求:', data);
+      
+      // 更新本地状态
+      setRequestStatus(prev => ({
+        ...prev,
+        fingerprintRequestDismissedOnce: true,
+        fingerprintRequestDismissedAt: Date.now()
+      }));
+
+      return true;
+    } catch (err) {
+      console.error('记录关闭请求失败:', err);
+      return false;
+    }
+  }, []);
+
   // 处理用户dismiss操作
   const handleDismiss = useCallback((shouldTrack: boolean = true): void => {
     // 如果不需要tracking（例如用户点击X按钮或背景关闭），直接返回
@@ -81,7 +124,12 @@ export const useFingerprintRequest = () => {
   // 获取指纹请求状态
   const checkFingerprintRequest = useCallback(async (): Promise<FingerprintRequestStatus> => {
     if (!isUserLoggedIn()) {
-      return { requireFingerprint: false, requireFingerprintAt: 0 };
+      return { 
+        requireFingerprint: false, 
+        requireFingerprintAt: 0,
+        fingerprintRequestDismissedOnce: false,
+        fingerprintRequestDismissedAt: 0
+      };
     }
 
     try {
@@ -103,7 +151,9 @@ export const useFingerprintRequest = () => {
       const data = await response.json();
       return {
         requireFingerprint: data.requireFingerprint || false,
-        requireFingerprintAt: data.requireFingerprintAt || 0
+        requireFingerprintAt: data.requireFingerprintAt || 0,
+        fingerprintRequestDismissedOnce: data.fingerprintRequestDismissedOnce || false,
+        fingerprintRequestDismissedAt: data.fingerprintRequestDismissedAt || 0
       };
     } catch (err) {
       console.error('检查指纹请求状态失败:', err);
@@ -162,7 +212,12 @@ export const useFingerprintRequest = () => {
   // 登出时清理状态
   useEffect(() => {
     if (!isUserLoggedIn()) {
-      setRequestStatus({ requireFingerprint: false, requireFingerprintAt: 0 });
+      setRequestStatus({ 
+        requireFingerprint: false, 
+        requireFingerprintAt: 0,
+        fingerprintRequestDismissedOnce: false,
+        fingerprintRequestDismissedAt: 0
+      });
       setError('');
     }
   }, [isUserLoggedIn]);
@@ -181,6 +236,7 @@ export const useFingerprintRequest = () => {
     checkFingerprintRequest,
     markFingerprintRequestCompleted,
     handleDismiss,
+    recordDismissOnce,
     isUserLoggedIn
   };
 };

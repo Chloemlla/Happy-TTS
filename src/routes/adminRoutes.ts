@@ -1033,6 +1033,8 @@ router.get('/user/fingerprint/status', authMiddleware, async (req, res) => {
     // 获取指纹请求状态字段
     const requireFingerprint = (current && (current as any).requireFingerprint) || false;
     const requireFingerprintAt = (current && (current as any).requireFingerprintAt) || 0;
+    const fingerprintRequestDismissedOnce = (current && (current as any).fingerprintRequestDismissedOnce) || false;
+    const fingerprintRequestDismissedAt = (current && (current as any).fingerprintRequestDismissedAt) || 0;
 
     res.json({ 
       success: true, 
@@ -1042,11 +1044,52 @@ router.get('/user/fingerprint/status', authMiddleware, async (req, res) => {
       ipChanged, 
       uaChanged,
       requireFingerprint,
-      requireFingerprintAt
+      requireFingerprintAt,
+      fingerprintRequestDismissedOnce,
+      fingerprintRequestDismissedAt
     });
   } catch (e) {
     console.error('查询指纹状态失败', e);
     res.status(500).json({ error: '查询指纹状态失败' });
+  }
+});
+
+// 记录用户关闭指纹请求（需登录，一生只能关闭一次）
+router.post('/user/fingerprint/dismiss', authMiddleware, async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user) return res.status(401).json({ error: '未登录' });
+
+    const { getUserById, updateUser } = require('../services/userService');
+    const current = await getUserById(user.id);
+    if (!current) return res.status(404).json({ error: '用户不存在' });
+
+    // 检查是否已经关闭过一次
+    const alreadyDismissed = (current as any).fingerprintRequestDismissedOnce || false;
+    if (alreadyDismissed) {
+      return res.status(400).json({ 
+        error: '您已经关闭过一次指纹请求，无法再次关闭',
+        fingerprintRequestDismissedOnce: true 
+      });
+    }
+
+    // 记录关闭
+    await updateUser(user.id, {
+      fingerprintRequestDismissedOnce: true,
+      fingerprintRequestDismissedAt: Date.now()
+    });
+
+    console.log(`✅ 用户 ${user.id} 关闭了指纹请求（一生只能关闭一次）`);
+    
+    res.json({ 
+      success: true, 
+      message: '已记录您的关闭操作，下次将无法再关闭',
+      fingerprintRequestDismissedOnce: true,
+      fingerprintRequestDismissedAt: Date.now()
+    });
+  } catch (e) {
+    console.error('记录指纹请求关闭失败', e);
+    res.status(500).json({ error: '记录失败' });
   }
 });
 

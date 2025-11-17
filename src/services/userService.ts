@@ -34,6 +34,9 @@ const userSchema = new mongoose.Schema({
   // 指纹预约需求持久化
   requireFingerprint: { type: Boolean, default: false },
   requireFingerprintAt: { type: Number, default: 0 },
+  // 用户是否已经关闭过一次指纹请求（一生只能关闭一次）
+  fingerprintRequestDismissedOnce: { type: Boolean, default: false },
+  fingerprintRequestDismissedAt: { type: Number, default: 0 }, // 关闭时间戳
   // 新增：指纹记录（历史）
   fingerprints: [
     {
@@ -68,7 +71,7 @@ export const getUserById = async (id: string): Promise<UserType | null> => {
   // 调试日志：记录查询条件和耗时
   const start = Date.now();
   // 修复：select 字段包含所有passkey相关字段
-  const doc = await UserModel.findOne({ id }).select('id username email role password avatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprints').lean();
+  const doc = await UserModel.findOne({ id }).select('id username email role password avatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints').lean();
 
   const duration = Date.now() - start;
   console.log('[MongoDB getUserById] 查询条件:', { id }, '耗时:', duration + 'ms', '返回字段:', doc ? Object.keys(doc) : 'null');
@@ -80,7 +83,7 @@ export const getUserByUsername = async (username: string): Promise<UserType | nu
   if (typeof username !== 'string' || !/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
     throw new Error('非法的用户名');
   }
-  const doc = await UserModel.findOne({ username }).select('id username email role token tokenExpiresAt password avatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprints').lean();
+  const doc = await UserModel.findOne({ username }).select('id username email role token tokenExpiresAt password avatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints').lean();
 
   if (!doc) return null;
   return removeAvatarBase64(doc) as unknown as UserType;
@@ -91,7 +94,7 @@ export const getUserByEmail = async (email: string): Promise<UserType | null> =>
   if (typeof email !== 'string') return null;
   const safeEmail = email.trim();
   if (!validator.isEmail(safeEmail)) return null;
-  const doc = await UserModel.findOne({ email: safeEmail }).select('id username email role token tokenExpiresAt password avatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprints').lean();
+  const doc = await UserModel.findOne({ email: safeEmail }).select('id username email role token tokenExpiresAt password avatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints').lean();
 
   if (!doc) return null;
   return removeAvatarBase64(doc) as unknown as UserType;
@@ -101,14 +104,6 @@ export const createUser = async (user: UserType): Promise<UserType> => {
   const doc = await UserModel.create(user);
   return doc.toObject() as unknown as UserType;
 };
-
-// 允许被更新的字段白名单
-const ALLOWED_UPDATE_FIELDS = [
-  'username', 'email', 'password', 'role', 'dailyUsage', 'lastUsageDate', 'token', 'tokenExpiresAt',
-  'totpSecret', 'totpEnabled', 'backupCodes', 'passkeyEnabled', 'passkeyCredentials',
-  'pendingChallenge', 'currentChallenge', 'passkeyVerified', 'avatarBase64', 'avatarUrl', 'fingerprints',
-  'requireFingerprint', 'requireFingerprintAt'
-];
 
 export const updateUser = async (id: string, updates: Partial<UserType>): Promise<UserType | null> => {
   // 只允许字符串id，且不能包含特殊字符

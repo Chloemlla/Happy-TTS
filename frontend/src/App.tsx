@@ -343,6 +343,7 @@ const App: React.FC = () => {
     shouldShowRequest,
     markFingerprintRequestCompleted,
     handleDismiss,
+    recordDismissOnce,
     requestStatus
   } = useFingerprintRequest();
 
@@ -647,7 +648,7 @@ const App: React.FC = () => {
           return;
         }
 
-        const response = await fetch('/api/totp/status', {
+        const response = await fetch(getApiBaseUrl() + '/api/totp/status', {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -1568,6 +1569,8 @@ const App: React.FC = () => {
             isOpen={shouldShowRequest}
             onClose={handleDismiss}
             onRequestComplete={markFingerprintRequestCompleted}
+            hasDismissedOnce={requestStatus.fingerprintRequestDismissedOnce}
+            onDismissOnce={recordDismissOnce}
           />
         </div>
       </LazyMotion>

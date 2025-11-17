@@ -9,12 +9,16 @@ interface FingerprintRequestModalProps {
     isOpen: boolean;
     onClose: (isDismissed?: boolean) => void;
     onRequestComplete?: () => void;
+    hasDismissedOnce?: boolean; // 用户是否已经关闭过一次（一生只能关闭一次）
+    onDismissOnce?: () => Promise<boolean>; // 记录用户关闭操作的回调
 }
 
 const FingerprintRequestModal: React.FC<FingerprintRequestModalProps> = ({
     isOpen,
     onClose,
-    onRequestComplete
+    onRequestComplete,
+    hasDismissedOnce = false,
+    onDismissOnce
 }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
@@ -50,9 +54,9 @@ const FingerprintRequestModal: React.FC<FingerprintRequestModalProps> = ({
                 onRequestComplete();
             }
 
-            // 2秒后自动关闭
+            // 2秒后自动关闭（成功提交后不需要 dismissal tracking）
             setTimeout(() => {
-                onClose();
+                onClose(false);
             }, 2000);
 
         } catch (err) {
@@ -64,17 +68,60 @@ const FingerprintRequestModal: React.FC<FingerprintRequestModalProps> = ({
         }
     };
 
-    const handleDismiss = () => {
-        if (!isSubmitting) {
+    const handleDismiss = async () => {
+        if (isSubmitting) return;
+
+        // 如果用户已经关闭过一次，不允许再次关闭
+        if (hasDismissedOnce) {
+            setNotification({ 
+                type: 'error', 
+                message: '您已经关闭过一次指纹请求，必须立即上报才能继续使用' 
+            });
+            return;
+        }
+
+        // 调用后端 API 记录关闭操作
+        if (onDismissOnce) {
+            setIsSubmitting(true);
+            const success = await onDismissOnce();
+            setIsSubmitting(false);
+
+            if (success) {
+                setLocalClosed(true);
+                setNotification({ 
+                    type: 'warning', 
+                    message: '已记录您的关闭操作，这是您唯一一次关闭机会，下次必须上报' 
+                });
+                onClose(true); // 传递 true 表示这是主动跳过
+            } else {
+                setNotification({ 
+                    type: 'error', 
+                    message: '记录关闭操作失败，请稍后重试' 
+                });
+            }
+        } else {
+            // 降级处理：如果没有提供回调，使用原有逻辑
+            setLocalClosed(true);
             setNotification({ type: 'warning', message: '您暂时跳过了指纹上报，管理员可能再次请求' });
-            onClose(true); // 传递 true 表示这是主动跳过，需要 dismissal tracking
+            onClose(true);
         }
     };
 
     const handleClose = () => {
-        if (!isSubmitting) {
-            onClose(false); // 传递 false 表示这是普通关闭，不需要 dismissal tracking
+        if (isSubmitting) return;
+
+        // 如果用户已经关闭过一次，不允许通过任何方式关闭
+        if (hasDismissedOnce) {
+            setNotification({ 
+                type: 'error', 
+                message: '您已经关闭过一次指纹请求，必须立即上报才能继续使用' 
+            });
+            return;
         }
+
+        // 否则允许关闭
+        setLocalClosed(true);
+        onClose(false); // 传递 false 表示这是普通关闭，不需要 dismissal tracking
     };
 
     return (
@@ -85,7 +132,7 @@ const FingerprintRequestModal: React.FC<FingerprintRequestModalProps> = ({
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    onClick={handleClose}
+                    onClick={hasDismissedOnce ? undefined : handleClose}
                 >
                     <motion.div
                         className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 relative"
@@ -94,8 +141,8 @@ const FingerprintRequestModal: React.FC<FingerprintRequestModalProps> = ({
                         exit={{ scale: 0.9, y: 20, opacity: 0 }}
                         onClick={(e) => e.stopPropagation()}
                     >
-                        {/* 关闭按钮 */}
-                        {!isSubmitting && !isSubmitted && (
+                        {/* 关闭按钮 - 如果用户已经关闭过一次则不显示 */}
+                        {!isSubmitting && !isSubmitted && !hasDismissedOnce && (
                             <button
                                 onClick={handleClose}
                                 className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
@@ -133,7 +180,9 @@ const FingerprintRequestModal: React.FC<FingerprintRequestModalProps> = ({
                             <p className="text-gray-600 text-sm leading-relaxed">
                                 {isSubmitted
                                     ? '您的浏览器指纹已成功上报，感谢您的配合！'
-                                    : '管理员请求上报您的浏览器指纹，用于安全验证和用户识别。此过程不会收集任何个人信息。'
+                                    : hasDismissedOnce
+                                        ? '⚠️ 您已经关闭过一次指纹请求，这是最后的机会。您必须立即上报才能继续使用，无法再次关闭此窗口。'
+                                        : '管理员请求上报您的浏览器指纹，用于安全验证和用户识别。此过程不会收集任何个人信息。'
                                 }
                             </p>
                         </div>
@@ -154,17 +203,20 @@ const FingerprintRequestModal: React.FC<FingerprintRequestModalProps> = ({
                         <div className="flex gap-3">
                             {!isSubmitted && (
                                 <>
-                                    <button
-                                        onClick={handleDismiss}
-                                        disabled={isSubmitting}
-                                        className="flex-1 px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        暂时跳过
-                                    </button>
+                                    {/* 只有在用户未关闭过的情况下才显示"暂时跳过"按钮 */}
+                                    {!hasDismissedOnce && (
+                                        <button
+                                            onClick={handleDismiss}
+                                            disabled={isSubmitting}
+                                            className="flex-1 px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            暂时跳过
+                                        </button>
+                                    )}
                                     <button
                                         onClick={handleSubmit}
                                         disabled={isSubmitting}
-                                        className="flex-1 px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                        className={`${hasDismissedOnce ? 'w-full' : 'flex-1'} px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
                                     >
                                         {isSubmitting ? (
                                             <>
@@ -182,7 +234,10 @@ const FingerprintRequestModal: React.FC<FingerprintRequestModalProps> = ({
                             )}
                             {isSubmitted && (
                                 <button
-                                    onClick={() => setLocalClosed(true)}
+                                    onClick={() => {
+                                        setLocalClosed(true);
+                                        onClose(false); // 成功提交后关闭，不需要 dismissal tracking
+                                    }}
                                     className="w-full px-4 py-2 text-green-600 bg-green-100 rounded-lg hover:bg-green-200 transition-colors flex items-center justify-center gap-2"
                                 >
                                     <FaCheck className="w-4 h-4" />
