@@ -16,6 +16,8 @@ import DOMPurify from 'dompurify';
 import { reportFingerprintOnce } from './utils/fingerprint';
 import { useFirstVisitDetection } from './hooks/useFirstVisitDetection';
 import { FirstVisitVerification } from './components/FirstVisitVerification';
+import { useFingerprintRequest } from './hooks/useFingerprintRequest';
+import FingerprintRequestModal from './components/FingerprintRequestModal';
 import clarity from '@microsoft/clarity';
 
 // 懒加载组件
@@ -335,6 +337,14 @@ const App: React.FC = () => {
     clientIP,
     markAsVerified,
   } = useFirstVisitDetection();
+
+  // 指纹请求检测
+  const {
+    shouldShowRequest,
+    markFingerprintRequestCompleted,
+    handleDismiss,
+    requestStatus
+  } = useFingerprintRequest();
 
   // 在App组件内，提升isMobile/isOverflow状态
   const [isMobileNav, setIsMobileNav] = useState(false);
@@ -1552,6 +1562,13 @@ const App: React.FC = () => {
               </m.div>
             )}
           </AnimatePresence>
+
+          {/* 指纹请求弹窗 */}
+          <FingerprintRequestModal
+            isOpen={shouldShowRequest}
+            onClose={handleDismiss}
+            onRequestComplete={markFingerprintRequestCompleted}
+          />
         </div>
       </LazyMotion>
     </NotificationProvider>

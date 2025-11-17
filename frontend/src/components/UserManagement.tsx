@@ -25,6 +25,7 @@ interface FingerprintRecord {
   ts: number;
   ua?: string;
   ip?: string;
+  deviceInfo?: any;
 }
 
 interface User {
@@ -632,15 +633,44 @@ const UserManagement: React.FC = () => {
                       <div className="text-xs text-gray-500 mb-1">{new Date(fp.ts).toLocaleString()} · IP {fp.ip || '-'} </div>
                       <div className="font-mono break-all text-sm">{fp.id}</div>
                       {fp.ua && <div className="text-[11px] text-gray-500 mt-1 break-all">{fp.ua}</div>}
+                      {/* 设备特征信息显示 */}
+                      {(() => {
+                        console.log('🔍 指纹记录数据:', fp);
+                        console.log('🔍 设备信息:', fp.deviceInfo);
+                        return fp.deviceInfo;
+                      })() && (
+                        <div className="mt-2 p-2 bg-gray-50 rounded text-xs">
+                          <div className="font-medium text-gray-700 mb-1">设备特征:</div>
+                          <div className="grid grid-cols-2 gap-1 text-gray-600">
+                            {fp.deviceInfo?.screen && (
+                              <div>屏幕: {fp.deviceInfo.screen.w}×{fp.deviceInfo.screen.h}</div>
+                            )}
+                            {fp.deviceInfo?.timezone?.tz && (
+                              <div>时区: {fp.deviceInfo.timezone.tz}</div>
+                            )}
+                            {fp.deviceInfo?.navigator?.userAgent && (
+                              <div className="col-span-2 truncate">
+                                浏览器: {fp.deviceInfo.navigator.userAgent.split(' ').slice(-2).join(' ')}
+                              </div>
+                            )}
+                          </div>
+                          <details className="mt-1">
+                            <summary className="cursor-pointer text-blue-600 hover:text-blue-800">详细信息</summary>
+                            <pre className="mt-1 text-xs bg-white p-1 rounded border overflow-auto max-h-32">
+                              {JSON.stringify(fp.deviceInfo, null, 2)}
+                            </pre>
+                          </details>
+                        </div>
+                      )}
                       <div className="mt-2">
                         <motion.button
                           className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
                           onClick={async () => {
                             try {
                               await navigator.clipboard?.writeText(fp.id);
-                              setNotification({ type: 'success', message: '已复制指纹ID到剪贴板' });
+                              setNotification({ type: 'success', message: '指纹ID已复制到剪贴板' });
                             } catch {
-                              setNotification({ type: 'error', message: '复制失败，请手动选择文本复制' });
+                              setNotification({ type: 'error', message: '复制失败，请手动复制' });
                             }
                           }}
                           whileHover={hoverScale(1.02)}
@@ -671,51 +701,51 @@ const UserManagement: React.FC = () => {
                   ))}
                 </div>
               ) : (
-                <div className="text-center text-gray-500">
-                  暂无指纹数据
-                  {fpUser && fpRequireMap[fpUser.id] ? (
-                    <div className="mt-2">
-                      <div className="text-blue-600 text-sm">已在预约列表</div>
-                      <div className="text-[12px] text-gray-500">上次预约：{new Date(fpRequireMap[fpUser.id]).toLocaleString()}</div>
-                      <motion.button
-                        className="mt-2 text-blue-600 hover:underline text-[12px]"
-                        onClick={async () => {
-                          if (!fpUser) return;
-                          try {
-                            const r = await api.post(`/api/admin/users/${fpUser.id}/fingerprint/require`, { require: true });
-                            const ts = Number(r?.data?.requireFingerprintAt || Date.now());
-                            setFpRequireMap(prev => ({ ...prev, [fpUser.id]: ts }));
-                            const timeStr = new Date(ts).toLocaleString();
-                            setNotification({ type: 'success', message: `已再次请求该用户下次上报指纹，已在预约列表\n上次预约：${timeStr}` });
-                          } catch (e: any) {
-                            setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '请求失败' });
-                          }
-                        }}
-                        whileHover={hoverScale(1.02)}
-                        whileTap={tapScale(0.95)}
-                      >再次请求</motion.button>
-                    </div>
-                  ) : (
-                    <div className="mt-2">
-                      <motion.button
-                        className="text-blue-600 hover:underline text-[12px]"
-                        onClick={async () => {
-                          if (!fpUser) return;
-                          try {
-                            const r = await api.post(`/api/admin/users/${fpUser.id}/fingerprint/require`, { require: true });
-                            const ts = Number(r?.data?.requireFingerprintAt || Date.now());
-                            setFpRequireMap(prev => ({ ...prev, [fpUser.id]: ts }));
-                            const timeStr = new Date(ts).toLocaleString();
-                            setNotification({ type: 'success', message: `已请求该用户下次上报指纹，已在预约列表\n上次预约：${timeStr}` });
-                          } catch (e: any) {
-                            setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '请求失败' });
-                          }
-                        }}
-                        whileHover={hoverScale(1.02)}
-                        whileTap={tapScale(0.95)}
-                      >请求上报</motion.button>
-                    </div>
-                  )}
+                <div className="text-center py-8 text-gray-500 text-sm">
+                  暂无指纹记录
+                </div>
+              )}
+              {fpRequireMap[fpUser.id] ? (
+                <div className="mt-2">
+                  <div className="text-blue-600 text-sm">已在预约列表</div>
+                  <div className="text-[12px] text-gray-500">上次预约：{new Date(fpRequireMap[fpUser.id]).toLocaleString()}</div>
+                  <motion.button
+                    className="mt-2 text-blue-600 hover:underline text-[12px]"
+                    onClick={async () => {
+                      if (!fpUser) return;
+                      try {
+                        const r = await api.post(`/api/admin/users/${fpUser.id}/fingerprint/require`, { require: true });
+                        const ts = Number(r?.data?.requireFingerprintAt || Date.now());
+                        setFpRequireMap(prev => ({ ...prev, [fpUser.id]: ts }));
+                        const timeStr = new Date(ts).toLocaleString();
+                        setNotification({ type: 'success', message: `已再次请求该用户下次上报指纹，已在预约列表\n上次预约：${timeStr}` });
+                      } catch (e: any) {
+                        setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '请求失败' });
+                      }
+                    }}
+                    whileHover={hoverScale(1.02)}
+                    whileTap={tapScale(0.95)}
+                  >再次请求</motion.button>
+                </div>
+              ) : (
+                <div className="mt-2">
+                  <motion.button
+                    className="text-blue-600 hover:underline text-[12px]"
+                    onClick={async () => {
+                      if (!fpUser) return;
+                      try {
+                        const r = await api.post(`/api/admin/users/${fpUser.id}/fingerprint/require`, { require: true });
+                        const ts = Number(r?.data?.requireFingerprintAt || Date.now());
+                        setFpRequireMap(prev => ({ ...prev, [fpUser.id]: ts }));
+                        const timeStr = new Date(ts).toLocaleString();
+                        setNotification({ type: 'success', message: `已请求该用户下次上报指纹，已在预约列表\n上次预约：${timeStr}` });
+                      } catch (e: any) {
+                        setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '请求失败' });
+                      }
+                    }}
+                    whileHover={hoverScale(1.02)}
+                    whileTap={tapScale(0.95)}
+                  >请求上报</motion.button>
                 </div>
               )}
               <div className="mt-4 text-right">

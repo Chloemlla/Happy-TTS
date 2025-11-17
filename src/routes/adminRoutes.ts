@@ -1030,7 +1030,20 @@ router.get('/user/fingerprint/status', authMiddleware, async (req, res) => {
     const currentUa = String(req.headers['user-agent'] || '');
     const uaChanged = !!(lastUa && currentUa && lastUa !== currentUa);
 
-    res.json({ success: true, count, lastTs, lastIp, ipChanged, uaChanged });
+    // 获取指纹请求状态字段
+    const requireFingerprint = (current && (current as any).requireFingerprint) || false;
+    const requireFingerprintAt = (current && (current as any).requireFingerprintAt) || 0;
+
+    res.json({ 
+      success: true, 
+      count, 
+      lastTs, 
+      lastIp, 
+      ipChanged, 
+      uaChanged,
+      requireFingerprint,
+      requireFingerprintAt
+    });
   } catch (e) {
     console.error('查询指纹状态失败', e);
     res.status(500).json({ error: '查询指纹状态失败' });

@@ -326,12 +326,47 @@ export const reportFingerprintOnce = async (): Promise<void> => {
     return;
   }
 
+  // 收集设备特征信息
+  const deviceSignals = {
+    screen: getScreenSignals(),
+    timezone: getTimezoneSignals(),
+    canvas: getCanvasFingerprint(),
+    navigator: {
+      userAgent: navigator.userAgent,
+      language: navigator.language,
+      languages: navigator.languages,
+      platform: navigator.platform,
+      cookieEnabled: navigator.cookieEnabled,
+      doNotTrack: navigator.doNotTrack,
+      hardwareConcurrency: navigator.hardwareConcurrency,
+      maxTouchPoints: navigator.maxTouchPoints,
+      vendor: navigator.vendor,
+      product: navigator.product
+    },
+    window: {
+      innerWidth: window.innerWidth,
+      innerHeight: window.innerHeight,
+      outerWidth: window.outerWidth,
+      outerHeight: window.outerHeight,
+      devicePixelRatio: window.devicePixelRatio
+    }
+  };
+
+  console.log('📱 收集到的设备特征信息:', deviceSignals);
+
   console.log('🔑 指纹生成成功:', fingerprint.substring(0, 8) + '...');
   const apiUrl = `${getApiBaseUrl()}/api/turnstile/fingerprint/report`;
   const token = localStorage.getItem('token');
 
   console.log('🌐 准备发送请求到:', apiUrl);
   console.log('🔐 使用Token:', token ? token.substring(0, 20) + '...' : 'null');
+
+  const requestPayload = {
+    fingerprint,
+    deviceSignals
+  };
+  
+  console.log('📤 准备发送的请求载荷:', requestPayload);
 
   try {
     const response = await fetchWithRetry(apiUrl, {
@@ -342,7 +377,7 @@ export const reportFingerprintOnce = async (): Promise<void> => {
         'X-Requested-With': 'XMLHttpRequest'
       },
       credentials: 'same-origin',
-      body: JSON.stringify({ fingerprint })
+      body: JSON.stringify(requestPayload)
     });
 
     console.log('📡 收到响应:', {

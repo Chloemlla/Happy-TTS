@@ -94,7 +94,7 @@ const configLimiter = rateLimit({
 // 指纹上报接口（需要认证，用于已登录用户）
 router.post('/fingerprint/report', authenticateToken, authenticatedFingerprintLimiter, async (req, res) => {
     try {
-        const { fingerprint } = req.body;
+        const { fingerprint, deviceSignals } = req.body;
         const clientIp = req.ip || req.socket.remoteAddress || (Array.isArray(req.headers['x-forwarded-for']) ? req.headers['x-forwarded-for'][0] : req.headers['x-forwarded-for']) || 'unknown';
         const validatedClientIp = typeof clientIp === 'string' ? clientIp : 'unknown';
         const userId = (req as any).user?.id;
@@ -104,7 +104,14 @@ router.post('/fingerprint/report', authenticateToken, authenticatedFingerprintLi
             fingerprint: fingerprint ? fingerprint.substring(0, 8) + '...' : 'null',
             clientIp: validatedClientIp,
             userId,
-            userAgent: userAgent.substring(0, 50) + '...'
+            userAgent: userAgent.substring(0, 50) + '...',
+            hasDeviceSignals: !!deviceSignals,
+            deviceSignalsPreview: deviceSignals ? {
+                screen: deviceSignals.screen,
+                timezone: deviceSignals.timezone,
+                navigatorKeys: deviceSignals.navigator ? Object.keys(deviceSignals.navigator) : [],
+                window: deviceSignals.window ? 'present' : 'missing'
+            } : null
         });
 
         if (!fingerprint || typeof fingerprint !== 'string') {
@@ -138,12 +145,19 @@ router.post('/fingerprint/report', authenticateToken, authenticatedFingerprintLi
             const existing = (current && (current as any).fingerprints) || [];
             
             // 创建指纹记录
+            console.log('🔧 调试: deviceSignals 原始值:', deviceSignals);
+            console.log('🔧 调试: deviceSignals 类型:', typeof deviceSignals);
+            console.log('🔧 调试: deviceSignals JSON:', JSON.stringify(deviceSignals, null, 2));
+            
             const fingerprintRecord = { 
                 id: fingerprint, 
                 ts: Date.now(), 
                 ua: String(userAgent), 
-                ip: String(validatedClientIp) 
+                ip: String(validatedClientIp),
+                deviceInfo: (typeof deviceSignals === 'object' && deviceSignals !== null) ? deviceSignals : null
             };
+            
+            console.log('🔧 调试: 即将保存的指纹记录:', fingerprintRecord);
             
             // 保留最新的20条指纹记录
             const next = [fingerprintRecord, ...existing].slice(0, 20);

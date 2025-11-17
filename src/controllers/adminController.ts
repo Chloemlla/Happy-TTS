@@ -148,6 +148,20 @@ export const adminController = {
 
       console.log('📊 [UserManagement] 获取到用户数量:', usersSanitized.length);
 
+      // 调试：检查第一个用户的指纹数据
+      if (usersSanitized.length > 0 && usersSanitized[0]?.fingerprints?.length > 0) {
+        const firstFingerprint = usersSanitized[0].fingerprints[0];
+        console.log('🔍 [UserManagement] 第一个指纹记录调试:', {
+          hasId: !!firstFingerprint.id,
+          hasTs: !!firstFingerprint.ts,
+          hasUa: !!firstFingerprint.ua,
+          hasIp: !!firstFingerprint.ip,
+          hasDeviceInfo: !!firstFingerprint.deviceInfo,
+          deviceInfoKeys: firstFingerprint.deviceInfo ? Object.keys(firstFingerprint.deviceInfo) : [],
+          storageMode: process.env.USER_STORAGE_MODE || process.env.STORAGE_MODE || 'unknown'
+        });
+      }
+
       // 准备加密数据
       const jsonData = JSON.stringify(usersSanitized);
       console.log('📝 [UserManagement] JSON数据准备完成，长度:', jsonData.length);

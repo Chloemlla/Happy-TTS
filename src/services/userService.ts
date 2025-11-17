@@ -41,6 +41,7 @@ const userSchema = new mongoose.Schema({
       ts: { type: Number },
       ua: { type: String },
       ip: { type: String },
+      deviceInfo: { type: mongoose.Schema.Types.Mixed }
     }
   ],
 }, { collection: 'user_datas' });
