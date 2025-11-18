@@ -83,7 +83,7 @@
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "express-rate-limit": "^7.5.0",
-    "form-data": "^4.0.4",
+    "form-data": "^4.0.5",
     "synapse": "file:",
     "helmet": "^8.1.0",
     "http-proxy-agent": "^7.0.2",
