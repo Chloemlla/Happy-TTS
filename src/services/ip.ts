@@ -49,8 +49,8 @@ const IPInfoSchema = new mongoose.Schema({
   timestamp: { 
     type: Date, 
     required: true, 
-    default: Date.now,
-    index: true // 用于TTL和时间范围查询
+    default: Date.now
+    // TTL索引在下方单独定义
   },
   // 添加查询统计字段
   queryCount: { type: Number, default: 1 },
@@ -63,7 +63,6 @@ const IPInfoSchema = new mongoose.Schema({
   // 添加复合索引
   index: [
     { ip: 1 }, // 单字段索引
-    { timestamp: 1 }, // TTL索引
     { country: 1, region: 1 }, // 地理位置复合索引
     { queryCount: -1, lastQueried: -1 } // 热点数据索引
   ]

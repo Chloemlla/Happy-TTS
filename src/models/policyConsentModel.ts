@@ -60,8 +60,8 @@ const policyConsentSchema = new Schema<IPolicyConsent>({
   },
   recordedAt: {
     type: Date,
-    default: Date.now,
-    index: true
+    default: Date.now
+    // 索引在复合索引中定义
   },
   isValid: {
     type: Boolean,
@@ -78,7 +78,7 @@ const policyConsentSchema = new Schema<IPolicyConsent>({
 });
 
 // 创建索引
-policyConsentSchema.index({ timestamp: 1 }); // 单字段索引
+// timestamp 字段不需要单独索引，复合索引和字段级索引已足够
 policyConsentSchema.index({ fingerprint: 1, version: 1 });
 policyConsentSchema.index({ ipAddress: 1, recordedAt: -1 });
 policyConsentSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 }); // TTL索引

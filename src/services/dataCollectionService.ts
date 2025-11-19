@@ -46,7 +46,7 @@ interface BatchWriteItem {
 const DataCollectionSchema = new mongoose.Schema({
   userId: { type: String, required: true, index: true, maxlength: 128 },
   action: { type: String, required: true, index: true, maxlength: 128 },
-  timestamp: { type: String, required: true, index: true, maxlength: 64 },
+  timestamp: { type: String, required: true, maxlength: 64 },
   details: { type: Object },
   // 智能分析增强字段（可选）
   riskScore: { type: Number, default: 0, min: 0, max: 1 },
