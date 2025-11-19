@@ -9,9 +9,12 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node",
+    "resolveJsonModule": true,
     "baseUrl": ".",
     "paths": {
-      "*": ["src/*"]
+      "*": [
+        "src/*"
+      ]
     },
     "importHelpers": false,
     "isolatedModules": false,
@@ -32,6 +35,17 @@
     "useDefineForClassFields": true,
     "allowSyntheticDefaultImports": true
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "dist-obfuscated", "tests", "**/*.test.ts", "**/*.spec.ts", "scripts/test-totp-url.ts", "scripts/test-totp-url.js"]
-} 
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "dist-obfuscated",
+    "tests",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "scripts/test-totp-url.ts",
+    "scripts/test-totp-url.js"
+  ]
+}
