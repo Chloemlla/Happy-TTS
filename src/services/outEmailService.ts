@@ -1,3 +1,4 @@
+// @ts-ignore
 import { Resend } from 'resend';
 import { mongoose } from './mongoService';
 import dayjs from 'dayjs';
@@ -196,7 +197,7 @@ export async function sendOutEmail({ to, subject, content, code, ip, from: fromU
   if (outemailStatus && !outemailStatus.available) {
     return { success: false, error: outemailStatus.error || '对外邮件服务不可用' };
   }
-  
+
   // 选择域名
   const OUTEMAIL_DOMAIN = domain || require('../config').default.email.outemail.domain;
   if (!OUTEMAIL_DOMAIN) {
