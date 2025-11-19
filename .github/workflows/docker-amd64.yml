@@ -117,9 +117,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
       - name: Install Node.js dependencies
         run: |
-          npm install ssh2 dotenv axios
+          pnpm install ssh2 dotenv axios form-data
 
       - name: Set script permissions
         run: |
