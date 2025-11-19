@@ -65,6 +65,13 @@ const normalizedIPCache = new LRUCache<string, string>({
   updateAgeOnGet: false
 });
 
+// IP段匹配结果缓存 - 缓存IP是否在某个CIDR范围内
+const cidrMatchCache = new LRUCache<string, boolean>({
+  max: 5000,
+  ttl: 5 * 60 * 1000, // 5分钟
+  updateAgeOnGet: false
+});
+
 // Redis降级状态跟踪 - 断路器模式
 let redisFailureCount = 0;
 let redisLastFailureTime = 0;
@@ -305,6 +312,115 @@ function compressIPv6(segments: string[]): string {
 }
 
 /**
+ * 解析CIDR表示法（支持IPv4和IPv6）
+ * 返回网络地址和前缀长度
+ */
+function parseCIDR(cidr: string): { network: string; prefixLength: number; isIPv6: boolean } | null {
+  const parts = cidr.split('/');
+  if (parts.length !== 2) {
+    return null;
+  }
+
+  const network = normalizeIP(parts[0]);
+  const prefixLength = parseInt(parts[1], 10);
+
+  const ipType = isIP(network);
+  if (ipType === 0) {
+    return null;
+  }
+
+  const isIPv6 = ipType === 6;
+  const maxPrefix = isIPv6 ? 128 : 32;
+
+  if (isNaN(prefixLength) || prefixLength < 0 || prefixLength > maxPrefix) {
+    return null;
+  }
+
+  return { network, prefixLength, isIPv6 };
+}
+
+/**
+ * 将IPv4地址转换为32位整数
+ */
+function ipv4ToInt(ip: string): number {
+  const parts = ip.split('.');
+  if (parts.length !== 4) {
+    return 0;
+  }
+
+  return parts.reduce((acc, octet) => {
+    const num = parseInt(octet, 10);
+    return (acc << 8) | num;
+  }, 0) >>> 0; // 使用无符号右移确保为正数
+}
+
+/**
+ * 将IPv6地址转换为BigInt
+ */
+function ipv6ToBigInt(ip: string): bigint {
+  const expanded = expandIPv6(ip);
+  let result = 0n;
+
+  for (const segment of expanded) {
+    const value = parseInt(segment, 16);
+    result = (result << 16n) | BigInt(value);
+  }
+
+  return result;
+}
+
+/**
+ * 检查IP是否在CIDR范围内（支持IPv4和IPv6）
+ */
+function isIPInCIDR(ip: string, cidr: string): boolean {
+  // 检查缓存
+  const cacheKey = `${ip}:${cidr}`;
+  const cached = cidrMatchCache.get(cacheKey);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const parsed = parseCIDR(cidr);
+  if (!parsed) {
+    cidrMatchCache.set(cacheKey, false);
+    return false;
+  }
+
+  const { network, prefixLength, isIPv6 } = parsed;
+  const normalizedIP = normalizeIP(ip);
+
+  // 检查IP类型是否匹配
+  const ipType = isIP(normalizedIP);
+  if ((isIPv6 && ipType !== 6) || (!isIPv6 && ipType !== 4)) {
+    cidrMatchCache.set(cacheKey, false);
+    return false;
+  }
+
+  let result: boolean;
+
+  if (isIPv6) {
+    // IPv6 CIDR匹配
+    const ipBigInt = ipv6ToBigInt(normalizedIP);
+    const networkBigInt = ipv6ToBigInt(network);
+    const mask = (1n << BigInt(128 - prefixLength)) - 1n;
+    const invertedMask = ~mask & ((1n << 128n) - 1n);
+
+    result = (ipBigInt & invertedMask) === (networkBigInt & invertedMask);
+  } else {
+    // IPv4 CIDR匹配
+    const ipInt = ipv4ToInt(normalizedIP);
+    const networkInt = ipv4ToInt(network);
+    const mask = (0xFFFFFFFF << (32 - prefixLength)) >>> 0;
+
+    result = (ipInt & mask) === (networkInt & mask);
+  }
+
+  // 缓存结果
+  cidrMatchCache.set(cacheKey, result);
+  return result;
+}
+
+/**
  * 检查路径是否在白名单中
  * 使用精确匹配和安全的前缀匹配
  */
@@ -383,6 +499,7 @@ async function getRedisService(): Promise<any> {
 /**
  * 并行查询Redis和MongoDB（竞速模式）
  * 返回最快的结果，提高响应速度
+ * 支持精确IP匹配和CIDR IP段匹配
  */
 async function parallelBanCheck(normalizedIP: string): Promise<{
   bannedInfo: { reason: string; expiresAt: Date } | null;
@@ -391,7 +508,7 @@ async function parallelBanCheck(normalizedIP: string): Promise<{
   const promises: Promise<any>[] = [];
   const sources: string[] = [];
 
-  // Redis查询
+  // Redis查询（精确匹配）
   if (config.ipBanStorage === 'redis' && !shouldSkipRedis()) {
     promises.push(
       getRedisService()
@@ -406,20 +523,40 @@ async function parallelBanCheck(normalizedIP: string): Promise<{
     sources.push('redis');
   }
 
-  // MongoDB查询
+  // MongoDB查询 - 精确匹配
   promises.push(
     IpBanModel.findOne({
       ipAddress: normalizedIP,
       expiresAt: { $gt: new Date() }
     })
       .lean() // 使用lean()提高查询性能
-      .then(result => ({ result, source: 'mongodb' }))
+      .then(result => ({ result, source: 'mongodb-exact' }))
       .catch(error => {
-        logger.error('🔴 MongoDB并行查询失败:', error);
-        return { result: null, source: 'mongodb', error: true };
+        logger.error('🔴 MongoDB精确查询失败:', error);
+        return { result: null, source: 'mongodb-exact', error: true };
       })
   );
-  sources.push('mongodb');
+  sources.push('mongodb-exact');
+
+  // MongoDB查询 - CIDR IP段匹配
+  // 获取所有包含'/'的封禁记录（CIDR格式）
+  promises.push(
+    IpBanModel.find({
+      ipAddress: { $regex: /\//, $options: '' }, // 包含/的记录
+      expiresAt: { $gt: new Date() }
+    })
+      .lean()
+      .then(results => {
+        // 检查IP是否在任何CIDR范围内
+        const match = results?.find(ban => isIPInCIDR(normalizedIP, ban.ipAddress));
+        return { result: match || null, source: 'mongodb-cidr' };
+      })
+      .catch(error => {
+        logger.error('🔴 MongoDB CIDR查询失败:', error);
+        return { result: null, source: 'mongodb-cidr', error: true };
+      })
+  );
+  sources.push('mongodb-cidr');
 
   metrics.parallelQueries++;
 
@@ -447,8 +584,13 @@ async function parallelBanCheck(normalizedIP: string): Promise<{
           
           if (source === 'redis') {
             metrics.redisQueries++;
-          } else if (source === 'mongodb') {
+          } else if (source === 'mongodb-exact' || source === 'mongodb-cidr') {
             metrics.mongoQueries++;
+          }
+          
+          // 记录CIDR匹配
+          if (source === 'mongodb-cidr') {
+            logger.info(`🎯 CIDR IP段匹配: ${normalizedIP} 在 ${data.ipAddress} 范围内`);
           }
           
           return { bannedInfo, source: source as 'redis' | 'mongodb' };
@@ -462,7 +604,7 @@ async function parallelBanCheck(normalizedIP: string): Promise<{
       if (result.status === 'fulfilled' && !result.value?.error) {
         if (sources[index] === 'redis') {
           metrics.redisQueries++;
-        } else if (sources[index] === 'mongodb') {
+        } else if (sources[index] === 'mongodb-exact' || sources[index] === 'mongodb-cidr') {
           metrics.mongoQueries++;
         }
       }

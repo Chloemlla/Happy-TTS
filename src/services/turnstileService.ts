@@ -78,15 +78,48 @@ const validateIpAddress = (ip: string): string | null => {
     return null;
   }
 
-  // 简单的IP地址验证
+  // 简单的IP地址验证（支持CIDR格式）
   const sanitized = sanitizeString(ip, 50);
   if (!sanitized) {
     return null;
   }
 
-  // 检查是否为有效的IP地址格式
+  // 检查是否为CIDR格式
+  if (sanitized.includes('/')) {
+    const parts = sanitized.split('/');
+    if (parts.length !== 2) {
+      return null;
+    }
+
+    const [ipPart, prefixPart] = parts;
+    const prefix = parseInt(prefixPart, 10);
+
+    // IPv4 CIDR验证
+    const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+    if (ipv4Regex.test(ipPart)) {
+      // IPv4前缀长度范围：0-32
+      if (isNaN(prefix) || prefix < 0 || prefix > 32) {
+        return null;
+      }
+      return sanitized;
+    }
+
+    // IPv6 CIDR验证（支持压缩格式）
+    const ipv6Regex = /^(?:(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,7}:|(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}|(?:[0-9a-fA-F]{1,4}:){1,4}(?::[0-9a-fA-F]{1,4}){1,3}|(?:[0-9a-fA-F]{1,4}:){1,3}(?::[0-9a-fA-F]{1,4}){1,4}|(?:[0-9a-fA-F]{1,4}:){1,2}(?::[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:(?::[0-9a-fA-F]{1,4}){1,6}|:(?:(?::[0-9a-fA-F]{1,4}){1,7}|:)|::)$/;
+    if (ipv6Regex.test(ipPart)) {
+      // IPv6前缀长度范围：0-128
+      if (isNaN(prefix) || prefix < 0 || prefix > 128) {
+        return null;
+      }
+      return sanitized;
+    }
+
+    return null;
+  }
+
+  // 检查是否为有效的单个IP地址格式
   const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-  const ipv6Regex = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/;
+  const ipv6Regex = /^(?:(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,7}:|(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}|(?:[0-9a-fA-F]{1,4}:){1,4}(?::[0-9a-fA-F]{1,4}){1,3}|(?:[0-9a-fA-F]{1,4}:){1,3}(?::[0-9a-fA-F]{1,4}){1,4}|(?:[0-9a-fA-F]{1,4}:){1,2}(?::[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:(?::[0-9a-fA-F]{1,4}){1,6}|:(?:(?::[0-9a-fA-F]{1,4}){1,7}|:)|::)$/;
 
   if (ipv4Regex.test(sanitized) || ipv6Regex.test(sanitized)) {
     return sanitized;

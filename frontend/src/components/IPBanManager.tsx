@@ -117,28 +117,29 @@ function BanIPModal({ isOpen, onClose, onSuccess, mode }: BanIPModalProps) {
             <form onSubmit={handleSubmit} className="space-y-4">
               {mode === 'single' ? (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">IP地址</label>
+                  <label className="block text-sm font-medium text-gray-700">IP地址或IP段（CIDR）</label>
                   <input
                     type="text"
                     required
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
                     value={formData.ipAddress}
                     onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
-                    placeholder="例如: 192.168.1.100"
+                    placeholder="例如: 192.168.1.100 或 192.168.1.0/24"
                   />
+                  <p className="mt-1 text-xs text-gray-500">支持单个IP或CIDR格式（IPv4: 192.168.1.0/24，IPv6: 2001:db8::/32）</p>
                 </div>
               ) : (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">IP地址列表</label>
+                  <label className="block text-sm font-medium text-gray-700">IP地址列表或IP段（CIDR）</label>
                   <textarea
                     required
                     rows={6}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
                     value={formData.ipAddresses}
                     onChange={(e) => setFormData({ ...formData, ipAddresses: e.target.value })}
-                    placeholder="每行一个IP地址，例如：&#10;192.168.1.100&#10;10.0.0.50&#10;172.16.0.1"
+                    placeholder="每行一个IP或IP段，例如：&#10;192.168.1.100&#10;192.168.1.0/24&#10;10.0.0.0/8&#10;2001:db8::/32"
                   />
-                  <p className="mt-1 text-xs text-gray-500">每行输入一个IP地址</p>
+                  <p className="mt-1 text-xs text-gray-500">每行输入一个IP地址或CIDR IP段（支持IPv4和IPv6）</p>
                 </div>
               )}
 
@@ -287,28 +288,29 @@ function UnbanIPModal({ isOpen, onClose, onSuccess, mode }: UnbanIPModalProps) {
             <form onSubmit={handleSubmit} className="space-y-4">
               {mode === 'single' ? (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">IP地址</label>
+                  <label className="block text-sm font-medium text-gray-700">IP地址或IP段（CIDR）</label>
                   <input
                     type="text"
                     required
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                     value={formData.ipAddress}
                     onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
-                    placeholder="例如: 192.168.1.100"
+                    placeholder="例如: 192.168.1.100 或 192.168.1.0/24"
                   />
+                  <p className="mt-1 text-xs text-gray-500">支持单个IP或CIDR格式（IPv4: 192.168.1.0/24，IPv6: 2001:db8::/32）</p>
                 </div>
               ) : (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">IP地址列表</label>
+                  <label className="block text-sm font-medium text-gray-700">IP地址列表或IP段（CIDR）</label>
                   <textarea
                     required
                     rows={6}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                     value={formData.ipAddresses}
                     onChange={(e) => setFormData({ ...formData, ipAddresses: e.target.value })}
-                    placeholder="每行一个IP地址，例如：&#10;192.168.1.100&#10;10.0.0.50&#10;172.16.0.1"
+                    placeholder="每行一个IP或IP段，例如：&#10;192.168.1.100&#10;192.168.1.0/24&#10;10.0.0.0/8&#10;2001:db8::/32"
                   />
-                  <p className="mt-1 text-xs text-gray-500">每行输入一个IP地址</p>
+                  <p className="mt-1 text-xs text-gray-500">每行输入一个IP地址或CIDR IP段（支持IPv4和IPv6）</p>
                 </div>
               )}
 
@@ -427,9 +429,10 @@ export default function IPBanManager() {
               <p className="font-semibold text-red-700">功能说明：</p>
               <ul className="list-disc list-inside space-y-1 mt-1">
                 <li>支持单个IP和批量IP封禁操作</li>
+                <li>支持CIDR格式封禁整个IP段（IPv4和IPv6）</li>
                 <li>自定义封禁原因和时长</li>
                 <li>实时查看IP封禁统计信息</li>
-                <li>支持IP解封操作</li>
+                <li>支持IP和IP段解封操作</li>
                 <li>自动同步Redis和MongoDB数据</li>
               </ul>
             </div>
