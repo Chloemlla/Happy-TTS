@@ -25,4 +25,4 @@ fs.writeFileSync(
   'utf-8'
 );
 
-console.log('openapi.json 已生成'); 
+console.log('openapi.json has been generated.'); 
