@@ -102,6 +102,10 @@ const WHITELIST_PATHS = [
   '/api/health',
   '/status',
   '/api/status',
+  // IP查询端点 - 允许客户端查询自己的IP
+  '/ip',
+  // 公告端点 - 允许公开访问
+  '/api/admin/announcement',
   // 人机验证相关端点 - 必须放行以允许验证流程
   '/api/turnstile/verify',
   '/api/turnstile/verify-token',
