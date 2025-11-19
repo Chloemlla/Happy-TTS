@@ -27,6 +27,7 @@
     "clsx": "^2.0.0",
     "crypto-js": "^4.2.0",
     "css-select": "^1.3.0-rc0",
+    "js-yaml": "^4.1.1",
     "mitt": "^3.0.1",
     "prism-react-renderer": "^2.3.0",
     "react": "^19.0.0",
