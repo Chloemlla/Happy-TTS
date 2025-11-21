@@ -2308,8 +2308,13 @@ export class TurnstileService {
       // 检查IP是否已经被封禁
       const existingBan = await IpBanModel.findOne({ ipAddress: validatedIp });
 
+      let isUpdate = false;
+      let bannedAt = now;
+
       if (existingBan) {
         // 如果IP已被封禁，更新过期时间和封禁原因
+        isUpdate = true;
+        bannedAt = existingBan.bannedAt;
         existingBan.expiresAt = expiresAt;
         existingBan.reason = sanitizedReason;
 
@@ -2330,33 +2335,56 @@ export class TurnstileService {
         await existingBan.save();
 
         logger.info(`更新IP封禁: ${validatedIp}, 原因: ${sanitizedReason}, 新过期时间: ${expiresAt}`);
-
-        return {
-          success: true,
+      } else {
+        // 创建新的封禁记录
+        const banRecord = new IpBanModel({
+          ipAddress: validatedIp,
+          reason: sanitizedReason,
+          violationCount: 1,
+          bannedAt: now,
           expiresAt: expiresAt,
-          bannedAt: existingBan.bannedAt
-        };
+          fingerprint: fingerprint ? sanitizeString(fingerprint, 200) : undefined,
+          userAgent: userAgent ? sanitizeString(userAgent, 500) : undefined
+        });
+
+        await banRecord.save();
+
+        logger.info(`手动封禁IP: ${validatedIp}, 原因: ${sanitizedReason}, 时长: ${validDuration}分钟`);
       }
 
-      // 创建新的封禁记录
-      const banRecord = new IpBanModel({
-        ipAddress: validatedIp,
-        reason: sanitizedReason,
-        violationCount: 1,
-        bannedAt: now,
-        expiresAt: expiresAt,
-        fingerprint: fingerprint ? sanitizeString(fingerprint, 200) : undefined,
-        userAgent: userAgent ? sanitizeString(userAgent, 500) : undefined
-      });
+      // 同步到 Redis
+      try {
+        const { redisService } = await import('./redisService');
+        if (redisService && redisService.isAvailable()) {
+          await redisService.banIP(
+            validatedIp,
+            sanitizedReason,
+            validDuration,
+            {
+              fingerprint: fingerprint ? (sanitizeString(fingerprint, 200) || undefined) : undefined,
+              userAgent: userAgent ? (sanitizeString(userAgent, 500) || undefined) : undefined
+            }
+          );
+          logger.info(`✅ IP封禁已同步到Redis: ${validatedIp}`);
+        }
+      } catch (redisError) {
+        logger.warn(`同步IP封禁到Redis失败，但MongoDB已更新`, { error: redisError });
+      }
 
-      await banRecord.save();
-
-      logger.info(`手动封禁IP: ${validatedIp}, 原因: ${sanitizedReason}, 时长: ${validDuration}分钟`);
+      // 清除缓存 - 确保封禁立即生效
+      try {
+        const { clearIPBanCache } = await import('../middleware/ipBanCheck');
+        if (clearIPBanCache) {
+          clearIPBanCache(validatedIp);
+        }
+      } catch (cacheError) {
+        logger.warn(`清除IP缓存失败，但封禁已生效`, { error: cacheError });
+      }
 
       return {
         success: true,
         expiresAt: expiresAt,
-        bannedAt: now
+        bannedAt: bannedAt
       };
     } catch (error) {
       logger.error('手动封禁IP失败', error);
@@ -2376,20 +2404,52 @@ export class TurnstileService {
     try {
       const validatedIp = validateIpAddress(ipAddress);
       if (!validatedIp) {
+        logger.warn(`解封IP失败：IP地址格式无效`, { ipAddress });
         return false;
       }
 
       if (mongoose.connection.readyState !== 1) {
+        logger.warn('解封IP失败：MongoDB连接不可用');
         return false;
       }
 
-      const result = await IpBanModel.deleteOne({ ipAddress: validatedIp });
+      let mongoDeleted = false;
+      let redisDeleted = false;
 
-      if (result.deletedCount > 0) {
-        logger.info(`手动解除IP封禁: ${validatedIp}`);
+      // 1. 从 MongoDB 删除
+      const mongoResult = await IpBanModel.deleteOne({ ipAddress: validatedIp });
+      mongoDeleted = mongoResult.deletedCount > 0;
+
+      // 2. 从 Redis 删除
+      try {
+        const { redisService } = await import('./redisService');
+        if (redisService && redisService.isAvailable()) {
+          redisDeleted = await redisService.unbanIP(validatedIp);
+        }
+      } catch (redisError) {
+        logger.warn(`从Redis删除IP封禁失败，继续执行`, { error: redisError });
+      }
+
+      // 3. 清除缓存 - 通过ipBanCheck中间件的缓存清除接口
+      try {
+        const { clearIPBanCache } = await import('../middleware/ipBanCheck');
+        if (clearIPBanCache) {
+          clearIPBanCache(validatedIp);
+        }
+      } catch (cacheError) {
+        logger.warn(`清除IP缓存失败，继续执行`, { error: cacheError });
+      }
+
+      if (mongoDeleted || redisDeleted) {
+        logger.info(`✅ 手动解除IP封禁: ${validatedIp}`, {
+          mongoDeleted,
+          redisDeleted,
+          source: mongoDeleted && redisDeleted ? 'both' : mongoDeleted ? 'mongodb' : 'redis'
+        });
         return true;
       }
 
+      logger.warn(`⚠️ IP未在封禁列表中: ${validatedIp}`);
       return false;
     } catch (error) {
       logger.error('手动解除IP封禁失败', error);

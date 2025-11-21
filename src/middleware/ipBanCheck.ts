@@ -828,3 +828,74 @@ export const ipBanCheckMiddleware = async (
  * 组合了速率限制和 IP 封禁检查，提供更好的安全保护
  */
 export const ipBanCheckWithRateLimit = [ipBanCheckLimiter, ipBanCheckMiddleware];
+
+/**
+ * 清除指定IP的所有相关缓存
+ * 用于IP解封后立即生效，避免缓存导致的延迟
+ * @param ipAddress IP地址（原始格式或CIDR格式）
+ */
+export function clearIPBanCache(ipAddress: string): void {
+  try {
+    // 1. 规范化IP地址
+    const normalizedIP = normalizeIP(ipAddress);
+    
+    // 2. 清除封禁缓存
+    if (banCache.has(normalizedIP)) {
+      banCache.delete(normalizedIP);
+      logger.info(`🗑️ 已清除IP封禁缓存: ${normalizedIP}`);
+    }
+    
+    // 3. 清除IP规范化缓存
+    if (normalizedIPCache.has(ipAddress)) {
+      normalizedIPCache.delete(ipAddress);
+    }
+    if (ipAddress !== normalizedIP && normalizedIPCache.has(normalizedIP)) {
+      normalizedIPCache.delete(normalizedIP);
+    }
+    
+    // 4. 清除CIDR匹配缓存 - 清除所有与该IP相关的CIDR匹配结果
+    // 由于无法直接遍历LRU缓存的所有键，我们清除包含该IP的缓存项
+    // 注意：这只能清除以该IP作为key前缀的项
+    const cidrKeys: string[] = [];
+    cidrMatchCache.forEach((value, key) => {
+      if (key.startsWith(`${normalizedIP}:`)) {
+        cidrKeys.push(key);
+      }
+    });
+    
+    cidrKeys.forEach(key => {
+      cidrMatchCache.delete(key);
+    });
+    
+    if (cidrKeys.length > 0) {
+      logger.info(`🗑️ 已清除${cidrKeys.length}个CIDR匹配缓存项`);
+    }
+    
+    logger.info(`✅ 成功清除IP ${ipAddress} 的所有相关缓存`);
+  } catch (error) {
+    logger.error(`清除IP缓存失败: ${ipAddress}`, error);
+  }
+}
+
+/**
+ * 清除所有IP封禁相关缓存
+ * 用于批量操作或系统维护
+ */
+export function clearAllIPBanCache(): void {
+  try {
+    const banCacheSize = banCache.size;
+    const normalizedCacheSize = normalizedIPCache.size;
+    const cidrCacheSize = cidrMatchCache.size;
+    
+    banCache.clear();
+    normalizedIPCache.clear();
+    cidrMatchCache.clear();
+    
+    logger.info(`🗑️ 已清除所有IP封禁缓存: ` +
+      `封禁缓存=${banCacheSize}, ` +
+      `规范化缓存=${normalizedCacheSize}, ` +
+      `CIDR缓存=${cidrCacheSize}`);
+  } catch (error) {
+    logger.error('清除所有IP缓存失败', error);
+  }
+}
