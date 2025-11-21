@@ -65,13 +65,15 @@ class IntegrityChecker {
   private networkCheckInterval = 1000; // 1秒检查一次网络完整性
   private debugMode = import.meta.env.VITE_DEBUG_MODE === 'true';
   private falsePositiveCount = 0;
-  private readonly MAX_FALSE_POSITIVES = 5;
+  private readonly MAX_FALSE_POSITIVES = 10; // 增加误报容忍度
   private isInitialized = false;
-  private initializationDelay = 2000; // 2秒延迟初始化，等待页面完全加载
+  private initializationDelay = 5000; // 增加到5秒，确保页面完全加载
   private errorCount = 0;
-  private readonly MAX_ERRORS = 10; // 最大错误数量
+  private readonly MAX_ERRORS = 20; // 增加错误容忍度
   private lastErrorTime = 0;
-  private readonly ERROR_COOLDOWN = 5000; // 错误冷却时间（毫秒）
+  private readonly ERROR_COOLDOWN = 10000; // 增加冷却时间到10秒
+  // 完整性检查开关 - 降低检测强度
+  private enableStrictMode = false; // 默认关闭严格模式
   // 与前端危险扩展检测保持一致的可信域名与页面标记豁免
   private readonly TRUSTED_HOST_PREFIXES: string[] = [
     'http://localhost',
@@ -135,13 +137,15 @@ class IntegrityChecker {
       const pathname = window.location.pathname || '';
       const title = (document.title || '').toLowerCase();
 
-      // 路径/关键字豁免（与前端启发式一致的常见页面）
+      // 扩展路径/关键字豁免列表（更多常见动态页面）
       const exemptPathKeywords = [
         '/upload', '/image', '/images', '/img',
         '/fbi', '/wanted', '/public', '/docs', '/api-docs',
         '/resource', '/resources', '/short', '/shortlink', '/short-links',
         '/cdk', '/cdk-store', '/librechat',
-        '/verification', '/verify', '/first-visit', '/captcha', '/turnstile'
+        '/verification', '/verify', '/first-visit', '/captcha', '/turnstile',
+        '/admin', '/dashboard', '/chat', '/conversation', '/tts', '/api',
+        '/settings', '/config', '/profile', '/user'
       ];
       if (exemptPathKeywords.some(k => pathname.toLowerCase().includes(k))) return true;
 
@@ -362,20 +366,30 @@ class IntegrityChecker {
   }
 
   private analyzeResponse(response: Response, url: string): void {
+    // 仅在严格模式下才分析响应，大幅减少误报
+    if (!this.enableStrictMode) return;
     // 信任域名与页面豁免：直接跳过网络完整性分析，减少误报
     if (this.isTrustedUrl(url) || this.isExemptPage()) return;
     if (response.headers.get('content-type')?.includes('text/html')) {
       response.text().then(text => {
         this.checkResponseIntegrity(text, url);
-      }).catch(console.error);
+      }).catch(() => {
+        // 静默处理错误，避免误报
+      });
     }
   }
 
   private analyzeXHRResponse(xhr: XMLHttpRequest): void {
+    // 仅在严格模式下才分析XHR响应
+    if (!this.enableStrictMode) return;
     const contentType = xhr.getResponseHeader('content-type');
     if (contentType?.includes('text/html') && xhr._integrityUrl) {
       if (this.isTrustedUrl(xhr._integrityUrl) || this.isExemptPage()) return;
-      this.checkResponseIntegrity(xhr.responseText, xhr._integrityUrl);
+      try {
+        this.checkResponseIntegrity(xhr.responseText, xhr._integrityUrl);
+      } catch {
+        // 静默处理错误，避免误报
+      }
     }
   }
 
@@ -478,34 +492,49 @@ class IntegrityChecker {
     const currentLength = document.documentElement.outerHTML.length;
     const baselineLength = this.originalPageContent.length;
     
-    // 只有当基准长度有效时才进行检查
-    if (baselineLength > 100 && Math.abs(currentLength - baselineLength) > 100) {
+    // 大幅提高阈值：只有当基准长度有效且变化超过5000字节或30%时才检查
+    const diff = Math.abs(currentLength - baselineLength);
+    const percentage = baselineLength > 0 ? (diff / baselineLength) * 100 : 0;
+    
+    if (baselineLength > 1000 && (diff > 5000 || percentage > 30)) {
       this.handleContentLengthAnomaly(currentLength, baselineLength);
     }
   }
 
   private handleContentLengthAnomaly(current: number, baseline: number): void {
     // 如果基准长度为0，说明基准内容没有正确捕获，忽略这次检查
-    if (baseline === 0) {
+    if (baseline === 0 || baseline < 1000) {
       if (this.debugMode) {
-        this.safeLog('warn', '⚠️ 基准长度为0，重新捕获基准内容');
+        this.safeLog('warn', '⚠️ 基准长度无效，重新捕获基准内容');
       }
       this.captureBaselineContent();
       return;
     }
 
-    this.safeLog('warn', `检测到内容长度异常: 基准=${baseline}, 当前=${current}`);
+    const diff = Math.abs(current - baseline);
+    const percentage = (diff / baseline) * 100;
     
+    // 大幅提高阈值：只有变化超过30%才认为是异常
+    if (percentage < 30) {
+      if (this.debugMode) {
+        this.safeLog('log', '✅ 内容长度变化在正常范围内:', {
+          baseline,
+          current,
+          difference: diff,
+          percentage: percentage.toFixed(2) + '%'
+        });
+      }
+      return;
+    }
+
     if (this.debugMode) {
-      this.safeLog('log', '🔍 内容长度分析:', {
-        baseline,
-        current,
-        difference: Math.abs(current - baseline),
-        percentage: ((Math.abs(current - baseline) / baseline) * 100).toFixed(2) + '%'
-      });
+      this.safeLog('warn', `⚠️ 内容长度变化较大: 基准=${baseline}, 当前=${current}, 变化=${percentage.toFixed(2)}%`);
     }
     
-    this.checkPageIntegrity();
+    // 仅在严格模式下才进行检查
+    if (this.enableStrictMode) {
+      this.checkPageIntegrity();
+    }
   }
 
   private checkNetworkIntegrity(): void {
@@ -543,6 +572,17 @@ class IntegrityChecker {
     removedContent: string[];
     confidence: number;
   } {
+    // 如果在豁免页面，直接返回安全结果
+    if (this.isExemptPage()) {
+      return {
+        hasProxyTampering: false,
+        replacedTexts: [],
+        addedContent: [],
+        removedContent: [],
+        confidence: 0
+      };
+    }
+
     const result = {
       hasProxyTampering: false,
       replacedTexts: [] as string[],
@@ -594,14 +634,18 @@ class IntegrityChecker {
 
     // 检查内容长度异常
     const lengthDiff = Math.abs(currentContent.length - this.originalPageContent.length);
-    if (lengthDiff > 100) {
-      confidenceScore += 15;
+    const lengthPercentage = this.originalPageContent.length > 0 ? (lengthDiff / this.originalPageContent.length) * 100 : 0;
+    
+    // 大幅提高内容长度异常阈值
+    if (lengthDiff > 5000 || lengthPercentage > 20) {
+      confidenceScore += 10; // 降低权重
       
       if (this.debugMode) {
         this.safeLog('log', '📏 内容长度异常:', {
           original: this.originalPageContent.length,
           current: currentContent.length,
-          difference: lengthDiff
+          difference: lengthDiff,
+          percentage: lengthPercentage.toFixed(2) + '%'
         });
       }
     }
@@ -609,10 +653,18 @@ class IntegrityChecker {
     // 检查是否只是正常的页面更新
     const isNormalUpdate = this.checkIfNormalUpdate(currentContent);
     if (isNormalUpdate) {
-      confidenceScore -= 30; // 降低置信度
+      confidenceScore -= 50; // 大幅降低置信度
       
       if (this.debugMode) {
-        this.safeLog('log', '✅ 检测到正常页面更新，降低篡改置信度');
+        this.safeLog('log', '✅ 检测到正常页面更新，大幅降低篡改置信度');
+      }
+    }
+
+    // 检查是否在信任域名
+    if (this.isTrustedUrl(window.location.href)) {
+      confidenceScore -= 40;
+      if (this.debugMode) {
+        this.safeLog('log', '✅ 在可信域名，降低篡改置信度');
       }
     }
 
@@ -630,47 +682,9 @@ class IntegrityChecker {
     return result;
   }
 
-  private checkIfNormalUpdate(currentContent: string): boolean {
-    // 检查是否是正常的页面更新（如动态加载内容）
-    
-    // 1. 检查是否只是添加了内容（而不是替换）
-    if (currentContent.length > this.originalPageContent.length) {
-      const addedContent = currentContent.replace(this.originalPageContent, '');
-      if (addedContent.length > 50) {
-        return true; // 可能是正常的内容添加
-      }
-    }
-
-    // 2. 检查是否包含常见的动态内容标识
-    const dynamicContentPatterns = [
-      /loading/gi,
-      /spinner/gi,
-      /progress/gi,
-      /data-loaded/gi,
-      /dynamic-content/gi
-    ];
-
-    if (dynamicContentPatterns.some(pattern => pattern.test(currentContent))) {
-      return true;
-    }
-
-    // 3. 检查时间戳或随机ID（动态生成的内容）
-    const timestampPatterns = [
-      /\d{13,}/g, // 时间戳
-      /[a-f0-9]{8,}/gi, // 随机ID
-      /t=\d+/gi // URL参数
-    ];
-
-    if (timestampPatterns.some(pattern => pattern.test(currentContent))) {
-      return true;
-    }
-
-    return false;
-  }
-
   private handleProxyTampering(changes: any): void {
-    // 检查是否是误报
-    if (changes.confidence < 30) {
+    // 大幅提高置信度阈值：低于60分视为误报
+    if (changes.confidence < 60) {
       this.falsePositiveCount++;
       
       if (this.debugMode) {
@@ -711,18 +725,18 @@ class IntegrityChecker {
   }
 
   private adjustDetectionStrategy(): void {
-    // 调整检测策略以减少误报
-    this.networkCheckInterval = 3000; // 增加检查间隔
+    // 大幅调整检测策略以减少误报
+    this.networkCheckInterval = 30000; // 增加到30秒
+    this.enableStrictMode = false; // 关闭严格模式
     
+    // 停止网络监控定时器
     if (this.networkMonitorInterval) {
       clearInterval(this.networkMonitorInterval);
-      this.networkMonitorInterval = window.setInterval(() => {
-        this.checkNetworkIntegrity();
-      }, this.networkCheckInterval);
+      this.networkMonitorInterval = null;
     }
     
     if (this.debugMode) {
-      this.safeLog('log', '⚙️ 已调整检测策略，减少误报');
+      this.safeLog('log', '⚙️ 已大幅调整检测策略，关闭严格模式，减少误报');
     }
   }
 
@@ -889,8 +903,13 @@ class IntegrityChecker {
       characterData: true
     });
 
-    // 定期检查，但频率降低
-    setInterval(() => this.checkPageIntegrity(), 300000); // 改为5分钟检查一次
+    // 大幅降低定期检查频率
+    setInterval(() => {
+      // 只在严格模式下才进行定期检查
+      if (this.enableStrictMode && !this.isExemptPage()) {
+        this.checkPageIntegrity();
+      }
+    }, 600000); // 改为10分钟检查一次
   }
 
   private handleMutation(mutation: MutationRecord): void {
@@ -1568,10 +1587,37 @@ class IntegrityChecker {
     return false;
   }
 
+  // 启用严格模式（更激进的检测）
+  public enableStrictDetection(): void {
+    this.enableStrictMode = true;
+    if (this.debugMode) {
+      this.safeLog('log', '🔒 已启用严格检测模式');
+    }
+  }
+
+  // 禁用严格模式（降低误报率，默认状态）
+  public disableStrictDetection(): void {
+    this.enableStrictMode = false;
+    if (this.debugMode) {
+      this.safeLog('log', '🔓 已禁用严格检测模式，降低误报率');
+    }
+  }
+
+  // 获取当前检测模式
+  public getDetectionMode(): { strict: boolean; description: string } {
+    return {
+      strict: this.enableStrictMode,
+      description: this.enableStrictMode 
+        ? '严格模式：更激进的检测，可能有更多误报' 
+        : '正常模式：平衡检测，降低误报率'
+    };
+  }
+
   // 完全禁用完整性检查
   public disable(): void {
     this.isInRecoveryMode = true;
     this.proxyDetectionEnabled = false;
+    this.enableStrictMode = false;
     
     // 清理所有定时器
     if (this.recoveryInterval) {
@@ -1613,6 +1659,44 @@ class IntegrityChecker {
         }
       }
     });
+  }
+
+  private checkIfNormalUpdate(currentContent: string): boolean {
+    // 检查是否是正常的页面更新（如动态加载内容）
+    
+    // 1. 检查是否只是添加了内容（而不是替换）
+    if (currentContent.length > this.originalPageContent.length) {
+      const addedContent = currentContent.replace(this.originalPageContent, '');
+      if (addedContent.length > 50) {
+        return true; // 可能是正常的内容添加
+      }
+    }
+
+    // 2. 检查是否包含常见的动态内容标识
+    const dynamicContentPatterns = [
+      /loading/gi,
+      /spinner/gi,
+      /progress/gi,
+      /data-loaded/gi,
+      /dynamic-content/gi
+    ];
+
+    if (dynamicContentPatterns.some(pattern => pattern.test(currentContent))) {
+      return true;
+    }
+
+    // 3. 检查时间戳或随机ID（动态生成的内容）
+    const timestampPatterns = [
+      /\d{13,}/g, // 时间戳
+      /[a-f0-9]{8,}/gi, // 随机ID
+      /t=\d+/gi // URL参数
+    ];
+
+    if (timestampPatterns.some(pattern => pattern.test(currentContent))) {
+      return true;
+    }
+
+    return false;
   }
 
   // ========== 手动触发篡改检测的公共接口 ==========
