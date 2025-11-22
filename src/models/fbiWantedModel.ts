@@ -77,12 +77,64 @@ const FBIWantedSchema: Schema<IFBIWanted> = new Schema<IFBIWanted>(
   { timestamps: true }
 );
 
-// 添加索引以提高查询性能
+// ===== 索引配置（优化查询性能） =====
+
+// 单字段索引
 FBIWantedSchema.index({ isActive: 1 });
 FBIWantedSchema.index({ status: 1 });
 FBIWantedSchema.index({ dangerLevel: 1 });
 FBIWantedSchema.index({ dateAdded: -1 });
-FBIWantedSchema.index({ name: 'text', description: 'text', charges: 'text' }); // 文本搜索索引
+
+// 复合索引（优化常见查询组合）
+
+// 1. 活跃状态 + 状态查询（最常用）
+FBIWantedSchema.index({ isActive: 1, status: 1, dateAdded: -1 }, {
+  name: 'idx_active_status_date'
+});
+
+// 2. 活跃状态 + 危险等级查询
+FBIWantedSchema.index({ isActive: 1, dangerLevel: 1, dateAdded: -1 }, {
+  name: 'idx_active_danger_date'
+});
+
+// 3. 状态 + 危险等级组合查询
+FBIWantedSchema.index({ status: 1, dangerLevel: 1, dateAdded: -1 }, {
+  name: 'idx_status_danger_date'
+});
+
+// 4. 全面复合索引（支持多维度过滤）
+FBIWantedSchema.index({
+  isActive: 1,
+  status: 1,
+  dangerLevel: 1,
+  dateAdded: -1
+}, {
+  name: 'idx_active_status_danger_date'
+});
+
+// 文本搜索索引（带权重优化）
+FBIWantedSchema.index(
+  {
+    name: 'text',
+    description: 'text',
+    charges: 'text',
+    aliases: 'text',
+    fbiNumber: 'text',
+    ncicNumber: 'text'
+  },
+  {
+    name: 'idx_text_search',
+    weights: {
+      name: 10,           // 姓名最重要
+      fbiNumber: 8,       // FBI编号次之
+      ncicNumber: 8,      // NCIC编号
+      aliases: 5,         // 别名
+      charges: 3,         // 指控
+      description: 1      // 描述最低
+    },
+    default_language: 'english'
+  }
+);
 
 // 更新 lastUpdated 字段的中间件
 FBIWantedSchema.pre('save', function(next) {

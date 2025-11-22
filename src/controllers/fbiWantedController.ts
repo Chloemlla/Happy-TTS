@@ -99,10 +99,11 @@ export const fbiWantedController = {
 
             const [wanted, total] = await Promise.all([
                 FBIWantedModel.find(query)
+                    .hint({ isActive: 1, status: 1, dateAdded: -1 }) // 使用复合索引
                     .sort({ dateAdded: -1 })
                     .skip(skip)
                     .limit(limitNum)
-                    .lean(),
+                    .lean(), // 返回普通对象，减少内存开销
                 FBIWantedModel.countDocuments(query)
             ]);
 
@@ -713,41 +714,68 @@ export const fbiWantedController = {
         }
     },
 
-    // 获取统计信息
+    // 获取统计信息（优化版：使用单一聚合查询）
     async getStatistics(req: Request, res: Response) {
         try {
-            const [
-                totalActive,
-                totalCaptured,
-                totalDeceased,
-                dangerLevelStats,
-                recentAdded
-            ] = await Promise.all([
-                FBIWantedModel.countDocuments({ status: 'ACTIVE', isActive: true }),
-                FBIWantedModel.countDocuments({ status: 'CAPTURED', isActive: true }),
-                FBIWantedModel.countDocuments({ status: 'DECEASED', isActive: true }),
-                FBIWantedModel.aggregate([
-                    { $match: { isActive: true } },
-                    { $group: { _id: '$dangerLevel', count: { $sum: 1 } } }
-                ]),
-                FBIWantedModel.find({ isActive: true })
-                    .sort({ dateAdded: -1 })
-                    .limit(5)
-                    .select('name fbiNumber dateAdded dangerLevel')
-                    .lean()
+            // 使用 $facet 并行执行多个聚合操作，一次查询完成所有统计
+            const result = await FBIWantedModel.aggregate([
+                // 1. 先使用索引过滤活跃记录
+                { $match: { isActive: true } },
+                
+                // 2. 使用 $facet 并行执行多个统计
+                {
+                    $facet: {
+                        // 状态统计
+                        statusCounts: [
+                            { $group: { _id: '$status', count: { $sum: 1 } } }
+                        ],
+                        // 危险等级统计
+                        dangerCounts: [
+                            { $group: { _id: '$dangerLevel', count: { $sum: 1 } } }
+                        ],
+                        // 最近添加的记录
+                        recentAdded: [
+                            { $sort: { dateAdded: -1 } },
+                            { $limit: 5 },
+                            {
+                                $project: {
+                                    name: 1,
+                                    fbiNumber: 1,
+                                    dateAdded: 1,
+                                    dangerLevel: 1
+                                }
+                            }
+                        ]
+                    }
+                }
             ]);
 
+            // 格式化结果
+            const facetResult = result[0];
             const stats = {
-                total: totalActive + totalCaptured + totalDeceased,
-                active: totalActive,
-                captured: totalCaptured,
-                deceased: totalDeceased,
-                dangerLevels: dangerLevelStats.reduce((acc: any, item: any) => {
-                    acc[item._id] = item.count;
-                    return acc;
-                }, {}),
-                recentAdded
+                total: 0,
+                active: 0,
+                captured: 0,
+                deceased: 0,
+                removed: 0,
+                dangerLevels: {} as Record<string, number>,
+                recentAdded: facetResult.recentAdded
             };
+
+            // 处理状态统计
+            facetResult.statusCounts.forEach((item: any) => {
+                stats.total += item.count;
+                const status = item._id.toLowerCase();
+                if (status === 'active') stats.active = item.count;
+                else if (status === 'captured') stats.captured = item.count;
+                else if (status === 'deceased') stats.deceased = item.count;
+                else if (status === 'removed') stats.removed = item.count;
+            });
+
+            // 处理危险等级统计
+            facetResult.dangerCounts.forEach((item: any) => {
+                stats.dangerLevels[item._id] = item.count;
+            });
 
             res.json({
                 success: true,
