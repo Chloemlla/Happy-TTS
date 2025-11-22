@@ -1,3 +1,11 @@
+---
+title: FBI通缉犯数据库优化指南
+description: MongoDB索引优化和查询性能提升实施指南，包含监控工具和维护计划
+date: 2025-11-22
+author: Synapse Team
+tags: [数据库, MongoDB, 索引优化, 性能监控, FBI通缉犯, 运维指南]
+---
+
 # FBI通缉犯数据库优化指南
 
 ## 📊 优化概览

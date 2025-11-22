@@ -1,3 +1,11 @@
+---
+title: Redis IP封禁配置指南
+description: 使用Redis优化IP封禁系统，提供更快的查询速度和更好的性能
+date: 2025-11-22
+author: Synapse Team
+tags: [后端, Redis, 安全, IP封禁, 性能优化, 配置]
+---
+
 # Redis IP 封禁配置指南
 
 本系统支持使用 Redis 或 MongoDB 存储 IP 封禁信息。当配置了 Redis 时，系统会优先使用 Redis 进行 IP 封禁检查，提供更快的查询速度和更好的性能。
