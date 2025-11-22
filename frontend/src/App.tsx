@@ -22,6 +22,8 @@ import clarity from '@microsoft/clarity';
 
 // 懒加载组件
 const WelcomePage = React.lazy(() => import('./components/WelcomePage').then(module => ({ default: module.WelcomePage })));
+const LoginPage = React.lazy(() => import('./components/LoginPage').then(module => ({ default: module.LoginPage })));
+const RegisterPage = React.lazy(() => import('./components/RegisterPage').then(module => ({ default: module.RegisterPage })));
 const TtsPage = React.lazy(() => import('./components/TtsPage').then(module => ({ default: module.TtsPage })));
 const PolicyPage = React.lazy(() => import('./components/PolicyPage'));
 const Footer = React.lazy(() => import('./components/Footer'));
@@ -360,6 +362,8 @@ const App: React.FC = () => {
     titles: {
       '/': 'Synapse - 首页',
       '/welcome': 'Synapse - 欢迎页面',
+      '/login': 'Synapse - 登录',
+      '/register': 'Synapse - 注册',
       '/tts': 'Synapse - 语音合成',
       '/policy': 'Synapse - 服务条款',
       '/fbi-wanted': 'Synapse - FBI通缉犯查询',
@@ -1005,6 +1009,46 @@ const App: React.FC = () => {
                       >
                         <WelcomePage />
                       </m.div>
+                    )
+                  }
+                />
+                <Route
+                  path="/login"
+                  element={
+                    user ? (
+                      <Navigate to="/" replace />
+                    ) : (
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <m.div
+                          variants={pageVariants}
+                          initial="initial"
+                          animate="in"
+                          exit="out"
+                          transition={pageTransition}
+                        >
+                          <LoginPage />
+                        </m.div>
+                      </Suspense>
+                    )
+                  }
+                />
+                <Route
+                  path="/register"
+                  element={
+                    user ? (
+                      <Navigate to="/" replace />
+                    ) : (
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <m.div
+                          variants={pageVariants}
+                          initial="initial"
+                          animate="in"
+                          exit="out"
+                          transition={pageTransition}
+                        >
+                          <RegisterPage />
+                        </m.div>
+                      </Suspense>
                     )
                   }
                 />

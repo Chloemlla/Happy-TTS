@@ -1,9 +1,7 @@
-import React, { memo, lazy, Suspense } from 'react';
+import React, { memo } from 'react';
 import { LazyMotion, domAnimation, m, useReducedMotion } from 'framer-motion';
-import { useNotification } from './Notification';
-import { FaVolumeUp, FaStar, FaUsers, FaRocket } from 'react-icons/fa';
-
-const AuthFormLazy = lazy(() => import('./AuthForm').then(m => ({ default: m.AuthForm })));
+import { Link } from 'react-router-dom';
+import { FaVolumeUp, FaStar, FaUsers, FaRocket, FaSignInAlt, FaUserPlus } from 'react-icons/fa';
 
 // 统一的 viewport 与过渡动画配置，避免重复创建对象
 const VIEWPORT_20 = { once: true, amount: 0.2 } as const;
@@ -80,7 +78,6 @@ const FeatureCard = memo(function FeatureCard({ title, desc, Icon, variants, tra
 });
 
 function WelcomePageComponent(): React.ReactElement<any> {
-  const { setNotification } = useNotification();
   const prefersReducedMotion = useReducedMotion();
 
   // 智能降级：根据用户系统偏好减少动画强度，并通过 useMemo 稳定对象引用
@@ -115,12 +112,15 @@ function WelcomePageComponent(): React.ReactElement<any> {
     prefersReducedMotion ? undefined : ITEM_HOVER
   ), [prefersReducedMotion]);
 
-  // 空闲时间预取：在浏览器空闲时预加载 AuthForm，提升首次交互体验
+  // 空闲时间预取：在浏览器空闲时预加载登录和注册页面，提升首次交互体验
   React.useEffect(() => {
     const win: any = typeof window !== 'undefined' ? window : undefined;
     const schedule = win && win.requestIdleCallback ? win.requestIdleCallback : (cb: () => void) => setTimeout(cb, 300);
     const cancel = win && win.cancelIdleCallback ? win.cancelIdleCallback : (id: any) => clearTimeout(id);
-    const id = schedule(() => { import('./AuthForm'); });
+    const id = schedule(() => { 
+      import('./LoginPage');
+      import('./RegisterPage');
+    });
     return () => cancel(id);
   }, []);
 
@@ -162,19 +162,43 @@ function WelcomePageComponent(): React.ReactElement<any> {
               </div>
             </div>
 
-            {/* 登录表单区域 */}
-            <div className="p-6">
+            {/* 行动号召区域 */}
+            <div className="p-8">
               <m.div
-                className="max-w-md mx-auto"
+                className="max-w-2xl mx-auto text-center space-y-6"
                 variants={effectiveItemVariants}
                 initial="hidden"
                 whileInView="visible"
                 viewport={VIEWPORT_30}
                 transition={effectiveAuthTransition}
               >
-                <Suspense fallback={<div className="h-20 flex items-center justify-center text-gray-500">加载中...</div>}>
-                  <AuthFormLazy setNotification={setNotification} />
-                </Suspense>
+                <p className="text-lg text-gray-700 mb-6">
+                  立即开始使用 Synapse，体验先进的语音合成技术
+                </p>
+                
+                <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                  <Link
+                    to="/login"
+                    className="group flex items-center gap-2 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                    aria-label="登录到您的账户"
+                  >
+                    <FaSignInAlt className="text-xl" />
+                    <span>登录</span>
+                  </Link>
+                  
+                  <Link
+                    to="/register"
+                    className="group flex items-center gap-2 px-8 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                    aria-label="创建新账户"
+                  >
+                    <FaUserPlus className="text-xl" />
+                    <span>注册账号</span>
+                  </Link>
+                </div>
+
+                <p className="text-sm text-gray-500 mt-4">
+                  还没有账号？注册只需一分钟
+                </p>
               </m.div>
             </div>
           </m.div>
