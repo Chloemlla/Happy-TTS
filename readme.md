@@ -1,0 +1,1 @@
+# All rights reserved for this project; any unauthorized actions will be considered infringement.
