@@ -21,20 +21,22 @@ export function sanitizeInput(
   let cleaned = str.substring(0, maxLength);
 
   // 2. 移除HTML标签（迭代清理防止嵌套绕过）
-  let previousLength = 0;
-  while (cleaned.length !== previousLength) {
-    previousLength = cleaned.length;
+  const maxIterations = 10;
+  let previousCleaned = '';
+  
+  for (let i = 0; i < maxIterations && cleaned !== previousCleaned; i++) {
+    previousCleaned = cleaned;
     cleaned = cleaned.replace(/<[^>]*>/g, '');
   }
 
-  // 3. 移除潜在的脚本注入（迭代清理防止嵌套绕过）
-  previousLength = 0;
-  while (cleaned.length !== previousLength) {
-    previousLength = cleaned.length;
-    cleaned = cleaned.replace(/javascript:/gi, '');
-    cleaned = cleaned.replace(/vbscript:/gi, '');
-    cleaned = cleaned.replace(/data:/gi, '');
-    cleaned = cleaned.replace(/on\w+\s*=/gi, '');
+  // 3. 移除潜在的脚本注入（合并模式，迭代替换直到完全清理）
+  // 单个正则表达式包含所有危险模式，避免不完整的多字符清理漏洞
+  previousCleaned = '';
+  
+  for (let i = 0; i < maxIterations && cleaned !== previousCleaned; i++) {
+    previousCleaned = cleaned;
+    // 每次都创建新的正则实例，避免全局标志的 lastIndex 状态问题
+    cleaned = cleaned.replace(/javascript:|vbscript:|data:|on\w+\s*=/gi, '');
   }
 
   // 4. 转义特殊字符
@@ -164,8 +166,9 @@ export function validateName(name: any): { valid: boolean; error?: string } {
     return { valid: false, error: '姓名不能超过100个字符' };
   }
 
-  // 检查是否包含非法字符
-  if (/<|>|script|javascript|onerror|onload/i.test(trimmed)) {
+  // 检查是否包含非法字符或危险模式
+  // 使用统一的危险模式检测，防止 XSS 和脚本注入
+  if (/<|>|javascript:|vbscript:|data:|on\w+\s*=/i.test(trimmed)) {
     return { valid: false, error: '姓名包含非法字符' };
   }
 
