@@ -1017,13 +1017,13 @@ app.use('/api/image-data', imageDataRoutes);
 app.use('/api', resourceRoutes);
 // CDK路由 - 需要认证（添加挂载限流）
 const cdkMountLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1分钟
-  max: 60, // 每IP每分钟最多60次
-  message: { error: 'CDK 请求过于频繁，请稍后再试' },
-  standardHeaders: true,
-  legacyHeaders: false,
+windowMs: 60 * 1000, // 1分钟
+max: 60, // 每IP每分钟最多60次
+message: { error: 'CDK 请求过于频繁，请稍后再试' },
+standardHeaders: true,
+legacyHeaders: false,
 });
-app.use('/api/cdks', cdkMountLimiter, authenticateToken, cdkRoutes);
+app.use('/api/cdks', cdkMountLimiter, cdkRoutes);
 // Webhook事件管理 - 需要管理员认证（添加管理员限流）
 app.use('/api/webhook-events', authenticateToken, adminLimiter, webhookEventRoutes);
 // FBI通缉犯路由（管理员端，添加管理员限流）

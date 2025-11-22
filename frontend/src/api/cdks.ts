@@ -70,7 +70,7 @@ export const cdksApi = {
     cfToken?: string;
     userRole?: string;
   }) => {
-    const response = await api.post(`${getApiBaseUrl()}/api/redeem`, params);
+    const response = await api.post(`${getApiBaseUrl()}/api/cdks/redeem`, params);
     return response.data;
   },
 
@@ -151,7 +151,7 @@ export const cdksApi = {
 
   // 获取用户已兑换的资源
   getUserRedeemedResources: async (): Promise<RedeemedResourcesResponse> => {
-    const response = await api.get(`${getApiBaseUrl()}/api/redeemed`);
+    const response = await api.get(`${getApiBaseUrl()}/api/cdks/redeemed`);
     return response.data;
   },
 
