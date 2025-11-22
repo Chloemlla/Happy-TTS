@@ -7,6 +7,7 @@ import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
 import VerifyCodeInput from './VerifyCodeInput';
 import { AnimatePresence, motion } from 'framer-motion';
 import getApiBaseUrl from '../api';
+import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaUser, FaVolumeUp, FaArrowLeft, FaCheckCircle } from 'react-icons/fa';
 
 interface PasswordStrength {
     score: number;
@@ -17,7 +18,7 @@ export const RegisterPage: React.FC = () => {
     const { setNotification } = useNotification();
     const navigate = useNavigate();
     const { config: turnstileConfig, loading: turnstileConfigLoading } = useTurnstileConfig({ usePublicConfig: true });
-    
+
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -36,6 +37,8 @@ export const RegisterPage: React.FC = () => {
     const [verifyError, setVerifyError] = useState('');
     const [verifyLoading, setVerifyLoading] = useState(false);
     const [verifyResendTimer, setVerifyResendTimer] = useState(0);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const allowedDomains = ['gmail.com', 'outlook.com', 'qq.com', '163.com', '126.com', 'hotmail.com', 'yahoo.com', 'icloud.com', 'foxmail.com', 'hapxs.com', 'hapx.one'];
     const emailPattern = new RegExp(`^[\\w.-]+@(${allowedDomains.map(d => d.replace('.', '\\.')).join('|')})$`);
@@ -43,22 +46,22 @@ export const RegisterPage: React.FC = () => {
 
     useEffect(() => { if (turnstileToken) setError(null); }, [turnstileToken]);
 
-    const handleTurnstileVerify = (token: string) => { 
-        setTurnstileToken(token); 
-        setTurnstileVerified(true); 
-        setTurnstileError(false); 
+    const handleTurnstileVerify = (token: string) => {
+        setTurnstileToken(token);
+        setTurnstileVerified(true);
+        setTurnstileError(false);
     };
-    
-    const handleTurnstileExpire = () => { 
-        setTurnstileToken(''); 
-        setTurnstileVerified(false); 
-        setTurnstileError(false); 
+
+    const handleTurnstileExpire = () => {
+        setTurnstileToken('');
+        setTurnstileVerified(false);
+        setTurnstileError(false);
     };
-    
-    const handleTurnstileError = () => { 
-        setTurnstileToken(''); 
-        setTurnstileVerified(false); 
-        setTurnstileError(true); 
+
+    const handleTurnstileError = () => {
+        setTurnstileToken('');
+        setTurnstileVerified(false);
+        setTurnstileError(true);
     };
 
     const checkPasswordStrength = (pwd: string): PasswordStrength => {
@@ -89,7 +92,7 @@ export const RegisterPage: React.FC = () => {
 
     const validateInput = (value: string, type: 'username' | 'email' | 'password'): string | null => {
         const sanitizedValue = DOMPurify.sanitize(value).trim();
-        
+
         switch (type) {
             case 'username':
                 if (!/^[a-zA-Z0-9_]{3,20}$/.test(sanitizedValue)) {
@@ -169,19 +172,19 @@ export const RegisterPage: React.FC = () => {
                 email: sanitizedEmail,
                 password: password
             };
-            
+
             if (turnstileConfig.siteKey && turnstileToken) {
                 requestBody.cfToken = turnstileToken;
             }
-            
+
             const res = await fetch(getApiBaseUrl() + '/api/auth/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(requestBody)
             });
-            
+
             const data = await res.json();
-            
+
             if (data && data.needVerify) {
                 setShowEmailVerify(true);
                 setPendingEmail(sanitizedEmail);
@@ -213,7 +216,7 @@ export const RegisterPage: React.FC = () => {
         if (verifyResendTimer > 0) return;
         setVerifyLoading(true);
         setVerifyError('');
-        
+
         try {
             const res = await fetch(getApiBaseUrl() + '/api/auth/send-verify-email', {
                 method: 'POST',
@@ -221,7 +224,7 @@ export const RegisterPage: React.FC = () => {
                 body: JSON.stringify({ email: pendingEmail })
             });
             const data = await res.json();
-            
+
             if (data && data.success) {
                 setNotification({ message: '验证码已重新发送', type: 'success' });
                 setVerifyResendTimer(60);
@@ -241,13 +244,13 @@ export const RegisterPage: React.FC = () => {
         setVerifyLoading(true);
         setVerifyError('');
         const finalCode = code || verifyCode;
-        
+
         if (!/^[0-9]{8}$/.test(finalCode)) {
             setVerifyError('验证码必须为8位数字');
             setVerifyLoading(false);
             return;
         }
-        
+
         try {
             const res = await fetch(getApiBaseUrl() + '/api/auth/verify-email', {
                 method: 'POST',
@@ -255,7 +258,7 @@ export const RegisterPage: React.FC = () => {
                 body: JSON.stringify({ email: pendingEmail, code: finalCode })
             });
             const data = await res.json();
-            
+
             if (data && data.success) {
                 setShowEmailVerify(false);
                 setPendingEmail('');
@@ -276,30 +279,22 @@ export const RegisterPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-md w-full space-y-8">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12 px-6 animate-gradient py-8 rounded-3xl">
+            <div className="w-full max-w-md animate-scaleIn">
                 {/* Header */}
-                <div className="text-center">
-                    <Link to="/" className="inline-flex items-center justify-center space-x-2 mb-6" aria-label="返回首页">
-                        <img 
-                            src="/favicon.ico" 
-                            alt="Synapse Logo" 
-                            className="w-12 h-12"
-                        />
-                    </Link>
-                    <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                        创建您的账号
-                    </h2>
-                    <p className="text-sm text-gray-600">
-                        加入 Synapse，开始您的语音合成之旅
-                    </p>
+                <div className="mb-8 text-center animate-slideInUp">
+                    <div className="mb-4 inline-flex items-center gap-3">
+                        <FaVolumeUp className="h-10 w-10 text-blue-600" />
+                        <h1 className="text-3xl font-bold text-blue-600">Synapse</h1>
+                    </div>
+                    <p className="text-gray-600">Create your account!</p>
                 </div>
 
-                {/* Form */}
-                <div className="bg-white rounded-lg shadow-md border border-gray-200 px-8 py-8">
+                {/* Form Card */}
+                <div className="bg-white rounded-2xl shadow-xl border border-gray-100 px-8 py-8 hover:shadow-2xl transition-all duration-300">
                     <form className="space-y-4" onSubmit={handleSubmit} aria-label="注册表单">
                         {error && (
-                            <div 
+                            <div
                                 role="alert"
                                 aria-live="assertive"
                                 className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm"
@@ -309,87 +304,103 @@ export const RegisterPage: React.FC = () => {
                         )}
 
                         <div>
-                            <label htmlFor="username" className="block text-sm font-semibold text-gray-700 mb-2">
-                                用户名
+                            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+                                Username
                             </label>
-                            <input
-                                id="username"
-                                name="username"
-                                type="text"
-                                required
-                                inputMode="text"
-                                enterKeyHint="next"
-                                aria-label="用户名"
-                                aria-required="true"
-                                aria-invalid={!!error}
-                                aria-describedby="username-hint"
-                                className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                                placeholder="3-20个字符，只允许字母、数字、下划线"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
-                                maxLength={20}
-                                pattern="^[a-zA-Z0-9_]{3,20}$"
-                                autoComplete="username"
-                            />
-                            <span id="username-hint" className="sr-only">用户名长度3到20个字符，只允许字母、数字和下划线</span>
+                            <div className="relative">
+                                <FaUser className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                                <input
+                                    id="username"
+                                    name="username"
+                                    type="text"
+                                    required
+                                    inputMode="text"
+                                    enterKeyHint="next"
+                                    aria-label="用户名"
+                                    aria-required="true"
+                                    aria-invalid={!!error}
+                                    aria-describedby="username-hint"
+                                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                                    placeholder="3-20 characters"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    maxLength={20}
+                                    pattern="^[a-zA-Z0-9_]{3,20}$"
+                                    autoComplete="username"
+                                />
+                                <span id="username-hint" className="sr-only">用户名长度3到20个字符，只允许字母、数字和下划线</span>
+                            </div>
                         </div>
 
                         <div>
-                            <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
-                                邮箱地址
+                            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                                Email
                             </label>
-                            <input
-                                id="email"
-                                name="email"
-                                type="email"
-                                required
-                                inputMode="email"
-                                enterKeyHint="next"
-                                aria-label="邮箱地址"
-                                aria-required="true"
-                                aria-invalid={!!error}
-                                className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                                placeholder="your-email@example.com"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                autoComplete="email"
-                            />
+                            <div className="relative">
+                                <FaEnvelope className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                                <input
+                                    id="email"
+                                    name="email"
+                                    type="email"
+                                    required
+                                    inputMode="email"
+                                    enterKeyHint="next"
+                                    aria-label="邮箱地址"
+                                    aria-required="true"
+                                    aria-invalid={!!error}
+                                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                                    placeholder="you@example.com"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    autoComplete="email"
+                                />
+                            </div>
                         </div>
 
                         <div>
-                            <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
-                                密码
+                            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                                Password
                             </label>
-                            <input
-                                id="password"
-                                name="password"
-                                type="password"
-                                required
-                                enterKeyHint="next"
-                                aria-label="密码"
-                                aria-required="true"
-                                aria-invalid={!!error}
-                                aria-describedby="password-strength"
-                                className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                                placeholder="至少8位，包含大小写字母、数字和特殊字符"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                minLength={8}
-                                autoComplete="new-password"
-                            />
+                            <div className="relative">
+                                <FaLock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                                <input
+                                    id="password"
+                                    name="password"
+                                    type={showPassword ? "text" : "password"}
+                                    required
+                                    enterKeyHint="next"
+                                    aria-label="密码"
+                                    aria-required="true"
+                                    aria-invalid={!!error}
+                                    aria-describedby="password-strength"
+                                    className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                                    placeholder="••••••••"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    minLength={8}
+                                    autoComplete="new-password"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                    aria-label={showPassword ? "隐藏密码" : "显示密码"}
+                                >
+                                    {showPassword ? <FaEyeSlash className="h-5 w-5" /> : <FaEye className="h-5 w-5" />}
+                                </button>
+                            </div>
                             {password && username && email && (
                                 <div id="password-strength" className="mt-2 p-2 text-xs bg-gray-50 border border-gray-200 rounded-md" role="status" aria-live="polite">
                                     <div className="mb-1">
                                         密码强度：
-                                        <span className={`font-semibold ml-1 ${
-                                            passwordStrength.score >= 4 ? 'text-green-600' :
-                                            passwordStrength.score >= 3 ? 'text-blue-600' :
-                                            passwordStrength.score >= 2 ? 'text-yellow-600' :
-                                            'text-red-600'
-                                        }`}>
+                                        <span className={`font-semibold ml-1 ${passwordStrength.score >= 4 ? 'text-green-600' :
+                                                passwordStrength.score >= 3 ? 'text-blue-600' :
+                                                    passwordStrength.score >= 2 ? 'text-yellow-600' :
+                                                        'text-red-600'
+                                            }`}>
                                             {passwordStrength.score >= 4 ? '很强' :
-                                             passwordStrength.score >= 3 ? '强' :
-                                             passwordStrength.score >= 2 ? '中等' : '弱'}
+                                                passwordStrength.score >= 3 ? '强' :
+                                                    passwordStrength.score >= 2 ? '中等' : '弱'}
                                         </span>
                                     </div>
                                     {passwordStrength.feedback && (
@@ -402,24 +413,35 @@ export const RegisterPage: React.FC = () => {
                         </div>
 
                         <div>
-                            <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700 mb-2">
-                                确认密码
+                            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                                Confirm Password
                             </label>
-                            <input
-                                id="confirmPassword"
-                                name="confirmPassword"
-                                type="password"
-                                required
-                                enterKeyHint="done"
-                                aria-label="确认密码"
-                                aria-required="true"
-                                aria-invalid={password !== confirmPassword}
-                                className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                                placeholder="再次输入密码"
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                autoComplete="new-password"
-                            />
+                            <div className="relative">
+                                <FaLock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                                <input
+                                    id="confirmPassword"
+                                    name="confirmPassword"
+                                    type={showConfirmPassword ? "text" : "password"}
+                                    required
+                                    enterKeyHint="done"
+                                    aria-label="确认密码"
+                                    aria-required="true"
+                                    aria-invalid={password !== confirmPassword}
+                                    className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                                    placeholder="••••••••"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    autoComplete="new-password"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                    aria-label={showConfirmPassword ? "隐藏密码" : "显示密码"}
+                                >
+                                    {showConfirmPassword ? <FaEyeSlash className="h-5 w-5" /> : <FaEye className="h-5 w-5" />}
+                                </button>
+                            </div>
                         </div>
 
                         {!turnstileConfigLoading && turnstileConfig.siteKey && (
@@ -467,24 +489,25 @@ export const RegisterPage: React.FC = () => {
                             disabled={loading || password !== confirmPassword || (!!turnstileConfig.siteKey && !turnstileVerified)}
                             aria-label={loading ? '正在注册' : '创建账号'}
                             aria-busy={loading}
-                            className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
                         >
-                            {loading ? '注册中...' : '创建账号'}
+                            {loading ? '注册中...' : 'Create Account'}
                         </button>
                     </form>
+
+                    <div className="mt-6 text-center">
+                        <p className="text-sm text-gray-600">
+                            Already have an account? <Link to="/login" className="font-medium text-blue-600 hover:text-blue-700">Sign In</Link>
+                        </p>
+                    </div>
                 </div>
 
-                {/* Footer */}
-                <div className="text-center">
-                    <p className="text-sm text-gray-600">
-                        已有账号？{' '}
-                        <Link 
-                            to="/login" 
-                            className="font-medium text-blue-600 hover:text-blue-800"
-                        >
-                            立即登录
-                        </Link>
-                    </p>
+                {/* Back to Home */}
+                <div className="mt-6 text-center">
+                    <Link to="/" className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors" aria-label="返回首页">
+                        <FaArrowLeft className="h-4 w-4" />
+                        Back to Home
+                    </Link>
                 </div>
             </div>
 
@@ -544,11 +567,10 @@ export const RegisterPage: React.FC = () => {
                                 <div className="space-y-3">
                                     <button
                                         type="button"
-                                        className={`w-full py-4 px-6 rounded-2xl font-semibold text-lg transition-all duration-200 ${
-                                            verifyCode.length === 8 && !verifyLoading
+                                        className={`w-full py-4 px-6 rounded-2xl font-semibold text-lg transition-all duration-200 ${verifyCode.length === 8 && !verifyLoading
                                                 ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
                                                 : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        }`}
+                                            }`}
                                         onClick={() => handleVerifyCode()}
                                         disabled={verifyLoading || verifyCode.length !== 8}
                                         aria-label={verifyLoading ? '正在验证' : '创建账户'}
@@ -564,11 +586,10 @@ export const RegisterPage: React.FC = () => {
 
                                     <button
                                         type="button"
-                                        className={`w-full py-3 px-6 rounded-2xl font-medium transition-all duration-200 ${
-                                            verifyResendTimer > 0
+                                        className={`w-full py-3 px-6 rounded-2xl font-medium transition-all duration-200 ${verifyResendTimer > 0
                                                 ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
                                                 : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                                        }`}
+                                            }`}
                                         onClick={handleResendVerifyCode}
                                         disabled={verifyLoading || verifyResendTimer > 0}
                                         aria-label={verifyResendTimer > 0 ? `${verifyResendTimer}秒后可重新发送` : '重新发送验证码'}
