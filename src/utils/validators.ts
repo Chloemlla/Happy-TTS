@@ -20,12 +20,22 @@ export function sanitizeInput(
   // 1. 限制长度
   let cleaned = str.substring(0, maxLength);
 
-  // 2. 移除HTML标签
-  cleaned = cleaned.replace(/<[^>]*>/g, '');
+  // 2. 移除HTML标签（迭代清理防止嵌套绕过）
+  let previousLength = 0;
+  while (cleaned.length !== previousLength) {
+    previousLength = cleaned.length;
+    cleaned = cleaned.replace(/<[^>]*>/g, '');
+  }
 
-  // 3. 移除潜在的脚本注入
-  cleaned = cleaned.replace(/javascript:/gi, '');
-  cleaned = cleaned.replace(/on\w+\s*=/gi, '');
+  // 3. 移除潜在的脚本注入（迭代清理防止嵌套绕过）
+  previousLength = 0;
+  while (cleaned.length !== previousLength) {
+    previousLength = cleaned.length;
+    cleaned = cleaned.replace(/javascript:/gi, '');
+    cleaned = cleaned.replace(/vbscript:/gi, '');
+    cleaned = cleaned.replace(/data:/gi, '');
+    cleaned = cleaned.replace(/on\w+\s*=/gi, '');
+  }
 
   // 4. 转义特殊字符
   cleaned = cleaned
@@ -268,9 +278,28 @@ export function validateURL(url: any, required: boolean = false): { valid: boole
     return { valid: false, error: 'URL长度不能超过2000字符' };
   }
 
-  // 简单的URL格式验证
-  const urlPattern = /^(https?:\/\/)?([\w\-]+(\.[\w\-]+)+)([\w\-\.,@?^=%&:/~\+#]*[\w\-@?^=%&/~\+#])?$/;
-  if (!urlPattern.test(url)) {
+  // 严格的URL格式验证 - 必须以http://或https://开头
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    return { valid: false, error: 'URL必须以http://或https://开头' };
+  }
+
+  // 检查危险协议
+  const lowerUrl = url.toLowerCase();
+  const dangerousSchemes = ['javascript:', 'data:', 'vbscript:', 'file:', 'about:'];
+  for (const scheme of dangerousSchemes) {
+    if (lowerUrl.includes(scheme)) {
+      return { valid: false, error: 'URL包含不安全的协议' };
+    }
+  }
+
+  // URL格式验证
+  try {
+    const urlObj = new URL(url);
+    // 只允许http和https协议
+    if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
+      return { valid: false, error: '只允许http和https协议' };
+    }
+  } catch (error) {
     return { valid: false, error: 'URL格式不正确' };
   }
 
