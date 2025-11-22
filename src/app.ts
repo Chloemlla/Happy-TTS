@@ -56,7 +56,6 @@ import resourceRoutes from './routes/resourceRoutes';
 import cdkRoutes from './routes/cdkRoutes';
 import shortUrlRoutes from './routes/shortUrlRoutes';
 import fbiWantedRoutes from './routes/fbiWantedRoutes';
-import fbiWantedPublicRoutes from './routes/fbiWantedPublicRoutes';
 import humanCheckRoutes from './routes/humanCheckRoutes';
 import debugConsoleRoutes from './routes/debugConsoleRoutes';
 
@@ -1026,12 +1025,8 @@ legacyHeaders: false,
 app.use('/api/cdks', cdkMountLimiter, cdkRoutes);
 // Webhook事件管理 - 需要管理员认证（添加管理员限流）
 app.use('/api/webhook-events', authenticateToken, adminLimiter, webhookEventRoutes);
-// FBI通缉犯路由（管理员端，添加管理员限流）
-app.use('/api/fbi-wanted', adminLimiter, fbiWantedRoutes);
-// FBI通缉犯公开路由（完全无鉴权，添加前端限流）
-app.use('/api/fbi-wanted-public', frontendLimiter, fbiWantedPublicRoutes);
-// 额外公开别名（非 /api 前缀，绕过任何潜在的 /api 层鉴权拦截）- 添加前端限流
-app.use('/public/fbi-wanted', frontendLimiter, fbiWantedPublicRoutes);
+// FBI通缉犯路由（统一管理公开和管理员API，内部路由已处理认证和限流）
+app.use('/api/fbi-wanted', fbiWantedRoutes);
 // GitHub Billing 路由限流器
 const githubBillingLimiter = rateLimit({
   windowMs: 60 * 1000, // 1分钟

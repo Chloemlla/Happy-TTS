@@ -4,6 +4,20 @@ import logger from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { isValidObjectId, Types } from 'mongoose';
 import { IPFSService } from '../services/ipfsService';
+import {
+    sanitizeInput,
+    validateName,
+    validateCharges,
+    validateReward,
+    validateAge,
+    validateDangerLevel,
+    validateStatus,
+    validateAliases,
+    validateStringArray,
+    validateURL,
+    validateDate,
+    collectValidationErrors
+} from '../utils/validators';
 
 // 生成NCIC编号
 function generateNCICNumber(): string {
@@ -20,14 +34,6 @@ function generateFBINumber(): string {
     const timestamp = Date.now().toString().slice(-8);
     const random = Math.random().toString(36).substring(2, 6).toUpperCase();
     return `FBI-${timestamp}-${random}`;
-}
-
-// 输入验证和清理
-function sanitizeInput(str: string | undefined | null): string {
-    if (typeof str !== 'string' || !str) {
-        return '';
-    }
-    return str.replace(/[<>]/g, '').trim();
 }
 
 // 使用UTC逻辑根据出生日期计算年龄，避免时区导致的偏差
@@ -235,50 +241,168 @@ export const fbiWantedController = {
                 remarks = ''
             } = req.body;
 
-            // 验证必填字段（只要求基本信息）
-            if (!name || !charges.length || reward === undefined) {
+            // ===== 执行全面的数据验证 =====
+
+            // 1. 验证姓名
+            const nameValidation = validateName(name);
+            if (!nameValidation.valid) {
                 return res.status(400).json({
                     success: false,
-                    message: '姓名、指控和悬赏金额是必填项'
+                    message: nameValidation.error
                 });
             }
 
-            // 计算最终年龄：优先使用传入的 age；若未提供且提供了 DOB，则根据 DOB 计算
-            let finalAge: number = (age !== undefined && age !== null && age !== '') ? Number(age) : NaN;
-            if (!Number.isFinite(finalAge)) {
-                const computed = computeAgeFromDOB(dateOfBirth ?? null);
+            // 2. 验证指控
+            const chargesValidation = validateCharges(charges);
+            if (!chargesValidation.valid) {
+                return res.status(400).json({
+                    success: false,
+                    message: chargesValidation.error
+                });
+            }
+
+            // 3. 验证悬赏金额
+            const rewardValidation = validateReward(reward);
+            if (!rewardValidation.valid) {
+                return res.status(400).json({
+                    success: false,
+                    message: rewardValidation.error
+                });
+            }
+
+            // 4. 验证年龄
+            const ageValidation = validateAge(age);
+            if (!ageValidation.valid) {
+                return res.status(400).json({
+                    success: false,
+                    message: ageValidation.error
+                });
+            }
+
+            // 5. 验证危险等级
+            const dangerValidation = validateDangerLevel(dangerLevel);
+            if (!dangerValidation.valid) {
+                return res.status(400).json({
+                    success: false,
+                    message: dangerValidation.error
+                });
+            }
+
+            // 6. 验证别名（可选）
+            if (aliases && aliases.length > 0) {
+                const aliasesValidation = validateAliases(aliases);
+                if (!aliasesValidation.valid) {
+                    return res.status(400).json({
+                        success: false,
+                        message: aliasesValidation.error
+                    });
+                }
+            }
+
+            // 7. 验证其他数组字段（可选）
+            if (fingerprints && fingerprints.length > 0) {
+                const fingerprintsValidation = validateStringArray(fingerprints, '指纹', 20, 200);
+                if (!fingerprintsValidation.valid) {
+                    return res.status(400).json({
+                        success: false,
+                        message: fingerprintsValidation.error
+                    });
+                }
+            }
+
+            if (scarsAndMarks && scarsAndMarks.length > 0) {
+                const scarsValidation = validateStringArray(scarsAndMarks, '疤痕标记', 30, 300);
+                if (!scarsValidation.valid) {
+                    return res.status(400).json({
+                        success: false,
+                        message: scarsValidation.error
+                    });
+                }
+            }
+
+            if (languages && languages.length > 0) {
+                const languagesValidation = validateStringArray(languages, '语言', 20, 50);
+                if (!languagesValidation.valid) {
+                    return res.status(400).json({
+                        success: false,
+                        message: languagesValidation.error
+                    });
+                }
+            }
+
+            // 8. 验证URL（可选）
+            if (photoUrl) {
+                const urlValidation = validateURL(photoUrl);
+                if (!urlValidation.valid) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `头像URL无效: ${urlValidation.error}`
+                    });
+                }
+            }
+
+            // 9. 验证日期（可选）
+            let validatedDateOfBirth: Date | null = null;
+            if (dateOfBirth) {
+                const dateValidation = validateDate(dateOfBirth);
+                if (!dateValidation.valid) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `出生日期无效: ${dateValidation.error}`
+                    });
+                }
+                validatedDateOfBirth = dateValidation.value || null;
+            }
+
+            // ===== 计算最终年龄 =====
+            let finalAge: number = ageValidation.value ?? 0;
+            if (!finalAge && validatedDateOfBirth) {
+                const computed = computeAgeFromDOB(validatedDateOfBirth);
                 finalAge = computed ?? 0;
             }
 
+            // ===== 清理和构建数据 =====
             const newWanted = new FBIWantedModel({
                 fbiNumber: generateFBINumber(),
                 ncicNumber: generateNCICNumber(),
-                name: sanitizeInput(name),
-                aliases: aliases.map((alias: string) => sanitizeInput(alias)),
+                name: sanitizeInput(name, 100),
+                aliases: aliases
+                    .filter((alias: any) => typeof alias === 'string' && alias.trim())
+                    .map((alias: string) => sanitizeInput(alias, 100))
+                    .slice(0, 20),
                 age: finalAge,
-                height: height ? sanitizeInput(height) : '未知',
-                weight: weight ? sanitizeInput(weight) : '未知',
-                eyes: eyes ? sanitizeInput(eyes) : '未知',
-                hair: hair ? sanitizeInput(hair) : '未知',
-                race: race ? sanitizeInput(race) : '未知',
-                nationality: nationality ? sanitizeInput(nationality) : '未知',
-                dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-                placeOfBirth: sanitizeInput(placeOfBirth),
-                charges: charges.map((charge: string) => sanitizeInput(charge)),
-                description: sanitizeInput(description),
-                reward: Number(reward),
-                photoUrl: sanitizeInput(photoUrl),
-                fingerprints: fingerprints.map((fp: string) => sanitizeInput(fp)),
-                lastKnownLocation: sanitizeInput(lastKnownLocation),
+                height: height ? sanitizeInput(height, 50) : '未知',
+                weight: weight ? sanitizeInput(weight, 50) : '未知',
+                eyes: eyes ? sanitizeInput(eyes, 50) : '未知',
+                hair: hair ? sanitizeInput(hair, 50) : '未知',
+                race: race ? sanitizeInput(race, 50) : '未知',
+                nationality: nationality ? sanitizeInput(nationality, 50) : '未知',
+                dateOfBirth: validatedDateOfBirth,
+                placeOfBirth: sanitizeInput(placeOfBirth, 200),
+                charges: charges.map((charge: string) => sanitizeInput(charge, 500)),
+                description: sanitizeInput(description, 2000),
+                reward: rewardValidation.value!,
+                photoUrl: sanitizeInput(photoUrl, 2000),
+                fingerprints: fingerprints
+                    .filter((fp: any) => typeof fp === 'string' && fp.trim())
+                    .map((fp: string) => sanitizeInput(fp, 200))
+                    .slice(0, 20),
+                lastKnownLocation: sanitizeInput(lastKnownLocation, 500),
                 dangerLevel,
                 status: 'ACTIVE',
                 dateAdded: new Date(),
                 lastUpdated: new Date(),
-                occupation: sanitizeInput(occupation),
-                scarsAndMarks: scarsAndMarks.map((mark: string) => sanitizeInput(mark)),
-                languages: languages.map((lang: string) => sanitizeInput(lang)),
-                caution: sanitizeInput(caution),
-                remarks: sanitizeInput(remarks),
+                occupation: sanitizeInput(occupation, 200),
+                scarsAndMarks: scarsAndMarks
+                    .filter((mark: any) => typeof mark === 'string' && mark.trim())
+                    .map((mark: string) => sanitizeInput(mark, 300))
+                    .slice(0, 30),
+                languages: languages
+                    .filter((lang: any) => typeof lang === 'string' && lang.trim())
+                    .map((lang: string) => sanitizeInput(lang, 50))
+                    .slice(0, 20),
+                caution: sanitizeInput(caution, 1000),
+                remarks: sanitizeInput(remarks, 2000),
                 isActive: true
             });
 

@@ -20,98 +20,12 @@ import {
   FaUser,
   FaBullhorn
 } from 'react-icons/fa';
-import getApiBaseUrl from '../api';
-import { openDB } from 'idb';
-
-// 通缉犯接口定义
-interface FBIWanted {
-  _id: string;
-  name: string;
-  aliases: string[];
-  age: number;
-  height: string;
-  weight: string;
-  eyes: string;
-  hair: string;
-  race: string;
-  nationality: string;
-  dateOfBirth: string;
-  placeOfBirth: string;
-  charges: string[];
-  description: string;
-  reward: number;
-  photoUrl: string;
-  fingerprints: string[];
-  lastKnownLocation: string;
-  dangerLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'EXTREME';
-  status: 'ACTIVE' | 'CAPTURED' | 'DECEASED' | 'REMOVED';
-  dateAdded: string;
-  lastUpdated: string;
-  fbiNumber: string;
-  ncicNumber: string;
-  occupation: string;
-  scarsAndMarks: string[];
-  languages: string[];
-  caution: string;
-  remarks: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// 统计信息接口
-interface Statistics {
-  total: number;
-  active: number;
-  captured: number;
-  deceased: number;
-  dangerLevels: Record<string, number>;
-  recentAdded: Array<{
-    name: string;
-    fbiNumber: string;
-    dateAdded: string;
-    dangerLevel: string;
-  }>;
-}
-
-// 图片缓存相关函数
-const getCachedImage = async (imageId: string, imageHash: string): Promise<string | null> => {
-  try {
-    const db = await openDB('FBIWantedImageCache', 1, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains('images')) {
-          db.createObjectStore('images', { keyPath: 'id' });
-        }
-      },
-    });
-
-    const cached = await db.get('images', imageId);
-    if (cached && cached.hash === imageHash && cached.blob) {
-      return URL.createObjectURL(cached.blob);
-    }
-    return null;
-  } catch (error) {
-    console.warn('获取缓存图片失败:', error);
-    return null;
-  }
-};
-
-const setCachedImage = async (imageId: string, imageHash: string, blob: Blob): Promise<void> => {
-  try {
-    const db = await openDB('FBIWantedImageCache', 1);
-    await db.put('images', {
-      id: imageId,
-      hash: imageHash,
-      blob: blob,
-      timestamp: Date.now()
-    });
-  } catch (error) {
-    console.warn('缓存图片失败:', error);
-  }
-};
+import { FBIWanted, FBIStatistics, DANGER_LEVEL_CONFIG, STATUS_CONFIG } from '../types/fbi';
+import { fbiAPI } from '../api/fbi';
+import { imageCacheService } from '../utils/imageCache';
 
 // 图片组件，支持缓存和错误处理
-const CachedImage: React.FC<{ src?: string; alt?: string; className?: string; imageId?: string }> = ({
+const CachedImage: React.FC<{ src?: string; alt?: string; className?: string; imageId?: string }> = React.memo(({
   src,
   alt = '通缉犯照片',
   className = '',
@@ -140,7 +54,7 @@ const CachedImage: React.FC<{ src?: string; alt?: string; className?: string; im
 
       // 尝试从缓存加载
       if (imageId) {
-        const cached = await getCachedImage(imageId, src);
+        const cached = await imageCacheService.get(imageId, src);
         if (cached && mounted) {
           setImageSrc(cached);
           setLoading(false);
@@ -165,7 +79,7 @@ const CachedImage: React.FC<{ src?: string; alt?: string; className?: string; im
 
             // 缓存图片
             if (imageId) {
-              setCachedImage(imageId, src, blob);
+              imageCacheService.set(imageId, src, blob);
             }
           }
         } else {
@@ -219,7 +133,7 @@ const CachedImage: React.FC<{ src?: string; alt?: string; className?: string; im
       onError={() => setError(true)}
     />
   );
-};
+});
 
 const FBIWantedPublic: React.FC = () => {
   const [wantedList, setWantedList] = useState<FBIWanted[]>([]);
@@ -230,7 +144,7 @@ const FBIWantedPublic: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [dangerFilter, setDangerFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ACTIVE');
-  const [statistics, setStatistics] = useState<Statistics | null>(null);
+  const [statistics, setStatistics] = useState<FBIStatistics | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [pageSize] = useState(12);
@@ -247,34 +161,21 @@ const FBIWantedPublic: React.FC = () => {
   const fetchWantedList = useCallback(async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams({
-        page: currentPage.toString(),
-        limit: '12',
+      const response = await fbiAPI.getPublicList({
+        page: currentPage,
+        limit: 12,
         status: 'ACTIVE', // 只显示在逃的通缉犯
         ...(dangerFilter !== 'ALL' && { dangerLevel: dangerFilter }),
         ...(searchTerm && { search: searchTerm })
       });
-      const url = `${getApiBaseUrl()}/public/fbi-wanted?${params}`;
-      const response = await fetch(url, {
-        // 明确不携带任何凭证或鉴权头
-        credentials: 'omit',
-        headers: {
-          Accept: 'application/json'
-        }
-      });
 
-      if (!response.ok) {
-        // 详细日志便于定位 401/其它错误
-        const text = await response.text().catch(() => '');
-        console.error(`获取通缉犯列表失败: ${response.status} ${response.statusText}`, { url, body: text });
-        return;
+      setWantedList(response.data);
+      if (response.pagination) {
+        setTotalPages(response.pagination.pages);
       }
-
-      const data = await response.json();
-      setWantedList(data.data);
-      setTotalPages(data.pagination.pages);
     } catch (error) {
       console.error('获取通缉犯列表失败:', error);
+      setError('获取通缉犯列表失败，请稍后重试');
     } finally {
       setLoading(false);
     }
@@ -283,20 +184,8 @@ const FBIWantedPublic: React.FC = () => {
   // 获取统计信息（公开接口）
   const fetchStatistics = useCallback(async () => {
     try {
-      const url = `${getApiBaseUrl()}/public/fbi-wanted/statistics`;
-      const response = await fetch(url, {
-        credentials: 'omit',
-        headers: { Accept: 'application/json' }
-      });
-
-      if (!response.ok) {
-        const text = await response.text().catch(() => '');
-        console.error(`获取统计信息失败: ${response.status} ${response.statusText}`, { url, body: text });
-        return;
-      }
-
-      const data = await response.json();
-      setStatistics(data.data);
+      const response = await fbiAPI.getPublicStatistics();
+      setStatistics(response.data);
     } catch (error) {
       console.error('获取统计信息失败:', error);
     }
