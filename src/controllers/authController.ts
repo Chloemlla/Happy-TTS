@@ -4,6 +4,7 @@ import logger from '../utils/logger';
 import fs from 'fs';
 import path from 'path';
 import { EmailService, getEmailQuota, addEmailUsage } from '../services/emailService';
+import { TurnstileService } from '../services/turnstileService';
 
 // 支持的主流邮箱后缀
 const allowedDomains = [
@@ -16,6 +17,8 @@ const emailPattern = new RegExp(
 
 // 临时存储验证码和注册信息
 const emailCodeMap = new Map(); // email -> { code, time, regInfo }
+// 临时存储密码重置验证码
+const resetPasswordCodeMap = new Map(); // email -> { code, time, userId }
 
 // 顶部 import 后添加类型声明
 type UserWithVerified = User & { verified?: boolean };
@@ -397,6 +400,148 @@ function generateWelcomeEmailHtml(username: string): string {
             </div>
             <div class="cta">
                 温馨提示：请妥善保管您的账户信息。如需帮助，直接在站内反馈或联系管理员。
+            </div>
+        </div>
+        <div class="footer">
+            Synapse 团队 · 感谢使用我们的服务！
+        </div>
+    </div>
+</body>
+
+</html>
+    `.trim();
+}
+
+// 密码重置邮件 HTML 模板
+function generatePasswordResetEmailHtml(username: string, code: string): string {
+    return `
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synapse 密码重置验证码</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f7fbff;
+            color: #1f2937;
+            padding: 24px;
+        }
+
+        .card {
+            max-width: 680px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+            border: 1px solid #eef2f7;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            color: #fff;
+            padding: 36px 28px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin: 0;
+            display: inline-flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .icon {
+            width: 40px;
+            height: 40px;
+            background: rgba(0, 0, 0, 0.22);
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.55);
+        }
+
+        .badge {
+            display: inline-block;
+            margin-top: 8px;
+            background: rgba(255, 255, 255, 0.18);
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+        }
+
+        .content {
+            padding: 28px;
+        }
+
+        .hello {
+            font-size: 18px;
+            color: #374151;
+            margin-bottom: 16px;
+        }
+
+        .code-section {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 16px 18px;
+        }
+
+        .code-label {
+            color: #374151;
+            font-size: 16px;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+
+        .verification-code {
+            font-size: 36px;
+            font-weight: bold;
+            color: #3b82f6;
+            letter-spacing: 6px;
+            font-family: 'Courier New', monospace;
+            background: white;
+            padding: 20px 30px;
+            border-radius: 12px;
+            border: 2px solid #3b82f6;
+            display: inline-block;
+            margin: 10px 0;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+        }
+
+        .footer {
+            padding: 20px 28px;
+            border-top: 1px solid #eef2f7;
+            color: #6b7280;
+            font-size: 13px;
+            text-align: center;
+            background: #f9fafb;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        <div class="header" style="text-align:center;">
+            <h1 style="margin:0;text-align:center;"><span class="icon" style="display:inline-block;width:40px;height:40px;line-height:40px;background:rgba(0,0,0,0.22);border-radius:50%;text-align:center;color:#ffffff;font-weight:700;border:1px solid rgba(255,255,255,0.55);">H</span>
+                <span class="logo-text">Synapse</span>
+            </h1>
+            <div class="badge">让文字拥有声音的力量</div>
+        </div>
+        <div class="content">
+            <p class="hello">亲爱的 <strong>${username}</strong>，您正在重置密码。</p>
+            <div class="code-section">
+                <div class="code-label">您的密码重置验证码</div>
+                <div class="verification-code">${code}</div>
+                <p style="color: #6b7280; font-size: 14px; margin-top: 10px;">
+                    验证码有效期为 10 分钟
+                </p>
             </div>
         </div>
         <div class="footer">
@@ -834,6 +979,144 @@ export class AuthController {
         }
     }
 
+    // 忘记密码 - 发送重置验证码
+    public static async forgotPassword(req: Request, res: Response) {
+        try {
+            const { email, turnstileToken } = req.body;
+            if (!email || !emailPattern.test(email)) {
+                return res.status(400).json({ error: '邮箱格式不正确' });
+            }
+
+            // Turnstile验证（如果提供了token）
+            if (turnstileToken) {
+                const remoteIp = req.ip || req.connection.remoteAddress || 'unknown';
+                const isValid = await TurnstileService.verifyToken(turnstileToken, remoteIp);
+                if (!isValid) {
+                    logger.warn(`[密码重置] Turnstile验证失败: ${email}, IP: ${remoteIp}`);
+                    return res.status(400).json({ error: '人机验证失败，请重试' });
+                }
+            }
+
+            // 检查用户是否存在
+            const user = await UserStorage.getUserByEmail(email);
+            if (!user) {
+                // 为了安全，不透露用户是否存在
+                return res.json({ success: true, message: '如果该邮箱已注册，您将收到重置密码的验证码' });
+            }
+
+            // 检查是否在60秒内已发送过验证码
+            const entry = resetPasswordCodeMap.get(email);
+            const now = Date.now();
+            if (entry && now - entry.time < 60000) {
+                return res.status(429).json({ error: '请60秒后再试' });
+            }
+
+            // 邮件配额检查
+            try {
+                const quota = await getEmailQuota(email);
+                if (quota.used >= quota.total) {
+                    logger.warn(`[密码重置] 配额已用尽: ${email}, used=${quota.used}, total=${quota.total}`);
+                    return res.status(429).json({ error: '验证码发送次数已达上限，请明日再试' });
+                }
+            } catch (e) {
+                logger.warn(`[密码重置] 配额查询异常: ${email}`, e);
+            }
+
+            // 生成8位数字验证码
+            let code = '';
+            for (let i = 0; i < 8; i++) {
+                code += Math.floor(Math.random() * 10);
+            }
+
+            // 缓存验证码和用户ID（验证码10分钟有效）
+            resetPasswordCodeMap.set(email, { code, time: now, userId: user.id });
+
+            // 发送邮件验证码
+            try {
+                const emailHtml = generatePasswordResetEmailHtml(user.username, code);
+                const emailResult = await EmailService.sendHtmlEmail(
+                    [email],
+                    'Synapse 密码重置验证码',
+                    emailHtml
+                );
+
+                if (emailResult.success) {
+                    try { await addEmailUsage(email, 1); } catch (e) { logger.warn('[密码重置] 配额递增失败', { email, error: e }); }
+                    logger.info(`[密码重置] 成功发送到: ${email}，验证码：${code}`);
+                    res.json({ success: true, message: '验证码已发送到您的邮箱' });
+                } else {
+                    logger.error(`[密码重置] 发送失败: ${email}, 错误: ${emailResult.error}`);
+                    resetPasswordCodeMap.delete(email);
+                    res.status(500).json({ error: '验证码发送失败，请稍后重试' });
+                }
+            } catch (emailError) {
+                logger.error(`[密码重置] 发送异常: ${email}`, emailError);
+                resetPasswordCodeMap.delete(email);
+                res.status(500).json({ error: '验证码发送失败，请稍后重试' });
+            }
+        } catch (error) {
+            logger.error('[密码重置] 流程异常:', error);
+            res.status(500).json({ error: '密码重置请求失败' });
+        }
+    }
+
+    // 重置密码 - 验证码验证并更新密码
+    public static async resetPassword(req: Request, res: Response) {
+        try {
+            const { email, code, newPassword } = req.body;
+
+            if (!email || !code || !newPassword) {
+                return res.status(400).json({ error: '参数缺失' });
+            }
+
+            if (!/^[0-9]{8}$/.test(code)) {
+                return res.status(400).json({ error: '验证码仅为八位数字' });
+            }
+
+            // 验证验证码
+            const entry = resetPasswordCodeMap.get(email);
+            if (!entry) {
+                return res.status(400).json({ error: '验证码不存在或已过期' });
+            }
+
+            // 检查验证码是否过期（10分钟）
+            const now = Date.now();
+            if (now - entry.time > 10 * 60 * 1000) {
+                resetPasswordCodeMap.delete(email);
+                return res.status(400).json({ error: '验证码已过期，请重新申请' });
+            }
+
+            if (entry.code !== code) {
+                return res.status(400).json({ error: '验证码错误' });
+            }
+
+            // 获取用户信息
+            const user = await UserStorage.getUserById(entry.userId);
+            if (!user) {
+                resetPasswordCodeMap.delete(email);
+                return res.status(404).json({ error: '用户不存在' });
+            }
+
+            // 验证新密码强度
+            const passwordErrors = UserStorage.validateUserInput(user.username, newPassword, user.email, true);
+            if (passwordErrors.length > 0) {
+                return res.status(400).json({ error: passwordErrors[0].message });
+            }
+
+            // 更新密码
+            await UserStorage.updateUser(user.id, { password: newPassword });
+
+            // 清除验证码缓存
+            resetPasswordCodeMap.delete(email);
+
+            logger.info(`[密码重置] 用户 ${user.username} (${email}) 密码重置成功`);
+            res.json({ success: true, message: '密码重置成功，请使用新密码登录' });
+        } catch (error) {
+            logger.error('[密码重置] 重置密码异常:', error);
+            res.status(500).json({ error: '密码重置失败' });
+        }
+    }
+
     // 新增 POST /api/user/verify 支持邮箱验证码、TOTP等验证方式
     public static async verifyUser(req: Request, res: Response) {
         try {
@@ -841,6 +1124,7 @@ export class AuthController {
             if (!userId || !verificationCode) {
                 return res.status(400).json({ error: '用户ID或验证码缺失' });
             }
+            // ...
 
             const user = await UserStorage.getUserById(userId);
             if (!user) {

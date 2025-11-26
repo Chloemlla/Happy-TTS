@@ -135,4 +135,50 @@ router.post('/verify-email', AuthController.verifyEmail);
  */
 router.post('/send-verify-email', AuthController.sendVerifyEmail);
 
-export default router; 
+/**
+ * @openapi
+ * /auth/forgot-password:
+ *   post:
+ *     summary: 忘记密码
+ *     description: 发送密码重置验证码到邮箱
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 验证码发送成功
+ */
+router.post('/forgot-password', AuthController.forgotPassword);
+
+/**
+ * @openapi
+ * /auth/reset-password:
+ *   post:
+ *     summary: 重置密码
+ *     description: 使用验证码重置密码
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *               code:
+ *                 type: string
+ *               newPassword:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 密码重置成功
+ */
+router.post('/reset-password', AuthController.resetPassword);
+
+export default router;

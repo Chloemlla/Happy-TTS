@@ -24,6 +24,8 @@ import clarity from '@microsoft/clarity';
 const WelcomePage = React.lazy(() => import('./components/WelcomePage').then(module => ({ default: module.WelcomePage })));
 const LoginPage = React.lazy(() => import('./components/LoginPage').then(module => ({ default: module.LoginPage })));
 const RegisterPage = React.lazy(() => import('./components/RegisterPage').then(module => ({ default: module.RegisterPage })));
+const ForgotPasswordPage = React.lazy(() => import('./components/ForgotPasswordPage').then(module => ({ default: module.ForgotPasswordPage })));
+const ResetPasswordPage = React.lazy(() => import('./components/ResetPasswordPage').then(module => ({ default: module.ResetPasswordPage })));
 const TtsPage = React.lazy(() => import('./components/TtsPage').then(module => ({ default: module.TtsPage })));
 const PolicyPage = React.lazy(() => import('./components/PolicyPage'));
 const Footer = React.lazy(() => import('./components/Footer'));
@@ -416,7 +418,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const currentPath = location.pathname;
     let title = (routeConfig.titles as Record<string, string>)[currentPath];
-    
+
     // 动态路由匹配：优先匹配精确路径，然后匹配父路径
     if (!title) {
       const pathSegments = currentPath.split('/');
@@ -426,16 +428,16 @@ const App: React.FC = () => {
         title = (routeConfig.titles as Record<string, string>)[parentPath];
       }
     }
-    
+
     // 设置页面标题，如果没有匹配则使用默认标题
     document.title = title || 'Synapse - 智能语音合成平台';
-    
+
     // 获取页面描述
     const descriptions = routeConfig.descriptions as Record<string, string>;
-    const description = descriptions[currentPath] || 
-                       descriptions['/' + currentPath.split('/')[1]] || 
-                       'Synapse智能语音合成平台，提供多种实用工具和高质量服务';
-    
+    const description = descriptions[currentPath] ||
+      descriptions['/' + currentPath.split('/')[1]] ||
+      'Synapse智能语音合成平台，提供多种实用工具和高质量服务';
+
     // 更新页面描述元数据
     let metaDescription = document.querySelector('meta[name="description"]') as HTMLMetaElement;
     if (!metaDescription) {
@@ -1047,6 +1049,46 @@ const App: React.FC = () => {
                           transition={pageTransition}
                         >
                           <RegisterPage />
+                        </m.div>
+                      </Suspense>
+                    )
+                  }
+                />
+                <Route
+                  path="/forgot-password"
+                  element={
+                    user ? (
+                      <Navigate to="/" replace />
+                    ) : (
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <m.div
+                          variants={pageVariants}
+                          initial="initial"
+                          animate="in"
+                          exit="out"
+                          transition={pageTransition}
+                        >
+                          <ForgotPasswordPage />
+                        </m.div>
+                      </Suspense>
+                    )
+                  }
+                />
+                <Route
+                  path="/reset-password"
+                  element={
+                    user ? (
+                      <Navigate to="/" replace />
+                    ) : (
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <m.div
+                          variants={pageVariants}
+                          initial="initial"
+                          animate="in"
+                          exit="out"
+                          transition={pageTransition}
+                        >
+                          <ResetPasswordPage />
                         </m.div>
                       </Suspense>
                     )
