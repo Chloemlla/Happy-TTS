@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, CallbackWithoutResultAndOptionalError } from 'mongoose';
+import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IFBIWanted extends Document {
   name: string;
@@ -137,9 +137,8 @@ FBIWantedSchema.index(
 );
 
 // 更新 lastUpdated 字段的中间件
-FBIWantedSchema.pre('save', function (this: IFBIWanted, next: CallbackWithoutResultAndOptionalError) {
+FBIWantedSchema.pre('save', function (this: IFBIWanted) {
   this.lastUpdated = new Date();
-  next();
 });
 
 export default mongoose.models.FBIWanted || mongoose.model<IFBIWanted>('FBIWanted', FBIWantedSchema);

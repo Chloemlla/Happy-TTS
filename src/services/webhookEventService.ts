@@ -36,7 +36,7 @@ const WebhookEventSchema = new Schema<WebhookEventDoc>({
 WebhookEventSchema.index({ provider: 1, routeKey: 1, eventId: 1 }, { unique: false });
 WebhookEventSchema.index({ routeKey: 1, receivedAt: -1 });
 WebhookEventSchema.index({ type: 1, status: 1, receivedAt: -1 });
-WebhookEventSchema.pre('save', function (this: WebhookEventDoc, next: Function) { this.updatedAt = new Date(); next(); });
+WebhookEventSchema.pre('save', function (this: WebhookEventDoc) { this.updatedAt = new Date(); });
 
 export const WebhookEventModel = mongoose.models.WebhookEvent || mongoose.model('WebhookEvent', WebhookEventSchema);
 // 存储 Resend/Webhook 密钥的集合（优先从 DB 读取，回退到环境变量）

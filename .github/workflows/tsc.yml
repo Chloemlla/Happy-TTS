@@ -26,7 +26,9 @@ jobs:
           version: 8
 
       - name: Install dependencies
-        run: pnpm install
+        run: |
+          pnpm install
+          pnpm i mongoose@9.0.0
 
       - name: Run TypeScript compilation check
         run: pnpm exec tsc --noEmit
