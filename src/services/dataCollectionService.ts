@@ -3,7 +3,10 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 import logger from '../utils/logger';
 import { mongoose } from './mongoService';
-import type { FilterQuery } from 'mongoose';
+// FilterQuery type definition for compatibility
+type FilterQuery<T> = {
+  [P in keyof T]?: T[P] | { $in: T[P][] } | { $ne: T[P] } | { $gt: T[P] } | { $gte: T[P] } | { $lt: T[P] } | { $lte: T[P] } | { $exists: boolean };
+} & { _id?: any };
 import crypto from 'crypto';
 import { RiskEvaluationEngine, type DeviceFingerprint } from './riskEvaluationEngine';
 
@@ -56,8 +59,8 @@ const DataCollectionSchema = new mongoose.Schema({
   duplicate: { type: Boolean, default: false, index: true },
   category: { type: String, index: true, maxlength: 64 },
   tags: { type: [String], default: [] },
-}, { 
-  collection: 'data_collections', 
+}, {
+  collection: 'data_collections',
   strict: true,
   // 添加TTL索引：可选自动过期数据（默认禁用，可通过环境变量启用）
   ...(process.env.DATA_COLLECTION_TTL_DAYS ? {
@@ -95,13 +98,13 @@ class DataCollectionService {
   private readonly BATCH_TIMEOUT = parseInt(process.env.DATA_COLLECTION_BATCH_TIMEOUT || '2000'); // 2秒
   private readonly MAX_QUEUE_SIZE = parseInt(process.env.DATA_COLLECTION_MAX_QUEUE_SIZE || '1000');
   private readonly MAX_RETRY_COUNT = 3;
-  
+
   // 批量写入队列和状态
   private writeQueue: BatchWriteItem[] = [];
   private batchTimer: NodeJS.Timeout | null = null;
   private isProcessingBatch = false;
   private isShuttingDown = false;
-  
+
   // 性能统计
   private stats: PerformanceStats = {
     totalWrites: 0,
@@ -117,16 +120,16 @@ class DataCollectionService {
     failedRetries: 0,
     dedupeHits: 0
   };
-  
+
   // 写入时间样本（用于计算平均值）
   private writeTimeSamples: number[] = [];
   private readonly MAX_SAMPLES = 100;
-  
+
   // 健康监控
   private readonly serviceStartTime = Date.now();
   private lastError: string | undefined;
   private lastErrorTime: number | undefined;
-  
+
   // 断路器模式（Circuit Breaker）
   private circuitBreakerState: 'CLOSED' | 'OPEN' | 'HALF_OPEN' = 'CLOSED';
   private circuitBreakerFailureCount = 0;
@@ -134,12 +137,12 @@ class DataCollectionService {
   private readonly CIRCUIT_BREAKER_THRESHOLD = 5; // 5次连续失败后打开断路器
   private readonly CIRCUIT_BREAKER_TIMEOUT = 60000; // 1分钟后尝试半开状态
   private readonly CIRCUIT_BREAKER_SUCCESS_THRESHOLD = 3; // 半开状态下3次成功后关闭断路器
-  
+
   // 限流器（Rate Limiter）
   private readonly rateLimiter = new Map<string, { count: number; resetTime: number }>();
   private readonly RATE_LIMIT_WINDOW = 60000; // 1分钟窗口
   private readonly RATE_LIMIT_MAX_REQUESTS = 1000; // 每分钟最多1000次请求
-  
+
   // 数据验证缓存（避免重复验证）
   private readonly validationCache = new Map<string, { valid: boolean; timestamp: number }>();
   private readonly VALIDATION_CACHE_TTL = 300000; // 5分钟
@@ -164,16 +167,16 @@ class DataCollectionService {
         await mkdir(this.DATA_DIR, { recursive: true });
         logger.info('已创建数据收集目录');
       }
-      
+
       // 启动性能监控
       this.startPerformanceMonitoring();
-      
+
       // 启动健康检查
       this.startHealthCheck();
-      
+
       // 启动缓存清理
       this.startCacheCleanup();
-      
+
       logger.info('[DataCollection] Service initialized with batch optimization', {
         batchSize: this.BATCH_SIZE,
         batchTimeout: this.BATCH_TIMEOUT,
@@ -188,7 +191,7 @@ class DataCollectionService {
   }
 
   // =============== 批量写入优化实现 ===============
-  
+
   private setupBatchProcessor() {
     // 定期处理批量写入
     setInterval(() => {
@@ -197,116 +200,116 @@ class DataCollectionService {
       }
     }, this.BATCH_TIMEOUT);
   }
-  
+
   private setupGracefulShutdown() {
     const gracefulShutdown = async () => {
       logger.info('[数据收集] 开始优雅关闭');
       this.isShuttingDown = true;
-      
+
       // 等待批量写入完成
       let waitCount = 0;
       const maxWaitTime = 30000; // 最多等待30秒
-      
+
       while (this.writeQueue.length > 0 && waitCount < maxWaitTime) {
         logger.info(`[数据收集] 等待队列清空: 剩余 ${this.writeQueue.length} 项`);
         await new Promise(resolve => setTimeout(resolve, 1000));
         waitCount++;
       }
-      
+
       // 强制处理剩余队列
       if (this.writeQueue.length > 0) {
         logger.warn(`[DataCollection] Force processing ${this.writeQueue.length} remaining items`);
         await this.processBatch();
       }
-      
+
       // 清理定时器
       if (this.batchTimer) {
         clearTimeout(this.batchTimer);
       }
-      
+
       // 输出最终统计
       logger.info('[DataCollection] Final performance stats:', this.getPerformanceStats());
-      
+
       process.exit(0);
     };
-    
+
     process.on('SIGTERM', gracefulShutdown);
     process.on('SIGINT', gracefulShutdown);
   }
-  
+
   private async processBatch() {
     if (this.isProcessingBatch || this.writeQueue.length === 0) {
       return;
     }
-    
+
     // 检查断路器状态
     if (!this.checkCircuitBreaker()) {
       logger.warn('[DataCollection] Circuit breaker is OPEN, skipping batch processing');
       return;
     }
-    
+
     this.isProcessingBatch = true;
     const startTime = Date.now();
-    
+
     try {
       // 取出批量数据
       const batchSize = Math.min(this.BATCH_SIZE, this.writeQueue.length);
       const batch = this.writeQueue.splice(0, batchSize);
-      
+
       if (batch.length === 0) {
         this.isProcessingBatch = false;
         return;
       }
-      
+
       logger.debug(`[DataCollection] Processing batch of ${batch.length} items`);
-      
+
       // 执行批量写入（带超时保护）
       await Promise.race([
         this.executeBulkWrite(batch),
-        new Promise((_, reject) => 
+        new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Batch write timeout')), 30000) // 30秒超时
         )
       ]);
-      
+
       // 更新统计
       const writeTime = Date.now() - startTime;
       this.updatePerformanceStats(batch.length, writeTime, true);
-      
+
       // 断路器：成功操作
       this.recordCircuitBreakerSuccess();
-      
+
       logger.info(`[DataCollection] Batch write completed: ${batch.length} items in ${writeTime}ms`);
-      
+
     } catch (error) {
       logger.error('[DataCollection] Batch processing failed:', error);
       this.stats.errorCount++;
-      
+
       // 断路器：失败操作
       this.recordCircuitBreakerFailure();
       this.recordError('Batch processing failed', error);
-      
+
       // 重试机制：将失败的项目重新加入队列（增加重试计数）
       const batchSize = Math.min(this.BATCH_SIZE, this.writeQueue.length);
       const failedBatch = this.writeQueue.splice(0, batchSize);
-      
+
       const retryItems = failedBatch
         .filter(item => item.retryCount < this.MAX_RETRY_COUNT)
         .map(item => {
           this.stats.retryCount++;
           return { ...item, retryCount: item.retryCount + 1 };
         });
-      
+
       const failedItems = failedBatch.filter(item => item.retryCount >= this.MAX_RETRY_COUNT);
       if (failedItems.length > 0) {
         this.stats.failedRetries += failedItems.length;
         logger.error(`[DataCollection] ${failedItems.length} items exceeded max retry count and were dropped`);
-        
+
         // 可选：将失败的数据写入降级文件
-        await this.saveDegradedData(failedItems).catch(err => 
+        await this.saveDegradedData(failedItems).catch(err =>
           logger.error('[DataCollection] Failed to save degraded data:', err)
         );
       }
-      
+
       if (retryItems.length > 0) {
         // 使用指数退避策略
         const delay = Math.min(1000 * Math.pow(2, retryItems[0].retryCount), 10000);
@@ -320,12 +323,12 @@ class DataCollectionService {
       this.stats.queueSize = this.writeQueue.length;
     }
   }
-  
+
   private async executeBulkWrite(batch: BatchWriteItem[]) {
     if (mongoose.connection.readyState !== 1) {
       throw new Error('MongoDB 未连接');
     }
-    
+
     const Model = DataCollectionModel;
     const operations = batch.map(item => ({
       insertOne: {
@@ -345,60 +348,60 @@ class DataCollectionService {
         }
       }
     }));
-    
+
     // 使用 bulkWrite 进行批量操作
     const result = await Model.bulkWrite(operations, {
       ordered: false, // 非顺序执行，提升并发性能
       writeConcern: { w: 1, j: false } // 优化写入关注点
     });
-    
+
     logger.debug(`[DataCollection] BulkWrite result:`, {
       insertedCount: result.insertedCount,
       modifiedCount: result.modifiedCount,
       upsertedCount: result.upsertedCount
     });
-    
+
     return result;
   }
-  
+
   private updatePerformanceStats(itemCount: number, writeTime: number, isBatch: boolean) {
     this.stats.totalWrites += itemCount;
-    
+
     if (isBatch) {
       this.stats.batchWrites++;
       this.stats.avgBatchSize = (this.stats.avgBatchSize * (this.stats.batchWrites - 1) + itemCount) / this.stats.batchWrites;
     } else {
       this.stats.singleWrites++;
     }
-    
+
     // 更新写入时间样本
     this.writeTimeSamples.push(writeTime);
     if (this.writeTimeSamples.length > this.MAX_SAMPLES) {
       this.writeTimeSamples.shift();
     }
-    
+
     // 计算平均写入时间
     this.stats.avgWriteTime = this.writeTimeSamples.reduce((a, b) => a + b, 0) / this.writeTimeSamples.length;
     this.stats.lastFlushTime = Date.now();
   }
-  
+
   private startPerformanceMonitoring() {
     // 每10分钟输出性能统计
     setInterval(() => {
       const stats = this.getPerformanceStats();
       logger.info('[DataCollection] Performance stats:', stats);
-      
+
       // 清理过期的去重缓存
       this.cleanupDedupeCache(Date.now());
-      
+
     }, 10 * 60 * 1000); // 10分钟
   }
-  
+
   private startHealthCheck() {
     // 每30秒检查服务健康状态
     setInterval(() => {
       const health = this.getHealthStatus();
-      
+
       if (health.status === 'unhealthy') {
         logger.error('[DataCollection] Service is UNHEALTHY:', health);
       } else if (health.status === 'degraded') {
@@ -408,7 +411,7 @@ class DataCollectionService {
       }
     }, 30000); // 30秒
   }
-  
+
   private startCacheCleanup() {
     // 每5分钟清理过期缓存
     setInterval(() => {
@@ -417,17 +420,17 @@ class DataCollectionService {
       logger.debug('[DataCollection] Cache cleanup completed');
     }, 5 * 60 * 1000); // 5分钟
   }
-  
+
   // =============== 断路器模式实现 ===============
-  
+
   private checkCircuitBreaker(): boolean {
     const now = Date.now();
-    
+
     // 如果断路器关闭，允许通过
     if (this.circuitBreakerState === 'CLOSED') {
       return true;
     }
-    
+
     // 如果断路器打开，检查是否可以转为半开状态
     if (this.circuitBreakerState === 'OPEN') {
       if (now - this.circuitBreakerLastFailureTime >= this.CIRCUIT_BREAKER_TIMEOUT) {
@@ -438,15 +441,15 @@ class DataCollectionService {
       }
       return false;
     }
-    
+
     // 半开状态：允许通过，但会根据结果决定是否关闭或重新打开
     return true;
   }
-  
+
   private recordCircuitBreakerSuccess(): void {
     if (this.circuitBreakerState === 'HALF_OPEN') {
       this.circuitBreakerFailureCount++;
-      
+
       if (this.circuitBreakerFailureCount >= this.CIRCUIT_BREAKER_SUCCESS_THRESHOLD) {
         logger.info('[DataCollection] Circuit breaker closing after successful operations');
         this.circuitBreakerState = 'CLOSED';
@@ -457,11 +460,11 @@ class DataCollectionService {
       this.circuitBreakerFailureCount = 0;
     }
   }
-  
+
   private recordCircuitBreakerFailure(): void {
     this.circuitBreakerFailureCount++;
     this.circuitBreakerLastFailureTime = Date.now();
-    
+
     if (this.circuitBreakerState === 'CLOSED') {
       if (this.circuitBreakerFailureCount >= this.CIRCUIT_BREAKER_THRESHOLD) {
         logger.error('[DataCollection] Circuit breaker OPENING after consecutive failures');
@@ -473,15 +476,15 @@ class DataCollectionService {
       this.circuitBreakerFailureCount = 0;
     }
   }
-  
+
   // =============== 限流器实现 ===============
-  
+
   private checkRateLimit(userId: string): boolean {
     const now = Date.now();
     const key = `rate_limit_${userId}`;
-    
+
     let limiter = this.rateLimiter.get(key);
-    
+
     if (!limiter || now >= limiter.resetTime) {
       // 创建新的限流记录
       this.rateLimiter.set(key, {
@@ -490,118 +493,118 @@ class DataCollectionService {
       });
       return true;
     }
-    
+
     if (limiter.count >= this.RATE_LIMIT_MAX_REQUESTS) {
       logger.warn(`[DataCollection] Rate limit exceeded for user: ${userId}`);
       return false;
     }
-    
+
     limiter.count++;
     return true;
   }
-  
+
   private cleanupRateLimiter(): void {
     const now = Date.now();
     let cleaned = 0;
-    
+
     for (const [key, limiter] of this.rateLimiter.entries()) {
       if (now >= limiter.resetTime) {
         this.rateLimiter.delete(key);
         cleaned++;
       }
     }
-    
+
     if (cleaned > 0) {
       logger.debug(`[DataCollection] Cleaned ${cleaned} expired rate limiters`);
     }
   }
-  
+
   // =============== 验证缓存实现 ===============
-  
+
   private getCachedValidation(dataHash: string): boolean | null {
     const cached = this.validationCache.get(dataHash);
-    
+
     if (!cached) {
       return null;
     }
-    
+
     const now = Date.now();
     if (now - cached.timestamp >= this.VALIDATION_CACHE_TTL) {
       this.validationCache.delete(dataHash);
       return null;
     }
-    
+
     return cached.valid;
   }
-  
+
   private setCachedValidation(dataHash: string, valid: boolean): void {
     this.validationCache.set(dataHash, {
       valid,
       timestamp: Date.now()
     });
   }
-  
+
   private cleanupValidationCache(): void {
     const now = Date.now();
     let cleaned = 0;
-    
+
     for (const [key, cache] of this.validationCache.entries()) {
       if (now - cache.timestamp >= this.VALIDATION_CACHE_TTL) {
         this.validationCache.delete(key);
         cleaned++;
       }
     }
-    
+
     if (cleaned > 0) {
       logger.debug(`[DataCollection] Cleaned ${cleaned} expired validation cache entries`);
     }
   }
-  
+
   // =============== 错误记录 ===============
-  
+
   private recordError(message: string, error: any): void {
     this.lastError = `${message}: ${error instanceof Error ? error.message : String(error)}`;
     this.lastErrorTime = Date.now();
   }
-  
+
   // =============== 降级数据保存 ===============
-  
+
   private async saveDegradedData(items: BatchWriteItem[]): Promise<void> {
     try {
       const degradedDir = join(this.DATA_DIR, 'degraded');
       if (!existsSync(degradedDir)) {
         await mkdir(degradedDir, { recursive: true });
       }
-      
+
       const filename = `degraded-${Date.now()}.json`;
       const filepath = join(degradedDir, filename);
-      
+
       await writeFile(filepath, JSON.stringify(items, null, 2));
       logger.info(`[DataCollection] Saved ${items.length} degraded items to ${filename}`);
     } catch (error) {
       logger.error('[DataCollection] Failed to save degraded data:', error);
     }
   }
-  
+
   public getPerformanceStats(): PerformanceStats {
     return {
       ...this.stats,
       queueSize: this.writeQueue.length,
-      cacheHitRate: this.stats.dedupeHits > 0 ? 
+      cacheHitRate: this.stats.dedupeHits > 0 ?
         this.stats.dedupeHits / (this.stats.totalWrites + this.stats.dedupeHits) : 0
     };
   }
-  
+
   public getHealthStatus(): HealthStatus {
     const now = Date.now();
     const uptime = now - this.serviceStartTime;
     const queueUtilization = this.writeQueue.length / this.MAX_QUEUE_SIZE;
-    const errorRate = this.stats.totalWrites > 0 ? 
+    const errorRate = this.stats.totalWrites > 0 ?
       this.stats.errorCount / this.stats.totalWrites : 0;
-    
+
     // 判断健康状态
     let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
-    
+
     if (
       this.circuitBreakerState === 'OPEN' ||
       errorRate > 0.5 ||
@@ -617,7 +620,7 @@ class DataCollectionService {
     ) {
       status = 'degraded';
     }
-    
+
     return {
       status,
       uptime,
@@ -629,7 +632,7 @@ class DataCollectionService {
       lastErrorTime: this.lastErrorTime
     };
   }
-  
+
   public resetPerformanceStats() {
     this.stats = {
       totalWrites: 0,
@@ -648,34 +651,34 @@ class DataCollectionService {
     this.writeTimeSamples = [];
     logger.info('[DataCollection] Performance stats reset');
   }
-  
+
   // 优雅关闭服务
   public async gracefulShutdown(): Promise<void> {
     logger.info('[DataCollection] Graceful shutdown requested');
     this.isShuttingDown = true;
-    
+
     // 等待批量写入队列处理完成
     let waitTime = 0;
     const maxWaitTime = 30000; // 最多等待30秒
-    
+
     while (this.writeQueue.length > 0 && waitTime < maxWaitTime) {
       await new Promise(resolve => setTimeout(resolve, 1000));
       waitTime += 1000;
-      logger.debug(`[DataCollection] Waiting for queue: ${this.writeQueue.length} items, ${waitTime/1000}s elapsed`);
+      logger.debug(`[DataCollection] Waiting for queue: ${this.writeQueue.length} items, ${waitTime / 1000}s elapsed`);
     }
-    
+
     // 强制处理剩余的批量写入
     if (this.writeQueue.length > 0) {
       logger.warn(`[DataCollection] Force processing ${this.writeQueue.length} remaining items`);
       await this.processBatch();
     }
-    
+
     // 清理定时器
     if (this.batchTimer) {
       clearTimeout(this.batchTimer);
       this.batchTimer = null;
     }
-    
+
     // 输出最终统计
     const finalStats = this.getPerformanceStats();
     logger.info('[DataCollection] Graceful shutdown completed. Final stats:', finalStats);
@@ -781,14 +784,14 @@ class DataCollectionService {
     if (!this.checkRateLimit(data.userId || 'anonymous')) {
       throw new Error('请求频率超限，请稍后重试');
     }
-    
+
     // 生成数据哈希用于缓存验证
     const dataHash = this.computeHash({
       userId: data.userId,
       action: data.action,
       timestamp: data.timestamp
     });
-    
+
     // 检查验证缓存
     const cachedValidation = this.getCachedValidation(dataHash);
     if (cachedValidation !== null) {
@@ -797,7 +800,7 @@ class DataCollectionService {
       }
       return; // 验证通过（从缓存）
     }
-    
+
     // 执行完整验证
     try {
       if (!data || typeof data !== 'object') {
@@ -806,40 +809,40 @@ class DataCollectionService {
       if (!data.userId || !data.action || !data.timestamp) {
         throw new Error('缺少必需字段');
       }
-      
+
       // 预编译的正则表达式（性能优化）
       const idPattern = /^[a-zA-Z0-9_\-:@.]{1,128}$/;
       if (typeof data.userId !== 'string' || !idPattern.test(data.userId)) {
         throw new Error('userId 非法');
       }
-      
+
       const actionPattern = /^[a-zA-Z0-9_\-:.]{1,128}$/;
       if (typeof data.action !== 'string' || !actionPattern.test(data.action)) {
         throw new Error('action 非法');
       }
-      
+
       // 简单 ISO-8601 校验（允许毫秒与 Z 后缀）
       const isoPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
       if (typeof data.timestamp !== 'string' || data.timestamp.length > 64 || !isoPattern.test(data.timestamp)) {
         throw new Error('timestamp 非法');
       }
-      
+
       // 时间戳合理性检查（不能是未来时间，不能太久以前）
       const timestampDate = new Date(data.timestamp);
       const now = Date.now();
       const timestampMs = timestampDate.getTime();
-      
+
       if (timestampMs > now + 60000) { // 允许1分钟时钟偏差
         throw new Error('timestamp 不能是未来时间');
       }
-      
+
       if (now - timestampMs > 86400000) { // 不能超过24小时前
         throw new Error('timestamp 过期（超过24小时）');
       }
-      
+
       // 缓存验证结果
       this.setCachedValidation(dataHash, true);
-      
+
     } catch (error) {
       // 缓存失败结果
       this.setCachedValidation(dataHash, false);
@@ -914,7 +917,7 @@ class DataCollectionService {
     return { category, tags };
   }
 
-  private async evaluateRisk(data: { details: any; ip?: string; userAgent?: string }): Promise<{ riskScore: number; riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'; flags: string[] }>{
+  private async evaluateRisk(data: { details: any; ip?: string; userAgent?: string }): Promise<{ riskScore: number; riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'; flags: string[] }> {
     try {
       const headers = (data.details || {}).headers || {};
       const ua = String(data.userAgent || headers['user-agent'] || headers['User-Agent'] || 'unknown');
@@ -946,12 +949,12 @@ class DataCollectionService {
     this.cleanupDedupeCache(now);
     const lastSeen = this.hashSeenAt.get(hash) || 0;
     const duplicate = now - lastSeen < this.dedupeTTLms;
-    
+
     // 记录去重缓存命中
     if (duplicate) {
       this.stats.dedupeHits++;
     }
-    
+
     this.hashSeenAt.set(hash, now);
 
     const risk = await this.evaluateRisk({ details: redacted });
@@ -1015,13 +1018,13 @@ class DataCollectionService {
     if (!this.checkCircuitBreaker()) {
       throw new Error('Circuit breaker is OPEN - MongoDB operations are temporarily suspended');
     }
-    
+
     if (mongoose.connection.readyState !== 1) {
       throw new Error('MongoDB 未连接');
     }
-    
+
     const startTime = Date.now();
-    
+
     try {
       const doc = {
         userId: data.userId,
@@ -1037,30 +1040,30 @@ class DataCollectionService {
         tags: Array.isArray(data.tags) ? data.tags.slice(0, 50) : [],
         encryptedRaw: data.encryptedRaw || undefined,
       } as any;
-      
+
       // 添加超时保护
       const created = await Promise.race([
         DataCollectionModel.create(doc),
-        new Promise((_, reject) => 
+        new Promise((_, reject) =>
           setTimeout(() => reject(new Error('MongoDB write timeout')), 10000) // 10秒超时
         )
       ]) as any;
-      
+
       // 更新性能统计
       const writeTime = Date.now() - startTime;
       this.updatePerformanceStats(1, writeTime, false);
-      
+
       // 断路器：成功操作
       this.recordCircuitBreakerSuccess();
-      
+
       logger.debug('Data saved to MongoDB (single write)', {
         writeTime,
         userId: data.userId,
         action: data.action
       });
-      
+
       return (created && created._id) ? String(created._id) : '';
-      
+
     } catch (error) {
       // 断路器：失败操作
       this.recordCircuitBreakerFailure();
@@ -1068,7 +1071,7 @@ class DataCollectionService {
       throw error;
     }
   }
-  
+
   // 批量写入入口方法
   private async addToBatchQueue(data: any): Promise<void> {
     // 检查队列大小限制
@@ -1076,17 +1079,17 @@ class DataCollectionService {
       logger.warn(`[DataCollection] Queue size limit reached (${this.MAX_QUEUE_SIZE}), forcing batch process`);
       await this.processBatch();
     }
-    
+
     // 添加到批量队列
     const batchItem: BatchWriteItem = {
       data,
       timestamp: Date.now(),
       retryCount: 0
     };
-    
+
     this.writeQueue.push(batchItem);
     this.stats.queueSize = this.writeQueue.length;
-    
+
     // 如果达到批量大小，立即处理
     if (this.writeQueue.length >= this.BATCH_SIZE) {
       setImmediate(() => this.processBatch());
@@ -1123,15 +1126,15 @@ class DataCollectionService {
     logger.info('Data saved to local file');
   }
 
-  public async saveData(data: any, mode: StorageMode = 'both', forceBatch = true): Promise<{ savedTo: StorageMode | 'mongo_fallback_file' | 'batch_queued'; id?: string; error?: string }>{
+  public async saveData(data: any, mode: StorageMode = 'both', forceBatch = true): Promise<{ savedTo: StorageMode | 'mongo_fallback_file' | 'batch_queued'; id?: string; error?: string }> {
     try {
       // 验证数据（包含限流检查）
       this.validate(data);
-      
+
       // 智能预处理与分析（带超时保护）
       const prepared = await Promise.race([
         this.prepareRecord(data),
-        new Promise((_, reject) => 
+        new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Data preparation timeout')), 5000)
         )
       ]) as any;
@@ -1140,19 +1143,19 @@ class DataCollectionService {
         await this.saveToFile(prepared);
         return { savedTo: 'file' };
       }
-      
+
       // 如果服务正在关闭，强制同步写入
       if (this.isShuttingDown) {
         forceBatch = false;
       }
-      
+
       // 如果断路器打开，自动降级到文件存储（仅当mode为mongo或both时）
       if (!this.checkCircuitBreaker() && (mode === 'mongo' || mode === 'both')) {
         logger.warn('[DataCollection] Circuit breaker is OPEN, falling back to file storage');
         await this.saveToFile(prepared);
         return { savedTo: 'mongo_fallback_file', error: 'Circuit breaker active' };
       }
-      
+
       if (mode === 'mongo') {
         if (forceBatch && !this.isShuttingDown) {
           // 使用批量写入队列
@@ -1169,7 +1172,7 @@ class DataCollectionService {
           }
         }
       }
-      
+
       // both: 优先 Mongo，失败则文件兜底
       try {
         if (forceBatch && !this.isShuttingDown) {
@@ -1184,7 +1187,7 @@ class DataCollectionService {
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
         logger.error('[DataCollection] MongoDB 保存失败，回退到本地文件:', err);
-        
+
         try {
           await this.saveToFile(prepared);
           return { savedTo: 'mongo_fallback_file', error: errorMsg };
@@ -1200,24 +1203,24 @@ class DataCollectionService {
       throw error;
     }
   }
-  
+
   // 强制刷新批量队列（用于测试或紧急情况）
   public async flushBatchQueue(): Promise<{ flushedCount: number; remainingCount: number }> {
     const initialCount = this.writeQueue.length;
-    
+
     if (initialCount === 0) {
       return { flushedCount: 0, remainingCount: 0 };
     }
-    
+
     logger.info(`[DataCollection] Manual flush requested: ${initialCount} items in queue`);
-    
+
     await this.processBatch();
-    
+
     const remainingCount = this.writeQueue.length;
     const flushedCount = initialCount - remainingCount;
-    
+
     logger.info(`[DataCollection] Manual flush completed: ${flushedCount} flushed, ${remainingCount} remaining`);
-    
+
     return { flushedCount, remainingCount };
   }
 
@@ -1233,21 +1236,21 @@ class DataCollectionService {
     sort?: 'desc' | 'asc';
     riskLevel?: string;
     category?: string;
-  }): Promise<{ items: any[]; total: number; page: number; limit: number; executionTime: number }>{
+  }): Promise<{ items: any[]; total: number; page: number; limit: number; executionTime: number }> {
     const startTime = Date.now();
-    
+
     if (!this.isMongoReady()) {
       throw new Error('MongoDB 未连接');
     }
-    
+
     const Model = DataCollectionModel;
-    const { 
-      page: _page = 1, 
-      limit: _limit = 20, 
-      userId, 
-      action, 
-      start, 
-      end, 
+    const {
+      page: _page = 1,
+      limit: _limit = 20,
+      userId,
+      action,
+      start,
+      end,
       sort = 'desc',
       riskLevel,
       category
@@ -1257,7 +1260,7 @@ class DataCollectionService {
     const safePage = Number.isFinite(_page as number) ? Math.max(1, Math.floor(_page as number)) : 1;
     const safeLimitRaw = Number.isFinite(_limit as number) ? Math.max(1, Math.floor(_limit as number)) : 20;
     const safeLimit = Math.min(100, safeLimitRaw); // 限制最大每页100
-    
+
     // 防止过大的skip值（可能导致性能问题）
     const skip = (safePage - 1) * safeLimit;
     if (skip > 10000) {
@@ -1265,7 +1268,7 @@ class DataCollectionService {
     }
 
     const query: FilterQuery<any> = {};
-    
+
     // 仅允许字符串等值匹配，避免NoSQL注入
     if (typeof userId === 'string' && userId.trim().length > 0) {
       // 验证userId格式
@@ -1274,7 +1277,7 @@ class DataCollectionService {
       }
       query.userId = userId.trim();
     }
-    
+
     if (typeof action === 'string' && action.trim().length > 0) {
       // 验证action格式
       if (!/^[a-zA-Z0-9_\-:.]{1,128}$/.test(action)) {
@@ -1282,7 +1285,7 @@ class DataCollectionService {
       }
       query.action = action.trim();
     }
-    
+
     // riskLevel 过滤
     if (typeof riskLevel === 'string' && riskLevel.trim().length > 0) {
       const validRiskLevels = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
@@ -1291,7 +1294,7 @@ class DataCollectionService {
         query.riskLevel = upperRiskLevel;
       }
     }
-    
+
     // category 过滤
     if (typeof category === 'string' && category.trim().length > 0) {
       query.category = category.trim();
@@ -1303,7 +1306,7 @@ class DataCollectionService {
       const timestamp = Date.parse(s);
       return !isNaN(timestamp) && timestamp > 0;
     };
-    
+
     if (isValidISO(start) || isValidISO(end)) {
       query.timestamp = {} as any;
       if (isValidISO(start)) {
@@ -1326,18 +1329,18 @@ class DataCollectionService {
           .lean()
           .maxTimeMS(10000) // 10秒超时
       ]);
-      
+
       const executionTime = Date.now() - startTime;
-      
+
       logger.debug('[DataCollection] List query completed', {
         query,
         total,
         returned: items.length,
         executionTime
       });
-      
+
       return { items, total, page: safePage, limit: safeLimit, executionTime };
-      
+
     } catch (error) {
       logger.error('[DataCollection] List query failed:', error);
       this.recordError('List query failed', error);
@@ -1349,20 +1352,20 @@ class DataCollectionService {
     if (!this.isMongoReady()) {
       throw new Error('MongoDB 未连接');
     }
-    
+
     // 验证ObjectId格式
     if (!id || typeof id !== 'string' || !mongoose.Types.ObjectId.isValid(id)) {
       logger.warn('[DataCollection] Invalid ObjectId format', { id });
       return null;
     }
-    
+
     try {
       const Model = DataCollectionModel;
       const result = await Model.findById(id)
         .select('-encryptedRaw') // 默认不返回加密原始数据
         .lean()
         .maxTimeMS(5000); // 5秒超时
-      
+
       return result;
     } catch (error) {
       logger.error('[DataCollection] getById failed:', error);
@@ -1371,32 +1374,32 @@ class DataCollectionService {
     }
   }
 
-  public async deleteById(id: string): Promise<{ deleted: boolean; executionTime: number }>{
+  public async deleteById(id: string): Promise<{ deleted: boolean; executionTime: number }> {
     const startTime = Date.now();
-    
+
     if (!this.isMongoReady()) {
       throw new Error('MongoDB 未连接');
     }
-    
+
     // 验证ObjectId格式
     if (!id || typeof id !== 'string' || !mongoose.Types.ObjectId.isValid(id)) {
       logger.warn('[DataCollection] Invalid ObjectId format for deletion', { id });
       return { deleted: false, executionTime: Date.now() - startTime };
     }
-    
+
     try {
       const Model = DataCollectionModel;
-      const res = await Model.deleteOne({ 
-        _id: new mongoose.Types.ObjectId(id) 
+      const res = await Model.deleteOne({
+        _id: new mongoose.Types.ObjectId(id)
       }).maxTimeMS(5000); // 5秒超时
-      
+
       const executionTime = Date.now() - startTime;
       const deleted = (res.deletedCount || 0) > 0;
-      
+
       if (deleted) {
         logger.info('[DataCollection] Record deleted', { id, executionTime });
       }
-      
+
       return { deleted, executionTime };
     } catch (error) {
       logger.error('[DataCollection] deleteById failed:', error);
@@ -1405,25 +1408,25 @@ class DataCollectionService {
     }
   }
 
-  public async deleteBatch(ids: string[]): Promise<{ deletedCount: number; executionTime: number; errors: string[] }>{
+  public async deleteBatch(ids: string[]): Promise<{ deletedCount: number; executionTime: number; errors: string[] }> {
     const startTime = Date.now();
-    
+
     if (!this.isMongoReady()) {
       throw new Error('MongoDB 未连接');
     }
-    
+
     // 验证输入
     if (!Array.isArray(ids) || ids.length === 0) {
       return { deletedCount: 0, executionTime: Date.now() - startTime, errors: ['No valid IDs provided'] };
     }
-    
+
     // 限制批量删除数量
     if (ids.length > 1000) {
       throw new Error('批量删除数量不能超过1000个');
     }
-    
+
     const errors: string[] = [];
-    
+
     // 验证并过滤有效的ObjectId
     const validIds = ids.filter((x) => {
       if (typeof x !== 'string') {
@@ -1436,27 +1439,27 @@ class DataCollectionService {
       }
       return true;
     }).map((x) => new mongoose.Types.ObjectId(x as string));
-    
+
     if (validIds.length === 0) {
       return { deletedCount: 0, executionTime: Date.now() - startTime, errors };
     }
-    
+
     try {
       const Model = DataCollectionModel;
-      const res = await Model.deleteMany({ 
-        _id: { $in: validIds } 
+      const res = await Model.deleteMany({
+        _id: { $in: validIds }
       }).maxTimeMS(30000); // 30秒超时
-      
+
       const executionTime = Date.now() - startTime;
       const deletedCount = res.deletedCount || 0;
-      
+
       logger.info('[DataCollection] Batch delete completed', {
         requested: ids.length,
         valid: validIds.length,
         deleted: deletedCount,
         executionTime
       });
-      
+
       return { deletedCount, executionTime, errors };
     } catch (error) {
       logger.error('[DataCollection] deleteBatch failed:', error);
@@ -1466,31 +1469,31 @@ class DataCollectionService {
   }
 
   // 删除全部数据收集记录（管理员）
-  public async deleteAll(): Promise<{ deletedCount: number; executionTime: number }>{
+  public async deleteAll(): Promise<{ deletedCount: number; executionTime: number }> {
     const startTime = Date.now();
-    
+
     if (!this.isMongoReady()) {
       throw new Error('MongoDB 未连接');
     }
-    
+
     try {
       const Model = DataCollectionModel;
-      
+
       // 先获取文档数量
       const before = await Model.estimatedDocumentCount().maxTimeMS(5000);
-      
+
       // 执行删除操作（带超时）
       const ret = await Model.deleteMany({}).maxTimeMS(60000); // 60秒超时
-      
+
       const deletedCount = typeof ret?.deletedCount === 'number' ? ret.deletedCount : 0;
       const executionTime = Date.now() - startTime;
-      
-      logger.warn('[DataCollection] deleteAll completed', { 
-        before, 
-        deletedCount, 
-        executionTime 
+
+      logger.warn('[DataCollection] deleteAll completed', {
+        before,
+        deletedCount,
+        executionTime
       });
-      
+
       return { deletedCount, executionTime };
     } catch (error) {
       logger.error('[DataCollection] deleteAll failed:', error);
@@ -1500,16 +1503,16 @@ class DataCollectionService {
   }
 
   // Action 版本：封装确认校验与响应体
-  public async deleteAllAction(payload: { confirm?: boolean }): Promise<{ statusCode: number; body: any }>{
+  public async deleteAllAction(payload: { confirm?: boolean }): Promise<{ statusCode: number; body: any }> {
     if (!payload?.confirm) {
       return { statusCode: 400, body: { success: false, message: 'confirm required' } };
     }
-    
+
     try {
       const { deletedCount, executionTime } = await this.deleteAll();
-      return { 
-        statusCode: 200, 
-        body: { success: true, deletedCount, executionTime } 
+      return {
+        statusCode: 200,
+        body: { success: true, deletedCount, executionTime }
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
@@ -1524,30 +1527,30 @@ class DataCollectionService {
     if (!this.isMongoReady()) {
       throw new Error('MongoDB 未连接');
     }
-    
+
     const startTime = Date.now();
-    
+
     try {
       const Model = DataCollectionModel;
-      
+
       // 使用Promise.all并发执行多个聚合查询
       const [total, byAction, byRiskLevel, byCategory, last7days, duplicateCount] = await Promise.all([
         // 总文档数
         Model.estimatedDocumentCount().maxTimeMS(5000),
-        
+
         // 按action分组统计
         Model.aggregate([
           { $group: { _id: '$action', count: { $sum: 1 } } },
           { $sort: { count: -1 } },
           { $limit: 50 } // 限制返回前50个
         ]).option({ maxTimeMS: 10000 }).exec(),
-        
+
         // 按风险等级分组统计
         Model.aggregate([
           { $group: { _id: '$riskLevel', count: { $sum: 1 } } },
           { $sort: { count: -1 } }
         ]).option({ maxTimeMS: 10000 }).exec(),
-        
+
         // 按类别分组统计
         Model.aggregate([
           { $match: { category: { $exists: true, $ne: null } } },
@@ -1555,32 +1558,34 @@ class DataCollectionService {
           { $sort: { count: -1 } },
           { $limit: 20 } // 限制返回前20个
         ]).option({ maxTimeMS: 10000 }).exec(),
-        
+
         // 最近7天的时间序列统计
         (async () => {
           const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
           return Model.aggregate([
             { $match: { timestamp: { $gte: sevenDaysAgo } } },
             { $addFields: { tsDate: { $toDate: '$timestamp' } } },
-            { $group: { 
-              _id: { $dateToString: { format: '%Y-%m-%d', date: '$tsDate' } }, 
-              count: { $sum: 1 } 
-            } },
+            {
+              $group: {
+                _id: { $dateToString: { format: '%Y-%m-%d', date: '$tsDate' } },
+                count: { $sum: 1 }
+              }
+            },
             { $sort: { _id: 1 } }
           ]).option({ maxTimeMS: 10000 }).exec();
         })(),
-        
+
         // 重复记录统计
         Model.countDocuments({ duplicate: true }).maxTimeMS(5000)
       ]);
-      
+
       const executionTime = Date.now() - startTime;
-      
+
       logger.debug('[DataCollection] Stats query completed', {
         total,
         executionTime
       });
-      
+
       return {
         total,
         byAction,

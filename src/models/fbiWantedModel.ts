@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, CallbackWithoutResultAndOptionalError } from 'mongoose';
 
 export interface IFBIWanted extends Document {
   name: string;
@@ -53,15 +53,15 @@ const FBIWantedSchema: Schema<IFBIWanted> = new Schema<IFBIWanted>(
     photoUrl: { type: String, default: '' },
     fingerprints: [{ type: String }],
     lastKnownLocation: { type: String, default: '' },
-    dangerLevel: { 
-      type: String, 
-      enum: ['LOW', 'MEDIUM', 'HIGH', 'EXTREME'], 
-      default: 'MEDIUM' 
+    dangerLevel: {
+      type: String,
+      enum: ['LOW', 'MEDIUM', 'HIGH', 'EXTREME'],
+      default: 'MEDIUM'
     },
-    status: { 
-      type: String, 
-      enum: ['ACTIVE', 'CAPTURED', 'DECEASED', 'REMOVED'], 
-      default: 'ACTIVE' 
+    status: {
+      type: String,
+      enum: ['ACTIVE', 'CAPTURED', 'DECEASED', 'REMOVED'],
+      default: 'ACTIVE'
     },
     dateAdded: { type: Date, default: Date.now },
     lastUpdated: { type: Date, default: Date.now },
@@ -137,7 +137,7 @@ FBIWantedSchema.index(
 );
 
 // 更新 lastUpdated 字段的中间件
-FBIWantedSchema.pre('save', function(next) {
+FBIWantedSchema.pre('save', function (this: IFBIWanted, next: CallbackWithoutResultAndOptionalError) {
   this.lastUpdated = new Date();
   next();
 });

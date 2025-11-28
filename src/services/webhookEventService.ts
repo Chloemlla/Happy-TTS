@@ -2,7 +2,23 @@ import mongoose, { Schema } from 'mongoose';
 import type { IncomingHttpHeaders } from 'http';
 import { Webhook as SvixWebhook } from 'svix';
 
-const WebhookEventSchema = new Schema({
+// WebhookEvent document interface
+interface WebhookEventDoc {
+  provider?: string;
+  routeKey?: string;
+  eventId?: string;
+  type: string;
+  created_at?: Date;
+  to?: any;
+  subject?: string;
+  status?: string;
+  data?: any;
+  raw?: any;
+  receivedAt: Date;
+  updatedAt: Date;
+}
+
+const WebhookEventSchema = new Schema<WebhookEventDoc>({
   provider: { type: String, default: 'resend' },
   routeKey: { type: String },
   eventId: { type: String },
@@ -20,7 +36,7 @@ const WebhookEventSchema = new Schema({
 WebhookEventSchema.index({ provider: 1, routeKey: 1, eventId: 1 }, { unique: false });
 WebhookEventSchema.index({ routeKey: 1, receivedAt: -1 });
 WebhookEventSchema.index({ type: 1, status: 1, receivedAt: -1 });
-WebhookEventSchema.pre('save', function(next) { (this as any).updatedAt = new Date(); next(); });
+WebhookEventSchema.pre('save', function (this: WebhookEventDoc, next: Function) { this.updatedAt = new Date(); next(); });
 
 export const WebhookEventModel = mongoose.models.WebhookEvent || mongoose.model('WebhookEvent', WebhookEventSchema);
 // 存储 Resend/Webhook 密钥的集合（优先从 DB 读取，回退到环境变量）
@@ -49,7 +65,7 @@ async function getResendSecretFromDb(routeKey?: string): Promise<string | null> 
 export const WebhookEventService = {
   async create(doc: any) {
     const created = await WebhookEventModel.create(doc);
-    return created.toObject();
+    return Array.isArray(created) ? created.map(item => item.toObject()) : created.toObject();
   },
   async list({ page = 1, pageSize = 20, routeKey, type, status }: { page?: number; pageSize?: number; routeKey?: string | null; type?: string; status?: string }) {
     // Normalize and cap pagination to prevent abuse

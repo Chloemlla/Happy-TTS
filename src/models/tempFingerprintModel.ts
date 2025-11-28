@@ -1,8 +1,9 @@
 import { mongoose } from '../services/mongoService';
 
 // 临时指纹文档接口
-interface TempFingerprintDoc {
+export interface TempFingerprintDoc {
   fingerprint: string;
+  ipAddress: string;
   verified: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -16,6 +17,10 @@ const TempFingerprintSchema = new mongoose.Schema<TempFingerprintDoc>({
     required: true,
     unique: true,
     index: true,
+  },
+  ipAddress: {
+    type: String,
+    required: true,
   },
   verified: {
     type: Boolean,
@@ -44,7 +49,5 @@ TempFingerprintSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 TempFingerprintSchema.index({ fingerprint: 1, verified: 1 });
 
 // 获取模型实例
-const TempFingerprintModel = (mongoose.models.TempFingerprint as mongoose.Model<TempFingerprintDoc>) || 
+export const TempFingerprintModel = (mongoose.models.TempFingerprint as mongoose.Model<TempFingerprintDoc>) ||
   mongoose.model<TempFingerprintDoc>('TempFingerprint', TempFingerprintSchema);
-
-export { TempFingerprintModel, TempFingerprintDoc }; 
