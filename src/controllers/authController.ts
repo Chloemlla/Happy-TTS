@@ -1124,7 +1124,6 @@ export class AuthController {
             if (!userId || !verificationCode) {
                 return res.status(400).json({ error: '用户ID或验证码缺失' });
             }
-            // ...
 
             const user = await UserStorage.getUserById(userId);
             if (!user) {
