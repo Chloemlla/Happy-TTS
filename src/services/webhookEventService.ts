@@ -65,7 +65,11 @@ async function getResendSecretFromDb(routeKey?: string): Promise<string | null> 
 export const WebhookEventService = {
   async create(doc: any) {
     const created = await WebhookEventModel.create(doc);
-    return Array.isArray(created) ? created.map(item => item.toObject()) : created.toObject();
+    // Handle both single document and array of documents
+    if (Array.isArray(created)) {
+      return created.map(item => (item as any).toObject());
+    }
+    return (created as any).toObject();
   },
   async list({ page = 1, pageSize = 20, routeKey, type, status }: { page?: number; pageSize?: number; routeKey?: string | null; type?: string; status?: string }) {
     // Normalize and cap pagination to prevent abuse
