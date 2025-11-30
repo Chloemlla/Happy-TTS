@@ -328,6 +328,10 @@ const App: React.FC = () => {
   const [showWatermark, setShowWatermark] = useState(false);
   const prefersReducedMotion = useReducedMotion();
 
+  // 前端 FirstVisitVerification 配置状态
+  const [enableFirstVisitVerification, setEnableFirstVisitVerification] = useState(true); // 默认启用
+  const [configLoaded, setConfigLoaded] = useState(false);
+
   // 首次访问检测
   const {
     isFirstVisit,
@@ -413,6 +417,25 @@ const App: React.FC = () => {
       '/store': '浏览和下载优质资源，提升开发效率',
     }
   }), []);
+
+  // 获取前端配置
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch(`${getApiBaseUrl()}/api/frontend-config`);
+        if (response.ok) {
+          const data = await response.json();
+          setEnableFirstVisitVerification(data.enableFirstVisitVerification ?? true);
+        }
+      } catch (error) {
+        console.error('获取前端配置失败:', error);
+        // 失败时保持默认值（启用）
+      } finally {
+        setConfigLoaded(true);
+      }
+    };
+    fetchConfig();
+  }, []);
 
   // React 19 文档元数据：根据当前路由动态设置页面标题和描述
   useEffect(() => {
@@ -841,8 +864,8 @@ const App: React.FC = () => {
 
   // 统一的渲染逻辑，不再区分管理员和普通用户
 
-  // 首次访问验证
-  if (isFirstVisitLoading) {
+  // 首次访问验证（等待配置加载完成）
+  if (!configLoaded || isFirstVisitLoading) {
     return (
       <NotificationProvider>
         <LazyMotion features={domAnimation}>
@@ -852,8 +875,8 @@ const App: React.FC = () => {
     );
   }
 
-  // 首次访问且未验证，显示验证页面
-  if (isFirstVisit && !isVerified && fingerprint) {
+  // 首次访问且未验证，且功能开关启用时，显示验证页面
+  if (enableFirstVisitVerification && isFirstVisit && !isVerified && fingerprint) {
     return (
       <NotificationProvider>
         <LazyMotion features={domAnimation}>

@@ -15,7 +15,7 @@ export const config = {
   audioDir: path.join(process.cwd(), 'finish'),
   adminUsername: process.env.ADMIN_USERNAME || 'admin',
   // 生产环境强制要求管理员密码
-  adminPassword: process.env.NODE_ENV === 'production' 
+  adminPassword: process.env.NODE_ENV === 'production'
     ? (process.env.ADMIN_PASSWORD || (() => { throw new Error('生产环境必须设置 ADMIN_PASSWORD 环境变量') })())
     : (process.env.ADMIN_PASSWORD || 'admin'),
   // 添加本地 IP 配置
@@ -66,4 +66,7 @@ export const config = {
   // IP 封禁存储方式: 'redis' 或 'mongo'
   // 如果配置了 Redis 则优先使用 Redis，否则使用 MongoDB
   ipBanStorage: process.env.REDIS_URL ? 'redis' : 'mongo',
+
+  // 首次访问验证功能开关
+  enableFirstVisitVerification: process.env.ENABLE_FIRST_VISIT_VERIFICATION !== 'false', // 默认启用，设置为 'false' 时禁用
 };

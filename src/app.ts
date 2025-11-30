@@ -961,6 +961,13 @@ const ensureAudioDir = async () => {
 };
 ensureAudioDir().catch(console.error);
 
+// 前端配置 API（公开访问，无需认证）
+app.get('/api/frontend-config', (req: Request, res: Response) => {
+  res.json({
+    enableFirstVisitVerification: config.enableFirstVisitVerification
+  });
+});
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/totp', totpRoutes);
@@ -1016,11 +1023,11 @@ app.use('/api/image-data', imageDataRoutes);
 app.use('/api', resourceRoutes);
 // CDK路由 - 需要认证（添加挂载限流）
 const cdkMountLimiter = rateLimit({
-windowMs: 60 * 1000, // 1分钟
-max: 60, // 每IP每分钟最多60次
-message: { error: 'CDK 请求过于频繁，请稍后再试' },
-standardHeaders: true,
-legacyHeaders: false,
+  windowMs: 60 * 1000, // 1分钟
+  max: 60, // 每IP每分钟最多60次
+  message: { error: 'CDK 请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 app.use('/api/cdks', cdkMountLimiter, cdkRoutes);
 // Webhook事件管理 - 需要管理员认证（添加管理员限流）
