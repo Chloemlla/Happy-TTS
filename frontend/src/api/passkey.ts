@@ -73,6 +73,20 @@ export const passkeyApi = {
             clientOrigin: getClientOrigin()
         }),
     
+    // 开始认证（Discoverable Credentials - 无需用户名）
+    startDiscoverableAuthentication: () => 
+        api.post<AuthenticationOptions & { challenge: string }>(`${getPasskeyApiBase()}/api/passkey/authenticate/start/discoverable`, { 
+            clientOrigin: getClientOrigin()
+        }),
+    
+    // 完成认证（Discoverable Credentials - 无需用户名）
+    finishDiscoverableAuthentication: (response: any, challenge: string) => 
+        api.post(`${getPasskeyApiBase()}/api/passkey/authenticate/finish/discoverable`, { 
+            response,
+            challenge,
+            clientOrigin: getClientOrigin()
+        }),
+    
     // 删除 Passkey 凭证
     // 这个可以向各自的前端服务器发送
     removeCredential: (credentialId: string) => 

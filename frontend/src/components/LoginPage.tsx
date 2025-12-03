@@ -16,7 +16,7 @@ export const LoginPage: React.FC = () => {
     const { setNotification } = useNotification();
     const navigate = useNavigate();
     const { config: turnstileConfig, loading: turnstileConfigLoading } = useTurnstileConfig({ usePublicConfig: true });
-    const { authenticateWithPasskey } = usePasskey();
+    const { authenticateWithPasskey, authenticateWithDiscoverablePasskey } = usePasskey();
 
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -473,10 +473,11 @@ export const LoginPage: React.FC = () => {
                             onClick={async () => {
                                 try {
                                     setLoading(true);
-                                    const success = await authenticateWithPasskey(username);
+                                    // 使用 Discoverable Credentials - 无需输入用户名
+                                    const success = await authenticateWithDiscoverablePasskey();
                                     if (success) {
                                         setNotification({ message: 'Passkey login successful!', type: 'success' });
-                                        window.location.reload();
+                                        // window.location.reload(); // 已在 authenticateWithDiscoverablePasskey 中处理
                                     }
                                 } catch (err: any) {
                                     setNotification({ 
@@ -489,7 +490,7 @@ export const LoginPage: React.FC = () => {
                             }}
                             disabled={loading}
                             className="w-full flex items-center justify-center gap-3 py-3.5 px-4 border-2 border-blue-300 rounded-lg text-sm font-semibold text-blue-700 bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md"
-                            aria-label="Sign in with Passkey - Passwordless authentication using biometrics"
+                            aria-label="Sign in with Passkey - Passwordless authentication using biometrics, no username required"
                         >
                             <FaFingerprint className="h-6 w-6" />
                             <span className="flex flex-col items-start">

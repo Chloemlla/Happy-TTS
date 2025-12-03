@@ -385,6 +385,33 @@ export class PasskeyService {
         return verification;
     }
 
+    // 生成 Discoverable Credentials 认证选项（无需用户名）
+    public static async generateDiscoverableAuthenticationOptions(clientOrigin?: string) {
+        try {
+            logger.info('[Passkey] 生成 Discoverable Credentials 认证选项');
+
+            // 不指定 allowCredentials，让浏览器自动发现设备上的凭证
+            const options = await generateAuthenticationOptions({
+                rpID: getRpId(),
+                userVerification: 'required'
+                // 关键：不设置 allowCredentials
+            });
+
+            logger.info('[Passkey] Discoverable 认证选项生成成功', {
+                challenge: options?.challenge?.substring(0, 20) + '...',
+                rpID: getRpId()
+            });
+
+            return options;
+        } catch (err: any) {
+            logger.error('[Passkey] generateDiscoverableAuthenticationOptions 失败', {
+                error: err.message,
+                stack: err.stack
+            });
+            throw err;
+        }
+    }
+
     // 生成认证选项
     public static async generateAuthenticationOptions(user: User, clientOrigin?: string) {
         if (!user) {

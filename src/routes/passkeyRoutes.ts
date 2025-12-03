@@ -130,6 +130,34 @@ router.post('/register/finish', authenticateToken, rateLimitMiddleware, async (r
     }
 });
 
+// 开始认证（Discoverable Credentials - 无需用户名）
+router.post('/authenticate/start/discoverable', rateLimitMiddleware, async (req, res) => {
+    try {
+        const { clientOrigin } = req.body;
+        const ip = req.headers['x-real-ip'] || req.ip || 'unknown';
+        
+        logger.info('[Passkey] /authenticate/start/discoverable 收到请求（无需用户名）', { clientOrigin, ip });
+
+        // 生成不指定用户的认证选项
+        const options = await PasskeyService.generateDiscoverableAuthenticationOptions(clientOrigin);
+        
+        logger.info('[Passkey] Discoverable 认证选项生成成功', {
+            challenge: options.challenge?.substring(0, 20) + '...',
+            hasAllowCredentials: !!options.allowCredentials
+        });
+
+        // 将 challenge 临时存储到会话中（用于后续验证）
+        // 注意：这里不能存储到用户记录中，因为还不知道是哪个用户
+        res.json({ options, challenge: options.challenge });
+    } catch (error: any) {
+        logger.error('[Passkey] 生成 Discoverable 认证选项失败', {
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({ error: error?.message || '生成认证选项失败' });
+    }
+});
+
 // 开始认证
 router.post('/authenticate/start', rateLimitMiddleware, async (req, res) => {
     try {
@@ -191,6 +219,116 @@ router.post('/authenticate/start', rateLimitMiddleware, async (req, res) => {
         
         const errorMessage = error?.message || '生成 Passkey 认证选项失败';
         res.status(500).json({ error: errorMessage });
+    }
+});
+
+// 完成认证（Discoverable Credentials - 无需用户名）
+router.post('/authenticate/finish/discoverable', rateLimitMiddleware, async (req, res) => {
+    try {
+        const { response, challenge, clientOrigin } = req.body;
+        
+        if (!response) {
+            return res.status(400).json({ error: '响应是必需的' });
+        }
+        
+        logger.info('[Passkey] /authenticate/finish/discoverable 收到请求', {
+            hasResponse: !!response,
+            hasChallenge: !!challenge,
+            responseKeys: Object.keys(response),
+            credentialId: response.id?.substring(0, 20) + '...'
+        });
+        
+        // 根据 credential ID 查找用户
+        const credentialId = response.id || response.rawId;
+        if (!credentialId) {
+            return res.status(400).json({ error: '缺少 credential ID' });
+        }
+        
+        // 遍历所有用户，查找匹配的凭证
+        const allUsers = await UserStorage.getAllUsers();
+        let matchedUser: any = null;
+        
+        for (const user of allUsers) {
+            if (user.passkeyEnabled && user.passkeyCredentials && user.passkeyCredentials.length > 0) {
+                const matchedCred = user.passkeyCredentials.find((cred: any) => {
+                    // 尝试多种比较方式
+                    return cred.credentialID === credentialId || 
+                           cred.id === credentialId ||
+                           cred.credentialID === response.id ||
+                           cred.id === response.id;
+                });
+                
+                if (matchedCred) {
+                    matchedUser = user;
+                    logger.info('[Passkey] 找到匹配的用户', {
+                        userId: user.id,
+                        username: user.username,
+                        credentialId: credentialId.substring(0, 20) + '...'
+                    });
+                    break;
+                }
+            }
+        }
+        
+        if (!matchedUser) {
+            logger.warn('[Passkey] Discoverable 认证失败：未找到匹配的用户', {
+                credentialId: credentialId.substring(0, 20) + '...'
+            });
+            return res.status(404).json({ error: '未找到匹配的凭证' });
+        }
+        
+        // 验证用户是否启用了Passkey
+        if (!matchedUser.passkeyEnabled) {
+            logger.warn('[Passkey] Discoverable 认证失败：用户未启用Passkey', {
+                userId: matchedUser.id,
+                username: matchedUser.username
+            });
+            return res.status(400).json({ error: '用户未启用Passkey' });
+        }
+        
+        // 设置用户的 pendingChallenge 以便验证
+        if (challenge) {
+            await UserStorage.updateUser(matchedUser.id, {
+                pendingChallenge: challenge
+            });
+        }
+        
+        // 执行Passkey验证
+        const verification = await PasskeyService.verifyAuthentication(matchedUser, response, clientOrigin, clientOrigin);
+        
+        if (!verification.verified) {
+            logger.warn('[Passkey] Discoverable 认证失败：验证未通过', {
+                userId: matchedUser.id,
+                username: matchedUser.username
+            });
+            return res.status(401).json({ error: 'Passkey验证失败' });
+        }
+        
+        // 生成token
+        const token = await PasskeyService.generateToken(matchedUser);
+        
+        logger.info('[Passkey] Discoverable 认证成功', {
+            userId: matchedUser.id,
+            username: matchedUser.username
+        });
+        
+        // 返回成功响应
+        res.json({
+            success: true,
+            token: token,
+            user: {
+                id: matchedUser.id,
+                username: matchedUser.username,
+                email: matchedUser.email
+            }
+        });
+        
+    } catch (error: any) {
+        logger.error('[Passkey] Discoverable 认证失败:', {
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({ error: error?.message || '完成认证失败' });
     }
 });
 

@@ -10,6 +10,7 @@ interface UsePasskeyReturn {
     registerAuthenticator: (name: string) => Promise<{ attRespId: any; finishData: any } | undefined>;
     removeAuthenticator: (id: string) => Promise<void>;
     authenticateWithPasskey: (username: string) => Promise<boolean>;
+    authenticateWithDiscoverablePasskey: () => Promise<boolean>;
 }
 
 export const usePasskey = (): UsePasskeyReturn & {
@@ -55,17 +56,17 @@ export const usePasskey = (): UsePasskeyReturn & {
         try {
             // 获取注册选项
             const optionsResponse = await passkeyApi.startRegistration(credentialName);
-            
+
             // 提取注册选项
             // 后端返回格式: { data: { options: PublicKeyCredentialCreationOptionsJSON } }
             const rawOptions = optionsResponse?.data?.options;
-            
+
             if (!rawOptions) {
-                addDebugInfo({ 
-                    action: 'startRegistration returned no options', 
-                    response: optionsResponse, 
+                addDebugInfo({
+                    action: 'startRegistration returned no options',
+                    response: optionsResponse,
                     receivedData: optionsResponse?.data,
-                    timestamp: new Date().toISOString() 
+                    timestamp: new Date().toISOString()
                 });
                 // 失败提示交由外部 setNotification 统一管理
                 return { attRespId: null, finishData: null };
@@ -76,7 +77,7 @@ export const usePasskey = (): UsePasskeyReturn & {
                 // startRegistration 接受 { optionsJSON }，这里传入规范化后的 rawOptions
                 attResp = await startRegistration({ optionsJSON: rawOptions });
             } catch (error: any) {
-                addDebugInfo({ action: 'startRegistration failed', error: error instanceof Error ? error.message : String(error), attResp, optionsSample: JSON.stringify((rawOptions && typeof rawOptions === 'object') ? Object.keys(rawOptions).slice(0,5) : rawOptions), timestamp: new Date().toISOString() });
+                addDebugInfo({ action: 'startRegistration failed', error: error instanceof Error ? error.message : String(error), attResp, optionsSample: JSON.stringify((rawOptions && typeof rawOptions === 'object') ? Object.keys(rawOptions).slice(0, 5) : rawOptions), timestamp: new Date().toISOString() });
                 if (attResp && attResp.id) {
                     setCurrentCredentialId(attResp.id);
                     setShowModal(true);
@@ -151,14 +152,14 @@ export const usePasskey = (): UsePasskeyReturn & {
         let asseResp: any = null;
         try {
             setIsLoading(true);
-            
+
             // 记录传入的用户名
             addDebugInfo({
                 action: '开始Passkey认证',
                 username: username,
                 timestamp: new Date().toISOString()
             });
-            
+
             // 获取认证选项
             let optionsResponse;
             try {
@@ -179,7 +180,7 @@ export const usePasskey = (): UsePasskeyReturn & {
                 // 其他错误抛出
                 throw error;
             }
-            
+
             // 记录API响应信息
             addDebugInfo({
                 action: 'Passkey认证API响应',
@@ -190,7 +191,7 @@ export const usePasskey = (): UsePasskeyReturn & {
                 optionsKeys: optionsResponse.data?.options ? Object.keys(optionsResponse.data.options) : [],
                 timestamp: new Date().toISOString()
             });
-            
+
             // 记录认证选项信息
             addDebugInfo({
                 action: 'Passkey认证选项',
@@ -206,13 +207,13 @@ export const usePasskey = (): UsePasskeyReturn & {
                 })),
                 timestamp: new Date().toISOString()
             });
-            
+
             // 调用浏览器的 Passkey API
             try {
                 // 确保认证选项格式正确
                 // 后端返回格式: { data: { options: PublicKeyCredentialRequestOptionsJSON } }
                 const options = optionsResponse?.data?.options;
-                
+
                 if (!options) {
                     addDebugInfo({
                         action: '认证选项提取失败',
@@ -221,7 +222,7 @@ export const usePasskey = (): UsePasskeyReturn & {
                     });
                     throw new Error('无法获取认证选项');
                 }
-                
+
                 addDebugInfo({
                     action: '准备调用startAuthentication',
                     hasOptions: !!options,
@@ -230,10 +231,10 @@ export const usePasskey = (): UsePasskeyReturn & {
                     allowCredentialsCount: options?.allowCredentials?.length || 0,
                     timestamp: new Date().toISOString()
                 });
-                
+
                 asseResp = await startAuthentication({ optionsJSON: options });
-                
-                                            // 记录响应对象结构
+
+                // 记录响应对象结构
                 addDebugInfo({
                     action: 'Passkey认证响应对象',
                     hasId: !!asseResp.id,
@@ -248,12 +249,12 @@ export const usePasskey = (): UsePasskeyReturn & {
                     rawIdArray: asseResp.rawId ? Array.from(new Uint8Array(asseResp.rawId)).slice(0, 10) : null,
                     timestamp: new Date().toISOString()
                 });
-                
+
                 // 确保响应对象包含必要的字段
                 if (!asseResp.id && !asseResp.rawId) {
                     throw new Error('Passkey认证响应缺少credentialID字段');
                 }
-                
+
                 // 如果只有rawId没有id，手动添加id字段
                 if (asseResp.rawId && !asseResp.id) {
                     try {
@@ -288,7 +289,7 @@ export const usePasskey = (): UsePasskeyReturn & {
                         });
                     }
                 }
-                
+
             } catch (error) {
                 // 记录startAuthentication调用失败
                 addDebugInfo({
@@ -347,10 +348,106 @@ export const usePasskey = (): UsePasskeyReturn & {
             // 失败提示交由外部 setNotification 统一管理
             setIsLoading(false);
             return false;
+
         } finally {
             setIsLoading(false);
         }
     }, [loginWithToken]);
+
+    const authenticateWithDiscoverablePasskey = useCallback(async (): Promise<boolean> => {
+        let asseResp: any = null;
+        try {
+            setIsLoading(true);
+
+            // 记录开始无用户名认证
+            addDebugInfo({
+                action: '开始Passkey认证（无用户名）',
+                timestamp: new Date().toISOString()
+            });
+
+            // 获取 Discoverable Credentials 认证选项
+            const optionsResponse = await passkeyApi.startDiscoverableAuthentication();
+            const options = optionsResponse?.data?.options;
+            const challenge = optionsResponse?.data?.challenge;
+
+            if (!options) {
+                addDebugInfo({
+                    action: 'Discoverable认证选项提取失败',
+                    receivedData: optionsResponse?.data,
+                    timestamp: new Date().toISOString()
+                });
+                throw new Error('无法获取认证选项');
+            }
+
+            addDebugInfo({
+                action: 'Discoverable认证选项',
+                hasOptions: !!options,
+                hasAllowCredentials: !!options.allowCredentials,
+                challenge: challenge?.substring(0, 20) + '...',
+                timestamp: new Date().toISOString()
+            });
+
+            // 调用浏览器的 Passkey API（不指定 allowCredentials）
+            asseResp = await startAuthentication({ optionsJSON: options });
+
+            addDebugInfo({
+                action: 'Discoverable认证响应',
+                hasId: !!asseResp.id,
+                hasRawId: !!asseResp.rawId,
+                idValue: asseResp.id?.substring(0, 20) + '...',
+                timestamp: new Date().toISOString()
+            });
+
+            // 如果有 id 就弹窗
+            if (asseResp && asseResp.id) {
+                setCurrentCredentialId(asseResp.id);
+                setShowModal(true);
+                addDebugInfo({
+                    action: 'Discoverable认证弹窗 credentialID',
+                    credentialID: asseResp.id,
+                    timestamp: new Date().toISOString()
+                });
+            }
+
+            // 完成认证（将challenge传递给后端）
+            const resp = await passkeyApi.finishDiscoverableAuthentication(asseResp, challenge);
+
+            // 使用后端返回的令牌登录
+            await loginWithToken(resp.data.token, resp.data.user);
+
+            addDebugInfo({
+                action: 'Discoverable认证成功',
+                userId: resp.data.user?.id,
+                username: resp.data.user?.username,
+                timestamp: new Date().toISOString()
+            });
+
+            window.location.reload();
+            return resp.data.success || false;
+        } catch (error: any) {
+            if (asseResp && asseResp.id) {
+                setCurrentCredentialId(asseResp.id);
+                setShowModal(true);
+                addDebugInfo({
+                    action: 'Discoverable认证异常弹窗 credentialID',
+                    credentialID: asseResp.id,
+                    timestamp: new Date().toISOString()
+                });
+            }
+
+            addDebugInfo({
+                action: 'Discoverable认证失败',
+                error: error instanceof Error ? error.message : String(error),
+                timestamp: new Date().toISOString()
+            });
+
+            // 失败提示交由外部 setNotification 统一管理
+            setIsLoading(false);
+            return false;
+        } finally {
+            setIsLoading(false);
+        }
+    }, [loginWithToken, addDebugInfo]);
 
     const removeAuthenticator = useCallback(async (credentialId: string) => {
         try {
@@ -373,6 +470,7 @@ export const usePasskey = (): UsePasskeyReturn & {
         registerAuthenticator,
         removeAuthenticator,
         authenticateWithPasskey,
+        authenticateWithDiscoverablePasskey,
         showModal,
         setShowModal,
         currentCredentialId,
@@ -382,4 +480,4 @@ export const usePasskey = (): UsePasskeyReturn & {
         debugInfos,
         addDebugInfo
     };
-}; 
+};
