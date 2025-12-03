@@ -304,15 +304,42 @@ router.post('/authenticate/finish/discoverable', rateLimitMiddleware, async (req
             return res.status(401).json({ error: 'Passkey验证失败' });
         }
         
-        // 生成token
+        // 生成token并确保使用正确的用户信息
         const token = await PasskeyService.generateToken(matchedUser);
         
-        logger.info('[Passkey] Discoverable 认证成功', {
-            userId: matchedUser.id,
-            username: matchedUser.username
-        });
+        // 验证生成的token包含正确的用户信息
+        try {
+            const jwt = require('jsonwebtoken');
+            const config = require('../config/config').config;
+            const decoded = jwt.verify(token, config.jwtSecret);
+            
+            if (decoded.userId !== matchedUser.id || decoded.username !== matchedUser.username) {
+                logger.error('[Passkey] Discoverable Token生成错误：用户信息不匹配', {
+                    username: matchedUser.username,
+                    userId: matchedUser.id,
+                    tokenUserId: decoded.userId,
+                    tokenUsername: decoded.username
+                });
+                return res.status(500).json({ error: 'Token生成失败' });
+            }
+            
+            logger.info('[Passkey] Discoverable 认证成功，Token验证通过', {
+                username: matchedUser.username,
+                userId: matchedUser.id,
+                tokenUserId: decoded.userId,
+                tokenUsername: decoded.username
+            });
+            
+        } catch (tokenError) {
+            logger.error('[Passkey] Discoverable Token验证失败', {
+                username: matchedUser.username,
+                userId: matchedUser.id,
+                error: tokenError instanceof Error ? tokenError.message : String(tokenError)
+            });
+            return res.status(500).json({ error: 'Token生成失败' });
+        }
         
-        // 返回成功响应
+        // 返回成功响应，确保用户信息正确
         res.json({
             success: true,
             token: token,
