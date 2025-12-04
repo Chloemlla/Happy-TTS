@@ -98,41 +98,41 @@ function sanitizeInput(str: string) {
 export const adminController = {
   getUsers: async (req: Request, res: Response) => {
     try {
-      console.log('🔐 [UserManagement] 开始处理用户列表加密请求...');
-      console.log('   用户ID:', req.user?.id);
-      console.log('   用户名:', req.user?.username);
-      console.log('   用户角色:', req.user?.role);
-      console.log('   请求IP:', req.ip);
-      
+      logger.info('🔐 [UserManagement] 开始处理用户列表加密请求...');
+      logger.info('   用户ID:', req.user?.id);
+      logger.info('   用户名:', req.user?.username);
+      logger.info('   用户角色:', req.user?.role);
+      logger.info('   请求IP:', req.ip);
+
       // 检查管理员权限
       if (!req.user || req.user.role !== 'admin') {
-        console.log('❌ [UserManagement] 权限检查失败：非管理员用户');
+        logger.info('❌ [UserManagement] 权限检查失败：非管理员用户');
         return res.status(403).json({ error: '需要管理员权限' });
       }
 
-      console.log('✅ [UserManagement] 权限检查通过');
+      logger.info('✅ [UserManagement] 权限检查通过');
 
       // 获取管理员token作为加密密钥
       const authHeader = req.headers.authorization;
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        console.log('❌ [UserManagement] Token格式错误：未携带Token或格式不正确');
+        logger.info('❌ [UserManagement] Token格式错误：未携带Token或格式不正确');
         return res.status(401).json({ error: '未携带Token，请先登录' });
       }
-      
+
       const token = authHeader.substring(7); // 移除 'Bearer ' 前缀
       if (!token) {
-        console.log('❌ [UserManagement] Token为空');
+        logger.info('❌ [UserManagement] Token为空');
         return res.status(401).json({ error: 'Token为空' });
       }
 
-      console.log('✅ [UserManagement] Token获取成功，长度:', token.length);
+      logger.info('✅ [UserManagement] Token获取成功，长度:', token.length);
 
       // 是否包含指纹信息（默认不返回）
-      const includeFingerprints = ['1','true','yes'].includes(String((req.query as any).includeFingerprints || '').toLowerCase());
+      const includeFingerprints = ['1', 'true', 'yes'].includes(String((req.query as any).includeFingerprints || '').toLowerCase());
       if (!includeFingerprints) {
-        console.log('🛡️ [UserManagement] 将从响应中排除 fingerprints 字段');
+        logger.info('🛡️ [UserManagement] 将从响应中排除 fingerprints 字段');
       } else {
-        console.log('🔎 [UserManagement] 管理端请求包含 fingerprints 字段');
+        logger.info('🔎 [UserManagement] 管理端请求包含 fingerprints 字段');
       }
 
       // 获取用户数据
@@ -146,12 +146,12 @@ export const adminController = {
         return rest;
       });
 
-      console.log('📊 [UserManagement] 获取到用户数量:', usersSanitized.length);
+      logger.info('📊 [UserManagement] 获取到用户数量:', usersSanitized.length);
 
       // 调试：检查第一个用户的指纹数据
       if (usersSanitized.length > 0 && usersSanitized[0]?.fingerprints?.length > 0) {
         const firstFingerprint = usersSanitized[0].fingerprints[0];
-        console.log('🔍 [UserManagement] 第一个指纹记录调试:', {
+        logger.info('🔍 [UserManagement] 第一个指纹记录调试:', {
           hasId: !!firstFingerprint.id,
           hasTs: !!firstFingerprint.ts,
           hasUa: !!firstFingerprint.ua,
@@ -164,60 +164,60 @@ export const adminController = {
 
       // 准备加密数据
       const jsonData = JSON.stringify(usersSanitized);
-      console.log('📝 [UserManagement] JSON数据准备完成，长度:', jsonData.length);
+      logger.info('📝 [UserManagement] JSON数据准备完成，长度:', jsonData.length);
 
       // 使用AES-256-CBC加密数据
-      console.log('🔐 [UserManagement] 开始AES-256-CBC加密...');
+      logger.info('🔐 [UserManagement] 开始AES-256-CBC加密...');
       const algorithm = 'aes-256-cbc';
-      
+
       // 生成密钥
-      console.log('   生成密钥...');
+      logger.info('   生成密钥...');
       const key = crypto.createHash('sha256').update(token).digest();
-      console.log('   密钥生成完成，长度:', key.length);
-      
+      logger.info('   密钥生成完成，长度:', key.length);
+
       // 生成IV
-      console.log('   生成初始化向量(IV)...');
+      logger.info('   生成初始化向量(IV)...');
       const iv = crypto.randomBytes(16);
-      console.log('   IV生成完成，长度:', iv.length);
-      console.log('   IV (hex):', iv.toString('hex'));
-      
+      logger.info('   IV生成完成，长度:', iv.length);
+      logger.info('   IV (hex):', iv.toString('hex'));
+
       // 创建加密器
-      console.log('   创建加密器...');
+      logger.info('   创建加密器...');
       const cipher = crypto.createCipheriv(algorithm, key, iv);
-      
+
       // 执行加密
-      console.log('   开始加密数据...');
+      logger.info('   开始加密数据...');
       let encrypted = cipher.update(jsonData, 'utf8', 'hex');
       encrypted += cipher.final('hex');
-      
-      console.log('✅ [UserManagement] 加密完成');
-      console.log('   原始数据长度:', jsonData.length);
-      console.log('   加密后数据长度:', encrypted.length);
-      console.log('   加密算法:', algorithm);
-      console.log('   密钥长度:', key.length);
-      console.log('   IV长度:', iv.length);
+
+      logger.info('✅ [UserManagement] 加密完成');
+      logger.info('   原始数据长度:', jsonData.length);
+      logger.info('   加密后数据长度:', encrypted.length);
+      logger.info('   加密算法:', algorithm);
+      logger.info('   密钥长度:', key.length);
+      logger.info('   IV长度:', iv.length);
 
       // 返回加密后的数据
-      const response = { 
-        success: true, 
+      const response = {
+        success: true,
         data: encrypted,
         iv: iv.toString('hex')
       };
-      
-      console.log('📤 [UserManagement] 准备返回加密数据');
-      console.log('   响应数据大小:', JSON.stringify(response).length);
-      
+
+      logger.info('📤 [UserManagement] 准备返回加密数据');
+      logger.info('   响应数据大小:', JSON.stringify(response).length);
+
       res.json(response);
-      
-      console.log('✅ [UserManagement] 用户列表加密请求处理完成');
-      
+
+      logger.info('✅ [UserManagement] 用户列表加密请求处理完成');
+
     } catch (error) {
-      console.error('❌ [UserManagement] 获取用户列表失败:', error);
+      logger.error('❌ [UserManagement] 获取用户列表失败:', error);
       logger.error('获取用户列表失败:', error);
       res.status(500).json({ error: '获取用户列表失败' });
     }
   },
-  
+
   createUser: async (req: Request, res: Response) => {
     try {
       const { username, email, password, role } = req.body;
@@ -239,7 +239,7 @@ export const adminController = {
       res.status(500).json({ error: '创建用户失败' });
     }
   },
-  
+
   updateUser: async (req: Request, res: Response) => {
     try {
       const { username, email, password, role } = req.body;
@@ -259,7 +259,7 @@ export const adminController = {
       res.status(500).json({ error: '更新用户失败' });
     }
   },
-  
+
   deleteUser: async (req: Request, res: Response) => {
     try {
       const user = await UserStorage.getUserById(req.params.id);
@@ -310,7 +310,7 @@ export const adminController = {
       if (STORAGE_MODE === 'mongo' && mongoose.connection.readyState === 1) {
         await ensureMongoAnnouncementCollection();
         const ann = await AnnouncementModel.create({ content: safeContent, format: format || 'markdown', updatedAt: new Date() });
-        console.log(`[公告] 管理员${req.user.username} 更新公告`);
+        logger.info(`[公告] 管理员${req.user.username} 更新公告`);
         return res.json({ success: true, announcement: ann });
       } else if (STORAGE_MODE === 'mysql' && process.env.MYSQL_URI) {
         const conn = await mysql.createConnection(process.env.MYSQL_URI);
@@ -318,12 +318,12 @@ export const adminController = {
         await conn.execute('INSERT INTO announcements (content, format, updatedAt) VALUES (?, ?, NOW())', [safeContent, format || 'markdown']);
         const [rows] = await conn.execute('SELECT * FROM announcements ORDER BY updatedAt DESC LIMIT 1');
         await conn.end();
-        console.log(`[公告] 管理员${req.user.username} 更新公告`);
+        logger.info(`[公告] 管理员${req.user.username} 更新公告`);
         return res.json({ success: true, announcement: (rows as any[])[0] });
       } else {
         const data = { content: safeContent, format: format || 'markdown', updatedAt: new Date().toISOString() };
         fs.writeFileSync(ANNOUNCEMENT_FILE, JSON.stringify(data, null, 2));
-        console.log(`[公告] 管理员${req.user.username} 更新公告`);
+        logger.info(`[公告] 管理员${req.user.username} 更新公告`);
         return res.json({ success: true, announcement: data });
       }
     } catch (e) {
@@ -357,40 +357,40 @@ export const adminController = {
   // 获取所有环境变量
   async getEnvs(req: Request, res: Response) {
     try {
-      console.log('🔐 [EnvManager] 开始处理环境变量加密请求...');
-      console.log('   用户ID:', req.user?.id);
-      console.log('   用户名:', req.user?.username);
-      console.log('   用户角色:', req.user?.role);
-      console.log('   请求IP:', req.ip);
-      
+      logger.info('🔐 [EnvManager] 开始处理环境变量加密请求...');
+      logger.info('   用户ID:', req.user?.id);
+      logger.info('   用户名:', req.user?.username);
+      logger.info('   用户角色:', req.user?.role);
+      logger.info('   请求IP:', req.ip);
+
       // 检查管理员权限
       if (!req.user || req.user.role !== 'admin') {
-        console.log('❌ [EnvManager] 权限检查失败：非管理员用户');
+        logger.info('❌ [EnvManager] 权限检查失败：非管理员用户');
         return res.status(403).json({ error: '需要管理员权限' });
       }
 
-      console.log('✅ [EnvManager] 权限检查通过');
+      logger.info('✅ [EnvManager] 权限检查通过');
 
       // 获取管理员token作为加密密钥
       const authHeader = req.headers.authorization;
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        console.log('❌ [EnvManager] Token格式错误：未携带Token或格式不正确');
+        logger.info('❌ [EnvManager] Token格式错误：未携带Token或格式不正确');
         return res.status(401).json({ error: '未携带Token，请先登录' });
       }
-      
+
       const token = authHeader.substring(7); // 移除 'Bearer ' 前缀
       if (!token) {
-        console.log('❌ [EnvManager] Token为空');
+        logger.info('❌ [EnvManager] Token为空');
         return res.status(401).json({ error: 'Token为空' });
       }
 
-      console.log('✅ [EnvManager] Token获取成功，长度:', token.length);
+      logger.info('✅ [EnvManager] Token获取成功，长度:', token.length);
 
       // 收集所有环境变量
       let allEnvs: Record<string, any> = {};
 
       // 1. 读取本地.env文件
-      console.log('📁 [EnvManager] 开始读取本地.env文件...');
+      logger.info('📁 [EnvManager] 开始读取本地.env文件...');
       const envFiles = [
         '.env',
         '.env.local',
@@ -398,7 +398,7 @@ export const adminController = {
         '.env.production',
         '.env.test'
       ];
-      
+
       for (const envFile of envFiles) {
         const envPath = path.join(process.cwd(), envFile);
         if (fs.existsSync(envPath)) {
@@ -415,15 +415,15 @@ export const adminController = {
                 }
               }
             }
-            console.log(`   ✅ 成功读取 ${envFile} 文件`);
+            logger.info(`   ✅ 成功读取 ${envFile} 文件`);
           } catch (error) {
-            console.log(`   ❌ 读取 ${envFile} 文件失败:`, error);
+            logger.info(`   ❌ 读取 ${envFile} 文件失败:`, error);
           }
         }
       }
 
       // 2. 读取Docker环境变量
-      console.log('🐳 [EnvManager] 开始读取Docker环境变量...');
+      logger.info('🐳 [EnvManager] 开始读取Docker环境变量...');
       const dockerEnvVars = [
         'DOCKER_HOST',
         'DOCKER_TLS_VERIFY',
@@ -433,7 +433,7 @@ export const adminController = {
         'DOCKER_BUILDKIT',
         'DOCKER_DEFAULT_PLATFORM'
       ];
-      
+
       for (const dockerVar of dockerEnvVars) {
         if (process.env[dockerVar]) {
           allEnvs[`DOCKER:${dockerVar}`] = process.env[dockerVar];
@@ -441,7 +441,7 @@ export const adminController = {
       }
 
       // 3. 读取Node.js相关环境变量
-      console.log('🟢 [EnvManager] 开始读取Node.js环境变量...');
+      logger.info('🟢 [EnvManager] 开始读取Node.js环境变量...');
       const nodeEnvVars = [
         'NODE_ENV',
         'NODE_VERSION',
@@ -451,7 +451,7 @@ export const adminController = {
         'NPM_CONFIG_CACHE',
         'YARN_CACHE_FOLDER'
       ];
-      
+
       for (const nodeVar of nodeEnvVars) {
         if (process.env[nodeVar]) {
           allEnvs[`NODE:${nodeVar}`] = process.env[nodeVar];
@@ -459,7 +459,7 @@ export const adminController = {
       }
 
       // 4. 读取系统环境变量
-      console.log('💻 [EnvManager] 开始读取系统环境变量...');
+      logger.info('💻 [EnvManager] 开始读取系统环境变量...');
       const systemEnvVars = [
         'PATH',
         'HOME',
@@ -473,7 +473,7 @@ export const adminController = {
         'OSTYPE',
         'PLATFORM'
       ];
-      
+
       for (const sysVar of systemEnvVars) {
         if (process.env[sysVar]) {
           allEnvs[`SYSTEM:${sysVar}`] = process.env[sysVar];
@@ -481,7 +481,7 @@ export const adminController = {
       }
 
       // 5. 读取数据库相关环境变量
-      console.log('🗄️ [EnvManager] 开始读取数据库环境变量...');
+      logger.info('🗄️ [EnvManager] 开始读取数据库环境变量...');
       const dbEnvVars = [
         'MONGO_URI',
         'MYSQL_URI',
@@ -493,7 +493,7 @@ export const adminController = {
         'DB_USER',
         'DB_PASSWORD'
       ];
-      
+
       for (const dbVar of dbEnvVars) {
         if (process.env[dbVar]) {
           // 对于包含敏感信息的变量，只显示部分内容
@@ -508,7 +508,7 @@ export const adminController = {
       }
 
       // 6. 读取应用配置环境变量
-      console.log('⚙️ [EnvManager] 开始读取应用配置环境变量...');
+      logger.info('⚙️ [EnvManager] 开始读取应用配置环境变量...');
       const appEnvVars = [
         'PORT',
         'HOST',
@@ -521,7 +521,7 @@ export const adminController = {
         'RATE_LIMIT_WINDOW',
         'RATE_LIMIT_MAX'
       ];
-      
+
       for (const appVar of appEnvVars) {
         if (process.env[appVar]) {
           // 对于敏感信息进行脱敏处理
@@ -536,7 +536,7 @@ export const adminController = {
       }
 
       // 7. 合并env模块的导出
-      console.log('📦 [EnvManager] 开始合并env模块导出...');
+      logger.info('📦 [EnvManager] 开始合并env模块导出...');
       if (envModule.env && typeof envModule.env === 'object') {
         allEnvs = { ...allEnvs, ...envModule.env };
       }
@@ -547,12 +547,12 @@ export const adminController = {
       }
 
       // 8. 读取所有process.env变量（排除已处理的）
-      console.log('🌐 [EnvManager] 开始读取所有process.env变量...');
+      logger.info('🌐 [EnvManager] 开始读取所有process.env变量...');
       const processedKeys = new Set(Object.keys(allEnvs).map(key => {
         const parts = key.split(':');
         return parts.length > 1 ? parts[1] : key;
       }));
-      
+
       for (const [key, value] of Object.entries(process.env)) {
         if (!processedKeys.has(key) && value !== undefined) {
           // 跳过一些系统内部变量
@@ -562,7 +562,7 @@ export const adminController = {
         }
       }
 
-      console.log('📊 [EnvManager] 收集到环境变量数量:', Object.keys(allEnvs).length);
+      logger.info('📊 [EnvManager] 收集到环境变量数量:', Object.keys(allEnvs).length);
 
       // 将环境变量转换为数组格式并按类别排序
       const envArray = Object.entries(allEnvs)
@@ -583,64 +583,64 @@ export const adminController = {
           return a.key.localeCompare(b.key);
         });
 
-      console.log('🔄 [EnvManager] 环境变量转换为数组格式完成');
-      console.log('   数组长度:', envArray.length);
-      console.log('   类别统计:', envArray.reduce((acc, item) => {
+      logger.info('🔄 [EnvManager] 环境变量转换为数组格式完成');
+      logger.info('   数组长度:', envArray.length);
+      logger.info('   类别统计:', envArray.reduce((acc, item) => {
         acc[item.category] = (acc[item.category] || 0) + 1;
         return acc;
       }, {} as Record<string, number>));
 
       // 准备加密数据
       const jsonData = JSON.stringify(envArray);
-      console.log('📝 [EnvManager] JSON数据准备完成，长度:', jsonData.length);
+      logger.info('📝 [EnvManager] JSON数据准备完成，长度:', jsonData.length);
 
       // 使用AES-256-CBC加密数据
-      console.log('🔐 [EnvManager] 开始AES-256-CBC加密...');
+      logger.info('🔐 [EnvManager] 开始AES-256-CBC加密...');
       const algorithm = 'aes-256-cbc';
-      
+
       // 生成密钥
-      console.log('   生成密钥...');
+      logger.info('   生成密钥...');
       const key = crypto.createHash('sha256').update(token).digest();
-      console.log('   密钥生成完成，长度:', key.length);
-      
+      logger.info('   密钥生成完成，长度:', key.length);
+
       // 生成IV
-      console.log('   生成初始化向量(IV)...');
+      logger.info('   生成初始化向量(IV)...');
       const iv = crypto.randomBytes(16);
-      console.log('   IV生成完成，长度:', iv.length);
-      console.log('   IV (hex):', iv.toString('hex'));
-      
+      logger.info('   IV生成完成，长度:', iv.length);
+      logger.info('   IV (hex):', iv.toString('hex'));
+
       // 创建加密器
-      console.log('   创建加密器...');
+      logger.info('   创建加密器...');
       const cipher = crypto.createCipheriv(algorithm, key, iv);
-      
+
       // 执行加密
-      console.log('   开始加密数据...');
+      logger.info('   开始加密数据...');
       let encrypted = cipher.update(jsonData, 'utf8', 'hex');
       encrypted += cipher.final('hex');
-      
-      console.log('✅ [EnvManager] 加密完成');
-      console.log('   原始数据长度:', jsonData.length);
-      console.log('   加密后数据长度:', encrypted.length);
-      console.log('   加密算法:', algorithm);
-      console.log('   密钥长度:', key.length);
-      console.log('   IV长度:', iv.length);
+
+      logger.info('✅ [EnvManager] 加密完成');
+      logger.info('   原始数据长度:', jsonData.length);
+      logger.info('   加密后数据长度:', encrypted.length);
+      logger.info('   加密算法:', algorithm);
+      logger.info('   密钥长度:', key.length);
+      logger.info('   IV长度:', iv.length);
 
       // 返回加密后的数据
-      const response = { 
-        success: true, 
+      const response = {
+        success: true,
         data: encrypted,
         iv: iv.toString('hex')
       };
-      
-      console.log('📤 [EnvManager] 准备返回加密数据');
-      console.log('   响应数据大小:', JSON.stringify(response).length);
-      
+
+      logger.info('📤 [EnvManager] 准备返回加密数据');
+      logger.info('   响应数据大小:', JSON.stringify(response).length);
+
       res.json(response);
-      
-      console.log('✅ [EnvManager] 环境变量加密请求处理完成');
-      
+
+      logger.info('✅ [EnvManager] 环境变量加密请求处理完成');
+
     } catch (e) {
-      console.error('❌ [EnvManager] 获取环境变量失败:', e);
+      logger.error('❌ [EnvManager] 获取环境变量失败:', e);
       logger.error('获取环境变量失败:', e);
       res.status(500).json({ success: false, error: '获取环境变量失败' });
     }
@@ -672,7 +672,7 @@ export const adminController = {
         envs.push({ key, value, desc, updatedAt: now });
       }
       writeEnvFile(envs);
-      console.log(`[环境变量] 管理员${req.user.username} 设置/更新 key=${key}`);
+      logger.info(`[环境变量] 管理员${req.user.username} 设置/更新 key=${key}`);
       res.json({ success: true, envs });
     } catch (e) {
       res.status(500).json({ success: false, error: '保存环境变量失败' });
@@ -690,7 +690,7 @@ export const adminController = {
       if (idx === -1) return res.status(404).json({ error: 'key不存在' });
       envs.splice(idx, 1);
       writeEnvFile(envs);
-      console.log(`[环境变量] 管理员${req.user.username} 删除 key=${key}`);
+      logger.info(`[环境变量] 管理员${req.user.username} 删除 key=${key}`);
       res.json({ success: true, envs });
     } catch (e) {
       res.status(500).json({ success: false, error: '删除环境变量失败' });
