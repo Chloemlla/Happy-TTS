@@ -125,8 +125,8 @@ importers:
         specifier: ^16.0.0
         version: 16.4.2
       marked-katex-extension:
-        specifier: ^5.1.5
-        version: 5.1.5(katex@0.16.22)(marked@16.4.2)
+        specifier: ^5.1.6
+        version: 5.1.6(katex@0.16.22)(marked@16.4.2)
       md5:
         specifier: ^2.3.0
         version: 2.3.0
@@ -3975,8 +3975,8 @@ packages:
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
 
-  marked-katex-extension@5.1.5:
-    resolution: {integrity: sha512-AAlfnpi3ivBWt4Paqb8YW2R7eq2ESJ+AtrgJU1jImUwnxHJAhPkZ5MsR3POnWV9HKwlBLZTVGC5I5+I2xWRiFg==}
+  marked-katex-extension@5.1.6:
+    resolution: {integrity: sha512-vYpLXwmlIDKILIhJtiRTgdyZRn5sEYdFBuTmbpjD7lbCIzg0/DWyK3HXIntN3Tp8zV6hvOUgpZNLWRCgWVc24A==}
     peerDependencies:
       katex: '>=0.16 <0.17'
       marked: ^16.0.0
@@ -9252,7 +9252,7 @@ snapshots:
       lodash.merge: 4.6.2
       lucide-react: 0.555.0(react@19.0.0)
       marked: 16.4.2
-      marked-katex-extension: 5.1.5(katex@0.16.22)(marked@16.4.2)
+      marked-katex-extension: 5.1.6(katex@0.16.22)(marked@16.4.2)
       md5: 2.3.0
       mermaid: 11.11.0
       prismjs: 1.30.0
@@ -9891,7 +9891,7 @@ snapshots:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  marked-katex-extension@5.1.5(katex@0.16.22)(marked@16.4.2):
+  marked-katex-extension@5.1.6(katex@0.16.22)(marked@16.4.2):
     dependencies:
       katex: 0.16.22
       marked: 16.4.2
