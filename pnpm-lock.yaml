@@ -120,8 +120,8 @@ importers:
         specifier: ^3.15.3
         version: 3.15.3
       nanoid:
-        specifier: ^5.1.5
-        version: 5.1.5
+        specifier: ^5.1.6
+        version: 5.1.6
       openai:
         specifier: ^6.9.1
         version: 6.9.1(ws@8.18.3)
@@ -2696,8 +2696,8 @@ packages:
     resolution: {integrity: sha512-eLoBxg6wE/rZkJPhU/xRX1WTpkFEwDJEN96oxFrTsqBdbT5ec295Q+CoHrL9IT0DipqKhmGcaZmwOt8OON5x1w==}
     engines: {node: '>=12.0.0'}
 
-  nanoid@5.1.5:
-    resolution: {integrity: sha512-Ir/+ZpE9fDsNH0hQ3C68uyThDXzYcim2EqcZ8zn8Chtt1iylPT9xXJB0kPCnqzgcEGikO9RxSrh63MsmVCU7Fw==}
+  nanoid@5.1.6:
+    resolution: {integrity: sha512-c7+7RQ+dMB5dPwwCp4ee1/iV/q2P6aK1mTZcfr1BTuVlyW9hJYiMPybJCcnBlQtuSmTIWNeazm/zqNoZSSElBg==}
     engines: {node: ^18 || >=20}
     hasBin: true
 
@@ -5721,7 +5721,7 @@ snapshots:
       morgan: 1.10.1
       multer: 2.0.2
       mysql2: 3.15.3
-      nanoid: 5.1.5
+      nanoid: 5.1.6
       openai: 6.9.1(ws@8.18.3)
       path-to-regexp: 8.3.0
       qrcode: 1.5.4
@@ -6677,7 +6677,7 @@ snapshots:
     dependencies:
       lru-cache: 7.18.3
 
-  nanoid@5.1.5: {}
+  nanoid@5.1.6: {}
 
   napi-postinstall@0.3.4: {}
 
