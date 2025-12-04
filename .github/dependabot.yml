@@ -1,6 +1,6 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
+# 要开始使用 Dependabot 版本更新，您需要指定要更新的
+# 软件包生态系统以及软件包清单文件的位置。
+# 有关所有配置选项，请参阅文档：
 # https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 
 version: 2
@@ -10,7 +10,7 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 60
+    open-pull-requests-limit: 100
     labels:
       - "dependencies"
       - "npm"
@@ -23,7 +23,7 @@ updates:
     directory: "/frontend"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 60
+    open-pull-requests-limit: 100
     labels:
       - "dependencies"
       - "npm"
@@ -37,7 +37,7 @@ updates:
     directory: "/frontend/docs"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 60
+    open-pull-requests-limit: 100
     labels:
       - "dependencies"
       - "npm"
