@@ -15,7 +15,7 @@ LogPaste/
 *.exe
 github-billing-multi-curl.json
 # 允许特定环境文件
-!pnpm-lock.yaml
+!**/pnpm-lock.yaml
 !frontend/.env
 !frontend/.env.local
 
@@ -81,7 +81,6 @@ coverage/
 
 # 包管理器文件
 yarn.lock
-pnpm-lock.yaml
 yarn-error.log
 
 # 其他

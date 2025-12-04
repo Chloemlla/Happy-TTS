@@ -8,11 +8,11 @@ on:
     branches: [main]
     paths:
       - 'package.json'
-      - 'package-lock.json'
+      - 'pnpm-lock.yaml'
       - 'frontend/package.json'
-      - 'frontend/package-lock.json'
+      - 'frontend/pnpm-lock.yaml'
       - 'frontend/docs/package.json'
-      - 'frontend/docs/package-lock.json'
+      - 'frontend/docs/pnpm-lock.yaml'
 
 permissions:
   contents: write
@@ -25,45 +25,45 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20.x'
+          cache: 'pnpm'
 
       - name: Install dependencies for root
-        run: npm ci
+        run: pnpm install --frozen-lockfile
         continue-on-error: true
 
       - name: Install dependencies for frontend
-        run: cd frontend && npm ci
+        run: cd frontend && pnpm install --frozen-lockfile
         continue-on-error: true
 
       - name: Install dependencies for frontend docs
-        run: cd frontend/docs && npm ci
-        continue-on-error: true
-
-      - name: Submit root dependency snapshot
-        uses: advanced-security/maven-dependency-submission-action@v4
-        with:
-          directory: '.'
+        run: cd frontend/docs && pnpm install --frozen-lockfile
         continue-on-error: true
 
       - name: Generate and submit root dependencies
         run: |
-          npm install -g @github/dependency-submission-toolkit
-          npx @github/dependency-submission-toolkit --directory . --token ${{ secrets.USER_PAT }}
+          pnpm add -g @github/dependency-submission-toolkit
+          pnpm dlx @github/dependency-submission-toolkit --directory . --token ${{ secrets.USER_PAT }}
         continue-on-error: true
 
       - name: Submit frontend dependency snapshot
         run: |
           cd frontend
-          npx @github/dependency-submission-toolkit --directory . --token ${{ secrets.USER_PAT }}
+          pnpm dlx @github/dependency-submission-toolkit --directory . --token ${{ secrets.USER_PAT }}
         continue-on-error: true
 
       - name: Submit frontend docs dependency snapshot
         run: |
           cd frontend/docs
-          npx @github/dependency-submission-toolkit --directory . --token ${{ secrets.USER_PAT }}
+          pnpm dlx @github/dependency-submission-toolkit --directory . --token ${{ secrets.USER_PAT }}
         continue-on-error: true
 
       - name: Create dependency snapshots manually

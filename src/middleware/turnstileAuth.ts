@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { TurnstileService } from '../services/turnstileService';
 import logger from '../utils/logger';
+import { config } from '../config/config';
 
 interface TurnstileAuthRequest extends Request {
   turnstileAuth?: {
@@ -21,6 +22,15 @@ export const authenticateTurnstileToken = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    // 如果首次访问验证功能被禁用，直接跳过
+    if (!config.enableFirstVisitVerification) {
+      logger.info('首次访问验证已禁用，跳过Turnstile认证', {
+        ip: req.ip,
+        userAgent: req.get('User-Agent')
+      });
+      next();
+      return;
+    }
     // 从请求头获取访问令牌
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -109,6 +119,16 @@ export const optionalTurnstileAuth = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    // 如果首次访问验证功能被禁用，直接跳过
+    if (!config.enableFirstVisitVerification) {
+      logger.info('首次访问验证已禁用，跳过可选Turnstile认证', {
+        ip: req.ip,
+        userAgent: req.get('User-Agent')
+      });
+      next();
+      return;
+    }
+
     const authHeader = req.headers.authorization;
 
     // 如果没有提供认证头部，直接跳过
@@ -135,6 +155,16 @@ export const authenticateTurnstileTokenForAdmin = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    // 如果首次访问验证功能被禁用，直接跳过
+    if (!config.enableFirstVisitVerification) {
+      logger.info('首次访问验证已禁用，跳过Turnstile认证（管理员模式）', {
+        ip: req.ip,
+        userAgent: req.get('User-Agent')
+      });
+      next();
+      return;
+    }
+
     // 从X-Turnstile-Token头部获取Turnstile访问令牌
     const turnstileToken = req.headers['x-turnstile-token'] as string;
     if (!turnstileToken) {

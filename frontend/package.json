@@ -42,7 +42,7 @@
     "@types/jsdom": "^27.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/validator": "^13.15.2",
-    "axios": "^1.11.0",
+    "axios": "^1.13.2",
     "bcrypt": "^6.0.0",
     "buffer": "^6.0.3",
     "canvg": "^4.0.3",
@@ -74,8 +74,11 @@
     "qrcode.react": "^4.2.0",
     "react": "^19.0.0",
     "react-chartjs-2": "^5.3.0",
+    "react-copy-to-clipboard": "^5.1.0",
+    "react-debounce-input": "^3.3.0",
     "react-dom": "^19.0.0",
     "react-icons": "^5.5.0",
+    "react-inspector": "^9.0.0",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.8.2",
     "react-syntax-highlighter": "^16.1.0",
@@ -84,7 +87,7 @@
     "swagger-ui-react": "^5.27.0",
     "tailwind-merge": "^3.3.1",
     "util": "^0.12.5",
-    "validator": "^13.15.15",
+    "validator": "^13.15.23",
     "vite-plugin-auto-i18n": "^0.0.9"
   },
   "devDependencies": {
@@ -114,9 +117,23 @@
     "tailwindcss": "^3.4.17",
     "terser": "^5.43.0",
     "typescript": "^5.0.2",
-    "vite": "^7.1.3",
+    "vite": "^7.2.6",
     "vite-auto-i18n-plugin": "^1.1.7",
     "vite-plugin-obfuscator": "^1.0.5",
     "vitest": "^4.0.6"
+  },
+  "pnpm": {
+    "overrides": {
+      "marked": "^16.0.0",
+      "react": "^19.0.0",
+      "react-dom": "^19.0.0"
+    },
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "react": "19",
+        "react-dom": "19",
+        "marked": "17"
+      }
+    }
   }
 }
