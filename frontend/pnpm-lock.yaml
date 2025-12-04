@@ -50,8 +50,8 @@ importers:
         specifier: ^9.0.10
         version: 9.0.10
       '@types/validator':
-        specifier: ^13.15.2
-        version: 13.15.3
+        specifier: ^13.15.10
+        version: 13.15.10
       axios:
         specifier: ^1.13.2
         version: 1.13.2
@@ -2318,8 +2318,8 @@ packages:
   '@types/use-sync-external-store@0.0.6':
     resolution: {integrity: sha512-zFDAD+tlpf2r4asuHEj0XH6pY6i0g5NeAHPn+15wk3BV6JA69eERFXC1gyGThDkVa1zCyKr5jox1+2LbV/AMLg==}
 
-  '@types/validator@13.15.3':
-    resolution: {integrity: sha512-7bcUmDyS6PN3EuD9SlGGOxM77F8WLVsrwkxyWxKnxzmXoequ6c7741QBrANq6htVRGOITJ7z72mTP6Z4XyuG+Q==}
+  '@types/validator@13.15.10':
+    resolution: {integrity: sha512-T8L6i7wCuyoK8A/ZeLYt1+q0ty3Zb9+qbSSvrIVitzT3YjZqkTZ40IbRsPanlB4h1QB3JVL1SYCdR6ngtFYcuA==}
 
   '@types/yargs-parser@21.0.3':
     resolution: {integrity: sha512-I4q9QU9MQv4oEOz4tAHJtNz1cwuLxn2F3xcc2iV5WdqLPpUnj30aUuxt1mAxYTG+oe8CZMV/+6rU4S4gRDzqtQ==}
@@ -7974,7 +7974,7 @@ snapshots:
 
   '@types/use-sync-external-store@0.0.6': {}
 
-  '@types/validator@13.15.3': {}
+  '@types/validator@13.15.10': {}
 
   '@types/yargs-parser@21.0.3': {}
 
@@ -8398,7 +8398,7 @@ snapshots:
 
   class-validator@0.14.1:
     dependencies:
-      '@types/validator': 13.15.3
+      '@types/validator': 13.15.10
       libphonenumber-js: 1.12.15
       validator: 13.15.23
 
@@ -9228,7 +9228,7 @@ snapshots:
       '@types/bcrypt': 6.0.0
       '@types/jsdom': 27.0.0
       '@types/jsonwebtoken': 9.0.10
-      '@types/validator': 13.15.3
+      '@types/validator': 13.15.10
       axios: 1.13.2
       bcrypt: 6.0.0
       buffer: 6.0.3
