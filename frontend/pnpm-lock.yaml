@@ -80,8 +80,8 @@ importers:
         specifier: ^9.5.1
         version: 9.5.1
       dompurify:
-        specifier: ^3.2.6
-        version: 3.2.6
+        specifier: ^3.3.0
+        version: 3.3.0
       express-rate-limit:
         specifier: ^7.5.0
         version: 7.5.1(express@5.1.0)
@@ -3133,8 +3133,8 @@ packages:
   dompurify@3.2.4:
     resolution: {integrity: sha512-ysFSFEDVduQpyhzAob/kkuJjf5zWkZD8/A9ywSp1byueyuCfHamrCBa14/Oc2iiB0e51B+NpxSl5gmzn+Ms/mg==}
 
-  dompurify@3.2.6:
-    resolution: {integrity: sha512-/2GogDQlohXPZe6D6NOgQvXLPSYBqIWMnZ8zzOhn09REE4eyAzb+Hed3jhoM9OkuaJ8P6ZGTTVWQKAi8ieIzfQ==}
+  dompurify@3.3.0:
+    resolution: {integrity: sha512-r+f6MYR1gGN1eJv0TVQbhA7if/U7P87cdPl3HN5rikqaBSBxLiCb/b9O+2eG0cxz0ghyU+mU1QkbsOwERMYlWQ==}
 
   domutils@3.2.2:
     resolution: {integrity: sha512-6kZKyUajlDuqlHKVX1w7gyslj9MPIXzIFiz/rGu35uC1wMi+kMhQwGhl4lt9unC9Vb9INnY9Z3/ZA3+FhASLaw==}
@@ -8820,7 +8820,7 @@ snapshots:
     optionalDependencies:
       '@types/trusted-types': 2.0.7
 
-  dompurify@3.2.6:
+  dompurify@3.3.0:
     optionalDependencies:
       '@types/trusted-types': 2.0.7
 
@@ -9221,7 +9221,7 @@ snapshots:
       crypto-js: 4.2.0
       date-fns: 4.1.0
       docx: 9.5.1
-      dompurify: 3.2.6
+      dompurify: 3.3.0
       express-rate-limit: 7.5.1(express@5.1.0)
       form-data: 4.0.4
       framer-motion: 12.23.12(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -9747,7 +9747,7 @@ snapshots:
     optionalDependencies:
       canvg: 3.0.11
       core-js: 3.45.1
-      dompurify: 3.2.6
+      dompurify: 3.3.0
       html2canvas: 1.4.1
 
   jszip@3.10.1:
@@ -9999,7 +9999,7 @@ snapshots:
       d3-sankey: 0.12.3
       dagre-d3-es: 7.0.11
       dayjs: 1.11.18
-      dompurify: 3.2.6
+      dompurify: 3.3.0
       katex: 0.16.22
       khroma: 2.1.0
       lodash-es: 4.17.21
