@@ -5,6 +5,9 @@ import fs from 'fs';
 import path from 'path';
 import { EmailService, getEmailQuota, addEmailUsage } from '../services/emailService';
 import { TurnstileService } from '../services/turnstileService';
+import { verificationTokenStorage, VerificationTokenType } from '../models/verificationTokenModel';
+import * as VerificationService from '../services/verificationService';
+import { generateWelcomeEmailHtml, generateVerificationLinkEmailHtml, generatePasswordResetLinkEmailHtml } from '../templates/emailTemplates';
 
 // 支持的主流邮箱后缀
 const allowedDomains = [
@@ -22,6 +25,11 @@ const resetPasswordCodeMap = new Map(); // email -> { code, time, userId }
 
 // 顶部 import 后添加类型声明
 type UserWithVerified = User & { verified?: boolean };
+
+// 获取前端基础URL
+function getFrontendBaseUrl(): string {
+    return process.env.FRONTEND_URL || 'https://tts.hapxs.com/';
+}
 
 // 生成邮箱验证码HTML模板（与TtsPage UI风格统一）
 function generateVerificationEmailHtml(username: string, code: string): string {
@@ -263,7 +271,7 @@ function generateVerificationEmailHtml(username: string, code: string): string {
 }
 
 // 欢迎邮件 HTML 模板
-function generateWelcomeEmailHtml(username: string): string {
+function ggenerateWelcomeEmailHtml(username: string): string {
     return `
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -412,155 +420,25 @@ function generateWelcomeEmailHtml(username: string): string {
     `.trim();
 }
 
-// 密码重置邮件 HTML 模板
-function generatePasswordResetEmailHtml(username: string, code: string): string {
-    return `
-<!DOCTYPE html>
-<html lang="zh-CN">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Synapse 密码重置验证码</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: #f7fbff;
-            color: #1f2937;
-            padding: 24px;
-        }
-
-        .card {
-            max-width: 680px;
-            margin: 0 auto;
-            background: #ffffff;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
-            overflow: hidden;
-            border: 1px solid #eef2f7;
-        }
-
-        .header {
-            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-            color: #fff;
-            padding: 36px 28px;
-            text-align: center;
-        }
-
-        .header h1 {
-            font-size: 28px;
-            margin: 0;
-            display: inline-flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .icon {
-            width: 40px;
-            height: 40px;
-            background: rgba(0, 0, 0, 0.22);
-            border-radius: 50%;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-            border: 1px solid rgba(255, 255, 255, 0.55);
-        }
-
-        .badge {
-            display: inline-block;
-            margin-top: 8px;
-            background: rgba(255, 255, 255, 0.18);
-            padding: 6px 10px;
-            border-radius: 999px;
-            font-size: 12px;
-        }
-
-        .content {
-            padding: 28px;
-        }
-
-        .hello {
-            font-size: 18px;
-            color: #374151;
-            margin-bottom: 16px;
-        }
-
-        .code-section {
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            padding: 16px 18px;
-        }
-
-        .code-label {
-            color: #374151;
-            font-size: 16px;
-            margin-bottom: 15px;
-            font-weight: 500;
-        }
-
-        .verification-code {
-            font-size: 36px;
-            font-weight: bold;
-            color: #3b82f6;
-            letter-spacing: 6px;
-            font-family: 'Courier New', monospace;
-            background: white;
-            padding: 20px 30px;
-            border-radius: 12px;
-            border: 2px solid #3b82f6;
-            display: inline-block;
-            margin: 10px 0;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
-        }
-
-        .footer {
-            padding: 20px 28px;
-            border-top: 1px solid #eef2f7;
-            color: #6b7280;
-            font-size: 13px;
-            text-align: center;
-            background: #f9fafb;
-        }
-    </style>
-</head>
-
-<body>
-    <div class="card">
-        <div class="header" style="text-align:center;">
-            <h1 style="margin:0;text-align:center;"><span class="icon" style="display:inline-block;width:40px;height:40px;line-height:40px;background:rgba(0,0,0,0.22);border-radius:50%;text-align:center;color:#ffffff;font-weight:700;border:1px solid rgba(255,255,255,0.55);">H</span>
-                <span class="logo-text">Synapse</span>
-            </h1>
-            <div class="badge">让文字拥有声音的力量</div>
-        </div>
-        <div class="content">
-            <p class="hello">亲爱的 <strong>${username}</strong>，您正在重置密码。</p>
-            <div class="code-section">
-                <div class="code-label">您的密码重置验证码</div>
-                <div class="verification-code">${code}</div>
-                <p style="color: #6b7280; font-size: 14px; margin-top: 10px;">
-                    验证码有效期为 10 分钟
-                </p>
-            </div>
-        </div>
-        <div class="footer">
-            Synapse 团队 · 感谢使用我们的服务！
-        </div>
-    </div>
-</body>
-
-</html>
-    `.trim();
-}
-
 export class AuthController {
 
     public static async register(req: Request, res: Response) {
         try {
-            const { username, email, password } = req.body;
+            const { username, email, password, fingerprint, clientIP } = req.body;
             if (!username || !email || !password) {
                 return res.status(400).json({ error: '请提供所有必需的注册信息' });
+            }
+            if (!fingerprint) {
+                return res.status(400).json({ error: '设备指纹信息缺失' });
+            }
+
+            // 获取客户端IP（优先使用前端发送的IP，否则使用后端获取的）
+            const serverIP = req.ip || req.connection.remoteAddress || 'unknown';
+            const ipAddress = clientIP || serverIP;
+
+            // 记录IP比对情况（用于调试和安全分析）
+            if (clientIP && clientIP !== serverIP && clientIP !== 'unknown' && serverIP !== 'unknown') {
+                logger.info(`[注册] IP差异检测: 前端=${clientIP}, 后端=${serverIP}, email=${email}`);
             }
             // 禁止用户名为admin等保留字段，仅注册时校验
             if (username && ['admin', 'root', 'system', 'test', 'administrator'].includes(username.toLowerCase())) {
@@ -592,41 +470,74 @@ export class AuthController {
                 // 配额查询异常不阻断注册流程，但记录日志
                 logger.warn(`[邮箱验证码] 配额查询异常: ${email}`, e);
             }
-            // 生成8位数字验证码
-            let code = '';
-            for (let i = 0; i < 8; i++) {
-                code += Math.floor(Math.random() * 10);
-            }
-            const now = Date.now();
-            // 缓存注册信息和验证码
-            emailCodeMap.set(email, { code, time: now, regInfo: { username, email, password } });
-            // 发送邮件验证码
+            // 创建验证令牌
+            const verificationToken = verificationTokenStorage.createToken(
+                VerificationTokenType.EMAIL_REGISTRATION,
+                email,
+                fingerprint,
+                ipAddress,
+                { username, email, password }
+            );
+
+            // 生成验证链接
+            const frontendBaseUrl = getFrontendBaseUrl();
+            const verificationLink = `${frontendBaseUrl}/verify-email?token=${verificationToken.token}`;
+
+            // 发送邮件验证链接
             try {
-                const emailHtml = generateVerificationEmailHtml(username, code);
+                const emailHtml = generateVerificationLinkEmailHtml(username, verificationLink);
                 const emailResult = await EmailService.sendHtmlEmail(
                     [email],
-                    'Synapse 邮箱验证码',
+                    'Synapse 邮箱验证',
                     emailHtml
                 );
 
                 if (emailResult.success) {
-                    try { await addEmailUsage(email, 1); } catch (e) { logger.warn('[邮箱验证码] 配额递增失败', { email, error: e, code }); }
-                    logger.info(`[邮箱验证码] 成功发送到: ${email}，验证码：${code}`);
-                    res.json({ needVerify: true });
+                    try { await addEmailUsage(email, 1); } catch (e) { logger.warn('[邮箱验证链接] 配额递增失败', { email, error: e }); }
+                    logger.info(`[邮箱验证链接] 成功发送到: ${email}`);
+                    res.json({ needVerify: true, message: '验证链接已发送到邮箱，请查收' });
                 } else {
-                    logger.error(`[邮箱验证码] 发送失败: ${email}, 错误: ${emailResult.error}，验证码：${code}`);
-                    // 清理缓存的注册信息
-                    emailCodeMap.delete(email);
-                    res.status(500).json({ error: '验证码发送失败，请稍后重试' });
+                    logger.error(`[邮箱验证链接] 发送失败: ${email}, 错误: ${emailResult.error}`);
+                    verificationTokenStorage.deleteToken(verificationToken.token);
+                    res.status(500).json({ error: '验证链接发送失败，请稍后重试' });
                 }
             } catch (emailError) {
-                logger.error(`[邮箱验证码] 发送异常: ${email}`, emailError, `验证码：${code}`);
-                // 清理缓存的注册信息
-                emailCodeMap.delete(email);
-                res.status(500).json({ error: '验证码发送失败，请稍后重试' });
+                logger.error(`[邮箱验证链接] 发送异常: ${email}`, emailError);
+                verificationTokenStorage.deleteToken(verificationToken.token);
+                res.status(500).json({ error: '验证链接发送失败，请稍后重试' });
             }
         } catch (error) {
             res.status(500).json({ error: '注册失败' });
+        }
+    }
+
+    // 新增：验证邮箱链接
+    public static async verifyEmailLink(req: Request, res: Response) {
+        try {
+            const { token, fingerprint } = req.body;
+
+            if (!token) {
+                return res.status(400).json({ error: '验证令牌缺失' });
+            }
+
+            if (!fingerprint) {
+                return res.status(400).json({ error: '设备指纹信息缺失' });
+            }
+
+            // 获取客户端IP
+            const ipAddress = req.ip || req.connection.remoteAddress || 'unknown';
+
+            // 使用验证服务验证邮箱链接
+            const result = await VerificationService.verifyEmailLink(token, fingerprint, ipAddress);
+
+            if (result.success) {
+                res.json({ success: true, message: result.message });
+            } else {
+                res.status(400).json({ error: result.error });
+            }
+        } catch (error) {
+            logger.error('[邮箱验证] 验证失败:', error);
+            res.status(500).json({ error: '邮箱验证失败' });
         }
     }
 
@@ -979,12 +890,16 @@ export class AuthController {
         }
     }
 
-    // 忘记密码 - 发送重置验证码
+    // 忘记密码 - 发送重置验证链接
     public static async forgotPassword(req: Request, res: Response) {
         try {
-            const { email, turnstileToken } = req.body;
+            const { email, turnstileToken, fingerprint, clientIP } = req.body;
             if (!email || !emailPattern.test(email)) {
                 return res.status(400).json({ error: '邮箱格式不正确' });
+            }
+
+            if (!fingerprint) {
+                return res.status(400).json({ error: '设备指纹信息缺失' });
             }
 
             // Turnstile验证（如果提供了token）
@@ -1001,14 +916,7 @@ export class AuthController {
             const user = await UserStorage.getUserByEmail(email);
             if (!user) {
                 // 为了安全，不透露用户是否存在
-                return res.json({ success: true, message: '如果该邮箱已注册，您将收到重置密码的验证码' });
-            }
-
-            // 检查是否在60秒内已发送过验证码
-            const entry = resetPasswordCodeMap.get(email);
-            const now = Date.now();
-            if (entry && now - entry.time < 60000) {
-                return res.status(429).json({ error: '请60秒后再试' });
+                return res.json({ success: true, message: '如果该邮箱已注册，您将收到密码重置链接' });
             }
 
             // 邮件配额检查
@@ -1016,34 +924,47 @@ export class AuthController {
                 const quota = await getEmailQuota(email);
                 if (quota.used >= quota.total) {
                     logger.warn(`[密码重置] 配额已用尽: ${email}, used=${quota.used}, total=${quota.total}`);
-                    return res.status(429).json({ error: '验证码发送次数已达上限，请明日再试' });
+                    return res.status(429).json({ error: '重置链接发送次数已达上限，请明日再试' });
                 }
             } catch (e) {
                 logger.warn(`[密码重置] 配额查询异常: ${email}`, e);
             }
 
-            // 生成8位数字验证码
-            let code = '';
-            for (let i = 0; i < 8; i++) {
-                code += Math.floor(Math.random() * 10);
+            // 获取客户端IP（优先使用前端发送的IP，否则使用后端获取的）
+            const serverIP = req.ip || req.connection.remoteAddress || 'unknown';
+            const ipAddress = clientIP || serverIP;
+
+            // 记录IP比对情况（用于调试和安全分析）
+            if (clientIP && clientIP !== serverIP && clientIP !== 'unknown' && serverIP !== 'unknown') {
+                logger.info(`[密码重置] IP差异检测: 前端=${clientIP}, 后端=${serverIP}, email=${email}`);
             }
 
-            // 缓存验证码和用户ID（验证码10分钟有效）
-            resetPasswordCodeMap.set(email, { code, time: now, userId: user.id });
+            // 创建验证令牌
+            const verificationToken = verificationTokenStorage.createToken(
+                VerificationTokenType.PASSWORD_RESET,
+                email,
+                fingerprint,
+                ipAddress,
+                { userId: user.id, username: user.username, email }
+            );
 
-            // 发送邮件验证码
+            // 生成重置链接
+            const frontendBaseUrl = getFrontendBaseUrl();
+            const resetLink = `${frontendBaseUrl}/reset-password?token=${verificationToken.token}`;
+
+            // 发送邮件重置链接
             try {
-                const emailHtml = generatePasswordResetEmailHtml(user.username, code);
+                const emailHtml = generatePasswordResetLinkEmailHtml(user.username, resetLink);
                 const emailResult = await EmailService.sendHtmlEmail(
                     [email],
-                    'Synapse 密码重置验证码',
+                    'Synapse 密码重置',
                     emailHtml
                 );
 
                 if (emailResult.success) {
                     try { await addEmailUsage(email, 1); } catch (e) { logger.warn('[密码重置] 配额递增失败', { email, error: e }); }
-                    logger.info(`[密码重置] 成功发送到: ${email}，验证码：${code}`);
-                    res.json({ success: true, message: '验证码已发送到您的邮箱' });
+                    logger.info(`[密码重置] 成功发送到: ${email}`);
+                    res.json({ success: true, message: '重置链接已发送到您的邮箱' });
                 } else {
                     logger.error(`[密码重置] 发送失败: ${email}, 错误: ${emailResult.error}`);
                     resetPasswordCodeMap.delete(email);
@@ -1060,7 +981,41 @@ export class AuthController {
         }
     }
 
-    // 重置密码 - 验证码验证并更新密码
+    // 新增：密码重置链接验证
+    public static async resetPasswordLink(req: Request, res: Response) {
+        try {
+            const { token, fingerprint, newPassword } = req.body;
+
+            if (!token) {
+                return res.status(400).json({ error: '验证令牌缺失' });
+            }
+
+            if (!fingerprint) {
+                return res.status(400).json({ error: '设备指纹信息缺失' });
+            }
+
+            if (!newPassword) {
+                return res.status(400).json({ error: '请设置新密码' });
+            }
+
+            // 获取客户端IP
+            const ipAddress = req.ip || req.connection.remoteAddress || 'unknown';
+
+            // 使用验证服务重置密码
+            const result = await VerificationService.verifyPasswordResetLink(token, fingerprint, ipAddress, newPassword);
+
+            if (result.success) {
+                res.json({ success: true, message: result.message });
+            } else {
+                res.status(400).json({ error: result.error });
+            }
+        } catch (error) {
+            logger.error('[密码重置] 重置密码异常:', error);
+            res.status(500).json({ error: '密码重置失败' });
+        }
+    }
+
+    // 重置密码 - 验证码验证并更新密码（旧版）
     public static async resetPassword(req: Request, res: Response) {
         try {
             const { email, code, newPassword } = req.body;

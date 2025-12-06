@@ -69,4 +69,7 @@ export const config = {
 
   // 首次访问验证功能开关
   enableFirstVisitVerification: process.env.ENABLE_FIRST_VISIT_VERIFICATION !== 'false', // 默认启用，设置为 'false' 时禁用
+
+  // 前端基础URL
+  frontendBaseUrl: process.env.FRONTEND_URL || 'https://tts.hapxs.com/',
 };

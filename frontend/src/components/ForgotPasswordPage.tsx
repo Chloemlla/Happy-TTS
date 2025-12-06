@@ -6,6 +6,7 @@ import { TurnstileWidget } from './TurnstileWidget';
 import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
 import { FaEnvelope, FaArrowLeft, FaVolumeUp } from 'react-icons/fa';
 import getApiBaseUrl from '../api';
+import { getFingerprint, getClientIP } from '../utils/fingerprint';
 
 export const ForgotPasswordPage: React.FC = () => {
     const { setNotification } = useNotification();
@@ -72,6 +73,18 @@ export const ForgotPasswordPage: React.FC = () => {
         setLoading(true);
 
         try {
+            // 获取设备指纹和客户端IP
+            const [fingerprint, clientIP] = await Promise.all([
+                getFingerprint(),
+                getClientIP()
+            ]);
+            
+            if (!fingerprint) {
+                setError('无法获取设备信息，请稍后重试');
+                setLoading(false);
+                return;
+            }
+            
             const response = await fetch(getApiBaseUrl() + '/api/auth/forgot-password', {
                 method: 'POST',
                 headers: {
@@ -80,6 +93,8 @@ export const ForgotPasswordPage: React.FC = () => {
                 },
                 body: JSON.stringify({
                     email: sanitizedEmail,
+                    fingerprint: fingerprint,
+                    clientIP: clientIP, // 发送客户端获取的IP作为参考
                     turnstileToken: turnstileConfig.siteKey ? turnstileToken : undefined
                 }),
                 credentials: 'same-origin'
@@ -89,14 +104,14 @@ export const ForgotPasswordPage: React.FC = () => {
 
             if (response.ok && data.success) {
                 setSuccess(true);
-                setNotification({ message: 'Verification code sent to your email', type: 'success' });
-                // Navigate to reset password page after 2 seconds
-                setTimeout(() => {
-                    navigate('/reset-password', { state: { email: sanitizedEmail } });
-                }, 2000);
+                setNotification({ 
+                    message: data.message || '重置链接已发送到您的邮箱，请点击链接重置密码', 
+                    type: 'success' 
+                });
+                // 不再自动跳转，显示友好提示
             } else {
-                setError(data.error || 'Failed to send verification code');
-                setNotification({ message: data.error || 'Failed to send verification code', type: 'error' });
+                setError(data.error || '发送重置链接失败');
+                setNotification({ message: data.error || '发送重置链接失败', type: 'error' });
             }
         } catch (err: any) {
             setError('Network error, please try again');
@@ -121,24 +136,64 @@ export const ForgotPasswordPage: React.FC = () => {
                 {/* Form Card */}
                 <div className="bg-white rounded-2xl shadow-xl border border-gray-100 px-8 py-8 hover:shadow-2xl transition-all duration-300">
                     {success ? (
-                        <div className="text-center py-8">
-                            <div className="mb-4 flex justify-center">
-                                <div className="rounded-full bg-green-100 p-3">
-                                    <svg className="h-12 w-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                        <div className="py-6">
+                            <div className="text-center mb-6">
+                                <div className="w-20 h-20 bg-gradient-to-br from-green-100 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                                    <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
                                 </div>
+                                <h3 className="text-2xl font-bold text-gray-900 mb-3">Reset Link Sent!</h3>
+                                <p className="text-gray-600 mb-2">We've sent a password reset link to</p>
+                                <p className="font-semibold text-blue-600">{email}</p>
                             </div>
-                            <h3 className="text-xl font-semibold text-gray-900 mb-2">Email Sent!</h3>
-                            <p className="text-gray-600 mb-4">Check your inbox for the verification code</p>
-                            <p className="text-sm text-gray-500">Redirecting to reset password page...</p>
+
+                            <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded-r-lg">
+                                <div className="flex items-start">
+                                    <svg className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                    </svg>
+                                    <div className="text-sm text-blue-800">
+                                        <p className="font-semibold mb-2">Next Steps:</p>
+                                        <ul className="list-disc list-inside space-y-1">
+                                            <li>Check your email inbox</li>
+                                            <li>Find the email from Synapse</li>
+                                            <li>Click the "Reset Password" button</li>
+                                            <li>Use the <strong>same device and network</strong> to open the link</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-amber-50 border-l-4 border-amber-500 p-4 mb-6 rounded-r-lg">
+                                <div className="flex items-start">
+                                    <svg className="w-5 h-5 text-amber-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                    </svg>
+                                    <div className="text-sm text-amber-800">
+                                        <p className="font-semibold mb-1">Important Notice</p>
+                                        <p>The reset link is valid for <strong>10 minutes</strong></p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <p className="text-sm text-gray-500 text-center mb-4">
+                                Didn't receive the email? Check your spam folder
+                            </p>
+                            
+                            <Link 
+                                to="/login" 
+                                className="block w-full py-3 px-4 text-center border border-transparent rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                            >
+                                Back to Login
+                            </Link>
                         </div>
                     ) : (
                         <>
                             <div className="mb-6 text-center">
                                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Reset Password</h2>
                                 <p className="text-sm text-gray-600">
-                                    Enter your email address and we'll send you a verification code
+                                    Enter your email address and we'll send you a reset link
                                 </p>
                             </div>
 
@@ -205,11 +260,11 @@ export const ForgotPasswordPage: React.FC = () => {
                                 <button
                                     type="submit"
                                     disabled={loading || (!!turnstileConfig.siteKey && !turnstileVerified)}
-                                    aria-label={loading ? 'Sending...' : 'Send verification code'}
+                                    aria-label={loading ? 'Sending...' : 'Send reset link'}
                                     aria-busy={loading}
                                     className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
                                 >
-                                    {loading ? 'Sending...' : 'Send Verification Code'}
+                                    {loading ? 'Sending...' : 'Send Reset Link'}
                                 </button>
                             </form>
 

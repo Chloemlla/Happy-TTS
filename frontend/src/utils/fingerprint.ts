@@ -201,24 +201,41 @@ function isUserLoggedIn(): boolean {
   return !!token;
 }
 
-// 获取客户端IP地址
+// 获取客户端IP地址（增强版，支持多种响应格式）
 export const getClientIP = async (): Promise<string> => {
   try {
     const response = await fetch(`${getApiBaseUrl()}/ip`, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json'
+        'Accept': 'application/json'
       }
     });
 
     if (!response.ok) {
-      throw new Error('获取IP地址失败');
+      console.warn(`获取IP地址失败: HTTP ${response.status}`);
+      return 'unknown';
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      console.warn(`预期JSON响应，但收到: ${contentType}`);
+      return 'unknown';
     }
 
     const data = await response.json();
-    return data.ip || 'unknown';
+    
+    // 兼容多种字段命名
+    const ip = data?.ip || data?.query || data?.clientIp || '';
+    
+    if (!ip) {
+      console.warn('IP信息数据格式无效:', data);
+      return 'unknown';
+    }
+    
+    console.log('成功获取客户端IP:', ip);
+    return ip;
   } catch (error) {
-    console.error('获取IP地址失败:', error);
+    console.error('获取IP地址异常:', error);
     return 'unknown';
   }
 };

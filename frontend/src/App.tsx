@@ -26,6 +26,8 @@ const LoginPage = React.lazy(() => import('./components/LoginPage').then(module 
 const RegisterPage = React.lazy(() => import('./components/RegisterPage').then(module => ({ default: module.RegisterPage })));
 const ForgotPasswordPage = React.lazy(() => import('./components/ForgotPasswordPage').then(module => ({ default: module.ForgotPasswordPage })));
 const ResetPasswordPage = React.lazy(() => import('./components/ResetPasswordPage').then(module => ({ default: module.ResetPasswordPage })));
+const EmailVerifyPage = React.lazy(() => import('./components/EmailVerifyPage').then(module => ({ default: module.EmailVerifyPage })));
+const ResetPasswordLinkPage = React.lazy(() => import('./components/ResetPasswordLinkPage').then(module => ({ default: module.ResetPasswordLinkPage })));
 const TtsPage = React.lazy(() => import('./components/TtsPage').then(module => ({ default: module.TtsPage })));
 const PolicyPage = React.lazy(() => import('./components/PolicyPage'));
 const Footer = React.lazy(() => import('./components/Footer'));
@@ -1111,7 +1113,27 @@ const App: React.FC = () => {
                           exit="out"
                           transition={pageTransition}
                         >
-                          <ResetPasswordPage />
+                          <ResetPasswordLinkPage />
+                        </m.div>
+                      </Suspense>
+                    )
+                  }
+                />
+                <Route
+                  path="/verify-email"
+                  element={
+                    user ? (
+                      <Navigate to="/" replace />
+                    ) : (
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <m.div
+                          variants={pageVariants}
+                          initial="initial"
+                          animate="in"
+                          exit="out"
+                          transition={pageTransition}
+                        >
+                          <EmailVerifyPage />
                         </m.div>
                       </Suspense>
                     )

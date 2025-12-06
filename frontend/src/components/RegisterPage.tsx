@@ -8,6 +8,7 @@ import VerifyCodeInput from './VerifyCodeInput';
 import { AnimatePresence, motion } from 'framer-motion';
 import getApiBaseUrl from '../api';
 import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaUser, FaVolumeUp, FaArrowLeft, FaCheckCircle } from 'react-icons/fa';
+import { getFingerprint, getClientIP } from '../utils/fingerprint';
 
 interface PasswordStrength {
     score: number;
@@ -166,11 +167,25 @@ export const RegisterPage: React.FC = () => {
         try {
             const sanitizedUsername = DOMPurify.sanitize(username).trim();
             const sanitizedEmail = DOMPurify.sanitize(email).trim();
+            
+            // 获取设备指纹和客户端IP
+            const [fingerprint, clientIP] = await Promise.all([
+                getFingerprint(),
+                getClientIP()
+            ]);
+            
+            if (!fingerprint) {
+                setError('无法获取设备信息，请稍后重试');
+                setLoading(false);
+                return;
+            }
 
             const requestBody: any = {
                 username: sanitizedUsername,
                 email: sanitizedEmail,
-                password: password
+                password: password,
+                fingerprint: fingerprint,
+                clientIP: clientIP // 发送客户端获取的IP作为参考
             };
 
             if (turnstileConfig.siteKey && turnstileToken) {
@@ -186,9 +201,15 @@ export const RegisterPage: React.FC = () => {
             const data = await res.json();
 
             if (data && data.needVerify) {
+                // 使用验证链接方式，不再显示验证码输入框
+                setNotification({ 
+                    message: data.message || '验证链接已发送到您的邮箱，请点击链接完成注册', 
+                    type: 'success' 
+                });
+                setError('');
+                // 显示成功提示页面
                 setShowEmailVerify(true);
                 setPendingEmail(sanitizedEmail);
-                setNotification({ message: '验证码已发送到邮箱，请查收', type: 'info' });
                 setTurnstileToken('');
                 setTurnstileVerified(false);
                 setTurnstileKey(k => k + 1);
@@ -535,78 +556,70 @@ export const RegisterPage: React.FC = () => {
                             <div className="h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
 
                             <div className="p-8">
-                                <div className="text-center mb-8">
-                                    <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                        <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                <div className="text-center mb-6">
+                                    <div className="w-20 h-20 bg-gradient-to-br from-green-100 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                                        <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
                                     </div>
-                                    <h3 id="verify-email-title" className="text-2xl font-bold text-gray-900 mb-2">验证邮箱</h3>
+                                    <h3 id="verify-email-title" className="text-2xl font-bold text-gray-900 mb-4">验证邮件已发送</h3>
                                     <p id="verify-email-description" className="text-gray-600 leading-relaxed">
-                                        请输入发送到 <br />
-                                        <span className="font-semibold text-gray-900">{pendingEmail}</span> <br />
-                                        的验证码
+                                        我们已向 <br />
+                                        <span className="font-semibold text-blue-600">{pendingEmail}</span> <br />
+                                        发送了验证链接
                                     </p>
                                 </div>
 
-                                <div className="mb-8">
-                                    <VerifyCodeInput
-                                        length={8}
-                                        inputClassName="w-12 h-12 text-center text-xl font-bold border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-gray-50 focus:bg-white"
-                                        onComplete={async (code) => {
-                                            setVerifyCode(code);
-                                            if (code.length === 8 && !verifyLoading) {
-                                                await handleVerifyCode(code);
-                                            }
-                                        }}
-                                        loading={verifyLoading}
-                                        error={verifyError}
-                                    />
+                                <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded-r-lg">
+                                    <div className="flex items-start">
+                                        <svg className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                        </svg>
+                                        <div className="text-sm text-blue-800">
+                                            <p className="font-semibold mb-2">下一步操作：</p>
+                                            <ul className="list-disc list-inside space-y-1">
+                                                <li>打开您的邮箱</li>
+                                                <li>找到来自 Synapse 的验证邮件</li>
+                                                <li>点击邮件中的验证按钮</li>
+                                                <li>使用<strong>相同的设备和网络</strong>打开链接</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-amber-50 border-l-4 border-amber-500 p-4 mb-6 rounded-r-lg">
+                                    <div className="flex items-start">
+                                        <svg className="w-5 h-5 text-amber-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                        </svg>
+                                        <div className="text-sm text-amber-800">
+                                            <p className="font-semibold mb-1">重要提示</p>
+                                            <p>验证链接<strong>10分钟</strong>内有效，请及时验证</p>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div className="space-y-3">
                                     <button
                                         type="button"
-                                        className={`w-full py-4 px-6 rounded-2xl font-semibold text-lg transition-all duration-200 ${verifyCode.length === 8 && !verifyLoading
-                                                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
-                                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                            }`}
-                                        onClick={() => handleVerifyCode()}
-                                        disabled={verifyLoading || verifyCode.length !== 8}
-                                        aria-label={verifyLoading ? '正在验证' : '创建账户'}
-                                        aria-busy={verifyLoading}
+                                        className="w-full py-4 px-6 rounded-2xl font-semibold text-lg transition-all duration-200 bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                                        onClick={() => {
+                                            setShowEmailVerify(false);
+                                            navigate('/login');
+                                        }}
                                     >
-                                        {verifyLoading ? (
-                                            <div className="flex items-center justify-center space-x-2">
-                                                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" role="status" aria-label="加载中"></div>
-                                                <span>验证中...</span>
-                                            </div>
-                                        ) : '创建账户'}
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        className={`w-full py-3 px-6 rounded-2xl font-medium transition-all duration-200 ${verifyResendTimer > 0
-                                                ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
-                                                : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                                            }`}
-                                        onClick={handleResendVerifyCode}
-                                        disabled={verifyLoading || verifyResendTimer > 0}
-                                        aria-label={verifyResendTimer > 0 ? `${verifyResendTimer}秒后可重新发送` : '重新发送验证码'}
-                                    >
-                                        {verifyResendTimer > 0 ? `重新发送验证码 (${verifyResendTimer}s)` : '重新发送验证码'}
+                                        前往登录页面
                                     </button>
                                 </div>
 
                                 <div className="mt-6 text-center">
-                                    <p className="text-sm text-gray-500" role="status">
-                                        没有收到验证码？请检查垃圾邮件文件夹
+                                    <p className="text-sm text-gray-500 mb-2" role="status">
+                                        没有收到邮件？请检查垃圾邮件文件夹
                                     </p>
                                     <button
                                         type="button"
-                                        className="mt-2 text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                                        className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
                                         onClick={() => setShowEmailVerify(false)}
-                                        disabled={verifyLoading}
                                         aria-label="返回修改邮箱地址"
                                     >
                                         返回修改邮箱

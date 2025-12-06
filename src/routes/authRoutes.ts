@@ -93,9 +93,32 @@ router.post('/passkey-verify', AuthController.passkeyVerify);
 
 /**
  * @openapi
+ * /auth/verify-email-link:
+ *   post:
+ *     summary: 验证邮箱链接
+ *     description: 通过点击邮件中的验证链接完成注册
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               token:
+ *                 type: string
+ *               fingerprint:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 验证成功
+ */
+router.post('/verify-email-link', AuthController.verifyEmailLink);
+
+/**
+ * @openapi
  * /auth/verify-email:
  *   post:
- *     summary: 验证邮箱
+ *     summary: 验证邮箱（旧版验证码）
  *     description: 验证邮箱接口
  *     requestBody:
  *       required: true
@@ -158,9 +181,34 @@ router.post('/forgot-password', AuthController.forgotPassword);
 
 /**
  * @openapi
+ * /auth/reset-password-link:
+ *   post:
+ *     summary: 重置密码链接
+ *     description: 通过点击邮件中的重置链接完成密码重置
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               token:
+ *                 type: string
+ *               fingerprint:
+ *                 type: string
+ *               newPassword:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 密码重置成功
+ */
+router.post('/reset-password-link', AuthController.resetPasswordLink);
+
+/**
+ * @openapi
  * /auth/reset-password:
  *   post:
- *     summary: 重置密码
+ *     summary: 重置密码（旧版验证码）
  *     description: 使用验证码重置密码
  *     requestBody:
  *       required: true
