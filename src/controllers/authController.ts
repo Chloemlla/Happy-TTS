@@ -429,7 +429,7 @@ export class AuthController {
                 return res.status(400).json({ error: '请提供所有必需的注册信息' });
             }
             if (!fingerprint) {
-                return res.status(400).json({ error: '设备指纹信息缺失' });
+                return res.status(400).json({ error: '设备信息缺失' });
             }
 
             // 获取客户端IP（优先使用前端发送的IP，否则使用后端获取的）
@@ -521,7 +521,7 @@ export class AuthController {
             }
 
             if (!fingerprint) {
-                return res.status(400).json({ error: '设备指纹信息缺失' });
+                return res.status(400).json({ error: '设备信息缺失' });
             }
 
             // 获取客户端IP
@@ -899,7 +899,7 @@ export class AuthController {
             }
 
             if (!fingerprint) {
-                return res.status(400).json({ error: '设备指纹信息缺失' });
+                return res.status(400).json({ error: '设备信息缺失' });
             }
 
             // Turnstile验证（如果提供了token）
@@ -991,7 +991,7 @@ export class AuthController {
             }
 
             if (!fingerprint) {
-                return res.status(400).json({ error: '设备指纹信息缺失' });
+                return res.status(400).json({ error: '设备信息缺失' });
             }
 
             if (!newPassword) {
