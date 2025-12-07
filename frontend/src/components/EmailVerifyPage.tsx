@@ -16,7 +16,7 @@ export const EmailVerifyPage: React.FC = () => {
     useEffect(() => {
         const verifyEmail = async () => {
             const token = searchParams.get('token');
-            
+
             if (!token) {
                 setError('验证链接无效：缺少验证令牌');
                 setLoading(false);
@@ -68,7 +68,7 @@ export const EmailVerifyPage: React.FC = () => {
     }, [searchParams, navigate, setNotification]);
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12 px-6">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12 px-6 animate-gradient py-8 rounded-3xl">
             <div className="w-full max-w-md">
                 {/* Header */}
                 <div className="mb-8 text-center animate-slideInUp">
@@ -94,7 +94,7 @@ export const EmailVerifyPage: React.FC = () => {
                             </div>
                             <h3 className="text-2xl font-bold text-gray-900 mb-4">验证成功！</h3>
                             <p className="text-gray-600 mb-6">您的邮箱已成功验证，账户创建完成</p>
-                            
+
                             <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-6 rounded-r-lg text-left">
                                 <div className="flex items-start">
                                     <svg className="w-5 h-5 text-green-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -106,9 +106,9 @@ export const EmailVerifyPage: React.FC = () => {
                                     </div>
                                 </div>
                             </div>
-                            
-                            <Link 
-                                to="/login" 
+
+                            <Link
+                                to="/login"
                                 className="inline-block w-full py-3 px-4 text-center border border-transparent rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
                             >
                                 立即登录
@@ -121,7 +121,7 @@ export const EmailVerifyPage: React.FC = () => {
                             </div>
                             <h3 className="text-2xl font-bold text-gray-900 mb-4">验证失败</h3>
                             <p className="text-gray-600 mb-6">{error}</p>
-                            
+
                             <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded-r-lg text-left">
                                 <div className="flex items-start">
                                     <svg className="w-5 h-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -138,16 +138,16 @@ export const EmailVerifyPage: React.FC = () => {
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <div className="space-y-3">
-                                <Link 
-                                    to="/register" 
+                                <Link
+                                    to="/register"
                                     className="block w-full py-3 px-4 text-center border border-transparent rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
                                 >
                                     重新注册
                                 </Link>
-                                <Link 
-                                    to="/login" 
+                                <Link
+                                    to="/login"
                                     className="block w-full py-3 px-4 text-center border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
                                 >
                                     返回登录

@@ -476,7 +476,7 @@ export const LoginPage: React.FC = () => {
                                     // 使用 Discoverable Credentials - 无需输入用户名
                                     const success = await authenticateWithDiscoverablePasskey();
                                     if (success) {
-                                         message: '通行密钥登录成功！', type: 'success' });
+                                        setNotification({ message: '通行密钥登录成功！', type: 'success' });
                                         // window.location.reload(); // 已在 authenticateWithDiscoverablePasskey 中处理
                                     }
                                 } catch (err: any) {

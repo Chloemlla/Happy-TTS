@@ -10,7 +10,7 @@ export const ResetPasswordLinkPage: React.FC = () => {
     const { setNotification } = useNotification();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    
+
     const [token, setToken] = useState<string | null>(null);
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -25,7 +25,7 @@ export const ResetPasswordLinkPage: React.FC = () => {
     useEffect(() => {
         const validateToken = async () => {
             const tokenParam = searchParams.get('token');
-            
+
             if (!tokenParam) {
                 setError('重置链接无效：缺少令牌');
                 setTokenValid(false);
@@ -114,7 +114,7 @@ export const ResetPasswordLinkPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12 px-6">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12 px-6 animate-gradient py-8 rounded-3xl">
             <div className="w-full max-w-md">
                 {/* Header */}
                 <div className="mb-8 text-center animate-slideInUp">
@@ -140,16 +140,16 @@ export const ResetPasswordLinkPage: React.FC = () => {
                             </div>
                             <h3 className="text-2xl font-bold text-gray-900 mb-4">链接无效</h3>
                             <p className="text-gray-600 mb-6">{error}</p>
-                            
+
                             <div className="space-y-3">
-                                <Link 
-                                    to="/forgot-password" 
+                                <Link
+                                    to="/forgot-password"
                                     className="block w-full py-3 px-4 text-center border border-transparent rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
                                 >
                                     重新获取重置链接
                                 </Link>
-                                <Link 
-                                    to="/login" 
+                                <Link
+                                    to="/login"
                                     className="block w-full py-3 px-4 text-center border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
                                 >
                                     返回登录
@@ -163,7 +163,7 @@ export const ResetPasswordLinkPage: React.FC = () => {
                             </div>
                             <h3 className="text-2xl font-bold text-gray-900 mb-4">密码重置成功！</h3>
                             <p className="text-gray-600 mb-6">您的密码已成功重置</p>
-                            
+
                             <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-6 rounded-r-lg text-left">
                                 <div className="flex items-start">
                                     <svg className="w-5 h-5 text-green-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -175,9 +175,9 @@ export const ResetPasswordLinkPage: React.FC = () => {
                                     </div>
                                 </div>
                             </div>
-                            
-                            <Link 
-                                to="/login" 
+
+                            <Link
+                                to="/login"
                                 className="inline-block w-full py-3 px-4 text-center border border-transparent rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
                             >
                                 立即登录
