@@ -215,7 +215,7 @@ export const ResetPasswordLinkPage: React.FC = () => {
                                             type={showPassword ? 'text' : 'password'}
                                             required
                                             minLength={6}
-                                            aria-label="New password"
+                                            aria-label="新密码"
                                             aria-required="true"
                                             className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                                             placeholder="请输入新密码（至少6位）"
@@ -245,7 +245,7 @@ export const ResetPasswordLinkPage: React.FC = () => {
                                             type={showConfirmPassword ? 'text' : 'password'}
                                             required
                                             minLength={6}
-                                            aria-label="Confirm password"
+                                            aria-label="确认密码"
                                             aria-required="true"
                                             className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                                             placeholder="请再次输入新密码"
@@ -266,7 +266,7 @@ export const ResetPasswordLinkPage: React.FC = () => {
                                 <button
                                     type="submit"
                                     disabled={loading}
-                                    aria-label={loading ? 'Resetting...' : 'Reset password'}
+                                    aria-label={loading ? '重置中...' : '重置密码'}
                                     aria-busy={loading}
                                     className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
                                 >

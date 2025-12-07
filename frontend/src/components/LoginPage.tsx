@@ -204,7 +204,7 @@ export const LoginPage: React.FC = () => {
 
                         <div>
                             <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-                                Email or username
+                                邮箱或用户名
                             </label>
                             <div className="relative">
                                 <FaEnvelope className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
@@ -219,7 +219,7 @@ export const LoginPage: React.FC = () => {
                                     aria-required="true"
                                     aria-invalid={!!error}
                                     className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                                    placeholder="you@example.com"
+                                    placeholder="请输入邮箱或用户名"
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
                                     autoComplete="username"
@@ -230,14 +230,14 @@ export const LoginPage: React.FC = () => {
                         <div>
                             <div className="flex items-center justify-between mb-2">
                                 <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                                    Password
+                                    密码
                                 </label>
                                 <Link
                                     to="/forgot-password"
                                     className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                                     aria-label="忘记密码"
                                 >
-                                    Forgot?
+                                    忘记密码？
                                 </Link>
                             </div>
                             <div className="relative">
@@ -280,7 +280,7 @@ export const LoginPage: React.FC = () => {
                                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                                 />
                                 <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
-                                    Remember me
+                                    记住我
                                 </label>
                             </div>
                         </div>
@@ -316,7 +316,7 @@ export const LoginPage: React.FC = () => {
                             aria-busy={loading}
                             className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
                         >
-                            {loading ? '登录中...' : 'Login'}
+                            {loading ? '登录中...' : '登录'}
                         </button>
                     </form>
 
@@ -326,7 +326,7 @@ export const LoginPage: React.FC = () => {
                             <div className="w-full border-t border-gray-200"></div>
                         </div>
                         <div className="relative flex justify-center text-sm">
-                            <span className="bg-white px-4 text-gray-500">Or continue with</span>
+                            <span className="bg-white px-4 text-gray-500">或者使用以下方式</span>
                         </div>
                     </div>
 
@@ -338,28 +338,28 @@ export const LoginPage: React.FC = () => {
                                 <FaFingerprint className="h-6 w-6 text-blue-600 flex-shrink-0 mt-0.5" />
                                 <div className="flex-1">
                                     <h3 className="text-sm font-semibold text-gray-900 mb-1">
-                                        Passkey - Passwordless Authentication
+                                        通行密钥 - 无密码认证
                                     </h3>
                                     <p className="text-xs text-gray-600 mb-3">
-                                        A more secure and convenient way to sign in using biometrics or device authentication
+                                        使用生物识别或设备认证，更安全便捷的登录方式
                                     </p>
                                     
                                     {/* Benefits */}
                                     <div className="grid grid-cols-3 gap-2 mb-3">
                                         <div className="flex flex-col items-center text-center p-2 bg-white rounded-md">
                                             <FaShieldAlt className="h-4 w-4 text-green-600 mb-1" />
-                                            <span className="text-xs font-medium text-gray-700">Secure</span>
-                                            <span className="text-[10px] text-gray-500">Phishing-resistant</span>
+                                            <span className="text-xs font-medium text-gray-700">安全</span>
+                                            <span className="text-[10px] text-gray-500">防钓鱼</span>
                                         </div>
                                         <div className="flex flex-col items-center text-center p-2 bg-white rounded-md">
                                             <FaBolt className="h-4 w-4 text-yellow-600 mb-1" />
-                                            <span className="text-xs font-medium text-gray-700">Fast</span>
-                                            <span className="text-[10px] text-gray-500">One-tap login</span>
+                                            <span className="text-xs font-medium text-gray-700">快速</span>
+                                            <span className="text-[10px] text-gray-500">一键登录</span>
                                         </div>
                                         <div className="flex flex-col items-center text-center p-2 bg-white rounded-md">
                                             <FaMobileAlt className="h-4 w-4 text-purple-600 mb-1" />
-                                            <span className="text-xs font-medium text-gray-700">Easy</span>
-                                            <span className="text-[10px] text-gray-500">No password</span>
+                                            <span className="text-xs font-medium text-gray-700">简单</span>
+                                            <span className="text-[10px] text-gray-500">无需密码</span>
                                         </div>
                                     </div>
 
@@ -370,7 +370,7 @@ export const LoginPage: React.FC = () => {
                                         className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors"
                                     >
                                         <FaQuestionCircle className="h-3.5 w-3.5" />
-                                        <span>{showPasskeyHelp ? 'Hide' : 'Show'} detailed guide</span>
+                                        <span>{showPasskeyHelp ? '隐藏' : '显示'}详细指南</span>
                                         {showPasskeyHelp ? <FaChevronUp className="h-3 w-3" /> : <FaChevronDown className="h-3 w-3" />}
                                     </button>
                                 </div>
@@ -384,24 +384,24 @@ export const LoginPage: React.FC = () => {
                                         <div>
                                             <h4 className="text-xs font-semibold text-gray-900 mb-2 flex items-center gap-2">
                                                 <span className="flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white text-[10px]">1</span>
-                                                How to Use Passkey
+如何使用通行密钥
                                             </h4>
                                             <ul className="space-y-1.5 text-xs text-gray-600 ml-7">
                                                 <li className="flex items-start gap-2">
                                                     <span className="text-blue-600 mt-0.5">•</span>
-                                                    <span>Click the "Sign in with Passkey" button below</span>
+                                                    <span>点击下方“使用通行密钥登录”按钮</span>
                                                 </li>
                                                 <li className="flex items-start gap-2">
                                                     <span className="text-blue-600 mt-0.5">•</span>
-                                                    <span>Your browser will prompt you to authenticate</span>
+                                                    <span>浏览器将提示您进行认证</span>
                                                 </li>
                                                 <li className="flex items-start gap-2">
                                                     <span className="text-blue-600 mt-0.5">•</span>
-                                                    <span>Use fingerprint, face recognition, or device PIN</span>
+                                                    <span>使用指纹、面部识别或设备PIN码</span>
                                                 </li>
                                                 <li className="flex items-start gap-2">
                                                     <span className="text-blue-600 mt-0.5">•</span>
-                                                    <span>You'll be logged in automatically after verification</span>
+                                                    <span>验证后将自动登录</span>
                                                 </li>
                                             </ul>
                                         </div>
@@ -410,20 +410,20 @@ export const LoginPage: React.FC = () => {
                                         <div>
                                             <h4 className="text-xs font-semibold text-gray-900 mb-2 flex items-center gap-2">
                                                 <span className="flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white text-[10px]">2</span>
-                                                Requirements
+前置要求
                                             </h4>
                                             <ul className="space-y-1.5 text-xs text-gray-600 ml-7">
                                                 <li className="flex items-start gap-2">
                                                     <span className="text-blue-600 mt-0.5">•</span>
-                                                    <span>You must have already registered a Passkey for your account</span>
+                                                    <span>您必须已为账户注册了通行密钥</span>
                                                 </li>
                                                 <li className="flex items-start gap-2">
                                                     <span className="text-blue-600 mt-0.5">•</span>
-                                                    <span>Your device must support biometric authentication or security keys</span>
+                                                    <span>您的设备必须支持生物认证或安全密钥</span>
                                                 </li>
                                                 <li className="flex items-start gap-2">
                                                     <span className="text-blue-600 mt-0.5">•</span>
-                                                    <span>Use a modern browser (Chrome, Edge, Safari, Firefox)</span>
+                                                    <span>使用现代浏览器（Chrome、Edge、Safari、Firefox）</span>
                                                 </li>
                                             </ul>
                                         </div>
@@ -432,20 +432,20 @@ export const LoginPage: React.FC = () => {
                                         <div>
                                             <h4 className="text-xs font-semibold text-gray-900 mb-2 flex items-center gap-2">
                                                 <span className="flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white text-[10px]">3</span>
-                                                Troubleshooting
+问题排查
                                             </h4>
                                             <ul className="space-y-1.5 text-xs text-gray-600 ml-7">
                                                 <li className="flex items-start gap-2">
                                                     <span className="text-blue-600 mt-0.5">•</span>
-                                                    <span><strong>No Passkey prompt?</strong> Your browser may not support it or you haven't registered one</span>
+                                                    <span><strong>没有通行密钥提示？</strong> 您的浏览器可能不支持或您尚未注册</span>
                                                 </li>
                                                 <li className="flex items-start gap-2">
                                                     <span className="text-blue-600 mt-0.5">•</span>
-                                                    <span><strong>Authentication failed?</strong> Try using the traditional username/password login</span>
+                                                    <span><strong>认证失败？</strong> 尝试使用传统的用户名/密码登录</span>
                                                 </li>
                                                 <li className="flex items-start gap-2">
                                                     <span className="text-blue-600 mt-0.5">•</span>
-                                                    <span><strong>First time user?</strong> Register an account first, then add Passkey in settings</span>
+                                                    <span><strong>首次使用？</strong> 请先注册账户，然后在设置中添加通行密钥</span>
                                                 </li>
                                             </ul>
                                         </div>
@@ -455,9 +455,9 @@ export const LoginPage: React.FC = () => {
                                             <div className="flex items-start gap-2">
                                                 <FaShieldAlt className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
                                                 <div>
-                                                    <p className="text-xs font-medium text-green-900 mb-1">Why Passkey is More Secure</p>
+                                                    <p className="text-xs font-medium text-green-900 mb-1">为什么通行密钥更安全</p>
                                                     <p className="text-xs text-green-700">
-                                                        Passkeys use public-key cryptography, making them resistant to phishing, credential stuffing, and other common attacks. Your biometric data never leaves your device.
+                                                        通行密钥使用公钥加密，可以抵御钓鱼、凭据填充和其他常见攻击。您的生物特征数据从不离开您的设备。
                                                     </p>
                                                 </div>
                                             </div>
@@ -476,12 +476,12 @@ export const LoginPage: React.FC = () => {
                                     // 使用 Discoverable Credentials - 无需输入用户名
                                     const success = await authenticateWithDiscoverablePasskey();
                                     if (success) {
-                                        setNotification({ message: 'Passkey login successful!', type: 'success' });
+                                         message: '通行密钥登录成功！', type: 'success' });
                                         // window.location.reload(); // 已在 authenticateWithDiscoverablePasskey 中处理
                                     }
                                 } catch (err: any) {
                                     setNotification({ 
-                                        message: err.message || 'Passkey login failed. Please try traditional login or check if you have registered a Passkey.', 
+                                        message: err.message || '通行密钥登录失败。请尝试传统登录或检查是否已注册通行密钥。', 
                                         type: 'error' 
                                     });
                                 } finally {
@@ -494,20 +494,20 @@ export const LoginPage: React.FC = () => {
                         >
                             <FaFingerprint className="h-6 w-6" />
                             <span className="flex flex-col items-start">
-                                <span className="text-base">Sign in with Passkey</span>
-                                <span className="text-xs font-normal text-blue-600">Fast, secure, passwordless</span>
+                                <span className="text-base">使用通行密钥登录</span>
+                                <span className="text-xs font-normal text-blue-600">快速、安全、无密码</span>
                             </span>
                         </button>
 
                         {/* Additional Tips */}
                         <p className="text-xs text-center text-gray-500 px-4">
-                            💡 Tip: Once set up, Passkey login is faster and more secure than passwords
+                            💡 提示：设置后，通行密钥登录比密码更快更安全
                         </p>
                     </div>
 
                     <div className="mt-6 text-center">
                         <p className="text-sm text-gray-600">
-                            Don't have an account? <Link to="/register" className="font-medium text-blue-600 hover:text-blue-700">Sign Up</Link>
+                            还没有账户？<Link to="/register" className="font-medium text-blue-600 hover:text-blue-700">立即注册</Link>
                         </p>
                     </div>
                 </div>
@@ -516,7 +516,7 @@ export const LoginPage: React.FC = () => {
                 <div className="mt-6 text-center">
                     <Link to="/" className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors" aria-label="返回首页">
                         <FaArrowLeft className="h-4 w-4" />
-                        Back to Home
+                        返回首页
                     </Link>
                 </div>
             </div>

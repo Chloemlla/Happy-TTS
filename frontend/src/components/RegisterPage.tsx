@@ -326,7 +326,7 @@ export const RegisterPage: React.FC = () => {
 
                         <div>
                             <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-                                Username
+                                用户名
                             </label>
                             <div className="relative">
                                 <FaUser className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
@@ -342,7 +342,7 @@ export const RegisterPage: React.FC = () => {
                                     aria-invalid={!!error}
                                     aria-describedby="username-hint"
                                     className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                                    placeholder="3-20 characters"
+                                    placeholder="3-20个字符"
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
                                     maxLength={20}
@@ -355,7 +355,7 @@ export const RegisterPage: React.FC = () => {
 
                         <div>
                             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                                Email
+                                邮箱
                             </label>
                             <div className="relative">
                                 <FaEnvelope className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
@@ -370,7 +370,7 @@ export const RegisterPage: React.FC = () => {
                                     aria-required="true"
                                     aria-invalid={!!error}
                                     className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                                    placeholder="you@example.com"
+                                    placeholder="请输入邮箱地址"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     autoComplete="email"
@@ -380,7 +380,7 @@ export const RegisterPage: React.FC = () => {
 
                         <div>
                             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                                Password
+                                密码
                             </label>
                             <div className="relative">
                                 <FaLock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
@@ -435,7 +435,7 @@ export const RegisterPage: React.FC = () => {
 
                         <div>
                             <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                                Confirm Password
+                                确认密码
                             </label>
                             <div className="relative">
                                 <FaLock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
@@ -512,13 +512,13 @@ export const RegisterPage: React.FC = () => {
                             aria-busy={loading}
                             className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
                         >
-                            {loading ? '注册中...' : 'Create Account'}
+                            {loading ? '注册中...' : '创建账户'}
                         </button>
                     </form>
 
                     <div className="mt-6 text-center">
                         <p className="text-sm text-gray-600">
-                            Already have an account? <Link to="/login" className="font-medium text-blue-600 hover:text-blue-700">Sign In</Link>
+                            已有账户？<Link to="/login" className="font-medium text-blue-600 hover:text-blue-700">立即登录</Link>
                         </p>
                     </div>
                 </div>
@@ -527,7 +527,7 @@ export const RegisterPage: React.FC = () => {
                 <div className="mt-6 text-center">
                     <Link to="/" className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors" aria-label="返回首页">
                         <FaArrowLeft className="h-4 w-4" />
-                        Back to Home
+                        返回首页
                     </Link>
                 </div>
             </div>
@@ -547,7 +547,7 @@ export const RegisterPage: React.FC = () => {
                         aria-describedby="verify-email-description"
                     >
                         <motion.div
-                            className="bg-white rounded-3xl shadow-2xl w-full max-w-md relative overflow-hidden"
+                            className="bg-white rounded-3xl shadow-2xl w-full max-w-md relative overflow-hidden max-h-[90vh] overflow-y-auto"
                             initial={{ scale: 0.9, opacity: 0, y: 50 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             exit={{ scale: 0.9, opacity: 0, y: 50 }}
@@ -555,7 +555,7 @@ export const RegisterPage: React.FC = () => {
                         >
                             <div className="h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
 
-                            <div className="p-8">
+                            <div className="p-4 sm:p-6 md:p-8">
                                 <div className="text-center mb-6">
                                     <div className="w-20 h-20 bg-gradient-to-br from-green-100 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
                                         <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

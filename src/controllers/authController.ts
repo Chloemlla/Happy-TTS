@@ -28,7 +28,7 @@ type UserWithVerified = User & { verified?: boolean };
 
 // 获取前端基础URL
 function getFrontendBaseUrl(): string {
-    return process.env.FRONTEND_URL || 'https://tts.hapxs.com/';
+    return process.env.FRONTEND_URL || 'https://tts.hapxs.com';
 }
 
 // 生成邮箱验证码HTML模板（与TtsPage UI风格统一）

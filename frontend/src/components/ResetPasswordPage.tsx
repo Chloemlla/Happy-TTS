@@ -66,30 +66,30 @@ export const ResetPasswordPage: React.FC = () => {
         const sanitizedCode = DOMPurify.sanitize(code).trim();
 
         if (!sanitizedEmail || !sanitizedCode || !newPassword) {
-            setError('Please fill in all fields');
+            setError('请填写所有字段');
             return;
         }
 
         // Validate code format (8 digits)
         if (!/^\d{8}$/.test(sanitizedCode)) {
-            setError('Verification code must be 8 digits');
+            setError('验证码必须为8位数字');
             return;
         }
 
         if (newPassword !== confirmPassword) {
-            setError('Passwords do not match');
+            setError('两次输入的密码不一致');
             return;
         }
 
         // Validate password strength
         if (newPassword.length < 8) {
-            setError('Password must be at least 8 characters long');
+            setError('密码至少需要8个字符');
             return;
         }
 
         if (turnstileConfig.siteKey && (!turnstileVerified || !turnstileToken)) {
-            setError('Please complete human verification first');
-            setNotification({ message: 'Please complete human verification first', type: 'warning' });
+            setError('请先完成人机验证');
+            setNotification({ message: '请先完成人机验证', type: 'warning' });
             return;
         }
 
@@ -115,18 +115,18 @@ export const ResetPasswordPage: React.FC = () => {
 
             if (response.ok && data.success) {
                 setSuccess(true);
-                setNotification({ message: 'Password reset successful', type: 'success' });
+                setNotification({ message: '密码重置成功', type: 'success' });
                 // Navigate to login page after 2 seconds
                 setTimeout(() => {
                     navigate('/login');
                 }, 2000);
             } else {
-                setError(data.error || 'Failed to reset password');
-                setNotification({ message: data.error || 'Failed to reset password', type: 'error' });
+                setError(data.error || '密码重置失败');
+                setNotification({ message: data.error || '密码重置失败', type: 'error' });
             }
         } catch (err: any) {
-            setError('Network error, please try again');
-            setNotification({ message: 'Network error, please try again', type: 'error' });
+            setError('网络错误，请稍后重试');
+            setNotification({ message: '网络错误，请稍后重试', type: 'error' });
         } finally {
             setLoading(false);
         }
@@ -141,7 +141,7 @@ export const ResetPasswordPage: React.FC = () => {
                         <FaVolumeUp className="h-10 w-10 text-blue-600" />
                         <h1 className="text-3xl font-bold text-blue-600">Synapse</h1>
                     </div>
-                    <p className="text-gray-600">Reset Your Password</p>
+                    <p className="text-gray-600">重置密码</p>
                 </div>
 
                 {/* Form Card */}
@@ -155,16 +155,16 @@ export const ResetPasswordPage: React.FC = () => {
                                     </svg>
                                 </div>
                             </div>
-                            <h3 className="text-xl font-semibold text-gray-900 mb-2">Password Reset!</h3>
-                            <p className="text-gray-600 mb-4">Your password has been successfully reset</p>
-                            <p className="text-sm text-gray-500">Redirecting to login page...</p>
+                            <h3 className="text-xl font-semibold text-gray-900 mb-2">密码重置成功！</h3>
+                            <p className="text-gray-600 mb-4">您的密码已成功重置</p>
+                            <p className="text-sm text-gray-500">正在跳转到登录页面...</p>
                         </div>
                     ) : (
                         <>
                             <div className="mb-6 text-center">
-                                <h2 className="text-2xl font-bold text-gray-900 mb-2">Enter New Password</h2>
+                                <h2 className="text-2xl font-bold text-gray-900 mb-2">输入新密码</h2>
                                 <p className="text-sm text-gray-600">
-                                    Enter the verification code sent to your email and your new password
+                                    输入发送到您邮箱的验证码和您的新密码
                                 </p>
                             </div>
 
@@ -181,7 +181,7 @@ export const ResetPasswordPage: React.FC = () => {
 
                                 <div>
                                     <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                                        Email Address
+                                        邮箱地址
                                     </label>
                                     <div className="relative">
                                         <FaEnvelope className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
@@ -191,11 +191,11 @@ export const ResetPasswordPage: React.FC = () => {
                                             type="email"
                                             required
                                             inputMode="email"
-                                            aria-label="Email address"
+                                            aria-label="邮箱地址"
                                             aria-required="true"
                                             aria-invalid={!!error}
                                             className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                                            placeholder="you@example.com"
+                                            placeholder="请输入邮箱地址"
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
                                             autoComplete="email"
@@ -205,7 +205,7 @@ export const ResetPasswordPage: React.FC = () => {
 
                                 <div>
                                     <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-2">
-                                        Verification Code
+                                        验证码
                                     </label>
                                     <div className="relative">
                                         <FaKey className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
@@ -227,12 +227,12 @@ export const ResetPasswordPage: React.FC = () => {
                                             autoComplete="one-time-code"
                                         />
                                     </div>
-                                    <p className="mt-1 text-xs text-gray-500">Enter the 8-digit code sent to your email</p>
+                                    <p className="mt-1 text-xs text-gray-500">输入发送到您邮箱的8位数字验证码</p>
                                 </div>
 
                                 <div>
                                     <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                                        New Password
+                                        新密码
                                     </label>
                                     <div className="relative">
                                         <FaLock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
@@ -241,7 +241,7 @@ export const ResetPasswordPage: React.FC = () => {
                                             name="newPassword"
                                             type={showPassword ? "text" : "password"}
                                             required
-                                            aria-label="New password"
+                                            aria-label="新密码"
                                             aria-required="true"
                                             aria-invalid={!!error}
                                             className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
@@ -254,7 +254,7 @@ export const ResetPasswordPage: React.FC = () => {
                                             type="button"
                                             onClick={() => setShowPassword(!showPassword)}
                                             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                                            aria-label={showPassword ? "Hide password" : "Show password"}
+                                            aria-label={showPassword ? "隐藏密码" : "显示密码"}
                                         >
                                             {showPassword ? <FaEyeSlash className="h-5 w-5" /> : <FaEye className="h-5 w-5" />}
                                         </button>
@@ -263,7 +263,7 @@ export const ResetPasswordPage: React.FC = () => {
 
                                 <div>
                                     <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                                        Confirm New Password
+                                        确认新密码
                                     </label>
                                     <div className="relative">
                                         <FaLock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
@@ -272,7 +272,7 @@ export const ResetPasswordPage: React.FC = () => {
                                             name="confirmPassword"
                                             type={showConfirmPassword ? "text" : "password"}
                                             required
-                                            aria-label="Confirm new password"
+                                            aria-label="确认新密码"
                                             aria-required="true"
                                             aria-invalid={!!error}
                                             className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
@@ -285,7 +285,7 @@ export const ResetPasswordPage: React.FC = () => {
                                             type="button"
                                             onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                                             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                                            aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                                            aria-label={showConfirmPassword ? "隐藏密码" : "显示密码"}
                                         >
                                             {showConfirmPassword ? <FaEyeSlash className="h-5 w-5" /> : <FaEye className="h-5 w-5" />}
                                         </button>
@@ -293,7 +293,7 @@ export const ResetPasswordPage: React.FC = () => {
                                 </div>
 
                                 {!turnstileConfigLoading && turnstileConfig.siteKey && (
-                                    <div role="group" aria-label="Human verification">
+                                    <div role="group" aria-label="人机验证">
                                         <TurnstileWidget
                                             key={turnstileKey}
                                             siteKey={turnstileConfig.siteKey}
@@ -305,12 +305,12 @@ export const ResetPasswordPage: React.FC = () => {
                                         />
                                         {turnstileVerified && (
                                             <p className="mt-2 text-xs text-green-600" role="status" aria-live="polite">
-                                                Verification passed
+                                                验证通过
                                             </p>
                                         )}
                                         {turnstileError && (
                                             <p className="mt-2 text-xs text-red-600" role="alert" aria-live="assertive">
-                                                Verification failed, please try again
+                                                验证失败，请重试
                                             </p>
                                         )}
                                     </div>
@@ -319,20 +319,20 @@ export const ResetPasswordPage: React.FC = () => {
                                 <button
                                     type="submit"
                                     disabled={loading || (!!turnstileConfig.siteKey && !turnstileVerified)}
-                                    aria-label={loading ? 'Resetting password...' : 'Reset password'}
+                                    aria-label={loading ? '重置密码中...' : '重置密码'}
                                     aria-busy={loading}
                                     className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
                                 >
-                                    {loading ? 'Resetting Password...' : 'Reset Password'}
+                                    {loading ? '重置密码中...' : '重置密码'}
                                 </button>
                             </form>
 
                             <div className="mt-6 text-center space-y-3">
                                 <Link to="/forgot-password" className="block text-sm text-blue-600 hover:text-blue-700 font-medium">
-                                    Resend Verification Code
+                                    重新发送验证码
                                 </Link>
                                 <Link to="/login" className="block text-sm text-blue-600 hover:text-blue-700 font-medium">
-                                    Back to Login
+                                    返回登录
                                 </Link>
                             </div>
                         </>
@@ -341,9 +341,9 @@ export const ResetPasswordPage: React.FC = () => {
 
                 {/* Back to Home */}
                 <div className="mt-6 text-center">
-                    <Link to="/" className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors" aria-label="Back to home">
+                    <Link to="/" className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors" aria-label="返回首页">
                         <FaArrowLeft className="h-4 w-4" />
-                        Back to Home
+                        返回首页
                     </Link>
                 </div>
             </div>

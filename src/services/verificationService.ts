@@ -14,7 +14,7 @@ import { generateVerificationLinkEmailHtml, generatePasswordResetLinkEmailHtml, 
  * 获取前端基础URL
  */
 function getFrontendBaseUrl(): string {
-    return process.env.FRONTEND_URL || 'http://localhost:3000';
+    return process.env.FRONTEND_URL || 'https://tts.hapxs.com';
 }
 
 /**
@@ -23,12 +23,12 @@ function getFrontendBaseUrl(): string {
 function getClientIP(req: Request, clientIP?: string): string {
     const serverIP = req.ip || req.connection.remoteAddress || 'unknown';
     const ipAddress = clientIP || serverIP;
-    
+
     // 记录IP比对情况（用于调试和安全分析）
     if (clientIP && clientIP !== serverIP && clientIP !== 'unknown' && serverIP !== 'unknown') {
         logger.info(`[IP差异检测] 前端IP=${clientIP}, 后端IP=${serverIP}`);
     }
-    
+
     return ipAddress;
 }
 
@@ -57,11 +57,11 @@ export async function createAndSendVerificationLink(
             ipAddress,
             { username, email, password }
         );
-        
+
         // 生成验证链接
         const frontendBaseUrl = getFrontendBaseUrl();
         const verificationLink = `${frontendBaseUrl}/verify-email?token=${verificationToken.token}`;
-        
+
         // 发送邮件验证链接
         const emailHtml = generateVerificationLinkEmailHtml(username, verificationLink);
         const emailResult = await EmailService.sendHtmlEmail(
@@ -99,20 +99,20 @@ export async function verifyEmailLink(
     try {
         // 验证令牌
         const result = verificationTokenStorage.verifyAndUseToken(token, fingerprint, ipAddress);
-        
+
         if (!result.success) {
             return { success: false, error: result.error };
         }
-        
+
         const verificationData = result.data!;
-        
+
         // 检查令牌类型
         if (verificationData.type !== VerificationTokenType.EMAIL_REGISTRATION) {
             return { success: false, error: '无效的验证类型' };
         }
-        
+
         const { username, email, password } = verificationData.metadata;
-        
+
         // 再次检查用户名/邮箱是否被注册（防止并发）
         const existUser = await UserStorage.getUserByUsername(username);
         const existEmail = await UserStorage.getUserByEmail(email);
@@ -120,11 +120,11 @@ export async function verifyEmailLink(
             verificationTokenStorage.deleteToken(token);
             return { success: false, error: '用户名或邮箱已被使用' };
         }
-        
+
         // 创建用户
         await UserStorage.createUser(username, email, password);
         verificationTokenStorage.deleteToken(token);
-        
+
         // 发送欢迎邮件（不影响主流程）
         try {
             const welcomeHtml = generateWelcomeEmailHtml(username);
@@ -132,7 +132,7 @@ export async function verifyEmailLink(
         } catch (e) {
             logger.warn(`[欢迎邮件] 发送失败: ${email}`, e);
         }
-        
+
         logger.info(`[邮箱验证] 用户 ${username} (${email}) 注册成功`);
         return { success: true, message: '注册成功，请登录' };
     } catch (error) {
@@ -166,7 +166,7 @@ export async function createAndSendPasswordResetLink(
             ipAddress,
             { userId, username, email }
         );
-        
+
         // 生成重置链接
         const frontendBaseUrl = getFrontendBaseUrl();
         const resetLink = `${frontendBaseUrl}/reset-password?token=${verificationToken.token}`;
@@ -210,37 +210,37 @@ export async function verifyPasswordResetLink(
     try {
         // 验证令牌
         const result = verificationTokenStorage.verifyAndUseToken(token, fingerprint, ipAddress);
-        
+
         if (!result.success) {
             return { success: false, error: result.error };
         }
-        
+
         const verificationData = result.data!;
-        
+
         // 检查令牌类型
         if (verificationData.type !== VerificationTokenType.PASSWORD_RESET) {
             return { success: false, error: '无效的验证类型' };
         }
-        
+
         const { userId, username, email } = verificationData.metadata;
-        
+
         // 获取用户信息
         const user = await UserStorage.getUserById(userId);
         if (!user) {
             verificationTokenStorage.deleteToken(token);
             return { success: false, error: '用户不存在' };
         }
-        
+
         // 验证新密码强度
         const passwordErrors = UserStorage.validateUserInput(user.username, newPassword, user.email, true);
         if (passwordErrors.length > 0) {
             return { success: false, error: passwordErrors[0].message };
         }
-        
+
         // 更新密码
         await UserStorage.updateUser(user.id, { password: newPassword });
         verificationTokenStorage.deleteToken(token);
-        
+
         logger.info(`[密码重置] 用户 ${username} (${email}) 密码重置成功`);
         return { success: true, message: '密码重置成功，请使用新密码登录' };
     } catch (error) {

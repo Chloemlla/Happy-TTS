@@ -15,7 +15,7 @@ export function renderCredentialIdModal({ open, credentialId, onClose }: { open:
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -23,7 +23,7 @@ export function renderCredentialIdModal({ open, credentialId, onClose }: { open:
           onClick={onClose}
         >
           <motion.div
-            className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full"
+            className="bg-white rounded-lg shadow-lg p-4 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto"
             initial={{ scale: 0.92, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.92, opacity: 0 }}

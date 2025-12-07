@@ -7,7 +7,7 @@
  * 获取前端基础URL
  */
 function getFrontendBaseUrl(): string {
-    return process.env.FRONTEND_URL || 'http://localhost:3000';
+    return process.env.FRONTEND_URL || 'https://tts.hapxs.com';
 }
 
 /**
