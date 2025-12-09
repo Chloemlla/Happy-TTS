@@ -1,0 +1,82 @@
+name: Dependabot recreate All
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  recreate-all:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Comment @dependabot recreate on all open dependabot PRs
+        env:
+          GITHUB_TOKEN: ${{ secrets.USER_PAT }}
+        run: |
+          echo "[LOG] 开始 Dependabot recreate All 脚本"
+          node <<'EOF'
+          const https = require('https');
+
+          const owner = process.env.GITHUB_REPOSITORY.split('/')[0];
+          const repo = process.env.GITHUB_REPOSITORY.split('/')[1];
+          const token = process.env.GITHUB_TOKEN;
+
+          function githubRequest(path, method = 'GET', data = null) {
+            return new Promise((resolve, reject) => {
+              const options = {
+                hostname: 'api.github.com',
+                path,
+                method,
+                headers: {
+                  'User-Agent': 'actions/recreate-all',
+                  'Authorization': `Bearer ${token}`,
+                  'Accept': 'application/vnd.github+json',
+                  'Content-Type': 'application/json',
+                },
+              };
+              const req = https.request(options, res => {
+                let body = '';
+                res.on('data', chunk => body += chunk);
+                res.on('end', () => {
+                  if (res.statusCode >= 200 && res.statusCode < 300) {
+                    resolve(JSON.parse(body));
+                  } else {
+                    console.error(`[LOG] GitHub API error: ${res.statusCode} ${body}`);
+                    reject(new Error(`GitHub API error: ${res.statusCode} ${body}`));
+                  }
+                });
+              });
+              req.on('error', (err) => {
+                console.error('[LOG] HTTPS request error:', err);
+                reject(err);
+              });
+              if (data) req.write(JSON.stringify(data));
+              req.end();
+            });
+          }
+
+          (async () => {
+            console.log('[LOG] 获取所有 open PR...');
+            const prs = await githubRequest(`/repos/${owner}/${repo}/pulls?state=open&per_page=100`);
+            console.log(`[LOG] 获取到 open PR 数量: ${prs.length}`);
+            const dependabotPRs = prs.filter(pr => pr.user && pr.user.login === 'dependabot[bot]');
+            console.log(`[LOG] 过滤出 dependabot PR 数量: ${dependabotPRs.length}`);
+            for (const pr of dependabotPRs) {
+              console.log(`[LOG] 正在评论 PR #${pr.number} ...`);
+              await githubRequest(`/repos/${owner}/${repo}/issues/${pr.number}/comments`, 'POST', { body: '@dependabot recreate' });
+              console.log(`[LOG] 已评论 PR #${pr.number}`);
+            }
+            console.log('[LOG] Dependabot recreate 评论全部完成');
+          })().catch(e => { console.error('[LOG] 脚本异常:', e); process.exit(1); });
+          EOF
