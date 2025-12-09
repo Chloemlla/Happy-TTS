@@ -137,7 +137,7 @@
     "@types/swagger-ui-express": "^4.1.8",
     "@types/tar": "^6.1.13",
     "concurrently": "^9.2.1",
-    "javascript-obfuscator": "^4.2.1",
+    "javascript-obfuscator": "^5.0.1",
     "jest": "^30.2.0",
     "nodemon": "^3.1.11",
     "supertest": "^7.1.4",
