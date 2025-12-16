@@ -229,8 +229,8 @@ importers:
         specifier: ^9.2.1
         version: 9.2.1
       javascript-obfuscator:
-        specifier: ^5.0.1
-        version: 5.0.1
+        specifier: ^5.1.0
+        version: 5.1.0
       jest:
         specifier: ^30.2.0
         version: 30.2.0(@types/node@25.0.2)(ts-node@10.9.2(@types/node@25.0.2)(typescript@5.9.3))
@@ -2254,8 +2254,8 @@ packages:
   jackspeak@3.4.3:
     resolution: {integrity: sha512-OGlZQpz2yfahA/Rd1Y8Cd9SIEsqvXkLVoSw/cgwhnhFMDbsQFeZYoJJ7bIZBS9BcamUW96asq/npPWugM+RQBw==}
 
-  javascript-obfuscator@5.0.1:
-    resolution: {integrity: sha512-x7EId6zLv5in+4MavFzOSY8KX7obmayNP1OEv47BiX6NDRm6vZvFJJAWW9N7ZkVS7BKoadO7nn5GjVG3bUZ9xQ==}
+  javascript-obfuscator@5.1.0:
+    resolution: {integrity: sha512-yw0zSxH20YVxJ7Jg23ii9eojcsGkfZmP6AEvaddv026+3H3QPOd/qPo168+80gvzN6pyMQDCbLwxjrP76jkPAg==}
     engines: {node: '>=18.0.0'}
     hasBin: true
 
@@ -6119,7 +6119,7 @@ snapshots:
     optionalDependencies:
       '@pkgjs/parseargs': 0.11.0
 
-  javascript-obfuscator@5.0.1:
+  javascript-obfuscator@5.1.0:
     dependencies:
       '@javascript-obfuscator/escodegen': 2.3.1
       '@javascript-obfuscator/estraverse': 5.4.0
