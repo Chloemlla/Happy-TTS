@@ -168,8 +168,8 @@ importers:
         specifier: ^13.0.0
         version: 13.0.0
       validator:
-        specifier: ^13.15.23
-        version: 13.15.23
+        specifier: ^13.15.26
+        version: 13.15.26
       winston:
         specifier: ^3.19.0
         version: 3.19.0
@@ -3622,8 +3622,8 @@ packages:
     resolution: {integrity: sha512-kiGUalWN+rgBJ/1OHZsBtU4rXZOfj/7rKQxULKlIzwzQSvMJUUNgPwJEEh7gU6xEVxC0ahoOBvN2YI8GH6FNgA==}
     engines: {node: '>=10.12.0'}
 
-  validator@13.15.23:
-    resolution: {integrity: sha512-4yoz1kEWqUjzi5zsPbAS/903QXSYp0UOtHsPpp7p9rHAw/W+dkInskAE386Fat3oKRROwO98d9ZB0G4cObgUyw==}
+  validator@13.15.26:
+    resolution: {integrity: sha512-spH26xU080ydGggxRyR1Yhcbgx+j3y5jbNXk/8L+iRvdIEQ4uTRH2Sgf2dokud6Q4oAtsbNvJ1Ft+9xmm6IZcA==}
     engines: {node: '>= 0.10'}
 
   vary@1.1.2:
@@ -5221,7 +5221,7 @@ snapshots:
     dependencies:
       '@types/validator': 13.15.10
       libphonenumber-js: 1.12.31
-      validator: 13.15.23
+      validator: 13.15.26
 
   cli-boxes@3.0.0: {}
 
@@ -5863,7 +5863,7 @@ snapshots:
       tar: 7.5.2
       tar-fs: 3.1.1
       uuid: 13.0.0
-      validator: 13.15.23
+      validator: 13.15.26
       winston: 3.19.0
       ws: 8.18.3
     transitivePeerDependencies:
@@ -7733,7 +7733,7 @@ snapshots:
       '@types/istanbul-lib-coverage': 2.0.6
       convert-source-map: 2.0.0
 
-  validator@13.15.23: {}
+  validator@13.15.26: {}
 
   vary@1.1.2: {}
 
@@ -7893,6 +7893,6 @@ snapshots:
     dependencies:
       lodash.get: 4.4.2
       lodash.isequal: 4.5.0
-      validator: 13.15.23
+      validator: 13.15.26
     optionalDependencies:
       commander: 9.5.0
