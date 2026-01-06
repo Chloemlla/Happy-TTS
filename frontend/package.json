@@ -60,7 +60,7 @@
     "idb": "^8.0.3",
     "javascript-obfuscator": "^5.1.0",
     "jsonwebtoken": "^9.0.3",
-    "jspdf": "^3.0.4",
+    "jspdf": "^4.0.0",
     "jszip": "^3.10.1",
     "katex": "^0.16.25",
     "lodash.merge": "^4.6.2",
