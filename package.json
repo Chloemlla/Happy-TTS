@@ -98,7 +98,7 @@
     "mongoose": "^9.1.2",
     "morgan": "^1.10.1",
     "multer": "^2.0.2",
-    "mysql2": "^3.16.0",
+    "mysql2": "^3.16.2",
     "nanoid": "^5.1.6",
     "openai": "^6.15.0",
     "path-to-regexp": "^8.2.0",
