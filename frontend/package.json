@@ -54,7 +54,7 @@
     "dompurify": "^3.3.0",
     "express-rate-limit": "^7.5.0",
     "form-data": "^4.0.5",
-    "framer-motion": "^12.24.0",
+    "framer-motion": "^12.30.0",
     "happy-tts-frontend": "file:",
     "html2canvas": "^1.4.1",
     "idb": "^8.0.3",
