@@ -167,8 +167,14 @@ export class WorkspaceController {
         return;
       }
 
-      // 验证邮箱格式
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      // 验证邮箱格式 - 使用更安全的正则表达式避免ReDoS攻击
+      // 限制长度并使用简单的验证模式
+      if (email.length > 254) {
+        res.status(400).json({ error: '无效的邮箱格式' });
+        return;
+      }
+      
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
       if (!emailRegex.test(email)) {
         res.status(400).json({ error: '无效的邮箱格式' });
         return;
