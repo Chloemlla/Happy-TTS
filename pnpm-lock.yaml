@@ -108,8 +108,8 @@ importers:
         specifier: ^7.0.0
         version: 7.0.0
       mongoose:
-        specifier: ^9.0.2
-        version: 9.1.1(socks@2.8.7)
+        specifier: ^9.1.2
+        version: 9.1.2(socks@2.8.7)
       morgan:
         specifier: ^1.10.1
         version: 1.10.1
@@ -124,7 +124,7 @@ importers:
         version: 5.1.6
       openai:
         specifier: ^6.15.0
-        version: 6.15.0(ws@8.18.3)(zod@4.2.1)
+        version: 6.15.0(ws@8.18.3)(zod@4.3.5)
       path-to-regexp:
         specifier: ^8.2.0
         version: 8.3.0
@@ -150,8 +150,8 @@ importers:
         specifier: ^2.0.0
         version: 2.0.0
       svix:
-        specifier: ^1.82.0
-        version: 1.82.0
+        specifier: ^1.84.1
+        version: 1.84.1
       swagger-jsdoc:
         specifier: ^6.2.8
         version: 6.2.8(openapi-types@12.1.3)
@@ -177,8 +177,8 @@ importers:
         specifier: ^8.18.3
         version: 8.18.3
       zod:
-        specifier: ^4.2.1
-        version: 4.2.1
+        specifier: ^4.3.5
+        version: 4.3.5
     devDependencies:
       '@types/axios':
         specifier: ^0.14.4
@@ -1034,49 +1034,41 @@ packages:
     resolution: {integrity: sha512-34gw7PjDGB9JgePJEmhEqBhWvCiiWCuXsL9hYphDF7crW7UgI05gyBAi6MF58uGcMOiOqSJ2ybEeCvHcq0BCmQ==}
     cpu: [arm64]
     os: [linux]
-    libc: [glibc]
 
   '@unrs/resolver-binding-linux-arm64-musl@1.11.1':
     resolution: {integrity: sha512-RyMIx6Uf53hhOtJDIamSbTskA99sPHS96wxVE/bJtePJJtpdKGXO1wY90oRdXuYOGOTuqjT8ACccMc4K6QmT3w==}
     cpu: [arm64]
     os: [linux]
-    libc: [musl]
 
   '@unrs/resolver-binding-linux-ppc64-gnu@1.11.1':
     resolution: {integrity: sha512-D8Vae74A4/a+mZH0FbOkFJL9DSK2R6TFPC9M+jCWYia/q2einCubX10pecpDiTmkJVUH+y8K3BZClycD8nCShA==}
     cpu: [ppc64]
     os: [linux]
-    libc: [glibc]
 
   '@unrs/resolver-binding-linux-riscv64-gnu@1.11.1':
     resolution: {integrity: sha512-frxL4OrzOWVVsOc96+V3aqTIQl1O2TjgExV4EKgRY09AJ9leZpEg8Ak9phadbuX0BA4k8U5qtvMSQQGGmaJqcQ==}
     cpu: [riscv64]
     os: [linux]
-    libc: [glibc]
 
   '@unrs/resolver-binding-linux-riscv64-musl@1.11.1':
     resolution: {integrity: sha512-mJ5vuDaIZ+l/acv01sHoXfpnyrNKOk/3aDoEdLO/Xtn9HuZlDD6jKxHlkN8ZhWyLJsRBxfv9GYM2utQ1SChKew==}
     cpu: [riscv64]
     os: [linux]
-    libc: [musl]
 
   '@unrs/resolver-binding-linux-s390x-gnu@1.11.1':
     resolution: {integrity: sha512-kELo8ebBVtb9sA7rMe1Cph4QHreByhaZ2QEADd9NzIQsYNQpt9UkM9iqr2lhGr5afh885d/cB5QeTXSbZHTYPg==}
     cpu: [s390x]
     os: [linux]
-    libc: [glibc]
 
   '@unrs/resolver-binding-linux-x64-gnu@1.11.1':
     resolution: {integrity: sha512-C3ZAHugKgovV5YvAMsxhq0gtXuwESUKc5MhEtjBpLoHPLYM+iuwSj3lflFwK3DPm68660rZ7G8BMcwSro7hD5w==}
     cpu: [x64]
     os: [linux]
-    libc: [glibc]
 
   '@unrs/resolver-binding-linux-x64-musl@1.11.1':
     resolution: {integrity: sha512-rV0YSoyhK2nZ4vEswT/QwqzqQXw5I6CjoaYMOX0TqBlWhojUf8P94mvI7nuJTeaCkkds3QE4+zS8Ko+GdXuZtA==}
     cpu: [x64]
     os: [linux]
-    libc: [musl]
 
   '@unrs/resolver-binding-wasm32-wasi@1.11.1':
     resolution: {integrity: sha512-5u4RkfxJm+Ng7IWgkzi3qrFOvLvQYnPBmjmZQ8+szTK/b31fQCnleNl1GgEt7nIsZRIf5PLhPwT0WM+q45x/UQ==}
@@ -2734,8 +2726,8 @@ packages:
       socks:
         optional: true
 
-  mongoose@9.1.1:
-    resolution: {integrity: sha512-/CgKSAmjzgIj4o1FyWZIpQ2rmUQlhalwWd4l/Ht3XUVWscHRHev1TIwKz1ADNC5tHHyOQEaUDkEh0jI91c4Ydw==}
+  mongoose@9.1.2:
+    resolution: {integrity: sha512-EdxZ/l+wLIPymy/ODxulg13CaUPpt8RenGmuoNAuRhA5Dgk/QERkUm3U0wOEbAi6ULG08bGDo9sy2tKX0KwxIg==}
     engines: {node: '>=20.19.0'}
 
   morgan@1.10.1:
@@ -3312,6 +3304,9 @@ packages:
     resolution: {integrity: sha512-XlkWvfIm6RmsWtNJx+uqtKLS8eqFbxUg0ZzLXqY0caEy9l7hruX8IpiDnjsLavoBgqCCR71TqWO8MaXYheJ3RQ==}
     engines: {node: '>=10'}
 
+  standardwebhooks@1.0.0:
+    resolution: {integrity: sha512-BbHGOQK9olHPMvQNHWul6MYlrRTAOKn03rOe4A8O3CLWhNf4YHBqq2HJKKC+sfqpxiBY52pNeesD6jIiLDz8jg==}
+
   statuses@2.0.2:
     resolution: {integrity: sha512-DvEy55V3DB7uknRo+4iOGT5fP1slR8wQohVdknigZPMpMstaKJQWhwiYBACJE3Ul2pTnATihhBYnRhZQHGBiRw==}
     engines: {node: '>= 0.8'}
@@ -3401,8 +3396,8 @@ packages:
   svix@1.76.1:
     resolution: {integrity: sha512-CRuDWBTgYfDnBLRaZdKp9VuoPcNUq9An14c/k+4YJ15Qc5Grvf66vp0jvTltd4t7OIRj+8lM1DAgvSgvf7hdLw==}
 
-  svix@1.82.0:
-    resolution: {integrity: sha512-K2M7yFSzuwJVPxi2/I5R9STofIQ8gO4PZ+ptZ5RB+zhTNHO12UtYk+uuuA2wIQ4wCj3GYY1WhvKYDeYqptIwKg==}
+  svix@1.84.1:
+    resolution: {integrity: sha512-K8DPPSZaW/XqXiz1kEyzSHYgmGLnhB43nQCMeKjWGCUpLIpAMMM8kx3rVVOSm6Bo6EHyK1RQLPT4R06skM/MlQ==}
 
   swagger-jsdoc@6.2.8:
     resolution: {integrity: sha512-VPvil1+JRpmJ55CgAtn8DIcpBs0bL5L3q5bVQvF4tAW/k/9JYSj7dCpaYCAv5rufe0vcCbBRQXGvzpkWjvLklQ==}
@@ -3677,6 +3672,7 @@ packages:
   whatwg-encoding@3.1.1:
     resolution: {integrity: sha512-6qN4hJdMwfYBtE3YBTTHhoeuUrDBPZmbQaxWAqSALV/MeEnR5z1xd8UKud2RAkFoPkmB+hli1TZSnyi84xz1vQ==}
     engines: {node: '>=18'}
+    deprecated: Use @exodus/bytes instead for a more spec-conformant and faster implementation
 
   whatwg-mimetype@4.0.0:
     resolution: {integrity: sha512-QaKxh0eNIi2mE9p2vEdzfagOKHCcj1pJ56EEHGQOVxp8r9/iszLUUV7v89x9O1p/T+NlTM5W7jW6+cz4Fq1YVg==}
@@ -3813,8 +3809,8 @@ packages:
     engines: {node: '>=8.0.0'}
     hasBin: true
 
-  zod@4.2.1:
-    resolution: {integrity: sha512-0wZ1IRqGGhMP76gLqz8EyfBXKk0J2qo2+H3fi4mcUP/KtTocoX08nmIAHl1Z2kJIZbZee8KOpBCSNPRgauucjw==}
+  zod@4.3.5:
+    resolution: {integrity: sha512-k7Nwx6vuWx1IJ9Bjuf4Zt1PEllcwe7cls3VNzm4CQ1/hgtFUK2bRNG3rvnpPUhFjmqJKAKtjV576KnUkHocg/g==}
 
 snapshots:
 
@@ -5882,12 +5878,12 @@ snapshots:
       marked: 17.0.1
       mongodb: 7.0.0(socks@2.8.7)
       mongodb-connection-string-url: 7.0.0
-      mongoose: 9.1.1(socks@2.8.7)
+      mongoose: 9.1.2(socks@2.8.7)
       morgan: 1.10.1
       multer: 2.0.2
       mysql2: 3.16.0
       nanoid: 5.1.6
-      openai: 6.15.0(ws@8.18.3)(zod@4.2.1)
+      openai: 6.15.0(ws@8.18.3)(zod@4.3.5)
       path-to-regexp: 8.3.0
       qrcode: 1.5.4
       react-syntax-highlighter: 16.1.0(react@19.1.1)
@@ -5896,7 +5892,7 @@ snapshots:
       serve: 14.2.5
       socks-proxy-agent: 8.0.5
       speakeasy: 2.0.0
-      svix: 1.82.0
+      svix: 1.84.1
       swagger-jsdoc: 6.2.8(openapi-types@12.1.3)
       swagger-ui-express: 5.0.1(express@5.2.1)
       tar: 7.5.2
@@ -5905,7 +5901,7 @@ snapshots:
       validator: 13.15.26
       winston: 3.19.0
       ws: 8.18.3
-      zod: 4.2.1
+      zod: 4.3.5
     transitivePeerDependencies:
       - '@aws-sdk/credential-providers'
       - '@exodus/crypto'
@@ -6789,7 +6785,7 @@ snapshots:
     optionalDependencies:
       socks: 2.8.7
 
-  mongoose@9.1.1(socks@2.8.7):
+  mongoose@9.1.2(socks@2.8.7):
     dependencies:
       kareem: 3.0.0
       mongodb: 7.0.0(socks@2.8.7)
@@ -6945,10 +6941,10 @@ snapshots:
     dependencies:
       mimic-fn: 2.1.0
 
-  openai@6.15.0(ws@8.18.3)(zod@4.2.1):
+  openai@6.15.0(ws@8.18.3)(zod@4.3.5):
     optionalDependencies:
       ws: 8.18.3
-      zod: 4.2.1
+      zod: 4.3.5
 
   openapi-types@12.1.3: {}
 
@@ -7402,6 +7398,11 @@ snapshots:
     dependencies:
       escape-string-regexp: 2.0.0
 
+  standardwebhooks@1.0.0:
+    dependencies:
+      '@stablelib/base64': 1.0.1
+      fast-sha256: 1.3.0
+
   statuses@2.0.2: {}
 
   streamsearch@1.1.0: {}
@@ -7510,10 +7511,9 @@ snapshots:
       url-parse: 1.5.10
       uuid: 10.0.0
 
-  svix@1.82.0:
+  svix@1.84.1:
     dependencies:
-      '@stablelib/base64': 1.0.1
-      fast-sha256: 1.3.0
+      standardwebhooks: 1.0.0
       uuid: 10.0.0
 
   swagger-jsdoc@6.2.8(openapi-types@12.1.3):
@@ -7947,4 +7947,4 @@ snapshots:
     optionalDependencies:
       commander: 9.5.0
 
-  zod@4.2.1: {}
+  zod@4.3.5: {}
