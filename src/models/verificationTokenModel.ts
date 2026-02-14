@@ -73,7 +73,8 @@ class VerificationTokenStorage {
 
         this.tokens.set(token, verificationToken);
         
-        logger.info(`[验证令牌] 创建成功: type=${type}, email=${email}, token=${token.substring(0, 8)}...`);
+        // 不记录敏感信息（token），只记录类型和邮箱
+        logger.info(`[验证令牌] 创建成功: type=${type}, email=${email}`);
         
         return verificationToken;
     }
@@ -91,7 +92,7 @@ class VerificationTokenStorage {
         // 检查是否过期
         if (Date.now() > verificationToken.expiresAt) {
             this.tokens.delete(token);
-            logger.warn(`[验证令牌] 已过期: token=${token.substring(0, 8)}...`);
+            logger.warn(`[验证令牌] 已过期`);
             return null;
         }
 
@@ -122,13 +123,13 @@ class VerificationTokenStorage {
 
         // 校验设备指纹
         if (verificationToken.fingerprint !== fingerprint) {
-            logger.warn(`[验证令牌] 设备指纹不匹配: token=${token.substring(0, 8)}..., expected=${verificationToken.fingerprint.substring(0, 8)}..., got=${fingerprint.substring(0, 8)}...`);
+            logger.warn(`[验证令牌] 设备指纹不匹配`);
             return { success: false, error: '设备指纹验证失败，请使用相同设备打开链接' };
         }
 
         // 校验IP地址
         if (verificationToken.ipAddress !== ipAddress) {
-            logger.warn(`[验证令牌] IP地址不匹配: token=${token.substring(0, 8)}..., expected=${verificationToken.ipAddress}, got=${ipAddress}`);
+            logger.warn(`[验证令牌] IP地址不匹配`);
             return { success: false, error: 'IP地址验证失败，请使用相同网络打开链接' };
         }
 
@@ -137,7 +138,7 @@ class VerificationTokenStorage {
         verificationToken.usedAt = Date.now();
         this.tokens.set(token, verificationToken);
 
-        logger.info(`[验证令牌] 验证成功: token=${token.substring(0, 8)}..., email=${verificationToken.email}`);
+        logger.info(`[验证令牌] 验证成功: email=${verificationToken.email}`);
 
         return { success: true, data: verificationToken };
     }
@@ -147,7 +148,7 @@ class VerificationTokenStorage {
      */
     deleteToken(token: string): void {
         this.tokens.delete(token);
-        logger.info(`[验证令牌] 已删除: token=${token.substring(0, 8)}...`);
+        logger.info(`[验证令牌] 已删除`);
     }
 
     /**
