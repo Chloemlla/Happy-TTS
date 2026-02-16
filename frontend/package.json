@@ -91,7 +91,7 @@
     "vite-plugin-auto-i18n": "^0.0.9"
   },
   "devDependencies": {
-    "@rsbuild/core": "^1.6.12",
+    "@rsbuild/core": "^1.7.3",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
