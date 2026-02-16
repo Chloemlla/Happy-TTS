@@ -96,8 +96,8 @@ importers:
         specifier: ^4.17.23
         version: 4.17.23
       lru-cache:
-        specifier: ^11.2.4
-        version: 11.2.4
+        specifier: ^11.2.6
+        version: 11.2.6
       marked:
         specifier: ^17.0.1
         version: 17.0.1
@@ -2576,10 +2576,6 @@ packages:
 
   lru-cache@10.4.3:
     resolution: {integrity: sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ==}
-
-  lru-cache@11.2.4:
-    resolution: {integrity: sha512-B5Y16Jr9LB9dHVkh6ZevG+vAbOsNOYCX+sXvFWFu7B3Iz5mijW3zdbMyhsh8ANd2mSWBYdJgnqi+mL7/LrOPYg==}
-    engines: {node: 20 || >=22}
 
   lru-cache@11.2.6:
     resolution: {integrity: sha512-ESL2CrkS/2wTPfuend7Zhkzo2u0daGJ/A2VucJOgQ/C48S/zB8MMeMHSGKYpXhIjbPxfuezITkaBH1wqv00DDQ==}
@@ -5940,7 +5936,7 @@ snapshots:
       jsonwebtoken: 9.0.3
       liquid-glass-react: 1.1.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       lodash: 4.17.23
-      lru-cache: 11.2.4
+      lru-cache: 11.2.6
       marked: 17.0.1
       mongodb: 7.1.0(socks@2.8.7)
       mongodb-connection-string-url: 7.0.1
@@ -6742,8 +6738,6 @@ snapshots:
       highlight.js: 10.7.3
 
   lru-cache@10.4.3: {}
-
-  lru-cache@11.2.4: {}
 
   lru-cache@11.2.6: {}
 
