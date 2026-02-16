@@ -42,8 +42,8 @@ importers:
         specifier: ^13.15.10
         version: 13.15.10
       axios:
-        specifier: ^1.13.2
-        version: 1.13.2
+        specifier: ^1.13.5
+        version: 1.13.5
       bcrypt:
         specifier: ^6.0.0
         version: 6.0.0
@@ -1216,8 +1216,8 @@ packages:
     resolution: {integrity: sha512-NZKeq9AfyQvEeNlN0zSYAaWrmBffJh3IELMZfRpJVWgrpEbtEpnjvzqBPf+mxoI287JohRDoa+/nsfqqiZmF6g==}
     engines: {node: '>= 6.0.0'}
 
-  axios@1.13.2:
-    resolution: {integrity: sha512-VPk9ebNqPcy5lRGuSlKx752IlDatOjT9paPlm8A7yOuW2Fbvp4X3JznJtT4f0GzGLLiWE9W8onz51SqLYwzGaA==}
+  axios@1.13.5:
+    resolution: {integrity: sha512-cz4ur7Vb0xS4/KUN0tPWe44eqxrIu31me+fbang3ijiNscE129POzipJJA6zniq2C/Z6sJCjMimjS8Lc/GAs8Q==}
 
   b4a@1.7.3:
     resolution: {integrity: sha512-5Q2mfq2WfGuFp3uS//0s6baOJLMoVduPYVeNmDYxu5OUA1/cBfvr2RIS7vi62LdNj/urk1hfmj867I3qt6uZ7Q==}
@@ -4557,7 +4557,7 @@ snapshots:
 
   '@types/axios@0.14.4':
     dependencies:
-      axios: 1.13.2
+      axios: 1.13.5
     transitivePeerDependencies:
       - debug
 
@@ -4959,7 +4959,7 @@ snapshots:
 
   aws-ssl-profiles@1.1.2: {}
 
-  axios@1.13.2:
+  axios@1.13.5:
     dependencies:
       follow-redirects: 1.15.11
       form-data: 4.0.5
@@ -5855,7 +5855,7 @@ snapshots:
       '@types/jsonwebtoken': 9.0.10
       '@types/uuid': 11.0.0
       '@types/validator': 13.15.10
-      axios: 1.13.2
+      axios: 1.13.5
       bcrypt: 6.0.0
       cheerio: 1.1.2
       cors: 2.8.5
