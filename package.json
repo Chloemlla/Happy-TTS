@@ -139,7 +139,7 @@
     "@types/tar": "^6.1.13",
     "concurrently": "^9.2.1",
     "fast-check": "^4.5.3",
-    "javascript-obfuscator": "^5.1.0",
+    "javascript-obfuscator": "^5.3.0",
     "jest": "^30.2.0",
     "nodemon": "^3.1.11",
     "supertest": "^7.1.4",
