@@ -7,12 +7,6 @@ on:
       - frontend/**
       - .github/workflows/build.yml
       - Dockerfile
-  pull_request:
-    branches: [main]
-    paths-ignore:
-      - frontend/**
-      - .github/workflows/build.yml
-      - Dockerfile
   workflow_dispatch:
     inputs:
       platform:

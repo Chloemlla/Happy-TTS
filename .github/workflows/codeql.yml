@@ -3,8 +3,6 @@ name: "CodeQL"
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
   schedule:
     - cron: "0 3 * * 0" # 每周日凌晨自动扫描
   workflow_dispatch:

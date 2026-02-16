@@ -1,8 +1,6 @@
 name: Auto-approve Dependabot PRs
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
   workflow_dispatch:
   schedule:
     - cron: "0 0 * * *" # 每天 UTC 零点运行
