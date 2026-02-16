@@ -73,8 +73,8 @@ class VerificationTokenStorage {
 
         this.tokens.set(token, verificationToken);
         
-        // 不记录敏感信息（token），只记录类型和邮箱
-        logger.info(`[验证令牌] 创建成功: type=${type}, email=${email}`);
+        // 不记录敏感信息（token、email），只记录类型
+        logger.info(`[验证令牌] 创建成功: type=${type}`);
         
         return verificationToken;
     }
@@ -138,7 +138,7 @@ class VerificationTokenStorage {
         verificationToken.usedAt = Date.now();
         this.tokens.set(token, verificationToken);
 
-        logger.info(`[验证令牌] 验证成功: email=${verificationToken.email}`);
+        logger.info(`[验证令牌] 验证成功`);
 
         return { success: true, data: verificationToken };
     }

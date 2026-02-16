@@ -74,11 +74,13 @@ export class AuditLogService {
     }
 
     if (keyword) {
+      // 转义正则特殊字符，防止 ReDoS / NoSQL 注入
+      const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       filter.$or = [
-        { username: { $regex: keyword, $options: 'i' } },
-        { action: { $regex: keyword, $options: 'i' } },
-        { targetName: { $regex: keyword, $options: 'i' } },
-        { ip: { $regex: keyword, $options: 'i' } },
+        { username: { $regex: escaped, $options: 'i' } },
+        { action: { $regex: escaped, $options: 'i' } },
+        { targetName: { $regex: escaped, $options: 'i' } },
+        { ip: { $regex: escaped, $options: 'i' } },
       ];
     }
 

@@ -108,5 +108,6 @@ export async function updateKey(keyId: string, updates: {
 }
 
 function hashKey(plain: string): string {
-  return crypto.createHash('sha256').update(plain).digest('hex');
+  const salt = 'api-key-static-salt';
+  return crypto.scryptSync(plain, salt, 64).toString('hex');
 }
