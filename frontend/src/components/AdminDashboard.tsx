@@ -24,6 +24,7 @@ const GitHubBillingCacheManager = React.lazy(() => import('./GitHubBillingCacheM
 const IPBanManager = React.lazy(() => import('./IPBanManager'));
 const FingerprintManager = React.lazy(() => import('./FingerprintManager'));
 const SystemManager = React.lazy(() => import('./SystemManager'));
+const BroadcastManager = React.lazy(() => import('./BroadcastManager'));
 
 const AdminDashboard: React.FC = () => {
   const [tab, setTab] = useState('users');
@@ -52,6 +53,7 @@ const AdminDashboard: React.FC = () => {
     { key: 'github-billing-cache', label: 'GitHub账单缓存管理' },
     { key: 'ip-ban', label: 'IP封禁管理' },
     { key: 'fingerprint', label: '指纹管理' },
+    { key: 'broadcast', label: '广播推送' },
     { key: 'system', label: '系统管理' },
   ] as const), []);
 
@@ -546,6 +548,19 @@ const AdminDashboard: React.FC = () => {
                   >
                     <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
                       <FingerprintManager />
+                    </Suspense>
+                  </motion.div>
+                )}
+                {tab === 'broadcast' && (
+                  <motion.div
+                    key="broadcast"
+                    initial={{ opacity: 0, x: 40 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -40 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
+                      <BroadcastManager />
                     </Suspense>
                   </motion.div>
                 )}

@@ -51,6 +51,10 @@ COPY frontend/docs/package.json frontend/docs/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --no-optional
 
 COPY frontend/docs/ .
+
+# 初始化空 git repo，避免 Docusaurus 读取 git log 时产生大量警告
+RUN git init && git add -A && git commit -m "init" --allow-empty
+
 RUN pnpm run build:no-git || pnpm run build:docker || pnpm run build:simple
 
 # ============================================

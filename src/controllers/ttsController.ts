@@ -10,6 +10,7 @@ import { TurnstileService } from '../services/turnstileService';
 
 import { findDuplicateGeneration, addGenerationRecord, isAdminUser } from '../services/userGenerationService';
 import { mongoose } from '../services/mongoService';
+import { wsService } from '../services/wsService';
 
 // 使用 MongoDB 存储与读取 TTS 生成码，不再读取配置文件中的 generationCode
 const TtsSettingSchema = new mongoose.Schema({
@@ -200,6 +201,13 @@ export class TtsController {
 
             // 生成语音
             try {
+                const taskId = `tts_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+                // 通知前端：开始生成
+                if (userId) {
+                  wsService.notifyTtsProgress(userId, { taskId, status: 'generating', message: '正在生成语音...' });
+                }
+
                 const result = await TtsController.ttsService.generateSpeech({
                     text,
                     model,
@@ -240,8 +248,17 @@ export class TtsController {
                 // 以 audioUrl 作为签名内容
                 const signature = signContent(result.audioUrl);
 
+                // 通知前端：生成完成
+                if (userId) {
+                  wsService.notifyTtsComplete(userId, { taskId, audioUrl: result.audioUrl, fileName: result.fileName });
+                }
+
                 res.json({ success: true, ...result, signature });
             } catch (error) {
+                // 通知前端：生成失败
+                if (userId) {
+                  wsService.notifyTtsError(userId, { taskId: '', error: '生成语音失败' });
+                }
                 logger.error('生成语音失败:', error);
                 res.status(500).json({ error: '生成语音失败' });
             }
