@@ -73,9 +73,6 @@ class VerificationTokenStorage {
 
         this.tokens.set(token, verificationToken);
         
-        // 不记录敏感信息（token、email），只记录类型
-        logger.info(`[验证令牌] 创建成功: type=${type}`);
-        
         return verificationToken;
     }
 

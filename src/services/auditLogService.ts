@@ -18,6 +18,21 @@ export interface AuditEntry {
   method?: string;
 }
 
+/** 转义正则特殊字符 */
+function escapeRegex(str: string): string {
+  return str.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, (ch) => '\\' + ch);
+}
+
+/** 允许的模块白名单 */
+const ALLOWED_MODULES = new Set([
+  'auth', 'user', 'system', 'cdk', 'api', 'admin', 'security',
+  'config', 'email', 'tts', 'shorturl', 'ipfs', 'media', 'network',
+  'life', 'social', 'lottery', 'workspace', 'resource',
+  'recommendation', 'policy', 'debug',
+]);
+
+const ALLOWED_RESULTS = new Set(['success', 'failure']);
+
 export class AuditLogService {
   /**
    * 写入一条审计日志（fire-and-forget，不阻塞业务）
@@ -29,7 +44,6 @@ export class AuditLogService {
         createdAt: new Date(),
       });
     } catch (err) {
-      // 审计写入失败不应影响业务，仅记录到通用日志
       logger.error('[AuditLog] 写入失败', { err, entry });
     }
   }
@@ -62,20 +76,27 @@ export class AuditLogService {
 
     const filter: Record<string, any> = {};
 
-    if (module) filter.module = module;
-    if (action) filter.action = action;
-    if (userId) filter.userId = userId;
-    if (result) filter.result = result;
+    // 白名单 / 格式校验，防止 NoSQL 注入
+    if (module && ALLOWED_MODULES.has(module)) filter.module = module;
+    if (action && /^[a-zA-Z0-9_.-]+$/.test(action)) filter.action = action;
+    if (userId && /^[a-zA-Z0-9_-]+$/.test(userId)) filter.userId = userId;
+    if (result && ALLOWED_RESULTS.has(result)) filter.result = result;
 
     if (startDate || endDate) {
       filter.createdAt = {};
-      if (startDate) filter.createdAt.$gte = new Date(startDate);
-      if (endDate) filter.createdAt.$lte = new Date(endDate);
+      if (startDate) {
+        const d = new Date(startDate);
+        if (!isNaN(d.getTime())) filter.createdAt.$gte = d;
+      }
+      if (endDate) {
+        const d = new Date(endDate);
+        if (!isNaN(d.getTime())) filter.createdAt.$lte = d;
+      }
+      if (Object.keys(filter.createdAt).length === 0) delete filter.createdAt;
     }
 
-    if (keyword) {
-      // 转义正则特殊字符，防止 ReDoS / NoSQL 注入
-      const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (keyword && typeof keyword === 'string') {
+      const escaped = escapeRegex(keyword);
       filter.$or = [
         { username: { $regex: escaped, $options: 'i' } },
         { action: { $regex: escaped, $options: 'i' } },
