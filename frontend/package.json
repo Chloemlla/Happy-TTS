@@ -34,7 +34,7 @@
     "@microsoft/clarity": "^1.0.2",
     "@prisma/client": "^7.0.1",
     "@radix-ui/react-dialog": "^1.1.15",
-    "@react-email/components": "1.0.3",
+    "@react-email/components": "1.0.7",
     "@simplewebauthn/browser": "^13.2.2",
     "@simplewebauthn/server": "^13.2.2",
     "@simplewebauthn/types": "^12.0.0",
