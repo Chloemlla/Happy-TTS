@@ -69,6 +69,8 @@ import { ipBanCheckWithRateLimit } from './middleware/ipBanCheck';
 import { wafMiddleware } from './middleware/wafMiddleware';
 import { isConnected as isMongoConnected } from './services/mongoService';
 import { wsService } from './services/wsService';
+import apiKeyRoutes from './routes/apiKeyRoutes';
+import auditLogRoutes from './routes/auditLogRoutes';
 
 // ========== CORS 中间件 ==========
 import {
@@ -435,6 +437,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/totp', totpRoutes);
 app.use('/api/totp/status', authenticateToken, totpStatusHandler as RequestHandler);
 app.use('/api/admin', adminLimiter, adminRoutes);
+app.use('/api/admin/audit-logs', adminLimiter, authenticateToken, auditLogRoutes);
+app.use('/api/apikeys', apiKeyRoutes);
 app.use('/api/status', statusRouter);
 app.use('/api/turnstile', turnstileRoutes);
 app.use('/api/policy', policyRoutes);

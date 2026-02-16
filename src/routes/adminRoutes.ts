@@ -4,6 +4,8 @@ import { authMiddleware } from '../middleware/authMiddleware';
 import rateLimit from 'express-rate-limit';
 import multer from 'multer';
 import { authenticateToken } from '../middleware/authenticateToken';
+import { replayProtection } from '../middleware/replayProtection';
+import { auditLog } from '../middleware/auditLog';
 import logger from '../utils/logger';
 import * as crypto from 'crypto';
 const upload = multer({ limits: { fileSize: 5 * 1024 * 1024 } }); // 5MB限制
@@ -130,7 +132,7 @@ router.get('/users', adminController.getUsers);
  *       200:
  *         description: 创建用户结果
  */
-router.post('/users', adminController.createUser);
+router.post('/users', auditLog({ module: 'user', action: 'user.create', extractDetail: (req) => ({ username: req.body.username, email: req.body.email }) }), adminController.createUser);
 
 // 管理员设置指定用户下次需要上报指纹（一次性或开关）
 router.post('/users/:id/fingerprint/require', async (req, res) => {
@@ -182,7 +184,7 @@ router.post('/users/:id/fingerprint/require', async (req, res) => {
  *       200:
  *         description: 更新用户结果
  */
-router.put('/users/:id', adminController.updateUser);
+router.put('/users/:id', auditLog({ module: 'user', action: 'user.update', extractTarget: (req) => ({ targetId: req.params.id }) }), adminController.updateUser);
 
 /**
  * @openapi
@@ -199,7 +201,7 @@ router.put('/users/:id', adminController.updateUser);
  *       200:
  *         description: 删除用户结果
  */
-router.delete('/users/:id', adminController.deleteUser);
+router.delete('/users/:id', auditLog({ module: 'user', action: 'user.delete', extractTarget: (req) => ({ targetId: req.params.id }) }), adminController.deleteUser);
 
 /**
  * @openapi
@@ -221,7 +223,7 @@ router.delete('/users/:id', adminController.deleteUser);
  *       200:
  *         description: 设置结果
  */
-router.post('/announcement', adminController.setAnnouncement);
+router.post('/announcement', auditLog({ module: 'announcement', action: 'announcement.update' }), adminController.setAnnouncement);
 
 /**
  * @openapi
@@ -232,7 +234,7 @@ router.post('/announcement', adminController.setAnnouncement);
  *       200:
  *         description: 删除结果
  */
-router.delete('/announcement', adminController.deleteAnnouncements);
+router.delete('/announcement', auditLog({ module: 'announcement', action: 'announcement.delete' }), adminController.deleteAnnouncements);
 
 /**
  * @openapi
@@ -267,7 +269,7 @@ router.get('/envs', adminController.getEnvs);
  *       200:
  *         description: 保存结果
  */
-router.post('/envs', adminController.setEnv);
+router.post('/envs', auditLog({ module: 'env', action: 'env.set', extractDetail: (req) => ({ key: req.body.key }) }), adminController.setEnv);
 
 /**
  * @openapi
@@ -287,7 +289,7 @@ router.post('/envs', adminController.setEnv);
  *       200:
  *         description: 删除结果
  */
-router.delete('/envs', adminController.deleteEnv);
+router.delete('/envs', auditLog({ module: 'env', action: 'env.delete', extractDetail: (req) => ({ key: req.body.key }) }), adminController.deleteEnv);
 
 /**
  * @openapi
@@ -307,7 +309,7 @@ router.delete('/envs', adminController.deleteEnv);
  *       200:
  *         description: 删除结果
  */
-router.post('/envs/delete', adminController.deleteEnv);
+router.post('/envs/delete', auditLog({ module: 'env', action: 'env.delete', extractDetail: (req) => ({ key: req.body.key }) }), adminController.deleteEnv);
 
 // OutEmail settings management (admin)
 router.get('/outemail/settings', adminController.getOutemailSettings);
@@ -553,7 +555,7 @@ router.post('/shortlinks/batch-delete', authenticateToken, async (req, res) => {
 });
 
 // 创建短链
-router.post('/shortlinks', authenticateToken, async (req, res) => {
+router.post('/shortlinks', authenticateToken, replayProtection(), auditLog({ module: 'shorturl', action: 'shorturl.create', extractDetail: (req) => ({ target: req.body.target, customCode: req.body.customCode }) }), async (req, res) => {
   try {
     // 检查管理员权限
     if (!req.user || req.user.role !== 'admin') {

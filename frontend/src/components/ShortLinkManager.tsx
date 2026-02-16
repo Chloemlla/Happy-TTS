@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { useNotification } from './Notification';
 import getApiBaseUrl from '../api';
 import { useAuth } from '../hooks/useAuth';
+import { signedFetch } from '../utils/requestSigner';
 import CryptoJS from 'crypto-js';
 
 interface ShortLink {
@@ -282,7 +283,7 @@ const ShortLinkManager: React.FC = () => {
         requestBody.customCode = customCode.trim();
       }
 
-      const res = await fetch(`${getApiBaseUrl()}/api/admin/shortlinks`, {
+      const res = await signedFetch(`${getApiBaseUrl()}/api/admin/shortlinks`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -536,7 +537,7 @@ const ShortLinkManager: React.FC = () => {
     setDeletingAll(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${getApiBaseUrl()}/s/admin/deleteall`, {
+      const response = await signedFetch(`${getApiBaseUrl()}/s/admin/deleteall`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -607,7 +608,7 @@ const ShortLinkManager: React.FC = () => {
 
       // 调用导入API
       const token = localStorage.getItem('token');
-      const response = await fetch(`${getApiBaseUrl()}/s/admin/import`, {
+      const response = await signedFetch(`${getApiBaseUrl()}/s/admin/import`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -666,7 +667,7 @@ const ShortLinkManager: React.FC = () => {
     setImportingData(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${getApiBaseUrl()}/s/admin/import`, {
+      const response = await signedFetch(`${getApiBaseUrl()}/s/admin/import`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,

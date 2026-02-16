@@ -1,5 +1,6 @@
 import { api, getApiBaseUrl } from './api';
 import { Resource } from './resources';
+import { getSignHeaders } from '../utils/requestSigner';
 
 export interface CDK {
   id: string;
@@ -70,7 +71,11 @@ export const cdksApi = {
     cfToken?: string;
     userRole?: string;
   }) => {
-    const response = await api.post(`${getApiBaseUrl()}/api/cdks/redeem`, params);
+    const bodyStr = JSON.stringify(params);
+    const signHeaders = await getSignHeaders(bodyStr);
+    const response = await api.post(`${getApiBaseUrl()}/api/cdks/redeem`, params, {
+      headers: signHeaders,
+    });
     return response.data;
   },
 

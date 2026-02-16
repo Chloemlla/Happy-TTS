@@ -25,6 +25,8 @@ const IPBanManager = React.lazy(() => import('./IPBanManager'));
 const FingerprintManager = React.lazy(() => import('./FingerprintManager'));
 const SystemManager = React.lazy(() => import('./SystemManager'));
 const BroadcastManager = React.lazy(() => import('./BroadcastManager'));
+const ApiKeyManager = React.lazy(() => import('./ApiKeyManager'));
+const AuditLogViewer = React.lazy(() => import('./AuditLogViewer'));
 
 const AdminDashboard: React.FC = () => {
   const [tab, setTab] = useState('users');
@@ -54,6 +56,8 @@ const AdminDashboard: React.FC = () => {
     { key: 'ip-ban', label: 'IP封禁管理' },
     { key: 'fingerprint', label: '指纹管理' },
     { key: 'broadcast', label: '广播推送' },
+    { key: 'apikeys', label: 'API Key 管理' },
+    { key: 'audit-log', label: '操作审计' },
     { key: 'system', label: '系统管理' },
   ] as const), []);
 
@@ -561,6 +565,32 @@ const AdminDashboard: React.FC = () => {
                   >
                     <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
                       <BroadcastManager />
+                    </Suspense>
+                  </motion.div>
+                )}
+                {tab === 'apikeys' && (
+                  <motion.div
+                    key="apikeys"
+                    initial={{ opacity: 0, x: 40 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -40 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
+                      <ApiKeyManager />
+                    </Suspense>
+                  </motion.div>
+                )}
+                {tab === 'audit-log' && (
+                  <motion.div
+                    key="audit-log"
+                    initial={{ opacity: 0, x: 40 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -40 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
+                      <AuditLogViewer />
                     </Suspense>
                   </motion.div>
                 )}

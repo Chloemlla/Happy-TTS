@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { ShortUrlController } from '../controllers/shortUrlController';
 import { authMiddleware, adminAuthMiddleware } from '../middleware/authMiddleware';
 import { createLimiter } from '../middleware/rateLimiter';
+import { replayProtection } from '../middleware/replayProtection';
 import { mongoose } from '../services/mongoService';
 import rateLimit from 'express-rate-limit';
 
@@ -47,6 +48,9 @@ const adminWriteLimiter = rateLimit({
 	message: { error: '写入过于频繁，请稍后再试' }
 });
 
+// 防重放保护实例
+const replayGuard = replayProtection();
+
 // 用户短链管理（需要登录）
 router.get('/shorturls', authMiddleware, userManageLimiter, ShortUrlController.getUserShortUrls);
 router.delete('/shorturls/:code', authMiddleware, userManageLimiter, ShortUrlController.deleteShortUrl);
@@ -56,10 +60,10 @@ router.delete('/shorturls/batch', authMiddleware, userManageLimiter, ShortUrlCon
 router.get('/admin/export', authMiddleware, adminAuthMiddleware, adminLimiter, ShortUrlController.exportAllShortUrls);
 
 // 管理员功能：删除所有短链数据
-router.delete('/admin/deleteall', authMiddleware, adminAuthMiddleware, adminLimiter, ShortUrlController.deleteAllShortUrls);
+router.delete('/admin/deleteall', authMiddleware, adminAuthMiddleware, adminLimiter, replayGuard, ShortUrlController.deleteAllShortUrls);
 
 // 管理员功能：导入短链数据
-router.post('/admin/import', authMiddleware, adminAuthMiddleware, adminLimiter, ShortUrlController.importShortUrls);
+router.post('/admin/import', authMiddleware, adminAuthMiddleware, adminLimiter, replayGuard, ShortUrlController.importShortUrls);
 
 // ========== 管理员功能：配置短链 AES_KEY（数据库优先，支持导入/导出加解密）===========
 const ShortUrlSettingSchema = new mongoose.Schema({
@@ -85,7 +89,7 @@ router.get('/admin/aes-key', authMiddleware, adminAuthMiddleware, adminSensitive
 });
 
 // 设置/更新 AES_KEY
-router.post('/admin/aes-key', authMiddleware, adminAuthMiddleware, adminSensitiveLimiter, adminWriteLimiter, adminLimiter, async (req, res) => {
+router.post('/admin/aes-key', authMiddleware, adminAuthMiddleware, adminSensitiveLimiter, adminWriteLimiter, adminLimiter, replayGuard, async (req, res) => {
 	try {
 		const { value } = req.body || {};
 		if (typeof value !== 'string' || !value.trim() || value.length > 512) {
@@ -104,7 +108,7 @@ router.post('/admin/aes-key', authMiddleware, adminAuthMiddleware, adminSensitiv
 });
 
 // 删除 AES_KEY（恢复为仅环境变量或无加密）
-router.delete('/admin/aes-key', authMiddleware, adminAuthMiddleware, adminSensitiveLimiter, adminWriteLimiter, adminLimiter, async (req, res) => {
+router.delete('/admin/aes-key', authMiddleware, adminAuthMiddleware, adminSensitiveLimiter, adminWriteLimiter, adminLimiter, replayGuard, async (req, res) => {
 	try {
 		await ShortUrlSettingModel.deleteOne({ key: 'AES_KEY' });
 		return res.json({ success: true });
