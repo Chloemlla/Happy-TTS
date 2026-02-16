@@ -232,7 +232,7 @@ importers:
         version: 6.0.0
       '@vitejs/plugin-react':
         specifier: ^5.1.4
-        version: 5.1.4(vite@7.3.1(@types/node@25.2.3)(jiti@1.21.7)(terser@5.44.1))
+        version: 5.1.4(vite@7.3.1(@types/node@25.2.3)(jiti@1.21.7)(terser@5.46.0))
       '@vitest/ui':
         specifier: ^4.0.6
         version: 4.0.16(vitest@4.0.16)
@@ -264,14 +264,14 @@ importers:
         specifier: ^3.4.17
         version: 3.4.19
       terser:
-        specifier: ^5.44.1
-        version: 5.44.1
+        specifier: ^5.46.0
+        version: 5.46.0
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
       vite:
         specifier: ^7.3.1
-        version: 7.3.1(@types/node@25.2.3)(jiti@1.21.7)(terser@5.44.1)
+        version: 7.3.1(@types/node@25.2.3)(jiti@1.21.7)(terser@5.46.0)
       vite-auto-i18n-plugin:
         specifier: ^1.1.14
         version: 1.1.16
@@ -280,7 +280,7 @@ importers:
         version: 1.0.5
       vitest:
         specifier: ^4.0.6
-        version: 4.0.16(@types/node@25.2.3)(@vitest/ui@4.0.16)(jiti@1.21.7)(jsdom@28.1.0)(terser@5.44.1)
+        version: 4.0.16(@types/node@25.2.3)(@vitest/ui@4.0.16)(jiti@1.21.7)(jsdom@28.1.0)(terser@5.46.0)
 
 packages:
 
@@ -5171,8 +5171,8 @@ packages:
   tailwindcss@4.1.18:
     resolution: {integrity: sha512-4+Z+0yiYyEtUVCScyfHCxOYP06L5Ne+JiHhY2IjR2KWMIWhJOYZKLSGZaP5HkZ8+bY0cxfzwDE5uOmzFXyIwxw==}
 
-  terser@5.44.1:
-    resolution: {integrity: sha512-t/R3R/n0MSwnnazuPpPNVO60LX0SKL45pyl9YlvxIdkH0Of7D5qM2EVe+yASRIlY5pZ73nclYJfNANGWPwFDZw==}
+  terser@5.46.0:
+    resolution: {integrity: sha512-jTwoImyr/QbOWFFso3YoU3ik0jBBDJ6JTOQiy/J2YxVJdZCc+5u7skhNwiOR3FQIygFqVUPHl7qbbxtjW2K3Qg==}
     engines: {node: '>=10'}
     hasBin: true
 
@@ -8777,7 +8777,7 @@ snapshots:
     transitivePeerDependencies:
       - encoding
 
-  '@vitejs/plugin-react@5.1.4(vite@7.3.1(@types/node@25.2.3)(jiti@1.21.7)(terser@5.44.1))':
+  '@vitejs/plugin-react@5.1.4(vite@7.3.1(@types/node@25.2.3)(jiti@1.21.7)(terser@5.46.0))':
     dependencies:
       '@babel/core': 7.29.0
       '@babel/plugin-transform-react-jsx-self': 7.27.1(@babel/core@7.29.0)
@@ -8785,7 +8785,7 @@ snapshots:
       '@rolldown/pluginutils': 1.0.0-rc.3
       '@types/babel__core': 7.20.5
       react-refresh: 0.18.0
-      vite: 7.3.1(@types/node@25.2.3)(jiti@1.21.7)(terser@5.44.1)
+      vite: 7.3.1(@types/node@25.2.3)(jiti@1.21.7)(terser@5.46.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -8798,13 +8798,13 @@ snapshots:
       chai: 6.2.2
       tinyrainbow: 3.0.3
 
-  '@vitest/mocker@4.0.16(vite@7.3.1(@types/node@25.2.3)(jiti@1.21.7)(terser@5.44.1))':
+  '@vitest/mocker@4.0.16(vite@7.3.1(@types/node@25.2.3)(jiti@1.21.7)(terser@5.46.0))':
     dependencies:
       '@vitest/spy': 4.0.16
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 7.3.1(@types/node@25.2.3)(jiti@1.21.7)(terser@5.44.1)
+      vite: 7.3.1(@types/node@25.2.3)(jiti@1.21.7)(terser@5.46.0)
 
   '@vitest/pretty-format@4.0.16':
     dependencies:
@@ -8832,7 +8832,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.15
       tinyrainbow: 3.0.3
-      vitest: 4.0.16(@types/node@25.2.3)(@vitest/ui@4.0.16)(jiti@1.21.7)(jsdom@28.1.0)(terser@5.44.1)
+      vitest: 4.0.16(@types/node@25.2.3)(@vitest/ui@4.0.16)(jiti@1.21.7)(jsdom@28.1.0)(terser@5.46.0)
 
   '@vitest/utils@4.0.16':
     dependencies:
@@ -12048,7 +12048,7 @@ snapshots:
 
   tailwindcss@4.1.18: {}
 
-  terser@5.44.1:
+  terser@5.46.0:
     dependencies:
       '@jridgewell/source-map': 0.3.11
       acorn: 8.15.0
@@ -12339,7 +12339,7 @@ snapshots:
     dependencies:
       javascript-obfuscator: 4.2.2
 
-  vite@7.3.1(@types/node@25.2.3)(jiti@1.21.7)(terser@5.44.1):
+  vite@7.3.1(@types/node@25.2.3)(jiti@1.21.7)(terser@5.46.0):
     dependencies:
       esbuild: 0.27.3
       fdir: 6.5.0(picomatch@4.0.3)
@@ -12351,12 +12351,12 @@ snapshots:
       '@types/node': 25.2.3
       fsevents: 2.3.3
       jiti: 1.21.7
-      terser: 5.44.1
+      terser: 5.46.0
 
-  vitest@4.0.16(@types/node@25.2.3)(@vitest/ui@4.0.16)(jiti@1.21.7)(jsdom@28.1.0)(terser@5.44.1):
+  vitest@4.0.16(@types/node@25.2.3)(@vitest/ui@4.0.16)(jiti@1.21.7)(jsdom@28.1.0)(terser@5.46.0):
     dependencies:
       '@vitest/expect': 4.0.16
-      '@vitest/mocker': 4.0.16(vite@7.3.1(@types/node@25.2.3)(jiti@1.21.7)(terser@5.44.1))
+      '@vitest/mocker': 4.0.16(vite@7.3.1(@types/node@25.2.3)(jiti@1.21.7)(terser@5.46.0))
       '@vitest/pretty-format': 4.0.16
       '@vitest/runner': 4.0.16
       '@vitest/snapshot': 4.0.16
@@ -12373,7 +12373,7 @@ snapshots:
       tinyexec: 1.0.2
       tinyglobby: 0.2.15
       tinyrainbow: 3.0.3
-      vite: 7.3.1(@types/node@25.2.3)(jiti@1.21.7)(terser@5.44.1)
+      vite: 7.3.1(@types/node@25.2.3)(jiti@1.21.7)(terser@5.46.0)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 25.2.3
