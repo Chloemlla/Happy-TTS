@@ -112,7 +112,7 @@
     "svix": "^1.84.1",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
-    "tar": "^7.5.2",
+    "tar": "^7.5.9",
     "tar-fs": "^3.1.1",
     "uuid": "^13.0.0",
     "validator": "^13.15.26",
