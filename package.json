@@ -87,7 +87,7 @@
     "happy-tts": "file:",
     "helmet": "^8.1.0",
     "http-proxy-agent": "^7.0.2",
-    "jsdom": "^27.4.0",
+    "jsdom": "^28.1.0",
     "jsonwebtoken": "^9.0.3",
     "liquid-glass-react": "^1.1.1",
     "lodash": "^4.17.21",
