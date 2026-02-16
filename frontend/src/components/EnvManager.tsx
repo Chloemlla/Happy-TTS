@@ -5,6 +5,7 @@ import { LazyMotion, domAnimation, m, AnimatePresence, useReducedMotion } from '
 import getApiBaseUrl from '../api';
 import { useNotification } from './Notification';
 import { useAuth } from '../hooks/useAuth';
+import { signedFetch } from '../utils/requestSigner';
 import CryptoJS from 'crypto-js';
 import {
   FaCog,
@@ -848,7 +849,7 @@ const EnvManager: React.FC = () => {
     }
     setShortAesSaving(true);
     try {
-      const res = await fetch(SHORTURL_AES_API, {
+      const res = await signedFetch(SHORTURL_AES_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ value })
@@ -872,7 +873,7 @@ const EnvManager: React.FC = () => {
     if (shortAesDeleting) return;
     setShortAesDeleting(true);
     try {
-      const res = await fetch(SHORTURL_AES_API, {
+      const res = await signedFetch(SHORTURL_AES_API, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }
       });

@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { TurnstileService } from '../services/turnstileService';
 import { authenticateToken } from '../middleware/authenticateToken';
 import { schedulerService } from '../services/schedulerService';
+import { auditLog } from '../middleware/auditLog';
 
 const router = express.Router();
 
@@ -520,7 +521,7 @@ router.get('/ip-ban-stats', authenticateToken, adminLimiter, async (req, res) =>
 });
 
 // 手动封禁IP接口（管理员专用）
-router.post('/ban-ip', authenticateToken, adminLimiter, async (req, res) => {
+router.post('/ban-ip', authenticateToken, adminLimiter, auditLog({ module: 'ipban', action: 'ipban.ban', extractDetail: (req) => ({ ipAddress: req.body.ipAddress, reason: req.body.reason }) }), async (req, res) => {
     try {
         const userRole = (req as any).user?.role;
         const isAdmin = userRole === 'admin' || userRole === 'administrator';
@@ -627,7 +628,7 @@ router.post('/ban-ip', authenticateToken, adminLimiter, async (req, res) => {
 });
 
 // 手动解除IP封禁接口（管理员专用）
-router.post('/unban-ip', authenticateToken, adminLimiter, async (req, res) => {
+router.post('/unban-ip', authenticateToken, adminLimiter, auditLog({ module: 'ipban', action: 'ipban.unban', extractDetail: (req) => ({ ipAddress: req.body.ipAddress }) }), async (req, res) => {
     try {
         const userRole = (req as any).user?.role;
         const isAdmin = userRole === 'admin' || userRole === 'administrator';
@@ -687,7 +688,7 @@ router.post('/unban-ip', authenticateToken, adminLimiter, async (req, res) => {
 });
 
 // 批量封禁IP接口（管理员专用）
-router.post('/ban-ips', authenticateToken, adminLimiter, async (req, res) => {
+router.post('/ban-ips', authenticateToken, adminLimiter, auditLog({ module: 'ipban', action: 'ipban.batchBan', extractDetail: (req) => ({ count: req.body.ipAddresses?.length, reason: req.body.reason }) }), async (req, res) => {
     try {
         const userRole = (req as any).user?.role;
         const isAdmin = userRole === 'admin' || userRole === 'administrator';
@@ -813,7 +814,7 @@ router.post('/ban-ips', authenticateToken, adminLimiter, async (req, res) => {
 });
 
 // 批量解封IP接口（管理员专用）
-router.post('/unban-ips', authenticateToken, adminLimiter, async (req, res) => {
+router.post('/unban-ips', authenticateToken, adminLimiter, auditLog({ module: 'ipban', action: 'ipban.batchUnban', extractDetail: (req) => ({ count: req.body.ipAddresses?.length }) }), async (req, res) => {
     try {
         const userRole = (req as any).user?.role;
         const isAdmin = userRole === 'admin' || userRole === 'administrator';
