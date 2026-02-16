@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: |
           pnpm add -D @types/ws
-          pnpm install --frozen-lockfile
+          pnpm install
 
       - name: Install global tools
         run: npm install -g javascript-obfuscator
