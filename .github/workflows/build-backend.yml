@@ -39,7 +39,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [20.x]
+        node-version: [24.x]
         platform: [windows, linux, macos]
 
     steps:
@@ -49,7 +49,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 8
+          version: latest
 
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
@@ -66,17 +66,14 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=8192
 
-      - name: Clean node_modules and lock
-        run: |
-          rm -rf node_modules pnpm-lock.yaml
-          rm -rf dist dist-obfuscated
+      - name: Clean build output
+        run: rm -rf dist dist-obfuscated
 
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-      - name: Install dependencies with retry
-        run: |
-          pnpm install --no-optional
-          # Install pkg globally for executable building
-          pnpm add -g pkg@latest
+      - name: Install global tools
+        run: npm install -g javascript-obfuscator pkg@latest
         env:
           NODE_OPTIONS: --max-old-space-size=8192
 
