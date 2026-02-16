@@ -105,7 +105,7 @@
     "qrcode": "^1.5.4",
     "react-syntax-highlighter": "^16.1.0",
     "redis": "^5.10.0",
-    "resend": "^6.6.0",
+    "resend": "^6.9.2",
     "serve": "^14.2.1",
     "socks-proxy-agent": "^8.0.5",
     "speakeasy": "^2.0.0",
