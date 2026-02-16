@@ -34,7 +34,7 @@
     "@microsoft/clarity": "^1.0.2",
     "@prisma/client": "^7.0.1",
     "@radix-ui/react-dialog": "^1.1.15",
-    "@react-email/components": "1.0.3",
+    "@react-email/components": "1.0.7",
     "@simplewebauthn/browser": "^13.2.2",
     "@simplewebauthn/server": "^13.2.2",
     "@simplewebauthn/types": "^12.0.0",
@@ -54,7 +54,7 @@
     "dompurify": "^3.3.0",
     "express-rate-limit": "^7.5.0",
     "form-data": "^4.0.5",
-    "framer-motion": "^12.24.0",
+    "framer-motion": "^12.34.0",
     "happy-tts-frontend": "file:",
     "html2canvas": "^1.4.1",
     "idb": "^8.0.3",
@@ -91,7 +91,7 @@
     "vite-plugin-auto-i18n": "^0.0.9"
   },
   "devDependencies": {
-    "@rsbuild/core": "^1.6.12",
+    "@rsbuild/core": "^1.7.3",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
