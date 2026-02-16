@@ -1,4 +1,4 @@
-name: Auto Merge
+name: Auto Approve & Merge
 
 on:
   pull_request_review:
@@ -7,6 +7,8 @@ on:
     types: [completed]
   status:
   workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * *" # 每天 UTC 零点运行
 
 permissions:
   contents: write
@@ -15,9 +17,32 @@ permissions:
   actions: write
 
 jobs:
+  # Job 1: 定时批准 Dependabot PRs（原 auto-approve.yml）
+  auto-approve:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@main
+
+      - name: Setup Node.js
+        uses: actions/setup-node@main
+        with:
+          node-version: "18"
+
+      - name: Install dependencies
+        run: npm install @octokit/rest
+
+      - name: Auto-approve Dependabot PRs
+        env:
+          GITHUB_TOKEN: ${{ secrets.USER_PAT }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node scripts/auto-approve.js
+
+  # Job 2: 事件驱动自动合并（原 auto-merge.yml）
   auto-merge:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.draft == false || github.event_name != 'pull_request'
+    if: github.event_name != 'schedule'
     steps:
       - name: Check if PR is ready for auto-merge
         id: check-ready
@@ -73,7 +98,6 @@ jobs:
                 
                 if (shouldAutoMerge) {
                   try {
-                    // 使用 GraphQL API 启用自动合并
                     const mutation = `
                       mutation enableAutoMerge($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) {
                         enablePullRequestAutoMerge(input: {
@@ -98,7 +122,6 @@ jobs:
                     
                     console.log(`✅ 已为 PR #${prNumber} 启用自动合并`);
                     
-                    // 添加评论说明
                     await github.rest.issues.createComment({
                       owner,
                       repo,
@@ -117,7 +140,6 @@ jobs:
                 }
               }
               
-              // 输出总结
               console.log('\n=== 手动触发总结 ===');
               console.log(`总共检查: ${openPRs.length} 个 PR`);
               console.log(`已启用自动合并: ${results.filter(r => r.status === 'enabled').length} 个`);
@@ -130,13 +152,11 @@ jobs:
               
               return true;
             } else if (context.eventName === 'check_suite' || context.eventName === 'status') {
-              // 对于 check_suite 和 status 事件，需要从 commits 中查找关联的 PR
               const commits = context.payload.check_suite?.head_sha ? 
                 [context.payload.check_suite.head_sha] : 
                 (context.payload.commits || []).map(c => c.sha);
               
               if (commits.length > 0) {
-                // 查找与这些提交关联的 PR
                 const { data: prs } = await github.rest.pulls.list({
                   owner,
                   repo,
@@ -144,7 +164,6 @@ jobs:
                   head: `${owner}:${context.payload.repository?.default_branch || 'main'}`
                 });
                 
-                // 查找包含这些提交的 PR
                 for (const pr of prs) {
                   const { data: prCommits } = await github.rest.pulls.listCommits({
                     owner,
@@ -166,7 +185,6 @@ jobs:
               return false;
             }
 
-            // 获取 PR 信息
             const { data: pr } = await github.rest.pulls.get({
               owner,
               repo,
@@ -175,15 +193,10 @@ jobs:
 
             console.log(`检查 PR #${pull_number}: ${pr.title}`);
 
-            // 检查是否为 dependabot PR
             const isDependabot = pr.user.login === 'dependabot[bot]';
-
-            // 检查是否有自动合并标签
             const hasAutoMergeLabel = pr.labels.some(label => 
               ['auto-merge', 'automerge', '自动合并'].includes(label.name.toLowerCase())
             );
-
-            // 检查 PR 状态
             const isApproved = pr.mergeable_state === 'clean';
             const hasConflicts = pr.mergeable === false;
 
@@ -192,7 +205,6 @@ jobs:
             console.log(`Mergeable state: ${pr.mergeable_state}`);
             console.log(`Has conflicts: ${hasConflicts}`);
 
-            // 决定是否启用自动合并
             const shouldAutoMerge = (isDependabot || hasAutoMergeLabel) && !hasConflicts;
 
             core.setOutput('should-merge', shouldAutoMerge);
@@ -209,14 +221,12 @@ jobs:
             const pull_number = ${{ steps.check-ready.outputs.pr-number }};
 
             try {
-              // 获取 PR 的 node_id
               const { data: prData } = await github.rest.pulls.get({
                 owner,
                 repo,
                 pull_number
               });
 
-              // 使用 GraphQL API 启用自动合并
               const mutation = `
                 mutation enableAutoMerge($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) {
                   enablePullRequestAutoMerge(input: {
@@ -241,7 +251,6 @@ jobs:
 
               console.log(`✅ 已为 PR #${pull_number} 启用自动合并`);
 
-              // 添加评论说明
               await github.rest.issues.createComment({
                 owner,
                 repo,
@@ -258,76 +267,3 @@ jobs:
         run: |
           echo "手动触发完成！"
           echo "结果已记录在日志中，请查看上方的详细输出"
-
-  # 专门处理 Dependabot PRs 的作业
-  # dependabot-auto-merge:
-  #   runs-on: ubuntu-latest
-  #   if: github.actor == 'dependabot[bot]'
-  #   steps:
-  #     - name: Dependabot metadata
-  #       id: metadata
-  #       uses: dependabot/fetch-metadata@main
-  #       with:
-  #         github-token: "${{ secrets.USER_PAT }}"
-
-  #     - name: Auto-approve and enable auto-merge for Dependabot PRs
-  #       if: steps.metadata.outputs.update-type == 'version-update:semver-patch' || steps.metadata.outputs.update-type == 'version-update:semver-minor'
-  #       uses: actions/github-script@main
-  #       with:
-  #         script: |
-  #           const { owner, repo } = context.repo;
-  #           const pull_number = context.payload.pull_request.number;
-
-  #           try {
-  #             // 批准 PR
-  #             await github.rest.pulls.createReview({
-  #               owner,
-  #               repo,
-  #               pull_number,
-  #               event: 'APPROVE',
-  #               body: '🤖 Dependabot 补丁/次要版本更新自动批准'
-  #             });
-
-  #             // 获取 PR 的 node_id 以启用自动合并
-  #             const { data: prData } = await github.rest.pulls.get({
-  #               owner,
-  #               repo,
-  #               pull_number
-  #             });
-
-  #             // 使用 GraphQL API 启用自动合并
-  #             const mutation = `
-  #               mutation enableAutoMerge($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) {
-  #                 enablePullRequestAutoMerge(input: {
-  #                   pullRequestId: $pullRequestId,
-  #                   mergeMethod: $mergeMethod
-  #                 }) {
-  #                   pullRequest {
-  #                     autoMergeRequest {
-  #                       enabledAt
-  #                     }
-  #                   }
-  #                 }
-  #               }
-  #             `;
-
-  #             const variables = {
-  #               pullRequestId: prData.node_id,
-  #               mergeMethod: 'SQUASH'
-  #             };
-
-  #             await github.graphql(mutation, variables);
-
-  #             console.log(`✅ 已为 Dependabot PR #${pull_number} 启用自动合并`);
-
-  #           } catch (error) {
-  #             console.log(`❌ 处理 Dependabot PR #${pull_number} 失败: ${error.message}`);
-  #           }
-
-  #     - name: Comment on major version updates
-  #       if: steps.metadata.outputs.update-type == 'version-update:semver-major'
-  #       run: |
-  #         gh pr comment "$PR_URL" --body "🚨 这是一个主版本更新，需要手动审查和合并。"
-  #       env:
-  #         PR_URL: ${{github.event.pull_request.html_url}}
-  #         GITHUB_TOKEN: ${{secrets.USER_PAT}}
