@@ -1,0 +1,21 @@
+name: Force Merge Dependabot PRs
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  force-merge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@main
+
+      - name: Force squash merge all Dependabot PRs
+        env:
+          GITHUB_TOKEN: ${{ secrets.USER_PAT }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node scripts/force-merge-dependabot.js ${{ github.repository }}
