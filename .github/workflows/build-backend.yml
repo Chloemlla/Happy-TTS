@@ -70,7 +70,9 @@ jobs:
         run: rm -rf dist dist-obfuscated
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: |
+          pnpm add -D @types/ws
+          pnpm install
 
       - name: Install global tools
         run: npm install -g javascript-obfuscator pkg@latest
