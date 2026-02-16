@@ -108,8 +108,8 @@ importers:
         specifier: ^7.0.0
         version: 7.0.0
       mongoose:
-        specifier: ^9.1.2
-        version: 9.1.2(socks@2.8.7)
+        specifier: ^9.2.1
+        version: 9.2.1(socks@2.8.7)
       morgan:
         specifier: ^1.10.1
         version: 1.10.1
@@ -2480,8 +2480,8 @@ packages:
   jws@4.0.1:
     resolution: {integrity: sha512-EKI/M/yqPncGUUh44xz0PxSidXFr/+r0pA70+gIYhjv+et7yxM+s29Y+VGDkovRofQem0fs7Uvf4+YmAdyRduA==}
 
-  kareem@3.0.0:
-    resolution: {integrity: sha512-RKhaOBSPN8L7y4yAgNhDT2602G5FD6QbOIISbjN9D6mjHPeqeg7K+EB5IGSU5o81/X2Gzm3ICnAvQW3x3OP8HA==}
+  kareem@3.2.0:
+    resolution: {integrity: sha512-VS8MWZz/cT+SqBCpVfNN4zoVz5VskR3N4+sTmUXme55e9avQHntpwpNq0yjnosISXqwJ3AQVjlbI4Dyzv//JtA==}
     engines: {node: '>=18.0.0'}
 
   kuler@2.0.0:
@@ -2723,8 +2723,8 @@ packages:
       socks:
         optional: true
 
-  mongoose@9.1.2:
-    resolution: {integrity: sha512-EdxZ/l+wLIPymy/ODxulg13CaUPpt8RenGmuoNAuRhA5Dgk/QERkUm3U0wOEbAi6ULG08bGDo9sy2tKX0KwxIg==}
+  mongoose@9.2.1:
+    resolution: {integrity: sha512-fmNLwgct5km7iL1MqvTMncarR1E1TIw2lmc9A4UoDVdS7AQe95K+DnRK0qATkSUdwUC9V/5wlDcqnkQQjbSRkA==}
     engines: {node: '>=20.19.0'}
 
   morgan@1.10.1:
@@ -5876,7 +5876,7 @@ snapshots:
       marked: 17.0.1
       mongodb: 7.0.0(socks@2.8.7)
       mongodb-connection-string-url: 7.0.0
-      mongoose: 9.1.2(socks@2.8.7)
+      mongoose: 9.2.1(socks@2.8.7)
       morgan: 1.10.1
       multer: 2.0.2
       mysql2: 3.17.1
@@ -6607,7 +6607,7 @@ snapshots:
       jwa: 2.0.1
       safe-buffer: 5.2.1
 
-  kareem@3.0.0: {}
+  kareem@3.2.0: {}
 
   kuler@2.0.0: {}
 
@@ -6781,9 +6781,9 @@ snapshots:
     optionalDependencies:
       socks: 2.8.7
 
-  mongoose@9.1.2(socks@2.8.7):
+  mongoose@9.2.1(socks@2.8.7):
     dependencies:
-      kareem: 3.0.0
+      kareem: 3.2.0
       mongodb: 7.0.0(socks@2.8.7)
       mpath: 0.9.0
       mquery: 6.0.0
