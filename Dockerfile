@@ -76,6 +76,7 @@ RUN npm install -g javascript-obfuscator
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml ./
+RUN pnpm add -D @types/ws
 RUN pnpm install --frozen-lockfile
 
 COPY scripts/ ./scripts/
