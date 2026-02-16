@@ -1,6 +1,8 @@
 name: Auto Approve & Merge
 
 on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
   pull_request_review:
     types: [submitted]
   check_suite:
@@ -39,7 +41,42 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: node scripts/auto-approve.js
 
-  # Job 2: 事件驱动自动合并（原 auto-merge.yml）
+  # Job 2: Dependabot PR 即时批准+自动合并
+  dependabot-approve:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request_target' && github.actor == 'dependabot[bot]'
+    steps:
+      - name: Approve dependabot PR
+        uses: actions/github-script@main
+        with:
+          github-token: ${{ secrets.USER_PAT }}
+          script: |
+            const { owner, repo } = context.repo;
+            const pull_number = context.payload.pull_request.number;
+
+            // 批准 PR
+            await github.rest.pulls.createReview({
+              owner,
+              repo,
+              pull_number,
+              event: 'APPROVE',
+              body: '🤖 Dependabot PR auto-approved.'
+            });
+            console.log(`✅ PR #${pull_number} approved`);
+
+            // 启用自动合并
+            const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number });
+            const mutation = `
+              mutation($id: ID!) {
+                enablePullRequestAutoMerge(input: { pullRequestId: $id, mergeMethod: SQUASH }) {
+                  pullRequest { autoMergeRequest { enabledAt } }
+                }
+              }
+            `;
+            await github.graphql(mutation, { id: pr.node_id });
+            console.log(`✅ Auto-merge enabled for PR #${pull_number}`);
+
+  # Job 3: 事件驱动自动合并（原 auto-merge.yml）
   auto-merge:
     runs-on: ubuntu-latest
     if: github.event_name != 'schedule'
