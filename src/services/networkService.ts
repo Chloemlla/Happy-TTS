@@ -1,5 +1,5 @@
+import { createHash } from "node:crypto";
 import axios from "axios";
-import { createHash } from "crypto";
 import logger from "../utils/logger";
 
 export interface NetworkTestResponse {
@@ -498,7 +498,7 @@ export class NetworkService {
     }
     const h = parseFloat(height);
     const w = parseFloat(weight);
-    if (isNaN(h) || isNaN(w) || h <= 0 || w <= 0) {
+    if (Number.isNaN(h) || Number.isNaN(w) || h <= 0 || w <= 0) {
       return {
         success: false,
         error: "身高和体重必须为正数",

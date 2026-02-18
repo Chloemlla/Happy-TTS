@@ -1,10 +1,9 @@
-import bcrypt from "bcrypt";
+import fs from "node:fs";
+import path from "node:path";
 import dotenv from "dotenv";
-import fs from "fs";
 import mongoose from "mongoose";
 // MySQL 相关依赖
 import mysql from "mysql2/promise";
-import path from "path";
 import validator from "validator";
 import { config } from "../config/config";
 import * as userService from "../services/userService";
@@ -97,7 +96,6 @@ function removeAvatarBase64(obj: any) {
 export class UserStorage {
   private static readonly USERS_FILE = path.join(process.cwd(), "data", "users.json");
   private static readonly DAILY_LIMIT = 5;
-  private static mongoConnected = false;
   private static autoSwitchEnabled = true;
 
   // 输入净化
@@ -402,7 +400,7 @@ export class UserStorage {
             });
 
             // 打印管理员账户信息到控制台
-            console.log("\n" + "=".repeat(50));
+            console.log(`\n${"=".repeat(50)}`);
             console.log("🔐 新创建的管理员账户信息");
             console.log("=".repeat(50));
             console.log(`用户名: ${adminUsername}`);
@@ -452,7 +450,7 @@ export class UserStorage {
               });
 
               // 打印管理员账户信息到控制台
-              console.log("\n" + "=".repeat(50));
+              console.log(`\n${"=".repeat(50)}`);
               console.log("🔐 新创建的管理员账户信息");
               console.log("=".repeat(50));
               console.log(`用户名: ${adminUsername}`);
@@ -494,7 +492,7 @@ export class UserStorage {
                   });
 
                   // 打印管理员账户信息到控制台
-                  console.log("\n" + "=".repeat(50));
+                  console.log(`\n${"=".repeat(50)}`);
                   console.log("🔐 新创建的管理员账户信息");
                   console.log("=".repeat(50));
                   console.log(`用户名: ${adminUsername}`);
@@ -534,7 +532,7 @@ export class UserStorage {
                 });
 
                 // 打印管理员账户信息到控制台
-                console.log("\n" + "=".repeat(50));
+                console.log(`\n${"=".repeat(50)}`);
                 console.log("🔐 新创建的管理员账户信息");
                 console.log("=".repeat(50));
                 console.log(`用户名: ${adminUsername}`);
@@ -1395,7 +1393,7 @@ export class UserStorage {
         }
       } catch (e) {
         healthy = false;
-        message = "MongoDB 连接或查询异常：" + (e instanceof Error ? e.message : String(e));
+        message = `MongoDB 连接或查询异常：${e instanceof Error ? e.message : String(e)}`;
       }
     } else if (mode === "mysql") {
       try {
@@ -1409,7 +1407,7 @@ export class UserStorage {
         }
       } catch (e) {
         healthy = false;
-        message = "MySQL 连接或查询异常：" + (e instanceof Error ? e.message : String(e));
+        message = `MySQL 连接或查询异常：${e instanceof Error ? e.message : String(e)}`;
       }
     } else {
       message = "未知存储模式";
@@ -1509,7 +1507,7 @@ export class UserStorage {
         logger.info(`[UserStorage] MongoDB 已创建默认管理员账户: ${adminUsername}`);
 
         // 打印管理员账户信息到控制台
-        console.log("\n" + "=".repeat(50));
+        console.log(`\n${"=".repeat(50)}`);
         console.log("🔐 新创建的管理员账户信息");
         console.log("=".repeat(50));
         console.log(`用户名: ${adminUsername}`);
@@ -1632,7 +1630,7 @@ export class UserStorage {
         logger.info(`[UserStorage] MySQL 已创建默认管理员账户: ${adminUsername}`);
 
         // 打印管理员账户信息到控制台
-        console.log("\n" + "=".repeat(50));
+        console.log(`\n${"=".repeat(50)}`);
         console.log("🔐 新创建的管理员账户信息");
         console.log("=".repeat(50));
         console.log(`用户名: ${adminUsername}`);
@@ -1721,7 +1719,7 @@ export class UserStorage {
         logger.info(`[UserStorage] 文件存储已创建默认管理员账户: ${adminUsername}`);
 
         // 打印管理员账户信息到控制台
-        console.log("\n" + "=".repeat(50));
+        console.log(`\n${"=".repeat(50)}`);
         console.log("🔐 新创建的管理员账户信息");
         console.log("=".repeat(50));
         console.log(`用户名: ${adminUsername}`);

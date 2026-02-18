@@ -30,7 +30,7 @@ export async function analyzeIndexUsage(): Promise<any[]> {
     // 识别未使用的索引
     const unusedIndexes = stats.filter((stat: any) => stat.accesses.ops === 0);
     if (unusedIndexes.length > 0) {
-      logger.warn("\n" + "=".repeat(60));
+      logger.warn(`\n${"=".repeat(60)}`);
       logger.warn("⚠️  未使用的索引（考虑删除）:");
       logger.warn("=".repeat(60));
       unusedIndexes.forEach((stat: any) => {
@@ -54,7 +54,7 @@ export async function checkIndexSize(): Promise<any> {
   try {
     const stats: any = await (FBIWantedModel.collection as any).stats();
 
-    logger.info("\n" + "=".repeat(60));
+    logger.info(`\n${"=".repeat(60)}`);
     logger.info("FBI Wanted 集合统计:");
     logger.info("=".repeat(60));
     logger.info(`  文档数量: ${stats.count}`);
@@ -87,7 +87,7 @@ export async function listAllIndexes(): Promise<any[]> {
   try {
     const indexes = await FBIWantedModel.collection.indexes();
 
-    logger.info("\n" + "=".repeat(60));
+    logger.info(`\n${"=".repeat(60)}`);
     logger.info("FBI Wanted 所有索引:");
     logger.info("=".repeat(60));
 
@@ -112,7 +112,7 @@ export async function listAllIndexes(): Promise<any[]> {
  */
 export async function rebuildIndexes(): Promise<void> {
   try {
-    logger.info("\n" + "=".repeat(60));
+    logger.info(`\n${"=".repeat(60)}`);
     logger.info("开始重建FBI Wanted索引...");
     logger.info("=".repeat(60));
 
@@ -143,7 +143,7 @@ export async function runFullAnalysis(): Promise<void> {
   try {
     await connectMongo();
 
-    logger.info("\n" + "█".repeat(60));
+    logger.info(`\n${"█".repeat(60)}`);
     logger.info("FBI WANTED 数据库索引分析报告");
     logger.info("█".repeat(60));
 
@@ -156,9 +156,9 @@ export async function runFullAnalysis(): Promise<void> {
     // 3. 索引使用统计
     await analyzeIndexUsage();
 
-    logger.info("\n" + "█".repeat(60));
+    logger.info(`\n${"█".repeat(60)}`);
     logger.info("分析报告完成");
-    logger.info("█".repeat(60) + "\n");
+    logger.info(`${"█".repeat(60)}\n`);
   } catch (error) {
     logger.error("运行分析失败:", error);
     throw error;

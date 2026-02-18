@@ -69,8 +69,8 @@ describe("Passkey Token 和用户ID验证测试", () => {
     // 验证token
     const decoded = jwt.verify(token, config.jwtSecret) as any;
 
-    expect(decoded.userId).toBe(user!.id);
-    expect(decoded.username).toBe(user!.username);
+    expect(decoded.userId).toBe(user?.id);
+    expect(decoded.username).toBe(user?.username);
     expect(decoded.username).toBe("testuser_passkey");
   });
 
@@ -120,8 +120,8 @@ describe("Passkey Token 和用户ID验证测试", () => {
     const token = await PasskeyService.generateToken(user!);
     const decoded = jwt.verify(token, config.jwtSecret) as any;
 
-    expect(decoded.userId).toBe(user!.id);
-    expect(decoded.username).toBe(user!.username);
+    expect(decoded.userId).toBe(user?.id);
+    expect(decoded.username).toBe(user?.username);
   });
 
   it("应该验证用户数据完整性", async () => {
@@ -146,9 +146,9 @@ describe("Passkey Token 和用户ID验证测试", () => {
     const decoded = jwt.verify(token, config.jwtSecret) as any;
 
     // 验证token中的信息与数据库中的信息一致
-    expect(decoded.userId).toBe(user!.id);
-    expect(decoded.username).toBe(user!.username);
+    expect(decoded.userId).toBe(user?.id);
+    expect(decoded.username).toBe(user?.username);
     expect(decoded.username).toBe("testuser_passkey");
-    expect(user!.username).toBe("testuser_passkey");
+    expect(user?.username).toBe("testuser_passkey");
   });
 });

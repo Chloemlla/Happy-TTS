@@ -28,7 +28,7 @@ export class IPFSController {
       const { buffer, originalname, mimetype } = req.file;
 
       // 使用事务包装整个上传过程，确保数据一致性
-      const result = await TransactionService.executeTransaction(async (session) => {
+      const result = await TransactionService.executeTransaction(async (_session) => {
         const shortLinkFlag = req.body && req.body.source === "imgupload";
         const userId = (req as any).user?.id || "admin";
         const username = (req as any).user?.username || "admin";
@@ -258,7 +258,7 @@ export class IPFSController {
         },
       );
 
-      if (response.data && response.data.Hash) {
+      if (response.data?.Hash) {
         logger.info("IPFS配置测试成功", {
           ip,
           userId,

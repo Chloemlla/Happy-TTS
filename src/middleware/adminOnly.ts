@@ -7,7 +7,7 @@ export function adminOnly(req: Request, res: Response, next: NextFunction) {
       return res.status(403).json({ error: "需要管理员权限" });
     }
     next();
-  } catch (err) {
+  } catch (_err) {
     return res.status(500).json({ error: "管理员权限校验失败" });
   }
 }

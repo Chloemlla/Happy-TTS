@@ -39,8 +39,8 @@ describe("重新生成备用恢复码功能测试", () => {
   });
 
   test("TOTPController.regenerateBackupCodes 应该正确处理请求", async () => {
-    const req = createMockRequest() as Request;
-    const res = createMockResponse() as Response;
+    const _req = createMockRequest() as Request;
+    const _res = createMockResponse() as Response;
 
     // 注意：这个测试需要真实的用户数据，在实际环境中需要设置测试数据
     // 这里只是验证方法存在且可以调用

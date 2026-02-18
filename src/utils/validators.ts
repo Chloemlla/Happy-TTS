@@ -62,11 +62,11 @@ export function validateReward(reward: any): { valid: boolean; value?: number; e
 
   const num = Number(reward);
 
-  if (isNaN(num)) {
+  if (Number.isNaN(num)) {
     return { valid: false, error: "悬赏金额必须是有效数字" };
   }
 
-  if (!isFinite(num)) {
+  if (!Number.isFinite(num)) {
     return { valid: false, error: "悬赏金额不能为无穷大" };
   }
 
@@ -91,11 +91,11 @@ export function validateAge(age: any): { valid: boolean; value?: number; error?:
 
   const num = Number(age);
 
-  if (isNaN(num)) {
+  if (Number.isNaN(num)) {
     return { valid: false, error: "年龄必须是有效数字" };
   }
 
-  if (!isFinite(num)) {
+  if (!Number.isFinite(num)) {
     return { valid: false, error: "年龄不能为无穷大" };
   }
 
@@ -299,7 +299,7 @@ export function validateURL(url: any, required: boolean = false): { valid: boole
     if (urlObj.protocol !== "http:" && urlObj.protocol !== "https:") {
       return { valid: false, error: "只允许http和https协议" };
     }
-  } catch (error) {
+  } catch (_error) {
     return { valid: false, error: "URL格式不正确" };
   }
 
@@ -319,7 +319,7 @@ export function validateDate(date: any, required: boolean = false): { valid: boo
 
   const dateObj = new Date(date);
 
-  if (isNaN(dateObj.getTime())) {
+  if (Number.isNaN(dateObj.getTime())) {
     return { valid: false, error: "日期格式不正确" };
   }
 

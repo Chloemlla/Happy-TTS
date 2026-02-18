@@ -1,4 +1,4 @@
-import { spawn } from "child_process";
+export {};
 
 describe("异步操作清理测试", () => {
   it("应能检测Jest异步操作未清理", (done) => {

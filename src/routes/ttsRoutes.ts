@@ -1,5 +1,4 @@
 import express from "express";
-import { config } from "../config/config";
 import { TtsController } from "../controllers/ttsController";
 import { ClarityService } from "../services/clarityService";
 import { TurnstileService } from "../services/turnstileService";
@@ -74,7 +73,7 @@ router.post("/generate", TtsController.generateSpeech);
  *                   type: string
  *                   description: Turnstile 站点密钥
  */
-router.get("/turnstile/config", async (req, res) => {
+router.get("/turnstile/config", async (_req, res) => {
   try {
     const turnstileConfig = await TurnstileService.getConfig();
 
@@ -118,7 +117,7 @@ router.get("/turnstile/config", async (req, res) => {
  *                   type: string
  *                   description: Clarity 项目ID
  */
-router.get("/clarity/config", async (req, res) => {
+router.get("/clarity/config", async (_req, res) => {
   try {
     const clarityConfig = await ClarityService.getConfig();
 
@@ -304,7 +303,7 @@ router.delete("/clarity/config", async (req, res) => {
  */
 router.get("/clarity/history", async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit as string) || 20;
+    const limit = parseInt(req.query.limit as string, 10) || 20;
     const result = await ClarityService.getConfigHistory(limit);
 
     if (result.success) {

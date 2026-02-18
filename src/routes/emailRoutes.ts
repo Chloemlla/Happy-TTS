@@ -3,7 +3,7 @@ import { EmailController } from "../controllers/emailController";
 import { authMiddleware } from "../middleware/authMiddleware";
 import { createLimiter } from "../middleware/rateLimiter";
 import { domainExemptionService } from "../services/domainExemptionService";
-import { sendOutEmail, sendOutEmailBatch } from "../services/outEmailService";
+import { sendOutEmail } from "../services/outEmailService";
 import logger from "../utils/logger";
 
 const router = express.Router();
@@ -102,7 +102,7 @@ router.post("/outemail", outEmailLimiter, async (req, res) => {
     } else {
       return res.status(400).json({ error: "收件人邮箱格式无效" });
     }
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "服务器错误" });
   }
 });

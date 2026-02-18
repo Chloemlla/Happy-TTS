@@ -6,7 +6,7 @@ interface AuthRequest extends Request {
   user?: any;
 }
 
-import { basename, join } from "path";
+import { basename, join } from "node:path";
 import { CDKService } from "../services/cdkService";
 
 const cdkService = CDKService.getInstance();
@@ -74,7 +74,7 @@ export const getCDKs = async (req: AuthRequest, res: Response) => {
 };
 
 // 获取CDK统计信息
-export const getCDKStats = async (req: AuthRequest, res: Response) => {
+export const getCDKStats = async (_req: AuthRequest, res: Response) => {
   try {
     const stats = await cdkService.getCDKStats();
     res.json(stats);

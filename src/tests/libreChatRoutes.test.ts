@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import request from "supertest";
 import app from "../app";
-import { config } from "../config/config";
 
 describe("LibreChat Routes", () => {
   const validToken = "valid-token";

@@ -1,11 +1,9 @@
 import type { Request, Response } from "express";
 import { isValidObjectId, Types } from "mongoose";
-import { v4 as uuidv4 } from "uuid";
-import FBIWantedModel, { IFBIWanted } from "../models/fbiWantedModel";
+import FBIWantedModel from "../models/fbiWantedModel";
 import { IPFSService } from "../services/ipfsService";
 import logger from "../utils/logger";
 import {
-  collectValidationErrors,
   sanitizeInput,
   validateAge,
   validateAliases,
@@ -14,7 +12,6 @@ import {
   validateDate,
   validateName,
   validateReward,
-  validateStatus,
   validateStringArray,
   validateURL,
 } from "../utils/validators";
@@ -40,7 +37,7 @@ function generateFBINumber(): string {
 function computeAgeFromDOB(dob: Date | string | null | undefined, now: Date = new Date()): number | null {
   if (!dob) return null;
   const birth = typeof dob === "string" ? new Date(dob) : dob;
-  if (isNaN(birth.getTime())) return null;
+  if (Number.isNaN(birth.getTime())) return null;
 
   const yearNow = now.getUTCFullYear();
   const monthNow = now.getUTCMonth();
@@ -594,11 +591,11 @@ export const fbiWantedController = {
       const dateFilter: any = {};
       if (beforeDate) {
         const d = new Date(beforeDate);
-        if (!isNaN(d.getTime())) dateFilter.$lte = d;
+        if (!Number.isNaN(d.getTime())) dateFilter.$lte = d;
       }
       if (afterDate) {
         const d = new Date(afterDate);
-        if (!isNaN(d.getTime())) dateFilter.$gte = d;
+        if (!Number.isNaN(d.getTime())) dateFilter.$gte = d;
       }
       if (Object.keys(dateFilter).length) {
         safeFilter.dateAdded = dateFilter;
@@ -709,7 +706,7 @@ export const fbiWantedController = {
   },
 
   // 获取统计信息（优化版：使用单一聚合查询）
-  async getStatistics(req: Request, res: Response) {
+  async getStatistics(_req: Request, res: Response) {
     try {
       // 使用 $facet 并行执行多个聚合操作，一次查询完成所有统计
       const result = await FBIWantedModel.aggregate([

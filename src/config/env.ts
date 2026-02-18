@@ -1,5 +1,5 @@
+import path from "node:path";
 import dotenv from "dotenv";
-import path from "path";
 
 // 加载环境变量
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });

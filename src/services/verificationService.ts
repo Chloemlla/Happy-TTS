@@ -3,7 +3,7 @@
  * 处理邮箱验证链接和密码重置链接的业务逻辑
  */
 
-import { type Request, Response } from "express";
+import type { Request } from "express";
 import { VerificationTokenType, verificationTokenStorage } from "../models/verificationTokenModel";
 import {
   generatePasswordResetLinkEmailHtml,

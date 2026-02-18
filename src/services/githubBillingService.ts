@@ -465,7 +465,7 @@ export class GitHubBillingService {
           }
           break;
         }
-      } catch (error) {}
+      } catch (_error) {}
     }
 
     if (!foundValidUrl) {
@@ -616,7 +616,7 @@ export class GitHubBillingService {
       if (error instanceof Error && error.message.includes("未找到保存的 curl 配置")) {
         throw error;
       }
-      throw new Error("获取配置失败: " + (error instanceof Error ? error.message : "未知错误"));
+      throw new Error(`获取配置失败: ${error instanceof Error ? error.message : "未知错误"}`);
     }
   }
 
@@ -1011,11 +1011,11 @@ export class GitHubBillingService {
       let billingData: GitHubBillingUsage;
 
       // 检查数据格式并相应处理
-      if (response.data && response.data.usage && Array.isArray(response.data.usage)) {
+      if (response.data?.usage && Array.isArray(response.data.usage)) {
         logger.info("检测到新的usage数组格式数据，开始处理");
         const usageResponse = response.data as GitHubBillingNewResponse;
         billingData = GitHubBillingService.processUsageArrayData(usageResponse, targetCustomerId);
-      } else if (response.data && response.data.discounts && Array.isArray(response.data.discounts)) {
+      } else if (response.data?.discounts && Array.isArray(response.data.discounts)) {
         logger.info("检测到折扣格式数据，开始处理");
         const discountResponse = response.data as GitHubBillingDiscountResponse;
         billingData = GitHubBillingService.processDiscountData(discountResponse, targetCustomerId);
@@ -1114,7 +1114,7 @@ export class GitHubBillingService {
       }
     } catch (error) {
       logger.error("清除缓存失败:", error);
-      throw new Error("清除缓存失败: " + (error instanceof Error ? error.message : "未知错误"));
+      throw new Error(`清除缓存失败: ${error instanceof Error ? error.message : "未知错误"}`);
     }
   }
 
@@ -1131,7 +1131,7 @@ export class GitHubBillingService {
       }
     } catch (error) {
       logger.error("清除过期缓存失败:", error);
-      throw new Error("清除过期缓存失败: " + (error instanceof Error ? error.message : "未知错误"));
+      throw new Error(`清除过期缓存失败: ${error instanceof Error ? error.message : "未知错误"}`);
     }
   }
 
@@ -1430,11 +1430,11 @@ export class GitHubBillingService {
       let billingData: GitHubBillingUsage;
 
       // 检查数据格式并相应处理
-      if (response.data && response.data.usage && Array.isArray(response.data.usage)) {
+      if (response.data?.usage && Array.isArray(response.data.usage)) {
         logger.info("检测到新的usage数组格式数据，开始处理");
         const usageResponse = response.data as GitHubBillingNewResponse;
         billingData = GitHubBillingService.processUsageArrayData(usageResponse, targetCustomerId);
-      } else if (response.data && response.data.discounts && Array.isArray(response.data.discounts)) {
+      } else if (response.data?.discounts && Array.isArray(response.data.discounts)) {
         logger.info("检测到折扣格式数据，开始处理");
         const discountResponse = response.data as GitHubBillingDiscountResponse;
         billingData = GitHubBillingService.processDiscountData(discountResponse, targetCustomerId);

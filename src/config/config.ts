@@ -1,6 +1,6 @@
+import path from "node:path";
 import dotenv from "dotenv";
-import path from "path";
-import { MYSQL_DATABASE, MYSQL_HOST, MYSQL_PASSWORD, MYSQL_PORT, MYSQL_USER } from "./env";
+import { MYSQL_DATABASE } from "./env";
 
 // 加载环境变量
 dotenv.config();

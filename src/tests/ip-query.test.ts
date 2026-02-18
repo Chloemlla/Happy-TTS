@@ -16,7 +16,7 @@ describe("精准IP查询 API", () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data).toBeDefined();
-      if (res.body.data && res.body.data.data && res.body.data.data.ip) {
+      if (res.body.data?.data?.ip) {
         expect(res.body.data.data.ip).toBe(tc.ip);
       }
     });

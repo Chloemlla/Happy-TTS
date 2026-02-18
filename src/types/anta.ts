@@ -130,10 +130,10 @@ export function validateProductInfo(data: ParsedProductData): ProductInfo | null
       itemNumber: data.itemNumber?.trim() || "未知",
       ean: data.ean?.trim() || "未知",
       size: data.size?.trim() || "未知",
-      retailPrice: isNaN(retailPrice) ? 0 : retailPrice,
+      retailPrice: Number.isNaN(retailPrice) ? 0 : retailPrice,
       queryCount: 0, // 初始查询次数为0，由统计服务更新
     };
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }

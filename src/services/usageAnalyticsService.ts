@@ -22,7 +22,7 @@ import logger from "../utils/logger";
 const REPETITIVE_PATTERN_THRESHOLD = 3;
 
 // 分析导出JSON Schema用于验证
-const ANALYTICS_EXPORT_SCHEMA = {
+const _ANALYTICS_EXPORT_SCHEMA = {
   type: "object",
   required: ["userId", "exportDate", "statistics", "suggestions"],
   properties: {
@@ -168,7 +168,7 @@ export class UsageAnalyticsService {
       // 按语音配置分组
       const configGroups = this.groupByVoiceConfig(generations);
 
-      Array.from(configGroups.entries()).forEach(([configKey, records]) => {
+      Array.from(configGroups.entries()).forEach(([_configKey, records]) => {
         if (records.length >= REPETITIVE_PATTERN_THRESHOLD) {
           const voiceStyle = records[0].voiceStyle;
           patterns.push({
@@ -550,9 +550,9 @@ export class UsageAnalyticsService {
     let section = "";
     for (const line of lines) {
       if (line.includes("Total Generations")) {
-        totalGenerations = parseInt(line.split(",")[1]) || 0;
+        totalGenerations = parseInt(line.split(",")[1], 10) || 0;
       } else if (line.includes("Average Text Length")) {
-        averageTextLength = parseInt(line.split(",")[1]) || 0;
+        averageTextLength = parseInt(line.split(",")[1], 10) || 0;
       } else if (line === "Language,Percentage") {
         section = "language";
       } else if (
@@ -561,7 +561,7 @@ export class UsageAnalyticsService {
         section = "records";
       } else if (section === "language" && line.includes(",")) {
         const [language, percentage] = line.split(",");
-        mostUsedLanguages.push({ language, percentage: parseInt(percentage) || 0 });
+        mostUsedLanguages.push({ language, percentage: parseInt(percentage, 10) || 0 });
       } else if (section === "records" && line.includes(",")) {
         const parts = line.split(",");
         if (parts.length >= 9) {
@@ -569,7 +569,7 @@ export class UsageAnalyticsService {
             id: parts[0],
             timestamp: new Date(parts[1]),
             textContent: "",
-            textLength: parseInt(parts[2]) || 0,
+            textLength: parseInt(parts[2], 10) || 0,
             contentType: parts[3],
             language: parts[4],
             voiceStyle: {

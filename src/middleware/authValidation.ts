@@ -23,9 +23,9 @@ export const validateAuthInput = async (req: Request, res: Response, next: NextF
     }
 
     // 将净化后的值存回请求体
-    req.body.sanitizedIdentifier = UserStorage["sanitizeInput"](identityField);
+    req.body.sanitizedIdentifier = UserStorage.sanitizeInput(identityField);
     if (isRegistration) {
-      req.body.sanitizedEmail = UserStorage["sanitizeInput"](email);
+      req.body.sanitizedEmail = UserStorage.sanitizeInput(email);
     }
 
     next();

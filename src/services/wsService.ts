@@ -1,6 +1,6 @@
-import type { Server as HttpServer, IncomingMessage } from "http";
+import type { Server as HttpServer, IncomingMessage } from "node:http";
+import { URL } from "node:url";
 import jwt from "jsonwebtoken";
-import { URL } from "url";
 import { WebSocket, WebSocketServer } from "ws";
 import logger from "../utils/logger";
 

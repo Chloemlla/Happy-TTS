@@ -1,8 +1,8 @@
-import axios, { type AxiosError, AxiosResponse } from "axios";
+import { existsSync } from "node:fs";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import axios, { type AxiosError } from "axios";
 import cheerio from "cheerio";
-import { existsSync } from "fs";
-import { mkdir, readFile, writeFile } from "fs/promises";
-import { join } from "path";
 import config from "../config";
 import { logger } from "./logger";
 import { mongoose } from "./mongoService";
@@ -275,7 +275,7 @@ async function queryToolLu(ip: string): Promise<IPInfo> {
       timeout: 8000,
     });
     const data = resp.data;
-    if (data && data.status && data.text) {
+    if (data?.status && data.text) {
       // 优先用chunzhen字段
       let country = "未知",
         region = "未知",
@@ -313,13 +313,13 @@ async function tryAllProviders(ip: string): Promise<IPInfo> {
   // 先尝试ip38网页
   try {
     return await queryIp38(ip);
-  } catch (e: any) {
+  } catch (_e: any) {
     logger.error("ip38.com 查询失败，尝试tool.lu", { ip });
   }
   // 再尝试tool.lu
   try {
     return await queryToolLu(ip);
-  } catch (e: any) {
+  } catch (_e: any) {
     logger.error("tool.lu 查询失败，尝试备用API", { ip });
   }
   // 失败后fallback到原有API

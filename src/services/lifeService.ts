@@ -197,7 +197,7 @@ export class LifeService extends ProductionServiceBase {
       // 限制10KB
       return {
         __truncated__: true,
-        summary: jsonStr.substring(0, 500) + "...",
+        summary: `${jsonStr.substring(0, 500)}...`,
         size: jsonStr.length,
       };
     }

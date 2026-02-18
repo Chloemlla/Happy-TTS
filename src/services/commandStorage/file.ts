@@ -1,5 +1,5 @@
-import * as fs from "fs";
-import * as path from "path";
+import * as fs from "node:fs";
+import * as path from "node:path";
 
 const DATA_DIR = path.join(process.cwd(), "data", "commands");
 const QUEUE_FILE = path.join(DATA_DIR, "queue.json");

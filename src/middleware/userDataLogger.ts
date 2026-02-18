@@ -1,6 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
 import type { NextFunction, Request, Response } from "express";
-import fs from "fs";
-import path from "path";
 import { mongoose } from "../services/mongoService";
 import logger from "../utils/logger";
 

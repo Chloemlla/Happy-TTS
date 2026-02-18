@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 
 const SECRET_KEY = process.env.SIGN_SECRET_KEY || "w=NKYzE?jZHbqmG1k4m6B!.Yp9t5)HY@LsMnN~UK9i";
 

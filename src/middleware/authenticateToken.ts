@@ -7,7 +7,7 @@ import { UserStorage } from "../utils/userStorage";
 export const authenticateToken = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
-    const ip = req.ip || "unknown";
+    const _ip = req.ip || "unknown";
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({ error: "未授权" });
     }
@@ -20,7 +20,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     try {
       const decoded: any = jwt.verify(token, config.jwtSecret);
       userId = decoded.userId;
-    } catch (err) {
+    } catch (_err) {
       return res.status(401).json({ error: "Token 无效或已过期" });
     }
     if (!userId) {

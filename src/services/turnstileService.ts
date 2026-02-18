@@ -1,9 +1,8 @@
+import crypto from "node:crypto";
 import axios from "axios";
-import crypto from "crypto";
-import { config } from "../config/config";
-import { AccessTokenDoc, AccessTokenModel } from "../models/accessTokenModel";
-import { IpBanDoc, IpBanModel } from "../models/ipBanModel";
-import { TempFingerprintDoc, TempFingerprintModel } from "../models/tempFingerprintModel";
+import { AccessTokenModel } from "../models/accessTokenModel";
+import { IpBanModel } from "../models/ipBanModel";
+import { TempFingerprintModel } from "../models/tempFingerprintModel";
 import logger from "../utils/logger";
 import { connectMongo, isConnected, mongoose } from "./mongoService";
 
@@ -98,7 +97,7 @@ const validateIpAddress = (ip: string): string | null => {
     const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
     if (ipv4Regex.test(ipPart)) {
       // IPv4前缀长度范围：0-32
-      if (isNaN(prefix) || prefix < 0 || prefix > 32) {
+      if (Number.isNaN(prefix) || prefix < 0 || prefix > 32) {
         return null;
       }
       return sanitized;
@@ -109,7 +108,7 @@ const validateIpAddress = (ip: string): string | null => {
       /^(?:(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,7}:|(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}|(?:[0-9a-fA-F]{1,4}:){1,4}(?::[0-9a-fA-F]{1,4}){1,3}|(?:[0-9a-fA-F]{1,4}:){1,3}(?::[0-9a-fA-F]{1,4}){1,4}|(?:[0-9a-fA-F]{1,4}:){1,2}(?::[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:(?::[0-9a-fA-F]{1,4}){1,6}|:(?:(?::[0-9a-fA-F]{1,4}){1,7}|:)|::)$/;
     if (ipv6Regex.test(ipPart)) {
       // IPv6前缀长度范围：0-128
-      if (isNaN(prefix) || prefix < 0 || prefix > 128) {
+      if (Number.isNaN(prefix) || prefix < 0 || prefix > 128) {
         return null;
       }
       return sanitized;
@@ -480,7 +479,7 @@ export class TurnstileService {
 
         logger.warn(`IP ${validatedIp} 违规次数增加到 ${banDoc.violationCount}`, {
           reason,
-          fingerprint: fingerprint?.substring(0, 8) + "...",
+          fingerprint: `${fingerprint?.substring(0, 8)}...`,
           banned: banDoc.violationCount >= TurnstileService.MAX_VIOLATIONS,
         });
 
@@ -499,7 +498,7 @@ export class TurnstileService {
 
         logger.warn(`IP ${validatedIp} 首次违规，已封禁60分钟`, {
           reason,
-          fingerprint: fingerprint?.substring(0, 8) + "...",
+          fingerprint: `${fingerprint?.substring(0, 8)}...`,
         });
 
         return true;
@@ -560,7 +559,7 @@ export class TurnstileService {
     };
 
     // 开发环境特殊处理
-    const isDev = process.env.NODE_ENV === "development" || process.env.NODE_ENV === "dev";
+    const _isDev = process.env.NODE_ENV === "development" || process.env.NODE_ENV === "dev";
 
     // IP风险评估
     if (
@@ -678,7 +677,7 @@ export class TurnstileService {
    */
   private static recordVerificationOutcome(
     ip: string,
-    userAgent: string | undefined,
+    _userAgent: string | undefined,
     success: boolean,
     timestamp: Date,
     fingerprint?: string,
@@ -1040,7 +1039,7 @@ export class TurnstileService {
             { verified: true, updatedAt: new Date() },
           );
           logger.info("开发环境：本地IP指纹自动标记为已验证", {
-            fingerprint: validatedFingerprint.substring(0, 8) + "...",
+            fingerprint: `${validatedFingerprint.substring(0, 8)}...`,
             ipAddress: validatedIp,
             autoVerifyEnabled: enableDevAutoVerify,
           });
@@ -1061,7 +1060,7 @@ export class TurnstileService {
       const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5分钟后过期
       const isVerified = isDev && isLocalhost && enableDevAutoVerify; // 开发环境本地IP自动验证（需要开关启用）
 
-      const newDoc = await TempFingerprintModel.create({
+      const _newDoc = await TempFingerprintModel.create({
         fingerprint: validatedFingerprint,
         ipAddress: validatedIp,
         verified: isVerified,
@@ -1071,7 +1070,7 @@ export class TurnstileService {
       });
 
       logger.info("创建新的临时指纹记录", {
-        fingerprint: validatedFingerprint.substring(0, 8) + "...",
+        fingerprint: `${validatedFingerprint.substring(0, 8)}...`,
         ipAddress: validatedIp,
         verified: isVerified,
         expiresAt,
@@ -1454,7 +1453,7 @@ export class TurnstileService {
       });
 
       logger.info("创建新的临时指纹记录", {
-        fingerprint: validatedFingerprint.substring(0, 8) + "...",
+        fingerprint: `${validatedFingerprint.substring(0, 8)}...`,
         ipAddress: validatedIp,
         verified: isVerified,
         expiresAt,
@@ -1581,7 +1580,7 @@ export class TurnstileService {
       const doc = await TempFingerprintModel.findOne({ fingerprint: validatedFingerprint }).exec();
       if (!doc) {
         logger.warn("临时指纹不存在或已过期", {
-          fingerprint: validatedFingerprint.substring(0, 8) + "...",
+          fingerprint: `${validatedFingerprint.substring(0, 8)}...`,
           ipAddress: validatedIp,
           traceId,
         });
@@ -1622,7 +1621,7 @@ export class TurnstileService {
         // 开发环境本地IP自动通过验证
         isValid = true;
         logger.info("开发环境：本地IP跳过Turnstile验证", {
-          fingerprint: validatedFingerprint.substring(0, 8) + "...",
+          fingerprint: `${validatedFingerprint.substring(0, 8)}...`,
           ipAddress: validatedIp,
           devAutoPass,
           traceId,
@@ -1650,9 +1649,9 @@ export class TurnstileService {
         const riskAssessment = TurnstileService.assessClientRisk(validatedIp, userAgent, validatedFingerprint);
         TurnstileService.recordVerificationOutcome(validatedIp, userAgent, true, new Date(), validatedFingerprint);
         logger.info("开发环境：检测到 mock-token，直接通过Turnstile验证", {
-          fingerprint: validatedFingerprint.substring(0, 8) + "...",
+          fingerprint: `${validatedFingerprint.substring(0, 8)}...`,
           ipAddress: validatedIp,
-          tokenPreview: validatedToken.substring(0, 16) + "...",
+          tokenPreview: `${validatedToken.substring(0, 16)}...`,
           riskAssessment: {
             level: riskAssessment.riskLevel,
             score: riskAssessment.riskScore,
@@ -1663,7 +1662,7 @@ export class TurnstileService {
         });
         if (riskAssessment.riskLevel === "high") {
           logger.warn("开发环境：mock-token直通但风险评估为高风险", {
-            fingerprint: validatedFingerprint.substring(0, 8) + "...",
+            fingerprint: `${validatedFingerprint.substring(0, 8)}...`,
             ipAddress: validatedIp,
             traceId,
             riskAssessment: {
@@ -1701,7 +1700,7 @@ export class TurnstileService {
 
         if (!isValid) {
           logger.warn(`${captchaType === "hcaptcha" ? "hCaptcha" : "Turnstile"}详细验证失败`, {
-            fingerprint: validatedFingerprint.substring(0, 8) + "...",
+            fingerprint: `${validatedFingerprint.substring(0, 8)}...`,
             ipAddress: validatedIp,
             reason: !detailedResult.success ? detailedResult.reason : "unknown",
             errorCode: !detailedResult.success ? detailedResult.errorCode : "unknown",
@@ -1713,7 +1712,7 @@ export class TurnstileService {
 
         // 人机验证成功，记录成功日志
         logger.info("Turnstile验证成功，直接通过", {
-          fingerprint: validatedFingerprint.substring(0, 8) + "...",
+          fingerprint: `${validatedFingerprint.substring(0, 8)}...`,
           ipAddress: validatedIp,
           traceId,
         });
@@ -1728,9 +1727,9 @@ export class TurnstileService {
       const accessToken = await TurnstileService.generateAccessToken(validatedFingerprint, validatedIp);
 
       logger.info("临时指纹验证成功，已生成访问密钥", {
-        fingerprint: validatedFingerprint.substring(0, 8) + "...",
+        fingerprint: `${validatedFingerprint.substring(0, 8)}...`,
         ipAddress: validatedIp,
-        accessToken: accessToken.substring(0, 8) + "...",
+        accessToken: `${accessToken.substring(0, 8)}...`,
         traceId,
       });
 
@@ -1922,9 +1921,9 @@ export class TurnstileService {
           .digest("hex");
 
         logger.info("开发环境：为本地IP生成永久访问密钥", {
-          fingerprint: validatedFingerprint.substring(0, 8) + "...",
+          fingerprint: `${validatedFingerprint.substring(0, 8)}...`,
           ipAddress: validatedIp,
-          token: devToken.substring(0, 8) + "...",
+          token: `${devToken.substring(0, 8)}...`,
           switchEnabled: devPermanentTokenEnabled,
         });
 
@@ -1934,7 +1933,7 @@ export class TurnstileService {
       // 如果开发环境但开关被禁用，记录日志
       if (isDev && isLocalhost && !devPermanentTokenEnabled) {
         logger.info("开发环境：永久令牌开关已禁用，使用标准令牌生成流程", {
-          fingerprint: validatedFingerprint.substring(0, 8) + "...",
+          fingerprint: `${validatedFingerprint.substring(0, 8)}...`,
           ipAddress: validatedIp,
           switchDisabled: true,
         });
@@ -1958,7 +1957,7 @@ export class TurnstileService {
       });
 
       logger.info("访问密钥生成成功", {
-        fingerprint: validatedFingerprint.substring(0, 8) + "...",
+        fingerprint: `${validatedFingerprint.substring(0, 8)}...`,
         ipAddress: validatedIp,
         expiresAt,
       });
@@ -2046,9 +2045,9 @@ export class TurnstileService {
         if (validatedToken === FIXED_DEV_TOKEN || validatedToken === expectedDevToken) {
           const tokenType = validatedToken === FIXED_DEV_TOKEN ? "固定令牌" : "指纹令牌";
           logger.info(`开发环境：永久访问密钥验证成功 (${tokenType})`, {
-            fingerprint: validatedFingerprint.substring(0, 8) + "...",
+            fingerprint: `${validatedFingerprint.substring(0, 8)}...`,
             ipAddress: validatedIp,
-            token: validatedToken.substring(0, 8) + "...",
+            token: `${validatedToken.substring(0, 8)}...`,
             tokenType,
           });
           return true;
@@ -2082,8 +2081,8 @@ export class TurnstileService {
 
       if (!doc) {
         logger.warn("访问密钥无效或已过期", {
-          token: validatedToken.substring(0, 8) + "...",
-          fingerprint: validatedFingerprint.substring(0, 8) + "...",
+          token: `${validatedToken.substring(0, 8)}...`,
+          fingerprint: `${validatedFingerprint.substring(0, 8)}...`,
           ipAddress: validatedIp,
         });
         return false;
@@ -2094,8 +2093,8 @@ export class TurnstileService {
       await doc.save();
 
       logger.info("访问密钥验证成功", {
-        token: validatedToken.substring(0, 8) + "...",
-        fingerprint: validatedFingerprint.substring(0, 8) + "...",
+        token: `${validatedToken.substring(0, 8)}...`,
+        fingerprint: `${validatedFingerprint.substring(0, 8)}...`,
         ipAddress: validatedIp,
       });
 
@@ -2133,7 +2132,7 @@ export class TurnstileService {
 
       if (isDev && isLocalhost && enableDevAutoAccess) {
         logger.info("开发环境：本地IP自动拥有有效访问密钥", {
-          fingerprint: validatedFingerprint.substring(0, 8) + "...",
+          fingerprint: `${validatedFingerprint.substring(0, 8)}...`,
           ipAddress: validatedIp,
           autoAccessEnabled: enableDevAutoAccess,
         });
@@ -2321,7 +2320,7 @@ export class TurnstileService {
         const duration = Number(durationMinutes);
 
         // 检查是否为有效数字
-        if (isNaN(duration) || !isFinite(duration)) {
+        if (Number.isNaN(duration) || !Number.isFinite(duration)) {
           return {
             success: false,
             error: "封禁时长必须是有效的数字",
@@ -2345,12 +2344,12 @@ export class TurnstileService {
       // 检查IP是否已经被封禁
       const existingBan = await IpBanModel.findOne({ ipAddress: validatedIp });
 
-      let isUpdate = false;
+      let _isUpdate = false;
       let bannedAt = now;
 
       if (existingBan) {
         // 如果IP已被封禁，更新过期时间和封禁原因
-        isUpdate = true;
+        _isUpdate = true;
         bannedAt = existingBan.bannedAt;
         existingBan.expiresAt = expiresAt;
         existingBan.reason = sanitizedReason;
@@ -2392,7 +2391,7 @@ export class TurnstileService {
       // 同步到 Redis
       try {
         const { redisService } = await import("./redisService");
-        if (redisService && redisService.isAvailable()) {
+        if (redisService?.isAvailable()) {
           await redisService.banIP(validatedIp, sanitizedReason, validDuration, {
             fingerprint: fingerprint ? sanitizeString(fingerprint, 200) || undefined : undefined,
             userAgent: userAgent ? sanitizeString(userAgent, 500) || undefined : undefined,
@@ -2455,7 +2454,7 @@ export class TurnstileService {
       // 2. 从 Redis 删除
       try {
         const { redisService } = await import("./redisService");
-        if (redisService && redisService.isAvailable()) {
+        if (redisService?.isAvailable()) {
           redisDeleted = await redisService.unbanIP(validatedIp);
         }
       } catch (redisError) {

@@ -2,7 +2,6 @@
 
 import dayjs from "dayjs";
 import { Resend } from "resend";
-import config from "../config";
 import { logger } from "./logger";
 import { mongoose } from "./mongoService";
 
@@ -69,12 +68,12 @@ const domainApiKeyMap: Record<string, string> = {};
   let idx = 0;
   while (true) {
     const domain =
-      process.env[`OUTEMAIL_DOMAIN${idx ? "_" + idx : ""}`] ||
-      process.env[`RESEND_DOMAIN${idx ? "_" + idx : ""}`] ||
+      process.env[`OUTEMAIL_DOMAIN${idx ? `_${idx}` : ""}`] ||
+      process.env[`RESEND_DOMAIN${idx ? `_${idx}` : ""}`] ||
       (idx === 0 ? process.env.OUTEMAIL_DOMAIN || process.env.RESEND_DOMAIN : undefined);
     const key =
-      process.env[`OUTEMAIL_API_KEY${idx ? "_" + idx : ""}`] ||
-      process.env[`RESEND_API_KEY${idx ? "_" + idx : ""}`] ||
+      process.env[`OUTEMAIL_API_KEY${idx ? `_${idx}` : ""}`] ||
+      process.env[`RESEND_API_KEY${idx ? `_${idx}` : ""}`] ||
       (idx === 0 ? process.env.OUTEMAIL_API_KEY || process.env.RESEND_API_KEY : undefined);
     if (!domain || !key) break;
     domainApiKeyMap[domain] = key;

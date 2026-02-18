@@ -1,14 +1,11 @@
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import bcrypt from "bcrypt";
-import crypto from "crypto";
 import express from "express";
 import rateLimit from "express-rate-limit";
-import fs from "fs";
 import multer from "multer";
-import path from "path";
 import * as tar from "tar";
-import { promisify } from "util";
-import zlib from "zlib";
-import { config } from "../config/config";
 import { authenticateToken } from "../middleware/authenticateToken";
 import ArchiveModel from "../models/archiveModel";
 import { IPFSService } from "../services/ipfsService";
@@ -26,12 +23,12 @@ function sanitizeFileName(fileName: string): string {
 
   // Remove leading dots safely (avoid ReDoS)
   while (result.startsWith(".")) {
-    result = "_" + result.slice(1);
+    result = `_${result.slice(1)}`;
   }
 
   // Remove trailing dots safely (avoid ReDoS)
   while (result.endsWith(".")) {
-    result = result.slice(0, -1) + "_";
+    result = `${result.slice(0, -1)}_`;
   }
 
   return result.slice(0, 255);
@@ -95,7 +92,7 @@ ensureDirectories().catch(console.error);
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB以内
-  fileFilter: (req, file, cb) => {
+  fileFilter: (_req, file, cb) => {
     // 文件扩展名白名单
     const allowedExtensions = [".txt", ".log", ".json", ".md", ".xml", ".csv"];
     const fileExtension = path.extname(file.originalname).toLowerCase();
@@ -122,7 +119,7 @@ const logLimiter = rateLimit({
 async function checkAdminPassword(password: string) {
   console.log("🔐 [LogShare] 验证管理员密码...");
   console.log("    输入密码长度:", password ? password.length : 0);
-  console.log("    输入密码预览:", password ? password.substring(0, 3) + "***" : "undefined");
+  console.log("    输入密码预览:", password ? `${password.substring(0, 3)}***` : "undefined");
 
   const users = await UserStorage.getAllUsers();
   console.log("    用户总数:", users.length);
@@ -135,7 +132,7 @@ async function checkAdminPassword(password: string) {
 
   console.log("    ✅ 找到管理员用户:", admin.username);
   console.log("    管理员密码长度:", admin.password ? admin.password.length : 0);
-  console.log("    管理员密码预览:", admin.password ? admin.password.substring(0, 3) + "***" : "undefined");
+  console.log("    管理员密码预览:", admin.password ? `${admin.password.substring(0, 3)}***` : "undefined");
 
   // 检查密码是否是 bcrypt 哈希格式（以 $2b$ 开头）
   if (admin.password.startsWith("$2b$")) {
@@ -237,7 +234,7 @@ router.post("/sharelog", logLimiter, upload.single("file"), async (req, res) => 
     let content = "";
     try {
       content = req.file.buffer.toString("utf-8");
-    } catch (e) {
+    } catch (_e) {
       content = "";
     }
 
@@ -456,7 +453,7 @@ router.delete("/sharelog/:id", logLimiter, authenticateToken, async (req, res) =
           }
         }
       }
-    } catch (err) {
+    } catch (_err) {
       // 忽略本地不存在的情况
     }
 
@@ -522,7 +519,7 @@ router.post("/sharelog/delete-batch", logLimiter, authenticateToken, async (req,
           }
         }
       }
-    } catch (err) {
+    } catch (_err) {
       // 忽略
     }
     logger.info(`批量删除 | IP:${ip} | 结果:成功 | mongo:${mongoResult.deletedCount} | file:${fileDeleted}`);
@@ -568,7 +565,7 @@ router.delete("/sharelog/all", logLimiter, authenticateToken, async (req, res) =
           logger.warn(`全部删除 | IP:${ip} | 文件:${file} | 结果:跳过 | 原因:路径遍历攻击`);
         }
       }
-    } catch (err) {
+    } catch (_err) {
       // 忽略
     }
     logger.info(`全部删除 | IP:${ip} | 结果:成功 | mongo:${mongoResult.deletedCount} | file:${fileDeleted}`);
@@ -814,7 +811,7 @@ router.post("/logs/archive", logLimiter, authenticateToken, async (req, res) => 
     // 获取压缩后文件大小
     const compressedStats = fs.statSync(archivePath);
     const compressedSize = compressedStats.size;
-    const compressionRatio = totalSize > 0 ? ((1 - compressedSize / totalSize) * 100).toFixed(2) + "%" : "0%";
+    const compressionRatio = totalSize > 0 ? `${((1 - compressedSize / totalSize) * 100).toFixed(2)}%` : "0%";
 
     logger.info(
       `创建压缩归档 | 文件:${archiveFileName} | 原总大小:${totalSize} | 压缩后:${compressedSize} | 压缩率:${compressionRatio}`,

@@ -1,6 +1,4 @@
 import type { Request, Response } from "express";
-import fs from "fs";
-import path from "path";
 import { VerificationTokenType, verificationTokenStorage } from "../models/verificationTokenModel";
 import { addEmailUsage, EmailService, getEmailQuota } from "../services/emailService";
 import { TurnstileService } from "../services/turnstileService";
@@ -282,7 +280,7 @@ function generateVerificationEmailHtml(username: string, code: string): string {
 }
 
 // 欢迎邮件 HTML 模板
-function ggenerateWelcomeEmailHtml(username: string): string {
+function _ggenerateWelcomeEmailHtml(username: string): string {
   return `
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -518,7 +516,7 @@ export class AuthController {
         verificationTokenStorage.deleteToken(verificationToken.token);
         res.status(500).json({ error: "验证链接发送失败，请稍后重试" });
       }
-    } catch (error) {
+    } catch (_error) {
       res.status(500).json({ error: "注册失败" });
     }
   }
@@ -591,7 +589,7 @@ export class AuthController {
         logger.warn(`[欢迎邮件] 发送失败: ${regInfo.email}`, e);
       }
       res.json({ success: true });
-    } catch (error) {
+    } catch (_error) {
       res.status(500).json({ error: "邮箱验证失败" });
     }
   }
@@ -655,7 +653,7 @@ export class AuthController {
         logger.error(`[重发邮箱验证码] 发送异常: ${email}`, emailError);
         res.status(500).json({ error: "验证码发送失败，请稍后重试" });
       }
-    } catch (error) {
+    } catch (_error) {
       res.status(500).json({ error: "验证码发送失败" });
     }
   }
@@ -725,7 +723,7 @@ export class AuthController {
         const tToken = Date.now();
         await updateUserToken(user.id, tempToken, 5 * 60 * 1000); // 5分钟过期
         const tTokenEnd = Date.now();
-        logger.info("[login] updateUserToken耗时", { 耗时: tTokenEnd - tToken + "ms" });
+        logger.info("[login] updateUserToken耗时", { 耗时: `${tTokenEnd - tToken}ms` });
         // 不返回avatarBase64
         const { id, username, email, role } = user;
         const t1 = Date.now();
@@ -735,7 +733,7 @@ export class AuthController {
           requires2FA: true,
           twoFactorType: [hasTOTP ? "TOTP" : null, hasPasskey ? "Passkey" : null].filter(Boolean),
         });
-        logger.info("[login] 已返回二次验证响应", { 总耗时: t1 - t0 + "ms", t0, t1 });
+        logger.info("[login] 已返回二次验证响应", { 总耗时: `${t1 - t0}ms`, t0, t1 });
         return;
       }
 
@@ -753,7 +751,7 @@ export class AuthController {
       const { id, username, email, role } = user;
       const t1 = Date.now();
       res.json({ user: { id, username, email, role }, token });
-      logger.info("[login] 已返回登录响应", { 总耗时: t1 - t0 + "ms", t0, t1 });
+      logger.info("[login] 已返回登录响应", { 总耗时: `${t1 - t0}ms`, t0, t1 });
       return;
     } catch (error) {
       logger.error("登录流程发生未知错误", {
@@ -769,7 +767,7 @@ export class AuthController {
 
   public static async getCurrentUser(req: Request, res: Response) {
     try {
-      const ip = req.ip || "unknown";
+      const _ip = req.ip || "unknown";
       const authHeader = req.headers.authorization;
       if (!authHeader || !authHeader.startsWith("Bearer ")) {
         return res.status(401).json({
@@ -787,7 +785,7 @@ export class AuthController {
       try {
         const decoded: any = require("jsonwebtoken").verify(token, require("../config/config").config.jwtSecret);
         userId = decoded.userId;
-      } catch (e) {
+      } catch (_e) {
         return res.status(401).json({ error: "认证令牌无效" });
       }
       // 验证token是否有效（检查用户是否存在）
@@ -859,7 +857,7 @@ export class AuthController {
           username,
           userId: user.id,
           providedCredentialId: passkeyCredentialId,
-          availableCredentialIds: user.passkeyCredentials.map((c) => c.credentialID?.substring(0, 10) + "..."),
+          availableCredentialIds: user.passkeyCredentials.map((c) => `${c.credentialID?.substring(0, 10)}...`),
         });
         return res.status(401).json({ error: "Passkey 校验失败" });
       }
@@ -869,7 +867,7 @@ export class AuthController {
       logger.info("[AuthController] Passkey 校验通过，已更新用户状态", {
         userId: user.id,
         username,
-        credentialId: passkeyCredentialId.substring(0, 10) + "...",
+        credentialId: `${passkeyCredentialId.substring(0, 10)}...`,
       });
 
       // 生成JWT token
@@ -1190,7 +1188,7 @@ export function registerLogoutRoute(app: any) {
         await UserStorage.updateUser(users[idx].id, { token: undefined, tokenExpiresAt: undefined });
       }
       res.json({ success: true });
-    } catch (error) {
+    } catch (_error) {
       res.status(500).json({ error: "登出失败" });
     }
   });

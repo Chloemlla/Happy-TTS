@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 import { mongoose } from "./mongoService";
 
 interface ImageDataRecord {
@@ -64,7 +64,7 @@ class ImageDataService {
       const existing = await ImageDataModel.findOne({ imageId: data.imageId });
       if (existing) {
         // 更新现有记录
-        const result = await ImageDataModel.updateOne(
+        const _result = await ImageDataModel.updateOne(
           { imageId: data.imageId },
           {
             $set: {

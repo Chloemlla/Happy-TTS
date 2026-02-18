@@ -1,8 +1,8 @@
+import { existsSync } from "node:fs";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import axios from "axios";
-import { existsSync } from "fs";
-import { mkdir, readFile, writeFile } from "fs/promises";
 import { JSDOM } from "jsdom";
-import { join } from "path";
 import { mongoose } from "../services/mongoService";
 import logger from "../utils/logger";
 
@@ -620,7 +620,7 @@ class LibreChatService {
             userId,
             userRole,
             errorCodes: verificationResult["error-codes"],
-            challengeTs: verificationResult["challenge_ts"],
+            challengeTs: verificationResult.challenge_ts,
             hostname: verificationResult.hostname,
           });
           throw new Error("人机验证失败，请重新验证");
@@ -894,8 +894,8 @@ class LibreChatService {
 
     if (!userMessages) {
       // 回退到内存/文件存储
-      const safeUserId = sanitizeId(userId);
-      const safeToken = sanitizeId(token);
+      const _safeUserId = sanitizeId(userId);
+      const _safeToken = sanitizeId(token);
       userMessages = this.chatHistory.filter((msg) => {
         if (userId) {
           return msg.userId === userId; // 使用原始userId进行比较
@@ -924,8 +924,8 @@ class LibreChatService {
    * 清除聊天历史
    */
   public async clearHistory(token: string, userId?: string): Promise<void> {
-    const safeUserId = sanitizeId(userId);
-    const safeToken = sanitizeId(token);
+    const _safeUserId = sanitizeId(userId);
+    const _safeToken = sanitizeId(token);
 
     // 从内存中删除该用户的消息
     const beforeCount = this.chatHistory.length;
@@ -1131,7 +1131,7 @@ class LibreChatService {
             userId,
             userRole,
             errorCodes: verificationResult["error-codes"],
-            challengeTs: verificationResult["challenge_ts"],
+            challengeTs: verificationResult.challenge_ts,
             hostname: verificationResult.hostname,
           });
           throw new Error("人机验证失败，请重新验证");

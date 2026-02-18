@@ -20,12 +20,12 @@ describe("TOTP URL Format Tests", () => {
     const match = otpauthUrl.match(urlPattern);
 
     expect(match).toBeTruthy();
-    expect(match![1]).toBe("Happy-TTS:testuser"); // 发行者:账户名
-    expect(match![2]).toBe(secret); // 密钥
-    expect(match![3]).toBe("Happy-TTS"); // 发行者参数
-    expect(match![4]).toBe("SHA1"); // 算法
-    expect(match![5]).toBe("6"); // 位数
-    expect(match![6]).toBe("30"); // 周期
+    expect(match?.[1]).toBe("Happy-TTS:testuser"); // 发行者:账户名
+    expect(match?.[2]).toBe(secret); // 密钥
+    expect(match?.[3]).toBe("Happy-TTS"); // 发行者参数
+    expect(match?.[4]).toBe("SHA1"); // 算法
+    expect(match?.[5]).toBe("6"); // 位数
+    expect(match?.[6]).toBe("30"); // 周期
   });
 
   test("should handle special characters in username", () => {

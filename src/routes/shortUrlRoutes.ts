@@ -98,16 +98,16 @@ router.get(
   adminAuthMiddleware,
   adminSensitiveLimiter,
   adminLimiter,
-  async (req, res) => {
+  async (_req, res) => {
     try {
       if (mongoose.connection.readyState !== 1) {
         return res.json({ success: true, aesKey: null });
       }
       const doc: any = await ShortUrlSettingModel.findOne({ key: "AES_KEY" }).lean();
       if (!doc || !doc.value) return res.json({ success: true, aesKey: null });
-      const masked = doc.value.length > 8 ? doc.value.slice(0, 2) + "***" + doc.value.slice(-4) : "***";
+      const masked = doc.value.length > 8 ? `${doc.value.slice(0, 2)}***${doc.value.slice(-4)}` : "***";
       return res.json({ success: true, aesKey: masked, updatedAt: doc.updatedAt });
-    } catch (e) {
+    } catch (_e) {
       return res.status(500).json({ success: false, error: "获取 AES_KEY 失败" });
     }
   },
@@ -135,7 +135,7 @@ router.post(
         { upsert: true },
       );
       return res.json({ success: true });
-    } catch (e) {
+    } catch (_e) {
       return res.status(500).json({ success: false, error: "保存 AES_KEY 失败" });
     }
   },
@@ -150,11 +150,11 @@ router.delete(
   adminWriteLimiter,
   adminLimiter,
   replayGuard,
-  async (req, res) => {
+  async (_req, res) => {
     try {
       await ShortUrlSettingModel.deleteOne({ key: "AES_KEY" });
       return res.json({ success: true });
-    } catch (e) {
+    } catch (_e) {
       return res.status(500).json({ success: false, error: "删除 AES_KEY 失败" });
     }
   },

@@ -1,13 +1,9 @@
-import { spawn } from "child_process";
-import * as os from "os";
-import { promisify } from "util";
+import { spawn } from "node:child_process";
+import * as os from "node:os";
 import * as commandStorage from "./commandStorage";
-import { logger } from "./logger";
 
 class CommandService {
   private static instance: CommandService;
-  private commandQueue: string[] = [];
-  private readonly PASSWORD = "admin";
 
   // 允许执行的命令白名单
   private readonly ALLOWED_COMMANDS = new Set([
@@ -365,7 +361,7 @@ class CommandService {
 
   public async addCommand(
     command: string,
-    password: string,
+    _password: string,
   ): Promise<{ status: string; message?: string; command?: string; commandId?: string }> {
     console.log("🔐 [CommandService] 添加命令请求:");
     console.log("   命令:", command);

@@ -3,7 +3,7 @@ import logger from "../utils/logger";
 import { TransactionService } from "./transactionService";
 
 const nanoid = require("nanoid").nanoid;
-const crypto = require("crypto");
+const crypto = require("node:crypto");
 
 import { mongoose } from "./mongoService";
 
@@ -79,7 +79,6 @@ export class ShortUrlService {
   // 预编译的正则表达式，避免重复编译
   private static readonly CODE_REGEX = /^[a-zA-Z0-9_-]+$/;
   private static readonly USERID_REGEX = /^[a-zA-Z0-9_-]+$/;
-  private static readonly USERNAME_REGEX = /^[\w\s\u4e00-\u9fa5_-]+$/; // 支持中文用户名
   private static readonly URL_MAX_LENGTH = 2000;
   private static readonly CODE_MAX_LENGTH = 50;
   private static readonly USERID_MAX_LENGTH = 100;
@@ -352,8 +351,8 @@ export class ShortUrlService {
         throw new Error("用户ID格式无效");
       }
 
-      const validatedPage = Math.max(1, parseInt(String(page)) || 1);
-      const validatedLimit = Math.min(50, Math.max(1, parseInt(String(limit)) || 10)); // 降低最大限制
+      const validatedPage = Math.max(1, parseInt(String(page), 10) || 1);
+      const validatedLimit = Math.min(50, Math.max(1, parseInt(String(limit), 10) || 10)); // 降低最大限制
       const skip = (validatedPage - 1) * validatedLimit;
 
       // 防止过大的skip值导致性能问题
@@ -957,55 +956,5 @@ export class ShortUrlService {
       logger.warn(`导入链接失败 ${linkData.code}: ${errorMessage}`);
       return { skipped: false, error: errorMessage };
     }
-  }
-
-  /**
-   * 处理单个导入链接 - 保留原有同步版本用于兼容
-   */
-  private static async processImportLink(linkData: any): Promise<{ skipped: boolean }> {
-    // 验证必需字段
-    if (!linkData.code || !linkData.target) {
-      throw new Error("缺少必需的短链码或目标地址");
-    }
-
-    // 过滤掉 undefined 或空值
-    if (
-      linkData.code === "undefined" ||
-      linkData.target === "undefined" ||
-      !linkData.code.trim() ||
-      !linkData.target.trim()
-    ) {
-      throw new Error("短链码或目标地址包含无效值");
-    }
-
-    // 验证短链码格式
-    if (!ShortUrlService.CODE_REGEX.test(linkData.code)) {
-      throw new Error("短链码格式无效");
-    }
-
-    // 验证目标地址格式
-    try {
-      new URL(linkData.target);
-    } catch {
-      throw new Error("目标地址格式无效");
-    }
-
-    // 检查是否已存在 - 如果存在则跳过，不抛出错误
-    const existing = await ShortUrlModel.findOne({ code: linkData.code });
-    if (existing) {
-      logger.info(`跳过重复短链: ${linkData.code}`);
-      return { skipped: true };
-    }
-
-    // 创建新的短链记录
-    await ShortUrlModel.create({
-      code: linkData.code,
-      target: linkData.target,
-      userId: linkData.userId || "admin",
-      username: linkData.username || "admin",
-      createdAt: new Date(),
-    });
-
-    return { skipped: false };
   }
 }
