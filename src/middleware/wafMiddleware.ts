@@ -191,8 +191,20 @@ export function wafMiddleware(req: Request, res: Response, next: NextFunction) {
 
 // ========== 默认白名单注册（项目内置字段） ==========
 addWafWhitelist(
-  // 设备指纹（整棵子树）
+  // 设备指纹
   'deviceSignals',
+  'deviceSignals.navigator.userAgent',
+  'deviceSignals.navigator.appVersion',
+  'deviceSignals.navigator.platform',
+  'deviceSignals.navigator.vendor',
+  'deviceSignals.navigator.product',
+  'deviceSignals.navigator.plugins',
+  'deviceSignals.navigator.languages',
+  'deviceSignals.navigator.doNotTrack',
+  'deviceSignals.navigator.uaData',
+  'deviceSignals.canvas',
+  'deviceSignals.screen.o',
+  'deviceSignals.timezone.tz',
   // 通用 UA 字段
   'userAgent', 'ua',
   // 富文本 / 内容字段
