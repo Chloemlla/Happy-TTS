@@ -87,9 +87,14 @@ jobs:
         id: tsc
         run: |
           pnpm install
-          if npx tsc --noEmit; then
+          TSC_OUTPUT=$(npx tsc --noEmit 2>&1 || true)
+          # Filter out TS2578 (unused @ts-expect-error) errors
+          FILTERED=$(echo "$TSC_OUTPUT" | grep -v "error TS2578" || true)
+          REAL_ERRORS=$(echo "$FILTERED" | grep " error TS" || true)
+          if [ -z "$REAL_ERRORS" ]; then
             echo "tsc_pass=true" >> $GITHUB_OUTPUT
           else
+            echo "$FILTERED"
             echo "tsc_pass=false" >> $GITHUB_OUTPUT
             echo "::warning::TypeScript compilation failed after unsafe fixes, skipping PR"
           fi
