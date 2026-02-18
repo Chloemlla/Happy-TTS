@@ -14,6 +14,7 @@
 #
 # frontend (pnpm-lock.yaml):
 #   - lodash-es >=4.17.23 (mermaid>...)   #103 Moderate
+#   - tailwind-merge 3.4.0→3.4.1
 #
 # frontend/docs (pnpm-lock.yaml):
 #   - nth-check >=2.0.1 (css-select>...)  #76 High
@@ -36,6 +37,7 @@ echo "✅ Root lockfile regenerated"
 echo ""
 echo "[2/3] Reinstalling frontend dependencies..."
 cd frontend
+pnpm update tailwind-merge --latest
 pnpm install --no-frozen-lockfile
 cd ..
 echo "✅ frontend lockfile regenerated"
