@@ -10,7 +10,7 @@ import logger from '../utils/logger';
  */
 class SharedMemoryStore implements Store {
   private hits = new Map<string, { totalHits: number; resetTime: Date }>();
-  private readonly prefix: string;
+  private readonly _prefix: string;
   private readonly windowMs: number;
 
   // 所有实例共享同一个底层 Map 和清理器
@@ -18,7 +18,12 @@ class SharedMemoryStore implements Store {
   private static cleanupTimer: ReturnType<typeof setInterval> | null = null;
   private static instanceCount = 0;
 
+  // Store 接口要求 prefix 为 public（可选）
+  readonly prefix: string;
+  readonly localKeys = true;
+
   constructor(prefix: string, windowMs: number) {
+    this._prefix = prefix;
     this.prefix = prefix;
     this.windowMs = windowMs;
     this.hits = SharedMemoryStore.globalMap;
@@ -42,7 +47,7 @@ class SharedMemoryStore implements Store {
   }
 
   private key(k: string): string {
-    return `${this.prefix}:${k}`;
+    return `${this._prefix}:${k}`;
   }
 
   init(_options: Options): void {
@@ -79,7 +84,7 @@ class SharedMemoryStore implements Store {
   async resetAll(): Promise<void> {
     // 只清除本 prefix 的 key
     for (const key of this.hits.keys()) {
-      if (key.startsWith(this.prefix + ':')) {
+      if (key.startsWith(this._prefix + ':')) {
         this.hits.delete(key);
       }
     }
@@ -117,6 +122,7 @@ export function createLimiter(opts: LimiterOptions): RateLimitRequestHandler {
     standardHeaders: true,
     legacyHeaders: false,
     store: new SharedMemoryStore(prefix, windowMs),
+    validate: { unsharedStore: false },
     keyGenerator: (req: Request) => req.ip || req.socket?.remoteAddress || 'unknown',
     skip: opts.skip ?? ((req: Request): boolean => req.isLocalIp || false),
     ...(opts.handler ? { handler: opts.handler } : {}),
