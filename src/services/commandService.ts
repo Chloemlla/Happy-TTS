@@ -202,55 +202,35 @@ class CommandService {
           // 对于cmd内置命令，使用cmd /c执行
           console.log("   使用cmd /c执行内置命令");
 
-          // 特殊处理Linux/Unix命令映射
-          let actualCommand = command;
-          let actualArgs = args;
+          // 使用硬编码命令映射，避免将用户输入传递给 spawn
+          const SAFE_COMMAND_MAP: Record<string, { cmd: string; args: string[] }> = {
+            cd: { cmd: "cd", args: [] },
+            dir: { cmd: "dir", args: [] },
+            cls: { cmd: "cls", args: [] },
+            ver: { cmd: "ver", args: [] },
+            date: { cmd: "date", args: ["/t"] },
+            systeminfo: { cmd: "systeminfo", args: [] },
+            tasklist: { cmd: "tasklist", args: [] },
+          };
 
-          if (command === "pwd") {
-            // pwd -> cd (不带参数显示当前目录)
-            actualCommand = "cd";
-            actualArgs = [];
-          } else if (command === "ls") {
-            // ls -> dir
-            actualCommand = "dir";
-          } else if (command === "date") {
-            // date -> date /t
-            actualCommand = "date";
-            actualArgs = ["/t"];
-          } else if (command === "uptime") {
-            // uptime -> systeminfo | findstr "启动时间"
-            actualCommand = "systeminfo";
-            actualArgs = [];
-          } else if (command === "free") {
-            // free -> systeminfo | findstr "内存"
-            actualCommand = "systeminfo";
-            actualArgs = [];
-          } else if (command === "df") {
-            // df -> dir
-            actualCommand = "dir";
-          } else if (command === "ps") {
-            // ps -> tasklist
-            actualCommand = "tasklist";
-          } else if (command === "top") {
-            // top -> tasklist /v
-            actualCommand = "tasklist";
-            actualArgs = ["/v"];
+          // 特殊处理Linux/Unix命令映射
+          let mappedKey = command;
+          if (command === "pwd") mappedKey = "cd";
+          else if (command === "ls" || command === "df") mappedKey = "dir";
+          else if (command === "date") mappedKey = "date";
+          else if (command === "uptime" || command === "free") mappedKey = "systeminfo";
+          else if (command === "ps") mappedKey = "tasklist";
+          else if (command === "top") {
+            mappedKey = "tasklist";
+            SAFE_COMMAND_MAP.tasklist = { cmd: "tasklist", args: ["/v"] };
           }
 
-          // 仅允许白名单命令，防止命令注入
-          if (!this.ALLOWED_COMMANDS.has(actualCommand)) {
+          const safeEntry = SAFE_COMMAND_MAP[mappedKey];
+          if (!safeEntry) {
             return reject(new Error("命令未被允许"));
           }
-          // 参数仅允许安全字符
-          if (actualArgs && actualArgs.length > 0) {
-            const argPattern = /^[a-zA-Z0-9_\-./]{0,64}$/;
-            for (const arg of actualArgs) {
-              if (!argPattern.test(arg)) {
-                return reject(new Error("参数包含非法字符"));
-              }
-            }
-          }
-          const childProcess = spawn("cmd", ["/c", actualCommand, ...actualArgs], {
+
+          const childProcess = spawn("cmd", ["/c", safeEntry.cmd, ...safeEntry.args], {
             stdio: ["pipe", "pipe", "pipe"],
             shell: false,
             timeout: 30000,
@@ -285,9 +265,35 @@ class CommandService {
             reject(new Error("Command execution timeout"));
           }, 30000);
         } else {
-          // 对于其他Windows命令，直接执行
-          console.log("   直接执行Windows命令");
-          const childProcess = spawn(command, args, {
+          // 对于其他Windows命令，使用硬编码路径映射
+          const SAFE_WIN_COMMANDS: Record<string, string> = {
+            hostname: "hostname",
+            ipconfig: "ipconfig",
+            tasklist: "tasklist",
+            systeminfo: "systeminfo",
+            whoami: "whoami",
+            ping: "ping",
+            nslookup: "nslookup",
+            netstat: "netstat",
+            route: "route",
+            arp: "arp",
+          };
+          const safeWinCmd = SAFE_WIN_COMMANDS[command];
+          if (!safeWinCmd) {
+            return reject(new Error("命令未被允许"));
+          }
+          // 参数仅允许安全字符
+          const safeArgs: string[] = [];
+          if (args && args.length > 0) {
+            const argPattern = /^[a-zA-Z0-9_\-./]{0,64}$/;
+            for (const arg of args) {
+              if (!argPattern.test(arg)) {
+                return reject(new Error("参数包含非法字符"));
+              }
+              safeArgs.push(arg);
+            }
+          }
+          const childProcess = spawn(safeWinCmd, safeArgs, {
             stdio: ["pipe", "pipe", "pipe"],
             shell: false,
             timeout: 30000,
@@ -323,9 +329,48 @@ class CommandService {
           }, 30000);
         }
       } else {
-        // Linux/Unix系统
+        // Linux/Unix系统 - 使用硬编码命令映射
         console.log("   在Linux/Unix系统上执行命令");
-        const childProcess = spawn(command, args, {
+        const SAFE_UNIX_COMMANDS: Record<string, string> = {
+          ls: "/bin/ls",
+          pwd: "/bin/pwd",
+          whoami: "/usr/bin/whoami",
+          date: "/bin/date",
+          uptime: "/usr/bin/uptime",
+          free: "/usr/bin/free",
+          df: "/bin/df",
+          ps: "/bin/ps",
+          top: "/usr/bin/top",
+          hostname: "/bin/hostname",
+          ping: "/bin/ping",
+          nslookup: "/usr/bin/nslookup",
+          netstat: "/bin/netstat",
+          route: "/sbin/route",
+          arp: "/usr/sbin/arp",
+          echo: "/bin/echo",
+          systemctl: "/bin/systemctl",
+          service: "/usr/sbin/service",
+          docker: "/usr/bin/docker",
+          git: "/usr/bin/git",
+          npm: "/usr/bin/npm",
+          node: "/usr/bin/node",
+        };
+        const safeUnixCmd = SAFE_UNIX_COMMANDS[command];
+        if (!safeUnixCmd) {
+          return reject(new Error("命令未被允许"));
+        }
+        // 参数仅允许安全字符
+        const safeUnixArgs: string[] = [];
+        if (args && args.length > 0) {
+          const argPattern = /^[a-zA-Z0-9_\-./]{0,64}$/;
+          for (const arg of args) {
+            if (!argPattern.test(arg)) {
+              return reject(new Error("参数包含非法字符"));
+            }
+            safeUnixArgs.push(arg);
+          }
+        }
+        const childProcess = spawn(safeUnixCmd, safeUnixArgs, {
           stdio: ["pipe", "pipe", "pipe"],
           shell: false, // 禁用shell以避免命令注入
           timeout: 30000,

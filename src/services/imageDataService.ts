@@ -61,19 +61,30 @@ class ImageDataService {
 
       // 检查是否已存在相同的imageId
       if (!isValidImageId(data.imageId)) throw new Error("非法 imageId");
-      const existing = await ImageDataModel.findOne({ imageId: data.imageId });
+      // 仅允许已知字段写入数据库，防止注入
+      const safeData = {
+        imageId: data.imageId,
+        fileName: data.fileName,
+        fileSize: data.fileSize,
+        fileHash: data.fileHash,
+        md5Hash: data.md5Hash,
+        web2url: data.web2url,
+        cid: data.cid,
+        uploadTime: data.uploadTime,
+      };
+      const existing = await ImageDataModel.findOne({ imageId: safeData.imageId });
       if (existing) {
         // 更新现有记录
         const result = await ImageDataModel.updateOne(
-          { imageId: data.imageId },
+          { imageId: safeData.imageId },
           {
             $set: {
-              ...data,
+              ...safeData,
               updatedAt: new Date(),
             },
           },
         );
-        return { ...record, ...data };
+        return { ...record, ...safeData };
       } else {
         // 插入新记录
         const newRecord = new ImageDataModel(record);

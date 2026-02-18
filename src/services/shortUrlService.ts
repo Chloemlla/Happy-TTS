@@ -618,10 +618,10 @@ export class ShortUrlService {
 
             // 尝试头部标记格式
             // 可能包含："IV: <base64>" 与 "Ciphertext-Base64:"（多行）或 "Cipher:"/"Content:"/"Data:"（单行）
-            const ivMatch = raw.match(/^\s*iv\s*:\s*(\S.*?)\s*$/im);
+            const ivMatch = raw.match(/^\s*iv\s*:\s*(\S+)\s*$/im);
             // 先尝试单行 data
             const singleLineDataMatch = raw.match(
-              /^\s*(?:cipher(?:text)?|content|data)(?:-base64)?\s*:\s*(\S.*?)\s*$/im,
+              /^\s*(?:cipher(?:text)?|content|data)(?:-base64)?\s*:\s*(\S+)\s*$/im,
             );
             if (ivMatch && singleLineDataMatch) {
               const ivB64 = ivMatch[1].trim();
