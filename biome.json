@@ -16,8 +16,7 @@
     "rules": {
       "recommended": true,
       "suspicious": {
-        "noExplicitAny": "off",
-        "noUnusedSuppressions": "error"
+        "noExplicitAny": "off"
       },
       "complexity": {
         "noForEach": "off"
