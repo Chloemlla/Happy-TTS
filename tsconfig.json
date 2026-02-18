@@ -44,6 +44,7 @@
     "dist",
     "dist-obfuscated",
     "tests",
+    "worker",
     "**/*.test.ts",
     "**/*.spec.ts",
     "scripts/test-totp-url.ts",
