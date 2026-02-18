@@ -7,4 +7,4 @@ export interface CDK {
   usedIp?: string;
   expiresAt?: Date;
   createdAt: Date;
-} 
+}

@@ -1,6 +1,6 @@
-import mongoose, { Schema, Document } from 'mongoose';
-import { ProjectContent } from '../types/workspace';
-import { VoiceStyle } from '../types/recommendation';
+import mongoose, { type Document, Schema } from "mongoose";
+import type { VoiceStyle } from "../types/recommendation";
+import type { ProjectContent } from "../types/workspace";
 
 // 语音风格子文档Schema
 const VoiceStyleSchema = new Schema<VoiceStyle>(
@@ -11,9 +11,9 @@ const VoiceStyleSchema = new Schema<VoiceStyle>(
     model: { type: String, required: true },
     speed: { type: Number, required: true },
     emotionalTone: { type: String, required: true },
-    language: { type: String, required: true }
+    language: { type: String, required: true },
   },
-  { _id: false }
+  { _id: false },
 );
 
 // 项目内容快照子文档Schema
@@ -22,9 +22,9 @@ const ProjectContentSnapshotSchema = new Schema<ProjectContent>(
     text: { type: String, required: true },
     voiceConfig: { type: VoiceStyleSchema, required: true },
     generatedAudioUrl: { type: String },
-    metadata: { type: Schema.Types.Mixed, default: {} }
+    metadata: { type: Schema.Types.Mixed, default: {} },
   },
-  { _id: false }
+  { _id: false },
 );
 
 export interface IVersion extends Document {
@@ -44,10 +44,10 @@ const VersionSchema = new Schema<IVersion>(
     versionNumber: { type: Number, required: true },
     snapshot: { type: ProjectContentSnapshotSchema, required: true },
     authorId: { type: String, required: true },
-    changeSummary: { type: String, default: '' },
-    createdAt: { type: Date, default: Date.now }
+    changeSummary: { type: String, default: "" },
+    createdAt: { type: Date, default: Date.now },
   },
-  { collection: 'versions' }
+  { collection: "versions" },
 );
 
 // 索引
@@ -56,5 +56,4 @@ VersionSchema.index({ projectId: 1, versionNumber: -1 });
 VersionSchema.index({ projectId: 1, createdAt: -1 });
 VersionSchema.index({ authorId: 1 });
 
-export default mongoose.models.Version ||
-  mongoose.model<IVersion>('Version', VersionSchema);
+export default mongoose.models.Version || mongoose.model<IVersion>("Version", VersionSchema);

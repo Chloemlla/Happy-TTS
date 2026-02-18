@@ -1,18 +1,18 @@
-import * as mongoImpl from './mongo';
-import * as fileImpl from './file';
-import * as mysqlImpl from './mysql';
+import * as fileImpl from "./file";
+import * as mongoImpl from "./mongo";
+import * as mysqlImpl from "./mysql";
 
-const storageType = process.env.MODLIST_STORAGE || 'mongo';
+const storageType = process.env.MODLIST_STORAGE || "mongo";
 
 let impl: any;
 switch (storageType) {
-  case 'file':
+  case "file":
     impl = fileImpl;
     break;
-  case 'mysql':
+  case "mysql":
     impl = mysqlImpl;
     break;
-  case 'mongo':
+  case "mongo":
   default:
     impl = mongoImpl;
 }
@@ -22,4 +22,4 @@ export const addMod = impl.addMod;
 export const updateMod = impl.updateMod;
 export const deleteMod = impl.deleteMod;
 export const batchAddMods = impl.batchAddMods;
-export const batchDeleteMods = impl.batchDeleteMods; 
+export const batchDeleteMods = impl.batchDeleteMods;

@@ -1,13 +1,13 @@
-import { NonceStore } from '../services/nonceStore';
+import { NonceStore } from "../services/nonceStore";
 
-describe('NonceStore', () => {
+describe("NonceStore", () => {
   let store: NonceStore;
 
   beforeEach(() => {
     store = new NonceStore({
       maxSize: 100,
       cleanupInterval: 1000,
-      ttlMs: 5000 // 5 seconds for testing
+      ttlMs: 5000, // 5 seconds for testing
     });
   });
 
@@ -15,11 +15,11 @@ describe('NonceStore', () => {
     store.destroy();
   });
 
-  describe('store and retrieve', () => {
-    it('should store and retrieve nonce records', () => {
-      const nonceId = 'test-nonce-123';
-      const clientIp = '127.0.0.1';
-      const userAgent = 'test-agent';
+  describe("store and retrieve", () => {
+    it("should store and retrieve nonce records", () => {
+      const nonceId = "test-nonce-123";
+      const clientIp = "127.0.0.1";
+      const userAgent = "test-agent";
 
       store.storeNonce(nonceId, clientIp, userAgent);
 
@@ -32,37 +32,37 @@ describe('NonceStore', () => {
       expect(record?.consumedAt).toBeUndefined();
     });
 
-    it('should check if nonce exists', () => {
-      const nonceId = 'test-nonce-456';
-      
+    it("should check if nonce exists", () => {
+      const nonceId = "test-nonce-456";
+
       expect(store.exists(nonceId)).toBe(false);
-      
+
       store.storeNonce(nonceId);
       expect(store.exists(nonceId)).toBe(true);
     });
   });
 
-  describe('consume', () => {
-    it('should successfully consume a valid nonce', () => {
-      const nonceId = 'test-nonce-789';
+  describe("consume", () => {
+    it("should successfully consume a valid nonce", () => {
+      const nonceId = "test-nonce-789";
       store.storeNonce(nonceId);
 
       const result = store.consume(nonceId);
-      
+
       expect(result.success).toBe(true);
       expect(result.record).toBeDefined();
       expect(result.record?.consumedAt).toBeDefined();
     });
 
-    it('should fail to consume non-existent nonce', () => {
-      const result = store.consume('non-existent-nonce');
-      
+    it("should fail to consume non-existent nonce", () => {
+      const result = store.consume("non-existent-nonce");
+
       expect(result.success).toBe(false);
-      expect(result.reason).toBe('nonce_not_found');
+      expect(result.reason).toBe("nonce_not_found");
     });
 
-    it('should fail to consume already consumed nonce', () => {
-      const nonceId = 'test-nonce-consumed';
+    it("should fail to consume already consumed nonce", () => {
+      const nonceId = "test-nonce-consumed";
       store.storeNonce(nonceId);
 
       // First consumption should succeed
@@ -72,28 +72,28 @@ describe('NonceStore', () => {
       // Second consumption should fail
       const secondResult = store.consume(nonceId);
       expect(secondResult.success).toBe(false);
-      expect(secondResult.reason).toBe('nonce_already_consumed');
+      expect(secondResult.reason).toBe("nonce_already_consumed");
     });
 
-    it('should fail to consume expired nonce', (done) => {
-      const nonceId = 'test-nonce-expired';
+    it("should fail to consume expired nonce", (done) => {
+      const nonceId = "test-nonce-expired";
       store.storeNonce(nonceId);
 
       // Wait for nonce to expire
       setTimeout(() => {
         const result = store.consume(nonceId);
         expect(result.success).toBe(false);
-        expect(result.reason).toBe('nonce_not_found');
+        expect(result.reason).toBe("nonce_not_found");
         done();
       }, 6000); // Wait longer than TTL
     }, 7000);
   });
 
-  describe('cleanup', () => {
-    it('should clean up expired nonces', (done) => {
-      const nonceId1 = 'test-nonce-cleanup-1';
-      const nonceId2 = 'test-nonce-cleanup-2';
-      
+  describe("cleanup", () => {
+    it("should clean up expired nonces", (done) => {
+      const nonceId1 = "test-nonce-cleanup-1";
+      const nonceId2 = "test-nonce-cleanup-2";
+
       store.storeNonce(nonceId1);
       store.storeNonce(nonceId2);
 
@@ -110,8 +110,8 @@ describe('NonceStore', () => {
       }, 6000);
     }, 7000);
 
-    it('should not clean up valid nonces', () => {
-      const nonceId = 'test-nonce-valid';
+    it("should not clean up valid nonces", () => {
+      const nonceId = "test-nonce-valid";
       store.storeNonce(nonceId);
 
       const cleanedCount = store.cleanup();
@@ -120,11 +120,11 @@ describe('NonceStore', () => {
     });
   });
 
-  describe('stats', () => {
-    it('should return correct statistics', () => {
-      const nonceId1 = 'test-nonce-stats-1';
-      const nonceId2 = 'test-nonce-stats-2';
-      const nonceId3 = 'test-nonce-stats-3';
+  describe("stats", () => {
+    it("should return correct statistics", () => {
+      const nonceId1 = "test-nonce-stats-1";
+      const nonceId2 = "test-nonce-stats-2";
+      const nonceId3 = "test-nonce-stats-3";
 
       store.storeNonce(nonceId1);
       store.storeNonce(nonceId2);
@@ -141,13 +141,13 @@ describe('NonceStore', () => {
     });
   });
 
-  describe('size limits', () => {
-    it('should respect maximum size limit', () => {
+  describe("size limits", () => {
+    it("should respect maximum size limit", () => {
       const smallStore = new NonceStore({ maxSize: 2, ttlMs: 60000 });
 
-      smallStore.storeNonce('nonce-1');
-      smallStore.storeNonce('nonce-2');
-      smallStore.storeNonce('nonce-3'); // Should evict oldest
+      smallStore.storeNonce("nonce-1");
+      smallStore.storeNonce("nonce-2");
+      smallStore.storeNonce("nonce-3"); // Should evict oldest
 
       const stats = smallStore.getStats();
       expect(stats.totalCount).toBe(2);

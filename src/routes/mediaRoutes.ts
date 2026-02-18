@@ -1,5 +1,5 @@
-import { Router } from 'express';
-import { MediaController } from '../controllers/mediaController';
+import { Router } from "express";
+import { MediaController } from "../controllers/mediaController";
 
 const router = Router();
 
@@ -9,7 +9,7 @@ const router = Router();
  * @access Public
  * @param {string} id - 歌曲ID
  */
-router.get('/music163', MediaController.music163);
+router.get("/music163", MediaController.music163);
 
 /**
  * @route GET /api/media/pipixia
@@ -17,6 +17,6 @@ router.get('/music163', MediaController.music163);
  * @access Public
  * @param {string} url - 视频链接
  */
-router.get('/pipixia', MediaController.pipixia);
+router.get("/pipixia", MediaController.pipixia);
 
-export default router; 
+export default router;

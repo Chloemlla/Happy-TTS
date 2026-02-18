@@ -9,4 +9,4 @@ export interface Resource {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
-} 
+}

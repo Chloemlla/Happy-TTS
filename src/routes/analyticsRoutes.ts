@@ -1,14 +1,14 @@
 /**
  * 分析路由 - Analytics Routes
  * 定义使用分析相关的API端点
- * 
+ *
  * Requirements: 3.1, 3.2, 3.5
  */
 
-import express from 'express';
-import { AnalyticsController } from '../controllers/analyticsController';
-import { authenticateToken } from '../middleware/authenticateToken';
-import { createLimiter } from '../middleware/rateLimiter';
+import express from "express";
+import { AnalyticsController } from "../controllers/analyticsController";
+import { authenticateToken } from "../middleware/authenticateToken";
+import { createLimiter } from "../middleware/rateLimiter";
 
 const router = express.Router();
 
@@ -16,13 +16,13 @@ const router = express.Router();
 const analyticsLimiter = createLimiter({
   windowMs: 60 * 1000, // 1分钟
   max: 30, // 每分钟最多30次请求
-  message: '请求过于频繁，请稍后再试'
+  message: "请求过于频繁，请稍后再试",
 });
 
 const exportLimiter = createLimiter({
   windowMs: 60 * 1000, // 1分钟
   max: 5, // 每分钟最多5次导出请求
-  message: '导出请求过于频繁，请稍后再试'
+  message: "导出请求过于频繁，请稍后再试",
 });
 
 /**
@@ -50,7 +50,7 @@ const exportLimiter = createLimiter({
  *       401:
  *         description: 未授权
  */
-router.get('/statistics', analyticsLimiter, authenticateToken, AnalyticsController.getStatistics);
+router.get("/statistics", analyticsLimiter, authenticateToken, AnalyticsController.getStatistics);
 
 /**
  * @openapi
@@ -81,7 +81,7 @@ router.get('/statistics', analyticsLimiter, authenticateToken, AnalyticsControll
  *       401:
  *         description: 未授权
  */
-router.get('/suggestions', analyticsLimiter, authenticateToken, AnalyticsController.getSuggestions);
+router.get("/suggestions", analyticsLimiter, authenticateToken, AnalyticsController.getSuggestions);
 
 /**
  * @openapi
@@ -112,7 +112,7 @@ router.get('/suggestions', analyticsLimiter, authenticateToken, AnalyticsControl
  *       401:
  *         description: 未授权
  */
-router.get('/patterns', analyticsLimiter, authenticateToken, AnalyticsController.getPatterns);
+router.get("/patterns", analyticsLimiter, authenticateToken, AnalyticsController.getPatterns);
 
 /**
  * @openapi
@@ -145,7 +145,7 @@ router.get('/patterns', analyticsLimiter, authenticateToken, AnalyticsController
  *       401:
  *         description: 未授权
  */
-router.get('/export', exportLimiter, authenticateToken, AnalyticsController.exportData);
+router.get("/export", exportLimiter, authenticateToken, AnalyticsController.exportData);
 
 /**
  * @openapi
@@ -200,6 +200,6 @@ router.get('/export', exportLimiter, authenticateToken, AnalyticsController.expo
  *       401:
  *         description: 未授权
  */
-router.post('/import', analyticsLimiter, authenticateToken, AnalyticsController.importData);
+router.post("/import", analyticsLimiter, authenticateToken, AnalyticsController.importData);
 
 export default router;

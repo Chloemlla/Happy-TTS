@@ -1,11 +1,13 @@
-import { Request, Response } from 'express';
-import logger from '../utils/logger';
+import type { Request, Response } from "express";
+import logger from "../utils/logger";
+
 // AuthRequest接口直接定义在这里
 interface AuthRequest extends Request {
   user?: any;
 }
-import { CDKService } from '../services/cdkService';
-import { join, basename } from 'path';
+
+import { basename, join } from "path";
+import { CDKService } from "../services/cdkService";
 
 const cdkService = CDKService.getInstance();
 
@@ -13,7 +15,7 @@ const cdkService = CDKService.getInstance();
 export const redeemCDK = async (req: AuthRequest, res: Response) => {
   try {
     const { code, userId, username, forceRedeem, cfToken, userRole } = req.body;
-    
+
     // 构建用户信息对象
     let userInfo: { userId: string; username: string } | undefined;
     if (userId && username) {
@@ -21,41 +23,41 @@ export const redeemCDK = async (req: AuthRequest, res: Response) => {
     } else if (req.user) {
       // 如果请求中有用户信息，使用认证用户信息
       userInfo = {
-        userId: req.user.id || req.user._id || 'unknown',
-        username: req.user.username || req.user.name || 'unknown'
+        userId: req.user.id || req.user._id || "unknown",
+        username: req.user.username || req.user.name || "unknown",
       };
     }
-    
+
     const result = await cdkService.redeemCDK(code, userInfo, forceRedeem, cfToken, userRole);
-    
-    logger.info('CDK兑换成功', { 
-      code, 
+
+    logger.info("CDK兑换成功", {
+      code,
       userInfo,
       resourceId: result.resource.id,
-      forceRedeem 
+      forceRedeem,
     });
-    
+
     res.json(result);
   } catch (error: any) {
-    logger.error('CDK兑换失败:', error);
-    
+    logger.error("CDK兑换失败:", error);
+
     // 处理重复资源的特殊情况
-    if (error.message === 'DUPLICATE_RESOURCE') {
-      return res.status(409).json({ 
-        message: 'DUPLICATE_RESOURCE',
+    if (error.message === "DUPLICATE_RESOURCE") {
+      return res.status(409).json({
+        message: "DUPLICATE_RESOURCE",
         resourceTitle: error.resourceTitle,
-        resourceId: error.resourceId
+        resourceId: error.resourceId,
       });
     }
-    
+
     // 处理 Turnstile 验证错误
     if (error instanceof Error) {
-      if (error.message.includes('人机验证') || error.message.includes('Turnstile')) {
+      if (error.message.includes("人机验证") || error.message.includes("Turnstile")) {
         return res.status(400).json({ message: error.message });
       }
     }
-    
-    res.status(400).json({ message: '兑换失败：无效或已使用的CDK' });
+
+    res.status(400).json({ message: "兑换失败：无效或已使用的CDK" });
   }
 };
 
@@ -66,8 +68,8 @@ export const getCDKs = async (req: AuthRequest, res: Response) => {
     const cdks = await cdkService.getCDKs(Number(page), resourceId as string);
     res.json(cdks);
   } catch (error) {
-    logger.error('获取CDK列表失败:', error);
-    res.status(500).json({ message: '获取CDK列表失败' });
+    logger.error("获取CDK列表失败:", error);
+    res.status(500).json({ message: "获取CDK列表失败" });
   }
 };
 
@@ -77,8 +79,8 @@ export const getCDKStats = async (req: AuthRequest, res: Response) => {
     const stats = await cdkService.getCDKStats();
     res.json(stats);
   } catch (error) {
-    logger.error('获取CDK统计信息失败:', error);
-    res.status(500).json({ message: '获取CDK统计信息失败' });
+    logger.error("获取CDK统计信息失败:", error);
+    res.status(500).json({ message: "获取CDK统计信息失败" });
   }
 };
 
@@ -89,8 +91,8 @@ export const generateCDKs = async (req: AuthRequest, res: Response) => {
     const cdks = await cdkService.generateCDKs(resourceId, count, expiresAt);
     res.status(201).json(cdks);
   } catch (error) {
-    logger.error('生成CDK失败:', error);
-    res.status(500).json({ message: '生成CDK失败' });
+    logger.error("生成CDK失败:", error);
+    res.status(500).json({ message: "生成CDK失败" });
   }
 };
 
@@ -99,27 +101,27 @@ export const updateCDK = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { code, resourceId, expiresAt } = req.body;
-    
+
     const updateData: { code?: string; resourceId?: string; expiresAt?: Date } = {};
-    
+
     if (code !== undefined) updateData.code = code;
     if (resourceId !== undefined) updateData.resourceId = resourceId;
     if (expiresAt !== undefined) updateData.expiresAt = expiresAt ? new Date(expiresAt) : undefined;
-    
+
     const updatedCDK = await cdkService.updateCDK(id, updateData);
-    
-    logger.info('编辑CDK成功', { 
-      id, 
+
+    logger.info("编辑CDK成功", {
+      id,
       userId: req.user?.id,
       username: req.user?.username,
-      updateData 
+      updateData,
     });
-    
+
     res.json(updatedCDK);
   } catch (error) {
-    logger.error('编辑CDK失败:', error);
-    res.status(400).json({ 
-      message: error instanceof Error ? error.message : '编辑CDK失败' 
+    logger.error("编辑CDK失败:", error);
+    res.status(400).json({
+      message: error instanceof Error ? error.message : "编辑CDK失败",
     });
   }
 };
@@ -131,8 +133,8 @@ export const deleteCDK = async (req: AuthRequest, res: Response) => {
     await cdkService.deleteCDK(id);
     res.status(204).send();
   } catch (error) {
-    logger.error('删除CDK失败:', error);
-    res.status(500).json({ message: '删除CDK失败' });
+    logger.error("删除CDK失败:", error);
+    res.status(500).json({ message: "删除CDK失败" });
   }
 };
 
@@ -140,28 +142,28 @@ export const deleteCDK = async (req: AuthRequest, res: Response) => {
 export const batchDeleteCDKs = async (req: AuthRequest, res: Response) => {
   try {
     const { ids } = req.body;
-    
+
     // 验证请求体
     if (!ids || !Array.isArray(ids)) {
-      return res.status(400).json({ message: '请提供有效的CDK ID列表' });
+      return res.status(400).json({ message: "请提供有效的CDK ID列表" });
     }
-    
+
     const result = await cdkService.batchDeleteCDKs(ids);
-    
-    logger.info('批量删除CDK成功', { 
+
+    logger.info("批量删除CDK成功", {
       userId: req.user?.id,
       username: req.user?.username,
-      result 
+      result,
     });
-    
+
     res.json({
-      message: '批量删除成功',
-      ...result
+      message: "批量删除成功",
+      ...result,
     });
   } catch (error) {
-    logger.error('批量删除CDK失败:', error);
-    res.status(500).json({ 
-      message: error instanceof Error ? error.message : '批量删除CDK失败' 
+    logger.error("批量删除CDK失败:", error);
+    res.status(500).json({
+      message: error instanceof Error ? error.message : "批量删除CDK失败",
     });
   }
 };
@@ -170,18 +172,18 @@ export const batchDeleteCDKs = async (req: AuthRequest, res: Response) => {
 export const getTotalCDKCount = async (req: AuthRequest, res: Response) => {
   try {
     const result = await cdkService.getTotalCDKCount();
-    
-    logger.info('获取CDK总数量成功', { 
+
+    logger.info("获取CDK总数量成功", {
       userId: req.user?.id,
       username: req.user?.username,
-      totalCount: result.totalCount 
+      totalCount: result.totalCount,
     });
-    
+
     res.json(result);
   } catch (error) {
-    logger.error('获取CDK总数量失败:', error);
-    res.status(500).json({ 
-      message: error instanceof Error ? error.message : '获取CDK总数量失败' 
+    logger.error("获取CDK总数量失败:", error);
+    res.status(500).json({
+      message: error instanceof Error ? error.message : "获取CDK总数量失败",
     });
   }
 };
@@ -190,21 +192,21 @@ export const getTotalCDKCount = async (req: AuthRequest, res: Response) => {
 export const deleteAllCDKs = async (req: AuthRequest, res: Response) => {
   try {
     const result = await cdkService.deleteAllCDKs();
-    
-    logger.info('删除所有CDK成功', { 
+
+    logger.info("删除所有CDK成功", {
       userId: req.user?.id,
       username: req.user?.username,
-      deletedCount: result.deletedCount 
+      deletedCount: result.deletedCount,
     });
-    
+
     res.json({
-      message: '成功删除所有CDK',
-      deletedCount: result.deletedCount
+      message: "成功删除所有CDK",
+      deletedCount: result.deletedCount,
     });
   } catch (error) {
-    logger.error('删除所有CDK失败:', error);
-    res.status(500).json({ 
-      message: error instanceof Error ? error.message : '删除所有CDK失败' 
+    logger.error("删除所有CDK失败:", error);
+    res.status(500).json({
+      message: error instanceof Error ? error.message : "删除所有CDK失败",
     });
   }
 };
@@ -213,21 +215,21 @@ export const deleteAllCDKs = async (req: AuthRequest, res: Response) => {
 export const deleteUnusedCDKs = async (req: AuthRequest, res: Response) => {
   try {
     const result = await cdkService.deleteUnusedCDKs();
-    
-    logger.info('删除所有未使用CDK成功', { 
+
+    logger.info("删除所有未使用CDK成功", {
       userId: req.user?.id,
       username: req.user?.username,
-      deletedCount: result.deletedCount 
+      deletedCount: result.deletedCount,
     });
-    
+
     res.json({
-      message: '成功删除所有未使用的CDK',
-      deletedCount: result.deletedCount
+      message: "成功删除所有未使用的CDK",
+      deletedCount: result.deletedCount,
     });
   } catch (error) {
-    logger.error('删除所有未使用CDK失败:', error);
-    res.status(500).json({ 
-      message: error instanceof Error ? error.message : '删除所有未使用CDK失败' 
+    logger.error("删除所有未使用CDK失败:", error);
+    res.status(500).json({
+      message: error instanceof Error ? error.message : "删除所有未使用CDK失败",
     });
   }
 };
@@ -236,26 +238,26 @@ export const deleteUnusedCDKs = async (req: AuthRequest, res: Response) => {
 export const importCDKs = async (req: AuthRequest, res: Response) => {
   try {
     const { content } = req.body || {};
-    if (!content || typeof content !== 'string') {
-      return res.status(400).json({ message: '请提供要导入的文本内容' });
+    if (!content || typeof content !== "string") {
+      return res.status(400).json({ message: "请提供要导入的文本内容" });
     }
 
     const results = await cdkService.importCDKs(content);
 
-    logger.info('导入CDK数据成功', {
+    logger.info("导入CDK数据成功", {
       userId: req.user?.id,
       username: req.user?.username,
-      ...results
+      ...results,
     });
 
     res.json({
       message: `成功导入 ${results.importedCount} 个，跳过重复 ${results.skippedCount} 个，错误 ${results.errorCount} 个`,
-      ...results
+      ...results,
     });
   } catch (error) {
-    logger.error('导入CDK数据失败:', error);
-    res.status(500).json({ 
-      message: error instanceof Error ? error.message : '导入CDK数据失败' 
+    logger.error("导入CDK数据失败:", error);
+    res.status(500).json({
+      message: error instanceof Error ? error.message : "导入CDK数据失败",
     });
   }
 };
@@ -263,12 +265,12 @@ export const importCDKs = async (req: AuthRequest, res: Response) => {
 // 获取用户已兑换的资源
 export const getUserRedeemedResources = async (req: Request, res: Response) => {
   try {
-    const userIp = req.ip || req.connection.remoteAddress || req.socket.remoteAddress || '127.0.0.1';
+    const userIp = req.ip || req.connection.remoteAddress || req.socket.remoteAddress || "127.0.0.1";
     const result = await cdkService.getUserRedeemedResources(userIp);
     res.json(result);
   } catch (error) {
-    logger.error('获取用户已兑换资源失败:', error);
-    res.status(500).json({ message: '获取已兑换资源失败' });
+    logger.error("获取用户已兑换资源失败:", error);
+    res.status(500).json({ message: "获取已兑换资源失败" });
   }
 };
 
@@ -276,42 +278,42 @@ export const getUserRedeemedResources = async (req: Request, res: Response) => {
 export const exportCDKs = async (req: AuthRequest, res: Response) => {
   try {
     const { resourceId, filterType } = req.query;
-    const validFilterType = ['all', 'unused', 'used'].includes(filterType as string) 
-      ? (filterType as 'all' | 'unused' | 'used') 
-      : 'all';
+    const validFilterType = ["all", "unused", "used"].includes(filterType as string)
+      ? (filterType as "all" | "unused" | "used")
+      : "all";
     const result = await cdkService.exportCDKs(resourceId as string, validFilterType);
-    
-    logger.info('导出CDK数据成功', {
+
+    logger.info("导出CDK数据成功", {
       userId: req.user?.id,
       username: req.user?.username,
       mode: result.mode,
       count: result.count,
       resourceId,
-      filterType: validFilterType
+      filterType: validFilterType,
     });
-    
+
     // 编码文件名以支持中文字符
     const encodedFilename = encodeURIComponent(result.filename);
-    const contentDisposition = `attachment; filename="${result.filename.replace(/[^\x00-\x7F]/g, '_')}"; filename*=UTF-8''${encodedFilename}`;
-    
-    if (result.mode === 'file') {
-    // 返回文件下载
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.setHeader('Content-Disposition', contentDisposition);
-    // 使用固定根目录与安全的文件名，防止路径穿越
-    const EXPORT_ROOT = join(process.cwd(), 'data', 'exports');
-    const safeName = basename(result.filePath);
-    res.sendFile(safeName, { root: EXPORT_ROOT });
-  } else {
+    const contentDisposition = `attachment; filename="${result.filename.replace(/[^\x00-\x7F]/g, "_")}"; filename*=UTF-8''${encodedFilename}`;
+
+    if (result.mode === "file") {
+      // 返回文件下载
+      res.setHeader("Content-Type", "text/plain; charset=utf-8");
+      res.setHeader("Content-Disposition", contentDisposition);
+      // 使用固定根目录与安全的文件名，防止路径穿越
+      const EXPORT_ROOT = join(process.cwd(), "data", "exports");
+      const safeName = basename(result.filePath);
+      res.sendFile(safeName, { root: EXPORT_ROOT });
+    } else {
       // 返回内联内容
-      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-      res.setHeader('Content-Disposition', contentDisposition);
+      res.setHeader("Content-Type", "text/plain; charset=utf-8");
+      res.setHeader("Content-Disposition", contentDisposition);
       res.send(result.content);
     }
   } catch (error) {
-    logger.error('导出CDK数据失败:', error);
-    res.status(500).json({ 
-      message: error instanceof Error ? error.message : '导出CDK数据失败' 
+    logger.error("导出CDK数据失败:", error);
+    res.status(500).json({
+      message: error instanceof Error ? error.message : "导出CDK数据失败",
     });
   }
-}; 
+};

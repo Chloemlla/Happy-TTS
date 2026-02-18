@@ -3,7 +3,7 @@
  * Real-time Collaboration Type Definitions
  */
 
-import { ProjectContent } from './workspace';
+import type { ProjectContent } from "./workspace";
 
 // 协作会话接口
 export interface CollaborationSession {
@@ -41,7 +41,7 @@ export interface TextSelection {
 // 操作接口
 export interface Operation {
   id: string;
-  type: 'insert' | 'delete' | 'replace' | 'config_change';
+  type: "insert" | "delete" | "replace" | "config_change";
   userId: string;
   timestamp: Date;
   data: OperationData;
@@ -67,14 +67,14 @@ export interface SessionSummary {
 
 // 协作状态枚举
 export enum CollaborationStatus {
-  ACTIVE = 'active',
-  ENDED = 'ended',
-  PAUSED = 'paused'
+  ACTIVE = "active",
+  ENDED = "ended",
+  PAUSED = "paused",
 }
 
 // WebSocket消息类型
 export interface CollaborationMessage {
-  type: 'operation' | 'cursor' | 'join' | 'leave' | 'sync';
+  type: "operation" | "cursor" | "join" | "leave" | "sync";
   sessionId: string;
   userId: string;
   payload: any;

@@ -1,23 +1,23 @@
-import express from 'express';
-import { EmailController } from '../controllers/emailController';
-import { authMiddleware } from '../middleware/authMiddleware';
-import { createLimiter } from '../middleware/rateLimiter';
-import logger from '../utils/logger';
-import { sendOutEmail, sendOutEmailBatch } from '../services/outEmailService';
-import { domainExemptionService } from '../services/domainExemptionService';
+import express from "express";
+import { EmailController } from "../controllers/emailController";
+import { authMiddleware } from "../middleware/authMiddleware";
+import { createLimiter } from "../middleware/rateLimiter";
+import { domainExemptionService } from "../services/domainExemptionService";
+import { sendOutEmail, sendOutEmailBatch } from "../services/outEmailService";
+import logger from "../utils/logger";
 
 const router = express.Router();
 
 // 管理员权限检查中间件
 const adminAuthMiddleware = (req: any, res: any, next: any) => {
-  if (!req.user || req.user.role !== 'admin') {
-    logger.warn('邮件发送权限检查失败：非管理员用户', {
+  if (!req.user || req.user.role !== "admin") {
+    logger.warn("邮件发送权限检查失败：非管理员用户", {
       userId: req.user?.id,
       username: req.user?.username,
       role: req.user?.role,
-      ip: req.ip
+      ip: req.ip,
     });
-    return res.status(403).json({ error: '需要管理员权限' });
+    return res.status(403).json({ error: "需要管理员权限" });
   }
   next();
 };
@@ -26,58 +26,59 @@ const adminAuthMiddleware = (req: any, res: any, next: any) => {
 const emailSendLimiter = createLimiter({
   windowMs: 60 * 1000, // 1分钟
   max: 20, // 最多20次
-  message: '邮件发送过于频繁，请稍后再试',
-  routeName: 'email.send'
+  message: "邮件发送过于频繁，请稍后再试",
+  routeName: "email.send",
 });
 
 // 邮箱验证速率限制（每管理员每分钟最多40次验证）
 const emailValidationLimiter = createLimiter({
   windowMs: 60 * 1000, // 1分钟
   max: 40, // 最多40次
-  message: '邮箱验证过于频繁，请稍后再试',
-  routeName: 'email.validate'
+  message: "邮箱验证过于频繁，请稍后再试",
+  routeName: "email.validate",
 });
 
 // 服务状态查询速率限制（每管理员每分钟最多10次查询）
 const statusQueryLimiter = createLimiter({
   windowMs: 60 * 1000, // 1分钟
   max: 40, // 最多40次
-  message: '状态查询过于频繁，请稍后再试',
-  routeName: 'email.status'
+  message: "状态查询过于频繁，请稍后再试",
+  routeName: "email.status",
 });
 
 // 域名豁免检查速率限制（每管理员每分钟最多20次检查）
 const domainExemptionLimiter = createLimiter({
   windowMs: 60 * 1000, // 1分钟
   max: 20, // 最多20次
-  message: '域名豁免检查过于频繁，请稍后再试',
-  routeName: 'email.domain-exemption'
+  message: "域名豁免检查过于频繁，请稍后再试",
+  routeName: "email.domain-exemption",
 });
 
 // 对外邮件发送限流（每分钟20封，每天100封，独立于管理员邮件）
 const outEmailLimiter = createLimiter({
   windowMs: 60 * 1000,
   max: 300,
-  message: '对外邮件发送过于频繁，请稍后再试',
-  routeName: 'outemail.send'
+  message: "对外邮件发送过于频繁，请稍后再试",
+  routeName: "outemail.send",
 });
 
 // 对外邮件发送接口（无需 token 验证，必须放在所有中间件之前）
-const OUTEMAIL_ENABLED = process.env.OUTEMAIL_ENABLED !== 'false' && typeof process.env.OUTEMAIL_ENABLED !== 'undefined';
-router.post('/outemail', outEmailLimiter, async (req, res) => {
+const OUTEMAIL_ENABLED =
+  process.env.OUTEMAIL_ENABLED !== "false" && typeof process.env.OUTEMAIL_ENABLED !== "undefined";
+router.post("/outemail", outEmailLimiter, async (req, res) => {
   if (!OUTEMAIL_ENABLED) {
-    return res.status(403).json({ error: '对外邮件功能未启用，请联系管理员配置 OUTEMAIL_ENABLED 环境变量' });
+    return res.status(403).json({ error: "对外邮件功能未启用，请联系管理员配置 OUTEMAIL_ENABLED 环境变量" });
   }
   try {
     const { to, subject, content, code } = req.body;
     if (!to || !subject || !content || !code) {
-      return res.status(400).json({ error: '缺少参数' });
+      return res.status(400).json({ error: "缺少参数" });
     }
-    if (typeof to === 'string') {
+    if (typeof to === "string") {
       if (!/^[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}$/.test(to)) {
-        return res.status(400).json({ error: '收件人邮箱格式无效' });
+        return res.status(400).json({ error: "收件人邮箱格式无效" });
       }
-      const ip = String(req.ip || req.headers['x-real-ip'] || '');
+      const ip = String(req.ip || req.headers["x-real-ip"] || "");
       const result = await sendOutEmail({ to, subject, content, code, ip });
       if (result.success) {
         res.json({ success: true, messageId: result.messageId });
@@ -85,12 +86,12 @@ router.post('/outemail', outEmailLimiter, async (req, res) => {
         res.status(400).json({ error: result.error });
       }
       return;
-    } else if (Array.isArray(to) && typeof to[0] === 'string') {
+    } else if (Array.isArray(to) && typeof to[0] === "string") {
       const first = to[0];
       if (!/^[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}$/.test(first)) {
-        return res.status(400).json({ error: '收件人邮箱格式无效' });
+        return res.status(400).json({ error: "收件人邮箱格式无效" });
       }
-      const ip = String(req.ip || req.headers['x-real-ip'] || '');
+      const ip = String(req.ip || req.headers["x-real-ip"] || "");
       const result = await sendOutEmail({ to: first, subject, content, code, ip });
       if (result.success) {
         res.json({ success: true, messageId: result.messageId });
@@ -99,10 +100,10 @@ router.post('/outemail', outEmailLimiter, async (req, res) => {
       }
       return;
     } else {
-      return res.status(400).json({ error: '收件人邮箱格式无效' });
+      return res.status(400).json({ error: "收件人邮箱格式无效" });
     }
   } catch (e) {
-    res.status(500).json({ error: '服务器错误' });
+    res.status(500).json({ error: "服务器错误" });
   }
 });
 
@@ -110,29 +111,29 @@ router.post('/outemail', outEmailLimiter, async (req, res) => {
 router.use(emailSendLimiter);
 
 // 新增：无需认证的 code 校验邮件发送接口
-router.post('/send-with-code', EmailController.sendEmailWithCode);
+router.post("/send-with-code", EmailController.sendEmailWithCode);
 
 // 对外邮件服务状态（公开，不需要鉴权；为兼容旧前端，保留在 /api/email 下）
-router.get('/outemail-status', statusQueryLimiter, (req, res) => {
+router.get("/outemail-status", statusQueryLimiter, (req, res) => {
   try {
     const outemailStatus = (globalThis as any).OUTEMAIL_SERVICE_STATUS;
-    if (outemailStatus && typeof outemailStatus.available === 'boolean') {
+    if (outemailStatus && typeof outemailStatus.available === "boolean") {
       res.json({
         success: true,
         available: outemailStatus.available,
-        error: outemailStatus.error || ''
+        error: outemailStatus.error || "",
       });
     } else {
-      res.json({ success: true, available: false, error: '对外邮件服务状态未初始化' });
+      res.json({ success: true, available: false, error: "对外邮件服务状态未初始化" });
     }
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : '未知错误';
-    logger.error('对外邮件服务状态查询异常', {
+    const errorMessage = error instanceof Error ? error.message : "未知错误";
+    logger.error("对外邮件服务状态查询异常", {
       error: errorMessage,
       stack: error instanceof Error ? error.stack : undefined,
-      ip: req.ip
+      ip: req.ip,
     });
-    res.status(500).json({ success: false, available: false, error: '服务状态查询失败' });
+    res.status(500).json({ success: false, available: false, error: "服务状态查询失败" });
   }
 });
 
@@ -196,7 +197,7 @@ router.use(adminAuthMiddleware);
  *       500:
  *         description: 服务器错误
  */
-router.post('/send', emailSendLimiter, EmailController.sendEmail);
+router.post("/send", emailSendLimiter, EmailController.sendEmail);
 
 /**
  * @openapi
@@ -252,7 +253,7 @@ router.post('/send', emailSendLimiter, EmailController.sendEmail);
  *       500:
  *         description: 服务器错误
  */
-router.post('/batch-send', emailSendLimiter, EmailController.sendEmailBatch);
+router.post("/batch-send", emailSendLimiter, EmailController.sendEmailBatch);
 
 /**
  * @openapi
@@ -306,7 +307,7 @@ router.post('/batch-send', emailSendLimiter, EmailController.sendEmailBatch);
  *       500:
  *         description: 服务器错误
  */
-router.post('/send-simple', emailSendLimiter, EmailController.sendSimpleEmail);
+router.post("/send-simple", emailSendLimiter, EmailController.sendSimpleEmail);
 
 /**
  * @openapi
@@ -360,7 +361,7 @@ router.post('/send-simple', emailSendLimiter, EmailController.sendSimpleEmail);
  *       500:
  *         description: 服务器错误
  */
-router.post('/send-markdown', emailSendLimiter, EmailController.sendMarkdownEmail);
+router.post("/send-markdown", emailSendLimiter, EmailController.sendMarkdownEmail);
 
 /**
  * @openapi
@@ -396,7 +397,7 @@ router.post('/send-markdown', emailSendLimiter, EmailController.sendMarkdownEmai
  *       500:
  *         description: 服务器错误
  */
-router.get('/status', statusQueryLimiter, EmailController.getServiceStatus);
+router.get("/status", statusQueryLimiter, EmailController.getServiceStatus);
 
 /**
  * @openapi
@@ -449,7 +450,7 @@ router.get('/status', statusQueryLimiter, EmailController.getServiceStatus);
  *       500:
  *         description: 服务器错误
  */
-router.post('/validate-sender-domain', emailValidationLimiter, EmailController.validateSenderDomain);
+router.post("/validate-sender-domain", emailValidationLimiter, EmailController.validateSenderDomain);
 
 /**
  * @openapi
@@ -508,7 +509,7 @@ router.post('/validate-sender-domain', emailValidationLimiter, EmailController.v
  *       500:
  *         description: 服务器错误
  */
-router.post('/validate', emailValidationLimiter, EmailController.validateEmails);
+router.post("/validate", emailValidationLimiter, EmailController.validateEmails);
 
 /**
  * @openapi
@@ -550,7 +551,7 @@ router.post('/validate', emailValidationLimiter, EmailController.validateEmails)
  *       500:
  *         description: 服务器错误
  */
-router.get('/quota', authMiddleware, adminAuthMiddleware, EmailController.getQuota);
+router.get("/quota", authMiddleware, adminAuthMiddleware, EmailController.getQuota);
 
 /**
  * @openapi
@@ -588,7 +589,7 @@ router.get('/quota', authMiddleware, adminAuthMiddleware, EmailController.getQuo
  *       500:
  *         description: 服务器错误
  */
-router.get('/domains', authMiddleware, EmailController.getDomains);
+router.get("/domains", authMiddleware, EmailController.getDomains);
 
 /**
  * @openapi
@@ -654,36 +655,41 @@ router.get('/domains', authMiddleware, EmailController.getDomains);
  *         description: 服务器错误
  */
 // 检查域名豁免状态
-router.post('/check-domain-exemption', domainExemptionLimiter, authMiddleware, adminAuthMiddleware, async (req, res) => {
-  try {
-    const { domain } = req.body;
+router.post(
+  "/check-domain-exemption",
+  domainExemptionLimiter,
+  authMiddleware,
+  adminAuthMiddleware,
+  async (req, res) => {
+    try {
+      const { domain } = req.body;
 
-    if (!domain) {
-      return res.status(400).json({
+      if (!domain) {
+        return res.status(400).json({
+          success: false,
+          error: "域名参数不能为空",
+        });
+      }
+
+      const result = domainExemptionService.checkDomainExemption(domain);
+
+      res.json({
+        success: true,
+        exempted: result.exempted,
+        message: result.message,
+        domain: result.domain,
+        isInternal: result.isInternal,
+        isExempted: result.isExempted,
+      });
+    } catch (error) {
+      console.error("[EmailRoutes] 检查域名豁免状态失败:", error);
+      res.status(500).json({
         success: false,
-        error: '域名参数不能为空'
+        error: "服务器内部错误",
       });
     }
-
-    const result = domainExemptionService.checkDomainExemption(domain);
-
-    res.json({
-      success: true,
-      exempted: result.exempted,
-      message: result.message,
-      domain: result.domain,
-      isInternal: result.isInternal,
-      isExempted: result.isExempted
-    });
-
-  } catch (error) {
-    console.error('[EmailRoutes] 检查域名豁免状态失败:', error);
-    res.status(500).json({
-      success: false,
-      error: '服务器内部错误'
-    });
-  }
-});
+  },
+);
 
 /**
  * @openapi
@@ -745,34 +751,39 @@ router.post('/check-domain-exemption', domainExemptionLimiter, authMiddleware, a
  *         description: 服务器错误
  */
 // 检查收件人域名白名单状态
-router.post('/check-recipient-whitelist', domainExemptionLimiter, authMiddleware, adminAuthMiddleware, async (req, res) => {
-  try {
-    const { domain } = req.body;
+router.post(
+  "/check-recipient-whitelist",
+  domainExemptionLimiter,
+  authMiddleware,
+  adminAuthMiddleware,
+  async (req, res) => {
+    try {
+      const { domain } = req.body;
 
-    if (!domain) {
-      return res.status(400).json({
+      if (!domain) {
+        return res.status(400).json({
+          success: false,
+          error: "域名参数不能为空",
+        });
+      }
+
+      const result = domainExemptionService.checkRecipientWhitelist(domain);
+
+      res.json({
+        success: true,
+        whitelisted: result.whitelisted,
+        message: result.message,
+        domain: result.domain,
+        isWhitelisted: result.isWhitelisted,
+      });
+    } catch (error) {
+      console.error("[EmailRoutes] 检查收件人域名白名单状态失败:", error);
+      res.status(500).json({
         success: false,
-        error: '域名参数不能为空'
+        error: "服务器内部错误",
       });
     }
+  },
+);
 
-    const result = domainExemptionService.checkRecipientWhitelist(domain);
-
-    res.json({
-      success: true,
-      whitelisted: result.whitelisted,
-      message: result.message,
-      domain: result.domain,
-      isWhitelisted: result.isWhitelisted
-    });
-
-  } catch (error) {
-    console.error('[EmailRoutes] 检查收件人域名白名单状态失败:', error);
-    res.status(500).json({
-      success: false,
-      error: '服务器内部错误'
-    });
-  }
-});
-
-export default router; 
+export default router;

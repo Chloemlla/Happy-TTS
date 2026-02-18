@@ -3,8 +3,13 @@
  * Anta Anti-Counterfeit HTML Parser Utility
  */
 
-import * as cheerio from 'cheerio';
-import { ParsedProductData, AntiCounterfeitError, AntiCounterfeitErrorType, createAntiCounterfeitError } from '../types/anta';
+import * as cheerio from "cheerio";
+import {
+  type AntiCounterfeitError,
+  AntiCounterfeitErrorType,
+  createAntiCounterfeitError,
+  type ParsedProductData,
+} from "../types/anta";
 
 /**
  * 解析安踏API返回的HTML内容
@@ -12,11 +17,8 @@ import { ParsedProductData, AntiCounterfeitError, AntiCounterfeitErrorType, crea
  * @returns 解析后的产品数据
  */
 export function parseAntaHTML(html: string): ParsedProductData {
-  if (!html || typeof html !== 'string') {
-    throw createAntiCounterfeitError(
-      AntiCounterfeitErrorType.PARSING_ERROR,
-      'HTML内容为空或格式不正确'
-    );
+  if (!html || typeof html !== "string") {
+    throw createAntiCounterfeitError(AntiCounterfeitErrorType.PARSING_ERROR, "HTML内容为空或格式不正确");
   }
 
   try {
@@ -25,7 +27,7 @@ export function parseAntaHTML(html: string): ParsedProductData {
 
     // 根据安踏官网的HTML结构解析产品信息
     // 这里需要根据实际的HTML结构进行调整
-    
+
     // 解析条码 (Barcode)
     const barcodeElement = $('td:contains("条码"), td:contains("barcode")').next();
     if (barcodeElement.length > 0) {
@@ -86,11 +88,7 @@ export function parseAntaHTML(html: string): ParsedProductData {
 
     return productData;
   } catch (error) {
-    throw createAntiCounterfeitError(
-      AntiCounterfeitErrorType.PARSING_ERROR,
-      '解析HTML内容时发生错误',
-      error
-    );
+    throw createAntiCounterfeitError(AntiCounterfeitErrorType.PARSING_ERROR, "解析HTML内容时发生错误", error);
   }
 }
 
@@ -102,28 +100,28 @@ export function parseAntaHTML(html: string): ParsedProductData {
 function parseFromTableRows($: cheerio.CheerioAPI): ParsedProductData {
   const productData: ParsedProductData = {};
 
-  $('tr').each((_, row) => {
-    const cells = $(row).find('td');
+  $("tr").each((_, row) => {
+    const cells = $(row).find("td");
     if (cells.length >= 2) {
       const label = cleanText($(cells[0]).text()).toLowerCase();
       const value = cleanText($(cells[1]).text());
 
       if (value) {
-        if (label.includes('条码') || label.includes('barcode')) {
+        if (label.includes("条码") || label.includes("barcode")) {
           productData.barcode = value;
-        } else if (label.includes('性别') || label.includes('gender')) {
+        } else if (label.includes("性别") || label.includes("gender")) {
           productData.gender = value;
-        } else if (label.includes('品名') || label.includes('product') || label.includes('name')) {
+        } else if (label.includes("品名") || label.includes("product") || label.includes("name")) {
           productData.productName = value;
-        } else if (label.includes('系列') || label.includes('series')) {
+        } else if (label.includes("系列") || label.includes("series")) {
           productData.series = value;
-        } else if (label.includes('货号') || label.includes('item')) {
+        } else if (label.includes("货号") || label.includes("item")) {
           productData.itemNumber = value;
-        } else if (label.includes('ean')) {
+        } else if (label.includes("ean")) {
           productData.ean = value;
-        } else if (label.includes('尺码') || label.includes('size')) {
+        } else if (label.includes("尺码") || label.includes("size")) {
           productData.size = value;
-        } else if (label.includes('零售价') || label.includes('price') || label.includes('retail')) {
+        } else if (label.includes("零售价") || label.includes("price") || label.includes("retail")) {
           productData.retailPrice = value;
         }
       }
@@ -141,33 +139,33 @@ function parseFromTableRows($: cheerio.CheerioAPI): ParsedProductData {
 function parseFromListItems($: cheerio.CheerioAPI): ParsedProductData {
   const productData: ParsedProductData = {};
 
-  $('li, div, span').each((_, element) => {
+  $("li, div, span").each((_, element) => {
     const text = cleanText($(element).text());
-    let colonIndex = text.indexOf('：');
+    let colonIndex = text.indexOf("：");
     if (colonIndex === -1) {
-      colonIndex = text.indexOf(':');
+      colonIndex = text.indexOf(":");
     }
-    
+
     if (colonIndex > 0) {
       const label = text.substring(0, colonIndex).toLowerCase();
       const value = text.substring(colonIndex + 1).trim();
 
       if (value) {
-        if (label.includes('条码') || label.includes('barcode')) {
+        if (label.includes("条码") || label.includes("barcode")) {
           productData.barcode = value;
-        } else if (label.includes('性别') || label.includes('gender')) {
+        } else if (label.includes("性别") || label.includes("gender")) {
           productData.gender = value;
-        } else if (label.includes('品名') || label.includes('product') || label.includes('name')) {
+        } else if (label.includes("品名") || label.includes("product") || label.includes("name")) {
           productData.productName = value;
-        } else if (label.includes('系列') || label.includes('series')) {
+        } else if (label.includes("系列") || label.includes("series")) {
           productData.series = value;
-        } else if (label.includes('货号') || label.includes('item')) {
+        } else if (label.includes("货号") || label.includes("item")) {
           productData.itemNumber = value;
-        } else if (label.includes('ean')) {
+        } else if (label.includes("ean")) {
           productData.ean = value;
-        } else if (label.includes('尺码') || label.includes('size')) {
+        } else if (label.includes("尺码") || label.includes("size")) {
           productData.size = value;
-        } else if (label.includes('零售价') || label.includes('price') || label.includes('retail')) {
+        } else if (label.includes("零售价") || label.includes("price") || label.includes("retail")) {
           productData.retailPrice = value;
         }
       }
@@ -183,13 +181,13 @@ function parseFromListItems($: cheerio.CheerioAPI): ParsedProductData {
  * @returns 清理后的文本
  */
 function cleanText(text: string): string {
-  if (!text || typeof text !== 'string') {
-    return '';
+  if (!text || typeof text !== "string") {
+    return "";
   }
 
   return text
-    .replace(/\s+/g, ' ')  // 替换多个空白字符为单个空格
-    .replace(/[\r\n\t]/g, '') // 移除换行符和制表符
+    .replace(/\s+/g, " ") // 替换多个空白字符为单个空格
+    .replace(/[\r\n\t]/g, "") // 移除换行符和制表符
     .trim(); // 移除首尾空白
 }
 
@@ -199,7 +197,7 @@ function cleanText(text: string): string {
  * @returns 是否包含有效信息
  */
 export function isValidParsedData(data: ParsedProductData): boolean {
-  if (!data || typeof data !== 'object') {
+  if (!data || typeof data !== "object") {
     return false;
   }
 
@@ -213,24 +211,24 @@ export function isValidParsedData(data: ParsedProductData): boolean {
  * @returns 错误信息，如果没有错误则返回null
  */
 export function extractErrorFromHTML(html: string): string | null {
-  if (!html || typeof html !== 'string') {
+  if (!html || typeof html !== "string") {
     return null;
   }
 
   try {
     const $ = cheerio.load(html);
-    
+
     // 查找常见的错误提示元素
     const errorSelectors = [
-      '.error',
-      '.alert-danger',
-      '.warning',
+      ".error",
+      ".alert-danger",
+      ".warning",
       '[class*="error"]',
       '[class*="fail"]',
       'div:contains("错误")',
       'div:contains("失败")',
       'div:contains("不存在")',
-      'div:contains("未找到")'
+      'div:contains("未找到")',
     ];
 
     for (const selector of errorSelectors) {
@@ -244,13 +242,15 @@ export function extractErrorFromHTML(html: string): string | null {
     }
 
     // 检查是否包含"未找到"或"不存在"等关键词
-    const bodyText = cleanText($('body').text()).toLowerCase();
-    if (bodyText.includes('未找到') || 
-        bodyText.includes('不存在') || 
-        bodyText.includes('无效') ||
-        bodyText.includes('错误') ||
-        bodyText.includes('失败')) {
-      return '产品信息未找到或查询失败';
+    const bodyText = cleanText($("body").text()).toLowerCase();
+    if (
+      bodyText.includes("未找到") ||
+      bodyText.includes("不存在") ||
+      bodyText.includes("无效") ||
+      bodyText.includes("错误") ||
+      bodyText.includes("失败")
+    ) {
+      return "产品信息未找到或查询失败";
     }
 
     return null;
@@ -274,18 +274,18 @@ export function parseAntaResponse(html: string): { data?: ParsedProductData; err
 
     // 解析产品信息
     const productData = parseAntaHTML(html);
-    
+
     // 验证解析结果
     if (!isValidParsedData(productData)) {
-      return { error: '未能从响应中提取有效的产品信息' };
+      return { error: "未能从响应中提取有效的产品信息" };
     }
 
     return { data: productData };
   } catch (error) {
-    if (error instanceof Error && 'type' in error) {
+    if (error instanceof Error && "type" in error) {
       // 如果是我们自定义的错误，直接返回错误信息
       return { error: (error as AntiCounterfeitError).message };
     }
-    return { error: '解析响应数据时发生未知错误' };
+    return { error: "解析响应数据时发生未知错误" };
   }
 }

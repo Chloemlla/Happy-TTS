@@ -1,14 +1,14 @@
 /**
  * 工作空间路由 - Workspace Routes
  * 定义工作空间相关的API端点
- * 
+ *
  * Requirements: 4.1, 4.2, 4.3, 4.4
  */
 
-import express from 'express';
-import { WorkspaceController } from '../controllers/workspaceController';
-import { authenticateToken } from '../middleware/authenticateToken';
-import { createLimiter } from '../middleware/rateLimiter';
+import express from "express";
+import { WorkspaceController } from "../controllers/workspaceController";
+import { authenticateToken } from "../middleware/authenticateToken";
+import { createLimiter } from "../middleware/rateLimiter";
 
 const router = express.Router();
 
@@ -16,13 +16,13 @@ const router = express.Router();
 const workspaceLimiter = createLimiter({
   windowMs: 60 * 1000, // 1分钟
   max: 30, // 每分钟最多30次请求
-  message: '请求过于频繁，请稍后再试'
+  message: "请求过于频繁，请稍后再试",
 });
 
 const inviteLimiter = createLimiter({
   windowMs: 60 * 1000, // 1分钟
   max: 10, // 每分钟最多10次邀请请求
-  message: '邀请请求过于频繁，请稍后再试'
+  message: "邀请请求过于频繁，请稍后再试",
 });
 
 /**
@@ -54,7 +54,7 @@ const inviteLimiter = createLimiter({
  *       401:
  *         description: 未授权
  */
-router.get('/', workspaceLimiter, authenticateToken, WorkspaceController.getUserWorkspaces);
+router.get("/", workspaceLimiter, authenticateToken, WorkspaceController.getUserWorkspaces);
 
 /**
  * @openapi
@@ -100,7 +100,7 @@ router.get('/', workspaceLimiter, authenticateToken, WorkspaceController.getUser
  *       401:
  *         description: 未授权
  */
-router.post('/', workspaceLimiter, authenticateToken, WorkspaceController.createWorkspace);
+router.post("/", workspaceLimiter, authenticateToken, WorkspaceController.createWorkspace);
 
 /**
  * @openapi
@@ -138,7 +138,7 @@ router.post('/', workspaceLimiter, authenticateToken, WorkspaceController.create
  *       404:
  *         description: 工作空间不存在
  */
-router.get('/:id', workspaceLimiter, authenticateToken, WorkspaceController.getWorkspace);
+router.get("/:id", workspaceLimiter, authenticateToken, WorkspaceController.getWorkspace);
 
 /**
  * @openapi
@@ -180,7 +180,7 @@ router.get('/:id', workspaceLimiter, authenticateToken, WorkspaceController.getW
  *       404:
  *         description: 工作空间不存在
  */
-router.get('/:id/members', workspaceLimiter, authenticateToken, WorkspaceController.getMembers);
+router.get("/:id/members", workspaceLimiter, authenticateToken, WorkspaceController.getMembers);
 
 /**
  * @openapi
@@ -240,7 +240,7 @@ router.get('/:id/members', workspaceLimiter, authenticateToken, WorkspaceControl
  *       409:
  *         description: 成员数量已达上限
  */
-router.post('/:id/invite', inviteLimiter, authenticateToken, WorkspaceController.inviteMember);
+router.post("/:id/invite", inviteLimiter, authenticateToken, WorkspaceController.inviteMember);
 
 /**
  * @openapi
@@ -297,6 +297,6 @@ router.post('/:id/invite', inviteLimiter, authenticateToken, WorkspaceController
  *       404:
  *         description: 工作空间不存在
  */
-router.put('/:id/settings', workspaceLimiter, authenticateToken, WorkspaceController.updateSettings);
+router.put("/:id/settings", workspaceLimiter, authenticateToken, WorkspaceController.updateSettings);
 
 export default router;

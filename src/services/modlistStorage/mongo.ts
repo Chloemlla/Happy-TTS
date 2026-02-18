@@ -1,22 +1,25 @@
-import { mongoose } from '../mongoService';
+import { mongoose } from "../mongoService";
 
 function sanitizeString(str: any): string {
-  if (typeof str !== 'string') return '';
+  if (typeof str !== "string") return "";
   // 只允许字母、数字、下划线、短横线、点、大小写，长度1-128
-  if (!/^[\w\-\.]{1,128}$/.test(str)) return '';
+  if (!/^[\w\-.]{1,128}$/.test(str)) return "";
   return str;
 }
 
-const modSchema = new mongoose.Schema({
-  name: { type: String, required: true, unique: true },
-  id: { type: String, required: true, unique: true },
-  hash: { type: String },
-  md5: { type: String }
-}, { collection: 'modlist' });
+const modSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, unique: true },
+    id: { type: String, required: true, unique: true },
+    hash: { type: String },
+    md5: { type: String },
+  },
+  { collection: "modlist" },
+);
 
-const ModModel = mongoose.models.ModList || mongoose.model('ModList', modSchema);
+const ModModel = mongoose.models.ModList || mongoose.model("ModList", modSchema);
 
-export async function getAllMods({ withHash, withMd5 }: { withHash?: boolean, withMd5?: boolean } = {}) {
+export async function getAllMods({ withHash, withMd5 }: { withHash?: boolean; withMd5?: boolean } = {}) {
   const mods = await ModModel.find().lean();
   return mods.map((mod: any) => {
     const result: any = { id: mod.id, name: mod.name };
@@ -26,13 +29,13 @@ export async function getAllMods({ withHash, withMd5 }: { withHash?: boolean, wi
   });
 }
 
-export async function addMod(mod: { name: string, hash?: string, md5?: string }) {
+export async function addMod(mod: { name: string; hash?: string; md5?: string }) {
   const safeName = sanitizeString(mod.name);
   const safeHash = mod.hash ? sanitizeString(mod.hash) : undefined;
   const safeMd5 = mod.md5 ? sanitizeString(mod.md5) : undefined;
-  if (!safeName) throw new Error('MOD名非法');
+  if (!safeName) throw new Error("MOD名非法");
   if (await ModModel.findOne({ name: safeName })) {
-    throw new Error('MOD名已存在');
+    throw new Error("MOD名已存在");
   }
   const newMod: any = { id: Date.now().toString(), name: safeName };
   if (safeHash) newMod.hash = safeHash;
@@ -44,11 +47,11 @@ export async function addMod(mod: { name: string, hash?: string, md5?: string })
 export async function updateMod(id: string, name: string, hash?: string, md5?: string) {
   const safeId = sanitizeString(id);
   const safeName = sanitizeString(name);
-  const safeHash = typeof hash === 'string' ? sanitizeString(hash) : undefined;
-  const safeMd5 = typeof md5 === 'string' ? sanitizeString(md5) : undefined;
-  if (!safeId || !safeName) throw new Error('参数非法');
+  const safeHash = typeof hash === "string" ? sanitizeString(hash) : undefined;
+  const safeMd5 = typeof md5 === "string" ? sanitizeString(md5) : undefined;
+  if (!safeId || !safeName) throw new Error("参数非法");
   const mod = await ModModel.findOne({ id: safeId });
-  if (!mod) throw new Error('未找到MOD');
+  if (!mod) throw new Error("未找到MOD");
   mod.name = safeName;
   if (hash !== undefined) {
     if (safeHash) {
@@ -72,14 +75,14 @@ export async function updateMod(id: string, name: string, hash?: string, md5?: s
 
 export async function deleteMod(id: string) {
   const safeId = sanitizeString(id);
-  if (!safeId) throw new Error('参数非法');
+  if (!safeId) throw new Error("参数非法");
   const mod = await ModModel.findOne({ id: safeId });
-  if (!mod) throw new Error('未找到MOD');
+  if (!mod) throw new Error("未找到MOD");
   await ModModel.deleteOne({ id: safeId });
   return { success: true };
 }
 
-export async function batchAddMods(mods: Array<{ name: string, hash?: string, md5?: string }>) {
+export async function batchAddMods(mods: Array<{ name: string; hash?: string; md5?: string }>) {
   const added: any[] = [];
   for (const mod of mods) {
     const safeName = sanitizeString(mod.name);
@@ -87,7 +90,7 @@ export async function batchAddMods(mods: Array<{ name: string, hash?: string, md
     const safeMd5 = mod.md5 ? sanitizeString(mod.md5) : undefined;
     if (!safeName) continue;
     if (await ModModel.findOne({ name: safeName })) continue;
-    const newMod: any = { id: Date.now().toString() + Math.floor(Math.random()*10000), name: safeName };
+    const newMod: any = { id: Date.now().toString() + Math.floor(Math.random() * 10000), name: safeName };
     if (safeHash) newMod.hash = safeHash;
     if (safeMd5) newMod.md5 = safeMd5;
     await ModModel.create(newMod);
@@ -107,4 +110,4 @@ export async function batchDeleteMods(ids: string[]) {
     count++;
   }
   return { deleted: count };
-} 
+}
