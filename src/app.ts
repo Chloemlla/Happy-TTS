@@ -3,7 +3,6 @@ process.env.TZ = 'Asia/Shanghai';
 
 import express, { Request, Response, NextFunction, RequestHandler } from 'express';
 import helmet from 'helmet';
-import morgan from 'morgan';
 import path, { join } from 'path';
 import { config } from './config/config';
 import logger from './utils/logger';
@@ -285,7 +284,6 @@ app.use((req, res, next) => {
   res.removeHeader('Server');
   next();
 });
-app.use(morgan('combined'));
 app.use(isLocalIp);
 
 // ========== 路由注册 + 限流绑定 ==========
