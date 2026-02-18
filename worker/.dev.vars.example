@@ -1,0 +1,14 @@
+# 复制此文件为 .dev.vars 并填入实际值
+# wrangler dev 会自动加载 .dev.vars 作为环境变量
+
+OPENAI_API_KEY=sk-xxx
+OPENAI_BASE_URL=https://api.openai.com
+JWT_SECRET=your-jwt-secret-here
+ADMIN_PASSWORD=admin
+SERVER_PASSWORD=admin
+GENERATION_CODE=admin
+MONGO_DATA_API_KEY=your-mongo-data-api-key
+MONGO_DATA_API_URL=https://data.mongodb-api.com/app/YOUR_APP_ID/endpoint/data/v1
+TURNSTILE_SECRET_KEY=
+TURNSTILE_SITE_KEY=
+RESEND_API_KEY=

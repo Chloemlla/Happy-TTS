@@ -1,0 +1,67 @@
+name = "happy-tts-api"
+main = "src/index.ts"
+compatibility_date = "2024-10-18"
+compatibility_flags = ["nodejs_compat"]
+
+# ========== 环境变量 (非敏感) ==========
+[vars]
+NODE_ENV = "production"
+OPENAI_MODEL = "tts-1"
+OPENAI_VOICE = "alloy"
+OPENAI_RESPONSE_FORMAT = "mp3"
+OPENAI_SPEED = "1.0"
+USER_STORAGE_MODE = "mongo"
+BASE_URL = "https://api.hapxs.com"
+RP_ID = "api.hapxs.com"
+RP_ORIGIN = "https://api.hapxs.com"
+RP_ORIGIN_MODE = "fixed"
+ALLOWED_ORIGINS = "https://api.hapxs.com,https://tts.hapx.one,https://tts.hapxs.com,https://951100.xyz,https://tts.951100.xyz"
+
+# ========== KV Namespaces ==========
+[[kv_namespaces]]
+binding = "USERS_KV"
+id = "YOUR_KV_ID_HERE"
+
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "YOUR_KV_ID_HERE"
+
+[[kv_namespaces]]
+binding = "CACHE_KV"
+id = "YOUR_KV_ID_HERE"
+
+[[kv_namespaces]]
+binding = "SESSIONS_KV"
+id = "YOUR_KV_ID_HERE"
+
+# ========== R2 Buckets ==========
+[[r2_buckets]]
+binding = "AUDIO_BUCKET"
+bucket_name = "happy-tts-audio"
+
+[[r2_buckets]]
+binding = "DATA_BUCKET"
+bucket_name = "happy-tts-data"
+
+# ========== 敏感变量通过 wrangler secret put 设置 ==========
+# wrangler secret put OPENAI_API_KEY
+# wrangler secret put OPENAI_BASE_URL
+# wrangler secret put JWT_SECRET
+# wrangler secret put ADMIN_PASSWORD
+# wrangler secret put SERVER_PASSWORD
+# wrangler secret put MONGO_DATA_API_KEY
+# wrangler secret put MONGO_DATA_API_URL
+# wrangler secret put TURNSTILE_SECRET_KEY
+# wrangler secret put TURNSTILE_SITE_KEY
+# wrangler secret put RESEND_API_KEY
+# wrangler secret put GENERATION_CODE
+
+# ========== 生产环境 ==========
+[env.production]
+name = "happy-tts-api"
+
+# ========== 开发环境 ==========
+[env.dev]
+name = "happy-tts-api-dev"
+[env.dev.vars]
+NODE_ENV = "development"
