@@ -25,37 +25,40 @@ const HAS_PERCENT = /%/;
 
 const MAX_PARAM_LENGTH = 2048;
 
-// body 字段白名单
-const BODY_FIELD_WHITELIST = new Set([
-  'deviceSignals.navigator.userAgent',
-  'deviceSignals.navigator.appVersion',
-  'deviceSignals.navigator.platform',
-  'deviceSignals.navigator.vendor',
-  'deviceSignals.navigator.product',
-  'deviceSignals.navigator.plugins',
-  'deviceSignals.navigator.languages',
-  'deviceSignals.navigator.doNotTrack',
-  'deviceSignals.navigator.uaData',
-  'deviceSignals.canvas',
-  'deviceSignals.screen.o',
-  'deviceSignals.timezone.tz',
-  'userAgent', 'ua',
-  'html', 'text', 'content', 'markdown',
-  'input', 'curlCommand',
-  'ipfsUploadUrl', 'ipfsUa', 'bypassUAKeyword',
-  'originalContent', 'tamperContent', 'url', 'filePath', 'checksum',
-  'consent.checksum', 'description', 'instructions', 'keySequence',
-]);
+// body 字段白名单（动态，可由其他模块注册）
+const BODY_FIELD_WHITELIST = new Set<string>();
 
-// 白名单顶层 key 前缀集合（用于快速跳过整个子树，如 deviceSignals.*）
-const WHITELIST_PREFIXES: string[] = [];
-{
-  const prefixes = new Set<string>();
-  for (const p of BODY_FIELD_WHITELIST) {
-    const dot = p.indexOf('.');
-    if (dot > 0) prefixes.add(p.substring(0, dot));
+// 白名单前缀集合（整棵子树跳过，如 deviceSignals.*）
+const WHITELIST_PREFIX_SET = new Set<string>();
+
+/**
+ * 注册 WAF body 字段白名单
+ *
+ * 被注册的字段（及其子树）在 WAF 检查时会被跳过，不做 SQL 注入 / XSS 检测。
+ * 适用于本身就会包含特殊字符的业务字段（如 HTML 内容、用户代理字符串等）。
+ *
+ * @param fields - 要加入白名单的字段路径，支持点号嵌套（如 `'deviceSignals.navigator.userAgent'`）。
+ *                 传入顶层 key（如 `'deviceSignals'`）会跳过该 key 下的整棵子树。
+ *
+ * @example
+ * ```ts
+ * import { addWafWhitelist } from '../middleware/wafMiddleware';
+ *
+ * // 在模块初始化时注册自身需要跳过 WAF 检查的字段
+ * addWafWhitelist('html', 'markdown', 'content');
+ * addWafWhitelist('deviceSignals'); // 跳过 deviceSignals 整棵子树
+ * ```
+ */
+export function addWafWhitelist(...fields: string[]): void {
+  for (const f of fields) {
+    if (!f || typeof f !== 'string') continue;
+    BODY_FIELD_WHITELIST.add(f);
+    // 提取顶层 key 作为前缀（用于快速跳过整棵子树）
+    const dot = f.indexOf('.');
+    if (dot > 0) {
+      WHITELIST_PREFIX_SET.add(f.substring(0, dot));
+    }
   }
-  WHITELIST_PREFIXES.push(...prefixes);
 }
 
 /** URL 解码（仅在含 % 时执行，最多 3 层） */
@@ -115,8 +118,8 @@ function checkObject(obj: any): string | null {
       for (let i = entries.length - 1; i >= 0; i--) {
         const [key, v] = entries[i];
         const childPath = path ? `${path}.${key}` : key;
-        // 顶层白名单 key 且无嵌套需要检查时直接跳过整棵子树
-        if (!path && BODY_FIELD_WHITELIST.has(key)) continue;
+        // 顶层白名单 key 直接跳过整棵子树
+        if (!path && (BODY_FIELD_WHITELIST.has(key) || WHITELIST_PREFIX_SET.has(key))) continue;
         stack.push({ val: v, path: childPath, depth: depth + 1 });
       }
     }
@@ -185,3 +188,21 @@ export function wafMiddleware(req: Request, res: Response, next: NextFunction) {
 
   next();
 }
+
+// ========== 默认白名单注册（项目内置字段） ==========
+addWafWhitelist(
+  // 设备指纹（整棵子树）
+  'deviceSignals',
+  // 通用 UA 字段
+  'userAgent', 'ua',
+  // 富文本 / 内容字段
+  'html', 'text', 'content', 'markdown',
+  // TTS / 命令
+  'input', 'curlCommand',
+  // IPFS
+  'ipfsUploadUrl', 'ipfsUa', 'bypassUAKeyword',
+  // 防篡改
+  'originalContent', 'tamperContent', 'url', 'filePath', 'checksum',
+  // 其他业务字段
+  'consent.checksum', 'description', 'instructions', 'keySequence',
+);
