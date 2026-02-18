@@ -1,20 +1,42 @@
 All Rights Reserved License
 
-Copyright (c) 2025 All rights reserved.
+Copyright (c) 2025 devhappys. All rights reserved.
+
+Project:    Happy-TTS
+Author:     devhappys
+Repository: https://github.com/devhappys/Happy-TTS
 
 This software and associated documentation files (the "Software") are the
 exclusive property of the copyright holder. All rights are reserved.
 
-No part of this Software may be reproduced, distributed, transmitted,
-displayed, published, or broadcast in any form or by any means, including
-but not limited to photocopying, recording, or other electronic or
-mechanical methods, without the prior written permission of the copyright
-holder.
+REDISTRIBUTION CONDITIONS:
 
-Unauthorized copying, modification, merger, publication, distribution,
-sublicensing, selling, or any other use of this Software, in whole or in
-part, is strictly prohibited and constitutes an infringement of the
-copyright holder's rights.
+Redistribution of this Software, in whole or in part, in any form, is
+permitted ONLY under the following mandatory conditions:
+
+  1. The original project repository URL must be prominently displayed:
+     https://github.com/devhappys/Happy-TTS
+
+  2. The original author "devhappys" must be clearly and visibly credited.
+
+  3. These attribution notices must appear in a prominent location within
+     any distributed copies, derivative works, documentation, or related
+     materials, including but not limited to README files, about pages,
+     and application interfaces.
+
+Failure to comply with the above attribution requirements constitutes a
+violation of this license and an infringement of the copyright holder's
+rights.
+
+RESTRICTIONS:
+
+Without the prior written permission of the copyright holder, you may NOT:
+
+  - Modify, adapt, or create derivative works based on this Software
+  - Use this Software for commercial purposes
+  - Sublicense, sell, or otherwise transfer rights to this Software
+  - Remove or alter any attribution notices, copyright statements, or
+    license terms contained in this Software
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
