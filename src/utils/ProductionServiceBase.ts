@@ -433,7 +433,7 @@ export abstract class ProductionServiceBase {
     let cleaned = 0;
 
     for (const [key, cached] of this.cache.entries()) {
-      if (now - cached.timestamp >= this.config.cache?.ttl) {
+      if (now - cached.timestamp >= (this.config.cache?.ttl ?? 0)) {
         this.cache.delete(key);
         cleaned++;
       }

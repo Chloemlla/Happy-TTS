@@ -308,7 +308,7 @@ class DebugConsoleService {
         });
         return {
           success: false,
-          message: `访问被锁定，请 ${Math.ceil((lockoutInfo.lockoutUntil?.getTime() - Date.now()) / 1000 / 60)} 分钟后再试`,
+          message: `访问被锁定，请 ${Math.ceil(((lockoutInfo.lockoutUntil?.getTime() ?? Date.now()) - Date.now()) / 1000 / 60)} 分钟后再试`,
           attempts: lockoutInfo.attempts,
           lockoutUntil: lockoutInfo.lockoutUntil,
         };
