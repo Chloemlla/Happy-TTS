@@ -67,6 +67,15 @@ function isSafeValue(raw: string): boolean {
   return true;
 }
 
+// body 字段白名单：这些嵌套路径的值不做 WAF 检查（如指纹数据中的 userAgent）
+const BODY_FIELD_WHITELIST = new Set([
+  'deviceSignals.navigator.userAgent',
+  'deviceSignals.navigator.appVersion',
+  'deviceSignals.navigator.platform',
+  'userAgent',
+  'ua',
+]);
+
 /**
  * 递归检查对象中所有字符串值
  * 用于检查嵌套的 req.body
@@ -74,6 +83,9 @@ function isSafeValue(raw: string): boolean {
 function checkObject(obj: any, path = '', depth = 0): string | null {
   if (depth > 10) return null; // 防止深层嵌套 DoS
   if (obj === null || obj === undefined) return null;
+
+  // 白名单字段跳过检查
+  if (BODY_FIELD_WHITELIST.has(path)) return null;
 
   if (typeof obj === 'string') {
     if (!isSafeValue(obj)) return path || 'value';
