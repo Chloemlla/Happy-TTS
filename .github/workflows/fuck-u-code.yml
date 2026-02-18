@@ -3,6 +3,9 @@ name: Code Quality (fuck-u-code)
 on:
   push:
     branches: [main, "**"]
+    paths-ignore:
+      - .github/workflows/**
+      - "!.github/workflows/fuck-u-code.yml"
   workflow_dispatch: {}
 
 permissions:

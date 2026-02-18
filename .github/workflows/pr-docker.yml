@@ -3,8 +3,14 @@ name: Docker Build Check
 on:
   pull_request:
     branches: [ main, master ]
+    paths-ignore:
+      - .github/workflows/**
+      - "!.github/workflows/pr-docker.yml"
   push:
     branches: [ main, master ]
+    paths-ignore:
+      - .github/workflows/**
+      - "!.github/workflows/pr-docker.yml"
   workflow_dispatch:
 permissions:
   contents: read
