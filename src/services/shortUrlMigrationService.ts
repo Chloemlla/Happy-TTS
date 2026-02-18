@@ -17,7 +17,8 @@ const ShortUrlModel = mongoose.models.ShortUrl || mongoose.model("ShortUrl", Sho
 
 class ShortUrlMigrationService {
   private static instance: ShortUrlMigrationService;
-  private readonly OLD_DOMAIN = "ipfs.crossbell.io";
+  private readonly OLD_DOMAIN = "ipfs\\.crossbell\\.io";
+  private readonly OLD_DOMAIN_LITERAL = "ipfs.crossbell.io";
   private readonly NEW_DOMAIN = "ipfs.hapxs.com";
 
   private constructor() {}
@@ -42,7 +43,7 @@ class ShortUrlMigrationService {
 
       // 查找所有包含旧域名的记录
       // 使用精确的主机名匹配：域名前必须是协议分隔符或行首，域名后必须是路径/端口/行尾
-      const oldDomainPattern = /(?:^|\/\/)ipfs\.crossbell\.io(?=[:/?\s]|$)/i;
+      const oldDomainPattern = new RegExp(`(?:^|//)${this.OLD_DOMAIN}(?=[:/?\\s]|$)`, "i");
       const oldDomainRecords = await ShortUrlModel.find({
         target: { $regex: oldDomainPattern },
       });
@@ -94,7 +95,7 @@ class ShortUrlMigrationService {
    * 在添加新短链前自动修正目标URL
    */
   fixTargetUrlBeforeSave(target: string): string {
-    if (target.includes(this.OLD_DOMAIN)) {
+    if (target.includes(this.OLD_DOMAIN_LITERAL)) {
       const fixedTarget = target.replace(new RegExp(this.OLD_DOMAIN, "gi"), this.NEW_DOMAIN);
 
       logger.info("[ShortUrlMigration] 自动修正新短链目标URL", {
@@ -124,7 +125,7 @@ class ShortUrlMigrationService {
         target: { $regex: this.OLD_DOMAIN, $options: "i" },
       });
       const newDomainRecords = await ShortUrlModel.countDocuments({
-        target: { $regex: this.NEW_DOMAIN, $options: "i" },
+        target: { $regex: this.NEW_DOMAIN.replace(/\./g, "\\."), $options: "i" },
       });
       const otherDomainRecords = totalRecords - oldDomainRecords - newDomainRecords;
 
@@ -137,7 +138,7 @@ class ShortUrlMigrationService {
             $match: {
               target: {
                 $not: {
-                  $regex: `(${this.OLD_DOMAIN}|${this.NEW_DOMAIN})`,
+                  $regex: `(${this.OLD_DOMAIN}|${this.NEW_DOMAIN.replace(/\./g, "\\.")})`,
                   $options: "i",
                 },
               },

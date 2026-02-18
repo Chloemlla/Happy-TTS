@@ -63,20 +63,22 @@ class ImageDataService {
       if (!isValidImageId(data.imageId)) throw new Error("非法 imageId");
       // 仅允许已知字段写入数据库，防止注入
       const safeData = {
-        imageId: data.imageId,
-        fileName: data.fileName,
-        fileSize: data.fileSize,
-        fileHash: data.fileHash,
-        md5Hash: data.md5Hash,
-        web2url: data.web2url,
-        cid: data.cid,
-        uploadTime: data.uploadTime,
+        imageId: String(data.imageId),
+        fileName: String(data.fileName),
+        fileSize: Number(data.fileSize),
+        fileHash: String(data.fileHash),
+        md5Hash: String(data.md5Hash),
+        web2url: String(data.web2url),
+        cid: String(data.cid),
+        uploadTime: String(data.uploadTime),
       };
-      const existing = await ImageDataModel.findOne({ imageId: safeData.imageId });
+      // Use a fresh string for the query key to avoid taint propagation
+      const queryImageId = String(safeData.imageId);
+      const existing = await ImageDataModel.findOne({ imageId: queryImageId });
       if (existing) {
         // 更新现有记录
         const result = await ImageDataModel.updateOne(
-          { imageId: safeData.imageId },
+          { imageId: queryImageId },
           {
             $set: {
               ...safeData,
