@@ -23,6 +23,14 @@ class ShortUrlMigrationService {
 
   private constructor() {}
 
+  /**
+   * Escape a string for safe use in a regular expression.
+   * Handles all regex meta-characters including backslash.
+   */
+  private escapeRegex(str: string): string {
+    return str.replace(/[\\.*+?^${}()|[\]]/g, "\\$&");
+  }
+
   public static getInstance(): ShortUrlMigrationService {
     if (!ShortUrlMigrationService.instance) {
       ShortUrlMigrationService.instance = new ShortUrlMigrationService();
@@ -125,7 +133,7 @@ class ShortUrlMigrationService {
         target: { $regex: this.OLD_DOMAIN, $options: "i" },
       });
       const newDomainRecords = await ShortUrlModel.countDocuments({
-        target: { $regex: this.NEW_DOMAIN.replace(/\./g, "\\."), $options: "i" },
+        target: { $regex: this.escapeRegex(this.NEW_DOMAIN), $options: "i" },
       });
       const otherDomainRecords = totalRecords - oldDomainRecords - newDomainRecords;
 
@@ -138,7 +146,7 @@ class ShortUrlMigrationService {
             $match: {
               target: {
                 $not: {
-                  $regex: `(${this.OLD_DOMAIN}|${this.NEW_DOMAIN.replace(/\./g, "\\.")})`,
+                  $regex: `(${this.OLD_DOMAIN}|${this.escapeRegex(this.NEW_DOMAIN)})`,
                   $options: "i",
                 },
               },
