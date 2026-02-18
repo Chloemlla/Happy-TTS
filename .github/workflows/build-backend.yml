@@ -33,7 +33,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [24.x]
+        node-version: [18.x]
         platform: [windows, linux, macos]
 
     steps:
