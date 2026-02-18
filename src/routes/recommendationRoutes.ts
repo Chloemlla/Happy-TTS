@@ -1,15 +1,15 @@
 /**
  * 推荐路由 - Recommendation Routes
  * 定义推荐相关的API端点
- * 
+ *
  * Requirements: 1.1, 1.3, 2.1
  */
 
-import express from 'express';
-import { RecommendationController } from '../controllers/recommendationController';
-import { authenticateToken } from '../middleware/authenticateToken';
-import { optionalAuthenticateToken } from '../middleware/optionalAuthenticateToken';
-import { createLimiter } from '../middleware/rateLimiter';
+import express from "express";
+import { RecommendationController } from "../controllers/recommendationController";
+import { authenticateToken } from "../middleware/authenticateToken";
+import { optionalAuthenticateToken } from "../middleware/optionalAuthenticateToken";
+import { createLimiter } from "../middleware/rateLimiter";
 
 const router = express.Router();
 
@@ -17,13 +17,13 @@ const router = express.Router();
 const recommendationLimiter = createLimiter({
   windowMs: 60 * 1000, // 1分钟
   max: 30, // 每分钟最多30次请求
-  message: '请求过于频繁，请稍后再试'
+  message: "请求过于频繁，请稍后再试",
 });
 
 const analyzeLimiter = createLimiter({
   windowMs: 60 * 1000, // 1分钟
   max: 20, // 每分钟最多20次分析请求
-  message: '分析请求过于频繁，请稍后再试'
+  message: "分析请求过于频繁，请稍后再试",
 });
 
 /**
@@ -64,7 +64,7 @@ const analyzeLimiter = createLimiter({
  *       401:
  *         description: 未授权
  */
-router.get('/', recommendationLimiter, authenticateToken, RecommendationController.getRecommendations);
+router.get("/", recommendationLimiter, authenticateToken, RecommendationController.getRecommendations);
 
 /**
  * @openapi
@@ -100,7 +100,7 @@ router.get('/', recommendationLimiter, authenticateToken, RecommendationControll
  *                 count:
  *                   type: integer
  */
-router.get('/popular', recommendationLimiter, RecommendationController.getPopularStyles);
+router.get("/popular", recommendationLimiter, RecommendationController.getPopularStyles);
 
 /**
  * @openapi
@@ -137,7 +137,7 @@ router.get('/popular', recommendationLimiter, RecommendationController.getPopula
  *       401:
  *         description: 未授权
  */
-router.post('/select', recommendationLimiter, authenticateToken, RecommendationController.recordSelection);
+router.post("/select", recommendationLimiter, authenticateToken, RecommendationController.recordSelection);
 
 /**
  * @openapi
@@ -174,7 +174,7 @@ router.post('/select', recommendationLimiter, authenticateToken, RecommendationC
  *       400:
  *         description: 参数错误
  */
-router.post('/analyze', analyzeLimiter, optionalAuthenticateToken, RecommendationController.analyzeContent);
+router.post("/analyze", analyzeLimiter, optionalAuthenticateToken, RecommendationController.analyzeContent);
 
 /**
  * @openapi
@@ -205,6 +205,6 @@ router.post('/analyze', analyzeLimiter, optionalAuthenticateToken, Recommendatio
  *       401:
  *         description: 未授权
  */
-router.post('/apply', recommendationLimiter, authenticateToken, RecommendationController.applySuggestion);
+router.post("/apply", recommendationLimiter, authenticateToken, RecommendationController.applySuggestion);
 
 export default router;

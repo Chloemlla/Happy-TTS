@@ -1,8 +1,8 @@
-import mysql from 'mysql2/promise';
+import mysql from "mysql2/promise";
 
-const MYSQL_URI = process.env.MYSQL_URI || 'mysql://root:password@localhost:3306/tts';
-const ROUNDS_TABLE = 'lottery_rounds';
-const USERS_TABLE = 'lottery_users';
+const MYSQL_URI = process.env.MYSQL_URI || "mysql://root:password@localhost:3306/tts";
+const ROUNDS_TABLE = "lottery_rounds";
+const USERS_TABLE = "lottery_users";
 
 async function getConn() {
   const conn = await mysql.createConnection(MYSQL_URI);
@@ -21,7 +21,7 @@ export async function getAllRounds() {
   const conn = await getConn();
   const [rows] = await conn.execute(`SELECT * FROM ${ROUNDS_TABLE}`);
   await conn.end();
-  return (rows as any[]).map(r => ({ ...JSON.parse(r.data), id: r.id }));
+  return (rows as any[]).map((r) => ({ ...JSON.parse(r.data), id: r.id }));
 }
 
 export async function addRound(round: any) {
@@ -29,7 +29,7 @@ export async function addRound(round: any) {
   const [rows] = await conn.execute(`SELECT * FROM ${ROUNDS_TABLE} WHERE id=?`, [round.id]);
   if ((rows as any[]).length > 0) {
     await conn.end();
-    throw new Error('轮次已存在');
+    throw new Error("轮次已存在");
   }
   await conn.execute(`INSERT INTO ${ROUNDS_TABLE} (id, data) VALUES (?, ?)`, [round.id, JSON.stringify(round)]);
   await conn.end();
@@ -41,7 +41,7 @@ export async function updateRound(id: string, data: any) {
   const [rows] = await conn.execute(`SELECT * FROM ${ROUNDS_TABLE} WHERE id=?`, [id]);
   if ((rows as any[]).length === 0) {
     await conn.end();
-    throw new Error('未找到轮次');
+    throw new Error("未找到轮次");
   }
   const old = JSON.parse((rows as any[])[0].data);
   const merged = { ...old, ...data };
@@ -77,4 +77,4 @@ export async function updateUserRecord(userId: string, data: any) {
   }
   await conn.end();
   return merged;
-} 
+}

@@ -1,25 +1,21 @@
-import { Request, Response, NextFunction } from 'express';
-import logger from '../utils/logger';
+import type { NextFunction, Request, Response } from "express";
+import logger from "../utils/logger";
 
 // ========== 缓存环境变量 ==========
 // WAF_ENABLED 开关由 app.ts 控制是否挂载，此处不再判断
 
 // 跳过 WAF 检查的路径
-const WAF_SKIP_PATHS = new Set([
-  '/api/auth/login',
-  '/api/auth/register',
-]);
+const WAF_SKIP_PATHS = new Set(["/api/auth/login", "/api/auth/register"]);
 
 // 跳过 WAF 检查的路径前缀
-const WAF_SKIP_PREFIXES = [
-  '/api/webhooks',
-  '/api/data-collection',
-];
+const WAF_SKIP_PREFIXES = ["/api/webhooks", "/api/data-collection"];
 
 // 预编译正则（模块加载时编译一次，不在请求中重复创建）
 const DANGEROUS_CHARS = /[<>{}`;\\]/;
-const SQL_INJECTION_PATTERN = /\b(select\s+.+\s+from|insert\s+into|update\s+.+\s+set|delete\s+from|drop\s+(table|database)|union\s+(all\s+)?select|or\s+1\s*=\s*1|and\s+1\s*=\s*1|;\s*(drop|delete|update|insert))\b/i;
-const XSS_PATTERN = /<script|javascript:|on(error|load|click|mouseover)\s*=|eval\s*\(|document\.(cookie|write|location)|window\.(location|open)/i;
+const SQL_INJECTION_PATTERN =
+  /\b(select\s+.+\s+from|insert\s+into|update\s+.+\s+set|delete\s+from|drop\s+(table|database)|union\s+(all\s+)?select|or\s+1\s*=\s*1|and\s+1\s*=\s*1|;\s*(drop|delete|update|insert))\b/i;
+const XSS_PATTERN =
+  /<script|javascript:|on(error|load|click|mouseover)\s*=|eval\s*\(|document\.(cookie|write|location)|window\.(location|open)/i;
 // URL 编码检测：只在包含 % 时才做 decode，避免无意义的 decode 开销
 const HAS_PERCENT = /%/;
 
@@ -51,10 +47,10 @@ const WHITELIST_PREFIX_SET = new Set<string>();
  */
 export function addWafWhitelist(...fields: string[]): void {
   for (const f of fields) {
-    if (!f || typeof f !== 'string') continue;
+    if (!f || typeof f !== "string") continue;
     BODY_FIELD_WHITELIST.add(f);
     // 提取顶层 key 作为前缀（用于快速跳过整棵子树）
-    const dot = f.indexOf('.');
+    const dot = f.indexOf(".");
     if (dot > 0) {
       WHITELIST_PREFIX_SET.add(f.substring(0, dot));
     }
@@ -70,7 +66,9 @@ function deepDecode(str: string): string {
       const next = decodeURIComponent(decoded);
       if (next === decoded) break;
       decoded = next;
-    } catch { break; }
+    } catch {
+      break;
+    }
   }
   return decoded;
 }
@@ -91,9 +89,7 @@ function isSafeValue(raw: string): boolean {
 /** 递归检查对象（迭代式，减少调用栈开销） */
 function checkObject(obj: any): string | null {
   // 用栈代替递归，避免深层嵌套时的函数调用开销
-  const stack: Array<{ val: any; path: string; depth: number }> = [
-    { val: obj, path: '', depth: 0 },
-  ];
+  const stack: Array<{ val: any; path: string; depth: number }> = [{ val: obj, path: "", depth: 0 }];
 
   while (stack.length > 0) {
     const { val, path, depth } = stack.pop()!;
@@ -102,12 +98,12 @@ function checkObject(obj: any): string | null {
     // 白名单字段跳过
     if (path && BODY_FIELD_WHITELIST.has(path)) continue;
 
-    if (typeof val === 'string') {
-      if (!isSafeValue(val)) return path || 'value';
+    if (typeof val === "string") {
+      if (!isSafeValue(val)) return path || "value";
       continue;
     }
 
-    if (typeof val !== 'object') continue;
+    if (typeof val !== "object") continue;
 
     if (Array.isArray(val)) {
       for (let i = val.length - 1; i >= 0; i--) {
@@ -136,10 +132,9 @@ function checkObject(obj: any): string | null {
  * - 仅在含 % 时做 URL decode
  */
 export function wafMiddleware(req: Request, res: Response, next: NextFunction) {
-
   const p = req.path;
   if (p.charCodeAt(0) !== 47 || p.charCodeAt(1) !== 97 || p.charCodeAt(4) !== 47) return next(); // 快速判断非 /api/
-  if (!p.startsWith('/api/')) return next();
+  if (!p.startsWith("/api/")) return next();
 
   if (WAF_SKIP_PATHS.has(p)) return next();
   for (let i = 0; i < WAF_SKIP_PREFIXES.length; i++) {
@@ -148,7 +143,7 @@ export function wafMiddleware(req: Request, res: Response, next: NextFunction) {
 
   // GET/HEAD/OPTIONS 通常无 body，只检查 query
   const method = req.method;
-  const hasBody = method === 'POST' || method === 'PUT' || method === 'PATCH';
+  const hasBody = method === "POST" || method === "PUT" || method === "PATCH";
 
   // 检查 query 参数
   const query = req.query;
@@ -156,9 +151,9 @@ export function wafMiddleware(req: Request, res: Response, next: NextFunction) {
     const keys = Object.keys(query);
     for (let i = 0; i < keys.length; i++) {
       const val = query[keys[i]];
-      if (typeof val === 'string' && !isSafeValue(val)) {
+      if (typeof val === "string" && !isSafeValue(val)) {
         logger.warn(`[WAF] 拦截可疑 query 参数: ${keys[i]}`, { ip: req.ip, path: p });
-        return res.status(400).json({ error: '参数包含非法字符' });
+        return res.status(400).json({ error: "参数包含非法字符" });
       }
     }
   }
@@ -169,19 +164,19 @@ export function wafMiddleware(req: Request, res: Response, next: NextFunction) {
     const keys = Object.keys(params);
     for (let i = 0; i < keys.length; i++) {
       const val = params[keys[i]];
-      if (typeof val === 'string' && !isSafeValue(val)) {
+      if (typeof val === "string" && !isSafeValue(val)) {
         logger.warn(`[WAF] 拦截可疑 path 参数: ${keys[i]}`, { ip: req.ip, path: p });
-        return res.status(400).json({ error: '参数包含非法字符' });
+        return res.status(400).json({ error: "参数包含非法字符" });
       }
     }
   }
 
   // 检查 body
-  if (hasBody && req.body && typeof req.body === 'object') {
+  if (hasBody && req.body && typeof req.body === "object") {
     const badField = checkObject(req.body);
     if (badField) {
       logger.warn(`[WAF] 拦截可疑 body 字段: ${badField}`, { ip: req.ip, path: p, method });
-      return res.status(400).json({ error: '请求内容包含非法字符' });
+      return res.status(400).json({ error: "请求内容包含非法字符" });
     }
   }
 
@@ -191,29 +186,43 @@ export function wafMiddleware(req: Request, res: Response, next: NextFunction) {
 // ========== 默认白名单注册（项目内置字段） ==========
 addWafWhitelist(
   // 设备指纹
-  'deviceSignals',
-  'deviceSignals.navigator.userAgent',
-  'deviceSignals.navigator.appVersion',
-  'deviceSignals.navigator.platform',
-  'deviceSignals.navigator.vendor',
-  'deviceSignals.navigator.product',
-  'deviceSignals.navigator.plugins',
-  'deviceSignals.navigator.languages',
-  'deviceSignals.navigator.doNotTrack',
-  'deviceSignals.navigator.uaData',
-  'deviceSignals.canvas',
-  'deviceSignals.screen.o',
-  'deviceSignals.timezone.tz',
+  "deviceSignals",
+  "deviceSignals.navigator.userAgent",
+  "deviceSignals.navigator.appVersion",
+  "deviceSignals.navigator.platform",
+  "deviceSignals.navigator.vendor",
+  "deviceSignals.navigator.product",
+  "deviceSignals.navigator.plugins",
+  "deviceSignals.navigator.languages",
+  "deviceSignals.navigator.doNotTrack",
+  "deviceSignals.navigator.uaData",
+  "deviceSignals.canvas",
+  "deviceSignals.screen.o",
+  "deviceSignals.timezone.tz",
   // 通用 UA 字段
-  'userAgent', 'ua',
+  "userAgent",
+  "ua",
   // 富文本 / 内容字段
-  'html', 'text', 'content', 'markdown',
+  "html",
+  "text",
+  "content",
+  "markdown",
   // TTS / 命令
-  'input', 'curlCommand',
+  "input",
+  "curlCommand",
   // IPFS
-  'ipfsUploadUrl', 'ipfsUa', 'bypassUAKeyword',
+  "ipfsUploadUrl",
+  "ipfsUa",
+  "bypassUAKeyword",
   // 防篡改
-  'originalContent', 'tamperContent', 'url', 'filePath', 'checksum',
+  "originalContent",
+  "tamperContent",
+  "url",
+  "filePath",
+  "checksum",
   // 其他业务字段
-  'consent.checksum', 'description', 'instructions', 'keySequence',
+  "consent.checksum",
+  "description",
+  "instructions",
+  "keySequence",
 );

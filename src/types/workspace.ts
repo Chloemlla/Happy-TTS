@@ -19,7 +19,7 @@ export interface Workspace {
 // 工作空间成员接口
 export interface WorkspaceMember {
   userId: string;
-  role: 'admin' | 'editor' | 'viewer';
+  role: "admin" | "editor" | "viewer";
   joinedAt: Date;
   invitedBy: string;
 }
@@ -27,7 +27,7 @@ export interface WorkspaceMember {
 // 工作空间设置接口
 export interface WorkspaceSettings {
   allowPublicSharing: boolean;
-  defaultPermission: 'editor' | 'viewer';
+  defaultPermission: "editor" | "viewer";
   notificationsEnabled: boolean;
 }
 
@@ -36,8 +36,8 @@ export interface Invitation {
   id: string;
   workspaceId: string;
   inviteeEmail: string;
-  role: 'editor' | 'viewer';
-  status: 'pending' | 'accepted' | 'declined' | 'expired';
+  role: "editor" | "viewer";
+  status: "pending" | "accepted" | "declined" | "expired";
   createdAt: Date;
   expiresAt: Date;
 }
@@ -58,7 +58,7 @@ export interface VoiceProject {
 // 项目内容接口
 export interface ProjectContent {
   text: string;
-  voiceConfig: import('./recommendation').VoiceStyle;
+  voiceConfig: import("./recommendation").VoiceStyle;
   generatedAudioUrl?: string;
   metadata: Record<string, any>;
 }
@@ -67,14 +67,14 @@ export interface ProjectContent {
 export interface SharingSettings {
   isShared: boolean;
   sharedWith: string[];
-  permission: 'view' | 'edit';
+  permission: "view" | "edit";
 }
 
 // 项目通知接口
 export interface ProjectNotification {
   id: string;
   projectId: string;
-  type: 'modified' | 'shared' | 'unshared' | 'comment';
+  type: "modified" | "shared" | "unshared" | "comment";
   actorId: string;
   recipientIds: string[];
   message: string;

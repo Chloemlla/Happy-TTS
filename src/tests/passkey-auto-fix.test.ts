@@ -1,13 +1,13 @@
-import fs from 'fs';
-import path from 'path';
+import fs from "fs";
+import path from "path";
 
-describe('Passkey 自动修复功能测试', () => {
-  const USERS_FILE = path.join(process.cwd(), 'data', 'users.json');
+describe("Passkey 自动修复功能测试", () => {
+  const USERS_FILE = path.join(process.cwd(), "data", "users.json");
 
   function readUsers() {
     try {
       if (!fs.existsSync(USERS_FILE)) return [];
-      const data = fs.readFileSync(USERS_FILE, 'utf-8');
+      const data = fs.readFileSync(USERS_FILE, "utf-8");
       return JSON.parse(data);
     } catch {
       return [];
@@ -20,7 +20,7 @@ describe('Passkey 自动修复功能测试', () => {
   }
   function restoreUserData() {
     const users = readUsers();
-    const adminUser = users.find((u: any) => u.username === 'admin');
+    const adminUser = users.find((u: any) => u.username === "admin");
     if (adminUser) {
       adminUser.passkeyEnabled = false;
       adminUser.passkeyCredentials = [];
@@ -30,18 +30,18 @@ describe('Passkey 自动修复功能测试', () => {
     }
   }
 
-  it('模拟Passkey错误场景并自动修复', async () => {
+  it("模拟Passkey错误场景并自动修复", async () => {
     // 模拟错误credentialID
     const users = readUsers();
-    const adminUser = users.find((u: any) => u.username === 'admin');
+    const adminUser = users.find((u: any) => u.username === "admin");
     if (!adminUser) return;
     const invalidCredential = {
-      id: 'test-credential-1',
-      name: '测试凭证',
-      credentialID: 'invalid-credential-id-with-special-chars+/=',
-      credentialPublicKey: 'test-public-key',
+      id: "test-credential-1",
+      name: "测试凭证",
+      credentialID: "invalid-credential-id-with-special-chars+/=",
+      credentialPublicKey: "test-public-key",
       counter: 0,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
     if (!adminUser.passkeyCredentials) adminUser.passkeyCredentials = [];
     adminUser.passkeyCredentials.push(invalidCredential);
@@ -49,11 +49,11 @@ describe('Passkey 自动修复功能测试', () => {
     writeUsers(users);
     // 自动修复
     try {
-      const { PasskeyService } = require('../../dist/services/passkeyService');
-      const { UserStorage } = require('../../dist/utils/userStorage');
-      const user = await UserStorage.getUserByUsername('admin');
+      const { PasskeyService } = require("../../dist/services/passkeyService");
+      const { UserStorage } = require("../../dist/utils/userStorage");
+      const user = await UserStorage.getUserByUsername("admin");
       await PasskeyService.autoFixUserPasskeyData(user);
-      const fixedUser = await UserStorage.getUserByUsername('admin');
+      const fixedUser = await UserStorage.getUserByUsername("admin");
       expect(fixedUser.passkeyEnabled).toBe(true);
       expect(Array.isArray(fixedUser.passkeyCredentials)).toBe(true);
     } catch (e) {
@@ -62,4 +62,4 @@ describe('Passkey 自动修复功能测试', () => {
       restoreUserData();
     }
   });
-}); 
+});

@@ -1,5 +1,5 @@
-import express from 'express';
-import { DataProcessController } from '../controllers/dataProcessController';
+import express from "express";
+import { DataProcessController } from "../controllers/dataProcessController";
 
 const router = express.Router();
 
@@ -61,7 +61,7 @@ const router = express.Router();
  *                   type: string
  *                   description: 错误信息
  */
-router.get('/base64/encode', DataProcessController.base64Encode);
+router.get("/base64/encode", DataProcessController.base64Encode);
 
 /**
  * @openapi
@@ -121,7 +121,7 @@ router.get('/base64/encode', DataProcessController.base64Encode);
  *                   type: string
  *                   description: 错误信息
  */
-router.get('/base64/decode', DataProcessController.base64Decode);
+router.get("/base64/decode", DataProcessController.base64Decode);
 
 /**
  * @openapi
@@ -181,6 +181,6 @@ router.get('/base64/decode', DataProcessController.base64Decode);
  *                   type: string
  *                   description: 错误信息
  */
-router.get('/md5', DataProcessController.md5Hash);
+router.get("/md5", DataProcessController.md5Hash);
 
-export default router; 
+export default router;

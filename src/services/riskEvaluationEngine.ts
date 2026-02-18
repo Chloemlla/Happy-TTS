@@ -1,6 +1,6 @@
-import crypto from 'crypto';
-import logger from '../utils/logger';
-import { getIPInfo } from './ip';
+import crypto from "crypto";
+import logger from "../utils/logger";
+import { getIPInfo } from "./ip";
 
 /**
  * Risk Evaluation Engine for SmartHumanCheck
@@ -18,7 +18,7 @@ export interface RiskFactors {
 
 export interface RiskAssessmentResult {
   overallRisk: number; // 0-1 scale, higher = more risky
-  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  riskLevel: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
   factors: RiskFactors;
   flags: string[];
   recommendations: string[];
@@ -50,7 +50,7 @@ const RISK_THRESHOLDS = {
   LOW: 0.3,
   MEDIUM: 0.6,
   HIGH: 0.8,
-  CRITICAL: 0.95
+  CRITICAL: 0.95,
 };
 
 // IP reputation cache
@@ -82,7 +82,7 @@ export class RiskEvaluationEngine {
    */
   private initializeBlockedIPs(): void {
     // Add known malicious IPs
-    this.blockedIPs.add('192.168.1.100'); // Example blocked IP
+    this.blockedIPs.add("192.168.1.100"); // Example blocked IP
     // Add more blocked IPs as needed
   }
 
@@ -91,7 +91,7 @@ export class RiskEvaluationEngine {
    */
   private initializeTrustedIPs(): void {
     // Add known trusted IPs
-    this.trustedIPs.add('127.0.0.1'); // Localhost
+    this.trustedIPs.add("127.0.0.1"); // Localhost
     // Add more trusted IPs as needed
   }
 
@@ -100,9 +100,9 @@ export class RiskEvaluationEngine {
    */
   private initializeSuspiciousUAs(): void {
     // Add known suspicious user agents
-    this.suspiciousUAs.add('bot');
-    this.suspiciousUAs.add('crawler');
-    this.suspiciousUAs.add('spider');
+    this.suspiciousUAs.add("bot");
+    this.suspiciousUAs.add("crawler");
+    this.suspiciousUAs.add("spider");
     // Add more suspicious UAs as needed
   }
 
@@ -113,7 +113,7 @@ export class RiskEvaluationEngine {
     ip: string,
     deviceFingerprint: DeviceFingerprint,
     behaviorScore: number,
-    userAgent?: string
+    userAgent?: string,
   ): Promise<RiskAssessmentResult> {
     const attempt: VerificationAttempt = {
       ip,
@@ -121,7 +121,7 @@ export class RiskEvaluationEngine {
       userAgent: userAgent || deviceFingerprint.userAgent,
       deviceFingerprint,
       behaviorScore,
-      success: false // Will be updated after verification
+      success: false, // Will be updated after verification
     };
 
     // Calculate individual risk factors
@@ -136,19 +136,19 @@ export class RiskEvaluationEngine {
       deviceConsistency,
       behavioralAnomalies,
       temporalPatterns,
-      geographicRisk
+      geographicRisk,
     };
 
     // Calculate overall risk score (weighted average)
     const overallRisk = this.calculateOverallRisk(factors);
-    
+
     // Determine risk level
     const riskLevel = this.determineRiskLevel(overallRisk);
-    
+
     // Generate flags and recommendations
     const flags = this.generateRiskFlags(factors, attempt);
     const recommendations = this.generateRecommendations(factors, riskLevel);
-    
+
     // Determine if request should be blocked
     const blocked = this.shouldBlock(overallRisk, flags, ip);
     const reason = blocked ? this.getBlockReason(factors, flags) : undefined;
@@ -163,15 +163,15 @@ export class RiskEvaluationEngine {
       flags,
       recommendations,
       blocked,
-      reason
+      reason,
     };
 
-    logger.info('[风险评估] 评估完成', {
-      ip: ip.slice(0, 8) + '...',
+    logger.info("[风险评估] 评估完成", {
+      ip: ip.slice(0, 8) + "...",
       riskLevel,
       overallRisk: Math.round(overallRisk * 100) / 100,
       blocked,
-      flagCount: flags.length
+      flagCount: flags.length,
     });
 
     return result;
@@ -202,21 +202,21 @@ export class RiskEvaluationEngine {
     try {
       // Get IP geolocation info
       const ipInfo = await getIPInfo(ip);
-      
+
       // Risk factors based on IP characteristics
-      if (ipInfo.country === '未知' || ipInfo.country === '非法IP') {
+      if (ipInfo.country === "未知" || ipInfo.country === "非法IP") {
         risk += 0.4;
       }
 
       // Check for high-risk countries (simplified example)
-      const highRiskCountries = ['Unknown', 'Anonymous', 'Tor'];
+      const highRiskCountries = ["Unknown", "Anonymous", "Tor"];
       if (highRiskCountries.includes(ipInfo.country)) {
         risk += 0.3;
       }
 
       // Check for suspicious ISPs
-      const suspiciousISPs = ['VPN', 'Proxy', 'Hosting', 'Cloud'];
-      if (suspiciousISPs.some(isp => ipInfo.isp.toLowerCase().includes(isp.toLowerCase()))) {
+      const suspiciousISPs = ["VPN", "Proxy", "Hosting", "Cloud"];
+      if (suspiciousISPs.some((isp) => ipInfo.isp.toLowerCase().includes(isp.toLowerCase()))) {
         risk += 0.2;
       }
 
@@ -233,7 +233,7 @@ export class RiskEvaluationEngine {
 
       return Math.min(risk, 1.0);
     } catch (error) {
-      logger.error('[风险评估] 计算 IP 风险失败', { ip, error });
+      logger.error("[风险评估] 计算 IP 风险失败", { ip, error });
       return 0.5; // Default risk for errors
     }
   }
@@ -251,12 +251,12 @@ export class RiskEvaluationEngine {
 
     // Check for suspicious user agent patterns
     const userAgent = deviceFingerprint.userAgent.toLowerCase();
-    if (this.suspiciousUAs.has(userAgent) || userAgent.includes('bot')) {
+    if (this.suspiciousUAs.has(userAgent) || userAgent.includes("bot")) {
       consistency -= 0.4;
     }
 
     // Check for missing or invalid timezone
-    if (!deviceFingerprint.timezone || deviceFingerprint.timezone === 'UTC') {
+    if (!deviceFingerprint.timezone || deviceFingerprint.timezone === "UTC") {
       consistency -= 0.2;
     }
 
@@ -269,7 +269,7 @@ export class RiskEvaluationEngine {
   private calculateBehavioralAnomalies(behaviorScore: number, attempt: VerificationAttempt): number {
     // Normalize behavior score to 0-1 range
     const normalizedScore = Math.max(0, Math.min(1, behaviorScore));
-    
+
     // Invert the score since higher behavior score should mean lower risk
     return 1.0 - normalizedScore;
   }
@@ -289,7 +289,7 @@ export class RiskEvaluationEngine {
     // Check for unusual timing patterns
     const now = Date.now();
     const hour = new Date(now).getHours();
-    
+
     // Higher risk during unusual hours (2-6 AM)
     if (hour >= 2 && hour <= 6) {
       risk += 0.2;
@@ -304,22 +304,22 @@ export class RiskEvaluationEngine {
   private async calculateGeographicRisk(ip: string): Promise<number> {
     try {
       const ipInfo = await getIPInfo(ip);
-      
+
       // Check for high-risk regions
-      const highRiskRegions = ['Unknown', 'Anonymous'];
+      const highRiskRegions = ["Unknown", "Anonymous"];
       if (highRiskRegions.includes(ipInfo.country)) {
         return 0.8;
       }
 
       // Check for known safe regions
-      const safeRegions = ['China', 'United States', 'Japan', 'South Korea'];
+      const safeRegions = ["China", "United States", "Japan", "South Korea"];
       if (safeRegions.includes(ipInfo.country)) {
         return 0.2;
       }
 
       return 0.5; // Default risk
     } catch (error) {
-      logger.error('[风险评估] 计算地理风险失败', { ip, error });
+      logger.error("[风险评估] 计算地理风险失败", { ip, error });
       return 0.5;
     }
   }
@@ -334,10 +334,10 @@ export class RiskEvaluationEngine {
       deviceConsistency: 0.2,
       behavioralAnomalies: 0.25,
       temporalPatterns: 0.15,
-      geographicRisk: 0.1
+      geographicRisk: 0.1,
     };
 
-    const overallRisk = 
+    const overallRisk =
       factors.ipRisk * weights.ipRisk +
       (1 - factors.deviceConsistency) * weights.deviceConsistency +
       factors.behavioralAnomalies * weights.behavioralAnomalies +
@@ -350,11 +350,11 @@ export class RiskEvaluationEngine {
   /**
    * Determine risk level based on overall risk score
    */
-  private determineRiskLevel(overallRisk: number): 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' {
-    if (overallRisk >= RISK_THRESHOLDS.CRITICAL) return 'CRITICAL';
-    if (overallRisk >= RISK_THRESHOLDS.HIGH) return 'HIGH';
-    if (overallRisk >= RISK_THRESHOLDS.MEDIUM) return 'MEDIUM';
-    return 'LOW';
+  private determineRiskLevel(overallRisk: number): "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" {
+    if (overallRisk >= RISK_THRESHOLDS.CRITICAL) return "CRITICAL";
+    if (overallRisk >= RISK_THRESHOLDS.HIGH) return "HIGH";
+    if (overallRisk >= RISK_THRESHOLDS.MEDIUM) return "MEDIUM";
+    return "LOW";
   }
 
   /**
@@ -363,11 +363,11 @@ export class RiskEvaluationEngine {
   private generateRiskFlags(factors: RiskFactors, attempt: VerificationAttempt): string[] {
     const flags: string[] = [];
 
-    if (factors.ipRisk > 0.7) flags.push('HIGH_IP_RISK');
-    if (factors.deviceConsistency < 0.5) flags.push('DEVICE_INCONSISTENCY');
-    if (factors.behavioralAnomalies > 0.7) flags.push('BEHAVIORAL_ANOMALY');
-    if (factors.temporalPatterns > 0.6) flags.push('SUSPICIOUS_TIMING');
-    if (factors.geographicRisk > 0.7) flags.push('HIGH_GEOGRAPHIC_RISK');
+    if (factors.ipRisk > 0.7) flags.push("HIGH_IP_RISK");
+    if (factors.deviceConsistency < 0.5) flags.push("DEVICE_INCONSISTENCY");
+    if (factors.behavioralAnomalies > 0.7) flags.push("BEHAVIORAL_ANOMALY");
+    if (factors.temporalPatterns > 0.6) flags.push("SUSPICIOUS_TIMING");
+    if (factors.geographicRisk > 0.7) flags.push("HIGH_GEOGRAPHIC_RISK");
 
     return flags;
   }
@@ -379,19 +379,19 @@ export class RiskEvaluationEngine {
     const recommendations: string[] = [];
 
     if (factors.ipRisk > 0.5) {
-      recommendations.push('Consider IP reputation check');
+      recommendations.push("Consider IP reputation check");
     }
 
     if (factors.deviceConsistency < 0.6) {
-      recommendations.push('Verify device fingerprint consistency');
+      recommendations.push("Verify device fingerprint consistency");
     }
 
     if (factors.behavioralAnomalies > 0.5) {
-      recommendations.push('Review behavioral patterns');
+      recommendations.push("Review behavioral patterns");
     }
 
-    if (riskLevel === 'HIGH' || riskLevel === 'CRITICAL') {
-      recommendations.push('Implement additional verification steps');
+    if (riskLevel === "HIGH" || riskLevel === "CRITICAL") {
+      recommendations.push("Implement additional verification steps");
     }
 
     return recommendations;
@@ -412,9 +412,7 @@ export class RiskEvaluationEngine {
     }
 
     // Block if too many high-risk flags
-    const highRiskFlags = flags.filter(flag => 
-      flag.includes('HIGH_') || flag.includes('CRITICAL_')
-    );
+    const highRiskFlags = flags.filter((flag) => flag.includes("HIGH_") || flag.includes("CRITICAL_"));
     if (highRiskFlags.length >= 3) {
       return true;
     }
@@ -426,13 +424,13 @@ export class RiskEvaluationEngine {
    * Get block reason
    */
   private getBlockReason(factors: RiskFactors, flags: string[]): string {
-    if (flags.includes('HIGH_IP_RISK')) return 'Suspicious IP address';
-    if (flags.includes('DEVICE_INCONSISTENCY')) return 'Device fingerprint inconsistency';
-    if (flags.includes('BEHAVIORAL_ANOMALY')) return 'Suspicious behavior detected';
-    if (flags.includes('SUSPICIOUS_TIMING')) return 'Unusual access pattern';
-    if (flags.includes('HIGH_GEOGRAPHIC_RISK')) return 'High-risk geographic location';
-    
-    return 'Multiple risk factors detected';
+    if (flags.includes("HIGH_IP_RISK")) return "Suspicious IP address";
+    if (flags.includes("DEVICE_INCONSISTENCY")) return "Device fingerprint inconsistency";
+    if (flags.includes("BEHAVIORAL_ANOMALY")) return "Suspicious behavior detected";
+    if (flags.includes("SUSPICIOUS_TIMING")) return "Unusual access pattern";
+    if (flags.includes("HIGH_GEOGRAPHIC_RISK")) return "High-risk geographic location";
+
+    return "Multiple risk factors detected";
   }
 
   /**
@@ -440,22 +438,22 @@ export class RiskEvaluationEngine {
    */
   private recordAttempt(attempt: VerificationAttempt): void {
     const fingerprintKey = this.generateFingerprintKey(attempt.deviceFingerprint);
-    
+
     // Get existing history for this fingerprint
     let history = deviceFingerprintHistory.get(fingerprintKey) || [];
-    
+
     // Add new attempt
     history.push(attempt);
-    
+
     // Limit history size
     if (history.length > MAX_FINGERPRINT_HISTORY) {
       history = history.slice(-MAX_FINGERPRINT_HISTORY);
     }
-    
+
     // Clean old entries
     const cutoff = Date.now() - FINGERPRINT_HISTORY_TTL;
-    history = history.filter(entry => entry.timestamp > cutoff);
-    
+    history = history.filter((entry) => entry.timestamp > cutoff);
+
     deviceFingerprintHistory.set(fingerprintKey, history);
   }
 
@@ -465,14 +463,12 @@ export class RiskEvaluationEngine {
   private getRecentAttempts(ip: string, timeWindow: number): VerificationAttempt[] {
     const cutoff = Date.now() - timeWindow;
     const attempts: VerificationAttempt[] = [];
-    
+
     // Collect attempts from all fingerprint histories
     for (const history of deviceFingerprintHistory.values()) {
-      attempts.push(...history.filter(entry => 
-        entry.ip === ip && entry.timestamp > cutoff
-      ));
+      attempts.push(...history.filter((entry) => entry.ip === ip && entry.timestamp > cutoff));
     }
-    
+
     return attempts.sort((a, b) => b.timestamp - a.timestamp);
   }
 
@@ -481,6 +477,6 @@ export class RiskEvaluationEngine {
    */
   private generateFingerprintKey(fingerprint: DeviceFingerprint): string {
     const key = `${fingerprint.userAgent}|${fingerprint.timezone}|${fingerprint.canvasEntropy}`;
-    return crypto.createHash('sha256').update(key).digest('hex');
+    return crypto.createHash("sha256").update(key).digest("hex");
   }
 }

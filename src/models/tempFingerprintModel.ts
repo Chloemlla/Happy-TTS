@@ -1,4 +1,4 @@
-import { mongoose } from '../services/mongoService';
+import { mongoose } from "../services/mongoService";
 
 // 临时指纹文档接口
 export interface TempFingerprintDoc {
@@ -11,36 +11,39 @@ export interface TempFingerprintDoc {
 }
 
 // 临时指纹Schema
-const TempFingerprintSchema = new mongoose.Schema<TempFingerprintDoc>({
-  fingerprint: {
-    type: String,
-    required: true,
-    unique: true,
-    index: true,
+const TempFingerprintSchema = new mongoose.Schema<TempFingerprintDoc>(
+  {
+    fingerprint: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
+    ipAddress: {
+      type: String,
+      required: true,
+    },
+    verified: {
+      type: Boolean,
+      default: false,
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    expiresAt: {
+      type: Date,
+      required: true,
+    },
   },
-  ipAddress: {
-    type: String,
-    required: true,
+  {
+    timestamps: true, // 自动管理 createdAt 和 updatedAt
   },
-  verified: {
-    type: Boolean,
-    default: false,
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now,
-  },
-  expiresAt: {
-    type: Date,
-    required: true,
-  },
-}, {
-  timestamps: true, // 自动管理 createdAt 和 updatedAt
-});
+);
 
 // 创建TTL索引，自动删除过期文档（5分钟后过期）
 TempFingerprintSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
@@ -49,5 +52,6 @@ TempFingerprintSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 TempFingerprintSchema.index({ fingerprint: 1, verified: 1 });
 
 // 获取模型实例
-export const TempFingerprintModel = (mongoose.models.TempFingerprint as mongoose.Model<TempFingerprintDoc>) ||
-  mongoose.model<TempFingerprintDoc>('TempFingerprint', TempFingerprintSchema);
+export const TempFingerprintModel =
+  (mongoose.models.TempFingerprint as mongoose.Model<TempFingerprintDoc>) ||
+  mongoose.model<TempFingerprintDoc>("TempFingerprint", TempFingerprintSchema);

@@ -1,4 +1,4 @@
-import { config } from 'dotenv';
+import { config } from "dotenv";
 
 config();
 
@@ -9,15 +9,15 @@ export default {
     baseUrl: process.env.OPENAI_BASE_URL,
   },
   server: {
-    password: process.env.SERVER_PASSWORD || 'wmy',
+    password: process.env.SERVER_PASSWORD || "wmy",
   },
-  userStorageMode: process.env.USER_STORAGE_MODE || 'file',
+  userStorageMode: process.env.USER_STORAGE_MODE || "file",
   paths: {
-    ipData: 'ip_data.txt',
-    lcData: 'lc_data.txt',
-    logs: 'logs',
-    finish: 'finish',
-    data: 'data',
+    ipData: "ip_data.txt",
+    lcData: "lc_data.txt",
+    logs: "logs",
+    finish: "finish",
+    data: "data",
   },
   limits: {
     maxLines: 200,
@@ -26,4 +26,4 @@ export default {
       period: 30000, // 30 seconds
     },
   },
-}; 
+};

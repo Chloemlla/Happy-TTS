@@ -1,7 +1,7 @@
-import { Request, Response, NextFunction } from 'express';
-import { UserStorage } from '../utils/userStorage';
-import { config } from '../config/config';
-import jwt from 'jsonwebtoken';
+import type { NextFunction, Request, Response } from "express";
+import jwt from "jsonwebtoken";
+import { config } from "../config/config";
+import { UserStorage } from "../utils/userStorage";
 
 // 可选认证中间件：
 // - 若携带合法JWT，则解析并注入 req.user
@@ -9,10 +9,10 @@ import jwt from 'jsonwebtoken';
 export const optionalAuthenticateToken = async (req: Request, _res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return next();
     }
-    const token = authHeader.split(' ')[1];
+    const token = authHeader.split(" ")[1];
     if (!token) {
       return next();
     }
@@ -27,7 +27,7 @@ export const optionalAuthenticateToken = async (req: Request, _res: Response, ne
     if (!userId) return next();
     const user = await UserStorage.getUserById(userId);
     if (!user) return next();
-    // @ts-ignore
+    // @ts-expect-error
     req.user = user;
     return next();
   } catch {

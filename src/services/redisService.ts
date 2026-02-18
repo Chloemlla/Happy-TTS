@@ -1,5 +1,5 @@
-import { createClient, RedisClientType } from 'redis';
-import logger from '../utils/logger';
+import { createClient, type RedisClientType } from "redis";
+import logger from "../utils/logger";
 
 /**
  * Redis 服务
@@ -20,55 +20,55 @@ class RedisService {
   private async initialize(): Promise<void> {
     try {
       const redisUrl = process.env.REDIS_URL;
-      
+
       if (!redisUrl) {
-        logger.info('📦 Redis URL 未配置，IP封禁将使用 MongoDB 存储');
+        logger.info("📦 Redis URL 未配置，IP封禁将使用 MongoDB 存储");
         this.isEnabled = false;
         return;
       }
 
-      logger.info('🔄 正在连接 Redis...');
-      
+      logger.info("🔄 正在连接 Redis...");
+
       this.client = createClient({
         url: redisUrl,
         socket: {
           reconnectStrategy: (retries) => {
             if (retries > 10) {
-              logger.error('❌ Redis 重连次数超过限制，停止重连');
-              return new Error('Redis 重连失败');
+              logger.error("❌ Redis 重连次数超过限制，停止重连");
+              return new Error("Redis 重连失败");
             }
             return Math.min(retries * 100, 3000);
-          }
-        }
+          },
+        },
       });
 
       // 错误处理
-      this.client.on('error', (err) => {
-        logger.error('❌ Redis 错误:', err);
+      this.client.on("error", (err) => {
+        logger.error("❌ Redis 错误:", err);
         this.isConnected = false;
       });
 
       // 连接成功
-      this.client.on('connect', () => {
-        logger.info('✅ Redis 连接成功');
+      this.client.on("connect", () => {
+        logger.info("✅ Redis 连接成功");
         this.isConnected = true;
         this.isEnabled = true;
       });
 
       // 断开连接
-      this.client.on('disconnect', () => {
-        logger.warn('⚠️ Redis 断开连接');
+      this.client.on("disconnect", () => {
+        logger.warn("⚠️ Redis 断开连接");
         this.isConnected = false;
       });
 
       // 重新连接
-      this.client.on('reconnecting', () => {
-        logger.info('🔄 Redis 正在重新连接...');
+      this.client.on("reconnecting", () => {
+        logger.info("🔄 Redis 正在重新连接...");
       });
 
       await this.client.connect();
     } catch (error) {
-      logger.error('❌ Redis 初始化失败:', error);
+      logger.error("❌ Redis 初始化失败:", error);
       this.isEnabled = false;
       this.isConnected = false;
     }
@@ -96,7 +96,7 @@ class RedisService {
       fingerprint?: string;
       userAgent?: string;
       violationCount?: number;
-    }
+    },
   ): Promise<boolean> {
     if (!this.isAvailable()) {
       return false;
@@ -105,24 +105,24 @@ class RedisService {
     try {
       const key = `ipban:${ip}`;
       const expiresAt = Date.now() + durationMinutes * 60 * 1000;
-      
+
       const data = {
         ip,
         reason,
         bannedAt: Date.now(),
         expiresAt,
-        ...metadata
+        ...metadata,
       };
 
       // 存储封禁信息
       await this.client!.set(key, JSON.stringify(data), {
-        PX: durationMinutes * 60 * 1000 // 设置过期时间（毫秒）
+        PX: durationMinutes * 60 * 1000, // 设置过期时间（毫秒）
       });
 
       logger.info(`🚫 [Redis] IP 已封禁: ${ip}, 原因: ${reason}, 时长: ${durationMinutes}分钟`);
       return true;
     } catch (error) {
-      logger.error('❌ [Redis] 封禁 IP 失败:', error);
+      logger.error("❌ [Redis] 封禁 IP 失败:", error);
       return false;
     }
   }
@@ -155,7 +155,7 @@ class RedisService {
 
       return JSON.parse(data);
     } catch (error) {
-      logger.error('❌ [Redis] 检查 IP 封禁失败:', error);
+      logger.error("❌ [Redis] 检查 IP 封禁失败:", error);
       return null;
     }
   }
@@ -172,15 +172,15 @@ class RedisService {
     try {
       const key = `ipban:${ip}`;
       const result = await this.client!.del(key);
-      
+
       if (result > 0) {
         logger.info(`✅ [Redis] IP 已解封: ${ip}`);
         return true;
       }
-      
+
       return false;
     } catch (error) {
-      logger.error('❌ [Redis] 解封 IP 失败:', error);
+      logger.error("❌ [Redis] 解封 IP 失败:", error);
       return false;
     }
   }
@@ -188,21 +188,23 @@ class RedisService {
   /**
    * 获取所有被封禁的 IP 列表
    */
-  public async getAllBannedIPs(): Promise<Array<{
-    ip: string;
-    reason: string;
-    bannedAt: number;
-    expiresAt: number;
-    fingerprint?: string;
-    userAgent?: string;
-    violationCount?: number;
-  }>> {
+  public async getAllBannedIPs(): Promise<
+    Array<{
+      ip: string;
+      reason: string;
+      bannedAt: number;
+      expiresAt: number;
+      fingerprint?: string;
+      userAgent?: string;
+      violationCount?: number;
+    }>
+  > {
     if (!this.isAvailable()) {
       return [];
     }
 
     try {
-      const keys = await this.client!.keys('ipban:*');
+      const keys = await this.client!.keys("ipban:*");
       const bannedIPs = [];
 
       for (const key of keys) {
@@ -214,7 +216,7 @@ class RedisService {
 
       return bannedIPs;
     } catch (error) {
-      logger.error('❌ [Redis] 获取封禁 IP 列表失败:', error);
+      logger.error("❌ [Redis] 获取封禁 IP 列表失败:", error);
       return [];
     }
   }
@@ -228,7 +230,7 @@ class RedisService {
     }
 
     try {
-      const keys = await this.client!.keys('ipban:*');
+      const keys = await this.client!.keys("ipban:*");
       let cleaned = 0;
 
       for (const key of keys) {
@@ -248,7 +250,7 @@ class RedisService {
 
       return cleaned;
     } catch (error) {
-      logger.error('❌ [Redis] 清理过期封禁记录失败:', error);
+      logger.error("❌ [Redis] 清理过期封禁记录失败:", error);
       return 0;
     }
   }
@@ -260,9 +262,9 @@ class RedisService {
     if (this.client && this.isConnected) {
       try {
         await this.client.quit();
-        logger.info('👋 Redis 连接已关闭');
+        logger.info("👋 Redis 连接已关闭");
       } catch (error) {
-        logger.error('❌ 关闭 Redis 连接失败:', error);
+        logger.error("❌ 关闭 Redis 连接失败:", error);
       }
     }
   }

@@ -1,5 +1,5 @@
-import { Router } from 'express';
-import { authMiddleware } from '../middleware/auth';
+import { Router } from "express";
+import { authMiddleware } from "../middleware/auth";
 
 const router = Router();
 
@@ -17,8 +17,8 @@ const router = Router();
  *       401:
  *         description: 未授权
  */
-router.get('/status', authMiddleware, (req, res) => {
-  res.json({ status: 'ok' });
+router.get("/status", authMiddleware, (req, res) => {
+  res.json({ status: "ok" });
 });
 
 /**
@@ -31,13 +31,13 @@ router.get('/status', authMiddleware, (req, res) => {
  *       200:
  *         description: 服务正常
  */
-router.get('/', (req, res) => {
-  res.json({ 
-    status: 'ok',
+router.get("/", (req, res) => {
+  res.json({
+    status: "ok",
     timestamp: new Date().toISOString(),
-    service: 'Happy-TTS API',
-    version: '1.0.0'
+    service: "Happy-TTS API",
+    version: "1.0.0",
   });
 });
 
-export default router; 
+export default router;

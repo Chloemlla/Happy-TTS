@@ -1,4 +1,4 @@
-import { logger } from './logger';
+import { logger } from "./logger";
 
 interface ExemptionResult {
   exempted: boolean;
@@ -22,32 +22,32 @@ class DomainExemptionService {
 
   constructor() {
     // 从环境变量获取豁免域名列表
-    this.exemptedDomains = process.env.EXEMPTED_DOMAINS ? 
-      process.env.EXEMPTED_DOMAINS.split(',').map(d => d.trim()) : 
-      ['arteam.dev', 'hapxs.com', 'crossbell.io'];
+    this.exemptedDomains = process.env.EXEMPTED_DOMAINS
+      ? process.env.EXEMPTED_DOMAINS.split(",").map((d) => d.trim())
+      : ["arteam.dev", "hapxs.com", "crossbell.io"];
 
     // 从环境变量获取内部域名列表
-    this.internalDomains = process.env.INTERNAL_DOMAINS ? 
-      process.env.INTERNAL_DOMAINS.split(',').map(d => d.trim()) : 
-      ['arteam.dev'];
+    this.internalDomains = process.env.INTERNAL_DOMAINS
+      ? process.env.INTERNAL_DOMAINS.split(",").map((d) => d.trim())
+      : ["arteam.dev"];
 
     // 从环境变量获取收件人白名单域名列表
-    this.recipientWhitelistDomains = process.env.RECIPIENT_WHITELIST_DOMAINS ? 
-      process.env.RECIPIENT_WHITELIST_DOMAINS.split(',').map(d => d.trim()) : 
-      ['gmail.com', 'outlook.com', 'yahoo.com', 'qq.com', '163.com', '126.com'];
+    this.recipientWhitelistDomains = process.env.RECIPIENT_WHITELIST_DOMAINS
+      ? process.env.RECIPIENT_WHITELIST_DOMAINS.split(",").map((d) => d.trim())
+      : ["gmail.com", "outlook.com", "yahoo.com", "qq.com", "163.com", "126.com"];
 
-    logger.log(`[DomainExemption] 初始化完成，豁免域名: ${this.exemptedDomains.join(', ')}`);
-    logger.log(`[DomainExemption] 内部域名: ${this.internalDomains.join(', ')}`);
-    logger.log(`[DomainExemption] 收件人白名单域名: ${this.recipientWhitelistDomains.join(', ')}`);
+    logger.log(`[DomainExemption] 初始化完成，豁免域名: ${this.exemptedDomains.join(", ")}`);
+    logger.log(`[DomainExemption] 内部域名: ${this.internalDomains.join(", ")}`);
+    logger.log(`[DomainExemption] 收件人白名单域名: ${this.recipientWhitelistDomains.join(", ")}`);
   }
 
   /**
    * 检查域名是否匹配（支持通配符）
    */
   private isDomainMatch(domain: string, pattern: string): boolean {
-    if (pattern.startsWith('*.')) {
+    if (pattern.startsWith("*.")) {
       const wildcardDomain = pattern.substring(2);
-      return domain === wildcardDomain || domain.endsWith('.' + wildcardDomain);
+      return domain === wildcardDomain || domain.endsWith("." + wildcardDomain);
     }
     return domain === pattern;
   }
@@ -59,30 +59,26 @@ class DomainExemptionService {
     if (!domain) {
       return {
         exempted: false,
-        message: '域名不能为空',
+        message: "域名不能为空",
         isInternal: false,
         isExempted: false,
-        domain: ''
+        domain: "",
       };
     }
 
     // 检查是否在豁免列表中
-    const isExempted = this.exemptedDomains.some(exemptedDomain => 
-      this.isDomainMatch(domain, exemptedDomain)
-    );
+    const isExempted = this.exemptedDomains.some((exemptedDomain) => this.isDomainMatch(domain, exemptedDomain));
 
     // 检查是否在内部域名列表中
-    const isInternal = this.internalDomains.some(internalDomain => 
-      this.isDomainMatch(domain, internalDomain)
-    );
+    const isInternal = this.internalDomains.some((internalDomain) => this.isDomainMatch(domain, internalDomain));
 
-    let message = '';
+    let message = "";
     if (isExempted) {
-      message = '域名在豁免列表中，无需额外检查';
+      message = "域名在豁免列表中，无需额外检查";
     } else if (isInternal) {
-      message = '内部域名，已通过安全检查';
+      message = "内部域名，已通过安全检查";
     } else {
-      message = '外部域名，需要额外的安全检查';
+      message = "外部域名，需要额外的安全检查";
     }
 
     const result: ExemptionResult = {
@@ -90,7 +86,7 @@ class DomainExemptionService {
       message,
       isInternal,
       isExempted,
-      domain
+      domain,
     };
 
     logger.log(`[DomainExemption] 检查域名 ${domain}: ${JSON.stringify(result)}`);
@@ -104,29 +100,29 @@ class DomainExemptionService {
     if (!domain) {
       return {
         whitelisted: false,
-        message: '域名不能为空',
-        domain: '',
-        isWhitelisted: false
+        message: "域名不能为空",
+        domain: "",
+        isWhitelisted: false,
       };
     }
 
     // 检查是否在白名单列表中
-    const isWhitelisted = this.recipientWhitelistDomains.some(whitelistDomain => 
-      this.isDomainMatch(domain, whitelistDomain)
+    const isWhitelisted = this.recipientWhitelistDomains.some((whitelistDomain) =>
+      this.isDomainMatch(domain, whitelistDomain),
     );
 
-    let message = '';
+    let message = "";
     if (isWhitelisted) {
-      message = '域名在白名单中，无需额外检查';
+      message = "域名在白名单中，无需额外检查";
     } else {
-      message = '域名不在白名单中，需要额外的安全检查';
+      message = "域名不在白名单中，需要额外的安全检查";
     }
 
     const result: RecipientWhitelistResult = {
       whitelisted: isWhitelisted,
       message,
       domain,
-      isWhitelisted
+      isWhitelisted,
     };
 
     logger.log(`[DomainExemption] 检查收件人域名白名单 ${domain}: ${JSON.stringify(result)}`);
@@ -205,4 +201,4 @@ class DomainExemptionService {
   }
 }
 
-export const domainExemptionService = new DomainExemptionService(); 
+export const domainExemptionService = new DomainExemptionService();

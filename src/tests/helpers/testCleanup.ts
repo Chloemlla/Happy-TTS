@@ -3,7 +3,7 @@
  * 用于管理测试中的异步资源清理
  */
 
-import { addCleanupTask } from '../setup';
+import { addCleanupTask } from "../setup";
 
 export class TestCleanup {
   private static instance: TestCleanup;
@@ -46,14 +46,14 @@ export class TestCleanup {
    * 清理所有资源
    */
   public async cleanup(): Promise<void> {
-    console.log('TestCleanup: 开始清理资源...');
+    console.log("TestCleanup: 开始清理资源...");
 
     // 清理间隔定时器
     for (const interval of this.intervals) {
       try {
         clearInterval(interval);
       } catch (error) {
-        console.warn('清理间隔定时器失败:', error);
+        console.warn("清理间隔定时器失败:", error);
       }
     }
     this.intervals = [];
@@ -63,7 +63,7 @@ export class TestCleanup {
       try {
         clearTimeout(timer);
       } catch (error) {
-        console.warn('清理定时器失败:', error);
+        console.warn("清理定时器失败:", error);
       }
     }
     this.timers = [];
@@ -73,12 +73,12 @@ export class TestCleanup {
       try {
         await task();
       } catch (error) {
-        console.warn('执行清理任务失败:', error);
+        console.warn("执行清理任务失败:", error);
       }
     }
     this.cleanupTasks = [];
 
-    console.log('TestCleanup: 资源清理完成');
+    console.log("TestCleanup: 资源清理完成");
   }
 
   /**
@@ -87,27 +87,30 @@ export class TestCleanup {
   public async cleanupService(serviceName: string): Promise<void> {
     try {
       switch (serviceName) {
-        case 'libreChat':
-          const { libreChatService } = require('../../services/libreChatService');
-          if (libreChatService && typeof libreChatService.cleanup === 'function') {
+        case "libreChat": {
+          const { libreChatService } = require("../../services/libreChatService");
+          if (libreChatService && typeof libreChatService.cleanup === "function") {
             libreChatService.cleanup();
           }
           break;
-        
-        case 'command':
-          const { commandService } = require('../../services/commandService');
-          if (commandService && typeof commandService.cleanup === 'function') {
+        }
+
+        case "command": {
+          const { commandService } = require("../../services/commandService");
+          if (commandService && typeof commandService.cleanup === "function") {
             commandService.cleanup();
           }
           break;
-        
-        case 'dataCollection':
-          const { dataCollectionService } = require('../../services/dataCollectionService');
-          if (dataCollectionService && typeof dataCollectionService.cleanup === 'function') {
+        }
+
+        case "dataCollection": {
+          const { dataCollectionService } = require("../../services/dataCollectionService");
+          if (dataCollectionService && typeof dataCollectionService.cleanup === "function") {
             dataCollectionService.cleanup();
           }
           break;
-        
+        }
+
         default:
           console.warn(`未知的服务: ${serviceName}`);
       }
@@ -124,7 +127,7 @@ export const testCleanup = TestCleanup.getInstance();
  * 通用装饰器工厂函数
  */
 function createCleanupDecorator(cleanupAction: () => Promise<void>) {
-  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+  return (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
     const originalMethod = descriptor.value;
 
     descriptor.value = async function (...args: any[]) {
@@ -153,4 +156,4 @@ export function AutoCleanup() {
  */
 export function CleanupService(serviceName: string) {
   return createCleanupDecorator(() => testCleanup.cleanupService(serviceName));
-} 
+}

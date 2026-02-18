@@ -15,7 +15,7 @@ export interface ValidationError {
 /**
  * Circuit breaker state type
  */
-export type CircuitState = 'closed' | 'open' | 'half-open';
+export type CircuitState = "closed" | "open" | "half-open";
 
 /**
  * Base error class for all billing service errors
@@ -25,13 +25,9 @@ export class BillingServiceError extends Error {
   public readonly context?: Record<string, unknown>;
   public readonly timestamp: Date;
 
-  constructor(
-    message: string,
-    code: string,
-    context?: Record<string, unknown>
-  ) {
+  constructor(message: string, code: string, context?: Record<string, unknown>) {
     super(message);
-    this.name = 'BillingServiceError';
+    this.name = "BillingServiceError";
     this.code = code;
     this.context = context;
     this.timestamp = new Date();
@@ -64,14 +60,9 @@ export class BillingApiError extends BillingServiceError {
   public readonly statusCode?: number;
   public readonly requestId?: string;
 
-  constructor(
-    message: string,
-    statusCode?: number,
-    requestId?: string,
-    context?: Record<string, unknown>
-  ) {
-    super(message, 'API_ERROR', { ...context, statusCode, requestId });
-    this.name = 'BillingApiError';
+  constructor(message: string, statusCode?: number, requestId?: string, context?: Record<string, unknown>) {
+    super(message, "API_ERROR", { ...context, statusCode, requestId });
+    this.name = "BillingApiError";
     this.statusCode = statusCode;
     this.requestId = requestId;
   }
@@ -83,7 +74,7 @@ export class BillingApiError extends BillingServiceError {
     statusCode: number,
     statusText: string,
     requestId?: string,
-    context?: Record<string, unknown>
+    context?: Record<string, unknown>,
   ): BillingApiError {
     const message = `GitHub API returned error: ${statusCode} - ${statusText}`;
     return new BillingApiError(message, statusCode, requestId, context);
@@ -93,24 +84,16 @@ export class BillingApiError extends BillingServiceError {
    * Creates a BillingApiError for timeout scenarios
    */
   static timeout(timeoutMs: number, requestId?: string): BillingApiError {
-    return new BillingApiError(
-      `Request timed out after ${timeoutMs}ms`,
-      undefined,
-      requestId,
-      { timeoutMs }
-    );
+    return new BillingApiError(`Request timed out after ${timeoutMs}ms`, undefined, requestId, { timeoutMs });
   }
 
   /**
    * Creates a BillingApiError for network errors
    */
   static networkError(originalError: Error, requestId?: string): BillingApiError {
-    return new BillingApiError(
-      `Network error: ${originalError.message}`,
-      undefined,
-      requestId,
-      { originalError: originalError.message }
-    );
+    return new BillingApiError(`Network error: ${originalError.message}`, undefined, requestId, {
+      originalError: originalError.message,
+    });
   }
 }
 
@@ -118,15 +101,15 @@ export class BillingApiError extends BillingServiceError {
  * Error class for cache-related errors
  */
 export class CacheError extends BillingServiceError {
-  public readonly operation: 'get' | 'set' | 'delete' | 'warmup' | 'cleanup';
+  public readonly operation: "get" | "set" | "delete" | "warmup" | "cleanup";
 
   constructor(
     message: string,
-    operation: 'get' | 'set' | 'delete' | 'warmup' | 'cleanup',
-    context?: Record<string, unknown>
+    operation: "get" | "set" | "delete" | "warmup" | "cleanup",
+    context?: Record<string, unknown>,
   ) {
-    super(message, 'CACHE_ERROR', { ...context, operation });
-    this.name = 'CacheError';
+    super(message, "CACHE_ERROR", { ...context, operation });
+    this.name = "CacheError";
     this.operation = operation;
   }
 
@@ -134,33 +117,27 @@ export class CacheError extends BillingServiceError {
    * Creates a CacheError for cache miss scenarios
    */
   static miss(customerId: string): CacheError {
-    return new CacheError(
-      `Cache miss for customer: ${customerId}`,
-      'get',
-      { customerId }
-    );
+    return new CacheError(`Cache miss for customer: ${customerId}`, "get", { customerId });
   }
 
   /**
    * Creates a CacheError for cache write failures
    */
   static writeFailed(customerId: string, originalError: Error): CacheError {
-    return new CacheError(
-      `Failed to write cache for customer: ${customerId}`,
-      'set',
-      { customerId, originalError: originalError.message }
-    );
+    return new CacheError(`Failed to write cache for customer: ${customerId}`, "set", {
+      customerId,
+      originalError: originalError.message,
+    });
   }
 
   /**
    * Creates a CacheError for warmup failures
    */
   static warmupFailed(customerId: string, originalError: Error): CacheError {
-    return new CacheError(
-      `Cache warmup failed for customer: ${customerId}`,
-      'warmup',
-      { customerId, originalError: originalError.message }
-    );
+    return new CacheError(`Cache warmup failed for customer: ${customerId}`, "warmup", {
+      customerId,
+      originalError: originalError.message,
+    });
   }
 }
 
@@ -175,10 +152,10 @@ export class ConfigError extends BillingServiceError {
     message: string,
     configKey?: string,
     validationErrors?: ValidationError[],
-    context?: Record<string, unknown>
+    context?: Record<string, unknown>,
   ) {
-    super(message, 'CONFIG_ERROR', { ...context, configKey, validationErrors });
-    this.name = 'ConfigError';
+    super(message, "CONFIG_ERROR", { ...context, configKey, validationErrors });
+    this.name = "ConfigError";
     this.configKey = configKey;
     this.validationErrors = validationErrors;
   }
@@ -187,48 +164,31 @@ export class ConfigError extends BillingServiceError {
    * Creates a ConfigError for missing configuration
    */
   static notFound(configKey: string): ConfigError {
-    return new ConfigError(
-      `Configuration not found: ${configKey}`,
-      configKey
-    );
+    return new ConfigError(`Configuration not found: ${configKey}`, configKey);
   }
 
   /**
    * Creates a ConfigError for invalid configuration
    */
-  static invalid(
-    configKey: string,
-    validationErrors: ValidationError[]
-  ): ConfigError {
-    const errorMessages = validationErrors.map(e => `${e.field}: ${e.message}`).join(', ');
-    return new ConfigError(
-      `Invalid configuration for ${configKey}: ${errorMessages}`,
-      configKey,
-      validationErrors
-    );
+  static invalid(configKey: string, validationErrors: ValidationError[]): ConfigError {
+    const errorMessages = validationErrors.map((e) => `${e.field}: ${e.message}`).join(", ");
+    return new ConfigError(`Invalid configuration for ${configKey}: ${errorMessages}`, configKey, validationErrors);
   }
 
   /**
    * Creates a ConfigError for curl parsing failures
    */
   static parseFailed(message: string, curlCommand?: string): ConfigError {
-    return new ConfigError(
-      `Failed to parse curl command: ${message}`,
-      undefined,
-      undefined,
-      { curlCommandLength: curlCommand?.length }
-    );
+    return new ConfigError(`Failed to parse curl command: ${message}`, undefined, undefined, {
+      curlCommandLength: curlCommand?.length,
+    });
   }
 
   /**
    * Creates a ConfigError for URL validation failures
    */
   static invalidUrl(url: string, reason: string): ConfigError {
-    return new ConfigError(
-      `Invalid URL: ${reason}`,
-      undefined,
-      [{ field: 'url', message: reason, value: url }]
-    );
+    return new ConfigError(`Invalid URL: ${reason}`, undefined, [{ field: "url", message: reason, value: url }]);
   }
 }
 
@@ -238,13 +198,9 @@ export class ConfigError extends BillingServiceError {
 export class CircuitBreakerError extends BillingServiceError {
   public readonly state: CircuitState;
 
-  constructor(
-    message: string,
-    state: CircuitState,
-    context?: Record<string, unknown>
-  ) {
-    super(message, 'CIRCUIT_BREAKER_ERROR', { ...context, state });
-    this.name = 'CircuitBreakerError';
+  constructor(message: string, state: CircuitState, context?: Record<string, unknown>) {
+    super(message, "CIRCUIT_BREAKER_ERROR", { ...context, state });
+    this.name = "CircuitBreakerError";
     this.state = state;
   }
 
@@ -252,21 +208,14 @@ export class CircuitBreakerError extends BillingServiceError {
    * Creates a CircuitBreakerError for open circuit
    */
   static circuitOpen(resetTimeMs: number): CircuitBreakerError {
-    return new CircuitBreakerError(
-      `Circuit breaker is open. Will reset in ${resetTimeMs}ms`,
-      'open',
-      { resetTimeMs }
-    );
+    return new CircuitBreakerError(`Circuit breaker is open. Will reset in ${resetTimeMs}ms`, "open", { resetTimeMs });
   }
 
   /**
    * Creates a CircuitBreakerError for half-open circuit failure
    */
   static halfOpenFailed(): CircuitBreakerError {
-    return new CircuitBreakerError(
-      'Circuit breaker test request failed, returning to open state',
-      'half-open'
-    );
+    return new CircuitBreakerError("Circuit breaker test request failed, returning to open state", "half-open");
   }
 }
 
@@ -276,13 +225,9 @@ export class CircuitBreakerError extends BillingServiceError {
 export class RateLimitError extends BillingServiceError {
   public readonly retryAfterMs?: number;
 
-  constructor(
-    message: string,
-    retryAfterMs?: number,
-    context?: Record<string, unknown>
-  ) {
-    super(message, 'RATE_LIMIT_ERROR', { ...context, retryAfterMs });
-    this.name = 'RateLimitError';
+  constructor(message: string, retryAfterMs?: number, context?: Record<string, unknown>) {
+    super(message, "RATE_LIMIT_ERROR", { ...context, retryAfterMs });
+    this.name = "RateLimitError";
     this.retryAfterMs = retryAfterMs;
   }
 
@@ -290,24 +235,15 @@ export class RateLimitError extends BillingServiceError {
    * Creates a RateLimitError for local rate limiting
    */
   static localLimitExceeded(retryAfterMs: number): RateLimitError {
-    return new RateLimitError(
-      `Rate limit exceeded. Retry after ${retryAfterMs}ms`,
-      retryAfterMs
-    );
+    return new RateLimitError(`Rate limit exceeded. Retry after ${retryAfterMs}ms`, retryAfterMs);
   }
 
   /**
    * Creates a RateLimitError from GitHub API rate limit response
    */
   static fromGitHubResponse(retryAfterHeader?: string): RateLimitError {
-    const retryAfterMs = retryAfterHeader 
-      ? parseInt(retryAfterHeader, 10) * 1000 
-      : 60000;
-    return new RateLimitError(
-      'GitHub API rate limit exceeded',
-      retryAfterMs,
-      { source: 'github' }
-    );
+    const retryAfterMs = retryAfterHeader ? parseInt(retryAfterHeader, 10) * 1000 : 60000;
+    return new RateLimitError("GitHub API rate limit exceeded", retryAfterMs, { source: "github" });
   }
 }
 

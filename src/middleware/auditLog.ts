@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
-import { AuditLogService, AuditEntry } from '../services/auditLogService';
-import { IAuditLog } from '../models/auditLogModel';
+import type { NextFunction, Request, Response } from "express";
+import type { IAuditLog } from "../models/auditLogModel";
+import { type AuditEntry, AuditLogService } from "../services/auditLogService";
 
 /**
  * 审计日志中间件
@@ -17,7 +17,7 @@ import { IAuditLog } from '../models/auditLogModel';
  */
 
 export interface AuditLogOptions {
-  module: IAuditLog['module'];
+  module: IAuditLog["module"];
   action: string;
   /** 从请求中提取操作目标信息 */
   extractTarget?: (req: Request) => { targetId?: string; targetName?: string };
@@ -37,7 +37,7 @@ export function auditLog(options: AuditLogOptions) {
     const originalJson = res.json.bind(res);
     const originalSend = res.send.bind(res);
 
-    const writeAudit = (result: 'success' | 'failure', errorMessage?: string) => {
+    const writeAudit = (result: "success" | "failure", errorMessage?: string) => {
       if (audited) return;
       audited = true;
 
@@ -45,9 +45,9 @@ export function auditLog(options: AuditLogOptions) {
       const detail = extractDetail ? extractDetail(req) : undefined;
 
       const entry: AuditEntry = {
-        userId: user?.id || user?._id || 'unknown',
-        username: user?.username || user?.name || 'unknown',
-        role: user?.role || 'unknown',
+        userId: user?.id || user?._id || "unknown",
+        username: user?.username || user?.name || "unknown",
+        role: user?.role || "unknown",
         action,
         module,
         targetId: target.targetId,
@@ -55,8 +55,8 @@ export function auditLog(options: AuditLogOptions) {
         result,
         errorMessage,
         detail: detail ? { ...detail, durationMs: Date.now() - startTime } : { durationMs: Date.now() - startTime },
-        ip: req.ip || (req as any).connection?.remoteAddress || 'unknown',
-        userAgent: req.headers['user-agent'],
+        ip: req.ip || (req as any).connection?.remoteAddress || "unknown",
+        userAgent: req.headers["user-agent"],
         path: req.originalUrl || req.path,
         method: req.method,
       };
@@ -65,22 +65,22 @@ export function auditLog(options: AuditLogOptions) {
       AuditLogService.log(entry).catch(() => {});
     };
 
-    res.json = function (body: any) {
+    res.json = (body: any) => {
       const statusCode = res.statusCode;
       if (statusCode >= 200 && statusCode < 400) {
-        writeAudit('success');
+        writeAudit("success");
       } else {
-        writeAudit('failure', body?.error || body?.message);
+        writeAudit("failure", body?.error || body?.message);
       }
       return originalJson(body);
     };
 
-    res.send = function (body: any) {
+    res.send = (body: any) => {
       const statusCode = res.statusCode;
       if (statusCode >= 200 && statusCode < 400) {
-        writeAudit('success');
+        writeAudit("success");
       } else {
-        writeAudit('failure', typeof body === 'string' ? body : undefined);
+        writeAudit("failure", typeof body === "string" ? body : undefined);
       }
       return originalSend(body);
     };

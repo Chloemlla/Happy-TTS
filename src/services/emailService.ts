@@ -1,36 +1,40 @@
-// @ts-ignore
-import { Resend } from 'resend';
-import { logger } from './logger';
-import { marked } from 'marked';
-import dayjs from 'dayjs';
-import { mongoose } from './mongoService';
+// @ts-expect-error
+
+import dayjs from "dayjs";
+import { marked } from "marked";
+import { Resend } from "resend";
+import { logger } from "./logger";
+import { mongoose } from "./mongoService";
 
 // MongoDB 邮件配额 Schema
-const EmailQuotaSchema = new mongoose.Schema({
-  userId: { type: String, required: true },
-  domain: { type: String, required: true },
-  used: { type: Number, default: 0 },
-  resetAt: { type: String, required: true },
-}, { collection: 'email_quotas' });
-const EmailQuotaModel = mongoose.models.EmailQuota || mongoose.model('EmailQuota', EmailQuotaSchema);
+const EmailQuotaSchema = new mongoose.Schema(
+  {
+    userId: { type: String, required: true },
+    domain: { type: String, required: true },
+    used: { type: Number, default: 0 },
+    resetAt: { type: String, required: true },
+  },
+  { collection: "email_quotas" },
+);
+const EmailQuotaModel = mongoose.models.EmailQuota || mongoose.model("EmailQuota", EmailQuotaSchema);
 
 // 从环境变量获取Resend API密钥
-const RESEND_API_KEY = process.env.RESEND_API_KEY || 're_xxxxxxxxx';
+const RESEND_API_KEY = process.env.RESEND_API_KEY || "re_xxxxxxxxx";
 
 // 统一Resend发件人域名
-const RESEND_DOMAIN = process.env.RESEND_DOMAIN || 'hapxs.com';
+const RESEND_DOMAIN = process.env.RESEND_DOMAIN || "hapxs.com";
 const DEFAULT_EMAIL_FROM = `noreply@${RESEND_DOMAIN}`;
 
 // 创建Resend实例
 const resend = new Resend(RESEND_API_KEY);
 
 // 邮件配额存储实现（多后端支持）
-import fs from 'fs';
-import path from 'path';
-import { getUserById } from './userService';
+import fs from "fs";
+import path from "path";
+import { getUserById } from "./userService";
 
 const EMAIL_QUOTA_TOTAL = Number(process.env.RESEND_QUOTA_TOTAL) || 100;
-const EMAIL_QUOTA_FILE = path.join(__dirname, '../../data/email_quota.json');
+const EMAIL_QUOTA_FILE = path.join(__dirname, "../../data/email_quota.json");
 
 export interface EmailQuotaInfo {
   used: number;
@@ -39,7 +43,7 @@ export interface EmailQuotaInfo {
 }
 
 function isDangerousKey(key: string): boolean {
-  return key === '__proto__' || key === 'prototype' || key === 'constructor';
+  return key === "__proto__" || key === "prototype" || key === "constructor";
 }
 
 // 使用 null 原型对象避免原型链污染
@@ -50,10 +54,19 @@ function createSafeMap<T>(): Record<string, T> {
 function readQuotaFile(): Record<string, { used: number; resetAt: string }> {
   if (!fs.existsSync(EMAIL_QUOTA_FILE)) return createSafeMap();
   try {
-    const parsed = JSON.parse(fs.readFileSync(EMAIL_QUOTA_FILE, 'utf-8')) as Record<string, { used: number; resetAt: string }>;
+    const parsed = JSON.parse(fs.readFileSync(EMAIL_QUOTA_FILE, "utf-8")) as Record<
+      string,
+      { used: number; resetAt: string }
+    >;
     const safe = createSafeMap<{ used: number; resetAt: string }>();
     for (const [k, v] of Object.entries(parsed || {})) {
-      if (typeof k === 'string' && !isDangerousKey(k) && v && typeof v.used === 'number' && typeof v.resetAt === 'string') {
+      if (
+        typeof k === "string" &&
+        !isDangerousKey(k) &&
+        v &&
+        typeof v.used === "number" &&
+        typeof v.resetAt === "string"
+      ) {
         safe[k] = { used: v.used, resetAt: v.resetAt };
       }
     }
@@ -72,12 +85,12 @@ function writeQuotaFile(data: Record<string, { used: number; resetAt: string }>)
 }
 
 function safeGet<T extends { used: number; resetAt: string }>(map: Record<string, T>, key: string): T | undefined {
-  if (typeof key !== 'string' || isDangerousKey(key)) return undefined;
+  if (typeof key !== "string" || isDangerousKey(key)) return undefined;
   return map[key];
 }
 
 function safeSet<T extends { used: number; resetAt: string }>(map: Record<string, T>, key: string, value: T): void {
-  if (typeof key !== 'string' || isDangerousKey(key)) return;
+  if (typeof key !== "string" || isDangerousKey(key)) return;
   map[key] = value;
 }
 
@@ -86,8 +99,9 @@ const domainQuotaMap: Record<string, number> = {};
 (function loadDomainQuotas() {
   let idx = 0;
   while (true) {
-    const domain = process.env[`RESEND_DOMAIN${idx ? '_' + idx : ''}`] || (idx === 0 ? process.env.RESEND_DOMAIN : undefined);
-    const quota = process.env[`RESEND_QUOTA_TOTAL${idx ? '_' + idx : ''}`];
+    const domain =
+      process.env[`RESEND_DOMAIN${idx ? "_" + idx : ""}`] || (idx === 0 ? process.env.RESEND_DOMAIN : undefined);
+    const quota = process.env[`RESEND_QUOTA_TOTAL${idx ? "_" + idx : ""}`];
     if (!domain) break;
     domainQuotaMap[domain] = quota ? Number(quota) : 100;
     idx++;
@@ -96,25 +110,25 @@ const domainQuotaMap: Record<string, number> = {};
 
 // 安全正则转义
 function escapeRegExp(str: string) {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 export async function getEmailQuota(userId: string, domain?: string): Promise<EmailQuotaInfo & { quotaTotal: number }> {
   try {
     if (mongoose.connection.readyState === 1) {
       // 类型校验，防止NoSQL注入
-      const safeUserId = typeof userId === 'string' ? userId : '';
-      const safeDomain = typeof domain === 'string' ? domain : 'default';
+      const safeUserId = typeof userId === "string" ? userId : "";
+      const safeDomain = typeof domain === "string" ? domain : "default";
       const quotaTotal = safeDomain && domainQuotaMap[safeDomain] ? domainQuotaMap[safeDomain] : 100;
       let quota = await EmailQuotaModel.findOne({ userId: safeUserId, domain: safeDomain });
       const now = dayjs();
       if (!quota || !quota.resetAt || dayjs(quota.resetAt).isBefore(now)) {
         // 首次/已过期，重置
-        const resetAt = now.add(1, 'day').startOf('day').toISOString();
+        const resetAt = now.add(1, "day").startOf("day").toISOString();
         quota = await EmailQuotaModel.findOneAndUpdate(
           { userId: safeUserId, domain: safeDomain },
           { used: 0, resetAt },
-          { upsert: true, new: true }
+          { upsert: true, new: true },
         );
       }
       return { used: quota.used, total: quotaTotal, resetAt: quota.resetAt, quotaTotal };
@@ -124,11 +138,11 @@ export async function getEmailQuota(userId: string, domain?: string): Promise<Em
   }
   // 文件存储兜底
   const all = readQuotaFile();
-  const safeUserId = typeof userId === 'string' ? userId : '';
+  const safeUserId = typeof userId === "string" ? userId : "";
   let info = safeGet(all, safeUserId);
   const now = dayjs();
   if (!info || !info.resetAt || dayjs(info.resetAt).isBefore(now)) {
-    info = { used: 0, resetAt: now.add(1, 'day').startOf('day').toISOString() };
+    info = { used: 0, resetAt: now.add(1, "day").startOf("day").toISOString() };
     safeSet(all, safeUserId, info);
     writeQuotaFile(all);
   }
@@ -139,18 +153,18 @@ export async function getEmailQuota(userId: string, domain?: string): Promise<Em
 export async function addEmailUsage(userId: string, count = 1, domain?: string) {
   try {
     if (mongoose.connection.readyState === 1) {
-      const safeUserId = typeof userId === 'string' ? userId : '';
-      const safeDomain = typeof domain === 'string' ? domain : 'default';
+      const safeUserId = typeof userId === "string" ? userId : "";
+      const safeDomain = typeof domain === "string" ? domain : "default";
       const quotaTotal = safeDomain && domainQuotaMap[safeDomain] ? domainQuotaMap[safeDomain] : 100;
       let quota = await EmailQuotaModel.findOne({ userId: safeUserId, domain: safeDomain });
       const now = dayjs();
       if (!quota || !quota.resetAt || dayjs(quota.resetAt).isBefore(now)) {
         // 首次/已过期，重置
-        const resetAt = now.add(1, 'day').startOf('day').toISOString();
+        const resetAt = now.add(1, "day").startOf("day").toISOString();
         quota = await EmailQuotaModel.findOneAndUpdate(
           { userId: safeUserId, domain: safeDomain },
           { used: count, resetAt },
-          { upsert: true, new: true }
+          { upsert: true, new: true },
         );
       } else {
         quota.used = (quota.used || 0) + count;
@@ -163,11 +177,11 @@ export async function addEmailUsage(userId: string, count = 1, domain?: string) 
   }
   // 文件存储兜底
   const all = readQuotaFile();
-  const safeUserId = typeof userId === 'string' ? userId : '';
+  const safeUserId = typeof userId === "string" ? userId : "";
   let info = safeGet(all, safeUserId);
   const now = dayjs();
   if (!info || !info.resetAt || dayjs(info.resetAt).isBefore(now)) {
-    info = { used: 0, resetAt: now.add(1, 'day').startOf('day').toISOString() };
+    info = { used: 0, resetAt: now.add(1, "day").startOf("day").toISOString() };
   }
   info.used = (info.used || 0) + count;
   safeSet(all, safeUserId, info);
@@ -177,13 +191,13 @@ export async function addEmailUsage(userId: string, count = 1, domain?: string) 
 export async function resetEmailQuota(userId: string, domain?: string) {
   try {
     if (mongoose.connection.readyState === 1) {
-      const safeUserId = typeof userId === 'string' ? userId : '';
-      const safeDomain = typeof domain === 'string' ? domain : 'default';
-      const resetAt = dayjs().add(1, 'day').startOf('day').toISOString();
+      const safeUserId = typeof userId === "string" ? userId : "";
+      const safeDomain = typeof domain === "string" ? domain : "default";
+      const resetAt = dayjs().add(1, "day").startOf("day").toISOString();
       await EmailQuotaModel.findOneAndUpdate(
         { userId: safeUserId, domain: safeDomain },
         { used: 0, resetAt },
-        { upsert: true }
+        { upsert: true },
       );
       return;
     }
@@ -192,8 +206,8 @@ export async function resetEmailQuota(userId: string, domain?: string) {
   }
   // 文件存储兜底
   const all = readQuotaFile();
-  const safeUserId = typeof userId === 'string' ? userId : '';
-  safeSet(all, safeUserId, { used: 0, resetAt: dayjs().add(1, 'day').startOf('day').toISOString() });
+  const safeUserId = typeof userId === "string" ? userId : "";
+  safeSet(all, safeUserId, { used: 0, resetAt: dayjs().add(1, "day").startOf("day").toISOString() });
   writeQuotaFile(all);
 }
 
@@ -222,8 +236,10 @@ const domainApiKeyMap: Record<string, string> = {};
 (function loadDomainApiKeys() {
   let idx = 0;
   while (true) {
-    const domain = process.env[`RESEND_DOMAIN${idx ? '_' + idx : ''}`] || (idx === 0 ? process.env.RESEND_DOMAIN : undefined);
-    const key = process.env[`RESEND_API_KEY${idx ? '_' + idx : ''}`] || (idx === 0 ? process.env.RESEND_API_KEY : undefined);
+    const domain =
+      process.env[`RESEND_DOMAIN${idx ? "_" + idx : ""}`] || (idx === 0 ? process.env.RESEND_DOMAIN : undefined);
+    const key =
+      process.env[`RESEND_API_KEY${idx ? "_" + idx : ""}`] || (idx === 0 ? process.env.RESEND_API_KEY : undefined);
     if (!domain || !key) break;
     // 只接受 re_ 开头的 key
     if (/^re_\w{8,}/.test(key)) {
@@ -252,30 +268,30 @@ export class EmailService {
   static async sendEmail(emailData: EmailData): Promise<EmailResponse> {
     // 检查邮件服务是否启用
     if (!(globalThis as any).EMAIL_ENABLED) {
-      return { success: false, error: '邮件服务未启用，请联系管理员配置 RESEND_API_KEY' };
+      return { success: false, error: "邮件服务未启用，请联系管理员配置 RESEND_API_KEY" };
     }
 
     // 检查邮件服务状态
     const serviceStatus = (globalThis as any).EMAIL_SERVICE_STATUS;
     if (serviceStatus && !serviceStatus.available) {
-      return { success: false, error: serviceStatus.error || '邮件服务不可用' };
+      return { success: false, error: serviceStatus.error || "邮件服务不可用" };
     }
 
     try {
       // 验证发件人域名
-      const domain = emailData.from.split('@')[1];
+      const domain = emailData.from.split("@")[1];
       if (!domainApiKeyMap[domain]) {
         return {
           success: false,
-          error: `发件人邮箱必须是已配置域名之一，当前域名: ${domain}`
+          error: `发件人邮箱必须是已配置域名之一，当前域名: ${domain}`,
         };
       }
       const resend = getResendInstanceByDomain(domain);
-      logger.log('开始发送邮件', {
+      logger.log("开始发送邮件", {
         from: emailData.from,
         to: emailData.to,
         subject: emailData.subject,
-        hasAttachments: !!emailData.attachments?.length
+        hasAttachments: !!emailData.attachments?.length,
       });
       const { data, error } = await resend.emails.send({
         from: emailData.from,
@@ -283,39 +299,39 @@ export class EmailService {
         subject: emailData.subject,
         html: emailData.html,
         text: emailData.text,
-        attachments: emailData.attachments
+        attachments: emailData.attachments,
       });
       if (error) {
-        logger.error('邮件发送失败', {
+        logger.error("邮件发送失败", {
           error: error.message,
           code: (error as any).statusCode,
-          details: error
+          details: error,
         });
         return {
           success: false,
-          error: error.message || '邮件发送失败'
+          error: error.message || "邮件发送失败",
         };
       }
-      logger.log('邮件发送成功', {
+      logger.log("邮件发送成功", {
         messageId: data?.id,
         from: emailData.from,
         to: emailData.to,
-        subject: emailData.subject
+        subject: emailData.subject,
       });
       return {
         success: true,
         data,
-        messageId: data?.id
+        messageId: data?.id,
       };
     } catch (error: any) {
-      const errorMessage = error instanceof Error ? error.message : '未知错误';
-      logger.error('邮件发送异常', {
+      const errorMessage = error instanceof Error ? error.message : "未知错误";
+      logger.error("邮件发送异常", {
         error: errorMessage,
-        stack: error instanceof Error ? error.stack : undefined
+        stack: error instanceof Error ? error.stack : undefined,
       });
       return {
         success: false,
-        error: errorMessage
+        error: errorMessage,
       };
     }
   }
@@ -328,30 +344,25 @@ export class EmailService {
    * @param from 发件人（可选）
    * @returns 发送结果
    */
-  static async sendSimpleEmail(
-    to: string[],
-    subject: string,
-    content: string,
-    from?: string
-  ): Promise<EmailResponse> {
+  static async sendSimpleEmail(to: string[], subject: string, content: string, from?: string): Promise<EmailResponse> {
     if (!(globalThis as any).EMAIL_ENABLED) {
-      return { success: false, error: '邮件服务未启用，请联系管理员配置 RESEND_API_KEY' };
+      return { success: false, error: "邮件服务未启用，请联系管理员配置 RESEND_API_KEY" };
     }
 
     // 检查邮件服务状态
     const serviceStatus = (globalThis as any).EMAIL_SERVICE_STATUS;
     if (serviceStatus && !serviceStatus.available) {
-      return { success: false, error: serviceStatus.error || '邮件服务不可用' };
+      return { success: false, error: serviceStatus.error || "邮件服务不可用" };
     }
 
-    return this.sendEmail({
+    return EmailService.sendEmail({
       from: from || DEFAULT_EMAIL_FROM,
       to,
       subject,
       html: `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-        <p>${content.replace(/\n/g, '<br>')}</p>
+        <p>${content.replace(/\n/g, "<br>")}</p>
       </div>`,
-      text: content
+      text: content,
     });
   }
 
@@ -367,23 +378,23 @@ export class EmailService {
     to: string[],
     subject: string,
     htmlContent: string,
-    from?: string
+    from?: string,
   ): Promise<EmailResponse> {
     if (!(globalThis as any).EMAIL_ENABLED) {
-      return { success: false, error: '邮件服务未启用，请联系管理员配置 RESEND_API_KEY' };
+      return { success: false, error: "邮件服务未启用，请联系管理员配置 RESEND_API_KEY" };
     }
 
     // 检查邮件服务状态
     const serviceStatus = (globalThis as any).EMAIL_SERVICE_STATUS;
     if (serviceStatus && !serviceStatus.available) {
-      return { success: false, error: serviceStatus.error || '邮件服务不可用' };
+      return { success: false, error: serviceStatus.error || "邮件服务不可用" };
     }
 
-    return this.sendEmail({
+    return EmailService.sendEmail({
       from: from || DEFAULT_EMAIL_FROM,
       to,
       subject,
-      html: htmlContent
+      html: htmlContent,
     });
   }
 
@@ -395,23 +406,23 @@ export class EmailService {
     to: string[],
     subject: string,
     htmlContent: string,
-    from?: string
+    from?: string,
   ): Promise<EmailResponse & { ids?: string[] }> {
     if (!(globalThis as any).EMAIL_ENABLED) {
-      return { success: false, error: '邮件服务未启用，请联系管理员配置 RESEND_API_KEY' };
+      return { success: false, error: "邮件服务未启用，请联系管理员配置 RESEND_API_KEY" };
     }
 
     const serviceStatus = (globalThis as any).EMAIL_SERVICE_STATUS;
     if (serviceStatus && !serviceStatus.available) {
-      return { success: false, error: serviceStatus.error || '邮件服务不可用' };
+      return { success: false, error: serviceStatus.error || "邮件服务不可用" };
     }
 
-    const safeTo = (to || []).map(t => String(t).trim()).filter(Boolean);
-    if (safeTo.length === 0) return { success: false, error: '收件人不能为空' };
-    if (safeTo.length > 100) return { success: false, error: '批量收件人最多100个' };
+    const safeTo = (to || []).map((t) => String(t).trim()).filter(Boolean);
+    if (safeTo.length === 0) return { success: false, error: "收件人不能为空" };
+    if (safeTo.length > 100) return { success: false, error: "批量收件人最多100个" };
 
     const sender = from || DEFAULT_EMAIL_FROM;
-    const domain = sender.split('@')[1] || RESEND_DOMAIN;
+    const domain = sender.split("@")[1] || RESEND_DOMAIN;
     const resendInst = getResendInstanceByDomain(domain);
 
     try {
@@ -419,15 +430,15 @@ export class EmailService {
         from: sender,
         to: [r],
         subject,
-        html: htmlContent
+        html: htmlContent,
       }));
-      // @ts-ignore - resend typings may not include batch yet
+      // @ts-expect-error - resend typings may not include batch yet
       const { data, error } = await (resendInst as any).batch.send(batch);
       if (error) return { success: false, error: error.message || String(error) };
       const ids = Array.isArray(data) ? data.map((d: any) => d?.id).filter(Boolean) : undefined;
       return { success: true, data, ids };
     } catch (e: any) {
-      return { success: false, error: e?.message || '批量发送失败' };
+      return { success: false, error: e?.message || "批量发送失败" };
     }
   }
 
@@ -436,16 +447,26 @@ export class EmailService {
    * @param param0 { from, to, subject, markdown }
    * @returns 发送结果
    */
-  static async sendMarkdownEmail({ from, to, subject, markdown }: { from: string, to: string[], subject: string, markdown: string }): Promise<EmailResponse> {
+  static async sendMarkdownEmail({
+    from,
+    to,
+    subject,
+    markdown,
+  }: {
+    from: string;
+    to: string[];
+    subject: string;
+    markdown: string;
+  }): Promise<EmailResponse> {
     // markdown转html
     let html: string;
-    const parsed = typeof marked.parse === 'function' ? marked.parse(markdown || '') : marked(markdown || '');
+    const parsed = typeof marked.parse === "function" ? marked.parse(markdown || "") : marked(markdown || "");
     if (parsed instanceof Promise) {
       html = await parsed;
     } else {
       html = parsed as string;
     }
-    return this.sendEmail({ from, to, subject, html, text: markdown });
+    return EmailService.sendEmail({ from, to, subject, html, text: markdown });
   }
 
   /**
@@ -456,16 +477,38 @@ export class EmailService {
   static isValidEmail(email: string): boolean {
     // 允许主流邮箱域名
     const allowedDomains = [
-      'gmail.com', 'outlook.com', 'qq.com', '163.com', '126.com',
-      'hotmail.com', 'yahoo.com', 'icloud.com', 'foxmail.com',
-      'protonmail.com', 'sina.com', 'sohu.com', 'yeah.net', 'vip.qq.com',
-      'aliyun.com', '139.com', '189.cn', '21cn.com', 'tom.com', '263.net',
-      'me.com', 'live.com', 'msn.com', 'hotmail.com', 'ymail.com', 'aol.com', 'hapxs.com'
+      "gmail.com",
+      "outlook.com",
+      "qq.com",
+      "163.com",
+      "126.com",
+      "hotmail.com",
+      "yahoo.com",
+      "icloud.com",
+      "foxmail.com",
+      "protonmail.com",
+      "sina.com",
+      "sohu.com",
+      "yeah.net",
+      "vip.qq.com",
+      "aliyun.com",
+      "139.com",
+      "189.cn",
+      "21cn.com",
+      "tom.com",
+      "263.net",
+      "me.com",
+      "live.com",
+      "msn.com",
+      "hotmail.com",
+      "ymail.com",
+      "aol.com",
+      "hapxs.com",
     ];
-    const emailRegex = new RegExp(`^[\\w.-]+@(${allowedDomains.map(escapeRegExp).join('|')})$`);
+    const emailRegex = new RegExp(`^[\\w.-]+@(${allowedDomains.map(escapeRegExp).join("|")})$`);
     if (!emailRegex.test(email)) return false;
-    const domain = email.split('@')[1].toLowerCase();
-    return allowedDomains.some(d => domain === d);
+    const domain = email.split("@")[1].toLowerCase();
+    return allowedDomains.some((d) => domain === d);
   }
 
   /**
@@ -474,7 +517,7 @@ export class EmailService {
    * @returns 是否允许的域名
    */
   static isValidSenderDomain(email: string): boolean {
-    const domain = email.split('@')[1];
+    const domain = email.split("@")[1];
     return domain === RESEND_DOMAIN;
   }
 
@@ -483,12 +526,12 @@ export class EmailService {
    * @param emails 邮箱地址数组
    * @returns 验证结果
    */
-  static validateEmails(emails: string[]): { valid: string[], invalid: string[] } {
+  static validateEmails(emails: string[]): { valid: string[]; invalid: string[] } {
     const valid: string[] = [];
     const invalid: string[] = [];
 
-    emails.forEach(email => {
-      if (this.isValidEmail(email.trim())) {
+    emails.forEach((email) => {
+      if (EmailService.isValidEmail(email.trim())) {
         valid.push(email.trim());
       } else {
         invalid.push(email);
@@ -509,10 +552,10 @@ export class EmailService {
     }
     // 只做配置检查，不发送测试邮件
     const keys = Object.values(domainApiKeyMap);
-    const key = keys.find(k => /^re_\w{8,}/.test(k));
+    const key = keys.find((k) => /^re_\w{8,}/.test(k));
     if (!key) {
-      return { available: false, error: '未配置有效的邮件API密钥（re_ 开头）' };
+      return { available: false, error: "未配置有效的邮件API密钥（re_ 开头）" };
     }
     return { available: true };
   }
-} 
+}

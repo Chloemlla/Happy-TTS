@@ -1,46 +1,46 @@
-import express from 'express';
-import multer from 'multer';
-import { IPFSController } from '../controllers/ipfsController';
-import mongoose from 'mongoose';
-import logger from '../utils/logger';
-import { connectMongo } from '../services/mongoService';
-import rateLimit from 'express-rate-limit';
-import { authenticateAdmin } from '../middleware/auth';
+import express from "express";
+import rateLimit from "express-rate-limit";
+import mongoose from "mongoose";
+import multer from "multer";
+import { IPFSController } from "../controllers/ipfsController";
+import { authenticateAdmin } from "../middleware/auth";
+import { connectMongo } from "../services/mongoService";
+import logger from "../utils/logger";
 
 const router = express.Router();
 
 // 配置multer中间件用于文件上传
 const upload = multer({
-    storage: multer.memoryStorage(), // 将文件存储在内存中
-    limits: {
-        fileSize: 5 * 1024 * 1024, // 限制文件大小为5MB
-        files: 1 // 只允许上传一个文件
-    },
-    fileFilter: (req, file, cb) => {
-        // 文件类型检查将在服务层动态处理，这里允许所有文件通过
-        // 实际的文件类型限制由IPFS_ALLOW_ALL_FILE_TYPES配置控制
-        cb(null, true);
-    }
+  storage: multer.memoryStorage(), // 将文件存储在内存中
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 限制文件大小为5MB
+    files: 1, // 只允许上传一个文件
+  },
+  fileFilter: (req, file, cb) => {
+    // 文件类型检查将在服务层动态处理，这里允许所有文件通过
+    // 实际的文件类型限制由IPFS_ALLOW_ALL_FILE_TYPES配置控制
+    cb(null, true);
+  },
 });
 
 // 图片上传限速：每IP每分钟最多10次
 const uploadLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 30,
-  message: { error: '上传过于频繁，请稍后再试' },
+  message: { error: "上传过于频繁，请稍后再试" },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.ip || (req.socket?.remoteAddress) || 'unknown',
+  keyGenerator: (req) => req.ip || req.socket?.remoteAddress || "unknown",
 });
 
 // 短链跳转限速：每IP每分钟最多60次
 const shortlinkLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 60,
-  message: { error: '访问过于频繁，请稍后再试' },
+  message: { error: "访问过于频繁，请稍后再试" },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.ip || (req.socket?.remoteAddress) || 'unknown',
+  keyGenerator: (req) => req.ip || req.socket?.remoteAddress || "unknown",
 });
 
 /**
@@ -116,7 +116,7 @@ const shortlinkLimiter = rateLimit({
  *                   type: string
  *                   description: 错误信息
  */
-router.post('/upload', uploadLimiter, upload.single('file'), IPFSController.uploadImage);
+router.post("/upload", uploadLimiter, upload.single("file"), IPFSController.uploadImage);
 
 /**
  * @openapi
@@ -158,7 +158,7 @@ router.post('/upload', uploadLimiter, upload.single('file'), IPFSController.uplo
  *       500:
  *         description: 服务器错误
  */
-router.get('/settings', authenticateAdmin, IPFSController.getConfig);
+router.get("/settings", authenticateAdmin, IPFSController.getConfig);
 
 /**
  * @openapi
@@ -212,7 +212,7 @@ router.get('/settings', authenticateAdmin, IPFSController.getConfig);
  *       500:
  *         description: 服务器错误
  */
-router.post('/settings', authenticateAdmin, IPFSController.setConfig);
+router.post("/settings", authenticateAdmin, IPFSController.setConfig);
 
 /**
  * @openapi
@@ -241,38 +241,38 @@ router.post('/settings', authenticateAdmin, IPFSController.setConfig);
  *       500:
  *         description: 服务器错误
  */
-router.post('/settings/test', authenticateAdmin, IPFSController.testConfig);
+router.post("/settings/test", authenticateAdmin, IPFSController.testConfig);
 
 // 短链跳转路由 - 必须放在最后，避免与其他路由冲突
-router.get('/:code', shortlinkLimiter, async (req, res) => {
+router.get("/:code", shortlinkLimiter, async (req, res) => {
   const code = req.params.code;
-  const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+  const ip = req.headers["x-forwarded-for"] || req.connection.remoteAddress;
   if (!code) {
-    logger.warn('[ShortLink] 缺少短链码', { ip, code });
-    return res.status(400).send('缺少短链码');
+    logger.warn("[ShortLink] 缺少短链码", { ip, code });
+    return res.status(400).send("缺少短链码");
   }
   try {
     // 强制确保数据库已连接
-    logger.info('[ShortLink] 检查数据库连接状态', { readyState: mongoose.connection.readyState });
+    logger.info("[ShortLink] 检查数据库连接状态", { readyState: mongoose.connection.readyState });
     if (mongoose.connection.readyState !== 1) {
-      logger.warn('[ShortLink] 数据库未连接，尝试重连...');
+      logger.warn("[ShortLink] 数据库未连接，尝试重连...");
       await connectMongo();
-      logger.info('[ShortLink] 数据库重连完成', { readyState: mongoose.connection.readyState });
+      logger.info("[ShortLink] 数据库重连完成", { readyState: mongoose.connection.readyState });
     }
-    const ShortUrlModel = mongoose.models.ShortUrl || mongoose.model('ShortUrl');
-    logger.info('[ShortLink] 查询短链', { code, model: ShortUrlModel.modelName });
+    const ShortUrlModel = mongoose.models.ShortUrl || mongoose.model("ShortUrl");
+    logger.info("[ShortLink] 查询短链", { code, model: ShortUrlModel.modelName });
     const record = await ShortUrlModel.findOne({ code });
-    logger.info('[ShortLink] 查询结果', { code, record });
+    logger.info("[ShortLink] 查询结果", { code, record });
     if (!record) {
-      logger.warn('[ShortLink] 短链不存在', { ip, code });
-      return res.status(404).send('短链不存在');
+      logger.warn("[ShortLink] 短链不存在", { ip, code });
+      return res.status(404).send("短链不存在");
     }
-    logger.info('[ShortLink] 短链跳转', { ip, code, target: record.target });
+    logger.info("[ShortLink] 短链跳转", { ip, code, target: record.target });
     res.redirect(301, record.target); // 永久重定向
   } catch (err) {
-    logger.error('[ShortLink] 短链跳转异常', { ip, code, error: err });
-    res.status(500).send('短链跳转异常');
+    logger.error("[ShortLink] 短链跳转异常", { ip, code, error: err });
+    res.status(500).send("短链跳转异常");
   }
 });
 
-export default router; 
+export default router;

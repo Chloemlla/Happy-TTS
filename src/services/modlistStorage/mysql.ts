@@ -1,8 +1,8 @@
-import mysql from 'mysql2/promise';
-import { formatModForOutput } from './shared';
+import mysql from "mysql2/promise";
+import { formatModForOutput } from "./shared";
 
-const MYSQL_URI = process.env.MYSQL_URI || 'mysql://root:password@localhost:3306/tts';
-const TABLE = 'modlist';
+const MYSQL_URI = process.env.MYSQL_URI || "mysql://root:password@localhost:3306/tts";
+const TABLE = "modlist";
 
 async function getConn() {
   const conn = await mysql.createConnection(MYSQL_URI);
@@ -15,22 +15,27 @@ async function getConn() {
   return conn;
 }
 
-export async function getAllMods({ withHash, withMd5 }: { withHash?: boolean, withMd5?: boolean } = {}) {
+export async function getAllMods({ withHash, withMd5 }: { withHash?: boolean; withMd5?: boolean } = {}) {
   const conn = await getConn();
   const [rows] = await conn.execute(`SELECT * FROM ${TABLE}`);
   await conn.end();
   return (rows as any[]).map((mod: any) => formatModForOutput(mod, { withHash, withMd5 }));
 }
 
-export async function addMod(mod: { name: string, hash?: string, md5?: string }) {
+export async function addMod(mod: { name: string; hash?: string; md5?: string }) {
   const conn = await getConn();
   const [rows] = await conn.execute(`SELECT * FROM ${TABLE} WHERE name=?`, [mod.name]);
   if ((rows as any[]).length > 0) {
     await conn.end();
-    throw new Error('MOD名已存在');
+    throw new Error("MOD名已存在");
   }
   const id = Date.now().toString();
-  await conn.execute(`INSERT INTO ${TABLE} (id, name, hash, md5) VALUES (?, ?, ?, ?)`, [id, mod.name, mod.hash || null, mod.md5 || null]);
+  await conn.execute(`INSERT INTO ${TABLE} (id, name, hash, md5) VALUES (?, ?, ?, ?)`, [
+    id,
+    mod.name,
+    mod.hash || null,
+    mod.md5 || null,
+  ]);
   await conn.end();
   return { id, name: mod.name, hash: mod.hash, md5: mod.md5 };
 }
@@ -40,7 +45,7 @@ export async function updateMod(id: string, name: string, hash?: string, md5?: s
   const [rows] = await conn.execute(`SELECT * FROM ${TABLE} WHERE id=?`, [id]);
   if ((rows as any[]).length === 0) {
     await conn.end();
-    throw new Error('未找到MOD');
+    throw new Error("未找到MOD");
   }
   await conn.execute(`UPDATE ${TABLE} SET name=?, hash=?, md5=? WHERE id=?`, [name, hash || null, md5 || null, id]);
   const [after] = await conn.execute(`SELECT * FROM ${TABLE} WHERE id=?`, [id]);
