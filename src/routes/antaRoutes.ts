@@ -1,5 +1,5 @@
-import express from 'express';
-import { AntaController } from '../controllers/antaController';
+import express from "express";
+import { AntaController } from "../controllers/antaController";
 
 const router = express.Router();
 
@@ -112,10 +112,10 @@ const router = express.Router();
  *                   description: 错误信息
  */
 // 新的POST路由用于查询产品
-router.post('/query', AntaController.queryProduct);
+router.post("/query", AntaController.queryProduct);
 
 // 保留旧的GET路由以兼容现有代码
-router.get('/query/:productId', AntaController.queryProductLegacy);
+router.get("/query/:productId", AntaController.queryProductLegacy);
 
 /**
  * @openapi
@@ -132,7 +132,7 @@ router.get('/query/:productId', AntaController.queryProductLegacy);
  *       200:
  *         description: 成功
  */
-router.get('/stats/:productId', AntaController.getProductStats);
+router.get("/stats/:productId", AntaController.getProductStats);
 
 /**
  * @openapi
@@ -149,7 +149,7 @@ router.get('/stats/:productId', AntaController.getProductStats);
  *       200:
  *         description: 成功
  */
-router.get('/stats/top', AntaController.getTopStats);
+router.get("/stats/top", AntaController.getTopStats);
 
 /**
  * @openapi
@@ -170,6 +170,6 @@ router.get('/stats/top', AntaController.getTopStats);
  *       200:
  *         description: 成功
  */
-router.get('/history', AntaController.getRecentHistory);
+router.get("/history", AntaController.getRecentHistory);
 
 export default router;

@@ -13,7 +13,7 @@ export interface GenerationRecord {
 
 // 共享的工具函数
 export async function isAdminUser(userId: string): Promise<boolean> {
-  const { getUserById } = await import('../userService');
+  const { getUserById } = await import("../userService");
   const user = await getUserById(userId);
-  return !!(user && user.role === 'admin');
-} 
+  return !!(user && user.role === "admin");
+}

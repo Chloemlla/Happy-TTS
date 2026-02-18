@@ -1,10 +1,12 @@
-import { Request, Response } from 'express';
-import logger from '../utils/logger';
+import type { Request, Response } from "express";
+import logger from "../utils/logger";
+
 // AuthRequest接口直接定义在这里
 interface AuthRequest extends Request {
   user?: any;
 }
-import { ResourceService } from '../services/resourceService';
+
+import { ResourceService } from "../services/resourceService";
 
 const resourceService = new ResourceService();
 
@@ -15,8 +17,8 @@ export const getResources = async (req: Request, res: Response) => {
     const resources = await resourceService.getResources(Number(page), category as string);
     res.json(resources);
   } catch (error) {
-    logger.error('获取资源列表失败:', error);
-    res.status(500).json({ message: '获取资源列表失败' });
+    logger.error("获取资源列表失败:", error);
+    res.status(500).json({ message: "获取资源列表失败" });
   }
 };
 
@@ -26,11 +28,11 @@ export const getResourceById = async (req: Request, res: Response) => {
     const { id } = req.params;
     const resource = await resourceService.getResourceById(id);
     if (!resource) {
-      return res.status(404).json({ message: '资源不存在' });
+      return res.status(404).json({ message: "资源不存在" });
     }
     res.json(resource);
   } catch (error) {
-    res.status(500).json({ message: '获取资源详情失败' });
+    res.status(500).json({ message: "获取资源详情失败" });
   }
 };
 
@@ -40,7 +42,7 @@ export const getCategories = async (req: Request, res: Response) => {
     const categories = await resourceService.getCategories();
     res.json(categories);
   } catch (error) {
-    res.status(500).json({ message: '获取分类列表失败' });
+    res.status(500).json({ message: "获取分类列表失败" });
   }
 };
 
@@ -50,7 +52,7 @@ export const createResource = async (req: AuthRequest, res: Response) => {
     const resource = await resourceService.createResource(req.body);
     res.status(201).json(resource);
   } catch (error) {
-    res.status(500).json({ message: '创建资源失败' });
+    res.status(500).json({ message: "创建资源失败" });
   }
 };
 
@@ -60,11 +62,11 @@ export const updateResource = async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const resource = await resourceService.updateResource(id, req.body);
     if (!resource) {
-      return res.status(404).json({ message: '资源不存在' });
+      return res.status(404).json({ message: "资源不存在" });
     }
     res.json(resource);
   } catch (error) {
-    res.status(500).json({ message: '更新资源失败' });
+    res.status(500).json({ message: "更新资源失败" });
   }
 };
 
@@ -75,7 +77,7 @@ export const deleteResource = async (req: AuthRequest, res: Response) => {
     await resourceService.deleteResource(id);
     res.status(204).send();
   } catch (error) {
-    res.status(500).json({ message: '删除资源失败' });
+    res.status(500).json({ message: "删除资源失败" });
   }
 };
 
@@ -85,7 +87,7 @@ export const getResourceStats = async (req: AuthRequest, res: Response) => {
     const stats = await resourceService.getResourceStats();
     res.json(stats);
   } catch (error) {
-    res.status(500).json({ message: '获取资源统计信息失败' });
+    res.status(500).json({ message: "获取资源统计信息失败" });
   }
 };
 
@@ -95,7 +97,7 @@ export const initializeTestResources = async (req: AuthRequest, res: Response) =
     const result = await resourceService.initializeTestResources();
     res.json(result);
   } catch (error) {
-    logger.error('初始化测试资源失败:', error);
-    res.status(500).json({ message: '初始化测试资源失败' });
+    logger.error("初始化测试资源失败:", error);
+    res.status(500).json({ message: "初始化测试资源失败" });
   }
-}; 
+};

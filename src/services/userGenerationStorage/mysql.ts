@@ -1,8 +1,8 @@
-import mysql from 'mysql2/promise';
-import { GenerationRecord, isAdminUser as sharedIsAdminUser } from './types';
+import mysql from "mysql2/promise";
+import { type GenerationRecord, isAdminUser as sharedIsAdminUser } from "./types";
 
-const MYSQL_URI = process.env.MYSQL_URI || 'mysql://root:password@localhost:3306/tts';
-const TABLE = 'user_generations';
+const MYSQL_URI = process.env.MYSQL_URI || "mysql://root:password@localhost:3306/tts";
+const TABLE = "user_generations";
 
 async function getConn() {
   const conn = await mysql.createConnection(MYSQL_URI);
@@ -21,23 +21,47 @@ async function getConn() {
   return conn;
 }
 
-export async function findDuplicateGeneration({ userId, text, voice, model, contentHash }: GenerationRecord): Promise<GenerationRecord | null> {
+export async function findDuplicateGeneration({
+  userId,
+  text,
+  voice,
+  model,
+  contentHash,
+}: GenerationRecord): Promise<GenerationRecord | null> {
   const conn = await getConn();
   let [rows]: any = [null];
   if (contentHash) {
-    [rows] = await conn.execute(`SELECT * FROM ${TABLE} WHERE userId=? AND contentHash=? LIMIT 1`, [userId, contentHash]);
+    [rows] = await conn.execute(`SELECT * FROM ${TABLE} WHERE userId=? AND contentHash=? LIMIT 1`, [
+      userId,
+      contentHash,
+    ]);
   } else {
-    [rows] = await conn.execute(`SELECT * FROM ${TABLE} WHERE userId=? AND text=? AND voice=? AND model=? LIMIT 1`, [userId, text, voice, model]);
+    [rows] = await conn.execute(`SELECT * FROM ${TABLE} WHERE userId=? AND text=? AND voice=? AND model=? LIMIT 1`, [
+      userId,
+      text,
+      voice,
+      model,
+    ]);
   }
   await conn.end();
-  return rows && rows[0] ? rows[0] as GenerationRecord : null;
+  return rows && rows[0] ? (rows[0] as GenerationRecord) : null;
 }
 
 export async function addGenerationRecord(record: GenerationRecord): Promise<GenerationRecord> {
   const conn = await getConn();
   await conn.execute(
     `INSERT INTO ${TABLE} (userId, text, voice, model, outputFormat, speed, fileName, contentHash, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [record.userId, record.text, record.voice, record.model, record.outputFormat, record.speed, record.fileName, record.contentHash, new Date()]
+    [
+      record.userId,
+      record.text,
+      record.voice,
+      record.model,
+      record.outputFormat,
+      record.speed,
+      record.fileName,
+      record.contentHash,
+      new Date(),
+    ],
   );
   await conn.end();
   return record;
@@ -48,4 +72,4 @@ export async function isAdminUser(userId: string): Promise<boolean> {
 }
 
 // 重新导出类型
-export type { GenerationRecord }; 
+export type { GenerationRecord };

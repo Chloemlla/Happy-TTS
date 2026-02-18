@@ -1,6 +1,6 @@
-import { createWriteStream, existsSync, mkdirSync } from 'fs';
-import { join } from 'path';
-import config from '../config';
+import { createWriteStream, existsSync, mkdirSync } from "fs";
+import { join } from "path";
+import config from "../config";
 
 export class Logger {
   private logStream: NodeJS.WritableStream;
@@ -9,10 +9,10 @@ export class Logger {
     // For pkg executables, use absolute path relative to executable location
     // For development, use relative path as before
     let logDir: string;
-    
+
     if ((process as any).pkg) {
       // Running as pkg executable - use directory next to executable
-      logDir = join(process.cwd(), 'logs');
+      logDir = join(process.cwd(), "logs");
     } else {
       // Running in development - use config path
       logDir = config.paths.logs;
@@ -23,11 +23,11 @@ export class Logger {
         mkdirSync(logDir, { recursive: true });
       }
 
-      const logFile = join(logDir, `${new Date().toISOString().split('T')[0]}.log`);
-      this.logStream = createWriteStream(logFile, { flags: 'a' });
+      const logFile = join(logDir, `${new Date().toISOString().split("T")[0]}.log`);
+      this.logStream = createWriteStream(logFile, { flags: "a" });
     } catch (error) {
       // If we can't create log files, fall back to console logging
-      console.warn('无法创建日志文件，回退到控制台日志输出:', error);
+      console.warn("无法创建日志文件，回退到控制台日志输出:", error);
       this.logStream = process.stdout;
     }
   }
@@ -40,7 +40,7 @@ export class Logger {
       data,
     };
 
-    this.logStream.write(JSON.stringify(logEntry) + '\n');
+    this.logStream.write(JSON.stringify(logEntry) + "\n");
   }
 
   error(message: string, error?: any) {
@@ -61,4 +61,4 @@ export class Logger {
   }
 }
 
-export const logger = new Logger(); 
+export const logger = new Logger();

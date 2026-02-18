@@ -1,8 +1,8 @@
-import express from 'express';
-import { TtsController } from '../controllers/ttsController';
-import { TurnstileService } from '../services/turnstileService';
-import { ClarityService } from '../services/clarityService';
-import { config } from '../config/config';
+import express from "express";
+import { config } from "../config/config";
+import { TtsController } from "../controllers/ttsController";
+import { ClarityService } from "../services/clarityService";
+import { TurnstileService } from "../services/turnstileService";
 
 const router = express.Router();
 
@@ -52,7 +52,7 @@ const router = express.Router();
  *                   type: string
  *                   description: 签名
  */
-router.post('/generate', TtsController.generateSpeech);
+router.post("/generate", TtsController.generateSpeech);
 
 /**
  * @openapi
@@ -74,28 +74,28 @@ router.post('/generate', TtsController.generateSpeech);
  *                   type: string
  *                   description: Turnstile 站点密钥
  */
-router.get('/turnstile/config', async (req, res) => {
-    try {
-        const turnstileConfig = await TurnstileService.getConfig();
+router.get("/turnstile/config", async (req, res) => {
+  try {
+    const turnstileConfig = await TurnstileService.getConfig();
 
-        console.log('Turnstile config response:', {
-            enabled: turnstileConfig.enabled,
-            siteKey: turnstileConfig.siteKey,
-            siteKeyType: typeof turnstileConfig.siteKey
-        });
+    console.log("Turnstile config response:", {
+      enabled: turnstileConfig.enabled,
+      siteKey: turnstileConfig.siteKey,
+      siteKeyType: typeof turnstileConfig.siteKey,
+    });
 
-        res.json({
-            enabled: turnstileConfig.enabled,
-            siteKey: turnstileConfig.siteKey
-        });
-    } catch (error) {
-        console.error('获取Turnstile配置失败:', error);
-        res.status(500).json({
-            enabled: false,
-            siteKey: null,
-            error: '获取配置失败'
-        });
-    }
+    res.json({
+      enabled: turnstileConfig.enabled,
+      siteKey: turnstileConfig.siteKey,
+    });
+  } catch (error) {
+    console.error("获取Turnstile配置失败:", error);
+    res.status(500).json({
+      enabled: false,
+      siteKey: null,
+      error: "获取配置失败",
+    });
+  }
 });
 
 /**
@@ -118,28 +118,28 @@ router.get('/turnstile/config', async (req, res) => {
  *                   type: string
  *                   description: Clarity 项目ID
  */
-router.get('/clarity/config', async (req, res) => {
-    try {
-        const clarityConfig = await ClarityService.getConfig();
+router.get("/clarity/config", async (req, res) => {
+  try {
+    const clarityConfig = await ClarityService.getConfig();
 
-        console.log('Clarity config response:', {
-            enabled: clarityConfig.enabled,
-            projectId: clarityConfig.projectId,
-            projectIdType: typeof clarityConfig.projectId
-        });
+    console.log("Clarity config response:", {
+      enabled: clarityConfig.enabled,
+      projectId: clarityConfig.projectId,
+      projectIdType: typeof clarityConfig.projectId,
+    });
 
-        res.json({
-            enabled: clarityConfig.enabled,
-            projectId: clarityConfig.projectId
-        });
-    } catch (error) {
-        console.error('获取Clarity配置失败:', error);
-        res.status(500).json({
-            enabled: false,
-            projectId: null,
-            error: '获取配置失败'
-        });
-    }
+    res.json({
+      enabled: clarityConfig.enabled,
+      projectId: clarityConfig.projectId,
+    });
+  } catch (error) {
+    console.error("获取Clarity配置失败:", error);
+    res.status(500).json({
+      enabled: false,
+      projectId: null,
+      error: "获取配置失败",
+    });
+  }
 });
 
 /**
@@ -171,46 +171,46 @@ router.get('/clarity/config', async (req, res) => {
  *                 message:
  *                   type: string
  */
-router.post('/clarity/config', async (req, res) => {
-    try {
-        const { projectId } = req.body;
+router.post("/clarity/config", async (req, res) => {
+  try {
+    const { projectId } = req.body;
 
-        if (!projectId || typeof projectId !== 'string') {
-            return res.status(400).json({
-                success: false,
-                error: '项目ID不能为空'
-            });
-        }
-
-        // 获取请求元数据（可选）
-        const metadata = {
-            ip: req.ip || req.socket.remoteAddress,
-            userAgent: req.headers['user-agent']
-        };
-
-        const result = await ClarityService.updateConfig(projectId, metadata);
-
-        if (result.success) {
-            res.json({
-                success: true,
-                message: 'Clarity配置更新成功',
-                data: result.data
-            });
-        } else {
-            const statusCode = result.error?.code === 'INVALID_FORMAT' || result.error?.code === 'INVALID_INPUT' ? 400 : 500;
-            res.status(statusCode).json({
-                success: false,
-                error: result.error?.message || '配置更新失败',
-                code: result.error?.code
-            });
-        }
-    } catch (error) {
-        console.error('更新Clarity配置失败:', error);
-        res.status(500).json({
-            success: false,
-            error: '配置更新失败'
-        });
+    if (!projectId || typeof projectId !== "string") {
+      return res.status(400).json({
+        success: false,
+        error: "项目ID不能为空",
+      });
     }
+
+    // 获取请求元数据（可选）
+    const metadata = {
+      ip: req.ip || req.socket.remoteAddress,
+      userAgent: req.headers["user-agent"],
+    };
+
+    const result = await ClarityService.updateConfig(projectId, metadata);
+
+    if (result.success) {
+      res.json({
+        success: true,
+        message: "Clarity配置更新成功",
+        data: result.data,
+      });
+    } else {
+      const statusCode = result.error?.code === "INVALID_FORMAT" || result.error?.code === "INVALID_INPUT" ? 400 : 500;
+      res.status(statusCode).json({
+        success: false,
+        error: result.error?.message || "配置更新失败",
+        code: result.error?.code,
+      });
+    }
+  } catch (error) {
+    console.error("更新Clarity配置失败:", error);
+    res.status(500).json({
+      success: false,
+      error: "配置更新失败",
+    });
+  }
 });
 
 /**
@@ -232,35 +232,35 @@ router.post('/clarity/config', async (req, res) => {
  *                 message:
  *                   type: string
  */
-router.delete('/clarity/config', async (req, res) => {
-    try {
-        // 获取请求元数据（可选）
-        const metadata = {
-            ip: req.ip || req.socket.remoteAddress,
-            userAgent: req.headers['user-agent']
-        };
+router.delete("/clarity/config", async (req, res) => {
+  try {
+    // 获取请求元数据（可选）
+    const metadata = {
+      ip: req.ip || req.socket.remoteAddress,
+      userAgent: req.headers["user-agent"],
+    };
 
-        const result = await ClarityService.deleteConfig(metadata);
+    const result = await ClarityService.deleteConfig(metadata);
 
-        if (result.success) {
-            res.json({
-                success: true,
-                message: 'Clarity配置删除成功'
-            });
-        } else {
-            res.status(500).json({
-                success: false,
-                error: result.error?.message || '配置删除失败',
-                code: result.error?.code
-            });
-        }
-    } catch (error) {
-        console.error('删除Clarity配置失败:', error);
-        res.status(500).json({
-            success: false,
-            error: '配置删除失败'
-        });
+    if (result.success) {
+      res.json({
+        success: true,
+        message: "Clarity配置删除成功",
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: result.error?.message || "配置删除失败",
+        code: result.error?.code,
+      });
     }
+  } catch (error) {
+    console.error("删除Clarity配置失败:", error);
+    res.status(500).json({
+      success: false,
+      error: "配置删除失败",
+    });
+  }
 });
 
 /**
@@ -302,30 +302,30 @@ router.delete('/clarity/config', async (req, res) => {
  *                       changedAt:
  *                         type: string
  */
-router.get('/clarity/history', async (req, res) => {
-    try {
-        const limit = parseInt(req.query.limit as string) || 20;
-        const result = await ClarityService.getConfigHistory(limit);
+router.get("/clarity/history", async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 20;
+    const result = await ClarityService.getConfigHistory(limit);
 
-        if (result.success) {
-            res.json({
-                success: true,
-                data: result.data
-            });
-        } else {
-            res.status(500).json({
-                success: false,
-                error: result.error?.message || '获取配置历史失败',
-                code: result.error?.code
-            });
-        }
-    } catch (error) {
-        console.error('获取Clarity配置历史失败:', error);
-        res.status(500).json({
-            success: false,
-            error: '获取配置历史失败'
-        });
+    if (result.success) {
+      res.json({
+        success: true,
+        data: result.data,
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: result.error?.message || "获取配置历史失败",
+        code: result.error?.code,
+      });
     }
+  } catch (error) {
+    console.error("获取Clarity配置历史失败:", error);
+    res.status(500).json({
+      success: false,
+      error: "获取配置历史失败",
+    });
+  }
 });
 
 /**
@@ -346,6 +346,6 @@ router.get('/clarity/history', async (req, res) => {
  *                   type: array
  *                   description: 生成记录列表
  */
-router.get('/history', TtsController.getRecentGenerations);
+router.get("/history", TtsController.getRecentGenerations);
 
-export default router; 
+export default router;

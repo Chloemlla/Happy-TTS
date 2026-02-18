@@ -1,24 +1,27 @@
-import { Request, Response } from 'express';
-import { PolicyConsent, IPolicyConsent } from '../models/policyConsentModel';
-import { v4 as uuidv4 } from 'uuid';
-import crypto from 'crypto';
-import logger from '../utils/logger';
-import { getClientIP } from '../utils/ipUtils';
+import crypto from "crypto";
+import type { Request, Response } from "express";
+import { v4 as uuidv4 } from "uuid";
+import { IPolicyConsent, PolicyConsent } from "../models/policyConsentModel";
+import { getClientIP } from "../utils/ipUtils";
+import logger from "../utils/logger";
 
 // 当前政策版本
-const CURRENT_POLICY_VERSION = '2.0';
+const CURRENT_POLICY_VERSION = "2.0";
 const CONSENT_VALIDITY_DAYS = 30;
-const SECRET_SALT = process.env.POLICY_SECRET_SALT || 'hapxtts_secret_salt';
+const SECRET_SALT = process.env.POLICY_SECRET_SALT || "hapxtts_secret_salt";
 
 // 验证校验和
-function verifyChecksum(consent: { timestamp: number; version: string; fingerprint: string }, checksum: string): boolean {
+function verifyChecksum(
+  consent: { timestamp: number; version: string; fingerprint: string },
+  checksum: string,
+): boolean {
   const data = `${consent.timestamp}|${consent.version}|${consent.fingerprint}`;
   const expectedChecksum = crypto
-    .createHash('sha256')
+    .createHash("sha256")
     .update(data + SECRET_SALT)
-    .digest('hex')
+    .digest("hex")
     .substring(0, 8);
-  
+
   return checksum === expectedChecksum;
 }
 
@@ -26,9 +29,9 @@ function verifyChecksum(consent: { timestamp: number; version: string; fingerpri
 function generateChecksum(consent: { timestamp: number; version: string; fingerprint: string }): string {
   const data = `${consent.timestamp}|${consent.version}|${consent.fingerprint}`;
   return crypto
-    .createHash('sha256')
+    .createHash("sha256")
     .update(data + SECRET_SALT)
-    .digest('hex')
+    .digest("hex")
     .substring(0, 8);
 }
 
@@ -39,46 +42,51 @@ export const recordPolicyConsent = async (req: Request, res: Response): Promise<
     const clientIP = getClientIP(req);
 
     // 验证必需字段
-    if (!consent || !consent.timestamp || !consent.version || 
-        !consent.fingerprint || !consent.checksum) {
+    if (!consent || !consent.timestamp || !consent.version || !consent.fingerprint || !consent.checksum) {
       res.status(400).json({
         success: false,
-        error: 'Missing required consent fields',
-        code: 'MISSING_FIELDS'
+        error: "Missing required consent fields",
+        code: "MISSING_FIELDS",
       });
       return;
     }
 
     // 输入验证和清理
-    if (typeof consent.fingerprint !== 'string' || 
-        consent.fingerprint.trim().length === 0 || 
-        consent.fingerprint.trim().length > 100) {
+    if (
+      typeof consent.fingerprint !== "string" ||
+      consent.fingerprint.trim().length === 0 ||
+      consent.fingerprint.trim().length > 100
+    ) {
       res.status(400).json({
         success: false,
-        error: 'Invalid fingerprint format',
-        code: 'INVALID_FINGERPRINT'
+        error: "Invalid fingerprint format",
+        code: "INVALID_FINGERPRINT",
       });
       return;
     }
 
-    if (typeof consent.version !== 'string' || 
-        consent.version.trim().length === 0 || 
-        consent.version.trim().length > 50) {
+    if (
+      typeof consent.version !== "string" ||
+      consent.version.trim().length === 0 ||
+      consent.version.trim().length > 50
+    ) {
       res.status(400).json({
         success: false,
-        error: 'Invalid version format',
-        code: 'INVALID_VERSION'
+        error: "Invalid version format",
+        code: "INVALID_VERSION",
       });
       return;
     }
 
-    if (typeof consent.checksum !== 'string' || 
-        consent.checksum.trim().length === 0 || 
-        consent.checksum.trim().length > 100) {
+    if (
+      typeof consent.checksum !== "string" ||
+      consent.checksum.trim().length === 0 ||
+      consent.checksum.trim().length > 100
+    ) {
       res.status(400).json({
         success: false,
-        error: 'Invalid checksum format',
-        code: 'INVALID_CHECKSUM'
+        error: "Invalid checksum format",
+        code: "INVALID_CHECKSUM",
       });
       return;
     }
@@ -90,46 +98,46 @@ export const recordPolicyConsent = async (req: Request, res: Response): Promise<
 
     // 验证校验和
     if (!verifyChecksum(consent, sanitizedChecksum)) {
-      logger.warn('Policy consent checksum verification failed', {
+      logger.warn("Policy consent checksum verification failed", {
         fingerprint: sanitizedFingerprint,
         ip: clientIP,
-        userAgent: userAgent?.substring(0, 100)
+        userAgent: userAgent?.substring(0, 100),
       });
-      
+
       res.status(400).json({
         success: false,
-        error: 'Invalid consent data',
-        details: 'Checksum verification failed',
-        code: 'INVALID_CHECKSUM'
+        error: "Invalid consent data",
+        details: "Checksum verification failed",
+        code: "INVALID_CHECKSUM",
       });
       return;
     }
 
     // 验证时间戳（允许80秒的时间差）
     const now = Date.now();
-    const eightySecondsAgo = now - (80 * 1000);
-    const eightySecondsLater = now + (80 * 1000);
-    
+    const eightySecondsAgo = now - 80 * 1000;
+    const eightySecondsLater = now + 80 * 1000;
+
     if (consent.timestamp < eightySecondsAgo || consent.timestamp > eightySecondsLater) {
-      logger.warn('Policy consent invalid timestamp', {
+      logger.warn("Policy consent invalid timestamp", {
         consentTimestamp: consent.timestamp,
         currentTimestamp: now,
         timeDifference: Math.abs(consent.timestamp - now),
-        allowedRange: '±80 seconds',
+        allowedRange: "±80 seconds",
         fingerprint: sanitizedFingerprint,
-        ip: clientIP
+        ip: clientIP,
       });
-      
+
       res.status(400).json({
         success: false,
-        error: 'Invalid timestamp - must be within 80 seconds of server time',
+        error: "Invalid timestamp - must be within 80 seconds of server time",
         details: {
           serverTime: now,
           clientTime: consent.timestamp,
           timeDifference: Math.abs(consent.timestamp - now),
-          allowedRange: '±80 seconds'
+          allowedRange: "±80 seconds",
         },
-        code: 'INVALID_TIMESTAMP'
+        code: "INVALID_TIMESTAMP",
       });
       return;
     }
@@ -138,10 +146,10 @@ export const recordPolicyConsent = async (req: Request, res: Response): Promise<
     if (sanitizedVersion !== CURRENT_POLICY_VERSION) {
       res.status(400).json({
         success: false,
-        error: 'Unsupported policy version',
+        error: "Unsupported policy version",
         currentVersion: CURRENT_POLICY_VERSION,
         providedVersion: sanitizedVersion,
-        code: 'UNSUPPORTED_VERSION'
+        code: "UNSUPPORTED_VERSION",
       });
       return;
     }
@@ -149,25 +157,25 @@ export const recordPolicyConsent = async (req: Request, res: Response): Promise<
     // 检查是否已存在有效的同意记录
     const existingConsent = await PolicyConsent.findValidConsent(sanitizedFingerprint, sanitizedVersion);
     if (existingConsent) {
-      logger.info('Policy consent already exists', {
+      logger.info("Policy consent already exists", {
         consentId: existingConsent.id,
         fingerprint: sanitizedFingerprint,
-        ip: clientIP
+        ip: clientIP,
       });
-      
+
       res.json({
         success: true,
-        message: 'Consent already recorded',
+        message: "Consent already recorded",
         consentId: existingConsent.id,
-        expiresAt: existingConsent.expiresAt
+        expiresAt: existingConsent.expiresAt,
       });
       return;
     }
 
     // 创建新的同意记录
     const consentId = uuidv4();
-    const expiresAt = new Date(Date.now() + (CONSENT_VALIDITY_DAYS * 24 * 60 * 60 * 1000));
-    
+    const expiresAt = new Date(Date.now() + CONSENT_VALIDITY_DAYS * 24 * 60 * 60 * 1000);
+
     const newConsent = new PolicyConsent({
       id: consentId,
       timestamp: consent.timestamp,
@@ -176,39 +184,38 @@ export const recordPolicyConsent = async (req: Request, res: Response): Promise<
       checksum: sanitizedChecksum,
       userAgent: userAgent?.substring(0, 500),
       ipAddress: clientIP,
-      expiresAt
+      expiresAt,
     });
 
     await newConsent.save();
 
     // 记录日志
-    logger.info('Policy consent recorded successfully', {
+    logger.info("Policy consent recorded successfully", {
       consentId,
       version: sanitizedVersion,
       fingerprint: sanitizedFingerprint,
       ip: clientIP,
       userAgent: userAgent?.substring(0, 100),
-      expiresAt
+      expiresAt,
     });
 
     res.json({
       success: true,
-      message: 'Consent recorded successfully',
+      message: "Consent recorded successfully",
       consentId,
-      expiresAt
+      expiresAt,
+    });
+  } catch (error) {
+    logger.error("Error recording policy consent", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      stack: error instanceof Error ? error.stack : undefined,
+      body: req.body,
     });
 
-  } catch (error) {
-    logger.error('Error recording policy consent', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      body: req.body
-    });
-    
     res.status(500).json({
       success: false,
-      error: 'Internal server error',
-      code: 'INTERNAL_ERROR'
+      error: "Internal server error",
+      code: "INTERNAL_ERROR",
     });
   }
 };
@@ -220,20 +227,20 @@ export const verifyPolicyConsent = async (req: Request, res: Response): Promise<
     const clientIP = getClientIP(req);
 
     // 输入验证和清理
-    if (!fingerprint || typeof fingerprint !== 'string') {
+    if (!fingerprint || typeof fingerprint !== "string") {
       res.status(400).json({
         success: false,
-        error: 'Missing or invalid fingerprint',
-        code: 'MISSING_FINGERPRINT'
+        error: "Missing or invalid fingerprint",
+        code: "MISSING_FINGERPRINT",
       });
       return;
     }
 
-    if (!version || typeof version !== 'string') {
+    if (!version || typeof version !== "string") {
       res.status(400).json({
         success: false,
-        error: 'Missing or invalid version',
-        code: 'MISSING_VERSION'
+        error: "Missing or invalid version",
+        code: "MISSING_VERSION",
       });
       return;
     }
@@ -245,8 +252,8 @@ export const verifyPolicyConsent = async (req: Request, res: Response): Promise<
     if (sanitizedFingerprint.length === 0 || sanitizedFingerprint.length > 100) {
       res.status(400).json({
         success: false,
-        error: 'Invalid fingerprint format',
-        code: 'INVALID_FINGERPRINT'
+        error: "Invalid fingerprint format",
+        code: "INVALID_FINGERPRINT",
       });
       return;
     }
@@ -254,21 +261,21 @@ export const verifyPolicyConsent = async (req: Request, res: Response): Promise<
     if (sanitizedVersion.length === 0 || sanitizedVersion.length > 50) {
       res.status(400).json({
         success: false,
-        error: 'Invalid version format',
-        code: 'INVALID_VERSION'
+        error: "Invalid version format",
+        code: "INVALID_VERSION",
       });
       return;
     }
 
     // 查找有效的同意记录
     const consent = await PolicyConsent.findValidConsent(sanitizedFingerprint, sanitizedVersion);
-    
+
     if (!consent) {
       res.json({
         success: false,
         hasValidConsent: false,
-        message: 'No valid consent found',
-        currentVersion: CURRENT_POLICY_VERSION
+        message: "No valid consent found",
+        currentVersion: CURRENT_POLICY_VERSION,
       });
       return;
     }
@@ -278,21 +285,21 @@ export const verifyPolicyConsent = async (req: Request, res: Response): Promise<
       // 标记为无效
       consent.isValid = false;
       await consent.save();
-      
+
       res.json({
         success: false,
         hasValidConsent: false,
-        message: 'Consent expired',
-        currentVersion: CURRENT_POLICY_VERSION
+        message: "Consent expired",
+        currentVersion: CURRENT_POLICY_VERSION,
       });
       return;
     }
 
-    logger.info('Policy consent verified', {
+    logger.info("Policy consent verified", {
       consentId: consent.id,
       fingerprint,
       ip: clientIP,
-      expiresAt: consent.expiresAt
+      expiresAt: consent.expiresAt,
     });
 
     res.json({
@@ -301,20 +308,19 @@ export const verifyPolicyConsent = async (req: Request, res: Response): Promise<
       consentId: consent.id,
       version: consent.version,
       expiresAt: consent.expiresAt,
-      recordedAt: consent.recordedAt
+      recordedAt: consent.recordedAt,
+    });
+  } catch (error) {
+    logger.error("Error verifying policy consent", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      fingerprint: req.query.fingerprint,
+      version: req.query.version,
     });
 
-  } catch (error) {
-    logger.error('Error verifying policy consent', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      fingerprint: req.query.fingerprint,
-      version: req.query.version
-    });
-    
     res.status(500).json({
       success: false,
-      error: 'Internal server error',
-      code: 'INTERNAL_ERROR'
+      error: "Internal server error",
+      code: "INTERNAL_ERROR",
     });
   }
 };
@@ -326,11 +332,11 @@ export const revokePolicyConsent = async (req: Request, res: Response): Promise<
     const clientIP = getClientIP(req);
 
     // 输入验证和清理
-    if (!fingerprint || typeof fingerprint !== 'string') {
+    if (!fingerprint || typeof fingerprint !== "string") {
       res.status(400).json({
         success: false,
-        error: 'Missing or invalid fingerprint',
-        code: 'MISSING_FINGERPRINT'
+        error: "Missing or invalid fingerprint",
+        code: "MISSING_FINGERPRINT",
       });
       return;
     }
@@ -340,8 +346,8 @@ export const revokePolicyConsent = async (req: Request, res: Response): Promise<
     if (sanitizedFingerprint.length === 0 || sanitizedFingerprint.length > 100) {
       res.status(400).json({
         success: false,
-        error: 'Invalid fingerprint format',
-        code: 'INVALID_FINGERPRINT'
+        error: "Invalid fingerprint format",
+        code: "INVALID_FINGERPRINT",
       });
       return;
     }
@@ -349,11 +355,11 @@ export const revokePolicyConsent = async (req: Request, res: Response): Promise<
     // 验证版本号（如果提供）
     let sanitizedVersion: string | undefined;
     if (version) {
-      if (typeof version !== 'string') {
+      if (typeof version !== "string") {
         res.status(400).json({
           success: false,
-          error: 'Invalid version format',
-          code: 'INVALID_VERSION'
+          error: "Invalid version format",
+          code: "INVALID_VERSION",
         });
         return;
       }
@@ -361,8 +367,8 @@ export const revokePolicyConsent = async (req: Request, res: Response): Promise<
       if (sanitizedVersion.length === 0 || sanitizedVersion.length > 50) {
         res.status(400).json({
           success: false,
-          error: 'Invalid version format',
-          code: 'INVALID_VERSION'
+          error: "Invalid version format",
+          code: "INVALID_VERSION",
         });
         return;
       }
@@ -371,7 +377,7 @@ export const revokePolicyConsent = async (req: Request, res: Response): Promise<
     // 构建安全的查询对象
     const queryFilter: any = {
       fingerprint: sanitizedFingerprint,
-      isValid: true
+      isValid: true,
     };
 
     // 只有在版本号有效时才添加到查询中
@@ -380,38 +386,34 @@ export const revokePolicyConsent = async (req: Request, res: Response): Promise<
     }
 
     // 查找并撤销同意记录
-    const result = await PolicyConsent.updateMany(
-      queryFilter,
-      { 
-        isValid: false,
-        revokedAt: new Date(),
-        revokedIP: clientIP
-      }
-    );
+    const result = await PolicyConsent.updateMany(queryFilter, {
+      isValid: false,
+      revokedAt: new Date(),
+      revokedIP: clientIP,
+    });
 
-    logger.info('Policy consent revoked', {
+    logger.info("Policy consent revoked", {
       fingerprint: sanitizedFingerprint,
       version: sanitizedVersion,
       ip: clientIP,
-      modifiedCount: result.modifiedCount
+      modifiedCount: result.modifiedCount,
     });
 
     res.json({
       success: true,
-      message: 'Consent revoked successfully',
-      revokedCount: result.modifiedCount
+      message: "Consent revoked successfully",
+      revokedCount: result.modifiedCount,
+    });
+  } catch (error) {
+    logger.error("Error revoking policy consent", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      fingerprint: req.body.fingerprint,
     });
 
-  } catch (error) {
-    logger.error('Error revoking policy consent', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      fingerprint: req.body.fingerprint
-    });
-    
     res.status(500).json({
       success: false,
-      error: 'Internal server error',
-      code: 'INTERNAL_ERROR'
+      error: "Internal server error",
+      code: "INTERNAL_ERROR",
     });
   }
 };
@@ -420,45 +422,42 @@ export const revokePolicyConsent = async (req: Request, res: Response): Promise<
 export const getPolicyStats = async (req: Request, res: Response): Promise<void> => {
   try {
     const { startDate, endDate } = req.query;
-    
+
     const start = startDate ? new Date(startDate as string) : undefined;
     const end = endDate ? new Date(endDate as string) : undefined;
 
     // 获取统计信息
     const stats = await PolicyConsent.getStats(start, end);
-    
+
     // 获取总体统计
     const totalConsents = await PolicyConsent.countDocuments({ isValid: true });
-    const expiredConsents = await PolicyConsent.countDocuments({ 
-      $or: [
-        { expiresAt: { $lt: new Date() } },
-        { isValid: false }
-      ]
+    const expiredConsents = await PolicyConsent.countDocuments({
+      $or: [{ expiresAt: { $lt: new Date() } }, { isValid: false }],
     });
-    
+
     // 获取版本分布
     const versionStats = await PolicyConsent.aggregate([
       { $match: { isValid: true } },
-      { $group: { _id: '$version', count: { $sum: 1 } } },
-      { $sort: { _id: 1 } }
+      { $group: { _id: "$version", count: { $sum: 1 } } },
+      { $sort: { _id: 1 } },
     ]);
 
     // 获取最近7天的同意趋势
-    const sevenDaysAgo = new Date(Date.now() - (7 * 24 * 60 * 60 * 1000));
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const recentTrend = await PolicyConsent.aggregate([
       { $match: { recordedAt: { $gte: sevenDaysAgo } } },
       {
         $group: {
           _id: {
             $dateToString: {
-              format: '%Y-%m-%d',
-              date: '$recordedAt'
-            }
+              format: "%Y-%m-%d",
+              date: "$recordedAt",
+            },
           },
-          count: { $sum: 1 }
-        }
+          count: { $sum: 1 },
+        },
       },
-      { $sort: { _id: 1 } }
+      { $sort: { _id: 1 } },
     ]);
 
     res.json({
@@ -467,23 +466,22 @@ export const getPolicyStats = async (req: Request, res: Response): Promise<void>
         total: {
           validConsents: totalConsents,
           expiredConsents,
-          currentVersion: CURRENT_POLICY_VERSION
+          currentVersion: CURRENT_POLICY_VERSION,
         },
         versions: versionStats,
         recentTrend,
-        detailed: stats
-      }
+        detailed: stats,
+      },
+    });
+  } catch (error) {
+    logger.error("Error getting policy stats", {
+      error: error instanceof Error ? error.message : "Unknown error",
     });
 
-  } catch (error) {
-    logger.error('Error getting policy stats', {
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
-    
     res.status(500).json({
       success: false,
-      error: 'Internal server error',
-      code: 'INTERNAL_ERROR'
+      error: "Internal server error",
+      code: "INTERNAL_ERROR",
     });
   }
 };
@@ -492,26 +490,25 @@ export const getPolicyStats = async (req: Request, res: Response): Promise<void>
 export const cleanExpiredConsents = async (req: Request, res: Response): Promise<void> => {
   try {
     const result = await PolicyConsent.cleanExpiredConsents();
-    
-    logger.info('Expired policy consents cleaned', {
-      deletedCount: result.deletedCount
+
+    logger.info("Expired policy consents cleaned", {
+      deletedCount: result.deletedCount,
     });
 
     res.json({
       success: true,
-      message: 'Expired consents cleaned successfully',
-      deletedCount: result.deletedCount
+      message: "Expired consents cleaned successfully",
+      deletedCount: result.deletedCount,
+    });
+  } catch (error) {
+    logger.error("Error cleaning expired consents", {
+      error: error instanceof Error ? error.message : "Unknown error",
     });
 
-  } catch (error) {
-    logger.error('Error cleaning expired consents', {
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
-    
     res.status(500).json({
       success: false,
-      error: 'Internal server error',
-      code: 'INTERNAL_ERROR'
+      error: "Internal server error",
+      code: "INTERNAL_ERROR",
     });
   }
 };
@@ -521,6 +518,6 @@ export const getCurrentPolicyVersion = async (req: Request, res: Response): Prom
   res.json({
     success: true,
     version: CURRENT_POLICY_VERSION,
-    validityDays: CONSENT_VALIDITY_DAYS
+    validityDays: CONSENT_VALIDITY_DAYS,
   });
 };

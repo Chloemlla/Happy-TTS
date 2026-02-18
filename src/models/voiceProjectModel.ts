@@ -1,6 +1,6 @@
-import mongoose, { Schema, Document } from 'mongoose';
-import { ProjectContent, SharingSettings } from '../types/workspace';
-import { VoiceStyle } from '../types/recommendation';
+import mongoose, { type Document, Schema } from "mongoose";
+import type { VoiceStyle } from "../types/recommendation";
+import type { ProjectContent, SharingSettings } from "../types/workspace";
 
 // 语音风格子文档Schema
 const VoiceStyleSchema = new Schema<VoiceStyle>(
@@ -11,9 +11,9 @@ const VoiceStyleSchema = new Schema<VoiceStyle>(
     model: { type: String, required: true },
     speed: { type: Number, required: true },
     emotionalTone: { type: String, required: true },
-    language: { type: String, required: true }
+    language: { type: String, required: true },
   },
-  { _id: false }
+  { _id: false },
 );
 
 // 项目内容子文档Schema
@@ -22,9 +22,9 @@ const ProjectContentSchema = new Schema<ProjectContent>(
     text: { type: String, required: true },
     voiceConfig: { type: VoiceStyleSchema, required: true },
     generatedAudioUrl: { type: String },
-    metadata: { type: Schema.Types.Mixed, default: {} }
+    metadata: { type: Schema.Types.Mixed, default: {} },
   },
-  { _id: false }
+  { _id: false },
 );
 
 // 共享设置子文档Schema
@@ -32,9 +32,9 @@ const SharingSettingsSchema = new Schema<SharingSettings>(
   {
     isShared: { type: Boolean, default: false },
     sharedWith: { type: [String], default: [] },
-    permission: { type: String, enum: ['view', 'edit'], default: 'view' }
+    permission: { type: String, enum: ["view", "edit"], default: "view" },
   },
-  { _id: false }
+  { _id: false },
 );
 
 export interface IVoiceProject extends Document {
@@ -59,17 +59,16 @@ const VoiceProjectSchema = new Schema<IVoiceProject>(
     sharing: { type: SharingSettingsSchema, default: () => ({}) },
     activeViewers: { type: [String], default: [] },
     createdAt: { type: Date, default: Date.now },
-    updatedAt: { type: Date, default: Date.now }
+    updatedAt: { type: Date, default: Date.now },
   },
-  { collection: 'voice_projects' }
+  { collection: "voice_projects" },
 );
 
 // 索引
 VoiceProjectSchema.index({ id: 1 }, { unique: true });
 VoiceProjectSchema.index({ ownerId: 1 });
 VoiceProjectSchema.index({ workspaceId: 1 });
-VoiceProjectSchema.index({ 'sharing.sharedWith': 1 });
+VoiceProjectSchema.index({ "sharing.sharedWith": 1 });
 VoiceProjectSchema.index({ createdAt: -1 });
 
-export default mongoose.models.VoiceProject ||
-  mongoose.model<IVoiceProject>('VoiceProject', VoiceProjectSchema);
+export default mongoose.models.VoiceProject || mongoose.model<IVoiceProject>("VoiceProject", VoiceProjectSchema);

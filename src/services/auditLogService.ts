@@ -1,15 +1,15 @@
-import { AuditLogModel, IAuditLog } from '../models/auditLogModel';
-import logger from '../utils/logger';
+import { AuditLogModel, type IAuditLog } from "../models/auditLogModel";
+import logger from "../utils/logger";
 
 export interface AuditEntry {
   userId: string;
   username: string;
   role: string;
   action: string;
-  module: IAuditLog['module'];
+  module: IAuditLog["module"];
   targetId?: string;
   targetName?: string;
-  result: 'success' | 'failure';
+  result: "success" | "failure";
   errorMessage?: string;
   detail?: Record<string, any>;
   ip: string;
@@ -20,18 +20,36 @@ export interface AuditEntry {
 
 /** 转义正则特殊字符 */
 function escapeRegex(str: string): string {
-  return str.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, (ch) => '\\' + ch);
+  return str.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, (ch) => "\\" + ch);
 }
 
 /** 允许的模块白名单 */
 const ALLOWED_MODULES = new Set([
-  'auth', 'user', 'system', 'cdk', 'api', 'admin', 'security',
-  'config', 'email', 'tts', 'shorturl', 'ipfs', 'media', 'network',
-  'life', 'social', 'lottery', 'workspace', 'resource',
-  'recommendation', 'policy', 'debug',
+  "auth",
+  "user",
+  "system",
+  "cdk",
+  "api",
+  "admin",
+  "security",
+  "config",
+  "email",
+  "tts",
+  "shorturl",
+  "ipfs",
+  "media",
+  "network",
+  "life",
+  "social",
+  "lottery",
+  "workspace",
+  "resource",
+  "recommendation",
+  "policy",
+  "debug",
 ]);
 
-const ALLOWED_RESULTS = new Set(['success', 'failure']);
+const ALLOWED_RESULTS = new Set(["success", "failure"]);
 
 export class AuditLogService {
   /**
@@ -44,7 +62,7 @@ export class AuditLogService {
         createdAt: new Date(),
       });
     } catch (err) {
-      logger.error('[AuditLog] 写入失败', { err, entry });
+      logger.error("[AuditLog] 写入失败", { err, entry });
     }
   }
 
@@ -94,9 +112,9 @@ export class AuditLogService {
    * 将 keyword 净化为纯字母数字（彻底切断污点链）
    */
   private static sanitizeKeyword(raw: unknown): string | null {
-    if (typeof raw !== 'string') return null;
+    if (typeof raw !== "string") return null;
     // 只保留字母、数字、空格、@、.、-、_，最长 100 字符
-    const cleaned = raw.replace(/[^a-zA-Z0-9\u4e00-\u9fff @._-]/g, '').slice(0, 100);
+    const cleaned = raw.replace(/[^a-zA-Z0-9\u4e00-\u9fff @._-]/g, "").slice(0, 100);
     return cleaned.length > 0 ? cleaned : null;
   }
 
@@ -114,10 +132,7 @@ export class AuditLogService {
     endDate?: string;
     keyword?: string;
   }) {
-    const {
-      page = 1,
-      pageSize = 20,
-    } = params;
+    const { page = 1, pageSize = 20 } = params;
 
     // 静态过滤条件（白名单校验，不含用户可控字符串）
     const filter = AuditLogService.buildStaticFilter(params);
@@ -125,13 +140,8 @@ export class AuditLogService {
     // keyword 搜索：净化后构造 RegExp 对象
     const safeKeyword = AuditLogService.sanitizeKeyword(params.keyword);
     if (safeKeyword) {
-      const re = new RegExp(escapeRegex(safeKeyword), 'i');
-      filter.$or = [
-        { username: re },
-        { action: re },
-        { targetName: re },
-        { ip: re },
-      ];
+      const re = new RegExp(escapeRegex(safeKeyword), "i");
+      filter.$or = [{ username: re }, { action: re }, { targetName: re }, { ip: re }];
     }
 
     const safePage = Math.max(1, page);
@@ -139,11 +149,7 @@ export class AuditLogService {
     const skip = (safePage - 1) * safeSize;
 
     const [logs, total] = await Promise.all([
-      AuditLogModel.find(filter)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(safeSize)
-        .lean(),
+      AuditLogModel.find(filter).sort({ createdAt: -1 }).skip(skip).limit(safeSize).lean(),
       AuditLogModel.countDocuments(filter),
     ]);
 
@@ -155,13 +161,8 @@ export class AuditLogService {
    */
   static async getStats() {
     const [byModule, byResult, recentCount] = await Promise.all([
-      AuditLogModel.aggregate([
-        { $group: { _id: '$module', count: { $sum: 1 } } },
-        { $sort: { count: -1 } },
-      ]),
-      AuditLogModel.aggregate([
-        { $group: { _id: '$result', count: { $sum: 1 } } },
-      ]),
+      AuditLogModel.aggregate([{ $group: { _id: "$module", count: { $sum: 1 } } }, { $sort: { count: -1 } }]),
+      AuditLogModel.aggregate([{ $group: { _id: "$result", count: { $sum: 1 } } }]),
       AuditLogModel.countDocuments({
         createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
       }),

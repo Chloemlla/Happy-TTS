@@ -1,23 +1,26 @@
-import { mongoose } from '../mongoService';
-import { getUserById } from '../userService';
+import { mongoose } from "../mongoService";
+import { getUserById } from "../userService";
 
-const generationSchema = new mongoose.Schema({
-  userId: { type: String, required: true },
-  text: { type: String, required: true },
-  voice: { type: String },
-  model: { type: String },
-  outputFormat: { type: String },
-  speed: { type: Number },
-  fileName: { type: String },
-  contentHash: { type: String },
-  timestamp: { type: Date, default: Date.now }
-}, { collection: 'user_generations' });
+const generationSchema = new mongoose.Schema(
+  {
+    userId: { type: String, required: true },
+    text: { type: String, required: true },
+    voice: { type: String },
+    model: { type: String },
+    outputFormat: { type: String },
+    speed: { type: Number },
+    fileName: { type: String },
+    contentHash: { type: String },
+    timestamp: { type: Date, default: Date.now },
+  },
+  { collection: "user_generations" },
+);
 
-const GenerationModel = mongoose.models.UserGeneration || mongoose.model('UserGeneration', generationSchema);
+const GenerationModel = mongoose.models.UserGeneration || mongoose.model("UserGeneration", generationSchema);
 
 function sanitizeString(str: any): string {
-  if (typeof str !== 'string') return '';
-  if (/[$.{}\[\]]/.test(str)) return '';
+  if (typeof str !== "string") return "";
+  if (/[$.{}[\]]/.test(str)) return "";
   return str;
 }
 
@@ -47,5 +50,5 @@ export async function addGenerationRecord(record: any): Promise<any> {
 
 export async function isAdminUser(userId: string): Promise<boolean> {
   const user = await getUserById(userId);
-  return !!(user && user.role === 'admin');
-} 
+  return !!(user && user.role === "admin");
+}

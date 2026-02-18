@@ -7,7 +7,7 @@
  * 获取前端基础URL
  */
 function getFrontendBaseUrl(): string {
-    return process.env.FRONTEND_URL || 'https://tts.hapxs.com';
+  return process.env.FRONTEND_URL || "https://tts.hapxs.com";
 }
 
 /**
@@ -17,7 +17,7 @@ function getFrontendBaseUrl(): string {
  * @returns HTML邮件内容
  */
 export function generateVerificationLinkEmailHtml(username: string, verificationLink: string): string {
-    return `
+  return `
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -250,7 +250,7 @@ export function generateVerificationLinkEmailHtml(username: string, verification
  * @returns HTML邮件内容
  */
 export function generatePasswordResetLinkEmailHtml(username: string, resetLink: string): string {
-    return `
+  return `
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -454,7 +454,7 @@ export function generatePasswordResetLinkEmailHtml(username: string, resetLink: 
  * @returns HTML邮件内容
  */
 export function generateWelcomeEmailHtml(username: string): string {
-    return `
+  return `
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>

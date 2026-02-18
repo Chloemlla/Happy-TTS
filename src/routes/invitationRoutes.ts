@@ -1,14 +1,14 @@
 /**
  * 邀请路由 - Invitation Routes
  * 定义邀请相关的API端点
- * 
+ *
  * Requirements: 4.2, 4.3
  */
 
-import express from 'express';
-import { WorkspaceController } from '../controllers/workspaceController';
-import { authenticateToken } from '../middleware/authenticateToken';
-import { createLimiter } from '../middleware/rateLimiter';
+import express from "express";
+import { WorkspaceController } from "../controllers/workspaceController";
+import { authenticateToken } from "../middleware/authenticateToken";
+import { createLimiter } from "../middleware/rateLimiter";
 
 const router = express.Router();
 
@@ -16,7 +16,7 @@ const router = express.Router();
 const invitationLimiter = createLimiter({
   windowMs: 60 * 1000, // 1分钟
   max: 20, // 每分钟最多20次请求
-  message: '请求过于频繁，请稍后再试'
+  message: "请求过于频繁，请稍后再试",
 });
 
 /**
@@ -48,7 +48,7 @@ const invitationLimiter = createLimiter({
  *       401:
  *         description: 未授权
  */
-router.get('/pending', invitationLimiter, authenticateToken, WorkspaceController.getPendingInvitations);
+router.get("/pending", invitationLimiter, authenticateToken, WorkspaceController.getPendingInvitations);
 
 /**
  * @openapi
@@ -90,6 +90,6 @@ router.get('/pending', invitationLimiter, authenticateToken, WorkspaceController
  *       410:
  *         description: 邀请已过期
  */
-router.post('/:id/accept', invitationLimiter, authenticateToken, WorkspaceController.acceptInvitation);
+router.post("/:id/accept", invitationLimiter, authenticateToken, WorkspaceController.acceptInvitation);
 
 export default router;

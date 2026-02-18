@@ -1,5 +1,5 @@
-import { Router } from 'express';
-import { SocialController } from '../controllers/socialController';
+import { Router } from "express";
+import { SocialController } from "../controllers/socialController";
 
 const router = Router();
 
@@ -8,13 +8,13 @@ const router = Router();
  * @desc 微博热搜
  * @access Public
  */
-router.get('/weibo-hot', SocialController.weiboHot);
+router.get("/weibo-hot", SocialController.weiboHot);
 
 /**
  * @route GET /api/social/baidu-hot
  * @desc 百度热搜
  * @access Public
  */
-router.get('/baidu-hot', SocialController.baiduHot);
+router.get("/baidu-hot", SocialController.baiduHot);
 
-export default router; 
+export default router;
