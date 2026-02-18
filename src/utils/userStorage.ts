@@ -1242,7 +1242,7 @@ export class UserStorage {
             this.switchToFileMode();
         });
 
-        mongoose.connection.on('error', (error) => {
+        mongoose.connection.on('error', (error: Error) => {
             logger.error('[UserStorage] MongoDB连接错误:', error);
             this.mongoConnected = false;
             this.switchToFileMode();
