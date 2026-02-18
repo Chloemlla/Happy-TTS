@@ -1,5 +1,20 @@
 # Happy TTS - 智能语音合成与综合服务平台
 
+[![Docker Image Version](https://img.shields.io/docker/v/happyclo/tts-node?sort=date&label=Docker%20Image&color=blue&logo=docker)](https://hub.docker.com/r/happyclo/tts-node/tags)
+[![Docker Pulls](https://img.shields.io/docker/pulls/happyclo/tts-node?logo=docker&label=Pulls)](https://hub.docker.com/r/happyclo/tts-node)
+[![Docker Image Size](https://img.shields.io/docker/image-size/happyclo/tts-node?sort=date&logo=docker&label=Image%20Size)](https://hub.docker.com/r/happyclo/tts-node)
+[![License](https://img.shields.io/badge/License-Custom-red.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-24%2B-339933?logo=node.js)](https://nodejs.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript)](https://www.typescriptlang.org/)
+[![Express](https://img.shields.io/badge/Express-5.x-000000?logo=express)](https://expressjs.com/)
+
+> [!CAUTION]
+> **使用本项目前，请务必先阅读 [LICENSE](LICENSE) 文件。** 本项目采用自定义许可证，对使用、修改和分发有明确的限制条件。未经许可证授权的任何使用行为，由使用者自行承担全部法律责任和后果。继续使用本项目即表示您已阅读、理解并同意遵守许可证中的所有条款。
+
+> [!IMPORTANT]
+> 本项目的 Docker 镜像托管在 [Docker Hub: happyclo/tts-node](https://hub.docker.com/r/happyclo/tts-node/tags)，请始终使用最新版本的镜像以获得安全更新和功能修复。
+
 一个功能丰富的全栈 Web 应用平台，以文本转语音（TTS）为核心，集成用户认证、安全防护、资源商店、数据分析、实用工具、娱乐游戏、管理后台等数十个功能模块。后端基于 Node.js + Express 5 + MongoDB，前端基于 React 19 + Vite 7 + Tailwind CSS，支持 Docker 一键部署。
 
 ---
@@ -81,6 +96,9 @@ Happy TTS 是一个综合性 Web 应用平台，围绕文本转语音核心功�
 
 ### 2. 文本转语音 (TTS)
 
+> [!NOTE]
+> TTS 功能依赖 OpenAI API，需要在 `.env` 中配置有效的 `OPENAI_API_KEY` 和 `OPENAI_BASE_URL`。支持自定义 API 代理地址。
+
 平台核心功能，基于 OpenAI TTS API 实现高质量语音合成。
 
 - **语音合成**：支持多种语言、多种音色，文本转语音生成
@@ -96,6 +114,9 @@ Happy TTS 是一个综合性 Web 应用平台，围绕文本转语音核心功�
 | 静态资源 | `/static/audio/` 音频文件服务 |
 
 ### 3. 用户管理
+
+> [!TIP]
+> 如果不需要 MongoDB，可以设置 `USER_STORAGE_MODE=file` 使用文件存储模式快速启动，适合开发和小规模部署。
 
 - **用户注册/登录**：支持用户名 + 密码注册，JWT Token 认证
 - **个人资料**：头像、昵称、邮箱等个人信息管理
@@ -198,6 +219,9 @@ Happy TTS 是一个综合性 Web 应用平台，围绕文本转语音核心功�
 | 老虎冒险 | 互动冒险小游戏 | `/tiger-adventure` |
 
 ### 10. 管理后台
+
+> [!WARNING]
+> 管理后台包含命令执行、环境变量修改等高权限操作。请确保 `ADMIN_PASSWORD` 使用强密码，并严格限制管理员账户的分发。
 
 管理员专属功能，需要 `admin` 角色权限。
 
@@ -421,6 +445,9 @@ happy-tts/
 
 ## 🚀 快速开始
 
+> [!IMPORTANT]
+> 开始之前，请确保已阅读 [LICENSE](LICENSE) 并同意其条款。
+
 ### 前置要求
 
 - Node.js 18.20.8+
@@ -480,6 +507,9 @@ pnpm start
 
 ### Docker 部署
 
+> [!TIP]
+> 推荐使用 Docker Hub 上的预构建镜像 [`happyclo/tts-node:latest`](https://hub.docker.com/r/happyclo/tts-node/tags)，无需本地构建，直接拉取即可运行。
+
 ```bash
 # 使用 Docker Compose（推荐）
 docker-compose up -d
@@ -509,6 +539,9 @@ Docker 镜像采用 4 阶段构建：
 ---
 
 ## 🔧 环境配置
+
+> [!CAUTION]
+> `.env` 文件包含 API 密钥、数据库凭证等敏感信息，**绝对不要**将其提交到版本控制系统。请确保 `.env` 已添加到 `.gitignore` 中。
 
 ### 后端环境变量（`.env`）
 
@@ -592,6 +625,9 @@ VITE_OUTEMAIL_ENABLED=true                      # 是否启用外部邮件功能
 ---
 
 ## 📚 API 文档
+
+> [!NOTE]
+> API 文档在开发模式下自动从路由注释生成。生产环境使用预生成的 `openapi.json` 文件，可通过 `pnpm run generate:openapi` 更新。
 
 ### 在线文档
 
@@ -821,6 +857,9 @@ pnpm run analyze:bundle     # Bundle 体积分析
 
 ## 🔐 安全特性
 
+> [!WARNING]
+> 生产环境部署前，请务必修改所有默认密码（`ADMIN_PASSWORD`、`SERVER_PASSWORD`、`JWT_SECRET`、`AES_KEY`），并启用 WAF（`WAF_ENABLED=true`）。使用默认凭证部署将导致严重安全风险。
+
 ### 多层防护架构
 
 ```
@@ -890,6 +929,12 @@ curl http://localhost:3000/health
 
 ## 🐳 部署
 
+> [!TIP]
+> 最快的部署方式：直接使用 Docker Hub 预构建镜像，无需本地编译。
+> ```bash
+> docker pull happyclo/tts-node:latest
+> ```
+
 ### Docker Compose 部署（推荐）
 
 ```yaml
@@ -925,6 +970,9 @@ docker-compose up -d
 
 ### Cloudflare Worker 部署（可选）
 
+> [!NOTE]
+> Cloudflare Worker 为可选的边缘部署方案，适用于需要全球低延迟访问的场景。需要 Cloudflare 账户和 Wrangler CLI。
+
 ```bash
 cd worker
 npm install
@@ -935,6 +983,9 @@ npx wrangler deploy  # 部署到 Cloudflare
 ---
 
 ## 📝 许可证
+
+> [!CAUTION]
+> 本项目采用自定义许可证，**并非** MIT 或其他常见开源许可证。使用、修改或分发本项目代码前，请务必完整阅读 [LICENSE](LICENSE) 文件。违反许可证条款的行为，由使用者自行承担全部法律责任。
 
 [Self-written License](LICENSE)
 
