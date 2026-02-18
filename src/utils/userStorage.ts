@@ -4,8 +4,6 @@ import logger from './logger';
 import dotenv from 'dotenv';
 import { config } from '../config/config';
 import validator from 'validator';
-import { sanitize } from 'dompurify';
-import { JSDOM } from 'jsdom';
 import * as userService from '../services/userService';
 // MySQL 相关依赖
 import mysql from 'mysql2/promise';
@@ -14,8 +12,16 @@ import mongoose from 'mongoose';
 
 const STORAGE_MODE = process.env.USER_STORAGE_MODE || 'file'; // 'file' 或 'mongo'
 
-const window = new JSDOM('').window;
-const DOMPurify = require('dompurify')(window);
+// DOMPurify + JSDOM 懒加载（节省 ~20MB 内存和启动时间）
+let _domPurify: any = null;
+function getDOMPurify() {
+    if (!_domPurify) {
+        const { JSDOM } = require('jsdom');
+        const window = new JSDOM('').window;
+        _domPurify = require('dompurify')(window);
+    }
+    return _domPurify;
+}
 
 // 加载环境变量
 dotenv.config();
@@ -97,7 +103,7 @@ export class UserStorage {
     // 输入净化
     private static sanitizeInput(input: string | undefined): string {
         if (!input) return '';
-        return DOMPurify.sanitize(validator.trim(input));
+        return getDOMPurify().sanitize(validator.trim(input));
     }
 
     // 密码强度检查
