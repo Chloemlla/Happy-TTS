@@ -167,7 +167,6 @@ function getLogShareModel() {
     { collection: "logshare_files" },
   );
   // 复用已存在的模型，避免重复编译
-  // @ts-expect-error
   return mongoose.models.LogShareFile || mongoose.model("LogShareFile", LogShareSchema);
 }
 
@@ -272,8 +271,7 @@ router.get("/sharelog/all", logLimiter, authenticateToken, async (req, res) => {
 
   try {
     // 检查管理员权限
-    // @ts-expect-error
-    if (!req.user || req.user.role !== "admin") {
+    if (!(req as any).user || (req as any).user.role !== "admin") {
       logger.warn(`获取日志列表 | IP:${ip} | 结果:失败 | 原因:非管理员用户`);
       return res.status(403).json({ error: "需要管理员权限" });
     }
@@ -424,8 +422,7 @@ router.delete("/sharelog/:id", logLimiter, authenticateToken, async (req, res) =
       return res.status(400).json({ error: "无效的文件ID格式" });
     }
 
-    // @ts-expect-error
-    if (!req.user || req.user.role !== "admin") {
+    if (!(req as any).user || (req as any).user.role !== "admin") {
       logger.warn(`删除日志 | IP:${ip} | 结果:失败 | 原因:非管理员用户`);
       return res.status(403).json({ error: "需要管理员权限" });
     }
@@ -479,8 +476,7 @@ router.post("/sharelog/delete-batch", logLimiter, authenticateToken, async (req,
   const ip = req.ip;
   const ids: string[] = Array.isArray(req.body.ids) ? req.body.ids : [];
   try {
-    // @ts-expect-error
-    if (!req.user || req.user.role !== "admin") {
+    if (!(req as any).user || (req as any).user.role !== "admin") {
       logger.warn(`批量删除 | IP:${ip} | 结果:失败 | 原因:非管理员用户`);
       return res.status(403).json({ error: "需要管理员权限" });
     }
@@ -537,8 +533,7 @@ router.post("/sharelog/delete-batch", logLimiter, authenticateToken, async (req,
 router.delete("/sharelog/all", logLimiter, authenticateToken, async (req, res) => {
   const ip = req.ip;
   try {
-    // @ts-expect-error
-    if (!req.user || req.user.role !== "admin") {
+    if (!(req as any).user || (req as any).user.role !== "admin") {
       logger.warn(`全部删除 | IP:${ip} | 结果:失败 | 原因:非管理员用户`);
       return res.status(403).json({ error: "需要管理员权限" });
     }
@@ -591,8 +586,7 @@ router.put("/sharelog/:id", logLimiter, authenticateToken, async (req, res) => {
       return res.status(400).json({ error: "无效的文件ID格式" });
     }
 
-    // @ts-expect-error
-    if (!req.user || req.user.role !== "admin") {
+    if (!(req as any).user || (req as any).user.role !== "admin") {
       logger.warn(`修改日志 | IP:${ip} | 结果:失败 | 原因:非管理员用户`);
       return res.status(403).json({ error: "需要管理员权限" });
     }
@@ -624,8 +618,7 @@ router.post("/logs/archive", logLimiter, authenticateToken, async (req, res) => 
   const { archiveName, includePattern, excludePattern } = req.body || {};
 
   try {
-    // @ts-expect-error
-    if (!req.user || req.user.role !== "admin") {
+    if (!(req as any).user || (req as any).user.role !== "admin") {
       logger.warn(`归档日志 | IP:${ip} | 结果:失败 | 原因:非管理员用户`);
       return res.status(403).json({ error: "需要管理员权限" });
     }
@@ -989,8 +982,7 @@ router.get("/logs/archives", logLimiter, authenticateToken, async (req, res) => 
 
   try {
     // 检查管理员权限
-    // @ts-expect-error
-    if (!req.user || req.user.role !== "admin") {
+    if (!(req as any).user || (req as any).user.role !== "admin") {
       logger.warn(`获取归档列表 | IP:${ip} | 结果:失败 | 原因:非管理员用户`);
       return res.status(403).json({ error: "需要管理员权限" });
     }
@@ -1014,8 +1006,7 @@ router.delete("/logs/archives/:archiveName", logLimiter, authenticateToken, asyn
   const { archiveName } = req.params;
 
   try {
-    // @ts-expect-error
-    if (!req.user || req.user.role !== "admin") {
+    if (!(req as any).user || (req as any).user.role !== "admin") {
       logger.warn(`删除归档 | IP:${ip} | 结果:失败 | 原因:非管理员用户`);
       return res.status(403).json({ error: "需要管理员权限" });
     }
