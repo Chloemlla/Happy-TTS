@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import logger from '../utils/logger';
 
-// ========== 缓存环境变量（避免每次请求读 process.env） ==========
-const WAF_DISABLED = process.env.WAF_ENABLED === 'false';
+// ========== 缓存环境变量 ==========
+// WAF_ENABLED 开关由 app.ts 控制是否挂载，此处不再判断
 
 // 跳过 WAF 检查的路径
 const WAF_SKIP_PATHS = new Set([
@@ -136,7 +136,6 @@ function checkObject(obj: any): string | null {
  * - 仅在含 % 时做 URL decode
  */
 export function wafMiddleware(req: Request, res: Response, next: NextFunction) {
-  if (WAF_DISABLED) return next();
 
   const p = req.path;
   if (p.charCodeAt(0) !== 47 || p.charCodeAt(1) !== 97 || p.charCodeAt(4) !== 47) return next(); // 快速判断非 /api/

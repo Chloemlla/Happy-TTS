@@ -170,7 +170,12 @@ app.get('/health', (req: Request, res: Response) => {
 app.use(ipBanCheckWithRateLimit);
 
 // WAF 安全校验（在 body parser 之后、路由之前，确保能检查 body）
-app.use(wafMiddleware);
+if (process.env.WAF_ENABLED !== 'false') {
+  app.use(wafMiddleware);
+  logger.info('[WAF] 已启用');
+} else {
+  logger.info('[WAF] 已通过 WAF_ENABLED=false 禁用');
+}
 
 // 短链跳转（最高优先级）
 app.use('/s', shortUrlRoutes);
