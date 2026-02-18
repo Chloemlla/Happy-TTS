@@ -207,13 +207,17 @@ const isLocalIp = (req: Request, res: Response, next: NextFunction) => {
   next();
 };
 
-// 请求日志
+// 请求日志（仅记录关键信息，避免序列化完整 headers/body 造成性能开销）
 app.use((req: Request, res: Response, next: NextFunction) => {
-  logger.info(`收到请求: ${req.method} ${req.url}`, {
-    ip: req.ip,
-    headers: req.headers,
-    body: req.body
-  });
+  if (process.env.NODE_ENV === 'development' || process.env.VERBOSE_LOGGING === 'true') {
+    logger.info(`收到请求: ${req.method} ${req.url}`, {
+      ip: req.ip,
+      headers: req.headers,
+      body: req.body
+    });
+  } else {
+    logger.info(`${req.method} ${req.url}`, { ip: req.ip });
+  }
   next();
 });
 

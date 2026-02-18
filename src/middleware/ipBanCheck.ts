@@ -496,6 +496,24 @@ async function getRedisService(): Promise<any> {
   return redisServiceLoadPromise;
 }
 
+// CIDR 封禁列表缓存（避免每次请求都做 $regex 全表扫描）
+let cachedCIDRBans: any[] | null = null;
+let cidrBansCacheTime = 0;
+const CIDR_CACHE_TTL = 2 * 60 * 1000; // 2 分钟
+
+async function getCachedCIDRBans(): Promise<any[]> {
+  const now = Date.now();
+  if (cachedCIDRBans && now - cidrBansCacheTime < CIDR_CACHE_TTL) {
+    return cachedCIDRBans;
+  }
+  cachedCIDRBans = await IpBanModel.find({
+    ipAddress: { $regex: /\//, $options: '' },
+    expiresAt: { $gt: new Date() }
+  }).lean();
+  cidrBansCacheTime = now;
+  return cachedCIDRBans;
+}
+
 /**
  * 并行查询Redis和MongoDB（竞速模式）
  * 返回最快的结果，提高响应速度
@@ -539,22 +557,19 @@ async function parallelBanCheck(normalizedIP: string): Promise<{
   sources.push('mongodb-exact');
 
   // MongoDB查询 - CIDR IP段匹配
-  // 获取所有包含'/'的封禁记录（CIDR格式）
+  // 使用内存缓存的 CIDR 列表避免每次请求都做 $regex 全表扫描
   promises.push(
-    IpBanModel.find({
-      ipAddress: { $regex: /\//, $options: '' }, // 包含/的记录
-      expiresAt: { $gt: new Date() }
-    })
-      .lean()
-      .then(results => {
-        // 检查IP是否在任何CIDR范围内
-        const match = results?.find(ban => isIPInCIDR(normalizedIP, ban.ipAddress));
+    (async () => {
+      try {
+        // 优先使用缓存的 CIDR 列表（每 2 分钟刷新一次）
+        const cidrBans = await getCachedCIDRBans();
+        const match = cidrBans?.find(ban => isIPInCIDR(normalizedIP, ban.ipAddress));
         return { result: match || null, source: 'mongodb-cidr' };
-      })
-      .catch(error => {
+      } catch (error) {
         logger.error('🔴 MongoDB CIDR查询失败:', error);
         return { result: null, source: 'mongodb-cidr', error: true };
-      })
+      }
+    })()
   );
   sources.push('mongodb-cidr');
 
@@ -666,6 +681,8 @@ export function getPerformanceMetrics(): PerformanceMetrics {
 export function clearAllCaches(): void {
   banCache.clear();
   normalizedIPCache.clear();
+  cachedCIDRBans = null;
+  cidrBansCacheTime = 0;
   logger.info('🗑️ 已清空所有IP封禁缓存');
 }
 
