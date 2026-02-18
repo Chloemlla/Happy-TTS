@@ -30,20 +30,20 @@ echo "=========================================="
 
 echo ""
 echo "[1/3] Reinstalling root dependencies..."
-pnpm install
+pnpm install --no-frozen-lockfile
 echo "✅ Root lockfile regenerated"
 
 echo ""
 echo "[2/3] Reinstalling frontend dependencies..."
 cd frontend
-pnpm install
+pnpm install --no-frozen-lockfile
 cd ..
 echo "✅ frontend lockfile regenerated"
 
 echo ""
 echo "[3/3] Reinstalling frontend/docs dependencies..."
 cd frontend/docs
-pnpm install
+pnpm install --no-frozen-lockfile
 cd ../..
 echo "✅ frontend/docs lockfile regenerated"
 
