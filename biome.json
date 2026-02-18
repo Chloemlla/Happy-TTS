@@ -1,12 +1,9 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.0.0/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.0.6/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
     "useIgnoreFile": true
-  },
-  "organizeImports": {
-    "enabled": true
   },
   "formatter": {
     "enabled": true,
@@ -26,17 +23,14 @@
       }
     }
   },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
   "files": {
-    "include": ["src/**/*.ts", "src/**/*.tsx"],
-    "ignore": [
-      "node_modules",
-      "dist",
-      "dist-obfuscated",
-      "coverage",
-      "frontend/node_modules",
-      "frontend/docs/node_modules",
-      "**/*.test.ts",
-      "**/*.spec.ts"
-    ]
+    "includes": ["src/**/*.ts", "src/**/*.tsx"]
   }
 }
