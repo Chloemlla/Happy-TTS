@@ -154,6 +154,9 @@ function checkObject(obj: any, path = '', depth = 0): string | null {
  * 检查 query、params、body 中的参数，拦截 SQL 注入和 XSS 攻击载荷
  */
 export function wafMiddleware(req: Request, res: Response, next: NextFunction) {
+  // 环境变量总开关：WAF_ENABLED=false 时跳过所有检查
+  if (process.env.WAF_ENABLED === 'false') return next();
+
   // 非 API 路径跳过
   if (!req.path.startsWith('/api/')) return next();
 
