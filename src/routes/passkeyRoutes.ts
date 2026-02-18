@@ -5,7 +5,7 @@ import { PasskeyDataRepairService } from "../services/passkeyDataRepairService";
 import { PasskeyService } from "../services/passkeyService";
 import logger from "../utils/logger";
 import { PasskeyCredentialIdFixer } from "../utils/passkeyCredentialIdFixer";
-import { User, UserStorage } from "../utils/userStorage";
+import { UserStorage } from "../utils/userStorage";
 
 // 使用 require 避免类型声明解析问题
 const adminOnly = require("../middleware/adminOnly").default;
@@ -86,8 +86,7 @@ router.post("/register/start", authenticateToken, rateLimitMiddleware, async (re
       };
       const repairService = require("../services/passkeyDataRepairService");
       if (
-        repairService &&
-        repairService.PasskeyDataRepairService &&
+        repairService?.PasskeyDataRepairService &&
         typeof repairService.PasskeyDataRepairService.setLastStartPayload === "function"
       ) {
         repairService.PasskeyDataRepairService.setLastStartPayload(payload);
@@ -155,8 +154,7 @@ router.post("/register/finish", authenticateToken, rateLimitMiddleware, async (r
       };
       const repairService = require("../services/passkeyDataRepairService");
       if (
-        repairService &&
-        repairService.PasskeyDataRepairService &&
+        repairService?.PasskeyDataRepairService &&
         typeof repairService.PasskeyDataRepairService.setLastFinishPayload === "function"
       ) {
         repairService.PasskeyDataRepairService.setLastFinishPayload(payload);
@@ -184,7 +182,7 @@ router.post("/authenticate/start/discoverable", rateLimitMiddleware, async (req,
     const options = await PasskeyService.generateDiscoverableAuthenticationOptions(clientOrigin);
 
     logger.info("[Passkey] Discoverable 认证选项生成成功", {
-      challenge: options.challenge?.substring(0, 20) + "...",
+      challenge: `${options.challenge?.substring(0, 20)}...`,
       hasAllowCredentials: !!options.allowCredentials,
     });
 
@@ -240,7 +238,7 @@ router.post("/authenticate/start", rateLimitMiddleware, async (req, res) => {
 
     logger.info("[Passkey] 生成认证选项成功", {
       userId: user.id,
-      challenge: options.challenge?.substring(0, 20) + "...",
+      challenge: `${options.challenge?.substring(0, 20)}...`,
       allowCredentialsCount: options.allowCredentials?.length || 0,
       fullOptions: JSON.stringify(options, null, 2),
     });
@@ -277,7 +275,7 @@ router.post("/authenticate/finish/discoverable", rateLimitMiddleware, async (req
       hasResponse: !!response,
       hasChallenge: !!challenge,
       responseKeys: Object.keys(response),
-      credentialId: response.id?.substring(0, 20) + "...",
+      credentialId: `${response.id?.substring(0, 20)}...`,
     });
 
     // 根据 credential ID 查找用户
@@ -307,7 +305,7 @@ router.post("/authenticate/finish/discoverable", rateLimitMiddleware, async (req
           logger.info("[Passkey] 找到匹配的用户", {
             userId: user.id,
             username: user.username,
-            credentialId: credentialId.substring(0, 20) + "...",
+            credentialId: `${credentialId.substring(0, 20)}...`,
           });
           break;
         }
@@ -316,7 +314,7 @@ router.post("/authenticate/finish/discoverable", rateLimitMiddleware, async (req
 
     if (!matchedUser) {
       logger.warn("[Passkey] Discoverable 认证失败：未找到匹配的用户", {
-        credentialId: credentialId.substring(0, 20) + "...",
+        credentialId: `${credentialId.substring(0, 20)}...`,
       });
       return res.status(404).json({ error: "未找到匹配的凭证" });
     }
@@ -420,7 +418,7 @@ router.post("/authenticate/finish", rateLimitMiddleware, async (req, res) => {
       type: response.type,
       idLength: response.id?.length,
       rawIdType: typeof response.rawId,
-      idValue: response.id?.substring(0, 20) + "...",
+      idValue: `${response.id?.substring(0, 20)}...`,
       fullResponse: JSON.stringify(response, null, 2),
     });
 
@@ -713,12 +711,11 @@ router.post("/credential-id/fix", authenticateToken, async (req, res) => {
 });
 
 // 管理员调试路由：返回最近一次 start/finish 简短 payload（仅管理员）
-router.get("/admin/debug/last-payloads", authenticateToken, adminOnly, async (req, res) => {
+router.get("/admin/debug/last-payloads", authenticateToken, adminOnly, async (_req, res) => {
   try {
     const repairService = require("../services/passkeyDataRepairService");
     if (
-      repairService &&
-      repairService.PasskeyDataRepairService &&
+      repairService?.PasskeyDataRepairService &&
       typeof repairService.PasskeyDataRepairService.getLastPayloads === "function"
     ) {
       const payloads = repairService.PasskeyDataRepairService.getLastPayloads();

@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 import { SmartHumanCheckService } from "../services/smartHumanCheckService";
 
 describe("SmartHumanCheckService", () => {
@@ -277,8 +277,8 @@ describe("SmartHumanCheckService", () => {
 
     it("should rate limit verify calls per IP before parsing token", () => {
       const ip = "10.0.0.2";
-      const r1 = service.verifyToken("", ip);
-      const r2 = service.verifyToken("", ip);
+      const _r1 = service.verifyToken("", ip);
+      const _r2 = service.verifyToken("", ip);
       const r3 = service.verifyToken("", ip);
 
       // third call should be limited regardless of token content
@@ -311,7 +311,7 @@ describe("SmartHumanCheckService", () => {
           st: {},
           cn: "fake-nonce",
         };
-        const payloadStr = JSON.stringify(payload);
+        const _payloadStr = JSON.stringify(payload);
         const salt = "salt";
         const sig = crypto.createHash("sha256").update("mismatch").digest("base64");
         return Buffer.from(JSON.stringify({ payload, salt, sig })).toString("base64");

@@ -1,5 +1,5 @@
-import fs from "fs";
-import path from "path";
+import fs from "node:fs";
+import path from "node:path";
 
 describe("用户文件修复功能", () => {
   const dataDir = path.join(process.cwd(), "data");
@@ -7,7 +7,7 @@ describe("用户文件修复功能", () => {
   it("应能自动修复各种用户文件异常", async () => {
     // 文件不存在
     if (fs.existsSync(usersFile)) {
-      const backupFile = usersFile + ".backup";
+      const backupFile = `${usersFile}.backup`;
       fs.copyFileSync(usersFile, backupFile);
       fs.unlinkSync(usersFile);
     }
@@ -37,7 +37,7 @@ describe("用户文件修复功能", () => {
       expect(Array.isArray(users)).toBe(true);
     } catch {}
     // 恢复备份
-    const backupFile = usersFile + ".backup";
+    const backupFile = `${usersFile}.backup`;
     if (fs.existsSync(backupFile)) {
       fs.copyFileSync(backupFile, usersFile);
       fs.unlinkSync(backupFile);

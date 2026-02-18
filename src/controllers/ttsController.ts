@@ -1,6 +1,5 @@
 import axios from "axios";
 import type { Request, Response } from "express";
-import { config } from "../config/config";
 import { ContentFilterService } from "../services/contentFilterService";
 import { mongoose } from "../services/mongoService";
 import { TtsService } from "../services/ttsService";
@@ -192,7 +191,7 @@ export class TtsController {
           model,
         );
         const duplicate = await findDuplicateGeneration({ userId, text, voice, model, contentHash });
-        if (duplicate && duplicate.fileName) {
+        if (duplicate?.fileName) {
           return res.json({
             success: true,
             isDuplicate: true,

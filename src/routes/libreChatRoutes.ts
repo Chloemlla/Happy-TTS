@@ -1,4 +1,4 @@
-import { randomBytes } from "crypto";
+import { randomBytes } from "node:crypto";
 import { Router } from "express";
 import { authenticateAdmin } from "../middleware/auth";
 import { libreChatService } from "../services/libreChatService";
@@ -39,7 +39,7 @@ function getTokenFromReq(req: any): string | undefined {
   if (typeof queryToken === "string" && queryToken) return queryToken;
   if (typeof headerToken === "string" && headerToken) return headerToken as string;
   const cookies = parseCookies(req.headers?.cookie);
-  if (cookies["lc_guest"]) return cookies["lc_guest"];
+  if (cookies.lc_guest) return cookies.lc_guest;
   return undefined;
 }
 
@@ -47,7 +47,7 @@ function getTokenFromReq(req: any): string | undefined {
 function isGuestEnabled(): boolean {
   const envFlag = String(process.env.LIBRECHAT_GUEST_ENABLED || "").toLowerCase();
   // 在非生产环境默认开启游客模式，生产环境需显式设置为 true
-  if (process.env.NODE_ENV !== "production") return envFlag === "false" ? false : true;
+  if (process.env.NODE_ENV !== "production") return envFlag !== "false";
   return envFlag === "true";
 }
 
@@ -60,7 +60,7 @@ function isGuestEnabled(): boolean {
  *       200:
  *         description: 镜像信息
  */
-router.get("/lc", (req, res) => {
+router.get("/lc", (_req, res) => {
   const record = libreChatService.getLatestRecord();
   if (record) {
     return res.json({
@@ -173,7 +173,7 @@ router.put("/message", async (req, res) => {
  *       200:
  *         description: 镜像信息
  */
-router.get("/librechat-image", (req, res) => {
+router.get("/librechat-image", (_req, res) => {
   const record = libreChatService.getLatestRecord();
   if (record) {
     return res.json({
@@ -311,8 +311,8 @@ router.get("/history", async (req, res) => {
     const history = await libreChatService.getHistory(
       token as string,
       {
-        page: parseInt(page as string),
-        limit: parseInt(limit as string),
+        page: parseInt(page as string, 10),
+        limit: parseInt(limit as string, 10),
       },
       userId,
     );
@@ -320,8 +320,8 @@ router.get("/history", async (req, res) => {
     res.json({
       history: history.messages,
       total: history.total,
-      currentPage: parseInt(page as string),
-      totalPages: Math.ceil(history.total / parseInt(limit as string)),
+      currentPage: parseInt(page as string, 10),
+      totalPages: Math.ceil(history.total / parseInt(limit as string, 10)),
     });
   } catch (error) {
     console.error("获取历史错误:", error);
@@ -656,7 +656,7 @@ router.get("/sse", async (req, res) => {
     const keepAliveInterval = setInterval(() => {
       try {
         res.write(`data: ${JSON.stringify({ type: "ping", timestamp: Date.now() })}\n\n`);
-      } catch (error) {
+      } catch (_error) {
         clearInterval(keepAliveInterval);
         libreChatService.removeSSEClient(clientId);
       }
@@ -677,8 +677,8 @@ router.get("/sse", async (req, res) => {
 router.get("/admin/users", authenticateAdmin, async (req, res) => {
   try {
     const kw = (req.query.kw as string) || "";
-    const page = parseInt((req.query.page as string) || "1");
-    const limit = parseInt((req.query.limit as string) || "20");
+    const page = parseInt((req.query.page as string) || "1", 10);
+    const limit = parseInt((req.query.limit as string) || "20", 10);
     const includeDeleted = String(req.query.includeDeleted || "").toLowerCase() === "true";
     const data = await (libreChatService as any).adminListUsers(kw, page, limit, includeDeleted);
     res.json(data);
@@ -692,8 +692,8 @@ router.get("/admin/users", authenticateAdmin, async (req, res) => {
 router.get("/admin/users/:userId/history", authenticateAdmin, async (req, res) => {
   try {
     const { userId } = req.params as { userId: string };
-    const page = parseInt((req.query.page as string) || "1");
-    const limit = parseInt((req.query.limit as string) || "20");
+    const page = parseInt((req.query.page as string) || "1", 10);
+    const limit = parseInt((req.query.limit as string) || "20", 10);
     const data = await libreChatService.adminGetUserHistory(userId, page, limit);
     res.json(data);
   } catch (error) {
@@ -759,11 +759,11 @@ router.get("/admin/providers", authenticateAdmin, async (req, res) => {
       enabled: d.enabled !== false,
       weight: Number(d.weight || 1),
       apiKey:
-        typeof d.apiKey === "string" && d.apiKey.length > 8 ? d.apiKey.slice(0, 2) + "***" + d.apiKey.slice(-4) : "***",
+        typeof d.apiKey === "string" && d.apiKey.length > 8 ? `${d.apiKey.slice(0, 2)}***${d.apiKey.slice(-4)}` : "***",
       updatedAt: d.updatedAt,
     }));
     res.json({ success: true, providers: list });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ success: false, error: "获取提供者失败" });
   }
 });
@@ -814,7 +814,7 @@ router.post("/admin/providers", authenticateAdmin, async (req, res) => {
       await (libreChatService as any).loadProviders?.();
     } catch {}
     res.json({ success: true, id: String(doc._id) });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ success: false, error: "保存提供者失败" });
   }
 });
@@ -832,7 +832,7 @@ router.delete("/admin/providers/:id", authenticateAdmin, async (req, res) => {
       await (libreChatService as any).loadProviders?.();
     } catch {}
     res.json({ success: true });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ success: false, error: "删除提供者失败" });
   }
 });

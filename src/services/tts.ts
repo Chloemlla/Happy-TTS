@@ -1,7 +1,7 @@
-import { existsSync } from "fs";
-import { mkdir, writeFile } from "fs/promises";
+import { existsSync } from "node:fs";
+import { mkdir, writeFile } from "node:fs/promises";
+import { basename, join } from "node:path";
 import { OpenAI } from "openai";
-import { basename, join } from "path";
 import { v4 as uuidv4 } from "uuid";
 import config from "../config";
 

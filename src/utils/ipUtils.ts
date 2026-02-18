@@ -127,7 +127,7 @@ export function isIPInCIDR(ip: string, cidr: string): boolean {
     const [network, prefixLength] = cidr.split("/");
     const prefix = parseInt(prefixLength, 10);
 
-    if (isNaN(prefix) || prefix < 0 || prefix > 32) {
+    if (Number.isNaN(prefix) || prefix < 0 || prefix > 32) {
       return false;
     }
 
@@ -136,7 +136,7 @@ export function isIPInCIDR(ip: string, cidr: string): boolean {
     const mask = (0xffffffff << (32 - prefix)) >>> 0;
 
     return (ipNum & mask) === (networkNum & mask);
-  } catch (error) {
+  } catch (_error) {
     return false;
   }
 }
@@ -155,7 +155,7 @@ function ipToNumber(ip: string): number {
   return (
     parts.reduce((acc, part) => {
       const num = parseInt(part, 10);
-      if (isNaN(num) || num < 0 || num > 255) {
+      if (Number.isNaN(num) || num < 0 || num > 255) {
         throw new Error("Invalid IP address part");
       }
       return (acc << 8) + num;

@@ -1,13 +1,11 @@
-import bcrypt from "bcrypt";
 import express from "express";
-import jwt, { type SignOptions } from "jsonwebtoken";
+import type { SignOptions } from "jsonwebtoken";
 import { config } from "../config/config";
 import { AuthController } from "../controllers/authController";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { validateAuthInput } from "../middleware/authValidation";
 import { createLimiter } from "../middleware/rateLimiter";
 import { logUserData } from "../middleware/userDataLogger";
-import logger from "../utils/logger";
 
 const router = express.Router();
 
@@ -26,7 +24,7 @@ const registerLimiter = createLimiter({
 });
 
 // JWT 签名选项
-const jwtSignOptions: SignOptions = {
+const _jwtSignOptions: SignOptions = {
   expiresIn: "24h",
 };
 

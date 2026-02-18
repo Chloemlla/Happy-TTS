@@ -1,4 +1,4 @@
-import * as crypto from "crypto";
+import * as crypto from "node:crypto";
 import type { Request, Response } from "express";
 import {
   addMod as addModStorage,

@@ -11,7 +11,7 @@ const router = Router();
 const guard = [dataCollectionLimiter, authenticateToken, authenticateAdmin] as const;
 
 // GET /api/data-collection/admin/stats
-router.get("/stats", ...guard, async (req: Request, res: Response) => {
+router.get("/stats", ...guard, async (_req: Request, res: Response) => {
   try {
     const stats = await dataCollectionService.getStats();
     res.json({ success: true, data: stats });

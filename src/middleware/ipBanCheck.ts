@@ -340,7 +340,7 @@ function parseCIDR(cidr: string): { network: string; prefixLength: number; isIPv
   const isIPv6 = ipType === 6;
   const maxPrefix = isIPv6 ? 128 : 32;
 
-  if (isNaN(prefixLength) || prefixLength < 0 || prefixLength > maxPrefix) {
+  if (Number.isNaN(prefixLength) || prefixLength < 0 || prefixLength > maxPrefix) {
     return null;
   }
 
@@ -441,7 +441,7 @@ function isWhitelistedPath(path: string): boolean {
       return true;
     }
     // 前缀匹配（确保后面跟着斜杠，避免误匹配）
-    if (path.startsWith(whitelistPath + "/")) {
+    if (path.startsWith(`${whitelistPath}/`)) {
       return true;
     }
     return false;
@@ -886,7 +886,7 @@ export function clearIPBanCache(ipAddress: string): void {
     // 由于无法直接遍历LRU缓存的所有键，我们清除包含该IP的缓存项
     // 注意：这只能清除以该IP作为key前缀的项
     const cidrKeys: string[] = [];
-    cidrMatchCache.forEach((value, key) => {
+    cidrMatchCache.forEach((_value, key) => {
       if (key.startsWith(`${normalizedIP}:`)) {
         cidrKeys.push(key);
       }

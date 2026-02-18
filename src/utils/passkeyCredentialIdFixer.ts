@@ -1,5 +1,5 @@
 import logger from "./logger";
-import { User, UserStorage } from "./userStorage";
+import { UserStorage } from "./userStorage";
 
 /**
  * Passkey CredentialID 修复工具
@@ -35,7 +35,7 @@ export class PasskeyCredentialIdFixer {
         };
       }
 
-      const totalCredentials = user.passkeyCredentials.length;
+      const _totalCredentials = user.passkeyCredentials.length;
       let fixedCredentials = 0;
       let hasChanges = false;
 
@@ -64,8 +64,8 @@ export class PasskeyCredentialIdFixer {
           logger.info("[CredentialID修复] 修复credentialID", {
             userId: user.id,
             index: i,
-            original: originalCredentialId?.substring(0, 10) + "...",
-            fixed: fixedCredentialId.substring(0, 10) + "...",
+            original: `${originalCredentialId?.substring(0, 10)}...`,
+            fixed: `${fixedCredentialId.substring(0, 10)}...`,
           });
         }
       }
@@ -114,7 +114,7 @@ export class PasskeyCredentialIdFixer {
 
       return {
         success: false,
-        message: "修复失败: " + (error instanceof Error ? error.message : String(error)),
+        message: `修复失败: ${error instanceof Error ? error.message : String(error)}`,
         fixedCredentials: 0,
         totalCredentials: 0,
       };
@@ -160,7 +160,7 @@ export class PasskeyCredentialIdFixer {
 
       return {
         success: false,
-        message: "批量修复失败: " + (error instanceof Error ? error.message : String(error)),
+        message: `批量修复失败: ${error instanceof Error ? error.message : String(error)}`,
         totalUsers: 0,
         fixedUsers: 0,
         totalFixedCredentials: 0,

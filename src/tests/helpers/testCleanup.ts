@@ -127,7 +127,7 @@ export const testCleanup = TestCleanup.getInstance();
  * 通用装饰器工厂函数
  */
 function createCleanupDecorator(cleanupAction: () => Promise<void>) {
-  return (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
+  return (_target: any, _propertyKey: string, descriptor: PropertyDescriptor) => {
     const originalMethod = descriptor.value;
 
     descriptor.value = async function (...args: any[]) {

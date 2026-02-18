@@ -1,8 +1,8 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import dotenv from "dotenv";
-import fs from "fs";
 import OpenAI from "openai";
-import path from "path";
 import { config } from "../config/config";
 import logger from "../utils/logger";
 

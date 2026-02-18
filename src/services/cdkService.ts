@@ -1,8 +1,7 @@
-import crypto from "crypto";
-import { existsSync } from "fs";
-import { mkdir, writeFile } from "fs/promises";
+import { existsSync } from "node:fs";
+import { mkdir } from "node:fs/promises";
+import { basename, join, resolve, sep } from "node:path";
 import mongoose from "mongoose";
-import { basename, join, resolve, sep } from "path";
 import CDKModel, { type ICDK } from "../models/cdkModel";
 import ResourceModel from "../models/resourceModel";
 import logger from "../utils/logger";
@@ -188,31 +187,6 @@ export class CDKService {
     if (cleaned > 0) {
       logger.debug(`[CDKService] Cleaned ${cleaned} expired rate limiters`);
     }
-  }
-
-  private getCachedValidation(key: string): { valid: boolean; data?: any } | null {
-    const cached = this.validationCache.get(key);
-
-    if (!cached) {
-      return null;
-    }
-
-    const now = Date.now();
-    if (now - cached.timestamp >= this.VALIDATION_CACHE_TTL) {
-      this.validationCache.delete(key);
-      return null;
-    }
-
-    this.stats.cacheHitRate = this.stats.cacheHitRate * 0.9 + 0.1;
-    return { valid: cached.valid, data: cached.data };
-  }
-
-  private setCachedValidation(key: string, valid: boolean, data?: any): void {
-    this.validationCache.set(key, {
-      valid,
-      data,
-      timestamp: Date.now(),
-    });
   }
 
   private cleanupValidationCache(): void {
@@ -1023,7 +997,7 @@ export class CDKService {
         let expiresAt: Date | undefined;
         if (item.expiresAt) {
           const d = new Date(String(item.expiresAt));
-          if (isNaN(d.getTime())) {
+          if (Number.isNaN(d.getTime())) {
             throw new Error("过期时间格式无效");
           }
           if (d.getTime() <= Date.now()) {
@@ -1122,22 +1096,21 @@ export class CDKService {
         let index = 0;
         let body = header;
         for await (const c of cursor as any) {
-          body +=
-            [
-              `${index + 1}. CDK代码: ${c.code}`,
-              `   资源ID: ${c.resourceId}`,
-              `   创建时间: ${new Date(c.createdAt).toLocaleString("zh-CN")}`,
-              c.expiresAt ? `   过期时间: ${new Date(c.expiresAt).toLocaleString("zh-CN")}` : undefined,
-              c.isUsed ? `   使用状态: 已使用` : "   使用状态: 未使用",
-              c.isUsed && c.usedAt ? `   使用时间: ${new Date(c.usedAt).toLocaleString("zh-CN")}` : undefined,
-              c.isUsed && c.usedIp ? `   使用IP: ${c.usedIp}` : undefined,
-              c.isUsed && c.usedBy?.username
-                ? `   使用用户: ${c.usedBy.username} (ID: ${c.usedBy.userId || "-"})`
-                : undefined,
-              "",
-            ]
-              .filter(Boolean)
-              .join("\n") + "\n";
+          body += `${[
+            `${index + 1}. CDK代码: ${c.code}`,
+            `   资源ID: ${c.resourceId}`,
+            `   创建时间: ${new Date(c.createdAt).toLocaleString("zh-CN")}`,
+            c.expiresAt ? `   过期时间: ${new Date(c.expiresAt).toLocaleString("zh-CN")}` : undefined,
+            c.isUsed ? `   使用状态: 已使用` : "   使用状态: 未使用",
+            c.isUsed && c.usedAt ? `   使用时间: ${new Date(c.usedAt).toLocaleString("zh-CN")}` : undefined,
+            c.isUsed && c.usedIp ? `   使用IP: ${c.usedIp}` : undefined,
+            c.isUsed && c.usedBy?.username
+              ? `   使用用户: ${c.usedBy.username} (ID: ${c.usedBy.userId || "-"})`
+              : undefined,
+            "",
+          ]
+            .filter(Boolean)
+            .join("\n")}\n`;
           index++;
         }
         body += `=== 导出完成 ===\n`;
@@ -1159,7 +1132,7 @@ export class CDKService {
       const filePath = candidatePath;
 
       // 使用写流 + 游标逐行写入（不允许外部覆盖路径选项）
-      const fs = await import("fs");
+      const fs = await import("node:fs");
       const { createWriteStream } = fs;
       const ws = createWriteStream(filePath, { encoding: "utf8", flags: "w" });
 
@@ -1170,22 +1143,21 @@ export class CDKService {
       const cursor = CDKModel.find(query).sort({ createdAt: -1 }).select(projection).lean().cursor();
       let index = 0;
       for await (const c of cursor as any) {
-        const line =
-          [
-            `${index + 1}. CDK代码: ${c.code}`,
-            `   资源ID: ${c.resourceId}`,
-            `   创建时间: ${new Date(c.createdAt).toLocaleString("zh-CN")}`,
-            c.expiresAt ? `   过期时间: ${new Date(c.expiresAt).toLocaleString("zh-CN")}` : undefined,
-            c.isUsed ? `   使用状态: 已使用` : "   使用状态: 未使用",
-            c.isUsed && c.usedAt ? `   使用时间: ${new Date(c.usedAt).toLocaleString("zh-CN")}` : undefined,
-            c.isUsed && c.usedIp ? `   使用IP: ${c.usedIp}` : undefined,
-            c.isUsed && c.usedBy?.username
-              ? `   使用用户: ${c.usedBy.username} (ID: ${c.usedBy.userId || "-"})`
-              : undefined,
-            "",
-          ]
-            .filter(Boolean)
-            .join("\n") + "\n";
+        const line = `${[
+          `${index + 1}. CDK代码: ${c.code}`,
+          `   资源ID: ${c.resourceId}`,
+          `   创建时间: ${new Date(c.createdAt).toLocaleString("zh-CN")}`,
+          c.expiresAt ? `   过期时间: ${new Date(c.expiresAt).toLocaleString("zh-CN")}` : undefined,
+          c.isUsed ? `   使用状态: 已使用` : "   使用状态: 未使用",
+          c.isUsed && c.usedAt ? `   使用时间: ${new Date(c.usedAt).toLocaleString("zh-CN")}` : undefined,
+          c.isUsed && c.usedIp ? `   使用IP: ${c.usedIp}` : undefined,
+          c.isUsed && c.usedBy?.username
+            ? `   使用用户: ${c.usedBy.username} (ID: ${c.usedBy.userId || "-"})`
+            : undefined,
+          "",
+        ]
+          .filter(Boolean)
+          .join("\n")}\n`;
         if (!ws.write(line)) {
           await new Promise<void>((resolve) => ws.once("drain", resolve));
         }
@@ -1203,15 +1175,5 @@ export class CDKService {
       logger.error("导出CDK失败", { err });
       throw err;
     }
-  }
-
-  private generateUniqueCode(): string {
-    // 生成16位随机字符串
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    let code = "";
-    for (let i = 0; i < 16; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return code;
   }
 }

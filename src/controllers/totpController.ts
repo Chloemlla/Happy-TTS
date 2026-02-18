@@ -1,6 +1,4 @@
 import type { Request, Response } from "express";
-import fs from "fs";
-import path from "path";
 import { TOTPService } from "../services/totpService";
 import logger from "../utils/logger";
 import { TOTPDebugger } from "../utils/totpDebugger";

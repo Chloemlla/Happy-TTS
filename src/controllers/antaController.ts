@@ -62,7 +62,7 @@ export class AntaController {
 
       // 条码长度限制
       if (barcode.length > 50) {
-        logger.warn("安踏产品条码过长", { ip, barcode: barcode.substring(0, 20) + "..." });
+        logger.warn("安踏产品条码过长", { ip, barcode: `${barcode.substring(0, 20)}...` });
         return res.status(400).json({
           success: false,
           error: "条码长度不能超过50个字符",
@@ -168,7 +168,7 @@ export class AntaController {
     try {
       const limitRaw = (req.query.limit as string) || "10";
       let limit = parseInt(limitRaw, 10);
-      if (isNaN(limit) || limit <= 0) limit = 10;
+      if (Number.isNaN(limit) || limit <= 0) limit = 10;
       if (limit > 100) limit = 100;
 
       const list = await QueryStatsService.getTopProducts(limit);
@@ -212,7 +212,7 @@ export class AntaController {
       }
 
       let limit = parseInt(limitStr, 10);
-      if (isNaN(limit) || limit <= 0) limit = 50;
+      if (Number.isNaN(limit) || limit <= 0) limit = 50;
       if (limit > 200) limit = 200;
 
       // 验证 productId 格式（如果提供了的话）
@@ -268,7 +268,7 @@ export class AntaController {
 
       // 产品ID长度限制
       if (productId.length > 50) {
-        logger.warn("安踏产品ID过长", { ip, productId: productId.substring(0, 20) + "..." });
+        logger.warn("安踏产品ID过长", { ip, productId: `${productId.substring(0, 20)}...` });
         return res.status(400).json({
           success: false,
           error: "产品ID长度不能超过50个字符",

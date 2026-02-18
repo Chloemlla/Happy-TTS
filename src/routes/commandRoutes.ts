@@ -1,4 +1,4 @@
-import * as crypto from "crypto";
+import * as crypto from "node:crypto";
 import { type RequestHandler, Router } from "express";
 import { config } from "../config/config";
 import { authenticateToken } from "../middleware/authenticateToken";
@@ -355,7 +355,7 @@ router.get("/history", commandLimiter, authenticateToken, async (req, res) => {
       return res.status(403).json({ error: "需要管理员权限" });
     }
 
-    const limit = parseInt(req.query.limit as string) || 50;
+    const limit = parseInt(req.query.limit as string, 10) || 50;
     const history = await commandService.getExecutionHistory(limit);
 
     // 获取管理员token作为加密密钥

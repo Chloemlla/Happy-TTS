@@ -49,7 +49,7 @@ export const authenticateAdmin = async (req: Request & { user?: any }, res: Resp
                 };
               }
             }
-          } catch (e) {
+          } catch (_e) {
             // 忽略解析失败，走后续严格校验
           }
         }

@@ -1,6 +1,6 @@
+import * as https from "node:https";
 import axios, { type AxiosResponse } from "axios";
 import * as cheerio from "cheerio";
-import * as https from "https";
 import logger from "../utils/logger";
 
 /**
@@ -53,9 +53,9 @@ export class AntaService {
   constructor() {
     // 配置安踏API相关参数
     this.apiBaseUrl = process.env.ANTA_API_BASE_URL || "https://ascm.anta.com";
-    this.timeout = parseInt(process.env.ANTA_API_TIMEOUT || "15000"); // 15秒超时
-    this.retryAttempts = parseInt(process.env.ANTA_RETRY_ATTEMPTS || "3");
-    this.retryDelay = parseInt(process.env.ANTA_RETRY_DELAY || "1000"); // 1秒重试延迟
+    this.timeout = parseInt(process.env.ANTA_API_TIMEOUT || "15000", 10); // 15秒超时
+    this.retryAttempts = parseInt(process.env.ANTA_RETRY_ATTEMPTS || "3", 10);
+    this.retryDelay = parseInt(process.env.ANTA_RETRY_DELAY || "1000", 10); // 1秒重试延迟
   }
 
   /**
@@ -108,7 +108,7 @@ export class AntaService {
           statusText: response.statusText,
           requestUrl: debugUrl,
           responseData:
-            responseDataStr.length > 1000 ? responseDataStr.substring(0, 1000) + "...[截断]" : responseDataStr,
+            responseDataStr.length > 1000 ? `${responseDataStr.substring(0, 1000)}...[截断]` : responseDataStr,
           responseHeaders: response.headers,
           responseSize: responseDataStr.length,
           timestamp: new Date().toISOString(),
@@ -225,7 +225,7 @@ export class AntaService {
           statusText: response.statusText,
           requestUrl: debugUrl,
           responseData:
-            responseDataStr.length > 1000 ? responseDataStr.substring(0, 1000) + "...[截断]" : responseDataStr,
+            responseDataStr.length > 1000 ? `${responseDataStr.substring(0, 1000)}...[截断]` : responseDataStr,
           responseHeaders: response.headers,
           responseSize: responseDataStr.length,
           timestamp: new Date().toISOString(),
@@ -405,7 +405,7 @@ export class AntaService {
           contentLength: responseDataStr.length,
           url: queryUrl,
           responsePreview:
-            responseDataStr.length > 200 ? responseDataStr.substring(0, 200) + "...[预览截断]" : responseDataStr,
+            responseDataStr.length > 200 ? `${responseDataStr.substring(0, 200)}...[预览截断]` : responseDataStr,
           timestamp: new Date().toISOString(),
         });
 
@@ -433,7 +433,7 @@ export class AntaService {
               responseData: error.response?.data
                 ? typeof error.response.data === "string"
                   ? error.response.data.substring(0, 500) + (error.response.data.length > 500 ? "...[截断]" : "")
-                  : JSON.stringify(error.response.data).substring(0, 500) + "...[截断]"
+                  : `${JSON.stringify(error.response.data).substring(0, 500)}...[截断]`
                 : "No response data",
               requestUrl: queryUrl,
             }
@@ -532,7 +532,7 @@ export class AntaService {
           contentLength: responseDataStr.length,
           url: queryUrl,
           responsePreview:
-            responseDataStr.length > 200 ? responseDataStr.substring(0, 200) + "...[预览截断]" : responseDataStr,
+            responseDataStr.length > 200 ? `${responseDataStr.substring(0, 200)}...[预览截断]` : responseDataStr,
           timestamp: new Date().toISOString(),
         });
 
@@ -609,7 +609,7 @@ export class AntaService {
               responseData: error.response?.data
                 ? typeof error.response.data === "string"
                   ? error.response.data.substring(0, 500) + (error.response.data.length > 500 ? "...[截断]" : "")
-                  : JSON.stringify(error.response.data).substring(0, 500) + "...[截断]"
+                  : `${JSON.stringify(error.response.data).substring(0, 500)}...[截断]`
                 : "No response data",
               requestUrl: queryUrl,
             }
@@ -686,14 +686,14 @@ export class AntaService {
           retailPrice = this.parsePrice(priceText);
         } else if (text.startsWith("查询次数：")) {
           const countText = text.replace("查询次数：", "").trim();
-          queryCount = parseInt(countText) || 0;
+          queryCount = parseInt(countText, 10) || 0;
         }
       });
 
       // 验证必要字段
       if (!barcode || !productName) {
         // 详细记录解析失败的信息，包括HTML内容片段
-        const htmlPreview = html.length > 500 ? html.substring(0, 500) + "...[HTML截断]" : html;
+        const htmlPreview = html.length > 500 ? `${html.substring(0, 500)}...[HTML截断]` : html;
 
         logger.error("解析产品信息失败：缺少必要字段", {
           barcode,
@@ -742,7 +742,7 @@ export class AntaService {
       return productInfo;
     } catch (error) {
       // 详细记录解析异常信息
-      const htmlPreview = html && html.length > 500 ? html.substring(0, 500) + "...[HTML截断]" : html;
+      const htmlPreview = html && html.length > 500 ? `${html.substring(0, 500)}...[HTML截断]` : html;
 
       logger.error("解析产品信息异常", {
         error:
@@ -784,7 +784,7 @@ export class AntaService {
       const cleanPrice = priceText.replace(/[^\d.]/g, "");
       const price = parseFloat(cleanPrice);
 
-      return isNaN(price) ? 0 : price;
+      return Number.isNaN(price) ? 0 : price;
     } catch (error) {
       logger.debug("解析价格失败", { priceText, error });
       return 0;
@@ -806,7 +806,7 @@ export class AntaService {
         const text = $(element).text().trim();
         if (text.startsWith("查询次数：")) {
           const countText = text.replace("查询次数：", "").trim();
-          queryCount = parseInt(countText) || 0;
+          queryCount = parseInt(countText, 10) || 0;
           return false; // 找到后退出循环
         }
       });

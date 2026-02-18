@@ -1,5 +1,5 @@
-import fs from "fs";
-import path from "path";
+import fs from "node:fs";
+import path from "node:path";
 import { v4 as uuidv4 } from "uuid";
 import logger from "./logger";
 
@@ -70,7 +70,7 @@ export class StorageManager {
 
   public static async checkDuplicate(ip: string, fingerprint: string, text: string): Promise<boolean> {
     const records = StorageManager.readRecords();
-    const now = new Date().getTime();
+    const now = Date.now();
     const windowStart = now - StorageManager.DUPLICATE_WINDOW;
 
     return records.some((record) => {

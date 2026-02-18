@@ -1,6 +1,6 @@
-import fs from "fs";
+import fs from "node:fs";
+import path from "node:path";
 import type { Model } from "mongoose";
-import path from "path";
 import logger from "../utils/logger";
 import { mongoose } from "./mongoService";
 

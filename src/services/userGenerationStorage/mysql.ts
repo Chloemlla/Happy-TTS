@@ -44,7 +44,7 @@ export async function findDuplicateGeneration({
     ]);
   }
   await conn.end();
-  return rows && rows[0] ? (rows[0] as GenerationRecord) : null;
+  return rows?.[0] ? (rows[0] as GenerationRecord) : null;
 }
 
 export async function addGenerationRecord(record: GenerationRecord): Promise<GenerationRecord> {

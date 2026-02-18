@@ -25,7 +25,7 @@ const statusQueryLimiter = createLimiter({
  * GET /api/outemail/quota
  * 公共：查询对外邮件每日配额
  */
-router.get("/quota", statusQueryLimiter, async (req, res) => {
+router.get("/quota", statusQueryLimiter, async (_req, res) => {
   try {
     const info = await getOutEmailQuota();
     res.json({ success: true, used: info.used, total: info.total, resetAt: info.resetAt });
@@ -67,7 +67,7 @@ router.get("/status", statusQueryLimiter, (req, res) => {
  * GET /api/outemail/domain
  * 公共：获取对外发信所使用的域名
  */
-router.get("/domain", (req, res) => {
+router.get("/domain", (_req, res) => {
   const OUTEMAIL_DOMAIN = process.env.OUTEMAIL_DOMAIN || process.env.RESEND_DOMAIN || "";
   res.json({ success: true, domain: OUTEMAIL_DOMAIN });
 });
@@ -168,7 +168,7 @@ router.post("/batch-send", outEmailLimiter, async (req, res) => {
     }
     // 规范化与基本校验
     const normalized = messages
-      .filter((m: any) => m && m.to && m.subject && m.content)
+      .filter((m: any) => m?.to && m.subject && m.content)
       .slice(0, 100)
       .map((m: any) => ({
         to: Array.isArray(m.to) ? m.to : String(m.to),

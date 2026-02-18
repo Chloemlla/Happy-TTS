@@ -1,11 +1,11 @@
 // Jest测试设置文件
 
 // Mock 所有限速和保护中间件，确保性能测试时全部失效
-jest.mock("express-rate-limit", () => () => (req: Request, res: Response, next: NextFunction) => next());
+jest.mock("express-rate-limit", () => () => (_req: Request, _res: Response, next: NextFunction) => next());
 
 // Mock IP检查中间件
 jest.mock("../middleware/ipCheck", () => ({
-  ipCheckMiddleware: (req: Request, res: Response, next: NextFunction) => next(),
+  ipCheckMiddleware: (_req: Request, _res: Response, next: NextFunction) => next(),
 }));
 
 // Mock MongoDB - 改进版本
@@ -54,17 +54,17 @@ jest.mock("mongoose", () => ({
 
 // Mock 篡改保护中间件
 jest.mock("../middleware/tamperProtection", () => ({
-  tamperProtectionMiddleware: (req: Request, res: Response, next: NextFunction) => next(),
+  tamperProtectionMiddleware: (_req: Request, _res: Response, next: NextFunction) => next(),
 }));
 
 // Mock 自定义限速中间件
 jest.mock("../middleware/rateLimit", () => ({
-  rateLimitMiddleware: (req: Request, res: Response, next: NextFunction) => next(),
+  rateLimitMiddleware: (_req: Request, _res: Response, next: NextFunction) => next(),
 }));
 
 // Mock 路由限速器
 jest.mock("../middleware/routeLimiters", () => ({
-  createLimiter: () => (req: Request, res: Response, next: NextFunction) => next(),
+  createLimiter: () => (_req: Request, _res: Response, next: NextFunction) => next(),
 }));
 
 // Mock 限速器服务
@@ -75,7 +75,6 @@ jest.mock("../services/rateLimiter", () => ({
     reset: () => {},
   },
   RateLimiter: class {
-    constructor() {}
     isRateLimited() {
       return false;
     }
@@ -86,11 +85,11 @@ jest.mock("../services/rateLimiter", () => ({
 
 // Mock 自定义限速器中间件
 jest.mock("../middleware/rateLimiter", () => ({
-  createLimiter: () => (req: Request, res: Response, next: NextFunction) => next(),
+  createLimiter: () => (_req: Request, _res: Response, next: NextFunction) => next(),
 }));
 
 // Mock 所有可能的限速器，确保测试时全部失效
-const createDummyLimiter = () => (req: Request, res: Response, next: NextFunction) => next();
+const createDummyLimiter = () => (_req: Request, _res: Response, next: NextFunction) => next();
 
 // Mock 所有 express-rate-limit 的实例
 jest.mock("express-rate-limit", () => {
@@ -156,10 +155,9 @@ jest.mock("../config/config", () => {
 
 // 注意：不再 mock ../app，让 supertest 能够正确识别 Express 应用实例
 
+import fs from "node:fs";
+import path from "node:path";
 import type { NextFunction, Request, Response } from "express";
-import fs from "fs";
-import path from "path";
-import { config } from "../config/config";
 
 // 设置测试环境变量
 process.env.NODE_ENV = "test";
@@ -305,7 +303,7 @@ afterAll(async () => {
     if (libreChatService && typeof libreChatService.cleanup === "function") {
       libreChatService.cleanup();
     }
-  } catch (error) {
+  } catch (_error) {
     // 忽略错误
   }
 
@@ -315,7 +313,7 @@ afterAll(async () => {
     if (destroyNonceStore && typeof destroyNonceStore === "function") {
       destroyNonceStore();
     }
-  } catch (error) {
+  } catch (_error) {
     // 忽略错误
   }
 
@@ -345,7 +343,7 @@ afterAll(async () => {
 });
 
 // 处理未捕获的异常
-process.on("unhandledRejection", (reason, promise) => {
+process.on("unhandledRejection", (reason, _promise) => {
   console.error("未处理的Promise拒绝:", reason);
 });
 
@@ -379,7 +377,7 @@ jest.mock("marked", () => ({
 }));
 
 jest.mock("dayjs", () => {
-  const mockDayjs = jest.fn((date) => ({
+  const mockDayjs = jest.fn((_date) => ({
     format: jest.fn().mockReturnValue("2024-01-01"),
     toDate: jest.fn().mockReturnValue(new Date()),
     valueOf: jest.fn().mockReturnValue(1704067200000),

@@ -16,7 +16,7 @@ const publicLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "请求过于频繁，请稍后再试" },
   keyGenerator: (req) => req.ip || req.socket.remoteAddress || "unknown",
-  handler: (req, res) => {
+  handler: (_req, res) => {
     res.status(429).json({
       error: "请求过于频繁，请稍后再试",
       retryAfter: 60,
@@ -32,7 +32,7 @@ const fingerprintLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "指纹验证请求过于频繁，请稍后再试" },
   keyGenerator: (req) => req.ip || req.socket.remoteAddress || "unknown",
-  handler: (req, res) => {
+  handler: (_req, res) => {
     res.status(429).json({
       error: "指纹验证请求过于频繁，请稍后再试",
       retryAfter: 60,
@@ -52,7 +52,7 @@ const authenticatedFingerprintLimiter = rateLimit({
     const ip = req.ip || req.socket.remoteAddress || "unknown";
     return `${userId}:${ip}`;
   },
-  handler: (req, res) => {
+  handler: (_req, res) => {
     res.status(429).json({
       error: "指纹上报请求过于频繁，请稍后再试",
       retryAfter: 60,
@@ -68,7 +68,7 @@ const adminLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "管理员操作过于频繁，请稍后再试" },
   keyGenerator: (req) => req.ip || req.socket.remoteAddress || "unknown",
-  handler: (req, res) => {
+  handler: (_req, res) => {
     res.status(429).json({
       error: "管理员操作过于频繁，请稍后再试",
       retryAfter: 60,
@@ -84,7 +84,7 @@ const configLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "配置操作过于频繁，请稍后再试" },
   keyGenerator: (req) => req.ip || req.socket.remoteAddress || "unknown",
-  handler: (req, res) => {
+  handler: (_req, res) => {
     res.status(429).json({
       error: "配置操作过于频繁，请稍后再试",
       retryAfter: 300,
@@ -108,10 +108,10 @@ router.post("/fingerprint/report", authenticateToken, authenticatedFingerprintLi
     const userAgent = req.headers["user-agent"] || "unknown";
 
     console.log("🔍 收到指纹上报请求:", {
-      fingerprint: fingerprint ? fingerprint.substring(0, 8) + "..." : "null",
+      fingerprint: fingerprint ? `${fingerprint.substring(0, 8)}...` : "null",
       clientIp: validatedClientIp,
       userId,
-      userAgent: userAgent.substring(0, 50) + "...",
+      userAgent: `${userAgent.substring(0, 50)}...`,
       hasDeviceSignals: !!deviceSignals,
       deviceSignalsPreview: deviceSignals
         ? {
@@ -179,7 +179,7 @@ router.post("/fingerprint/report", authenticateToken, authenticatedFingerprintLi
       } as any);
 
       console.log("✅ 指纹上报并保存成功:", {
-        fingerprint: fingerprint.substring(0, 8) + "...",
+        fingerprint: `${fingerprint.substring(0, 8)}...`,
         userId,
         clientIp: validatedClientIp,
         timestamp: new Date().toISOString(),
@@ -307,9 +307,9 @@ router.post("/verify-temp-fingerprint", fingerprintLimiter, async (req, res) => 
     // CAPTCHA验证成功后直接通过，无需其他检查
     const serviceName = captchaType === "hcaptcha" ? "hCaptcha" : "Turnstile";
     console.log(`✅ ${serviceName}验证成功，直接通过`, {
-      fingerprint: fingerprint.substring(0, 8) + "...",
+      fingerprint: `${fingerprint.substring(0, 8)}...`,
       ip: validatedClientIp,
-      accessToken: result.accessToken ? result.accessToken.substring(0, 8) + "..." : "null",
+      accessToken: result.accessToken ? `${result.accessToken.substring(0, 8)}...` : "null",
     });
 
     res.json({
@@ -337,7 +337,7 @@ router.post("/verify-access-token", fingerprintLimiter, async (req, res) => {
         ? req.headers["x-forwarded-for"][0]
         : req.headers["x-forwarded-for"]) ||
       "unknown";
-    const validatedClientIp = typeof clientIp === "string" ? clientIp : "unknown";
+    const _validatedClientIp = typeof clientIp === "string" ? clientIp : "unknown";
 
     if (!token || typeof token !== "string") {
       return res.status(400).json({
@@ -622,7 +622,7 @@ router.post(
         const duration = Number(durationMinutes);
 
         // 检查是否为有效数字
-        if (isNaN(duration) || !isFinite(duration)) {
+        if (Number.isNaN(duration) || !Number.isFinite(duration)) {
           return res.status(400).json({
             success: false,
             error: "封禁时长必须是有效的数字",
@@ -808,7 +808,7 @@ router.post(
         const duration = Number(durationMinutes);
 
         // 检查是否为有效数字
-        if (isNaN(duration) || !isFinite(duration)) {
+        if (Number.isNaN(duration) || !Number.isFinite(duration)) {
           return res.status(400).json({
             success: false,
             error: "封禁时长必须是有效的数字",
@@ -1127,7 +1127,7 @@ router.get("/config", authenticateToken, configLimiter, async (req, res) => {
     // 对Secret Key进行脱敏处理
     const maskedSecretKey =
       config.secretKey && config.secretKey.length > 8
-        ? config.secretKey.slice(0, 2) + "***" + config.secretKey.slice(-4)
+        ? `${config.secretKey.slice(0, 2)}***${config.secretKey.slice(-4)}`
         : config.secretKey
           ? "***"
           : null;
@@ -1174,7 +1174,7 @@ router.get("/config", authenticateToken, configLimiter, async (req, res) => {
  *       500:
  *         description: 服务器内部错误
  */
-router.get("/public-config", publicLimiter, async (req, res) => {
+router.get("/public-config", publicLimiter, async (_req, res) => {
   try {
     const config = await TurnstileService.getConfig();
     const hcaptchaConfig = await TurnstileService.getHCaptchaConfig();
@@ -1216,7 +1216,7 @@ router.get("/public-config", publicLimiter, async (req, res) => {
  *         description: 服务器错误
  */
 // 公共：仅返回 Turnstile 配置（无需鉴权）
-router.get("/public-turnstile", publicLimiter, async (req, res) => {
+router.get("/public-turnstile", publicLimiter, async (_req, res) => {
   try {
     const config = await TurnstileService.getConfig();
     res.json({
@@ -1398,7 +1398,7 @@ router.post("/secure-captcha-config", publicLimiter, async (req, res) => {
 
     // 验证完整性哈希
     const expectedHashData = `${encryptedData}_${timestamp}_${fingerprint}`;
-    const crypto = require("crypto");
+    const crypto = require("node:crypto");
     const expectedHash = crypto.createHash("sha256").update(expectedHashData).digest("hex");
 
     if (hash !== expectedHash) {
@@ -1496,7 +1496,7 @@ router.post("/secure-captcha-config", publicLimiter, async (req, res) => {
       type: captchaType,
       selectionMethod:
         candidates.length > 1 ? "random" : candidates.length === 1 ? "single-available" : "fallback-disabled",
-      fingerprint: fingerprint.substring(0, 8) + "...",
+      fingerprint: `${fingerprint.substring(0, 8)}...`,
       timestamp: new Date(timestamp).toISOString(),
       clientIp: req.ip || "unknown",
       configEnabled: config.enabled,
@@ -1966,8 +1966,8 @@ router.post("/hcaptcha-verify", publicLimiter, async (req, res) => {
 
       console.log("✅ hCaptcha验证成功，直接通过", {
         ip: validatedClientIp,
-        token: token.substring(0, 8) + "...",
-        accessToken: accessToken ? accessToken.substring(0, 8) + "..." : "null",
+        token: `${token.substring(0, 8)}...`,
+        accessToken: accessToken ? `${accessToken.substring(0, 8)}...` : "null",
       });
 
       res.json({

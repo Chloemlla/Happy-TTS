@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 import { getNonceStore } from "../services/nonceStore";
 import logger from "../utils/logger";

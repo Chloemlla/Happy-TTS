@@ -95,7 +95,7 @@ export function corsHeadersMiddleware(req: Request, res: Response, next: NextFun
 }
 
 // ============ 路由级 CORS：完全开放（origin: *） ============
-export function openCorsPreflightHandler(req: Request, res: Response) {
+export function openCorsPreflightHandler(_req: Request, res: Response) {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", CORS_METHODS);
   res.header("Access-Control-Allow-Headers", CORS_ALLOWED_HEADERS.join(", "));
@@ -104,7 +104,7 @@ export function openCorsPreflightHandler(req: Request, res: Response) {
   res.status(200).end();
 }
 
-export function openCorsHeadersMiddleware(req: Request, res: Response, next: NextFunction) {
+export function openCorsHeadersMiddleware(_req: Request, res: Response, next: NextFunction) {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Credentials", "true");
   res.header("Access-Control-Expose-Headers", CORS_EXPOSED_HEADERS.join(", "));

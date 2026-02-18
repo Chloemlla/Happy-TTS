@@ -1,5 +1,5 @@
-import fs from "fs";
-import path from "path";
+import fs from "node:fs";
+import path from "node:path";
 import { formatModForOutput } from "./shared";
 
 const MODLIST_PATH = path.resolve(__dirname, "../../../data/modlist.json");

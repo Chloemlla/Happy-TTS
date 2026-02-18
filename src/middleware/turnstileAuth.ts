@@ -69,8 +69,8 @@ export const authenticateTurnstileToken = async (
     if (!isValid) {
       logger.warn("Turnstile认证失败：访问令牌无效", {
         ip: ipAddress,
-        fingerprint: fingerprint.substring(0, 8) + "...",
-        token: token.substring(0, 8) + "...",
+        fingerprint: `${fingerprint.substring(0, 8)}...`,
+        token: `${token.substring(0, 8)}...`,
         userAgent: req.get("User-Agent"),
       });
       res.status(401).json({
@@ -90,8 +90,8 @@ export const authenticateTurnstileToken = async (
 
     logger.info("Turnstile认证成功", {
       ip: ipAddress,
-      fingerprint: fingerprint.substring(0, 8) + "...",
-      token: token.substring(0, 8) + "...",
+      fingerprint: `${fingerprint.substring(0, 8)}...`,
+      token: `${token.substring(0, 8)}...`,
     });
 
     next();
@@ -201,8 +201,8 @@ export const authenticateTurnstileTokenForAdmin = async (
     if (!isValid) {
       logger.warn("Turnstile认证失败：访问令牌无效", {
         ip: ipAddress,
-        fingerprint: fingerprint.substring(0, 8) + "...",
-        token: turnstileToken.substring(0, 8) + "...",
+        fingerprint: `${fingerprint.substring(0, 8)}...`,
+        token: `${turnstileToken.substring(0, 8)}...`,
         userAgent: req.get("User-Agent"),
       });
       res.status(401).json({
@@ -222,8 +222,8 @@ export const authenticateTurnstileTokenForAdmin = async (
 
     logger.info("Turnstile认证成功（管理员模式）", {
       ip: ipAddress,
-      fingerprint: fingerprint.substring(0, 8) + "...",
-      token: turnstileToken.substring(0, 8) + "...",
+      fingerprint: `${fingerprint.substring(0, 8)}...`,
+      token: `${turnstileToken.substring(0, 8)}...`,
     });
 
     next();

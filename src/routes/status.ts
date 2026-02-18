@@ -17,7 +17,7 @@ const router = Router();
  *       401:
  *         description: 未授权
  */
-router.get("/status", authMiddleware, (req, res) => {
+router.get("/status", authMiddleware, (_req, res) => {
   res.json({ status: "ok" });
 });
 
@@ -31,7 +31,7 @@ router.get("/status", authMiddleware, (req, res) => {
  *       200:
  *         description: 服务正常
  */
-router.get("/", (req, res) => {
+router.get("/", (_req, res) => {
   res.json({
     status: "ok",
     timestamp: new Date().toISOString(),

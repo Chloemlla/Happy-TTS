@@ -72,7 +72,7 @@ async function fixUserPasskeyCredentialIDs(user: User): Promise<boolean> {
       cred.credentialID = fixed;
       reason = "异常类型，强制转base64url";
       changed = true;
-    } catch (e) {
+    } catch (_e) {
       reason = "credentialID彻底无法修复，剔除";
       user.passkeyCredentials[i] = null as any;
       changed = true;

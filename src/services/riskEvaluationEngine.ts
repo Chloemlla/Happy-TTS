@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 import logger from "../utils/logger";
 import { getIPInfo } from "./ip";
 
@@ -63,8 +63,8 @@ const FINGERPRINT_HISTORY_TTL = 86400000; // 24 hours
 const MAX_FINGERPRINT_HISTORY = 100;
 
 // Suspicious pattern detection
-const suspiciousPatterns = new Map<string, { count: number; firstSeen: number; lastSeen: number }>();
-const PATTERN_DETECTION_WINDOW = 3600000; // 1 hour
+const _suspiciousPatterns = new Map<string, { count: number; firstSeen: number; lastSeen: number }>();
+const _PATTERN_DETECTION_WINDOW = 3600000; // 1 hour
 
 export class RiskEvaluationEngine {
   private readonly blockedIPs = new Set<string>();
@@ -167,7 +167,7 @@ export class RiskEvaluationEngine {
     };
 
     logger.info("[风险评估] 评估完成", {
-      ip: ip.slice(0, 8) + "...",
+      ip: `${ip.slice(0, 8)}...`,
       riskLevel,
       overallRisk: Math.round(overallRisk * 100) / 100,
       blocked,
@@ -241,7 +241,7 @@ export class RiskEvaluationEngine {
   /**
    * Calculate device fingerprint consistency
    */
-  private calculateDeviceConsistency(deviceFingerprint: DeviceFingerprint, ip: string): number {
+  private calculateDeviceConsistency(deviceFingerprint: DeviceFingerprint, _ip: string): number {
     let consistency = 1.0; // Start with perfect consistency
 
     // Check if device fingerprint is too generic
@@ -266,7 +266,7 @@ export class RiskEvaluationEngine {
   /**
    * Calculate behavioral anomalies
    */
-  private calculateBehavioralAnomalies(behaviorScore: number, attempt: VerificationAttempt): number {
+  private calculateBehavioralAnomalies(behaviorScore: number, _attempt: VerificationAttempt): number {
     // Normalize behavior score to 0-1 range
     const normalizedScore = Math.max(0, Math.min(1, behaviorScore));
 
@@ -277,7 +277,7 @@ export class RiskEvaluationEngine {
   /**
    * Calculate temporal patterns
    */
-  private calculateTemporalPatterns(ip: string, attempt: VerificationAttempt): number {
+  private calculateTemporalPatterns(ip: string, _attempt: VerificationAttempt): number {
     let risk = 0;
 
     // Check for rapid successive attempts
@@ -360,7 +360,7 @@ export class RiskEvaluationEngine {
   /**
    * Generate risk flags
    */
-  private generateRiskFlags(factors: RiskFactors, attempt: VerificationAttempt): string[] {
+  private generateRiskFlags(factors: RiskFactors, _attempt: VerificationAttempt): string[] {
     const flags: string[] = [];
 
     if (factors.ipRisk > 0.7) flags.push("HIGH_IP_RISK");
@@ -423,7 +423,7 @@ export class RiskEvaluationEngine {
   /**
    * Get block reason
    */
-  private getBlockReason(factors: RiskFactors, flags: string[]): string {
+  private getBlockReason(_factors: RiskFactors, flags: string[]): string {
     if (flags.includes("HIGH_IP_RISK")) return "Suspicious IP address";
     if (flags.includes("DEVICE_INCONSISTENCY")) return "Device fingerprint inconsistency";
     if (flags.includes("BEHAVIORAL_ANOMALY")) return "Suspicious behavior detected";

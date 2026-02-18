@@ -220,7 +220,7 @@ describe("CommandService 安全性测试", () => {
     });
 
     it("应该拒绝过长的命令", () => {
-      const longCommand = "ls " + "a".repeat(200);
+      const longCommand = `ls ${"a".repeat(200)}`;
       const result = commandService.addCommand(longCommand, "wumy");
       expect(result.status).toBe("error");
       expect(result.message).toContain("命令长度超过限制");

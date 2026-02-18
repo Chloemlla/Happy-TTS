@@ -7,7 +7,7 @@ import { UserStorage } from "../utils/userStorage";
  * Passkey自动修复中间件
  * 在Passkey相关请求中自动检测和修复数据问题
  */
-export const passkeyAutoFixMiddleware = async (req: Request, res: Response, next: NextFunction) => {
+export const passkeyAutoFixMiddleware = async (req: Request, _res: Response, next: NextFunction) => {
   try {
     // 只对Passkey相关路由进行处理
     if (!req.path.includes("/passkey/")) {
@@ -133,7 +133,7 @@ async function checkUserPasskeyDataHealth(user: any): Promise<boolean> {
         if (!/^[A-Za-z0-9_-]+$/.test(cred.credentialID)) {
           logger.info("[Passkey中间件] 检测到credentialID格式不正确", {
             userId: user.id,
-            credentialID: cred.credentialID?.substring(0, 10) + "...",
+            credentialID: `${cred.credentialID?.substring(0, 10)}...`,
           });
           return true;
         }
@@ -165,7 +165,7 @@ async function checkUserPasskeyDataHealth(user: any): Promise<boolean> {
  * 全局Passkey错误处理中间件
  * 捕获Passkey相关的错误并进行自动修复
  */
-export const passkeyErrorHandler = (error: any, req: Request, res: Response, next: NextFunction) => {
+export const passkeyErrorHandler = (error: any, req: Request, _res: Response, next: NextFunction) => {
   // 只处理Passkey相关的错误
   if (!req.path.includes("/passkey/")) {
     return next(error);

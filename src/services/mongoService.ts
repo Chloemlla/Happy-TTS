@@ -1,5 +1,3 @@
-// 新增依赖
-import { MongoClientOptions } from "mongodb";
 import mongoose from "mongoose";
 import logger from "../utils/logger";
 

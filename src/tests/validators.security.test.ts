@@ -108,7 +108,7 @@ describe("sanitizeInput - Security Tests", () => {
 
   describe("性能测试", () => {
     test("应该在合理时间内完成清理（即使有嵌套）", () => {
-      const input = "j".repeat(100) + "avascript:".repeat(50) + "alert(1)";
+      const input = `${"j".repeat(100) + "avascript:".repeat(50)}alert(1)`;
       const startTime = Date.now();
 
       sanitizeInput(input);
@@ -122,7 +122,7 @@ describe("sanitizeInput - Security Tests", () => {
 
     test("应该防止 ReDoS 攻击", () => {
       // 构造可能导致正则表达式回溯的输入
-      const input = "on" + "a".repeat(1000) + "=";
+      const input = `on${"a".repeat(1000)}=`;
       const startTime = Date.now();
 
       sanitizeInput(input);

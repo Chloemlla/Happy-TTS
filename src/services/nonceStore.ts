@@ -57,7 +57,7 @@ export class NonceStore {
         if (oldestKey) {
           this.store.delete(oldestKey);
           logger.debug("[NonceStore] 因大小限制移除最旧的 nonce", {
-            evictedNonceId: oldestKey.slice(0, 8) + "...",
+            evictedNonceId: `${oldestKey.slice(0, 8)}...`,
             maxSize: this.maxSize,
           });
         }
@@ -74,7 +74,7 @@ export class NonceStore {
     this.store.set(nonceId, record);
 
     logger.debug("[NonceStore] 已存储 nonce", {
-      nonceId: nonceId.slice(0, 8) + "...",
+      nonceId: `${nonceId.slice(0, 8)}...`,
       clientIp,
       storeSize: this.store.size,
     });
@@ -99,7 +99,7 @@ export class NonceStore {
     if (now - record.issuedAt > this.ttlMs) {
       this.store.delete(nonceId);
       logger.debug("[NonceStore] 消费时移除过期的 nonce", {
-        nonceId: nonceId.slice(0, 8) + "...",
+        nonceId: `${nonceId.slice(0, 8)}...`,
         age: now - record.issuedAt,
       });
       return { success: false, reason: "nonce_expired" };
@@ -108,7 +108,7 @@ export class NonceStore {
     // 检查是否已被消费
     if (record.consumedAt) {
       logger.warn("[NonceStore] 尝试重复使用已消费的 nonce", {
-        nonceId: nonceId.slice(0, 8) + "...",
+        nonceId: `${nonceId.slice(0, 8)}...`,
         originalConsumedAt: record.consumedAt,
         clientIp: record.clientIp,
       });
@@ -120,7 +120,7 @@ export class NonceStore {
     this.store.set(nonceId, record);
 
     logger.debug("[NonceStore] 已消费 nonce", {
-      nonceId: nonceId.slice(0, 8) + "...",
+      nonceId: `${nonceId.slice(0, 8)}...`,
       issuedAt: record.issuedAt,
       consumedAt: record.consumedAt,
       clientIp: record.clientIp,

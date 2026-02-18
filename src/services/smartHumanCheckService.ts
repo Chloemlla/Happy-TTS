@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 import logger from "../utils/logger";
 import { getNonceStore, type NonceStore } from "./nonceStore";
 
@@ -230,7 +230,7 @@ export class SmartHumanCheckService {
         const randomBytes = crypto.randomBytes(64); // 512位随机数据
         const timestamp = Date.now().toString();
         const processId = process.pid.toString();
-        const hostname = require("os").hostname();
+        const hostname = require("node:os").hostname();
 
         // 组合多个熵源生成密钥
         const entropySources = [
@@ -467,7 +467,7 @@ export class SmartHumanCheckService {
       } catch {}
 
       logger.debug("[SmartHumanCheck] Issued nonce", {
-        nonceId: nonceId.slice(0, 8) + "...",
+        nonceId: `${nonceId.slice(0, 8)}...`,
         clientIp,
         timestamp: ts,
       });
@@ -572,7 +572,7 @@ export class SmartHumanCheckService {
     }
 
     logger.debug("[SmartHumanCheck] Nonce verified and consumed", {
-      nonceId: nonceId.slice(0, 8) + "...",
+      nonceId: `${nonceId.slice(0, 8)}...`,
       issuedAt: consumeResult.record?.issuedAt,
       consumedAt: consumeResult.record?.consumedAt,
     });
@@ -586,7 +586,7 @@ export class SmartHumanCheckService {
    */
   private assessRisk(
     payload: SmartClientPayload,
-    remoteIp?: string,
+    _remoteIp?: string,
   ): { score: number; level: "low" | "medium" | "high"; reasons: string[] } {
     const reasons: string[] = [];
     let risk = 0;

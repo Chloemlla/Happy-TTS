@@ -551,7 +551,7 @@ export class EmailController {
   public static async sendEmailWithCode(req: Request, res: Response) {
     try {
       const { from, to, subject, html, text, code } = req.body;
-      const ip = req.ip || "unknown";
+      const _ip = req.ip || "unknown";
       // 校验 code
       const config = require("../config").default;
       if (!code || code !== config.email.code) {
@@ -637,7 +637,7 @@ export class EmailController {
       const domain = req.query.domain as string | undefined;
       const quota = await getEmailQuota(user.id, domain);
       res.json(quota);
-    } catch (error) {
+    } catch (_error) {
       res.status(500).json({ error: "查询配额失败" });
     }
   }
@@ -646,11 +646,11 @@ export class EmailController {
    * 查询所有可用发件人域名
    * GET /api/email/domains
    */
-  public static async getDomains(req: Request, res: Response) {
+  public static async getDomains(_req: Request, res: Response) {
     try {
       const domains = getAllSenderDomains();
       res.json({ domains });
-    } catch (error) {
+    } catch (_error) {
       res.status(500).json({ error: "查询域名失败" });
     }
   }

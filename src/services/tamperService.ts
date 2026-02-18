@@ -1,6 +1,6 @@
-import { existsSync } from "fs";
-import { mkdir, readFile, writeFile } from "fs/promises";
-import { join } from "path";
+import { existsSync } from "node:fs";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import logger from "../utils/logger";
 import { mongoose } from "./mongoService";
 
@@ -105,7 +105,7 @@ class TamperService {
       const data = await readFile(this.BLOCKED_IPS_PATH, "utf-8");
       const blockedList: BlockedIP[] = JSON.parse(data);
       this.blockedIPs = new Map(blockedList.map((item) => [item.ip, item]));
-    } catch (error) {
+    } catch (_error) {
       logger.warn("未找到封禁 IP 文件，初始化为空");
     }
   }
@@ -155,7 +155,7 @@ class TamperService {
       try {
         const data = await readFile(this.TAMPER_LOG_PATH, "utf-8");
         events = JSON.parse(data);
-      } catch (error) {
+      } catch (_error) {
         logger.warn("未找到篡改事件文件，创建新文件");
       }
 

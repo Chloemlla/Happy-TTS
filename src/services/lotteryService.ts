@@ -1,7 +1,7 @@
-import crypto from "crypto";
-import path from "path";
+import crypto from "node:crypto";
+import path from "node:path";
 import { logger } from "./logger";
-import { addRound, getAllRounds, getUserRecord, updateRound, updateUserRecord } from "./lotteryStorage";
+import { addRound, getAllRounds, getUserRecord } from "./lotteryStorage";
 
 // 抽奖相关类型定义
 export interface LotteryPrize {
@@ -64,11 +64,6 @@ export interface BlockchainData {
 
 class LotteryService {
   private dataDir: string;
-  private roundsFile: string;
-  private usersFile: string;
-  private blockchainCacheFile: string;
-  private rounds: Map<string, LotteryRound> = new Map();
-  private userRecords: Map<string, UserLotteryRecord> = new Map();
   private blockchainCache: BlockchainData | null = null;
 
   constructor() {
@@ -146,7 +141,7 @@ class LotteryService {
       await this.getLotteryRounds();
     } catch (e: any) {
       logger.error(`创建抽奖轮次失败: ${e.message || e}`);
-      throw new Error("数据库写入失败: " + (e.message || e));
+      throw new Error(`数据库写入失败: ${e.message || e}`);
     }
     return round;
   }
@@ -326,9 +321,9 @@ class LotteryService {
   // 更新用户记录
   private async updateUserRecord(
     userId: string,
-    username: string,
-    winner: LotteryWinner,
-    prize: LotteryPrize,
+    _username: string,
+    _winner: LotteryWinner,
+    _prize: LotteryPrize,
   ): Promise<void> {
     const record = await getUserRecord(userId);
     if (!record) {

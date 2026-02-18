@@ -24,7 +24,7 @@ export class RecommendationController {
         return;
       }
 
-      const limit = parseInt(req.query.limit as string) || 5;
+      const limit = parseInt(req.query.limit as string, 10) || 5;
 
       // 限制最大推荐数量
       const safeLimit = Math.min(Math.max(1, limit), 10);
@@ -48,7 +48,7 @@ export class RecommendationController {
    */
   static async getPopularStyles(req: Request, res: Response): Promise<void> {
     try {
-      const limit = parseInt(req.query.limit as string) || 5;
+      const limit = parseInt(req.query.limit as string, 10) || 5;
       const safeLimit = Math.min(Math.max(1, limit), 10);
 
       const styles = await recommendationService.getPopularStyles(safeLimit);

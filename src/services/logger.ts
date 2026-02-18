@@ -1,5 +1,5 @@
-import { createWriteStream, existsSync, mkdirSync } from "fs";
-import { join } from "path";
+import { createWriteStream, existsSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
 import config from "../config";
 
 export class Logger {
@@ -40,7 +40,7 @@ export class Logger {
       data,
     };
 
-    this.logStream.write(JSON.stringify(logEntry) + "\n");
+    this.logStream.write(`${JSON.stringify(logEntry)}\n`);
   }
 
   error(message: string, error?: any) {

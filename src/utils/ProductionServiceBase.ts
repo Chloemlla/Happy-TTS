@@ -433,7 +433,7 @@ export abstract class ProductionServiceBase {
     let cleaned = 0;
 
     for (const [key, cached] of this.cache.entries()) {
-      if (now - cached.timestamp >= this.config.cache!.ttl) {
+      if (now - cached.timestamp >= this.config.cache?.ttl) {
         this.cache.delete(key);
         cleaned++;
       }
@@ -516,7 +516,7 @@ export abstract class ProductionServiceBase {
    * 执行带超时保护的MongoDB查询
    */
   protected async executeQuery<T>(query: Promise<T>, queryName: string = "Query"): Promise<T> {
-    const timeout = this.config.performance?.queryTimeout || 5000;
+    const _timeout = this.config.performance?.queryTimeout || 5000;
     const operationTimeout = this.config.performance?.operationTimeout || 10000;
 
     return await Promise.race([

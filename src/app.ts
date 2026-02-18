@@ -1,21 +1,18 @@
 // 设置时区为上海
 process.env.TZ = "Asia/Shanghai";
 
-import FingerprintJS from "@fingerprintjs/fingerprintjs";
-import { exec } from "child_process";
-import { adminController } from "controllers/adminController";
+import { exec } from "node:child_process";
+import fs, { existsSync, mkdirSync } from "node:fs";
+import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import path, { join } from "node:path";
+import { promisify } from "node:util";
 import express, { type NextFunction, type Request, type RequestHandler, type Response } from "express";
-import fs, { existsSync, mkdirSync } from "fs";
-import { appendFile, mkdir, readFile, writeFile } from "fs/promises";
 import helmet from "helmet";
 import { OpenAI } from "openai";
-import path, { join } from "path";
 import swaggerJSDoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
-import { promisify } from "util";
-import { v4 as uuidv4 } from "uuid";
 import { config } from "./config/config";
-import { AuthController, isAdminToken, registerLogoutRoute } from "./controllers/authController";
+import { registerLogoutRoute } from "./controllers/authController";
 import { authenticateToken } from "./middleware/authenticateToken";
 // ========== CORS 中间件 ==========
 import {
@@ -50,7 +47,6 @@ import {
   lcCompatLimiter,
   libreChatLimiter,
   lifeLimiter,
-  logsLimiter,
   mediaLimiter,
   meEndpointLimiter,
   miniapiLimiter,
@@ -76,7 +72,7 @@ import apiKeyRoutes from "./routes/apiKeyRoutes";
 import auditLogRoutes from "./routes/auditLogRoutes";
 import authRoutes from "./routes/authRoutes";
 import cdkRoutes from "./routes/cdkRoutes";
-import commandRoutes, { commandStatusHandler } from "./routes/commandRoutes";
+import commandRoutes from "./routes/commandRoutes";
 import dataCollectionAdminRoutes from "./routes/dataCollectionAdminRoutes";
 import dataCollectionRoutes from "./routes/dataCollectionRoutes";
 import dataProcessRoutes from "./routes/dataProcessRoutes";
@@ -109,8 +105,7 @@ import turnstileRoutes from "./routes/turnstileRoutes";
 import webhookEventRoutes from "./routes/webhookEventRoutes";
 import webhookRoutes from "./routes/webhookRoutes";
 import { getIPInfo } from "./services/ip";
-import { connectMongo, isConnected as isMongoConnected } from "./services/mongoService";
-import { PasskeyDataRepairService } from "./services/passkeyDataRepairService";
+import { isConnected as isMongoConnected } from "./services/mongoService";
 import { schedulerService } from "./services/schedulerService";
 import { wsService } from "./services/wsService";
 import logger from "./utils/logger";
@@ -127,11 +122,11 @@ declare global {
 
 // 邮件服务全局开关
 // eslint-disable-next-line no-var
-var EMAIL_ENABLED: boolean;
+var _EMAIL_ENABLED: boolean;
 // eslint-disable-next-line no-var
-var EMAIL_SERVICE_STATUS: { available: boolean; error?: string };
+var _EMAIL_SERVICE_STATUS: { available: boolean; error?: string };
 // eslint-disable-next-line no-var
-var OUTEMAIL_SERVICE_STATUS: { available: boolean; error?: string };
+var _OUTEMAIL_SERVICE_STATUS: { available: boolean; error?: string };
 
 // Synchronous helper for Swagger UI initialization
 const readOpenapiJsonSync = (): string => {
@@ -151,11 +146,11 @@ const readOpenapiJsonSync = (): string => {
       /* ignore */
     }
   }
-  throw new Error("openapi.json not found in: " + candidates.join(" | "));
+  throw new Error(`openapi.json not found in: ${candidates.join(" | ")}`);
 };
 
 const app = express();
-const execAsync = promisify(exec);
+const _execAsync = promisify(exec);
 
 // ========== 需要在全局 JSON 解析器之前挂载的路由 ==========
 
@@ -176,7 +171,7 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // 健康检查端点（轻量，跳过所有中间件，用于 liveness/readiness probe）
-app.get("/health", (req: Request, res: Response) => {
+app.get("/health", (_req: Request, res: Response) => {
   const mongo = isMongoConnected();
   const status = mongo ? "ok" : "degraded";
   res.status(mongo ? 200 : 503).json({
@@ -219,7 +214,7 @@ app.use("/api/shorturl", shortUrlRoutes);
 app.set("trust proxy", 1);
 
 // 检查是否是本地 IP
-const isLocalIp = (req: Request, res: Response, next: NextFunction) => {
+const isLocalIp = (req: Request, _res: Response, next: NextFunction) => {
   const ip = req.ip || req.socket.remoteAddress || "unknown";
   if (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "dev") {
     req.isLocalIp = false;
@@ -230,7 +225,7 @@ const isLocalIp = (req: Request, res: Response, next: NextFunction) => {
 };
 
 // 请求日志（仅记录关键信息，避免序列化完整 headers/body 造成性能开销）
-app.use((req: Request, res: Response, next: NextFunction) => {
+app.use((req: Request, _res: Response, next: NextFunction) => {
   if (process.env.NODE_ENV === "development" || process.env.VERBOSE_LOGGING === "true") {
     logger.info(`收到请求: ${req.method} ${req.url}`, {
       ip: req.ip,
@@ -330,7 +325,7 @@ app.use(
 );
 
 // 移除泄露信息的响应头
-app.use((req, res, next) => {
+app.use((_req, res, next) => {
   res.removeHeader("X-Powered-By");
   res.removeHeader("Server");
   next();
@@ -398,56 +393,56 @@ const readOpenapiJson = async (): Promise<string> => {
       /* ignore */
     }
   }
-  throw new Error("openapi.json not found in: " + candidates.join(" | "));
+  throw new Error(`openapi.json not found in: ${candidates.join(" | ")}`);
 };
 
 // openapi.json 路由
-app.get("/api/api-docs.json", openapiLimiter, async (req, res) => {
+app.get("/api/api-docs.json", openapiLimiter, async (_req, res) => {
   try {
     res.setHeader("Content-Type", "application/json");
     res.send(await readOpenapiJson());
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: "无法读取API文档" });
   }
 });
-app.get("/api-docs.json", openapiLimiter, async (req, res) => {
+app.get("/api-docs.json", openapiLimiter, async (_req, res) => {
   try {
     res.setHeader("Content-Type", "application/json");
     res.send(await readOpenapiJson());
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: "无法读取API文档" });
   }
 });
-app.get("/openapi.json", openapiLimiter, async (req, res) => {
+app.get("/openapi.json", openapiLimiter, async (_req, res) => {
   try {
     res.setHeader("Content-Type", "application/json");
     res.send(await readOpenapiJson());
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: "无法读取API文档" });
   }
 });
 
 // Swagger UI
 let swaggerUiSpec: any = swaggerSpec;
-let swaggerLoadReason = "swagger-jsdoc";
+let _swaggerLoadReason = "swagger-jsdoc";
 try {
   const json = readOpenapiJsonSync();
   swaggerUiSpec = JSON.parse(json);
   const pathsCount = swaggerUiSpec?.paths ? Object.keys(swaggerUiSpec.paths).length : 0;
   logger.info(`[Swagger] 为 UI 加载预先生成的 openapi.json，路径数=${pathsCount}`);
-  swaggerLoadReason = "pre-generated-openapi.json";
+  _swaggerLoadReason = "pre-generated-openapi.json";
 } catch (e) {
   logger.warn(
-    "[Swagger] Falling back to swagger-jsdoc generated spec. Reason: " + (e instanceof Error ? e.message : String(e)),
+    `[Swagger] Falling back to swagger-jsdoc generated spec. Reason: ${e instanceof Error ? e.message : String(e)}`,
   );
 }
 
 const preferSwaggerUrl = !!process.env.OPENAPI_JSON_PATH || fs.existsSync("/app/openapi.json");
 
-app.get("/api-docs/favicon-32x32.png", (req: Request, res: Response) => {
+app.get("/api-docs/favicon-32x32.png", (_req: Request, res: Response) => {
   res.redirect(302, "https://png.hapxs.com/i/2025/08/08/68953253d778d.png");
 });
-app.get("/api-docs/favicon-16x16.png", (req: Request, res: Response) => {
+app.get("/api-docs/favicon-16x16.png", (_req: Request, res: Response) => {
   res.redirect(302, "https://png.hapxs.com/i/2025/08/08/68953253d778d.png");
 });
 
@@ -466,11 +461,11 @@ const swaggerCustomCss = `
 
 app.use(
   "/api-docs",
-  (req: Request, res: Response, next: NextFunction) => {
+  (_req: Request, res: Response, next: NextFunction) => {
     res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
     res.set("Pragma", "no-cache");
     res.set("Expires", "0");
-    res.removeHeader && res.removeHeader("ETag");
+    res.removeHeader?.("ETag");
     next();
   },
   swaggerUi.serve,
@@ -504,7 +499,7 @@ const ensureAudioDir = async () => {
 ensureAudioDir().catch(console.error);
 
 // 前端配置 API（公开访问）
-app.get("/api/frontend-config", (req: Request, res: Response) => {
+app.get("/api/frontend-config", (_req: Request, res: Response) => {
   res.json({ enableFirstVisitVerification: config.enableFirstVisitVerification });
 });
 
@@ -543,7 +538,7 @@ app.use("/api/miniapi", miniapiLimiter, miniapiRoutes);
 app.use(
   "/api/anta",
   antaLimiter,
-  (req: Request, res: Response, next: NextFunction) => {
+  (req: Request, _res: Response, next: NextFunction) => {
     logger.info(`安踏防伪查询请求: ${req.method} ${req.url}`, {
       ip: req.ip,
       userAgent: req.get("User-Agent"),
@@ -563,21 +558,21 @@ app.use("/api/fbi-wanted", fbiWantedRoutes);
 app.use("/api/github-billing", githubBillingLimiter, githubBillingRoutes);
 
 // 完整性检测兜底接口
-app.head("/api/proxy-test", integrityLimiter, (req, res) => res.sendStatus(200));
-app.get("/api/proxy-test", integrityLimiter, (req, res) => res.sendStatus(200));
-app.get("/api/timing-test", integrityLimiter, (req, res) => res.sendStatus(200));
+app.head("/api/proxy-test", integrityLimiter, (_req, res) => res.sendStatus(200));
+app.get("/api/proxy-test", integrityLimiter, (_req, res) => res.sendStatus(200));
+app.get("/api/timing-test", integrityLimiter, (_req, res) => res.sendStatus(200));
 
 // 根路由
-app.get("/", rootLimiter, (req, res) => {
+app.get("/", rootLimiter, (_req, res) => {
   res.redirect("http://tts.hapxs.com/");
 });
 
-app.get("/favicon.ico", (req, res) => {
+app.get("/favicon.ico", (_req, res) => {
   res.redirect(302, "https://png.hapxs.com/i/2025/08/08/68953253d778d.png");
 });
 
 // 兼容旧路径
-app.get("/lc", lcCompatLimiter, (req, res) => {
+app.get("/lc", lcCompatLimiter, (_req, res) => {
   try {
     const { libreChatService } = require("./services/libreChatService");
     const record = libreChatService.getLatestRecord();
@@ -589,11 +584,11 @@ app.get("/lc", lcCompatLimiter, (req, res) => {
       });
     }
     return res.status(404).json({ error: "No data available." });
-  } catch (e) {
+  } catch (_e) {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 });
-app.get("/librechat-image", lcCompatLimiter, (req, res) => res.redirect(302, "/api/libre-chat/librechat-image"));
+app.get("/librechat-image", lcCompatLimiter, (_req, res) => res.redirect(302, "/api/libre-chat/librechat-image"));
 
 // ========== IP 相关路由 ==========
 
@@ -639,7 +634,7 @@ app.post("/api/report-ip", ipReportLimiter, async (req, res) => {
         const content = await readFile(CLIENT_REPORTED_IP_FILE, "utf-8");
         records = JSON.parse(content);
         if (!Array.isArray(records)) records = [];
-      } catch (e) {
+      } catch (_e) {
         records = [];
       }
     }
@@ -665,15 +660,15 @@ const frontendCandidates = [
 const resolvedFrontendPath = frontendCandidates.find((p) => existsSync(p));
 
 if (resolvedFrontendPath) {
-  logger.info("[Frontend] Serving static files from: " + resolvedFrontendPath);
+  logger.info(`[Frontend] Serving static files from: ${resolvedFrontendPath}`);
   app.use("/static", staticFileLimiter, express.static(resolvedFrontendPath));
-  app.get(/^\/(?!api|api-docs|static|openapi)(.*)/, frontendLimiter, (req, res) => {
+  app.get(/^\/(?!api|api-docs|static|openapi)(.*)/, frontendLimiter, (_req, res) => {
     res.sendFile(join(resolvedFrontendPath, "index.html"));
   });
 } else {
   const expected = frontendCandidates.join(" | ");
-  logger.warn("[Frontend] 在任何候选路径中均未找到前端文件。已尝试：" + expected);
-  app.get("/index.html", (req, res) => {
+  logger.warn(`[Frontend] 在任何候选路径中均未找到前端文件。已尝试：${expected}`);
+  app.get("/index.html", (_req, res) => {
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.status(200).send(`<!doctype html>
 <html lang="zh-CN">
@@ -838,7 +833,7 @@ app.use(notFoundLimiter, (req: Request, res: Response) => {
 
 const OPENAI_KEY = process.env.OPENAI_KEY;
 const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL;
-const openai = new OpenAI({ apiKey: OPENAI_KEY, baseURL: OPENAI_BASE_URL });
+const _openai = new OpenAI({ apiKey: OPENAI_KEY, baseURL: OPENAI_BASE_URL });
 
 class RateLimiter {
   private calls: number[] = [];
@@ -857,7 +852,7 @@ class RateLimiter {
   }
 }
 
-const ttsRateLimiter = new RateLimiter(5, 30000);
+const _ttsRateLimiter = new RateLimiter(5, 30000);
 
 // 确保必要的目录存在
 const ensureDirectories = async () => {
@@ -954,7 +949,7 @@ if (process.env.NODE_ENV !== "test") {
             logger.info(`[启动] 找到文件权限检查脚本: ${scriptPath}`);
             break;
           }
-        } catch (e) {
+        } catch (_e) {
           /* continue */
         }
       }
@@ -1058,11 +1053,11 @@ app.use(
     "/api/auth/login",
     "/api/auth/register",
   ],
-  (req: any, res: any, next: any) => {
+  (_req: any, res: any, next: any) => {
     res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
     res.set("Pragma", "no-cache");
     res.set("Expires", "0");
-    res.removeHeader && res.removeHeader("ETag");
+    res.removeHeader?.("ETag");
     next();
   },
 );

@@ -13,7 +13,7 @@ describe("CredentialID 修复", () => {
         }
       }
       return Buffer.from(String(credentialId)).toString("base64url");
-    } catch (error) {
+    } catch (_error) {
       throw new Error(`无法修复credentialID: ${credentialId}`);
     }
   }

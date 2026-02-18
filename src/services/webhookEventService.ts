@@ -1,4 +1,4 @@
-import type { IncomingHttpHeaders } from "http";
+import type { IncomingHttpHeaders } from "node:http";
 import mongoose, { Schema } from "mongoose";
 import { Webhook as SvixWebhook } from "svix";
 

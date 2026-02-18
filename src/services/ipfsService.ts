@@ -1,6 +1,4 @@
-import axios from "axios";
 import type { Request } from "express";
-import FormData from "form-data";
 import logger from "../utils/logger";
 
 const nanoid = require("nanoid").nanoid;
@@ -8,10 +6,8 @@ const nanoid = require("nanoid").nanoid;
 import createDOMPurify from "dompurify";
 import { JSDOM } from "jsdom";
 import mongoose from "mongoose";
-import ShortUrlModel from "../models/shortUrlModel";
 import { shortUrlMigrationService } from "./shortUrlMigrationService";
 import { ShortUrlService } from "./shortUrlService";
-import { TransactionService } from "./transactionService";
 import { TurnstileService } from "./turnstileService";
 
 // IPFS服务设置（支持从 MongoDB 读取配置，优先于环境变量）
@@ -270,13 +266,7 @@ export class IPFSService {
       // 优化SVG内容
       fileBuffer = Buffer.from(IPFSService.optimizeSVGContent(fileBuffer.toString("utf-8")));
     }
-
-    try {
-      return await IPFSService.uploadFileInternal(fileBuffer, finalFilename, mimetype, options, cfToken);
-    } catch (error) {
-      // SVG转PNG功能已移除，直接抛出错误
-      throw error;
-    }
+    return await IPFSService.uploadFileInternal(fileBuffer, finalFilename, mimetype, options, cfToken);
   }
 
   /**
@@ -286,8 +276,8 @@ export class IPFSService {
     fileBuffer: Buffer,
     filename: string,
     mimetype: string,
-    options?: { shortLink?: boolean; userId?: string; username?: string },
-    cfToken?: string,
+    _options?: { shortLink?: boolean; userId?: string; username?: string },
+    _cfToken?: string,
   ): Promise<IPFSUploadResponse> {
     // 规范化文件名
     const normalizedFilename = IPFSService.normalizeFilename(filename, mimetype);
@@ -416,7 +406,7 @@ export class IPFSService {
         } else {
           // 其他 IPFS 网关使用标准参数
           requestUrl = `${ipfsUploadUrl}?stream-channels=true&pin=false&wrap-with-directory=false&progress=false`;
-          requestConfig.headers["Origin"] = origin;
+          requestConfig.headers.Origin = origin;
         }
 
         // 发送请求到IPFS
@@ -456,7 +446,7 @@ export class IPFSService {
 
         // 上传成功后生成短链（仅当 options.shortLink 为 true 时）
         let shortUrl = "";
-        if (options && options.shortLink && web2url) {
+        if (options?.shortLink && web2url) {
           try {
             // 使用迁移服务自动修正目标URL
             const fixedTarget = shortUrlMigrationService.fixTargetUrlBeforeSave(web2url);

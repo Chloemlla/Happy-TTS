@@ -1,6 +1,6 @@
-import fs from "fs";
-import path from "path";
-import { inspect } from "util";
+import fs from "node:fs";
+import path from "node:path";
+import { inspect } from "node:util";
 import winston from "winston";
 
 // 创建日志目录

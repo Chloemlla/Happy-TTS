@@ -1,7 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import fs from "fs";
 import jwt from "jsonwebtoken";
-import path from "path";
 import { config } from "../config/config";
 import { safeLog } from "../utils/logger";
 import { UserStorage } from "../utils/userStorage";
