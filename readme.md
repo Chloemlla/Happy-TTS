@@ -936,7 +936,7 @@ npx wrangler deploy  # 部署到 Cloudflare
 
 ## 📝 许可证
 
-[MIT License](LICENSE)
+[Self-written License](LICENSE)
 
 ---
 
@@ -951,4 +951,4 @@ npx wrangler deploy  # 部署到 Cloudflare
 
 ---
 
-**版本**: 1.0.0
+**版本**: 1771430945717
