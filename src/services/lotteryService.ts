@@ -65,6 +65,9 @@ export interface BlockchainData {
 class LotteryService {
   private dataDir: string;
   private blockchainCache: BlockchainData | null = null;
+  private roundsFile: string;
+  private usersFile: string;
+  private blockchainCacheFile: string;
 
   constructor() {
     this.dataDir = path.join(process.cwd(), "data", "lottery");

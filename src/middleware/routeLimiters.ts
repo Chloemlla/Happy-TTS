@@ -21,6 +21,7 @@ class SharedMemoryStore implements Store {
   // 所有实例共享同一个底层 Map 和清理器
   private static readonly globalMap = new Map<string, { totalHits: number; resetTime: Date }>();
   private static cleanupTimer: ReturnType<typeof setInterval> | null = null;
+  private static instanceCount = 0;
 
   // Store 接口要求 prefix 为 public（可选）
   readonly prefix: string;
@@ -32,7 +33,7 @@ class SharedMemoryStore implements Store {
     this.windowMs = windowMs;
     this.hits = SharedMemoryStore.globalMap;
 
-    SharedMemoryStore.instanceCount++;
+    SharedMemoryStore.instanceCount = (SharedMemoryStore.instanceCount ?? 0) + 1;
     // 只启动一个全局清理定时器（每 60 秒清理过期条目）
     if (!SharedMemoryStore.cleanupTimer) {
       SharedMemoryStore.cleanupTimer = setInterval(() => {

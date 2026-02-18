@@ -97,9 +97,10 @@ export class UserStorage {
   private static readonly USERS_FILE = path.join(process.cwd(), "data", "users.json");
   private static readonly DAILY_LIMIT = 5;
   private static autoSwitchEnabled = true;
+  private static mongoConnected = false;
 
   // 输入净化
-  private static sanitizeInput(input: string | undefined): string {
+  public static sanitizeInput(input: string | undefined): string {
     if (!input) return "";
     return getDOMPurify().sanitize(validator.trim(input));
   }

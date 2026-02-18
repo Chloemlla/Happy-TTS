@@ -173,7 +173,7 @@ class RedisService {
       const key = `ipban:${ip}`;
       const result = await this.client?.del(key);
 
-      if (result > 0) {
+      if (result && result > 0) {
         logger.info(`✅ [Redis] IP 已解封: ${ip}`);
         return true;
       }
@@ -207,7 +207,7 @@ class RedisService {
       const keys = await this.client?.keys("ipban:*");
       const bannedIPs = [];
 
-      for (const key of keys) {
+      for (const key of keys ?? []) {
         const data = await this.client?.get(key);
         if (data) {
           bannedIPs.push(JSON.parse(data));
@@ -233,7 +233,7 @@ class RedisService {
       const keys = await this.client?.keys("ipban:*");
       let cleaned = 0;
 
-      for (const key of keys) {
+      for (const key of keys ?? []) {
         const data = await this.client?.get(key);
         if (data) {
           const ban = JSON.parse(data);
