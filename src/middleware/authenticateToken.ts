@@ -30,8 +30,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     if (!user) {
       return res.status(403).json({ error: "无效的Token" });
     }
-    // @ts-expect-error
-    req.user = user;
+    (req as any).user = user;
     next();
   } catch (error) {
     logger.error("Token 认证失败:", error);

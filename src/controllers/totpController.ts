@@ -76,8 +76,7 @@ export class TOTPController {
    */
   public static async generateSetup(req: Request, res: Response) {
     try {
-      // @ts-expect-error
-      const jwtUser = req.user as any;
+      const jwtUser = (req as any).user;
       if (!jwtUser) {
         return res.status(401).json({ error: "未授权访问" });
       }
@@ -138,8 +137,7 @@ export class TOTPController {
   public static async verifyAndEnable(req: Request, res: Response) {
     let currentUser: any = null;
     try {
-      // @ts-expect-error
-      const jwtUser = req.user as any;
+      const jwtUser = (req as any).user;
       if (!jwtUser) {
         return res.status(401).json({ error: "未授权访问" });
       }
@@ -424,8 +422,7 @@ export class TOTPController {
    */
   public static async disable(req: Request, res: Response) {
     try {
-      // @ts-expect-error
-      const jwtUser = req.user as any;
+      const jwtUser = (req as any).user;
       if (!jwtUser) {
         return res.status(401).json({ error: "未授权访问" });
       }
@@ -510,8 +507,7 @@ export class TOTPController {
    */
   public static async getStatus(req: Request, res: Response) {
     try {
-      // @ts-expect-error
-      const jwtUser = req.user as any;
+      const jwtUser = (req as any).user;
       if (!jwtUser) {
         return res.status(401).json({ error: "未授权访问" });
       }
@@ -537,8 +533,7 @@ export class TOTPController {
    */
   public static async getBackupCodes(req: Request, res: Response) {
     try {
-      // @ts-expect-error
-      const jwtUser = req.user as any;
+      const jwtUser = (req as any).user;
       if (!jwtUser) {
         return res.status(401).json({ error: "未授权访问" });
       }
@@ -579,8 +574,7 @@ export class TOTPController {
    */
   public static async regenerateBackupCodes(req: Request, res: Response) {
     try {
-      // @ts-expect-error
-      const jwtUser = req.user as any;
+      const jwtUser = (req as any).user;
       if (!jwtUser) {
         return res.status(401).json({ error: "未授权访问" });
       }

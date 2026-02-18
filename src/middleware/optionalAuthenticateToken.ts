@@ -27,8 +27,7 @@ export const optionalAuthenticateToken = async (req: Request, _res: Response, ne
     if (!userId) return next();
     const user = await UserStorage.getUserById(userId);
     if (!user) return next();
-    // @ts-expect-error
-    req.user = user;
+    (req as any).user = user;
     return next();
   } catch {
     // 任何异常都不阻断请求

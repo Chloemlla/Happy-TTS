@@ -33,7 +33,6 @@ export class SmartHumanCheckController {
       },
       { collection: "shc_traces", timestamps: false },
     );
-    // @ts-expect-error
     return mongoose.models.SHCTrace || mongoose.model("SHCTrace", schema);
   }
   /**
@@ -185,7 +184,6 @@ export class SmartHumanCheckController {
   static async listTraces(req: Request, res: Response) {
     try {
       // 权限校验：仅管理员
-      // @ts-expect-error
       if (!req.user || req.user.role !== "admin") {
         return res.status(403).json({ error: "需要管理员权限" });
       }
@@ -242,7 +240,6 @@ export class SmartHumanCheckController {
   static async getTrace(req: Request, res: Response) {
     try {
       // 权限校验：仅管理员
-      // @ts-expect-error
       if (!req.user || req.user.role !== "admin") {
         return res.status(403).json({ error: "需要管理员权限" });
       }
@@ -262,7 +259,6 @@ export class SmartHumanCheckController {
   static async deleteTrace(req: Request, res: Response) {
     try {
       // 权限校验：仅管理员
-      // @ts-expect-error
       if (!req.user || req.user.role !== "admin") {
         return res.status(403).json({ error: "需要管理员权限" });
       }
@@ -285,7 +281,6 @@ export class SmartHumanCheckController {
   static async deleteTraces(req: Request, res: Response) {
     try {
       // 权限校验：仅管理员
-      // @ts-expect-error
       if (!req.user || req.user.role !== "admin") {
         return res.status(403).json({ error: "需要管理员权限" });
       }

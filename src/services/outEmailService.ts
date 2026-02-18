@@ -1,5 +1,3 @@
-// @ts-expect-error
-
 import dayjs from "dayjs";
 import { Resend } from "resend";
 import config from "../config";
