@@ -41,8 +41,8 @@ class ShortUrlMigrationService {
       logger.info("[ShortUrlMigration] 开始检测和修正旧域名短链...");
 
       // 查找所有包含旧域名的记录
-      // 修正：主机名正则应完整匹配域名（支持子域、端口、路径等），去除无用转义
-      const oldDomainPattern = /(^|[\s/:;,.])ipfs\.crossbell\.io([\s/:;,.]|$)/i;
+      // 使用精确的主机名匹配：域名前必须是协议分隔符或行首，域名后必须是路径/端口/行尾
+      const oldDomainPattern = /(?:^|\/\/)ipfs\.crossbell\.io(?=[:/?\s]|$)/i;
       const oldDomainRecords = await ShortUrlModel.find({
         target: { $regex: oldDomainPattern },
       });
