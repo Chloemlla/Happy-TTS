@@ -29,7 +29,7 @@ jobs:
         run: pnpm add -D --save-exact @biomejs/biome
 
       - name: Run Biome check with auto-fix
-        run: npx @biomejs/biome check --write ./src --max-diagnostics || true
+        run: npx @biomejs/biome check --write --unsafe --max-diagnostics=9999 ./src || true
 
       - name: Commit and push
         run: |
