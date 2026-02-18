@@ -49,6 +49,58 @@ export class AuditLogService {
   }
 
   /**
+   * 构建安全的静态过滤条件（不含任何用户可控字符串）
+   */
+  private static buildStaticFilter(params: {
+    module?: string;
+    action?: string;
+    userId?: string;
+    result?: string;
+    startDate?: string;
+    endDate?: string;
+  }): Record<string, any> {
+    const filter: Record<string, any> = {};
+
+    if (params.module && ALLOWED_MODULES.has(params.module)) {
+      filter.module = params.module;
+    }
+    if (params.action && /^[a-zA-Z0-9_.-]+$/.test(params.action)) {
+      filter.action = String(params.action);
+    }
+    if (params.userId && /^[a-zA-Z0-9_-]+$/.test(params.userId)) {
+      filter.userId = String(params.userId);
+    }
+    if (params.result && ALLOWED_RESULTS.has(params.result)) {
+      filter.result = params.result;
+    }
+
+    if (params.startDate || params.endDate) {
+      const dateFilter: Record<string, Date> = {};
+      if (params.startDate) {
+        const d = new Date(params.startDate);
+        if (!isNaN(d.getTime())) dateFilter.$gte = d;
+      }
+      if (params.endDate) {
+        const d = new Date(params.endDate);
+        if (!isNaN(d.getTime())) dateFilter.$lte = d;
+      }
+      if (Object.keys(dateFilter).length > 0) filter.createdAt = dateFilter;
+    }
+
+    return filter;
+  }
+
+  /**
+   * 将 keyword 净化为纯字母数字（彻底切断污点链）
+   */
+  private static sanitizeKeyword(raw: unknown): string | null {
+    if (typeof raw !== 'string') return null;
+    // 只保留字母、数字、空格、@、.、-、_，最长 100 字符
+    const cleaned = raw.replace(/[^a-zA-Z0-9\u4e00-\u9fff @._-]/g, '').slice(0, 100);
+    return cleaned.length > 0 ? cleaned : null;
+  }
+
+  /**
    * 分页查询审计日志
    */
   static async query(params: {
@@ -65,53 +117,31 @@ export class AuditLogService {
     const {
       page = 1,
       pageSize = 20,
-      module,
-      action,
-      userId,
-      result,
-      startDate,
-      endDate,
-      keyword,
     } = params;
 
-    const filter: Record<string, any> = {};
+    // 静态过滤条件（白名单校验，不含用户可控字符串）
+    const filter = AuditLogService.buildStaticFilter(params);
 
-    // 白名单 / 格式校验，防止 NoSQL 注入
-    if (module && ALLOWED_MODULES.has(module)) filter.module = module;
-    if (action && /^[a-zA-Z0-9_.-]+$/.test(action)) filter.action = action;
-    if (userId && /^[a-zA-Z0-9_-]+$/.test(userId)) filter.userId = userId;
-    if (result && ALLOWED_RESULTS.has(result)) filter.result = result;
-
-    if (startDate || endDate) {
-      filter.createdAt = {};
-      if (startDate) {
-        const d = new Date(startDate);
-        if (!isNaN(d.getTime())) filter.createdAt.$gte = d;
-      }
-      if (endDate) {
-        const d = new Date(endDate);
-        if (!isNaN(d.getTime())) filter.createdAt.$lte = d;
-      }
-      if (Object.keys(filter.createdAt).length === 0) delete filter.createdAt;
-    }
-
-    if (keyword && typeof keyword === 'string') {
-      const escaped = escapeRegex(keyword);
+    // keyword 搜索：净化后构造 RegExp 对象
+    const safeKeyword = AuditLogService.sanitizeKeyword(params.keyword);
+    if (safeKeyword) {
+      const re = new RegExp(escapeRegex(safeKeyword), 'i');
       filter.$or = [
-        { username: { $regex: escaped, $options: 'i' } },
-        { action: { $regex: escaped, $options: 'i' } },
-        { targetName: { $regex: escaped, $options: 'i' } },
-        { ip: { $regex: escaped, $options: 'i' } },
+        { username: re },
+        { action: re },
+        { targetName: re },
+        { ip: re },
       ];
     }
 
     const safePage = Math.max(1, page);
     const safeSize = Math.min(100, Math.max(1, pageSize));
+    const skip = (safePage - 1) * safeSize;
 
     const [logs, total] = await Promise.all([
       AuditLogModel.find(filter)
         .sort({ createdAt: -1 })
-        .skip((safePage - 1) * safeSize)
+        .skip(skip)
         .limit(safeSize)
         .lean(),
       AuditLogModel.countDocuments(filter),
@@ -138,8 +168,8 @@ export class AuditLogService {
     ]);
 
     return {
-      byModule: byModule.map(m => ({ module: m._id, count: m.count })),
-      byResult: byResult.map(r => ({ result: r._id, count: r.count })),
+      byModule: byModule.map((m: { _id: string; count: number }) => ({ module: m._id, count: m.count })),
+      byResult: byResult.map((r: { _id: string; count: number }) => ({ result: r._id, count: r.count })),
       last24h: recentCount,
       total: await AuditLogModel.estimatedDocumentCount(),
     };
