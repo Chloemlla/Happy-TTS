@@ -99,8 +99,8 @@ importers:
         specifier: ^11.2.6
         version: 11.2.6
       marked:
-        specifier: ^17.0.1
-        version: 17.0.1
+        specifier: ^17.0.2
+        version: 17.0.2
       mongodb:
         specifier: ^7.1.0
         version: 7.1.0(socks@2.8.7)
@@ -117,8 +117,8 @@ importers:
         specifier: ^2.0.2
         version: 2.0.2
       mysql2:
-        specifier: ^3.17.1
-        version: 3.17.1
+        specifier: ^3.17.2
+        version: 3.17.2
       nanoid:
         specifier: ^5.1.6
         version: 5.1.6
@@ -135,8 +135,8 @@ importers:
         specifier: ^16.1.0
         version: 16.1.0(react@19.1.1)
       redis:
-        specifier: ^5.10.0
-        version: 5.10.0
+        specifier: ^5.11.0
+        version: 5.11.0
       resend:
         specifier: ^6.9.2
         version: 6.9.2
@@ -150,8 +150,8 @@ importers:
         specifier: ^2.0.0
         version: 2.0.0
       svix:
-        specifier: ^1.84.1
-        version: 1.84.1
+        specifier: ^1.85.0
+        version: 1.85.0
       swagger-jsdoc:
         specifier: ^6.2.8
         version: 6.2.8(openapi-types@12.1.3)
@@ -739,33 +739,38 @@ packages:
     resolution: {integrity: sha512-QNqXyfVS2wm9hweSYD2O7F0G06uurj9kZ96TRQE5Y9hU7+tgdZwIkbAKc5Ocy1HxEY2kuDQa6cQ1WRs/O5LFKA==}
     engines: {node: ^12.20.0 || ^14.18.0 || >=16.0.0}
 
-  '@redis/bloom@5.10.0':
-    resolution: {integrity: sha512-doIF37ob+l47n0rkpRNgU8n4iacBlKM9xLiP1LtTZTvz8TloJB8qx/MgvhMhKdYG+CvCY2aPBnN2706izFn/4A==}
+  '@redis/bloom@5.11.0':
+    resolution: {integrity: sha512-KYiVilAhAFN3057afUb/tfYJpsEyTkQB+tQcn5gVVA7DgcNOAj8lLxe4j8ov8BF6I9C1Fe/kwlbuAICcTMX8Lw==}
     engines: {node: '>= 18'}
     peerDependencies:
-      '@redis/client': ^5.10.0
+      '@redis/client': ^5.11.0
 
-  '@redis/client@5.10.0':
-    resolution: {integrity: sha512-JXmM4XCoso6C75Mr3lhKA3eNxSzkYi3nCzxDIKY+YOszYsJjuKbFgVtguVPbLMOttN4iu2fXoc2BGhdnYhIOxA==}
-    engines: {node: '>= 18'}
-
-  '@redis/json@5.10.0':
-    resolution: {integrity: sha512-B2G8XlOmTPUuZtD44EMGbtoepQG34RCDXLZbjrtON1Djet0t5Ri7/YPXvL9aomXqP8lLTreaprtyLKF4tmXEEA==}
+  '@redis/client@5.11.0':
+    resolution: {integrity: sha512-GHoprlNQD51Xq2Ztd94HHV94MdFZQ3CVrpA04Fz8MVoHM0B7SlbmPEVIjwTbcv58z8QyjnrOuikS0rWF03k5dQ==}
     engines: {node: '>= 18'}
     peerDependencies:
-      '@redis/client': ^5.10.0
+      '@node-rs/xxhash': ^1.1.0
+    peerDependenciesMeta:
+      '@node-rs/xxhash':
+        optional: true
 
-  '@redis/search@5.10.0':
-    resolution: {integrity: sha512-3SVcPswoSfp2HnmWbAGUzlbUPn7fOohVu2weUQ0S+EMiQi8jwjL+aN2p6V3TI65eNfVsJ8vyPvqWklm6H6esmg==}
+  '@redis/json@5.11.0':
+    resolution: {integrity: sha512-1iAy9kAtcD0quB21RbPTbUqqy+T2Uu2JxucwE+B4A+VaDbIRvpZR6DMqV8Iqaws2YxJYB3GC5JVNzPYio2ErUg==}
     engines: {node: '>= 18'}
     peerDependencies:
-      '@redis/client': ^5.10.0
+      '@redis/client': ^5.11.0
 
-  '@redis/time-series@5.10.0':
-    resolution: {integrity: sha512-cPkpddXH5kc/SdRhF0YG0qtjL+noqFT0AcHbQ6axhsPsO7iqPi1cjxgdkE9TNeKiBUUdCaU1DbqkR/LzbzPBhg==}
+  '@redis/search@5.11.0':
+    resolution: {integrity: sha512-g1l7f3Rnyk/xI99oGHIgWHSKFl45Re5YTIcO8j/JE8olz389yUFyz2+A6nqVy/Zi031VgPDWscbbgOk8hlhZ3g==}
     engines: {node: '>= 18'}
     peerDependencies:
-      '@redis/client': ^5.10.0
+      '@redis/client': ^5.11.0
+
+  '@redis/time-series@5.11.0':
+    resolution: {integrity: sha512-TWFeOcU4xkj0DkndnOyhtxvX1KWD+78UHT3XX3x3XRBUGWeQrKo3jqzDsZwxbggUgf9yLJr/akFHXru66X5UQA==}
+    engines: {node: '>= 18'}
+    peerDependencies:
+      '@redis/client': ^5.11.0
 
   '@scarf/scarf@1.4.0':
     resolution: {integrity: sha512-xxeapPiUXdZAE3che6f3xogoJPeZgig6omHEy1rIY5WVsB3H2BHNnZH+gHG6x91SCWyQCzWGsuL2Hh3ClO5/qQ==}
@@ -2602,8 +2607,8 @@ packages:
   makeerror@1.0.12:
     resolution: {integrity: sha512-JmqCvUhmt43madlpFzG4BQzG2Z3m6tvQDNKdClZnO3VbIudJYmxsT0FNJMeiB2+JTSlTQTSbU8QdesVmwJcmLg==}
 
-  marked@17.0.1:
-    resolution: {integrity: sha512-boeBdiS0ghpWcSwoNm/jJBwdpFaMnZWRzjA6SkUMYb40SVaN1x7mmfGKp0jvexGcx+7y2La5zRZsYFZI6Qpypg==}
+  marked@17.0.2:
+    resolution: {integrity: sha512-s5HZGFQea7Huv5zZcAGhJLT3qLpAfnY7v7GWkICUr0+Wd5TFEtdlRR2XUL5Gg+RH7u2Df595ifrxR03mBaw7gA==}
     engines: {node: '>= 20'}
     hasBin: true
 
@@ -2799,8 +2804,8 @@ packages:
     resolution: {integrity: sha512-ypMKuglUrZUD99Tk2bUQ+xNQj43lPEfAeX2o9cTteAmShXy2VHDJpuwu1o0xqoKCt9jLVAvwyFKdLTPXKAfJyA==}
     engines: {node: '>=10'}
 
-  mysql2@3.17.1:
-    resolution: {integrity: sha512-UzIzdVwPXPoZm+FaJ4lNsRt28HtUwt68gpLH7NP1oSjd91M5Qn1XJzbIsSRMRc5CV3pvktLNshmbaFfMYqPBhQ==}
+  mysql2@3.17.2:
+    resolution: {integrity: sha512-/tFCtdqk5V5Aowpnzshryxuxp63ti4I7kcp3yqAKgWmhYXEXs8+F/IbQ6JTMzQPYc+ElnnhmMD2SqUYLtRVcTQ==}
     engines: {node: '>= 8.0'}
 
   named-placeholders@1.1.6:
@@ -3124,8 +3129,8 @@ packages:
     resolution: {integrity: sha512-hOS089on8RduqdbhvQ5Z37A0ESjsqz6qnRcffsMU3495FuTdqSm+7bhJ29JvIOsBDEEnan5DPu9t3To9VRlMzA==}
     engines: {node: '>=8.10.0'}
 
-  redis@5.10.0:
-    resolution: {integrity: sha512-0/Y+7IEiTgVGPrLFKy8oAEArSyEJkU0zvgV5xyi9NzNQ+SLZmyFbUsWIbgPcd4UdUh00opXGKlXJwMmsis5Byw==}
+  redis@5.11.0:
+    resolution: {integrity: sha512-YwXjATVDT+AuxcyfOwZn046aml9jMlQPvU1VXIlLDVAExe0u93aTfPYSeRgG4p9Q/Jlkj+LXJ1XEoFV+j2JKcQ==}
     engines: {node: '>= 18'}
 
   reflect-metadata@0.2.2:
@@ -3337,8 +3342,8 @@ packages:
   sprintf-js@1.0.3:
     resolution: {integrity: sha512-D9cPgkvLlV3t3IzL0D0YLvGA9Ahk4PcvVwUbN0dSGr1aP0Nrt4AEnTUbuGvquEC0mA64Gqt1fzirlRs5ibXx8g==}
 
-  sql-escaper@1.3.2:
-    resolution: {integrity: sha512-lp+ZDVfSjHt+qAK1jXBTIXBNYnbo7gnaAGwoYTH9bE89kNkXwcu6g0WjJGRsdTKVpY1z70u3Y0IgmnBOoRybHw==}
+  sql-escaper@1.3.3:
+    resolution: {integrity: sha512-BsTCV265VpTp8tm1wyIm1xqQCS+Q9NHx2Sr+WcnUrgLrQ6yiDIvHYJV5gHxsj1lMBy2zm5twLaZao8Jd+S8JJw==}
     engines: {bun: '>=1.0.0', deno: '>=2.0.0', node: '>=12.0.0'}
 
   stack-trace@0.0.10:
@@ -3439,6 +3444,9 @@ packages:
 
   svix@1.84.1:
     resolution: {integrity: sha512-K8DPPSZaW/XqXiz1kEyzSHYgmGLnhB43nQCMeKjWGCUpLIpAMMM8kx3rVVOSm6Bo6EHyK1RQLPT4R06skM/MlQ==}
+
+  svix@1.85.0:
+    resolution: {integrity: sha512-4OxNw++bnNay8SoBwESgzfjMnYmurS1qBX+luhzvljr6EAPn/hqqmkdCR1pbgIe1K1+BzKZEHjAKz9OYrKJYwQ==}
 
   swagger-jsdoc@6.2.8:
     resolution: {integrity: sha512-VPvil1+JRpmJ55CgAtn8DIcpBs0bL5L3q5bVQvF4tAW/k/9JYSj7dCpaYCAv5rufe0vcCbBRQXGvzpkWjvLklQ==}
@@ -4543,25 +4551,25 @@ snapshots:
 
   '@pkgr/core@0.2.9': {}
 
-  '@redis/bloom@5.10.0(@redis/client@5.10.0)':
+  '@redis/bloom@5.11.0(@redis/client@5.11.0)':
     dependencies:
-      '@redis/client': 5.10.0
+      '@redis/client': 5.11.0
 
-  '@redis/client@5.10.0':
+  '@redis/client@5.11.0':
     dependencies:
       cluster-key-slot: 1.1.2
 
-  '@redis/json@5.10.0(@redis/client@5.10.0)':
+  '@redis/json@5.11.0(@redis/client@5.11.0)':
     dependencies:
-      '@redis/client': 5.10.0
+      '@redis/client': 5.11.0
 
-  '@redis/search@5.10.0(@redis/client@5.10.0)':
+  '@redis/search@5.11.0(@redis/client@5.11.0)':
     dependencies:
-      '@redis/client': 5.10.0
+      '@redis/client': 5.11.0
 
-  '@redis/time-series@5.10.0(@redis/client@5.10.0)':
+  '@redis/time-series@5.11.0(@redis/client@5.11.0)':
     dependencies:
-      '@redis/client': 5.10.0
+      '@redis/client': 5.11.0
 
   '@scarf/scarf@1.4.0': {}
 
@@ -5939,24 +5947,24 @@ snapshots:
       liquid-glass-react: 1.1.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       lodash: 4.17.23
       lru-cache: 11.2.6
-      marked: 17.0.1
+      marked: 17.0.2
       mongodb: 7.1.0(socks@2.8.7)
       mongodb-connection-string-url: 7.0.1
       mongoose: 9.2.1(socks@2.8.7)
       morgan: 1.10.1
       multer: 2.0.2
-      mysql2: 3.17.1
+      mysql2: 3.17.2
       nanoid: 5.1.6
       openai: 6.22.0(ws@8.19.0)(zod@4.3.6)
       path-to-regexp: 8.3.0
       qrcode: 1.5.4
       react-syntax-highlighter: 16.1.0(react@19.1.1)
-      redis: 5.10.0
+      redis: 5.11.0
       resend: 6.9.2
       serve: 14.2.5
       socks-proxy-agent: 8.0.5
       speakeasy: 2.0.0
-      svix: 1.84.1
+      svix: 1.85.0
       swagger-jsdoc: 6.2.8(openapi-types@12.1.3)
       swagger-ui-express: 5.0.1(express@5.2.1)
       tar: 7.5.9
@@ -5970,6 +5978,7 @@ snapshots:
       - '@aws-sdk/credential-providers'
       - '@mongodb-js/zstd'
       - '@noble/hashes'
+      - '@node-rs/xxhash'
       - '@react-email/render'
       - bare-abort-controller
       - bare-buffer
@@ -6759,7 +6768,7 @@ snapshots:
     dependencies:
       tmpl: 1.0.5
 
-  marked@17.0.1: {}
+  marked@17.0.2: {}
 
   math-intrinsics@1.1.0: {}
 
@@ -6910,7 +6919,7 @@ snapshots:
       arrify: 2.0.1
       minimatch: 3.1.2
 
-  mysql2@3.17.1:
+  mysql2@3.17.2:
     dependencies:
       aws-ssl-profiles: 1.1.2
       denque: 2.1.0
@@ -6920,7 +6929,7 @@ snapshots:
       lru.min: 1.1.4
       named-placeholders: 1.1.6
       seq-queue: 0.0.5
-      sql-escaper: 1.3.2
+      sql-escaper: 1.3.3
 
   named-placeholders@1.1.6:
     dependencies:
@@ -7219,13 +7228,15 @@ snapshots:
     dependencies:
       picomatch: 2.3.1
 
-  redis@5.10.0:
+  redis@5.11.0:
     dependencies:
-      '@redis/bloom': 5.10.0(@redis/client@5.10.0)
-      '@redis/client': 5.10.0
-      '@redis/json': 5.10.0(@redis/client@5.10.0)
-      '@redis/search': 5.10.0(@redis/client@5.10.0)
-      '@redis/time-series': 5.10.0(@redis/client@5.10.0)
+      '@redis/bloom': 5.11.0(@redis/client@5.11.0)
+      '@redis/client': 5.11.0
+      '@redis/json': 5.11.0(@redis/client@5.11.0)
+      '@redis/search': 5.11.0(@redis/client@5.11.0)
+      '@redis/time-series': 5.11.0(@redis/client@5.11.0)
+    transitivePeerDependencies:
+      - '@node-rs/xxhash'
 
   reflect-metadata@0.2.2: {}
 
@@ -7461,7 +7472,7 @@ snapshots:
 
   sprintf-js@1.0.3: {}
 
-  sql-escaper@1.3.2: {}
+  sql-escaper@1.3.3: {}
 
   stack-trace@0.0.10: {}
 
@@ -7575,6 +7586,11 @@ snapshots:
       has-flag: 4.0.0
 
   svix@1.84.1:
+    dependencies:
+      standardwebhooks: 1.0.0
+      uuid: 10.0.0
+
+  svix@1.85.0:
     dependencies:
       standardwebhooks: 1.0.0
       uuid: 10.0.0
