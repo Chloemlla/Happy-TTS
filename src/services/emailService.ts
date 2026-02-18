@@ -1,5 +1,3 @@
-// @ts-expect-error
-
 import dayjs from "dayjs";
 import { marked } from "marked";
 import { Resend } from "resend";
@@ -432,7 +430,7 @@ export class EmailService {
         subject,
         html: htmlContent,
       }));
-      // @ts-expect-error - resend typings may not include batch yet
+      // @ts-ignore - resend typings may not include batch yet
       const { data, error } = await (resendInst as any).batch.send(batch);
       if (error) return { success: false, error: error.message || String(error) };
       const ids = Array.isArray(data) ? data.map((d: any) => d?.id).filter(Boolean) : undefined;

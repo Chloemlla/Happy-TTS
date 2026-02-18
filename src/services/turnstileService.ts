@@ -330,7 +330,6 @@ export class TurnstileService {
       },
       { collection: "shc_traces", timestamps: false },
     );
-    // @ts-expect-error
     return mongoose.models.SHCTrace || mongoose.model("SHCTrace", schema);
   }
 
