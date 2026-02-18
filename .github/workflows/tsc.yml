@@ -3,6 +3,9 @@ name: TypeScript Compilation Check
 on:
   push:
     branches: [main, develop]
+    paths-ignore:
+      - .github/workflows/**
+      - "!.github/workflows/tsc.yml"
   workflow_dispatch:
 
 jobs:

@@ -3,6 +3,9 @@ name: "CodeQL"
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - .github/workflows/**
+      - "!.github/workflows/codeql.yml"
   pull_request_target:
     branches: [main]
   schedule:
