@@ -19,7 +19,7 @@ describe("Rate Limiting", () => {
     app.use(rateLimitMiddleware);
 
     // 添加测试路由
-    app.get("/test", (req, res) => {
+    app.get("/test", (_req, res) => {
       res.json({ message: "success" });
     });
   });

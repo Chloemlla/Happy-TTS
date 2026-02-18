@@ -1,6 +1,6 @@
-import { existsSync } from "fs";
-import { appendFile, mkdir, writeFile } from "fs/promises";
-import { join } from "path";
+import { existsSync } from "node:fs";
+import { mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import logger from "../utils/logger";
 import { mongoose } from "./mongoService";
 
@@ -17,7 +17,7 @@ type FilterQuery<T> = {
     | { $exists: boolean };
 } & { _id?: any };
 
-import crypto from "crypto";
+import crypto from "node:crypto";
 import { type DeviceFingerprint, RiskEvaluationEngine } from "./riskEvaluationEngine";
 
 // 性能监控接口
@@ -78,7 +78,7 @@ const DataCollectionSchema = new mongoose.Schema(
     ...(process.env.DATA_COLLECTION_TTL_DAYS
       ? {
           timestamps: true,
-          expireAfterSeconds: parseInt(process.env.DATA_COLLECTION_TTL_DAYS) * 86400,
+          expireAfterSeconds: parseInt(process.env.DATA_COLLECTION_TTL_DAYS, 10) * 86400,
         }
       : {}),
   },
@@ -99,7 +99,6 @@ class DataCollectionService {
   private static instance: DataCollectionService;
   private readonly DATA_DIR = join(process.cwd(), "data");
   private readonly TEST_DATA_DIR = join(process.cwd(), "test-data");
-  private readonly DATA_FILE = join(this.DATA_DIR, "collection-data.txt");
 
   // 智能分析引擎与去重缓存
   private readonly riskEngine = new RiskEvaluationEngine();
@@ -108,9 +107,9 @@ class DataCollectionService {
   private readonly rawSecret = process.env.DATA_COLLECTION_RAW_SECRET || "";
 
   // =============== 批量写入优化配置 ===============
-  private readonly BATCH_SIZE = parseInt(process.env.DATA_COLLECTION_BATCH_SIZE || "50");
-  private readonly BATCH_TIMEOUT = parseInt(process.env.DATA_COLLECTION_BATCH_TIMEOUT || "2000"); // 2秒
-  private readonly MAX_QUEUE_SIZE = parseInt(process.env.DATA_COLLECTION_MAX_QUEUE_SIZE || "1000");
+  private readonly BATCH_SIZE = parseInt(process.env.DATA_COLLECTION_BATCH_SIZE || "50", 10);
+  private readonly BATCH_TIMEOUT = parseInt(process.env.DATA_COLLECTION_BATCH_TIMEOUT || "2000", 10); // 2秒
+  private readonly MAX_QUEUE_SIZE = parseInt(process.env.DATA_COLLECTION_MAX_QUEUE_SIZE || "1000", 10);
   private readonly MAX_RETRY_COUNT = 3;
 
   // 批量写入队列和状态
@@ -743,7 +742,7 @@ class DataCollectionService {
     const t = typeof input;
     if (t === "string") {
       return (input as string).length > DataCollectionService.MAX_STRING_LENGTH
-        ? (input as string).slice(0, DataCollectionService.MAX_STRING_LENGTH) + "…"
+        ? `${(input as string).slice(0, DataCollectionService.MAX_STRING_LENGTH)}…`
         : input;
     }
     if (t !== "object") return input;
@@ -763,7 +762,7 @@ class DataCollectionService {
       out[k] = this.clampDetails(v, depth + 1, seen);
       count++;
       if (count >= DataCollectionService.MAX_KEYS_PER_OBJECT) {
-        out["__truncated__"] = "object keys limit reached";
+        out.__truncated__ = "object keys limit reached";
         break;
       }
     }
@@ -972,7 +971,7 @@ class DataCollectionService {
     userAgent?: string;
   }): Promise<{ riskScore: number; riskLevel: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"; flags: string[] }> {
     try {
-      const headers = (data.details || {}).headers || {};
+      const headers = data.details?.headers || {};
       const ua = String(data.userAgent || headers["user-agent"] || headers["User-Agent"] || "unknown");
       const ip = String(
         data.ip || data.details?.ip || data.details?.headers?.["x-forwarded-for"]?.split(",")[0] || "0.0.0.0",
@@ -989,11 +988,11 @@ class DataCollectionService {
       const assessed = await this.riskEngine.assessRisk(
         ip,
         device,
-        isNaN(behaviorScore) ? 0.5 : Math.max(0, Math.min(1, behaviorScore)),
+        Number.isNaN(behaviorScore) ? 0.5 : Math.max(0, Math.min(1, behaviorScore)),
         ua,
       );
       return { riskScore: assessed.overallRisk, riskLevel: assessed.riskLevel, flags: assessed.flags };
-    } catch (e) {
+    } catch (_e) {
       return { riskScore: 0.5, riskLevel: "LOW", flags: ["EVAL_FALLBACK"] };
     }
   }
@@ -1032,7 +1031,7 @@ class DataCollectionService {
         const enc = Buffer.concat([cipher.update(plaintext), cipher.final()]);
         const tag = cipher.getAuthTag();
         encryptedRaw = { iv: iv.toString("base64"), tag: tag.toString("base64"), data: enc.toString("base64") };
-      } catch (e) {
+      } catch (_e) {
         logger.warn("[DataCollection] encrypt raw failed");
       }
     }
@@ -1068,7 +1067,7 @@ class DataCollectionService {
       decipher.setAuthTag(Buffer.from(tag, "base64"));
       const dec = Buffer.concat([decipher.update(Buffer.from(data, "base64")), decipher.final()]);
       return JSON.parse(dec.toString("utf8"));
-    } catch (e) {
+    } catch (_e) {
       return null;
     }
   }
@@ -1122,7 +1121,7 @@ class DataCollectionService {
         action: data.action,
       });
 
-      return created && created._id ? String(created._id) : "";
+      return created?._id ? String(created._id) : "";
     } catch (error) {
       // 断路器：失败操作
       this.recordCircuitBreakerFailure();
@@ -1258,7 +1257,7 @@ class DataCollectionService {
         }
       }
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
+      const _errorMsg = error instanceof Error ? error.message : String(error);
       logger.error("[DataCollection] saveData failed:", error);
       this.recordError("saveData failed", error);
       throw error;
@@ -1368,7 +1367,7 @@ class DataCollectionService {
     const isValidISO = (s?: string) => {
       if (!s || typeof s !== "string") return false;
       const timestamp = Date.parse(s);
-      return !isNaN(timestamp) && timestamp > 0;
+      return !Number.isNaN(timestamp) && timestamp > 0;
     };
 
     if (isValidISO(start) || isValidISO(end)) {

@@ -47,7 +47,7 @@ class DomainExemptionService {
   private isDomainMatch(domain: string, pattern: string): boolean {
     if (pattern.startsWith("*.")) {
       const wildcardDomain = pattern.substring(2);
-      return domain === wildcardDomain || domain.endsWith("." + wildcardDomain);
+      return domain === wildcardDomain || domain.endsWith(`.${wildcardDomain}`);
     }
     return domain === pattern;
   }

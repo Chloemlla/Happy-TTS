@@ -115,7 +115,7 @@ class RedisService {
       };
 
       // 存储封禁信息
-      await this.client!.set(key, JSON.stringify(data), {
+      await this.client?.set(key, JSON.stringify(data), {
         PX: durationMinutes * 60 * 1000, // 设置过期时间（毫秒）
       });
 
@@ -147,7 +147,7 @@ class RedisService {
 
     try {
       const key = `ipban:${ip}`;
-      const data = await this.client!.get(key);
+      const data = await this.client?.get(key);
 
       if (!data) {
         return null;
@@ -171,7 +171,7 @@ class RedisService {
 
     try {
       const key = `ipban:${ip}`;
-      const result = await this.client!.del(key);
+      const result = await this.client?.del(key);
 
       if (result > 0) {
         logger.info(`✅ [Redis] IP 已解封: ${ip}`);
@@ -204,11 +204,11 @@ class RedisService {
     }
 
     try {
-      const keys = await this.client!.keys("ipban:*");
+      const keys = await this.client?.keys("ipban:*");
       const bannedIPs = [];
 
       for (const key of keys) {
-        const data = await this.client!.get(key);
+        const data = await this.client?.get(key);
         if (data) {
           bannedIPs.push(JSON.parse(data));
         }
@@ -230,15 +230,15 @@ class RedisService {
     }
 
     try {
-      const keys = await this.client!.keys("ipban:*");
+      const keys = await this.client?.keys("ipban:*");
       let cleaned = 0;
 
       for (const key of keys) {
-        const data = await this.client!.get(key);
+        const data = await this.client?.get(key);
         if (data) {
           const ban = JSON.parse(data);
           if (ban.expiresAt < Date.now()) {
-            await this.client!.del(key);
+            await this.client?.del(key);
             cleaned++;
           }
         }

@@ -1,5 +1,5 @@
+import * as os from "node:os";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import * as os from "os";
 import request from "supertest";
 import app from "../app";
 import { config } from "../config/config";

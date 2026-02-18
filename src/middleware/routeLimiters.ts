@@ -21,7 +21,6 @@ class SharedMemoryStore implements Store {
   // 所有实例共享同一个底层 Map 和清理器
   private static readonly globalMap = new Map<string, { totalHits: number; resetTime: Date }>();
   private static cleanupTimer: ReturnType<typeof setInterval> | null = null;
-  private static instanceCount = 0;
 
   // Store 接口要求 prefix 为 public（可选）
   readonly prefix: string;
@@ -89,7 +88,7 @@ class SharedMemoryStore implements Store {
   async resetAll(): Promise<void> {
     // 只清除本 prefix 的 key
     for (const key of this.hits.keys()) {
-      if (key.startsWith(this._prefix + ":")) {
+      if (key.startsWith(`${this._prefix}:`)) {
         this.hits.delete(key);
       }
     }

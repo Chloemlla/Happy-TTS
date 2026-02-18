@@ -1,4 +1,4 @@
-import * as crypto from "crypto";
+import * as crypto from "node:crypto";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import multer from "multer";
@@ -90,14 +90,14 @@ router.use(adminLimiter); // 已登录管理员不再限速
 // 在所有已认证/管理员路由上，若用户被标记为需要上报指纹，则告知前端
 router.use(async (req: any, res: any, next: any) => {
   try {
-    if (req.user && req.user.id) {
+    if (req.user?.id) {
       const { getUserById } = require("../services/userService");
       const current = await getUserById(req.user.id);
       if (current && (current as any).requireFingerprint) {
         res.setHeader("X-Require-Fingerprint", "1");
       }
     }
-  } catch (e) {
+  } catch (_e) {
     // 静默失败，不影响主流程
   }
   next();
@@ -403,8 +403,8 @@ router.get("/shortlinks", authenticateToken, async (req, res) => {
 
     // 输入验证和清理
     const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
-    const page = Math.max(1, parseInt(String(req.query.page || "1")) || 1);
-    const pageSize = Math.min(100, Math.max(1, parseInt(String(req.query.pageSize || "10")) || 10));
+    const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(String(req.query.pageSize || "10"), 10) || 10));
 
     const ShortUrlModel = require("mongoose").models.ShortUrl || require("mongoose").model("ShortUrl");
 
@@ -843,7 +843,7 @@ router.get("/user/profile", authMiddleware, async (req, res) => {
           avatarHash = match[1];
         } else {
           // 若URL不带hash，可用URL整体md5
-          const crypto = require("crypto");
+          const crypto = require("node:crypto");
           avatarHash = crypto.createHash("md5").update(avatarUrl).digest("hex");
         }
       }
@@ -854,7 +854,7 @@ router.get("/user/profile", authMiddleware, async (req, res) => {
       (resp as any).avatarHash = avatarHash;
     }
     res.json(resp);
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "获取用户信息失败" });
   }
 });
@@ -1006,7 +1006,7 @@ router.get("/user/avatar/exist", authMiddleware, async (req, res) => {
     // avatarUrl 不存在或为空字符串时，hasAvatar 为 false
     const hasAvatar = !!(dbUser && typeof dbUser.avatarUrl === "string" && dbUser.avatarUrl.length > 0);
     res.json({ hasAvatar });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "查询头像状态失败" });
   }
 });
@@ -1272,7 +1272,7 @@ router.get("/broadcast/history", async (req, res) => {
 });
 
 // 在线用户列表
-router.get("/ws/clients", async (req, res) => {
+router.get("/ws/clients", async (_req, res) => {
   try {
     const { wsService } = require("../services/wsService");
     const clients = wsService.getOnlineClients();

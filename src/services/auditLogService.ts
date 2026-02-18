@@ -20,7 +20,7 @@ export interface AuditEntry {
 
 /** 转义正则特殊字符 */
 function escapeRegex(str: string): string {
-  return str.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, (ch) => "\\" + ch);
+  return str.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, (ch) => `\\${ch}`);
 }
 
 /** 允许的模块白名单 */
@@ -96,11 +96,11 @@ export class AuditLogService {
       const dateFilter: Record<string, Date> = {};
       if (params.startDate) {
         const d = new Date(params.startDate);
-        if (!isNaN(d.getTime())) dateFilter.$gte = d;
+        if (!Number.isNaN(d.getTime())) dateFilter.$gte = d;
       }
       if (params.endDate) {
         const d = new Date(params.endDate);
-        if (!isNaN(d.getTime())) dateFilter.$lte = d;
+        if (!Number.isNaN(d.getTime())) dateFilter.$lte = d;
       }
       if (Object.keys(dateFilter).length > 0) filter.createdAt = dateFilter;
     }

@@ -13,7 +13,6 @@ switch (storageType) {
   case "mysql":
     impl = mysqlImpl;
     break;
-  case "mongo":
   default:
     impl = mongoImpl;
 }

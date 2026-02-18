@@ -26,7 +26,7 @@ export class NetworkController {
         });
       }
 
-      if (!port || isNaN(Number(port)) || Number(port) < 1 || Number(port) > 65535) {
+      if (!port || Number.isNaN(Number(port)) || Number(port) < 1 || Number(port) > 65535) {
         return res.status(400).json({
           success: false,
           error: "端口参数必须是1-65535之间的数字",

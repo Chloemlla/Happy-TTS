@@ -1,4 +1,3 @@
-import { Document } from "mongoose";
 import { mongoose } from "../services/mongoService";
 
 export interface GenerationRecord {

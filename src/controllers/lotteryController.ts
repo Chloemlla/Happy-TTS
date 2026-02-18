@@ -1,6 +1,6 @@
-import * as crypto from "crypto";
+import * as crypto from "node:crypto";
 import type { Request, Response } from "express";
-import { type LotteryPrize, LotteryRound, lotteryService } from "../services/lotteryService";
+import { type LotteryPrize, lotteryService } from "../services/lotteryService";
 import logger from "../utils/logger";
 
 // 简单WAF校验函数
@@ -14,7 +14,7 @@ function wafCheck(str: string, maxLen = 128): boolean {
 
 export class LotteryController {
   // 获取区块链数据
-  public async getBlockchainData(req: Request, res: Response): Promise<void> {
+  public async getBlockchainData(_req: Request, res: Response): Promise<void> {
     try {
       const blockchainData = await lotteryService.getBlockchainData();
       res.json({
@@ -190,7 +190,7 @@ export class LotteryController {
   }
 
   // 获取活跃的抽奖轮次
-  public async getActiveRounds(req: Request, res: Response): Promise<void> {
+  public async getActiveRounds(_req: Request, res: Response): Promise<void> {
     try {
       const rounds = await lotteryService.getActiveRounds();
       res.json({
@@ -309,7 +309,7 @@ export class LotteryController {
   // 获取排行榜
   public async getLeaderboard(req: Request, res: Response): Promise<void> {
     try {
-      const limit = parseInt(req.query.limit as string) || 10;
+      const limit = parseInt(req.query.limit as string, 10) || 10;
       const leaderboard = await lotteryService.getLeaderboard(limit);
 
       res.json({
@@ -326,7 +326,7 @@ export class LotteryController {
   }
 
   // 获取统计信息
-  public async getStatistics(req: Request, res: Response): Promise<void> {
+  public async getStatistics(_req: Request, res: Response): Promise<void> {
     try {
       const stats = await lotteryService.getStatistics();
       res.json({

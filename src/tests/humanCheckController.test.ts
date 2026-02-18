@@ -16,9 +16,6 @@ jest.mock("../services/smartHumanCheckService", () => ({
   default: jest.fn().mockImplementation(() => mockService),
 }));
 
-// 重新导入以确保 mock 生效
-import SmartHumanCheckService from "../services/smartHumanCheckService";
-
 describe("SmartHumanCheckController", () => {
   let app: express.Application;
 

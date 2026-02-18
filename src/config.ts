@@ -1,5 +1,5 @@
+import { join } from "node:path";
 import dotenv from "dotenv";
-import { join } from "path";
 
 dotenv.config();
 

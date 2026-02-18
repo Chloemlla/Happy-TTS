@@ -31,7 +31,7 @@ export class MediaController {
       }
 
       return { isValid: true };
-    } catch (error) {
+    } catch (_error) {
       return {
         isValid: false,
         error: "无效的URL格式",

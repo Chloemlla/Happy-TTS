@@ -16,7 +16,7 @@ const upload = multer({
     fileSize: 5 * 1024 * 1024, // 限制文件大小为5MB
     files: 1, // 只允许上传一个文件
   },
-  fileFilter: (req, file, cb) => {
+  fileFilter: (_req, _file, cb) => {
     // 文件类型检查将在服务层动态处理，这里允许所有文件通过
     // 实际的文件类型限制由IPFS_ALLOW_ALL_FILE_TYPES配置控制
     cb(null, true);

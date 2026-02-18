@@ -969,12 +969,12 @@ router.get("/flactomp3", NetworkController.flacToMp3);
 router.get("/jiakao", NetworkController.randomJiakao);
 
 // 新增：获取公网IP的代理接口
-router.get("/get-ip", async (req, res) => {
+router.get("/get-ip", async (_req, res) => {
   try {
     // 推荐用国内可访问的IP API
     const response = await axios.get("https://ip.useragentinfo.com/json");
     res.json(response.data);
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: "Failed to fetch IP" });
   }
 });

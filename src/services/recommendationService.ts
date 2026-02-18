@@ -5,15 +5,14 @@
  * Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6
  */
 
-import RecommendationHistoryModel, { IRecommendationHistory } from "../models/recommendationHistoryModel";
+import RecommendationHistoryModel from "../models/recommendationHistoryModel";
 import UserPreferencesModel from "../models/userPreferencesModel";
-import {
-  type ChunkingStrategy,
-  type ContentSuggestion,
-  type GenerationRecord,
-  type Recommendation,
-  UserPreferences,
-  type VoiceStyle,
+import type {
+  ChunkingStrategy,
+  ContentSuggestion,
+  GenerationRecord,
+  Recommendation,
+  VoiceStyle,
 } from "../types/recommendation";
 import logger from "../utils/logger";
 
@@ -88,7 +87,7 @@ const DEFAULT_RECOMMENDATION_LIMIT = 5;
 const LONG_TEXT_THRESHOLD = 500;
 
 // ContentSuggestion JSON Schema 用于验证
-const CONTENT_SUGGESTION_SCHEMA = {
+const _CONTENT_SUGGESTION_SCHEMA = {
   type: "object",
   required: ["voiceParameters", "emotionalMatch", "confidence"],
   properties: {

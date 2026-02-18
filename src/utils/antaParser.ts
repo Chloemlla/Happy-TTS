@@ -254,7 +254,7 @@ export function extractErrorFromHTML(html: string): string | null {
     }
 
     return null;
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }

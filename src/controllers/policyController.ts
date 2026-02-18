@@ -1,7 +1,7 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 import type { Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
-import { IPolicyConsent, PolicyConsent } from "../models/policyConsentModel";
+import { PolicyConsent } from "../models/policyConsentModel";
 import { getClientIP } from "../utils/ipUtils";
 import logger from "../utils/logger";
 
@@ -26,7 +26,7 @@ function verifyChecksum(
 }
 
 // 生成校验和（用于验证客户端逻辑）
-function generateChecksum(consent: { timestamp: number; version: string; fingerprint: string }): string {
+function _generateChecksum(consent: { timestamp: number; version: string; fingerprint: string }): string {
   const data = `${consent.timestamp}|${consent.version}|${consent.fingerprint}`;
   return crypto
     .createHash("sha256")
@@ -487,7 +487,7 @@ export const getPolicyStats = async (req: Request, res: Response): Promise<void>
 };
 
 // 清理过期记录（管理员接口）
-export const cleanExpiredConsents = async (req: Request, res: Response): Promise<void> => {
+export const cleanExpiredConsents = async (_req: Request, res: Response): Promise<void> => {
   try {
     const result = await PolicyConsent.cleanExpiredConsents();
 
@@ -514,7 +514,7 @@ export const cleanExpiredConsents = async (req: Request, res: Response): Promise
 };
 
 // 获取当前政策版本
-export const getCurrentPolicyVersion = async (req: Request, res: Response): Promise<void> => {
+export const getCurrentPolicyVersion = async (_req: Request, res: Response): Promise<void> => {
   res.json({
     success: true,
     version: CURRENT_POLICY_VERSION,

@@ -1,5 +1,5 @@
+import fs from "node:fs";
 import FormData from "form-data";
-import fs from "fs";
 
 describe("form-data 格式测试", () => {
   it("应能正确创建并保存 FormData", (done) => {

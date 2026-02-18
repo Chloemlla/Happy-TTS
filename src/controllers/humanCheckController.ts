@@ -1,6 +1,6 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
+import { isIP } from "node:net";
 import type { Request, Response } from "express";
-import { isIP } from "net";
 import { connectMongo, mongoose } from "../services/mongoService";
 import SmartHumanCheckService from "../services/smartHumanCheckService";
 import logger from "../utils/logger";
@@ -68,7 +68,7 @@ export class SmartHumanCheckController {
   /**
    * GET /stats - 获取 nonce 存储统计信息（管理端点）
    */
-  static async getStats(req: Request, res: Response) {
+  static async getStats(_req: Request, res: Response) {
     try {
       const stats = service.getStats();
       res.json({

@@ -51,8 +51,8 @@ export class ShortUrlController {
       }
 
       // 输入验证和清理
-      const page = Math.max(1, parseInt(String(req.query.page || "1")) || 1);
-      const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit || "10")) || 10));
+      const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
+      const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit || "10"), 10) || 10));
 
       const result = await ShortUrlService.getUserShortUrls(userId.trim(), page, limit);
 
@@ -144,7 +144,7 @@ export class ShortUrlController {
   /**
    * 导出所有短链数据（管理员功能）
    */
-  static async exportAllShortUrls(req: Request, res: Response) {
+  static async exportAllShortUrls(_req: Request, res: Response) {
     try {
       const result = await ShortUrlService.exportAllShortUrls();
 
@@ -189,7 +189,7 @@ export class ShortUrlController {
   /**
    * 删除所有短链数据（管理员功能）
    */
-  static async deleteAllShortUrls(req: Request, res: Response) {
+  static async deleteAllShortUrls(_req: Request, res: Response) {
     try {
       const result = await ShortUrlService.deleteAllShortUrls();
 

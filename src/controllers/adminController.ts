@@ -1,11 +1,9 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import type { Request, Response } from "express";
-import fs from "fs";
 import mysql from "mysql2/promise";
-import path from "path";
-import { v4 as uuidv4 } from "uuid";
 import * as envModule from "../config/env";
-import { env as startupEnv } from "../config/env";
 import { mongoose } from "../services/mongoService";
 import logger from "../utils/logger";
 import { UserStorage } from "../utils/userStorage";
@@ -293,7 +291,7 @@ export const adminController = {
   },
 
   // 获取当前公告
-  async getAnnouncement(req: Request, res: Response) {
+  async getAnnouncement(_req: Request, res: Response) {
     try {
       if (STORAGE_MODE === "mongo" && mongoose.connection.readyState === 1) {
         await ensureMongoAnnouncementCollection();
@@ -312,7 +310,7 @@ export const adminController = {
         }
         return res.json({ success: true, announcement: null });
       }
-    } catch (e) {
+    } catch (_e) {
       res.status(500).json({ success: false, error: "获取公告失败" });
     }
   },
@@ -351,7 +349,7 @@ export const adminController = {
         logger.info(`[公告] 管理员${req.user.username} 更新公告`);
         return res.json({ success: true, announcement: data });
       }
-    } catch (e) {
+    } catch (_e) {
       res.status(500).json({ success: false, error: "设置公告失败" });
     }
   },
@@ -374,7 +372,7 @@ export const adminController = {
         if (fs.existsSync(ANNOUNCEMENT_FILE)) fs.unlinkSync(ANNOUNCEMENT_FILE);
         return res.json({ success: true });
       }
-    } catch (e) {
+    } catch (_e) {
       res.status(500).json({ success: false, error: "删除公告失败" });
     }
   },
@@ -702,7 +700,7 @@ export const adminController = {
       writeEnvFile(envs);
       logger.info(`[环境变量] 管理员${req.user.username} 设置/更新 key=${key}`);
       res.json({ success: true, envs });
-    } catch (e) {
+    } catch (_e) {
       res.status(500).json({ success: false, error: "保存环境变量失败" });
     }
   },
@@ -720,7 +718,7 @@ export const adminController = {
       writeEnvFile(envs);
       logger.info(`[环境变量] 管理员${req.user.username} 删除 key=${key}`);
       res.json({ success: true, envs });
-    } catch (e) {
+    } catch (_e) {
       res.status(500).json({ success: false, error: "删除环境变量失败" });
     }
   },
@@ -735,11 +733,11 @@ export const adminController = {
       const safe = list.map((it: any) => ({
         domain: it.domain || "",
         code:
-          typeof it.code === "string" && it.code.length > 8 ? it.code.slice(0, 2) + "***" + it.code.slice(-4) : "***",
+          typeof it.code === "string" && it.code.length > 8 ? `${it.code.slice(0, 2)}***${it.code.slice(-4)}` : "***",
         updatedAt: it.updatedAt,
       }));
       return res.json({ success: true, settings: safe });
-    } catch (e) {
+    } catch (_e) {
       return res.status(500).json({ success: false, error: "获取设置失败" });
     }
   },
@@ -760,7 +758,7 @@ export const adminController = {
         { upsert: true, new: true },
       );
       return res.json({ success: true, setting: { domain: doc.domain, updatedAt: doc.updatedAt } });
-    } catch (e) {
+    } catch (_e) {
       return res.status(500).json({ success: false, error: "保存设置失败" });
     }
   },
@@ -773,7 +771,7 @@ export const adminController = {
       const safeDomain = typeof domain === "string" ? domain.trim() : "";
       await OutEmailSettingModel.deleteOne({ domain: safeDomain });
       return res.json({ success: true });
-    } catch (e) {
+    } catch (_e) {
       return res.status(500).json({ success: false, error: "删除设置失败" });
     }
   },
@@ -788,13 +786,13 @@ export const adminController = {
         ? {
             code:
               typeof (doc as any).code === "string" && (doc as any).code.length > 8
-                ? (doc as any).code.slice(0, 2) + "***" + (doc as any).code.slice(-4)
+                ? `${(doc as any).code.slice(0, 2)}***${(doc as any).code.slice(-4)}`
                 : "***",
             updatedAt: (doc as any).updatedAt,
           }
         : null;
       return res.json({ success: true, setting });
-    } catch (e) {
+    } catch (_e) {
       return res.status(500).json({ success: false, error: "获取修改码失败" });
     }
   },
@@ -814,7 +812,7 @@ export const adminController = {
         { upsert: true, new: true },
       );
       return res.json({ success: true, setting: { updatedAt: doc.updatedAt } });
-    } catch (e) {
+    } catch (_e) {
       return res.status(500).json({ success: false, error: "保存修改码失败" });
     }
   },
@@ -825,7 +823,7 @@ export const adminController = {
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       await ModlistSettingModel.deleteOne({ key: "MODIFY_CODE" });
       return res.json({ success: true });
-    } catch (e) {
+    } catch (_e) {
       return res.status(500).json({ success: false, error: "删除修改码失败" });
     }
   },
@@ -840,13 +838,13 @@ export const adminController = {
         ? {
             code:
               typeof (doc as any).code === "string" && (doc as any).code.length > 8
-                ? (doc as any).code.slice(0, 2) + "***" + (doc as any).code.slice(-4)
+                ? `${(doc as any).code.slice(0, 2)}***${(doc as any).code.slice(-4)}`
                 : "***",
             updatedAt: (doc as any).updatedAt,
           }
         : null;
       return res.json({ success: true, setting });
-    } catch (e) {
+    } catch (_e) {
       return res.status(500).json({ success: false, error: "获取生成码失败" });
     }
   },
@@ -866,7 +864,7 @@ export const adminController = {
         { upsert: true, new: true },
       );
       return res.json({ success: true, setting: { updatedAt: doc.updatedAt } });
-    } catch (e) {
+    } catch (_e) {
       return res.status(500).json({ success: false, error: "保存生成码失败" });
     }
   },
@@ -877,7 +875,7 @@ export const adminController = {
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       await TtsSettingModel.deleteOne({ key: "GENERATION_CODE" });
       return res.json({ success: true });
-    } catch (e) {
+    } catch (_e) {
       return res.status(500).json({ success: false, error: "删除生成码失败" });
     }
   },
@@ -892,9 +890,9 @@ export const adminController = {
       const doc = await WebhookSecretModel.findOne({ provider: "resend", key: routeKey }).lean();
       if (!doc) return res.json({ success: true, secret: null, updatedAt: null });
       const value = (doc as any).secret || "";
-      const masked = value.length > 8 ? value.slice(0, 2) + "***" + value.slice(-4) : "***";
+      const masked = value.length > 8 ? `${value.slice(0, 2)}***${value.slice(-4)}` : "***";
       return res.json({ success: true, secret: masked, updatedAt: (doc as any).updatedAt, key: routeKey });
-    } catch (e) {
+    } catch (_e) {
       return res.status(500).json({ success: false, error: "获取 Webhook 密钥失败" });
     }
   },
@@ -915,7 +913,7 @@ export const adminController = {
         { upsert: true },
       );
       return res.json({ success: true });
-    } catch (e) {
+    } catch (_e) {
       return res.status(500).json({ success: false, error: "保存 Webhook 密钥失败" });
     }
   },
@@ -928,7 +926,7 @@ export const adminController = {
       const routeKey = typeof key === "string" && key ? String(key).trim().toUpperCase() : "DEFAULT";
       await WebhookSecretModel.deleteOne({ provider: "resend", key: routeKey });
       return res.json({ success: true });
-    } catch (e) {
+    } catch (_e) {
       return res.status(500).json({ success: false, error: "删除 Webhook 密钥失败" });
     }
   },

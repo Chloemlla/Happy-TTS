@@ -1,6 +1,6 @@
 import logger from "../utils/logger";
 import { GitHubBillingService } from "./githubBillingService";
-import { cleanupExpiredIPData, getIPDataStats } from "./ip";
+import { cleanupExpiredIPData } from "./ip";
 import { ipBanSyncService } from "./ipBanSyncService";
 import { TurnstileService } from "./turnstileService";
 
@@ -57,13 +57,16 @@ class SchedulerService {
     logger.info("定时任务服务已停止");
   }
 
-  private async cleanupExpiredData(): Promise<{
-    fingerprintCount: number;
-    accessTokenCount: number;
-    ipBanCount: number;
-    ipDataCount: number;
-    totalCount: number;
-  } | void> {
+  private async cleanupExpiredData(): Promise<
+    | {
+        fingerprintCount: number;
+        accessTokenCount: number;
+        ipBanCount: number;
+        ipDataCount: number;
+        totalCount: number;
+      }
+    | undefined
+  > {
     try {
       // 清理过期的临时指纹
       const fingerprintCount = await TurnstileService.cleanupExpiredFingerprints();

@@ -1,4 +1,4 @@
-import express, { Request, Router } from "express";
+import express, { Router } from "express";
 import { dataCollectionService } from "../services/dataCollectionService";
 import logger from "../utils/logger";
 
@@ -61,7 +61,7 @@ router.all("/collect_data", async (req, res) => {
 
     // 记录收到的数据（仅显示前五行）
     const preview = JSON.stringify(data, null, 2).split("\n").slice(0, 5).join("\n");
-    logger.info("收到的数据前五行:\n" + preview);
+    logger.info(`收到的数据前五行:\n${preview}`);
 
     // 选择存储方式：header 优先，其次 query，默认 both（Mongo 优先，失败回落文件）
     const pickMode = (val?: string) => {

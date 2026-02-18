@@ -1,6 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import fs from "fs";
-import path from "path";
 import { dataCollectionService } from "../services/dataCollectionService";
 
 describe("Data Collection Service", () => {
@@ -82,7 +82,7 @@ describe("Data Collection Service", () => {
     // 设置目录为只读（在Windows上可能不工作，所以使用try-catch）
     try {
       fs.chmodSync(readOnlyDir, 0o444);
-    } catch (error) {
+    } catch (_error) {
       // 忽略权限错误
     }
 

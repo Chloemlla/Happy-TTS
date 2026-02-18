@@ -3,10 +3,8 @@ import {
   generateRegistrationOptions,
   type VerifiedAuthenticationResponse,
   type VerifiedRegistrationResponse,
-  verifyAuthenticationResponse,
   verifyRegistrationResponse,
 } from "@simplewebauthn/server";
-import { isoBase64URL } from "@simplewebauthn/server/helpers";
 import jwt from "jsonwebtoken";
 import { config } from "../config/config";
 import { env } from "../config/env";
@@ -32,7 +30,7 @@ const getRpId = () => {
  * 验证并提取 origin 的主机名部分
  * 例如: https://example.com -> example.com
  */
-const extractHostFromOrigin = (origin: string): string => {
+const _extractHostFromOrigin = (origin: string): string => {
   try {
     const url = new URL(origin);
     return url.hostname;
@@ -175,7 +173,7 @@ async function fixUserPasskeyCredentialIDs(user: User) {
           changed = true;
           continue;
         }
-      } catch (error) {
+      } catch (_error) {
         reason = "修复后credentialID无法解码，剔除";
         user.passkeyCredentials[i] = null as any;
         changed = true;
@@ -185,7 +183,7 @@ async function fixUserPasskeyCredentialIDs(user: User) {
       cred.credentialID = fixed;
       reason = "异常类型，强制转base64url并二次检验通过";
       changed = true;
-    } catch (e) {
+    } catch (_e) {
       reason = "credentialID彻底无法修复，剔除";
       user.passkeyCredentials[i] = null as any;
       changed = true;
@@ -236,7 +234,7 @@ export class PasskeyService {
   }
 
   // 生成注册选项
-  public static async generateRegistrationOptions(user: User, credentialName: string, clientOrigin?: string) {
+  public static async generateRegistrationOptions(user: User, _credentialName: string, _clientOrigin?: string) {
     await fixUserPasskeyCredentialIDs(user);
     if (!user) {
       throw new Error("generateRegistrationOptions: user 为空");
@@ -282,7 +280,7 @@ export class PasskeyService {
     } catch (err) {
       logger.error("[PasskeyService] generateRegistrationOptions 调用底层库异常:", err);
       throw new Error(
-        "generateRegistrationOptions: 调用底层库异常: " + (err instanceof Error ? err.message : String(err)),
+        `generateRegistrationOptions: 调用底层库异常: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
     if (!options) {
@@ -340,8 +338,8 @@ export class PasskeyService {
 
     logger.info("[Passkey] 注册二次检验：检查credentialID格式", {
       userId: user.id,
-      originalId: credential.id.substring(0, 10) + "...",
-      convertedId: credentialID.substring(0, 10) + "...",
+      originalId: `${credential.id.substring(0, 10)}...`,
+      convertedId: `${credentialID.substring(0, 10)}...`,
       credentialIDLength: credentialID.length,
     });
 
@@ -392,7 +390,7 @@ export class PasskeyService {
   }
 
   // 生成 Discoverable Credentials 认证选项（无需用户名）
-  public static async generateDiscoverableAuthenticationOptions(clientOrigin?: string) {
+  public static async generateDiscoverableAuthenticationOptions(_clientOrigin?: string) {
     try {
       logger.info("[Passkey] 生成 Discoverable Credentials 认证选项");
 
@@ -404,7 +402,7 @@ export class PasskeyService {
       });
 
       logger.info("[Passkey] Discoverable 认证选项生成成功", {
-        challenge: options?.challenge?.substring(0, 20) + "...",
+        challenge: `${options?.challenge?.substring(0, 20)}...`,
         rpID: getRpId(),
       });
 
@@ -419,7 +417,7 @@ export class PasskeyService {
   }
 
   // 生成认证选项
-  public static async generateAuthenticationOptions(user: User, clientOrigin?: string) {
+  public static async generateAuthenticationOptions(user: User, _clientOrigin?: string) {
     if (!user) {
       throw new Error("用户对象为空");
     }
@@ -473,9 +471,9 @@ export class PasskeyService {
       logger.info("[Passkey] 准备生成认证选项", {
         userId: user.id,
         validCredentialsCount: finalValidCredentials.length,
-        credentialIDs: finalValidCredentials.map((c) => c.credentialID.substring(0, 10) + "..."),
+        credentialIDs: finalValidCredentials.map((c) => `${c.credentialID.substring(0, 10)}...`),
         allowCredentials: finalValidCredentials.map((authenticator) => ({
-          id: authenticator.credentialID.substring(0, 20) + "...",
+          id: `${authenticator.credentialID.substring(0, 20)}...`,
           type: "public-key",
           transports: ["internal"],
         })),
@@ -485,7 +483,7 @@ export class PasskeyService {
       const allowCredentials = finalValidCredentials.map((authenticator) => {
         logger.info("[Passkey] 处理认证器:", {
           userId: user.id,
-          credentialID: authenticator.credentialID.substring(0, 20) + "...",
+          credentialID: `${authenticator.credentialID.substring(0, 20)}...`,
           credentialIDLength: authenticator.credentialID.length,
           isValidBase64Url: /^[A-Za-z0-9_-]+$/.test(authenticator.credentialID),
         });
@@ -500,7 +498,7 @@ export class PasskeyService {
         userId: user.id,
         count: allowCredentials.length,
         credentials: allowCredentials.map((cred) => ({
-          id: cred.id.substring(0, 20) + "...",
+          id: `${cred.id.substring(0, 20)}...`,
           transports: cred.transports,
           fullId: cred.id,
         })),
@@ -517,7 +515,7 @@ export class PasskeyService {
         userId: user.id,
         hasOptions: !!options,
         optionsKeys: Object.keys(options || {}),
-        challenge: options?.challenge?.substring(0, 20) + "...",
+        challenge: `${options?.challenge?.substring(0, 20)}...`,
         allowCredentialsCount: options?.allowCredentials?.length || 0,
         fullOptions: JSON.stringify(options, null, 2),
       });
@@ -530,7 +528,7 @@ export class PasskeyService {
       return options;
     } catch (err: any) {
       // 检查input.replace is not a function等类型错误，强制修复所有credentialID
-      if (err && err.message && err.message.includes("replace is not a function")) {
+      if (err?.message?.includes("replace is not a function")) {
         logger.warn("[Passkey自愈] 捕获到input.replace类型错误，强制修复所有credentialID并重试", {
           userId: user.id,
           error: err.message,
@@ -580,7 +578,7 @@ export class PasskeyService {
         logger.info("[Passkey自愈] 重试生成认证选项", {
           userId: user.id,
           validCredentialsCount: finalRetryCredentials.length,
-          credentialIDs: finalRetryCredentials.map((c) => c.credentialID.substring(0, 10) + "..."),
+          credentialIDs: finalRetryCredentials.map((c) => `${c.credentialID.substring(0, 10)}...`),
         });
 
         // 再次尝试
@@ -615,9 +613,9 @@ export class PasskeyService {
   public static async verifyAuthentication(
     user: User,
     response: any,
-    clientOrigin?: string,
-    requestOrigin?: string,
-    retryCount: number = 0,
+    _clientOrigin?: string,
+    _requestOrigin?: string,
+    _retryCount: number = 0,
   ): Promise<VerifiedAuthenticationResponse> {
     await fixUserPasskeyCredentialIDs(user);
     if (!user.pendingChallenge) {
@@ -769,8 +767,8 @@ export class PasskeyService {
             logger.info("[Passkey] 自动修复：修复credentialID", {
               userId: user.id,
               index: i,
-              original: originalCredentialId?.substring(0, 10) + "...",
-              fixed: fixedCredentialId.substring(0, 10) + "...",
+              original: `${originalCredentialId?.substring(0, 10)}...`,
+              fixed: `${fixedCredentialId.substring(0, 10)}...`,
             });
             cred.credentialID = fixedCredentialId;
             hasChanges = true;
@@ -799,7 +797,7 @@ export class PasskeyService {
       if (user.passkeyEnabled !== shouldBeEnabled) {
         user.passkeyEnabled = shouldBeEnabled;
         hasChanges = true;
-        logger.info("[Passkey] 自动修复：更新 passkeyEnabled 为 " + shouldBeEnabled, { userId: user.id });
+        logger.info(`[Passkey] 自动修复：更新 passkeyEnabled 为 ${shouldBeEnabled}`, { userId: user.id });
       }
 
       if (hasChanges) {

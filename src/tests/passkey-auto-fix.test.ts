@@ -1,5 +1,5 @@
-import fs from "fs";
-import path from "path";
+import fs from "node:fs";
+import path from "node:path";
 
 describe("Passkey 自动修复功能测试", () => {
   const USERS_FILE = path.join(process.cwd(), "data", "users.json");
@@ -56,7 +56,7 @@ describe("Passkey 自动修复功能测试", () => {
       const fixedUser = await UserStorage.getUserByUsername("admin");
       expect(fixedUser.passkeyEnabled).toBe(true);
       expect(Array.isArray(fixedUser.passkeyCredentials)).toBe(true);
-    } catch (e) {
+    } catch (_e) {
       // 跳过
     } finally {
       restoreUserData();

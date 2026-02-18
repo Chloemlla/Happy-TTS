@@ -3,7 +3,7 @@ import request from "supertest";
 import app from "../app";
 
 // 创建配置了 baseURL 的 axios 实例
-const api = axios.create({
+const _api = axios.create({
   baseURL: "http://localhost:3000",
   timeout: 10000,
 });

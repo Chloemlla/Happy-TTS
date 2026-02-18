@@ -1,5 +1,5 @@
-import crypto from "crypto";
-import { NextFunction, type Request, type Response } from "express";
+import crypto from "node:crypto";
+import type { Request, Response } from "express";
 import { replayProtection } from "../middleware/replayProtection";
 import { destroyNonceStore } from "../services/nonceStore";
 

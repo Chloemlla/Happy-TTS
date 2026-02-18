@@ -78,7 +78,7 @@ export class TOTPDebugger {
         debugInfo.secretLength = secret.length;
         debugInfo.decodedLength = decoded.length;
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        const _errorMessage = error instanceof Error ? error.message : "Unknown error";
         issues.push("TOTP密钥格式错误：不是有效的base32编码");
         suggestions.push("请重新生成TOTP设置");
       }
@@ -215,7 +215,7 @@ export class TOTPDebugger {
           issues.push("TOTP密钥解码后长度不足");
           suggestions.push("请重新生成TOTP设置");
         }
-      } catch (error) {
+      } catch (_error) {
         issues.push("TOTP密钥不是有效的base32编码");
         suggestions.push("请重新生成TOTP设置");
       }

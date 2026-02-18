@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 import logger from "../utils/logger";
 import { mongoose } from "./mongoService";
 
@@ -7,7 +7,7 @@ function escapeRegExp(input: string): string {
   return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function buildSafeRegex(
+function _buildSafeRegex(
   input: string,
   { maxLen = 100, flags = "i", exact = false }: { maxLen?: number; flags?: string; exact?: boolean } = {},
 ): RegExp {
@@ -58,7 +58,7 @@ function encryptAES256(data: string, key: string): { encryptedData: string; iv: 
 }
 
 // AES-256 解密函数
-function decryptAES256(encryptedData: string, iv: string, key: string): string {
+function _decryptAES256(encryptedData: string, iv: string, key: string): string {
   try {
     const keyHash = crypto.createHash("sha256").update(key).digest();
     const ivBuffer = Buffer.from(iv, "hex");
@@ -308,7 +308,7 @@ class DebugConsoleService {
         });
         return {
           success: false,
-          message: `访问被锁定，请 ${Math.ceil((lockoutInfo.lockoutUntil!.getTime() - Date.now()) / 1000 / 60)} 分钟后再试`,
+          message: `访问被锁定，请 ${Math.ceil((lockoutInfo.lockoutUntil?.getTime() - Date.now()) / 1000 / 60)} 分钟后再试`,
           attempts: lockoutInfo.attempts,
           lockoutUntil: lockoutInfo.lockoutUntil,
         };
@@ -394,7 +394,7 @@ class DebugConsoleService {
    */
   private async checkLockout(
     ip: string,
-    config: DebugConsoleConfigDoc,
+    _config: DebugConsoleConfigDoc,
   ): Promise<{
     isLocked: boolean;
     attempts: number;
@@ -431,7 +431,7 @@ class DebugConsoleService {
   /**
    * 增加尝试次数
    */
-  private async incrementAttempts(ip: string, config: DebugConsoleConfigDoc): Promise<number> {
+  private async incrementAttempts(ip: string, _config: DebugConsoleConfigDoc): Promise<number> {
     try {
       const attemptsKey = `debug_console_attempts:${ip}`;
       const currentAttempts = this.getFromCache(attemptsKey) || 0;
@@ -707,8 +707,9 @@ class DebugConsoleService {
       }
       if (filters.startDate || filters.endDate) {
         const range: any = {};
-        if (filters.startDate instanceof Date && !isNaN(filters.startDate.getTime())) range.$gte = filters.startDate;
-        if (filters.endDate instanceof Date && !isNaN(filters.endDate.getTime())) range.$lte = filters.endDate;
+        if (filters.startDate instanceof Date && !Number.isNaN(filters.startDate.getTime()))
+          range.$gte = filters.startDate;
+        if (filters.endDate instanceof Date && !Number.isNaN(filters.endDate.getTime())) range.$lte = filters.endDate;
         if (range.$gte || range.$lte) {
           // 限制时间跨度最大为31天
           const startMs = range.$gte ? range.$gte.getTime() : 0;
@@ -920,7 +921,7 @@ class DebugConsoleService {
           if (data.filters.startDate) {
             const startDate =
               typeof data.filters.startDate === "string" ? new Date(data.filters.startDate) : data.filters.startDate;
-            if (startDate instanceof Date && !isNaN(startDate.getTime())) {
+            if (startDate instanceof Date && !Number.isNaN(startDate.getTime())) {
               range.$gte = startDate;
             }
           }
@@ -929,7 +930,7 @@ class DebugConsoleService {
           if (data.filters.endDate) {
             const endDate =
               typeof data.filters.endDate === "string" ? new Date(data.filters.endDate) : data.filters.endDate;
-            if (endDate instanceof Date && !isNaN(endDate.getTime())) {
+            if (endDate instanceof Date && !Number.isNaN(endDate.getTime())) {
               range.$lte = endDate;
             }
           }

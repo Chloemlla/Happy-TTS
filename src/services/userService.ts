@@ -85,7 +85,7 @@ export const getUserById = async (id: string): Promise<UserType | null> => {
     "[MongoDB getUserById] 查询条件:",
     { id },
     "耗时:",
-    duration + "ms",
+    `${duration}ms`,
     "返回字段:",
     doc ? Object.keys(doc) : "null",
   );

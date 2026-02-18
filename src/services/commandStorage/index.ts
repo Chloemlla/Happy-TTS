@@ -15,7 +15,6 @@ switch (storageType) {
   case "file":
     impl = fileImpl;
     break;
-  case "mongo":
   default:
     impl = mongoImpl;
 }

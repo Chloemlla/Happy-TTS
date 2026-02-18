@@ -121,7 +121,7 @@ describe("TOTP密钥问题诊断", () => {
       // 验证特殊字符是否被正确处理
       expect(otpauthUrl).toContain("test_user_com");
       expect(otpauthUrl).toContain("Happy-TTS---Co-");
-      expect(otpauthUrl).toContain("secret=" + secret);
+      expect(otpauthUrl).toContain(`secret=${secret}`);
     });
   });
 

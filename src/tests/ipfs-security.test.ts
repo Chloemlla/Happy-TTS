@@ -83,105 +83,6 @@ class MockIPFSService {
     }
   }
 
-  // 以下方法改为基于 DOM 的实现，避免使用正则
-  private static removeEventHandlers(content: string): string {
-    const dom = new JSDOM(content, { contentType: "image/svg+xml" });
-    const doc = dom.window.document;
-    doc.querySelectorAll("*").forEach((el) => {
-      Array.from(el.attributes)
-        .filter((a) => /^on/i.test(a.name))
-        .forEach((a) => (el as Element).removeAttribute(a.name));
-    });
-    return doc.documentElement ? doc.documentElement.outerHTML : content;
-  }
-
-  private static removeDangerousProtocols(content: string): string {
-    const dom = new JSDOM(content, { contentType: "image/svg+xml" });
-    const doc = dom.window.document;
-    doc.querySelectorAll("*").forEach((el) => {
-      Array.from(el.attributes).forEach((a) => {
-        const value = a.value.trim();
-        if (/^\s*([a-zA-Z][a-zA-Z0-9+.-]*)\s*:\s*/.test(value)) {
-          (el as Element).removeAttribute(a.name);
-        }
-      });
-    });
-    return doc.documentElement ? doc.documentElement.outerHTML : content;
-  }
-
-  private static removeExternalReferences(content: string): string {
-    const dom = new JSDOM(content, { contentType: "image/svg+xml" });
-    const doc = dom.window.document;
-    doc.querySelectorAll("*").forEach((el) => {
-      ["href", "xlink:href", "src"].forEach((name) => {
-        const v = (el as Element).getAttribute(name);
-        if (v && !v.startsWith("#")) (el as Element).removeAttribute(name);
-      });
-      const style = (el as Element).getAttribute("style");
-      if (style && /url\s*\(\s*(?:["'])?https?:\/\//i.test(style)) {
-        (el as Element).removeAttribute("style");
-      }
-    });
-    return doc.documentElement ? doc.documentElement.outerHTML : content;
-  }
-
-  private static removeDataAttributes(content: string): string {
-    const dom = new JSDOM(content, { contentType: "image/svg+xml" });
-    const doc = dom.window.document;
-    doc.querySelectorAll("*").forEach((el) => {
-      Array.from(el.attributes)
-        .filter((a) => /^data-/i.test(a.name))
-        .forEach((a) => (el as Element).removeAttribute(a.name));
-    });
-    return doc.documentElement ? doc.documentElement.outerHTML : content;
-  }
-
-  private static removeExternalUrls(content: string): string {
-    const dom = new JSDOM(content, { contentType: "image/svg+xml" });
-    const doc = dom.window.document;
-    doc.querySelectorAll("*").forEach((el) => {
-      ["href", "src"].forEach((name) => {
-        const v = (el as Element).getAttribute(name);
-        if (v && /^\s*https?:\/\//i.test(v)) (el as Element).removeAttribute(name);
-      });
-      const style = (el as Element).getAttribute("style");
-      if (style && /url\s*\(\s*(?:["'])?https?:\/\//i.test(style)) {
-        (el as Element).removeAttribute("style");
-      }
-    });
-    return doc.documentElement ? doc.documentElement.outerHTML : content;
-  }
-
-  private static removeComments(content: string): string {
-    const dom = new JSDOM(content, { contentType: "image/svg+xml" });
-    const doc = dom.window.document;
-    const walker = doc.createTreeWalker(doc, dom.window.NodeFilter.SHOW_COMMENT);
-    const toRemove: Comment[] = [] as unknown as Comment[];
-    while (walker.nextNode()) toRemove.push(walker.currentNode as Comment);
-    toRemove.forEach((n) => n.parentNode?.removeChild(n));
-    return doc.documentElement ? doc.documentElement.outerHTML : content;
-  }
-
-  private static removeCDATA(content: string): string {
-    const dom = new JSDOM(content, { contentType: "image/svg+xml" });
-    const doc = dom.window.document;
-    const root = doc.documentElement;
-    if (root) {
-      const walk = (node: Node) => {
-        const children = Array.from((node as Element).childNodes);
-        for (const child of children) {
-          if (child.nodeType === dom.window.Node.CDATA_SECTION_NODE) {
-            child.parentNode?.removeChild(child);
-          } else if (child.nodeType === dom.window.Node.ELEMENT_NODE) {
-            walk(child);
-          }
-        }
-      };
-      walk(root);
-    }
-    return root ? root.outerHTML : content;
-  }
-
   static validateSVGContent(content: string): boolean {
     // 文件大小
     if (content.length > 1024 * 1024) return false;
@@ -428,7 +329,7 @@ describe("IPFS Security Tests", () => {
     });
 
     it("should handle very large SVG", () => {
-      const largeSVG = "<svg>" + "a".repeat(1024 * 1024 + 1) + "</svg>";
+      const largeSVG = `<svg>${"a".repeat(1024 * 1024 + 1)}</svg>`;
       expect(MockIPFSService.validateSVGContent(largeSVG)).toBe(false);
     });
 

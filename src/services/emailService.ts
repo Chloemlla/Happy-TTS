@@ -24,14 +24,13 @@ const RESEND_DOMAIN = process.env.RESEND_DOMAIN || "hapxs.com";
 const DEFAULT_EMAIL_FROM = `noreply@${RESEND_DOMAIN}`;
 
 // 创建Resend实例
-const resend = new Resend(RESEND_API_KEY);
+const _resend = new Resend(RESEND_API_KEY);
 
 // 邮件配额存储实现（多后端支持）
-import fs from "fs";
-import path from "path";
-import { getUserById } from "./userService";
+import fs from "node:fs";
+import path from "node:path";
 
-const EMAIL_QUOTA_TOTAL = Number(process.env.RESEND_QUOTA_TOTAL) || 100;
+const _EMAIL_QUOTA_TOTAL = Number(process.env.RESEND_QUOTA_TOTAL) || 100;
 const EMAIL_QUOTA_FILE = path.join(__dirname, "../../data/email_quota.json");
 
 export interface EmailQuotaInfo {
@@ -98,8 +97,8 @@ const domainQuotaMap: Record<string, number> = {};
   let idx = 0;
   while (true) {
     const domain =
-      process.env[`RESEND_DOMAIN${idx ? "_" + idx : ""}`] || (idx === 0 ? process.env.RESEND_DOMAIN : undefined);
-    const quota = process.env[`RESEND_QUOTA_TOTAL${idx ? "_" + idx : ""}`];
+      process.env[`RESEND_DOMAIN${idx ? `_${idx}` : ""}`] || (idx === 0 ? process.env.RESEND_DOMAIN : undefined);
+    const quota = process.env[`RESEND_QUOTA_TOTAL${idx ? `_${idx}` : ""}`];
     if (!domain) break;
     domainQuotaMap[domain] = quota ? Number(quota) : 100;
     idx++;
@@ -131,7 +130,7 @@ export async function getEmailQuota(userId: string, domain?: string): Promise<Em
       }
       return { used: quota.used, total: quotaTotal, resetAt: quota.resetAt, quotaTotal };
     }
-  } catch (e) {
+  } catch (_e) {
     // Mongo 异常降级为文件
   }
   // 文件存储兜底
@@ -153,7 +152,7 @@ export async function addEmailUsage(userId: string, count = 1, domain?: string) 
     if (mongoose.connection.readyState === 1) {
       const safeUserId = typeof userId === "string" ? userId : "";
       const safeDomain = typeof domain === "string" ? domain : "default";
-      const quotaTotal = safeDomain && domainQuotaMap[safeDomain] ? domainQuotaMap[safeDomain] : 100;
+      const _quotaTotal = safeDomain && domainQuotaMap[safeDomain] ? domainQuotaMap[safeDomain] : 100;
       let quota = await EmailQuotaModel.findOne({ userId: safeUserId, domain: safeDomain });
       const now = dayjs();
       if (!quota || !quota.resetAt || dayjs(quota.resetAt).isBefore(now)) {
@@ -170,7 +169,7 @@ export async function addEmailUsage(userId: string, count = 1, domain?: string) 
       }
       return;
     }
-  } catch (e) {
+  } catch (_e) {
     // Mongo 异常降级为文件
   }
   // 文件存储兜底
@@ -199,7 +198,7 @@ export async function resetEmailQuota(userId: string, domain?: string) {
       );
       return;
     }
-  } catch (e) {
+  } catch (_e) {
     // Mongo 异常降级为文件
   }
   // 文件存储兜底
@@ -235,9 +234,9 @@ const domainApiKeyMap: Record<string, string> = {};
   let idx = 0;
   while (true) {
     const domain =
-      process.env[`RESEND_DOMAIN${idx ? "_" + idx : ""}`] || (idx === 0 ? process.env.RESEND_DOMAIN : undefined);
+      process.env[`RESEND_DOMAIN${idx ? `_${idx}` : ""}`] || (idx === 0 ? process.env.RESEND_DOMAIN : undefined);
     const key =
-      process.env[`RESEND_API_KEY${idx ? "_" + idx : ""}`] || (idx === 0 ? process.env.RESEND_API_KEY : undefined);
+      process.env[`RESEND_API_KEY${idx ? `_${idx}` : ""}`] || (idx === 0 ? process.env.RESEND_API_KEY : undefined);
     if (!domain || !key) break;
     // 只接受 re_ 开头的 key
     if (/^re_\w{8,}/.test(key)) {

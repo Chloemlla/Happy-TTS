@@ -1,7 +1,7 @@
+import fs from "node:fs";
+import path from "node:path";
 import type { Request, Response } from "express";
-import fs from "fs";
 import jwt from "jsonwebtoken";
-import path from "path";
 import { config } from "../../config/config";
 
 export const testConfig = {
