@@ -7,7 +7,9 @@ import { mongoose } from './mongoService';
 // MongoDB Blocked IP Schema
 const BlockedIPSchema = new mongoose.Schema({
   ip: { type: String, required: true, unique: true },
+  reason: { type: String, default: '频繁篡改页面内容' },
   blockedAt: { type: Date, required: true },
+  expiresAt: { type: Date },
 }, { collection: 'blocked_ips' });
 const BlockedIPModel = mongoose.models.BlockedIP || mongoose.model('BlockedIP', BlockedIPSchema);
 
@@ -77,12 +79,31 @@ class TamperService {
 
   private async loadBlockedIPs(): Promise<void> {
     try {
+      if (mongoose.connection.readyState === 1) {
+        const docs = await BlockedIPModel.find({}).lean();
+        this.blockedIPs = new Map(
+          docs.map((doc: any) => [
+            doc.ip,
+            {
+              ip: doc.ip,
+              reason: doc.reason || '频繁篡改页面内容',
+              timestamp: doc.blockedAt?.toISOString() || new Date().toISOString(),
+              expiresAt: doc.expiresAt?.toISOString() || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            },
+          ])
+        );
+        return;
+      }
+    } catch (error) {
+      logger.warn('MongoDB 加载 Blocked IPs 失败，降级为本地文件:', error);
+    }
+    // 本地文件兜底
+    try {
       const data = await readFile(this.BLOCKED_IPS_PATH, 'utf-8');
       const blockedList: BlockedIP[] = JSON.parse(data);
       this.blockedIPs = new Map(blockedList.map(item => [item.ip, item]));
     } catch (error) {
-      logger.warn('未找到封禁 IP 文件，创建新文件');
-      await this.saveBlockedIPs();
+      logger.warn('未找到封禁 IP 文件，初始化为空');
     }
   }
 
@@ -93,7 +114,12 @@ class TamperService {
         // 先清空再批量插入
         await BlockedIPModel.deleteMany({});
         if (blockedList.length > 0) {
-          await BlockedIPModel.insertMany(blockedList.map(ip => ({ ip, blockedAt: new Date() })));
+          await BlockedIPModel.insertMany(blockedList.map(item => ({
+            ip: item.ip,
+            reason: item.reason,
+            blockedAt: new Date(item.timestamp),
+            expiresAt: new Date(item.expiresAt),
+          })));
         }
         return;
       }
