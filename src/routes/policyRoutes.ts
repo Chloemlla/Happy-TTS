@@ -1,23 +1,22 @@
-import { Router } from 'express';
-import { 
-  recordPolicyConsent,
-  verifyPolicyConsent,
-  revokePolicyConsent,
-  getPolicyStats,
+import { Router } from "express";
+import rateLimit from "express-rate-limit";
+import {
   cleanExpiredConsents,
-  getCurrentPolicyVersion
-} from '../controllers/policyController';
-import { authenticateToken } from '../middleware/authenticateToken';
-import { adminOnly } from '../middleware/adminOnly';
-import rateLimit from 'express-rate-limit';
-import logger from '../utils/logger';
+  getCurrentPolicyVersion,
+  getPolicyStats,
+  recordPolicyConsent,
+  revokePolicyConsent,
+  verifyPolicyConsent,
+} from "../controllers/policyController";
+import { adminOnly } from "../middleware/adminOnly";
+import { authenticateToken } from "../middleware/authenticateToken";
+import logger from "../utils/logger";
 
 const router = Router();
 
 // 检查是否为本地开发环境
-const isLocalDevelopment = process.env.NODE_ENV === 'development' || 
-                          process.env.NODE_ENV === 'dev' ||
-                          process.env.NODE_ENV === 'local';
+const isLocalDevelopment =
+  process.env.NODE_ENV === "development" || process.env.NODE_ENV === "dev" || process.env.NODE_ENV === "local";
 
 // 速率限制配置
 const policyRateLimit = rateLimit({
@@ -25,23 +24,23 @@ const policyRateLimit = rateLimit({
   max: isLocalDevelopment ? 1000 : 120, // 本地环境放宽限制，生产环境120次/分钟
   message: {
     success: false,
-    error: 'Too many policy requests, please try again later',
-    code: 'RATE_LIMIT_EXCEEDED'
+    error: "Too many policy requests, please try again later",
+    code: "RATE_LIMIT_EXCEEDED",
   },
   standardHeaders: true,
   legacyHeaders: false,
   // 本地环境跳过速率限制
   skip: (req) => {
     if (isLocalDevelopment) {
-      logger.info('Skipping rate limit for local development:', {
+      logger.info("Skipping rate limit for local development:", {
         ip: req.ip,
         hostname: req.hostname,
-        url: req.url
+        url: req.url,
       });
       return true;
     }
     return false;
-  }
+  },
 });
 
 const adminRateLimit = rateLimit({
@@ -49,23 +48,23 @@ const adminRateLimit = rateLimit({
   max: isLocalDevelopment ? 2000 : 120, // 本地环境放宽限制，生产环境120次/分钟
   message: {
     success: false,
-    error: 'Too many admin requests, please try again later',
-    code: 'ADMIN_RATE_LIMIT_EXCEEDED'
+    error: "Too many admin requests, please try again later",
+    code: "ADMIN_RATE_LIMIT_EXCEEDED",
   },
   standardHeaders: true,
   legacyHeaders: false,
   // 本地环境跳过速率限制
   skip: (req) => {
     if (isLocalDevelopment) {
-      logger.info('Skipping admin rate limit for local development:', {
+      logger.info("Skipping admin rate limit for local development:", {
         ip: req.ip,
         hostname: req.hostname,
-        url: req.url
+        url: req.url,
       });
       return true;
     }
     return false;
-  }
+  },
 });
 
 /**
@@ -96,7 +95,7 @@ const adminRateLimit = rateLimit({
  *           type: string
  *           description: 数据校验和
  *           example: "xyz789"
- *     
+ *
  *     PolicyConsentRequest:
  *       type: object
  *       required:
@@ -168,7 +167,7 @@ const adminRateLimit = rateLimit({
  *       500:
  *         description: 服务器内部错误
  */
-router.post('/verify', policyRateLimit, recordPolicyConsent);
+router.post("/verify", policyRateLimit, recordPolicyConsent);
 
 /**
  * @swagger
@@ -217,7 +216,7 @@ router.post('/verify', policyRateLimit, recordPolicyConsent);
  *       500:
  *         description: 服务器内部错误
  */
-router.get('/check', policyRateLimit, verifyPolicyConsent);
+router.get("/check", policyRateLimit, verifyPolicyConsent);
 
 /**
  * @swagger
@@ -263,7 +262,7 @@ router.get('/check', policyRateLimit, verifyPolicyConsent);
  *       500:
  *         description: 服务器内部错误
  */
-router.post('/revoke', policyRateLimit, revokePolicyConsent);
+router.post("/revoke", policyRateLimit, revokePolicyConsent);
 
 /**
  * @swagger
@@ -290,7 +289,7 @@ router.post('/revoke', policyRateLimit, revokePolicyConsent);
  *                   type: number
  *                   example: 30
  */
-router.get('/version', getCurrentPolicyVersion);
+router.get("/version", getCurrentPolicyVersion);
 
 // 管理员接口
 /**
@@ -362,7 +361,7 @@ router.get('/version', getCurrentPolicyVersion);
  *       500:
  *         description: 服务器内部错误
  */
-router.get('/admin/stats', adminRateLimit, authenticateToken, adminOnly, getPolicyStats);
+router.get("/admin/stats", adminRateLimit, authenticateToken, adminOnly, getPolicyStats);
 
 /**
  * @swagger
@@ -397,6 +396,6 @@ router.get('/admin/stats', adminRateLimit, authenticateToken, adminOnly, getPoli
  *       500:
  *         description: 服务器内部错误
  */
-router.post('/admin/cleanup', adminRateLimit, authenticateToken, adminOnly, cleanExpiredConsents);
+router.post("/admin/cleanup", adminRateLimit, authenticateToken, adminOnly, cleanExpiredConsents);
 
 export default router;

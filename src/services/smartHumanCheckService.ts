@@ -1,6 +1,6 @@
-import crypto from 'crypto';
-import logger from '../utils/logger';
-import { getNonceStore, NonceStore } from './nonceStore';
+import crypto from "crypto";
+import logger from "../utils/logger";
+import { getNonceStore, type NonceStore } from "./nonceStore";
 
 /**
  * SmartHumanCheckService
@@ -31,7 +31,7 @@ export interface SmartClientPayload {
   ua: string;
   ce: string; // canvas entropy (hash)
   sc: number; // score 0..1
-  st: any;    // behavior stats
+  st: any; // behavior stats
   cn: string | null; // 服务端下发的 nonce（推荐）
 }
 
@@ -47,7 +47,7 @@ export interface VerifyResult {
   timestamp?: number;
   // Risk assessment
   riskScore?: number; // 0..1, higher means riskier
-  riskLevel?: 'low' | 'medium' | 'high';
+  riskLevel?: "low" | "medium" | "high";
   riskReasons?: string[];
   // Optional: server threshold used for comparison (for debugging/telemetry)
   threshold?: number;
@@ -78,110 +78,110 @@ const DEFAULT_SCORE_THRESHOLD = 0.62; // 与前端一致，降低误判
 const ERROR_CODES = {
   // Nonce 相关错误
   MISSING_NONCE: {
-    code: 'MISSING_NONCE',
-    message: '缺少验证码',
-    retryable: true
+    code: "MISSING_NONCE",
+    message: "缺少验证码",
+    retryable: true,
   },
   BAD_NONCE_FORMAT: {
-    code: 'BAD_NONCE_FORMAT',
-    message: '验证码格式错误',
-    retryable: true
+    code: "BAD_NONCE_FORMAT",
+    message: "验证码格式错误",
+    retryable: true,
   },
   INCOMPLETE_NONCE: {
-    code: 'INCOMPLETE_NONCE',
-    message: '验证码数据不完整',
-    retryable: true
+    code: "INCOMPLETE_NONCE",
+    message: "验证码数据不完整",
+    retryable: true,
   },
   BAD_NONCE_SIG: {
-    code: 'BAD_NONCE_SIG',
-    message: '验证码签名无效',
-    retryable: true
+    code: "BAD_NONCE_SIG",
+    message: "验证码签名无效",
+    retryable: true,
   },
   NONCE_EXPIRED: {
-    code: 'NONCE_EXPIRED',
-    message: '验证码已过期',
-    retryable: true
+    code: "NONCE_EXPIRED",
+    message: "验证码已过期",
+    retryable: true,
   },
-  
+
   // Token 相关错误
   MISSING_TOKEN: {
-    code: 'MISSING_TOKEN',
-    message: '缺少验证令牌',
-    retryable: false
+    code: "MISSING_TOKEN",
+    message: "缺少验证令牌",
+    retryable: false,
   },
   BAD_TOKEN_FORMAT: {
-    code: 'BAD_TOKEN_FORMAT',
-    message: '验证令牌格式错误',
-    retryable: false
+    code: "BAD_TOKEN_FORMAT",
+    message: "验证令牌格式错误",
+    retryable: false,
   },
   INCOMPLETE_TOKEN: {
-    code: 'INCOMPLETE_TOKEN',
-    message: '验证令牌数据不完整',
-    retryable: false
+    code: "INCOMPLETE_TOKEN",
+    message: "验证令牌数据不完整",
+    retryable: false,
   },
   BAD_TOKEN_SIG: {
-    code: 'BAD_TOKEN_SIG',
-    message: '验证令牌签名无效',
-    retryable: false
+    code: "BAD_TOKEN_SIG",
+    message: "验证令牌签名无效",
+    retryable: false,
   },
-  
+
   // 验证相关错误
   CLIENT_TIME_SKEW: {
-    code: 'CLIENT_TIME_SKEW',
-    message: '客户端时间偏差过大',
-    retryable: true
+    code: "CLIENT_TIME_SKEW",
+    message: "客户端时间偏差过大",
+    retryable: true,
   },
   LOW_SCORE: {
-    code: 'LOW_SCORE',
-    message: '行为评分过低',
-    retryable: false
+    code: "LOW_SCORE",
+    message: "行为评分过低",
+    retryable: false,
   },
-  
+
   // 系统错误
   SERVER_ERROR: {
-    code: 'SERVER_ERROR',
-    message: '服务器内部错误',
-    retryable: true
+    code: "SERVER_ERROR",
+    message: "服务器内部错误",
+    retryable: true,
   },
   RATE_LIMITED: {
-    code: 'RATE_LIMITED',
-    message: '请求过于频繁',
-    retryable: true
+    code: "RATE_LIMITED",
+    message: "请求过于频繁",
+    retryable: true,
   },
   ABUSE_BANNED: {
-    code: 'ABUSE_BANNED',
-    message: '检测到滥用，已暂时封禁',
-    retryable: true
+    code: "ABUSE_BANNED",
+    message: "检测到滥用，已暂时封禁",
+    retryable: true,
   },
   HIGH_RISK: {
-    code: 'HIGH_RISK',
-    message: '检测到高风险行为',
-    retryable: false
+    code: "HIGH_RISK",
+    message: "检测到高风险行为",
+    retryable: false,
   },
   CHALLENGE_REQUIRED: {
-    code: 'CHALLENGE_REQUIRED',
-    message: '需要完成验证码验证',
-    retryable: true
-  }
+    code: "CHALLENGE_REQUIRED",
+    message: "需要完成验证码验证",
+    retryable: true,
+  },
 } as const;
 
 function base64EncodeJson(obj: unknown): string {
   const s = JSON.stringify(obj);
-  return Buffer.from(s, 'utf8').toString('base64');
+  return Buffer.from(s, "utf8").toString("base64");
 }
 
 function base64DecodeJson<T = any>(b64: string): T {
-  const buf = Buffer.from(b64, 'base64');
-  const s = buf.toString('utf8');
+  const buf = Buffer.from(b64, "base64");
+  const s = buf.toString("utf8");
   return JSON.parse(s) as T;
 }
 
 function hmacSha256Base64(input: string, secret: string): string {
-  return crypto.createHmac('sha256', secret).update(input).digest('base64');
+  return crypto.createHmac("sha256", secret).update(input).digest("base64");
 }
 
 function sha256Base64(input: string): string {
-  return crypto.createHash('sha256').update(input).digest('base64');
+  return crypto.createHash("sha256").update(input).digest("base64");
 }
 
 export class SmartHumanCheckService {
@@ -223,51 +223,50 @@ export class SmartHumanCheckService {
   }) {
     // 自动生成高复杂度密钥的逻辑
     let secret = opts?.secret || process.env.SMART_HUMAN_CHECK_SECRET;
-    
+
     if (!secret) {
-      if (process.env.NODE_ENV === 'production') {
+      if (process.env.NODE_ENV === "production") {
         // 生产环境：生成高复杂度密钥
         const randomBytes = crypto.randomBytes(64); // 512位随机数据
         const timestamp = Date.now().toString();
         const processId = process.pid.toString();
-        const hostname = require('os').hostname();
-        
+        const hostname = require("os").hostname();
+
         // 组合多个熵源生成密钥
         const entropySources = [
-          randomBytes.toString('base64'),
+          randomBytes.toString("base64"),
           timestamp,
           processId,
           hostname,
           Math.random().toString(),
-          crypto.randomUUID()
+          crypto.randomUUID(),
         ];
-        
-        secret = crypto.createHash('sha512')
-          .update(entropySources.join('|'))
-          .digest('base64');
-        
-        logger.info('[SmartHumanCheck] 生产环境自动生成高熵值密钥', {
+
+        secret = crypto.createHash("sha512").update(entropySources.join("|")).digest("base64");
+
+        logger.info("[SmartHumanCheck] 生产环境自动生成高熵值密钥", {
           secretLength: secret.length,
           entropySources: entropySources.length,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } else {
         // 开发环境：使用默认密钥
-        secret = 'change-me-in-prod';
-        logger.warn('[SmartHumanCheck] 开发环境使用默认密钥。生产环境请设置 SMART_HUMAN_CHECK_SECRET。');
+        secret = "change-me-in-prod";
+        logger.warn("[SmartHumanCheck] 开发环境使用默认密钥。生产环境请设置 SMART_HUMAN_CHECK_SECRET。");
       }
     }
-    
+
     this.secret = secret;
     this.ttlMs = opts?.ttlMs ?? Number(process.env.SMART_HUMAN_CHECK_TTL_MS || DEFAULT_TTL_MS);
     this.maxSkewMs = opts?.maxSkewMs ?? Number(process.env.SMART_HUMAN_CHECK_SKEW_MS || DEFAULT_MAX_SKEW_MS);
-    this.scoreThreshold = opts?.scoreThreshold ?? Number(process.env.SMART_HUMAN_CHECK_SCORE || DEFAULT_SCORE_THRESHOLD);
-    
+    this.scoreThreshold =
+      opts?.scoreThreshold ?? Number(process.env.SMART_HUMAN_CHECK_SCORE || DEFAULT_SCORE_THRESHOLD);
+
     // 初始化 nonce 存储
     this.nonceStore = getNonceStore({
       ttlMs: this.ttlMs,
       maxSize: Number(process.env.SMART_HUMAN_CHECK_NONCE_STORE_SIZE || 10000),
-      cleanupInterval: Number(process.env.SMART_HUMAN_CHECK_CLEANUP_INTERVAL || 60000)
+      cleanupInterval: Number(process.env.SMART_HUMAN_CHECK_CLEANUP_INTERVAL || 60000),
     });
 
     // Rate-limit & abuse thresholds (env overridable)
@@ -280,26 +279,26 @@ export class SmartHumanCheckService {
     // Pattern detection window and thresholds (can be tuned via env in future)
     this.patternWindowMs = Number(process.env.SMART_HUMAN_CHECK_PATTERN_WINDOW_MS || this.abuseWindowMs);
     // Fine-grained automated attack patterns
-    this.patternBanThresholds.set('bad_token_sig', 4);
-    this.patternBanThresholds.set('bad_token_format', 6);
-    this.patternBanThresholds.set('incomplete_token', 6);
-    this.patternBanThresholds.set('missing_token', 10);
-    this.patternBanThresholds.set('client_time_skew', 8);
-    this.patternBanThresholds.set('ua_suspicious', 12);
+    this.patternBanThresholds.set("bad_token_sig", 4);
+    this.patternBanThresholds.set("bad_token_format", 6);
+    this.patternBanThresholds.set("incomplete_token", 6);
+    this.patternBanThresholds.set("missing_token", 10);
+    this.patternBanThresholds.set("client_time_skew", 8);
+    this.patternBanThresholds.set("ua_suspicious", 12);
     // Pass-rate window and minimum samples for dynamic thresholding
     this.prWindowMs = Number(process.env.SMART_HUMAN_CHECK_PR_WINDOW_MS || 10 * 60_000);
     this.prMinSamplesIp = Number(process.env.SMART_HUMAN_CHECK_PR_MIN_IP || 10);
     this.prMinSamplesUa = Number(process.env.SMART_HUMAN_CHECK_PR_MIN_UA || 30);
 
     // 密钥初始化完成后的日志
-    if (process.env.NODE_ENV === 'production' && !opts?.secret && !process.env.SMART_HUMAN_CHECK_SECRET) {
-      logger.info('[SmartHumanCheck] 生产环境使用自动生成的密钥');
+    if (process.env.NODE_ENV === "production" && !opts?.secret && !process.env.SMART_HUMAN_CHECK_SECRET) {
+      logger.info("[SmartHumanCheck] 生产环境使用自动生成的密钥");
     }
   }
 
   /** Normalize UA for keys */
   private getUaKey(ua?: string): string {
-    if (!ua) return 'unknown';
+    if (!ua) return "unknown";
     const s = ua.trim();
     return s.slice(0, 160);
   }
@@ -308,7 +307,7 @@ export class SmartHumanCheckService {
   private pushAndPrune(bucket: Map<string, number[]>, key: string, ts: number, windowMs: number) {
     const arr = bucket.get(key) || [];
     const cutoff = ts - windowMs;
-    const fresh = arr.filter(t => t > cutoff);
+    const fresh = arr.filter((t) => t > cutoff);
     fresh.push(ts);
     bucket.set(key, fresh);
   }
@@ -327,9 +326,14 @@ export class SmartHumanCheckService {
   }
 
   /** Get pass rate (0..1) and total count for a key */
-  private getPassRate(allMap: Map<string, number[]>, okMap: Map<string, number[]>, key: string, now: number): { rate?: number; total: number } {
-    const all = (allMap.get(key) || []).filter(t => t > now - this.prWindowMs);
-    const ok = (okMap.get(key) || []).filter(t => t > now - this.prWindowMs);
+  private getPassRate(
+    allMap: Map<string, number[]>,
+    okMap: Map<string, number[]>,
+    key: string,
+    now: number,
+  ): { rate?: number; total: number } {
+    const all = (allMap.get(key) || []).filter((t) => t > now - this.prWindowMs);
+    const ok = (okMap.get(key) || []).filter((t) => t > now - this.prWindowMs);
     const total = all.length;
     if (total === 0) return { total: 0 };
     const rate = ok.length / total;
@@ -341,22 +345,28 @@ export class SmartHumanCheckService {
     if (!ua) return true;
     const s = ua.toLowerCase();
     return (
-      s.includes('headless') ||
-      s.includes('phantomjs') ||
-      s.includes('electron') ||
-      s.includes('puppeteer') ||
-      s.includes('playwright') ||
-      s.includes('spider') ||
-      s.includes('crawler') ||
-      s.includes('bot') ||
-      s.includes('curl') ||
-      s.includes('wget') ||
-      s.includes('httpclient')
+      s.includes("headless") ||
+      s.includes("phantomjs") ||
+      s.includes("electron") ||
+      s.includes("puppeteer") ||
+      s.includes("playwright") ||
+      s.includes("spider") ||
+      s.includes("crawler") ||
+      s.includes("bot") ||
+      s.includes("curl") ||
+      s.includes("wget") ||
+      s.includes("httpclient")
     );
   }
 
   /** Compute dynamic threshold based on IP/UA pass-rate and current risk */
-  private computeDynamicThreshold(base: number, ip: string, ua: string | undefined, riskLevel: 'low'|'medium'|'high', now: number): { used: number; passRateIp?: number; passRateUa?: number; policy: string } {
+  private computeDynamicThreshold(
+    base: number,
+    ip: string,
+    ua: string | undefined,
+    riskLevel: "low" | "medium" | "high",
+    now: number,
+  ): { used: number; passRateIp?: number; passRateUa?: number; policy: string } {
     let used = base;
     const uaKey = this.getUaKey(ua);
     const { rate: ipRate, total: ipTotal } = this.getPassRate(this.prAllByIp, this.prSuccessByIp, ip, now);
@@ -365,31 +375,48 @@ export class SmartHumanCheckService {
 
     // UA suspicion
     if (this.isSuspiciousUA(ua)) {
-      used += 0.15; policies.push('ua_suspicious(+0.15)');
+      used += 0.15;
+      policies.push("ua_suspicious(+0.15)");
     }
     // Risk level adjustment
-    if (riskLevel === 'medium') { used += 0.05; policies.push('risk_medium(+0.05)'); }
-    if (riskLevel === 'high')   { used += 0.20; policies.push('risk_high(+0.20)'); }
+    if (riskLevel === "medium") {
+      used += 0.05;
+      policies.push("risk_medium(+0.05)");
+    }
+    if (riskLevel === "high") {
+      used += 0.2;
+      policies.push("risk_high(+0.20)");
+    }
 
     // Historical pass rates (only if enough samples)
-    if (typeof ipRate === 'number' && ipTotal >= this.prMinSamplesIp) {
-      if (ipRate < 0.4) { used += 0.10; policies.push('ip_pass_rate_lt_0.4(+0.10)'); }
-      else if (ipRate < 0.6) { used += 0.05; policies.push('ip_pass_rate_lt_0.6(+0.05)'); }
+    if (typeof ipRate === "number" && ipTotal >= this.prMinSamplesIp) {
+      if (ipRate < 0.4) {
+        used += 0.1;
+        policies.push("ip_pass_rate_lt_0.4(+0.10)");
+      } else if (ipRate < 0.6) {
+        used += 0.05;
+        policies.push("ip_pass_rate_lt_0.6(+0.05)");
+      }
     }
-    if (typeof uaRate === 'number' && uaTotal >= this.prMinSamplesUa) {
-      if (uaRate < 0.4) { used += 0.10; policies.push('ua_pass_rate_lt_0.4(+0.10)'); }
-      else if (uaRate < 0.6) { used += 0.05; policies.push('ua_pass_rate_lt_0.6(+0.05)'); }
+    if (typeof uaRate === "number" && uaTotal >= this.prMinSamplesUa) {
+      if (uaRate < 0.4) {
+        used += 0.1;
+        policies.push("ua_pass_rate_lt_0.4(+0.10)");
+      } else if (uaRate < 0.6) {
+        used += 0.05;
+        policies.push("ua_pass_rate_lt_0.6(+0.05)");
+      }
     }
 
     // Clamp
     used = Math.max(base, Math.min(0.98, used));
-    return { used, passRateIp: ipRate, passRateUa: uaRate, policy: policies.join(',') };
+    return { used, passRateIp: ipRate, passRateUa: uaRate, policy: policies.join(",") };
   }
 
   /** 生成带签名的 nonce（短时有效） */
   issueNonce(clientIp?: string, userAgent?: string): NonceResult {
     try {
-      const ip = clientIp || 'unknown';
+      const ip = clientIp || "unknown";
       const now = Date.now();
       // Ban check
       const banUntil = this.bannedUntilByIp.get(ip) || 0;
@@ -401,7 +428,7 @@ export class SmartHumanCheckService {
           errorCode: error.code,
           errorMessage: error.message,
           retryable: error.retryable,
-          timestamp: now
+          timestamp: now,
         };
       }
       // Rate limit check for nonce issuance
@@ -415,50 +442,50 @@ export class SmartHumanCheckService {
           errorCode: error.code,
           errorMessage: error.message,
           retryable: error.retryable,
-          timestamp: now
+          timestamp: now,
         };
       }
 
       const nBytes = crypto.randomBytes(16); // 128-bit 随机数
-      const n = nBytes.toString('base64');
+      const n = nBytes.toString("base64");
       const ts = Date.now();
       const sig = hmacSha256Base64(`${n}|${ts}`, this.secret);
       const payload: SmartNoncePayload = { n, ts, sig };
       const nonce = base64EncodeJson(payload);
-      
+
       // 生成唯一的 nonce ID 用于跟踪
-      const nonceId = crypto.createHash('sha256').update(nonce).digest('hex');
-      
+      const nonceId = crypto.createHash("sha256").update(nonce).digest("hex");
+
       // 存储 nonce 到存储系统
       this.nonceStore.storeNonce(nonceId, clientIp, userAgent);
-      
+
       // 如果 UA 可疑，记录模式但不阻断发号
       try {
         if (this.isSuspiciousUA(userAgent)) {
-          this.recordPattern(ip, 'ua_suspicious');
+          this.recordPattern(ip, "ua_suspicious");
         }
       } catch {}
 
-      logger.debug('[SmartHumanCheck] Issued nonce', { 
-        nonceId: nonceId.slice(0, 8) + '...', 
+      logger.debug("[SmartHumanCheck] Issued nonce", {
+        nonceId: nonceId.slice(0, 8) + "...",
         clientIp,
-        timestamp: ts 
+        timestamp: ts,
       });
-      
+
       return {
         success: true,
         nonce,
-        timestamp: ts
+        timestamp: ts,
       };
     } catch (error) {
-      logger.error('[SmartHumanCheck] Failed to generate nonce', error);
+      logger.error("[SmartHumanCheck] Failed to generate nonce", error);
       return {
         success: false,
         error: ERROR_CODES.SERVER_ERROR.message,
         errorCode: ERROR_CODES.SERVER_ERROR.code,
         errorMessage: ERROR_CODES.SERVER_ERROR.message,
         retryable: ERROR_CODES.SERVER_ERROR.retryable,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
     }
   }
@@ -466,90 +493,90 @@ export class SmartHumanCheckService {
   /** 验证 nonce（签名与有效期） */
   private verifyNonceInternal(nonceB64: string | null): { ok: boolean; reason?: string; errorInfo?: any } {
     if (!nonceB64) {
-      return { 
-        ok: false, 
-        reason: 'missing_nonce',
-        errorInfo: ERROR_CODES.MISSING_NONCE
+      return {
+        ok: false,
+        reason: "missing_nonce",
+        errorInfo: ERROR_CODES.MISSING_NONCE,
       };
     }
-    
+
     let decoded: SmartNoncePayload;
     try {
       decoded = base64DecodeJson<SmartNoncePayload>(nonceB64);
     } catch {
-      return { 
-        ok: false, 
-        reason: 'bad_nonce_format',
-        errorInfo: ERROR_CODES.BAD_NONCE_FORMAT
+      return {
+        ok: false,
+        reason: "bad_nonce_format",
+        errorInfo: ERROR_CODES.BAD_NONCE_FORMAT,
       };
     }
-    
-    const { n, ts, sig } = decoded || {} as SmartNoncePayload;
+
+    const { n, ts, sig } = decoded || ({} as SmartNoncePayload);
     if (!n || !ts || !sig) {
-      return { 
-        ok: false, 
-        reason: 'incomplete_nonce',
-        errorInfo: ERROR_CODES.INCOMPLETE_NONCE
+      return {
+        ok: false,
+        reason: "incomplete_nonce",
+        errorInfo: ERROR_CODES.INCOMPLETE_NONCE,
       };
     }
 
     // 验证签名
     const expect = hmacSha256Base64(`${n}|${ts}`, this.secret);
     if (!crypto.timingSafeEqual(Buffer.from(expect), Buffer.from(sig))) {
-      return { 
-        ok: false, 
-        reason: 'bad_nonce_sig',
-        errorInfo: ERROR_CODES.BAD_NONCE_SIG
+      return {
+        ok: false,
+        reason: "bad_nonce_sig",
+        errorInfo: ERROR_CODES.BAD_NONCE_SIG,
       };
     }
-    
+
     // 验证时间有效性
     const now = Date.now();
     if (now - ts > this.ttlMs) {
-      return { 
-        ok: false, 
-        reason: 'nonce_expired',
-        errorInfo: ERROR_CODES.NONCE_EXPIRED
+      return {
+        ok: false,
+        reason: "nonce_expired",
+        errorInfo: ERROR_CODES.NONCE_EXPIRED,
       };
     }
-    
+
     // 检查 nonce 是否已被消费
-    const nonceId = crypto.createHash('sha256').update(nonceB64).digest('hex');
+    const nonceId = crypto.createHash("sha256").update(nonceB64).digest("hex");
     const consumeResult = this.nonceStore.consume(nonceId);
-    
+
     if (!consumeResult.success) {
       let errorInfo;
       switch (consumeResult.reason) {
-        case 'nonce_not_found':
+        case "nonce_not_found":
           errorInfo = ERROR_CODES.BAD_NONCE_SIG; // 可能是伪造的 nonce
           break;
-        case 'nonce_expired':
+        case "nonce_expired":
           errorInfo = ERROR_CODES.NONCE_EXPIRED;
           break;
-        case 'nonce_already_consumed':
+        case "nonce_already_consumed":
           errorInfo = {
-            code: 'NONCE_REUSED',
-            message: '验证码已被使用',
-            retryable: true
+            code: "NONCE_REUSED",
+            message: "验证码已被使用",
+            retryable: true,
           };
           break;
         default:
           errorInfo = ERROR_CODES.BAD_NONCE_FORMAT;
       }
-      
-      return { 
-        ok: false, 
+
+      return {
+        ok: false,
         reason: consumeResult.reason,
-        errorInfo
+        errorInfo,
       };
     }
-    
-    logger.debug('[SmartHumanCheck] Nonce verified and consumed', { 
-      nonceId: nonceId.slice(0, 8) + '...',
+
+    logger.debug("[SmartHumanCheck] Nonce verified and consumed", {
+      nonceId: nonceId.slice(0, 8) + "...",
       issuedAt: consumeResult.record?.issuedAt,
-      consumedAt: consumeResult.record?.consumedAt
+      consumedAt: consumeResult.record?.consumedAt,
     });
-    
+
     return { ok: true };
   }
 
@@ -557,7 +584,10 @@ export class SmartHumanCheckService {
    * 评估风险分数（0..1 越高风险越大）并返回风险因素
    * 注意：这是启发式评估，非严格判定。
    */
-  private assessRisk(payload: SmartClientPayload, remoteIp?: string): { score: number; level: 'low'|'medium'|'high'; reasons: string[] } {
+  private assessRisk(
+    payload: SmartClientPayload,
+    remoteIp?: string,
+  ): { score: number; level: "low" | "medium" | "high"; reasons: string[] } {
     const reasons: string[] = [];
     let risk = 0;
     const st: any = payload.st || {};
@@ -565,63 +595,74 @@ export class SmartHumanCheckService {
     // 1) 明确作弊信号：蜜罐触发
     if (st.trapTriggered === true) {
       risk += 0.7;
-      reasons.push('trap_triggered');
+      reasons.push("trap_triggered");
     }
 
     // 2) 键盘节奏异常（过于均匀或过快）
-    if (typeof st.avgKeyInterval === 'number') {
+    if (typeof st.avgKeyInterval === "number") {
       const avg = st.avgKeyInterval;
-      if (avg > 0 && avg < 40) { // 极快
-        risk += 0.15; reasons.push('keys_too_fast');
+      if (avg > 0 && avg < 40) {
+        // 极快
+        risk += 0.15;
+        reasons.push("keys_too_fast");
       }
     }
-    if (typeof st.keyPressVariance === 'number' && st.keyPressVariance < 100) { // 过于稳定
-      risk += 0.1; reasons.push('key_variance_low');
+    if (typeof st.keyPressVariance === "number" && st.keyPressVariance < 100) {
+      // 过于稳定
+      risk += 0.1;
+      reasons.push("key_variance_low");
     }
 
     // 3) 鼠标轨迹异常：速度方差过低，方向改变极少但移动次数很多
-    if (typeof st.mouseMoves === 'number' && st.mouseMoves > 200) {
-      if (typeof st.speedVariance === 'number' && st.speedVariance < 1e-3) {
-        risk += 0.12; reasons.push('mouse_speed_uniform');
+    if (typeof st.mouseMoves === "number" && st.mouseMoves > 200) {
+      if (typeof st.speedVariance === "number" && st.speedVariance < 1e-3) {
+        risk += 0.12;
+        reasons.push("mouse_speed_uniform");
       }
-      if (typeof st.directionChanges === 'number' && st.directionChanges < 5) {
-        risk += 0.12; reasons.push('direction_changes_low');
+      if (typeof st.directionChanges === "number" && st.directionChanges < 5) {
+        risk += 0.12;
+        reasons.push("direction_changes_low");
       }
     }
 
     // 4) 速度过快或极值异常
-    if (typeof st.avgSpeed === 'number' && st.avgSpeed > 3000) {
-      risk += 0.1; reasons.push('avg_speed_extreme');
+    if (typeof st.avgSpeed === "number" && st.avgSpeed > 3000) {
+      risk += 0.1;
+      reasons.push("avg_speed_extreme");
     }
-    if (typeof st.maxSpeed === 'number' && st.maxSpeed > 15000) {
-      risk += 0.1; reasons.push('max_speed_extreme');
+    if (typeof st.maxSpeed === "number" && st.maxSpeed > 15000) {
+      risk += 0.1;
+      reasons.push("max_speed_extreme");
     }
 
     // 5) 时间模式可疑：极短会话却大量交互，或 idleTime 为 0
-    if (typeof st.sessionDuration === 'number' && st.sessionDuration > 0 && st.sessionDuration < 2000) {
-      if (typeof st.mouseMoves === 'number' && st.mouseMoves > 50) {
-        risk += 0.1; reasons.push('too_many_actions_in_short_session');
+    if (typeof st.sessionDuration === "number" && st.sessionDuration > 0 && st.sessionDuration < 2000) {
+      if (typeof st.mouseMoves === "number" && st.mouseMoves > 50) {
+        risk += 0.1;
+        reasons.push("too_many_actions_in_short_session");
       }
     }
-    if (typeof st.idleTime === 'number' && st.idleTime === 0) {
-      risk += 0.05; reasons.push('no_idle_time');
+    if (typeof st.idleTime === "number" && st.idleTime === 0) {
+      risk += 0.05;
+      reasons.push("no_idle_time");
     }
 
     // 6) 画布熵异常（过短）
     if (!payload.ce || payload.ce.length < 8) {
-      risk += 0.05; reasons.push('canvas_entropy_short');
+      risk += 0.05;
+      reasons.push("canvas_entropy_short");
     }
 
     // 7) 综合行为分数（前端）转换为风险（越低越高风险）
-    if (typeof payload.sc === 'number') {
+    if (typeof payload.sc === "number") {
       const behaviorRisk = Math.max(0, 1 - payload.sc); // sc=1 => 0 风险，sc=0 => 1 风险
       risk += behaviorRisk * 0.2; // 控制权重
-      if (behaviorRisk > 0.5) reasons.push('low_behavior_score');
+      if (behaviorRisk > 0.5) reasons.push("low_behavior_score");
     }
 
     // 裁剪风险分数到 [0,1]
     risk = Math.max(0, Math.min(1, risk));
-    const level: 'low'|'medium'|'high' = risk >= 0.7 ? 'high' : risk >= 0.4 ? 'medium' : 'low';
+    const level: "low" | "medium" | "high" = risk >= 0.7 ? "high" : risk >= 0.4 ? "medium" : "low";
     return { score: risk, level, reasons };
   }
 
@@ -634,20 +675,20 @@ export class SmartHumanCheckService {
    */
   verifyToken(tokenB64: string, remoteIp?: string): VerifyResult {
     const timestamp = Date.now();
-    const ip = remoteIp || 'unknown';
+    const ip = remoteIp || "unknown";
     // Ban & rate limit check for verify endpoint
     const banUntil = this.bannedUntilByIp.get(ip) || 0;
     if (banUntil > timestamp) {
       const err = ERROR_CODES.ABUSE_BANNED;
       return {
         success: false,
-        reason: 'abuse_banned',
+        reason: "abuse_banned",
         tokenOk: false,
         nonceOk: false,
         errorCode: err.code,
         errorMessage: err.message,
         retryable: err.retryable,
-        timestamp
+        timestamp,
       };
     }
     if (this.isRateLimited(ip, this.verifyTimestampsByIp, this.verifyLimitPerWindow, this.rlWindowMs, timestamp)) {
@@ -656,28 +697,28 @@ export class SmartHumanCheckService {
       const err = ERROR_CODES.RATE_LIMITED;
       return {
         success: false,
-        reason: 'rate_limited',
+        reason: "rate_limited",
         tokenOk: false,
         nonceOk: false,
         errorCode: err.code,
         errorMessage: err.message,
         retryable: err.retryable,
-        timestamp
+        timestamp,
       };
     }
-    
+
     if (!tokenB64) {
       const error = ERROR_CODES.MISSING_TOKEN;
       // 记录模式：缺失 token
-      this.recordPattern(ip, 'missing_token');
+      this.recordPattern(ip, "missing_token");
       this.recordAbuse(ip);
-      return { 
-        success: false, 
-        reason: 'missing_token',
+      return {
+        success: false,
+        reason: "missing_token",
         errorCode: error.code,
         errorMessage: error.message,
         retryable: error.retryable,
-        timestamp
+        timestamp,
       };
     }
 
@@ -686,30 +727,30 @@ export class SmartHumanCheckService {
       tokenObj = base64DecodeJson(tokenB64);
     } catch {
       const error = ERROR_CODES.BAD_TOKEN_FORMAT;
-      this.recordPattern(ip, 'bad_token_format');
+      this.recordPattern(ip, "bad_token_format");
       this.recordAbuse(ip);
-      return { 
-        success: false, 
-        reason: 'bad_token_format',
+      return {
+        success: false,
+        reason: "bad_token_format",
         errorCode: error.code,
         errorMessage: error.message,
         retryable: error.retryable,
-        timestamp
+        timestamp,
       };
     }
 
     const { payload, salt, sig } = tokenObj || ({} as any);
-    if (!payload || typeof salt !== 'string' || typeof sig !== 'string') {
+    if (!payload || typeof salt !== "string" || typeof sig !== "string") {
       const error = ERROR_CODES.INCOMPLETE_TOKEN;
-      this.recordPattern(ip, 'incomplete_token');
+      this.recordPattern(ip, "incomplete_token");
       this.recordAbuse(ip);
-      return { 
-        success: false, 
-        reason: 'incomplete_token',
+      return {
+        success: false,
+        reason: "incomplete_token",
         errorCode: error.code,
         errorMessage: error.message,
         retryable: error.retryable,
-        timestamp
+        timestamp,
       };
     }
 
@@ -717,9 +758,9 @@ export class SmartHumanCheckService {
     const inputStr = `${payloadStr}|${salt}`;
     const expectSig = sha256Base64(inputStr);
     // 可选调试日志（仅在显式开启时输出）
-    if (process.env.SMART_HUMAN_CHECK_DEBUG === '1') {
+    if (process.env.SMART_HUMAN_CHECK_DEBUG === "1") {
       try {
-        logger.debug('[SmartHumanCheck] sig-debug', {
+        logger.debug("[SmartHumanCheck] sig-debug", {
           inputLen: inputStr.length,
           payloadLen: payloadStr.length,
           salt,
@@ -732,8 +773,8 @@ export class SmartHumanCheckService {
     // 弱签名比较（非机密，但可检测基础篡改）——显式使用 utf8，且在长度不等时避免抛错
     let sigMatch = false;
     try {
-      const a = Buffer.from(expectSig, 'utf8');
-      const b = Buffer.from(sig, 'utf8');
+      const a = Buffer.from(expectSig, "utf8");
+      const b = Buffer.from(sig, "utf8");
       sigMatch = a.length === b.length && crypto.timingSafeEqual(a, b);
     } catch {
       sigMatch = false;
@@ -741,15 +782,15 @@ export class SmartHumanCheckService {
     if (!sigMatch) {
       const error = ERROR_CODES.BAD_TOKEN_SIG;
       this.recordAbuse(ip); // 篡改/伪造迹象
-      this.recordPattern(ip, 'bad_token_sig');
-      return { 
-        success: false, 
-        reason: 'bad_token_sig', 
+      this.recordPattern(ip, "bad_token_sig");
+      return {
+        success: false,
+        reason: "bad_token_sig",
         tokenOk: false,
         errorCode: error.code,
         errorMessage: error.message,
         retryable: error.retryable,
-        timestamp
+        timestamp,
       };
     }
 
@@ -760,14 +801,14 @@ export class SmartHumanCheckService {
       // 非法/重复/过期 nonce 视为潜在滥用
       this.recordAbuse(ip);
       this.recordPattern(ip, `nonce_invalid`);
-      return { 
-        success: false, 
-        reason: `nonce_invalid:${nonceRes.reason}`, 
+      return {
+        success: false,
+        reason: `nonce_invalid:${nonceRes.reason}`,
         nonceOk: false,
         errorCode: errorInfo.code,
         errorMessage: errorInfo.message,
         retryable: errorInfo.retryable,
-        timestamp
+        timestamp,
       };
     }
 
@@ -775,17 +816,17 @@ export class SmartHumanCheckService {
     const now = Date.now();
     if (Math.abs(now - payload.ts) > this.maxSkewMs) {
       const error = ERROR_CODES.CLIENT_TIME_SKEW;
-      this.recordPattern(ip, 'client_time_skew');
+      this.recordPattern(ip, "client_time_skew");
       this.recordAbuse(ip);
-      return { 
-        success: false, 
-        reason: 'client_time_skew', 
-        tokenOk: true, 
+      return {
+        success: false,
+        reason: "client_time_skew",
+        tokenOk: true,
         nonceOk: true,
         errorCode: error.code,
         errorMessage: error.message,
         retryable: error.retryable,
-        timestamp
+        timestamp,
       };
     }
 
@@ -795,19 +836,19 @@ export class SmartHumanCheckService {
     // 记录可疑 UA 模式（不直接拒绝）
     try {
       if (this.isSuspiciousUA(ua)) {
-        this.recordPattern(ip, 'ua_suspicious');
+        this.recordPattern(ip, "ua_suspicious");
       }
     } catch {}
     const baseThreshold = this.scoreThreshold;
     const dyn = this.computeDynamicThreshold(baseThreshold, ip, ua, risk.level, now);
 
     // 校验得分（动态阈值）
-    if (typeof payload.sc !== 'number' || payload.sc < dyn.used) {
-      const stepUp = typeof payload.sc === 'number' && payload.sc >= baseThreshold && dyn.used > baseThreshold;
+    if (typeof payload.sc !== "number" || payload.sc < dyn.used) {
+      const stepUp = typeof payload.sc === "number" && payload.sc >= baseThreshold && dyn.used > baseThreshold;
       const error = stepUp ? ERROR_CODES.CHALLENGE_REQUIRED : ERROR_CODES.LOW_SCORE;
-      if (process.env.SMART_HUMAN_CHECK_DEBUG === '1') {
+      if (process.env.SMART_HUMAN_CHECK_DEBUG === "1") {
         try {
-          logger.debug('[SmartHumanCheck] score-check', {
+          logger.debug("[SmartHumanCheck] score-check", {
             gotScore: payload.sc,
             baseThreshold,
             thresholdUsed: dyn.used,
@@ -820,11 +861,11 @@ export class SmartHumanCheckService {
       }
       // 记录失败
       this.recordOutcome(ip, ua, false, now);
-      return { 
-        success: false, 
-        reason: stepUp ? 'step_up_required' : 'low_score', 
-        score: payload.sc, 
-        tokenOk: true, 
+      return {
+        success: false,
+        reason: stepUp ? "step_up_required" : "low_score",
+        score: payload.sc,
+        tokenOk: true,
         nonceOk: true,
         errorCode: error.code,
         errorMessage: error.message,
@@ -839,19 +880,19 @@ export class SmartHumanCheckService {
         policy: dyn.policy,
         riskScore: risk.score,
         riskLevel: risk.level,
-        riskReasons: risk.reasons
+        riskReasons: risk.reasons,
       };
     }
 
     // 综合风险评估（已计算）
-    if (risk.level === 'high') {
+    if (risk.level === "high") {
       const error = ERROR_CODES.HIGH_RISK;
       this.recordAbuse(ip); // 高风险计入滥用
       // 记录失败
       this.recordOutcome(ip, payload.ua, false, now);
       return {
         success: false,
-        reason: 'high_risk',
+        reason: "high_risk",
         score: payload.sc,
         tokenOk: true,
         nonceOk: true,
@@ -862,13 +903,13 @@ export class SmartHumanCheckService {
         riskScore: risk.score,
         riskLevel: risk.level,
         riskReasons: risk.reasons,
-        challengeRequired: true
+        challengeRequired: true,
       };
     }
 
     // 记录风控信息（可落库）
     try {
-      logger.info('[SmartHumanCheck] pass', {
+      logger.info("[SmartHumanCheck] pass", {
         ip: remoteIp,
         ua: payload.ua?.slice(0, 160),
         score: payload.sc,
@@ -876,16 +917,16 @@ export class SmartHumanCheckService {
         ce: payload.ce?.slice(0, 16),
         riskScore: risk.score,
         riskLevel: risk.level,
-        riskReasons: risk.reasons?.slice(0, 6)
+        riskReasons: risk.reasons?.slice(0, 6),
       });
     } catch {}
 
     // 记录成功
     this.recordOutcome(ip, payload.ua, true, now);
-    return { 
-      success: true, 
-      score: payload.sc, 
-      tokenOk: true, 
+    return {
+      success: true,
+      score: payload.sc,
+      tokenOk: true,
       nonceOk: true,
       timestamp,
       riskScore: risk.score,
@@ -906,7 +947,7 @@ export class SmartHumanCheckService {
     const key = `${pattern}|${ip}`;
     const arr = this.patternTimestampsByKey.get(key) || [];
     const cutoff = now - this.patternWindowMs;
-    const fresh = arr.filter(t => t > cutoff);
+    const fresh = arr.filter((t) => t > cutoff);
     fresh.push(now);
     this.patternTimestampsByKey.set(key, fresh);
     const threshold = this.patternBanThresholds.get(pattern) || 0;
@@ -914,7 +955,7 @@ export class SmartHumanCheckService {
       const until = now + this.banDurationMs;
       this.bannedUntilByIp.set(ip, until);
       try {
-        logger.warn('[SmartHumanCheck] IP 因异常模式被临时封禁', { ip, pattern, until, count: fresh.length });
+        logger.warn("[SmartHumanCheck] IP 因异常模式被临时封禁", { ip, pattern, until, count: fresh.length });
       } catch {}
     }
   }
@@ -923,7 +964,7 @@ export class SmartHumanCheckService {
   public isIpBanned(ip: string): boolean {
     const now = Date.now();
     return (this.bannedUntilByIp.get(ip) || 0) > now;
-    }
+  }
 
   /** 剩余封禁毫秒（未封禁则为 0） */
   public getBanRemainingMs(ip: string): number {
@@ -931,10 +972,16 @@ export class SmartHumanCheckService {
     const until = this.bannedUntilByIp.get(ip) || 0;
     return Math.max(0, until - now);
   }
-  private isRateLimited(ip: string, bucket: Map<string, number[]>, limit: number, windowMs: number, now: number): boolean {
+  private isRateLimited(
+    ip: string,
+    bucket: Map<string, number[]>,
+    limit: number,
+    windowMs: number,
+    now: number,
+  ): boolean {
     const arr = bucket.get(ip) || [];
     const cutoff = now - windowMs;
-    const fresh = arr.filter(t => t > cutoff);
+    const fresh = arr.filter((t) => t > cutoff);
     fresh.push(now);
     bucket.set(ip, fresh);
     return fresh.length > limit;
@@ -947,14 +994,14 @@ export class SmartHumanCheckService {
     if (banUntil > now) return;
     const arr = this.abuseTimestampsByIp.get(ip) || [];
     const cutoff = now - this.abuseWindowMs;
-    const fresh = arr.filter(t => t > cutoff);
+    const fresh = arr.filter((t) => t > cutoff);
     fresh.push(now);
     this.abuseTimestampsByIp.set(ip, fresh);
     if (fresh.length >= this.abuseThreshold) {
       const until = now + this.banDurationMs;
       this.bannedUntilByIp.set(ip, until);
       try {
-        logger.warn('[SmartHumanCheck] IP 因滥用被临时封禁', { ip, until });
+        logger.warn("[SmartHumanCheck] IP 因滥用被临时封禁", { ip, until });
       } catch {}
     }
   }
@@ -982,12 +1029,12 @@ export class SmartHumanCheckService {
     environment: string;
     hasCustomSecret: boolean;
   } {
-    const hasCustomSecret = !!(process.env.SMART_HUMAN_CHECK_SECRET);
+    const hasCustomSecret = !!process.env.SMART_HUMAN_CHECK_SECRET;
     return {
-      isAutoGenerated: !hasCustomSecret && process.env.NODE_ENV === 'production',
+      isAutoGenerated: !hasCustomSecret && process.env.NODE_ENV === "production",
       length: this.secret.length,
-      environment: process.env.NODE_ENV || 'development',
-      hasCustomSecret
+      environment: process.env.NODE_ENV || "development",
+      hasCustomSecret,
     };
   }
 }

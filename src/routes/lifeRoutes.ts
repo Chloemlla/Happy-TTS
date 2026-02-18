@@ -1,5 +1,5 @@
-import { Router } from 'express';
-import { LifeController } from '../controllers/lifeController';
+import { Router } from "express";
+import { LifeController } from "../controllers/lifeController";
 
 const router = Router();
 
@@ -9,7 +9,7 @@ const router = Router();
  * @access Public
  * @param {string} phone - 手机号码
  */
-router.get('/phone-address', LifeController.phoneAddress);
+router.get("/phone-address", LifeController.phoneAddress);
 
 /**
  * @route GET /api/life/oil-price
@@ -17,6 +17,6 @@ router.get('/phone-address', LifeController.phoneAddress);
  * @access Public
  * @param {string} city - 城市名称（可选）
  */
-router.get('/oil-price', LifeController.oilPrice);
+router.get("/oil-price", LifeController.oilPrice);
 
-export default router; 
+export default router;

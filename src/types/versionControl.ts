@@ -3,7 +3,7 @@
  * Version Control Type Definitions
  */
 
-import { ProjectContent } from './workspace';
+import type { ProjectContent } from "./workspace";
 
 // 版本接口
 export interface Version {
@@ -24,7 +24,7 @@ export interface VersionDiff {
 
 // 文本变更接口
 export interface TextChange {
-  type: 'added' | 'removed' | 'modified';
+  type: "added" | "removed" | "modified";
   lineNumber: number;
   oldText?: string;
   newText?: string;

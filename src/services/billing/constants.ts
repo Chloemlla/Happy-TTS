@@ -68,10 +68,7 @@ export const CIRCUIT_BREAKER_CONSTANTS = {
 /**
  * Allowed domains for URL validation
  */
-export const ALLOWED_DOMAINS = [
-  'github.com',
-  'api.github.com',
-] as const;
+export const ALLOWED_DOMAINS = ["github.com", "api.github.com"] as const;
 
 /**
  * HTTP status codes for error handling
@@ -97,33 +94,30 @@ export const RETRYABLE_STATUS_CODES = [
 /**
  * Non-retryable HTTP status codes (authentication/authorization errors)
  */
-export const NON_RETRYABLE_STATUS_CODES = [
-  HTTP_STATUS_CODES.UNAUTHORIZED,
-  HTTP_STATUS_CODES.FORBIDDEN,
-] as const;
+export const NON_RETRYABLE_STATUS_CODES = [HTTP_STATUS_CODES.UNAUTHORIZED, HTTP_STATUS_CODES.FORBIDDEN] as const;
 
 /**
  * Priority levels for cache entries
  */
 export const CACHE_PRIORITY = {
-  LOW: 'low',
-  MEDIUM: 'medium',
-  HIGH: 'high',
+  LOW: "low",
+  MEDIUM: "medium",
+  HIGH: "high",
 } as const;
 
 /**
  * Configuration keys for multi-config support
  */
-export const CONFIG_KEYS = ['config1', 'config2', 'config3'] as const;
+export const CONFIG_KEYS = ["config1", "config2", "config3"] as const;
 
 /**
  * Default values for various operations
  */
 export const DEFAULTS = {
   /** Default customer ID when none is provided */
-  CUSTOMER_ID: 'default',
+  CUSTOMER_ID: "default",
   /** Default HTTP method */
-  HTTP_METHOD: 'GET',
+  HTTP_METHOD: "GET",
   /** Default priority for new cache entries */
   CACHE_PRIORITY: CACHE_PRIORITY.MEDIUM,
 } as const;
@@ -132,16 +126,16 @@ export const DEFAULTS = {
  * Log action types for API activity logging
  */
 export const LOG_ACTIONS = {
-  FETCH: 'fetch',
-  CACHE_HIT: 'cache_hit',
-  CACHE_MISS: 'cache_miss',
-  ERROR: 'error',
+  FETCH: "fetch",
+  CACHE_HIT: "cache_hit",
+  CACHE_MISS: "cache_miss",
+  ERROR: "error",
 } as const;
 
 /**
  * Type exports for constants
  */
-export type ConfigKey = typeof CONFIG_KEYS[number];
-export type CachePriority = typeof CACHE_PRIORITY[keyof typeof CACHE_PRIORITY];
-export type LogAction = typeof LOG_ACTIONS[keyof typeof LOG_ACTIONS];
-export type AllowedDomain = typeof ALLOWED_DOMAINS[number];
+export type ConfigKey = (typeof CONFIG_KEYS)[number];
+export type CachePriority = (typeof CACHE_PRIORITY)[keyof typeof CACHE_PRIORITY];
+export type LogAction = (typeof LOG_ACTIONS)[keyof typeof LOG_ACTIONS];
+export type AllowedDomain = (typeof ALLOWED_DOMAINS)[number];

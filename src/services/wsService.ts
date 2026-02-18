@@ -1,21 +1,20 @@
-import { Server as HttpServer } from 'http';
-import { WebSocketServer, WebSocket } from 'ws';
-import { IncomingMessage } from 'http';
-import { URL } from 'url';
-import jwt from 'jsonwebtoken';
-import logger from '../utils/logger';
+import type { Server as HttpServer, IncomingMessage } from "http";
+import jwt from "jsonwebtoken";
+import { URL } from "url";
+import { WebSocket, WebSocketServer } from "ws";
+import logger from "../utils/logger";
 
 // ========== 类型定义 ==========
 
 /** 客户端 → 服务端消息 */
 interface WsClientMessage {
-  type: 'ping' | 'subscribe' | 'unsubscribe';
+  type: "ping" | "subscribe" | "unsubscribe";
   channel?: string;
 }
 
 /** 服务端 → 客户端消息 */
 export interface WsServerMessage {
-  type: 'pong' | 'tts:progress' | 'tts:complete' | 'tts:error' | 'notification' | 'admin:broadcast';
+  type: "pong" | "tts:progress" | "tts:complete" | "tts:error" | "notification" | "admin:broadcast";
   data?: any;
   timestamp: number;
 }
@@ -39,9 +38,9 @@ class WsService {
    * 将 WebSocket 服务器绑定到已有的 HTTP server
    */
   init(server: HttpServer) {
-    this.wss = new WebSocketServer({ server, path: '/ws' });
+    this.wss = new WebSocketServer({ server, path: "/ws" });
 
-    this.wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
+    this.wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
       this.handleConnection(ws, req);
     });
 
@@ -50,14 +49,14 @@ class WsService {
       const now = Date.now();
       for (const [ws, client] of this.clients) {
         if (now - client.lastPing > 60_000) {
-          logger.debug('[WS] 心跳超时，断开连接', { userId: client.userId });
+          logger.debug("[WS] 心跳超时，断开连接", { userId: client.userId });
           ws.terminate();
           this.clients.delete(ws);
         }
       }
     }, 30_000);
 
-    logger.info('[WS] WebSocket 服务已启动，路径: /ws');
+    logger.info("[WS] WebSocket 服务已启动，路径: /ws");
   }
 
   private handleConnection(ws: WebSocket, req: IncomingMessage) {
@@ -73,14 +72,14 @@ class WsService {
     };
     this.clients.set(ws, client);
 
-    logger.info('[WS] 新连接', { userId, isAdmin, total: this.clients.size });
+    logger.info("[WS] 新连接", { userId, isAdmin, total: this.clients.size });
 
     // 如果有 userId，自动订阅用户频道
     if (userId) {
       client.channels.add(`user:${userId}`);
     }
 
-    ws.on('message', (raw: Buffer) => {
+    ws.on("message", (raw: Buffer) => {
       try {
         const msg: WsClientMessage = JSON.parse(raw.toString());
         this.handleMessage(client, msg);
@@ -89,13 +88,13 @@ class WsService {
       }
     });
 
-    ws.on('close', () => {
+    ws.on("close", () => {
       this.clients.delete(ws);
-      logger.debug('[WS] 连接关闭', { userId, total: this.clients.size });
+      logger.debug("[WS] 连接关闭", { userId, total: this.clients.size });
     });
 
-    ws.on('error', (err: Error) => {
-      logger.error('[WS] 连接错误', { userId, error: err.message });
+    ws.on("error", (err: Error) => {
+      logger.error("[WS] 连接错误", { userId, error: err.message });
       this.clients.delete(ws);
     });
   }
@@ -105,15 +104,15 @@ class WsService {
    */
   private authenticate(req: IncomingMessage): { userId: string | null; isAdmin: boolean } {
     try {
-      const url = new URL(req.url || '', `http://${req.headers.host}`);
-      const token = url.searchParams.get('token');
+      const url = new URL(req.url || "", `http://${req.headers.host}`);
+      const token = url.searchParams.get("token");
       if (!token) return { userId: null, isAdmin: false };
 
-      const secret = process.env.JWT_SECRET || process.env.SERVER_PASSWORD || 'default-secret';
+      const secret = process.env.JWT_SECRET || process.env.SERVER_PASSWORD || "default-secret";
       const decoded = jwt.verify(token, secret) as any;
       return {
         userId: decoded.userId || decoded.username || decoded.id || null,
-        isAdmin: decoded.isAdmin === true || decoded.role === 'admin',
+        isAdmin: decoded.isAdmin === true || decoded.role === "admin",
       };
     } catch {
       return { userId: null, isAdmin: false };
@@ -122,20 +121,20 @@ class WsService {
 
   private handleMessage(client: WsClient, msg: WsClientMessage) {
     switch (msg.type) {
-      case 'ping':
+      case "ping":
         client.lastPing = Date.now();
-        this.send(client.ws, { type: 'pong', timestamp: Date.now() });
+        this.send(client.ws, { type: "pong", timestamp: Date.now() });
         break;
 
-      case 'subscribe':
+      case "subscribe":
         if (msg.channel) {
           // 管理员频道只允许管理员订阅
-          if (msg.channel.startsWith('admin:') && !client.isAdmin) break;
+          if (msg.channel.startsWith("admin:") && !client.isAdmin) break;
           client.channels.add(msg.channel);
         }
         break;
 
-      case 'unsubscribe':
+      case "unsubscribe":
         if (msg.channel) {
           client.channels.delete(msg.channel);
         }
@@ -152,7 +151,7 @@ class WsService {
   }
 
   /** 发送给指定用户 */
-  sendToUser(userId: string, msg: Omit<WsServerMessage, 'timestamp'>) {
+  sendToUser(userId: string, msg: Omit<WsServerMessage, "timestamp">) {
     const fullMsg: WsServerMessage = { ...msg, timestamp: Date.now() };
     for (const [, client] of this.clients) {
       if (client.userId === userId) {
@@ -162,7 +161,7 @@ class WsService {
   }
 
   /** 发送给订阅了某频道的所有客户端 */
-  sendToChannel(channel: string, msg: Omit<WsServerMessage, 'timestamp'>) {
+  sendToChannel(channel: string, msg: Omit<WsServerMessage, "timestamp">) {
     const fullMsg: WsServerMessage = { ...msg, timestamp: Date.now() };
     for (const [, client] of this.clients) {
       if (client.channels.has(channel)) {
@@ -172,7 +171,7 @@ class WsService {
   }
 
   /** 广播给所有已连接客户端 */
-  broadcast(msg: Omit<WsServerMessage, 'timestamp'>) {
+  broadcast(msg: Omit<WsServerMessage, "timestamp">) {
     const fullMsg: WsServerMessage = { ...msg, timestamp: Date.now() };
     for (const [, client] of this.clients) {
       this.send(client.ws, fullMsg);
@@ -180,7 +179,7 @@ class WsService {
   }
 
   /** 广播给所有管理员 */
-  broadcastToAdmins(msg: Omit<WsServerMessage, 'timestamp'>) {
+  broadcastToAdmins(msg: Omit<WsServerMessage, "timestamp">) {
     const fullMsg: WsServerMessage = { ...msg, timestamp: Date.now() };
     for (const [, client] of this.clients) {
       if (client.isAdmin) {
@@ -194,7 +193,7 @@ class WsService {
   /** TTS 生成开始 */
   notifyTtsProgress(userId: string, data: { taskId: string; status: string; message?: string }) {
     this.sendToUser(userId, {
-      type: 'tts:progress',
+      type: "tts:progress",
       data,
     });
   }
@@ -202,7 +201,7 @@ class WsService {
   /** TTS 生成完成 */
   notifyTtsComplete(userId: string, data: { taskId: string; audioUrl: string; fileName: string }) {
     this.sendToUser(userId, {
-      type: 'tts:complete',
+      type: "tts:complete",
       data,
     });
   }
@@ -210,15 +209,15 @@ class WsService {
   /** TTS 生成失败 */
   notifyTtsError(userId: string, data: { taskId: string; error: string }) {
     this.sendToUser(userId, {
-      type: 'tts:error',
+      type: "tts:error",
       data,
     });
   }
 
   /** 系统通知（广播给所有人） */
-  notifyAll(message: string, level: 'info' | 'warn' | 'error' = 'info') {
+  notifyAll(message: string, level: "info" | "warn" | "error" = "info") {
     this.broadcast({
-      type: 'notification',
+      type: "notification",
       data: { message, level },
     });
   }
@@ -226,7 +225,7 @@ class WsService {
   /** 管理员消息 */
   notifyAdmins(message: string, data?: any) {
     this.broadcastToAdmins({
-      type: 'admin:broadcast',
+      type: "admin:broadcast",
       data: { message, ...data },
     });
   }
@@ -255,8 +254,12 @@ class WsService {
     let kicked = 0;
     for (const [ws, client] of this.clients) {
       if (client.userId === userId) {
-        this.send(ws, { type: 'notification', data: { message: '您已被管理员强制下线', level: 'error' }, timestamp: Date.now() });
-        ws.close(4001, 'Kicked by admin');
+        this.send(ws, {
+          type: "notification",
+          data: { message: "您已被管理员强制下线", level: "error" },
+          timestamp: Date.now(),
+        });
+        ws.close(4001, "Kicked by admin");
         this.clients.delete(ws);
         kicked++;
       }

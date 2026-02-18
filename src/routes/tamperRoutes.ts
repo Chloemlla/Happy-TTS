@@ -1,6 +1,6 @@
-import { Router, Request, Response, NextFunction } from 'express';
-import { tamperService } from '../services/tamperService';
-import logger from '../utils/logger';
+import { type NextFunction, type Request, type Response, Router } from "express";
+import { tamperService } from "../services/tamperService";
+import logger from "../utils/logger";
 
 const router = Router();
 
@@ -192,25 +192,25 @@ const router = Router();
  *                   example: "内部服务器错误"
  *     security: []
  */
-router.post('/report-tampering', async (req, res) => {
+router.post("/report-tampering", async (req, res) => {
   try {
     // 验证请求体是否存在
-    if (!req.body || typeof req.body !== 'object') {
-      logger.warn('Invalid request body for tamper report', {
+    if (!req.body || typeof req.body !== "object") {
+      logger.warn("Invalid request body for tamper report", {
         ip: req.ip || req.connection.remoteAddress,
-        contentType: req.headers['content-type']
+        contentType: req.headers["content-type"],
       });
-      return res.status(400).json({ error: '无效的请求数据' });
+      return res.status(400).json({ error: "无效的请求数据" });
     }
 
     const tamperEvent = {
       ...req.body,
-      ip: req.ip || req.connection.remoteAddress || 'unknown',
-      userAgent: req.headers['user-agent'] || req.body.userAgent,
+      ip: req.ip || req.connection.remoteAddress || "unknown",
+      userAgent: req.headers["user-agent"] || req.body.userAgent,
       // 确保必要字段存在
-      elementId: req.body.elementId || 'unknown-element',
+      elementId: req.body.elementId || "unknown-element",
       timestamp: req.body.timestamp || new Date().toISOString(),
-      url: req.body.url || 'unknown-url'
+      url: req.body.url || "unknown-url",
     };
 
     await tamperService.recordTamperEvent(tamperEvent);
@@ -219,30 +219,30 @@ router.post('/report-tampering', async (req, res) => {
     if (tamperService.isIPBlocked(tamperEvent.ip)) {
       const details = tamperService.getBlockDetails(tamperEvent.ip);
       return res.status(403).json({
-        error: '您的访问已被临时封禁',
+        error: "您的访问已被临时封禁",
         reason: details?.reason,
-        expiresAt: details?.expiresAt
+        expiresAt: details?.expiresAt,
       });
     }
 
-    res.status(200).json({ message: '篡改报告已记录' });
+    res.status(200).json({ message: "篡改报告已记录" });
   } catch (error) {
-    logger.error('Error handling tamper report:', error);
-    res.status(500).json({ error: '内部服务器错误' });
+    logger.error("Error handling tamper report:", error);
+    res.status(500).json({ error: "内部服务器错误" });
   }
 });
 
 // 添加错误处理中间件，专门处理 JSON 解析错误
 router.use((err: any, req: Request, res: Response, next: NextFunction) => {
-  if (err instanceof SyntaxError && 'body' in err) {
-    logger.warn('JSON parse error in tamper route', {
+  if (err instanceof SyntaxError && "body" in err) {
+    logger.warn("JSON parse error in tamper route", {
       ip: req.ip || req.connection.remoteAddress,
-      userAgent: req.headers['user-agent'],
-      error: err.message
+      userAgent: req.headers["user-agent"],
+      error: err.message,
     });
-    return res.status(400).json({ error: '无效的JSON格式' });
+    return res.status(400).json({ error: "无效的JSON格式" });
   }
   next(err);
 });
 
-export default router; 
+export default router;

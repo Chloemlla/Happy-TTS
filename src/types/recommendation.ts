@@ -111,11 +111,11 @@ export interface LanguageUsage {
 
 // 优化建议接口
 export interface OptimizationSuggestion {
-  type: 'template' | 'workflow' | 'setting';
+  type: "template" | "workflow" | "setting";
   title: string;
   description: string;
   actionUrl?: string;
-  priority: 'high' | 'medium' | 'low';
+  priority: "high" | "medium" | "low";
 }
 
 // 模式检测接口

@@ -1,26 +1,26 @@
-import * as mongoImpl from './mongo';
-import * as fileImpl from './file';
-import * as mysqlImpl from './mysql';
-import logger from '../../utils/logger';
+import logger from "../../utils/logger";
+import * as fileImpl from "./file";
+import * as mongoImpl from "./mongo";
+import * as mysqlImpl from "./mysql";
 
 const raw = process.env.LOTTERY_STORAGE;
-let storageType = (raw || 'mongo').toLowerCase();
-const allowed = new Set(['file', 'mysql', 'mongo']);
+let storageType = (raw || "mongo").toLowerCase();
+const allowed = new Set(["file", "mysql", "mongo"]);
 if (!allowed.has(storageType)) {
-  logger.warn('无效的 LOTTERY_STORAGE 值，已回退为 mongo', { raw });
-  storageType = 'mongo';
+  logger.warn("无效的 LOTTERY_STORAGE 值，已回退为 mongo", { raw });
+  storageType = "mongo";
 }
-logger.info('抽奖存储已选择', { raw, selected: storageType });
+logger.info("抽奖存储已选择", { raw, selected: storageType });
 let impl: any;
 
 switch (storageType) {
-  case 'file':
+  case "file":
     impl = fileImpl;
     break;
-  case 'mysql':
+  case "mysql":
     impl = mysqlImpl;
     break;
-  case 'mongo':
+  case "mongo":
   default:
     impl = mongoImpl;
 }
@@ -30,4 +30,4 @@ export const addRound = impl.addRound;
 export const updateRound = impl.updateRound;
 export const getUserRecord = impl.getUserRecord;
 export const updateUserRecord = impl.updateUserRecord;
-export const deleteAllRounds = impl.deleteAllRounds; 
+export const deleteAllRounds = impl.deleteAllRounds;

@@ -1,5 +1,5 @@
-import { mongoose } from '../services/mongoService';
-import { Document } from 'mongoose';
+import { Document } from "mongoose";
+import { mongoose } from "../services/mongoService";
 
 export interface GenerationRecord {
   userId: string;
@@ -13,28 +13,37 @@ export interface GenerationRecord {
   timestamp?: Date;
 }
 
-const generationSchema = new mongoose.Schema({
-  userId: { type: String, required: true },
-  text: { type: String, required: true },
-  voice: { type: String },
-  model: { type: String },
-  outputFormat: { type: String },
-  speed: { type: Number },
-  fileName: { type: String },
-  contentHash: { type: String },
-  timestamp: { type: Date, default: Date.now }
-}, { collection: 'user_generations' });
+const generationSchema = new mongoose.Schema(
+  {
+    userId: { type: String, required: true },
+    text: { type: String, required: true },
+    voice: { type: String },
+    model: { type: String },
+    outputFormat: { type: String },
+    speed: { type: Number },
+    fileName: { type: String },
+    contentHash: { type: String },
+    timestamp: { type: Date, default: Date.now },
+  },
+  { collection: "user_generations" },
+);
 
-const GenerationModel = mongoose.models.UserGeneration || mongoose.model('UserGeneration', generationSchema);
+const GenerationModel = mongoose.models.UserGeneration || mongoose.model("UserGeneration", generationSchema);
 
 function sanitizeString(str: any): string {
-  if (typeof str !== 'string') return '';
+  if (typeof str !== "string") return "";
   // 禁止 $、.、{、}、[、] 等特殊符号
-  if (/[$.{}\[\]]/.test(str)) return '';
+  if (/[$.{}[\]]/.test(str)) return "";
   return str;
 }
 
-export async function findDuplicateGeneration({ userId, text, voice, model, contentHash }: GenerationRecord): Promise<any | null> {
+export async function findDuplicateGeneration({
+  userId,
+  text,
+  voice,
+  model,
+  contentHash,
+}: GenerationRecord): Promise<any | null> {
   // NoSQL注入防护：所有字段做严格校验
   const safeUserId = sanitizeString(userId);
   const safeText = sanitizeString(text);
@@ -61,8 +70,8 @@ export async function addGenerationRecord(record: GenerationRecord): Promise<any
 }
 
 // 判断用户是否为管理员
-import { getUserById } from '../services/userService';
+import { getUserById } from "../services/userService";
 export async function isAdminUser(userId: string): Promise<boolean> {
   const user = await getUserById(userId);
-  return !!(user && user.role === 'admin');
-} 
+  return !!(user && user.role === "admin");
+}

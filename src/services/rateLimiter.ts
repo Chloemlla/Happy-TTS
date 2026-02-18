@@ -1,17 +1,20 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
-import { join } from 'path';
-import config from '../config';
-import { logger } from './logger';
-import { mongoose } from './mongoService';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { join } from "path";
+import config from "../config";
+import { logger } from "./logger";
+import { mongoose } from "./mongoService";
 
 // MongoDB 速率限制 Schema
-const RateLimitSchema = new mongoose.Schema({
-  ip: { type: String, required: true, unique: true },
-  minute: { type: [Number], default: [] },
-  hour: { type: [Number], default: [] },
-  day: { type: [Number], default: [] },
-}, { collection: 'rate_limits' });
-const RateLimitModel = mongoose.models.RateLimit || mongoose.model('RateLimit', RateLimitSchema);
+const RateLimitSchema = new mongoose.Schema(
+  {
+    ip: { type: String, required: true, unique: true },
+    minute: { type: [Number], default: [] },
+    hour: { type: [Number], default: [] },
+    day: { type: [Number], default: [] },
+  },
+  { collection: "rate_limits" },
+);
+const RateLimitModel = mongoose.models.RateLimit || mongoose.model("RateLimit", RateLimitSchema);
 
 interface RateLimitData {
   [ip: string]: {
@@ -28,7 +31,7 @@ export class RateLimiter {
   constructor() {
     // For pkg executables, use absolute path relative to executable location
     if ((process as any).pkg) {
-      this.dataFile = join(process.cwd(), 'data', 'lc_data.json');
+      this.dataFile = join(process.cwd(), "data", "lc_data.json");
     } else {
       this.dataFile = config.paths.lcData;
     }
@@ -46,13 +49,13 @@ export class RateLimiter {
         return;
       }
     } catch (error) {
-      logger.error('MongoDB 加载速率限制数据失败，降级为本地文件:', error);
+      logger.error("MongoDB 加载速率限制数据失败，降级为本地文件:", error);
     }
     if (existsSync(this.dataFile)) {
       try {
-        this.data = JSON.parse(readFileSync(this.dataFile, 'utf-8'));
+        this.data = JSON.parse(readFileSync(this.dataFile, "utf-8"));
       } catch (error) {
-        logger.error('加载速率限制数据失败', error);
+        logger.error("加载速率限制数据失败", error);
         this.data = {};
       }
     } else {
@@ -64,26 +67,22 @@ export class RateLimiter {
     try {
       if (mongoose.connection.readyState === 1) {
         for (const ip of Object.keys(this.data)) {
-          await RateLimitModel.findOneAndUpdate(
-            { ip },
-            this.data[ip],
-            { upsert: true }
-          );
+          await RateLimitModel.findOneAndUpdate({ ip }, this.data[ip], { upsert: true });
         }
         return;
       }
     } catch (error) {
-      logger.error('MongoDB 保存速率限制数据失败，降级为本地文件:', error);
+      logger.error("MongoDB 保存速率限制数据失败，降级为本地文件:", error);
     }
     try {
       // Get the directory from the data file path
-      const dir = (process as any).pkg ? join(process.cwd(), 'data') : config.paths.data;
+      const dir = (process as any).pkg ? join(process.cwd(), "data") : config.paths.data;
       if (!existsSync(dir)) {
         mkdirSync(dir, { recursive: true });
       }
       writeFileSync(this.dataFile, JSON.stringify(this.data, null, 2));
     } catch (error) {
-      logger.error('保存速率限制数据失败', error);
+      logger.error("保存速率限制数据失败", error);
     }
   }
 
@@ -94,9 +93,9 @@ export class RateLimiter {
     const dayAgo = now - 86400000;
 
     if (this.data[ip]) {
-      this.data[ip].minute = this.data[ip].minute.filter(t => t > minuteAgo);
-      this.data[ip].hour = this.data[ip].hour.filter(t => t > hourAgo);
-      this.data[ip].day = this.data[ip].day.filter(t => t > dayAgo);
+      this.data[ip].minute = this.data[ip].minute.filter((t) => t > minuteAgo);
+      this.data[ip].hour = this.data[ip].hour.filter((t) => t > hourAgo);
+      this.data[ip].day = this.data[ip].day.filter((t) => t > dayAgo);
     }
   }
 
@@ -126,4 +125,4 @@ export class RateLimiter {
   }
 }
 
-export const rateLimiter = new RateLimiter(); 
+export const rateLimiter = new RateLimiter();

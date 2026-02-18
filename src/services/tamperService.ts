@@ -1,17 +1,20 @@
-import { writeFile, readFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
-import logger from '../utils/logger';
-import { mongoose } from './mongoService';
+import { existsSync } from "fs";
+import { mkdir, readFile, writeFile } from "fs/promises";
+import { join } from "path";
+import logger from "../utils/logger";
+import { mongoose } from "./mongoService";
 
 // MongoDB Blocked IP Schema
-const BlockedIPSchema = new mongoose.Schema({
-  ip: { type: String, required: true, unique: true },
-  reason: { type: String, default: '频繁篡改页面内容' },
-  blockedAt: { type: Date, required: true },
-  expiresAt: { type: Date },
-}, { collection: 'blocked_ips' });
-const BlockedIPModel = mongoose.models.BlockedIP || mongoose.model('BlockedIP', BlockedIPSchema);
+const BlockedIPSchema = new mongoose.Schema(
+  {
+    ip: { type: String, required: true, unique: true },
+    reason: { type: String, default: "频繁篡改页面内容" },
+    blockedAt: { type: Date, required: true },
+    expiresAt: { type: Date },
+  },
+  { collection: "blocked_ips" },
+);
+const BlockedIPModel = mongoose.models.BlockedIP || mongoose.model("BlockedIP", BlockedIPSchema);
 
 interface TamperEvent {
   // 基础信息
@@ -20,21 +23,21 @@ interface TamperEvent {
   url: string;
   ip?: string;
   userAgent?: string;
-  
+
   // 篡改类型和检测方法
   eventType?: string;
-  tamperType?: 'dom' | 'network' | 'proxy' | 'injection';
+  tamperType?: "dom" | "network" | "proxy" | "injection";
   detectionMethod?: string;
-  
+
   // 内容相关
   originalContent?: string;
   tamperContent?: string;
   filePath?: string;
   checksum?: string;
-  
+
   // 统计信息
   attempts?: number;
-  
+
   // 额外信息
   additionalInfo?: Record<string, any>;
 }
@@ -48,11 +51,11 @@ interface BlockedIP {
 
 class TamperService {
   private static instance: TamperService;
-  private readonly DATA_DIR = join(process.cwd(), 'data');
-  private readonly TAMPER_LOG_PATH = join(this.DATA_DIR, 'tamper-events.json');
-  private readonly BLOCKED_IPS_PATH = join(this.DATA_DIR, 'blocked-ips.json');
+  private readonly DATA_DIR = join(process.cwd(), "data");
+  private readonly TAMPER_LOG_PATH = join(this.DATA_DIR, "tamper-events.json");
+  private readonly BLOCKED_IPS_PATH = join(this.DATA_DIR, "blocked-ips.json");
   private blockedIPs: Map<string, BlockedIP> = new Map();
-  
+
   private constructor() {
     this.initializeDataDirectory();
   }
@@ -62,11 +65,11 @@ class TamperService {
       // 确保 data 目录存在
       if (!existsSync(this.DATA_DIR)) {
         await mkdir(this.DATA_DIR, { recursive: true });
-        logger.info('已创建数据目录');
+        logger.info("已创建数据目录");
       }
       await this.loadBlockedIPs();
     } catch (error) {
-      logger.error('初始化数据目录失败:', error);
+      logger.error("初始化数据目录失败:", error);
     }
   }
 
@@ -86,24 +89,24 @@ class TamperService {
             doc.ip,
             {
               ip: doc.ip,
-              reason: doc.reason || '频繁篡改页面内容',
+              reason: doc.reason || "频繁篡改页面内容",
               timestamp: doc.blockedAt?.toISOString() || new Date().toISOString(),
               expiresAt: doc.expiresAt?.toISOString() || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
             },
-          ])
+          ]),
         );
         return;
       }
     } catch (error) {
-      logger.warn('MongoDB 加载 Blocked IPs 失败，降级为本地文件:', error);
+      logger.warn("MongoDB 加载 Blocked IPs 失败，降级为本地文件:", error);
     }
     // 本地文件兜底
     try {
-      const data = await readFile(this.BLOCKED_IPS_PATH, 'utf-8');
+      const data = await readFile(this.BLOCKED_IPS_PATH, "utf-8");
       const blockedList: BlockedIP[] = JSON.parse(data);
-      this.blockedIPs = new Map(blockedList.map(item => [item.ip, item]));
+      this.blockedIPs = new Map(blockedList.map((item) => [item.ip, item]));
     } catch (error) {
-      logger.warn('未找到封禁 IP 文件，初始化为空');
+      logger.warn("未找到封禁 IP 文件，初始化为空");
     }
   }
 
@@ -114,17 +117,19 @@ class TamperService {
         // 先清空再批量插入
         await BlockedIPModel.deleteMany({});
         if (blockedList.length > 0) {
-          await BlockedIPModel.insertMany(blockedList.map(item => ({
-            ip: item.ip,
-            reason: item.reason,
-            blockedAt: new Date(item.timestamp),
-            expiresAt: new Date(item.expiresAt),
-          })));
+          await BlockedIPModel.insertMany(
+            blockedList.map((item) => ({
+              ip: item.ip,
+              reason: item.reason,
+              blockedAt: new Date(item.timestamp),
+              expiresAt: new Date(item.expiresAt),
+            })),
+          );
         }
         return;
       }
     } catch (error) {
-      logger.error('MongoDB 保存 Blocked IPs 失败，降级为本地文件:', error);
+      logger.error("MongoDB 保存 Blocked IPs 失败，降级为本地文件:", error);
     }
     // 本地文件兜底
     try {
@@ -134,7 +139,7 @@ class TamperService {
       const blockedList = Array.from(this.blockedIPs.values());
       await writeFile(this.BLOCKED_IPS_PATH, JSON.stringify(blockedList, null, 2));
     } catch (error) {
-      logger.error('保存封禁 IP 失败:', error);
+      logger.error("保存封禁 IP 失败:", error);
     }
   }
 
@@ -148,16 +153,16 @@ class TamperService {
       // 读取现有事件
       let events: TamperEvent[] = [];
       try {
-        const data = await readFile(this.TAMPER_LOG_PATH, 'utf-8');
+        const data = await readFile(this.TAMPER_LOG_PATH, "utf-8");
         events = JSON.parse(data);
       } catch (error) {
-        logger.warn('未找到篡改事件文件，创建新文件');
+        logger.warn("未找到篡改事件文件，创建新文件");
       }
 
       // 添加新事件
       events.push({
         ...event,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       // 保存事件
@@ -168,25 +173,23 @@ class TamperService {
         await this.checkAndBlockIP(event.ip, events);
       }
     } catch (error) {
-      logger.error('记录篡改事件失败:', error);
+      logger.error("记录篡改事件失败:", error);
     }
   }
 
   private async checkAndBlockIP(ip: string, events: TamperEvent[]): Promise<void> {
     // 获取最近 1 小时内该 IP 的篡改次数
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    const recentEvents = events.filter(e => 
-      e.ip === ip && new Date(e.timestamp) > oneHourAgo
-    );
+    const recentEvents = events.filter((e) => e.ip === ip && new Date(e.timestamp) > oneHourAgo);
 
     // 如果 1 小时内篡改次数超过 10 次，封禁 24 小时
     if (recentEvents.length >= 10) {
       const blockExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
       this.blockedIPs.set(ip, {
         ip,
-        reason: '频繁篡改页面内容',
+        reason: "频繁篡改页面内容",
         timestamp: new Date().toISOString(),
-        expiresAt: blockExpiry.toISOString()
+        expiresAt: blockExpiry.toISOString(),
       });
 
       await this.saveBlockedIPs();
@@ -213,4 +216,4 @@ class TamperService {
   }
 }
 
-export const tamperService = TamperService.getInstance(); 
+export const tamperService = TamperService.getInstance();

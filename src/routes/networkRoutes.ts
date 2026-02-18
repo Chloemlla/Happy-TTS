@@ -1,6 +1,6 @@
-import express from 'express';
-import { NetworkController } from '../controllers/networkController';
-import axios from 'axios';
+import axios from "axios";
+import express from "express";
+import { NetworkController } from "../controllers/networkController";
 
 const router = express.Router();
 
@@ -69,7 +69,7 @@ const router = express.Router();
  *                   type: string
  *                   description: 错误信息
  */
-router.get('/tcping', NetworkController.tcpPing);
+router.get("/tcping", NetworkController.tcpPing);
 
 /**
  * @openapi
@@ -128,7 +128,7 @@ router.get('/tcping', NetworkController.tcpPing);
  *                   type: string
  *                   description: 错误信息
  */
-router.get('/ping', NetworkController.ping);
+router.get("/ping", NetworkController.ping);
 
 /**
  * @openapi
@@ -187,7 +187,7 @@ router.get('/ping', NetworkController.ping);
  *                   type: string
  *                   description: 错误信息
  */
-router.get('/speed', NetworkController.speedTest);
+router.get("/speed", NetworkController.speedTest);
 
 /**
  * @openapi
@@ -246,7 +246,7 @@ router.get('/speed', NetworkController.speedTest);
  *                   type: string
  *                   description: 错误信息
  */
-router.get('/portscan', NetworkController.portScan);
+router.get("/portscan", NetworkController.portScan);
 
 /**
  * @openapi
@@ -359,7 +359,7 @@ router.get('/portscan', NetworkController.portScan);
  *                   type: string
  *                   description: 错误信息
  */
-router.get('/ipquery', NetworkController.ipQuery);
+router.get("/ipquery", NetworkController.ipQuery);
 
 /**
  * @openapi
@@ -429,7 +429,7 @@ router.get('/ipquery', NetworkController.ipQuery);
  *                   type: string
  *                   description: 错误信息
  */
-router.get('/yiyan', NetworkController.randomQuote);
+router.get("/yiyan", NetworkController.randomQuote);
 
 /**
  * @openapi
@@ -562,7 +562,7 @@ router.get('/yiyan', NetworkController.randomQuote);
  *                   type: string
  *                   description: 错误信息
  */
-router.get('/douyinhot', NetworkController.douyinHot);
+router.get("/douyinhot", NetworkController.douyinHot);
 
 /**
  * @openapi
@@ -638,7 +638,7 @@ router.get('/douyinhot', NetworkController.douyinHot);
  *                   type: string
  *                   description: 错误信息
  */
-router.get('/hash', NetworkController.hashEncrypt);
+router.get("/hash", NetworkController.hashEncrypt);
 
 /**
  * @openapi
@@ -714,7 +714,7 @@ router.get('/hash', NetworkController.hashEncrypt);
  *                   type: string
  *                   description: 错误信息
  */
-router.get('/base64', NetworkController.base64Operation);
+router.get("/base64", NetworkController.base64Operation);
 
 /**
  * @openapi
@@ -786,7 +786,7 @@ router.get('/base64', NetworkController.base64Operation);
  *                   type: string
  *                   description: 错误信息
  */
-router.get('/bmi', NetworkController.bmiCalculate);
+router.get("/bmi", NetworkController.bmiCalculate);
 
 /**
  * @openapi
@@ -868,7 +868,7 @@ router.get('/bmi', NetworkController.bmiCalculate);
  *                   type: string
  *                   description: 错误信息
  */
-router.get('/flactomp3', NetworkController.flacToMp3);
+router.get("/flactomp3", NetworkController.flacToMp3);
 
 /**
  * @openapi
@@ -966,17 +966,17 @@ router.get('/flactomp3', NetworkController.flacToMp3);
  *                   type: string
  *                   description: 错误信息
  */
-router.get('/jiakao', NetworkController.randomJiakao);
+router.get("/jiakao", NetworkController.randomJiakao);
 
 // 新增：获取公网IP的代理接口
-router.get('/get-ip', async (req, res) => {
+router.get("/get-ip", async (req, res) => {
   try {
     // 推荐用国内可访问的IP API
-    const response = await axios.get('https://ip.useragentinfo.com/json');
+    const response = await axios.get("https://ip.useragentinfo.com/json");
     res.json(response.data);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch IP' });
+    res.status(500).json({ error: "Failed to fetch IP" });
   }
 });
 
-export default router; 
+export default router;
