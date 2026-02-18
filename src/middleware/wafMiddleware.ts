@@ -67,13 +67,52 @@ function isSafeValue(raw: string): boolean {
   return true;
 }
 
-// body 字段白名单：这些嵌套路径的值不做 WAF 检查（如指纹数据中的 userAgent）
+// body 字段白名单：这些嵌套路径的值不做 WAF 检查
+// 这些字段天然包含特殊字符（如 userAgent 含括号/分号，HTML 含尖括号，URL 含斜杠等）
 const BODY_FIELD_WHITELIST = new Set([
+  // 设备指纹信号（navigator 字段含 userAgent 等浏览器字符串）
   'deviceSignals.navigator.userAgent',
   'deviceSignals.navigator.appVersion',
   'deviceSignals.navigator.platform',
+  'deviceSignals.navigator.vendor',
+  'deviceSignals.navigator.product',
+  'deviceSignals.navigator.plugins',
+  'deviceSignals.navigator.languages',
+  'deviceSignals.navigator.doNotTrack',
+  'deviceSignals.navigator.uaData',
+  'deviceSignals.canvas',
+  'deviceSignals.screen.o',
+  'deviceSignals.timezone.tz',
+  // 顶层 userAgent 字段
   'userAgent',
   'ua',
+  // 邮件内容（HTML / Markdown / 纯文本）
+  'html',
+  'text',
+  'content',
+  'markdown',
+  // TTS 文本输入（用户可能输入任意文本）
+  'input',
+  // GitHub Billing curl 命令（含 URL、header 等特殊字符）
+  'curlCommand',
+  // IPFS 配置（含 URL 和 UA 关键词）
+  'ipfsUploadUrl',
+  'ipfsUa',
+  'bypassUAKeyword',
+  // 篡改检测上报（含原始/篡改内容和 URL）
+  'originalContent',
+  'tamperContent',
+  'url',
+  'filePath',
+  'checksum',
+  // 短链 / CDK 批量导入（含多行文本数据）
+  'consent.checksum',
+  // 工作区描述
+  'description',
+  // miniapi TTS 指令
+  'instructions',
+  // 调试控制台按键序列
+  'keySequence',
 ]);
 
 /**
