@@ -222,6 +222,14 @@ jobs:
 
           echo " 目标平台: $TARGET" >> backend-build-analysis/build-timeline.log
 
+          # pkg 不支持 node:sqlite（Node 24 实验性内置模块），打包前 patch 掉引用
+          echo " 修补 node:sqlite 引用..."
+          find dist/ -name "*.js" -exec grep -l "node:sqlite" {} \; | while read f; do
+            sed -i 's/require("node:sqlite")/require("./___pkg_sqlite_stub.js")/g' "$f"
+            sed -i "s/require('node:sqlite')/require('.\/___pkg_sqlite_stub.js')/g" "$f"
+          done
+          echo "module.exports = {};" > dist/___pkg_sqlite_stub.js
+
           # 创建 pkg 配置文件来解决模块解析问题
           cat > pkg-config.json << EOF
           {
