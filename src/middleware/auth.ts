@@ -1,6 +1,9 @@
 import type { NextFunction, Request, Response } from "express";
+import jwt from "jsonwebtoken";
 import config from "../config";
+import { config as appConfig } from "../config/config";
 import logger from "../utils/logger";
+import { UserStorage } from "../utils/userStorage";
 
 export function authMiddleware(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
@@ -29,28 +32,23 @@ export const authenticateAdmin = async (req: Request & { user?: any }, res: Resp
         // 方案1：与后端简单密码对齐（用于本地/简易部署）
         if (token === config.server.password) {
           req.user = { id: "admin", username: "admin", role: "admin" };
-        } else if (process.env.NODE_ENV !== "production") {
-          // 方案2：开发环境放宽校验，任何 Bearer 视为管理员（仅开发环境）
-          req.user = { id: "dev-admin", username: "dev-admin", role: "admin" };
         } else {
-          // 方案3：生产环境尽量从 JWT 载荷中提取（不校验签名，仅作角色判断）
+          // 方案2：JWT 验证 + 查库获取 role
           try {
-            const parts = token.split(".");
-            if (parts.length === 3) {
-              const payloadRaw = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-              const padded = payloadRaw + "=".repeat((4 - (payloadRaw.length % 4)) % 4);
-              const payloadJson = Buffer.from(padded, "base64").toString("utf8");
-              const payload = JSON.parse(payloadJson || "{}");
-              if (payload && payload.role === "admin") {
+            const decoded: any = jwt.verify(token, appConfig.jwtSecret);
+            const userId = decoded.userId || decoded.sub;
+            if (userId) {
+              const user = await UserStorage.getUserById(userId);
+              if (user) {
                 req.user = {
-                  id: payload.userId || payload.sub || "admin",
-                  username: payload.username || "admin",
-                  role: "admin",
+                  id: user.id,
+                  username: user.username,
+                  role: user.role || "user",
                 };
               }
             }
           } catch (_e) {
-            // 忽略解析失败，走后续严格校验
+            // JWT 验证失败，req.user 保持为空，后续会返回 401
           }
         }
       }
