@@ -2,17 +2,11 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { User } from '../types/auth';
+import { getApiBaseUrl } from '../api/api';
 
 // 登录、鉴权、用户信息等只用JWT
 // 本地只存储JWT，所有API请求都带JWT，后端只解析JWT
 // 不再兼容userId作为token的任何逻辑
-
-// 获取API基础URL
-const getApiBaseUrl = () => {
-    if (import.meta.env.DEV) return 'http://localhost:3000';
-    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-    return 'https://api.951100.xyz';
-};
 
 // 创建axios实例
 const api = axios.create({
