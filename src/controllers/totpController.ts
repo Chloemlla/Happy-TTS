@@ -396,7 +396,7 @@ export class TOTPController {
       // 生成JWT token
       const jwt = require("jsonwebtoken");
       const config = require("../config/config").config;
-      const jwtToken = jwt.sign({ userId: user.id }, config.jwtSecret, { expiresIn: "2h" });
+      const jwtToken = jwt.sign({ userId: user.id, username: user.username, role: user.role || "user" }, config.jwtSecret, { expiresIn: "2h" });
 
       logger.info("TOTP验证成功，生成JWT token", {
         userId: user.id,
