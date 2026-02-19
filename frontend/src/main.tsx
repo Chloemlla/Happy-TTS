@@ -176,8 +176,11 @@ class DebugConsoleManager {
       const token = localStorage.getItem('token');
       if (!token) return false;
 
-      // 简单的token存在性检查，实际项目中可能需要更复杂的验证
-      return token.length > 10; // 假设有效token长度大于10
+      // 从JWT payload中解析role字段
+      const parts = token.split('.');
+      if (parts.length !== 3) return false;
+      const payload = JSON.parse(atob(parts[1]));
+      return payload.role === 'admin';
     } catch (error) {
       return false;
     }
@@ -375,8 +378,11 @@ class DebugConsoleManager {
       const token = localStorage.getItem('token');
       if (!token) return false;
 
-      // 简单的token存在性检查，实际项目中可能需要更复杂的验证
-      return token.length > 10; // 假设有效token长度大于10
+      // 从JWT payload中解析role字段
+      const parts = token.split('.');
+      if (parts.length !== 3) return false;
+      const payload = JSON.parse(atob(parts[1]));
+      return payload.role === 'admin';
     } catch (error) {
       return false;
     }

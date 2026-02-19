@@ -2,13 +2,7 @@ import { useState } from 'react';
 import axios, { AxiosError } from 'axios';
 import { TtsRequest, TtsResponse } from '../types/tts';
 import { verifyContent } from '../utils/sign';
-
-// 获取API基础URL
-const getApiBaseUrl = () => {
-  if (import.meta.env.DEV) return 'http://localhost:3000';
-  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-  return 'https://api.951100.xyz';
-};
+import { getApiBaseUrl } from '../api/api';
 
 // 创建axios实例
 const api = axios.create({
