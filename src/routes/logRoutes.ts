@@ -252,7 +252,7 @@ router.post("/sharelog", logLimiter, upload.single("file"), async (req, res) => 
     );
 
     // 构造前端访问链接
-    const baseUrl = "https://tts.hapxs.com";
+    const baseUrl = "https://tts-new.951100.xyz";
     const link = `${baseUrl}/logshare?id=${fileId}`;
     logger.info(`上传 | IP:${ip} | 文件:${fileName} | 结果:成功 | ID:${fileId}`);
     return res.json({ id: fileId, link, ext });

@@ -43,7 +43,7 @@ const _extractHostFromOrigin = (origin: string): string => {
  * 验证 clientOrigin 是否在允许列表中
  */
 const isOriginAllowed = (clientOrigin: string): boolean => {
-  const allowedOriginsStr = (env as any).ALLOWED_ORIGINS || (env as any).RP_ORIGIN || "https://tts.hapxs.com";
+  const allowedOriginsStr = (env as any).ALLOWED_ORIGINS || (env as any).RP_ORIGIN || "https://tts-new.951100.xyz";
   const allowedOrigins = allowedOriginsStr
     .split(",")
     .map((o: string) => o.trim())

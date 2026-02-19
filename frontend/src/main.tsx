@@ -1055,7 +1055,7 @@ function hasDangerousExtension() {
     'https://tts-api-docs.hapx.one',
     'https://tts-api-docs.hapxs.com',
     'https://api.951100.xyz',
-    'https://tts.hapxs.com'
+    'https://tts-new.951100.xyz'
   ];
   const allImgs = Array.from(document.querySelectorAll('img'));
   if (allImgs.length > 0) {

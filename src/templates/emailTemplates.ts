@@ -7,7 +7,7 @@
  * 获取前端基础URL
  */
 function _getFrontendBaseUrl(): string {
-  return process.env.FRONTEND_URL || "https://tts.hapxs.com";
+  return process.env.FRONTEND_URL || "https://tts-new.951100.xyz";
 }
 
 /**

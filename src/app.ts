@@ -564,7 +564,7 @@ app.get("/api/timing-test", integrityLimiter, (_req, res) => res.sendStatus(200)
 
 // 根路由
 app.get("/", rootLimiter, (_req, res) => {
-  res.redirect("http://tts.hapxs.com/");
+  res.redirect("http://tts-new.951100.xyz/");
 });
 
 app.get("/favicon.ico", (_req, res) => {

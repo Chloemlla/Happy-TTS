@@ -4,7 +4,7 @@
  * 
  * 场景：四个独立前端，一个共享后端
  * - tts.hapx.one
- * - tts.hapxs.com
+ * - tts-new.951100.xyz
  * - 951100.xyz
  * - tts.951100.xyz
  * 
@@ -54,7 +54,7 @@ export const PASSKEY_API_BASE = getPasskeyApiBase();
  */
 export const ALLOWED_FRONTEND_DOMAINS = [
   'tts.hapx.one',
-  'tts.hapxs.com',
+  'tts-new.951100.xyz',
   '951100.xyz',
   'tts.951100.xyz'
 ];
