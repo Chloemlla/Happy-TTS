@@ -83,7 +83,7 @@ class IntegrityChecker {
     'https://tts-api-docs.hapx.one',
     'https://tts-api-docs.hapxs.com',
     'https://api.951100.xyz',
-    'https://tts.hapxs.com',
+    'https://tts-new.951100.xyz',
     'https://951100.xyz'
   ];
   private readonly COMPONENT_EXEMPT_MARKERS: string[] = [

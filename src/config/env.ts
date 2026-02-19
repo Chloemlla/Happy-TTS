@@ -32,7 +32,7 @@ export const env = {
   // 包含所有四个前端域名和后端域名
   ALLOWED_ORIGINS:
     process.env.ALLOWED_ORIGINS ||
-    "https://api.951100.xyz,https://tts.hapx.one,https://tts.hapxs.com,https://951100.xyz,https://tts.951100.xyz",
+    "https://api.951100.xyz,https://tts.hapx.one,https://tts-new.951100.xyz,https://951100.xyz,https://tts.951100.xyz",
 
   USER_STORAGE_MODE: process.env.USER_STORAGE_MODE || "file",
 };

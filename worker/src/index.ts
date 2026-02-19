@@ -87,7 +87,7 @@ app.get('/static/audio/:fileName', async (c) => {
 // ========== 兼容旧路径 ==========
 
 // 根路由
-app.get('/', (c) => c.redirect('https://tts.hapxs.com/', 302));
+app.get('/', (c) => c.redirect('https://tts-new.951100.xyz/', 302));
 
 // favicon
 app.get('/favicon.ico', (c) =>

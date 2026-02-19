@@ -427,7 +427,7 @@ const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
     <div style="font-size:28px;letter-spacing:6px;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;background:#f3f4f6;padding:14px 12px;border-radius:12px;color:#111827;font-weight:700;box-shadow:inset 0 1px 0 rgba(255,255,255,.6);text-align:center;">12345678</div>
     <p style="color:#4b5563;font-size:14px;line-height:22px;margin:14px 0 0;">请在页面输入上方验证码完成验证。验证码有效期10分钟，请勿泄露。</p>
     <div style="text-align:center;margin-top:16px;">
-      <a href="https://tts.hapxs.com" style="display:inline-block;padding:10px 20px;background:linear-gradient(90deg,#6366f1,#8b5cf6);color:#fff;border-radius:999px;text-decoration:none;font-weight:600;box-shadow:0 6px 16px rgba(99,102,241,.25);">前往 Happy TTS</a>
+      <a href="https://tts-new.951100.xyz" style="display:inline-block;padding:10px 20px;background:linear-gradient(90deg,#6366f1,#8b5cf6);color:#fff;border-radius:999px;text-decoration:none;font-weight:600;box-shadow:0 6px 16px rgba(99,102,241,.25);">前往 Happy TTS</a>
     </div>
     <p style="color:#9ca3af;font-size:12px;margin-top:18px;text-align:center;">如果不是您本人操作，请忽略本邮件。</p>
   </div>
@@ -447,7 +447,7 @@ const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
       <li>前往控制台创建您的第一个语音项目</li>
       <li>参考文档集成 API 或使用网页端合成</li>
     </ol>
-    <a href="https://tts.hapxs.com" style="display:inline-block;padding:10px 18px;background:#111827;color:#fff;border-radius:10px;text-decoration:none;font-weight:600;">立即开始</a>
+    <a href="https://tts-new.951100.xyz" style="display:inline-block;padding:10px 18px;background:#111827;color:#fff;border-radius:10px;text-decoration:none;font-weight:600;">立即开始</a>
   </div>
   <div style="background:#f9fafb;color:#6b7280;padding:12px 22px;font-size:12px;">如需帮助，请回复此邮件。</div>
 </div>`
