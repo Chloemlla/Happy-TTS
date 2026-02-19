@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
+import { getApiBaseUrl } from '../api/api';
 
 // ========== 类型 ==========
 
@@ -27,17 +28,13 @@ function getWsUrl(): string {
   const token = localStorage.getItem('token');
   const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
 
-  if (import.meta.env.VITE_WS_URL) {
-    return `${import.meta.env.VITE_WS_URL}/ws${tokenParam}`;
-  }
+  // 基于 getApiBaseUrl 推导 WebSocket 地址
+  const baseUrl = getApiBaseUrl();
+  const wsBase = baseUrl
+    .replace(/^https:\/\//, 'wss://')
+    .replace(/^http:\/\//, 'ws://');
 
-  // 根据当前页面协议自动推断
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const host = import.meta.env.DEV
-    ? `${window.location.hostname}:3000`
-    : window.location.host;
-
-  return `${protocol}//${host}/ws${tokenParam}`;
+  return `${wsBase}/ws${tokenParam}`;
 }
 
 // ========== Hook ==========
