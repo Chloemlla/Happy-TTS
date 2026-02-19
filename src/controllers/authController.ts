@@ -746,7 +746,7 @@ export class AuthController {
       // 生成JWT token
       const jwt = require("jsonwebtoken");
       const config = require("../config/config").config;
-      const token = jwt.sign({ userId: user.id }, config.jwtSecret, { expiresIn: "2h" });
+      const token = jwt.sign({ userId: user.id, username: user.username, role: user.role || "user" }, config.jwtSecret, { expiresIn: "2h" });
       // 不再写入user.token，仅返回JWT
       const { id, username, email, role } = user;
       const t1 = Date.now();
@@ -873,7 +873,7 @@ export class AuthController {
       // 生成JWT token
       const jwt = require("jsonwebtoken");
       const config = require("../config/config").config;
-      const token = jwt.sign({ userId: user.id }, config.jwtSecret, { expiresIn: "2h" });
+      const token = jwt.sign({ userId: user.id, username: user.username, role: user.role || "user" }, config.jwtSecret, { expiresIn: "2h" });
 
       logger.info("[AuthController] Passkey验证成功，生成JWT token", {
         userId: user.id,

@@ -112,7 +112,7 @@ class WsService {
       const decoded = jwt.verify(token, secret) as any;
       return {
         userId: decoded.userId || decoded.username || decoded.id || null,
-        isAdmin: decoded.isAdmin === true || decoded.role === "admin",
+        isAdmin: decoded.role === "admin" || decoded.isAdmin === true,
       };
     } catch {
       return { userId: null, isAdmin: false };
