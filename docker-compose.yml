@@ -17,5 +17,9 @@ services:
       - ./data:/app/data
     restart: unless-stopped
 
+networks:
+  default:
+    enable_ipv6: true
+
 volumes:
   static:
