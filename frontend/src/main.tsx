@@ -1054,7 +1054,7 @@ function hasDangerousExtension() {
     'https://cdn.jsdelivr.net',
     'https://tts-api-docs.hapx.one',
     'https://tts-api-docs.hapxs.com',
-    'https://api.hapxs.com',
+    'https://api.951100.xyz',
     'https://tts.hapxs.com'
   ];
   const allImgs = Array.from(document.querySelectorAll('img'));

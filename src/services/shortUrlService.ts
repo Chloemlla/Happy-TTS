@@ -232,7 +232,7 @@ export class ShortUrlService {
         return doc[0];
       });
 
-      return `${process.env.VITE_API_URL || process.env.BASE_URL || "https://api.hapxs.com"}/s/${shortUrlData.code}`;
+      return `${process.env.VITE_API_URL || process.env.BASE_URL || "https://api.951100.xyz"}/s/${shortUrlData.code}`;
     } catch (error) {
       logger.error("[短链服务] 短链创建失败:", error);
       throw error;
@@ -473,7 +473,7 @@ export class ShortUrlService {
         return { content: "", count: 0 };
       }
 
-      const baseUrl = process.env.VITE_API_URL || process.env.BASE_URL || "https://api.hapxs.com";
+      const baseUrl = process.env.VITE_API_URL || process.env.BASE_URL || "https://api.951100.xyz";
       const exportTime = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
 
       // 使用数组拼接，先生成头部

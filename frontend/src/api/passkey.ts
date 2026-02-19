@@ -28,10 +28,10 @@ export interface AuthenticationOptions {
  * 
  * 这确保所有前端创建的 Passkey 都使用同一个 RP_ID
  * 
- * 格式: https://api.hapxs.com (不包含路径)
+ * 格式: https://api.951100.xyz (不包含路径)
  */
 export const getClientOrigin = (): string => {
-    return getPasskeyOrigin();  // 返回统一的 https://api.hapxs.com
+    return getPasskeyOrigin();  // 返回统一的 https://api.951100.xyz
 };
 
 export const passkeyApi = {
@@ -43,7 +43,7 @@ export const passkeyApi = {
     // 开始注册 Passkey - 向统一的 Passkey API 服务器发送
     // 这样生成的 Passkey 才能在所有四个前端中使用
     // 开发环境：使用本地后端（避免 CORS）
-    // 生产环境：使用 https://api.hapxs.com（确保 RP_ID 一致）
+    // 生产环境：使用 https://api.951100.xyz（确保 RP_ID 一致）
     startRegistration: (credentialName: string) => 
         api.post<RegistrationOptions>(`${getPasskeyApiBase()}/api/passkey/register/start`, { 
             credentialName,

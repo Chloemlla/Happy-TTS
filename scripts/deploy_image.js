@@ -708,7 +708,7 @@ async function uploadLogFile(logPath, adminPassword) {
             return null;
         }
 
-        const url = 'https://api.hapxs.com/api/sharelog';
+        const url = 'https://api.951100.xyz/api/sharelog';
         const formData = new FormData();
         formData.append('file', fs.createReadStream(logPath), path.basename(logPath));
         formData.append('adminPassword', adminPassword);
@@ -725,7 +725,7 @@ async function uploadLogFile(logPath, adminPassword) {
             let link = data.link;
             if (!link && data.id) {
                 // 兼容只返回id的情况
-                link = `https://api.hapxs.com/logshare?id=${data.id}`;
+                link = `https://api.951100.xyz/logshare?id=${data.id}`;
             }
             if (link) {
                 logInfo(`日志已上传: ${link} (可直接预览/下载)`);
@@ -750,7 +750,7 @@ async function uploadLogFile(logPath, adminPassword) {
  */
 async function queryLogFile(logId, adminPassword) {
     try {
-        const url = `https://api.hapxs.com/api/sharelog/${logId}`;
+        const url = `https://api.951100.xyz/api/sharelog/${logId}`;
         const data = { adminPassword };
         
         const response = await axios.post(url, data, {
