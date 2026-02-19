@@ -250,7 +250,7 @@ export default defineConfig(({ mode }) => {
       }
     ],
     server: {
-      host: '0.0.0.0',
+      host: '::',
       port: 3001,
       proxy: mode === 'development' ? {
         // '/api': {
@@ -408,7 +408,7 @@ export default defineConfig(({ mode }) => {
     // 添加SPA路由支持
     preview: {
       port: 3001,
-      host: '0.0.0.0'
+      host: '::'
     }
   };
   if (mode === 'production') {

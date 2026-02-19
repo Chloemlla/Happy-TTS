@@ -922,13 +922,13 @@ if (!process.env.RESEND_API_KEY) {
 
 if (process.env.NODE_ENV !== "test") {
   const PORT = config.port;
-  const server = app.listen(Number(PORT), "0.0.0.0", async () => {
+  const server = app.listen(Number(PORT), "::", async () => {
     await ensureDirectories();
 
     // 初始化 WebSocket 服务
     wsService.init(server);
 
-    logger.info(`服务器运行在 http://0.0.0.0:${PORT}`);
+    logger.info(`服务器运行在 http://[::]:${PORT} (IPv4/IPv6 双栈)`);
     logger.info(`生成音频目录: ${audioDir}`);
     logger.info(`当前生成码: ${config.generationCode}`);
 
