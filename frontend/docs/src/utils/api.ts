@@ -5,7 +5,7 @@ const getApiBaseUrl = () => {
     // 检查是否在浏览器环境中
     if (typeof window === 'undefined') {
         // 在服务器环境中，使用默认值
-        return 'https://api.hapxs.com';
+        return 'https://api.951100.xyz';
     }
 
     // 全局只依赖 NODE_ENV 判断环境
@@ -38,7 +38,7 @@ const getApiBaseUrl = () => {
     }
 
     // 生产环境
-    return 'https://api.hapxs.com';
+    return 'https://api.951100.xyz';
 };
 
 // 延迟函数

@@ -11,11 +11,11 @@ OPENAI_VOICE = "alloy"
 OPENAI_RESPONSE_FORMAT = "mp3"
 OPENAI_SPEED = "1.0"
 USER_STORAGE_MODE = "mongo"
-BASE_URL = "https://api.hapxs.com"
-RP_ID = "api.hapxs.com"
-RP_ORIGIN = "https://api.hapxs.com"
+BASE_URL = "https://api.951100.xyz"
+RP_ID = "api.951100.xyz"
+RP_ORIGIN = "https://api.951100.xyz"
 RP_ORIGIN_MODE = "fixed"
-ALLOWED_ORIGINS = "https://api.hapxs.com,https://tts.hapx.one,https://tts.hapxs.com,https://951100.xyz,https://tts.951100.xyz"
+ALLOWED_ORIGINS = "https://api.951100.xyz,https://tts.hapx.one,https://tts.hapxs.com,https://951100.xyz,https://tts.951100.xyz"
 
 # ========== KV Namespaces ==========
 [[kv_namespaces]]

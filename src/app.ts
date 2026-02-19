@@ -287,7 +287,7 @@ app.use(
         connectSrc: [
           "'self'",
           "https://api.openai.com",
-          "https://api.hapxs.com",
+          "https://api.951100.xyz",
           "http://localhost:3000",
           "http://localhost:3001",
           "http://localhost:6000",

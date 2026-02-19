@@ -7,7 +7,7 @@ const allowedOrigins = [
   "https://tts.hapxs.com",
   "https://951100.xyz",
   "https://tts.951100.xyz",
-  "https://api.hapxs.com",
+  "https://api.951100.xyz",
   ...(process.env.NODE_ENV === "development" || process.env.NODE_ENV === "dev"
     ? [
         "http://192.168.10.7:3001",

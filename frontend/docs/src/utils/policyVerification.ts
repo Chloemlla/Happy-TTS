@@ -497,7 +497,7 @@ class PolicyVerificationSystem {
     // 检查是否在浏览器环境中
     if (typeof window === 'undefined') {
       // 在服务器环境中，使用默认值
-      return 'https://api.hapxs.com';
+      return 'https://api.951100.xyz';
     }
 
     // 检查是否为本地地址特征（优先判断）
@@ -537,8 +537,8 @@ class PolicyVerificationSystem {
     }
 
     // 生产环境
-    console.log('Production environment detected, using api.hapxs.com');
-    return 'https://api.hapxs.com';
+    console.log('Production environment detected, using api.951100.xyz');
+    return 'https://api.951100.xyz';
   }
 }
 

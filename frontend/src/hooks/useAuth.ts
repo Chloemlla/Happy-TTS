@@ -11,7 +11,7 @@ import { User } from '../types/auth';
 const getApiBaseUrl = () => {
     if (import.meta.env.DEV) return 'http://localhost:3000';
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-    return 'https://api.hapxs.com';
+    return 'https://api.951100.xyz';
 };
 
 // 创建axios实例

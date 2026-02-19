@@ -218,11 +218,11 @@ export default function Home(): ReactNode {
                 <div className={styles.codeBlock} style={{position: 'relative'}}>
                   <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8}}>
                     <h4 style={{margin: 0}}>1. 获取 API Key</h4>
-                    <CopyButton text={`curl -X POST https://tts-api.hapxs.com/api/auth/register \
+                    <CopyButton text={`curl -X POST https://tts-api.951100.xyz/api/auth/register \
   -H \"Content-Type: application/json\" \
   -d '{"username": "your_username", "password": "your_password"}'`} />
                   </div>
-                  <pre><code>{`curl -X POST https://tts-api.hapxs.com/api/auth/register \
+                  <pre><code>{`curl -X POST https://tts-api.951100.xyz/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"username": "your_username", "password": "your_password"}'`}</code></pre>
                 </div>
@@ -231,12 +231,12 @@ export default function Home(): ReactNode {
                 <div className={styles.codeBlock} style={{position: 'relative'}}>
                   <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8}}>
                     <h4 style={{margin: 0}}>2. 调用 TTS 接口</h4>
-                    <CopyButton text={`curl -X POST https://tts-api.hapxs.com/api/tts/generate \
+                    <CopyButton text={`curl -X POST https://tts-api.951100.xyz/api/tts/generate \
   -H \"Authorization: Bearer YOUR_TOKEN\" \
   -H \"Content-Type: application/json\" \
   -d '{"text": "Hello, World!", "model": "tts-1", "voice": "alloy"}'`} />
                   </div>
-                  <pre><code>{`curl -X POST https://tts-api.hapxs.com/api/tts/generate \
+                  <pre><code>{`curl -X POST https://tts-api.951100.xyz/api/tts/generate \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"text": "Hello, World!", "model": "tts-1", "voice": "alloy"}'`}</code></pre>

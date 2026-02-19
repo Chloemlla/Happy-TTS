@@ -5,7 +5,7 @@ import dotenv from "dotenv";
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
 // 设置默认值
-const rpOriginDefault = "https://api.hapxs.com";
+const rpOriginDefault = "https://api.951100.xyz";
 
 export const env = {
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
@@ -17,7 +17,7 @@ export const env = {
   // RP_ID 用于所有前端的 Passkey 操作
   // 所有四个前端创建的 Passkey 都会使用这个 RP_ID
   // 因此它们可以在任何前端中互相使用
-  RP_ID: process.env.RP_ID || "api.hapxs.com",
+  RP_ID: process.env.RP_ID || "api.951100.xyz",
 
   // RP_ORIGIN 必须与 RP_ID 对应
   // 格式: https://domain (必须是 HTTPS 在生产环境)
@@ -32,7 +32,7 @@ export const env = {
   // 包含所有四个前端域名和后端域名
   ALLOWED_ORIGINS:
     process.env.ALLOWED_ORIGINS ||
-    "https://api.hapxs.com,https://tts.hapx.one,https://tts.hapxs.com,https://951100.xyz,https://tts.951100.xyz",
+    "https://api.951100.xyz,https://tts.hapx.one,https://tts.hapxs.com,https://951100.xyz,https://tts.951100.xyz",
 
   USER_STORAGE_MODE: process.env.USER_STORAGE_MODE || "file",
 };

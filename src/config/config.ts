@@ -25,7 +25,7 @@ export const config = {
   // 添加本地 IP 配置
   localIps: ["127.0.0.1", "localhost", "::1"],
   // 添加基础URL配置
-  baseUrl: process.env.VITE_API_URL || process.env.BASE_URL || "https://api.hapxs.com",
+  baseUrl: process.env.VITE_API_URL || process.env.BASE_URL || "https://api.951100.xyz",
   // 添加生成码配置
   generationCode: process.env.GENERATION_CODE || "admin",
   // 生产环境强制要求 JWT 密钥

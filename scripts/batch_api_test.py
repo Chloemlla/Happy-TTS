@@ -43,7 +43,7 @@ class ApiEndpoint:
 class ApiBatchTester:
     """API批量测试器"""
 
-    def __init__(self, base_url: str = "https://tts-api.hapxs.com"):
+    def __init__(self, base_url: str = "https://tts-api.951100.xyz"):
         self.base_url = base_url.rstrip("/")
         self.session = requests.Session()
         self.session.headers.update(
@@ -331,7 +331,7 @@ class ApiBatchTester:
 def main():
     """主函数"""
     # 创建测试器
-    tester = ApiBatchTester("https://tts-api.hapxs.com")
+    tester = ApiBatchTester("https://tts-api.951100.xyz")
 
     try:
         # 执行批量测试

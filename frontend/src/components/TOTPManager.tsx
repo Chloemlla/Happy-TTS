@@ -30,7 +30,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
   const getApiBaseUrl = () => {
     if (import.meta.env.DEV) return 'http://localhost:3000';
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-    return 'https://api.hapxs.com';
+    return 'https://api.951100.xyz';
   };
 
   const api = axios.create({

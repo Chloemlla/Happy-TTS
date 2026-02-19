@@ -16,7 +16,7 @@
   // 获取API基础URL（内联版本）
   function getApiBaseUrl() {
     // 检查是否为开发环境
-    if (typeof window === 'undefined') return 'https://api.hapxs.com';
+    if (typeof window === 'undefined') return 'https://api.951100.xyz';
     
     const isDev = window.location.hostname === 'localhost' ||
                   window.location.hostname === '127.0.0.1' ||
@@ -41,7 +41,7 @@
       return 'http://localhost:3000';
     }
     
-    return 'https://api.hapxs.com';
+    return 'https://api.951100.xyz';
   }
   
   // 检测开发者工具

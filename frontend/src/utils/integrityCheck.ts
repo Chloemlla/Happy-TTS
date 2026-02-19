@@ -82,7 +82,7 @@ class IntegrityChecker {
     'https://cdn.jsdelivr.net',
     'https://tts-api-docs.hapx.one',
     'https://tts-api-docs.hapxs.com',
-    'https://api.hapxs.com',
+    'https://api.951100.xyz',
     'https://tts.hapxs.com',
     'https://951100.xyz'
   ];
