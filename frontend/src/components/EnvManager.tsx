@@ -1,5 +1,5 @@
-import React, {
-  useEffect, useState, useMemo, useCallback
+﻿import React, {
+  useEffect, useState, useMemo, useCallback, startTransition
 } from 'react';
 import { LazyMotion, domAnimation, m, AnimatePresence, useReducedMotion } from 'framer-motion';
 import getApiBaseUrl from '../api';
@@ -349,6 +349,46 @@ export const handleSourceModalClose = (
   }, options?.closeDelay || 300); // 等待弹窗关闭动画完成
 };
 
+// 可折叠区块头部 — 点击展开/收起，减少不必要的 DOM 渲染
+interface CollapsibleSectionProps {
+  title: string;
+  sectionKey: string;
+  isOpen: boolean;
+  onToggle: (key: string) => void;
+  children: React.ReactNode;
+  headerRight?: React.ReactNode;
+  prefersReducedMotion?: boolean | null;
+}
+const CollapsibleSection = React.memo(function CollapsibleSection({
+  title, sectionKey, isOpen, onToggle, children, headerRight, prefersReducedMotion
+}: CollapsibleSectionProps) {
+  return (
+    <m.div
+      className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
+      initial={ENTER_INITIAL}
+      animate={ENTER_ANIMATE}
+      transition={prefersReducedMotion ? NO_DURATION : DURATION_06}
+    >
+      <button
+        type="button"
+        onClick={() => onToggle(sectionKey)}
+        className="w-full flex items-center justify-between p-4 sm:p-6 hover:bg-gray-50 transition-colors cursor-pointer"
+      >
+        <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
+        <div className="flex items-center gap-2">
+          {headerRight}
+          <FaChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+        </div>
+      </button>
+      {isOpen && (
+        <div className="px-4 sm:px-6 pb-4 sm:pb-6">
+          {children}
+        </div>
+      )}
+    </m.div>
+  );
+});
+
 const EnvManager: React.FC = () => {
   const { user } = useAuth();
   const [envs, setEnvs] = useState<EnvItem[]>([]);
@@ -504,6 +544,28 @@ const EnvManager: React.FC = () => {
   const trans06 = useMemo(() => (prefersReducedMotion ? NO_DURATION : DURATION_06), [prefersReducedMotion]);
   const trans03 = useMemo(() => (prefersReducedMotion ? NO_DURATION : DURATION_03), [prefersReducedMotion]);
   const modalTrans = useMemo(() => (prefersReducedMotion ? NO_DURATION : { duration: 0.1 }), [prefersReducedMotion]);
+
+  // ========== 性能优化：按需展开 & 懒加载数据 ==========
+  // 追踪已展开的区块，只有展开时才渲染内容和拉取数据
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(() => new Set(['envs']));
+  // 追踪已经拉取过数据的区块，避免重复请求
+  const fetchedSectionsRef = React.useRef<Set<string>>(new Set());
+
+  const toggleSection = useCallback((key: string) => {
+    startTransition(() => {
+      setExpandedSections(prev => {
+        const next = new Set(prev);
+        if (next.has(key)) {
+          next.delete(key);
+        } else {
+          next.add(key);
+        }
+        return next;
+      });
+    });
+  }, []);
+
+  const isSectionOpen = useCallback((key: string) => expandedSections.has(key), [expandedSections]);
 
   const fetchEnvs = async () => {
     setLoading(true);
@@ -1883,19 +1945,31 @@ const EnvManager: React.FC = () => {
   }, [deleteType, handleDeleteBatchLogs, handleDeleteAllLogs, handleDeleteLogsByFilter]);
 
   useEffect(() => { fetchEnvs(); }, []);
-  useEffect(() => { fetchOutemailSettings(); }, [fetchOutemailSettings]);
-  useEffect(() => { fetchModlistSetting(); }, [fetchModlistSetting]);
-  useEffect(() => { fetchTtsSetting(); }, [fetchTtsSetting]);
-  useEffect(() => { fetchShortAes(); }, [fetchShortAes]);
-  useEffect(() => { fetchWebhookSecret(); }, [fetchWebhookSecret]);
-  useEffect(() => { fetchProviders(); }, [fetchProviders]);
-  useEffect(() => { fetchDebugConfigs(); }, [fetchDebugConfigs]);
-  useEffect(() => { fetchDebugLogs(); }, [fetchDebugLogs]);
-  useEffect(() => { fetchIpfsConfig(); }, [fetchIpfsConfig]);
-  useEffect(() => { fetchTurnstileConfig(); }, [fetchTurnstileConfig]);
-  useEffect(() => { fetchHcaptchaConfig(); }, [fetchHcaptchaConfig]);
-  useEffect(() => { fetchClarityConfig(); }, [fetchClarityConfig]);
-  useEffect(() => { fetchGithubBillingConfig(); }, [fetchGithubBillingConfig]);
+
+  // 懒加载：仅在区块首次展开时拉取数据，避免页面初始化时 14 个 API 并发请求
+  useEffect(() => {
+    const lazyMap: Record<string, () => Promise<void> | void> = {
+      outemail: fetchOutemailSettings,
+      modlist: fetchModlistSetting,
+      tts: fetchTtsSetting,
+      shortaes: fetchShortAes,
+      webhook: fetchWebhookSecret,
+      providers: fetchProviders,
+      debugconfig: fetchDebugConfigs,
+      debuglogs: fetchDebugLogs,
+      ipfs: fetchIpfsConfig,
+      turnstile: fetchTurnstileConfig,
+      hcaptcha: fetchHcaptchaConfig,
+      clarity: fetchClarityConfig,
+      githubBilling: fetchGithubBillingConfig,
+    };
+    for (const key of expandedSections) {
+      if (lazyMap[key] && !fetchedSectionsRef.current.has(key)) {
+        fetchedSectionsRef.current.add(key);
+        lazyMap[key]();
+      }
+    }
+  }, [expandedSections, fetchOutemailSettings, fetchModlistSetting, fetchTtsSetting, fetchShortAes, fetchWebhookSecret, fetchProviders, fetchDebugConfigs, fetchDebugLogs, fetchIpfsConfig, fetchTurnstileConfig, fetchHcaptchaConfig, fetchClarityConfig, fetchGithubBillingConfig]);
 
   // 当过滤条件改变时重新获取日志
   useEffect(() => {
@@ -2140,25 +2214,11 @@ const EnvManager: React.FC = () => {
         </m.div>
 
         {/* 对外邮件校验码设置 */}
-        <m.div
-          className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200"
-          initial={ENTER_INITIAL}
-          animate={ENTER_ANIMATE}
-          transition={trans06}
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">对外邮件校验码设置</h3>
-            <m.button
-              onClick={fetchOutemailSettings}
-              disabled={settingsLoading}
-              className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
-              whileTap={{ scale: 0.95 }}
-            >
-              <FaSync className={`w-4 h-4 ${settingsLoading ? 'animate-spin' : ''}`} />
-              刷新
-            </m.button>
-          </div>
-
+        <CollapsibleSection title="对外邮件校验码设置" sectionKey="outemail" isOpen={isSectionOpen('outemail')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
+          <m.button onClick={(e) => { e.stopPropagation(); fetchOutemailSettings(); }} disabled={settingsLoading} className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2" whileTap={{ scale: 0.95 }}>
+            <FaSync className={`w-4 h-4 ${settingsLoading ? 'animate-spin' : ''}`} /> 刷新
+          </m.button>
+        }>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">域名（可留空表示默认）</label>
@@ -2267,28 +2327,14 @@ const EnvManager: React.FC = () => {
               </div>
             )}
           </div>
-        </m.div>
+        </CollapsibleSection>
 
         {/* MOD 列表修改码设置 */}
-        <m.div
-          className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200"
-          initial={ENTER_INITIAL}
-          animate={ENTER_ANIMATE}
-          transition={trans06}
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">MOD 列表修改码设置</h3>
-            <m.button
-              onClick={fetchModlistSetting}
-              disabled={modLoading}
-              className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
-              whileTap={{ scale: 0.95 }}
-            >
-              <FaSync className={`w-4 h-4 ${modLoading ? 'animate-spin' : ''}`} />
-              刷新
-            </m.button>
-          </div>
-
+        <CollapsibleSection title="MOD 列表修改码设置" sectionKey="modlist" isOpen={isSectionOpen('modlist')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
+          <m.button onClick={(e) => { e.stopPropagation(); fetchModlistSetting(); }} disabled={modLoading} className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2" whileTap={{ scale: 0.95 }}>
+            <FaSync className={`w-4 h-4 ${modLoading ? 'animate-spin' : ''}`} /> 刷新
+          </m.button>
+        }>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">修改码</label>
@@ -2329,7 +2375,7 @@ const EnvManager: React.FC = () => {
           <div className="mt-4 text-xs text-gray-500">
             最后更新时间：{modSetting?.updatedAt ? new Date(modSetting.updatedAt).toLocaleString() : '-'}
           </div>
-        </m.div>
+        </CollapsibleSection>
 
         {/* TTS 生成码设置 */}
         <m.div
