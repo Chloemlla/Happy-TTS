@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { getApiBaseUrl } from '../api/api';
 import { useNotification } from './Notification';
@@ -512,38 +513,42 @@ const WebhookEventsManager: React.FC = () => {
         </div>
       </div>
 
-      {/* 详情弹窗 */}
-      <AnimatePresence>
-        {selected && (
-          <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <motion.div className="bg-white/90 backdrop-blur rounded-2xl max-w-3xl w-[95vw] p-4 sm:p-6 border border-white/20 shadow-xl" initial={{ scale: 0.95, y: 10, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 10, opacity: 0 }} data-source-modal="webhook-event-detail">
-              <div className="flex items-center justify-between mb-3">
-                <div className="font-semibold text-gray-900">事件详情</div>
-                <motion.button onClick={closeDetailModal} className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
-                  <FaTimes className="w-4 h-4" /> 关闭
-                </motion.button>
-              </div>
-              {/* 结构化通知摘要 */}
-              {(selected.title || selected.renderedContent) && (
-                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-1">
-                  {selected.title && <div className="text-sm font-semibold text-gray-900">📌 {selected.title}</div>}
-                  {selected.renderedContent && <div className="text-sm text-gray-700 whitespace-pre-wrap">{selected.renderedContent}</div>}
-                  {selected.content && selected.content !== selected.renderedContent && (
-                    <div className="text-xs text-gray-400 mt-1">模板: {selected.content}</div>
-                  )}
+      {/* 详情弹窗 — Portal 到 body 以逃逸 backdrop-blur 产生的 stacking context */}
+      {ReactDOM.createPortal(
+        <AnimatePresence>
+          {selected && (
+            <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <motion.div className="bg-white/90 backdrop-blur rounded-2xl max-w-3xl w-[95vw] p-4 sm:p-6 border border-white/20 shadow-xl" initial={{ scale: 0.95, y: 10, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 10, opacity: 0 }} data-source-modal="webhook-event-detail">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="font-semibold text-gray-900">事件详情</div>
+                  <motion.button onClick={closeDetailModal} className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                    <FaTimes className="w-4 h-4" /> 关闭
+                  </motion.button>
                 </div>
-              )}
-              <pre className="text-xs bg-gray-900 text-gray-100 p-3 rounded overflow-auto max-h-[70vh]">{JSON.stringify(selected, null, 2)}</pre>
+                {/* 结构化通知摘要 */}
+                {(selected.title || selected.renderedContent) && (
+                  <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-1">
+                    {selected.title && <div className="text-sm font-semibold text-gray-900">📌 {selected.title}</div>}
+                    {selected.renderedContent && <div className="text-sm text-gray-700 whitespace-pre-wrap">{selected.renderedContent}</div>}
+                    {selected.content && selected.content !== selected.renderedContent && (
+                      <div className="text-xs text-gray-400 mt-1">模板: {selected.content}</div>
+                    )}
+                  </div>
+                )}
+                <pre className="text-xs bg-gray-900 text-gray-100 p-3 rounded overflow-auto max-h-[70vh]">{JSON.stringify(selected, null, 2)}</pre>
+              </motion.div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
 
-      {/* 编辑/创建弹窗 */}
-      <AnimatePresence>
-        {(editing || creating) && (
-          <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <motion.div className="bg-white/90 backdrop-blur rounded-2xl max-w-2xl w-[95vw] p-4 sm:p-6 space-y-4 border border-white/20 shadow-xl" initial={{ scale: 0.95, y: 10, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 10, opacity: 0 }} data-source-modal="webhook-event-edit">
+      {/* 编辑/创建弹窗 — Portal 到 body */}
+      {ReactDOM.createPortal(
+        <AnimatePresence>
+          {(editing || creating) && (
+            <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <motion.div className="bg-white/90 backdrop-blur rounded-2xl max-w-2xl w-[95vw] p-4 sm:p-6 space-y-4 border border-white/20 shadow-xl" initial={{ scale: 0.95, y: 10, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 10, opacity: 0 }} data-source-modal="webhook-event-edit">
               <div className="flex items-center justify-between">
                 <div className="font-semibold text-gray-900">{creating ? '新增事件' : '编辑事件'}</div>
                 <motion.button onClick={closeEditModal} className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
@@ -629,10 +634,12 @@ const WebhookEventsManager: React.FC = () => {
                   </motion.button>
                 )}
               </div>
+              </motion.div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </div>
   );
 };
