@@ -1,6 +1,7 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { ShortUrlController } from "../controllers/shortUrlController";
+import { ShortUrlService } from "../services/shortUrlService";
 import { adminAuthMiddleware, authMiddleware } from "../middleware/authMiddleware";
 import { createLimiter } from "../middleware/rateLimiter";
 import { replayProtection } from "../middleware/replayProtection";
@@ -159,6 +160,68 @@ router.delete(
     }
   },
 );
+
+// 匿名公共创建短链（仅需 SERVER_PASSWORD 校验，不限流）
+router.post("/public/create", async (req: any, res: any) => {
+  try {
+    const { target, customCode, password } = req.body || {};
+
+    // 校验 SERVER_PASSWORD
+    const serverPassword = process.env.SERVER_PASSWORD || "admin";
+    if (!password || password !== serverPassword) {
+      return res.status(403).json({ error: "密码错误" });
+    }
+
+    // 输入验证
+    if (!target || typeof target !== "string") {
+      return res.status(400).json({ error: "目标地址不能为空" });
+    }
+
+    const trimmedTarget = target.trim();
+    if (trimmedTarget.length === 0 || trimmedTarget.length > 2000) {
+      return res.status(400).json({ error: "目标地址长度必须在1-2000个字符之间" });
+    }
+
+    // 验证URL格式
+    try {
+      new URL(trimmedTarget);
+    } catch {
+      return res.status(400).json({ error: "目标地址必须是有效的URL格式" });
+    }
+
+    let code: string;
+
+    if (customCode && typeof customCode === "string") {
+      const trimmedCode = customCode.trim();
+      if (trimmedCode.length < 1 || trimmedCode.length > 200) {
+        return res.status(400).json({ error: "自定义短链接码长度必须在1-200个字符之间" });
+      }
+      if (!/^[a-zA-Z0-9_-]+$/.test(trimmedCode)) {
+        return res.status(400).json({ error: "自定义短链接码只能包含字母、数字、连字符和下划线" });
+      }
+      const ShortUrlModelRef = mongoose.models.ShortUrl || mongoose.model("ShortUrl");
+      const existing = await ShortUrlModelRef.findOne({ code: trimmedCode });
+      if (existing) {
+        return res.status(400).json({ error: "该短链接码已被使用" });
+      }
+      code = trimmedCode;
+    } else {
+      // 使用 ShortUrlService 创建（含事务和去重策略）
+      const shortUrl = await ShortUrlService.createShortUrl(trimmedTarget, "public", "anonymous");
+      return res.json({ success: true, shortUrl });
+    }
+
+    // 自定义码直接创建
+    const { shortUrlMigrationService } = require("../services/shortUrlMigrationService");
+    const fixedTarget = shortUrlMigrationService.fixTargetUrlBeforeSave(trimmedTarget);
+    const ShortUrlModelRef = mongoose.models.ShortUrl || mongoose.model("ShortUrl");
+    await ShortUrlModelRef.create({ code, target: fixedTarget, userId: "public", username: "anonymous" });
+    const baseUrl = process.env.VITE_API_URL || process.env.BASE_URL || "https://api.951100.xyz";
+    return res.json({ success: true, shortUrl: `${baseUrl}/s/${code}` });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message || "创建失败" });
+  }
+});
 
 // 短链重定向（公开访问）— 放到最后，避免覆盖 /admin 与 /shorturls 前缀
 router.get("/:code", redirectLimiter, ShortUrlController.redirectToTarget);
