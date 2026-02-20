@@ -89,6 +89,9 @@ const AntiCounterfeitPage = React.lazy(() => import('./components/AntiCounterfei
 // GitHub Billing Dashboard 懒加载
 const GitHubBillingDashboard = React.lazy(() => import('./components/GitHubBillingDashboard'));
 
+// 公共短链创建页面懒加载
+const PublicShortLinkCreator = React.lazy(() => import('./components/PublicShortLinkCreator'));
+
 // hCaptcha 验证页面懒加载
 const HCaptchaVerificationPage = React.lazy(() => import('./components/HCaptchaVerificationPage'));
 
@@ -419,6 +422,7 @@ const App: React.FC = () => {
       '/admin/store': 'Happy TTS - 商店管理',
       '/admin/store/resources': 'Happy TTS - 资源管理',
       '/admin/store/cdks': 'Happy TTS - CDK管理',
+      '/public-shortlink': 'Happy TTS - 公共短链创建',
     },
     descriptions: {
       '/': 'Happy TTS智能语音合成平台，提供高质量的文本转语音服务',
@@ -1644,6 +1648,19 @@ const App: React.FC = () => {
                   ) : (
                     <Navigate to="/admin/login" replace />
                   )
+                } />
+                <Route path="/public-shortlink" element={
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <m.div
+                      variants={pageVariants}
+                      initial="initial"
+                      animate="in"
+                      exit="out"
+                      transition={pageTransition}
+                    >
+                      <PublicShortLinkCreator />
+                    </m.div>
+                  </Suspense>
                 } />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
