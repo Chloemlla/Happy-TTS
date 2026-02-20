@@ -2,28 +2,39 @@
 
 ## 色彩体系
 
-本设计基于五色调色板，营造深沉、专业、具有权威感的管理后台视觉风格。
+本设计基于浅色调色板，营造明亮、专业、清爽的管理后台视觉风格。
 
 ### 核心色板
 
-| 语义名称 | 色值 | HSL | 角色 |
-|---------|------|-----|------|
-| Ink Black | `#04151f` | `hsla(202, 77%, 7%, 1)` | 主背景色 — 页面底层，营造深邃沉稳的基调 |
-| Dark Slate | `#183a37` | `hsla(175, 41%, 16%, 1)` | 容器/卡片背景 — 在 Ink Black 之上形成层次 |
-| Wheat | `#efd6ac` | `hsla(38, 68%, 81%, 1)` | 主文字色 / 前景色 — 温暖的浅色调，用于标题、正文、图标 |
-| Burnt Orange | `#c44900` | `hsla(22, 100%, 38%, 1)` | 强调色 / CTA — 按钮激活态、图标高亮、交互焦点 |
-| Midnight Violet | `#432534` | `hsla(330, 29%, 20%, 1)` | 辅助深色 — 渐变过渡、头部背景、次级容器 |
+| 语义名称 | Tailwind 写法 | 角色 |
+|---------|--------------|------|
+| Blue-50 | `blue-50` | 页面渐变背景起始色 — 营造柔和的浅蓝基调 |
+| White | `white` | 页面渐变背景中间色 / 卡片主背景 — 干净明亮的基底 |
+| Purple-50 | `purple-50` | 页面渐变背景结束色 — 与蓝色形成微妙的冷暖过渡 |
+| Blue-600 | `blue-600` (`#2563eb`) | 强调色 / CTA — 按钮激活态、图标高亮、交互焦点 |
+| Purple-600 | `purple-600` (`#9333ea`) | 渐变辅助色 — 头部横幅渐变终点 |
+| Gray 系列 | `gray-50` ~ `gray-900` | 文字与边框层级体系 |
 
-### 透明度规范
+### 文字色层级
 
 | 用途 | 写法 | 示例 |
 |------|------|------|
-| 主文字 | `text-wheat` | 标题、按钮文字 |
-| 次要文字 | `text-wheat/70` | 副标题、描述 |
-| 辅助文字 | `text-wheat/60` | 管理员信息、ID |
-| 占位/加载文字 | `text-wheat/40` | Suspense fallback |
-| 分隔符 | `text-wheat/30` | 信息间的 `•` |
-| 边框 | `border-wheat/10` | 卡片、输入框边框 |
+| 主文字 | `text-gray-900` | 标题、区块标签 |
+| 横幅文字 | `text-white` | 渐变头部上的标题 |
+| 横幅副文字 | `text-blue-100` | 渐变头部上的副标题 |
+| 次要文字 | `text-gray-600` | 非激活 Tab 文字 |
+| 辅助文字 | `text-gray-500` | 管理员信息、ID |
+| 占位/加载文字 | `text-gray-400` | Suspense fallback |
+| 分隔符 | `text-gray-300` | 信息间的 `•` |
+
+### 边框规范
+
+| 用途 | 写法 |
+|------|------|
+| 卡片边框 | `border-gray-200` |
+| 信息栏边框 | `border-gray-200` |
+| 非激活 Tab 边框 | `border-gray-200` |
+| Hover Tab 边框 | `border-blue-300` |
 
 ---
 
@@ -53,7 +64,7 @@ Tailwind class: `font-songti`
 
 ### 设计意图
 
-宋体（衬线体）仅用于标题级和标签级中文文字，与 Wheat 色搭配在深色背景上呈现出古典而克制的视觉质感。正文、数据、交互操作文字保持系统默认无衬线体，确保小字号下的清晰度和阅读效率。这种「标题衬线 + 正文无衬线」的混排策略在中文 UI 中能有效建立视觉层级。
+宋体（衬线体）仅用于标题级和标签级中文文字，与深色文字在浅色背景上呈现出清晰而克制的视觉质感。正文、数据、交互操作文字保持系统默认无衬线体，确保小字号下的清晰度和阅读效率。这种「标题衬线 + 正文无衬线」的混排策略在中文 UI 中能有效建立视觉层级。
 
 ### 字体回退链
 
@@ -70,16 +81,16 @@ Tailwind class: `font-songti`
 ## 层级结构
 
 ```
-┌─ 页面背景: bg-ink-black
+┌─ 页面背景: bg-gradient-to-br from-blue-50 via-white to-purple-50
 │
-├── 卡片容器: bg-dark-slate/80 + backdrop-blur-sm
-│   ├── 头部横幅: bg-gradient-to-r from-midnight-violet to-dark-slate
-│   └── 内容区域: bg-ink-black/40
+├── 卡片容器: bg-white/80 + backdrop-blur-sm + border-gray-200
+│   ├── 头部横幅: bg-gradient-to-r from-blue-600 to-purple-600 (白色文字)
+│   └── 内容区域: bg-gray-50
 │
-├── 功能区卡片: bg-dark-slate/80
-│   ├── 标签栏标题: bg-ink-black/40 + border-wheat/10
-│   ├── 激活标签: bg-burnt-orange + shadow-burnt-orange/20
-│   └── 非激活标签: bg-ink-black/60 + border-wheat/10
+├── 功能区卡片: bg-white/80 + border-gray-200
+│   ├── 标签栏标题: bg-gray-50 + border-gray-200
+│   ├── 激活标签: bg-blue-600 + text-white + shadow-blue-600/20
+│   └── 非激活标签: bg-gray-100 + text-gray-600 + border-gray-200
 ```
 
 ---
@@ -88,54 +99,54 @@ Tailwind class: `font-songti`
 
 ### 页面背景
 ```
-bg-ink-black
+bg-gradient-to-br from-blue-50 via-white to-purple-50
 ```
 
 ### 卡片容器
 ```
-bg-dark-slate/80 backdrop-blur-sm rounded-2xl shadow-xl border border-wheat/10
+bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200
 ```
 
 ### 头部横幅（渐变）
 ```
-bg-gradient-to-r from-midnight-violet to-dark-slate text-wheat
+bg-gradient-to-r from-blue-600 to-purple-600 text-white
 ```
 
 ### 信息栏
 ```
-bg-ink-black/40 (容器内嵌)
-bg-dark-slate/60 rounded-lg border border-wheat/10 (标签)
+bg-gray-50 (容器内嵌)
+bg-gray-100 rounded-lg border border-gray-200 (标签)
 ```
 
 ### Tab 按钮 — 激活态
 ```
-bg-burnt-orange text-wheat shadow-lg shadow-burnt-orange/20
+bg-blue-600 text-white shadow-lg shadow-blue-600/20
 ```
 
 ### Tab 按钮 — 默认态
 ```
-bg-ink-black/60 text-wheat/70 border border-wheat/10
+bg-gray-100 text-gray-600 border border-gray-200
 ```
 
 ### Tab 按钮 — Hover 态
 ```
-hover:bg-midnight-violet/40 hover:text-wheat hover:border-burnt-orange/30
+hover:bg-blue-50 hover:text-gray-900 hover:border-blue-300
 ```
 
 ### 主操作按钮（CTA）
 ```
-bg-burnt-orange text-wheat rounded-lg hover:bg-burnt-orange/80
+bg-blue-600 text-white rounded-lg hover:bg-blue-700
 ```
 
 ### 加载动画
 ```
-border-b-2 border-burnt-orange animate-spin
+border-b-2 border-blue-600 animate-spin
 ```
 
 ### 图标色
 ```
-主图标: text-burnt-orange
-信息图标: text-burnt-orange
+主图标: text-blue-600
+信息图标: text-blue-600
 ```
 
 ---
@@ -155,30 +166,25 @@ border-b-2 border-burnt-orange animate-spin
 
 ## Tailwind 配置
 
-在 `tailwind.config.js` 中注册自定义色值与字体：
+在 `tailwind.config.js` 中注册自定义字体（色彩使用 Tailwind 内置色板）：
 
 ```js
-colors: {
-  'ink-black': '#04151f',
-  'dark-slate': '#183a37',
-  'wheat': '#efd6ac',
-  'burnt-orange': '#c44900',
-  'midnight-violet': '#432534',
-},
 fontFamily: {
   'songti': ['"Noto Serif SC"', 'SimSun', 'STSong', 'FangSong', 'serif'],
 }
 ```
 
-使用方式：`bg-ink-black`, `text-wheat`, `border-burnt-orange/30`, `font-songti` 等，支持 Tailwind 原生透明度修饰符。
+色彩直接使用 Tailwind 内置的 `blue`、`purple`、`gray` 色板，无需自定义色值。
+
+使用方式：`bg-blue-600`, `text-gray-900`, `border-gray-200`, `font-songti` 等。
 
 ---
 
 ## 设计原则
 
-1. 深色优先 — Ink Black 作为基底，所有内容在暗色上浮现，减少视觉疲劳
-2. 温暖对比 — Wheat 文字在深色背景上提供舒适的阅读对比度
-3. 焦点引导 — Burnt Orange 仅用于需要用户注意的元素（激活态、CTA、图标）
-4. 层次分明 — 通过 Dark Slate → Ink Black 的透明度变化构建空间深度
-5. 克制渐变 — 仅在头部横幅使用 Midnight Violet → Dark Slate 渐变，避免过度装饰
+1. 浅色优先 — 蓝白紫渐变作为基底，营造明亮清爽的视觉体验
+2. 清晰对比 — 深色文字在浅色背景上提供高可读性对比度
+3. 焦点引导 — Blue-600 仅用于需要用户注意的元素（激活态、CTA、图标）
+4. 层次分明 — 通过 white → gray-50 → gray-100 的层级变化构建空间深度
+5. 克制渐变 — 仅在头部横幅使用 Blue-600 → Purple-600 渐变，避免过度装饰
 6. 衬线点睛 — 宋体仅用于标题和标签级中文文字，正文保持无衬线体，建立清晰的排版层级
