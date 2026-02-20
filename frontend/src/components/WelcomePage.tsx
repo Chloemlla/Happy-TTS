@@ -62,17 +62,17 @@ interface FeatureCardProps {
 const FeatureCard = memo(function FeatureCard({ title, desc, Icon, variants, transition, hover, tap }: FeatureCardProps) {
   return (
     <m.div
-      className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200 p-6 hover:shadow-2xl transition-all duration-300"
+      className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-[#8ECAE6]/30 p-6 hover:shadow-2xl transition-all duration-300"
       variants={variants}
       transition={transition}
       whileHover={hover}
       whileTap={tap}
     >
       <div className="flex items-center gap-3 mb-4">
-        <Icon className="text-2xl text-blue-600" />
-        <h3 className="text-lg font-songti font-semibold text-gray-900">{title}</h3>
+        <Icon className="text-2xl text-[#FFB703]" />
+        <h3 className="text-lg font-songti font-semibold text-[#023047]">{title}</h3>
       </div>
-      <p className="text-gray-600">{desc}</p>
+      <p className="text-[#023047]/70">{desc}</p>
     </m.div>
   );
 });
@@ -128,11 +128,11 @@ function WelcomePageComponent(): React.ReactElement<any> {
 
   return (
     <LazyMotion features={domAnimation}>
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8 rounded-3xl">
+      <div className="min-h-screen bg-gradient-to-br from-[#8ECAE6]/20 via-white to-[#219EBC]/10 py-8 rounded-3xl">
         <div className="max-w-7xl mx-auto px-4 space-y-8">
           {/* 主卡片容器 */}
           <m.div
-            className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200 overflow-hidden"
+            className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-[#8ECAE6]/30 overflow-hidden"
             initial="hidden"
             whileInView="visible"
             viewport={VIEWPORT_30}
@@ -140,7 +140,7 @@ function WelcomePageComponent(): React.ReactElement<any> {
             transition={effectiveHeaderTransition}
           >
             {/* 头部横幅 — 渐变 */}
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
+            <div className="bg-[#023047] text-white p-6">
               <div className="text-center">
                 <m.div
                   className="flex items-center justify-center gap-3 mb-4"
@@ -153,7 +153,7 @@ function WelcomePageComponent(): React.ReactElement<any> {
                   <h1 className="text-4xl font-bold font-songti">欢迎使用 Happy TTS</h1>
                 </m.div>
                 <m.p
-                  className="text-blue-100 text-lg"
+                  className="text-[#8ECAE6] text-lg"
                   variants={textFadeVariants}
                   initial="hidden"
                   whileInView="visible"
@@ -166,7 +166,7 @@ function WelcomePageComponent(): React.ReactElement<any> {
             </div>
 
             {/* 行动号召区域 */}
-            <div className="p-8 bg-gray-50">
+            <div className="p-8 bg-[#8ECAE6]/10">
               <m.div
                 className="max-w-2xl mx-auto text-center space-y-6"
                 variants={effectiveItemVariants}
@@ -175,7 +175,7 @@ function WelcomePageComponent(): React.ReactElement<any> {
                 viewport={VIEWPORT_30}
                 transition={effectiveAuthTransition}
               >
-                <p className="text-lg text-gray-600 mb-6">
+                <p className="text-lg text-[#023047]/70 mb-6">
                   立即开始使用 Happy TTS，体验先进的语音合成技术
                 </p>
 
@@ -183,7 +183,7 @@ function WelcomePageComponent(): React.ReactElement<any> {
                   <m.div whileHover={effectiveItemHover} whileTap={effectiveButtonTap}>
                     <Link
                       to="/login"
-                      className="group flex items-center gap-2 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-lg shadow-blue-600/20 transition-all duration-300"
+                      className="group flex items-center gap-2 px-8 py-3 bg-[#FFB703] hover:bg-[#FB8500] text-[#023047] font-semibold rounded-lg shadow-lg shadow-[#FFB703]/20 transition-all duration-300"
                       aria-label="登录到您的账户"
                     >
                       <FaSignInAlt className="text-xl" />
@@ -194,7 +194,7 @@ function WelcomePageComponent(): React.ReactElement<any> {
                   <m.div whileHover={effectiveItemHover} whileTap={effectiveButtonTap}>
                     <Link
                       to="/register"
-                      className="group flex items-center gap-2 px-8 py-3 bg-gray-100 hover:bg-blue-50 text-gray-600 hover:text-gray-900 font-semibold rounded-lg border border-gray-200 hover:border-blue-300 transition-all duration-300"
+                      className="group flex items-center gap-2 px-8 py-3 bg-[#8ECAE6]/10 hover:bg-[#8ECAE6]/20 text-[#023047]/70 hover:text-[#023047] font-semibold rounded-lg border border-[#8ECAE6]/30 hover:border-[#219EBC] transition-all duration-300"
                       aria-label="创建新账户"
                     >
                       <FaUserPlus className="text-xl" />
@@ -203,7 +203,7 @@ function WelcomePageComponent(): React.ReactElement<any> {
                   </m.div>
                 </div>
 
-                <p className="text-sm text-gray-400 mt-4">
+                <p className="text-sm text-[#023047]/30 mt-4">
                   还没有账号？注册只需一分钟
                 </p>
               </m.div>

@@ -178,19 +178,19 @@ export const LoginPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12 px-6 animate-gradient py-8 rounded-3xl">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#8ECAE6]/20 via-white to-[#219EBC]/10 py-12 px-6 animate-gradient py-8 rounded-3xl">
             <div className="w-full max-w-md animate-scaleIn">
                 {/* Header */}
                 <div className="mb-8 text-center animate-slideInUp">
                     <div className="mb-4 inline-flex items-center gap-3">
-                        <FaVolumeUp className="h-10 w-10 text-blue-600" />
-                        <h1 className="text-3xl font-bold text-blue-600">Happy TTS</h1>
+                        <FaVolumeUp className="h-10 w-10 text-[#219EBC]" />
+                        <h1 className="text-3xl font-bold text-[#023047]">Happy TTS</h1>
                     </div>
-                    <p className="text-gray-600">Welcome back!</p>
+                    <p className="text-[#023047]/70">Welcome back!</p>
                 </div>
 
                 {/* Form Card */}
-                <div className="bg-white rounded-2xl shadow-xl border border-gray-100 px-8 py-8 hover:shadow-2xl transition-all duration-300">
+                <div className="bg-white rounded-2xl shadow-xl border border-[#8ECAE6]/30 px-8 py-8 hover:shadow-2xl transition-all duration-300">
                     <form className="space-y-6" onSubmit={handleSubmit}>
                         {error && (
                             <div
@@ -218,7 +218,7 @@ export const LoginPage: React.FC = () => {
                                     aria-label="用户名或邮箱"
                                     aria-required="true"
                                     aria-invalid={!!error}
-                                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                                    className="block w-full pl-10 pr-3 py-3 border border-[#8ECAE6]/30 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#219EBC] focus:border-[#219EBC] transition-all"
                                     placeholder="请输入邮箱或用户名"
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
@@ -234,7 +234,7 @@ export const LoginPage: React.FC = () => {
                                 </label>
                                 <Link
                                     to="/forgot-password"
-                                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                                    className="text-sm text-[#FFB703] hover:text-[#FB8500] font-medium"
                                     aria-label="忘记密码"
                                 >
                                     忘记密码？
@@ -251,7 +251,7 @@ export const LoginPage: React.FC = () => {
                                     aria-label="密码"
                                     aria-required="true"
                                     aria-invalid={!!error}
-                                    className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                                    className="block w-full pl-10 pr-10 py-3 border border-[#8ECAE6]/30 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#219EBC] focus:border-[#219EBC] transition-all"
                                     placeholder="••••••••"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
@@ -277,7 +277,7 @@ export const LoginPage: React.FC = () => {
                                     checked={rememberMe}
                                     onChange={(e) => setRememberMe(e.target.checked)}
                                     aria-label="Remember my username"
-                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                    className="h-4 w-4 text-[#FFB703] focus:ring-[#219EBC] border-[#8ECAE6]/30 rounded"
                                 />
                                 <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
                                     记住我
@@ -314,7 +314,7 @@ export const LoginPage: React.FC = () => {
                             disabled={loading || (!!turnstileConfig.siteKey && !turnstileVerified)}
                             aria-label={loading ? '正在登录' : '登录'}
                             aria-busy={loading}
-                            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg text-sm font-semibold text-[#023047] bg-[#FFB703] hover:bg-[#FB8500] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FFB703] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
                         >
                             {loading ? '登录中...' : '登录'}
                         </button>
@@ -333,14 +333,14 @@ export const LoginPage: React.FC = () => {
                     {/* Passkey Login Section */}
                     <div className="space-y-4">
                         {/* Passkey Introduction */}
-                        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 border border-blue-100">
+                        <div className="bg-[#8ECAE6]/10 rounded-lg p-4 border border-[#8ECAE6]/30">
                             <div className="flex items-start gap-3">
-                                <FaFingerprint className="h-6 w-6 text-blue-600 flex-shrink-0 mt-0.5" />
+                                <FaFingerprint className="h-6 w-6 text-[#219EBC] flex-shrink-0 mt-0.5" />
                                 <div className="flex-1">
-                                    <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                                    <h3 className="text-sm font-semibold text-[#023047] mb-1">
                                         通行密钥 - 无密码认证
                                     </h3>
-                                    <p className="text-xs text-gray-600 mb-3">
+                                    <p className="text-xs text-[#023047]/70 mb-3">
                                         使用生物识别或设备认证，更安全便捷的登录方式
                                     </p>
                                     
@@ -348,18 +348,18 @@ export const LoginPage: React.FC = () => {
                                     <div className="grid grid-cols-3 gap-2 mb-3">
                                         <div className="flex flex-col items-center text-center p-2 bg-white rounded-md">
                                             <FaShieldAlt className="h-4 w-4 text-green-600 mb-1" />
-                                            <span className="text-xs font-medium text-gray-700">安全</span>
-                                            <span className="text-[10px] text-gray-500">防钓鱼</span>
+                                            <span className="text-xs font-medium text-[#023047]">安全</span>
+                                            <span className="text-[10px] text-[#023047]/50">防钓鱼</span>
                                         </div>
                                         <div className="flex flex-col items-center text-center p-2 bg-white rounded-md">
-                                            <FaBolt className="h-4 w-4 text-yellow-600 mb-1" />
-                                            <span className="text-xs font-medium text-gray-700">快速</span>
-                                            <span className="text-[10px] text-gray-500">一键登录</span>
+                                            <FaBolt className="h-4 w-4 text-[#FFB703] mb-1" />
+                                            <span className="text-xs font-medium text-[#023047]">快速</span>
+                                            <span className="text-[10px] text-[#023047]/50">一键登录</span>
                                         </div>
                                         <div className="flex flex-col items-center text-center p-2 bg-white rounded-md">
-                                            <FaMobileAlt className="h-4 w-4 text-purple-600 mb-1" />
-                                            <span className="text-xs font-medium text-gray-700">简单</span>
-                                            <span className="text-[10px] text-gray-500">无需密码</span>
+                                            <FaMobileAlt className="h-4 w-4 text-[#219EBC] mb-1" />
+                                            <span className="text-xs font-medium text-[#023047]">简单</span>
+                                            <span className="text-[10px] text-[#023047]/50">无需密码</span>
                                         </div>
                                     </div>
 
@@ -367,7 +367,7 @@ export const LoginPage: React.FC = () => {
                                     <button
                                         type="button"
                                         onClick={() => setShowPasskeyHelp(!showPasskeyHelp)}
-                                        className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                                        className="flex items-center gap-2 text-xs text-[#219EBC] hover:text-[#023047] font-medium transition-colors"
                                     >
                                         <FaQuestionCircle className="h-3.5 w-3.5" />
                                         <span>{showPasskeyHelp ? '隐藏' : '显示'}详细指南</span>
@@ -378,29 +378,29 @@ export const LoginPage: React.FC = () => {
 
                             {/* Collapsible Help Content */}
                             {showPasskeyHelp && (
-                                <div className="mt-4 pt-4 border-t border-blue-200 animate-slideInUp">
+                                <div className="mt-4 pt-4 border-t border-[#8ECAE6]/30 animate-slideInUp">
                                     <div className="space-y-3">
                                         {/* How to Use */}
                                         <div>
-                                            <h4 className="text-xs font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                                                <span className="flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white text-[10px]">1</span>
+                                            <h4 className="text-xs font-semibold text-[#023047] mb-2 flex items-center gap-2">
+                                                <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#219EBC] text-white text-[10px]">1</span>
 如何使用通行密钥
                                             </h4>
-                                            <ul className="space-y-1.5 text-xs text-gray-600 ml-7">
+                                            <ul className="space-y-1.5 text-xs text-[#023047]/70 ml-7">
                                                 <li className="flex items-start gap-2">
-                                                    <span className="text-blue-600 mt-0.5">•</span>
+                                                    <span className="text-[#219EBC] mt-0.5">•</span>
                                                     <span>点击下方“使用通行密钥登录”按钮</span>
                                                 </li>
                                                 <li className="flex items-start gap-2">
-                                                    <span className="text-blue-600 mt-0.5">•</span>
+                                                    <span className="text-[#219EBC] mt-0.5">•</span>
                                                     <span>浏览器将提示您进行认证</span>
                                                 </li>
                                                 <li className="flex items-start gap-2">
-                                                    <span className="text-blue-600 mt-0.5">•</span>
+                                                    <span className="text-[#219EBC] mt-0.5">•</span>
                                                     <span>使用指纹、面部识别或设备PIN码</span>
                                                 </li>
                                                 <li className="flex items-start gap-2">
-                                                    <span className="text-blue-600 mt-0.5">•</span>
+                                                    <span className="text-[#219EBC] mt-0.5">•</span>
                                                     <span>验证后将自动登录</span>
                                                 </li>
                                             </ul>
@@ -408,21 +408,21 @@ export const LoginPage: React.FC = () => {
 
                                         {/* Requirements */}
                                         <div>
-                                            <h4 className="text-xs font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                                                <span className="flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white text-[10px]">2</span>
+                                            <h4 className="text-xs font-semibold text-[#023047] mb-2 flex items-center gap-2">
+                                                <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#219EBC] text-white text-[10px]">2</span>
 前置要求
                                             </h4>
-                                            <ul className="space-y-1.5 text-xs text-gray-600 ml-7">
+                                            <ul className="space-y-1.5 text-xs text-[#023047]/70 ml-7">
                                                 <li className="flex items-start gap-2">
-                                                    <span className="text-blue-600 mt-0.5">•</span>
+                                                    <span className="text-[#219EBC] mt-0.5">•</span>
                                                     <span>您必须已为账户注册了通行密钥</span>
                                                 </li>
                                                 <li className="flex items-start gap-2">
-                                                    <span className="text-blue-600 mt-0.5">•</span>
+                                                    <span className="text-[#219EBC] mt-0.5">•</span>
                                                     <span>您的设备必须支持生物认证或安全密钥</span>
                                                 </li>
                                                 <li className="flex items-start gap-2">
-                                                    <span className="text-blue-600 mt-0.5">•</span>
+                                                    <span className="text-[#219EBC] mt-0.5">•</span>
                                                     <span>使用现代浏览器（Chrome、Edge、Safari、Firefox）</span>
                                                 </li>
                                             </ul>
@@ -430,21 +430,21 @@ export const LoginPage: React.FC = () => {
 
                                         {/* Troubleshooting */}
                                         <div>
-                                            <h4 className="text-xs font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                                                <span className="flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white text-[10px]">3</span>
+                                            <h4 className="text-xs font-semibold text-[#023047] mb-2 flex items-center gap-2">
+                                                <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#219EBC] text-white text-[10px]">3</span>
 问题排查
                                             </h4>
-                                            <ul className="space-y-1.5 text-xs text-gray-600 ml-7">
+                                            <ul className="space-y-1.5 text-xs text-[#023047]/70 ml-7">
                                                 <li className="flex items-start gap-2">
-                                                    <span className="text-blue-600 mt-0.5">•</span>
+                                                    <span className="text-[#219EBC] mt-0.5">•</span>
                                                     <span><strong>没有通行密钥提示？</strong> 您的浏览器可能不支持或您尚未注册</span>
                                                 </li>
                                                 <li className="flex items-start gap-2">
-                                                    <span className="text-blue-600 mt-0.5">•</span>
+                                                    <span className="text-[#219EBC] mt-0.5">•</span>
                                                     <span><strong>认证失败？</strong> 尝试使用传统的用户名/密码登录</span>
                                                 </li>
                                                 <li className="flex items-start gap-2">
-                                                    <span className="text-blue-600 mt-0.5">•</span>
+                                                    <span className="text-[#219EBC] mt-0.5">•</span>
                                                     <span><strong>首次使用？</strong> 请先注册账户，然后在设置中添加通行密钥</span>
                                                 </li>
                                             </ul>
@@ -489,32 +489,32 @@ export const LoginPage: React.FC = () => {
                                 }
                             }}
                             disabled={loading}
-                            className="w-full flex items-center justify-center gap-3 py-3.5 px-4 border-2 border-blue-300 rounded-lg text-sm font-semibold text-blue-700 bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md"
+                            className="w-full flex items-center justify-center gap-3 py-3.5 px-4 border-2 border-[#8ECAE6]/30 rounded-lg text-sm font-semibold text-[#023047] bg-[#8ECAE6]/10 hover:bg-[#8ECAE6]/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#219EBC] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md"
                             aria-label="Sign in with Passkey - Passwordless authentication using biometrics, no username required"
                         >
                             <FaFingerprint className="h-6 w-6" />
                             <span className="flex flex-col items-start">
                                 <span className="text-base">使用通行密钥登录</span>
-                                <span className="text-xs font-normal text-blue-600">快速、安全、无密码</span>
+                                <span className="text-xs font-normal text-[#219EBC]">快速、安全、无密码</span>
                             </span>
                         </button>
 
                         {/* Additional Tips */}
-                        <p className="text-xs text-center text-gray-500 px-4">
+                        <p className="text-xs text-center text-[#023047]/50 px-4">
                             💡 提示：设置后，通行密钥登录比密码更快更安全
                         </p>
                     </div>
 
                     <div className="mt-6 text-center">
-                        <p className="text-sm text-gray-600">
-                            还没有账户？<Link to="/register" className="font-medium text-blue-600 hover:text-blue-700">立即注册</Link>
+                        <p className="text-sm text-[#023047]/70">
+                            还没有账户？<Link to="/register" className="font-medium text-[#FFB703] hover:text-[#FB8500]">立即注册</Link>
                         </p>
                     </div>
                 </div>
 
                 {/* Back to Home */}
                 <div className="mt-6 text-center">
-                    <Link to="/" className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors" aria-label="返回首页">
+                    <Link to="/" className="inline-flex items-center gap-2 text-sm text-[#023047]/70 hover:text-[#023047] transition-colors" aria-label="返回首页">
                         <FaArrowLeft className="h-4 w-4" />
                         返回首页
                     </Link>

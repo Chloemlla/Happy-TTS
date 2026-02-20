@@ -300,19 +300,19 @@ export const RegisterPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12 px-6 animate-gradient py-8 rounded-3xl">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#8ECAE6]/20 via-white to-[#219EBC]/10 py-12 px-6 animate-gradient py-8 rounded-3xl">
             <div className="w-full max-w-md animate-scaleIn">
                 {/* Header */}
                 <div className="mb-8 text-center animate-slideInUp">
                     <div className="mb-4 inline-flex items-center gap-3">
-                        <FaVolumeUp className="h-10 w-10 text-blue-600" />
-                        <h1 className="text-3xl font-bold text-blue-600">Happy TTS</h1>
+                        <FaVolumeUp className="h-10 w-10 text-[#219EBC]" />
+                        <h1 className="text-3xl font-bold text-[#023047]">Happy TTS</h1>
                     </div>
-                    <p className="text-gray-600">Create your account!</p>
+                    <p className="text-[#023047]/70">Create your account!</p>
                 </div>
 
                 {/* Form Card */}
-                <div className="bg-white rounded-2xl shadow-xl border border-gray-100 px-8 py-8 hover:shadow-2xl transition-all duration-300">
+                <div className="bg-white rounded-2xl shadow-xl border border-[#8ECAE6]/30 px-8 py-8 hover:shadow-2xl transition-all duration-300">
                     <form className="space-y-4" onSubmit={handleSubmit} aria-label="注册表单">
                         {error && (
                             <div
@@ -341,7 +341,7 @@ export const RegisterPage: React.FC = () => {
                                     aria-required="true"
                                     aria-invalid={!!error}
                                     aria-describedby="username-hint"
-                                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                                    className="block w-full pl-10 pr-3 py-3 border border-[#8ECAE6]/30 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#219EBC] focus:border-[#219EBC] transition-all"
                                     placeholder="3-20个字符"
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
@@ -369,7 +369,7 @@ export const RegisterPage: React.FC = () => {
                                     aria-label="邮箱地址"
                                     aria-required="true"
                                     aria-invalid={!!error}
-                                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                                    className="block w-full pl-10 pr-3 py-3 border border-[#8ECAE6]/30 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#219EBC] focus:border-[#219EBC] transition-all"
                                     placeholder="请输入邮箱地址"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
@@ -394,7 +394,7 @@ export const RegisterPage: React.FC = () => {
                                     aria-required="true"
                                     aria-invalid={!!error}
                                     aria-describedby="password-strength"
-                                    className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                                    className="block w-full pl-10 pr-10 py-3 border border-[#8ECAE6]/30 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#219EBC] focus:border-[#219EBC] transition-all"
                                     placeholder="••••••••"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
@@ -415,7 +415,7 @@ export const RegisterPage: React.FC = () => {
                                     <div className="mb-1">
                                         密码强度：
                                         <span className={`font-semibold ml-1 ${passwordStrength.score >= 4 ? 'text-green-600' :
-                                                passwordStrength.score >= 3 ? 'text-blue-600' :
+                                                passwordStrength.score >= 3 ? 'text-[#219EBC]' :
                                                     passwordStrength.score >= 2 ? 'text-yellow-600' :
                                                         'text-red-600'
                                             }`}>
@@ -448,7 +448,7 @@ export const RegisterPage: React.FC = () => {
                                     aria-label="确认密码"
                                     aria-required="true"
                                     aria-invalid={password !== confirmPassword}
-                                    className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                                    className="block w-full pl-10 pr-10 py-3 border border-[#8ECAE6]/30 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#219EBC] focus:border-[#219EBC] transition-all"
                                     placeholder="••••••••"
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
@@ -494,12 +494,12 @@ export const RegisterPage: React.FC = () => {
                                 onChange={e => setAgreed(e.target.checked)}
                                 aria-label="我已阅读并同意服务条款与隐私政策"
                                 aria-required="true"
-                                className="h-4 w-4 mt-0.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                className="h-4 w-4 mt-0.5 text-[#FFB703] focus:ring-[#219EBC] border-[#8ECAE6]/30 rounded"
                                 required
                             />
                             <label htmlFor="agree" className="ml-2 block text-xs text-gray-600">
                                 我已阅读并同意
-                                <Link to="/policy" className="text-blue-600 hover:underline ml-1" target="_blank">
+                                <Link to="/policy" className="text-[#FFB703] hover:underline ml-1" target="_blank">
                                     服务条款与隐私政策
                                 </Link>
                             </label>
@@ -510,22 +510,22 @@ export const RegisterPage: React.FC = () => {
                             disabled={loading || password !== confirmPassword || (!!turnstileConfig.siteKey && !turnstileVerified)}
                             aria-label={loading ? '正在注册' : '创建账号'}
                             aria-busy={loading}
-                            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg text-sm font-semibold text-[#023047] bg-[#FFB703] hover:bg-[#FB8500] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FFB703] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
                         >
                             {loading ? '注册中...' : '创建账户'}
                         </button>
                     </form>
 
                     <div className="mt-6 text-center">
-                        <p className="text-sm text-gray-600">
-                            已有账户？<Link to="/login" className="font-medium text-blue-600 hover:text-blue-700">立即登录</Link>
+                        <p className="text-sm text-[#023047]/70">
+                            已有账户？<Link to="/login" className="font-medium text-[#FFB703] hover:text-[#FB8500]">立即登录</Link>
                         </p>
                     </div>
                 </div>
 
                 {/* Back to Home */}
                 <div className="mt-6 text-center">
-                    <Link to="/" className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors" aria-label="返回首页">
+                    <Link to="/" className="inline-flex items-center gap-2 text-sm text-[#023047]/70 hover:text-[#023047] transition-colors" aria-label="返回首页">
                         <FaArrowLeft className="h-4 w-4" />
                         返回首页
                     </Link>
@@ -553,29 +553,29 @@ export const RegisterPage: React.FC = () => {
                             exit={{ scale: 0.9, opacity: 0, y: 50 }}
                             transition={{ duration: 0.3, type: "spring", damping: 25, stiffness: 300 }}
                         >
-                            <div className="h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
+                            <div className="h-1 bg-[#FFB703]"></div>
 
                             <div className="p-4 sm:p-6 md:p-8">
                                 <div className="text-center mb-6">
-                                    <div className="w-20 h-20 bg-gradient-to-br from-green-100 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                                    <div className="w-20 h-20 bg-gradient-to-br from-green-100 to-[#8ECAE6]/30 rounded-full flex items-center justify-center mx-auto mb-6">
                                         <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
                                     </div>
-                                    <h3 id="verify-email-title" className="text-2xl font-bold text-gray-900 mb-4">验证邮件已发送</h3>
-                                    <p id="verify-email-description" className="text-gray-600 leading-relaxed">
+                                    <h3 id="verify-email-title" className="text-2xl font-bold text-[#023047] mb-4">验证邮件已发送</h3>
+                                    <p id="verify-email-description" className="text-[#023047]/70 leading-relaxed">
                                         我们已向 <br />
-                                        <span className="font-semibold text-blue-600">{pendingEmail}</span> <br />
+                                        <span className="font-semibold text-[#219EBC]">{pendingEmail}</span> <br />
                                         发送了验证链接
                                     </p>
                                 </div>
 
-                                <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded-r-lg">
+                                <div className="bg-[#8ECAE6]/15 border-l-4 border-[#219EBC] p-4 mb-6 rounded-r-lg">
                                     <div className="flex items-start">
-                                        <svg className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                        <svg className="w-5 h-5 text-[#219EBC] mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                             <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                                         </svg>
-                                        <div className="text-sm text-blue-800">
+                                        <div className="text-sm text-[#023047]">
                                             <p className="font-semibold mb-2">下一步操作：</p>
                                             <ul className="list-disc list-inside space-y-1">
                                                 <li>打开您的邮箱</li>
@@ -602,7 +602,7 @@ export const RegisterPage: React.FC = () => {
                                 <div className="space-y-3">
                                     <button
                                         type="button"
-                                        className="w-full py-4 px-6 rounded-2xl font-semibold text-lg transition-all duration-200 bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                                        className="w-full py-4 px-6 rounded-2xl font-semibold text-lg transition-all duration-200 bg-[#FFB703] text-[#023047] hover:bg-[#FB8500] shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                                         onClick={() => {
                                             setShowEmailVerify(false);
                                             navigate('/login');
@@ -618,7 +618,7 @@ export const RegisterPage: React.FC = () => {
                                     </p>
                                     <button
                                         type="button"
-                                        className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                                        className="text-sm text-[#219EBC] hover:text-[#023047] font-medium transition-colors"
                                         onClick={() => setShowEmailVerify(false)}
                                         aria-label="返回修改邮箱地址"
                                     >
