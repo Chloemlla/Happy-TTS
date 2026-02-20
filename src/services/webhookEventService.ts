@@ -8,6 +8,9 @@ interface WebhookEventDoc {
   routeKey?: string;
   eventId?: string;
   type: string;
+  title?: string;
+  content?: string;
+  renderedContent?: string;
   created_at?: Date;
   to?: any;
   subject?: string;
@@ -24,6 +27,9 @@ const WebhookEventSchema = new Schema<WebhookEventDoc>(
     routeKey: { type: String },
     eventId: { type: String },
     type: { type: String, required: true },
+    title: { type: String },
+    content: { type: String },
+    renderedContent: { type: String },
     created_at: { type: Date },
     to: { type: Schema.Types.Mixed },
     subject: { type: String },
@@ -136,6 +142,9 @@ export const WebhookEventService = {
       provider: true,
       eventId: true,
       type: true,
+      title: true,
+      content: true,
+      renderedContent: true,
       created_at: true,
       to: true,
       subject: true,
