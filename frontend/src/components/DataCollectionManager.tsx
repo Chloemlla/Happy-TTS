@@ -41,7 +41,7 @@ const DataRow = React.memo(({ item, checked, onToggle, onView, onDelete, openDet
         enabled && !prefersReducedMotion ? { scale } : undefined
     ), [prefersReducedMotion]);
     return (
-        <tr className="border-t border-gray-100 hover:bg-gray-50">
+        <tr className="border-t border-[#8ECAE6]/20 hover:bg-[#8ECAE6]/10">
             <td className="p-3"><input type="checkbox" checked={checked} onChange={() => onToggle(item._id)} /></td>
             <td className="p-3 whitespace-nowrap">{new Date(item.timestamp).toLocaleString('zh-CN')}</td>
             <td className="p-3 break-words whitespace-normal" title={item.userId}>{item.userId}</td>
@@ -49,7 +49,7 @@ const DataRow = React.memo(({ item, checked, onToggle, onView, onDelete, openDet
                 <div className="flex items-center gap-2">
                     <span className="break-all font-mono flex-1" title={item._id}>{item._id}</span>
                     <motion.button
-                        className="inline-flex items-center justify-center w-5 h-5 rounded bg-gray-100 hover:bg-gray-200 text-gray-700 touch-manipulation"
+                        className="inline-flex items-center justify-center w-5 h-5 rounded bg-[#8ECAE6]/10 hover:bg-[#8ECAE6]/20 text-[#023047] border border-[#8ECAE6]/30 touch-manipulation"
                         title="复制ID"
                         onClick={async (e) => {
                             e.stopPropagation();
@@ -70,7 +70,7 @@ const DataRow = React.memo(({ item, checked, onToggle, onView, onDelete, openDet
             <td className="p-3 break-words whitespace-normal" title={item.action}>{item.action}</td>
             <td className="p-3">
                 <div className="flex flex-wrap gap-2">
-                    <motion.button className="px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-medium flex items-center gap-2" onClick={() => openDetail(item)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                    <motion.button className="px-2 py-1 rounded-lg bg-[#8ECAE6]/15 hover:bg-[#8ECAE6]/25 text-[#219EBC] border border-[#8ECAE6]/30 text-xs font-medium flex items-center gap-2" onClick={() => openDetail(item)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                         <FaEye className="w-3.5 h-3.5" /> 查看
                     </motion.button>
                     <motion.button className="px-2 py-1 rounded-lg bg-red-500 text-white hover:bg-red-600 text-xs font-medium" onClick={() => onDelete(item._id)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
@@ -100,16 +100,16 @@ const DataCard = React.memo(({ item, checked, onToggle, onView, onDelete, openDe
                 <input type="checkbox" className="mt-1 flex-shrink-0" checked={checked} onChange={() => onToggle(item._id)} />
                 <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-indigo-100 text-indigo-700" title={item.action}>动作</span>
-                        <span className="inline-block px-2 py-0.5 rounded text-[10px] font-mono bg-gray-100 text-gray-700 break-words whitespace-normal max-w-full" title={item.action}>{item.action}</span>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#FFB703]/20 text-[#023047]" title={item.action}>动作</span>
+                        <span className="inline-block px-2 py-0.5 rounded text-[10px] font-mono bg-[#8ECAE6]/10 text-[#023047] break-words whitespace-normal max-w-full" title={item.action}>{item.action}</span>
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">{new Date(item.timestamp).toLocaleString('zh-CN')}</div>
-                    <div className="text-xs text-gray-600 mt-1 break-words whitespace-normal" title={item.userId}>用户：{item.userId || '-'}</div>
-                    <div className="text-[10px] text-gray-600 mt-1 font-mono flex items-center gap-1" title={item._id}>
-                        <span className="text-gray-500 flex-shrink-0">ID：</span>
+                    <div className="text-xs text-[#023047]/50 mt-1">{new Date(item.timestamp).toLocaleString('zh-CN')}</div>
+                    <div className="text-xs text-[#023047]/70 mt-1 break-words whitespace-normal" title={item.userId}>用户：{item.userId || '-'}</div>
+                    <div className="text-[10px] text-[#023047]/70 mt-1 font-mono flex items-center gap-1" title={item._id}>
+                        <span className="text-[#023047]/50 flex-shrink-0">ID：</span>
                         <span className="break-all flex-1">{item._id}</span>
                         <motion.button
-                            className="inline-flex items-center justify-center w-5 h-5 rounded bg-gray-100 hover:bg-gray-200 text-gray-700 flex-shrink-0 touch-manipulation"
+                            className="inline-flex items-center justify-center w-5 h-5 rounded bg-[#8ECAE6]/10 hover:bg-[#8ECAE6]/20 text-[#023047] border border-[#8ECAE6]/30 flex-shrink-0 touch-manipulation"
                             onClick={async (e) => {
                                 e.stopPropagation();
                                 try {
@@ -129,7 +129,7 @@ const DataCard = React.memo(({ item, checked, onToggle, onView, onDelete, openDe
                 </div>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2">
-                <motion.button className="w-full px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-medium flex items-center justify-center gap-1" onClick={() => openDetail(item)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                <motion.button className="w-full px-3 py-2 rounded-lg bg-[#8ECAE6]/15 hover:bg-[#8ECAE6]/25 text-[#219EBC] border border-[#8ECAE6]/30 text-xs font-medium flex items-center justify-center gap-1" onClick={() => openDetail(item)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                     <FaEye className="w-3.5 h-3.5" /> 查看
                 </motion.button>
                 <motion.button className="w-full px-3 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 text-xs font-medium" onClick={() => onDelete(item._id)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
@@ -597,22 +597,22 @@ const DataCollectionManager: React.FC = () => {
             <motion.div
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl shadow-xl border border-white/20 p-4 sm:p-6"
+                className="bg-[#023047] text-white rounded-2xl shadow-xl border border-[#8ECAE6]/30 p-4 sm:p-6"
             >
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shadow">
+                        <div className="w-10 h-10 rounded-xl bg-[#FFB703]/20 flex items-center justify-center shadow">
                             <FaChartBar className="w-5 h-5" />
                         </div>
                         <div>
                             <div className="text-xl sm:text-2xl font-semibold">数据收集管理</div>
-                            <div className="text-white/80 text-sm">统一的管理与统计视图</div>
+                            <div className="text-[#8ECAE6] text-sm">统一的管理与统计视图</div>
                         </div>
                     </div>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                         <motion.button
                             onClick={() => { setPage(1); fetchList(); }}
-                            className="w-full sm:w-auto px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium flex items-center gap-2"
+                            className="w-full sm:w-auto px-3 py-2 bg-white/10 text-white placeholder-[#8ECAE6]/60 hover:bg-white/20 rounded-lg text-sm font-medium flex items-center gap-2"
                             whileHover={hoverScale(1.02)}
                             whileTap={tapScale(0.98)}
                         >
@@ -620,7 +620,7 @@ const DataCollectionManager: React.FC = () => {
                         </motion.button>
                         <motion.button
                             onClick={fetchStats}
-                            className="w-full sm:w-auto px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium flex items-center gap-2"
+                            className="w-full sm:w-auto px-3 py-2 bg-white/10 text-white placeholder-[#8ECAE6]/60 hover:bg-white/20 rounded-lg text-sm font-medium flex items-center gap-2"
                             whileHover={hoverScale(1.02)}
                             whileTap={tapScale(0.98)}
                         >
@@ -628,19 +628,19 @@ const DataCollectionManager: React.FC = () => {
                         </motion.button>
                         <motion.button
                             onClick={openCreate}
-                            className="w-full sm:w-auto px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium flex items-center gap-2"
+                            className="w-full sm:w-auto px-3 py-2 bg-[#FFB703] text-[#023047] hover:bg-[#FB8500] rounded-lg text-sm font-medium flex items-center gap-2"
                             whileHover={hoverScale(1.02)}
                             whileTap={tapScale(0.98)}
                         >
                             <FaPlus className="w-4 h-4" /> 新增记录
                         </motion.button>
-                        <motion.button onClick={openBatchView} disabled={batchLoading || selected.size === 0} className="w-full sm:w-auto px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02, !(batchLoading || selected.size === 0))} whileTap={tapScale(0.98, !(batchLoading || selected.size === 0))}>
-                          <FaEye className="w-4 h-4" /> 查看合并
+                        <motion.button onClick={openBatchView} disabled={batchLoading || selected.size === 0} className="w-full sm:w-auto px-3 py-2 bg-white/10 text-white placeholder-[#8ECAE6]/60 hover:bg-white/20 rounded-lg text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02, !(batchLoading || selected.size === 0))} whileTap={tapScale(0.98, !(batchLoading || selected.size === 0))}>
+                            <FaEye className="w-4 h-4" /> 查看合并
                         </motion.button>
-                        <motion.button onClick={copySelectedIds} disabled={selected.size === 0} className="w-full sm:w-auto px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02, selected.size > 0)} whileTap={tapScale(0.98, selected.size > 0)}>
+                        <motion.button onClick={copySelectedIds} disabled={selected.size === 0} className="w-full sm:w-auto px-3 py-2 bg-white/10 text-white placeholder-[#8ECAE6]/60 hover:bg-white/20 rounded-lg text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02, selected.size > 0)} whileTap={tapScale(0.98, selected.size > 0)}>
                           <FaCopy className="w-4 h-4" /> 复制ID
                         </motion.button>
-                        <motion.button onClick={copySelectedLogs} disabled={batchLoading || selected.size === 0} className="w-full sm:w-auto px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02, !(batchLoading || selected.size === 0))} whileTap={tapScale(0.98, !(batchLoading || selected.size === 0))}>
+                        <motion.button onClick={copySelectedLogs} disabled={batchLoading || selected.size === 0} className="w-full sm:w-auto px-3 py-2 bg-white/10 text-white placeholder-[#8ECAE6]/60 hover:bg-white/20 rounded-lg text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02, !(batchLoading || selected.size === 0))} whileTap={tapScale(0.98, !(batchLoading || selected.size === 0))}>
                           <FaClipboard className="w-4 h-4" /> 一键复制日志
                         </motion.button>
                         <motion.button
@@ -676,26 +676,26 @@ const DataCollectionManager: React.FC = () => {
             <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-4 sm:p-6"
+                className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-[#8ECAE6]/30 p-4 sm:p-6"
             >
                 <div className="flex items-center justify-between">
-                    <div className="text-lg font-semibold text-gray-900">数据收集统计</div>
-                    <motion.button className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium flex items-center gap-2" onClick={fetchStats} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                    <div className="text-lg font-semibold text-[#023047] font-songti">数据收集统计</div>
+                    <motion.button className="px-3 py-2 bg-[#8ECAE6]/10 hover:bg-[#8ECAE6]/20 text-[#023047] border border-[#8ECAE6]/30 rounded-lg text-sm font-medium flex items-center gap-2" onClick={fetchStats} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                         <FaSync className="w-4 h-4" /> 刷新
                     </motion.button>
                 </div>
                 <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="rounded-xl bg-gray-50 p-4 border border-gray-100">
-                        <div className="text-xs text-gray-500">总记录</div>
-                        <div className="text-2xl font-bold text-gray-900">{stats?.total ?? '-'}</div>
+                    <div className="rounded-xl bg-[#8ECAE6]/10 p-4 border border-[#8ECAE6]/30">
+                        <div className="text-xs text-[#023047]/50">总记录</div>
+                        <div className="text-2xl font-bold text-[#023047]">{stats?.total ?? '-'}</div>
                     </div>
-                    <div className="rounded-xl bg-gray-50 p-4 border border-gray-100">
-                        <div className="text-xs text-gray-500">动作种类</div>
-                        <div className="text-2xl font-bold text-gray-900">{Array.isArray(stats?.byAction) ? stats.byAction.length : '-'}</div>
+                    <div className="rounded-xl bg-[#8ECAE6]/10 p-4 border border-[#8ECAE6]/30">
+                        <div className="text-xs text-[#023047]/50">动作种类</div>
+                        <div className="text-2xl font-bold text-[#023047]">{Array.isArray(stats?.byAction) ? stats.byAction.length : '-'}</div>
                     </div>
-                    <div className="rounded-xl bg-gray-50 p-4 border border-gray-100">
-                        <div className="text-xs text-gray-500">近7日</div>
-                        <div className="text-sm whitespace-pre-wrap text-gray-700">
+                    <div className="rounded-xl bg-[#8ECAE6]/10 p-4 border border-[#8ECAE6]/30">
+                        <div className="text-xs text-[#023047]/50">近7日</div>
+                        <div className="text-sm whitespace-pre-wrap text-[#023047]">
                             {Array.isArray(stats?.last7days)
                                 ? stats.last7days.map((d: any) => `${d._id}:${d.count}`).join('  ')
                                 : '-'}
@@ -708,29 +708,29 @@ const DataCollectionManager: React.FC = () => {
             <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-4 sm:p-6"
+                className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-[#8ECAE6]/30 p-4 sm:p-6"
             >
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <input className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="userId" value={userId} onChange={e => setUserId(e.target.value)} />
-                    <input className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="action" value={action} onChange={e => setAction(e.target.value)} />
-                    <input className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400" type="datetime-local" value={start} onChange={e => setStart(e.target.value)} />
-                    <input className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400" type="datetime-local" value={end} onChange={e => setEnd(e.target.value)} />
+                    <input className="w-full px-3 py-2 rounded-lg bg-white border border-[#8ECAE6]/30 focus:outline-none focus:ring-2 focus:ring-[#FFB703] text-[#023047]" placeholder="userId" value={userId} onChange={e => setUserId(e.target.value)} />
+                    <input className="w-full px-3 py-2 rounded-lg bg-white border border-[#8ECAE6]/30 focus:outline-none focus:ring-2 focus:ring-[#FFB703] text-[#023047]" placeholder="action" value={action} onChange={e => setAction(e.target.value)} />
+                    <input className="w-full px-3 py-2 rounded-lg bg-white border border-[#8ECAE6]/30 focus:outline-none focus:ring-2 focus:ring-[#FFB703] text-[#023047]" type="datetime-local" value={start} onChange={e => setStart(e.target.value)} />
+                    <input className="w-full px-3 py-2 rounded-lg bg-white border border-[#8ECAE6]/30 focus:outline-none focus:ring-2 focus:ring-[#FFB703] text-[#023047]" type="datetime-local" value={end} onChange={e => setEnd(e.target.value)} />
                 </div>
                 <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
                     <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                        <select className="w-full sm:w-auto px-3 py-2 rounded-lg bg-gray-50 border border-gray-200" value={limit} onChange={e => { setPage(1); setLimit(Number(e.target.value)); }}>
+                        <select className="w-full sm:w-auto px-3 py-2 rounded-lg bg-white border border-[#8ECAE6]/30 focus:ring-2 focus:ring-[#FFB703] text-[#023047]" value={limit} onChange={e => { setPage(1); setLimit(Number(e.target.value)); }}>
                             {[10, 20, 50, 100].map(v => <option key={v} value={v}>{v}/页</option>)}
                         </select>
-                        <select className="w-full sm:w-auto px-3 py-2 rounded-lg bg-gray-50 border border-gray-200" value={sort} onChange={e => setSort(e.target.value as SortOrder)}>
+                        <select className="w-full sm:w-auto px-3 py-2 rounded-lg bg-white border border-[#8ECAE6]/30 focus:ring-2 focus:ring-[#FFB703] text-[#023047]" value={sort} onChange={e => setSort(e.target.value as SortOrder)}>
                             <option value="desc">时间倒序</option>
                             <option value="asc">时间正序</option>
                         </select>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                        <motion.button className="w-full sm:w-auto px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium flex items-center justify-center gap-2" onClick={() => { setPage(1); fetchList(); }} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                        <motion.button className="w-full sm:w-auto px-4 py-2 rounded-lg bg-[#FFB703] text-[#023047] hover:bg-[#FB8500] font-medium flex items-center justify-center gap-2" onClick={() => { setPage(1); fetchList(); }} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                             <FaSearch className="w-4 h-4" /> 查询
                         </motion.button>
-                        <motion.button className="w-full sm:w-auto px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium flex items-center justify-center gap-2" onClick={() => { setUserId(''); setAction(''); setStart(''); setEnd(''); setPage(1); fetchList(); }} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                        <motion.button className="w-full sm:w-auto px-4 py-2 rounded-lg bg-[#8ECAE6]/10 hover:bg-[#8ECAE6]/20 text-[#023047] border border-[#8ECAE6]/30 font-medium flex items-center justify-center gap-2" onClick={() => { setUserId(''); setAction(''); setStart(''); setEnd(''); setPage(1); fetchList(); }} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                             <FaRedo className="w-4 h-4" /> 重置
                         </motion.button>
                     </div>
@@ -746,31 +746,31 @@ const DataCollectionManager: React.FC = () => {
             <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden"
+                className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-[#8ECAE6]/30 overflow-hidden"
             >
                 {/* Mobile Select All */}
-                <div className="block md:hidden p-3 border-b border-gray-100 bg-gray-50">
-                    <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                <div className="block md:hidden p-3 border-b border-[#8ECAE6]/30 bg-[#8ECAE6]/10">
+                    <label className="inline-flex items-center gap-2 text-sm text-[#023047]">
                         <input type="checkbox" checked={allChecked} onChange={toggleAll} />
                         <span>全选</span>
                     </label>
                 </div>
 
                 {/* Mobile Cards */}
-                <div className="block md:hidden divide-y divide-gray-100">
+                <div className="block md:hidden divide-y divide-[#8ECAE6]/20">
                     {deferredItems.map(item => (
                         <DataCard key={item._id} item={item} checked={selected.has(item._id)} onToggle={toggleOne} onView={onView} onDelete={deleteOne} openDetail={openDetail} />
                     ))}
                     {deferredItems.length === 0 && (
-                        <div className="p-6 text-center text-gray-400">{loading ? '加载中…' : '暂无数据'}</div>
+                        <div className="p-6 text-center text-[#023047]/30">{loading ? '加载中…' : '暂无数据'}</div>
                     )}
                 </div>
 
                 {/* Desktop Table */}
                 <div className="hidden md:block overflow-x-auto">
                     <table className="min-w-full text-sm table-fixed">
-                        <thead className="bg-gray-50">
-                            <tr className="text-gray-600">
+                        <thead className="bg-[#8ECAE6]/10">
+                            <tr className="text-[#023047]/70">
                                 <th className="p-3 text-left w-10"><input type="checkbox" checked={allChecked} onChange={toggleAll} /></th>
                                 <th className="p-3 text-left w-44">时间</th>
                                 <th className="p-3 text-left w-56">用户</th>
@@ -784,18 +784,18 @@ const DataCollectionManager: React.FC = () => {
                                 <DataRow key={item._id} item={item} checked={selected.has(item._id)} onToggle={toggleOne} onView={onView} onDelete={deleteOne} openDetail={openDetail} />
                             ))}
                             {deferredItems.length === 0 && (
-                                <tr><td className="p-6 text-center text-gray-400" colSpan={6}>{loading ? '加载中…' : '暂无数据'}</td></tr>
+                                <tr><td className="p-6 text-center text-[#023047]/30" colSpan={6}>{loading ? '加载中…' : '暂无数据'}</td></tr>
                             )}
                         </tbody>
                     </table>
                 </div>
 
                 {/* Pagination */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 bg-gray-50 border-t border-gray-100">
-                    <div className="text-gray-500">共 {total} 条 • 第 {page}/{totalPages} 页</div>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 bg-[#8ECAE6]/10 border-t border-[#8ECAE6]/30">
+                    <div className="text-[#023047]/50">共 {total} 条 • 第 {page}/{totalPages} 页</div>
                     <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                        <motion.button className="w-full sm:w-auto px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))} whileHover={hoverScale(1.02, page > 1)} whileTap={tapScale(0.98, page > 1)}>上一页</motion.button>
-                        <motion.button className="w-full sm:w-auto px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50" disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))} whileHover={hoverScale(1.02, page < totalPages)} whileTap={tapScale(0.98, page < totalPages)}>下一页</motion.button>
+                        <motion.button className="w-full sm:w-auto px-3 py-2 rounded-lg bg-[#8ECAE6]/10 hover:bg-[#8ECAE6]/20 text-[#023047]/70 disabled:opacity-50" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))} whileHover={hoverScale(1.02, page > 1)} whileTap={tapScale(0.98, page > 1)}>上一页</motion.button>
+                        <motion.button className="w-full sm:w-auto px-3 py-2 rounded-lg bg-[#8ECAE6]/10 hover:bg-[#8ECAE6]/20 text-[#023047]/70 disabled:opacity-50" disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))} whileHover={hoverScale(1.02, page < totalPages)} whileTap={tapScale(0.98, page < totalPages)}>下一页</motion.button>
                     </div>
                 </div>
             </motion.div>
@@ -809,12 +809,12 @@ const DataCollectionManager: React.FC = () => {
                         initial={{ scale: 0.95, y: 10, opacity: 0 }}
                         animate={{ scale: 1, y: 0, opacity: 1 }}
                         exit={{ scale: 0.95, y: 10, opacity: 0 }}
-                        className="w-[95vw] max-w-5xl max-h-[80vh] overflow-auto rounded-2xl bg-white/90 backdrop-blur p-4 sm:p-6 border border-white/20 shadow-xl"
+                        className="w-[95vw] max-w-5xl max-h-[80vh] overflow-auto rounded-2xl bg-white/90 backdrop-blur p-4 sm:p-6 border border-[#8ECAE6]/30 shadow-xl"
                         onClick={e => e.stopPropagation()}
                         data-source-modal="data-collection-detail"
                     >
                         <div className="flex items-center justify-between mb-3">
-                            <div className="font-semibold text-gray-900">记录详情</div>
+                            <div className="font-semibold text-[#023047] font-songti">记录详情</div>
                             <div className="flex items-center gap-2">
                               <motion.button
                                 onClick={async () => {
@@ -825,7 +825,7 @@ const DataCollectionManager: React.FC = () => {
                                     setNotification({ type: 'error', message: e?.message || '复制失败' });
                                   }
                                 }}
-                                className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2"
+                                className="px-3 py-1 rounded-lg bg-[#8ECAE6]/10 hover:bg-[#8ECAE6]/20 text-[#023047] border border-[#8ECAE6]/30 text-sm font-medium flex items-center gap-2"
                                 whileHover={hoverScale(1.02)}
                                 whileTap={tapScale(0.98)}
                               >
@@ -842,32 +842,32 @@ const DataCollectionManager: React.FC = () => {
                                     setNotification({ type: 'error', message: e?.message || '复制失败' });
                                   }
                                 }}
-                                className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2"
+                                className="px-3 py-1 rounded-lg bg-[#8ECAE6]/10 hover:bg-[#8ECAE6]/20 text-[#023047] border border-[#8ECAE6]/30 text-sm font-medium flex items-center gap-2"
                                 whileHover={hoverScale(1.02)}
                                 whileTap={tapScale(0.98)}
                               >
                                 <FaCopy className="w-4 h-4" /> 复制ID
                               </motion.button>
-                              <motion.button className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2" onClick={closeDetailModal} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                              <motion.button className="px-3 py-1 rounded-lg bg-[#8ECAE6]/10 hover:bg-[#8ECAE6]/20 text-[#023047] border border-[#8ECAE6]/30 text-sm font-medium flex items-center gap-2" onClick={closeDetailModal} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                                   <FaTimes className="w-4 h-4" /> 关闭
                               </motion.button>
                             </div>
                         </div>
-                        <div className="mb-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-700">
+                        <div className="mb-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-[#023047]">
                             <div>
-                                <span className="text-gray-500">ID：</span>
+                                <span className="text-[#023047]/50">ID：</span>
                                 <span className="font-mono break-all">{(viewItem as any)?._id || '-'}</span>
                             </div>
                             <div>
-                                <span className="text-gray-500">时间：</span>
+                                <span className="text-[#023047]/50">时间：</span>
                                 <span className="font-mono">{(() => { try { return new Date((viewItem as any)?.timestamp).toLocaleString('zh-CN'); } catch { return String((viewItem as any)?.timestamp || '-') } })()}</span>
                             </div>
                             <div>
-                                <span className="text-gray-500">Hash：</span>
+                                <span className="text-[#023047]/50">Hash：</span>
                                 <span className="font-mono break-all">{(viewItem as any)?.hash || '-'}</span>
                             </div>
                             <div>
-                                <span className="text-gray-500">动作：</span>
+                                <span className="text-[#023047]/50">动作：</span>
                                 <span className="font-mono break-all">{(viewItem as any)?.action || '-'}</span>
                             </div>
                         </div>
@@ -997,36 +997,36 @@ const DataCollectionManager: React.FC = () => {
                         initial={{ scale: 0.95, y: 10, opacity: 0 }}
                         animate={{ scale: 1, y: 0, opacity: 1 }}
                         exit={{ scale: 0.95, y: 10, opacity: 0 }}
-                        className="w-[95vw] max-w-2xl max-h-[80vh] overflow-auto rounded-2xl bg-white/90 backdrop-blur p-4 sm:p-6 border border-white/20 shadow-xl"
+                        className="w-[95vw] max-w-2xl max-h-[80vh] overflow-auto rounded-2xl bg-white/90 backdrop-blur p-4 sm:p-6 border border-[#8ECAE6]/30 shadow-xl"
                         onClick={e => e.stopPropagation()}
                         data-source-modal="data-collection-create"
                     >
                         <div className="flex items-center justify-between mb-3">
-                            <div className="font-semibold text-gray-900">新增数据收集记录</div>
-                            <motion.button className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2" onClick={closeCreateModal} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                            <div className="font-semibold text-[#023047] font-songti">新增数据收集记录</div>
+                            <motion.button className="px-3 py-1 rounded-lg bg-[#8ECAE6]/10 hover:bg-[#8ECAE6]/20 text-[#023047] border border-[#8ECAE6]/30 text-sm font-medium flex items-center gap-2" onClick={closeCreateModal} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                                 <FaTimes className="w-4 h-4" /> 关闭
                             </motion.button>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
-                                <label className="block text-sm text-gray-600 mb-1">userId</label>
-                                <input className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200" value={newUserId} onChange={e => setNewUserId(e.target.value)} />
+                                <label className="block text-sm text-[#023047]/70 mb-1">userId</label>
+                                <input className="w-full px-3 py-2 rounded-lg bg-white border border-[#8ECAE6]/30 focus:ring-2 focus:ring-[#FFB703] text-[#023047]" value={newUserId} onChange={e => setNewUserId(e.target.value)} />
                             </div>
                             <div>
-                                <label className="block text-sm text-gray-600 mb-1">action</label>
-                                <input className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200" value={newAction} onChange={e => setNewAction(e.target.value)} />
+                                <label className="block text-sm text-[#023047]/70 mb-1">action</label>
+                                <input className="w-full px-3 py-2 rounded-lg bg-white border border-[#8ECAE6]/30 focus:ring-2 focus:ring-[#FFB703] text-[#023047]" value={newAction} onChange={e => setNewAction(e.target.value)} />
                             </div>
                             <div className="sm:col-span-2">
-                                <label className="block text-sm text-gray-600 mb-1">时间(timestamp)</label>
-                                <input type="datetime-local" className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200" value={newTsLocal} onChange={e => setNewTsLocal(e.target.value)} />
+                                <label className="block text-sm text-[#023047]/70 mb-1">时间(timestamp)</label>
+                                <input type="datetime-local" className="w-full px-3 py-2 rounded-lg bg-white border border-[#8ECAE6]/30 focus:ring-2 focus:ring-[#FFB703] text-[#023047]" value={newTsLocal} onChange={e => setNewTsLocal(e.target.value)} />
                             </div>
                             <div className="sm:col-span-2">
-                                <label className="block text-sm text-gray-600 mb-1">详情(details)</label>
-                                <textarea className="w-full px-3 py-2 h-32 rounded-lg bg-gray-50 border border-gray-200" value={newDetailsRaw} onChange={e => setNewDetailsRaw(e.target.value)} placeholder="可填写纯文本或 JSON" />
+                                <label className="block text-sm text-[#023047]/70 mb-1">详情(details)</label>
+                                <textarea className="w-full px-3 py-2 h-32 rounded-lg bg-white border border-[#8ECAE6]/30 focus:ring-2 focus:ring-[#FFB703] text-[#023047]" value={newDetailsRaw} onChange={e => setNewDetailsRaw(e.target.value)} placeholder="可填写纯文本或 JSON" />
                             </div>
                         </div>
                         <div className="flex items-center justify-end gap-2 mt-3">
-                            <motion.button className="px-3 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm font-medium flex items-center gap-2" onClick={handleCreate} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                            <motion.button className="px-3 py-2 rounded-lg bg-[#FFB703] text-[#023047] hover:bg-[#FB8500] text-sm font-medium flex items-center gap-2" onClick={handleCreate} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                                 <FaPlus className="w-4 h-4" /> 创建
                             </motion.button>
                         </div>
@@ -1041,14 +1041,14 @@ const DataCollectionManager: React.FC = () => {
             <AnimatePresence>
             {batchView && (
               <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999]" onClick={() => setBatchView(null)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <motion.div initial={{ scale: 0.95, y: 10, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 10, opacity: 0 }} className="w-[95vw] max-w-5xl max-h-[80vh] overflow-auto rounded-2xl bg-white/90 backdrop-blur p-4 sm:p-6 border border-white/20 shadow-xl" onClick={e => e.stopPropagation()} data-source-modal="data-collection-batch">
+                <motion.div initial={{ scale: 0.95, y: 10, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 10, opacity: 0 }} className="w-[95vw] max-w-5xl max-h-[80vh] overflow-auto rounded-2xl bg-white/90 backdrop-blur p-4 sm:p-6 border border-[#8ECAE6]/30 shadow-xl" onClick={e => e.stopPropagation()} data-source-modal="data-collection-batch">
                   <div className="flex items-center justify-between mb-3">
-                    <div className="font-semibold text-gray-900">合并日志（{batchView.ids.length} 条）</div>
+                    <div className="font-semibold text-[#023047] font-songti">合并日志（{batchView.ids.length} 条）</div>
                     <div className="flex items-center gap-2">
-                      <motion.button onClick={async ()=>{ try { await navigator.clipboard.writeText(JSON.stringify(batchView, null, 2)); setNotification({ type:'success', message:'已复制' }); } catch(e:any){ setNotification({ type:'error', message:e?.message||'复制失败' }); } }} className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                      <motion.button onClick={async ()=>{ try { await navigator.clipboard.writeText(JSON.stringify(batchView, null, 2)); setNotification({ type:'success', message:'已复制' }); } catch(e:any){ setNotification({ type:'error', message:e?.message||'复制失败' }); } }} className="px-3 py-1 rounded-lg bg-[#8ECAE6]/10 hover:bg-[#8ECAE6]/20 text-[#023047] border border-[#8ECAE6]/30 text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                         <FaClipboard className="w-4 h-4" /> 复制
                       </motion.button>
-                      <motion.button onClick={closeBatchModal} className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                      <motion.button onClick={closeBatchModal} className="px-3 py-1 rounded-lg bg-[#8ECAE6]/10 hover:bg-[#8ECAE6]/20 text-[#023047] border border-[#8ECAE6]/30 text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                         <FaTimes className="w-4 h-4" /> 关闭
                       </motion.button>
                     </div>
