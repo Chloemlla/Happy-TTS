@@ -331,22 +331,22 @@ const WebhookEventsManager: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl shadow-xl border border-white/20 p-4 sm:p-6"
+        className="bg-[#023047] text-white rounded-2xl shadow-xl border border-[#8ECAE6]/30 p-4 sm:p-6"
       >
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shadow">
+            <div className="w-10 h-10 rounded-xl bg-[#FFB703]/20 flex items-center justify-center shadow">
               <FaChartBar className="w-5 h-5" />
             </div>
             <div>
               <div className="text-lg font-semibold">Webhook 事件管理</div>
-              <div className="text-white/80 text-sm">按路由分组、筛选与查看详情</div>
+              <div className="text-[#8ECAE6] text-sm">按路由分组、筛选与查看详情</div>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <motion.button
               onClick={() => fetchList(page, pageSize)}
-              className="px-3 py-2 rounded-lg bg-white/20 hover:bg-white/30 transition text-sm font-medium"
+              className="px-3 py-2 rounded-lg bg-[#8ECAE6]/15 text-white hover:bg-[#8ECAE6]/25 transition text-sm font-medium"
               title="刷新"
               whileHover={hoverScale(1.02)}
               whileTap={tapScale(0.98)}
@@ -355,7 +355,7 @@ const WebhookEventsManager: React.FC = () => {
             </motion.button>
             <motion.button
               onClick={openCreate}
-              className="px-3 py-2 rounded-lg bg-white/20 hover:bg-white/30 transition text-sm font-medium"
+              className="px-3 py-2 rounded-lg bg-[#FFB703] text-[#023047] hover:bg-[#FB8500] transition text-sm font-medium"
               whileHover={hoverScale(1.02)}
               whileTap={tapScale(0.98)}
             >
@@ -366,10 +366,10 @@ const WebhookEventsManager: React.FC = () => {
         {/* Filters */}
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-4 gap-3">
           <div className="sm:col-span-2">
-            <label className="block text-xs text-white/80 mb-1">分组（routeKey）</label>
+            <label className="block text-xs text-[#8ECAE6] mb-1">分组（routeKey）</label>
             <div className="flex flex-wrap gap-2">
               <select
-                className="px-3 py-2 rounded-lg bg-white/20 text-white w-full sm:w-auto"
+                className="px-3 py-2 rounded-lg bg-white/10 text-white w-full sm:w-auto"
                 value={selectedRouteKey}
                 onChange={(e) => setSelectedRouteKey(e.target.value as any)}
               >
@@ -384,60 +384,60 @@ const WebhookEventsManager: React.FC = () => {
               </select>
               <motion.button
                 onClick={() => fetchGroups()}
-                className="px-3 py-2 rounded-lg bg-white/20 hover:bg-white/30 text-sm"
+                className="px-3 py-2 rounded-lg bg-[#8ECAE6]/15 text-white hover:bg-[#8ECAE6]/25 text-sm"
                 whileHover={hoverScale(1.02)}
                 whileTap={tapScale(0.98)}
               >更新分组</motion.button>
             </div>
           </div>
           <div>
-            <label className="block text-xs text-white/80 mb-1">类型筛选(type)</label>
+            <label className="block text-xs text-[#8ECAE6] mb-1">类型筛选(type)</label>
             <input value={typeFilter}
                    onChange={(e)=>setTypeFilter(e.target.value)}
                    onBlur={()=>fetchList(1, pageSize)}
                    placeholder="email.sent"
-                   className="w-full px-3 py-2 rounded-lg bg-white/20 text-white placeholder-white/60" />
+                   className="w-full px-3 py-2 rounded-lg bg-white/10 text-white placeholder-[#8ECAE6]/60" />
           </div>
           <div>
-            <label className="block text-xs text-white/80 mb-1">状态筛选(status)</label>
+            <label className="block text-xs text-[#8ECAE6] mb-1">状态筛选(status)</label>
             <input value={statusFilter}
                    onChange={(e)=>setStatusFilter(e.target.value)}
                    onBlur={()=>fetchList(1, pageSize)}
                    placeholder="processed"
-                   className="w-full px-3 py-2 rounded-lg bg-white/20 text-white placeholder-white/60" />
+                   className="w-full px-3 py-2 rounded-lg bg-white/10 text-white placeholder-[#8ECAE6]/60" />
           </div>
         </div>
       </motion.div>
 
       {/* List & Table */}
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden">
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-[#8ECAE6]/30 overflow-hidden">
         {/* Mobile Cards */}
-        <div className="block md:hidden divide-y divide-gray-100">
+        <div className="block md:hidden divide-y divide-[#8ECAE6]/20">
           {items.map(it => (
             <div key={it._id} className="p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 text-blue-700">{it.type || '未分类'}</span>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#219EBC]/15 text-[#219EBC]">{it.type || '未分类'}</span>
                     {it.status && (
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${it.status === 'success' ? 'bg-green-100 text-green-700' : it.status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>{it.status}</span>
                     )}
-                    {it.eventId && <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono bg-gray-100 text-gray-700 max-w-[60%] truncate" title={it.eventId}>#{it.eventId}</span>}
+                    {it.eventId && <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono bg-[#8ECAE6]/10 text-[#023047]/70 max-w-[60%] truncate" title={it.eventId}>#{it.eventId}</span>}
                   </div>
-                  <div className="text-xs text-gray-500 mt-1">{it.receivedAt ? new Date(it.receivedAt).toLocaleString('zh-CN') : '-'}</div>
-                  {it.subject && <div className="text-sm text-gray-900 mt-1 truncate">{it.subject}</div>}
-                  {it.title && it.title !== it.subject && <div className="text-sm text-gray-800 mt-1 truncate font-medium">📌 {it.title}</div>}
-                  {it.renderedContent && <div className="text-xs text-gray-600 mt-1 line-clamp-2 whitespace-pre-wrap">{it.renderedContent}</div>}
+                  <div className="text-xs text-[#023047]/70 mt-1">{it.receivedAt ? new Date(it.receivedAt).toLocaleString('zh-CN') : '-'}</div>
+                  {it.subject && <div className="text-sm text-[#023047] mt-1 truncate">{it.subject}</div>}
+                  {it.title && it.title !== it.subject && <div className="text-sm text-[#023047] mt-1 truncate font-medium">📌 {it.title}</div>}
+                  {it.renderedContent && <div className="text-xs text-[#023047]/70 mt-1 line-clamp-2 whitespace-pre-wrap">{it.renderedContent}</div>}
                   {it.to && (
-                    <div className="text-xs text-gray-600 mt-1 truncate">收件人：{typeof it.to === 'string' ? it.to : Array.isArray(it.to) ? it.to.join(', ') : '-'}</div>
+                    <div className="text-xs text-[#023047]/70 mt-1 truncate">收件人：{typeof it.to === 'string' ? it.to : Array.isArray(it.to) ? it.to.join(', ') : '-'}</div>
                   )}
                 </div>
               </div>
               <div className="mt-3 grid grid-cols-3 gap-2 sm:flex sm:flex-row sm:grid-cols-none">
-                <motion.button className="w-full px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-medium flex items-center gap-2" onClick={() => openDetail(it)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                <motion.button className="w-full px-3 py-2 rounded-lg bg-[#8ECAE6]/15 hover:bg-[#8ECAE6]/25 text-[#219EBC] border border-[#8ECAE6]/30 text-xs font-medium flex items-center gap-2" onClick={() => openDetail(it)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                   <FaEye className="w-3.5 h-3.5" /> 详情
                 </motion.button>
-                <motion.button className="w-full px-3 py-2 rounded-lg bg-amber-500 text-white hover:bg-amber-600 text-xs font-medium flex items-center gap-2" onClick={() => openEdit(it)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                <motion.button className="w-full px-3 py-2 rounded-lg bg-[#FFB703] text-[#023047] hover:bg-[#FB8500] text-xs font-medium flex items-center gap-2" onClick={() => openEdit(it)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                   <FaEdit className="w-3.5 h-3.5" /> 编辑
                 </motion.button>
                 <motion.button className="w-full px-3 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 text-xs font-medium flex items-center gap-2" onClick={() => handleDelete(it._id)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
@@ -447,15 +447,15 @@ const WebhookEventsManager: React.FC = () => {
             </div>
           ))}
           {!loading && items.length === 0 && (
-            <div className="p-6 text-center text-gray-400">暂无数据</div>
+            <div className="p-6 text-center text-[#023047]/30">暂无数据</div>
           )}
         </div>
 
         {/* Desktop Table */}
         <div className="hidden md:block overflow-x-auto">
           <table className="min-w-full text-xs sm:text-sm table-fixed">
-            <thead className="bg-gray-50">
-              <tr className="text-left text-gray-600">
+            <thead className="bg-[#8ECAE6]/10">
+              <tr className="text-left text-[#023047]">
                 <th className="p-3 w-28">类型</th>
                 <th className="p-3 w-48 hidden md:table-cell">事件ID</th>
                 <th className="p-3 w-48 hidden sm:table-cell">标题</th>
@@ -467,23 +467,23 @@ const WebhookEventsManager: React.FC = () => {
             </thead>
             <tbody>
               {items.map(it => (
-                <tr key={it._id} className="border-t border-gray-100 hover:bg-gray-50">
-                  <td className="p-3 whitespace-nowrap">{it.type}</td>
-                  <td className="p-3 truncate hidden md:table-cell" title={it.eventId || ''}>{it.eventId || '-'}</td>
-                  <td className="p-3 truncate hidden sm:table-cell">{it.title || it.subject || '-'}</td>
-                  <td className="p-3 hidden lg:table-cell">
+                <tr key={it._id} className="border-t border-[#8ECAE6]/20 hover:bg-[#8ECAE6]/10">
+                  <td className="p-3 whitespace-nowrap text-[#023047]">{it.type}</td>
+                  <td className="p-3 truncate hidden md:table-cell text-[#023047]/70" title={it.eventId || ''}>{it.eventId || '-'}</td>
+                  <td className="p-3 truncate hidden sm:table-cell text-[#023047]">{it.title || it.subject || '-'}</td>
+                  <td className="p-3 hidden lg:table-cell text-[#023047]/70">
                     <div className="truncate max-w-xs" title={it.renderedContent || ''}>
                       {it.renderedContent || (typeof it.to === 'string' ? it.to : Array.isArray(it.to) ? it.to.join(', ') : '-')}
                     </div>
                   </td>
-                  <td className="p-3 whitespace-nowrap">{it.status || '-'}</td>
-                  <td className="p-3 whitespace-nowrap">{it.receivedAt ? new Date(it.receivedAt).toLocaleString('zh-CN') : '-'}</td>
+                  <td className="p-3 whitespace-nowrap text-[#023047]">{it.status || '-'}</td>
+                  <td className="p-3 whitespace-nowrap text-[#023047]/70">{it.receivedAt ? new Date(it.receivedAt).toLocaleString('zh-CN') : '-'}</td>
                   <td className="p-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <motion.button className="px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-medium flex items-center gap-2" onClick={() => openDetail(it)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                      <motion.button className="px-2 py-1 rounded-lg bg-[#8ECAE6]/15 hover:bg-[#8ECAE6]/25 text-[#219EBC] border border-[#8ECAE6]/30 text-xs font-medium flex items-center gap-2" onClick={() => openDetail(it)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                         <FaEye className="w-3.5 h-3.5" /> <span className="hidden sm:inline">详情</span>
                       </motion.button>
-                      <motion.button className="px-2 py-1 rounded-lg bg-amber-500 text-white hover:bg-amber-600 text-xs font-medium" onClick={() => openEdit(it)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                      <motion.button className="px-2 py-1 rounded-lg bg-[#FFB703] text-[#023047] hover:bg-[#FB8500] text-xs font-medium" onClick={() => openEdit(it)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                         <FaEdit className="w-3.5 h-3.5" /> <span className="hidden sm:inline">编辑</span>
                       </motion.button>
                       <motion.button className="px-2 py-1 rounded-lg bg-red-500 text-white hover:bg-red-600 text-xs font-medium" onClick={() => handleDelete(it._id)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
@@ -495,21 +495,21 @@ const WebhookEventsManager: React.FC = () => {
               ))}
               {!loading && items.length === 0 && (
                 <tr>
-                  <td className="p-6 text-center text-gray-400" colSpan={7}>暂无数据</td>
+                  <td className="p-6 text-center text-[#023047]/30" colSpan={7}>暂无数据</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-        {loading && <div className="p-4 text-gray-400">加载中…</div>}
+        {loading && <div className="p-4 text-[#023047]/30">加载中…</div>}
       </motion.div>
 
       {/* Pagination */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 bg-gray-50 border border-gray-100 rounded-2xl">
-        <div className="text-sm text-gray-600">共 {total} 条 • 第 {page}/{totalPages} 页</div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 bg-white/80 backdrop-blur-sm border border-[#8ECAE6]/30 rounded-2xl">
+        <div className="text-sm text-[#023047]/70">共 {total} 条 • 第 {page}/{totalPages} 页</div>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          <motion.button disabled={page <= 1} onClick={() => fetchList(page - 1, pageSize)} className="w-full sm:w-auto px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50" whileHover={hoverScale(1.02, page > 1)} whileTap={tapScale(0.98, page > 1)}>上一页</motion.button>
-          <motion.button disabled={page >= totalPages} onClick={() => fetchList(page + 1, pageSize)} className="w-full sm:w-auto px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50" whileHover={hoverScale(1.02, page < totalPages)} whileTap={tapScale(0.98, page < totalPages)}>下一页</motion.button>
+          <motion.button disabled={page <= 1} onClick={() => fetchList(page - 1, pageSize)} className="w-full sm:w-auto px-3 py-2 rounded-lg bg-[#8ECAE6]/10 hover:bg-[#8ECAE6]/20 text-[#023047]/70 disabled:opacity-50" whileHover={hoverScale(1.02, page > 1)} whileTap={tapScale(0.98, page > 1)}>上一页</motion.button>
+          <motion.button disabled={page >= totalPages} onClick={() => fetchList(page + 1, pageSize)} className="w-full sm:w-auto px-3 py-2 rounded-lg bg-[#8ECAE6]/10 hover:bg-[#8ECAE6]/20 text-[#023047]/70 disabled:opacity-50" whileHover={hoverScale(1.02, page < totalPages)} whileTap={tapScale(0.98, page < totalPages)}>下一页</motion.button>
         </div>
       </div>
 
@@ -518,21 +518,21 @@ const WebhookEventsManager: React.FC = () => {
         <AnimatePresence>
           {selected && (
             <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999] p-2 sm:p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <motion.div className="bg-white/90 backdrop-blur rounded-2xl max-w-3xl w-[95vw] max-h-[90vh] flex flex-col p-4 sm:p-6 border border-white/20 shadow-xl" initial={{ scale: 0.95, y: 10, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 10, opacity: 0 }} data-source-modal="webhook-event-detail">
+              <motion.div className="bg-white/90 backdrop-blur rounded-2xl max-w-3xl w-[95vw] max-h-[90vh] flex flex-col p-4 sm:p-6 border border-[#8ECAE6]/30 shadow-xl" initial={{ scale: 0.95, y: 10, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 10, opacity: 0 }} data-source-modal="webhook-event-detail">
                 <div className="flex items-center justify-between mb-3 flex-shrink-0">
-                  <div className="font-semibold text-gray-900">事件详情</div>
-                  <motion.button onClick={closeDetailModal} className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                  <div className="font-semibold text-[#023047] font-songti">事件详情</div>
+                  <motion.button onClick={closeDetailModal} className="px-3 py-1 rounded-lg bg-[#8ECAE6]/10 hover:bg-[#8ECAE6]/20 text-[#023047] border border-[#8ECAE6]/30 text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                     <FaTimes className="w-4 h-4" /> 关闭
                   </motion.button>
                 </div>
                 <div className="flex-1 overflow-auto min-h-0">
                 {/* 结构化通知摘要 */}
                 {(selected.title || selected.renderedContent) && (
-                  <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-1">
-                    {selected.title && <div className="text-sm font-semibold text-gray-900">📌 {selected.title}</div>}
-                    {selected.renderedContent && <div className="text-sm text-gray-700 whitespace-pre-wrap">{selected.renderedContent}</div>}
+                  <div className="mb-3 p-3 bg-[#8ECAE6]/10 border border-[#8ECAE6]/30 rounded-lg space-y-1">
+                    {selected.title && <div className="text-sm font-semibold text-[#023047]">📌 {selected.title}</div>}
+                    {selected.renderedContent && <div className="text-sm text-[#023047]/70 whitespace-pre-wrap">{selected.renderedContent}</div>}
                     {selected.content && selected.content !== selected.renderedContent && (
-                      <div className="text-xs text-gray-400 mt-1">模板: {selected.content}</div>
+                      <div className="text-xs text-[#023047]/30 mt-1">模板: {selected.content}</div>
                     )}
                   </div>
                 )}
@@ -550,61 +550,61 @@ const WebhookEventsManager: React.FC = () => {
         <AnimatePresence>
           {(editing || creating) && (
             <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999] p-2 sm:p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <motion.div className="bg-white/90 backdrop-blur rounded-2xl max-w-2xl w-[95vw] max-h-[90vh] flex flex-col p-4 sm:p-6 border border-white/20 shadow-xl" initial={{ scale: 0.95, y: 10, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 10, opacity: 0 }} data-source-modal="webhook-event-edit">
+              <motion.div className="bg-white/90 backdrop-blur rounded-2xl max-w-2xl w-[95vw] max-h-[90vh] flex flex-col p-4 sm:p-6 border border-[#8ECAE6]/30 shadow-xl" initial={{ scale: 0.95, y: 10, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 10, opacity: 0 }} data-source-modal="webhook-event-edit">
               <div className="flex items-center justify-between flex-shrink-0">
-                <div className="font-semibold text-gray-900">{creating ? '新增事件' : '编辑事件'}</div>
-                <motion.button onClick={closeEditModal} className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                <div className="font-semibold text-[#023047] font-songti">{creating ? '新增事件' : '编辑事件'}</div>
+                <motion.button onClick={closeEditModal} className="px-3 py-1 rounded-lg bg-[#8ECAE6]/10 hover:bg-[#8ECAE6]/20 text-[#023047] border border-[#8ECAE6]/30 text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                   <FaTimes className="w-4 h-4" /> 关闭
                 </motion.button>
               </div>
               <div className="flex-1 overflow-auto min-h-0 mt-4 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">类型</label>
-                  <input className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200" value={editing?.type || ''} onChange={e => setEditing({ ...(editing as any), type: e.target.value })} />
+                  <label className="block text-sm text-[#023047]/70 mb-1">类型</label>
+                  <input className="w-full px-3 py-2 rounded-lg bg-white border border-[#8ECAE6]/30 focus:ring-2 focus:ring-[#FFB703] text-[#023047]" value={editing?.type || ''} onChange={e => setEditing({ ...(editing as any), type: e.target.value })} />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">事件ID</label>
-                  <input className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200" value={editing?.eventId || ''} onChange={e => setEditing({ ...(editing as any), eventId: e.target.value })} />
+                  <label className="block text-sm text-[#023047]/70 mb-1">事件ID</label>
+                  <input className="w-full px-3 py-2 rounded-lg bg-white border border-[#8ECAE6]/30 focus:ring-2 focus:ring-[#FFB703] text-[#023047]" value={editing?.eventId || ''} onChange={e => setEditing({ ...(editing as any), eventId: e.target.value })} />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">分组(routeKey)</label>
-                  <input className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200" value={editing?.routeKey ?? ''} onChange={e => setEditing({ ...(editing as any), routeKey: e.target.value || null })} />
+                  <label className="block text-sm text-[#023047]/70 mb-1">分组(routeKey)</label>
+                  <input className="w-full px-3 py-2 rounded-lg bg-white border border-[#8ECAE6]/30 focus:ring-2 focus:ring-[#FFB703] text-[#023047]" value={editing?.routeKey ?? ''} onChange={e => setEditing({ ...(editing as any), routeKey: e.target.value || null })} />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">主题</label>
-                  <input className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200" value={editing?.subject || ''} onChange={e => setEditing({ ...(editing as any), subject: e.target.value })} />
+                  <label className="block text-sm text-[#023047]/70 mb-1">主题</label>
+                  <input className="w-full px-3 py-2 rounded-lg bg-white border border-[#8ECAE6]/30 focus:ring-2 focus:ring-[#FFB703] text-[#023047]" value={editing?.subject || ''} onChange={e => setEditing({ ...(editing as any), subject: e.target.value })} />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">状态</label>
-                  <input className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200" value={editing?.status || ''} onChange={e => setEditing({ ...(editing as any), status: e.target.value })} />
+                  <label className="block text-sm text-[#023047]/70 mb-1">状态</label>
+                  <input className="w-full px-3 py-2 rounded-lg bg-white border border-[#8ECAE6]/30 focus:ring-2 focus:ring-[#FFB703] text-[#023047]" value={editing?.status || ''} onChange={e => setEditing({ ...(editing as any), status: e.target.value })} />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="block text-sm text-gray-600 mb-1">标题(title)</label>
-                  <input className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200" value={editing?.title || ''} onChange={e => setEditing({ ...(editing as any), title: e.target.value })} placeholder="通知标题" />
+                  <label className="block text-sm text-[#023047]/70 mb-1">标题(title)</label>
+                  <input className="w-full px-3 py-2 rounded-lg bg-white border border-[#8ECAE6]/30 focus:ring-2 focus:ring-[#FFB703] text-[#023047]" value={editing?.title || ''} onChange={e => setEditing({ ...(editing as any), title: e.target.value })} placeholder="通知标题" />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="block text-sm text-gray-600 mb-1">内容模板(content)</label>
-                  <textarea className="w-full px-3 py-2 h-20 rounded-lg bg-gray-50 border border-gray-200" value={editing?.content || ''} onChange={e => setEditing({ ...(editing as any), content: e.target.value })} placeholder="支持 {{value}} 占位符" />
+                  <label className="block text-sm text-[#023047]/70 mb-1">内容模板(content)</label>
+                  <textarea className="w-full px-3 py-2 h-20 rounded-lg bg-white border border-[#8ECAE6]/30 focus:ring-2 focus:ring-[#FFB703] text-[#023047]" value={editing?.content || ''} onChange={e => setEditing({ ...(editing as any), content: e.target.value })} placeholder="支持 {{value}} 占位符" />
                 </div>
                 {editing?.renderedContent && (
                   <div className="sm:col-span-2">
-                    <label className="block text-sm text-gray-600 mb-1">渲染后内容(renderedContent)</label>
-                    <div className="w-full px-3 py-2 rounded-lg bg-blue-50 border border-blue-200 text-sm text-gray-700 whitespace-pre-wrap">{editing.renderedContent}</div>
+                    <label className="block text-sm text-[#023047]/70 mb-1">渲染后内容(renderedContent)</label>
+                    <div className="w-full px-3 py-2 rounded-lg bg-[#8ECAE6]/10 border border-[#8ECAE6]/30 text-sm text-[#023047]/70 whitespace-pre-wrap">{editing.renderedContent}</div>
                   </div>
                 )}
                 <div className="sm:col-span-2">
-                  <label className="block text-sm text-gray-600 mb-1">收件人(to)</label>
-                  <input className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200" value={typeof editing?.to === 'string' ? (editing?.to || '') : JSON.stringify(editing?.to || '')} onChange={e => {
+                  <label className="block text-sm text-[#023047]/70 mb-1">收件人(to)</label>
+                  <input className="w-full px-3 py-2 rounded-lg bg-white border border-[#8ECAE6]/30 focus:ring-2 focus:ring-[#FFB703] text-[#023047]" value={typeof editing?.to === 'string' ? (editing?.to || '') : JSON.stringify(editing?.to || '')} onChange={e => {
                     let value: any = e.target.value;
                     try { value = JSON.parse(e.target.value); } catch {}
                     setEditing({ ...(editing as any), to: value });
                   }} />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="block text-sm text-gray-600 mb-1">数据(data)</label>
+                  <label className="block text-sm text-[#023047]/70 mb-1">数据(data)</label>
                   <textarea
-                    className="w-full px-3 py-2 h-32 rounded-lg bg-gray-50 border border-gray-200"
+                    className="w-full px-3 py-2 h-32 rounded-lg bg-white border border-[#8ECAE6]/30 focus:ring-2 focus:ring-[#FFB703] text-[#023047]"
                     value={
                       editing?.data == null
                         ? ''
@@ -626,14 +626,14 @@ const WebhookEventsManager: React.FC = () => {
                 </div>
               </div>
               </div>
-              <div className="flex items-center justify-end gap-2 flex-shrink-0 pt-3 border-t border-gray-200">
+              <div className="flex items-center justify-end gap-2 flex-shrink-0 pt-3 border-t border-[#8ECAE6]/30">
                 {!creating && (
-                  <motion.button onClick={handleSave} className="px-3 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                  <motion.button onClick={handleSave} className="px-3 py-2 rounded-lg bg-[#FFB703] text-[#023047] hover:bg-[#FB8500] text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                     <FaEdit className="w-4 h-4" /> 保存
                   </motion.button>
                 )}
                 {creating && (
-                  <motion.button onClick={handleCreate} className="px-3 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                  <motion.button onClick={handleCreate} className="px-3 py-2 rounded-lg bg-[#FFB703] text-[#023047] hover:bg-[#FB8500] text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                     <FaPlus className="w-4 h-4" /> 创建
                   </motion.button>
                 )}
