@@ -19,7 +19,17 @@ import { useFirstVisitDetection } from './hooks/useFirstVisitDetection';
 import { FirstVisitVerification } from './components/FirstVisitVerification';
 import { useFingerprintRequest } from './hooks/useFingerprintRequest';
 import FingerprintRequestModal from './components/FingerprintRequestModal';
-import clarity from '@microsoft/clarity';
+
+// 动态导入 clarity 以减少主 bundle 体积，避免与 FirstVisitVerification 的动态导入冲突
+let clarityModule: typeof import('@microsoft/clarity') | null = null;
+const loadClarity = async () => {
+  if (!clarityModule) {
+    try {
+      clarityModule = await import('@microsoft/clarity');
+    } catch (_) { /* ignore */ }
+  }
+  return clarityModule;
+};
 
 // 懒加载组件
 const WelcomePage = React.lazy(() => import('./components/WelcomePage').then(module => ({ default: module.WelcomePage })));
@@ -594,14 +604,12 @@ const App: React.FC = () => {
           const config = await response.json();
 
           if (config.enabled && config.projectId) {
-            clarity.init(config.projectId);
-            setClarityInitialized(true);
-            console.log('Microsoft Clarity initialized successfully with project ID:', config.projectId);
-          } else {
-            console.log('Microsoft Clarity is disabled or project ID not configured');
+            const c = await loadClarity();
+            if (c) {
+              c.default.init(config.projectId);
+              setClarityInitialized(true);
+            }
           }
-        } else {
-          console.warn('Failed to fetch Clarity config from server, status:', response.status);
         }
       } catch (error) {
         console.warn('Failed to initialize Microsoft Clarity:', error);
@@ -613,28 +621,26 @@ const App: React.FC = () => {
 
   // 用户状态变化时更新 Clarity 用户标识
   useEffect(() => {
-    if (typeof window === 'undefined' || !clarityInitialized) return;
+    if (typeof window === 'undefined' || !clarityInitialized || !clarityModule) return;
 
     try {
+      const c = clarityModule.default;
       if (user) {
-        // 用户登录时设置用户标识
-        clarity.identify(
+        c.identify(
           user.id || user.username || 'unknown-user',
           undefined, // customSessionId
           undefined, // customPageId  
           user.username || user.email || 'Unknown User' // friendlyName
         );
 
-        // 设置用户相关标签
-        clarity.setTag('user_role', user.role || 'user');
-        clarity.setTag('user_status', 'logged_in');
+        c.setTag('user_role', user.role || 'user');
+        c.setTag('user_status', 'logged_in');
         if (user.email) {
-          clarity.setTag('user_domain', user.email.split('@')[1] || 'unknown');
+          c.setTag('user_domain', user.email.split('@')[1] || 'unknown');
         }
       } else {
-        // 用户未登录时设置匿名标识
-        clarity.identify('anonymous-user');
-        clarity.setTag('user_status', 'anonymous');
+        c.identify('anonymous-user');
+        c.setTag('user_status', 'anonymous');
       }
     } catch (error) {
       console.warn('Failed to update Clarity user identification:', error);
@@ -643,24 +649,24 @@ const App: React.FC = () => {
 
   // 路由变化时设置页面标签
   useEffect(() => {
-    if (typeof window === 'undefined' || !clarityInitialized) return;
+    if (typeof window === 'undefined' || !clarityInitialized || !clarityModule) return;
 
     try {
+      const c = clarityModule.default;
       const routePath = location.pathname;
       const routeName = routePath === '/' ? 'home' : routePath.replace(/^\//, '').replace(/\//g, '_');
 
-      clarity.setTag('current_route', routeName);
-      clarity.setTag('route_path', routePath);
+      c.setTag('current_route', routeName);
+      c.setTag('route_path', routePath);
 
-      // 为特定路由设置额外标签
       if (routePath.startsWith('/admin')) {
-        clarity.setTag('page_type', 'admin');
+        c.setTag('page_type', 'admin');
       } else if (routePath === '/welcome') {
-        clarity.setTag('page_type', 'auth');
+        c.setTag('page_type', 'auth');
       } else if (routePath === '/') {
-        clarity.setTag('page_type', 'main_app');
+        c.setTag('page_type', 'main_app');
       } else {
-        clarity.setTag('page_type', 'feature');
+        c.setTag('page_type', 'feature');
       }
     } catch (error) {
       console.warn('Failed to set Clarity route tags:', error);
