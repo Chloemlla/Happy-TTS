@@ -133,19 +133,19 @@ export const ResetPasswordPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12 px-6 animate-gradient py-8 rounded-3xl">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#8ECAE6]/20 via-white to-[#219EBC]/10 py-12 px-6 animate-gradient py-8 rounded-3xl">
             <div className="w-full max-w-md animate-scaleIn">
                 {/* Header */}
                 <div className="mb-8 text-center animate-slideInUp">
                     <div className="mb-4 inline-flex items-center gap-3">
-                        <FaVolumeUp className="h-10 w-10 text-blue-600" />
-                        <h1 className="text-3xl font-bold text-blue-600">Happy TTS</h1>
+                        <FaVolumeUp className="h-10 w-10 text-[#219EBC]" />
+                        <h1 className="text-3xl font-bold text-[#023047]">Happy TTS</h1>
                     </div>
-                    <p className="text-gray-600">重置密码</p>
+                    <p className="text-[#023047]/70">重置密码</p>
                 </div>
 
                 {/* Form Card */}
-                <div className="bg-white rounded-2xl shadow-xl border border-gray-100 px-8 py-8 hover:shadow-2xl transition-all duration-300">
+                <div className="bg-white rounded-2xl shadow-xl border border-[#8ECAE6]/30 px-8 py-8 hover:shadow-2xl transition-all duration-300">
                     {success ? (
                         <div className="text-center py-8">
                             <div className="mb-4 flex justify-center">
@@ -155,15 +155,15 @@ export const ResetPasswordPage: React.FC = () => {
                                     </svg>
                                 </div>
                             </div>
-                            <h3 className="text-xl font-semibold text-gray-900 mb-2">密码重置成功！</h3>
-                            <p className="text-gray-600 mb-4">您的密码已成功重置</p>
-                            <p className="text-sm text-gray-500">正在跳转到登录页面...</p>
+                            <h3 className="text-xl font-semibold text-[#023047] mb-2">密码重置成功！</h3>
+                            <p className="text-[#023047]/70 mb-4">您的密码已成功重置</p>
+                            <p className="text-sm text-[#023047]/50">正在跳转到登录页面...</p>
                         </div>
                     ) : (
                         <>
                             <div className="mb-6 text-center">
-                                <h2 className="text-2xl font-bold text-gray-900 mb-2">输入新密码</h2>
-                                <p className="text-sm text-gray-600">
+                                <h2 className="text-2xl font-bold text-[#023047] mb-2">输入新密码</h2>
+                                <p className="text-sm text-[#023047]/70">
                                     输入发送到您邮箱的验证码和您的新密码
                                 </p>
                             </div>
@@ -194,7 +194,7 @@ export const ResetPasswordPage: React.FC = () => {
                                             aria-label="邮箱地址"
                                             aria-required="true"
                                             aria-invalid={!!error}
-                                            className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                                            className="block w-full pl-10 pr-3 py-3 border border-[#8ECAE6]/30 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#219EBC] focus:border-[#219EBC] transition-all"
                                             placeholder="请输入邮箱地址"
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
@@ -220,14 +220,14 @@ export const ResetPasswordPage: React.FC = () => {
                                             aria-label="Verification code"
                                             aria-required="true"
                                             aria-invalid={!!error}
-                                            className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-mono text-lg tracking-wider"
+                                            className="block w-full pl-10 pr-3 py-3 border border-[#8ECAE6]/30 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#219EBC] focus:border-[#219EBC] transition-all font-mono text-lg tracking-wider"
                                             placeholder="12345678"
                                             value={code}
                                             onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
                                             autoComplete="one-time-code"
                                         />
                                     </div>
-                                    <p className="mt-1 text-xs text-gray-500">输入发送到您邮箱的8位数字验证码</p>
+                                    <p className="mt-1 text-xs text-[#023047]/50">输入发送到您邮箱的8位数字验证码</p>
                                 </div>
 
                                 <div>
@@ -244,7 +244,7 @@ export const ResetPasswordPage: React.FC = () => {
                                             aria-label="新密码"
                                             aria-required="true"
                                             aria-invalid={!!error}
-                                            className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                                            className="block w-full pl-10 pr-10 py-3 border border-[#8ECAE6]/30 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#219EBC] focus:border-[#219EBC] transition-all"
                                             placeholder="••••••••"
                                             value={newPassword}
                                             onChange={(e) => setNewPassword(e.target.value)}
@@ -275,7 +275,7 @@ export const ResetPasswordPage: React.FC = () => {
                                             aria-label="确认新密码"
                                             aria-required="true"
                                             aria-invalid={!!error}
-                                            className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                                            className="block w-full pl-10 pr-10 py-3 border border-[#8ECAE6]/30 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#219EBC] focus:border-[#219EBC] transition-all"
                                             placeholder="••••••••"
                                             value={confirmPassword}
                                             onChange={(e) => setConfirmPassword(e.target.value)}
@@ -321,17 +321,17 @@ export const ResetPasswordPage: React.FC = () => {
                                     disabled={loading || (!!turnstileConfig.siteKey && !turnstileVerified)}
                                     aria-label={loading ? '重置密码中...' : '重置密码'}
                                     aria-busy={loading}
-                                    className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                                    className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg text-sm font-semibold text-[#023047] bg-[#FFB703] hover:bg-[#FB8500] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FFB703] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
                                 >
                                     {loading ? '重置密码中...' : '重置密码'}
                                 </button>
                             </form>
 
                             <div className="mt-6 text-center space-y-3">
-                                <Link to="/forgot-password" className="block text-sm text-blue-600 hover:text-blue-700 font-medium">
+                                <Link to="/forgot-password" className="block text-sm text-[#FFB703] hover:text-[#FB8500] font-medium">
                                     重新发送验证码
                                 </Link>
-                                <Link to="/login" className="block text-sm text-blue-600 hover:text-blue-700 font-medium">
+                                <Link to="/login" className="block text-sm text-[#FFB703] hover:text-[#FB8500] font-medium">
                                     返回登录
                                 </Link>
                             </div>
@@ -341,7 +341,7 @@ export const ResetPasswordPage: React.FC = () => {
 
                 {/* Back to Home */}
                 <div className="mt-6 text-center">
-                    <Link to="/" className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors" aria-label="返回首页">
+                    <Link to="/" className="inline-flex items-center gap-2 text-sm text-[#023047]/70 hover:text-[#023047] transition-colors" aria-label="返回首页">
                         <FaArrowLeft className="h-4 w-4" />
                         返回首页
                     </Link>
