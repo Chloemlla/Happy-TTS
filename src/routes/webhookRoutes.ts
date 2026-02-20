@@ -4,15 +4,32 @@ import { createLimiter } from "../middleware/rateLimiter";
 
 const router = express.Router();
 
-// Resend webhooks require RAW body for signature verification
-// Add a gentle rate limiter to prevent abuse while allowing provider retries
+// 通用限流
 const webhookLimiter = createLimiter({
   windowMs: 60 * 1000,
   max: 120,
-  routeName: "webhooks-resend",
+  routeName: "webhooks",
   message: "Webhook requests are too frequent, please retry later.",
 });
 
+// ========== 通用 Webhook 端点（接收任意服务 POST 通知） ==========
+// POST /api/webhooks/generic — 默认通用入口
+router.post(
+  "/generic",
+  webhookLimiter,
+  express.json({ limit: "1mb" }),
+  WebhookController.handleGenericWebhook,
+);
+
+// POST /api/webhooks/generic-:source — 按来源分类（如 /generic-github, /generic-stripe）
+router.post(
+  "/generic-:source",
+  webhookLimiter,
+  express.json({ limit: "1mb" }),
+  WebhookController.handleGenericWebhook,
+);
+
+// ========== Resend Webhook 端点（Svix 签名验证） ==========
 // 默认路由（使用基础密钥 RESEND_WEBHOOK_SECRET / WEBHOOK_SECRET)
 router.post(
   "/resend",
