@@ -225,7 +225,7 @@ const AdminDashboard: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <div className="bg-gradient-to-r from-[#023047] to-[#219EBC] text-white p-6">
+          <div className="bg-[#023047] text-white p-6">
             <div className="text-center">
               <motion.div
                 className="flex items-center justify-center gap-3 mb-4"
