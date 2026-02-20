@@ -4,6 +4,7 @@ import type { NextFunction, Request, Response } from "express";
 // 允许的域名
 const allowedOrigins = [
   "https://tts.hapx.one",
+  "https://tts.hapxs.com",
   "https://tts-new.951100.xyz",
   "https://951100.xyz",
   "https://tts.951100.xyz",

@@ -518,6 +518,8 @@ app.use(tamperProtectionMiddleware);
 app.use("/api/command", commandRoutes);
 app.use("/api/libre-chat", libreChatRoutes);
 app.use("/api/human-check", humanCheckRoutes);
+app.options("/api/debug-console/*path", corsPreflightHandler);
+app.use("/api/debug-console/*path", corsHeadersMiddleware);
 app.use("/api/debug-console", debugConsoleRoutes);
 app.use("/api/data-collection", dataCollectionRoutes);
 app.use("/api/data-collection/admin", dataCollectionAdminRoutes);
