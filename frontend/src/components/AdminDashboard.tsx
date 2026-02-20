@@ -67,10 +67,7 @@ const AdminDashboard: React.FC = () => {
       try {
         setIsLoading(true);
 
-        // 1. 检查是否已登录
-        if (loading) {
-          return; // 等待认证检查完成
-        }
+        if (loading) return;
 
         if (!user) {
           console.warn('[AdminDashboard] 未登录，重定向到登录页面');
@@ -79,7 +76,6 @@ const AdminDashboard: React.FC = () => {
           return;
         }
 
-        // 2. 检查用户角色
         if (user.role !== 'admin') {
           console.warn('[AdminDashboard] 非管理员用户尝试访问管理后台', { userId: user.id, role: user.role });
           setNotification({ message: '权限不足，仅限管理员访问', type: 'error' });
@@ -87,7 +83,6 @@ const AdminDashboard: React.FC = () => {
           return;
         }
 
-        // 3. 验证Token有效性
         const token = localStorage.getItem('token');
         if (!token) {
           console.warn('[AdminDashboard] Token不存在');
@@ -96,7 +91,6 @@ const AdminDashboard: React.FC = () => {
           return;
         }
 
-        // 4. 后端权限验证
         try {
           const response = await fetch(`${getApiBaseUrl()}/api/admin/verify-access`, {
             method: 'POST',
@@ -111,25 +105,19 @@ const AdminDashboard: React.FC = () => {
             })
           });
 
-          if (!response.ok) {
-            throw new Error('后端权限验证失败');
-          }
+          if (!response.ok) throw new Error('后端权限验证失败');
 
           const result = await response.json();
-          if (!result.success) {
-            throw new Error(result.message || '权限验证失败');
-          }
+          if (!result.success) throw new Error(result.message || '权限验证失败');
 
           console.log('[AdminDashboard] 权限验证通过', { userId: user.id, role: user.role });
           setIsAuthorized(true);
-
         } catch (error) {
           console.error('[AdminDashboard] 后端权限验证失败:', error);
           setNotification({ message: '权限验证失败，请重新登录', type: 'error' });
           navigate('/login');
           return;
         }
-
       } catch (error) {
         console.error('[AdminDashboard] 权限验证过程中发生错误:', error);
         setNotification({ message: '权限验证失败', type: 'error' });
@@ -177,7 +165,7 @@ const AdminDashboard: React.FC = () => {
       } catch (error) {
         console.error('[AdminDashboard] 定期权限检查失败:', error);
       }
-    }, 5 * 60 * 1000); // 5分钟
+    }, 5 * 60 * 1000);
 
     return () => clearInterval(interval);
   }, [isAuthorized, user, navigate, setNotification]);
@@ -185,13 +173,13 @@ const AdminDashboard: React.FC = () => {
   // 加载状态
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8 px-4 rounded-lg">
+      <div className="min-h-screen bg-ink-black py-8 px-4 rounded-lg">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8">
+          <div className="bg-dark-slate/80 backdrop-blur-sm rounded-2xl shadow-xl border border-wheat/10 p-8">
             <div className="flex items-center justify-center py-20">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">正在验证管理员权限...</p>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-burnt-orange mx-auto mb-4"></div>
+                <p className="text-wheat/70">正在验证管理员权限...</p>
               </div>
             </div>
           </div>
@@ -203,17 +191,17 @@ const AdminDashboard: React.FC = () => {
   // 未授权状态
   if (!isAuthorized) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8 px-4 rounded-lg">
+      <div className="min-h-screen bg-ink-black py-8 px-4 rounded-lg">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8">
+          <div className="bg-dark-slate/80 backdrop-blur-sm rounded-2xl shadow-xl border border-wheat/10 p-8">
             <div className="flex items-center justify-center py-20">
               <div className="text-center">
-                <div className="text-red-500 text-6xl mb-4">🚫</div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">访问被拒绝</h2>
-                <p className="text-gray-600 mb-4">您没有权限访问管理后台</p>
+                <div className="text-burnt-orange text-6xl mb-4">🚫</div>
+                <h2 className="text-2xl font-bold text-wheat mb-2">访问被拒绝</h2>
+                <p className="text-wheat/60 mb-4">您没有权限访问管理后台</p>
                 <motion.button
                   onClick={() => navigate('/')}
-                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition"
+                  className="px-6 py-2 bg-burnt-orange text-wheat rounded-lg hover:bg-burnt-orange/80 transition"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
@@ -228,16 +216,16 @@ const AdminDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8 px-4 rounded-lg">
+    <div className="min-h-screen bg-ink-black py-8 px-4 rounded-lg">
       <div className="max-w-7xl mx-auto px-4 space-y-8">
-        {/* 统一的标题和管理员信息部分 */}
+        {/* 标题和管理员信息 */}
         <motion.div
-          className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden"
+          className="bg-dark-slate/80 backdrop-blur-sm rounded-2xl shadow-xl border border-wheat/10 overflow-hidden"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
+          <div className="bg-gradient-to-r from-midnight-violet to-dark-slate text-wheat p-6">
             <div className="text-center">
               <motion.div
                 className="flex items-center justify-center gap-3 mb-4"
@@ -245,11 +233,11 @@ const AdminDashboard: React.FC = () => {
                 animate={{ scale: 1 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
               >
-                <FaShieldAlt className="text-4xl" />
+                <FaShieldAlt className="text-4xl text-burnt-orange" />
                 <h1 className="text-4xl font-bold">管理后台</h1>
               </motion.div>
               <motion.p
-                className="text-blue-100 text-lg"
+                className="text-wheat/60 text-lg"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.5, delay: 0.4 }}
@@ -259,29 +247,28 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="p-6">
+          <div className="p-6 bg-ink-black/40">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
-              <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                <FaUsers className="text-blue-600" />
-                <span className="font-semibold text-gray-800">管理员信息</span>
+              <div className="flex items-center gap-2 p-3 bg-dark-slate/60 rounded-lg border border-wheat/10">
+                <FaUsers className="text-burnt-orange" />
+                <span className="font-semibold text-wheat">管理员信息</span>
               </div>
-              <div className="flex flex-row flex-wrap sm:flex-row items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600 justify-center sm:justify-start">
+              <div className="flex flex-row flex-wrap sm:flex-row items-center gap-2 sm:gap-4 text-xs sm:text-sm text-wheat/60 justify-center sm:justify-start">
                 <span>管理员: {user?.username}</span>
-                <span className="mx-1">•</span>
+                <span className="mx-1 text-wheat/30">•</span>
                 <span>ID: {user?.id}</span>
-                <span className="mx-1">•</span>
+                <span className="mx-1 text-wheat/30">•</span>
                 <motion.button
                   onClick={async () => {
                     try {
                       await Promise.resolve(logout?.());
                     } finally {
-                      // 清空本地存储并跳转到欢迎页
                       try { localStorage.clear(); } catch { }
                       try { (sessionStorage as any)?.clear?.(); } catch { }
                       navigate('/welcome', { replace: true });
                     }
                   }}
-                  className="text-red-600 hover:text-red-700 transition"
+                  className="text-burnt-orange hover:text-burnt-orange/80 transition font-medium"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
@@ -294,23 +281,23 @@ const AdminDashboard: React.FC = () => {
 
         {/* 管理功能区域 */}
         <motion.div
-          className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden"
+          className="bg-dark-slate/80 backdrop-blur-sm rounded-2xl shadow-xl border border-wheat/10 overflow-hidden"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
         >
           <div className="p-6">
-            <div className="flex items-center gap-2 mb-6 p-3 bg-gray-50 rounded-lg">
-              <FaCog className="text-blue-600" />
-              <span className="font-semibold text-gray-800">管理功能</span>
+            <div className="flex items-center gap-2 mb-6 p-3 bg-ink-black/40 rounded-lg border border-wheat/10">
+              <FaCog className="text-burnt-orange" />
+              <span className="font-semibold text-wheat">管理功能</span>
             </div>
-            <div className="flex space-x-4 mb-6 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div className="flex space-x-3 mb-6 overflow-x-auto scrollbar-thin scrollbar-thumb-wheat/20 scrollbar-track-transparent pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
               {tabs.map(t => (
                 <motion.button
                   key={t.key}
                   className={`flex items-center justify-center px-4 py-2 rounded-lg font-semibold transition-all duration-150 shadow whitespace-nowrap min-w-[3.5rem] max-w-xs text-center ${tab === t.key
-                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700'
+                    ? 'bg-burnt-orange text-wheat shadow-lg shadow-burnt-orange/20'
+                    : 'bg-ink-black/60 text-wheat/70 border border-wheat/10 hover:bg-midnight-violet/40 hover:text-wheat hover:border-burnt-orange/30'
                     }`}
                   style={{ width: 'auto', minWidth: 'max-content' }}
                   onClick={() => setTab(t.key)}
@@ -324,287 +311,113 @@ const AdminDashboard: React.FC = () => {
             <div style={{ minHeight: 400 }}>
               <AnimatePresence mode="wait">
                 {tab === 'users' && (
-                  <motion.div
-                    key="users"
-                    initial={{ opacity: 0, x: 40 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -40 }}
-                    transition={{ duration: 0.25 }}
-                  >
+                  <motion.div key="users" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.25 }}>
                     <UserManagement />
                   </motion.div>
                 )}
                 {tab === 'librechat' && (
-                  <motion.div
-                    key="librechat"
-                    initial={{ opacity: 0, x: 40 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -40 }}
-                    transition={{ duration: 0.25 }}
-                  >
-                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
-                      <LibreChatAdminPage />
-                    </Suspense>
+                  <motion.div key="librechat" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.25 }}>
+                    <Suspense fallback={<div className="text-wheat/40">加载中…</div>}><LibreChatAdminPage /></Suspense>
                   </motion.div>
                 )}
                 {tab === 'announcement' && (
-                  <motion.div
-                    key="announcement"
-                    initial={{ opacity: 0, x: 40 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -40 }}
-                    transition={{ duration: 0.25 }}
-                  >
-                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
-                      <AnnouncementManager />
-                    </Suspense>
+                  <motion.div key="announcement" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.25 }}>
+                    <Suspense fallback={<div className="text-wheat/40">加载中…</div>}><AnnouncementManager /></Suspense>
                   </motion.div>
                 )}
                 {tab === 'env' && (
-                  <motion.div
-                    key="env"
-                    initial={{ opacity: 0, x: 40 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -40 }}
-                    transition={{ duration: 0.25 }}
-                  >
-                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
-                      <EnvManager />
-                    </Suspense>
+                  <motion.div key="env" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.25 }}>
+                    <Suspense fallback={<div className="text-wheat/40">加载中…</div>}><EnvManager /></Suspense>
                   </motion.div>
                 )}
                 {tab === 'lottery' && (
-                  <motion.div
-                    key="lottery"
-                    initial={{ opacity: 0, x: 40 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -40 }}
-                    transition={{ duration: 0.25 }}
-                  >
-                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
-                      <LotteryAdmin />
-                    </Suspense>
+                  <motion.div key="lottery" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.25 }}>
+                    <Suspense fallback={<div className="text-wheat/40">加载中…</div>}><LotteryAdmin /></Suspense>
                   </motion.div>
                 )}
                 {tab === 'modlist' && (
-                  <motion.div
-                    key="modlist"
-                    initial={{ opacity: 0, x: 40 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -40 }}
-                    transition={{ duration: 0.25 }}
-                  >
-                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
-                      <ModListEditor />
-                    </Suspense>
+                  <motion.div key="modlist" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.25 }}>
+                    <Suspense fallback={<div className="text-wheat/40">加载中…</div>}><ModListEditor /></Suspense>
                   </motion.div>
                 )}
                 {tab === 'outemail' && (
-                  <motion.div
-                    key="outemail"
-                    initial={{ opacity: 0, x: 40 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -40 }}
-                    transition={{ duration: 0.25 }}
-                  >
-                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
-                      <OutEmail />
-                    </Suspense>
+                  <motion.div key="outemail" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.25 }}>
+                    <Suspense fallback={<div className="text-wheat/40">加载中…</div>}><OutEmail /></Suspense>
                   </motion.div>
                 )}
                 {tab === 'shortlink' && (
-                  <motion.div
-                    key="shortlink"
-                    initial={{ opacity: 0, x: 40 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -40 }}
-                    transition={{ duration: 0.25 }}
-                  >
-                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
-                      <ShortLinkManager />
-                    </Suspense>
+                  <motion.div key="shortlink" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.25 }}>
+                    <Suspense fallback={<div className="text-wheat/40">加载中…</div>}><ShortLinkManager /></Suspense>
                   </motion.div>
                 )}
                 {tab === 'shorturlmigration' && (
-                  <motion.div
-                    key="shorturlmigration"
-                    initial={{ opacity: 0, x: 40 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -40 }}
-                    transition={{ duration: 0.25 }}
-                  >
-                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
-                      <ShortUrlMigrationManager />
-                    </Suspense>
+                  <motion.div key="shorturlmigration" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.25 }}>
+                    <Suspense fallback={<div className="text-wheat/40">加载中…</div>}><ShortUrlMigrationManager /></Suspense>
                   </motion.div>
                 )}
                 {tab === 'webhookevents' && (
-                  <motion.div
-                    key="webhookevents"
-                    initial={{ opacity: 0, x: 40 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -40 }}
-                    transition={{ duration: 0.25 }}
-                  >
-                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
-                      <WebhookEventsManager />
-                    </Suspense>
+                  <motion.div key="webhookevents" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.25 }}>
+                    <Suspense fallback={<div className="text-wheat/40">加载中…</div>}><WebhookEventsManager /></Suspense>
                   </motion.div>
                 )}
                 {tab === 'command' && (
-                  <motion.div
-                    key="command"
-                    initial={{ opacity: 0, x: 40 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -40 }}
-                    transition={{ duration: 0.25 }}
-                  >
-                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
-                      <CommandManager />
-                    </Suspense>
+                  <motion.div key="command" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.25 }}>
+                    <Suspense fallback={<div className="text-wheat/40">加载中…</div>}><CommandManager /></Suspense>
                   </motion.div>
                 )}
                 {tab === 'humancheck' && (
-                  <motion.div
-                    key="humancheck"
-                    initial={{ opacity: 0, x: 40 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -40 }}
-                    transition={{ duration: 0.25 }}
-                  >
-                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
-                      <SmartHumanCheckTraces />
-                    </Suspense>
+                  <motion.div key="humancheck" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.25 }}>
+                    <Suspense fallback={<div className="text-wheat/40">加载中…</div>}><SmartHumanCheckTraces /></Suspense>
                   </motion.div>
                 )}
                 {tab === 'logshare' && (
-                  <motion.div
-                    key="logshare"
-                    initial={{ opacity: 0, x: 40 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -40 }}
-                    transition={{ duration: 0.25 }}
-                  >
-                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
-                      <LogShare />
-                    </Suspense>
+                  <motion.div key="logshare" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.25 }}>
+                    <Suspense fallback={<div className="text-wheat/40">加载中…</div>}><LogShare /></Suspense>
                   </motion.div>
                 )}
                 {tab === 'fbiwanted' && (
-                  <motion.div
-                    key="fbiwanted"
-                    initial={{ opacity: 0, x: 40 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -40 }}
-                    transition={{ duration: 0.25 }}
-                  >
-                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
-                      <FBIWantedManager />
-                    </Suspense>
+                  <motion.div key="fbiwanted" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.25 }}>
+                    <Suspense fallback={<div className="text-wheat/40">加载中…</div>}><FBIWantedManager /></Suspense>
                   </motion.div>
                 )}
                 {tab === 'data-collection' && (
-                  <motion.div
-                    key="data-collection"
-                    initial={{ opacity: 0, x: 40 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -40 }}
-                    transition={{ duration: 0.25 }}
-                  >
-                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
-                      <DataCollectionManager />
-                    </Suspense>
+                  <motion.div key="data-collection" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.25 }}>
+                    <Suspense fallback={<div className="text-wheat/40">加载中…</div>}><DataCollectionManager /></Suspense>
                   </motion.div>
                 )}
                 {tab === 'github-billing-cache' && (
-                  <motion.div
-                    key="github-billing-cache"
-                    initial={{ opacity: 0, x: 40 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -40 }}
-                    transition={{ duration: 0.25 }}
-                  >
-                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
-                      <GitHubBillingCacheManager />
-                    </Suspense>
+                  <motion.div key="github-billing-cache" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.25 }}>
+                    <Suspense fallback={<div className="text-wheat/40">加载中…</div>}><GitHubBillingCacheManager /></Suspense>
                   </motion.div>
                 )}
                 {tab === 'ip-ban' && (
-                  <motion.div
-                    key="ip-ban"
-                    initial={{ opacity: 0, x: 40 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -40 }}
-                    transition={{ duration: 0.25 }}
-                  >
-                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
-                      <IPBanManager />
-                    </Suspense>
+                  <motion.div key="ip-ban" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.25 }}>
+                    <Suspense fallback={<div className="text-wheat/40">加载中…</div>}><IPBanManager /></Suspense>
                   </motion.div>
                 )}
                 {tab === 'fingerprint' && (
-                  <motion.div
-                    key="fingerprint"
-                    initial={{ opacity: 0, x: 40 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -40 }}
-                    transition={{ duration: 0.25 }}
-                  >
-                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
-                      <FingerprintManager />
-                    </Suspense>
+                  <motion.div key="fingerprint" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.25 }}>
+                    <Suspense fallback={<div className="text-wheat/40">加载中…</div>}><FingerprintManager /></Suspense>
                   </motion.div>
                 )}
                 {tab === 'broadcast' && (
-                  <motion.div
-                    key="broadcast"
-                    initial={{ opacity: 0, x: 40 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -40 }}
-                    transition={{ duration: 0.25 }}
-                  >
-                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
-                      <BroadcastManager />
-                    </Suspense>
+                  <motion.div key="broadcast" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.25 }}>
+                    <Suspense fallback={<div className="text-wheat/40">加载中…</div>}><BroadcastManager /></Suspense>
                   </motion.div>
                 )}
                 {tab === 'apikeys' && (
-                  <motion.div
-                    key="apikeys"
-                    initial={{ opacity: 0, x: 40 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -40 }}
-                    transition={{ duration: 0.25 }}
-                  >
-                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
-                      <ApiKeyManager />
-                    </Suspense>
+                  <motion.div key="apikeys" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.25 }}>
+                    <Suspense fallback={<div className="text-wheat/40">加载中…</div>}><ApiKeyManager /></Suspense>
                   </motion.div>
                 )}
                 {tab === 'audit-log' && (
-                  <motion.div
-                    key="audit-log"
-                    initial={{ opacity: 0, x: 40 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -40 }}
-                    transition={{ duration: 0.25 }}
-                  >
-                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
-                      <AuditLogViewer />
-                    </Suspense>
+                  <motion.div key="audit-log" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.25 }}>
+                    <Suspense fallback={<div className="text-wheat/40">加载中…</div>}><AuditLogViewer /></Suspense>
                   </motion.div>
                 )}
                 {tab === 'system' && (
-                  <motion.div
-                    key="system"
-                    initial={{ opacity: 0, x: 40 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -40 }}
-                    transition={{ duration: 0.25 }}
-                  >
-                    <Suspense fallback={<div className="text-gray-400">加载中…</div>}>
-                      <SystemManager />
-                    </Suspense>
+                  <motion.div key="system" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.25 }}>
+                    <Suspense fallback={<div className="text-wheat/40">加载中…</div>}><SystemManager /></Suspense>
                   </motion.div>
                 )}
               </AnimatePresence>
