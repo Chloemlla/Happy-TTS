@@ -39,9 +39,9 @@ export default function WsConnector() {
 
   // 连接指示器（始终显示），点击展开/收起输入框
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-2">
+    <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-2 max-sm:bottom-2 max-sm:right-2">
       {showInput && (
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-3 w-80 animate-in fade-in slide-in-from-bottom-2">
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-3 w-80 max-sm:w-[calc(100vw-1rem)] max-sm:mr-0 animate-in fade-in slide-in-from-bottom-2">
           <div className="flex items-center gap-2">
             <input
               ref={inputRef}
@@ -51,7 +51,7 @@ export default function WsConnector() {
               onKeyDown={handleKeyDown}
               placeholder={connected ? '输入 WebSocket 消息...' : '未连接'}
               disabled={!connected}
-              className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:text-gray-400 transition-colors"
+              className="flex-1 min-w-0 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:text-gray-400 transition-colors"
               aria-label="WebSocket 消息输入"
             />
             <button

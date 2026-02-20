@@ -94,7 +94,7 @@ const AuditLogViewer: React.FC = () => {
 
       {/* 搜索栏 */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex-1 min-w-[200px] relative">
+        <div className="flex-1 min-w-0 w-full sm:w-auto relative">
           <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
@@ -105,50 +105,54 @@ const AuditLogViewer: React.FC = () => {
             onKeyDown={handleKeyDown}
           />
         </div>
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className={`px-3 py-2 rounded-lg text-sm flex items-center gap-1 transition ${showFilters ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-        >
-          <FaFilter /> 筛选
-        </button>
-        <button onClick={handleSearch} className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition">
-          搜索
-        </button>
-        <button onClick={() => { fetchLogs(page); fetchStats(); }} className="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm hover:bg-gray-200 transition">
-          <FaSync className={loading ? 'animate-spin' : ''} />
-        </button>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex-1 sm:flex-none px-3 py-2 rounded-lg text-sm flex items-center justify-center gap-1 transition ${showFilters ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+          >
+            <FaFilter /> 筛选
+          </button>
+          <button onClick={handleSearch} className="flex-1 sm:flex-none px-4 py-2 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition">
+            搜索
+          </button>
+          <button onClick={() => { fetchLogs(page); fetchStats(); }} className="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm hover:bg-gray-200 transition">
+            <FaSync className={loading ? 'animate-spin' : ''} />
+          </button>
+        </div>
       </div>
 
       {/* 筛选面板 */}
       {showFilters && (
-        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="flex flex-wrap gap-3 p-3 bg-gray-50 rounded-lg">
+        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="flex flex-wrap gap-2 sm:gap-3 p-3 bg-gray-50 rounded-lg">
           <select
-            className="px-3 py-1.5 border rounded text-sm"
+            className="flex-1 sm:flex-none min-w-[120px] px-3 py-1.5 border rounded text-sm"
             value={filters.module}
             onChange={e => setFilters(f => ({ ...f, module: e.target.value }))}
           >
             {MODULES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
           <select
-            className="px-3 py-1.5 border rounded text-sm"
+            className="flex-1 sm:flex-none min-w-[100px] px-3 py-1.5 border rounded text-sm"
             value={filters.result}
             onChange={e => setFilters(f => ({ ...f, result: e.target.value }))}
           >
             {RESULTS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
           </select>
-          <input
-            type="date"
-            className="px-3 py-1.5 border rounded text-sm"
-            value={filters.startDate}
-            onChange={e => setFilters(f => ({ ...f, startDate: e.target.value }))}
-          />
-          <span className="self-center text-gray-400">至</span>
-          <input
-            type="date"
-            className="px-3 py-1.5 border rounded text-sm"
-            value={filters.endDate}
-            onChange={e => setFilters(f => ({ ...f, endDate: e.target.value }))}
-          />
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <input
+              type="date"
+              className="flex-1 sm:flex-none px-3 py-1.5 border rounded text-sm"
+              value={filters.startDate}
+              onChange={e => setFilters(f => ({ ...f, startDate: e.target.value }))}
+            />
+            <span className="text-gray-400">至</span>
+            <input
+              type="date"
+              className="flex-1 sm:flex-none px-3 py-1.5 border rounded text-sm"
+              value={filters.endDate}
+              onChange={e => setFilters(f => ({ ...f, endDate: e.target.value }))}
+            />
+          </div>
           <button
             onClick={() => { setFilters({ module: '', result: '', keyword: '', startDate: '', endDate: '' }); }}
             className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700"
@@ -169,17 +173,18 @@ const AuditLogViewer: React.FC = () => {
             {logs.map(log => (
               <div
                 key={log._id}
-                className="px-4 py-3 hover:bg-gray-50 cursor-pointer transition"
+                className="px-3 sm:px-4 py-3 hover:bg-gray-50 cursor-pointer transition"
                 onClick={() => setExpandedId(expandedId === log._id ? null : log._id)}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
                     <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${log.result === 'success' ? 'bg-green-400' : 'bg-red-400'}`} />
                     <span className="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 flex-shrink-0">{moduleLabel(log.module)}</span>
                     <span className="text-sm font-medium text-gray-800 truncate">{log.action}</span>
-                    <span className="text-xs text-gray-400 flex-shrink-0">by {log.username}</span>
+                    <span className="text-xs text-gray-400 flex-shrink-0 hidden sm:inline">by {log.username}</span>
                   </div>
-                  <div className="flex items-center gap-3 flex-shrink-0">
+                  <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 ml-3.5 sm:ml-0">
+                    <span className="text-xs text-gray-400 sm:hidden">by {log.username}</span>
                     <span className="text-xs text-gray-400 hidden sm:inline">{log.ip}</span>
                     <span className="text-xs text-gray-400">{formatTime(log.createdAt)}</span>
                   </div>
@@ -192,14 +197,14 @@ const AuditLogViewer: React.FC = () => {
                     animate={{ opacity: 1, height: 'auto' }}
                     className="mt-2 p-3 bg-gray-50 rounded text-xs space-y-1"
                   >
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                      <div><span className="text-gray-500">操作者ID：</span>{log.userId}</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+                      <div className="truncate"><span className="text-gray-500">操作者ID：</span>{log.userId}</div>
                       <div><span className="text-gray-500">角色：</span>{log.role}</div>
-                      <div><span className="text-gray-500">请求路径：</span>{log.method} {log.path}</div>
+                      <div className="sm:col-span-2 truncate"><span className="text-gray-500">请求路径：</span>{log.method} {log.path}</div>
                       <div><span className="text-gray-500">IP：</span>{log.ip}</div>
-                      {log.targetId && <div><span className="text-gray-500">目标ID：</span>{log.targetId}</div>}
-                      {log.targetName && <div><span className="text-gray-500">目标名称：</span>{log.targetName}</div>}
-                      {log.errorMessage && <div className="col-span-2 text-red-500"><span className="text-gray-500">错误：</span>{log.errorMessage}</div>}
+                      {log.targetId && <div className="truncate"><span className="text-gray-500">目标ID：</span>{log.targetId}</div>}
+                      {log.targetName && <div className="truncate"><span className="text-gray-500">目标名称：</span>{log.targetName}</div>}
+                      {log.errorMessage && <div className="sm:col-span-2 text-red-500"><span className="text-gray-500">错误：</span>{log.errorMessage}</div>}
                     </div>
                     {log.detail && (
                       <div className="mt-1">
@@ -220,8 +225,8 @@ const AuditLogViewer: React.FC = () => {
 
       {/* 分页 */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-500">共 {total} 条，第 {page}/{totalPages} 页</span>
+        <div className="flex items-center justify-between text-xs sm:text-sm">
+          <span className="text-gray-500">共 {total} 条，{page}/{totalPages} 页</span>
           <div className="flex items-center gap-1">
             <button
               disabled={page <= 1}
