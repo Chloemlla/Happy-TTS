@@ -281,7 +281,7 @@ const AdminDashboard: React.FC = () => {
 
         {/* 管理功能区域 */}
         <motion.div
-          className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200 overflow-hidden"
+          className="bg-white/80 rounded-2xl shadow-xl border border-gray-200"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
