@@ -3,6 +3,57 @@ import { getResendSecret, verifyResendPayload, WebhookEventService } from "../se
 import logger from "../utils/logger";
 
 export class WebhookController {
+  // POST /api/webhooks/generic 或 /api/webhooks/generic-:source
+  // 接收任意服务的 POST 通知，无签名验证，直接持久化
+  static async handleGenericWebhook(req: Request, res: Response) {
+    try {
+      const source = (req.params as any)?.source as string | undefined;
+      const body =
+        Buffer.isBuffer(req.body)
+          ? (() => { try { return JSON.parse(req.body.toString("utf8")); } catch { return { raw: req.body.toString("utf8") }; } })()
+          : typeof req.body === "string"
+            ? (() => { try { return JSON.parse(req.body); } catch { return { raw: req.body }; } })()
+            : req.body || {};
+
+      const type = body.type || body.event || body.action || "generic";
+      const eventId = body.id || body.event_id || body.eventId || undefined;
+
+      const summary = {
+        source: source || "generic",
+        type,
+        eventId,
+        keys: Object.keys(body).slice(0, 10),
+      };
+      logger.info("[GenericWebhook] Received event", summary);
+
+      try {
+        await WebhookEventService.create({
+          provider: source || "generic",
+          routeKey: source || undefined,
+          eventId,
+          type,
+          created_at: body.created_at || body.timestamp ? new Date(body.created_at || body.timestamp) : undefined,
+          to: body.to || body.recipient || body.email || undefined,
+          subject: body.subject || body.title || body.message || undefined,
+          status: body.status || undefined,
+          data: body,
+          raw: body,
+        });
+      } catch (dbErr) {
+        logger.warn("[GenericWebhook] 保存事件到数据库失败", {
+          error: dbErr instanceof Error ? dbErr.message : String(dbErr),
+        });
+      }
+
+      return res.status(200).json({ success: true });
+    } catch (err) {
+      logger.error("[GenericWebhook] Error handling webhook", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return res.status(500).json({ error: "Webhook handling failed" });
+    }
+  }
+
   // POST /api/webhooks/resend
   static async handleResendWebhook(req: Request, res: Response) {
     try {
