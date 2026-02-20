@@ -116,30 +116,30 @@ const GitHubBillingDashboard: React.FC = () => {
   const [clearingCache, setClearingCache] = useState(false);
   const [, setLoadingStage] = useState<'idle' | 'initial' | 'cached' | 'complete'>('idle');
 
-  // 获取带Turnstile访问令牌的请求头
+  // 获取带Turnstile访问令牌的请求头（令牌可选，有则携带）
   const getTurnstileAuthHeaders = async (): Promise<Record<string, string>> => {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json'
     };
 
-    // 开发环境下跳过Turnstile验证，但仍需要基本认证
+    // 开发环境下跳过Turnstile验证
     if (isDevelopment()) {
       return headers;
     }
 
-    // 获取浏览器指纹
-    const fingerprint = await getFingerprint();
-    if (!fingerprint) {
-      throw new Error('无法生成浏览器指纹');
+    // 尝试获取浏览器指纹和访问令牌，有则携带，无则跳过
+    try {
+      const fingerprint = await getFingerprint();
+      if (fingerprint) {
+        headers['X-Fingerprint'] = fingerprint;
+        const turnstileToken = getAccessToken(fingerprint);
+        if (turnstileToken) {
+          headers['Authorization'] = `Bearer ${turnstileToken}`;
+        }
+      }
+    } catch {
+      // 获取失败不阻塞请求
     }
-
-    // 获取Turnstile访问令牌
-    const turnstileToken = getAccessToken(fingerprint);
-    if (turnstileToken) {
-      headers['Authorization'] = `Bearer ${turnstileToken}`;
-    }
-
-    headers['X-Fingerprint'] = fingerprint;
 
     return headers;
   };
@@ -152,7 +152,7 @@ const GitHubBillingDashboard: React.FC = () => {
            window.location.hostname === '127.0.0.1';
   };
 
-  // 获取带管理员令牌和Turnstile访问令牌的请求头（用于缓存操作）
+  // 获取带管理员令牌和Turnstile访问令牌的请求头（用于缓存操作，Turnstile令牌可选）
   const getAdminTurnstileAuthHeaders = async (): Promise<Record<string, string>> => {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json'
@@ -167,33 +167,23 @@ const GitHubBillingDashboard: React.FC = () => {
     // 设置管理员令牌作为主要认证
     headers['Authorization'] = `Bearer ${adminToken}`;
 
-    // 开发环境下跳过Turnstile验证
+    // 尝试获取Turnstile令牌，有则携带
     if (!isDevelopment()) {
-      // 获取浏览器指纹
-      const fingerprint = await getFingerprint();
-      if (!fingerprint) {
-        throw new Error('无法生成浏览器指纹');
+      try {
+        const fingerprint = await getFingerprint();
+        if (fingerprint) {
+          headers['X-Fingerprint'] = fingerprint;
+          const turnstileToken = getAccessToken(fingerprint);
+          if (turnstileToken) {
+            headers['X-Turnstile-Token'] = turnstileToken;
+          }
+        }
+      } catch {
+        // 获取失败不阻塞请求
       }
-
-      // 获取Turnstile访问令牌
-      const turnstileToken = getAccessToken(fingerprint);
-      if (!turnstileToken) {
-        throw new Error('缺少Turnstile访问令牌');
-      }
-
-      // 设置Turnstile令牌作为额外认证头
-      headers['X-Turnstile-Token'] = turnstileToken;
-      headers['X-Fingerprint'] = fingerprint;
     }
 
     return headers;
-  };
-
-  // 获取基础请求头（无需认证）
-  const getHeaders = (): Record<string, string> => {
-    return {
-      'Content-Type': 'application/json'
-    };
   };
 
   // 智能处理响应数据格式
@@ -292,43 +282,8 @@ const GitHubBillingDashboard: React.FC = () => {
     }
   }, []);
 
-  // 检查是否有Turnstile访问令牌
-  const checkTurnstileToken = async (): Promise<boolean> => {
-    try {
-      const fingerprint = await getFingerprint();
-      if (!fingerprint) {
-        setNotification({
-          message: '缺少访问令牌。',
-          type: 'error'
-        });
-        return false;
-      }
-
-      const token = getAccessToken(fingerprint);
-      if (!token) {
-        setNotification({
-          message: '缺少访问令牌。',
-          type: 'error'
-        });
-        return false;
-      }
-      return true;
-    } catch (error) {
-      setNotification({
-        message: '检查访问令牌失败：' + (error instanceof Error ? error.message : '未知错误'),
-        type: 'error'
-      });
-      return false;
-    }
-  };
-
   // 获取账单数据
   const fetchBillingData = useCallback(async (forceRefresh: boolean = false) => {
-    // 开发环境下跳过Turnstile令牌检查
-    if (!isDevelopment() && !(await checkTurnstileToken())) {
-      return;
-    }
-
     setLoading(true);
     try {
       const headers = await getTurnstileAuthHeaders();
@@ -378,33 +333,13 @@ const GitHubBillingDashboard: React.FC = () => {
     }
   }, [setNotification]);
 
-  // 检查是否有管理员和Turnstile访问令牌
+  // 检查是否有管理员访问令牌（Turnstile令牌不再强制要求）
   const checkAdminAndTurnstileToken = async (): Promise<boolean> => {
     try {
-      // 检查管理员令牌
       const adminToken = getAuthToken();
       if (!adminToken) {
         setNotification({
           message: '缺少管理员访问令牌',
-          type: 'error'
-        });
-        return false;
-      }
-
-      // 检查Turnstile令牌
-      const fingerprint = await getFingerprint();
-      if (!fingerprint) {
-        setNotification({
-          message: '缺少访问令牌。',
-          type: 'error'
-        });
-        return false;
-      }
-
-      const turnstileToken = getAccessToken(fingerprint);
-      if (!turnstileToken) {
-        setNotification({
-          message: '缺少访问令牌。',
           type: 'error'
         });
         return false;
@@ -989,10 +924,8 @@ const GitHubBillingDashboard: React.FC = () => {
       >
         <h3 className="text-lg font-semibold text-blue-800 mb-3">使用说明</h3>
         <ul className="text-sm text-blue-700 space-y-2">
-          <li>• <strong>需要Turnstile认证：</strong>此功能需要通过Turnstile验证获取访问令牌</li>
-          <li>• <strong>获取令牌：</strong>如果没有访问令牌，请先访问其他页面完成Turnstile验证</li>
-          <li>• <strong>令牌有效期：</strong>访问令牌有时间限制，过期后需要重新验证</li>
           <li>• <strong>获取数据：</strong>点击"获取数据"按钮从 GitHub API 获取最新的账单数据</li>
+          <li>• <strong>访问令牌：</strong>如果后端启用了首次访问验证（ENABLE_FIRST_VISIT_VERIFICATION），需要通过Turnstile验证获取访问令牌</li>
           <li>• <strong>Customer ID：</strong>系统自动使用后端配置的默认值</li>
           <li>• <strong>数据缓存：</strong>系统会自动缓存获取的数据，避免频繁调用 GitHub API</li>
           <li>• <strong>金额显示：</strong>billableAmount 会自动格式化为两位小数，同时显示原始值</li>
