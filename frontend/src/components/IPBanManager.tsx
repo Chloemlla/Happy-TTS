@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FaBan, FaUnlock, FaPlus, FaTrash, FaSearch, FaSync, FaInfoCircle, 
@@ -89,13 +90,13 @@ function BanIPModal({ isOpen, onClose, onSuccess, mode }: BanIPModalProps) {
 
   if (!isOpen) return null;
 
-  return (
+  return ReactDOM.createPortal(
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 p-4 sm:p-0"
+        className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-[9999] p-4 sm:p-0"
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -196,7 +197,7 @@ function BanIPModal({ isOpen, onClose, onSuccess, mode }: BanIPModalProps) {
         </motion.div>
       </motion.div>
     </AnimatePresence>
-  );
+  , document.body);
 }
 
 function UnbanIPModal({ isOpen, onClose, onSuccess, mode }: UnbanIPModalProps) {
@@ -260,13 +261,13 @@ function UnbanIPModal({ isOpen, onClose, onSuccess, mode }: UnbanIPModalProps) {
 
   if (!isOpen) return null;
 
-  return (
+  return ReactDOM.createPortal(
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 p-4 sm:p-0"
+        className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-[9999] p-4 sm:p-0"
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -347,7 +348,7 @@ function UnbanIPModal({ isOpen, onClose, onSuccess, mode }: UnbanIPModalProps) {
         </motion.div>
       </motion.div>
     </AnimatePresence>
-  );
+  , document.body);
 }
 
 export default function IPBanManager() {

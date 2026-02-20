@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, ChangeEvent, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { FaSearch, FaPlus, FaEye, FaEdit, FaTrash, FaExclamationTriangle, FaFilter, FaUser, FaTimes, FaImage, FaUpload, FaShieldAlt, FaUserSecret, FaSpinner, FaSave } from 'react-icons/fa';
 import { useNotification } from './Notification';
@@ -732,11 +733,12 @@ const FBIWantedManager: React.FC = () => {
                     )}
                 </motion.div>
 
-                {/* 创建通缉犯模态框 */}
+                {/* 创建通缉犯模态框 — Portal 到 body */}
+                {ReactDOM.createPortal(
                 <AnimatePresence>
                     {showCreateModal && (
                         <motion.div
-                            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+                            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
@@ -960,12 +962,14 @@ const FBIWantedManager: React.FC = () => {
                         </motion.div>
                     )}
                 </AnimatePresence>
+                , document.body)}
 
-                {/* 编辑通缉犯模态框 */}
+                {/* 编辑通缉犯模态框 — Portal 到 body */}
+                {ReactDOM.createPortal(
                 <AnimatePresence>
                     {showEditModal && selectedWanted && (
                         <motion.div
-                            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+                            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
@@ -1103,12 +1107,14 @@ const FBIWantedManager: React.FC = () => {
                         </motion.div>
                     )}
                 </AnimatePresence>
+                , document.body)}
 
-                {/* 查看通缉犯详情模态框 */}
+                {/* 查看通缉犯详情模态框 — Portal 到 body */}
+                {ReactDOM.createPortal(
                 <AnimatePresence>
                     {showViewModal && selectedWanted && (
                         <motion.div
-                            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+                            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
@@ -1287,6 +1293,7 @@ const FBIWantedManager: React.FC = () => {
                         </motion.div>
                     )}
                 </AnimatePresence>
+                , document.body)}
             </div>
         </div>
     );

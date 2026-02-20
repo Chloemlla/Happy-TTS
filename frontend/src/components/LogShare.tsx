@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { useNotification } from './Notification';
@@ -810,7 +811,8 @@ const LogShare: React.FC = React.memo(() => {
 
   return (
     <>
-      {/* 全屏密码弹窗 */}
+      {/* 全屏密码弹窗 — Portal 到 body */}
+      {ReactDOM.createPortal(
       <AnimatePresence>
         {showPwdModal && (
           <motion.div
@@ -852,6 +854,7 @@ const LogShare: React.FC = React.memo(() => {
           </motion.div>
         )}
       </AnimatePresence>
+      , document.body)}
       {/* 主体内容 */}
       <motion.div
         className="space-y-6"
@@ -1615,11 +1618,12 @@ const LogShare: React.FC = React.memo(() => {
           </div>
         </motion.div>
 
-        {/* 创建归档弹窗 */}
+        {/* 创建归档弹窗 — Portal 到 body */}
+        {ReactDOM.createPortal(
         <AnimatePresence>
           {showArchiveModal && (
             <motion.div
-              className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50"
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[9999]"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -1727,12 +1731,14 @@ const LogShare: React.FC = React.memo(() => {
             </motion.div>
           )}
         </AnimatePresence>
+        , document.body)}
 
-        {/* 编辑元数据弹窗 */}
+        {/* 编辑元数据弹窗 — Portal 到 body */}
+        {ReactDOM.createPortal(
         <AnimatePresence>
           {editingLog && (
             <motion.div
-              className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50"
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[9999]"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -1786,6 +1792,7 @@ const LogShare: React.FC = React.memo(() => {
             </motion.div>
           )}
         </AnimatePresence>
+        , document.body)}
 
         {/* 全局提示 */}
         {/* 所有提示已用 setNotification 全局弹窗替换 */}

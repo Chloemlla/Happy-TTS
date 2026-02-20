@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { api } from '../api/api';
 
@@ -572,11 +573,12 @@ const UserManagement: React.FC = () => {
           </div>
         )}
       </motion.div>
-      {/* 指纹详情弹窗 */}
+      {/* 指纹详情弹窗 — Portal 到 body 以逃逸 stacking context */}
+      {ReactDOM.createPortal(
       <AnimatePresence>
         {showFpModal && fpUser && (
           <motion.div
-            className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black/40 flex items-center justify-center z-[9999] p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -755,6 +757,7 @@ const UserManagement: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      , document.body)}
     </motion.div>
   );
 };
