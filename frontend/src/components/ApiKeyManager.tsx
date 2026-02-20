@@ -141,26 +141,26 @@ const ApiKeyManager: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* 标题 */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <FaKey className="text-2xl text-amber-600" />
-          <h2 className="text-xl font-bold text-gray-800">API Key 管理</h2>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <FaKey className="text-xl sm:text-2xl text-amber-600" />
+          <h2 className="text-lg sm:text-xl font-bold text-gray-800">API Key 管理</h2>
         </div>
         <div className="flex gap-2">
           <motion.button onClick={fetchKeys} disabled={loading}
             className="flex items-center gap-1 px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition"
             whileTap={{ scale: 0.95 }}>
-            <FaSyncAlt className={loading ? 'animate-spin' : ''} /><span>刷新</span>
+            <FaSyncAlt className={loading ? 'animate-spin' : ''} /><span className="hidden sm:inline">刷新</span>
           </motion.button>
           <motion.button onClick={() => { setShowCreate(!showCreate); setRevealedKey(null); }}
             className="flex items-center gap-1 px-3 py-1.5 text-sm bg-amber-500 text-white hover:bg-amber-600 rounded-lg transition"
             whileTap={{ scale: 0.95 }}>
-            <FaPlus /><span>创建</span>
+            <FaPlus /><span className="hidden sm:inline">创建</span>
           </motion.button>
         </div>
       </div>
 
-      <p className="text-sm text-gray-500">
+      <p className="text-xs sm:text-sm text-gray-500">
         为程序化调用和第三方集成创建 API Key。使用 <code className="bg-gray-100 px-1 rounded text-xs">X-API-Key</code> 请求头传递密钥。
       </p>
 
@@ -173,7 +173,7 @@ const ApiKeyManager: React.FC = () => {
               <FaShieldAlt /> 新 API Key 已创建 — 请立即复制，此密钥不会再次显示
             </div>
             <div className="flex items-center gap-2">
-              <code className="flex-1 bg-white px-3 py-2 rounded border text-sm font-mono break-all select-all">
+              <code className="flex-1 min-w-0 bg-white px-3 py-2 rounded border text-xs sm:text-sm font-mono break-all select-all overflow-hidden">
                 {showKey ? revealedKey : '•'.repeat(40)}
               </code>
               <motion.button onClick={() => setShowKey(!showKey)}
@@ -213,7 +213,7 @@ const ApiKeyManager: React.FC = () => {
                 ))}
               </div>
             </div>
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1">
                 <label className="block text-sm font-medium text-gray-700 mb-1">限流（次/分钟）</label>
                 <input type="number" value={newRate} onChange={e => setNewRate(Number(e.target.value) || 60)}
@@ -247,12 +247,12 @@ const ApiKeyManager: React.FC = () => {
         <div className="space-y-3">
           {keys.map(k => (
             <motion.div key={k.keyId} layout
-              className={`p-4 border rounded-lg transition ${k.enabled ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-200 opacity-60'}`}>
-              <div className="flex items-start justify-between gap-3">
+              className={`p-3 sm:p-4 border rounded-lg transition ${k.enabled ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-200 opacity-60'}`}>
+              <div className="flex items-start justify-between gap-2 sm:gap-3">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span className="font-medium text-gray-800 text-sm">{k.name}</span>
-                    <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">{k.keyId}</code>
+                    <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 truncate max-w-[120px] sm:max-w-none">{k.keyId}</code>
                     <span className={`text-xs px-1.5 py-0.5 rounded ${k.enabled ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                       {k.enabled ? '启用' : '已吊销'}
                     </span>
@@ -262,30 +262,30 @@ const ApiKeyManager: React.FC = () => {
                       <span key={p} className="px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded text-xs">{p}</span>
                     ))}
                   </div>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
+                  <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
                     <span>限流: {k.rateLimit}/min</span>
                     <span>调用: {k.usageCount} 次</span>
                     {k.expiresAt && <span className="flex items-center gap-1"><FaClock /> {new Date(k.expiresAt).toLocaleDateString()}</span>}
-                    {k.lastUsedAt && <span>最后使用: {new Date(k.lastUsedAt).toLocaleString()}</span>}
+                    {k.lastUsedAt && <span className="col-span-2 sm:col-span-1">最后使用: {new Date(k.lastUsedAt).toLocaleString()}</span>}
                     {k.lastUsedIp && <span>IP: {k.lastUsedIp}</span>}
                     <span>创建: {new Date(k.createdAt).toLocaleDateString()}</span>
-                    <span>用户: {k.userId}</span>
+                    <span className="truncate">用户: {k.userId}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   {k.enabled ? (
                     <motion.button onClick={() => handleRevoke(k.keyId)} title="吊销"
-                      className="p-1.5 text-yellow-600 hover:bg-yellow-50 rounded transition" whileTap={{ scale: 0.9 }}>
+                      className="p-2 sm:p-1.5 text-yellow-600 hover:bg-yellow-50 rounded transition" whileTap={{ scale: 0.9 }}>
                       <FaBan />
                     </motion.button>
                   ) : (
                     <motion.button onClick={() => handleEnable(k.keyId)} title="启用"
-                      className="p-1.5 text-green-600 hover:bg-green-50 rounded transition" whileTap={{ scale: 0.9 }}>
+                      className="p-2 sm:p-1.5 text-green-600 hover:bg-green-50 rounded transition" whileTap={{ scale: 0.9 }}>
                       <FaCheck />
                     </motion.button>
                   )}
                   <motion.button onClick={() => handleDelete(k.keyId)} title="永久删除"
-                    className="p-1.5 text-red-500 hover:bg-red-50 rounded transition" whileTap={{ scale: 0.9 }}>
+                    className="p-2 sm:p-1.5 text-red-500 hover:bg-red-50 rounded transition" whileTap={{ scale: 0.9 }}>
                     <FaTrash />
                   </motion.button>
                 </div>

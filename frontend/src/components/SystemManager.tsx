@@ -179,7 +179,7 @@ export default function SystemManager() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-green-50 to-teal-50 rounded-xl p-6 border border-green-100"
+        className="bg-gradient-to-r from-green-50 to-teal-50 rounded-xl p-4 sm:p-6 border border-green-100"
       >
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
           <h2 className="text-xl sm:text-2xl font-bold text-green-700 flex items-center gap-2">
@@ -217,52 +217,52 @@ export default function SystemManager() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+          className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200"
         >
           <h3 className="text-base sm:text-lg font-semibold text-gray-800 flex items-center gap-2 mb-4">
             <FaRunning className="w-4 h-4 sm:w-5 sm:h-5 text-green-500" />
             调度器状态
           </h3>
           
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className={`${schedulerStatus.isRunning ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'} rounded-lg p-4 border`}>
-              <div className="flex items-center justify-between">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
+            <div className={`${schedulerStatus.isRunning ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'} rounded-lg p-3 sm:p-4 border`}>
+              <div className="flex items-center justify-between gap-2">
                 {schedulerStatus.isRunning ? (
-                  <FaPlay className="w-8 h-8 text-green-500" />
+                  <FaPlay className="w-6 h-6 sm:w-8 sm:h-8 text-green-500 flex-shrink-0" />
                 ) : (
-                  <FaPauseCircle className="w-8 h-8 text-red-500" />
+                  <FaPauseCircle className="w-6 h-6 sm:w-8 sm:h-8 text-red-500 flex-shrink-0" />
                 )}
-                <span className={`text-2xl font-bold ${schedulerStatus.isRunning ? 'text-green-700' : 'text-red-700'}`}>
+                <span className={`text-lg sm:text-2xl font-bold ${schedulerStatus.isRunning ? 'text-green-700' : 'text-red-700'}`}>
                   {schedulerStatus.isRunning ? '运行中' : '已停止'}
                 </span>
               </div>
-              <p className="text-sm text-gray-600 mt-2">运行状态</p>
+              <p className="text-xs sm:text-sm text-gray-600 mt-2">运行状态</p>
             </div>
             
-            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-              <div className="flex items-center justify-between">
-                <FaChartBar className="w-8 h-8 text-blue-500" />
-                <span className="text-2xl font-bold text-blue-700">{schedulerStatus.totalCleanups}</span>
+            <div className="bg-blue-50 rounded-lg p-3 sm:p-4 border border-blue-200">
+              <div className="flex items-center justify-between gap-2">
+                <FaChartBar className="w-6 h-6 sm:w-8 sm:h-8 text-blue-500 flex-shrink-0" />
+                <span className="text-lg sm:text-2xl font-bold text-blue-700">{schedulerStatus.totalCleanups}</span>
               </div>
-              <p className="text-sm text-gray-600 mt-2">总清理次数</p>
+              <p className="text-xs sm:text-sm text-gray-600 mt-2">总清理次数</p>
             </div>
             
-            <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
-              <div className="flex items-center justify-between">
-                <FaExclamationTriangle className="w-8 h-8 text-orange-500" />
-                <span className="text-2xl font-bold text-orange-700">{schedulerStatus.errors}</span>
+            <div className="bg-orange-50 rounded-lg p-3 sm:p-4 border border-orange-200">
+              <div className="flex items-center justify-between gap-2">
+                <FaExclamationTriangle className="w-6 h-6 sm:w-8 sm:h-8 text-orange-500 flex-shrink-0" />
+                <span className="text-lg sm:text-2xl font-bold text-orange-700">{schedulerStatus.errors}</span>
               </div>
-              <p className="text-sm text-gray-600 mt-2">错误次数</p>
+              <p className="text-xs sm:text-sm text-gray-600 mt-2">错误次数</p>
             </div>
             
-            <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
-              <div className="flex items-center justify-between">
-                <FaClock className="w-8 h-8 text-purple-500" />
-                <span className="text-sm font-bold text-purple-700">
+            <div className="bg-purple-50 rounded-lg p-3 sm:p-4 border border-purple-200">
+              <div className="flex items-center justify-between gap-2">
+                <FaClock className="w-6 h-6 sm:w-8 sm:h-8 text-purple-500 flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-bold text-purple-700">
                   {schedulerStatus.lastCleanup ? new Date(schedulerStatus.lastCleanup).toLocaleString('zh-CN') : '从未'}
                 </span>
               </div>
-              <p className="text-sm text-gray-600 mt-2">上次清理</p>
+              <p className="text-xs sm:text-sm text-gray-600 mt-2">上次清理</p>
             </div>
           </div>
 
@@ -270,7 +270,7 @@ export default function SystemManager() {
             <motion.button
               onClick={handleStartScheduler}
               disabled={starting || schedulerStatus.isRunning}
-              className="flex-1 px-4 py-3 bg-gradient-to-r from-green-500 to-teal-600 text-white rounded-lg hover:from-green-600 hover:to-teal-700 transition-all duration-200 font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-3 sm:px-4 py-3 bg-gradient-to-r from-green-500 to-teal-600 text-white rounded-lg hover:from-green-600 hover:to-teal-700 transition-all duration-200 font-medium text-sm sm:text-base flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               whileHover={{ scale: starting || schedulerStatus.isRunning ? 1 : 1.02 }}
               whileTap={{ scale: starting || schedulerStatus.isRunning ? 1 : 0.98 }}
             >
@@ -285,7 +285,7 @@ export default function SystemManager() {
             <motion.button
               onClick={handleStopScheduler}
               disabled={stopping || !schedulerStatus.isRunning}
-              className="flex-1 px-4 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-lg hover:from-orange-600 hover:to-red-700 transition-all duration-200 font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-3 sm:px-4 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-lg hover:from-orange-600 hover:to-red-700 transition-all duration-200 font-medium text-sm sm:text-base flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               whileHover={{ scale: stopping || !schedulerStatus.isRunning ? 1 : 1.02 }}
               whileTap={{ scale: stopping || !schedulerStatus.isRunning ? 1 : 0.98 }}
             >
@@ -300,7 +300,7 @@ export default function SystemManager() {
             <motion.button
               onClick={handleManualCleanup}
               disabled={cleaning}
-              className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 font-medium flex items-center justify-center gap-2 disabled:opacity-50"
+              className="flex-1 px-3 sm:px-4 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 font-medium text-sm sm:text-base flex items-center justify-center gap-2 disabled:opacity-50"
               whileHover={{ scale: cleaning ? 1 : 1.02 }}
               whileTap={{ scale: cleaning ? 1 : 0.98 }}
             >
@@ -320,52 +320,52 @@ export default function SystemManager() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+          className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200"
         >
           <h3 className="text-base sm:text-lg font-semibold text-gray-800 flex items-center gap-2 mb-4">
             <FaExchangeAlt className="w-4 h-4 sm:w-5 sm:h-5 text-green-500" />
             数据同步状态
           </h3>
           
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className={`${syncStatus.isRunning ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'} rounded-lg p-4 border`}>
-              <div className="flex items-center justify-between">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
+            <div className={`${syncStatus.isRunning ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'} rounded-lg p-3 sm:p-4 border`}>
+              <div className="flex items-center justify-between gap-2">
                 {syncStatus.isRunning ? (
-                  <FaSync className="w-8 h-8 text-green-500 animate-spin" />
+                  <FaSync className="w-6 h-6 sm:w-8 sm:h-8 text-green-500 animate-spin flex-shrink-0" />
                 ) : (
-                  <FaDatabase className="w-8 h-8 text-gray-500" />
+                  <FaDatabase className="w-6 h-6 sm:w-8 sm:h-8 text-gray-500 flex-shrink-0" />
                 )}
-                <span className={`text-2xl font-bold ${syncStatus.isRunning ? 'text-green-700' : 'text-gray-700'}`}>
+                <span className={`text-lg sm:text-2xl font-bold ${syncStatus.isRunning ? 'text-green-700' : 'text-gray-700'}`}>
                   {syncStatus.isRunning ? '同步中' : '空闲'}
                 </span>
               </div>
-              <p className="text-sm text-gray-600 mt-2">同步状态</p>
+              <p className="text-xs sm:text-sm text-gray-600 mt-2">同步状态</p>
             </div>
             
-            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-              <div className="flex items-center justify-between">
-                <FaDatabase className="w-8 h-8 text-blue-500" />
-                <span className="text-2xl font-bold text-blue-700">{syncStatus.mongoToRedisCount}</span>
+            <div className="bg-blue-50 rounded-lg p-3 sm:p-4 border border-blue-200">
+              <div className="flex items-center justify-between gap-2">
+                <FaDatabase className="w-6 h-6 sm:w-8 sm:h-8 text-blue-500 flex-shrink-0" />
+                <span className="text-lg sm:text-2xl font-bold text-blue-700">{syncStatus.mongoToRedisCount}</span>
               </div>
-              <p className="text-sm text-gray-600 mt-2">MongoDB→Redis</p>
+              <p className="text-xs sm:text-sm text-gray-600 mt-2">MongoDB→Redis</p>
             </div>
             
-            <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
-              <div className="flex items-center justify-between">
-                <FaDatabase className="w-8 h-8 text-purple-500" />
-                <span className="text-2xl font-bold text-purple-700">{syncStatus.redisToMongoCount}</span>
+            <div className="bg-purple-50 rounded-lg p-3 sm:p-4 border border-purple-200">
+              <div className="flex items-center justify-between gap-2">
+                <FaDatabase className="w-6 h-6 sm:w-8 sm:h-8 text-purple-500 flex-shrink-0" />
+                <span className="text-lg sm:text-2xl font-bold text-purple-700">{syncStatus.redisToMongoCount}</span>
               </div>
-              <p className="text-sm text-gray-600 mt-2">Redis→MongoDB</p>
+              <p className="text-xs sm:text-sm text-gray-600 mt-2">Redis→MongoDB</p>
             </div>
             
-            <div className="bg-indigo-50 rounded-lg p-4 border border-indigo-200">
-              <div className="flex items-center justify-between">
-                <FaCalendarAlt className="w-8 h-8 text-indigo-500" />
-                <span className="text-sm font-bold text-indigo-700">
+            <div className="bg-indigo-50 rounded-lg p-3 sm:p-4 border border-indigo-200">
+              <div className="flex items-center justify-between gap-2">
+                <FaCalendarAlt className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-500 flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-bold text-indigo-700">
                   {syncStatus.lastSync ? new Date(syncStatus.lastSync).toLocaleString('zh-CN') : '从未'}
                 </span>
               </div>
-              <p className="text-sm text-gray-600 mt-2">上次同步</p>
+              <p className="text-xs sm:text-sm text-gray-600 mt-2">上次同步</p>
             </div>
           </div>
 
@@ -373,7 +373,7 @@ export default function SystemManager() {
             <motion.button
               onClick={handleSyncIPBans}
               disabled={syncing}
-              className="flex-1 px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 font-medium flex items-center justify-center gap-2 disabled:opacity-50"
+              className="flex-1 px-3 sm:px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 font-medium text-sm sm:text-base flex items-center justify-center gap-2 disabled:opacity-50"
               whileHover={{ scale: syncing ? 1 : 1.02 }}
               whileTap={{ scale: syncing ? 1 : 0.98 }}
             >
@@ -421,7 +421,7 @@ export default function SystemManager() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-green-50 rounded-xl p-6 border border-green-100"
+        className="bg-green-50 rounded-xl p-4 sm:p-6 border border-green-100"
       >
         <div className="flex items-start gap-3">
           <FaInfoCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
