@@ -247,12 +247,12 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                 >
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
                         <motion.label 
-                            className="flex items-center gap-2 text-gray-700 text-base sm:text-lg font-semibold"
+                            className="flex items-center gap-2 text-[#023047] text-base sm:text-lg font-semibold"
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ duration: 0.4, delay: 0.4 }}
                         >
-                            <FaMicrophone className="text-blue-600 text-sm sm:text-base" />
+                            <FaMicrophone className="text-[#219EBC] text-sm sm:text-base" />
                             输入文本
                         </motion.label>
                         <div className="flex items-center gap-2 text-xs sm:text-sm">
@@ -265,7 +265,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                             }`}>
                                 {text.length}/{MAX_TEXT_LENGTH}
                             </span>
-                            <span className="text-gray-500 text-xs">
+                            <span className="text-[#023047]/50 text-xs">
                                 {formatBytes(textByteSize)}
                             </span>
                         </div>
@@ -283,7 +283,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                                 ? 'border-red-300 focus:ring-red-400 bg-red-50'
                                 : text.length > MAX_TEXT_LENGTH * 0.7
                                     ? 'border-yellow-300 focus:ring-yellow-400 bg-yellow-50'
-                                    : 'border-gray-200 focus:ring-blue-500 focus:border-transparent hover:border-gray-300'
+                                    : 'border-[#8ECAE6]/30 focus:ring-[#219EBC] focus:border-[#219EBC] hover:border-[#8ECAE6]/50'
                         }`}
                         rows={4}
                         placeholder={`请输入要转换的文本...
@@ -317,13 +317,13 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                 </motion.div>
 
                 <motion.div 
-                    className="bg-gray-50 rounded-lg sm:rounded-xl p-4 sm:p-6 space-y-4 sm:space-y-6"
+                    className="bg-[#8ECAE6]/10 rounded-lg sm:rounded-xl p-4 sm:p-6 space-y-4 sm:space-y-6"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: 0.4 }}
                 >
-                    <div className="flex items-center gap-2 text-gray-700 text-sm sm:text-base font-semibold">
-                        <FaCog className="text-blue-600 text-sm sm:text-base" />
+                    <div className="flex items-center gap-2 text-[#023047] text-sm sm:text-base font-semibold">
+                        <FaCog className="text-[#219EBC] text-sm sm:text-base" />
                         <span>语音设置</span>
                     </div>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
@@ -333,13 +333,13 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                             transition={{ duration: 0.4, delay: 0.5 }}
                         >
                             <motion.label 
-                                className="block text-gray-700 font-medium mb-3"
+                                className="block text-[#023047] font-medium mb-3"
                                 initial={{ opacity: 0, y: -10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.3, delay: 0.6 }}
                             >
                                 <div className="flex items-center gap-2 mb-2">
-                                    <FaRobot className="text-purple-600" />
+                                    <FaRobot className="text-[#FFB703]" />
                                     模型选择
                                 </div>
                             </motion.label>
@@ -349,8 +349,8 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                                         key={modelOption.id}
                                         className={`flex items-center p-3 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
                                             model === modelOption.id
-                                                ? 'border-blue-500 bg-blue-50'
-                                                : 'border-gray-200 hover:border-gray-300 bg-white'
+                                                ? 'border-[#219EBC] bg-[#8ECAE6]/10'
+                                                : 'border-[#8ECAE6]/30 hover:border-[#8ECAE6]/50 bg-white'
                                         }`}
                                         whileHover={{ scale: 1.02 }}
                                         whileTap={{ scale: 0.98 }}
@@ -364,15 +364,15 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                                             className="sr-only"
                                         />
                                         <div className={`w-4 h-4 rounded-full border-2 mr-3 flex items-center justify-center ${
-                                            model === modelOption.id ? 'border-blue-500' : 'border-gray-300'
+                                            model === modelOption.id ? 'border-[#219EBC]' : 'border-[#8ECAE6]/30'
                                         }`}>
                                             {model === modelOption.id && (
-                                                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                                <div className="w-2 h-2 bg-[#219EBC] rounded-full"></div>
                                             )}
                                         </div>
                                         <div className="flex-1">
-                                            <div className="font-medium text-gray-800">{modelOption.name}</div>
-                                            <div className="text-sm text-gray-600">{modelOption.description}</div>
+                                            <div className="font-medium text-[#023047]">{modelOption.name}</div>
+                                            <div className="text-sm text-[#023047]/70">{modelOption.description}</div>
                                         </div>
                                     </motion.label>
                                 ))}
@@ -385,7 +385,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                             transition={{ duration: 0.4, delay: 0.6 }}
                         >
                             <motion.label 
-                                className="block text-gray-700 font-medium mb-3"
+                                className="block text-[#023047] font-medium mb-3"
                                 initial={{ opacity: 0, y: -10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.3, delay: 0.7 }}
@@ -402,7 +402,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                                         className={`flex items-center p-3 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
                                             voice === voiceOption.id
                                                 ? 'border-green-500 bg-green-50'
-                                                : 'border-gray-200 hover:border-gray-300 bg-white'
+                                                : 'border-[#8ECAE6]/30 hover:border-[#8ECAE6]/50 bg-white'
                                         }`}
                                         whileHover={{ scale: 1.02 }}
                                         whileTap={{ scale: 0.98 }}
@@ -416,15 +416,15 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                                             className="sr-only"
                                         />
                                         <div className={`w-4 h-4 rounded-full border-2 mr-3 flex items-center justify-center ${
-                                            voice === voiceOption.id ? 'border-green-500' : 'border-gray-300'
+                                            voice === voiceOption.id ? 'border-green-500' : 'border-[#8ECAE6]/30'
                                         }`}>
                                             {voice === voiceOption.id && (
                                                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                                             )}
                                         </div>
                                         <div className="flex-1">
-                                            <div className="font-medium text-gray-800">{voiceOption.name}</div>
-                                            <div className="text-sm text-gray-600">{voiceOption.description}</div>
+                                            <div className="font-medium text-[#023047]">{voiceOption.name}</div>
+                                            <div className="text-sm text-[#023047]/70">{voiceOption.description}</div>
                                         </div>
                                     </motion.label>
                                 ))}
@@ -438,7 +438,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                             transition={{ duration: 0.4, delay: 0.7 }}
                         >
                             <motion.label 
-                            className="block text-gray-700 text-lg font-semibold mb-3"
+                            className="block text-[#023047] text-lg font-semibold mb-3"
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.3, delay: 0.8 }}
@@ -448,7 +448,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                         <motion.select
                             value={outputFormat}
                             onChange={(e) => setOutputFormat(e.target.value)}
-                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-gray-300 appearance-none bg-white bg-no-repeat bg-right pr-10"
+                            className="w-full px-4 py-3 border-2 border-[#8ECAE6]/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#219EBC] focus:border-[#219EBC] transition-all duration-200 hover:border-[#8ECAE6]/50 appearance-none bg-white bg-no-repeat bg-right pr-10"
                             style={{
                                 backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236B7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
                                 backgroundSize: '1.5em 1.5em'
@@ -468,7 +468,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                         transition={{ duration: 0.4, delay: 0.8 }}
                     >
                         <motion.label 
-                            className="block text-gray-700 text-lg font-semibold mb-3"
+                            className="block text-[#023047] text-lg font-semibold mb-3"
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.3, delay: 0.9 }}
@@ -486,7 +486,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                             whileHover={{ scale: 1.02 }}
                         />
                         <motion.div 
-                            className="text-center text-gray-600 mt-2"
+                            className="text-center text-[#023047]/70 mt-2"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             transition={{ duration: 0.3, delay: 1.0 }}
@@ -501,7 +501,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                         transition={{ duration: 0.4, delay: 0.9 }}
                     >
                         <motion.label 
-                            className="block text-gray-700 text-lg font-semibold mb-3"
+                            className="block text-[#023047] text-lg font-semibold mb-3"
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.3, delay: 1.0 }}
@@ -513,13 +513,13 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                             type="password"
                             value={generationCode}
                             onChange={(e) => setGenerationCode(e.target.value)}
-                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-gray-300"
+                            className="w-full px-4 py-3 border-2 border-[#8ECAE6]/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#219EBC] focus:border-[#219EBC] transition-all duration-200 hover:border-[#8ECAE6]/50"
                             placeholder="请输入生成码..."
                             required
                             whileFocus={{ scale: 1.01 }}
                         />
                         <motion.p 
-                            className="text-sm text-gray-500 mt-1"
+                            className="text-sm text-[#023047]/50 mt-1"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             transition={{ duration: 0.3, delay: 1.1 }}
@@ -539,7 +539,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                         className="space-y-3"
                     >
                         <motion.label 
-                            className="block text-gray-700 text-lg font-semibold mb-3"
+                            className="block text-[#023047] text-lg font-semibold mb-3"
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.3, delay: 1.1 }}
@@ -568,12 +568,12 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                         )}
 
                         <motion.div
-                            className="flex items-center space-x-2 text-sm text-gray-600"
+                            className="flex items-center space-x-2 text-sm text-[#023047]/70"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             transition={{ duration: 0.3, delay: 1.3 }}
                         >
-                            <FaLock className="w-4 h-4 text-blue-500" />
+                            <FaLock className="w-4 h-4 text-[#219EBC]" />
                             <span>请完成人机验证以证明您是人类用户</span>
                         </motion.div>
                     </motion.div>
@@ -603,10 +603,10 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                     <motion.button
                         type="submit"
                         disabled={loading || cooldown}
-                        className={`flex-1 py-3 px-4 sm:px-6 rounded-lg sm:rounded-xl text-white text-sm sm:text-base font-semibold transition-all duration-200 ${
+                        className={`flex-1 py-3 px-4 sm:px-6 rounded-lg sm:rounded-xl text-sm sm:text-base font-semibold transition-all duration-200 ${
                             loading || cooldown
-                                ? 'bg-gray-400 cursor-not-allowed'
-                                : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-lg hover:shadow-xl'
+                                ? 'bg-gray-400 cursor-not-allowed text-white'
+                                : 'bg-[#FFB703] hover:bg-[#FB8500] text-[#023047] shadow-lg hover:shadow-xl'
                         }`}
                         whileHover={{ scale: 1.02, y: -1 }}
                         whileTap={{ scale: 0.98 }}
@@ -632,7 +632,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({ onSuccess, userId, isAdmin }) 
                             <motion.button
                                 type="button"
                                 onClick={handleDownload}
-                                className="flex items-center justify-center px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                                className="flex items-center justify-center px-6 py-3 bg-[#219EBC] text-white rounded-xl hover:bg-[#023047] transition-all duration-200 shadow-lg hover:shadow-xl"
                                 initial={{ opacity: 0, scale: 0.8 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.8 }}

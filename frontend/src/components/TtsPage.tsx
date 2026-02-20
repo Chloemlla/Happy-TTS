@@ -62,16 +62,16 @@ export const TtsPage: React.FC = () => {
     }, [audioUrl]);
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8 rounded-3xl">
+        <div className="min-h-screen bg-gradient-to-br from-[#8ECAE6]/20 via-white to-[#219EBC]/10 py-8 rounded-3xl">
             <div className="max-w-7xl mx-auto px-4 space-y-8">
                 {/* 优化的标题和使用须知部分 */}
                 <motion.div 
-                    className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden"
+                    className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-[#8ECAE6]/30 overflow-hidden"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6 }}
                 >
-                    <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
+                    <div className="bg-[#023047] text-white p-6">
                         <div className="text-center">
                             <motion.div 
                                 className="flex items-center justify-center gap-3 mb-4"
@@ -83,7 +83,7 @@ export const TtsPage: React.FC = () => {
                                 <h1 className="text-4xl font-bold">文本转语音</h1>
                             </motion.div>
                             <motion.p 
-                                className="text-blue-100 text-lg"
+                                className="text-[#8ECAE6] text-lg"
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 transition={{ duration: 0.5, delay: 0.4 }}
@@ -94,9 +94,9 @@ export const TtsPage: React.FC = () => {
                     </div>
                     
                     <div className="p-6">
-                        <div className="flex items-center gap-2 mb-4 p-3 bg-gray-50 rounded-lg">
-                            <FaInfoCircle className="text-blue-600" />
-                            <span className="font-semibold text-gray-800">使用须知与联系方式</span>
+                        <div className="flex items-center gap-2 mb-4 p-3 bg-[#8ECAE6]/10 rounded-lg">
+                            <FaInfoCircle className="text-[#219EBC]" />
+                            <span className="font-semibold text-[#023047]">使用须知与联系方式</span>
                         </div>
                         
                         <div
@@ -129,18 +129,18 @@ export const TtsPage: React.FC = () => {
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                                        <h3 className="text-blue-700 font-semibold mb-2 flex items-center gap-2">
+                                    <div className="bg-[#8ECAE6]/10 border border-[#8ECAE6]/30 rounded-xl p-4">
+                                        <h3 className="text-[#219EBC] font-semibold mb-2 flex items-center gap-2">
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                                             </svg>
                                             联系我们
                                         </h3>
-                                        <p className="text-blue-700 text-sm">
+                                        <p className="text-[#219EBC] text-sm">
                                             如有任何问题或建议，请联系开发者：
                                             <a
                                                 href="mailto:admin@hapxs.com"
-                                                className="font-medium hover:text-blue-800 transition-colors duration-200 ml-1 underline"
+                                                className="font-medium hover:text-[#023047] transition-colors duration-200 ml-1 underline"
                                             >
                                                 admin@hapxs.com
                                             </a>
@@ -158,8 +158,8 @@ export const TtsPage: React.FC = () => {
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.6, delay: 0.3 }}
                     >
-                        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6 relative overflow-hidden">
-                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+                        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-[#8ECAE6]/30 p-6 relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-[#219EBC]"></div>
                             <TtsForm
                                 onSuccess={handleSuccess}
                                 userId={user?.id}
@@ -193,14 +193,14 @@ export const TtsPage: React.FC = () => {
                                 exit={{ opacity: 0, x: 20, scale: 0.95 }}
                                 transition={{ duration: 0.5 }}
                             >
-                                <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6 sticky top-8">
-                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-500 to-blue-500"></div>
-                                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                                <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-[#8ECAE6]/30 p-6 sticky top-8">
+                                    <div className="absolute top-0 left-0 w-full h-1 bg-[#219EBC]"></div>
+                                    <h3 className="text-lg font-semibold text-[#023047] mb-4 flex items-center gap-2">
                                         <FaVolumeUp className="text-green-600" />
                                         音频预览
                                     </h3>
                                     <div className="space-y-4">
-                                        <div className="bg-gray-50 rounded-xl p-4">
+                                        <div className="bg-[#8ECAE6]/10 rounded-xl p-4">
                                             <audio 
                                                 controls 
                                                 className="w-full"
@@ -215,7 +215,7 @@ export const TtsPage: React.FC = () => {
                                         <div className="flex gap-3">
                                             <motion.button
                                                 onClick={togglePlayPause}
-                                                className="flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white py-3 px-4 rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 flex items-center justify-center gap-2 font-medium"
+                                                className="flex-1 bg-green-500 text-white py-3 px-4 rounded-xl hover:bg-green-600 transition-all duration-200 flex items-center justify-center gap-2 font-medium"
                                                 whileHover={{ scale: 1.02 }}
                                                 whileTap={{ scale: 0.98 }}
                                             >
@@ -224,7 +224,7 @@ export const TtsPage: React.FC = () => {
                                             </motion.button>
                                             <motion.button
                                                 onClick={handleDownload}
-                                                className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-4 rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 flex items-center justify-center gap-2 font-medium"
+                                                className="flex-1 bg-[#FFB703] text-[#023047] py-3 px-4 rounded-xl hover:bg-[#FB8500] transition-all duration-200 flex items-center justify-center gap-2 font-medium"
                                                 whileHover={{ scale: 1.02 }}
                                                 whileTap={{ scale: 0.98 }}
                                             >
