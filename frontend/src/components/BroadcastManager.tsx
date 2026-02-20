@@ -5,7 +5,7 @@ import { getApiBaseUrl } from '../api/api';
 import {
   FaBullhorn, FaPaperPlane, FaUsers, FaHistory,
   FaUserSlash, FaClipboardList, FaSyncAlt, FaUserAlt,
-  FaCrown, FaPlug, FaTimes,
+  FaCrown, FaPlug, FaLock, FaLockOpen,
 } from 'react-icons/fa';
 
 // ========== 类型 ==========
@@ -75,12 +75,14 @@ const BroadcastManager: React.FC = () => {
   const [level, setLevel] = useState<BroadcastLevel>('info');
   const [sending, setSending] = useState(false);
   const [lastResult, setLastResult] = useState<{ connections: number; time: string } | null>(null);
+  const [keepBroadcastInput, setKeepBroadcastInput] = useState(false);
 
   // --- 定向推送 ---
   const [directUserId, setDirectUserId] = useState('');
   const [directMessage, setDirectMessage] = useState('');
   const [directLevel, setDirectLevel] = useState<BroadcastLevel>('info');
   const [directSending, setDirectSending] = useState(false);
+  const [keepDirectInput, setKeepDirectInput] = useState(false);
 
   // --- 在线用户 ---
   const [clients, setClients] = useState<OnlineClient[]>([]);
@@ -107,7 +109,7 @@ const BroadcastManager: React.FC = () => {
       if (!res.ok) throw new Error(data.error || '广播失败');
       setLastResult({ connections: data.connections ?? 0, time: new Date().toLocaleTimeString() });
       setNotification({ message: `广播已发送，${data.connections} 个在线连接`, type: 'success' });
-      setMessage('');
+      if (!keepBroadcastInput) setMessage('');
     } catch (err) {
       setNotification({ message: err instanceof Error ? err.message : '广播失败', type: 'error' });
     } finally { setSending(false); }
@@ -126,7 +128,7 @@ const BroadcastManager: React.FC = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '推送失败');
       setNotification({ message: '定向推送成功', type: 'success' });
-      setDirectMessage('');
+      if (!keepDirectInput) setDirectMessage('');
     } catch (err) {
       setNotification({ message: err instanceof Error ? err.message : '推送失败', type: 'error' });
     } finally { setDirectSending(false); }
@@ -204,7 +206,17 @@ const BroadcastManager: React.FC = () => {
 
       {/* 消息输入 */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">广播内容</label>
+        <div className="flex items-center justify-between mb-2">
+          <label className="block text-sm font-medium text-gray-700">广播内容</label>
+          <button onClick={() => setKeepBroadcastInput(!keepBroadcastInput)}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+              keepBroadcastInput ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+            }`}
+            title={keepBroadcastInput ? '发送后保留输入内容（点击切换）' : '发送后清空输入内容（点击切换）'}>
+            {keepBroadcastInput ? <FaLock className="w-3 h-3" /> : <FaLockOpen className="w-3 h-3" />}
+            <span>{keepBroadcastInput ? '保留输入' : '自动清空'}</span>
+          </button>
+        </div>
         <textarea value={message} onChange={e => setMessage(e.target.value)}
           placeholder="输入要广播给所有在线用户的消息..." rows={4} maxLength={500}
           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-sm" />
@@ -263,7 +275,17 @@ const BroadcastManager: React.FC = () => {
         </div>
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">消息内容</label>
+        <div className="flex items-center justify-between mb-2">
+          <label className="block text-sm font-medium text-gray-700">消息内容</label>
+          <button onClick={() => setKeepDirectInput(!keepDirectInput)}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+              keepDirectInput ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+            }`}
+            title={keepDirectInput ? '发送后保留输入内容（点击切换）' : '发送后清空输入内容（点击切换）'}>
+            {keepDirectInput ? <FaLock className="w-3 h-3" /> : <FaLockOpen className="w-3 h-3" />}
+            <span>{keepDirectInput ? '保留输入' : '自动清空'}</span>
+          </button>
+        </div>
         <textarea value={directMessage} onChange={e => setDirectMessage(e.target.value)}
           placeholder="输入要推送给该用户的消息..." rows={3} maxLength={500}
           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-sm" />
