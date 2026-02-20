@@ -2,39 +2,39 @@
 
 ## 色彩体系
 
-本设计基于浅色调色板，营造明亮、专业、清爽的管理后台视觉风格。
+本设计基于深蓝与琥珀暖色的对比色板，营造沉稳、专业、富有活力的管理后台视觉风格。
 
 ### 核心色板
 
-| 语义名称 | Tailwind 写法 | 角色 |
-|---------|--------------|------|
-| Blue-50 | `blue-50` | 页面渐变背景起始色 — 营造柔和的浅蓝基调 |
-| White | `white` | 页面渐变背景中间色 / 卡片主背景 — 干净明亮的基底 |
-| Purple-50 | `purple-50` | 页面渐变背景结束色 — 与蓝色形成微妙的冷暖过渡 |
-| Blue-600 | `blue-600` (`#2563eb`) | 强调色 / CTA — 按钮激活态、图标高亮、交互焦点 |
-| Purple-600 | `purple-600` (`#9333ea`) | 渐变辅助色 — 头部横幅渐变终点 |
-| Gray 系列 | `gray-50` ~ `gray-900` | 文字与边框层级体系 |
+| 语义名称 | 色值 | Tailwind 写法 | 角色 |
+|---------|------|--------------|------|
+| Light Blue | `#8ECAE6` | `[#8ECAE6]` | 页面渐变背景起始色 / Hover 态背景 — 柔和的浅蓝基调 |
+| Teal Blue | `#219EBC` | `[#219EBC]` | 渐变辅助色 / 信息图标 — 头部横幅渐变终点、次要强调 |
+| Dark Navy | `#023047` | `[#023047]` | 主文字色 / 深色背景 — 沉稳的深蓝底色，替代 gray-900 |
+| Amber | `#FFB703` | `[#FFB703]` | 强调色 / CTA — 按钮激活态、图标高亮、交互焦点 |
+| Orange | `#FB8500` | `[#FB8500]` | 渐变强调终点 / Hover 加深 — 按钮悬停态、渐变搭配 |
+| White | `white` | `white` | 卡片主背景 — 干净明亮的基底 |
 
 ### 文字色层级
 
-| 用途 | 写法 | 示例 |
-|------|------|------|
-| 主文字 | `text-gray-900` | 标题、区块标签 |
+| 用途 | 色值 / 写法 | 示例 |
+|------|------------|------|
+| 主文字 | `text-[#023047]` | 标题、区块标签 |
 | 横幅文字 | `text-white` | 渐变头部上的标题 |
-| 横幅副文字 | `text-blue-100` | 渐变头部上的副标题 |
-| 次要文字 | `text-gray-600` | 非激活 Tab 文字 |
-| 辅助文字 | `text-gray-500` | 管理员信息、ID |
-| 占位/加载文字 | `text-gray-400` | Suspense fallback |
-| 分隔符 | `text-gray-300` | 信息间的 `•` |
+| 横幅副文字 | `text-[#8ECAE6]` | 渐变头部上的副标题 |
+| 次要文字 | `text-[#023047]/70` | 非激活 Tab 文字 |
+| 辅助文字 | `text-[#023047]/50` | 管理员信息、ID |
+| 占位/加载文字 | `text-[#023047]/30` | Suspense fallback |
+| 分隔符 | `text-[#023047]/20` | 信息间的 `•` |
 
 ### 边框规范
 
 | 用途 | 写法 |
 |------|------|
-| 卡片边框 | `border-gray-200` |
-| 信息栏边框 | `border-gray-200` |
-| 非激活 Tab 边框 | `border-gray-200` |
-| Hover Tab 边框 | `border-blue-300` |
+| 卡片边框 | `border-[#8ECAE6]/30` |
+| 信息栏边框 | `border-[#8ECAE6]/30` |
+| 非激活 Tab 边框 | `border-[#8ECAE6]/30` |
+| Hover Tab 边框 | `border-[#219EBC]` |
 
 ---
 
@@ -81,16 +81,16 @@ Tailwind class: `font-songti`
 ## 层级结构
 
 ```
-┌─ 页面背景: bg-gradient-to-br from-blue-50 via-white to-purple-50
+┌─ 页面背景: bg-gradient-to-br from-[#8ECAE6]/20 via-white to-[#219EBC]/10
 │
-├── 卡片容器: bg-white/80 + backdrop-blur-sm + border-gray-200
-│   ├── 头部横幅: bg-gradient-to-r from-blue-600 to-purple-600 (白色文字)
-│   └── 内容区域: bg-gray-50
+├── 卡片容器: bg-white/80 + backdrop-blur-sm + border-[#8ECAE6]/30
+│   ├── 头部横幅: bg-gradient-to-r from-[#023047] to-[#219EBC] (白色文字)
+│   └── 内容区域: bg-[#8ECAE6]/10
 │
-├── 功能区卡片: bg-white/80 + border-gray-200
-│   ├── 标签栏标题: bg-gray-50 + border-gray-200
-│   ├── 激活标签: bg-blue-600 + text-white + shadow-blue-600/20
-│   └── 非激活标签: bg-gray-100 + text-gray-600 + border-gray-200
+├── 功能区卡片: bg-white/80 + border-[#8ECAE6]/30
+│   ├── 标签栏标题: bg-[#8ECAE6]/10 + border-[#8ECAE6]/30
+│   ├── 激活标签: bg-[#FFB703] + text-[#023047] + shadow-[#FFB703]/20
+│   └── 非激活标签: bg-[#8ECAE6]/10 + text-[#023047]/70 + border-[#8ECAE6]/30
 ```
 
 ---
@@ -99,54 +99,54 @@ Tailwind class: `font-songti`
 
 ### 页面背景
 ```
-bg-gradient-to-br from-blue-50 via-white to-purple-50
+bg-gradient-to-br from-[#8ECAE6]/20 via-white to-[#219EBC]/10
 ```
 
 ### 卡片容器
 ```
-bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200
+bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-[#8ECAE6]/30
 ```
 
 ### 头部横幅（渐变）
 ```
-bg-gradient-to-r from-blue-600 to-purple-600 text-white
+bg-gradient-to-r from-[#023047] to-[#219EBC] text-white
 ```
 
 ### 信息栏
 ```
-bg-gray-50 (容器内嵌)
-bg-gray-100 rounded-lg border border-gray-200 (标签)
+bg-[#8ECAE6]/10 (容器内嵌)
+bg-[#8ECAE6]/15 rounded-lg border border-[#8ECAE6]/30 (标签)
 ```
 
 ### Tab 按钮 — 激活态
 ```
-bg-blue-600 text-white shadow-lg shadow-blue-600/20
+bg-[#FFB703] text-[#023047] shadow-lg shadow-[#FFB703]/20
 ```
 
 ### Tab 按钮 — 默认态
 ```
-bg-gray-100 text-gray-600 border border-gray-200
+bg-[#8ECAE6]/10 text-[#023047]/70 border border-[#8ECAE6]/30
 ```
 
 ### Tab 按钮 — Hover 态
 ```
-hover:bg-blue-50 hover:text-gray-900 hover:border-blue-300
+hover:bg-[#8ECAE6]/20 hover:text-[#023047] hover:border-[#219EBC]
 ```
 
 ### 主操作按钮（CTA）
 ```
-bg-blue-600 text-white rounded-lg hover:bg-blue-700
+bg-[#FFB703] text-[#023047] rounded-lg hover:bg-[#FB8500]
 ```
 
 ### 加载动画
 ```
-border-b-2 border-blue-600 animate-spin
+border-b-2 border-[#FFB703] animate-spin
 ```
 
 ### 图标色
 ```
-主图标: text-blue-600
-信息图标: text-blue-600
+主图标: text-[#FFB703]
+信息图标: text-[#219EBC]
 ```
 
 ---
@@ -166,25 +166,34 @@ border-b-2 border-blue-600 animate-spin
 
 ## Tailwind 配置
 
-在 `tailwind.config.js` 中注册自定义字体（色彩使用 Tailwind 内置色板）：
+在 `tailwind.config.js` 中注册自定义字体和色彩：
 
 ```js
-fontFamily: {
-  'songti': ['"Noto Serif SC"', 'SimSun', 'STSong', 'FangSong', 'serif'],
+theme: {
+  extend: {
+    colors: {
+      'brand-light': '#8ECAE6',
+      'brand-teal': '#219EBC',
+      'brand-navy': '#023047',
+      'brand-amber': '#FFB703',
+      'brand-orange': '#FB8500',
+    },
+    fontFamily: {
+      'songti': ['"Noto Serif SC"', 'SimSun', 'STSong', 'FangSong', 'serif'],
+    },
+  },
 }
 ```
 
-色彩直接使用 Tailwind 内置的 `blue`、`purple`、`gray` 色板，无需自定义色值。
-
-使用方式：`bg-blue-600`, `text-gray-900`, `border-gray-200`, `font-songti` 等。
+注册后可使用语义化写法：`bg-brand-amber`, `text-brand-navy`, `border-brand-light` 等，也可继续使用任意值写法 `[#8ECAE6]`。
 
 ---
 
 ## 设计原则
 
-1. 浅色优先 — 蓝白紫渐变作为基底，营造明亮清爽的视觉体验
-2. 清晰对比 — 深色文字在浅色背景上提供高可读性对比度
-3. 焦点引导 — Blue-600 仅用于需要用户注意的元素（激活态、CTA、图标）
-4. 层次分明 — 通过 white → gray-50 → gray-100 的层级变化构建空间深度
-5. 克制渐变 — 仅在头部横幅使用 Blue-600 → Purple-600 渐变，避免过度装饰
+1. 冷暖对比 — 深蓝 (`#023047`) 与琥珀 (`#FFB703`) 形成鲜明的冷暖对比，视觉张力强
+2. 清晰对比 — 深蓝文字在浅色背景上提供高可读性对比度
+3. 焦点引导 — 琥珀黄 (`#FFB703`) 仅用于需要用户注意的元素（激活态、CTA、图标）
+4. 层次分明 — 通过 white → `#8ECAE6`/10 → `#8ECAE6`/15 的层级变化构建空间深度
+5. 克制渐变 — 仅在头部横幅使用 `#023047` → `#219EBC` 渐变，避免过度装饰
 6. 衬线点睛 — 宋体仅用于标题和标签级中文文字，正文保持无衬线体，建立清晰的排版层级
