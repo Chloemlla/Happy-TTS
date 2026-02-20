@@ -6,6 +6,13 @@ export default {
   ],
   theme: {
     extend: {
+      colors: {
+        'ink-black': '#04151f',
+        'dark-slate': '#183a37',
+        'wheat': '#efd6ac',
+        'burnt-orange': '#c44900',
+        'midnight-violet': '#432534',
+      },
       screens: {
         'xs': '480px',
         // => @media (min-width: 480px) { ... }
