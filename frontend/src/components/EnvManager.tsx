@@ -157,16 +157,9 @@ interface DebugConsoleAccessLog {
 // AES-256解密函数
 function decryptAES256(encryptedData: string, iv: string, key: string): string {
   try {
-    console.log('   开始AES-256解密...');
-    console.log('   密钥长度:', key.length);
-    console.log('   加密数据长度:', encryptedData.length);
-    console.log('   IV长度:', iv.length);
-
     const keyBytes = CryptoJS.SHA256(key);
     const ivBytes = CryptoJS.enc.Hex.parse(iv);
     const encryptedBytes = CryptoJS.enc.Hex.parse(encryptedData);
-
-    console.log('   密钥哈希完成，开始解密...');
 
     const decrypted = CryptoJS.AES.decrypt(
       { ciphertext: encryptedBytes },
@@ -178,12 +171,8 @@ function decryptAES256(encryptedData: string, iv: string, key: string): string {
       }
     );
 
-    const result = decrypted.toString(CryptoJS.enc.Utf8);
-    console.log('   解密完成，结果长度:', result.length);
-
-    return result;
+    return decrypted.toString(CryptoJS.enc.Utf8);
   } catch (error) {
-    console.error('❌ AES-256解密失败:', error);
     throw new Error('解密失败');
   }
 }
@@ -400,7 +389,7 @@ const EnvManager: React.FC = () => {
   const { setNotification } = useNotification();
   const prefersReducedMotion = useReducedMotion();
 
-  // 基于窗口宽度的移动端检测（随页面缩放实时更新）
+  // 基于窗口宽度的移动端检测（随页面缩放实时更新，带防抖）
   const [isMobile, setIsMobile] = useState<boolean>(false);
   // 环境变量区折叠
   const [isEnvCollapsed, setIsEnvCollapsed] = useState<boolean>(false);
@@ -413,8 +402,16 @@ const EnvManager: React.FC = () => {
       }
     };
     checkIsMobile();
-    window.addEventListener('resize', checkIsMobile);
-    return () => window.removeEventListener('resize', checkIsMobile);
+    let timer: ReturnType<typeof setTimeout>;
+    const debouncedCheck = () => {
+      clearTimeout(timer);
+      timer = setTimeout(checkIsMobile, 150);
+    };
+    window.addEventListener('resize', debouncedCheck);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', debouncedCheck);
+    };
   }, []);
 
   // OutEmail Settings
@@ -603,29 +600,20 @@ const EnvManager: React.FC = () => {
         // 检查是否为加密数据（通过检测data和iv字段来判断）
         if (data.data && data.iv && typeof data.data === 'string' && typeof data.iv === 'string') {
           try {
-            console.log('🔐 开始解密环境变量数据...');
-            console.log('   加密数据长度:', data.data.length);
-            console.log('   IV:', data.iv);
-
             const token = localStorage.getItem('token');
             if (!token) {
-              console.error('❌ Token不存在，无法解密数据');
               setNotification({ message: 'Token不存在，无法解密数据', type: 'error' });
               setLoading(false);
               return;
             }
-
-            console.log('   使用Token进行解密，Token长度:', token.length);
 
             // 解密数据
             const decryptedJson = decryptAES256(data.data, data.iv, token);
             const decryptedData = JSON.parse(decryptedJson);
 
             if (Array.isArray(decryptedData)) {
-              console.log('✅ 解密成功，获取到', decryptedData.length, '个环境变量');
               envArr = decryptedData;
             } else {
-              console.error('❌ 解密数据格式错误，期望数组格式');
               setNotification({ message: '解密数据格式错误', type: 'error' });
               setLoading(false);
               return;
@@ -637,7 +625,6 @@ const EnvManager: React.FC = () => {
               return { ...item, source };
             });
           } catch (decryptError) {
-            console.error('❌ 解密失败:', decryptError);
             setNotification({ message: '数据解密失败，请检查登录状态', type: 'error' });
             setLoading(false);
             return;
@@ -2378,25 +2365,11 @@ const EnvManager: React.FC = () => {
         </CollapsibleSection>
 
         {/* TTS 生成码设置 */}
-        <m.div
-          className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200"
-          initial={ENTER_INITIAL}
-          animate={ENTER_ANIMATE}
-          transition={trans06}
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">TTS 生成码设置</h3>
-            <m.button
-              onClick={fetchTtsSetting}
-              disabled={ttsLoading}
-              className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
-              whileTap={{ scale: 0.95 }}
-            >
-              <FaSync className={`w-4 h-4 ${ttsLoading ? 'animate-spin' : ''}`} />
-              刷新
-            </m.button>
-          </div>
-
+        <CollapsibleSection title="TTS 生成码设置" sectionKey="tts" isOpen={isSectionOpen('tts')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
+          <m.button onClick={(e) => { e.stopPropagation(); fetchTtsSetting(); }} disabled={ttsLoading} className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2" whileTap={{ scale: 0.95 }}>
+            <FaSync className={`w-4 h-4 ${ttsLoading ? 'animate-spin' : ''}`} /> 刷新
+          </m.button>
+        }>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">生成码</label>
@@ -2437,28 +2410,14 @@ const EnvManager: React.FC = () => {
           <div className="mt-4 text-xs text-gray-500">
             最后更新时间：{ttsSetting?.updatedAt ? new Date(ttsSetting.updatedAt).toLocaleString() : '-'}
           </div>
-        </m.div>
+        </CollapsibleSection>
 
         {/* 短链 AES_KEY 设置 */}
-        <m.div
-          className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200"
-          initial={ENTER_INITIAL}
-          animate={ENTER_ANIMATE}
-          transition={trans06}
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">短链 AES_KEY 设置</h3>
-            <m.button
-              onClick={fetchShortAes}
-              disabled={shortAesLoading}
-              className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
-              whileTap={{ scale: 0.95 }}
-            >
-              <FaSync className={`w-4 h-4 ${shortAesLoading ? 'animate-spin' : ''}`} />
-              刷新
-            </m.button>
-          </div>
-
+        <CollapsibleSection title="短链 AES_KEY 设置" sectionKey="shortaes" isOpen={isSectionOpen('shortaes')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
+          <m.button onClick={(e) => { e.stopPropagation(); fetchShortAes(); }} disabled={shortAesLoading} className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2" whileTap={{ scale: 0.95 }}>
+            <FaSync className={`w-4 h-4 ${shortAesLoading ? 'animate-spin' : ''}`} /> 刷新
+          </m.button>
+        }>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">AES_KEY</label>
@@ -2499,28 +2458,14 @@ const EnvManager: React.FC = () => {
           <div className="mt-4 text-xs text-gray-500">
             最后更新时间：{shortAesSetting?.updatedAt ? new Date(shortAesSetting.updatedAt).toLocaleString() : '-'}
           </div>
-        </m.div>
+        </CollapsibleSection>
 
         {/* Webhook 密钥设置（支持自定义 key，默认 DEFAULT） */}
-        <m.div
-          className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200"
-          initial={ENTER_INITIAL}
-          animate={ENTER_ANIMATE}
-          transition={trans06}
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">Webhook 密钥设置</h3>
-            <m.button
-              onClick={fetchWebhookSecret}
-              disabled={webhookLoading}
-              className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
-              whileTap={{ scale: 0.95 }}
-            >
-              <FaSync className={`w-4 h-4 ${webhookLoading ? 'animate-spin' : ''}`} />
-              刷新
-            </m.button>
-          </div>
-
+        <CollapsibleSection title="Webhook 密钥设置" sectionKey="webhook" isOpen={isSectionOpen('webhook')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
+          <m.button onClick={(e) => { e.stopPropagation(); fetchWebhookSecret(); }} disabled={webhookLoading} className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2" whileTap={{ scale: 0.95 }}>
+            <FaSync className={`w-4 h-4 ${webhookLoading ? 'animate-spin' : ''}`} /> 刷新
+          </m.button>
+        }>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Route Key（可选，默认 DEFAULT）</label>
@@ -2579,28 +2524,14 @@ const EnvManager: React.FC = () => {
           <div className="mt-4 text-xs text-gray-500">
             最后更新时间：{webhookSetting?.updatedAt ? new Date(webhookSetting.updatedAt).toLocaleString() : '-'}
           </div>
-        </m.div>
+        </CollapsibleSection>
 
         {/* IPFS 配置设置 */}
-        <m.div
-          className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200"
-          initial={ENTER_INITIAL}
-          animate={ENTER_ANIMATE}
-          transition={trans06}
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">IPFS 配置设置</h3>
-            <m.button
-              onClick={fetchIpfsConfig}
-              disabled={ipfsConfigLoading}
-              className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
-              whileTap={{ scale: 0.95 }}
-            >
-              <FaSync className={`w-4 h-4 ${ipfsConfigLoading ? 'animate-spin' : ''}`} />
-              刷新
-            </m.button>
-          </div>
-
+        <CollapsibleSection title="IPFS 配置设置" sectionKey="ipfs" isOpen={isSectionOpen('ipfs')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
+          <m.button onClick={(e) => { e.stopPropagation(); fetchIpfsConfig(); }} disabled={ipfsConfigLoading} className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2" whileTap={{ scale: 0.95 }}>
+            <FaSync className={`w-4 h-4 ${ipfsConfigLoading ? 'animate-spin' : ''}`} /> 刷新
+          </m.button>
+        }>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">IPFS上传URL</label>
@@ -2659,28 +2590,14 @@ const EnvManager: React.FC = () => {
           <div className="mt-4 text-xs text-gray-500">
             说明：IPFS上传URL与User-Agent用于文件上传到IPFS网络，支持动态配置（仅管理员可修改），保存后立即生效，无需重启服务。
           </div>
-        </m.div>
+        </CollapsibleSection>
 
         {/* Turnstile 配置设置 */}
-        <m.div
-          className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200"
-          initial={ENTER_INITIAL}
-          animate={ENTER_ANIMATE}
-          transition={trans06}
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">Turnstile 配置设置</h3>
-            <m.button
-              onClick={fetchTurnstileConfig}
-              disabled={turnstileConfigLoading}
-              className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
-              whileTap={{ scale: 0.95 }}
-            >
-              <FaSync className={`w-4 h-4 ${turnstileConfigLoading ? 'animate-spin' : ''}`} />
-              刷新
-            </m.button>
-          </div>
-
+        <CollapsibleSection title="Turnstile 配置设置" sectionKey="turnstile" isOpen={isSectionOpen('turnstile')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
+          <m.button onClick={(e) => { e.stopPropagation(); fetchTurnstileConfig(); }} disabled={turnstileConfigLoading} className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2" whileTap={{ scale: 0.95 }}>
+            <FaSync className={`w-4 h-4 ${turnstileConfigLoading ? 'animate-spin' : ''}`} /> 刷新
+          </m.button>
+        }>
           {/* Site Key 配置 */}
           <div className="mb-6">
             <h4 className="text-md font-semibold text-gray-700 mb-3">Site Key 配置</h4>
@@ -2775,28 +2692,14 @@ const EnvManager: React.FC = () => {
               说明：Turnstile 用于人机验证，支持动态配置。Site Key 用于前端显示，Secret Key 用于后端验证。
             </div>
           </div>
-        </m.div>
+        </CollapsibleSection>
 
         {/* hCaptcha 配置设置 */}
-        <m.div
-          className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200"
-          initial={ENTER_INITIAL}
-          animate={ENTER_ANIMATE}
-          transition={trans06}
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">hCaptcha 配置设置</h3>
-            <m.button
-              onClick={fetchHcaptchaConfig}
-              disabled={hcaptchaConfigLoading}
-              className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
-              whileTap={{ scale: 0.95 }}
-            >
-              <FaSync className={`w-4 h-4 ${hcaptchaConfigLoading ? 'animate-spin' : ''}`} />
-              刷新
-            </m.button>
-          </div>
-
+        <CollapsibleSection title="hCaptcha 配置设置" sectionKey="hcaptcha" isOpen={isSectionOpen('hcaptcha')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
+          <m.button onClick={(e) => { e.stopPropagation(); fetchHcaptchaConfig(); }} disabled={hcaptchaConfigLoading} className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2" whileTap={{ scale: 0.95 }}>
+            <FaSync className={`w-4 h-4 ${hcaptchaConfigLoading ? 'animate-spin' : ''}`} /> 刷新
+          </m.button>
+        }>
           {/* Site Key 配置 */}
           <div className="mb-6">
             <h4 className="text-md font-semibold text-gray-700 mb-3">Site Key 配置</h4>
@@ -2891,28 +2794,14 @@ const EnvManager: React.FC = () => {
               说明：hCaptcha 用于人机验证，支持动态配置。Site Key 用于前端显示，Secret Key 用于后端验证。
             </div>
           </div>
-        </m.div>
+        </CollapsibleSection>
 
         {/* Clarity 配置设置 */}
-        <m.div
-          className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200"
-          initial={ENTER_INITIAL}
-          animate={ENTER_ANIMATE}
-          transition={trans06}
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">Microsoft Clarity 配置设置</h3>
-            <m.button
-              onClick={fetchClarityConfig}
-              disabled={clarityConfigLoading}
-              className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
-              whileTap={{ scale: 0.95 }}
-            >
-              <FaSync className={`w-4 h-4 ${clarityConfigLoading ? 'animate-spin' : ''}`} />
-              刷新
-            </m.button>
-          </div>
-
+        <CollapsibleSection title="Microsoft Clarity 配置设置" sectionKey="clarity" isOpen={isSectionOpen('clarity')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
+          <m.button onClick={(e) => { e.stopPropagation(); fetchClarityConfig(); }} disabled={clarityConfigLoading} className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2" whileTap={{ scale: 0.95 }}>
+            <FaSync className={`w-4 h-4 ${clarityConfigLoading ? 'animate-spin' : ''}`} /> 刷新
+          </m.button>
+        }>
           {/* Project ID 配置 */}
           <div className="mb-4">
             <h4 className="text-md font-semibold text-gray-700 mb-3">Project ID 配置</h4>
@@ -2981,28 +2870,14 @@ const EnvManager: React.FC = () => {
               </div>
             </div>
           </div>
-        </m.div>
+        </CollapsibleSection>
 
         {/* GitHub Billing 配置设置 */}
-        <m.div
-          className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200"
-          initial={ENTER_INITIAL}
-          animate={ENTER_ANIMATE}
-          transition={trans06}
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">GitHub Billing 配置设置</h3>
-            <m.button
-              onClick={fetchGithubBillingConfig}
-              disabled={githubBillingConfigLoading}
-              className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
-              whileTap={{ scale: 0.95 }}
-            >
-              <FaSync className={`w-4 h-4 ${githubBillingConfigLoading ? 'animate-spin' : ''}`} />
-              刷新
-            </m.button>
-          </div>
-
+        <CollapsibleSection title="GitHub Billing 配置设置" sectionKey="githubBilling" isOpen={isSectionOpen('githubBilling')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
+          <m.button onClick={(e) => { e.stopPropagation(); fetchGithubBillingConfig(); }} disabled={githubBillingConfigLoading} className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2" whileTap={{ scale: 0.95 }}>
+            <FaSync className={`w-4 h-4 ${githubBillingConfigLoading ? 'animate-spin' : ''}`} /> 刷新
+          </m.button>
+        }>
           {/* Curl 命令配置 */}
           <div className="mb-4">
             <h4 className="text-md font-semibold text-gray-700 mb-3">Curl 命令配置</h4>
@@ -3081,36 +2956,27 @@ const EnvManager: React.FC = () => {
               说明：GitHub Billing 配置用于获取 GitHub 账单使用情况数据。需要从浏览器开发者工具复制有效的 curl 命令。
             </div>
           </div>
-        </m.div>
+        </CollapsibleSection>
 
         {/* LibreChat 提供者配置（多组BASE_URL/API_KEY/MODEL） */}
-        <m.div
-          className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200"
-          initial={ENTER_INITIAL}
-          animate={ENTER_ANIMATE}
-          transition={trans06}
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">LibreChat 提供者配置</h3>
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                value={providerFilterGroup}
-                onChange={(e) => setProviderFilterGroup(e.target.value)}
-                placeholder="按 group 过滤"
-                className="w-full sm:w-auto px-2 sm:px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm"
-              />
-              <m.button
-                onClick={fetchProviders}
-                disabled={providersLoading}
-                className="w-full sm:w-auto px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-2"
-                whileTap={{ scale: 0.95 }}
-              >
-                <FaSync className={`w-4 h-4 ${providersLoading ? 'animate-spin' : ''}`} />
-                刷新
-              </m.button>
-            </div>
+        <CollapsibleSection title="LibreChat 提供者配置" sectionKey="providers" isOpen={isSectionOpen('providers')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
+          <div className="flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            <input
+              value={providerFilterGroup}
+              onChange={(e) => setProviderFilterGroup(e.target.value)}
+              placeholder="按 group 过滤"
+              className="w-full sm:w-auto px-2 sm:px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm"
+            />
+            <m.button
+              onClick={fetchProviders}
+              disabled={providersLoading}
+              className="w-full sm:w-auto px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-2"
+              whileTap={{ scale: 0.95 }}
+            >
+              <FaSync className={`w-4 h-4 ${providersLoading ? 'animate-spin' : ''}`} /> 刷新
+            </m.button>
           </div>
-
+        }>
           {/* 表单 */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
@@ -3290,44 +3156,34 @@ const EnvManager: React.FC = () => {
               )}
             </div>
           )}
-        </m.div>
+        </CollapsibleSection>
 
         {/* 调试控制台配置 */}
-        <m.div
-          className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200"
-          initial={ENTER_INITIAL}
-          animate={ENTER_ANIMATE}
-          transition={trans06}
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">调试控制台配置</h3>
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                value={debugConfigFilterGroup}
-                onChange={(e) => setDebugConfigFilterGroup(e.target.value)}
-                placeholder="按 group 过滤"
-                className="w-full sm:w-auto px-2 sm:px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm"
-              />
-              <m.button
-                onClick={handleInitDefaultDebugConfig}
-                className="w-full sm:w-auto px-2 sm:px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition text-sm font-medium"
-                whileTap={{ scale: 0.95 }}
-              >
-                <span className="hidden sm:inline">初始化默认</span>
-                <span className="sm:hidden">初始化默认</span>
-              </m.button>
-              <m.button
-                onClick={fetchDebugConfigs}
-                disabled={debugConfigsLoading}
-                className="w-full sm:w-auto px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-2"
-                whileTap={{ scale: 0.95 }}
-              >
-                <FaSync className={`w-4 h-4 ${debugConfigsLoading ? 'animate-spin' : ''}`} />
-                刷新
-              </m.button>
-            </div>
+        <CollapsibleSection title="调试控制台配置" sectionKey="debugconfig" isOpen={isSectionOpen('debugconfig')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
+          <div className="flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            <input
+              value={debugConfigFilterGroup}
+              onChange={(e) => setDebugConfigFilterGroup(e.target.value)}
+              placeholder="按 group 过滤"
+              className="w-full sm:w-auto px-2 sm:px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm"
+            />
+            <m.button
+              onClick={handleInitDefaultDebugConfig}
+              className="w-full sm:w-auto px-2 sm:px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition text-sm font-medium"
+              whileTap={{ scale: 0.95 }}
+            >
+              初始化默认
+            </m.button>
+            <m.button
+              onClick={fetchDebugConfigs}
+              disabled={debugConfigsLoading}
+              className="w-full sm:w-auto px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-2"
+              whileTap={{ scale: 0.95 }}
+            >
+              <FaSync className={`w-4 h-4 ${debugConfigsLoading ? 'animate-spin' : ''}`} /> 刷新
+            </m.button>
           </div>
-
+        }>
           {/* 表单 */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
             <div>
@@ -3509,56 +3365,44 @@ const EnvManager: React.FC = () => {
               )}
             </div>
           )}
-        </m.div>
+        </CollapsibleSection>
 
         {/* 调试控制台访问日志 */}
-        <m.div
-          className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200"
-          initial={ENTER_INITIAL}
-          animate={ENTER_ANIMATE}
-          transition={trans06}
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">调试控制台访问日志</h3>
-            <div className="flex flex-wrap items-center gap-2">
-              <m.button
-                onClick={resetDebugLogsFilters}
-                className="w-full sm:w-auto px-2 sm:px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition text-sm font-medium"
-                whileTap={{ scale: 0.95 }}
-              >
-                <span className="hidden sm:inline">重置过滤</span>
-                <span className="sm:hidden">重置</span>
-              </m.button>
-              <m.button
-                onClick={() => fetchDebugLogs()}
-                disabled={debugLogsLoading}
-                className="w-full sm:w-auto px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-2"
-                whileTap={{ scale: 0.95 }}
-              >
-                <FaSync className={`w-4 h-4 ${debugLogsLoading ? 'animate-spin' : ''}`} />
-                刷新
-              </m.button>
-              <m.button
-                onClick={() => showDeleteConfirmDialog('all')}
-                disabled={deleteLogsLoading || debugLogs.length === 0}
-                className="w-full sm:w-auto px-2 sm:px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm font-medium"
-                whileTap={{ scale: 0.95 }}
-              >
-                <span className="hidden sm:inline">删除全部</span>
-                <span className="sm:hidden">删除全部</span>
-              </m.button>
-              <m.button
-                onClick={() => showDeleteConfirmDialog('filter')}
-                disabled={deleteLogsLoading || debugLogs.length === 0}
-                className="w-full sm:w-auto px-2 sm:px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition disabled:opacity-50 text-sm font-medium"
-                whileTap={{ scale: 0.95 }}
-              >
-                <span className="hidden sm:inline">删除选中</span>
-                <span className="sm:hidden">删除选中</span>
-              </m.button>
-            </div>
+        <CollapsibleSection title="调试控制台访问日志" sectionKey="debuglogs" isOpen={isSectionOpen('debuglogs')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
+          <div className="flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            <m.button
+              onClick={resetDebugLogsFilters}
+              className="w-full sm:w-auto px-2 sm:px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition text-sm font-medium"
+              whileTap={{ scale: 0.95 }}
+            >
+              重置过滤
+            </m.button>
+            <m.button
+              onClick={() => fetchDebugLogs()}
+              disabled={debugLogsLoading}
+              className="w-full sm:w-auto px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-2"
+              whileTap={{ scale: 0.95 }}
+            >
+              <FaSync className={`w-4 h-4 ${debugLogsLoading ? 'animate-spin' : ''}`} /> 刷新
+            </m.button>
+            <m.button
+              onClick={() => showDeleteConfirmDialog('all')}
+              disabled={deleteLogsLoading || debugLogs.length === 0}
+              className="w-full sm:w-auto px-2 sm:px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm font-medium"
+              whileTap={{ scale: 0.95 }}
+            >
+              删除全部
+            </m.button>
+            <m.button
+              onClick={() => showDeleteConfirmDialog('filter')}
+              disabled={deleteLogsLoading || debugLogs.length === 0}
+              className="w-full sm:w-auto px-2 sm:px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition disabled:opacity-50 text-sm font-medium"
+              whileTap={{ scale: 0.95 }}
+            >
+              删除选中
+            </m.button>
           </div>
-
+        }>
           {/* 过滤条件 */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
             <div>
@@ -3836,7 +3680,7 @@ const EnvManager: React.FC = () => {
               </div>
             </>
           )}
-        </m.div>
+        </CollapsibleSection>
 
         {/* 数据来源弹窗（相对于当前屏幕居中） */}
         <AnimatePresence>
