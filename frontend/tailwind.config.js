@@ -13,6 +13,9 @@ export default {
         'burnt-orange': '#c44900',
         'midnight-violet': '#432534',
       },
+      fontFamily: {
+        'songti': ['"Noto Serif SC"', 'SimSun', 'STSong', 'FangSong', 'serif'],
+      },
       screens: {
         'xs': '480px',
         // => @media (min-width: 480px) { ... }

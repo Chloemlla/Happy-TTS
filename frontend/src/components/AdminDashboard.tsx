@@ -197,7 +197,7 @@ const AdminDashboard: React.FC = () => {
             <div className="flex items-center justify-center py-20">
               <div className="text-center">
                 <div className="text-burnt-orange text-6xl mb-4">🚫</div>
-                <h2 className="text-2xl font-bold text-wheat mb-2">访问被拒绝</h2>
+                <h2 className="text-2xl font-bold text-wheat mb-2 font-songti">访问被拒绝</h2>
                 <p className="text-wheat/60 mb-4">您没有权限访问管理后台</p>
                 <motion.button
                   onClick={() => navigate('/')}
@@ -234,10 +234,10 @@ const AdminDashboard: React.FC = () => {
                 transition={{ duration: 0.5, delay: 0.2 }}
               >
                 <FaShieldAlt className="text-4xl text-burnt-orange" />
-                <h1 className="text-4xl font-bold">管理后台</h1>
+                <h1 className="text-4xl font-bold font-songti">管理后台</h1>
               </motion.div>
               <motion.p
-                className="text-wheat/60 text-lg"
+                className="text-wheat/60 text-lg font-songti"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.5, delay: 0.4 }}
@@ -251,7 +251,7 @@ const AdminDashboard: React.FC = () => {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
               <div className="flex items-center gap-2 p-3 bg-dark-slate/60 rounded-lg border border-wheat/10">
                 <FaUsers className="text-burnt-orange" />
-                <span className="font-semibold text-wheat">管理员信息</span>
+                <span className="font-semibold text-wheat font-songti">管理员信息</span>
               </div>
               <div className="flex flex-row flex-wrap sm:flex-row items-center gap-2 sm:gap-4 text-xs sm:text-sm text-wheat/60 justify-center sm:justify-start">
                 <span>管理员: {user?.username}</span>
@@ -289,7 +289,7 @@ const AdminDashboard: React.FC = () => {
           <div className="p-6">
             <div className="flex items-center gap-2 mb-6 p-3 bg-ink-black/40 rounded-lg border border-wheat/10">
               <FaCog className="text-burnt-orange" />
-              <span className="font-semibold text-wheat">管理功能</span>
+              <span className="font-semibold text-wheat font-songti">管理功能</span>
             </div>
             <div className="flex space-x-3 mb-6 overflow-x-auto scrollbar-thin scrollbar-thumb-wheat/20 scrollbar-track-transparent pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
               {tabs.map(t => (
@@ -304,7 +304,7 @@ const AdminDashboard: React.FC = () => {
                   whileTap={{ scale: 0.96 }}
                   whileHover={tab !== t.key ? { scale: 1.05 } : {}}
                 >
-                  <span className="w-full text-center block">{t.label}</span>
+                  <span className="w-full text-center block font-songti">{t.label}</span>
                 </motion.button>
               ))}
             </div>
