@@ -1,15 +1,13 @@
 import { useState, useRef, useCallback } from 'react';
-import { FaPaperPlane, FaLock, FaLockOpen } from 'react-icons/fa';
+import { FaPaperPlane } from 'react-icons/fa';
 import { useWsNotifications } from '../hooks/useWsNotifications';
 
 /**
  * WebSocket 连接组件，附带消息发送输入框。
- * 支持"锁定输入"模式：发送后保留输入内容不清空。
  */
 export default function WsConnector() {
   const { connected, send } = useWsNotifications();
   const [message, setMessage] = useState('');
-  const [keepInput, setKeepInput] = useState(false);
   const [showInput, setShowInput] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -24,11 +22,9 @@ export default function WsConnector() {
       send({ type: 'message', data: trimmed });
     }
 
-    if (!keepInput) {
-      setMessage('');
-    }
+    setMessage('');
     inputRef.current?.focus();
-  }, [message, connected, send, keepInput]);
+  }, [message, connected, send]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -55,18 +51,6 @@ export default function WsConnector() {
               aria-label="WebSocket 消息输入"
             />
             <button
-              onClick={() => setKeepInput(!keepInput)}
-              className={`p-1.5 rounded-lg text-sm transition-colors ${
-                keepInput
-                  ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
-                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-              }`}
-              title={keepInput ? '发送后保留输入内容（点击切换）' : '发送后清空输入内容（点击切换）'}
-              aria-label={keepInput ? '关闭保留输入' : '开启保留输入'}
-            >
-              {keepInput ? <FaLock className="w-3.5 h-3.5" /> : <FaLockOpen className="w-3.5 h-3.5" />}
-            </button>
-            <button
               onClick={handleSend}
               disabled={!connected || !message.trim()}
               className="p-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
@@ -76,9 +60,6 @@ export default function WsConnector() {
               <FaPaperPlane className="w-3.5 h-3.5" />
             </button>
           </div>
-          {keepInput && (
-            <p className="text-xs text-amber-600 mt-1.5 ml-1">🔒 发送后保留输入内容</p>
-          )}
         </div>
       )}
       <button
