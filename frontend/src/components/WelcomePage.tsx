@@ -3,7 +3,7 @@ import { LazyMotion, domAnimation, m, useReducedMotion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { FaVolumeUp, FaStar, FaUsers, FaRocket, FaSignInAlt, FaUserPlus } from 'react-icons/fa';
 
-// 统一的 viewport 与过渡动画配置，避免重复创建对象
+// 统一的 viewport 与过渡动画配置
 const VIEWPORT_20 = { once: true, amount: 0.2 } as const;
 const VIEWPORT_30 = { once: true, amount: 0.3 } as const;
 const VIEWPORT_40 = { once: true, amount: 0.4 } as const;
@@ -15,13 +15,13 @@ const ICON_ENTER_TRANSITION = { duration: 0.5, delay: 0.2 } as const;
 const DESC_ENTER_TRANSITION = { duration: 0.5, delay: 0.4 } as const;
 const AUTH_SPRING_TRANSITION = { duration: 0.6, type: 'spring', stiffness: 120 } as const;
 const CARD_SPRING_TRANSITION = { duration: 0.5, type: 'spring', stiffness: 200 } as const;
-const ITEM_HOVER = { scale: 1.04, y: -2 } as const;
+const ITEM_HOVER = { scale: 1.05 } as const;
+const BUTTON_TAP = { scale: 0.95 } as const;
 
-// 降级方案：当用户偏好减少动态时，使用零时长过渡与纯淡入
+// 降级方案：当用户偏好减少动态时
 const NO_TRANSITION = { duration: 0 } as const;
 const FADE_VARIANTS = { hidden: { opacity: 0 }, visible: { opacity: 1 } } as const;
 
-// 静态常量与动画配置，避免每次渲染创建新对象
 const FEATURES = [
   { title: '高质量语音', desc: '使用 OpenAI 最新的 TTS 技术，生成自然流畅的语音', icon: FaStar },
   { title: '多种声音选择', desc: '提供多种声音选项，满足不同场景需求', icon: FaUsers },
@@ -40,9 +40,7 @@ const textFadeVariants = {
 
 const listVariants = {
   hidden: {},
-  visible: {
-    transition: { staggerChildren: 0.15 }
-  }
+  visible: { transition: { staggerChildren: 0.15 } }
 };
 
 const itemVariants = {
@@ -50,7 +48,7 @@ const itemVariants = {
   visible: { opacity: 1, y: 0, scale: 1 }
 };
 
-// 提取并 memo 化 FeatureCard，避免父组件重渲染导致的子项重复渲染
+// FeatureCard — 深色设计语言
 type FeatureIcon = React.ComponentType<{ className?: string }>;
 interface FeatureCardProps {
   title: string;
@@ -59,20 +57,22 @@ interface FeatureCardProps {
   variants: any;
   transition: any;
   hover: any;
+  tap: any;
 }
-const FeatureCard = memo(function FeatureCard({ title, desc, Icon, variants, transition, hover }: FeatureCardProps) {
+const FeatureCard = memo(function FeatureCard({ title, desc, Icon, variants, transition, hover, tap }: FeatureCardProps) {
   return (
     <m.div
-      className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6 hover:shadow-2xl transition-all duration-300"
+      className="bg-dark-slate/80 backdrop-blur-sm rounded-2xl shadow-xl border border-wheat/10 p-6 hover:shadow-2xl transition-all duration-300"
       variants={variants}
       transition={transition}
       whileHover={hover}
+      whileTap={tap}
     >
       <div className="flex items-center gap-3 mb-4">
-        <Icon className="text-2xl text-blue-600" />
-        <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+        <Icon className="text-2xl text-burnt-orange" />
+        <h3 className="text-lg font-songti font-semibold text-wheat">{title}</h3>
       </div>
-      <p className="text-gray-600">{desc}</p>
+      <p className="text-wheat/70">{desc}</p>
     </m.div>
   );
 });
@@ -80,7 +80,6 @@ const FeatureCard = memo(function FeatureCard({ title, desc, Icon, variants, tra
 function WelcomePageComponent(): React.ReactElement<any> {
   const prefersReducedMotion = useReducedMotion();
 
-  // 智能降级：根据用户系统偏好减少动画强度，并通过 useMemo 稳定对象引用
   const effectiveHeaderVariants = React.useMemo(() => (
     prefersReducedMotion ? FADE_VARIANTS : headerVariants
   ), [prefersReducedMotion]);
@@ -111,13 +110,16 @@ function WelcomePageComponent(): React.ReactElement<any> {
   const effectiveItemHover = React.useMemo(() => (
     prefersReducedMotion ? undefined : ITEM_HOVER
   ), [prefersReducedMotion]);
+  const effectiveButtonTap = React.useMemo(() => (
+    prefersReducedMotion ? undefined : BUTTON_TAP
+  ), [prefersReducedMotion]);
 
-  // 空闲时间预取：在浏览器空闲时预加载登录和注册页面，提升首次交互体验
+  // 空闲时间预取登录和注册页面
   React.useEffect(() => {
     const win: any = typeof window !== 'undefined' ? window : undefined;
     const schedule = win && win.requestIdleCallback ? win.requestIdleCallback : (cb: () => void) => setTimeout(cb, 300);
     const cancel = win && win.cancelIdleCallback ? win.cancelIdleCallback : (id: any) => clearTimeout(id);
-    const id = schedule(() => { 
+    const id = schedule(() => {
       import('./LoginPage');
       import('./RegisterPage');
     });
@@ -126,18 +128,19 @@ function WelcomePageComponent(): React.ReactElement<any> {
 
   return (
     <LazyMotion features={domAnimation}>
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8 rounded-3xl">
+      <div className="min-h-screen bg-ink-black py-8 rounded-3xl">
         <div className="max-w-7xl mx-auto px-4 space-y-8">
-          {/* 统一的标题头部 */}
+          {/* 主卡片容器 */}
           <m.div
-            className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden"
+            className="bg-dark-slate/80 backdrop-blur-sm rounded-2xl shadow-xl border border-wheat/10 overflow-hidden"
             initial="hidden"
             whileInView="visible"
             viewport={VIEWPORT_30}
             variants={effectiveHeaderVariants}
             transition={effectiveHeaderTransition}
           >
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
+            {/* 头部横幅 — 渐变 */}
+            <div className="bg-gradient-to-r from-midnight-violet to-dark-slate text-wheat p-6">
               <div className="text-center">
                 <m.div
                   className="flex items-center justify-center gap-3 mb-4"
@@ -146,11 +149,11 @@ function WelcomePageComponent(): React.ReactElement<any> {
                   viewport={VIEWPORT_40}
                   transition={effectiveIconEnterTransition}
                 >
-                  <FaVolumeUp className="text-4xl" />
-                  <h1 className="text-4xl font-bold">欢迎使用 Happy TTS</h1>
+                  <FaVolumeUp className="text-4xl text-burnt-orange" />
+                  <h1 className="text-4xl font-bold font-songti text-wheat">欢迎使用 Happy TTS</h1>
                 </m.div>
                 <m.p
-                  className="text-blue-100 text-lg"
+                  className="text-wheat/70 text-lg"
                   variants={textFadeVariants}
                   initial="hidden"
                   whileInView="visible"
@@ -163,7 +166,7 @@ function WelcomePageComponent(): React.ReactElement<any> {
             </div>
 
             {/* 行动号召区域 */}
-            <div className="p-8">
+            <div className="p-8 bg-ink-black/40">
               <m.div
                 className="max-w-2xl mx-auto text-center space-y-6"
                 variants={effectiveItemVariants}
@@ -172,31 +175,35 @@ function WelcomePageComponent(): React.ReactElement<any> {
                 viewport={VIEWPORT_30}
                 transition={effectiveAuthTransition}
               >
-                <p className="text-lg text-gray-700 mb-6">
+                <p className="text-lg text-wheat/70 mb-6">
                   立即开始使用 Happy TTS，体验先进的语音合成技术
                 </p>
-                
+
                 <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                  <Link
-                    to="/login"
-                    className="group flex items-center gap-2 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                    aria-label="登录到您的账户"
-                  >
-                    <FaSignInAlt className="text-xl" />
-                    <span>登录</span>
-                  </Link>
-                  
-                  <Link
-                    to="/register"
-                    className="group flex items-center gap-2 px-8 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                    aria-label="创建新账户"
-                  >
-                    <FaUserPlus className="text-xl" />
-                    <span>注册账号</span>
-                  </Link>
+                  <m.div whileHover={effectiveItemHover} whileTap={effectiveButtonTap}>
+                    <Link
+                      to="/login"
+                      className="group flex items-center gap-2 px-8 py-3 bg-burnt-orange hover:bg-burnt-orange/80 text-wheat font-semibold rounded-lg shadow-lg shadow-burnt-orange/20 transition-all duration-300"
+                      aria-label="登录到您的账户"
+                    >
+                      <FaSignInAlt className="text-xl" />
+                      <span>登录</span>
+                    </Link>
+                  </m.div>
+
+                  <m.div whileHover={effectiveItemHover} whileTap={effectiveButtonTap}>
+                    <Link
+                      to="/register"
+                      className="group flex items-center gap-2 px-8 py-3 bg-ink-black/60 hover:bg-midnight-violet/40 text-wheat/70 hover:text-wheat font-semibold rounded-lg border border-wheat/10 hover:border-burnt-orange/30 transition-all duration-300"
+                      aria-label="创建新账户"
+                    >
+                      <FaUserPlus className="text-xl" />
+                      <span>注册账号</span>
+                    </Link>
+                  </m.div>
                 </div>
 
-                <p className="text-sm text-gray-500 mt-4">
+                <p className="text-sm text-wheat/40 mt-4">
                   还没有账号？注册只需一分钟
                 </p>
               </m.div>
@@ -220,6 +227,7 @@ function WelcomePageComponent(): React.ReactElement<any> {
                 variants={effectiveItemVariants}
                 transition={effectiveCardTransition}
                 hover={effectiveItemHover}
+                tap={effectiveButtonTap}
               />
             ))}
           </m.div>
