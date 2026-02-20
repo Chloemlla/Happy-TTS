@@ -12,6 +12,9 @@ interface WebhookEventItem {
   routeKey?: string | null;
   eventId?: string;
   type: string;
+  title?: string;
+  content?: string;
+  renderedContent?: string;
   created_at?: string;
   to?: any;
   subject?: string;
@@ -400,13 +403,13 @@ const WebhookEventsManager: React.FC = () => {
                    onChange={(e)=>setStatusFilter(e.target.value)}
                    onBlur={()=>fetchList(1, pageSize)}
                    placeholder="processed"
-                   className="w-full px-3 py-2 rounded-lg bg-white/20 text白 placeholder-white/60" />
+                   className="w-full px-3 py-2 rounded-lg bg-white/20 text-white placeholder-white/60" />
           </div>
         </div>
       </motion.div>
 
       {/* List & Table */}
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border白/20 overflow-hidden">
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden">
         {/* Mobile Cards */}
         <div className="block md:hidden divide-y divide-gray-100">
           {items.map(it => (
@@ -422,6 +425,8 @@ const WebhookEventsManager: React.FC = () => {
                   </div>
                   <div className="text-xs text-gray-500 mt-1">{it.receivedAt ? new Date(it.receivedAt).toLocaleString('zh-CN') : '-'}</div>
                   {it.subject && <div className="text-sm text-gray-900 mt-1 truncate">{it.subject}</div>}
+                  {it.title && it.title !== it.subject && <div className="text-sm text-gray-800 mt-1 truncate font-medium">📌 {it.title}</div>}
+                  {it.renderedContent && <div className="text-xs text-gray-600 mt-1 line-clamp-2 whitespace-pre-wrap">{it.renderedContent}</div>}
                   {it.to && (
                     <div className="text-xs text-gray-600 mt-1 truncate">收件人：{typeof it.to === 'string' ? it.to : Array.isArray(it.to) ? it.to.join(', ') : '-'}</div>
                   )}
@@ -452,8 +457,8 @@ const WebhookEventsManager: React.FC = () => {
               <tr className="text-left text-gray-600">
                 <th className="p-3 w-28">类型</th>
                 <th className="p-3 w-48 hidden md:table-cell">事件ID</th>
-                <th className="p-3 w-48 hidden sm:table-cell">主题</th>
-                <th className="p-3 w-64 hidden lg:table-cell">收件人</th>
+                <th className="p-3 w-48 hidden sm:table-cell">标题</th>
+                <th className="p-3 w-64 hidden lg:table-cell">通知内容</th>
                 <th className="p-3 w-24">状态</th>
                 <th className="p-3 w-44">时间</th>
                 <th className="p-3 w-40">操作</th>
@@ -464,9 +469,11 @@ const WebhookEventsManager: React.FC = () => {
                 <tr key={it._id} className="border-t border-gray-100 hover:bg-gray-50">
                   <td className="p-3 whitespace-nowrap">{it.type}</td>
                   <td className="p-3 truncate hidden md:table-cell" title={it.eventId || ''}>{it.eventId || '-'}</td>
-                  <td className="p-3 truncate hidden sm:table-cell">{it.subject || '-'}</td>
-                  <td className="p-3 truncate hidden lg:table-cell" title={typeof it.to === 'string' ? it.to : JSON.stringify(it.to)}>
-                    {typeof it.to === 'string' ? it.to : Array.isArray(it.to) ? it.to.join(', ') : '-'}
+                  <td className="p-3 truncate hidden sm:table-cell">{it.title || it.subject || '-'}</td>
+                  <td className="p-3 hidden lg:table-cell">
+                    <div className="truncate max-w-xs" title={it.renderedContent || ''}>
+                      {it.renderedContent || (typeof it.to === 'string' ? it.to : Array.isArray(it.to) ? it.to.join(', ') : '-')}
+                    </div>
                   </td>
                   <td className="p-3 whitespace-nowrap">{it.status || '-'}</td>
                   <td className="p-3 whitespace-nowrap">{it.receivedAt ? new Date(it.receivedAt).toLocaleString('zh-CN') : '-'}</td>
@@ -516,6 +523,16 @@ const WebhookEventsManager: React.FC = () => {
                   <FaTimes className="w-4 h-4" /> 关闭
                 </motion.button>
               </div>
+              {/* 结构化通知摘要 */}
+              {(selected.title || selected.renderedContent) && (
+                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-1">
+                  {selected.title && <div className="text-sm font-semibold text-gray-900">📌 {selected.title}</div>}
+                  {selected.renderedContent && <div className="text-sm text-gray-700 whitespace-pre-wrap">{selected.renderedContent}</div>}
+                  {selected.content && selected.content !== selected.renderedContent && (
+                    <div className="text-xs text-gray-400 mt-1">模板: {selected.content}</div>
+                  )}
+                </div>
+              )}
               <pre className="text-xs bg-gray-900 text-gray-100 p-3 rounded overflow-auto max-h-[70vh]">{JSON.stringify(selected, null, 2)}</pre>
             </motion.div>
           </motion.div>
@@ -555,6 +572,20 @@ const WebhookEventsManager: React.FC = () => {
                   <input className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200" value={editing?.status || ''} onChange={e => setEditing({ ...(editing as any), status: e.target.value })} />
                 </div>
                 <div className="sm:col-span-2">
+                  <label className="block text-sm text-gray-600 mb-1">标题(title)</label>
+                  <input className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200" value={editing?.title || ''} onChange={e => setEditing({ ...(editing as any), title: e.target.value })} placeholder="通知标题" />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-sm text-gray-600 mb-1">内容模板(content)</label>
+                  <textarea className="w-full px-3 py-2 h-20 rounded-lg bg-gray-50 border border-gray-200" value={editing?.content || ''} onChange={e => setEditing({ ...(editing as any), content: e.target.value })} placeholder="支持 {{value}} 占位符" />
+                </div>
+                {editing?.renderedContent && (
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm text-gray-600 mb-1">渲染后内容(renderedContent)</label>
+                    <div className="w-full px-3 py-2 rounded-lg bg-blue-50 border border-blue-200 text-sm text-gray-700 whitespace-pre-wrap">{editing.renderedContent}</div>
+                  </div>
+                )}
+                <div className="sm:col-span-2">
                   <label className="block text-sm text-gray-600 mb-1">收件人(to)</label>
                   <input className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200" value={typeof editing?.to === 'string' ? (editing?.to || '') : JSON.stringify(editing?.to || '')} onChange={e => {
                     let value: any = e.target.value;
@@ -593,7 +624,7 @@ const WebhookEventsManager: React.FC = () => {
                   </motion.button>
                 )}
                 {creating && (
-                  <motion.button onClick={handleCreate} className="px-3 py-2 rounded-lg bg-gradient-to-r from-blue-600 to紫-600 text白 text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
+                  <motion.button onClick={handleCreate} className="px-3 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                     <FaPlus className="w-4 h-4" /> 创建
                   </motion.button>
                 )}
