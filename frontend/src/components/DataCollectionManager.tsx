@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useDeferredValue, useCallback, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { getApiBaseUrl } from '../api/api';
 import { FaChartBar, FaSync, FaSearch, FaRedo, FaTrash, FaEye, FaTimes, FaPlus, FaClipboard, FaCopy } from 'react-icons/fa';
@@ -799,10 +800,11 @@ const DataCollectionManager: React.FC = () => {
                 </div>
             </motion.div>
 
-            {/* View Modal */}
+            {/* View Modal — Portal 到 body */}
+            {ReactDOM.createPortal(
             <AnimatePresence>
             {viewItem && (
-                <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setViewItem(null)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999]" onClick={() => setViewItem(null)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                     <motion.div
                         initial={{ scale: 0.95, y: 10, opacity: 0 }}
                         animate={{ scale: 1, y: 0, opacity: 1 }}
@@ -984,11 +986,13 @@ const DataCollectionManager: React.FC = () => {
                 </motion.div>
             )}
             </AnimatePresence>
+            , document.body)}
 
-            {/* Create Modal */}
+            {/* Create Modal — Portal 到 body */}
+            {ReactDOM.createPortal(
             <AnimatePresence>
             {creating && (
-                <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setCreating(false)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999]" onClick={() => setCreating(false)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                     <motion.div
                         initial={{ scale: 0.95, y: 10, opacity: 0 }}
                         animate={{ scale: 1, y: 0, opacity: 1 }}
@@ -1030,11 +1034,13 @@ const DataCollectionManager: React.FC = () => {
                 </motion.div>
             )}
             </AnimatePresence>
+            , document.body)}
 
-            {/* Batch View Modal */}
+            {/* Batch View Modal — Portal 到 body */}
+            {ReactDOM.createPortal(
             <AnimatePresence>
             {batchView && (
-              <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setBatchView(null)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999]" onClick={() => setBatchView(null)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 <motion.div initial={{ scale: 0.95, y: 10, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 10, opacity: 0 }} className="w-[95vw] max-w-5xl max-h-[80vh] overflow-auto rounded-2xl bg-white/90 backdrop-blur p-4 sm:p-6 border border-white/20 shadow-xl" onClick={e => e.stopPropagation()} data-source-modal="data-collection-batch">
                   <div className="flex items-center justify-between mb-3">
                     <div className="font-semibold text-gray-900">合并日志（{batchView.ids.length} 条）</div>
@@ -1080,6 +1086,7 @@ const DataCollectionManager: React.FC = () => {
               </motion.div>
             )}
             </AnimatePresence>
+            , document.body)}
         </div>
     );
 };

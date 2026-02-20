@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, memo, useReducer } from 'react';
+import ReactDOM from 'react-dom';
 import { getApiBaseUrl } from '../api/api';
 import { motion } from 'framer-motion';
 import { useNotification } from './Notification';
@@ -677,9 +678,9 @@ const SmartHumanCheckTraces: React.FC = () => {
         </div>
       </div>
 
-      {/* 详情弹窗 */}
-      {selected && (
-        <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+      {/* 详情弹窗 — Portal 到 body */}
+      {ReactDOM.createPortal(selected && (
+        <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999]" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
         <div className="bg-white/90 backdrop-blur rounded-2xl max-w-3xl w-[95vw] p-4 sm:p-6 border border-white/20 shadow-xl" data-source-modal="trace-detail">
           <div className="flex items-center justify-between mb-3">
             <div className="font-semibold text-gray-900">日志详情</div>
@@ -723,11 +724,11 @@ const SmartHumanCheckTraces: React.FC = () => {
           <pre className="text-xs bg-gray-900 text-gray-100 p-3 rounded overflow-auto max-h-[70vh]">{JSON.stringify(selected, null, 2)}</pre>
         </div>
       </motion.div>
-      )}
+      ), document.body)}
 
-      {/* 批量合并查看弹窗 */}
-      {batchView && (
-        <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+      {/* 批量合并查看弹窗 — Portal 到 body */}
+      {ReactDOM.createPortal(batchView && (
+        <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999]" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <div className="bg-white/90 backdrop-blur rounded-2xl max-w-5xl w-[95vw] p-4 sm:p-6 border border-white/20 shadow-xl" data-source-modal="batch-trace-detail">
             <div className="flex items-center justify-between mb-3">
               <div className="font-semibold text-gray-900">合并日志（{batchView.ids.length} 条）</div>
@@ -743,7 +744,7 @@ const SmartHumanCheckTraces: React.FC = () => {
             <pre className="text-xs bg-gray-900 text-gray-100 p-3 rounded overflow-auto max-h-[70vh]">{JSON.stringify(batchView, null, 2)}</pre>
           </div>
         </motion.div>
-      )}
+      ), document.body)}
     </div>
   );
 };

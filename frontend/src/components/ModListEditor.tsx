@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import ReactDOM from 'react-dom';
 import { motion, AnimatePresence, HTMLMotionProps } from 'framer-motion';
 import { useNotification } from './Notification';
 import getApiBaseUrl from '../api';
@@ -527,7 +528,8 @@ const ModListEditor: React.FC = () => {
         )}
       </motion.div>
 
-      {/* 添加MOD弹窗 */}
+      {/* 添加MOD弹窗 — Portal 到 body */}
+      {ReactDOM.createPortal(
       <AnimatePresence>
         {showAdd && (
           <motion.div
@@ -609,8 +611,10 @@ const ModListEditor: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      , document.body)}
 
-      {/* 修改MOD弹窗 */}
+      {/* 修改MOD弹窗 — Portal 到 body */}
+      {ReactDOM.createPortal(
       <AnimatePresence>
         {editId && (
           <motion.div
@@ -692,8 +696,10 @@ const ModListEditor: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      , document.body)}
 
-      {/* 批量添加示例弹窗 */}
+      {/* 批量添加示例弹窗 — Portal 到 body */}
+      {ReactDOM.createPortal(
       <AnimatePresence>
         {showExample && (
           <motion.div
@@ -735,8 +741,10 @@ const ModListEditor: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      , document.body)}
 
-      {/* 批量操作修改码弹窗 */}
+      {/* 批量操作修改码弹窗 — Portal 到 body */}
+      {ReactDOM.createPortal(
       <AnimatePresence>
         {showBatchCode && (
           <motion.div
@@ -788,8 +796,10 @@ const ModListEditor: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      , document.body)}
 
-      {/* 删除MOD弹窗 */}
+      {/* 删除MOD弹窗 — Portal 到 body */}
+      {ReactDOM.createPortal(
       <AnimatePresence>
         {deleteId && (
           <motion.div
@@ -861,6 +871,7 @@ const ModListEditor: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      , document.body)}
     </motion.div>
   );
 };
