@@ -434,16 +434,16 @@ const FBIWantedManager: React.FC = () => {
     ), [prefersReducedMotion]);
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8 px-4 rounded-lg">
+        <div className="min-h-screen bg-gradient-to-br from-[#8ECAE6]/20 via-white to-[#219EBC]/10 py-8 px-4 rounded-lg">
             <div className="max-w-7xl mx-auto px-4 space-y-8">
                 {/* 标题和统计信息部分 */}
                 <motion.div
-                    className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden"
+                    className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-[#8ECAE6]/30 overflow-hidden"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6 }}
                 >
-                    <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
+                    <div className="bg-[#023047] text-white p-6">
                         <div className="text-center">
                             <motion.div
                                 className="flex items-center justify-center gap-3 mb-4"
@@ -451,11 +451,11 @@ const FBIWantedManager: React.FC = () => {
                                 animate={{ scale: 1 }}
                                 transition={{ duration: 0.5, delay: 0.2 }}
                             >
-                                <FaUserSecret className="text-4xl" />
-                                <h1 className="text-4xl font-bold">FBI通缉犯管理系统</h1>
+                                <FaUserSecret className="text-4xl text-[#FFB703]" />
+                                <h1 className="text-4xl font-bold font-songti">FBI通缉犯管理系统</h1>
                             </motion.div>
                             <motion.p
-                                className="text-blue-100 text-lg"
+                                className="text-[#8ECAE6] text-lg"
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 transition={{ duration: 0.5, delay: 0.4 }}
@@ -485,20 +485,20 @@ const FBIWantedManager: React.FC = () => {
                                     <p className="text-2xl font-bold text-green-600">{statistics.captured}</p>
                                 </div>
 
-                                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                                <div className="bg-[#8ECAE6]/10 border border-[#8ECAE6]/30 rounded-xl p-4">
                                     <div className="flex items-center gap-2 mb-2">
-                                        <FaUserSecret className="text-blue-600" />
-                                        <h3 className="text-blue-700 font-semibold">总计</h3>
+                                        <FaUserSecret className="text-[#219EBC]" />
+                                        <h3 className="text-[#023047] font-semibold">总计</h3>
                                     </div>
-                                    <p className="text-2xl font-bold text-blue-600">{statistics.total}</p>
+                                    <p className="text-2xl font-bold text-[#023047]">{statistics.total}</p>
                                 </div>
 
-                                <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+                                <div className="bg-[#8ECAE6]/15 border border-[#8ECAE6]/30 rounded-xl p-4">
                                     <div className="flex items-center gap-2 mb-2">
-                                        <FaExclamationTriangle className="text-purple-600" />
-                                        <h3 className="text-purple-700 font-semibold">极度危险</h3>
+                                        <FaExclamationTriangle className="text-[#219EBC]" />
+                                        <h3 className="text-[#023047] font-semibold">极度危险</h3>
                                     </div>
-                                    <p className="text-2xl font-bold text-purple-600">
+                                    <p className="text-2xl font-bold text-[#023047]">
                                         {statistics.dangerLevels.EXTREME || 0}
                                     </p>
                                 </div>
@@ -509,7 +509,7 @@ const FBIWantedManager: React.FC = () => {
 
                 {/* 搜索和过滤部分 */}
                 <motion.div
-                    className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6"
+                    className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-[#8ECAE6]/30 p-6"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: 0.1 }}
@@ -523,14 +523,14 @@ const FBIWantedManager: React.FC = () => {
                                     placeholder="搜索通缉犯姓名、FBI编号或罪名..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    className="w-full pl-10 pr-4 py-3 border border-[#8ECAE6]/30 rounded-xl focus:ring-2 focus:ring-[#FFB703] text-[#023047] focus:border-transparent"
                                 />
                             </div>
 
                             <select
                                 value={statusFilter}
                                 onChange={(e) => setStatusFilter(e.target.value)}
-                                className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="px-4 py-3 border border-[#8ECAE6]/30 rounded-xl focus:ring-2 focus:ring-[#FFB703] text-[#023047] focus:border-transparent"
                             >
                                 <option value="ALL">所有状态</option>
                                 <option value="ACTIVE">在逃</option>
@@ -542,7 +542,7 @@ const FBIWantedManager: React.FC = () => {
                             <select
                                 value={dangerFilter}
                                 onChange={(e) => setDangerFilter(e.target.value)}
-                                className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="px-4 py-3 border border-[#8ECAE6]/30 rounded-xl focus:ring-2 focus:ring-[#FFB703] text-[#023047] focus:border-transparent"
                             >
                                 <option value="ALL">所有危险等级</option>
                                 <option value="LOW">低危险</option>
@@ -555,7 +555,7 @@ const FBIWantedManager: React.FC = () => {
                         <div className="flex flex-col sm:flex-row gap-4">
                             <motion.button
                                 onClick={() => handleBatchDelete({ status: 'DECEASED' }, '确定要删除所有已死亡的通缉犯记录吗？此操作不可逆！')}
-                                className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-yellow-500 to-orange-600 text-white rounded-xl hover:from-yellow-600 hover:to-orange-700 transition-all duration-200 font-semibold"
+                                className="flex items-center justify-center gap-2 px-4 py-3 bg-[#FB8500] text-white rounded-xl hover:bg-[#FB8500]/80 transition-all duration-200 font-semibold"
                                 whileHover={hoverScale(1.02)}
                                 whileTap={tapScale(0.98)}
                             >
@@ -564,7 +564,7 @@ const FBIWantedManager: React.FC = () => {
                             </motion.button>
                             <motion.button
                                 onClick={() => handleBatchDelete({}, '警告：确定要删除所有的通缉犯记录吗？此操作将清空数据库，不可逆！')}
-                                className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-red-600 to-pink-700 text-white rounded-xl hover:from-red-700 hover:to-pink-800 transition-all duration-200 font-semibold"
+                                className="flex items-center justify-center gap-2 px-4 py-3 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-all duration-200 font-semibold"
                                 whileHover={hoverScale(1.02)}
                                 whileTap={tapScale(0.98)}
                             >
@@ -573,7 +573,7 @@ const FBIWantedManager: React.FC = () => {
                             </motion.button>
                             <motion.button
                                 onClick={() => setShowCreateModal(true)}
-                                className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 font-semibold"
+                                className="flex items-center justify-center gap-2 px-6 py-3 bg-[#FFB703] text-[#023047] rounded-xl hover:bg-[#FB8500] transition-all duration-200 font-semibold"
                                 whileHover={hoverScale(1.02)}
                                 whileTap={tapScale(0.98)}
                             >
@@ -586,42 +586,42 @@ const FBIWantedManager: React.FC = () => {
 
                 {/* 通缉犯列表 */}
                 <motion.div
-                    className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden"
+                    className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-[#8ECAE6]/30 overflow-hidden"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: 0.2 }}
                 >
                     {loading ? (
                         <div className="flex items-center justify-center py-12">
-                            <FaSpinner className="animate-spin text-4xl text-blue-600" />
-                            <span className="ml-3 text-lg text-gray-600">加载中...</span>
+                            <FaSpinner className="animate-spin text-4xl text-[#FFB703]" />
+                            <span className="ml-3 text-lg text-[#023047]/70">加载中...</span>
                         </div>
                     ) : (
                         <>
                             <div className="overflow-x-auto">
                                 <table className="w-full">
-                                    <thead className="bg-gray-50">
+                                    <thead className="bg-[#8ECAE6]/10">
                                         <tr>
-                                            <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            <th className="px-6 py-4 text-left text-xs font-medium text-[#023047] uppercase font-songti tracking-wider">
                                                 通缉犯信息
                                             </th>
-                                            <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            <th className="px-6 py-4 text-left text-xs font-medium text-[#023047] uppercase font-songti tracking-wider">
                                                 危险等级
                                             </th>
-                                            <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            <th className="px-6 py-4 text-left text-xs font-medium text-[#023047] uppercase font-songti tracking-wider">
                                                 状态
                                             </th>
-                                            <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            <th className="px-6 py-4 text-left text-xs font-medium text-[#023047] uppercase font-songti tracking-wider">
                                                 悬赏金额
                                             </th>
-                                            <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            <th className="px-6 py-4 text-left text-xs font-medium text-[#023047] uppercase font-songti tracking-wider">
                                                 操作
                                             </th>
                                         </tr>
                                     </thead>
-                                    <tbody className="bg-white divide-y divide-gray-200">
+                                    <tbody className="bg-white/80 divide-y divide-[#8ECAE6]/20">
                                         {wantedList.map((wanted) => (
-                                            <tr key={wanted._id} className="hover:bg-gray-50">
+                                            <tr key={wanted._id} className="hover:bg-[#8ECAE6]/10">
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <div className="flex items-center">
                                                         <div className="flex-shrink-0 h-12 w-12">
@@ -632,16 +632,16 @@ const FBIWantedManager: React.FC = () => {
                                                                     alt={wanted.name}
                                                                 />
                                                             ) : (
-                                                                <div className="h-12 w-12 rounded-full bg-gray-300 flex items-center justify-center">
-                                                                    <FaUserSecret className="text-gray-600" />
+                                                                <div className="h-12 w-12 rounded-full bg-[#8ECAE6]/30 flex items-center justify-center">
+                                                                    <FaUserSecret className="text-[#023047]/50" />
                                                                 </div>
                                                             )}
                                                         </div>
                                                         <div className="ml-4">
-                                                            <div className="text-sm font-medium text-gray-900">
+                                                            <div className="text-sm font-medium text-[#023047]">
                                                                 {wanted.name}
                                                             </div>
-                                                            <div className="text-sm text-gray-500">
+                                                            <div className="text-sm text-[#023047]/50">
                                                                 FBI: {wanted.fbiNumber}
                                                             </div>
                                                         </div>
@@ -657,7 +657,7 @@ const FBIWantedManager: React.FC = () => {
                                                         {wanted.status}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-[#023047]">
                                                     ${wanted.reward.toLocaleString()}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
@@ -666,7 +666,7 @@ const FBIWantedManager: React.FC = () => {
                                                             setSelectedWanted(wanted);
                                                             setShowViewModal(true);
                                                         }}
-                                                        className="text-blue-600 hover:text-blue-900 transition-colors"
+                                                        className="text-[#219EBC] hover:text-[#023047] transition-colors"
                                                         whileHover={hoverScale(1.1)}
                                                         whileTap={tapScale(0.95)}
                                                     >
@@ -678,7 +678,7 @@ const FBIWantedManager: React.FC = () => {
                                                             setFormData(wanted);
                                                             setShowEditModal(true);
                                                         }}
-                                                        className="text-green-600 hover:text-green-900 transition-colors"
+                                                        className="text-[#FFB703] hover:text-[#023047] transition-colors"
                                                         whileHover={hoverScale(1.1)}
                                                         whileTap={tapScale(0.95)}
                                                     >
@@ -705,23 +705,23 @@ const FBIWantedManager: React.FC = () => {
 
                             {/* 分页 */}
                             {totalPages > 1 && (
-                                <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+                                <div className="px-6 py-4 bg-[#8ECAE6]/10 border-t border-[#8ECAE6]/30">
                                     <div className="flex items-center justify-between">
-                                        <div className="text-sm text-gray-700">
+                                        <div className="text-sm text-[#023047]/70">
                                             第 {currentPage} 页，共 {totalPages} 页
                                         </div>
                                         <div className="flex space-x-2">
                                             <button
                                                 onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                                                 disabled={currentPage === 1}
-                                                className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                                                className="px-3 py-1 border border-[#8ECAE6]/30 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#8ECAE6]/20 text-[#023047]/70"
                                             >
                                                 上一页
                                             </button>
                                             <button
                                                 onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                                                 disabled={currentPage === totalPages}
-                                                className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                                                className="px-3 py-1 border border-[#8ECAE6]/30 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#8ECAE6]/20 text-[#023047]/70"
                                             >
                                                 下一页
                                             </button>
@@ -749,9 +749,9 @@ const FBIWantedManager: React.FC = () => {
                                 animate={{ scale: 1, opacity: 1 }}
                                 exit={{ scale: 0.9, opacity: 0 }}
                             >
-                                <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-t-2xl">
+                                <div className="bg-[#023047] text-white p-6 rounded-t-2xl">
                                     <div className="flex items-center justify-between">
-                                        <h2 className="text-2xl font-bold">添加通缉犯</h2>
+                                        <h2 className="text-2xl font-bold font-songti">添加通缉犯</h2>
                                         <button
                                             onClick={() => {
                                                 setShowCreateModal(false);
@@ -980,9 +980,9 @@ const FBIWantedManager: React.FC = () => {
                                 animate={{ scale: 1, opacity: 1 }}
                                 exit={{ scale: 0.9, opacity: 0 }}
                             >
-                                <div className="bg-gradient-to-r from-green-600 to-blue-600 text-white p-6 rounded-t-2xl">
+                                <div className="bg-[#023047] text-white p-6 rounded-t-2xl">
                                     <div className="flex items-center justify-between">
-                                        <h2 className="text-2xl font-bold">编辑通缉犯</h2>
+                                        <h2 className="text-2xl font-bold font-songti">编辑通缉犯</h2>
                                         <button
                                             onClick={() => {
                                                 setShowEditModal(false);
@@ -1125,9 +1125,9 @@ const FBIWantedManager: React.FC = () => {
                                 animate={{ scale: 1, opacity: 1 }}
                                 exit={{ scale: 0.9, opacity: 0 }}
                             >
-                                <div className="bg-gradient-to-r from-red-600 to-orange-600 text-white p-6 rounded-t-2xl">
+                                <div className="bg-[#023047] text-white p-6 rounded-t-2xl">
                                     <div className="flex items-center justify-between">
-                                        <h2 className="text-2xl font-bold">通缉犯详情</h2>
+                                        <h2 className="text-2xl font-bold font-songti">通缉犯详情</h2>
                                         <button
                                             onClick={() => {
                                                 setShowViewModal(false);
