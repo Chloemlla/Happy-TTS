@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useWebSocket, WsServerMessage } from './useWebSocket';
 import { useNotification } from '../components/Notification';
+import { useBroadcastModal } from '../components/BroadcastModal';
 
 /**
  * 将 WebSocket 消息接入应用通知系统
@@ -8,11 +9,16 @@ import { useNotification } from '../components/Notification';
  */
 export function useWsNotifications() {
   const { setNotification } = useNotification();
+  const { showBroadcastModal } = useBroadcastModal();
+
+  const mapLevel = (level?: string) =>
+    level === 'error' ? 'error' as const
+    : level === 'warn' ? 'warning' as const
+    : 'info' as const;
 
   const onMessage = useCallback((msg: WsServerMessage) => {
     switch (msg.type) {
       case 'tts:progress':
-        // TTS 进度不弹通知，由 TTS 页面自行处理
         break;
 
       case 'tts:complete':
@@ -30,26 +36,26 @@ export function useWsNotifications() {
         break;
 
       case 'notification':
-        setNotification({
-          message: msg.data?.message || '系统通知',
-          type: msg.data?.level === 'error' ? 'error'
-            : msg.data?.level === 'warn' ? 'warning'
-            : 'info',
-          duration: msg.data?.duration ?? 5000,
-        });
-        break;
-
       case 'admin:broadcast':
-        setNotification({
-          message: msg.data?.message || '管理员消息',
-          type: msg.data?.level === 'error' ? 'error'
-            : msg.data?.level === 'warn' ? 'warning'
-            : 'info',
-          duration: msg.data?.duration ?? 8000,
-        });
+        if (msg.data?.display === 'modal') {
+          showBroadcastModal({
+            title: msg.data?.title,
+            content: msg.data?.message || '系统通知',
+            format: msg.data?.format || 'text',
+            level: msg.data?.level === 'error' ? 'error'
+              : msg.data?.level === 'warn' ? 'warn'
+              : 'info',
+          });
+        } else {
+          setNotification({
+            message: msg.data?.message || (msg.type === 'admin:broadcast' ? '管理员消息' : '系统通知'),
+            type: mapLevel(msg.data?.level),
+            duration: msg.data?.duration ?? (msg.type === 'admin:broadcast' ? 8000 : 5000),
+          });
+        }
         break;
     }
-  }, [setNotification]);
+  }, [setNotification, showBroadcastModal]);
 
   return useWebSocket({ onMessage });
 }
