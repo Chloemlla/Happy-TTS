@@ -124,7 +124,9 @@ function sanitizeAssistantText(text: string): string {
 interface RequestBody {
   token?: string;
   message?: string;
-  turnstileToken?: string;
+  cfToken?: string;
+  userRole?: string;
+  messageId?: string;
 }
 
 interface HistoryMessage {
@@ -1975,11 +1977,20 @@ const LibreChatPage: React.FC = () => {
     }
     try {
       setNotification({ type: 'info', message: '正在重试AI回复...' });
+      const requestBody: RequestBody = token ? { token, messageId: id } : { messageId: id };
+      
+      // 管理员发送 userRole 以跳过人机验证
+      if (isAdmin) {
+        requestBody.userRole = localStorage.getItem('userRole') || undefined;
+      } else if (!!turnstileConfig.siteKey && turnstileToken) {
+        requestBody.cfToken = turnstileToken;
+      }
+      
       const res = await fetch(`${apiBase}/api/librechat/retry`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(token ? { token, messageId: id } : { messageId: id })
+        body: JSON.stringify(requestBody)
       });
       if (res.ok) {
         setNotification({ type: 'success', message: 'AI回复重试成功' });
@@ -2208,9 +2219,11 @@ const LibreChatPage: React.FC = () => {
       // 构建请求体
       const requestBody: RequestBody = token ? { token, message: toSend } : { message: toSend };
       
-      // 如果不是管理员且Turnstile已启用，添加验证token
-      if (!isAdmin && !!turnstileConfig.siteKey && turnstileToken) {
-        requestBody.turnstileToken = turnstileToken;
+      // 管理员发送 userRole 以跳过人机验证
+      if (isAdmin) {
+        requestBody.userRole = localStorage.getItem('userRole') || undefined;
+      } else if (!!turnstileConfig.siteKey && turnstileToken) {
+        requestBody.cfToken = turnstileToken;
       }
       
       const res = await fetch(`${apiBase}/api/librechat/send`, {
@@ -2486,9 +2499,11 @@ const LibreChatPage: React.FC = () => {
       // 构建请求体
       const requestBody: RequestBody = token ? { token, message: toSend } : { message: toSend };
       
-      // 如果不是管理员且Turnstile已启用，添加验证token
-      if (!isAdmin && !!turnstileConfig.siteKey && turnstileToken) {
-        requestBody.turnstileToken = turnstileToken;
+      // 管理员发送 userRole 以跳过人机验证
+      if (isAdmin) {
+        requestBody.userRole = localStorage.getItem('userRole') || undefined;
+      } else if (!!turnstileConfig.siteKey && turnstileToken) {
+        requestBody.cfToken = turnstileToken;
       }
       
       const res = await fetch(`${apiBase}/api/librechat/send`, {
