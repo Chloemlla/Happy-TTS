@@ -58,7 +58,8 @@
   "pnpm": {
     "overrides": {
       "nth-check": ">=2.0.1",
-      "ajv": ">=8.18.0"
+      "ajv": ">=8.18.0",
+      "minimatch": ">=10.2.1"
     }
   }
 }
