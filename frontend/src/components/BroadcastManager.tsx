@@ -108,7 +108,7 @@ const BroadcastManager: React.FC = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '广播失败');
       setLastResult({ connections: data.connections ?? 0, time: new Date().toLocaleTimeString() });
-      setNotification({ message: `广播已发送，${data.connections} 个在线连接`, type: 'success' });
+      setNotification({ message: `广播已发送，${data.connections} 个在线连接`, type: 'success', duration: 5000 });
       if (!keepBroadcastInput) setMessage('');
     } catch (err) {
       setNotification({ message: err instanceof Error ? err.message : '广播失败', type: 'error' });
