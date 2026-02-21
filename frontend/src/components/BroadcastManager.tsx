@@ -76,6 +76,7 @@ const BroadcastManager: React.FC = () => {
   const [sending, setSending] = useState(false);
   const [lastResult, setLastResult] = useState<{ connections: number; time: string } | null>(null);
   const [keepBroadcastInput, setKeepBroadcastInput] = useState(false);
+  const [broadcastDuration, setBroadcastDuration] = useState(5);
 
   // --- 定向推送 ---
   const [directUserId, setDirectUserId] = useState('');
@@ -83,6 +84,7 @@ const BroadcastManager: React.FC = () => {
   const [directLevel, setDirectLevel] = useState<BroadcastLevel>('info');
   const [directSending, setDirectSending] = useState(false);
   const [keepDirectInput, setKeepDirectInput] = useState(false);
+  const [directDuration, setDirectDuration] = useState(5);
 
   // --- 在线用户 ---
   const [clients, setClients] = useState<OnlineClient[]>([]);
@@ -103,7 +105,7 @@ const BroadcastManager: React.FC = () => {
     try {
       const res = await api('/api/admin/broadcast', {
         method: 'POST',
-        body: JSON.stringify({ message: trimmed, level }),
+        body: JSON.stringify({ message: trimmed, level, duration: broadcastDuration * 1000 }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '广播失败');
@@ -123,7 +125,7 @@ const BroadcastManager: React.FC = () => {
     try {
       const res = await api('/api/admin/broadcast/user', {
         method: 'POST',
-        body: JSON.stringify({ userId: directUserId.trim(), message: directMessage.trim(), level: directLevel }),
+        body: JSON.stringify({ userId: directUserId.trim(), message: directMessage.trim(), level: directLevel, duration: directDuration * 1000 }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '推送失败');
@@ -179,6 +181,7 @@ const BroadcastManager: React.FC = () => {
   const applyTemplate = (tpl: typeof QUICK_TEMPLATES[0]) => {
     setMessage(tpl.message);
     setLevel(tpl.level);
+    setBroadcastDuration(tpl.level === 'error' ? 15 : tpl.level === 'warn' ? 10 : 5);
     setActiveTab('broadcast');
     setNotification({ message: `已填充模板「${tpl.label}」`, type: 'success' });
   };
@@ -222,6 +225,17 @@ const BroadcastManager: React.FC = () => {
           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-sm" />
         <div className="flex justify-between mt-1 text-xs text-gray-400">
           <span>支持纯文本消息</span><span>{message.length}/500</span>
+        </div>
+      </div>
+
+      {/* 展示时长 */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">展示时长：{broadcastDuration} 秒</label>
+        <input type="range" min={1} max={30} step={1} value={broadcastDuration}
+          onChange={e => setBroadcastDuration(Number(e.target.value))}
+          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+        <div className="flex justify-between mt-1 text-xs text-gray-400">
+          <span>1秒</span><span>30秒</span>
         </div>
       </div>
 
@@ -289,6 +303,16 @@ const BroadcastManager: React.FC = () => {
         <textarea value={directMessage} onChange={e => setDirectMessage(e.target.value)}
           placeholder="输入要推送给该用户的消息..." rows={3} maxLength={500}
           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-sm" />
+      </div>
+      {/* 展示时长 */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">展示时长：{directDuration} 秒</label>
+        <input type="range" min={1} max={30} step={1} value={directDuration}
+          onChange={e => setDirectDuration(Number(e.target.value))}
+          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+        <div className="flex justify-between mt-1 text-xs text-gray-400">
+          <span>1秒</span><span>30秒</span>
+        </div>
       </div>
       <motion.button onClick={handleDirectPush} disabled={directSending || !directUserId.trim() || !directMessage.trim()}
         className={`flex items-center justify-center gap-2 w-full px-6 py-3 rounded-lg font-semibold text-white transition-all ${
