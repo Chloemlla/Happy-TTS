@@ -1186,12 +1186,13 @@ router.delete("/users/:id/fingerprints/:fpId", async (req, res) => {
 // WebSocket 广播接口（管理员向所有在线用户推送消息）
 router.post("/broadcast", async (req, res) => {
   try {
-    const { message, level } = req.body;
+    const { message, level, duration } = req.body;
     if (!message || typeof message !== "string") {
       return res.status(400).json({ error: "缺少 message 参数" });
     }
+    const safeDuration = typeof duration === "number" && duration > 0 ? Math.min(duration, 60000) : undefined;
     const { wsService } = require("../services/wsService");
-    wsService.notifyAll(message, level || "info");
+    wsService.notifyAll(message, level || "info", safeDuration);
 
     // 存储广播历史
     try {
@@ -1229,14 +1230,15 @@ router.post("/broadcast", async (req, res) => {
 // 定向用户推送
 router.post("/broadcast/user", async (req, res) => {
   try {
-    const { userId, message, level } = req.body;
+    const { userId, message, level, duration } = req.body;
     if (!userId || !message) {
       return res.status(400).json({ error: "缺少 userId 或 message 参数" });
     }
+    const safeDuration = typeof duration === "number" && duration > 0 ? Math.min(duration, 60000) : undefined;
     const { wsService } = require("../services/wsService");
     wsService.sendToUser(userId, {
       type: "notification",
-      data: { message, level: level || "info" },
+      data: { message, level: level || "info", ...(safeDuration ? { duration: safeDuration } : {}) },
     });
     logger.info("[Admin] 定向推送", { userId, message, admin: (req as any).user?.username });
     return res.json({ success: true });
