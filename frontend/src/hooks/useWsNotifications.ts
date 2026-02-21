@@ -35,13 +35,17 @@ export function useWsNotifications() {
           type: msg.data?.level === 'error' ? 'error'
             : msg.data?.level === 'warn' ? 'warning'
             : 'info',
+          duration: msg.data?.duration ?? 5000,
         });
         break;
 
       case 'admin:broadcast':
         setNotification({
           message: msg.data?.message || '管理员消息',
-          type: 'info',
+          type: msg.data?.level === 'error' ? 'error'
+            : msg.data?.level === 'warn' ? 'warning'
+            : 'info',
+          duration: msg.data?.duration ?? 8000,
         });
         break;
     }

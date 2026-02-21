@@ -6,6 +6,7 @@ export interface NotificationData {
     type: 'success' | 'error' | 'warning' | 'info';
     details?: string[]; // 可选的详细信息数组
     title?: string; // 可选的标题
+    duration?: number; // 可选的展示时长（毫秒），默认 3000
 }
 
 interface NotificationItem extends NotificationData {
@@ -15,6 +16,7 @@ interface NotificationItem extends NotificationData {
     startTime: number;
     pausedTime: number;
     remainingTime: number;
+    itemDuration: number; // 该通知的实际展示时长
 }
 
 interface NotificationContextProps {
@@ -87,6 +89,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     // 创建新通知的函数
     const createNotificationItem = useCallback((data: NotificationData): NotificationItem => {
         const id = ++notificationIdRef.current;
+        const itemDuration = data.duration ?? duration;
         return {
             ...data,
             id,
@@ -94,9 +97,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             isFaded: false,
             startTime: Date.now(),
             pausedTime: 0,
-            remainingTime: duration,
+            remainingTime: itemDuration,
+            itemDuration,
         };
-    }, [duration]);
+    }, []);
 
     // 启动通知计时器 - 使用简单的setTimeout替代RAF
     const startNotificationTimer = useCallback((notification: NotificationItem) => {
@@ -124,13 +128,13 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                         ...n,
                         isPaused: true,
                         pausedTime: Date.now(),
-                        remainingTime: Math.max(0, duration - elapsed)
+                        remainingTime: Math.max(0, n.itemDuration - elapsed)
                     };
                 }
                 return n;
             })
         );
-    }, [duration]);
+    }, []);
 
     // 处理鼠标离开恢复
     const handleMouseLeave = useCallback((notificationId: number) => {
@@ -151,13 +155,13 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                     return {
                         ...n,
                         isPaused: false,
-                        startTime: Date.now() - (duration - n.remainingTime)
+                        startTime: Date.now() - (n.itemDuration - n.remainingTime)
                     };
                 }
                 return n;
             });
         });
-    }, [duration]);
+    }, []);
 
     // 设置新通知
     const setNotification = useCallback((data: NotificationData) => {
@@ -206,7 +210,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                             onMouseEnter={() => handleMouseEnter(notification.id)}
                             onMouseLeave={() => handleMouseLeave(notification.id)}
                             onClose={() => handleClose(notification.id)}
-                            duration={duration}
                         />
                     ))}
                 </AnimatePresence>
@@ -222,7 +225,6 @@ interface NotificationItemProps {
     onMouseEnter: () => void;
     onMouseLeave: () => void;
     onClose: () => void;
-    duration: number;
 }
 
 const NotificationCard = React.memo(React.forwardRef<HTMLDivElement, NotificationItemProps>(({
@@ -231,8 +233,8 @@ const NotificationCard = React.memo(React.forwardRef<HTMLDivElement, Notificatio
     onMouseEnter,
     onMouseLeave,
     onClose,
-    duration
 }, ref) => {
+    const duration = notification.itemDuration;
     const progressRef = React.useRef<HTMLDivElement>(null);
     const animationRef = React.useRef<number | null>(null);
 
