@@ -1,6 +1,11 @@
 name: Fix Dependabot Alerts
 
 on:
+  push:
+    paths:
+      - "scripts/fix-dependabot-alerts.sh"
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
