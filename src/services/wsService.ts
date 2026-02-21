@@ -215,10 +215,14 @@ class WsService {
   }
 
   /** 系统通知（广播给所有人） */
-  notifyAll(message: string, level: "info" | "warn" | "error" = "info", duration?: number) {
+  notifyAll(
+    message: string,
+    level: "info" | "warn" | "error" = "info",
+    options?: { duration?: number; display?: "toast" | "modal"; format?: "text" | "html" | "markdown"; title?: string },
+  ) {
     this.broadcast({
       type: "notification",
-      data: { message, level, ...(duration ? { duration } : {}) },
+      data: { message, level, ...options },
     });
   }
 

@@ -6,6 +6,7 @@ import { TOTPStatus } from './types/auth';
 import { LoadingSpinner, SimpleLoadingSpinner } from './components/LoadingSpinner';
 import TOTPManager from './components/TOTPManager';
 import { NotificationProvider } from './components/Notification';
+import { BroadcastModalProvider } from './components/BroadcastModal';
 import WsConnector from './components/WsConnector';
 import ModListPage from './components/ModListPage';
 import { ToastContainer } from 'react-toastify';
@@ -908,6 +909,7 @@ const App: React.FC = () => {
 
   return (
     <NotificationProvider>
+    <BroadcastModalProvider>
       <WsConnector />
       <LazyMotion features={domAnimation}>
         <ToastContainer position="top-center" autoClose={2000} hideProgressBar newestOnTop />
@@ -1730,6 +1732,7 @@ const App: React.FC = () => {
           />
         </div>
       </LazyMotion>
+    </BroadcastModalProvider>
     </NotificationProvider>
   );
 };

@@ -77,6 +77,9 @@ const BroadcastManager: React.FC = () => {
   const [lastResult, setLastResult] = useState<{ connections: number; time: string } | null>(null);
   const [keepBroadcastInput, setKeepBroadcastInput] = useState(false);
   const [broadcastDuration, setBroadcastDuration] = useState(5);
+  const [broadcastDisplay, setBroadcastDisplay] = useState<'toast' | 'modal'>('toast');
+  const [broadcastFormat, setBroadcastFormat] = useState<'text' | 'html' | 'markdown'>('text');
+  const [broadcastTitle, setBroadcastTitle] = useState('');
 
   // --- 定向推送 ---
   const [directUserId, setDirectUserId] = useState('');
@@ -85,6 +88,9 @@ const BroadcastManager: React.FC = () => {
   const [directSending, setDirectSending] = useState(false);
   const [keepDirectInput, setKeepDirectInput] = useState(false);
   const [directDuration, setDirectDuration] = useState(5);
+  const [directDisplay, setDirectDisplay] = useState<'toast' | 'modal'>('toast');
+  const [directFormat, setDirectFormat] = useState<'text' | 'html' | 'markdown'>('text');
+  const [directTitle, setDirectTitle] = useState('');
 
   // --- 在线用户 ---
   const [clients, setClients] = useState<OnlineClient[]>([]);
@@ -105,7 +111,13 @@ const BroadcastManager: React.FC = () => {
     try {
       const res = await api('/api/admin/broadcast', {
         method: 'POST',
-        body: JSON.stringify({ message: trimmed, level, duration: broadcastDuration * 1000 }),
+        body: JSON.stringify({
+          message: trimmed, level,
+          duration: broadcastDuration * 1000,
+          display: broadcastDisplay,
+          format: broadcastFormat,
+          title: broadcastTitle.trim() || undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '广播失败');
@@ -125,7 +137,13 @@ const BroadcastManager: React.FC = () => {
     try {
       const res = await api('/api/admin/broadcast/user', {
         method: 'POST',
-        body: JSON.stringify({ userId: directUserId.trim(), message: directMessage.trim(), level: directLevel, duration: directDuration * 1000 }),
+        body: JSON.stringify({
+          userId: directUserId.trim(), message: directMessage.trim(), level: directLevel,
+          duration: directDuration * 1000,
+          display: directDisplay,
+          format: directFormat,
+          title: directTitle.trim() || undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '推送失败');
@@ -239,6 +257,46 @@ const BroadcastManager: React.FC = () => {
         </div>
       </div>
 
+      {/* 展示方式 */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">展示方式</label>
+        <div className="flex gap-3">
+          {(['toast', 'modal'] as const).map(d => (
+            <motion.button key={d} onClick={() => setBroadcastDisplay(d)}
+              className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
+                broadcastDisplay === d ? 'bg-blue-100 text-blue-700 border-blue-300 shadow-sm' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+              }`} whileTap={{ scale: 0.96 }}>
+              {d === 'toast' ? '🔔 通知条' : '📋 弹窗'}
+            </motion.button>
+          ))}
+        </div>
+      </div>
+
+      {/* 内容格式（弹窗模式下可选） */}
+      {broadcastDisplay === 'modal' && (
+        <>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">内容格式</label>
+            <div className="flex gap-3">
+              {([['text', '纯文本'], ['markdown', 'Markdown'], ['html', 'HTML']] as const).map(([f, label]) => (
+                <motion.button key={f} onClick={() => setBroadcastFormat(f as any)}
+                  className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
+                    broadcastFormat === f ? 'bg-purple-100 text-purple-700 border-purple-300 shadow-sm' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+                  }`} whileTap={{ scale: 0.96 }}>
+                  {label}
+                </motion.button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">弹窗标题（可选）</label>
+            <input value={broadcastTitle} onChange={e => setBroadcastTitle(e.target.value)}
+              placeholder="留空则使用默认标题" maxLength={200}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" />
+          </div>
+        </>
+      )}
+
       {/* 预览 */}
       {message.trim() && (
         <div className={`p-4 rounded-lg border ${selectedLevel.color}`}>
@@ -314,6 +372,43 @@ const BroadcastManager: React.FC = () => {
           <span>1秒</span><span>30秒</span>
         </div>
       </div>
+      {/* 展示方式 */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">展示方式</label>
+        <div className="flex gap-3">
+          {(['toast', 'modal'] as const).map(d => (
+            <motion.button key={d} onClick={() => setDirectDisplay(d)}
+              className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
+                directDisplay === d ? 'bg-blue-100 text-blue-700 border-blue-300 shadow-sm' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+              }`} whileTap={{ scale: 0.96 }}>
+              {d === 'toast' ? '🔔 通知条' : '📋 弹窗'}
+            </motion.button>
+          ))}
+        </div>
+      </div>
+      {directDisplay === 'modal' && (
+        <>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">内容格式</label>
+            <div className="flex gap-3">
+              {([['text', '纯文本'], ['markdown', 'Markdown'], ['html', 'HTML']] as const).map(([f, label]) => (
+                <motion.button key={f} onClick={() => setDirectFormat(f as any)}
+                  className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
+                    directFormat === f ? 'bg-purple-100 text-purple-700 border-purple-300 shadow-sm' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+                  }`} whileTap={{ scale: 0.96 }}>
+                  {label}
+                </motion.button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">弹窗标题（可选）</label>
+            <input value={directTitle} onChange={e => setDirectTitle(e.target.value)}
+              placeholder="留空则使用默认标题" maxLength={200}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" />
+          </div>
+        </>
+      )}
       <motion.button onClick={handleDirectPush} disabled={directSending || !directUserId.trim() || !directMessage.trim()}
         className={`flex items-center justify-center gap-2 w-full px-6 py-3 rounded-lg font-semibold text-white transition-all ${
           directSending || !directUserId.trim() || !directMessage.trim() ? 'bg-gray-300 cursor-not-allowed'

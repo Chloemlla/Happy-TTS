@@ -1186,13 +1186,21 @@ router.delete("/users/:id/fingerprints/:fpId", async (req, res) => {
 // WebSocket 广播接口（管理员向所有在线用户推送消息）
 router.post("/broadcast", async (req, res) => {
   try {
-    const { message, level, duration } = req.body;
+    const { message, level, duration, display, format, title } = req.body;
     if (!message || typeof message !== "string") {
       return res.status(400).json({ error: "缺少 message 参数" });
     }
     const safeDuration = typeof duration === "number" && duration > 0 ? Math.min(duration, 60000) : undefined;
+    const safeDisplay = display === "modal" ? "modal" : "toast";
+    const safeFormat = ["text", "html", "markdown"].includes(format) ? format : "text";
+    const safeTitle = typeof title === "string" ? title.slice(0, 200) : undefined;
     const { wsService } = require("../services/wsService");
-    wsService.notifyAll(message, level || "info", safeDuration);
+    wsService.notifyAll(message, level || "info", {
+      duration: safeDuration,
+      display: safeDisplay,
+      format: safeFormat,
+      title: safeTitle,
+    });
 
     // 存储广播历史
     try {
@@ -1230,15 +1238,18 @@ router.post("/broadcast", async (req, res) => {
 // 定向用户推送
 router.post("/broadcast/user", async (req, res) => {
   try {
-    const { userId, message, level, duration } = req.body;
+    const { userId, message, level, duration, display, format, title } = req.body;
     if (!userId || !message) {
       return res.status(400).json({ error: "缺少 userId 或 message 参数" });
     }
     const safeDuration = typeof duration === "number" && duration > 0 ? Math.min(duration, 60000) : undefined;
+    const safeDisplay = display === "modal" ? "modal" : "toast";
+    const safeFormat = ["text", "html", "markdown"].includes(format) ? format : "text";
+    const safeTitle = typeof title === "string" ? title.slice(0, 200) : undefined;
     const { wsService } = require("../services/wsService");
     wsService.sendToUser(userId, {
       type: "notification",
-      data: { message, level: level || "info", ...(safeDuration ? { duration: safeDuration } : {}) },
+      data: { message, level: level || "info", duration: safeDuration, display: safeDisplay, format: safeFormat, title: safeTitle },
     });
     logger.info("[Admin] 定向推送", { userId, message, admin: (req as any).user?.username });
     return res.json({ success: true });
