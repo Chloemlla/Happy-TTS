@@ -900,6 +900,332 @@ async function main() {
     }
 }
 
+/**
+ * 从 docker inspect JSON 生成 docker run 命令
+ * @param {Object} inspectData - docker inspect 输出的 JSON 对象（单个容器）
+ * @param {string} [overrideImage] - 可选，覆盖镜像名
+ * @returns {string} docker run 命令字符串
+ */
+function generateDockerRunCommand(inspectData, overrideImage) {
+    const config = inspectData.Config || {};
+    const hostConfig = inspectData.HostConfig || {};
+    const networkSettings = inspectData.NetworkSettings || {};
+    const containerName = inspectData.Name ? inspectData.Name.replace(/^\//, '') : 'unnamed';
+    const image = overrideImage || config.Image || 'unknown';
+
+    let cmd = `docker run -d --name ${containerName}`;
+
+    // 主机名
+    if (config.Hostname && config.Hostname !== containerName.slice(0, 12)) {
+        cmd += ` --hostname ${config.Hostname}`;
+    }
+
+    // 域名
+    if (config.Domainname) {
+        cmd += ` --domainname ${config.Domainname}`;
+    }
+
+    // 用户
+    if (config.User) {
+        cmd += ` --user "${config.User}"`;
+    }
+
+    // TTY / stdin
+    if (config.Tty) cmd += ' --tty';
+    if (config.OpenStdin) cmd += ' --interactive';
+
+    // 环境变量
+    const envVars = config.Env || [];
+    for (const env of envVars) {
+        if (!env.startsWith('PATH=') && !env.startsWith('HOSTNAME=')) {
+            cmd += ` \\\n  -e "${env}"`;
+        }
+    }
+
+    // 入口点
+    if (config.Entrypoint && config.Entrypoint.length > 0) {
+        cmd += ` \\\n  --entrypoint "${config.Entrypoint.join(' ')}"`;
+    }
+
+    // 工作目录
+    if (config.WorkingDir) {
+        cmd += ` \\\n  --workdir ${config.WorkingDir}`;
+    }
+
+    // 标签
+    if (config.Labels) {
+        for (const [key, value] of Object.entries(config.Labels)) {
+            if (!key.startsWith('org.opencontainers') && !key.startsWith('maintainer')) {
+                cmd += ` \\\n  --label "${key}=${value}"`;
+            }
+        }
+    }
+
+    // 停止信号
+    if (config.StopSignal && config.StopSignal !== 'SIGTERM') {
+        cmd += ` --stop-signal ${config.StopSignal}`;
+    }
+
+    // 端口映射
+    const portBindings = hostConfig.PortBindings || {};
+    for (const [port, bindings] of Object.entries(portBindings)) {
+        if (!bindings) continue;
+        for (const binding of bindings) {
+            const hostIp = binding.HostIp && binding.HostIp !== '0.0.0.0' ? binding.HostIp + ':' : '';
+            const hostPort = binding.HostPort;
+            const containerPort = port; // 保留协议如 80/tcp
+            cmd += ` \\\n  -p ${hostIp}${hostPort}:${containerPort}`;
+        }
+    }
+
+    // 挂载卷 - 优先使用 Mounts，再补充 Binds
+    const mountTargets = new Set();
+    const mounts = hostConfig.Mounts || [];
+    for (const mount of mounts) {
+        if (mount.Source && mount.Target) {
+            mountTargets.add(mount.Target);
+            let vol = `-v ${mount.Source}:${mount.Target}`;
+            if (mount.Mode && mount.Mode !== 'rw') vol += `:${mount.Mode}`;
+            cmd += ` \\\n  ${vol}`;
+        }
+    }
+    const binds = hostConfig.Binds || [];
+    for (const bind of binds) {
+        // bind 格式: source:target[:mode]
+        const parts = bind.split(':');
+        const target = parts.length >= 2 ? parts[1] : null;
+        if (target && !mountTargets.has(target)) {
+            mountTargets.add(target);
+            cmd += ` \\\n  -v ${bind}`;
+        }
+    }
+
+    // 网络模式
+    if (hostConfig.NetworkMode && hostConfig.NetworkMode !== 'default' && hostConfig.NetworkMode !== 'bridge') {
+        cmd += ` \\\n  --network ${hostConfig.NetworkMode}`;
+    } else {
+        const networks = networkSettings.Networks || {};
+        for (const networkName of Object.keys(networks)) {
+            if (networkName !== 'bridge') {
+                cmd += ` \\\n  --network ${networkName}`;
+            }
+        }
+    }
+
+    // 重启策略
+    const restartPolicy = hostConfig.RestartPolicy || {};
+    if (restartPolicy.Name && restartPolicy.Name !== 'no') {
+        let rp = restartPolicy.Name;
+        if (restartPolicy.Name === 'on-failure' && restartPolicy.MaximumRetryCount > 0) {
+            rp += `:${restartPolicy.MaximumRetryCount}`;
+        }
+        cmd += ` \\\n  --restart ${rp}`;
+    }
+
+    // 资源限制
+    if (hostConfig.Memory && hostConfig.Memory > 0) {
+        cmd += ` --memory ${hostConfig.Memory}`;
+    }
+    if (hostConfig.NanoCpus && hostConfig.NanoCpus > 0) {
+        cmd += ` --cpus ${(hostConfig.NanoCpus / 1e9).toFixed(2)}`;
+    }
+    if (hostConfig.CpusetCpus) cmd += ` --cpuset-cpus ${hostConfig.CpusetCpus}`;
+    if (hostConfig.CpusetMems) cmd += ` --cpuset-mems ${hostConfig.CpusetMems}`;
+    if (hostConfig.ShmSize && hostConfig.ShmSize > 67108864) {
+        cmd += ` --shm-size ${hostConfig.ShmSize}`;
+    }
+
+    // 设备映射
+    const devices = hostConfig.Devices || [];
+    for (const device of devices) {
+        if (device.PathOnHost && device.PathInContainer) {
+            let d = `--device ${device.PathOnHost}:${device.PathInContainer}`;
+            if (device.CgroupPermissions) d += `:${device.CgroupPermissions}`;
+            cmd += ` \\\n  ${d}`;
+        }
+    }
+
+    // 特权模式
+    if (hostConfig.Privileged) cmd += ' --privileged';
+
+    // 安全选项
+    if (hostConfig.SecurityOpt && hostConfig.SecurityOpt.length > 0) {
+        for (const opt of hostConfig.SecurityOpt) {
+            cmd += ` --security-opt ${opt}`;
+        }
+    }
+
+    // 能力
+    if (hostConfig.CapAdd && hostConfig.CapAdd.length > 0) {
+        for (const cap of hostConfig.CapAdd) cmd += ` --cap-add ${cap}`;
+    }
+    if (hostConfig.CapDrop && hostConfig.CapDrop.length > 0) {
+        for (const cap of hostConfig.CapDrop) cmd += ` --cap-drop ${cap}`;
+    }
+
+    // DNS
+    if (hostConfig.Dns && hostConfig.Dns.length > 0) {
+        for (const dns of hostConfig.Dns) cmd += ` --dns ${dns}`;
+    }
+    if (hostConfig.DnsSearch && hostConfig.DnsSearch.length > 0) {
+        for (const ds of hostConfig.DnsSearch) cmd += ` --dns-search ${ds}`;
+    }
+
+    // 额外主机
+    if (hostConfig.ExtraHosts && hostConfig.ExtraHosts.length > 0) {
+        for (const h of hostConfig.ExtraHosts) cmd += ` \\\n  --add-host ${h}`;
+    }
+
+    // PID / IPC 模式
+    if (hostConfig.PidMode) cmd += ` --pid ${hostConfig.PidMode}`;
+    if (hostConfig.IpcMode && hostConfig.IpcMode !== 'private' && hostConfig.IpcMode !== 'shareable') {
+        cmd += ` --ipc ${hostConfig.IpcMode}`;
+    }
+
+    // 只读根文件系统
+    if (hostConfig.ReadonlyRootfs) cmd += ' --read-only';
+
+    // tmpfs
+    if (hostConfig.Tmpfs) {
+        for (const [p, opts] of Object.entries(hostConfig.Tmpfs)) {
+            cmd += ` --tmpfs ${p}${opts ? ':' + opts : ''}`;
+        }
+    }
+
+    // sysctl
+    if (hostConfig.Sysctls) {
+        for (const [k, v] of Object.entries(hostConfig.Sysctls)) {
+            cmd += ` --sysctl ${k}=${v}`;
+        }
+    }
+
+    // 运行时
+    if (hostConfig.Runtime && hostConfig.Runtime !== 'runc') {
+        cmd += ` --runtime ${hostConfig.Runtime}`;
+    }
+
+    // 日志驱动
+    if (hostConfig.LogConfig && hostConfig.LogConfig.Type && hostConfig.LogConfig.Type !== 'json-file') {
+        cmd += ` --log-driver ${hostConfig.LogConfig.Type}`;
+        if (hostConfig.LogConfig.Config) {
+            for (const [k, v] of Object.entries(hostConfig.LogConfig.Config)) {
+                cmd += ` --log-opt ${k}=${v}`;
+            }
+        }
+    }
+
+    // 镜像
+    cmd += ` \\\n  ${image}`;
+
+    // CMD（容器启动命令）
+    if (config.Cmd && config.Cmd.length > 0) {
+        cmd += ` ${config.Cmd.join(' ')}`;
+    }
+
+    return cmd;
+}
+
+/**
+ * inspect 子命令：连接远程服务器，执行 docker inspect，保存到本地文件并输出 docker run 命令
+ * 用法: node deploy_image.js inspect <containerName> [--output <file>]
+ */
+async function inspectCommand() {
+    const args = process.argv.slice(3);
+    if (args.length === 0) {
+        console.log('用法: node deploy_image.js inspect <containerName> [--output <dir>]');
+        console.log('  将远程容器的 docker inspect 信息保存到本地，并生成 docker run 命令');
+        console.log('  --output <dir>  指定输出目录，默认为当前目录');
+        process.exit(1);
+    }
+
+    const containerName = args[0];
+    let outputDir = '.';
+    const outputIdx = args.indexOf('--output');
+    if (outputIdx !== -1 && args[outputIdx + 1]) {
+        outputDir = args[outputIdx + 1];
+    }
+
+    // 读取环境变量（只取第一组服务器配置）
+    const serverAddress = (process.env.SERVER_ADDRESS || '').split(',')[0].trim();
+    const username = (process.env.USERNAME || '').split(',')[0].trim();
+    const port = parseInt((process.env.PORT || '22').split(',')[0].trim()) || 22;
+    const privateKey = (process.env.PRIVATE_KEY || '').split(',')[0].trim();
+
+    if (!serverAddress || !username || !privateKey) {
+        logError('缺少 SERVER_ADDRESS / USERNAME / PRIVATE_KEY 环境变量');
+        process.exit(1);
+    }
+
+    let ssh;
+    try {
+        logInfo(`正在连接 ${serverAddress}...`);
+        ssh = await remoteLogin(serverAddress, username, port, privateKey);
+
+        logInfo(`正在获取容器 ${containerName} 的 inspect 信息...`);
+        const result = await execSSHCommand(ssh, `docker inspect ${containerName}`);
+
+        if (result.code !== 0 || !result.stdout.trim()) {
+            logError(`docker inspect 失败: ${result.stderr || '容器不存在'}`);
+            process.exit(1);
+        }
+
+        const inspectJson = result.stdout.trim();
+        let inspectData;
+        try {
+            inspectData = JSON.parse(inspectJson);
+        } catch (e) {
+            logError(`解析 inspect JSON 失败: ${e.message}`);
+            process.exit(1);
+        }
+
+        // 确保输出目录存在
+        if (!fs.existsSync(outputDir)) {
+            fs.mkdirSync(outputDir, { recursive: true });
+        }
+
+        // 保存 inspect JSON 到本地文件
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        const inspectFile = path.join(outputDir, `${containerName}_inspect_${timestamp}.json`);
+        fs.writeFileSync(inspectFile, JSON.stringify(inspectData, null, 2), 'utf8');
+        logInfo(`inspect 信息已保存到: ${inspectFile}`);
+
+        // 生成 docker run 命令
+        const container = Array.isArray(inspectData) ? inspectData[0] : inspectData;
+        const dockerRunCmd = generateDockerRunCommand(container);
+
+        // 保存 docker run 命令到文件
+        const cmdFile = path.join(outputDir, `${containerName}_docker_run_${timestamp}.sh`);
+        const cmdContent = [
+            '#!/bin/bash',
+            `# Docker 容器重建命令 - 从 ${containerName} 的 inspect 信息生成`,
+            `# 生成时间: ${new Date().toLocaleString('zh-CN')}`,
+            `# 源服务器: ${serverAddress}`,
+            '',
+            `# 停止并删除旧容器（如需要）`,
+            `# docker stop ${containerName} && docker rm ${containerName}`,
+            '',
+            dockerRunCmd,
+            ''
+        ].join('\n');
+        fs.writeFileSync(cmdFile, cmdContent, 'utf8');
+        logInfo(`docker run 命令已保存到: ${cmdFile}`);
+
+        // 同时输出到控制台
+        console.log('\n========== Docker Run 命令 ==========');
+        console.log(dockerRunCmd);
+        console.log('======================================\n');
+
+    } catch (err) {
+        logError(`inspect 命令执行失败: ${err.message}`);
+        process.exit(1);
+    } finally {
+        if (ssh) {
+            ssh.end();
+            logInfo('SSH 连接已关闭');
+        }
+    }
+}
+
 // 导出函数供其他模块使用
 module.exports = {
     InMemoryLogHandler,
@@ -912,13 +1238,26 @@ module.exports = {
     uploadLogFile,
     queryLogFile,
     writeDeployLog,
+    generateDockerRunCommand,
+    inspectCommand,
     main
 };
 
 // 如果直接运行此脚本
 if (require.main === module) {
-    main().catch(err => {
-        logError(`脚本执行失败: ${err.message}`);
-        process.exit(1);
-    });
+    const subCommand = process.argv[2];
+    
+    if (subCommand === 'inspect') {
+        // 子命令: inspect - 获取容器信息并生成 docker run 命令
+        inspectCommand().catch(err => {
+            logError(`inspect 命令失败: ${err.message}`);
+            process.exit(1);
+        });
+    } else {
+        // 默认: 执行部署流程
+        main().catch(err => {
+            logError(`脚本执行失败: ${err.message}`);
+            process.exit(1);
+        });
+    }
 }
