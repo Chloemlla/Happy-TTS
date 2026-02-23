@@ -8,14 +8,22 @@
  * 安全：默认严格 known_hosts 校验，敏感信息仅内存处理
  */
 
-const { Client } = require('ssh2');
 const fs = require('fs');
 const path = require('path');
-const dotenv = require('dotenv');
-const axios = require('axios');
-const FormData = require('form-data');
 
-dotenv.config();
+// 重型依赖延迟加载，inspect --file 本地模式无需加载
+let _ssh2, _dotenv, _axios, _FormData;
+function getSSH2() { if (!_ssh2) _ssh2 = require('ssh2'); return _ssh2; }
+function getDotenv() { if (!_dotenv) _dotenv = require('dotenv'); return _dotenv; }
+function getAxios() { if (!_axios) _axios = require('axios'); return _axios; }
+function getFormData() { if (!_FormData) _FormData = require('form-data'); return _FormData; }
+
+/**
+ * 初始化部署环境（加载 dotenv 等），仅在需要远程操作时调用
+ */
+function initDeployDeps() {
+    getDotenv().config();
+}
 
 /**
  * 内存日志处理器类 - 对应 Python 的 InMemoryLogHandler
@@ -76,6 +84,7 @@ function logSensitive(message, level = 'INFO') {
  */
 function remoteLogin(serverAddress, username, port, privateKey) {
     return new Promise((resolve, reject) => {
+        const { Client } = getSSH2();
         const conn = new Client();
         
         // CI/CD 环境检测
@@ -709,6 +718,8 @@ async function uploadLogFile(logPath, adminPassword) {
         }
 
         const url = 'https://api.951100.xyz/api/sharelog';
+        const FormData = getFormData();
+        const axios = getAxios();
         const formData = new FormData();
         formData.append('file', fs.createReadStream(logPath), path.basename(logPath));
         formData.append('adminPassword', adminPassword);
@@ -750,6 +761,7 @@ async function uploadLogFile(logPath, adminPassword) {
  */
 async function queryLogFile(logId, adminPassword) {
     try {
+        const axios = getAxios();
         const url = `https://api.951100.xyz/api/sharelog/${logId}`;
         const data = { adminPassword };
         
@@ -1238,6 +1250,7 @@ async function inspectCommand() {
     }
 
     // ===== 远程 SSH 模式 =====
+    initDeployDeps();
     const containerName = args[0];
     if (!containerName || containerName.startsWith('--')) {
         logError('请指定容器名称，或使用 --file 从本地文件读取');
@@ -1311,12 +1324,14 @@ if (require.main === module) {
     
     if (subCommand === 'inspect') {
         // 子命令: inspect - 获取容器信息并生成 docker run 命令
+        // 本地文件模式无需加载远程依赖，inspectCommand 内部按需加载
         inspectCommand().catch(err => {
             logError(`inspect 命令失败: ${err.message}`);
             process.exit(1);
         });
     } else {
-        // 默认: 执行部署流程
+        // 默认: 执行部署流程，加载全部依赖
+        initDeployDeps();
         main().catch(err => {
             logError(`脚本执行失败: ${err.message}`);
             process.exit(1);
