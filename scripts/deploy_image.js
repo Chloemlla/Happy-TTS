@@ -1126,26 +1126,124 @@ function generateDockerRunCommand(inspectData, overrideImage) {
 }
 
 /**
- * inspect 子命令：连接远程服务器，执行 docker inspect，保存到本地文件并输出 docker run 命令
- * 用法: node deploy_image.js inspect <containerName> [--output <file>]
+ * 从 inspect JSON 数据生成输出文件（inspect JSON + docker run 脚本）
+ * @param {Array|Object} inspectData - docker inspect 输出的 JSON
+ * @param {string} containerName - 容器名称
+ * @param {string} outputDir - 输出目录
+ * @param {string} [source] - 来源描述（用于注释）
+ */
+function writeInspectOutput(inspectData, containerName, outputDir, source) {
+    // 确保输出目录存在
+    if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir, { recursive: true });
+    }
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+
+    // 保存 inspect JSON 到本地文件
+    const inspectFile = path.join(outputDir, `${containerName}_inspect_${timestamp}.json`);
+    fs.writeFileSync(inspectFile, JSON.stringify(inspectData, null, 2), 'utf8');
+    logInfo(`inspect 信息已保存到: ${inspectFile}`);
+
+    // 生成 docker run 命令
+    const container = Array.isArray(inspectData) ? inspectData[0] : inspectData;
+    const dockerRunCmd = generateDockerRunCommand(container);
+
+    // 保存 docker run 命令到文件
+    const cmdFile = path.join(outputDir, `${containerName}_docker_run_${timestamp}.sh`);
+    const cmdContent = [
+        '#!/bin/bash',
+        `# Docker 容器重建命令 - 从 ${containerName} 的 inspect 信息生成`,
+        `# 生成时间: ${new Date().toLocaleString('zh-CN')}`,
+        source ? `# 来源: ${source}` : '',
+        '',
+        `# 停止并删除旧容器（如需要）`,
+        `# docker stop ${containerName} && docker rm ${containerName}`,
+        '',
+        dockerRunCmd,
+        ''
+    ].filter(Boolean).join('\n');
+    fs.writeFileSync(cmdFile, cmdContent, 'utf8');
+    logInfo(`docker run 命令已保存到: ${cmdFile}`);
+
+    // 同时输出到控制台
+    console.log('\n========== Docker Run 命令 ==========');
+    console.log(dockerRunCmd);
+    console.log('======================================\n');
+}
+
+/**
+ * inspect 子命令：支持从远程服务器获取或从本地文件读取 docker inspect 信息，生成 docker run 命令
+ * 用法:
+ *   远程模式: node deploy_image.js inspect <containerName> [--output <dir>]
+ *   本地文件: node deploy_image.js inspect --file <path> [--output <dir>] [--name <containerName>]
  */
 async function inspectCommand() {
     const args = process.argv.slice(3);
     if (args.length === 0) {
-        console.log('用法: node deploy_image.js inspect <containerName> [--output <dir>]');
-        console.log('  将远程容器的 docker inspect 信息保存到本地，并生成 docker run 命令');
-        console.log('  --output <dir>  指定输出目录，默认为当前目录');
+        console.log('用法:');
+        console.log('  远程模式: node deploy_image.js inspect <containerName> [--output <dir>]');
+        console.log('  本地文件: node deploy_image.js inspect --file <inspect.json> [--output <dir>] [--name <containerName>]');
+        console.log('');
+        console.log('选项:');
+        console.log('  --file <path>    从本地 docker inspect JSON 文件读取（跳过 SSH 连接）');
+        console.log('  --output <dir>   指定输出目录，默认为当前目录');
+        console.log('  --name <name>    指定容器名称（仅本地文件模式，默认从 JSON 中读取）');
         process.exit(1);
     }
 
-    const containerName = args[0];
     let outputDir = '.';
     const outputIdx = args.indexOf('--output');
     if (outputIdx !== -1 && args[outputIdx + 1]) {
         outputDir = args[outputIdx + 1];
     }
 
-    // 读取环境变量（只取第一组服务器配置）
+    const fileIdx = args.indexOf('--file');
+
+    // ===== 本地文件模式 =====
+    if (fileIdx !== -1) {
+        const filePath = args[fileIdx + 1];
+        if (!filePath) {
+            logError('--file 参数需要指定文件路径');
+            process.exit(1);
+        }
+
+        if (!fs.existsSync(filePath)) {
+            logError(`文件不存在: ${filePath}`);
+            process.exit(1);
+        }
+
+        logInfo(`正在读取本地 inspect 文件: ${filePath}`);
+        let inspectData;
+        try {
+            const raw = fs.readFileSync(filePath, 'utf8');
+            inspectData = JSON.parse(raw);
+        } catch (e) {
+            logError(`解析 JSON 文件失败: ${e.message}`);
+            process.exit(1);
+        }
+
+        // 确定容器名称：优先 --name 参数，其次从 JSON 中提取
+        const nameIdx = args.indexOf('--name');
+        let containerName = '';
+        if (nameIdx !== -1 && args[nameIdx + 1]) {
+            containerName = args[nameIdx + 1];
+        } else {
+            const first = Array.isArray(inspectData) ? inspectData[0] : inspectData;
+            containerName = (first && first.Name) ? first.Name.replace(/^\//, '') : path.basename(filePath, '.json');
+        }
+
+        writeInspectOutput(inspectData, containerName, outputDir, `本地文件 ${filePath}`);
+        return;
+    }
+
+    // ===== 远程 SSH 模式 =====
+    const containerName = args[0];
+    if (!containerName || containerName.startsWith('--')) {
+        logError('请指定容器名称，或使用 --file 从本地文件读取');
+        process.exit(1);
+    }
+
     const serverAddress = (process.env.SERVER_ADDRESS || '').split(',')[0].trim();
     const username = (process.env.USERNAME || '').split(',')[0].trim();
     const port = parseInt((process.env.PORT || '22').split(',')[0].trim()) || 22;
@@ -1169,51 +1267,15 @@ async function inspectCommand() {
             process.exit(1);
         }
 
-        const inspectJson = result.stdout.trim();
         let inspectData;
         try {
-            inspectData = JSON.parse(inspectJson);
+            inspectData = JSON.parse(result.stdout.trim());
         } catch (e) {
             logError(`解析 inspect JSON 失败: ${e.message}`);
             process.exit(1);
         }
 
-        // 确保输出目录存在
-        if (!fs.existsSync(outputDir)) {
-            fs.mkdirSync(outputDir, { recursive: true });
-        }
-
-        // 保存 inspect JSON 到本地文件
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-        const inspectFile = path.join(outputDir, `${containerName}_inspect_${timestamp}.json`);
-        fs.writeFileSync(inspectFile, JSON.stringify(inspectData, null, 2), 'utf8');
-        logInfo(`inspect 信息已保存到: ${inspectFile}`);
-
-        // 生成 docker run 命令
-        const container = Array.isArray(inspectData) ? inspectData[0] : inspectData;
-        const dockerRunCmd = generateDockerRunCommand(container);
-
-        // 保存 docker run 命令到文件
-        const cmdFile = path.join(outputDir, `${containerName}_docker_run_${timestamp}.sh`);
-        const cmdContent = [
-            '#!/bin/bash',
-            `# Docker 容器重建命令 - 从 ${containerName} 的 inspect 信息生成`,
-            `# 生成时间: ${new Date().toLocaleString('zh-CN')}`,
-            `# 源服务器: ${serverAddress}`,
-            '',
-            `# 停止并删除旧容器（如需要）`,
-            `# docker stop ${containerName} && docker rm ${containerName}`,
-            '',
-            dockerRunCmd,
-            ''
-        ].join('\n');
-        fs.writeFileSync(cmdFile, cmdContent, 'utf8');
-        logInfo(`docker run 命令已保存到: ${cmdFile}`);
-
-        // 同时输出到控制台
-        console.log('\n========== Docker Run 命令 ==========');
-        console.log(dockerRunCmd);
-        console.log('======================================\n');
+        writeInspectOutput(inspectData, containerName, outputDir, `远程服务器 ${serverAddress}`);
 
     } catch (err) {
         logError(`inspect 命令执行失败: ${err.message}`);
