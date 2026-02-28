@@ -1,9 +1,7 @@
 #!/usr/bin/env node
 /**
  * 强制 squash merge 所有 Dependabot 的 open PR
- * (仅在 Docker Build Check 成功时执行)
- * * 用法: GITHUB_TOKEN=<token> node scripts/force-merge-dependabot.js
- * 或:   GITHUB_TOKEN=<token> node scripts/force-merge-dependabot.js owner/repo
+ * (检查 Check Runs 和 Commit Statuses，Docker Build Check 成功时执行)
  */
 
 const https = require('https');
@@ -69,36 +67,87 @@ async function run() {
   for (const pr of dependabotPRs) {
     const num = pr.number;
     const title = pr.title;
-    const sha = pr.head.sha; // 获取 PR 最新提交的 SHA
+    const sha = pr.head.sha;
     
-    process.stdout.write(`#${num} ${title} ... `);
+    console.log(`\n----------------------------------------`);
+    console.log(`处理 PR #${num}: ${title}`);
+    console.log(`Commit SHA: ${sha}`);
 
-    // 1. 检查 Check Runs 状态
-    const { status: checkStatus, data: checkData } = await api('GET', `/repos/${owner}/${repoName}/commits/${sha}/check-runs`);
-    
-    if (checkStatus !== 200) {
-      console.log(`❌ 获取 Check Runs 失败 (HTTP ${checkStatus})`);
-      failed++;
-      continue;
+    // 1. 获取 Check Runs 和 Commit Statuses
+    const [checkRes, statusRes] = await Promise.all([
+      api('GET', `/repos/${owner}/${repoName}/commits/${sha}/check-runs`),
+      api('GET', `/repos/${owner}/${repoName}/commits/${sha}/statuses`)
+    ]);
+
+    let dockerCheckPassed = false;
+    let dockerCheckFound = false;
+    let currentStatusMsg = '';
+
+    // --- 处理 Check Runs ---
+    if (checkRes.status === 200) {
+      const checkData = checkRes.data;
+      console.log(`📋 找到 ${checkData.total_count || 0} 个 Check Runs:`);
+      
+      if (checkData.check_runs && checkData.check_runs.length > 0) {
+        checkData.check_runs.forEach(run => {
+          console.log(`   - [Check Run] 名字: "${run.name}" | 状态: ${run.status} | 结论: ${run.conclusion}`);
+          
+          if (run.name === 'Docker Build Check') {
+            dockerCheckFound = true;
+            if (run.conclusion === 'success') {
+              dockerCheckPassed = true;
+            } else {
+              currentStatusMsg = run.conclusion || run.status;
+            }
+          }
+        });
+      }
+    } else {
+      console.log(`⚠️ 获取 Check Runs 失败 (HTTP ${checkRes.status})`);
     }
 
-    // 查找名为 "Docker Build Check" 的 check run
-    const dockerCheck = checkData.check_runs.find(check => check.name === 'Docker Build Check');
+    // --- 处理 Commit Statuses ---
+    if (statusRes.status === 200) {
+      const statusData = statusRes.data;
+      console.log(`📊 找到 ${statusData.length || 0} 个 Commit Statuses:`);
+      
+      if (statusData && statusData.length > 0) {
+        // Statuses API 会返回历史记录，我们需要去重，只看最新的 context
+        const seenContexts = new Set();
+        statusData.forEach(status => {
+          if (!seenContexts.has(status.context)) {
+            seenContexts.add(status.context);
+            console.log(`   - [Status] 上下文: "${status.context}" | 状态: ${status.state}`);
+            
+            if (status.context === 'Docker Build Check') {
+              dockerCheckFound = true;
+              if (status.state === 'success') {
+                dockerCheckPassed = true;
+              } else {
+                currentStatusMsg = status.state;
+              }
+            }
+          }
+        });
+      }
+    } else {
+      console.log(`⚠️ 获取 Commit Statuses 失败 (HTTP ${statusRes.status})`);
+    }
 
-    if (!dockerCheck) {
-      console.log(`⏭️ 跳过: 未找到 'Docker Build Check'`);
+    // 2. 判断是否满足合并条件
+    if (!dockerCheckFound) {
+      console.log(`⏭️ 跳过: 未找到名为 'Docker Build Check' 的检查项 (Check Runs 和 Statuses 中均无)`);
       skipped++;
       continue;
     }
 
-    if (dockerCheck.conclusion !== 'success') {
-      const statusMsg = dockerCheck.conclusion || dockerCheck.status; // 可能为 in_progress 或 failure
-      console.log(`⏳ 跳过: 'Docker Build Check' 当前状态为 '${statusMsg}'`);
+    if (!dockerCheckPassed) {
+      console.log(`⏳ 跳过: 'Docker Build Check' 未通过，当前状态为 '${currentStatusMsg}'`);
       skipped++;
       continue;
     }
 
-    // 2. 如果 Check 通过，先关闭 auto-merge（如果有的话）
+    // 3. 如果 Check 通过，先尝试关闭 auto-merge（防止冲突）
     try {
       const disableMutation = `
         mutation($id: ID!) {
@@ -109,21 +158,22 @@ async function run() {
       `;
       await api('POST', '/graphql', { query: disableMutation, variables: { id: pr.node_id } });
     } catch {
-      // 忽略，可能本来就没开
+      // 忽略
     }
 
-    // 3. 强制 squash merge
+    // 4. 强制 squash merge
     const { status: mergeStatus, data: mergeData } = await api(
       'PUT',
       `/repos/${owner}/${repoName}/pulls/${num}/merge`,
       {
         merge_method: 'squash',
         commit_title: `${title} (#${num})`,
+        commit_message: pr.body || '', 
       }
     );
 
     if (mergeStatus === 200 && mergeData.merged) {
-      console.log('✅ 已合并');
+      console.log('✅ 强制合并成功');
       merged++;
     } else {
       const msg = mergeData?.message || JSON.stringify(mergeData);
@@ -132,7 +182,8 @@ async function run() {
     }
   }
 
-  console.log(`\n完成: ${merged} 个已合并, ${skipped} 个已跳过, ${failed} 个失败`);
+  console.log(`\n========================================`);
+  console.log(`执行完成: ${merged} 个已合并, ${skipped} 个已跳过, ${failed} 个失败`);
 }
 
 run().catch((err) => {
