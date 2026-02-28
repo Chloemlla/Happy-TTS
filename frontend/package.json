@@ -80,7 +80,7 @@
     "react-icons": "^5.5.0",
     "react-inspector": "^9.0.0",
     "react-markdown": "^10.1.0",
-    "react-router-dom": "^7.13.0",
+    "react-router-dom": "^7.13.1",
     "react-syntax-highlighter": "^16.1.0",
     "react-toastify": "^11.0.5",
     "rollup": "^4.57.1",
