@@ -135,7 +135,7 @@
     "@types/supertest": "^6.0.3",
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.8",
-    "@types/tar": "^6.1.13",
+    "@types/tar": "^7.0.87",
     "@types/ws": "^8.18.0",
     "concurrently": "^9.2.1",
     "fast-check": "^4.5.3",
