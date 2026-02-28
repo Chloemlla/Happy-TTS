@@ -115,8 +115,8 @@ importers:
         specifier: ^3.10.1
         version: 3.10.1
       katex:
-        specifier: ^0.16.28
-        version: 0.16.28
+        specifier: ^0.16.33
+        version: 0.16.33
       lodash.merge:
         specifier: ^4.6.2
         version: 4.6.2
@@ -128,7 +128,7 @@ importers:
         version: 16.4.2
       marked-katex-extension:
         specifier: ^5.1.7
-        version: 5.1.7(katex@0.16.28)(marked@16.4.2)
+        version: 5.1.7(katex@0.16.33)(marked@16.4.2)
       md5:
         specifier: ^2.3.0
         version: 2.3.0
@@ -3939,8 +3939,8 @@ packages:
   jws@4.0.1:
     resolution: {integrity: sha512-EKI/M/yqPncGUUh44xz0PxSidXFr/+r0pA70+gIYhjv+et7yxM+s29Y+VGDkovRofQem0fs7Uvf4+YmAdyRduA==}
 
-  katex@0.16.28:
-    resolution: {integrity: sha512-YHzO7721WbmAL6Ov1uzN/l5mY5WWWhJBSW+jq4tkfZfsxmo1hu6frS0EOswvjBUnWE6NtjEs48SFn5CQESRLZg==}
+  katex@0.16.33:
+    resolution: {integrity: sha512-q3N5u+1sY9Bu7T4nlXoiRBXWfwSefNGoKeOwekV+gw0cAXQlz2Ww6BLcmBxVDeXBMUDQv6fK5bcNaJLxob3ZQA==}
     hasBin: true
 
   khroma@2.1.0:
@@ -10057,11 +10057,11 @@ snapshots:
       jsonwebtoken: 9.0.3
       jspdf: 4.2.0
       jszip: 3.10.1
-      katex: 0.16.28
+      katex: 0.16.33
       lodash.merge: 4.6.2
       lucide-react: 0.575.0(react@19.2.3)
       marked: 16.4.2
-      marked-katex-extension: 5.1.7(katex@0.16.28)(marked@16.4.2)
+      marked-katex-extension: 5.1.7(katex@0.16.33)(marked@16.4.2)
       md5: 2.3.0
       mermaid: 11.12.3
       prismjs: 1.30.0
@@ -10576,7 +10576,7 @@ snapshots:
       jwa: 2.0.1
       safe-buffer: 5.2.1
 
-  katex@0.16.28:
+  katex@0.16.33:
     dependencies:
       commander: 8.3.0
 
@@ -10674,9 +10674,9 @@ snapshots:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  marked-katex-extension@5.1.7(katex@0.16.28)(marked@16.4.2):
+  marked-katex-extension@5.1.7(katex@0.16.33)(marked@16.4.2):
     dependencies:
-      katex: 0.16.28
+      katex: 0.16.33
       marked: 16.4.2
 
   marked@16.4.2: {}
@@ -10800,7 +10800,7 @@ snapshots:
       dagre-d3-es: 7.0.13
       dayjs: 1.11.19
       dompurify: 3.3.1
-      katex: 0.16.28
+      katex: 0.16.33
       khroma: 2.1.0
       lodash-es: 4.17.23
       marked: 16.4.2
