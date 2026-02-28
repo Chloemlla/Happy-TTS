@@ -105,8 +105,8 @@ importers:
         specifier: ^11.2.6
         version: 11.2.6
       marked:
-        specifier: ^17.0.2
-        version: 17.0.2
+        specifier: ^17.0.3
+        version: 17.0.3
       mongodb:
         specifier: ^7.1.0
         version: 7.1.0(socks@2.8.7)
@@ -2649,8 +2649,8 @@ packages:
   makeerror@1.0.12:
     resolution: {integrity: sha512-JmqCvUhmt43madlpFzG4BQzG2Z3m6tvQDNKdClZnO3VbIudJYmxsT0FNJMeiB2+JTSlTQTSbU8QdesVmwJcmLg==}
 
-  marked@17.0.2:
-    resolution: {integrity: sha512-s5HZGFQea7Huv5zZcAGhJLT3qLpAfnY7v7GWkICUr0+Wd5TFEtdlRR2XUL5Gg+RH7u2Df595ifrxR03mBaw7gA==}
+  marked@17.0.3:
+    resolution: {integrity: sha512-jt1v2ObpyOKR8p4XaUJVk3YWRJ5n+i4+rjQopxvV32rSndTJXvIzuUdWWIy/1pFQMkQmvTXawzDNqOH/CUmx6A==}
     engines: {node: '>= 20'}
     hasBin: true
 
@@ -5989,7 +5989,7 @@ snapshots:
       liquid-glass-react: 1.1.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       lodash: 4.17.23
       lru-cache: 11.2.6
-      marked: 17.0.2
+      marked: 17.0.3
       mongodb: 7.1.0(socks@2.8.7)
       mongodb-connection-string-url: 7.0.1
       mongoose: 9.2.1(socks@2.8.7)
@@ -6810,7 +6810,7 @@ snapshots:
     dependencies:
       tmpl: 1.0.5
 
-  marked@17.0.2: {}
+  marked@17.0.3: {}
 
   math-intrinsics@1.1.0: {}
 

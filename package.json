@@ -92,7 +92,7 @@
     "liquid-glass-react": "^1.1.1",
     "lodash": "^4.17.23",
     "lru-cache": "^11.2.6",
-    "marked": "^17.0.2",
+    "marked": "^17.0.3",
     "mongodb": "^7.1.0",
     "mongodb-connection-string-url": "^7.0.1",
     "mongoose": "^9.2.1",
