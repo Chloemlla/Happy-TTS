@@ -156,8 +156,8 @@ importers:
         specifier: ^2.0.0
         version: 2.0.0
       svix:
-        specifier: ^1.85.0
-        version: 1.85.0
+        specifier: ^1.86.0
+        version: 1.86.0
       swagger-jsdoc:
         specifier: ^6.2.8
         version: 6.2.8(openapi-types@12.1.3)
@@ -3476,8 +3476,8 @@ packages:
   svix@1.84.1:
     resolution: {integrity: sha512-K8DPPSZaW/XqXiz1kEyzSHYgmGLnhB43nQCMeKjWGCUpLIpAMMM8kx3rVVOSm6Bo6EHyK1RQLPT4R06skM/MlQ==}
 
-  svix@1.85.0:
-    resolution: {integrity: sha512-4OxNw++bnNay8SoBwESgzfjMnYmurS1qBX+luhzvljr6EAPn/hqqmkdCR1pbgIe1K1+BzKZEHjAKz9OYrKJYwQ==}
+  svix@1.86.0:
+    resolution: {integrity: sha512-/HTvXwjLJe1l/MsLXAO1ddCYxElJk4eNR4DzOjDOEmGrPN/3BtBE8perGwMAaJ2sT5T172VkBYzmHcjUfM1JRQ==}
 
   swagger-jsdoc@6.2.8:
     resolution: {integrity: sha512-VPvil1+JRpmJ55CgAtn8DIcpBs0bL5L3q5bVQvF4tAW/k/9JYSj7dCpaYCAv5rufe0vcCbBRQXGvzpkWjvLklQ==}
@@ -6006,7 +6006,7 @@ snapshots:
       serve: 14.2.5
       socks-proxy-agent: 8.0.5
       speakeasy: 2.0.0
-      svix: 1.85.0
+      svix: 1.86.0
       swagger-jsdoc: 6.2.8(openapi-types@12.1.3)
       swagger-ui-express: 5.0.1(express@5.2.1)
       tar: 7.5.9
@@ -7622,7 +7622,7 @@ snapshots:
       standardwebhooks: 1.0.0
       uuid: 10.0.0
 
-  svix@1.85.0:
+  svix@1.86.0:
     dependencies:
       standardwebhooks: 1.0.0
       uuid: 10.0.0
