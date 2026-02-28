@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * 强制 squash merge 所有 Dependabot 的 open PR
- * (检查 Check Runs 和 Commit Statuses，Docker Build Check 成功时执行)
+ * (检查 Check Runs 和 Commit Statuses，Docker Build Verification 成功时执行)
  */
 
 const https = require('https');
@@ -92,7 +92,7 @@ async function run() {
         checkData.check_runs.forEach(run => {
           console.log(`   - [Check Run] 名字: "${run.name}" | 状态: ${run.status} | 结论: ${run.conclusion}`);
           
-          if (run.name === 'Docker Build Check') {
+          if (run.name === 'Docker Build Verification') {
             dockerCheckFound = true;
             if (run.conclusion === 'success') {
               dockerCheckPassed = true;
@@ -119,7 +119,7 @@ async function run() {
             seenContexts.add(status.context);
             console.log(`   - [Status] 上下文: "${status.context}" | 状态: ${status.state}`);
             
-            if (status.context === 'Docker Build Check') {
+            if (status.context === 'Docker Build Verification') {
               dockerCheckFound = true;
               if (status.state === 'success') {
                 dockerCheckPassed = true;
@@ -136,13 +136,13 @@ async function run() {
 
     // 2. 判断是否满足合并条件
     if (!dockerCheckFound) {
-      console.log(`⏭️ 跳过: 未找到名为 'Docker Build Check' 的检查项 (Check Runs 和 Statuses 中均无)`);
+      console.log(`⏭️ 跳过: 未找到名为 'Docker Build Verification' 的检查项 (Check Runs 和 Statuses 中均无)`);
       skipped++;
       continue;
     }
 
     if (!dockerCheckPassed) {
-      console.log(`⏳ 跳过: 'Docker Build Check' 未通过，当前状态为 '${currentStatusMsg}'`);
+      console.log(`⏳ 跳过: 'Docker Build Verification' 未通过，当前状态为 '${currentStatusMsg}'`);
       skipped++;
       continue;
     }
