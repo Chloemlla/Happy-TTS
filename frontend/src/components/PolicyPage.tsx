@@ -288,7 +288,7 @@ const PolicyPage: React.FC<{ error?: any }> = ({ error }) => {
                 </h2>
                 <ul className="list-disc ml-6 text-gray-700 space-y-1">
                   <li className="transition-all duration-200 hover:scale-105 hover:-translate-y-1 cursor-pointer">
-                    <FaFileAlt className="text-gray-500 mr-2 inline" /> 本服务中使用的所有音频、文本和其他附加资源均属于 GitHub Individual Developer Happy-clo 或相关权利人所有。
+                    <FaFileAlt className="text-gray-500 mr-2 inline" /> 本服务中使用的所有音频、文本和其他附加资源均属于 GitHub Individual Developer SynapticArch 或相关权利人所有。
                   </li>
                   <li className="transition-all duration-200 hover:scale-105 hover:-translate-y-1 cursor-pointer">
                     <FaComments className="text-gray-500 mr-2 inline" /> 我们仅接受技术问题的反馈，不接受对平台政策或服务的评论。

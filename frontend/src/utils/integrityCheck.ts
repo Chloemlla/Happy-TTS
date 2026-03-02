@@ -14,21 +14,21 @@ interface TamperEvent {
   elementId?: string;
   timestamp: string;
   url: string;
-  
+
   // 篡改类型和检测方法
   eventType?: string;
   tamperType?: 'dom' | 'network' | 'proxy' | 'injection';
   detectionMethod?: string;
-  
+
   // 内容相关
   originalContent?: string;
   tamperContent?: string;
   filePath?: string;
   checksum?: string;
-  
+
   // 统计信息
   attempts?: number;
-  
+
   // 额外信息
   additionalInfo?: Record<string, any>;
 }
@@ -99,7 +99,7 @@ class IntegrityChecker {
   private constructor() {
     // 设置全局错误拦截器
     this.setupGlobalErrorHandler();
-    
+
     // 延迟初始化，等待页面完全加载
     setTimeout(() => {
       this.initializeIntegrityCheck();
@@ -108,7 +108,7 @@ class IntegrityChecker {
       this.initializeProxyDetection();
       this.captureBaselineContent();
       this.isInitialized = true;
-      
+
       if (this.debugMode) {
         this.safeLog('log', '🔒 完整性检查器已初始化，调试模式已启用');
       }
@@ -171,20 +171,20 @@ class IntegrityChecker {
       }
 
       // 特殊处理 LibreChat 页面
-      if (document.querySelector('[data-component="LibreChatPage"]') || 
-          document.querySelector('[data-page="librechat"]') ||
-          pathname.includes('/librechat')) {
+      if (document.querySelector('[data-component="LibreChatPage"]') ||
+        document.querySelector('[data-page="librechat"]') ||
+        pathname.includes('/librechat')) {
         return true;
       }
 
       // 特殊处理首次访问验证页面
-      if (document.querySelector('[data-component="FirstVisitVerification"]') || 
-          document.querySelector('[data-page="FirstVisitVerification"]') ||
-          document.querySelector('[data-view="FirstVisitVerification"]') ||
-          pathname.includes('/verification') ||
-          pathname.includes('/verify') ||
-          title.includes('verification') ||
-          title.includes('verify')) {
+      if (document.querySelector('[data-component="FirstVisitVerification"]') ||
+        document.querySelector('[data-page="FirstVisitVerification"]') ||
+        document.querySelector('[data-view="FirstVisitVerification"]') ||
+        pathname.includes('/verification') ||
+        pathname.includes('/verify') ||
+        title.includes('verification') ||
+        title.includes('verify')) {
         return true;
       }
 
@@ -254,7 +254,7 @@ class IntegrityChecker {
       // 捕获页面初始状态的基准内容
       this.originalPageContent = document.documentElement.outerHTML;
       this.baselineChecksum = this.calculateChecksum(this.originalPageContent);
-      
+
       // 验证基准内容是否有效
       if (!this.originalPageContent || this.originalPageContent.length < 100) {
         if (this.debugMode) {
@@ -263,7 +263,7 @@ class IntegrityChecker {
         setTimeout(() => this.captureBaselineContent(), 1000);
         return;
       }
-      
+
       if (this.debugMode) {
         this.safeLog('log', '📸 基准内容已捕获:', {
           length: this.originalPageContent.length,
@@ -271,13 +271,13 @@ class IntegrityChecker {
           criticalTexts: this.extractCriticalTexts()
         });
       }
-      
+
       // 存储关键文本的基准状态
       const criticalTexts = this.extractCriticalTexts();
       criticalTexts.forEach((text, index) => {
         this.setIntegrity(`critical-text-${index}`, text);
       });
-      
+
       // 设置品牌保护区域的完整性基准
       this.setupBrandProtectionBaseline();
     } catch (error) {
@@ -319,7 +319,7 @@ class IntegrityChecker {
   private initializeNetworkMonitoring(): void {
     // 监控网络请求和响应
     this.interceptNetworkRequests();
-    
+
     // 注释掉定期检查网络完整性，避免频繁请求
     // this.networkMonitorInterval = window.setInterval(() => {
     //   this.checkNetworkIntegrity();
@@ -331,28 +331,28 @@ class IntegrityChecker {
     const originalFetch = window.fetch;
     window.fetch = async (...args) => {
       const response = await originalFetch(...args);
-      
+
       // 克隆响应以便检查
       const clonedResponse = response.clone();
       this.analyzeResponse(clonedResponse, args[0] as string);
-      
+
       return response;
     };
 
     // 拦截XMLHttpRequest
     const originalXHROpen = XMLHttpRequest.prototype.open;
     const originalXHRSend = XMLHttpRequest.prototype.send;
-    
-    XMLHttpRequest.prototype.open = function(method: string, url: string, async?: boolean, username?: string, password?: string) {
+
+    XMLHttpRequest.prototype.open = function (method: string, url: string, async?: boolean, username?: string, password?: string) {
       this._integrityUrl = url;
       return originalXHROpen.call(this, method, url, async ?? true, username, password);
     };
 
-    XMLHttpRequest.prototype.send = function(...args: any[]) {
+    XMLHttpRequest.prototype.send = function (...args: any[]) {
       const xhr = this;
       const originalOnReadyStateChange = xhr.onreadystatechange;
-      
-      xhr.onreadystatechange = function() {
+
+      xhr.onreadystatechange = function () {
         if (xhr.readyState === 4) {
           integrityChecker.analyzeXHRResponse(xhr);
         }
@@ -360,7 +360,7 @@ class IntegrityChecker {
           originalOnReadyStateChange.call(xhr, new Event('readystatechange'));
         }
       };
-      
+
       return originalXHRSend.call(this, ...args);
     };
   }
@@ -398,7 +398,7 @@ class IntegrityChecker {
     if (this.isTrustedUrl(url) || this.isExemptPage()) return;
     const currentHash = this.calculateNetworkHash(content);
     const storedData = this.networkIntegrityMap.get(url);
-    
+
     if (storedData) {
       if (currentHash !== storedData.hash) {
         this.handleNetworkTampering(url, storedData.originalResponse, content);
@@ -491,11 +491,11 @@ class IntegrityChecker {
     // 监控页面内容长度变化
     const currentLength = document.documentElement.outerHTML.length;
     const baselineLength = this.originalPageContent.length;
-    
+
     // 大幅提高阈值：只有当基准长度有效且变化超过5000字节或30%时才检查
     const diff = Math.abs(currentLength - baselineLength);
     const percentage = baselineLength > 0 ? (diff / baselineLength) * 100 : 0;
-    
+
     if (baselineLength > 1000 && (diff > 5000 || percentage > 30)) {
       this.handleContentLengthAnomaly(currentLength, baselineLength);
     }
@@ -513,7 +513,7 @@ class IntegrityChecker {
 
     const diff = Math.abs(current - baseline);
     const percentage = (diff / baseline) * 100;
-    
+
     // 大幅提高阈值：只有变化超过30%才认为是异常
     if (percentage < 30) {
       if (this.debugMode) {
@@ -530,7 +530,7 @@ class IntegrityChecker {
     if (this.debugMode) {
       this.safeLog('warn', `⚠️ 内容长度变化较大: 基准=${baseline}, 当前=${current}, 变化=${percentage.toFixed(2)}%`);
     }
-    
+
     // 仅在严格模式下才进行检查
     if (this.enableStrictMode) {
       this.checkPageIntegrity();
@@ -547,7 +547,7 @@ class IntegrityChecker {
     // 检查当前页面内容与基准的差异
     const currentContent = document.documentElement.outerHTML;
     const currentChecksum = this.calculateChecksum(currentContent);
-    
+
     if (currentChecksum !== this.baselineChecksum) {
       this.handlePageContentChange(currentContent);
     }
@@ -559,7 +559,7 @@ class IntegrityChecker {
   private handlePageContentChange(currentContent: string): void {
     // 分析变化的内容
     const changes = this.analyzeContentChanges(currentContent);
-    
+
     if (changes.hasProxyTampering) {
       this.handleProxyTampering(changes);
     }
@@ -605,16 +605,16 @@ class IntegrityChecker {
     if (proxySignatures.some(sig => sig.test(currentContent))) {
       result.hasProxyTampering = true;
       confidenceScore += 50;
-      
+
       if (this.debugMode) {
         this.safeLog('log', '🚨 检测到代理特征:', proxySignatures.filter(sig => sig.test(currentContent)));
       }
     }
 
     // 检查关键文本是否被替换
-    const criticalTexts = ['Happy-clo', 'Happy TTS', 'Happy'];
+    const criticalTexts = ['SynapticArch', 'Happy TTS', 'Happy'];
     const missingTexts: string[] = [];
-    
+
     criticalTexts.forEach(text => {
       const pattern = new RegExp(text.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
       if (!pattern.test(currentContent)) {
@@ -626,7 +626,7 @@ class IntegrityChecker {
     if (missingTexts.length > 0) {
       result.replacedTexts = missingTexts;
       result.hasProxyTampering = true;
-      
+
       if (this.debugMode) {
         this.safeLog('log', '⚠️ 检测到缺失的关键文本:', missingTexts);
       }
@@ -635,11 +635,11 @@ class IntegrityChecker {
     // 检查内容长度异常
     const lengthDiff = Math.abs(currentContent.length - this.originalPageContent.length);
     const lengthPercentage = this.originalPageContent.length > 0 ? (lengthDiff / this.originalPageContent.length) * 100 : 0;
-    
+
     // 大幅提高内容长度异常阈值
     if (lengthDiff > 5000 || lengthPercentage > 20) {
       confidenceScore += 10; // 降低权重
-      
+
       if (this.debugMode) {
         this.safeLog('log', '📏 内容长度异常:', {
           original: this.originalPageContent.length,
@@ -654,7 +654,7 @@ class IntegrityChecker {
     const isNormalUpdate = this.checkIfNormalUpdate(currentContent);
     if (isNormalUpdate) {
       confidenceScore -= 50; // 大幅降低置信度
-      
+
       if (this.debugMode) {
         this.safeLog('log', '✅ 检测到正常页面更新，大幅降低篡改置信度');
       }
@@ -686,11 +686,11 @@ class IntegrityChecker {
     // 大幅提高置信度阈值：低于60分视为误报
     if (changes.confidence < 60) {
       this.falsePositiveCount++;
-      
+
       if (this.debugMode) {
         this.safeLog('log', '🤔 可能的误报，置信度较低:', changes.confidence);
       }
-      
+
       if (this.falsePositiveCount >= this.MAX_FALSE_POSITIVES) {
         if (this.debugMode) {
           this.safeLog('warn', '⚠️ 误报次数过多，调整检测策略');
@@ -705,7 +705,7 @@ class IntegrityChecker {
     this.falsePositiveCount = 0;
 
     this.safeLog('error', '🚨 检测到代理篡改行为！', changes);
-    
+
     if (this.debugMode) {
       this.safeLog('log', '🔍 篡改详情:', {
         confidence: changes.confidence,
@@ -713,13 +713,13 @@ class IntegrityChecker {
         hasProxyTampering: changes.hasProxyTampering
       });
     }
-    
+
     // 立即恢复原始内容
     this.performEmergencyRecovery();
-    
+
     // 记录篡改事件
     this.handleTampering('proxy-tampering', undefined, undefined, 'proxy', 'network-analysis');
-    
+
     // 显示代理篡改警告
     this.showProxyTamperWarning();
   }
@@ -728,13 +728,13 @@ class IntegrityChecker {
     // 大幅调整检测策略以减少误报
     this.networkCheckInterval = 30000; // 增加到30秒
     this.enableStrictMode = false; // 关闭严格模式
-    
+
     // 停止网络监控定时器
     if (this.networkMonitorInterval) {
       clearInterval(this.networkMonitorInterval);
       this.networkMonitorInterval = null;
     }
-    
+
     if (this.debugMode) {
       this.safeLog('log', '⚙️ 已大幅调整检测策略，关闭严格模式，减少误报');
     }
@@ -743,18 +743,18 @@ class IntegrityChecker {
   private performEmergencyRecovery(): void {
     // 紧急恢复模式
     this.isInRecoveryMode = true;
-    
+
     if (this.debugMode) {
       this.safeLog('log', '🔄 执行紧急恢复...');
     }
-    
+
     try {
       // 恢复原始页面内容
       document.documentElement.innerHTML = this.originalPageContent;
-      
+
       // 重新初始化关键元素
       this.reinitializeCriticalElements();
-      
+
       // 5秒后退出恢复模式
       setTimeout(() => {
         this.isInRecoveryMode = false;
@@ -942,7 +942,7 @@ class IntegrityChecker {
     }
 
     const protectedPatterns = [
-      { original: 'Happy-clo', pattern: /Happy[-]?clo/gi },
+      { original: 'SynapticArch', pattern: /Happy[-]?clo/gi },
       { original: 'Happy TTS', pattern: /Happy\s*TTS/gi },
       { original: 'Happy', pattern: /Happy(?![-\s]?(clo|tts))/gi }
     ];
@@ -962,33 +962,33 @@ class IntegrityChecker {
       // 安全地获取 className 和 id，确保它们是字符串类型
       const className = typeof parent.className === 'string' ? parent.className : '';
       const id = typeof parent.id === 'string' ? parent.id : '';
-      
+
       // 安全元素标识
       const safeIdentifiers = [
         'loading', 'spinner', 'progress', 'toast', 'notification',
         'modal', 'popup', 'tooltip', 'dropdown', 'menu'
       ];
-      
-      if (safeIdentifiers.some(safeId => 
-        className.toLowerCase().includes(safeId) || 
+
+      if (safeIdentifiers.some(safeId =>
+        className.toLowerCase().includes(safeId) ||
         id.toLowerCase().includes(safeId)
       )) {
         return true;
       }
-      
+
       // 检查是否是聊天相关的元素
       const chatIdentifiers = [
         'chat', 'message', 'conversation', 'dialog', 'librechat',
         'user', 'assistant', 'bot', 'ai', 'streaming'
       ];
-      
-      if (chatIdentifiers.some(chatId => 
-        className.toLowerCase().includes(chatId) || 
+
+      if (chatIdentifiers.some(chatId =>
+        className.toLowerCase().includes(chatId) ||
         id.toLowerCase().includes(chatId)
       )) {
         return true;
       }
-      
+
       parent = parent.parentElement;
     }
 
@@ -1043,8 +1043,8 @@ class IntegrityChecker {
     ];
 
     return safeTextPatterns.some(pattern => pattern.test(text)) ||
-           chatTextPatterns.some(pattern => pattern.test(text)) ||
-           verificationTextPatterns.some(pattern => pattern.test(text));
+      chatTextPatterns.some(pattern => pattern.test(text)) ||
+      verificationTextPatterns.some(pattern => pattern.test(text));
   }
 
   private handleTextTampering(node: Node, tamperText: string, originalText: string): void {
@@ -1073,7 +1073,7 @@ class IntegrityChecker {
 
   private activateAntiTamperMeasures(elementId: string): void {
     this.isInRecoveryMode = true;
-    
+
     // 创建遮罩层
     const overlay = document.createElement('div');
     overlay.style.cssText = `
@@ -1097,7 +1097,7 @@ class IntegrityChecker {
 
   private performRecovery(): void {
     // 恢复所有被保护的文本
-    const protectedTexts = ['Happy-clo', 'Happy TTS', 'Happy'];
+    const protectedTexts = ['SynapticArch', 'Happy TTS', 'Happy'];
     const walker = document.createTreeWalker(
       document.body,
       NodeFilter.SHOW_TEXT,
@@ -1179,7 +1179,7 @@ class IntegrityChecker {
     // 检查关键元素（包括新增的品牌保护区域）
     const criticalElements = [
       'app-header',
-      'app-footer', 
+      'app-footer',
       'tts-form',
       'legal-notice',
       // 新增：品牌标识关键区域
@@ -1196,7 +1196,7 @@ class IntegrityChecker {
         const currentContent = element.innerHTML;
         if (!this.verifyIntegrity(id, currentContent)) {
           console.error(`检测到页面元素 ${id} 被篡改！`);
-          
+
           // 对品牌标识区域进行特殊处理
           if (this.isBrandProtectedElement(id)) {
             this.handleBrandTampering(id, element);
@@ -1209,13 +1209,13 @@ class IntegrityChecker {
 
     // 检查特定文本
     this.checkTextIntegrity();
-    
+
     // 新增：专门检查品牌保护区域
     this.checkBrandProtectionIntegrity();
   }
 
   private checkTextIntegrity(): void {
-    const protectedTexts = ['Happy-clo', 'Happy TTS', 'Happy'];
+    const protectedTexts = ['SynapticArch', 'Happy TTS', 'Happy'];
     const bodyText = document.body.innerText;
 
     protectedTexts.forEach(text => {
@@ -1272,7 +1272,7 @@ class IntegrityChecker {
         referrer: document.referrer
       }
     };
-    
+
     this.reportTampering(tamperEvent);
     this.showTamperWarning(tamperEvent);
   }
@@ -1280,7 +1280,7 @@ class IntegrityChecker {
   private reportTampering(event: TamperEvent): void {
     // 发送篡改事件到服务器
     const apiUrl = `${getApiBaseUrl()}/api/tamper/report-tampering`;
-    
+
     fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -1349,13 +1349,13 @@ class IntegrityChecker {
 
   private handleNetworkTampering(url: string, originalResponse: string, tamperedResponse: string): void {
     console.error(`检测到网络篡改行为！原响应: ${originalResponse}, 篡改后响应: ${tamperedResponse}`);
-    
+
     // 立即恢复原始内容
     this.performEmergencyRecovery();
-    
+
     // 记录篡改事件
     this.handleTampering('network-tampering', originalResponse, tamperedResponse, 'network', 'network-analysis');
-    
+
     // 显示网络篡改警告
     this.showNetworkTamperWarning();
   }
@@ -1403,7 +1403,7 @@ class IntegrityChecker {
     if (this.debugMode) {
       this.safeLog('log', '🔄 重新初始化完整性检查器...');
     }
-    
+
     // 清理现有状态
     this.isInRecoveryMode = false;
     this.falsePositiveCount = 0;
@@ -1412,10 +1412,10 @@ class IntegrityChecker {
     this.integrityMap.clear();
     this.networkIntegrityMap.clear();
     this.resetErrorCount(); // 重置错误计数
-    
+
     // 重新捕获基准内容
     this.captureBaselineContent();
-    
+
     if (this.debugMode) {
       this.safeLog('log', '✅ 完整性检查器重新初始化完成');
     }
@@ -1467,7 +1467,7 @@ class IntegrityChecker {
   // 安全的错误日志方法
   private safeLog(level: 'log' | 'warn' | 'error', message: string, data?: any): void {
     const now = Date.now();
-    
+
     // 检查错误数量限制
     if (level === 'error') {
       if (this.errorCount >= this.MAX_ERRORS) {
@@ -1504,12 +1504,12 @@ class IntegrityChecker {
     // 拦截未捕获的错误
     window.addEventListener('error', (event) => {
       // 检查是否是完整性检查器相关的错误
-      if (event.error && event.error.message && 
-          (event.error.message.includes('integrityCheck') || 
-           event.error.message.includes('blockDangerousExtension'))) {
+      if (event.error && event.error.message &&
+        (event.error.message.includes('integrityCheck') ||
+          event.error.message.includes('blockDangerousExtension'))) {
         event.preventDefault();
         event.stopPropagation();
-        
+
         if (this.debugMode) {
           this.safeLog('warn', '🛡️ 拦截到完整性检查相关错误:', event.error.message);
         }
@@ -1519,10 +1519,10 @@ class IntegrityChecker {
 
     // 拦截未处理的Promise拒绝
     window.addEventListener('unhandledrejection', (event) => {
-      if (event.reason && typeof event.reason === 'string' && 
-          event.reason.includes('integrityCheck')) {
+      if (event.reason && typeof event.reason === 'string' &&
+        event.reason.includes('integrityCheck')) {
         event.preventDefault();
-        
+
         if (this.debugMode) {
           this.safeLog('warn', '🛡️ 拦截到完整性检查Promise错误:', event.reason);
         }
@@ -1567,7 +1567,7 @@ class IntegrityChecker {
       const addedContent = Array.from(mutation.addedNodes)
         .map(node => node.textContent || '')
         .join('');
-      
+
       // 检查是否包含动态内容标识
       const dynamicPatterns = [
         /loading/gi,
@@ -1578,7 +1578,7 @@ class IntegrityChecker {
         /modal/gi,
         /popup/gi
       ];
-      
+
       if (dynamicPatterns.some(pattern => pattern.test(addedContent))) {
         return true;
       }
@@ -1607,8 +1607,8 @@ class IntegrityChecker {
   public getDetectionMode(): { strict: boolean; description: string } {
     return {
       strict: this.enableStrictMode,
-      description: this.enableStrictMode 
-        ? '严格模式：更激进的检测，可能有更多误报' 
+      description: this.enableStrictMode
+        ? '严格模式：更激进的检测，可能有更多误报'
         : '正常模式：平衡检测，降低误报率'
     };
   }
@@ -1618,7 +1618,7 @@ class IntegrityChecker {
     this.isInRecoveryMode = true;
     this.proxyDetectionEnabled = false;
     this.enableStrictMode = false;
-    
+
     // 清理所有定时器
     if (this.recoveryInterval) {
       clearInterval(this.recoveryInterval);
@@ -1628,7 +1628,7 @@ class IntegrityChecker {
       clearInterval(this.networkMonitorInterval);
       this.networkMonitorInterval = null;
     }
-    
+
     if (this.debugMode) {
       this.safeLog('log', '🚫 完整性检查已完全禁用');
     }
@@ -1663,7 +1663,7 @@ class IntegrityChecker {
 
   private checkIfNormalUpdate(currentContent: string): boolean {
     // 检查是否是正常的页面更新（如动态加载内容）
-    
+
     // 1. 检查是否只是添加了内容（而不是替换）
     if (currentContent.length > this.originalPageContent.length) {
       const addedContent = currentContent.replace(this.originalPageContent, '');
@@ -1700,7 +1700,7 @@ class IntegrityChecker {
   }
 
   // ========== 手动触发篡改检测的公共接口 ==========
-  
+
   /**
    * 手动触发完整性检查
    * @param options 检查选项
@@ -1717,56 +1717,56 @@ class IntegrityChecker {
     return new Promise((resolve) => {
       const results: any[] = [];
       const errors: string[] = [];
-      
+
       try {
         if (this.debugMode) {
           this.safeLog('log', '🔍 手动触发完整性检查...', options);
         }
-        
+
         const { checkType = 'all', elementId, forceCheck = false } = options;
-        
+
         // 如果系统被禁用且不是强制检查，直接返回
         if (this.isDisabled() && !forceCheck) {
           errors.push('完整性检查系统已被禁用');
           return resolve({ success: false, results, errors });
         }
-        
+
         // 如果在豁免页面且不是强制检查，跳过
         if (this.isExemptPage() && !forceCheck) {
           results.push({ type: 'exempt', message: '当前页面已豁免完整性检查' });
           return resolve({ success: true, results, errors });
         }
-        
+
         // 执行不同类型的检查
         if (checkType === 'all' || checkType === 'baseline') {
           const baselineResult = this.checkBaselineIntegrity();
           results.push({ type: 'baseline', ...baselineResult });
         }
-        
+
         if (checkType === 'all' || checkType === 'dom') {
           const domResult = this.checkDOMIntegrity(elementId);
           results.push({ type: 'dom', ...domResult });
         }
-        
+
         if (checkType === 'all' || checkType === 'text') {
           const textResult = this.checkCriticalTexts();
           results.push({ type: 'text', ...textResult });
         }
-        
+
         if (checkType === 'all' || checkType === 'network') {
           const networkResult = this.checkNetworkIntegrityStatus();
           results.push({ type: 'network', ...networkResult });
         }
-        
+
         resolve({ success: errors.length === 0, results, errors });
-        
+
       } catch (error) {
         errors.push(`检查过程中发生错误: ${error instanceof Error ? error.message : String(error)}`);
         resolve({ success: false, results, errors });
       }
     });
   }
-  
+
   /**
    * 手动报告篡改事件
    * @param eventData 篡改事件数据
@@ -1785,7 +1785,7 @@ class IntegrityChecker {
         if (this.debugMode) {
           this.safeLog('log', '📤 手动报告篡改事件...', eventData);
         }
-        
+
         const tamperEvent: TamperEvent = {
           elementId: eventData.elementId || 'manual-report',
           timestamp: new Date().toISOString(),
@@ -1808,17 +1808,17 @@ class IntegrityChecker {
             referrer: document.referrer
           }
         };
-        
+
         this.reportTampering(tamperEvent);
         resolve({ success: true, message: '篡改事件已成功报告' });
-        
+
       } catch (error) {
         const message = `报告篡改事件失败: ${error instanceof Error ? error.message : String(error)}`;
         resolve({ success: false, message });
       }
     });
   }
-  
+
   /**
    * 手动触发恢复模式
    * @param options 恢复选项
@@ -1829,11 +1829,11 @@ class IntegrityChecker {
   } = {}): { success: boolean; message: string } {
     try {
       const { recoveryType = 'soft', showWarning = true } = options;
-      
+
       if (this.debugMode) {
         this.safeLog('log', '🔄 手动触发恢复模式...', options);
       }
-      
+
       if (recoveryType === 'emergency') {
         this.performEmergencyRecovery();
         if (showWarning) {
@@ -1847,13 +1847,13 @@ class IntegrityChecker {
         this.performRecovery();
         return { success: true, message: '软恢复模式已启动' };
       }
-      
+
     } catch (error) {
       const message = `恢复模式启动失败: ${error instanceof Error ? error.message : String(error)}`;
       return { success: false, message };
     }
   }
-  
+
   /**
    * 手动模拟篡改事件（测试用）
    * @param options 模拟选项
@@ -1867,9 +1867,9 @@ class IntegrityChecker {
       if (this.debugMode) {
         this.safeLog('log', '🧪 模拟篡改事件...', options);
       }
-      
+
       const { tamperType, elementId = 'test-element', testContent = 'Test Tampered Content' } = options;
-      
+
       // 模拟不同类型的篡改
       switch (tamperType) {
         case 'dom':
@@ -1891,31 +1891,31 @@ class IntegrityChecker {
           this.handleTampering(elementId, 'Original Script', testContent, 'injection', 'simulation');
           break;
       }
-      
+
       return { success: true, message: `${tamperType} 类型的篡改事件已模拟` };
-      
+
     } catch (error) {
       const message = `模拟篡改事件失败: ${error instanceof Error ? error.message : String(error)}`;
       return { success: false, message };
     }
   }
-  
+
   // ========== 内部检查方法 ==========
-  
-  private checkBaselineIntegrity(): { 
-    isValid: boolean; 
-    currentLength: number; 
-    baselineLength: number; 
-    checksum: string; 
+
+  private checkBaselineIntegrity(): {
+    isValid: boolean;
+    currentLength: number;
+    baselineLength: number;
+    checksum: string;
     message: string;
   } {
     const currentContent = document.documentElement.outerHTML;
     const currentChecksum = this.calculateChecksum(currentContent);
     const currentLength = currentContent.length;
     const baselineLength = this.originalPageContent.length;
-    
+
     const isValid = currentChecksum === this.baselineChecksum && baselineLength > 0;
-    
+
     return {
       isValid,
       currentLength,
@@ -1924,7 +1924,7 @@ class IntegrityChecker {
       message: isValid ? '基准内容完整' : '基准内容已被修改'
     };
   }
-  
+
   private checkDOMIntegrity(targetElementId?: string): {
     checkedElements: number;
     tamperedElements: string[];
@@ -1932,7 +1932,7 @@ class IntegrityChecker {
   } {
     const tamperedElements: string[] = [];
     let checkedElements = 0;
-    
+
     if (targetElementId) {
       // 检查特定元素
       const element = document.getElementById(targetElementId);
@@ -1957,37 +1957,37 @@ class IntegrityChecker {
         }
       });
     }
-    
+
     return {
       checkedElements,
       tamperedElements,
       message: tamperedElements.length === 0 ? 'DOM元素完整' : `发现 ${tamperedElements.length} 个被篡改的元素`
     };
   }
-  
+
   private checkCriticalTexts(): {
     checkedTexts: string[];
     missingTexts: string[];
     message: string;
   } {
-    const protectedTexts = ['Happy-clo', 'Happy TTS', 'Happy'];
+    const protectedTexts = ['SynapticArch', 'Happy TTS', 'Happy'];
     const bodyText = document.body.innerText;
     const missingTexts: string[] = [];
-    
+
     protectedTexts.forEach(text => {
       const regex = new RegExp(text.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
       if (!regex.test(bodyText)) {
         missingTexts.push(text);
       }
     });
-    
+
     return {
       checkedTexts: protectedTexts,
       missingTexts,
       message: missingTexts.length === 0 ? '关键文本完整' : `缺失关键文本: ${missingTexts.join(', ')}`
     };
   }
-  
+
   private checkNetworkIntegrityStatus(): {
     monitoredUrls: number;
     tamperedUrls: string[];
@@ -1995,9 +1995,9 @@ class IntegrityChecker {
   } {
     const tamperedUrls: string[] = [];
     const monitoredUrls = this.networkIntegrityMap.size;
-    
+
     // 这里可以添加更详细的网络完整性检查逻辑
-    
+
     return {
       monitoredUrls,
       tamperedUrls,
@@ -2006,21 +2006,21 @@ class IntegrityChecker {
   }
 
   // ========== 品牌保护专用方法 ==========
-  
+
   /**
    * 检查是否为品牌保护元素
    */
   private isBrandProtectedElement(elementId: string): boolean {
     const brandProtectedIds = [
       'app-header-container',
-      'app-header-content', 
+      'app-header-content',
       'app-brand-logo',
       'app-brand-icon',
       'app-brand-text'
     ];
     return brandProtectedIds.includes(elementId);
   }
-  
+
   /**
    * 处理品牌标识篡改（最高优先级）
    */
@@ -2028,20 +2028,20 @@ class IntegrityChecker {
     if (this.debugMode) {
       this.safeLog('error', '🚨 检测到品牌标识篡改！', { elementId, element: element.outerHTML });
     }
-    
+
     // 立即恢复品牌内容
     this.restoreBrandElement(elementId, element);
-    
+
     // 显示最高级别警告
     this.showCriticalBrandWarning(elementId);
-    
+
     // 上报品牌篡改事件
     this.handleTampering(elementId, undefined, undefined, 'dom', 'brand-protection');
-    
+
     // 启动品牌保护模式
     this.activateBrandProtectionMode();
   }
-  
+
   /**
    * 恢复品牌元素内容
    */
@@ -2056,7 +2056,7 @@ class IntegrityChecker {
             element.setAttribute('data-critical-text', 'Happy TTS');
           }
           break;
-          
+
         case 'app-brand-icon':
           // 恢复品牌图标路径
           const path = element.querySelector('path');
@@ -2064,7 +2064,7 @@ class IntegrityChecker {
             path.setAttribute('d', 'M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z');
           }
           break;
-          
+
         case 'app-brand-logo':
         case 'app-header-content':
         case 'app-header-container':
@@ -2072,7 +2072,7 @@ class IntegrityChecker {
           this.restoreBrandContainerContent(element);
           break;
       }
-      
+
       if (this.debugMode) {
         this.safeLog('log', '✅ 品牌元素已恢复:', elementId);
       }
@@ -2080,7 +2080,7 @@ class IntegrityChecker {
       this.safeLog('error', '❌ 恢复品牌元素失败:', { elementId, error });
     }
   }
-  
+
   /**
    * 恢复品牌容器内容
    */
@@ -2090,7 +2090,7 @@ class IntegrityChecker {
     if (brandTextElement && brandTextElement.textContent !== 'Happy TTS') {
       brandTextElement.textContent = 'Happy TTS';
     }
-    
+
     // 检查品牌图标
     const brandIcon = container.querySelector('#app-brand-icon path');
     if (brandIcon) {
@@ -2100,7 +2100,7 @@ class IntegrityChecker {
       }
     }
   }
-  
+
   /**
    * 显示关键品牌警告
    */
@@ -2123,7 +2123,7 @@ class IntegrityChecker {
       text-align: center;
       animation: criticalPulse 1s infinite;
     `;
-    
+
     warning.innerHTML = `
       <div style="font-size: 3em; margin-bottom: 20px;">🚨</div>
       <h1 style="font-size: 2em; margin-bottom: 10px;">严重安全警告</h1>
@@ -2134,7 +2134,7 @@ class IntegrityChecker {
         页面将在 <span id="brand-countdown">10</span> 秒后自动关闭
       </div>
     `;
-    
+
     // 添加动画样式
     const style = document.createElement('style');
     style.textContent = `
@@ -2144,9 +2144,9 @@ class IntegrityChecker {
       }
     `;
     document.head.appendChild(style);
-    
+
     document.body.appendChild(warning);
-    
+
     // 倒计时关闭
     let countdown = 10;
     const interval = setInterval(() => {
@@ -2155,14 +2155,14 @@ class IntegrityChecker {
       if (countdownElement) {
         countdownElement.textContent = countdown.toString();
       }
-      
+
       if (countdown <= 0) {
         clearInterval(interval);
         window.close();
       }
     }, 1000);
   }
-  
+
   /**
    * 激活品牌保护模式
    */
@@ -2170,15 +2170,15 @@ class IntegrityChecker {
     if (this.debugMode) {
       this.safeLog('log', '🛡️ 激活品牌保护模式');
     }
-    
+
     // 增加检查频率
     this.networkCheckInterval = 100; // 100ms检查一次
-    
+
     // 启动品牌保护监控
     const brandProtectionInterval = setInterval(() => {
       this.checkBrandProtectionIntegrity();
     }, 50); // 每50ms检查一次品牌区域
-    
+
     // 5分钟后恢复正常频率
     setTimeout(() => {
       clearInterval(brandProtectionInterval);
@@ -2188,7 +2188,7 @@ class IntegrityChecker {
       }
     }, 300000);
   }
-  
+
   /**
    * 检查品牌保护区域完整性
    */
@@ -2207,7 +2207,7 @@ class IntegrityChecker {
         this.handleBrandTampering('app-brand-text', brandTextElement);
       }
     }
-    
+
     // 检查品牌图标
     const brandIcon = document.querySelector('#app-brand-icon path');
     if (brandIcon) {
@@ -2220,7 +2220,7 @@ class IntegrityChecker {
         this.handleBrandTampering('app-brand-icon', brandIcon.parentElement!);
       }
     }
-    
+
     // 检查关键属性
     const protectedElements = [
       'app-header-container',
@@ -2229,14 +2229,14 @@ class IntegrityChecker {
       'app-brand-icon',
       'app-brand-text'
     ];
-    
+
     protectedElements.forEach(id => {
       const element = document.getElementById(id);
       if (element) {
         // 检查关键属性是否被移除
         const requiredAttributes = ['data-integrity', 'data-protection'];
         const missingAttributes = requiredAttributes.filter(attr => !element.hasAttribute(attr));
-        
+
         if (missingAttributes.length > 0) {
           if (this.debugMode) {
             this.safeLog('warn', '🚨 品牌元素关键属性被移除:', {
@@ -2244,14 +2244,14 @@ class IntegrityChecker {
               missingAttributes
             });
           }
-          
+
           // 恢复关键属性
           this.restoreBrandElementAttributes(element, id);
         }
       }
     });
   }
-  
+
   /**
    * 设置品牌保护区域的完整性基准
    */
@@ -2260,17 +2260,17 @@ class IntegrityChecker {
       const brandProtectedIds = [
         'app-header-container',
         'app-header-content',
-        'app-brand-logo', 
+        'app-brand-logo',
         'app-brand-icon',
         'app-brand-text'
       ];
-      
+
       brandProtectedIds.forEach(id => {
         const element = document.getElementById(id);
         if (element) {
           // 为品牌保护元素设置完整性基准
           this.setIntegrity(id, element.innerHTML);
-          
+
           if (this.debugMode) {
             this.safeLog('log', `🛡️ 品牌保护基准已设置: ${id}`, {
               contentLength: element.innerHTML.length,
@@ -2279,20 +2279,20 @@ class IntegrityChecker {
           }
         }
       });
-      
+
       // 特别设置品牌文本的基准
       const brandTextElement = document.getElementById('app-brand-text');
       if (brandTextElement) {
         this.setIntegrity('brand-text-content', brandTextElement.textContent || '');
       }
-      
+
       // 设置品牌图标路径的基准
       const brandIconPath = document.querySelector('#app-brand-icon path');
       if (brandIconPath) {
         const pathData = brandIconPath.getAttribute('d') || '';
         this.setIntegrity('brand-icon-path', pathData);
       }
-      
+
     } catch (error) {
       this.safeLog('error', '❌ 设置品牌保护基准失败:', error);
     }
@@ -2308,22 +2308,22 @@ class IntegrityChecker {
         element.setAttribute('data-protection', 'maximum');
         element.setAttribute('data-component', 'AppHeader');
         break;
-        
+
       case 'app-header-content':
         element.setAttribute('data-integrity', 'critical');
         break;
-        
+
       case 'app-brand-logo':
         element.setAttribute('data-integrity', 'critical');
         element.setAttribute('data-protection', 'brand-identity');
         element.setAttribute('data-critical-text', 'Happy TTS');
         break;
-        
+
       case 'app-brand-icon':
         element.setAttribute('data-integrity', 'critical');
         element.setAttribute('data-protection', 'brand-icon');
         break;
-        
+
       case 'app-brand-text':
         element.setAttribute('data-integrity', 'critical');
         element.setAttribute('data-protection', 'brand-text');
@@ -2331,7 +2331,7 @@ class IntegrityChecker {
         element.setAttribute('data-original-text', 'Happy TTS');
         break;
     }
-    
+
     if (this.debugMode) {
       this.safeLog('log', '✅ 品牌元素属性已恢复:', elementId);
     }
@@ -2367,7 +2367,7 @@ class IntegrityChecker {
         '/cdk', '/cdk-store', '/librechat',
         '/verification', '/verify', '/first-visit', '/captcha', '/turnstile'
       ];
-      
+
       const matchedPaths = exemptPathKeywords.filter(k => pathname.toLowerCase().includes(k));
       if (matchedPaths.length > 0) {
         exemptReasons.push(`路径豁免: ${matchedPaths.join(', ')}`);
@@ -2380,7 +2380,7 @@ class IntegrityChecker {
         'fbi', 'wanted', 'shortlink', 'short link', 'cdk', 'store', 'librechat',
         'verification', 'verify', 'first visit', 'captcha', 'turnstile', 'security'
       ];
-      
+
       const matchedTitles = exemptTitleKeywords.filter(k => title.includes(k));
       if (matchedTitles.length > 0) {
         exemptReasons.push(`标题豁免: ${matchedTitles.join(', ')}`);
@@ -2398,7 +2398,7 @@ class IntegrityChecker {
           `[id*="${marker}"]`,
           `[class*="${marker}"]`
         ];
-        
+
         for (const selector of selectors) {
           if (document.querySelector(selector)) {
             foundMarkers.push(`${marker} (${selector})`);
@@ -2406,7 +2406,7 @@ class IntegrityChecker {
           }
         }
       }
-      
+
       if (foundMarkers.length > 0) {
         exemptReasons.push(`组件标记豁免: ${foundMarkers.join(', ')}`);
         isExempt = true;

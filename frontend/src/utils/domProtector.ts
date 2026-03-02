@@ -17,11 +17,11 @@ class DOMProtector {
   private observer: MutationObserver | null = null;
   private checkInterval: number | null = null;
   private protectedTexts: ProtectedText[] = [
-    { original: 'Happy-clo', pattern: /Happy-clo/gi },
+    { original: 'SynapticArch', pattern: /SynapticArch/gi },
     { original: 'Happy TTS', pattern: /Happy TTS/gi },
-    { original: 'Happy', pattern: /Happy(?![\w-])/gi }  // 防止匹配 Happy-clo
+    { original: 'Happy', pattern: /Happy(?![\w-])/gi }  // 防止匹配 SynapticArch
   ];
-  
+
   private constructor() {
     // 私有构造函数，确保单例
   }
@@ -38,7 +38,7 @@ class DOMProtector {
     if (node.nodeType === Node.TEXT_NODE && node.textContent) {
       let textContent = node.textContent;
       let hasChange = false;
-      
+
       this.protectedTexts.forEach(({ original, pattern }) => {
         if (pattern.test(textContent)) {
           textContent = textContent.replace(pattern, original);
@@ -72,7 +72,7 @@ class DOMProtector {
   public takeSnapshot(element: HTMLElement, id: string): void {
     // 先检查和修复受保护的文本
     this.checkAllTextNodes(element);
-    
+
     const content = element.innerHTML;
     const signature = signContent(content);
     this.snapshots.set(id, {
@@ -86,7 +86,7 @@ class DOMProtector {
   public verifyElement(element: HTMLElement, id: string): boolean {
     const snapshot = this.snapshots.get(id);
     if (!snapshot) return false;
-    
+
     // 先检查受保护的文本
     let hasTextChange = false;
     const walker = document.createTreeWalker(

@@ -1031,7 +1031,7 @@ ChevronRight, LogOut, Settings...
 如有问题或建议，欢迎反馈！
 
 **项目地址**: Happy-TTS-1  
-**作者**: Happy-clo  
+**作者**: SynapticArch  
 **创建日期**: 2025-10-23  
 **版本**: v1.0.0  
 **许可**: MIT License

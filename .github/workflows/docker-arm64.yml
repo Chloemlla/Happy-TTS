@@ -16,7 +16,7 @@ permissions:
 jobs:
   docker:
     runs-on: ubuntu-latest
-    if: (github.actor == 'happy-clo' || github.actor == 'Happy-clo' || github.actor == 'actions-user' || github.actor == 'hapxscom' || github.actor == 'Chloemlla') && !contains(github.event.head_commit.message, 'npm(deps):')
+    if: (github.actor == 'SynapticArch' || github.actor == 'SynapticArch' || github.actor == 'actions-user' || github.actor == 'hapxscom' || github.actor == 'Chloemlla') && !contains(github.event.head_commit.message, 'npm(deps):')
     steps:
       - name: Checkout
         uses: actions/checkout@main
