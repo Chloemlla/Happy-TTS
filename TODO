@@ -1,25 +1,47 @@
-Notes
-- 用户需要前后端支持手动添加 DataCollection 记录。
-- 后端已增加 POST /api/data-collection/admin，校验字段并保存至 MongoDB。
-- 前端已实现“新增记录”弹窗，支持 userId、action、timestamp、details 字段，支持 JSON/文本详情。
-- 通知系统 useNotification 已集成，所有提示（成功/失败/未授权）均走通知。
-- 移动端适配已优化，表单与操作按钮移动端体验良好。
-- 日志管理（LogShare）移动端适配已增强，操作按钮/列表在小屏幕上更易用。
-- 后端数据收集相关接口已加固：所有查询参数/ID 严格校验，防止 NoSQL 注入与非法输入（见 CodeQL #254/#255 修复）。
-- Webhook 支持多路由自动注册：根据 RESEND_WEBHOOK_SECRET_XXX 环境变量自动添加 /resend-xxx 路由，controller/DB 持久化 routeKey 字段，便于前端分组管理。
-- Webhook 前端分组管理（已实现分组接口、前端分组/筛选/移动端适配）
+这个项目整体架构不错，有 WAF、限流、Helmet、多因素认证等安全基础设施。但确实存在一些值得关注的问题，按优先级排列：
+1. .env 文件包含真实密钥且被 git 跟踪风险
 
-Task List
-- [x] 后端数据收集管理接口梳理与分析
-- [x] 增加后端 POST /api/data-collection/admin 支持手动创建
-- [x] 前端实现新增记录弹窗及表单
-- [x] 前端 handleCreate/通知系统集成，替换所有 alert
-- [x] 移动端适配优化
-- [x] 验证手动创建流程及通知
-- [x] 支持日志管理相关功能（LogShare.tsx，需求待细化）
-- [x] 后端实现日志单删、批量删、全删、元数据更新接口（含鉴权）
-- [x] 前端 LogShare.tsx 增加日志多选、单删/批量删/全删、编辑元数据 UI，并串联新接口
-- [x] LogShare.tsx 日志管理移动端适配增强
-- [x] 后端 dataCollectionService 查询/ID 校验加固，解决 CodeQL 注入警告
-- [x] Webhook 多路由自动注册与 routeKey 字段持久化（后端/数据库）
-- [x] Webhook 前端分组管理（按 routeKey 分组展示/筛选）
+.gitignore 里虽然有 .env，但当前工作区的 .env 包含了真实的 API Key、MongoDB 连接串（含密码）、Resend API Key 等。如果历史上曾被提交过，这些密钥已经泄露。建议：
+
+立即轮换所有暴露的密钥
+用 git log --all -- .env 检查是否曾被提交
+创建 .env.example 作为模板，只放占位符
+2. CSP 配置过于宽松
+
+app.ts
+ 中 Helmet 的 CSP 允许了 'unsafe-inline' 和 'unsafe-eval'，这基本等于没有 CSP 保护。同时 connectSrc 里硬编码了大量 localhost 地址，生产环境不应该包含这些。
+
+3. 开发环境默认值安全性不足
+
+config.ts
+ 中非生产环境的 JWT Secret、Admin Password 都有弱默认值（"admin"、硬编码的 hash 字符串）。虽然生产环境做了强制校验，但 NODE_ENV 未设置时会走弱默认值分支。
+
+4. 缺少环境变量的统一校验
+
+环境变量散落在 config.ts、env.ts、各个 service 中直接 process.env.XXX，没有启动时的统一校验。建议用 Zod 做一次性 schema 验证，启动时 fail-fast。
+
+5. CORS 白名单硬编码
+
+corsMiddleware.ts
+ 中域名和 IP 地址全部硬编码，应该从环境变量或配置文件读取，方便不同环境部署。
+
+6. 缺少 CSRF 保护
+
+对于有状态的 POST/PUT/DELETE 操作，没有看到 CSRF token 机制。虽然用了 JWT Bearer token 做认证，但浏览器端的表单提交场景仍有风险。
+
+7. 代码组织可以更精简
+
+42 个路由文件 + 50 多个 service，app.ts 的 import 列表非常长
+建议按业务域分模块（auth、tts、admin、social 等），每个模块自注册路由
+routeLimiters.ts 导出了 37 个限流器，可以用配置驱动的方式简化
+8. 测试覆盖不均匀
+
+测试文件集中在 TOTP、Passkey、credential-id 等特定功能，核心业务逻辑（TTS 生成、用户管理、短链服务等）缺少测试。
+
+9. Docker Compose 配置不完整
+
+docker-compose.yml 只暴露了少量环境变量，缺少 MongoDB、Redis 等依赖服务的定义，也没有 health check 配置。
+
+10. 日志在生产环境可能过于详细
+
+app.ts 中即使非 development 模式也会对每个请求记录 req.ip，高流量下会产生大量日志。建议对 /health 等高频端点跳过日志。

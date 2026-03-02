@@ -103,6 +103,7 @@ import totpRoutes, { totpStatusHandler } from "./routes/totpRoutes";
 import ttsRoutes from "./routes/ttsRoutes";
 import turnstileRoutes from "./routes/turnstileRoutes";
 import webhookEventRoutes from "./routes/webhookEventRoutes";
+import nexaiRoutes from "./routes/nexaiRoutes";
 import webhookRoutes from "./routes/webhookRoutes";
 import { getIPInfo } from "./services/ip";
 import { isConnected as isMongoConnected } from "./services/mongoService";
@@ -471,10 +472,10 @@ app.use(
   swaggerUi.serve,
   preferSwaggerUrl
     ? swaggerUi.setup(undefined, {
-        swaggerUrl: "/openapi.json",
-        customSiteTitle: "Happy API",
-        customCss: swaggerCustomCss,
-      })
+      swaggerUrl: "/openapi.json",
+      customSiteTitle: "Happy API",
+      customCss: swaggerCustomCss,
+    })
     : swaggerUi.setup(swaggerUiSpec, { customSiteTitle: "Happy API", customCss: swaggerCustomCss }),
 );
 
@@ -558,6 +559,10 @@ app.use("/api/cdks", cdkMountLimiter, cdkRoutes);
 app.use("/api/webhook-events", authenticateToken, adminLimiter, webhookEventRoutes);
 app.use("/api/fbi-wanted", fbiWantedRoutes);
 app.use("/api/github-billing", githubBillingLimiter, githubBillingRoutes);
+
+// ========== NexAI 独立鉴权系统 ==========
+app.use("/api/nexai", nexaiRoutes);
+logger.info("[NexAI] 鉴权路由已挂载 /api/nexai");
 
 // 完整性检测兜底接口
 app.head("/api/proxy-test", integrityLimiter, (_req, res) => res.sendStatus(200));
@@ -842,7 +847,7 @@ class RateLimiter {
   constructor(
     private maxCalls: number,
     private period: number,
-  ) {}
+  ) { }
   attempt(): boolean {
     const now = Date.now();
     this.calls = this.calls.filter((call) => call > now - this.period);

@@ -1,0 +1,240 @@
+{
+  "Id": "5eab21340c886cd380cb9e1203dcf536b126cc6386fa2ead69d3253723a0c382",
+  "Created": "2025-09-06T15:03:13.338700235Z",
+  "Path": "/app/entry",
+  "Args": [
+    "cargo",
+    "run"
+  ],
+  "State": {
+    "Status": "exited",
+    "Running": false,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 0,
+    "ExitCode": 101,
+    "Error": "",
+    "StartedAt": "2026-02-20T12:47:43.47051923Z",
+    "FinishedAt": "2026-02-20T12:47:53.792073433Z"
+  },
+  "Image": "sha256:400fcc887b1ed5ef2d708fd65fd786343c6611ffab159efcaf472722bf280ac6",
+  "ResolvConfPath": "/var/lib/docker/containers/5eab21340c886cd380cb9e1203dcf536b126cc6386fa2ead69d3253723a0c382/resolv.conf",
+  "HostnamePath": "/var/lib/docker/containers/5eab21340c886cd380cb9e1203dcf536b126cc6386fa2ead69d3253723a0c382/hostname",
+  "HostsPath": "/var/lib/docker/containers/5eab21340c886cd380cb9e1203dcf536b126cc6386fa2ead69d3253723a0c382/hosts",
+  "LogPath": "/var/lib/docker/containers/5eab21340c886cd380cb9e1203dcf536b126cc6386fa2ead69d3253723a0c382/5eab21340c886cd380cb9e1203dcf536b126cc6386fa2ead69d3253723a0c382-json.log",
+  "Name": "/telegram-sticker-export-bot",
+  "RestartCount": 0,
+  "Driver": "overlay2",
+  "Platform": "linux",
+  "MountLabel": "",
+  "ProcessLabel": "",
+  "AppArmorProfile": "docker-default",
+  "ExecIDs": null,
+  "HostConfig": {
+    "Binds": [],
+    "ContainerIDFile": "",
+    "LogConfig": {
+      "Type": "json-file",
+      "Config": {}
+    },
+    "NetworkMode": "bridge",
+    "PortBindings": {},
+    "RestartPolicy": {
+      "Name": "no",
+      "MaximumRetryCount": 0
+    },
+    "AutoRemove": false,
+    "VolumeDriver": "",
+    "VolumesFrom": null,
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "CapAdd": null,
+    "CapDrop": null,
+    "CgroupnsMode": "private",
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IpcMode": "private",
+    "Cgroup": "",
+    "Links": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyRootfs": false,
+    "SecurityOpt": null,
+    "UTSMode": "",
+    "UsernsMode": "",
+    "ShmSize": 67108864,
+    "Runtime": "runc",
+    "Isolation": "",
+    "CpuShares": 1024,
+    "Memory": 0,
+    "NanoCpus": 0,
+    "CgroupParent": "",
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": null,
+    "BlkioDeviceReadBps": null,
+    "BlkioDeviceWriteBps": null,
+    "BlkioDeviceReadIOps": null,
+    "BlkioDeviceWriteIOps": null,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "Devices": null,
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "OomKillDisable": null,
+    "PidsLimit": null,
+    "Ulimits": null,
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "IOMaximumIOps": 0,
+    "IOMaximumBandwidth": 0,
+    "Mounts": [
+      {
+        "Type": "volume",
+        "Source": "8bec7e182ce0b93b48f9f1b3a475ffac0aef993509538c07d3904d1259d64170",
+        "Target": "/var/lib/telegram-bot-api"
+      }
+    ],
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/interrupts",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ]
+  },
+  "GraphDriver": {
+    "Data": {
+      "ID": "5eab21340c886cd380cb9e1203dcf536b126cc6386fa2ead69d3253723a0c382",
+      "LowerDir": "/var/lib/docker/overlay2/094e7d0f7755ded64cd3319b27225ff40aff891d2c54e0552e37fcb17741e1de-init/diff:/var/lib/docker/overlay2/f7b1177d005ea6c945548a1d29d37973847b5e66a952d1e66fc4615a3f8f0807/diff:/var/lib/docker/overlay2/4b26fb18bcdc80953862ebc57a8a1213a13d7cdd19f18d0b058d0af26c9808cc/diff:/var/lib/docker/overlay2/f8c484a63409892e3dcabf7b148edc1ee0c243c14b5633bb5786b5327fe7e1ce/diff:/var/lib/docker/overlay2/0d4c4e7a789758e2767b7dc113f6c7e31fcdabb6eaa00bba19d8233dc4c0e31a/diff:/var/lib/docker/overlay2/d13d4d2960d5d69e7af27fc0155ce9ad28b91a261ca87a8b75b0ef5de3a7eaba/diff:/var/lib/docker/overlay2/025675ae7beae4d4fdc91935428c5ca69e32fea8cfd35ddf04e093ca73eb1175/diff:/var/lib/docker/overlay2/ee45ebd1420f1f1402c821eaee53f9556c82c5e45e8d2b5e3554615912178da1/diff",
+      "MergedDir": "/var/lib/docker/overlay2/094e7d0f7755ded64cd3319b27225ff40aff891d2c54e0552e37fcb17741e1de/merged",
+      "UpperDir": "/var/lib/docker/overlay2/094e7d0f7755ded64cd3319b27225ff40aff891d2c54e0552e37fcb17741e1de/diff",
+      "WorkDir": "/var/lib/docker/overlay2/094e7d0f7755ded64cd3319b27225ff40aff891d2c54e0552e37fcb17741e1de/work"
+    },
+    "Name": "overlay2"
+  },
+  "Mounts": [
+    {
+      "Type": "volume",
+      "Name": "8bec7e182ce0b93b48f9f1b3a475ffac0aef993509538c07d3904d1259d64170",
+      "Source": "/var/lib/docker/volumes/8bec7e182ce0b93b48f9f1b3a475ffac0aef993509538c07d3904d1259d64170/_data",
+      "Destination": "/var/lib/telegram-bot-api",
+      "Driver": "local",
+      "Mode": "z",
+      "RW": true,
+      "Propagation": ""
+    }
+  ],
+  "Config": {
+    "Hostname": "bfbf2e8df1cb",
+    "Domainname": "",
+    "User": "root",
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "AttachStderr": false,
+    "Tty": false,
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Env": [
+      "TELOXIDE_TOKEN=8278275918:AAEmk65BU1tiTr_CQ3lTj9gBo9RvlsWcyEY",
+      "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+      "BOT_AUTH_CODE=WEe9tqbb0C6Qega67h4M"
+    ],
+    "Cmd": [
+      "cargo",
+      "run"
+    ],
+    "Image": "ghcr.io/devhappys/telegram-sticker-export-bot:main",
+    "Volumes": {
+      "/var/lib/telegram-bot-api": {}
+    },
+    "WorkingDir": "/app",
+    "Entrypoint": [
+      "/app/entry"
+    ],
+    "OnBuild": null,
+    "Labels": {
+      "org.opencontainers.image.created": "2024-06-27T15:34:06.784Z",
+      "org.opencontainers.image.description": "A bot that provides downloads of telegram stickers",
+      "org.opencontainers.image.licenses": "AGPL-3.0",
+      "org.opencontainers.image.revision": "0d90490c704795ece28bffce918ea1d41513e420",
+      "org.opencontainers.image.source": "https://github.com/AH-dark/telegram-sticker-export-bot",
+      "org.opencontainers.image.title": "telegram-sticker-export-bot",
+      "org.opencontainers.image.url": "https://github.com/AH-dark/telegram-sticker-export-bot",
+      "org.opencontainers.image.version": "1.1.5"
+    }
+  },
+  "NetworkSettings": {
+    "Bridge": "",
+    "SandboxID": "",
+    "SandboxKey": "",
+    "Ports": {},
+    "HairpinMode": false,
+    "LinkLocalIPv6Address": "",
+    "LinkLocalIPv6PrefixLen": 0,
+    "SecondaryIPAddresses": null,
+    "SecondaryIPv6Addresses": null,
+    "EndpointID": "",
+    "Gateway": "",
+    "GlobalIPv6Address": "",
+    "GlobalIPv6PrefixLen": 0,
+    "IPAddress": "",
+    "IPPrefixLen": 0,
+    "IPv6Gateway": "",
+    "MacAddress": "",
+    "Networks": {
+      "1panel-network": {
+        "IPAMConfig": {
+          "IPv4Address": "172.18.0.16"
+        },
+        "Links": null,
+        "Aliases": null,
+        "MacAddress": "",
+        "DriverOpts": null,
+        "GwPriority": 0,
+        "NetworkID": "a299bdc9c3d939e606f678f3705ffe2d5913c846b6fa5b91c6a8636250bcc977",
+        "EndpointID": "",
+        "Gateway": "",
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "DNSNames": [
+          "telegram-sticker-export-bot",
+          "5eab21340c88",
+          "bfbf2e8df1cb"
+        ]
+      }
+    }
+  }
+}

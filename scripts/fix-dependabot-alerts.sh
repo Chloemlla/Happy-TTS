@@ -55,6 +55,12 @@ echo ""
 echo "--- frontend/docs ---"
 cd frontend/docs && pnpm audit 2>/dev/null || true && cd ../..
 
+# 4. NexAI Auth — install google-auth-library for Google OAuth
+echo ""
+echo "[NexAI] Installing google-auth-library for NexAI OAuth..."
+pnpm add google-auth-library
+echo "✅ NexAI dependencies done"
+
 echo ""
 echo "=========================================="
 echo "  Done. Review audit output above."
