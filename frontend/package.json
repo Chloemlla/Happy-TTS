@@ -112,7 +112,7 @@
     "jsdom": "^28.1.0",
     "postcss": "^8.5.6",
     "react-email": "5.2.8",
-    "rollup-plugin-visualizer": "^6.0.5",
+    "rollup-plugin-visualizer": "^7.0.0",
     "tailwind-scrollbar": "^3.1.0",
     "tailwindcss": "^3.4.17",
     "terser": "^5.46.0",
