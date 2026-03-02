@@ -5,6 +5,7 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
+import crypto from "crypto";
 import validator from "validator";
 import axios from "axios";
 import { config } from "../config/config";
@@ -160,13 +161,15 @@ export class NexaiAuthService {
             throw Object.assign(new Error("输入验证失败"), { statusCode: 400, validationErrors: errors });
         }
 
-        // 检查用户名和邮箱是否已存在
-        const existingByUsername = await NexaiUserModel.findOne({ username: data.username }).lean();
+        // 检查用户名和邮箱是否已存在（使用已验证过的安全值）
+        const safeUsername = String(data.username).replace(/[^a-zA-Z0-9_-]/g, "");
+        const safeEmail = String(data.email).trim().toLowerCase();
+        const existingByUsername = await NexaiUserModel.findOne({ username: safeUsername }).lean();
         if (existingByUsername) {
             throw Object.assign(new Error("用户名已被使用"), { statusCode: 409 });
         }
 
-        const existingByEmail = await NexaiUserModel.findOne({ email: data.email.trim().toLowerCase() }).lean();
+        const existingByEmail = await NexaiUserModel.findOne({ email: safeEmail }).lean();
         if (existingByEmail) {
             throw Object.assign(new Error("邮箱已被注册"), { statusCode: 409 });
         }
@@ -211,11 +214,13 @@ export class NexaiAuthService {
             throw Object.assign(new Error("请提供用户名/邮箱和密码"), { statusCode: 400 });
         }
 
-        // 查找用户（支持用户名或邮箱）
-        const isEmail = validator.isEmail(data.identifier);
-        const query = isEmail
-            ? { email: data.identifier.trim().toLowerCase() }
-            : { username: data.identifier };
+        // 查找用户（支持用户名或邮箱）— 显式清理输入防止 NoSQL 注入
+        const identifier = String(data.identifier).trim();
+        const isEmail = validator.isEmail(identifier);
+        const safeValue = isEmail
+            ? identifier.toLowerCase()
+            : identifier.replace(/[^a-zA-Z0-9_-]/g, "");
+        const query = isEmail ? { email: safeValue } : { username: safeValue };
 
         const user = await NexaiUserModel.findOne(query).lean() as INexaiUser | null;
         if (!user) {
@@ -638,14 +643,16 @@ export class NexaiAuthService {
             if (errors.length > 0) {
                 throw Object.assign(new Error(errors[0].message), { statusCode: 400 });
             }
+            // 显式清理：仅允许通过验证的安全字符集
+            const sanitizedUsername = String(updates.username).replace(/[^a-zA-Z0-9_-]/g, "");
             const existing = await NexaiUserModel.findOne({
-                username: updates.username,
+                username: sanitizedUsername,
                 id: { $ne: userId },
             }).lean();
             if (existing) {
                 throw Object.assign(new Error("用户名已被使用"), { statusCode: 409 });
             }
-            setFields.username = updates.username;
+            setFields.username = sanitizedUsername;
         }
 
         if (updates.avatarUrl !== undefined) {
@@ -967,7 +974,7 @@ async function generateUniqueUsername(baseName: string): Promise<string> {
     let attempt = 0;
     while (await NexaiUserModel.findOne({ username }).lean()) {
         attempt++;
-        username = `${name}_${Math.random().toString(36).slice(2, 6)}`;
+        username = `${name}_${crypto.randomBytes(3).toString("hex")}`;
         if (attempt > 10) {
             username = `user_${uuidv4().slice(0, 8)}`;
             break;
