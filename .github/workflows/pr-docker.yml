@@ -1,4 +1,4 @@
-name: Docker Build Check
+name: Docker Build Verification
 
 on:
   pull_request:
