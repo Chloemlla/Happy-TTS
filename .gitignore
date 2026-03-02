@@ -14,6 +14,10 @@ LogPaste/
 *.pem
 *.exe
 github-billing-multi-curl.json
+client_secret_17055657909-fvhkanhq0ht0gm69ra2sjb5onpeqrh91.apps.googleusercontent.com.json
+scripts\inspect.json
+tts-node_*.sh
+tts-node_*.json
 # 允许特定环境文件
 !**/pnpm-lock.yaml
 !frontend/.env
