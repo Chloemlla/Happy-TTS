@@ -1,6 +1,10 @@
 name: Force Merge Dependabot PRs
 
 on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'scripts/force-merge-dependabot.js'
   workflow_dispatch:
 
 permissions:
