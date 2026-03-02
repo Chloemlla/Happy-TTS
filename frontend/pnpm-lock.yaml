@@ -121,8 +121,8 @@ importers:
         specifier: ^4.6.2
         version: 4.6.2
       lucide-react:
-        specifier: ^0.564.0
-        version: 0.564.0(react@19.2.3)
+        specifier: ^0.576.0
+        version: 0.576.0(react@19.2.3)
       marked:
         specifier: ^16.0.0
         version: 16.4.2
@@ -3969,8 +3969,8 @@ packages:
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
-  lucide-react@0.564.0:
-    resolution: {integrity: sha512-JJ8GVTQqFwuliifD48U6+h7DXEHdkhJ/E87kksGByII3qHxtPciVb8T8woQONHBQgHVOl7rSMrrip3SeVNy7Fg==}
+  lucide-react@0.576.0:
+    resolution: {integrity: sha512-koNxU14BXrxUfZQ9cUaP0ES1uyPZKYDjk31FQZB6dQ/x+tXk979sVAn9ppZ/pVeJJyOxVM8j1E+8QEuSc02Vug==}
     peerDependencies:
       react: ^19.0.0
 
@@ -9300,7 +9300,7 @@ snapshots:
       jszip: 3.10.1
       katex: 0.16.28
       lodash.merge: 4.6.2
-      lucide-react: 0.564.0(react@19.2.3)
+      lucide-react: 0.576.0(react@19.2.3)
       marked: 16.4.2
       marked-katex-extension: 5.1.6(katex@0.16.28)(marked@16.4.2)
       md5: 2.3.0
@@ -9901,7 +9901,7 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
-  lucide-react@0.564.0(react@19.2.3):
+  lucide-react@0.576.0(react@19.2.3):
     dependencies:
       react: 19.2.3
 
