@@ -147,8 +147,8 @@ importers:
         specifier: ^5.11.0
         version: 5.11.0
       resend:
-        specifier: ^6.9.2
-        version: 6.9.2
+        specifier: ^6.9.3
+        version: 6.9.3
       serve:
         specifier: ^14.2.1
         version: 14.2.5
@@ -3235,8 +3235,8 @@ packages:
   require-main-filename@2.0.0:
     resolution: {integrity: sha512-NKN5kMDylKuldxYLSUfrbo5Tuzh4hd+2E8NPPX02mZtn1VuREQToYe/ZdlJy+J3uCpfaiGF05e7B8W0iXbQHmg==}
 
-  resend@6.9.2:
-    resolution: {integrity: sha512-uIM6CQ08tS+hTCRuKBFbOBvHIGaEhqZe8s4FOgqsVXSbQLAhmNWpmUhG3UAtRnmcwTWFUqnHa/+Vux8YGPyDBA==}
+  resend@6.9.3:
+    resolution: {integrity: sha512-GRXjH9XZBJA+daH7bBVDuTShr22iWCxXA8P7t495G4dM/RC+d+3gHBK/6bz9K6Vpcq11zRQKmD+B+jECwQlyGQ==}
     engines: {node: '>=20'}
     peerDependencies:
       '@react-email/render': '*'
@@ -6071,6 +6071,7 @@ snapshots:
       express: 5.2.1
       express-rate-limit: 7.5.1(express@5.2.1)
       form-data: 4.0.5
+      google-auth-library: 10.6.1
       helmet: 8.1.0
       http-proxy-agent: 7.0.2
       jsdom: 28.1.0(@noble/hashes@1.8.0)
@@ -6091,7 +6092,7 @@ snapshots:
       qrcode: 1.5.4
       react-syntax-highlighter: 16.1.0(react@19.1.1)
       redis: 5.11.0
-      resend: 6.9.2
+      resend: 6.9.3
       serve: 14.2.5
       socks-proxy-agent: 8.0.5
       speakeasy: 2.0.0
@@ -7390,7 +7391,7 @@ snapshots:
 
   require-main-filename@2.0.0: {}
 
-  resend@6.9.2:
+  resend@6.9.3:
     dependencies:
       postal-mime: 2.7.3
       svix: 1.84.1
