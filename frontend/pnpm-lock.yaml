@@ -55,8 +55,8 @@ importers:
         specifier: ^13.15.10
         version: 13.15.10
       axios:
-        specifier: ^1.13.5
-        version: 1.13.5
+        specifier: ^1.13.6
+        version: 1.13.6
       bcrypt:
         specifier: ^6.0.0
         version: 6.0.0
@@ -2585,8 +2585,8 @@ packages:
     resolution: {integrity: sha512-wvUjBtSGN7+7SjNpq/9M2Tg350UZD3q62IFZLbRAR1bSMlCo1ZaeW+BJ+D090e4hIIZLBcTDWe4Mh4jvUDajzQ==}
     engines: {node: '>= 0.4'}
 
-  axios@1.13.5:
-    resolution: {integrity: sha512-cz4ur7Vb0xS4/KUN0tPWe44eqxrIu31me+fbang3ijiNscE129POzipJJA6zniq2C/Z6sJCjMimjS8Lc/GAs8Q==}
+  axios@1.13.6:
+    resolution: {integrity: sha512-ChTCHMouEe2kn713WHbQGcuYrr6fXTBiu460OTwWrWob16g1bXn4vtz07Ope7ewMozJAnEquLk5lWQWtBig9DQ==}
 
   babel-plugin-polyfill-corejs2@0.4.14:
     resolution: {integrity: sha512-Co2Y9wX854ts6U8gAAPXfn0GmAyctHuK8n0Yhfjd6t30g7yvKjspvvOo9yG+z52PZRgFErt7Ka2pYnXCjLKEpg==}
@@ -7681,7 +7681,7 @@ snapshots:
       '@swagger-api/apidom-core': 1.5.0
       '@swagger-api/apidom-error': 1.5.0
       '@types/ramda': 0.30.2
-      axios: 1.13.5
+      axios: 1.13.6
       minimatch: 10.2.4
       process: 0.11.10
       ramda: 0.30.1
@@ -8228,7 +8228,7 @@ snapshots:
       '@babel/preset-typescript': 7.28.5(@babel/core@7.29.0)
       '@babel/runtime': 7.28.6
       '@vitalets/google-translate-api': 9.2.1
-      axios: 1.13.5
+      axios: 1.13.6
       crypto-js: 4.2.0
       progress: 2.0.3
       tunnel: 0.0.6
@@ -8254,7 +8254,7 @@ snapshots:
     dependencies:
       possible-typed-array-names: 1.1.0
 
-  axios@1.13.5:
+  axios@1.13.6:
     dependencies:
       follow-redirects: 1.15.11
       form-data: 4.0.5
@@ -9279,7 +9279,7 @@ snapshots:
       '@types/jsdom': 27.0.0
       '@types/jsonwebtoken': 9.0.10
       '@types/validator': 13.15.10
-      axios: 1.13.5
+      axios: 1.13.6
       bcrypt: 6.0.0
       buffer: 6.0.3
       canvg: 4.0.3
