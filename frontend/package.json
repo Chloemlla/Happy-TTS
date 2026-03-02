@@ -68,7 +68,7 @@
     "marked": "^17.0.2",
     "marked-katex-extension": "^5.1.6",
     "md5": "^2.3.0",
-    "mermaid": "^11.12.2",
+    "mermaid": "^11.12.3",
     "prismjs": "^1.30.0",
     "process": "^0.11.10",
     "qrcode.react": "^4.2.0",
