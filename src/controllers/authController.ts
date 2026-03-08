@@ -1,6 +1,13 @@
 import type { Request, Response } from "express";
-import { VerificationTokenType, verificationTokenStorage } from "../models/verificationTokenModel";
-import { addEmailUsage, EmailService, getEmailQuota } from "../services/emailService";
+import {
+  VerificationTokenType,
+  verificationTokenStorage,
+} from "../models/verificationTokenModel";
+import {
+  addEmailUsage,
+  EmailService,
+  getEmailQuota,
+} from "../services/emailService";
 import { TurnstileService } from "../services/turnstileService";
 import * as VerificationService from "../services/verificationService";
 import {
@@ -25,7 +32,9 @@ const allowedDomains = [
   "hapxs.com",
   "hapx.one",
 ];
-const emailPattern = new RegExp(`^[\\w.-]+@(${allowedDomains.map((d) => d.replace(".", "\\.")).join("|")})$`);
+const emailPattern = new RegExp(
+  `^[\\w.-]+@(${allowedDomains.map((d) => d.replace(".", "\\.")).join("|")})$`
+);
 
 // 临时存储验证码和注册信息
 const emailCodeMap = new Map(); // email -> { code, time, regInfo }
@@ -37,7 +46,7 @@ type UserWithVerified = User & { verified?: boolean };
 
 // 获取前端基础URL
 function getFrontendBaseUrl(): string {
-  return process.env.FRONTEND_URL || "https://tts-new.951100.xyz";
+  return process.env.FRONTEND_URL || "https://tts.951100.xyz";
 }
 
 // 生成邮箱验证码HTML模板（与TtsPage UI风格统一）
@@ -445,17 +454,30 @@ export class AuthController {
       const ipAddress = clientIP || serverIP;
 
       // 记录IP比对情况（用于调试和安全分析）
-      if (clientIP && clientIP !== serverIP && clientIP !== "unknown" && serverIP !== "unknown") {
-        logger.info(`[注册] IP差异检测: 前端=${clientIP}, 后端=${serverIP}, email=${email}`);
+      if (
+        clientIP &&
+        clientIP !== serverIP &&
+        clientIP !== "unknown" &&
+        serverIP !== "unknown"
+      ) {
+        logger.info(
+          `[注册] IP差异检测: 前端=${clientIP}, 后端=${serverIP}, email=${email}`
+        );
       }
       // 禁止用户名为admin等保留字段，仅注册时校验
-      if (username && ["admin", "root", "system", "test", "administrator"].includes(username.toLowerCase())) {
+      if (
+        username &&
+        ["admin", "root", "system", "test", "administrator"].includes(
+          username.toLowerCase()
+        )
+      ) {
         return res.status(400).json({ error: "用户名不能为保留字段" });
       }
       // 只允许主流邮箱
       if (!emailPattern.test(email)) {
         return res.status(400).json({
-          error: "只支持主流邮箱（如gmail、outlook、qq、163、126、hotmail、yahoo、icloud、foxmail、hapxs、hapx等）",
+          error:
+            "只支持主流邮箱（如gmail、outlook、qq、163、126、hotmail、yahoo、icloud、foxmail、hapxs、hapx等）",
         });
       }
       // 验证邮箱格式
@@ -473,8 +495,12 @@ export class AuthController {
       try {
         const quota = await getEmailQuota(email);
         if (quota.used >= quota.total) {
-          logger.warn(`[邮箱验证码] 配额已用尽: ${email}, used=${quota.used}, total=${quota.total}`);
-          return res.status(429).json({ error: "验证码发送次数已达上限，请明日再试" });
+          logger.warn(
+            `[邮箱验证码] 配额已用尽: ${email}, used=${quota.used}, total=${quota.total}`
+          );
+          return res
+            .status(429)
+            .json({ error: "验证码发送次数已达上限，请明日再试" });
         }
       } catch (e) {
         // 配额查询异常不阻断注册流程，但记录日志
@@ -486,7 +512,7 @@ export class AuthController {
         email,
         fingerprint,
         ipAddress,
-        { username, email, password },
+        { username, email, password }
       );
 
       // 生成验证链接
@@ -495,8 +521,15 @@ export class AuthController {
 
       // 发送邮件验证链接
       try {
-        const emailHtml = generateVerificationLinkEmailHtml(username, verificationLink);
-        const emailResult = await EmailService.sendHtmlEmail([email], "Happy-TTS 邮箱验证", emailHtml);
+        const emailHtml = generateVerificationLinkEmailHtml(
+          username,
+          verificationLink
+        );
+        const emailResult = await EmailService.sendHtmlEmail(
+          [email],
+          "Happy-TTS 邮箱验证",
+          emailHtml
+        );
 
         if (emailResult.success) {
           try {
@@ -505,9 +538,14 @@ export class AuthController {
             logger.warn("[邮箱验证链接] 配额递增失败", { email, error: e });
           }
           logger.info(`[邮箱验证链接] 成功发送到: ${email}`);
-          res.json({ needVerify: true, message: "验证链接已发送到邮箱，请查收" });
+          res.json({
+            needVerify: true,
+            message: "验证链接已发送到邮箱，请查收",
+          });
         } else {
-          logger.error(`[邮箱验证链接] 发送失败: ${email}, 错误: ${emailResult.error}`);
+          logger.error(
+            `[邮箱验证链接] 发送失败: ${email}, 错误: ${emailResult.error}`
+          );
           verificationTokenStorage.deleteToken(verificationToken.token);
           res.status(500).json({ error: "验证链接发送失败，请稍后重试" });
         }
@@ -538,7 +576,11 @@ export class AuthController {
       const ipAddress = req.ip || req.connection.remoteAddress || "unknown";
 
       // 使用验证服务验证邮箱链接
-      const result = await VerificationService.verifyEmailLink(token, fingerprint, ipAddress);
+      const result = await VerificationService.verifyEmailLink(
+        token,
+        fingerprint,
+        ipAddress
+      );
 
       if (result.success) {
         res.json({ success: true, message: result.message });
@@ -579,12 +621,20 @@ export class AuthController {
         emailCodeMap.delete(email);
         return res.status(400).json({ error: "用户名或邮箱已被使用" });
       }
-      await UserStorage.createUser(regInfo.username, regInfo.email, regInfo.password);
+      await UserStorage.createUser(
+        regInfo.username,
+        regInfo.email,
+        regInfo.password
+      );
       emailCodeMap.delete(email);
       // 发送欢迎邮件（不影响主流程）
       try {
         const welcomeHtml = generateWelcomeEmailHtml(regInfo.username);
-        await EmailService.sendHtmlEmail([regInfo.email], "欢迎加入 Happy-TTS", welcomeHtml);
+        await EmailService.sendHtmlEmail(
+          [regInfo.email],
+          "欢迎加入 Happy-TTS",
+          welcomeHtml
+        );
       } catch (e) {
         logger.warn(`[欢迎邮件] 发送失败: ${regInfo.email}`, e);
       }
@@ -616,8 +666,12 @@ export class AuthController {
       try {
         const quota = await getEmailQuota(email);
         if (quota.used >= quota.total) {
-          logger.warn(`[重发邮箱验证码] 配额已用尽: ${email}, used=${quota.used}, total=${quota.total}`);
-          return res.status(429).json({ error: "验证码发送次数已达上限，请明日再试" });
+          logger.warn(
+            `[重发邮箱验证码] 配额已用尽: ${email}, used=${quota.used}, total=${quota.total}`
+          );
+          return res
+            .status(429)
+            .json({ error: "验证码发送次数已达上限，请明日再试" });
         }
       } catch (e) {
         logger.warn(`[重发邮箱验证码] 配额查询异常: ${email}`, e);
@@ -634,8 +688,15 @@ export class AuthController {
 
       // 发送邮件验证码
       try {
-        const emailHtml = generateVerificationEmailHtml(entry.regInfo.username, code);
-        const emailResult = await EmailService.sendHtmlEmail([email], "Happy-TTS 邮箱验证码", emailHtml);
+        const emailHtml = generateVerificationEmailHtml(
+          entry.regInfo.username,
+          code
+        );
+        const emailResult = await EmailService.sendHtmlEmail(
+          [email],
+          "Happy-TTS 邮箱验证码",
+          emailHtml
+        );
 
         if (emailResult.success) {
           try {
@@ -646,7 +707,9 @@ export class AuthController {
           logger.info(`[重发邮箱验证码] 成功发送到: ${email}`);
           res.json({ success: true });
         } else {
-          logger.error(`[重发邮箱验证码] 发送失败: ${email}, 错误: ${emailResult.error}`);
+          logger.error(
+            `[重发邮箱验证码] 发送失败: ${email}, 错误: ${emailResult.error}`
+          );
           res.status(500).json({ error: "验证码发送失败，请稍后重试" });
         }
       } catch (emailError) {
@@ -698,18 +761,28 @@ export class AuthController {
       if (!user) {
         // 为了确定失败的具体原因，我们再次查找用户
         const allUsers = await UserStorage.getAllUsers();
-        const userExists = allUsers.some((u) => u.username === identifier || u.email === identifier);
+        const userExists = allUsers.some(
+          (u) => u.username === identifier || u.email === identifier
+        );
 
         if (!userExists) {
           logger.warn("登录失败：用户不存在", logDetails);
         } else {
           // 仅开发环境输出预期密码
           let expectedPassword;
-          if (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "dev") {
-            const user = allUsers.find((u) => u.username === identifier || u.email === identifier);
+          if (
+            process.env.NODE_ENV === "development" ||
+            process.env.NODE_ENV === "dev"
+          ) {
+            const user = allUsers.find(
+              (u) => u.username === identifier || u.email === identifier
+            );
             expectedPassword = user?.password;
           }
-          logger.warn("登录失败：密码错误", { ...logDetails, expectedPassword }); // 仅开发环境输出预期密码
+          logger.warn("登录失败：密码错误", {
+            ...logDetails,
+            expectedPassword,
+          }); // 仅开发环境输出预期密码
         }
 
         return res.status(401).json({ error: "用户名/邮箱或密码错误" });
@@ -717,13 +790,17 @@ export class AuthController {
 
       // 检查用户是否启用了TOTP或Passkey
       const hasTOTP = !!user.totpEnabled;
-      const hasPasskey = Array.isArray(user.passkeyCredentials) && user.passkeyCredentials.length > 0;
+      const hasPasskey =
+        Array.isArray(user.passkeyCredentials) &&
+        user.passkeyCredentials.length > 0;
       if (hasTOTP || hasPasskey) {
         const tempToken = user.id;
         const tToken = Date.now();
         await updateUserToken(user.id, tempToken, 5 * 60 * 1000); // 5分钟过期
         const tTokenEnd = Date.now();
-        logger.info("[login] updateUserToken耗时", { 耗时: `${tTokenEnd - tToken}ms` });
+        logger.info("[login] updateUserToken耗时", {
+          耗时: `${tTokenEnd - tToken}ms`,
+        });
         // 不返回avatarBase64
         const { id, username, email, role } = user;
         const t1 = Date.now();
@@ -731,9 +808,16 @@ export class AuthController {
           user: { id, username, email, role },
           token: tempToken,
           requires2FA: true,
-          twoFactorType: [hasTOTP ? "TOTP" : null, hasPasskey ? "Passkey" : null].filter(Boolean),
+          twoFactorType: [
+            hasTOTP ? "TOTP" : null,
+            hasPasskey ? "Passkey" : null,
+          ].filter(Boolean),
         });
-        logger.info("[login] 已返回二次验证响应", { 总耗时: `${t1 - t0}ms`, t0, t1 });
+        logger.info("[login] 已返回二次验证响应", {
+          总耗时: `${t1 - t0}ms`,
+          t0,
+          t1,
+        });
         return;
       }
 
@@ -746,7 +830,11 @@ export class AuthController {
       // 生成JWT token
       const jwt = require("jsonwebtoken");
       const config = require("../config/config").config;
-      const token = jwt.sign({ userId: user.id, username: user.username, role: user.role || "user" }, config.jwtSecret, { expiresIn: "2h" });
+      const token = jwt.sign(
+        { userId: user.id, username: user.username, role: user.role || "user" },
+        config.jwtSecret,
+        { expiresIn: "2h" }
+      );
       // 不再写入user.token，仅返回JWT
       const { id, username, email, role } = user;
       const t1 = Date.now();
@@ -783,7 +871,10 @@ export class AuthController {
       // 只支持JWT token
       let userId: string;
       try {
-        const decoded: any = require("jsonwebtoken").verify(token, require("../config/config").config.jwtSecret);
+        const decoded: any = require("jsonwebtoken").verify(
+          token,
+          require("../config/config").config.jwtSecret
+        );
         userId = decoded.userId;
       } catch (_e) {
         return res.status(401).json({ error: "认证令牌无效" });
@@ -825,12 +916,18 @@ export class AuthController {
       // 查找用户并验证
       const user = await UserStorage.getUserByUsername(username);
       if (!user) {
-        logger.warn("[AuthController] Passkey校验失败：用户不存在", { username });
+        logger.warn("[AuthController] Passkey校验失败：用户不存在", {
+          username,
+        });
         return res.status(404).json({ error: "用户不存在" });
       }
 
       // 验证用户是否启用了Passkey
-      if (!user.passkeyEnabled || !Array.isArray(user.passkeyCredentials) || user.passkeyCredentials.length === 0) {
+      if (
+        !user.passkeyEnabled ||
+        !Array.isArray(user.passkeyCredentials) ||
+        user.passkeyCredentials.length === 0
+      ) {
         logger.warn("[AuthController] Passkey校验失败：用户未启用Passkey", {
           username,
           userId: user.id,
@@ -842,23 +939,33 @@ export class AuthController {
 
       // 验证用户名与用户数据的一致性
       if (user.username !== username) {
-        logger.error("[AuthController] Passkey校验失败：用户名与用户数据不匹配", {
-          providedUsername: username,
-          actualUsername: user.username,
-          userId: user.id,
-        });
+        logger.error(
+          "[AuthController] Passkey校验失败：用户名与用户数据不匹配",
+          {
+            providedUsername: username,
+            actualUsername: user.username,
+            userId: user.id,
+          }
+        );
         return res.status(400).json({ error: "用户名验证失败" });
       }
 
       // 校验 passkeyCredentialId 是否存在
-      const found = user.passkeyCredentials.some((cred) => cred.credentialID === passkeyCredentialId);
+      const found = user.passkeyCredentials.some(
+        (cred) => cred.credentialID === passkeyCredentialId
+      );
       if (!found) {
-        logger.warn("[AuthController] Passkey校验失败：找不到匹配的credentialID", {
-          username,
-          userId: user.id,
-          providedCredentialId: passkeyCredentialId,
-          availableCredentialIds: user.passkeyCredentials.map((c) => `${c.credentialID?.substring(0, 10)}...`),
-        });
+        logger.warn(
+          "[AuthController] Passkey校验失败：找不到匹配的credentialID",
+          {
+            username,
+            userId: user.id,
+            providedCredentialId: passkeyCredentialId,
+            availableCredentialIds: user.passkeyCredentials.map(
+              (c) => `${c.credentialID?.substring(0, 10)}...`
+            ),
+          }
+        );
         return res.status(401).json({ error: "Passkey 校验失败" });
       }
 
@@ -873,7 +980,11 @@ export class AuthController {
       // 生成JWT token
       const jwt = require("jsonwebtoken");
       const config = require("../config/config").config;
-      const token = jwt.sign({ userId: user.id, username: user.username, role: user.role || "user" }, config.jwtSecret, { expiresIn: "2h" });
+      const token = jwt.sign(
+        { userId: user.id, username: user.username, role: user.role || "user" },
+        config.jwtSecret,
+        { expiresIn: "2h" }
+      );
 
       logger.info("[AuthController] Passkey验证成功，生成JWT token", {
         userId: user.id,
@@ -915,9 +1026,14 @@ export class AuthController {
       // Turnstile验证（如果提供了token）
       if (turnstileToken) {
         const remoteIp = req.ip || req.connection.remoteAddress || "unknown";
-        const isValid = await TurnstileService.verifyToken(turnstileToken, remoteIp);
+        const isValid = await TurnstileService.verifyToken(
+          turnstileToken,
+          remoteIp
+        );
         if (!isValid) {
-          logger.warn(`[密码重置] Turnstile验证失败: ${email}, IP: ${remoteIp}`);
+          logger.warn(
+            `[密码重置] Turnstile验证失败: ${email}, IP: ${remoteIp}`
+          );
           return res.status(400).json({ error: "人机验证失败，请重试" });
         }
       }
@@ -926,15 +1042,22 @@ export class AuthController {
       const user = await UserStorage.getUserByEmail(email);
       if (!user) {
         // 为了安全，不透露用户是否存在
-        return res.json({ success: true, message: "如果该邮箱已注册，您将收到密码重置链接" });
+        return res.json({
+          success: true,
+          message: "如果该邮箱已注册，您将收到密码重置链接",
+        });
       }
 
       // 邮件配额检查
       try {
         const quota = await getEmailQuota(email);
         if (quota.used >= quota.total) {
-          logger.warn(`[密码重置] 配额已用尽: ${email}, used=${quota.used}, total=${quota.total}`);
-          return res.status(429).json({ error: "重置链接发送次数已达上限，请明日再试" });
+          logger.warn(
+            `[密码重置] 配额已用尽: ${email}, used=${quota.used}, total=${quota.total}`
+          );
+          return res
+            .status(429)
+            .json({ error: "重置链接发送次数已达上限，请明日再试" });
         }
       } catch (e) {
         logger.warn(`[密码重置] 配额查询异常: ${email}`, e);
@@ -945,8 +1068,15 @@ export class AuthController {
       const ipAddress = clientIP || serverIP;
 
       // 记录IP比对情况（用于调试和安全分析）
-      if (clientIP && clientIP !== serverIP && clientIP !== "unknown" && serverIP !== "unknown") {
-        logger.info(`[密码重置] IP差异检测: 前端=${clientIP}, 后端=${serverIP}, email=${email}`);
+      if (
+        clientIP &&
+        clientIP !== serverIP &&
+        clientIP !== "unknown" &&
+        serverIP !== "unknown"
+      ) {
+        logger.info(
+          `[密码重置] IP差异检测: 前端=${clientIP}, 后端=${serverIP}, email=${email}`
+        );
       }
 
       // 创建验证令牌
@@ -955,7 +1085,7 @@ export class AuthController {
         email,
         fingerprint,
         ipAddress,
-        { userId: user.id, username: user.username, email },
+        { userId: user.id, username: user.username, email }
       );
 
       // 生成重置链接
@@ -964,8 +1094,15 @@ export class AuthController {
 
       // 发送邮件重置链接
       try {
-        const emailHtml = generatePasswordResetLinkEmailHtml(user.username, resetLink);
-        const emailResult = await EmailService.sendHtmlEmail([email], "Happy-TTS 密码重置", emailHtml);
+        const emailHtml = generatePasswordResetLinkEmailHtml(
+          user.username,
+          resetLink
+        );
+        const emailResult = await EmailService.sendHtmlEmail(
+          [email],
+          "Happy-TTS 密码重置",
+          emailHtml
+        );
 
         if (emailResult.success) {
           try {
@@ -976,7 +1113,9 @@ export class AuthController {
           logger.info(`[密码重置] 成功发送到: ${email}`);
           res.json({ success: true, message: "重置链接已发送到您的邮箱" });
         } else {
-          logger.error(`[密码重置] 发送失败: ${email}, 错误: ${emailResult.error}`);
+          logger.error(
+            `[密码重置] 发送失败: ${email}, 错误: ${emailResult.error}`
+          );
           resetPasswordCodeMap.delete(email);
           res.status(500).json({ error: "验证码发送失败，请稍后重试" });
         }
@@ -1012,7 +1151,12 @@ export class AuthController {
       const ipAddress = req.ip || req.connection.remoteAddress || "unknown";
 
       // 使用验证服务重置密码
-      const result = await VerificationService.verifyPasswordResetLink(token, fingerprint, ipAddress, newPassword);
+      const result = await VerificationService.verifyPasswordResetLink(
+        token,
+        fingerprint,
+        ipAddress,
+        newPassword
+      );
 
       if (result.success) {
         res.json({ success: true, message: result.message });
@@ -1063,7 +1207,12 @@ export class AuthController {
       }
 
       // 验证新密码强度
-      const passwordErrors = UserStorage.validateUserInput(user.username, newPassword, user.email, true);
+      const passwordErrors = UserStorage.validateUserInput(
+        user.username,
+        newPassword,
+        user.email,
+        true
+      );
       if (passwordErrors.length > 0) {
         return res.status(400).json({ error: passwordErrors[0].message });
       }
@@ -1097,7 +1246,9 @@ export class AuthController {
 
       // 检查是否启用了TOTP或Passkey
       const hasTOTP = !!user.totpEnabled;
-      const hasPasskey = Array.isArray(user.passkeyCredentials) && user.passkeyCredentials.length > 0;
+      const hasPasskey =
+        Array.isArray(user.passkeyCredentials) &&
+        user.passkeyCredentials.length > 0;
 
       if (!hasTOTP && !hasPasskey) {
         return res.status(400).json({ error: "用户未启用任何二次验证" });
@@ -1120,9 +1271,13 @@ export class AuthController {
           });
           if (isValid) {
             verificationResult = true;
-            logger.info(`TOTP验证成功: userId=${userId}, token=${verificationCode}`);
+            logger.info(
+              `TOTP验证成功: userId=${userId}, token=${verificationCode}`
+            );
           } else {
-            logger.warn(`TOTP验证失败: userId=${userId}, token=${verificationCode}`);
+            logger.warn(
+              `TOTP验证失败: userId=${userId}, token=${verificationCode}`
+            );
           }
         } else {
           logger.warn(`TOTP验证失败: userId=${userId}, 用户未启用TOTP`);
@@ -1133,12 +1288,18 @@ export class AuthController {
         // Passkey验证
         const { username, passkeyCredentials } = user;
         if (username && passkeyCredentials && passkeyCredentials.length > 0) {
-          const found = passkeyCredentials.some((cred) => cred.credentialID === verificationCode);
+          const found = passkeyCredentials.some(
+            (cred) => cred.credentialID === verificationCode
+          );
           if (found) {
             verificationResult = true;
-            logger.info(`Passkey验证成功: userId=${userId}, credentialId=${verificationCode}`);
+            logger.info(
+              `Passkey验证成功: userId=${userId}, credentialId=${verificationCode}`
+            );
           } else {
-            logger.warn(`Passkey验证失败: userId=${userId}, credentialId=${verificationCode}`);
+            logger.warn(
+              `Passkey验证失败: userId=${userId}, credentialId=${verificationCode}`
+            );
           }
         } else {
           logger.warn(`Passkey验证失败: userId=${userId}, 用户未启用Passkey`);
@@ -1146,11 +1307,15 @@ export class AuthController {
       }
 
       if (!verificationResult) {
-        return res.status(401).json({ error: "验证码错误或用户未启用二次验证" });
+        return res
+          .status(401)
+          .json({ error: "验证码错误或用户未启用二次验证" });
       }
 
       // 验证通过，更新用户状态
-      await UserStorage.updateUser(userId, { verified: true } as Partial<UserWithVerified>);
+      await UserStorage.updateUser(userId, {
+        verified: true,
+      } as Partial<UserWithVerified>);
       logger.info(`用户 ${userId} 验证成功`);
       // 不返回avatarBase64
       res.json({ success: true });
@@ -1162,12 +1327,21 @@ export class AuthController {
 }
 
 // 辅助函数：写入token和过期时间到users.json
-async function updateUserToken(userId: string, token: string, expiresInMs = 2 * 60 * 60 * 1000) {
-  await UserStorage.updateUser(userId, { token, tokenExpiresAt: Date.now() + expiresInMs });
+async function updateUserToken(
+  userId: string,
+  token: string,
+  expiresInMs = 2 * 60 * 60 * 1000
+) {
+  await UserStorage.updateUser(userId, {
+    token,
+    tokenExpiresAt: Date.now() + expiresInMs,
+  });
 }
 
 // 校验管理员token
-export async function isAdminToken(token: string | undefined): Promise<boolean> {
+export async function isAdminToken(
+  token: string | undefined
+): Promise<boolean> {
   if (!token) return false;
   const users = await UserStorage.getAllUsers();
   const user = users.find((u) => u.role === "admin" && u.token === token);
@@ -1185,7 +1359,10 @@ export function registerLogoutRoute(app: any) {
       const users = await UserStorage.getAllUsers();
       const idx = users.findIndex((u: any) => u.token === token);
       if (idx !== -1) {
-        await UserStorage.updateUser(users[idx].id, { token: undefined, tokenExpiresAt: undefined });
+        await UserStorage.updateUser(users[idx].id, {
+          token: undefined,
+          tokenExpiresAt: undefined,
+        });
       }
       res.json({ success: true });
     } catch (_error) {

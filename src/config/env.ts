@@ -32,13 +32,15 @@ export const env = {
   // 包含所有四个前端域名和后端域名
   ALLOWED_ORIGINS:
     process.env.ALLOWED_ORIGINS ||
-    "https://api.951100.xyz,https://tts.hapx.one,https://tts-new.951100.xyz,https://951100.xyz,https://tts.951100.xyz",
+    "https://api.951100.xyz,https://tts.hapx.one,https://tts.951100.xyz,https://951100.xyz,https://tts.951100.xyz",
 
   USER_STORAGE_MODE: process.env.USER_STORAGE_MODE || "file",
 };
 
 export const MYSQL_HOST = process.env.MYSQL_HOST || "localhost";
-export const MYSQL_PORT = process.env.MYSQL_PORT ? parseInt(process.env.MYSQL_PORT, 10) : 3306;
+export const MYSQL_PORT = process.env.MYSQL_PORT
+  ? parseInt(process.env.MYSQL_PORT, 10)
+  : 3306;
 export const MYSQL_USER = process.env.MYSQL_USER || "root";
 export const MYSQL_PASSWORD = process.env.MYSQL_PASSWORD || "";
 export const MYSQL_DATABASE = process.env.MYSQL_DATABASE || "happy_tts";

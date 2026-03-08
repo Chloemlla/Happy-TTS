@@ -6,7 +6,12 @@ import fs, { existsSync, mkdirSync } from "node:fs";
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import path, { join } from "node:path";
 import { promisify } from "node:util";
-import express, { type NextFunction, type Request, type RequestHandler, type Response } from "express";
+import express, {
+  type NextFunction,
+  type Request,
+  type RequestHandler,
+  type Response,
+} from "express";
 import helmet from "helmet";
 import { OpenAI } from "openai";
 import swaggerJSDoc from "swagger-jsdoc";
@@ -23,7 +28,10 @@ import {
   openCorsPreflightHandler,
 } from "./middleware/corsMiddleware";
 import { ipBanCheckWithRateLimit } from "./middleware/ipBanCheck";
-import { passkeyAutoFixMiddleware, passkeyErrorHandler } from "./middleware/passkeyAutoFix";
+import {
+  passkeyAutoFixMiddleware,
+  passkeyErrorHandler,
+} from "./middleware/passkeyAutoFix";
 // ========== 限流器（统一从 routeLimiters 导入） ==========
 import {
   adminLimiter,
@@ -132,7 +140,8 @@ var _OUTEMAIL_SERVICE_STATUS: { available: boolean; error?: string };
 // Synchronous helper for Swagger UI initialization
 const readOpenapiJsonSync = (): string => {
   const candidates = [
-    process.env.OPENAPI_JSON_PATH && path.resolve(process.env.OPENAPI_JSON_PATH),
+    process.env.OPENAPI_JSON_PATH &&
+      path.resolve(process.env.OPENAPI_JSON_PATH),
     "/app/openapi.json",
     path.join(process.cwd(), "openapi.json"),
     path.join(__dirname, "../openapi.json"),
@@ -217,7 +226,10 @@ app.set("trust proxy", 1);
 // 检查是否是本地 IP
 const isLocalIp = (req: Request, _res: Response, next: NextFunction) => {
   const ip = req.ip || req.socket.remoteAddress || "unknown";
-  if (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "dev") {
+  if (
+    process.env.NODE_ENV === "development" ||
+    process.env.NODE_ENV === "dev"
+  ) {
     req.isLocalIp = false;
   } else {
     req.isLocalIp = config.localIps.includes(ip);
@@ -227,7 +239,10 @@ const isLocalIp = (req: Request, _res: Response, next: NextFunction) => {
 
 // 请求日志（仅记录关键信息，避免序列化完整 headers/body 造成性能开销）
 app.use((req: Request, _res: Response, next: NextFunction) => {
-  if (process.env.NODE_ENV === "development" || process.env.VERBOSE_LOGGING === "true") {
+  if (
+    process.env.NODE_ENV === "development" ||
+    process.env.VERBOSE_LOGGING === "true"
+  ) {
     logger.info(`收到请求: ${req.method} ${req.url}`, {
       ip: req.ip,
       headers: req.headers,
@@ -257,8 +272,16 @@ app.use(
           "https://js.hcaptcha.com",
           "https://*.hcaptcha.com",
         ],
-        styleSrcElem: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-        fontSrc: ["'self'", "https://fonts.gstatic.com", "https://fonts.googleapis.com"],
+        styleSrcElem: [
+          "'self'",
+          "'unsafe-inline'",
+          "https://fonts.googleapis.com",
+        ],
+        fontSrc: [
+          "'self'",
+          "https://fonts.gstatic.com",
+          "https://fonts.googleapis.com",
+        ],
         imgSrc: ["'self'", "data:", "blob:", "https:"],
         scriptSrc: [
           "'self'",
@@ -322,7 +345,7 @@ app.use(
     referrerPolicy: { policy: "strict-origin-when-cross-origin" },
     xssFilter: true,
     frameguard: { action: "deny" },
-  }),
+  })
 );
 
 // 移除泄露信息的响应头
@@ -366,15 +389,23 @@ app.use("/api/librechat", libreChatLimiter, libreChatRoutes);
 const swaggerOptions = {
   definition: {
     openapi: "3.0.0",
-    info: { title: "Happy-TTS API 文档", version: "1.0.0", description: "基于 OpenAPI 3.0 的接口文档" },
+    info: {
+      title: "Happy-TTS API 文档",
+      version: "1.0.0",
+      description: "基于 OpenAPI 3.0 的接口文档",
+    },
   },
-  apis: [path.join(process.cwd(), "src/routes/*.ts"), path.join(process.cwd(), "dist/routes/*.js")],
+  apis: [
+    path.join(process.cwd(), "src/routes/*.ts"),
+    path.join(process.cwd(), "dist/routes/*.js"),
+  ],
 };
 const swaggerSpec = swaggerJSDoc(swaggerOptions);
 
 const readOpenapiJson = async (): Promise<string> => {
   const candidates = [
-    process.env.OPENAPI_JSON_PATH && path.resolve(process.env.OPENAPI_JSON_PATH),
+    process.env.OPENAPI_JSON_PATH &&
+      path.resolve(process.env.OPENAPI_JSON_PATH),
     "/app/openapi.json",
     path.join(process.cwd(), "openapi.json"),
     path.join(__dirname, "../openapi.json"),
@@ -429,16 +460,21 @@ let _swaggerLoadReason = "swagger-jsdoc";
 try {
   const json = readOpenapiJsonSync();
   swaggerUiSpec = JSON.parse(json);
-  const pathsCount = swaggerUiSpec?.paths ? Object.keys(swaggerUiSpec.paths).length : 0;
-  logger.info(`[Swagger] 为 UI 加载预先生成的 openapi.json，路径数=${pathsCount}`);
+  const pathsCount = swaggerUiSpec?.paths
+    ? Object.keys(swaggerUiSpec.paths).length
+    : 0;
+  logger.info(
+    `[Swagger] 为 UI 加载预先生成的 openapi.json，路径数=${pathsCount}`
+  );
   _swaggerLoadReason = "pre-generated-openapi.json";
 } catch (e) {
   logger.warn(
-    `[Swagger] Falling back to swagger-jsdoc generated spec. Reason: ${e instanceof Error ? e.message : String(e)}`,
+    `[Swagger] Falling back to swagger-jsdoc generated spec. Reason: ${e instanceof Error ? e.message : String(e)}`
   );
 }
 
-const preferSwaggerUrl = !!process.env.OPENAPI_JSON_PATH || fs.existsSync("/app/openapi.json");
+const preferSwaggerUrl =
+  !!process.env.OPENAPI_JSON_PATH || fs.existsSync("/app/openapi.json");
 
 app.get("/api-docs/favicon-32x32.png", (_req: Request, res: Response) => {
   res.redirect(302, "https://png.hapxs.com/i/2025/08/08/68953253d778d.png");
@@ -463,7 +499,10 @@ const swaggerCustomCss = `
 app.use(
   "/api-docs",
   (_req: Request, res: Response, next: NextFunction) => {
-    res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, proxy-revalidate"
+    );
     res.set("Pragma", "no-cache");
     res.set("Expires", "0");
     res.removeHeader?.("ETag");
@@ -472,11 +511,14 @@ app.use(
   swaggerUi.serve,
   preferSwaggerUrl
     ? swaggerUi.setup(undefined, {
-      swaggerUrl: "/openapi.json",
-      customSiteTitle: "Happy API",
-      customCss: swaggerCustomCss,
-    })
-    : swaggerUi.setup(swaggerUiSpec, { customSiteTitle: "Happy API", customCss: swaggerCustomCss }),
+        swaggerUrl: "/openapi.json",
+        customSiteTitle: "Happy API",
+        customCss: swaggerCustomCss,
+      })
+    : swaggerUi.setup(swaggerUiSpec, {
+        customSiteTitle: "Happy API",
+        customCss: swaggerCustomCss,
+      })
 );
 
 // ========== 音频静态文件 ==========
@@ -489,7 +531,7 @@ app.use(
       res.set("Cross-Origin-Resource-Policy", "cross-origin");
       res.set("Access-Control-Allow-Origin", "*");
     },
-  }),
+  })
 );
 
 const ensureAudioDir = async () => {
@@ -501,15 +543,26 @@ ensureAudioDir().catch(console.error);
 
 // 前端配置 API（公开访问）
 app.get("/api/frontend-config", (_req: Request, res: Response) => {
-  res.json({ enableFirstVisitVerification: config.enableFirstVisitVerification });
+  res.json({
+    enableFirstVisitVerification: config.enableFirstVisitVerification,
+  });
 });
 
 // ========== 路由注册（续） ==========
 app.use("/api/auth", authRoutes);
 app.use("/api/totp", totpRoutes);
-app.use("/api/totp/status", authenticateToken, totpStatusHandler as RequestHandler);
+app.use(
+  "/api/totp/status",
+  authenticateToken,
+  totpStatusHandler as RequestHandler
+);
 app.use("/api/admin", adminLimiter, adminRoutes);
-app.use("/api/admin/audit-logs", adminLimiter, authenticateToken, auditLogRoutes);
+app.use(
+  "/api/admin/audit-logs",
+  adminLimiter,
+  authenticateToken,
+  auditLogRoutes
+);
 app.use("/api/apikeys", apiKeyRoutes);
 app.use("/api/status", statusRouter);
 app.use("/api/turnstile", turnstileRoutes);
@@ -549,14 +602,19 @@ app.use(
     });
     next();
   },
-  antaRoutes,
+  antaRoutes
 );
 
 app.use("/api/modlist", modlistMountLimiter, modlistRoutes);
 app.use("/api/image-data", imageDataRoutes);
 app.use("/api", resourceRoutes);
 app.use("/api/cdks", cdkMountLimiter, cdkRoutes);
-app.use("/api/webhook-events", authenticateToken, adminLimiter, webhookEventRoutes);
+app.use(
+  "/api/webhook-events",
+  authenticateToken,
+  adminLimiter,
+  webhookEventRoutes
+);
 app.use("/api/fbi-wanted", fbiWantedRoutes);
 app.use("/api/github-billing", githubBillingLimiter, githubBillingRoutes);
 
@@ -565,13 +623,19 @@ app.use("/api/nexai", nexaiRoutes);
 logger.info("[NexAI] 鉴权路由已挂载 /api/nexai");
 
 // 完整性检测兜底接口
-app.head("/api/proxy-test", integrityLimiter, (_req, res) => res.sendStatus(200));
-app.get("/api/proxy-test", integrityLimiter, (_req, res) => res.sendStatus(200));
-app.get("/api/timing-test", integrityLimiter, (_req, res) => res.sendStatus(200));
+app.head("/api/proxy-test", integrityLimiter, (_req, res) =>
+  res.sendStatus(200)
+);
+app.get("/api/proxy-test", integrityLimiter, (_req, res) =>
+  res.sendStatus(200)
+);
+app.get("/api/timing-test", integrityLimiter, (_req, res) =>
+  res.sendStatus(200)
+);
 
 // 根路由
 app.get("/", rootLimiter, (_req, res) => {
-  res.redirect("http://tts-new.951100.xyz/");
+  res.redirect("http://tts.951100.xyz/");
 });
 
 app.get("/favicon.ico", (_req, res) => {
@@ -595,14 +659,19 @@ app.get("/lc", lcCompatLimiter, (_req, res) => {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 });
-app.get("/librechat-image", lcCompatLimiter, (_req, res) => res.redirect(302, "/api/libre-chat/librechat-image"));
+app.get("/librechat-image", lcCompatLimiter, (_req, res) =>
+  res.redirect(302, "/api/libre-chat/librechat-image")
+);
 
 // ========== IP 相关路由 ==========
 
 app.get("/ip", ipQueryLimiter, async (req, res) => {
   try {
     const ip = (req.headers["x-real-ip"] as string) || req.ip || "127.0.0.1";
-    logger.info("收到IP信息查询请求", { ip, userAgent: req.headers["user-agent"] });
+    logger.info("收到IP信息查询请求", {
+      ip,
+      userAgent: req.headers["user-agent"],
+    });
     const ipInfo = await getIPInfo(ip);
     logger.info("IP信息查询成功", { ip, ipInfo });
     res.json(ipInfo);
@@ -624,11 +693,17 @@ const DATA_DIR = path.join(process.cwd(), "data");
 const CLIENT_REPORTED_IP_FILE = path.join(DATA_DIR, "clientReportedIP.json");
 app.post("/api/report-ip", ipReportLimiter, async (req, res) => {
   try {
-    const { ip: clientReportedIP, userAgent, url, referrer, timestamp } = req.body;
+    const {
+      ip: clientReportedIP,
+      userAgent,
+      url,
+      referrer,
+      timestamp,
+    } = req.body;
     const realIP = req.headers["x-real-ip"] || req.ip;
     const ua = req.headers["user-agent"] || "";
     logger.info(
-      `前端上报公网IP: ${clientReportedIP}，请求真实IP: ${realIP}，UA: ${ua}，userAgent: ${userAgent}，url: ${url}，referrer: ${referrer}，timestamp: ${timestamp}`,
+      `前端上报公网IP: ${clientReportedIP}，请求真实IP: ${realIP}，UA: ${ua}，userAgent: ${userAgent}，url: ${url}，referrer: ${referrer}，timestamp: ${timestamp}`
     );
 
     if (!existsSync(DATA_DIR)) {
@@ -646,7 +721,15 @@ app.post("/api/report-ip", ipReportLimiter, async (req, res) => {
       }
     }
 
-    records.push({ clientReportedIP, realIP, ua, userAgent, url, referrer, timestamp });
+    records.push({
+      clientReportedIP,
+      realIP,
+      ua,
+      userAgent,
+      url,
+      referrer,
+      timestamp,
+    });
     await writeFile(CLIENT_REPORTED_IP_FILE, JSON.stringify(records, null, 2));
     res.json({ success: true });
   } catch (error) {
@@ -669,12 +752,18 @@ const resolvedFrontendPath = frontendCandidates.find((p) => existsSync(p));
 if (resolvedFrontendPath) {
   logger.info(`[Frontend] Serving static files from: ${resolvedFrontendPath}`);
   app.use("/static", staticFileLimiter, express.static(resolvedFrontendPath));
-  app.get(/^\/(?!api|api-docs|static|openapi)(.*)/, frontendLimiter, (_req, res) => {
-    res.sendFile(join(resolvedFrontendPath, "index.html"));
-  });
+  app.get(
+    /^\/(?!api|api-docs|static|openapi)(.*)/,
+    frontendLimiter,
+    (_req, res) => {
+      res.sendFile(join(resolvedFrontendPath, "index.html"));
+    }
+  );
 } else {
   const expected = frontendCandidates.join(" | ");
-  logger.warn(`[Frontend] 在任何候选路径中均未找到前端文件。已尝试：${expected}`);
+  logger.warn(
+    `[Frontend] 在任何候选路径中均未找到前端文件。已尝试：${expected}`
+  );
   app.get("/index.html", (_req, res) => {
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.status(200).send(`<!doctype html>
@@ -691,17 +780,22 @@ if (resolvedFrontendPath) {
 }
 
 // 文档加载超时上报
-app.post("/api/report-docs-timeout", docsTimeoutLimiter, express.json(), (req, res) => {
-  const { url, timestamp, userAgent } = req.body;
-  logger.error("API文档加载超时", {
-    url,
-    timestamp: new Date(timestamp).toISOString(),
-    userAgent,
-    ip: req.ip,
-    headers: req.headers,
-  });
-  res.json({ success: true });
-});
+app.post(
+  "/api/report-docs-timeout",
+  docsTimeoutLimiter,
+  express.json(),
+  (req, res) => {
+    const { url, timestamp, userAgent } = req.body;
+    logger.error("API文档加载超时", {
+      url,
+      timestamp: new Date(timestamp).toISOString(),
+      userAgent,
+      ip: req.ip,
+      headers: req.headers,
+    });
+    res.json({ success: true });
+  }
+);
 
 // ========== IP 位置查询 ==========
 
@@ -799,8 +893,12 @@ app.post("/server_status", serverStatusLimiter, (req, res) => {
     uptime: Math.floor(Math.random() * 34200) + 1800,
     cpu_usage_percent: Math.floor(Math.random() * 90) + 5,
     memory_usage: {
-      used: Math.floor(Math.random() * 7.5 * 1024 * 1024 * 1024) + 500 * 1024 * 1024,
-      total: Math.floor(Math.random() * 14 * 1024 * 1024 * 1024) + 2 * 1024 * 1024 * 1024,
+      used:
+        Math.floor(Math.random() * 7.5 * 1024 * 1024 * 1024) +
+        500 * 1024 * 1024,
+      total:
+        Math.floor(Math.random() * 14 * 1024 * 1024 * 1024) +
+        2 * 1024 * 1024 * 1024,
       percent: Math.floor(Math.random() * 90) + 5,
     },
   });
@@ -846,8 +944,8 @@ class RateLimiter {
   private calls: number[] = [];
   constructor(
     private maxCalls: number,
-    private period: number,
-  ) { }
+    private period: number
+  ) {}
   attempt(): boolean {
     const now = Date.now();
     this.calls = this.calls.filter((call) => call > now - this.period);
@@ -877,8 +975,14 @@ registerLogoutRoute(app);
 // 检查邮件API密钥
 if (!process.env.RESEND_API_KEY) {
   (globalThis as any).EMAIL_ENABLED = false;
-  (globalThis as any).EMAIL_SERVICE_STATUS = { available: false, error: "未配置 RESEND_API_KEY" };
-  (globalThis as any).OUTEMAIL_SERVICE_STATUS = { available: false, error: "未配置 RESEND_API_KEY" };
+  (globalThis as any).EMAIL_SERVICE_STATUS = {
+    available: false,
+    error: "未配置 RESEND_API_KEY",
+  };
+  (globalThis as any).OUTEMAIL_SERVICE_STATUS = {
+    available: false,
+    error: "未配置 RESEND_API_KEY",
+  };
   console.warn("[邮件服务] 未检测到 RESEND_API_KEY，邮件发送功能已禁用");
 } else {
   (globalThis as any).EMAIL_ENABLED = true;
@@ -889,7 +993,10 @@ if (!process.env.RESEND_API_KEY) {
       logger.info("[邮件服务] 配置检查完成：已启用");
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "未知错误";
-      (globalThis as any).EMAIL_SERVICE_STATUS = { available: false, error: errorMessage };
+      (globalThis as any).EMAIL_SERVICE_STATUS = {
+        available: false,
+        error: errorMessage,
+      };
       logger.warn("[邮件服务] 配置检查失败：", errorMessage);
     }
   })();
@@ -897,12 +1004,18 @@ if (!process.env.RESEND_API_KEY) {
     try {
       const config = require("./config").default;
       if (!config.email?.outemail?.enabled) {
-        (globalThis as any).OUTEMAIL_SERVICE_STATUS = { available: false, error: "对外邮件服务未启用" };
+        (globalThis as any).OUTEMAIL_SERVICE_STATUS = {
+          available: false,
+          error: "对外邮件服务未启用",
+        };
         logger.warn("[对外邮件服务] 服务未启用");
         return;
       }
       if (!config.email?.outemail?.domain) {
-        (globalThis as any).OUTEMAIL_SERVICE_STATUS = { available: false, error: "对外邮件服务未配置域名" };
+        (globalThis as any).OUTEMAIL_SERVICE_STATUS = {
+          available: false,
+          error: "对外邮件服务未配置域名",
+        };
         logger.warn("[对外邮件服务] 未配置域名");
         return;
       }
@@ -919,7 +1032,10 @@ if (!process.env.RESEND_API_KEY) {
       logger.info("[对外邮件服务] 配置检查完成：已启用");
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "未知错误";
-      (globalThis as any).OUTEMAIL_SERVICE_STATUS = { available: false, error: errorMessage };
+      (globalThis as any).OUTEMAIL_SERVICE_STATUS = {
+        available: false,
+        error: errorMessage,
+      };
       logger.warn("[对外邮件服务] 配置检查失败：", errorMessage);
     }
   })();
@@ -1061,12 +1177,15 @@ app.use(
     "/api/auth/register",
   ],
   (_req: any, res: any, next: any) => {
-    res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, proxy-revalidate"
+    );
     res.set("Pragma", "no-cache");
     res.set("Expires", "0");
     res.removeHeader?.("ETag");
     next();
-  },
+  }
 );
 
 // Passkey 错误处理
@@ -1076,7 +1195,10 @@ app.use(passkeyErrorHandler);
 import { MongoClient } from "mongodb";
 
 async function migrateTtsCollection() {
-  const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI || "mongodb://localhost:27017";
+  const mongoUri =
+    process.env.MONGO_URI ||
+    process.env.MONGODB_URI ||
+    "mongodb://localhost:27017";
   const dbName = process.env.MONGO_DB || "tts";
   const client = new MongoClient(mongoUri);
   try {
@@ -1105,15 +1227,20 @@ async function migrateTtsCollection() {
     }
     if (bulk.length > 0) {
       const result = await bulk.execute();
-      const migratedCount = (result.upsertedCount || 0) + (result.modifiedCount || 0);
+      const migratedCount =
+        (result.upsertedCount || 0) + (result.modifiedCount || 0);
       console.log(`[迁移] 已迁移 ${migratedCount} 条数据到 user_datas`);
     }
     const afterCount = await userDatasCol.countDocuments();
     if (afterCount >= ttsCount) {
       await ttsCol.drop();
-      console.log(`[迁移] 校验通过，已删除原 tts 集合。user_datas 总数: ${afterCount}`);
+      console.log(
+        `[迁移] 校验通过，已删除原 tts 集合。user_datas 总数: ${afterCount}`
+      );
     } else {
-      console.error(`[迁移] 校验失败，user_datas 数量(${afterCount}) < tts 数量(${ttsCount})，未删除原集合`);
+      console.error(
+        `[迁移] 校验失败，user_datas 数量(${afterCount}) < tts 数量(${ttsCount})，未删除原集合`
+      );
     }
   } catch (err) {
     console.error("[迁移] 发生错误:", err);

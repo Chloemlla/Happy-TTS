@@ -5,7 +5,7 @@ import type { NextFunction, Request, Response } from "express";
 const allowedOrigins = [
   "https://tts.hapx.one",
   "https://tts.hapxs.com",
-  "https://tts-new.951100.xyz",
+  "https://tts.951100.xyz",
   "https://951100.xyz",
   "https://tts.951100.xyz",
   "https://api.951100.xyz",
@@ -78,7 +78,10 @@ export const globalCors = cors({
 /** OPTIONS 预检处理器（用于 /s/*、/api/shorturl/* 等需要单独挂 OPTIONS 的路径） */
 export function corsPreflightHandler(req: Request, res: Response) {
   const origin = req.headers.origin;
-  res.header("Access-Control-Allow-Origin", isOriginAllowed(origin) ? origin || "*" : "");
+  res.header(
+    "Access-Control-Allow-Origin",
+    isOriginAllowed(origin) ? origin || "*" : ""
+  );
   res.header("Access-Control-Allow-Methods", CORS_METHODS);
   res.header("Access-Control-Allow-Headers", CORS_ALLOWED_HEADERS.join(", "));
   res.header("Access-Control-Allow-Credentials", "true");
@@ -87,9 +90,16 @@ export function corsPreflightHandler(req: Request, res: Response) {
 }
 
 /** 普通请求 CORS 响应头中间件（非 OPTIONS） */
-export function corsHeadersMiddleware(req: Request, res: Response, next: NextFunction) {
+export function corsHeadersMiddleware(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
   const origin = req.headers.origin;
-  res.header("Access-Control-Allow-Origin", isOriginAllowed(origin) ? origin || "*" : "");
+  res.header(
+    "Access-Control-Allow-Origin",
+    isOriginAllowed(origin) ? origin || "*" : ""
+  );
   res.header("Access-Control-Allow-Credentials", "true");
   res.header("Access-Control-Expose-Headers", CORS_EXPOSED_HEADERS.join(", "));
   next();
@@ -105,7 +115,11 @@ export function openCorsPreflightHandler(_req: Request, res: Response) {
   res.status(200).end();
 }
 
-export function openCorsHeadersMiddleware(_req: Request, res: Response, next: NextFunction) {
+export function openCorsHeadersMiddleware(
+  _req: Request,
+  res: Response,
+  next: NextFunction
+) {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Credentials", "true");
   res.header("Access-Control-Expose-Headers", CORS_EXPOSED_HEADERS.join(", "));
