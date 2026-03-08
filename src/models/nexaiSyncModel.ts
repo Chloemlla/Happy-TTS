@@ -15,6 +15,7 @@ const noteSchema = new mongoose.Schema(
         updatedAt: { type: String, required: true },
         lastViewedAt: { type: String },
         isStarred: { type: Boolean, default: false },
+        isDeleted: { type: Boolean, default: false },
     },
     { _id: false },
 );
@@ -35,6 +36,8 @@ const conversationSchema = new mongoose.Schema(
         title: { type: String, default: "" },
         messages: { type: [messageSchema], default: [] },
         createdAt: { type: String, required: true },
+        updatedAt: { type: String, required: true },
+        isDeleted: { type: Boolean, default: false },
     },
     { _id: false },
 );
@@ -47,6 +50,8 @@ const translationRecordSchema = new mongoose.Schema(
         sourceText: { type: String, required: true },
         translatedText: { type: String, required: true },
         createdAt: { type: String, required: true },
+        updatedAt: { type: String, required: true },
+        isDeleted: { type: Boolean, default: false },
     },
     { _id: false },
 );
@@ -58,7 +63,9 @@ const savedPasswordSchema = new mongoose.Schema(
         category: { type: String, default: "" },
         note: { type: String, default: "" },
         createdAt: { type: String, required: true },
+        updatedAt: { type: String, required: true },
         strength: { type: Number, default: 0 },
+        isDeleted: { type: Boolean, default: false },
     },
     { _id: false },
 );
@@ -69,6 +76,8 @@ const shortUrlRecordSchema = new mongoose.Schema(
         originalUrl: { type: String, required: true },
         shortUrl: { type: String, required: true },
         createdAt: { type: String, required: true },
+        updatedAt: { type: String, required: true },
+        isDeleted: { type: Boolean, default: false },
     },
     { _id: false },
 );
@@ -112,6 +121,7 @@ const nexaiSyncSchema = new mongoose.Schema(
     {
         userId: { type: String, required: true, unique: true, index: true },
         settings: { type: settingsSchema, default: () => ({}) },
+        settingsUpdatedAt: { type: String, default: () => new Date().toISOString() },
         notes: { type: [noteSchema], default: [] },
         conversations: { type: [conversationSchema], default: [] },
         translationHistory: { type: [translationRecordSchema], default: [] },
@@ -168,6 +178,7 @@ export interface INexaiNote {
     updatedAt: string;
     lastViewedAt?: string;
     isStarred: boolean;
+    isDeleted?: boolean;
 }
 
 export interface INexaiMessage {
@@ -182,6 +193,8 @@ export interface INexaiConversation {
     title: string;
     messages: INexaiMessage[];
     createdAt: string;
+    updatedAt: string;
+    isDeleted?: boolean;
 }
 
 export interface INexaiTranslationRecord {
@@ -191,6 +204,8 @@ export interface INexaiTranslationRecord {
     sourceText: string;
     translatedText: string;
     createdAt: string;
+    updatedAt: string;
+    isDeleted?: boolean;
 }
 
 export interface INexaiSavedPassword {
@@ -199,7 +214,9 @@ export interface INexaiSavedPassword {
     category: string;
     note: string;
     createdAt: string;
+    updatedAt: string;
     strength: number;
+    isDeleted?: boolean;
 }
 
 export interface INexaiShortUrlRecord {
@@ -207,11 +224,14 @@ export interface INexaiShortUrlRecord {
     originalUrl: string;
     shortUrl: string;
     createdAt: string;
+    updatedAt: string;
+    isDeleted?: boolean;
 }
 
 export interface INexaiSyncData {
     userId: string;
     settings: INexaiSyncSettings;
+    settingsUpdatedAt?: string;
     notes: INexaiNote[];
     conversations: INexaiConversation[];
     translationHistory: INexaiTranslationRecord[];
@@ -229,3 +249,33 @@ export type SyncCategory =
     | "translations"
     | "passwords"
     | "shortUrls";
+
+// ── 增量同步请求/响应类型 ──
+
+export interface IIncrementalSyncRequest {
+    settings?: INexaiSyncSettings;
+    settingsUpdatedAt?: string;
+    notes?: INexaiNote[];
+    conversations?: INexaiConversation[];
+    translationHistory?: INexaiTranslationRecord[];
+    savedPasswords?: INexaiSavedPassword[];
+    shortUrls?: INexaiShortUrlRecord[];
+    deletedIds?: {
+        notes?: string[];
+        conversations?: string[];
+        translationHistory?: string[];
+        savedPasswords?: string[];
+        shortUrls?: string[];
+    };
+}
+
+export interface IIncrementalSyncResponse {
+    settings?: INexaiSyncSettings;
+    settingsUpdatedAt?: string;
+    notes: INexaiNote[];
+    conversations: INexaiConversation[];
+    translationHistory: INexaiTranslationRecord[];
+    savedPasswords: INexaiSavedPassword[];
+    shortUrls: INexaiShortUrlRecord[];
+    serverTime: string;
+}

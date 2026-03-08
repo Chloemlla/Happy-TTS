@@ -463,6 +463,55 @@ router.get("/sync/meta", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncControlle
 
 /**
  * @openapi
+ * /nexai/sync/changes:
+ *   get:
+ *     summary: 增量拉取变更数据
+ *     tags: [NexAI Sync]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: since
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: ISO 8601 时间戳
+ *     responses:
+ *       200:
+ *         description: 变更数据
+ */
+router.get("/sync/changes", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncController.getChangesSince);
+
+/**
+ * @openapi
+ * /nexai/sync/incremental:
+ *   post:
+ *     summary: 增量同步（上传本地变更 + 拉取服务端变更）
+ *     tags: [NexAI Sync]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [lastSyncedAt, data]
+ *             properties:
+ *               lastSyncedAt:
+ *                 type: string
+ *                 format: date-time
+ *               data:
+ *                 type: object
+ *     responses:
+ *       200:
+ *         description: 服务端变更数据
+ */
+router.post("/sync/incremental", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncController.incrementalSync);
+
+/**
+ * @openapi
  * /nexai/sync/{category}:
  *   patch:
  *     summary: 按类别局部更新同步数据
