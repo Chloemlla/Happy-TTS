@@ -36,7 +36,7 @@ echo "=========================================="
 # 1. Root — upgrade dompurify, override handles minimatch
 echo ""
 echo "[1/4] Root: upgrading dompurify, regenerating lockfile..."
-pnpm add @simplewebauthn/server @simplewebauthn/types
+pnpm add @simplewebauthn/server
 pnpm install --no-frozen-lockfile
 echo "✅ Root done"
 
