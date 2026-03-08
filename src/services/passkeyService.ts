@@ -43,7 +43,10 @@ const _extractHostFromOrigin = (origin: string): string => {
  * 验证 clientOrigin 是否在允许列表中
  */
 const isOriginAllowed = (clientOrigin: string): boolean => {
-  const allowedOriginsStr = (env as any).ALLOWED_ORIGINS || (env as any).RP_ORIGIN || "https://tts-new.951100.xyz";
+  const allowedOriginsStr =
+    (env as any).ALLOWED_ORIGINS ||
+    (env as any).RP_ORIGIN ||
+    "https://tts.951100.xyz";
   const allowedOrigins = allowedOriginsStr
     .split(",")
     .map((o: string) => o.trim())
@@ -143,14 +146,17 @@ async function fixUserPasskeyCredentialIDs(user: User) {
 
       // 二次检验：确保修复后的credentialID格式正确
       if (fixed && !fixed.match(/^[A-Za-z0-9_-]+$/)) {
-        logger.warn("[Passkey自愈] 修复后的credentialID仍不是纯base64url格式，尝试强制修复", {
-          userId: user.id,
-          original,
-          fixed,
-          containsPlus: fixed.includes("+"),
-          containsSlash: fixed.includes("/"),
-          containsEquals: fixed.includes("="),
-        });
+        logger.warn(
+          "[Passkey自愈] 修复后的credentialID仍不是纯base64url格式，尝试强制修复",
+          {
+            userId: user.id,
+            original,
+            fixed,
+            containsPlus: fixed.includes("+"),
+            containsSlash: fixed.includes("/"),
+            containsEquals: fixed.includes("="),
+          }
+        );
 
         // 强制移除所有非base64url字符
         fixed = fixed.replace(/[^A-Za-z0-9_-]/g, "");
@@ -205,18 +211,26 @@ async function fixUserPasskeyCredentialIDs(user: User) {
       typeof c === "object" &&
       typeof c.credentialID === "string" &&
       validPattern.test(c.credentialID) &&
-      c.credentialID.length > 0,
+      c.credentialID.length > 0
   );
   const after = user.passkeyCredentials.length;
 
   if (before !== after) {
-    logger.warn("[Passkey自愈] 剔除无效credentialID", { userId: user.id, before, after });
+    logger.warn("[Passkey自愈] 剔除无效credentialID", {
+      userId: user.id,
+      before,
+      after,
+    });
     changed = true;
   }
 
   if (changed) {
-    await UserStorage.updateUser(user.id, { passkeyCredentials: user.passkeyCredentials });
-    logger.info("[Passkey自愈] 已更新用户passkeyCredentials", { userId: user.id });
+    await UserStorage.updateUser(user.id, {
+      passkeyCredentials: user.passkeyCredentials,
+    });
+    logger.info("[Passkey自愈] 已更新用户passkeyCredentials", {
+      userId: user.id,
+    });
   }
 }
 
@@ -234,7 +248,11 @@ export class PasskeyService {
   }
 
   // 生成注册选项
-  public static async generateRegistrationOptions(user: User, _credentialName: string, _clientOrigin?: string) {
+  public static async generateRegistrationOptions(
+    user: User,
+    _credentialName: string,
+    _clientOrigin?: string
+  ) {
     await fixUserPasskeyCredentialIDs(user);
     if (!user) {
       throw new Error("generateRegistrationOptions: user 为空");
@@ -269,25 +287,36 @@ export class PasskeyService {
               id: Buffer.from(authenticator.credentialID, "base64url"),
               type: "public-key",
               transports: ["internal"],
-            }) as any,
+            }) as any
         ),
         // 仅在全局开启调试时附加调试信息，避免生产泄露
         ...((global as any).__passkey_debug_enabled
-          ? { _debug: { userId: user.id, username: user.username, excludeCount: userAuthenticators.length } }
+          ? {
+              _debug: {
+                userId: user.id,
+                username: user.username,
+                excludeCount: userAuthenticators.length,
+              },
+            }
           : {}),
       });
       options = registrationOptions;
     } catch (err) {
-      logger.error("[PasskeyService] generateRegistrationOptions 调用底层库异常:", err);
+      logger.error(
+        "[PasskeyService] generateRegistrationOptions 调用底层库异常:",
+        err
+      );
       throw new Error(
-        `generateRegistrationOptions: 调用底层库异常: ${err instanceof Error ? err.message : String(err)}`,
+        `generateRegistrationOptions: 调用底层库异常: ${err instanceof Error ? err.message : String(err)}`
       );
     }
     if (!options) {
       throw new Error("generateRegistrationOptions: options 为 undefined");
     }
     if (!options.challenge) {
-      throw new Error("generateRegistrationOptions: options.challenge 为 undefined");
+      throw new Error(
+        "generateRegistrationOptions: options.challenge 为 undefined"
+      );
     }
     // 存储挑战到用户记录
     await UserStorage.updateUser(user.id, {
@@ -302,7 +331,7 @@ export class PasskeyService {
     response: any,
     credentialName: string,
     clientOrigin?: string,
-    requestOrigin?: string,
+    requestOrigin?: string
   ): Promise<VerifiedRegistrationResponse> {
     if (!user.pendingChallenge) {
       throw new Error("注册会话已过期");
@@ -311,7 +340,8 @@ export class PasskeyService {
     let verification: VerifiedRegistrationResponse;
     try {
       // 优先使用 clientOrigin，其次使用 requestOrigin，最后使用配置的 getRpOrigin
-      const finalOrigin = getRpOrigin(clientOrigin) || requestOrigin || getRpOrigin();
+      const finalOrigin =
+        getRpOrigin(clientOrigin) || requestOrigin || getRpOrigin();
       verification = await verifyRegistrationResponse({
         response,
         expectedChallenge: user.pendingChallenge,
@@ -331,10 +361,14 @@ export class PasskeyService {
     const { credential } = registrationInfo as any;
     if (!credential || !credential.id || !credential.publicKey) {
       logger.error("注册信息不完整:", registrationInfo);
-      throw new Error("注册信息不完整，credential.id 或 credential.publicKey 缺失");
+      throw new Error(
+        "注册信息不完整，credential.id 或 credential.publicKey 缺失"
+      );
     }
     // 二次检验：确保注册的credentialID格式正确
-    const credentialID = Buffer.from(credential.id, "base64url").toString("base64url");
+    const credentialID = Buffer.from(credential.id, "base64url").toString(
+      "base64url"
+    );
 
     logger.info("[Passkey] 注册二次检验：检查credentialID格式", {
       userId: user.id,
@@ -345,13 +379,16 @@ export class PasskeyService {
 
     // 检验1：确保转换后的credentialID是纯base64url格式
     if (!credentialID.match(/^[A-Za-z0-9_-]+$/)) {
-      logger.error("[Passkey] 注册二次检验失败：credentialID不是纯base64url格式", {
-        userId: user.id,
-        credentialID: credentialID,
-        containsPlus: credentialID.includes("+"),
-        containsSlash: credentialID.includes("/"),
-        containsEquals: credentialID.includes("="),
-      });
+      logger.error(
+        "[Passkey] 注册二次检验失败：credentialID不是纯base64url格式",
+        {
+          userId: user.id,
+          credentialID: credentialID,
+          containsPlus: credentialID.includes("+"),
+          containsSlash: credentialID.includes("/"),
+          containsEquals: credentialID.includes("="),
+        }
+      );
       throw new Error("注册失败：Credential ID格式无效");
     }
 
@@ -390,7 +427,9 @@ export class PasskeyService {
   }
 
   // 生成 Discoverable Credentials 认证选项（无需用户名）
-  public static async generateDiscoverableAuthenticationOptions(_clientOrigin?: string) {
+  public static async generateDiscoverableAuthenticationOptions(
+    _clientOrigin?: string
+  ) {
     try {
       logger.info("[Passkey] 生成 Discoverable Credentials 认证选项");
 
@@ -417,7 +456,10 @@ export class PasskeyService {
   }
 
   // 生成认证选项
-  public static async generateAuthenticationOptions(user: User, _clientOrigin?: string) {
+  public static async generateAuthenticationOptions(
+    user: User,
+    _clientOrigin?: string
+  ) {
     if (!user) {
       throw new Error("用户对象为空");
     }
@@ -436,7 +478,7 @@ export class PasskeyService {
         typeof cred === "object" &&
         typeof cred.credentialID === "string" &&
         /^[A-Za-z0-9_-]+$/.test(cred.credentialID) &&
-        cred.credentialID.length > 0,
+        cred.credentialID.length > 0
     );
 
     if (validCredentials.length === 0) {
@@ -471,7 +513,9 @@ export class PasskeyService {
       logger.info("[Passkey] 准备生成认证选项", {
         userId: user.id,
         validCredentialsCount: finalValidCredentials.length,
-        credentialIDs: finalValidCredentials.map((c) => `${c.credentialID.substring(0, 10)}...`),
+        credentialIDs: finalValidCredentials.map(
+          (c) => `${c.credentialID.substring(0, 10)}...`
+        ),
         allowCredentials: finalValidCredentials.map((authenticator) => ({
           id: `${authenticator.credentialID.substring(0, 20)}...`,
           type: "public-key",
@@ -529,10 +573,13 @@ export class PasskeyService {
     } catch (err: any) {
       // 检查input.replace is not a function等类型错误，强制修复所有credentialID
       if (err?.message?.includes("replace is not a function")) {
-        logger.warn("[Passkey自愈] 捕获到input.replace类型错误，强制修复所有credentialID并重试", {
-          userId: user.id,
-          error: err.message,
-        });
+        logger.warn(
+          "[Passkey自愈] 捕获到input.replace类型错误，强制修复所有credentialID并重试",
+          {
+            userId: user.id,
+            error: err.message,
+          }
+        );
 
         // 再次尝试修复
         await fixUserPasskeyCredentialIDs(user);
@@ -544,11 +591,13 @@ export class PasskeyService {
             typeof c === "object" &&
             typeof c.credentialID === "string" &&
             /^[A-Za-z0-9_-]+$/.test(c.credentialID) &&
-            c.credentialID.length > 0,
+            c.credentialID.length > 0
         );
 
         if (!retryValidCredentials || retryValidCredentials.length === 0) {
-          logger.error("[Passkey自愈] 修复后无可用Passkey，需重新注册", { userId: user.id });
+          logger.error("[Passkey自愈] 修复后无可用Passkey，需重新注册", {
+            userId: user.id,
+          });
           throw new Error("所有Passkey已失效，请重新注册");
         }
 
@@ -571,14 +620,18 @@ export class PasskeyService {
         });
 
         if (finalRetryCredentials.length === 0) {
-          logger.error("[Passkey自愈] 重试时最终检查后无有效凭证", { userId: user.id });
+          logger.error("[Passkey自愈] 重试时最终检查后无有效凭证", {
+            userId: user.id,
+          });
           throw new Error("所有Passkey已失效，请重新注册");
         }
 
         logger.info("[Passkey自愈] 重试生成认证选项", {
           userId: user.id,
           validCredentialsCount: finalRetryCredentials.length,
-          credentialIDs: finalRetryCredentials.map((c) => `${c.credentialID.substring(0, 10)}...`),
+          credentialIDs: finalRetryCredentials.map(
+            (c) => `${c.credentialID.substring(0, 10)}...`
+          ),
         });
 
         // 再次尝试
@@ -615,7 +668,7 @@ export class PasskeyService {
     response: any,
     _clientOrigin?: string,
     _requestOrigin?: string,
-    _retryCount: number = 0,
+    _retryCount: number = 0
   ): Promise<VerifiedAuthenticationResponse> {
     await fixUserPasskeyCredentialIDs(user);
     if (!user.pendingChallenge) {
@@ -629,7 +682,9 @@ export class PasskeyService {
     if (!credentialId || typeof credentialId !== "string") {
       throw new Error("认证响应 credentialID 格式无效");
     }
-    const authenticator = userAuthenticators.find((auth) => auth.credentialID === credentialId);
+    const authenticator = userAuthenticators.find(
+      (auth) => auth.credentialID === credentialId
+    );
     if (!authenticator) {
       throw new Error("找不到匹配的认证器");
     }
@@ -643,7 +698,10 @@ export class PasskeyService {
   }
 
   // 删除认证器
-  public static async removeCredential(userId: string, credentialId: string): Promise<void> {
+  public static async removeCredential(
+    userId: string,
+    credentialId: string
+  ): Promise<void> {
     const user = await UserStorage.getUserById(userId);
     if (user) {
       await fixUserPasskeyCredentialIDs(user);
@@ -652,7 +710,9 @@ export class PasskeyService {
       throw new Error("用户不存在或没有认证器");
     }
 
-    const updatedCredentials = user.passkeyCredentials.filter((auth) => auth.id !== credentialId);
+    const updatedCredentials = user.passkeyCredentials.filter(
+      (auth) => auth.id !== credentialId
+    );
 
     if (updatedCredentials.length === user.passkeyCredentials.length) {
       throw new Error("找不到指定的认证器");
@@ -684,7 +744,11 @@ export class PasskeyService {
       email: user.email,
     });
 
-    const token = jwt.sign({ userId: user.id, username: user.username, role: user.role || "user" }, config.jwtSecret, { expiresIn: "24h" });
+    const token = jwt.sign(
+      { userId: user.id, username: user.username, role: user.role || "user" },
+      config.jwtSecret,
+      { expiresIn: "24h" }
+    );
 
     // 验证生成的token
     try {
@@ -709,7 +773,10 @@ export class PasskeyService {
       logger.error("[Passkey] Token验证异常", {
         userId: user.id,
         username: user.username,
-        error: verifyError instanceof Error ? verifyError.message : String(verifyError),
+        error:
+          verifyError instanceof Error
+            ? verifyError.message
+            : String(verifyError),
       });
       throw new Error("Token验证失败");
     }
@@ -733,19 +800,25 @@ export class PasskeyService {
       if (user.passkeyEnabled === undefined) {
         user.passkeyEnabled = false;
         hasChanges = true;
-        logger.info("[Passkey] 自动修复：设置 passkeyEnabled 为 false", { userId: user.id });
+        logger.info("[Passkey] 自动修复：设置 passkeyEnabled 为 false", {
+          userId: user.id,
+        });
       }
 
       // 确保passkeyCredentials字段存在
       if (!user.passkeyCredentials) {
         user.passkeyCredentials = [];
         hasChanges = true;
-        logger.info("[Passkey] 自动修复：初始化 passkeyCredentials 为空数组", { userId: user.id });
+        logger.info("[Passkey] 自动修复：初始化 passkeyCredentials 为空数组", {
+          userId: user.id,
+        });
       }
 
       // 修复credentialID格式
       if (user.passkeyCredentials && user.passkeyCredentials.length > 0) {
-        logger.info("[Passkey] 自动修复：检查并修复credentialID格式", { userId: user.id });
+        logger.info("[Passkey] 自动修复：检查并修复credentialID格式", {
+          userId: user.id,
+        });
 
         for (let i = 0; i < user.passkeyCredentials.length; i++) {
           const cred = user.passkeyCredentials[i];
@@ -761,7 +834,8 @@ export class PasskeyService {
           }
 
           const originalCredentialId = cred.credentialID;
-          const fixedCredentialId = PasskeyService.fixCredentialIdFormat(originalCredentialId);
+          const fixedCredentialId =
+            PasskeyService.fixCredentialIdFormat(originalCredentialId);
 
           if (fixedCredentialId !== originalCredentialId) {
             logger.info("[Passkey] 自动修复：修复credentialID", {
@@ -778,7 +852,11 @@ export class PasskeyService {
         // 移除无效的凭证
         const beforeCount = user.passkeyCredentials.length;
         user.passkeyCredentials = user.passkeyCredentials.filter(
-          (c) => c && typeof c === "object" && typeof c.credentialID === "string" && c.credentialID.length > 0,
+          (c) =>
+            c &&
+            typeof c === "object" &&
+            typeof c.credentialID === "string" &&
+            c.credentialID.length > 0
         );
         const afterCount = user.passkeyCredentials.length;
 
@@ -793,11 +871,15 @@ export class PasskeyService {
       }
 
       // 更新passkeyEnabled状态
-      const shouldBeEnabled = user.passkeyCredentials && user.passkeyCredentials.length > 0;
+      const shouldBeEnabled =
+        user.passkeyCredentials && user.passkeyCredentials.length > 0;
       if (user.passkeyEnabled !== shouldBeEnabled) {
         user.passkeyEnabled = shouldBeEnabled;
         hasChanges = true;
-        logger.info(`[Passkey] 自动修复：更新 passkeyEnabled 为 ${shouldBeEnabled}`, { userId: user.id });
+        logger.info(
+          `[Passkey] 自动修复：更新 passkeyEnabled 为 ${shouldBeEnabled}`,
+          { userId: user.id }
+        );
       }
 
       if (hasChanges) {
@@ -807,7 +889,9 @@ export class PasskeyService {
         });
         logger.info("[Passkey] 自动修复：用户数据已更新", { userId: user.id });
       } else {
-        logger.info("[Passkey] 自动修复：用户数据无需修复", { userId: user.id });
+        logger.info("[Passkey] 自动修复：用户数据无需修复", {
+          userId: user.id,
+        });
       }
     } catch (error) {
       logger.error("[Passkey] 自动修复失败:", {
@@ -826,7 +910,10 @@ export class PasskeyService {
     }
 
     // 如果已经是正确的base64url格式，直接返回
-    if (typeof credentialId === "string" && /^[A-Za-z0-9_-]+$/.test(credentialId)) {
+    if (
+      typeof credentialId === "string" &&
+      /^[A-Za-z0-9_-]+$/.test(credentialId)
+    ) {
       return credentialId;
     }
 
@@ -851,7 +938,7 @@ export class PasskeyService {
       return Buffer.from(String(credentialId)).toString("base64url");
     } catch (error) {
       throw new Error(
-        `无法修复credentialID: ${credentialId} - ${error instanceof Error ? error.message : String(error)}`,
+        `无法修复credentialID: ${credentialId} - ${error instanceof Error ? error.message : String(error)}`
       );
     }
   }

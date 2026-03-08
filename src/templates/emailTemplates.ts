@@ -7,7 +7,7 @@
  * 获取前端基础URL
  */
 function _getFrontendBaseUrl(): string {
-  return process.env.FRONTEND_URL || "https://tts-new.951100.xyz";
+  return process.env.FRONTEND_URL || "https://tts.951100.xyz";
 }
 
 /**
@@ -16,7 +16,10 @@ function _getFrontendBaseUrl(): string {
  * @param verificationLink 验证链接
  * @returns HTML邮件内容
  */
-export function generateVerificationLinkEmailHtml(username: string, verificationLink: string): string {
+export function generateVerificationLinkEmailHtml(
+  username: string,
+  verificationLink: string
+): string {
   return `
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -249,7 +252,10 @@ export function generateVerificationLinkEmailHtml(username: string, verification
  * @param resetLink 重置链接
  * @returns HTML邮件内容
  */
-export function generatePasswordResetLinkEmailHtml(username: string, resetLink: string): string {
+export function generatePasswordResetLinkEmailHtml(
+  username: string,
+  resetLink: string
+): string {
   return `
 <!DOCTYPE html>
 <html lang="zh-CN">
