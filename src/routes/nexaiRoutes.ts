@@ -4,6 +4,7 @@
  */
 import express from "express";
 import { NexaiAuthController } from "../controllers/nexaiAuthController";
+import { NexaiSyncController } from "../controllers/nexaiSyncController";
 import { nexaiAuthRequired } from "../middleware/nexaiAuth";
 import { createLimiter } from "../middleware/rateLimiter";
 
@@ -45,6 +46,12 @@ const nexaiProfileLimiter = createLimiter({
     windowMs: 15 * 60 * 1000,
     max: 20,
     message: "操作过于频繁，请稍后再试",
+});
+
+const nexaiSyncLimiter = createLimiter({
+    windowMs: 5 * 60 * 1000,
+    max: 30,
+    message: "同步请求过于频繁，请稍后再试",
 });
 
 // ========== 公开端点（无需登录） ==========
@@ -390,5 +397,113 @@ router.post("/auth/link-github", nexaiAuthRequired, nexaiOAuthLimiter, NexaiAuth
  *         description: 取消关联成功
  */
 router.post("/auth/unlink-github", nexaiAuthRequired, NexaiAuthController.unlinkGithub);
+
+// ========== 云同步端点（需要登录） ==========
+
+/**
+ * @openapi
+ * /nexai/sync:
+ *   get:
+ *     summary: 获取全部同步数据
+ *     tags: [NexAI Sync]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 同步数据
+ */
+router.get("/sync", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncController.getSyncData);
+
+/**
+ * @openapi
+ * /nexai/sync:
+ *   put:
+ *     summary: 全量上传同步数据
+ *     tags: [NexAI Sync]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               settings:
+ *                 type: object
+ *               notes:
+ *                 type: array
+ *               conversations:
+ *                 type: array
+ *               translationHistory:
+ *                 type: array
+ *               savedPasswords:
+ *                 type: array
+ *               shortUrls:
+ *                 type: array
+ *     responses:
+ *       200:
+ *         description: 上传成功
+ */
+router.put("/sync", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncController.putSyncData);
+
+/**
+ * @openapi
+ * /nexai/sync/meta:
+ *   get:
+ *     summary: 获取同步元信息
+ *     tags: [NexAI Sync]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 同步状态
+ */
+router.get("/sync/meta", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncController.getSyncMeta);
+
+/**
+ * @openapi
+ * /nexai/sync/{category}:
+ *   patch:
+ *     summary: 按类别局部更新同步数据
+ *     tags: [NexAI Sync]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: category
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [settings, notes, conversations, translations, passwords, shortUrls]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [data]
+ *             properties:
+ *               data:
+ *                 description: 对应类别的数据
+ *     responses:
+ *       200:
+ *         description: 更新成功
+ */
+router.patch("/sync/:category", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncController.patchSyncData);
+
+/**
+ * @openapi
+ * /nexai/sync:
+ *   delete:
+ *     summary: 清除所有同步数据
+ *     tags: [NexAI Sync]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 清除成功
+ */
+router.delete("/sync", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncController.deleteSyncData);
 
 export default router;
