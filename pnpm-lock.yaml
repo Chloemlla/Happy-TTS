@@ -85,7 +85,7 @@ importers:
         version: 10.6.1
       happy-tts:
         specifier: 'file:'
-        version: file:(@noble/hashes@1.8.0)(@types/node@25.2.3)(openapi-types@12.1.3)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(socks@2.8.7)
+        version: file:(@noble/hashes@1.8.0)(@types/node@25.3.3)(openapi-types@12.1.3)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(socks@2.8.7)
       helmet:
         specifier: ^8.1.0
         version: 8.1.0
@@ -123,11 +123,11 @@ importers:
         specifier: ^1.10.1
         version: 1.10.1
       multer:
-        specifier: ^2.1.0
-        version: 2.1.0
+        specifier: ^2.1.1
+        version: 2.1.1
       mysql2:
         specifier: ^3.18.2
-        version: 3.18.2(@types/node@25.2.3)
+        version: 3.18.2(@types/node@25.3.3)
       nanoid:
         specifier: ^5.1.6
         version: 5.1.6
@@ -168,8 +168,8 @@ importers:
         specifier: ^5.0.1
         version: 5.0.1(express@5.2.1)
       tar:
-        specifier: ^7.5.9
-        version: 7.5.9
+        specifier: ^7.5.10
+        version: 7.5.10
       tar-fs:
         specifier: ^3.1.1
         version: 3.1.1
@@ -232,8 +232,8 @@ importers:
         specifier: ^4.1.8
         version: 4.1.8
       '@types/tar':
-        specifier: ^6.1.13
-        version: 6.1.13
+        specifier: ^7.0.87
+        version: 7.0.87
       '@types/ws':
         specifier: ^8.18.0
         version: 8.18.1
@@ -1015,8 +1015,9 @@ packages:
   '@types/swagger-ui-express@4.1.8':
     resolution: {integrity: sha512-AhZV8/EIreHFmBV5wAs0gzJUNq9JbbSXgJLQubCC0jtIo6prnI9MIRRxnU4MZX9RB9yXxF1V4R7jtLl/Wcj31g==}
 
-  '@types/tar@6.1.13':
-    resolution: {integrity: sha512-IznnlmU5f4WcGTh2ltRu/Ijpmk8wiWXfF0VA4s+HPjHZgvFggk1YaIkbo5krX/zUCzWF8N/l4+W/LNxnvAJ8nw==}
+  '@types/tar@7.0.87':
+    resolution: {integrity: sha512-3IxNBV8LeY5oi2ZFpvAhOtW1+mHswkzM7BuisVrwJgPv67GBO2rkLPQlEKtzfHuLdhDDczhkCZeT+RuizMay4A==}
+    deprecated: This is a stub types definition. tar provides its own type definitions, so you do not need this installed.
 
   '@types/tough-cookie@4.0.5':
     resolution: {integrity: sha512-/Ad8+nIOV7Rl++6f1BdKxFSMgmoqEoYbHRpPcx3JEfv8VRsQe9Z4mCXeJBzxs7mbHY/XOZZuXlRNfhpVPbs6ZA==}
@@ -2775,12 +2776,8 @@ packages:
   minimist@1.2.8:
     resolution: {integrity: sha512-2yyAR8qBkN3YuheJanUpWC5U3bb5osDywNB8RzDVlDwDHbocAJveqqj1u8+SVD7jkWT4yvsHCpWqqWqAxb0zCA==}
 
-  minipass@4.2.8:
-    resolution: {integrity: sha512-fNzuVyifolSLFL4NzpF+wEF4qrgqaaKX0haXPQEdQ7NKAN+WecoKMHV09YcuL/DHxrUsYQOK3MiuDf7Ip2OXfQ==}
-    engines: {node: '>=8'}
-
-  minipass@7.1.2:
-    resolution: {integrity: sha512-qOOzS1cBTWYF4BH8fVePDBOO9iptMnGUEZwNc/cMWnTV2nVLZ7VoNWEPHkYczZA0pdoA7dl6e7FL659nX9S2aw==}
+  minipass@7.1.3:
+    resolution: {integrity: sha512-tEBHqDnIoM/1rXME1zgka9g6Q2lcoCkxHLuc7ODJ5BxbP5d4c2Z5cGgtXAku59200Cx7diuHTOYfSBD8n6mm8A==}
     engines: {node: '>=16 || 14 >=14.17'}
 
   minizlib@3.1.0:
@@ -2872,8 +2869,8 @@ packages:
   ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
 
-  multer@2.1.0:
-    resolution: {integrity: sha512-TBm6j41rxNohqawsxlsWsNNh/VdV4QFXcBvRcPhXaA05EZ79z0qJ2bQFpync6JBoHTeNY5Q1JpG7AlTjdlfAEA==}
+  multer@2.1.1:
+    resolution: {integrity: sha512-mo+QTzKlx8R7E5ylSXxWzGoXoZbOsRMpyitcht8By2KHvMbf3tjwosZ/Mu/XYU6UuJ3VZnODIrak5ZrPiPyB6A==}
     engines: {node: '>= 10.16.0'}
 
   multimatch@5.0.0:
@@ -3558,8 +3555,8 @@ packages:
   tar-stream@3.1.7:
     resolution: {integrity: sha512-qJj60CXt7IU1Ffyc3NJMjh6EkuCFej46zUqJ4J7pqYlThyd9bO0XBTmcOIhSzZJVWfsLks0+nle/j538YAW9RQ==}
 
-  tar@7.5.9:
-    resolution: {integrity: sha512-BTLcK0xsDh2+PUe9F6c2TlRp4zOOBMTkoQHQIWSIzI0R7KG46uEwq4OPk2W7bZcprBMsuaeFsqwYr7pjh6CuHg==}
+  tar@7.5.10:
+    resolution: {integrity: sha512-8mOPs1//5q/rlkNSPcCegA6hiHJYDmSLEI8aMH/CdSQJNWztHC9WHNam5zdQlfpTwB9Xp7IBEsHfV5LKMJGVAw==}
     engines: {node: '>=18'}
 
   test-exclude@6.0.0:
@@ -4299,7 +4296,7 @@ snapshots:
 
   '@isaacs/fs-minipass@4.0.1':
     dependencies:
-      minipass: 7.1.2
+      minipass: 7.1.3
 
   '@istanbuljs/load-nyc-config@1.1.0':
     dependencies:
@@ -4913,10 +4910,9 @@ snapshots:
       '@types/express': 5.0.6
       '@types/serve-static': 1.15.8
 
-  '@types/tar@6.1.13':
+  '@types/tar@7.0.87':
     dependencies:
-      '@types/node': 25.3.3
-      minipass: 4.2.8
+      tar: 7.5.10
 
   '@types/tough-cookie@4.0.5': {}
 
@@ -6002,7 +5998,7 @@ snapshots:
       foreground-child: 3.3.1
       jackspeak: 3.4.3
       minimatch: 10.2.4
-      minipass: 7.1.2
+      minipass: 7.1.3
       package-json-from-dist: 1.0.1
       path-scurry: 1.11.1
 
@@ -6050,7 +6046,7 @@ snapshots:
     optionalDependencies:
       uglify-js: 3.19.3
 
-  happy-tts@file:(@noble/hashes@1.8.0)(@types/node@25.2.3)(openapi-types@12.1.3)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(socks@2.8.7):
+  happy-tts@file:(@noble/hashes@1.8.0)(@types/node@25.3.3)(openapi-types@12.1.3)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(socks@2.8.7):
     dependencies:
       '@fingerprintjs/fingerprintjs': 5.1.0
       '@simplewebauthn/browser': 13.2.2
@@ -6087,8 +6083,8 @@ snapshots:
       mongodb-connection-string-url: 7.0.1
       mongoose: 9.2.3(socks@2.8.7)
       morgan: 1.10.1
-      multer: 2.1.0
-      mysql2: 3.18.2(@types/node@25.2.3)
+      multer: 2.1.1
+      mysql2: 3.18.2(@types/node@25.3.3)
       nanoid: 5.1.6
       openai: 6.25.0(ws@8.19.0)(zod@4.3.6)
       path-to-regexp: 8.3.0
@@ -6102,7 +6098,7 @@ snapshots:
       svix: 1.86.0
       swagger-jsdoc: 6.2.8(openapi-types@12.1.3)
       swagger-ui-express: 5.0.1(express@5.2.1)
-      tar: 7.5.9
+      tar: 7.5.10
       tar-fs: 3.1.1
       uuid: 13.0.0
       validator: 13.15.26
@@ -6967,13 +6963,11 @@ snapshots:
 
   minimist@1.2.8: {}
 
-  minipass@4.2.8: {}
-
-  minipass@7.1.2: {}
+  minipass@7.1.3: {}
 
   minizlib@3.1.0:
     dependencies:
-      minipass: 7.1.2
+      minipass: 7.1.3
 
   mkdirp@3.0.1: {}
 
@@ -7033,7 +7027,7 @@ snapshots:
 
   ms@2.1.3: {}
 
-  multer@2.1.0:
+  multer@2.1.1:
     dependencies:
       append-field: 1.0.0
       busboy: 1.6.0
@@ -7048,9 +7042,9 @@ snapshots:
       arrify: 2.0.1
       minimatch: 10.2.4
 
-  mysql2@3.18.2(@types/node@25.2.3):
+  mysql2@3.18.2(@types/node@25.3.3):
     dependencies:
-      '@types/node': 25.2.3
+      '@types/node': 25.3.3
       aws-ssl-profiles: 1.1.2
       denque: 2.1.0
       generate-function: 2.3.1
@@ -7236,7 +7230,7 @@ snapshots:
   path-scurry@1.11.1:
     dependencies:
       lru-cache: 10.4.3
-      minipass: 7.1.2
+      minipass: 7.1.3
 
   path-to-regexp@3.3.0: {}
 
@@ -7779,11 +7773,11 @@ snapshots:
       - bare-abort-controller
       - react-native-b4a
 
-  tar@7.5.9:
+  tar@7.5.10:
     dependencies:
       '@isaacs/fs-minipass': 4.0.1
       chownr: 3.0.0
-      minipass: 7.1.2
+      minipass: 7.1.3
       minizlib: 3.1.0
       yallist: 5.0.0
 
