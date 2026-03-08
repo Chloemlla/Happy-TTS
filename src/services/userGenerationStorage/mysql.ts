@@ -31,15 +31,13 @@ export async function findDuplicateGeneration({
   const conn = await getConn();
   let [rows]: any = [null];
   if (contentHash) {
-    [rows] = await conn.execute(
-      `SELECT * FROM ${TABLE} WHERE userId=? AND contentHash=? LIMIT 1`,
-      [userId, contentHash]
-    );
+    const sql = `SELECT * FROM ${TABLE} WHERE userId=? AND contentHash=? LIMIT 1`;
+    const params = [userId, contentHash];
+    [rows] = await conn.execute(sql, params);
   } else {
-    [rows] = await conn.execute(
-      `SELECT * FROM ${TABLE} WHERE userId=? AND text=? AND voice=? AND model=? LIMIT 1`,
-      [userId, text, voice, model]
-    );
+    const sql = `SELECT * FROM ${TABLE} WHERE userId=? AND text=? AND voice=? AND model=? LIMIT 1`;
+    const params = [userId, text, voice, model];
+    [rows] = await conn.execute(sql, params);
   }
   await conn.end();
   return rows?.[0] ? (rows[0] as GenerationRecord) : null;
@@ -47,20 +45,19 @@ export async function findDuplicateGeneration({
 
 export async function addGenerationRecord(record: GenerationRecord): Promise<GenerationRecord> {
   const conn = await getConn();
-  await conn.execute(
-    `INSERT INTO ${TABLE} (userId, text, voice, model, outputFormat, speed, fileName, contentHash, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      record.userId,
-      record.text,
-      record.voice,
-      record.model,
-      record.outputFormat,
-      record.speed,
-      record.fileName,
-      record.contentHash,
-      new Date(),
-    ]
-  );
+  const sql = `INSERT INTO ${TABLE} (userId, text, voice, model, outputFormat, speed, fileName, contentHash, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+  const params = [
+    record.userId,
+    record.text,
+    record.voice,
+    record.model,
+    record.outputFormat,
+    record.speed,
+    record.fileName,
+    record.contentHash,
+    new Date(),
+  ];
+  await conn.execute(sql, params);
   await conn.end();
   return record;
 }
