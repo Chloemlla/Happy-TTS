@@ -16,11 +16,10 @@ import {
     verifyRegistrationResponse,
     generateAuthenticationOptions,
     verifyAuthenticationResponse,
+    type RegistrationResponseJSON,
+    type AuthenticationResponseJSON,
+    type AuthenticatorTransport,
 } from "@simplewebauthn/server";
-import type {
-    RegistrationResponseJSON,
-    AuthenticationResponseJSON,
-} from "@simplewebauthn/types";
 
 // ========== 配置 ==========
 
@@ -569,7 +568,6 @@ export class NexaiAuthService {
             accessToken: generateAccessToken(user!),
             refreshToken,
             isNewUser,
-            isNewUser,
         };
     }
 
@@ -599,7 +597,7 @@ export class NexaiAuthService {
         const options = await generateRegistrationOptions({
             rpName,
             rpID,
-            userID: user.id, // 用用户唯一ID作为userID
+            userID: new TextEncoder().encode(user.id), // 用用户唯一ID作为userID
             userName: user.email, // 登录名通常用email或username
             attestationType: "none",
             excludeCredentials: existingCredentials,
@@ -644,14 +642,14 @@ export class NexaiAuthService {
 
         const { verified, registrationInfo } = verification;
         if (verified && registrationInfo) {
-            const { credentialPublicKey, credentialID, counter, credentialDeviceType, credentialBackedUp } = registrationInfo;
+            const { credential } = registrationInfo;
             // 将新通行密钥添加到用户记录
             const newPasskey = {
-                id: Buffer.from(credentialID).toString("base64url"),
-                publicKey: Buffer.from(credentialPublicKey),
-                counter,
-                deviceType: credentialDeviceType,
-                backedUp: credentialBackedUp,
+                id: Buffer.from(credential.id).toString("base64url"),
+                publicKey: Buffer.from(credential.publicKey),
+                counter: credential.counter,
+                deviceType: registrationInfo.credentialDeviceType,
+                backedUp: registrationInfo.credentialBackedUp,
                 transports: response.response.transports || [],
             };
 
@@ -679,7 +677,7 @@ export class NexaiAuthService {
         const allowCredentials = (user.passkeys || []).map(pk => ({
             id: pk.id,
             type: "public-key" as const,
-            transports: pk.transports as AuthenticatorTransportFuture[],
+            transports: pk.transports as AuthenticatorTransport[],
         }));
 
         const { rpID } = this.getWebAuthnConfig();
@@ -722,11 +720,11 @@ export class NexaiAuthService {
                 expectedChallenge,
                 expectedOrigin,
                 expectedRPID: rpID,
-                authenticator: {
-                    credentialID: Buffer.from(passkey.id, "base64url"),
-                    credentialPublicKey: passkey.publicKey,
+                credential: {
+                    id: passkey.id,
+                    publicKey: new Uint8Array(passkey.publicKey),
                     counter: passkey.counter,
-                    transports: passkey.transports as AuthenticatorTransportFuture[],
+                    transports: passkey.transports as AuthenticatorTransport[],
                 },
                 requireUserVerification: false,
             });
