@@ -82,7 +82,7 @@ importers:
         specifier: ^9.6.0
         version: 9.6.0
       dompurify:
-        specifier: ^3.3.0
+        specifier: ^3.3.2
         version: 3.3.2
       express-rate-limit:
         specifier: ^7.5.0
