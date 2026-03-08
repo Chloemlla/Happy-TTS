@@ -11,6 +11,16 @@ import axios from "axios";
 import { config } from "../config/config";
 import { NexaiUserModel, type INexaiUser } from "../models/nexaiUserModel";
 import logger from "../utils/logger";
+import {
+    generateRegistrationOptions,
+    verifyRegistrationResponse,
+    generateAuthenticationOptions,
+    verifyAuthenticationResponse,
+} from "@simplewebauthn/server";
+import type {
+    RegistrationResponseJSON,
+    AuthenticationResponseJSON,
+} from "@simplewebauthn/types";
 
 // ========== 配置 ==========
 
@@ -559,7 +569,204 @@ export class NexaiAuthService {
             accessToken: generateAccessToken(user!),
             refreshToken,
             isNewUser,
+            isNewUser,
         };
+    }
+
+    // ---------- WebAuthn (Passkeys) ----------
+
+    static getWebAuthnConfig(ip?: string) {
+        // 配置：如果部署在生产环境，可能需要从环境变量读取 RP_ID 和 Origin
+        // 对于 Android App，通常使用 Digital Asset Links，RP ID 为你的域名
+        const rpName = "NexAI";
+        const rpID = process.env.WEBAUTHN_RP_ID || "localhost";
+        let expectedOrigin = process.env.WEBAUTHN_EXPECTED_ORIGIN || `http://${rpID}:3000`;
+        // 如果环境变量提供了多个 origin（如包含 Android 包名的 origin），可根据实际情况使用
+        return { rpName, rpID, expectedOrigin };
+    }
+
+    /** 1. 生成 Passkey 注册选项 (必须已登录) */
+    static async generatePasskeyRegistrationOptions(userId: string) {
+        const user = await NexaiUserModel.findOne({ id: userId }).lean() as INexaiUser;
+        if (!user) throw Object.assign(new Error("用户不存在"), { statusCode: 404 });
+
+        const { rpName, rpID } = this.getWebAuthnConfig();
+        const existingCredentials = (user.passkeys || []).map(pk => ({
+            id: pk.id,
+            type: "public-key" as const,
+        }));
+
+        const options = await generateRegistrationOptions({
+            rpName,
+            rpID,
+            userID: user.id, // 用用户唯一ID作为userID
+            userName: user.email, // 登录名通常用email或username
+            attestationType: "none",
+            excludeCredentials: existingCredentials,
+            authenticatorSelection: {
+                residentKey: "preferred",
+                userVerification: "preferred",
+                authenticatorAttachment: "platform", // 优先使用设备内置，如 FaceID/TouchID/Android Passkeys
+            },
+        });
+
+        // 存储 challenge 到用户文档，用于稍后验证
+        await NexaiUserModel.updateOne({ id: userId }, { $set: { currentChallenge: options.challenge } });
+
+        return options;
+    }
+
+    /** 2. 验证 Passkey 注册响应 */
+    static async verifyPasskeyRegistration(userId: string, response: RegistrationResponseJSON) {
+        const user = await NexaiUserModel.findOne({ id: userId }).lean() as INexaiUser;
+        if (!user || !user.currentChallenge) {
+            throw Object.assign(new Error("无效的注册请求或挑战已过期"), { statusCode: 400 });
+        }
+
+        const { rpID, expectedOrigin } = this.getWebAuthnConfig();
+        // 取出挑战后清空
+        const expectedChallenge = user.currentChallenge;
+        await NexaiUserModel.updateOne({ id: userId }, { $unset: { currentChallenge: "" } });
+
+        let verification;
+        try {
+            verification = await verifyRegistrationResponse({
+                response,
+                expectedChallenge,
+                expectedOrigin, // 如果Android发出的origin是特定格式，请确保 expectedOrigin 允许它，或传数组
+                expectedRPID: rpID,
+                requireUserVerification: false,
+            });
+        } catch (error: any) {
+            logger.error("[NexAI] Passkey 注册验证失败", { error: error.message });
+            throw Object.assign(new Error(`注册验证失败: ${error.message}`), { statusCode: 400 });
+        }
+
+        const { verified, registrationInfo } = verification;
+        if (verified && registrationInfo) {
+            const { credentialPublicKey, credentialID, counter, credentialDeviceType, credentialBackedUp } = registrationInfo;
+            // 将新通行密钥添加到用户记录
+            const newPasskey = {
+                id: Buffer.from(credentialID).toString("base64url"),
+                publicKey: Buffer.from(credentialPublicKey),
+                counter,
+                deviceType: credentialDeviceType,
+                backedUp: credentialBackedUp,
+                transports: response.response.transports || [],
+            };
+
+            await NexaiUserModel.updateOne({ id: userId }, { $push: { passkeys: newPasskey } });
+            logger.info("[NexAI] Passkey 绑定成功", { userId });
+            return true;
+        }
+        throw Object.assign(new Error("Passkey 绑定未通过验证"), { statusCode: 400 });
+    }
+
+    /** 3. 生成 Passkey 登录选项 */
+    static async generatePasskeyAuthenticationOptions(identifier: string) {
+        // 支持根据用户名或邮箱查找
+        const safeValue = validator.isEmail(identifier.trim())
+            ? identifier.trim().toLowerCase()
+            : identifier.trim().replace(/[^a-zA-Z0-9_-]/g, "");
+
+        const query = validator.isEmail(identifier.trim()) ? { email: safeValue } : { username: safeValue };
+        const user = await NexaiUserModel.findOne(query).lean() as INexaiUser;
+
+        // 即使找不到用户也返回空选项防止用户名遍历枚举攻击，但在实际应用中一般要求传入具体的标识或者由客户端提供现有的credentialID
+        // 或者是无缝登录 (autofill) - 这里为了简化，我们先要求输入 identifier 找到用户
+        if (!user) throw Object.assign(new Error("用户不存在"), { statusCode: 404 });
+
+        const allowCredentials = (user.passkeys || []).map(pk => ({
+            id: pk.id,
+            type: "public-key" as const,
+            transports: pk.transports as AuthenticatorTransportFuture[],
+        }));
+
+        const { rpID } = this.getWebAuthnConfig();
+
+        const options = await generateAuthenticationOptions({
+            rpID,
+            allowCredentials,
+            userVerification: "preferred",
+        });
+
+        // 存储 challenge
+        await NexaiUserModel.updateOne({ id: user.id }, { $set: { currentChallenge: options.challenge } });
+
+        return { options, userId: user.id };
+    }
+
+    /** 4. 验证 Passkey 登录响应 */
+    static async verifyPasskeyAuthentication(userId: string, response: AuthenticationResponseJSON, ip?: string) {
+        const user = await NexaiUserModel.findOne({ id: userId }).lean() as INexaiUser;
+        if (!user || !user.currentChallenge) {
+            throw Object.assign(new Error("挑战不存在，请重试"), { statusCode: 400 });
+        }
+
+        const expectedChallenge = user.currentChallenge;
+        // 使用后立即清除
+        await NexaiUserModel.updateOne({ id: userId }, { $unset: { currentChallenge: "" } });
+
+        // 找到使用的 passkey
+        const passkey = (user.passkeys || []).find(pk => pk.id === response.id);
+        if (!passkey) {
+            throw Object.assign(new Error("未找到对应通行密钥记录"), { statusCode: 400 });
+        }
+
+        const { rpID, expectedOrigin } = this.getWebAuthnConfig();
+
+        let verification;
+        try {
+            verification = await verifyAuthenticationResponse({
+                response,
+                expectedChallenge,
+                expectedOrigin,
+                expectedRPID: rpID,
+                authenticator: {
+                    credentialID: Buffer.from(passkey.id, "base64url"),
+                    credentialPublicKey: passkey.publicKey,
+                    counter: passkey.counter,
+                    transports: passkey.transports as AuthenticatorTransportFuture[],
+                },
+                requireUserVerification: false,
+            });
+        } catch (error: any) {
+            logger.error("[NexAI] Passkey 登录验证失败", { error: error.message });
+            throw Object.assign(new Error(`登录验证失败: ${error.message}`), { statusCode: 400 });
+        }
+
+        if (verification.verified) {
+            const { authenticationInfo } = verification;
+
+            // 更新该 passkey 的 counter
+            await NexaiUserModel.updateOne(
+                { id: userId, "passkeys.id": passkey.id },
+                { $set: { "passkeys.$.counter": authenticationInfo.newCounter } }
+            );
+
+            // 签发 Token
+            const refreshToken = generateRefreshToken();
+            const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+
+            await NexaiUserModel.findOneAndUpdate(
+                { id: userId },
+                {
+                    $set: {
+                        refreshToken: hashedRefreshToken,
+                        refreshTokenExpiresAt: getRefreshTokenExpiry(),
+                        lastLoginAt: new Date(),
+                        lastLoginIp: ip || "",
+                    },
+                    $inc: { loginCount: 1 },
+                }
+            );
+
+            const accessToken = generateAccessToken(user);
+            logger.info("[NexAI] 用户通过 Passkey 登录成功", { userId: user.id });
+
+            return { user, accessToken, refreshToken };
+        }
+        throw Object.assign(new Error("Passkey 验证未通过"), { statusCode: 401 });
     }
 
     // ---------- Token 刷新 ----------
