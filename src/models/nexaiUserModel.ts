@@ -44,6 +44,19 @@ const nexaiUserSchema = new mongoose.Schema(
     lastLoginAt: { type: Date },
     lastLoginIp: { type: String },
     loginCount: { type: Number, default: 0 },
+
+    // WebAuthn (Passkeys)
+    passkeys: [
+      {
+        id: { type: String, required: true }, // Credential ID (base64url)
+        publicKey: { type: Buffer, required: true },
+        counter: { type: Number, required: true },
+        backedUp: { type: Boolean, required: true, default: false },
+        transports: { type: [String], default: [] },
+        deviceType: { type: String, required: true, default: "singleDevice" },
+      }
+    ],
+    currentChallenge: { type: String },
   },
   {
     collection: "nexai_users", // 独立集合，与原系统隔离
@@ -82,6 +95,15 @@ export interface INexaiUser {
   lastLoginAt?: Date;
   lastLoginIp?: string;
   loginCount: number;
+  passkeys?: {
+    id: string;
+    publicKey: Buffer;
+    counter: number;
+    backedUp: boolean;
+    transports: string[];
+    deviceType: string;
+  }[];
+  currentChallenge?: string;
   createdAt: Date;
   updatedAt: Date;
 }
