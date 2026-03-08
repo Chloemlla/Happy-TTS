@@ -31,17 +31,15 @@ export async function findDuplicateGeneration({
   const conn = await getConn();
   let [rows]: any = [null];
   if (contentHash) {
-    [rows] = await conn.execute(`SELECT * FROM ${TABLE} WHERE userId=? AND contentHash=? LIMIT 1`, [
-      userId,
-      contentHash,
-    ]);
+    [rows] = await conn.execute(
+      `SELECT * FROM ${TABLE} WHERE userId=? AND contentHash=? LIMIT 1`,
+      [userId, contentHash]
+    );
   } else {
-    [rows] = await conn.execute(`SELECT * FROM ${TABLE} WHERE userId=? AND text=? AND voice=? AND model=? LIMIT 1`, [
-      userId,
-      text,
-      voice,
-      model,
-    ]);
+    [rows] = await conn.execute(
+      `SELECT * FROM ${TABLE} WHERE userId=? AND text=? AND voice=? AND model=? LIMIT 1`,
+      [userId, text, voice, model]
+    );
   }
   await conn.end();
   return rows?.[0] ? (rows[0] as GenerationRecord) : null;
@@ -61,7 +59,7 @@ export async function addGenerationRecord(record: GenerationRecord): Promise<Gen
       record.fileName,
       record.contentHash,
       new Date(),
-    ],
+    ]
   );
   await conn.end();
   return record;
