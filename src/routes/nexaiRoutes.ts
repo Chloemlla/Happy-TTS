@@ -121,6 +121,24 @@ router.post("/auth/login", nexaiLoginLimiter, NexaiAuthController.login);
 
 /**
  * @openapi
+ * /nexai/auth/passkey/login/options:
+ *   post:
+ *     summary: 获取 Passkey 登录选项
+ *     tags: [NexAI WebAuthn]
+ */
+router.post("/auth/passkey/login/options", nexaiLoginLimiter, NexaiAuthController.generatePasskeyAuthenticationOptions);
+
+/**
+ * @openapi
+ * /nexai/auth/passkey/login/verify:
+ *   post:
+ *     summary: 验证 Passkey 登录
+ *     tags: [NexAI WebAuthn]
+ */
+router.post("/auth/passkey/login/verify", nexaiLoginLimiter, NexaiAuthController.verifyPasskeyAuthentication);
+
+/**
+ * @openapi
  * /nexai/auth/google:
  *   post:
  *     summary: Google OAuth 登录/注册
@@ -265,6 +283,28 @@ router.post("/auth/reset-password", nexaiAuthLimiter, NexaiAuthController.resetP
 router.get("/auth/oauth-config", NexaiAuthController.getOAuthConfig);
 
 // ========== 需要登录的端点 ==========
+
+/**
+ * @openapi
+ * /nexai/auth/passkey/register/options:
+ *   post:
+ *     summary: 获取 Passkey 注册选项
+ *     tags: [NexAI WebAuthn]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.post("/auth/passkey/register/options", nexaiAuthRequired, NexaiAuthController.generatePasskeyRegistrationOptions);
+
+/**
+ * @openapi
+ * /nexai/auth/passkey/register/verify:
+ *   post:
+ *     summary: 验证并绑定 Passkey
+ *     tags: [NexAI WebAuthn]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.post("/auth/passkey/register/verify", nexaiAuthRequired, NexaiAuthController.verifyPasskeyRegistration);
 
 /**
  * @openapi

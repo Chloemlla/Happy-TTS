@@ -512,4 +512,130 @@ export class NexaiAuthController {
             },
         });
     }
+
+    // ========== WebAuthn (Passkeys) ==========
+
+    /**
+     * GET /api/nexai/auth/passkey/register/options
+     * 获取注册 Passkey 的选项（需先登录）
+     */
+    static async generatePasskeyRegistrationOptions(req: Request, res: Response) {
+        try {
+            const userId = req.nexaiUser?.id;
+            if (!userId) {
+                return res.status(401).json({ success: false, error: "未授权" });
+            }
+
+            const options = await NexaiAuthService.generatePasskeyRegistrationOptions(userId);
+
+            res.json({
+                success: true,
+                data: options,
+            });
+        } catch (error: any) {
+            res.status(error.statusCode || 500).json({
+                success: false,
+                error: error.message || "获取注册选项失败",
+            });
+        }
+    }
+
+    /**
+     * POST /api/nexai/auth/passkey/register/verify
+     * 验证注册 Passkey（需先登录）
+     */
+    static async verifyPasskeyRegistration(req: Request, res: Response) {
+        try {
+            const userId = req.nexaiUser?.id;
+            if (!userId) {
+                return res.status(401).json({ success: false, error: "未授权" });
+            }
+
+            const responseInfo = req.body;
+            await NexaiAuthService.verifyPasskeyRegistration(userId, responseInfo);
+
+            res.json({
+                success: true,
+                message: "Passkey 绑定成功",
+            });
+        } catch (error: any) {
+            res.status(error.statusCode || 500).json({
+                success: false,
+                error: error.message || "验证失败",
+            });
+        }
+    }
+
+    /**
+     * POST /api/nexai/auth/passkey/login/options
+     * 获取登录 Passkey 的选项
+     * Body: { identifier: string }
+     */
+    static async generatePasskeyAuthenticationOptions(req: Request, res: Response) {
+        try {
+            const { identifier } = req.body;
+            if (!identifier) {
+                return res.status(400).json({ success: false, error: "缺少 identifier" });
+            }
+
+            const result = await NexaiAuthService.generatePasskeyAuthenticationOptions(identifier);
+
+            res.json({
+                success: true,
+                data: result.options,
+            });
+        } catch (error: any) {
+            // 为安全起见，用户不存在等也返回相同状态，但此处按需
+            res.status(error.statusCode || 500).json({
+                success: false,
+                error: error.message || "获取登录选项失败",
+            });
+        }
+    }
+
+    /**
+     * POST /api/nexai/auth/passkey/login/verify
+     * 验证登录 Passkey
+     * Body: { identifier: string, response: any }
+     */
+    static async verifyPasskeyAuthentication(req: Request, res: Response) {
+        try {
+            const { identifier, response } = req.body;
+            if (!identifier || !response) {
+                return res.status(400).json({ success: false, error: "参数不完整" });
+            }
+
+            const ip = req.ip || req.headers["x-real-ip"] as string || "unknown";
+
+            // 由于 options 阶段我们已把 challenge 保存到特定的用户上，
+            // 此时应该使用 identifier 获取 userID（避免安全风险，建议传 userID 此处简化）
+            let userId: string;
+            // 短路查找
+            const safeValue = identifier.replace(/[^a-zA-Z0-9_@.-]/g, "").toLowerCase();
+            const { NexaiUserModel } = await import("../models/nexaiUserModel");
+            const user = await NexaiUserModel.findOne({
+                $or: [{ email: safeValue }, { username: safeValue }]
+            }).lean();
+
+            if (!user) throw Object.assign(new Error("用户不存在"), { statusCode: 404 });
+            userId = user.id;
+
+            const result = await NexaiAuthService.verifyPasskeyAuthentication(userId, response, ip);
+
+            res.json({
+                success: true,
+                message: "Passkey 登录成功",
+                data: {
+                    user: sanitizeUser(result.user),
+                    accessToken: result.accessToken,
+                    refreshToken: result.refreshToken,
+                },
+            });
+        } catch (error: any) {
+            res.status(error.statusCode || 500).json({
+                success: false,
+                error: error.message || "登录验证失败",
+            });
+        }
+    }
 }
