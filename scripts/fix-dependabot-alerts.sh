@@ -40,17 +40,16 @@ pnpm add @simplewebauthn/server
 pnpm install --no-frozen-lockfile
 echo "✅ Root done"
 
-# # 2. frontend — upgrade security fixes + Dependabot PRs
-# echo ""
-# echo "[2/4] frontend: upgrading packages..."
-# cd frontend
-# echo "  - Security: jspdf, dompurify"
-# echo "  - Dependabot: lucide-react, marked-katex-extension, react-syntax-highlighter"
-# echo "  - Dependabot: @types/jsdom, rollup-plugin-visualizer, swagger-ui-react"
-# pnpm update jspdf dompurify lucide-react marked-katex-extension react-syntax-highlighter @types/jsdom rollup-plugin-visualizer swagger-ui-react --latest
-# pnpm install --no-frozen-lockfile
-# cd ..
-# echo "✅ frontend done"
+# 2. frontend — upgrade security fixes + Dependabot PRs
+echo ""
+echo "[2/4] frontend: upgrading packages..."
+cd frontend
+echo "  - Security: jspdf, dompurify"
+echo "  - Dependabot: lucide-react, marked-katex-extension, react-syntax-highlighter"
+echo "  - Dependabot: @types/jsdom, rollup-plugin-visualizer, swagger-ui-react"
+pnpm install --no-frozen-lockfile
+cd ..
+echo "✅ frontend done"
 
 # # 3. frontend/docs — upgrade serialize-javascript & svgo, override handles minimatch
 # echo ""
