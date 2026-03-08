@@ -1,4 +1,4 @@
-import type { PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/types';
+import type { PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser';
 import { api, getApiBaseUrl } from './api';
 import { getPasskeyApiBase, getPasskeyOrigin } from '../config/passkeyConfig';
 
