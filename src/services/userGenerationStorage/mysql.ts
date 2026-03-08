@@ -1,3 +1,4 @@
+import type { RowDataPacket } from "mysql2/promise";
 import mysql from "mysql2/promise";
 import { type GenerationRecord, isAdminUser as sharedIsAdminUser } from "./types";
 
@@ -29,35 +30,41 @@ export async function findDuplicateGeneration({
   contentHash,
 }: GenerationRecord): Promise<GenerationRecord | null> {
   const conn = await getConn();
-  let [rows]: any = [null];
+
   if (contentHash) {
     const sql = `SELECT * FROM ${TABLE} WHERE userId=? AND contentHash=? LIMIT 1`;
-    const params = [userId, contentHash];
-    [rows] = await conn.execute(sql, params);
+    const [rows] = await conn.execute<RowDataPacket[]>(sql, [userId, contentHash]);
+    await conn.end();
+    return rows?.[0] ? (rows[0] as GenerationRecord) : null;
   } else {
     const sql = `SELECT * FROM ${TABLE} WHERE userId=? AND text=? AND voice=? AND model=? LIMIT 1`;
-    const params = [userId, text, voice, model];
-    [rows] = await conn.execute(sql, params);
+    const [rows] = await conn.execute<RowDataPacket[]>(sql, [
+      userId,
+      text,
+      voice || "",
+      model || "",
+    ]);
+    await conn.end();
+    return rows?.[0] ? (rows[0] as GenerationRecord) : null;
   }
-  await conn.end();
-  return rows?.[0] ? (rows[0] as GenerationRecord) : null;
 }
 
 export async function addGenerationRecord(record: GenerationRecord): Promise<GenerationRecord> {
   const conn = await getConn();
   const sql = `INSERT INTO ${TABLE} (userId, text, voice, model, outputFormat, speed, fileName, contentHash, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-  const params = [
+
+  await conn.execute(sql, [
     record.userId,
     record.text,
-    record.voice,
-    record.model,
-    record.outputFormat,
-    record.speed,
-    record.fileName,
-    record.contentHash,
+    record.voice || "",
+    record.model || "",
+    record.outputFormat || "",
+    record.speed || 1.0,
+    record.fileName || "",
+    record.contentHash || "",
     new Date(),
-  ];
-  await conn.execute(sql, params);
+  ]);
+
   await conn.end();
   return record;
 }
