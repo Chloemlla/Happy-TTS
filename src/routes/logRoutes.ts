@@ -596,7 +596,7 @@ router.put("/sharelog/:id", logLimiter, authenticateToken, async (req, res) => {
     if (fileName) update.fileName = sanitizeFileName(String(fileName)).slice(0, 200);
     if (typeof note !== "undefined") update.note = String(note).slice(0, 1000);
 
-    const result = await LogShareModel.findOneAndUpdate({ fileId: id }, { $set: update }, { new: true });
+    const result = await LogShareModel.findOneAndUpdate({ fileId: id }, { $set: update }, { returnDocument: 'after' });
     if (!result) {
       logger.warn(`修改日志 | IP:${ip} | 文件ID:${id} | 结果:失败 | 原因:仅支持Mongo文本日志`);
       return res.status(404).json({ error: "仅支持修改存储在Mongo的文本日志" });

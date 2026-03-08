@@ -146,7 +146,7 @@ export const updateUser = async (id: string, updates: Partial<UserType>): Promis
   if (Object.keys(updateOps.$set).length === 0) delete updateOps.$set;
   // 调试日志：输出更新条件、内容
   console.log("[updateUser] 更新条件:", { id }, "更新内容:", updateOps);
-  const doc = await UserModel.findOneAndUpdate({ id }, updateOps, { new: true }).lean();
+  const doc = await UserModel.findOneAndUpdate({ id }, updateOps, { returnDocument: 'after' }).lean();
   // 调试日志：输出更新后文档
   if (process.env.NODE_ENV !== "production") {
     console.log("[updateUser] 更新后文档:", removeAvatarBase64(doc));

@@ -940,7 +940,7 @@ export class TurnstileService {
               updatedAt: new Date(),
             };
 
-      await TurnstileSettingModel.findOneAndUpdate(updateQuery, updateData, { upsert: true, new: true });
+      await TurnstileSettingModel.findOneAndUpdate(updateQuery, updateData, { upsert: true, returnDocument: 'after' });
 
       logger.info(`Turnstile配置更新成功: ${key}`);
       return true;
