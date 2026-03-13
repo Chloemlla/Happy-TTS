@@ -60,6 +60,7 @@ import {
   miniapiLimiter,
   modlistMountLimiter,
   networkLimiter,
+  nexaiSecurityLimiter,
   notFoundLimiter,
   openapiLimiter,
   passkeyLimiter,
@@ -112,6 +113,7 @@ import ttsRoutes from "./routes/ttsRoutes";
 import turnstileRoutes from "./routes/turnstileRoutes";
 import webhookEventRoutes from "./routes/webhookEventRoutes";
 import nexaiRoutes from "./routes/nexaiRoutes";
+import nexaiSecurityRoutes from "./routes/nexaiSecurityRoutes";
 import webhookRoutes from "./routes/webhookRoutes";
 import { getIPInfo } from "./services/ip";
 import { isConnected as isMongoConnected } from "./services/mongoService";
@@ -621,6 +623,10 @@ app.use("/api/github-billing", githubBillingLimiter, githubBillingRoutes);
 // ========== NexAI 独立鉴权系统 ==========
 app.use("/api/nexai", nexaiRoutes);
 logger.info("[NexAI] 鉴权路由已挂载 /api/nexai");
+
+// ========== NexAI 安全系统 ==========
+app.use("/api/nexai", nexaiSecurityLimiter, nexaiSecurityRoutes);
+logger.info("[NexAI Security] 安全路由已挂载 /api/nexai/security");
 
 // 完整性检测兜底接口
 app.head("/api/proxy-test", integrityLimiter, (_req, res) =>
