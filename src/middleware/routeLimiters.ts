@@ -261,6 +261,13 @@ export const githubBillingLimiter = createLimiter({
 // --- 完整性检测 ---
 export const integrityLimiter = createLimiter({ name: "integrity", max: 10, message: "请求过于频繁，请稍后再试" });
 
+// --- NexAI 安全 ---
+export const nexaiSecurityLimiter = createLimiter({
+  name: "nexaisecurity",
+  max: 60,
+  message: "安全请求过于频繁，请稍后再试",
+});
+
 // --- 根路由 ---
 export const rootLimiter = createLimiter({ name: "root", max: 100, message: "访问过于频繁，请稍后再试" });
 

@@ -109,6 +109,9 @@ const MeditationAppDemo = React.lazy(() => import('./components/MeditationAppDem
 const MusicPlayerDemo = React.lazy(() => import('./components/MusicPlayerDemo'));
 const FinanceAppDemo = React.lazy(() => import('./components/FinanceAppDemo'));
 
+// NexAI 安全监控中心懒加载
+const NexAISecurityDashboard = React.lazy(() => import('./components/NexAISecurityDashboard'));
+
 // 恢复 EmailSender 懒加载
 const EmailSenderPage: React.FC = () => {
   const [to, setTo] = React.useState('');
@@ -1244,6 +1247,23 @@ const App: React.FC = () => {
                           transition={pageTransition}
                         >
                           <AdminDashboard />
+                        </m.div>
+                      </Suspense>
+                    ) : (
+                      <Navigate to="/" replace />
+                    )
+                  } />
+                  <Route path="/nexai-security" element={
+                    user?.role === 'admin' ? (
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <m.div
+                          variants={pageVariants}
+                          initial="initial"
+                          animate="in"
+                          exit="out"
+                          transition={pageTransition}
+                        >
+                          <NexAISecurityDashboard />
                         </m.div>
                       </Suspense>
                     ) : (
