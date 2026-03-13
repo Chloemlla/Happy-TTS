@@ -68,7 +68,38 @@ async function run() {
   for (const pr of dependabotPRs) {
     const num = pr.number;
     const title = pr.title;
+    const headSha = pr.head.sha;
     process.stdout.write(`#${num} ${title} ... `);
+
+    // 检查 Check Runs
+    const { status: checkStatus, data: checkData } = await api('GET', `/repos/${owner}/${repoName}/commits/${headSha}/check-runs`);
+
+    if (checkStatus !== 200) {
+      console.log(`❌ 无法获取 Check Runs (状态码: ${checkStatus})`);
+      failed++;
+      continue;
+    }
+
+    const checkRuns = checkData.check_runs || [];
+    const requiredCheckNames = [
+      'Docker Build Verification',
+      'Docker Build Verification (pull_request)'
+    ];
+
+    // 检查是否有通过的 Docker Build Verification
+    const successfulChecks = checkRuns.filter(run =>
+      requiredCheckNames.includes(run.name) &&
+      run.status === 'completed' &&
+      run.conclusion === 'success'
+    );
+
+    if (successfulChecks.length === 0) {
+      console.log('⏳ 等待 Docker Build Verification 通过 (Skip)');
+      continue;
+    }
+
+    console.log('✅ Checks Passed');
+    process.stdout.write(`  合并 #${num} ... `);
 
     // 先关闭 auto-merge（如果有的话）
     try {
