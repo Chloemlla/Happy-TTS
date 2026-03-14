@@ -14,7 +14,6 @@ marked.use({
   async: true,
   pedantic: false,
   gfm: true,
-  mangle: false,
   headerIds: false,
 });
 

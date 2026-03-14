@@ -2,6 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Workflow Rules
+
+### Git Commit Workflow
+
+- **IMPORTANT**: Do not use all Flutter analyze commands. After completing code changes, immediately create a git commit and push automatically (use `git push --force` if necessary)
+- Commit message format: `type: brief description` (e.g., `fix:`, `feat:`, `refactor:`, `chore:`)
+- If fixing GitHub issues/alerts, reference them in commit message (e.g., `fix: resolve memory leak #460 #461`)
+
 ## Project Overview
 
 Happy TTS is a comprehensive full-stack web application platform centered around text-to-speech functionality, with extensive user authentication, security features, resource management, and data analytics capabilities. The platform uses a frontend-backend separation architecture with 42 route modules, 50+ service modules, and 100+ React components.
