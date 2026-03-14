@@ -131,7 +131,7 @@ const ArtifactSharePage: React.FC = () => {
 
   const handleDownload = () => {
     if (artifact) {
-      const blob = new Blob([artifact.content], { type: 'text/plain' });
+      const blob = new Blob([artifact.content], { type: 'text/plain;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
