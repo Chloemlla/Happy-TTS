@@ -18,9 +18,9 @@ export const config = {
   adminPassword:
     process.env.NODE_ENV === "production"
       ? process.env.ADMIN_PASSWORD ||
-        (() => {
-          throw new Error("生产环境必须设置 ADMIN_PASSWORD 环境变量");
-        })()
+      (() => {
+        throw new Error("生产环境必须设置 ADMIN_PASSWORD 环境变量");
+      })()
       : process.env.ADMIN_PASSWORD || "admin",
   // 添加本地 IP 配置
   localIps: ["127.0.0.1", "localhost", "::1"],
@@ -35,9 +35,9 @@ export const config = {
   jwtSecret:
     process.env.NODE_ENV === "production"
       ? process.env.JWT_SECRET ||
-        (() => {
-          throw new Error("生产环境必须设置 JWT_SECRET 环境变量");
-        })()
+      (() => {
+        throw new Error("生产环境必须设置 JWT_SECRET 环境变量");
+      })()
       : process.env.JWT_SECRET || "yb56beb12b35ab636b66c4f9fc168646785a8e85a",
   jwtExpiresIn: "24h",
   // 密码加密配置
@@ -90,7 +90,7 @@ export const config = {
     jwtSecret:
       process.env.NEXAI_JWT_SECRET ||
       (process.env.JWT_SECRET || "yb56beb12b35ab636b66c4f9fc168646785a8e85a") +
-        "_nexai",
+      "_nexai",
     jwtExpiresIn: process.env.NEXAI_JWT_EXPIRES || "2h",
     refreshExpiresIn: process.env.NEXAI_REFRESH_EXPIRES || "30d",
     google: {
@@ -103,6 +103,6 @@ export const config = {
     frontendUrl:
       process.env.NEXAI_FRONTEND_URL ||
       process.env.FRONTEND_URL ||
-      "http://localhost:3001",
+      "https://tts.951100.xyz",
   },
 };

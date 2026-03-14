@@ -218,7 +218,7 @@ const ArtifactSharePage: React.FC = () => {
             <iframe
               srcDoc={DOMPurify.sanitize(artifact.content)}
               sandbox="allow-scripts allow-same-origin"
-              className="w-full h-[600px] border-0 bg-white"
+              className="w-full h-[600px] border-0 bg-white rounded-xl"
             />
           </div>
         );
@@ -261,7 +261,7 @@ const ArtifactSharePage: React.FC = () => {
       case 'mermaid':
         return (
           <div className="artifact-mermaid-content bg-white rounded-xl p-8 shadow-xl">
-            <pre className="mermaid text-center">{artifact.content}</pre>
+            <pre className="mermaid text-center rounded-lg">{artifact.content}</pre>
           </div>
         );
 

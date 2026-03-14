@@ -185,7 +185,7 @@ export class NexaiAuthController {
             const result = await NexaiAuthService.githubAuth({ code, ip });
 
             // 重定向回前端，携带 token 参数
-            const frontendUrl = process.env.NEXAI_FRONTEND_URL || process.env.FRONTEND_URL || "http://localhost:3001";
+            const frontendUrl = process.env.NEXAI_FRONTEND_URL || process.env.FRONTEND_URL || "https://tts.951100.xyz";
             const params = new URLSearchParams({
                 accessToken: result.accessToken,
                 refreshToken: result.refreshToken,
@@ -194,7 +194,7 @@ export class NexaiAuthController {
             res.redirect(`${frontendUrl}/nexai/auth/callback?${params.toString()}`);
         } catch (error: any) {
             logger.error("[NexAI] GitHub callback 错误:", error);
-            const frontendUrl = process.env.NEXAI_FRONTEND_URL || process.env.FRONTEND_URL || "http://localhost:3001";
+            const frontendUrl = process.env.NEXAI_FRONTEND_URL || process.env.FRONTEND_URL || "https://tts.951100.xyz";
             res.redirect(`${frontendUrl}/nexai/auth/callback?error=${encodeURIComponent(error.message)}`);
         }
     }
