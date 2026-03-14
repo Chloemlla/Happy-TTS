@@ -14,7 +14,6 @@ marked.use({
   async: true,
   pedantic: false,
   gfm: true,
-  headerIds: false,
 });
 
 // 高亮扩展
