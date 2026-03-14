@@ -1,7 +1,8 @@
-import mongoose, { type Document, Schema } from "mongoose";
+import mongoose, { type Document, Schema, Types } from "mongoose";
 
 // ========== Artifact 主表 ==========
 export interface IArtifact extends Document {
+  _id: Types.ObjectId;
   shortId: string;
   userId: string;
 
