@@ -13,7 +13,7 @@ export class ArtifactController {
    */
   static async createArtifact(req: Request, res: Response) {
     try {
-      const userId = (req as any).nexaiUser?.userId;
+      const userId = (req as any).nexaiUser?.id;
       if (!userId) {
         return res.status(401).json({
           success: false,
@@ -126,7 +126,7 @@ export class ArtifactController {
    */
   static async updateArtifact(req: Request, res: Response) {
     try {
-      const userId = (req as any).nexaiUser?.userId;
+      const userId = (req as any).nexaiUser?.id;
       if (!userId) {
         return res.status(401).json({
           success: false,
@@ -174,7 +174,7 @@ export class ArtifactController {
    */
   static async deleteArtifact(req: Request, res: Response) {
     try {
-      const userId = (req as any).nexaiUser?.userId;
+      const userId = (req as any).nexaiUser?.id;
       if (!userId) {
         return res.status(401).json({
           success: false,
@@ -209,7 +209,7 @@ export class ArtifactController {
    */
   static async listArtifacts(req: Request, res: Response) {
     try {
-      const userId = (req as any).nexaiUser?.userId;
+      const userId = (req as any).nexaiUser?.id;
       if (!userId) {
         return res.status(401).json({
           success: false,
