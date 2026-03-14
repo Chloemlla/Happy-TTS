@@ -13,6 +13,7 @@ LogPaste/
 .kiro/
 *.pem
 *.exe
+.claude/settings.local.json
 github-billing-multi-curl.json
 client_secret_17055657909-fvhkanhq0ht0gm69ra2sjb5onpeqrh91.apps.googleusercontent.com.json
 scripts\inspect.json
