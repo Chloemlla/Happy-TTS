@@ -5,6 +5,7 @@
 import express from "express";
 import { NexaiAuthController } from "../controllers/nexaiAuthController";
 import { NexaiSyncController } from "../controllers/nexaiSyncController";
+import { ArtifactController } from "../controllers/artifactController";
 import { nexaiAuthRequired } from "../middleware/nexaiAuth";
 import { createLimiter } from "../middleware/rateLimiter";
 
@@ -52,6 +53,24 @@ const nexaiSyncLimiter = createLimiter({
     windowMs: 5 * 60 * 1000,
     max: 30,
     message: "同步请求过于频繁，请稍后再试",
+});
+
+const artifactCreateLimiter = createLimiter({
+    windowMs: 60 * 60 * 1000, // 1 小时
+    max: 10,
+    message: "Artifact 创建过于频繁，请稍后再试",
+});
+
+const artifactViewLimiter = createLimiter({
+    windowMs: 60 * 1000, // 1 分钟
+    max: 100,
+    message: "访问过于频繁，请稍后再试",
+});
+
+const artifactManageLimiter = createLimiter({
+    windowMs: 15 * 60 * 1000, // 15 分钟
+    max: 30,
+    message: "操作过于频繁，请稍后再试",
 });
 
 // ========== 公开端点（无需登录） ==========
@@ -594,5 +613,197 @@ router.patch("/sync/:category", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncCo
  *         description: 清除成功
  */
 router.delete("/sync", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncController.deleteSyncData);
+
+// ========== Artifacts 分享端点 ==========
+
+/**
+ * @openapi
+ * /nexai/artifacts:
+ *   post:
+ *     summary: 创建 Artifact
+ *     tags: [NexAI Artifacts]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [title, content_type, content]
+ *             properties:
+ *               title:
+ *                 type: string
+ *               content_type:
+ *                 type: string
+ *                 enum: [html, code, markdown, mermaid]
+ *               content:
+ *                 type: string
+ *                 description: Base64 编码的内容
+ *               language:
+ *                 type: string
+ *               visibility:
+ *                 type: string
+ *                 enum: [public, private, password]
+ *               password:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               tags:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               expires_in_days:
+ *                 type: integer
+ *     responses:
+ *       201:
+ *         description: 创建成功
+ */
+router.post("/artifacts", nexaiAuthRequired, artifactCreateLimiter, ArtifactController.createArtifact);
+
+/**
+ * @openapi
+ * /nexai/artifacts/{shortId}:
+ *   get:
+ *     summary: 获取 Artifact
+ *     tags: [NexAI Artifacts]
+ *     parameters:
+ *       - in: path
+ *         name: shortId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: header
+ *         name: X-Password
+ *         schema:
+ *           type: string
+ *         description: 密码保护的 Artifact 需要提供密码
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ *       403:
+ *         description: 需要密码或密码错误
+ *       404:
+ *         description: 不存在或已过期
+ */
+router.get("/artifacts/:shortId", artifactViewLimiter, ArtifactController.getArtifact);
+
+/**
+ * @openapi
+ * /nexai/artifacts/{shortId}:
+ *   patch:
+ *     summary: 更新 Artifact
+ *     tags: [NexAI Artifacts]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: shortId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *               visibility:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               tags:
+ *                 type: array
+ *               expires_in_days:
+ *                 type: integer
+ *     responses:
+ *       200:
+ *         description: 更新成功
+ */
+router.patch("/artifacts/:shortId", nexaiAuthRequired, artifactManageLimiter, ArtifactController.updateArtifact);
+
+/**
+ * @openapi
+ * /nexai/artifacts/{shortId}:
+ *   delete:
+ *     summary: 删除 Artifact
+ *     tags: [NexAI Artifacts]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: shortId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       204:
+ *         description: 删除成功
+ */
+router.delete("/artifacts/:shortId", nexaiAuthRequired, artifactManageLimiter, ArtifactController.deleteArtifact);
+
+/**
+ * @openapi
+ * /nexai/artifacts:
+ *   get:
+ *     summary: 获取用户的 Artifacts 列表
+ *     tags: [NexAI Artifacts]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: sort
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: order
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ */
+router.get("/artifacts", nexaiAuthRequired, artifactManageLimiter, ArtifactController.listArtifacts);
+
+/**
+ * @openapi
+ * /nexai/artifacts/{shortId}/view:
+ *   post:
+ *     summary: 记录访问
+ *     tags: [NexAI Artifacts]
+ *     parameters:
+ *       - in: path
+ *         name: shortId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               referer:
+ *                 type: string
+ *               user_agent:
+ *                 type: string
+ *     responses:
+ *       204:
+ *         description: 记录成功
+ */
+router.post("/artifacts/:shortId/view", artifactViewLimiter, ArtifactController.recordView);
 
 export default router;

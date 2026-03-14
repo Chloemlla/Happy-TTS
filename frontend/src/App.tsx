@@ -112,6 +112,9 @@ const FinanceAppDemo = React.lazy(() => import('./components/FinanceAppDemo'));
 // NexAI 安全监控中心懒加载
 const NexAISecurityDashboard = React.lazy(() => import('./components/NexAISecurityDashboard'));
 
+// Artifact 分享页面懒加载
+const ArtifactSharePage = React.lazy(() => import('./components/ArtifactSharePage'));
+
 // 恢复 EmailSender 懒加载
 const EmailSenderPage: React.FC = () => {
   const [to, setTo] = React.useState('');
@@ -1419,6 +1422,19 @@ const App: React.FC = () => {
                         transition={pageTransition}
                       >
                         <HCaptchaVerificationPage />
+                      </m.div>
+                    </Suspense>
+                  } />
+                  <Route path="/artifacts/:shortId" element={
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <m.div
+                        variants={pageVariants}
+                        initial="initial"
+                        animate="in"
+                        exit="out"
+                        transition={pageTransition}
+                      >
+                        <ArtifactSharePage />
                       </m.div>
                     </Suspense>
                   } />
