@@ -251,7 +251,7 @@ const ArtifactSharePage: React.FC = () => {
                        bg-white dark:bg-gray-800 rounded-xl p-8 shadow-xl
                        prose-headings:font-bold prose-a:text-blue-600 hover:prose-a:text-blue-500
                        prose-code:text-pink-600 prose-code:bg-pink-50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded
-                       prose-pre:bg-gray-900 prose-pre:shadow-lg"
+                       prose-pre:shadow-lg"
             dangerouslySetInnerHTML={{
               __html: renderedMarkdown,
             }}
@@ -267,7 +267,7 @@ const ArtifactSharePage: React.FC = () => {
 
       default:
         return (
-          <pre className="artifact-text-content bg-gray-900 text-gray-100 rounded-xl p-6 shadow-xl overflow-x-auto">
+          <pre className="artifact-text-content text-gray-800 dark:text-gray-100 rounded-xl p-6 shadow-xl overflow-x-auto">
             {artifact.content}
           </pre>
         );
