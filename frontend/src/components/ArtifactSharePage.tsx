@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import getApiBaseUrl from '../api';
+import { api } from '../api/api';
 import DOMPurify from 'dompurify';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -71,41 +71,33 @@ const ArtifactSharePage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const headers: any = {
-        'Content-Type': 'application/json',
-      };
-
+      const headers: Record<string, string> = {};
       if (pwd) {
         headers['X-Password'] = pwd;
       }
 
-      const response = await fetch(`${getApiBaseUrl()}/api/nexai/artifacts/${shortId}`, {
-        headers,
-      });
+      const response = await api.get(`/api/nexai/artifacts/${shortId}`, { headers });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (data.error === 'password_required') {
-          setShowPasswordInput(true);
-          setLoading(false);
-          return;
-        }
-        if (data.error === 'invalid_password') {
-          setError('密码错误');
-          setLoading(false);
-          return;
-        }
-        throw new Error(data.message || '获取失败');
-      }
-
-      setArtifact(data.data);
+      setArtifact(response.data.data);
       setShowPasswordInput(false);
 
       // 记录访问
       recordView();
     } catch (err: any) {
-      setError(err.message || '加载失败');
+      const data = err?.response?.data;
+      const status = err?.response?.status;
+
+      if (status === 403 && data?.error === 'password_required') {
+        setShowPasswordInput(true);
+        setLoading(false);
+        return;
+      }
+      if (status === 403 && data?.error === 'invalid_password') {
+        setError('密码错误');
+        setLoading(false);
+        return;
+      }
+      setError(data?.message || err.message || '加载失败');
     } finally {
       setLoading(false);
     }
@@ -113,17 +105,11 @@ const ArtifactSharePage: React.FC = () => {
 
   const recordView = async () => {
     try {
-      await fetch(`${getApiBaseUrl()}/api/nexai/artifacts/${shortId}/view`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          referer: document.referrer,
-          user_agent: navigator.userAgent,
-        }),
+      await api.post(`/api/nexai/artifacts/${shortId}/view`, {
+        referer: document.referrer,
+        user_agent: navigator.userAgent,
       });
-    } catch (err) {
+    } catch {
       // 忽略错误
     }
   };
@@ -247,8 +233,8 @@ const ArtifactSharePage: React.FC = () => {
       case 'markdown':
         return (
           <div
-            className="artifact-markdown-content prose prose-lg prose-slate max-w-none dark:prose-invert
-                       bg-white dark:bg-gray-800 rounded-xl p-8 shadow-xl
+            className="artifact-markdown-content prose prose-lg prose-slate max-w-none
+                       bg-white rounded-xl p-8 shadow-xl
                        prose-headings:font-bold prose-a:text-blue-600 hover:prose-a:text-blue-500
                        prose-code:text-pink-600 prose-code:bg-pink-50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded
                        prose-pre:shadow-lg"
@@ -267,7 +253,7 @@ const ArtifactSharePage: React.FC = () => {
 
       default:
         return (
-          <pre className="artifact-text-content text-gray-800 dark:text-gray-100 rounded-xl p-6 shadow-xl overflow-x-auto">
+          <pre className="artifact-text-content text-gray-800 rounded-xl p-6 shadow-xl overflow-x-auto">
             {artifact.content}
           </pre>
         );
