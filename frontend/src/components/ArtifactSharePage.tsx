@@ -465,7 +465,7 @@ const ArtifactSharePage: React.FC = () => {
         </div>
 
         {/* Content Card */}
-        <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-2xl p-6 sm:p-8 border border-white/20">
+        <div className="rounded-2xl shadow-2xl overflow-hidden">
           {renderContent()}
         </div>
 
