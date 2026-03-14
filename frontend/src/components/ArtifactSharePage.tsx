@@ -19,7 +19,7 @@ marked.use({
 // 高亮扩展
 marked.use(markedHighlight({
   langPrefix: 'hljs language-',
-  highlight(code, lang) {
+  highlight(code: string, lang: string) {
     const language = hljs.getLanguage(lang) ? lang : 'shell';
     return hljs.highlight(code, { language }).value;
   }
@@ -164,32 +164,29 @@ const ArtifactSharePage: React.FC = () => {
   const getFileExtension = (contentType: string, language?: string): string => {
     if (contentType === 'code' && language) {
       const extMap: Record<string, string> = {
-        javascript: 'js',
-        typescript: 'ts',
-        python: 'py',
-        java: 'java',
-        cpp: 'cpp',
-        c: 'c',
-        go: 'go',
-        rust: 'rs',
-        html: 'html',
-        css: 'css',
+        javascript: 'js', typescript: 'ts', python: 'py',
+        java: 'java', cpp: 'cpp', c: 'c', go: 'go',
+        rust: 'rs', html: 'html', css: 'css', php: 'php',
+        ruby: 'rb', swift: 'swift', kotlin: 'kt', scala: 'scala',
+        shell: 'sh', bash: 'sh', powershell: 'ps1', sql: 'sql',
+        yaml: 'yaml', toml: 'toml', dart: 'dart', csharp: 'cs',
+        r: 'r', matlab: 'm', lua: 'lua', perl: 'pl',
       };
       return extMap[language] || 'txt';
     }
-    if (contentType === 'html') return 'html';
-    if (contentType === 'markdown') return 'md';
-    if (contentType === 'mermaid') return 'mmd';
-    return 'txt';
+    const typeExtMap: Record<string, string> = {
+      html: 'html', markdown: 'md', mermaid: 'mmd',
+      json: 'json', svg: 'svg', latex: 'tex',
+      csv: 'csv', xml: 'xml', text: 'txt',
+    };
+    return typeExtMap[contentType] || 'txt';
   };
 
   const getContentTypeIcon = (contentType: string) => {
     const icons: Record<string, string> = {
-      code: '💻',
-      html: '🌐',
-      markdown: '📝',
-      mermaid: '📊',
-      text: '📄',
+      code: '💻', html: '🌐', markdown: '📝',
+      mermaid: '📊', text: '📄', json: '{}',
+      svg: '🎨', latex: '�', csv: '📋', xml: '🏷️',
     };
     return icons[contentType] || '📄';
   };
@@ -209,6 +206,17 @@ const ArtifactSharePage: React.FC = () => {
           </div>
         );
 
+      case 'svg':
+        return (
+          <div className="artifact-svg-content rounded-xl overflow-hidden shadow-lg bg-white">
+            <iframe
+              srcDoc={`<html><body style="margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#fff">${DOMPurify.sanitize(artifact.content, { USE_PROFILES: { svg: true, svgFilters: true } })}</body></html>`}
+              sandbox="allow-same-origin"
+              className="w-full h-[500px] border-0 rounded-xl"
+            />
+          </div>
+        );
+
       case 'code':
         return (
           <div className="artifact-code-content rounded-xl overflow-hidden shadow-2xl">
@@ -217,6 +225,92 @@ const ArtifactSharePage: React.FC = () => {
               style={vscDarkPlus}
               showLineNumbers
               wrapLines
+              customStyle={{
+                margin: 0,
+                borderRadius: '0.75rem',
+                padding: '1.5rem',
+                fontSize: '14px',
+                lineHeight: '1.6',
+              }}
+            >
+              {artifact.content}
+            </SyntaxHighlighter>
+          </div>
+        );
+
+      case 'json':
+        return (
+          <div className="artifact-code-content rounded-xl overflow-hidden shadow-2xl">
+            <SyntaxHighlighter
+              language="json"
+              style={vscDarkPlus}
+              showLineNumbers
+              customStyle={{
+                margin: 0,
+                borderRadius: '0.75rem',
+                padding: '1.5rem',
+                fontSize: '14px',
+                lineHeight: '1.6',
+              }}
+            >
+              {(() => { try { return JSON.stringify(JSON.parse(artifact.content), null, 2); } catch { return artifact.content; } })()}
+            </SyntaxHighlighter>
+          </div>
+        );
+
+      case 'xml':
+        return (
+          <div className="artifact-code-content rounded-xl overflow-hidden shadow-2xl">
+            <SyntaxHighlighter
+              language="xml"
+              style={vscDarkPlus}
+              showLineNumbers
+              customStyle={{
+                margin: 0,
+                borderRadius: '0.75rem',
+                padding: '1.5rem',
+                fontSize: '14px',
+                lineHeight: '1.6',
+              }}
+            >
+              {artifact.content}
+            </SyntaxHighlighter>
+          </div>
+        );
+
+      case 'csv':
+        return (
+          <div className="artifact-csv-content bg-white rounded-xl p-6 shadow-xl overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 text-sm">
+              {(() => {
+                const rows = artifact.content.trim().split('\n').map(r => r.split(','));
+                const [header, ...body] = rows;
+                return (
+                  <>
+                    <thead className="bg-gray-50">
+                      <tr>{header.map((h, i) => <th key={i} className="px-4 py-2 text-left font-semibold text-gray-700 border border-gray-200">{h.trim()}</th>)}</tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {body.map((row, ri) => (
+                        <tr key={ri} className={ri % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          {row.map((cell, ci) => <td key={ci} className="px-4 py-2 text-gray-800 border border-gray-100">{cell.trim()}</td>)}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </>
+                );
+              })()}
+            </table>
+          </div>
+        );
+
+      case 'latex':
+        return (
+          <div className="artifact-code-content rounded-xl overflow-hidden shadow-2xl">
+            <SyntaxHighlighter
+              language="latex"
+              style={vscDarkPlus}
+              showLineNumbers
               customStyle={{
                 margin: 0,
                 borderRadius: '0.75rem',
@@ -251,9 +345,10 @@ const ArtifactSharePage: React.FC = () => {
           </div>
         );
 
+      case 'text':
       default:
         return (
-          <pre className="artifact-text-content text-gray-800 rounded-xl p-6 shadow-xl overflow-x-auto">
+          <pre className="artifact-text-content text-gray-800 rounded-xl p-6 shadow-xl overflow-x-auto whitespace-pre-wrap break-words bg-white font-mono text-sm leading-relaxed">
             {artifact.content}
           </pre>
         );

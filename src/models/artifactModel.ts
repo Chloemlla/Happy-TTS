@@ -8,7 +8,7 @@ export interface IArtifact extends Document {
 
   // 内容信息
   title: string;
-  contentType: string; // html, code, markdown, mermaid, etc.
+  contentType: string; // html | code | markdown | mermaid | text | json | svg | latex | csv | xml
   language?: string;
   content: string; // 直接存储内容
   contentHash: string; // SHA-256 哈希
