@@ -7,6 +7,14 @@ import { commandService } from "../services/commandService";
 
 const router = Router();
 
+const ensureAdmin = (req: any, res: any): boolean => {
+  if (!req.user || req.user.role !== "admin") {
+    res.status(403).json({ error: "需要管理员权限" });
+    return false;
+  }
+  return true;
+};
+
 /**
  * @openapi
  * /command/y:
@@ -27,13 +35,12 @@ const router = Router();
  *       200:
  *         description: 添加命令结果
  */
-router.post("/y", commandLimiter, async (req, res) => {
+router.post("/y", commandLimiter, authenticateToken, async (req, res) => {
   const { command, password } = req.body;
 
-  console.log("🔐 [CommandManager] 密码验证请求:");
-  console.log("   接收到的密码:", password);
-  console.log("   期望的密码:", config.adminPassword);
-  console.log("   密码匹配:", password === config.adminPassword);
+  if (!ensureAdmin(req, res)) {
+    return;
+  }
 
   // 验证密码
   if (password !== config.adminPassword) {
@@ -158,7 +165,11 @@ router.get("/q", commandLimiter, authenticateToken, async (req, res) => {
  *       200:
  *         description: 移除命令结果
  */
-router.post("/p", (req, res) => {
+router.post("/p", commandLimiter, authenticateToken, (req, res) => {
+  if (!ensureAdmin(req, res)) {
+    return;
+  }
+
   const { command } = req.body;
   const result = commandService.removeCommand(command);
   return res.json(result);
@@ -196,6 +207,10 @@ router.post("/p", (req, res) => {
 router.post("/execute", commandLimiter, authenticateToken, async (req, res) => {
   try {
     const { command, password } = req.body;
+
+    if (!ensureAdmin(req, res)) {
+      return;
+    }
 
     // 验证密码
     if (password !== config.adminPassword) {

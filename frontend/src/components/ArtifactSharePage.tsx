@@ -200,7 +200,7 @@ const ArtifactSharePage: React.FC = () => {
           <div className="artifact-html-content rounded-xl overflow-hidden shadow-lg">
             <iframe
               srcDoc={DOMPurify.sanitize(artifact.content)}
-              sandbox="allow-scripts allow-same-origin"
+              sandbox=""
               className="w-full h-[600px] border-0 bg-white rounded-xl"
             />
           </div>
@@ -211,7 +211,7 @@ const ArtifactSharePage: React.FC = () => {
           <div className="artifact-svg-content rounded-xl overflow-hidden shadow-lg bg-white">
             <iframe
               srcDoc={`<html><body style="margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#fff">${DOMPurify.sanitize(artifact.content, { USE_PROFILES: { svg: true, svgFilters: true } })}</body></html>`}
-              sandbox="allow-same-origin"
+              sandbox=""
               className="w-full h-[500px] border-0 rounded-xl"
             />
           </div>
