@@ -108,7 +108,7 @@
     "redis": "^5.11.0",
     "resend": "^6.9.4",
     "serve": "^14.2.6",
-    "socks-proxy-agent": "^8.0.5",
+    "socks-proxy-agent": "^9.0.0",
     "speakeasy": "^2.0.0",
     "svix": "^1.87.0",
     "swagger-jsdoc": "^6.2.8",
