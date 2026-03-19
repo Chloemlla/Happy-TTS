@@ -77,8 +77,8 @@ importers:
         specifier: ^4.1.0
         version: 4.1.0
       docx:
-        specifier: ^9.6.0
-        version: 9.6.0
+        specifier: ^9.6.1
+        version: 9.6.1
       dompurify:
         specifier: '>=3.3.2'
         version: 3.3.2
@@ -238,7 +238,7 @@ importers:
         version: 6.0.0
       '@vitejs/plugin-react':
         specifier: ^5.1.4
-        version: 5.1.4(vite@7.3.1(@types/node@25.3.5)(jiti@1.21.7)(terser@5.46.0))
+        version: 5.1.4(vite@7.3.1(@types/node@25.5.0)(jiti@1.21.7)(terser@5.46.0))
       '@vitest/ui':
         specifier: ^4.0.6
         version: 4.0.18(vitest@4.0.18)
@@ -277,7 +277,7 @@ importers:
         version: 5.9.3
       vite:
         specifier: ^7.3.1
-        version: 7.3.1(@types/node@25.3.5)(jiti@1.21.7)(terser@5.46.0)
+        version: 7.3.1(@types/node@25.5.0)(jiti@1.21.7)(terser@5.46.0)
       vite-auto-i18n-plugin:
         specifier: ^1.1.14
         version: 1.1.16
@@ -286,7 +286,7 @@ importers:
         version: 1.0.5
       vitest:
         specifier: ^4.0.6
-        version: 4.0.18(@types/node@25.3.5)(@vitest/ui@4.0.18)(jiti@1.21.7)(jsdom@28.1.0)(terser@5.46.0)
+        version: 4.0.18(@types/node@25.5.0)(@vitest/ui@4.0.18)(jiti@1.21.7)(jsdom@28.1.0)(terser@5.46.0)
 
 packages:
 
@@ -2366,6 +2366,9 @@ packages:
   '@types/node@25.3.5':
     resolution: {integrity: sha512-oX8xrhvpiyRCQkG1MFchB09f+cXftgIXb3a7UUa4Y3wpmZPw5tyZGTLWhlESOLq1Rq6oDlc8npVU2/9xiCuXMA==}
 
+  '@types/node@25.5.0':
+    resolution: {integrity: sha512-jp2P3tQMSxWugkCUKLRPVUpGaL5MVFwF8RDuSRztfwgN1wmqJeMSbKlnEtQqU8UrhTmzEmZdu2I6v2dpp7XIxw==}
+
   '@types/pako@2.0.4':
     resolution: {integrity: sha512-VWDCbrLeVXJM9fihYodcLiIv0ku+AlOa/TQ1SvYOaBuyrSKgEcro95LJyIsJ4vSo6BXIxOKxiJAat04CmST9Fw==}
 
@@ -3201,8 +3204,8 @@ packages:
   dlv@1.1.3:
     resolution: {integrity: sha512-+HlytyjlPKnIG8XuRG8WvmBP8xs8P71y+SKKS6ZXWoEgLuePxtDoUEiH7WkdePWrQ5JBpE6aoVqfZfJUQkjXwA==}
 
-  docx@9.6.0:
-    resolution: {integrity: sha512-y6EaJJMDvt4P7wgGQB9KsZf4wsRkQMJfkc9LlNufRshggI5BT35hGNkXBCAeEoI3MLMwApKguxzjdqqVcBCqNA==}
+  docx@9.6.1:
+    resolution: {integrity: sha512-ZJja9/KBUuFC109sCMzovoq2GR2wCG/AuxivjA+OHj/q0TEgJIm3S7yrlUxIy3B+bV8YDj/BiHfWyrRFmyWpDQ==}
     engines: {node: '>=10'}
 
   dom-accessibility-api@0.5.16:
@@ -4224,8 +4227,8 @@ packages:
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
 
-  nanoid@5.1.6:
-    resolution: {integrity: sha512-c7+7RQ+dMB5dPwwCp4ee1/iV/q2P6aK1mTZcfr1BTuVlyW9hJYiMPybJCcnBlQtuSmTIWNeazm/zqNoZSSElBg==}
+  nanoid@5.1.7:
+    resolution: {integrity: sha512-ua3NDgISf6jdwezAheMOk4mbE1LXjm1DfMUDMuJf4AqxLFK3ccGpgWizwa5YV7Yz9EpXwEaWoRXSb/BnV0t5dQ==}
     engines: {node: ^18 || >=20}
     hasBin: true
 
@@ -6732,7 +6735,7 @@ snapshots:
     dependencies:
       '@jest/types': 30.2.0
       '@sinonjs/fake-timers': 13.0.5
-      '@types/node': 25.3.5
+      '@types/node': 25.5.0
       jest-message-util: 30.2.0
       jest-mock: 30.2.0
       jest-util: 30.2.0
@@ -6741,7 +6744,7 @@ snapshots:
 
   '@jest/pattern@30.0.1':
     dependencies:
-      '@types/node': 25.3.5
+      '@types/node': 25.5.0
       jest-regex-util: 30.0.1
 
   '@jest/schemas@30.0.5':
@@ -6754,7 +6757,7 @@ snapshots:
       '@jest/schemas': 30.0.5
       '@types/istanbul-lib-coverage': 2.0.6
       '@types/istanbul-reports': 3.0.4
-      '@types/node': 25.3.5
+      '@types/node': 25.5.0
       '@types/yargs': 17.0.35
       chalk: 4.1.2
 
@@ -7900,7 +7903,7 @@ snapshots:
 
   '@types/cors@2.8.19':
     dependencies:
-      '@types/node': 25.3.5
+      '@types/node': 25.5.0
 
   '@types/d3-array@3.2.2': {}
 
@@ -8094,6 +8097,10 @@ snapshots:
     dependencies:
       undici-types: 7.18.2
 
+  '@types/node@25.5.0':
+    dependencies:
+      undici-types: 7.18.2
+
   '@types/pako@2.0.4': {}
 
   '@types/prismjs@1.26.6': {}
@@ -8160,7 +8167,7 @@ snapshots:
     transitivePeerDependencies:
       - encoding
 
-  '@vitejs/plugin-react@5.1.4(vite@7.3.1(@types/node@25.3.5)(jiti@1.21.7)(terser@5.46.0))':
+  '@vitejs/plugin-react@5.1.4(vite@7.3.1(@types/node@25.5.0)(jiti@1.21.7)(terser@5.46.0))':
     dependencies:
       '@babel/core': 7.29.0
       '@babel/plugin-transform-react-jsx-self': 7.27.1(@babel/core@7.29.0)
@@ -8168,7 +8175,7 @@ snapshots:
       '@rolldown/pluginutils': 1.0.0-rc.3
       '@types/babel__core': 7.20.5
       react-refresh: 0.18.0
-      vite: 7.3.1(@types/node@25.3.5)(jiti@1.21.7)(terser@5.46.0)
+      vite: 7.3.1(@types/node@25.5.0)(jiti@1.21.7)(terser@5.46.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -8181,13 +8188,13 @@ snapshots:
       chai: 6.2.2
       tinyrainbow: 3.0.3
 
-  '@vitest/mocker@4.0.18(vite@7.3.1(@types/node@25.3.5)(jiti@1.21.7)(terser@5.46.0))':
+  '@vitest/mocker@4.0.18(vite@7.3.1(@types/node@25.5.0)(jiti@1.21.7)(terser@5.46.0))':
     dependencies:
       '@vitest/spy': 4.0.18
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 7.3.1(@types/node@25.3.5)(jiti@1.21.7)(terser@5.46.0)
+      vite: 7.3.1(@types/node@25.5.0)(jiti@1.21.7)(terser@5.46.0)
 
   '@vitest/pretty-format@4.0.18':
     dependencies:
@@ -8215,7 +8222,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.15
       tinyrainbow: 3.0.3
-      vitest: 4.0.18(@types/node@25.3.5)(@vitest/ui@4.0.18)(jiti@1.21.7)(jsdom@28.1.0)(terser@5.46.0)
+      vitest: 4.0.18(@types/node@25.5.0)(@vitest/ui@4.0.18)(jiti@1.21.7)(jsdom@28.1.0)(terser@5.46.0)
 
   '@vitest/utils@4.0.18':
     dependencies:
@@ -8984,12 +8991,12 @@ snapshots:
 
   dlv@1.1.3: {}
 
-  docx@9.6.0:
+  docx@9.6.1:
     dependencies:
-      '@types/node': 25.3.5
+      '@types/node': 25.5.0
       hash.js: 1.1.7
       jszip: 3.10.1
-      nanoid: 5.1.6
+      nanoid: 5.1.7
       xml: 1.0.1
       xml-js: 1.6.11
 
@@ -9048,7 +9055,7 @@ snapshots:
   engine.io@6.6.5:
     dependencies:
       '@types/cors': 2.8.19
-      '@types/node': 25.3.5
+      '@types/node': 25.5.0
       accepts: 1.3.8
       base64id: 2.0.0
       cookie: 0.7.2
@@ -9392,7 +9399,7 @@ snapshots:
       clsx: 2.1.1
       crypto-js: 4.2.0
       date-fns: 4.1.0
-      docx: 9.6.0
+      docx: 9.6.1
       dompurify: 3.3.2
       express-rate-limit: 7.5.1(express@5.2.1)
       form-data: 4.0.5
@@ -9792,7 +9799,7 @@ snapshots:
   jest-mock@30.2.0:
     dependencies:
       '@jest/types': 30.2.0
-      '@types/node': 25.3.5
+      '@types/node': 25.5.0
       jest-util: 30.2.0
 
   jest-regex-util@30.0.1: {}
@@ -9800,7 +9807,7 @@ snapshots:
   jest-util@30.2.0:
     dependencies:
       '@jest/types': 30.2.0
-      '@types/node': 25.3.5
+      '@types/node': 25.5.0
       chalk: 4.1.2
       ci-info: 4.4.0
       graceful-fs: 4.2.11
@@ -10367,7 +10374,7 @@ snapshots:
 
   nanoid@3.3.11: {}
 
-  nanoid@5.1.6: {}
+  nanoid@5.1.7: {}
 
   negotiator@0.6.3: {}
 
@@ -11696,7 +11703,7 @@ snapshots:
     dependencies:
       javascript-obfuscator: 4.2.2
 
-  vite@7.3.1(@types/node@25.3.5)(jiti@1.21.7)(terser@5.46.0):
+  vite@7.3.1(@types/node@25.5.0)(jiti@1.21.7)(terser@5.46.0):
     dependencies:
       esbuild: 0.27.3
       fdir: 6.5.0(picomatch@4.0.3)
@@ -11705,15 +11712,15 @@ snapshots:
       rollup: 4.59.0
       tinyglobby: 0.2.15
     optionalDependencies:
-      '@types/node': 25.3.5
+      '@types/node': 25.5.0
       fsevents: 2.3.3
       jiti: 1.21.7
       terser: 5.46.0
 
-  vitest@4.0.18(@types/node@25.3.5)(@vitest/ui@4.0.18)(jiti@1.21.7)(jsdom@28.1.0)(terser@5.46.0):
+  vitest@4.0.18(@types/node@25.5.0)(@vitest/ui@4.0.18)(jiti@1.21.7)(jsdom@28.1.0)(terser@5.46.0):
     dependencies:
       '@vitest/expect': 4.0.18
-      '@vitest/mocker': 4.0.18(vite@7.3.1(@types/node@25.3.5)(jiti@1.21.7)(terser@5.46.0))
+      '@vitest/mocker': 4.0.18(vite@7.3.1(@types/node@25.5.0)(jiti@1.21.7)(terser@5.46.0))
       '@vitest/pretty-format': 4.0.18
       '@vitest/runner': 4.0.18
       '@vitest/snapshot': 4.0.18
@@ -11730,10 +11737,10 @@ snapshots:
       tinyexec: 1.0.2
       tinyglobby: 0.2.15
       tinyrainbow: 3.0.3
-      vite: 7.3.1(@types/node@25.3.5)(jiti@1.21.7)(terser@5.46.0)
+      vite: 7.3.1(@types/node@25.5.0)(jiti@1.21.7)(terser@5.46.0)
       why-is-node-running: 2.3.0
     optionalDependencies:
-      '@types/node': 25.3.5
+      '@types/node': 25.5.0
       '@vitest/ui': 4.0.18(vitest@4.0.18)
       jsdom: 28.1.0
     transitivePeerDependencies:
