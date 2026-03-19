@@ -32,7 +32,7 @@
     "@fingerprintjs/fingerprintjs": "^5.1.0",
     "@heroicons/react": "^2.2.0",
     "@microsoft/clarity": "^1.0.2",
-    "@prisma/client": "^7.4.2",
+    "@prisma/client": "^7.5.0",
     "@radix-ui/react-dialog": "^1.1.15",
     "@react-email/components": "1.0.8",
     "@simplewebauthn/browser": "^13.2.2",
