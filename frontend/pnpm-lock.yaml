@@ -26,8 +26,8 @@ importers:
         specifier: ^1.0.2
         version: 1.0.2
       '@prisma/client':
-        specifier: ^7.4.2
-        version: 7.4.2(typescript@5.9.3)
+        specifier: ^7.5.0
+        version: 7.5.0(typescript@5.9.3)
       '@radix-ui/react-dialog':
         specifier: ^1.1.15
         version: 1.1.15(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -1455,11 +1455,11 @@ packages:
   '@polka/url@1.0.0-next.29':
     resolution: {integrity: sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==}
 
-  '@prisma/client-runtime-utils@7.4.2':
-    resolution: {integrity: sha512-cID+rzOEb38VyMsx5LwJMEY4NGIrWCNpKu/0ImbeooQ2Px7TI+kOt7cm0NelxUzF2V41UVVXAmYjANZQtCu1/Q==}
+  '@prisma/client-runtime-utils@7.5.0':
+    resolution: {integrity: sha512-KnJ2b4Si/pcWEtK68uM+h0h1oh80CZt2suhLTVuLaSKg4n58Q9jBF/A42Kw6Ma+aThy1yAhfDeTC0JvEmeZnFQ==}
 
-  '@prisma/client@7.4.2':
-    resolution: {integrity: sha512-ts2mu+cQHriAhSxngO3StcYubBGTWDtu/4juZhXCUKOwgh26l+s4KD3vT2kMUzFyrYnll9u/3qWrtzRv9CGWzA==}
+  '@prisma/client@7.5.0':
+    resolution: {integrity: sha512-h4hF9ctp+kSRs7ENHGsFQmHAgHcfkOCxbYt6Ti9Xi8x7D+kP4tTi9x51UKmiTH/OqdyJAO+8V+r+JA5AWdav7w==}
     engines: {node: ^20.19 || ^22.12 || >=24.0}
     peerDependencies:
       prisma: '*'
@@ -6937,11 +6937,11 @@ snapshots:
 
   '@polka/url@1.0.0-next.29': {}
 
-  '@prisma/client-runtime-utils@7.4.2': {}
+  '@prisma/client-runtime-utils@7.5.0': {}
 
-  '@prisma/client@7.4.2(typescript@5.9.3)':
+  '@prisma/client@7.5.0(typescript@5.9.3)':
     dependencies:
-      '@prisma/client-runtime-utils': 7.4.2
+      '@prisma/client-runtime-utils': 7.5.0
     optionalDependencies:
       typescript: 5.9.3
 
@@ -9382,7 +9382,7 @@ snapshots:
       '@fingerprintjs/fingerprintjs': 5.1.0
       '@heroicons/react': 2.2.0(react@19.2.4)
       '@microsoft/clarity': 1.0.2
-      '@prisma/client': 7.4.2(typescript@5.9.3)
+      '@prisma/client': 7.5.0(typescript@5.9.3)
       '@radix-ui/react-dialog': 1.1.15(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@react-email/components': 1.0.8(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@simplewebauthn/browser': 13.2.2
