@@ -132,8 +132,8 @@ importers:
         specifier: ^5.1.6
         version: 5.1.6
       openai:
-        specifier: ^6.27.0
-        version: 6.27.0(ws@8.19.0)(zod@4.3.6)
+        specifier: ^6.29.0
+        version: 6.29.0(ws@8.19.0)(zod@4.3.6)
       path-to-regexp:
         specifier: ^8.2.0
         version: 8.3.0
@@ -2997,8 +2997,8 @@ packages:
     resolution: {integrity: sha512-kbpaSSGJTWdAY5KPVeMOKXSrPtr8C8C7wodJbcsd51jRnmD+GZu8Y0VoU6Dm5Z4vWr0Ig/1NKuWRKf7j5aaYSg==}
     engines: {node: '>=6'}
 
-  openai@6.27.0:
-    resolution: {integrity: sha512-osTKySlrdYrLYTt0zjhY8yp0JUBmWDCN+Q+QxsV4xMQnnoVFpylgKGgxwN8sSdTNw0G4y+WUXs4eCMWpyDNWZQ==}
+  openai@6.29.0:
+    resolution: {integrity: sha512-YxoArl2BItucdO89/sN6edksV0x47WUTgkgVfCgX7EuEMhbirENsgYe5oO4LTjBL9PtdKtk2WqND1gSLcTd2yw==}
     hasBin: true
     peerDependencies:
       ws: ^8.18.0
@@ -6090,7 +6090,7 @@ snapshots:
       multer: 2.1.1
       mysql2: 3.19.1(@types/node@25.4.0)
       nanoid: 5.1.6
-      openai: 6.27.0(ws@8.19.0)(zod@4.3.6)
+      openai: 6.29.0(ws@8.19.0)(zod@4.3.6)
       path-to-regexp: 8.3.0
       qrcode: 1.5.4
       react-syntax-highlighter: 16.1.1(react@19.1.1)
@@ -7156,7 +7156,7 @@ snapshots:
     dependencies:
       mimic-fn: 2.1.0
 
-  openai@6.27.0(ws@8.19.0)(zod@4.3.6):
+  openai@6.29.0(ws@8.19.0)(zod@4.3.6):
     optionalDependencies:
       ws: 8.19.0
       zod: 4.3.6
