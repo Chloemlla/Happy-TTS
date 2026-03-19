@@ -87,7 +87,7 @@
     "google-auth-library": "^10.6.2",
     "happy-tts": "file:",
     "helmet": "^8.1.0",
-    "http-proxy-agent": "^7.0.2",
+    "http-proxy-agent": "^8.0.0",
     "jsdom": "^29.0.0",
     "jsonwebtoken": "^9.0.3",
     "liquid-glass-react": "^1.1.1",
