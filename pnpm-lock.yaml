@@ -147,8 +147,8 @@ importers:
         specifier: ^5.11.0
         version: 5.11.0
       resend:
-        specifier: ^6.9.3
-        version: 6.9.3
+        specifier: ^6.9.4
+        version: 6.9.4
       serve:
         specifier: ^14.2.6
         version: 14.2.6
@@ -3241,8 +3241,8 @@ packages:
   require-main-filename@2.0.0:
     resolution: {integrity: sha512-NKN5kMDylKuldxYLSUfrbo5Tuzh4hd+2E8NPPX02mZtn1VuREQToYe/ZdlJy+J3uCpfaiGF05e7B8W0iXbQHmg==}
 
-  resend@6.9.3:
-    resolution: {integrity: sha512-GRXjH9XZBJA+daH7bBVDuTShr22iWCxXA8P7t495G4dM/RC+d+3gHBK/6bz9K6Vpcq11zRQKmD+B+jECwQlyGQ==}
+  resend@6.9.4:
+    resolution: {integrity: sha512-/M3dsJzu5OgozqVsA4Psd/1L7EdePgOIIxClas453GOQYFG3VHc2ZyCHZFlvqsc9aZCCd2BJRRqZgWC8D9c7/g==}
     engines: {node: '>=20'}
     peerDependencies:
       '@react-email/render': '*'
@@ -3518,8 +3518,8 @@ packages:
     resolution: {integrity: sha512-MpUEN2OodtUzxvKQl72cUF7RQ5EiHsGvSsVG0ia9c5RbWGL2CI4C7EpPS8UTBIplnlzZiNuV56w+FuNxy3ty2Q==}
     engines: {node: '>=10'}
 
-  svix@1.84.1:
-    resolution: {integrity: sha512-K8DPPSZaW/XqXiz1kEyzSHYgmGLnhB43nQCMeKjWGCUpLIpAMMM8kx3rVVOSm6Bo6EHyK1RQLPT4R06skM/MlQ==}
+  svix@1.86.0:
+    resolution: {integrity: sha512-/HTvXwjLJe1l/MsLXAO1ddCYxElJk4eNR4DzOjDOEmGrPN/3BtBE8perGwMAaJ2sT5T172VkBYzmHcjUfM1JRQ==}
 
   svix@1.87.0:
     resolution: {integrity: sha512-tkmvGiAYGiUtHFpeS5Uc1XUa8LKHvFPzKDfmDR1ceKplU9VkEIFPyZOT3Hxii8pRfCChSriyAeSK5Nvh9OGvKQ==}
@@ -6094,7 +6094,7 @@ snapshots:
       qrcode: 1.5.4
       react-syntax-highlighter: 16.1.1(react@19.1.1)
       redis: 5.11.0
-      resend: 6.9.3
+      resend: 6.9.4
       serve: 14.2.6
       socks-proxy-agent: 8.0.5
       speakeasy: 2.0.0
@@ -7394,10 +7394,10 @@ snapshots:
 
   require-main-filename@2.0.0: {}
 
-  resend@6.9.3:
+  resend@6.9.4:
     dependencies:
       postal-mime: 2.7.3
-      svix: 1.84.1
+      svix: 1.86.0
 
   resolve-cwd@3.0.0:
     dependencies:
@@ -7713,7 +7713,7 @@ snapshots:
     dependencies:
       has-flag: 4.0.0
 
-  svix@1.84.1:
+  svix@1.86.0:
     dependencies:
       standardwebhooks: 1.0.0
       uuid: 10.0.0
