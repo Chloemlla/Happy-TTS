@@ -37,9 +37,12 @@ const emailPattern = new RegExp(
 );
 
 // 临时存储验证码和注册信息
-const emailCodeMap = new Map(); // email -> { code, time, regInfo }
+const emailCodeMap = new Map<string, { code: string; time: number; regInfo: any; attempts: number }>(); // email -> { code, time, regInfo, attempts }
 // 临时存储密码重置验证码
-const resetPasswordCodeMap = new Map(); // email -> { code, time, userId }
+const resetPasswordCodeMap = new Map<string, { code: string; time: number; userId: string; attempts: number }>(); // email -> { code, time, userId, attempts }
+
+// 最大验证码失败次数（防暴力枚举）
+const MAX_CODE_ATTEMPTS = 5;
 
 // 顶部 import 后添加类型声明
 type UserWithVerified = User & { verified?: boolean };
@@ -448,6 +451,14 @@ export class AuthController {
       if (!fingerprint) {
         return res.status(400).json({ error: "设备信息缺失" });
       }
+      // 用户名格式校验：3-20 位字母数字下划线
+      if (typeof username !== "string" || !/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+        return res.status(400).json({ error: "用户名须为 3-20 位字母、数字或下划线" });
+      }
+      // 密码强度校验：8-128 位
+      if (typeof password !== "string" || password.length < 8 || password.length > 128) {
+        return res.status(400).json({ error: "密码长度须在 8-128 字符之间" });
+      }
 
       // 获取客户端IP（优先使用前端发送的IP，否则使用后端获取的）
       const serverIP = req.ip || req.connection.remoteAddress || "unknown";
@@ -599,14 +610,26 @@ export class AuthController {
       if (!email || !code) {
         return res.status(400).json({ error: "参数缺失" });
       }
-      if (!/^[0-9]{8}$/.test(code)) {
+      if (typeof code !== "string" || !/^[0-9]{8}$/.test(code)) {
         return res.status(400).json({ error: "验证码仅为八位数字" });
       }
       const entry = emailCodeMap.get(email);
       if (!entry) {
         return res.status(400).json({ error: "请先注册获取验证码" });
       }
+      // 检查验证码是否过期（10分钟）
+      if (Date.now() - entry.time > 10 * 60 * 1000) {
+        emailCodeMap.delete(email);
+        return res.status(400).json({ error: "验证码已过期，请重新申请" });
+      }
+      // 失败次数限制（防暴力枚举 10^8 = 1亿）
+      if ((entry.attempts || 0) >= MAX_CODE_ATTEMPTS) {
+        emailCodeMap.delete(email);
+        return res.status(429).json({ error: "验证码尝试次数过多，请重新获取" });
+      }
       if (entry.code !== code) {
+        entry.attempts = (entry.attempts || 0) + 1;
+        emailCodeMap.set(email, entry);
         return res.status(400).json({ error: "验证码错误" });
       }
       // 校验通过，正式创建用户
@@ -683,8 +706,8 @@ export class AuthController {
         code += Math.floor(Math.random() * 10);
       }
 
-      // 更新验证码但保留注册信息
-      emailCodeMap.set(email, { code, time: now, regInfo: entry.regInfo });
+      // 重新发码时重置失败计数
+      emailCodeMap.set(email, { code, time: now, regInfo: entry.regInfo, attempts: 0 });
 
       // 发送邮件验证码
       try {
@@ -724,11 +747,11 @@ export class AuthController {
   public static async login(req: Request, res: Response) {
     const t0 = Date.now();
     try {
-      // 记录收到的请求体
+      // 记录收到的请求体（不记录密码等敏感字段）
       logger.info("收到登录请求", {
-        body: req.body,
-        headers: req.headers,
+        identifier: req.body?.identifier,
         ip: req.ip,
+        userAgent: req.headers?.["user-agent"],
         timestamp: new Date().toISOString(),
       });
 
@@ -759,32 +782,9 @@ export class AuthController {
       const user = await UserStorage.authenticateUser(identifier, password);
 
       if (!user) {
-        // 为了确定失败的具体原因，我们再次查找用户
-        const allUsers = await UserStorage.getAllUsers();
-        const userExists = allUsers.some(
-          (u) => u.username === identifier || u.email === identifier
-        );
-
-        if (!userExists) {
-          logger.warn("登录失败：用户不存在", logDetails);
-        } else {
-          // 仅开发环境输出预期密码
-          let expectedPassword;
-          if (
-            process.env.NODE_ENV === "development" ||
-            process.env.NODE_ENV === "dev"
-          ) {
-            const user = allUsers.find(
-              (u) => u.username === identifier || u.email === identifier
-            );
-            expectedPassword = user?.password;
-          }
-          logger.warn("登录失败：密码错误", {
-            ...logDetails,
-            expectedPassword,
-          }); // 仅开发环境输出预期密码
-        }
-
+        // 不区分「用户不存在」和「密码错误」，统一返回模糊提示（防用户名枚举）
+        // 绝不在日志中记录密码（包括哈希值）
+        logger.warn("登录失败：用户名或密码错误", logDetails);
         return res.status(401).json({ error: "用户名/邮箱或密码错误" });
       }
 
@@ -794,7 +794,14 @@ export class AuthController {
         Array.isArray(user.passkeyCredentials) &&
         user.passkeyCredentials.length > 0;
       if (hasTOTP || hasPasskey) {
-        const tempToken = user.id;
+        // 使用短期 JWT 作为 2FA 临时令牌，而非明文 userId（防止 2FA 绕过）
+        const jwt = require("jsonwebtoken");
+        const config = require("../config/config").config;
+        const tempToken = jwt.sign(
+          { userId: user.id, purpose: "2fa_pending" },
+          config.jwtSecret,
+          { expiresIn: "5m" }
+        );
         const tToken = Date.now();
         await updateUserToken(user.id, tempToken, 5 * 60 * 1000); // 5分钟过期
         const tTokenEnd = Date.now();
@@ -862,7 +869,8 @@ export class AuthController {
           error: "未登录",
         });
       }
-      const token = authHeader.split(" ")[1];
+      // 使用 substring 而非 split，避免 "Bearer a b" 格式时取错值
+      const token = authHeader.substring(7);
       if (!token) {
         return res.status(401).json({
           error: "无效的认证令牌",
@@ -1147,6 +1155,11 @@ export class AuthController {
         return res.status(400).json({ error: "请设置新密码" });
       }
 
+      // 新密码强度校验（前置于服务调用，避免无效请求进入服务层）
+      if (typeof newPassword !== "string" || newPassword.length < 8 || newPassword.length > 128) {
+        return res.status(400).json({ error: "新密码长度须在 8-128 字符之间" });
+      }
+
       // 获取客户端IP
       const ipAddress = req.ip || req.connection.remoteAddress || "unknown";
 
@@ -1178,8 +1191,13 @@ export class AuthController {
         return res.status(400).json({ error: "参数缺失" });
       }
 
-      if (!/^[0-9]{8}$/.test(code)) {
+      if (typeof code !== "string" || !/^[0-9]{8}$/.test(code)) {
         return res.status(400).json({ error: "验证码仅为八位数字" });
+      }
+
+      // 前置密码强度校验
+      if (typeof newPassword !== "string" || newPassword.length < 8 || newPassword.length > 128) {
+        return res.status(400).json({ error: "新密码长度须在 8-128 字符之间" });
       }
 
       // 验证验证码
@@ -1195,7 +1213,15 @@ export class AuthController {
         return res.status(400).json({ error: "验证码已过期，请重新申请" });
       }
 
+      // 失败次数限制（防暴力枚举）
+      if ((entry.attempts || 0) >= MAX_CODE_ATTEMPTS) {
+        resetPasswordCodeMap.delete(email);
+        return res.status(429).json({ error: "验证码尝试次数过多，请重新申请" });
+      }
+
       if (entry.code !== code) {
+        entry.attempts = (entry.attempts || 0) + 1;
+        resetPasswordCodeMap.set(email, entry);
         return res.status(400).json({ error: "验证码错误" });
       }
 
@@ -1206,7 +1232,7 @@ export class AuthController {
         return res.status(404).json({ error: "用户不存在" });
       }
 
-      // 验证新密码强度
+      // 验证新密码强度（调用 UserStorage 层的规则）
       const passwordErrors = UserStorage.validateUserInput(
         user.username,
         newPassword,
@@ -1256,7 +1282,7 @@ export class AuthController {
 
       let verificationResult = false;
       if (hasTOTP) {
-        // TOTP验证
+        // TOTP验证（不将 verificationCode 写入日志，防止 OTP 泄露）
         if (user.totpSecret) {
           const totp = require("otplib");
           totp.options = {
@@ -1271,13 +1297,9 @@ export class AuthController {
           });
           if (isValid) {
             verificationResult = true;
-            logger.info(
-              `TOTP验证成功: userId=${userId}, token=${verificationCode}`
-            );
+            logger.info(`TOTP验证成功: userId=${userId}`);
           } else {
-            logger.warn(
-              `TOTP验证失败: userId=${userId}, token=${verificationCode}`
-            );
+            logger.warn(`TOTP验证失败: userId=${userId}`);
           }
         } else {
           logger.warn(`TOTP验证失败: userId=${userId}, 用户未启用TOTP`);
@@ -1285,21 +1307,20 @@ export class AuthController {
       }
 
       if (!verificationResult && hasPasskey) {
-        // Passkey验证
+        // Passkey验证（仅记录部分 credentialId，防止凭证 ID 泄露）
         const { username, passkeyCredentials } = user;
         if (username && passkeyCredentials && passkeyCredentials.length > 0) {
+          const credIdPreview = typeof verificationCode === "string"
+            ? verificationCode.substring(0, 10) + "..."
+            : "[invalid]";
           const found = passkeyCredentials.some(
             (cred) => cred.credentialID === verificationCode
           );
           if (found) {
             verificationResult = true;
-            logger.info(
-              `Passkey验证成功: userId=${userId}, credentialId=${verificationCode}`
-            );
+            logger.info(`Passkey验证成功: userId=${userId}, credentialId=${credIdPreview}`);
           } else {
-            logger.warn(
-              `Passkey验证失败: userId=${userId}, credentialId=${verificationCode}`
-            );
+            logger.warn(`Passkey验证失败: userId=${userId}, credentialId=${credIdPreview}`);
           }
         } else {
           logger.warn(`Passkey验证失败: userId=${userId}, 用户未启用Passkey`);
