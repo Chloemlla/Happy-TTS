@@ -244,10 +244,26 @@ export const adminController = {
         return res.status(400).json({ error: "用户名已存在" });
       }
       const user = await UserStorage.createUser(username, email, password);
-      if (user && role) {
-        await UserStorage.updateUser(user.id, { role });
+      if (!user) return res.status(500).json({ error: "创建用户失败" });
+
+      // 支持一次性设置所有可选字段
+      const allowedFields = [
+        "role", "dailyUsage", "lastUsageDate", "token", "tokenExpiresAt",
+        "totpSecret", "totpEnabled", "backupCodes",
+        "passkeyEnabled", "passkeyVerified", "pendingChallenge", "currentChallenge",
+        "avatarUrl", "requireFingerprint", "requireFingerprintAt",
+        "fingerprintRequestDismissedOnce", "fingerprintRequestDismissedAt",
+      ];
+      const extraUpdates: Record<string, any> = {};
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) extraUpdates[field] = req.body[field];
       }
-      const { password: _, ...newUser } = user || {};
+      if (Object.keys(extraUpdates).length > 0) {
+        await UserStorage.updateUser(user.id, extraUpdates as any);
+      }
+
+      const updated = await UserStorage.getUserById(user.id);
+      const { password: _, ...newUser } = (updated || user) as any;
       res.status(201).json(newUser);
     } catch (error) {
       logger.error("创建用户失败:", error);
@@ -257,17 +273,42 @@ export const adminController = {
 
   updateUser: async (req: Request, res: Response) => {
     try {
-      const { username, email, password, role } = req.body;
-      if (!username || !email || !role) {
-        return res.status(400).json({ error: "参数不全" });
-      }
       const user = await UserStorage.getUserById(req.params.id);
       if (!user) {
         return res.status(404).json({ error: "用户不存在" });
       }
-      const newPassword = password || user.password;
-      const updated = await UserStorage.updateUser(user.id, { username, email, password: newPassword, role });
-      const { password: _, ...updatedUser } = updated || {};
+
+      // 白名单：所有允许管理员更新的 user_datas 字段
+      const allowedFields: string[] = [
+        "username", "email", "role",
+        "dailyUsage", "lastUsageDate",
+        "token", "tokenExpiresAt",
+        "totpSecret", "totpEnabled", "backupCodes",
+        "passkeyEnabled", "passkeyVerified", "pendingChallenge", "currentChallenge",
+        "avatarUrl",
+        "requireFingerprint", "requireFingerprintAt",
+        "fingerprintRequestDismissedOnce", "fingerprintRequestDismissedAt",
+      ];
+
+      const updates: Record<string, any> = {};
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) {
+          updates[field] = req.body[field];
+        }
+      }
+
+      // 密码单独处理：仅在传入非空时才更新
+      const newPassword = req.body.password;
+      if (newPassword && typeof newPassword === "string" && newPassword.trim().length > 0) {
+        updates.password = newPassword.trim();
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ error: "没有提供任何可更新的字段" });
+      }
+
+      const updated = await UserStorage.updateUser(user.id, updates as any);
+      const { password: _, ...updatedUser } = (updated || {}) as any;
       res.json(updatedUser);
     } catch (error) {
       logger.error("更新用户失败:", error);
@@ -784,12 +825,12 @@ export const adminController = {
       const doc = await ModlistSettingModel.findOne({ key: "MODIFY_CODE" }).lean();
       const setting = doc
         ? {
-            code:
-              typeof (doc as any).code === "string" && (doc as any).code.length > 8
-                ? `${(doc as any).code.slice(0, 2)}***${(doc as any).code.slice(-4)}`
-                : "***",
-            updatedAt: (doc as any).updatedAt,
-          }
+          code:
+            typeof (doc as any).code === "string" && (doc as any).code.length > 8
+              ? `${(doc as any).code.slice(0, 2)}***${(doc as any).code.slice(-4)}`
+              : "***",
+          updatedAt: (doc as any).updatedAt,
+        }
         : null;
       return res.json({ success: true, setting });
     } catch (_e) {
@@ -836,12 +877,12 @@ export const adminController = {
       const doc = await TtsSettingModel.findOne({ key: "GENERATION_CODE" }).lean();
       const setting = doc
         ? {
-            code:
-              typeof (doc as any).code === "string" && (doc as any).code.length > 8
-                ? `${(doc as any).code.slice(0, 2)}***${(doc as any).code.slice(-4)}`
-                : "***",
-            updatedAt: (doc as any).updatedAt,
-          }
+          code:
+            typeof (doc as any).code === "string" && (doc as any).code.length > 8
+              ? `${(doc as any).code.slice(0, 2)}***${(doc as any).code.slice(-4)}`
+              : "***",
+          updatedAt: (doc as any).updatedAt,
+        }
         : null;
       return res.json({ success: true, setting });
     } catch (_e) {
