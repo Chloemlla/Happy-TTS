@@ -10,6 +10,7 @@ router.get("/", async (req: Request, res: Response) => {
     const result = await AuditLogService.query({
       page: Number(req.query.page) || 1,
       pageSize: Number(req.query.pageSize) || 20,
+      requestId: req.query.requestId as string,
       module: req.query.module as string,
       action: req.query.action as string,
       userId: req.query.userId as string,

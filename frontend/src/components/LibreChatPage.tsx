@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  FaTimes, 
-  FaPaperPlane, 
-  FaDownload, 
-  FaTrash, 
-  FaEdit, 
-  FaCopy, 
+import {
+  FaTimes,
+  FaPaperPlane,
+  FaDownload,
+  FaTrash,
+  FaEdit,
+  FaCopy,
   FaRedo,
   FaHistory,
   FaUser,
@@ -41,6 +41,8 @@ import { FaCopy as FaCopyIcon } from 'react-icons/fa';
 import mermaid from 'mermaid';
 import { TurnstileWidget } from './TurnstileWidget';
 import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
+import { LibreChatContext, LibreChatContextValue } from './LibreChatContext';
+import { LibreChatRealtimeDialog } from './LibreChatRealtimeDialog';
 
 SyntaxHighlighter.registerLanguage('json', jsonLang);
 SyntaxHighlighter.registerLanguage('javascript', jsLang);
@@ -69,19 +71,19 @@ function sanitizeAssistantText(text: string): string {
   try {
     // 保护数学公式，避免处理其中的换行符
     let processedText = text;
-    
+
     // 临时替换数学公式，避免被后续处理影响
     const mathBlocks: string[] = [];
     processedText = processedText.replace(/\$\$([\s\S]*?)\$\$/g, (match, content) => {
       mathBlocks.push(match);
       return `__MATH_BLOCK_${mathBlocks.length - 1}__`;
     });
-    
+
     processedText = processedText.replace(/\$([^$\n]*?)\$/g, (match, content) => {
       mathBlocks.push(match);
       return `__MATH_INLINE_${mathBlocks.length - 1}__`;
     });
-    
+
     // 处理非数学公式部分
     processedText = processedText
       // 移除完整的 <think ...>...</think> 段落（允许属性，跨行）
@@ -93,13 +95,13 @@ function sanitizeAssistantText(text: string): string {
       // 折叠多余空行（仅在非数学公式部分）
       .replace(/\n{3,}/g, '\n\n')
       .trim();
-    
+
     // 恢复数学公式
     mathBlocks.forEach((block, index) => {
       processedText = processedText.replace(`__MATH_BLOCK_${index}__`, block);
       processedText = processedText.replace(`__MATH_INLINE_${index}__`, block);
     });
-    
+
     return processedText;
   } catch {
     return text;
@@ -143,7 +145,7 @@ marked.use(markedKatex({ nonStandard: true }));
 
 // 代码高亮配置 - 使用 react-syntax-highlighter
 marked.setOptions({
-  highlight: function(code: string, lang: string) {
+  highlight: function (code: string, lang: string) {
     // 使用 react-syntax-highlighter 进行代码高亮
     try {
       // 这里我们将在渲染时使用 SyntaxHighlighter 组件
@@ -157,8 +159,8 @@ marked.setOptions({
 } as MarkedOptions);
 
 // 增强的 Markdown 渲染组件
-const EnhancedMarkdownRenderer: React.FC<{ 
-  content: string; 
+export const EnhancedMarkdownRenderer: React.FC<{
+  content: string;
   className?: string;
   showControls?: boolean;
   onCopy?: (content: string) => void;
@@ -174,13 +176,13 @@ const EnhancedMarkdownRenderer: React.FC<{
 
   // 检测是否包含markdown语法
   const hasMarkdown = useMemo(() => {
-    return /[#*`\[\]()>|~=]/.test(content) || 
-           /^[-*+]\s/.test(content) || 
-           /^\d+\.\s/.test(content) ||
-           /```[\s\S]*```/.test(content) ||
-           /`[^`]+`/.test(content) ||
-           /\$\$[\s\S]*\$\$/.test(content) ||
-           /\$[^$]+\$/.test(content);
+    return /[#*`\[\]()>|~=]/.test(content) ||
+      /^[-*+]\s/.test(content) ||
+      /^\d+\.\s/.test(content) ||
+      /```[\s\S]*```/.test(content) ||
+      /`[^`]+`/.test(content) ||
+      /\$\$[\s\S]*\$\$/.test(content) ||
+      /\$[^$]+\$/.test(content);
   }, [content]);
 
   // 检测具体的markdown语法类型
@@ -210,85 +212,85 @@ const EnhancedMarkdownRenderer: React.FC<{
 
       // 预处理文本，防止 KaTeX 解析错误
       let processedText = text || '';
-      
+
       // 保护数学公式，避免被误处理
       const mathBlocks: string[] = [];
-      
+
       // 先保护块级数学公式
       processedText = processedText.replace(/\$\$([\s\S]*?)\$\$/g, (match, content) => {
         // 检查内容是否看起来像真正的数学公式
         const trimmedContent = content.trim();
-        if (trimmedContent.length > 0 && 
-            !content.includes('replace(') && 
-            !content.includes('\\n{3,}') &&
-            !content.includes('\\n') &&
-            !/[\u4e00-\u9fff]/.test(content) && // 不包含中文字符
-            !content.includes('\\\\') && // 不包含转义字符
-            /^[a-zA-Z0-9\s+\-*/()\[\]{}=.,;:!@#$%^&|<>~`'"_\\]+$/.test(trimmedContent)) { // 只包含数学符号
+        if (trimmedContent.length > 0 &&
+          !content.includes('replace(') &&
+          !content.includes('\\n{3,}') &&
+          !content.includes('\\n') &&
+          !/[\u4e00-\u9fff]/.test(content) && // 不包含中文字符
+          !content.includes('\\\\') && // 不包含转义字符
+          /^[a-zA-Z0-9\s+\-*/()\[\]{}=.,;:!@#$%^&|<>~`'"_\\]+$/.test(trimmedContent)) { // 只包含数学符号
           mathBlocks.push(match);
           return `__MATH_BLOCK_${mathBlocks.length - 1}__`;
         }
         return match; // 如果不是真正的数学公式，保持原样
       });
-      
+
       // 再保护行内数学公式
       processedText = processedText.replace(/\$([^$\n]*?)\$/g, (match, content) => {
         // 检查内容是否看起来像真正的数学公式
         const trimmedContent = content.trim();
-        if (trimmedContent.length > 0 && 
-            !content.includes('replace(') && 
-            !content.includes('\\n{3,}') &&
-            !content.includes('\\n') &&
-            !/[\u4e00-\u9fff]/.test(content) && // 不包含中文字符
-            !content.includes('\\\\') && // 不包含转义字符
-            /^[a-zA-Z0-9\s+\-*/()\[\]{}=.,;:!@#$%^&|<>~`'"_\\]+$/.test(trimmedContent)) { // 只包含数学符号
+        if (trimmedContent.length > 0 &&
+          !content.includes('replace(') &&
+          !content.includes('\\n{3,}') &&
+          !content.includes('\\n') &&
+          !/[\u4e00-\u9fff]/.test(content) && // 不包含中文字符
+          !content.includes('\\\\') && // 不包含转义字符
+          /^[a-zA-Z0-9\s+\-*/()\[\]{}=.,;:!@#$%^&|<>~`'"_\\]+$/.test(trimmedContent)) { // 只包含数学符号
           mathBlocks.push(match);
           return `__MATH_INLINE_${mathBlocks.length - 1}__`;
         }
         return match; // 如果不是真正的数学公式，保持原样
       });
-      
+
       // 处理数学公式内容
       mathBlocks.forEach((block, index) => {
         let processedBlock = block;
-        
+
         if (block.startsWith('$$') && block.endsWith('$$')) {
           // 块级数学公式
           const content = block.slice(2, -2);
           let processedContent = content;
-          
+
           // 1. 处理换行符
           processedContent = processedContent.replace(/\n/g, '\\\\');
-          
+
           // 2. 处理中文字符
           if (/[\u4e00-\u9fff]/.test(processedContent)) {
             processedContent = processedContent.replace(/([\u4e00-\u9fff]+)/g, '\\text{$1}');
           }
-          
+
           processedBlock = `$$${processedContent}$$`;
         } else if (block.startsWith('$') && block.endsWith('$')) {
           // 行内数学公式
           const content = block.slice(1, -1);
           let processedContent = content;
-          
+
           // 1. 处理换行符
           processedContent = processedContent.replace(/\n/g, '\\\\');
-          
+
           // 2. 处理中文字符
           if (/[\u4e00-\u9fff]/.test(processedContent)) {
             processedContent = processedContent.replace(/([\u4e00-\u9fff]+)/g, '\\text{$1}');
           }
-          
+
           processedBlock = `$${processedContent}$`;
         }
-        
+
         // 替换回处理后的数学公式
         processedText = processedText.replace(`__MATH_BLOCK_${index}__`, processedBlock);
         processedText = processedText.replace(`__MATH_INLINE_${index}__`, processedBlock);
       });
 
       const rawHtml = marked.parse(processedText, { async: false } as MarkedOptions) as unknown as string;
-      
+
       // 使用DOMPurify清理HTML，允许更多标签和属性
       return DOMPurify.sanitize(rawHtml, {
         ALLOWED_TAGS: [
@@ -322,21 +324,21 @@ const EnhancedMarkdownRenderer: React.FC<{
   const processCodeBlocks = (htmlContent: string): React.ReactNode[] => {
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = htmlContent;
-    
+
     const codeBlocks = tempDiv.querySelectorAll('pre code');
     const result: React.ReactNode[] = [];
     let currentIndex = 0;
-    
+
     // 将HTML字符串转换为React节点数组
     const walkNodes = (node: Node): React.ReactNode[] => {
       const nodes: React.ReactNode[] = [];
-      
+
       for (let i = 0; i < node.childNodes.length; i++) {
         const child = node.childNodes[i];
-        
+
         if (child.nodeType === Node.ELEMENT_NODE) {
           const element = child as Element;
-          
+
           if (element.tagName === 'PRE' && element.querySelector('code')) {
             // 这是一个代码块，使用 SyntaxHighlighter
             const codeElement = element.querySelector('code');
@@ -345,16 +347,16 @@ const EnhancedMarkdownRenderer: React.FC<{
               const className = codeElement.className || '';
               const langMatch = className.match(/language-(\w+)/);
               const language = langMatch ? langMatch[1] : 'javascript';
-              
+
               nodes.push(
                 <div key={`code-wrapper-${currentIndex++}`} className="relative group">
                   <SyntaxHighlighter
                     language={language}
                     style={vscDarkPlus}
                     wrapLongLines
-                    customStyle={{ 
-                      background: '#1e1e1e', 
-                      borderRadius: '0.5rem', 
+                    customStyle={{
+                      background: '#1e1e1e',
+                      borderRadius: '0.5rem',
                       margin: '0.5rem 0',
                       fontSize: '0.875rem'
                     }}
@@ -397,7 +399,7 @@ const EnhancedMarkdownRenderer: React.FC<{
                 key: `element-${currentIndex++}`,
                 className: element.className
               };
-              
+
               Array.from(element.attributes).forEach(attr => {
                 if (attr.name === 'style') {
                   // 将 style 字符串转换为对象
@@ -424,7 +426,7 @@ const EnhancedMarkdownRenderer: React.FC<{
                   attributes[attr.name] = attr.value;
                 }
               });
-              
+
               const ReactElement = React.createElement(
                 element.tagName.toLowerCase(),
                 attributes,
@@ -441,18 +443,18 @@ const EnhancedMarkdownRenderer: React.FC<{
           }
         }
       }
-      
+
       return nodes;
     };
-    
+
     return walkNodes(tempDiv);
   };
 
   // Mermaid 初始化（每次渲染前重新初始化以确保多图表支持）
   const initializeMermaid = () => {
     try {
-      mermaid.initialize({ 
-        startOnLoad: false, 
+      mermaid.initialize({
+        startOnLoad: false,
         securityLevel: 'loose', // 改为 loose 以允许更多内容
         theme: 'default',
         // 确保多图表支持
@@ -517,21 +519,21 @@ const EnhancedMarkdownRenderer: React.FC<{
     let cancelled = false;
     const tasks: Promise<void>[] = [];
     let globalIdx = 0;
-    
+
     // 使用更可靠的唯一ID生成方法
     const generateUniqueId = () => {
       const timestamp = Date.now();
       const random = Math.random().toString(36).substr(2, 9);
       return `mermaid-${timestamp}-${random}-${globalIdx++}`;
     };
-    
+
     codeBlocks.forEach((codeEl) => {
       const parentPre = codeEl.closest('pre');
       const raw = codeEl.textContent || '';
       // 规范化连字符：将非 ASCII 连字符（如 \u2011/‑ 等）替换为普通 '-'
       const normalizedRaw = raw.replace(/[\u2010\u2011\u2012\u2013\u2014\u2212\uFE63\uFF0D]/g, '-');
       const id = generateUniqueId();
-      
+
       // 智能清理和纠错 Mermaid 代码
       const cleanMermaidCode = (code: string): string => {
         return code
@@ -584,30 +586,30 @@ const EnhancedMarkdownRenderer: React.FC<{
           // 智能纠错：修复常见的语法错误
           .replace(/\s*--(>|!>)\s*\[([^\]]*)\]\s*([A-Z])\s*--(>|!>)/g, ' --> $3[$2]')
       };
-      
+
       // 智能检查和修复 Mermaid 代码
       const isCompleteMermaid = (code: string): boolean => {
         const cleanedCode = cleanMermaidCode(code);
         if (!cleanedCode) return false;
-        
+
         // 检查是否包含基本的 Mermaid 语法结构
         const hasGraphKeyword = /^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|journey|gantt|pie|gitgraph|mindmap|timeline|zenuml|sankey)/i.test(cleanedCode);
-        
+
         // 对于简单的图表，不要求必须有结束标记
         const isSimpleChart = /^(pie|gantt|gitgraph|mindmap|timeline)/i.test(cleanedCode);
-        
+
         // 检查是否有基本的节点和连接
         const hasNodes = /[A-Za-z]\s*\[[^\]]*\]/i.test(cleanedCode);
         const hasConnections = /--[!>]*>/i.test(cleanedCode);
-        
+
         // 进一步放宽检查条件：只要有图表关键字就认为可以尝试渲染
         return hasGraphKeyword;
       };
-      
+
       // 智能修复 Mermaid 语法错误
       const fixMermaidSyntax = (code: string): string => {
         let fixedCode = code;
-        
+
         // 修复常见的语法错误模式
         const fixes = [
           // 修复不完整的节点定义
@@ -657,15 +659,15 @@ const EnhancedMarkdownRenderer: React.FC<{
           { pattern: /([A-Za-z][A-Za-z0-9_]*)\s*\[([^\]]*)\]\s*--[!>]*>/g, replacement: '$1[$2] -->' },
 
         ];
-        
+
         fixes.forEach(fix => {
           fixedCode = fixedCode.replace(fix.pattern, fix.replacement);
         });
-        
+
         // 智能补全缺失的节点
         const nodeMatches = fixedCode.match(/[A-Z]\s*\[[^\]]*\]/g) || [];
         const connectionMatches = fixedCode.match(/[A-Z]\s*--[!>]*>\s*[A-Z]/g) || [];
-        
+
         // 如果只有连接但没有节点定义，尝试补全
         if (connectionMatches.length > 0 && nodeMatches.length === 0) {
           const nodes = new Set<string>();
@@ -676,7 +678,7 @@ const EnhancedMarkdownRenderer: React.FC<{
               nodes.add(parts[2]);
             }
           });
-          
+
           // 为每个节点添加默认定义
           nodes.forEach(node => {
             if (!fixedCode.includes(`${node}[`)) {
@@ -684,19 +686,19 @@ const EnhancedMarkdownRenderer: React.FC<{
             }
           });
         }
-        
+
         // 最后一步：确保每行只有一个语句
         const lines = fixedCode.split('\n');
         const cleanedLines = lines.map(line => {
           // 如果一行包含多个节点定义，拆分为多行
           const nodePattern = /([A-Za-z][A-Za-z0-9_]*)\s*\[([^\]]*)\]/g;
           const matches = [...line.matchAll(nodePattern)];
-          
+
           if (matches.length > 1) {
             // 有多个节点定义，需要拆分
             let result = '';
             let lastIndex = 0;
-            
+
             matches.forEach((match, index) => {
               if (index > 0) {
                 result += '\n';
@@ -704,34 +706,34 @@ const EnhancedMarkdownRenderer: React.FC<{
               result += line.substring(lastIndex, match.index) + match[0];
               lastIndex = match.index! + match[0].length;
             });
-            
+
             // 添加剩余部分
             if (lastIndex < line.length) {
               result += line.substring(lastIndex);
             }
-            
+
             return result;
           }
-          
+
           // 处理分号后的多余内容
           if (line.includes(';')) {
             return line.replace(/;\s*([A-Za-z][A-Za-z0-9_]*)\s*([A-Za-z][A-Za-z0-9_]*)/g, ';\n$1\n$2');
           }
-          
+
           return line;
         });
-        
+
         fixedCode = cleanedLines.join('\n');
-        
+
         return fixedCode;
       };
-      
+
       // 智能清理和修复代码用于渲染
       let cleanedCode = cleanMermaidCode(normalizedRaw);
-      
+
       // 尝试智能修复语法错误
       const fixedCode = normalizedRaw;
-      
+
       // 当关闭自动修复时，直接按原文渲染
       if (!MERMAID_AUTO_FIX) {
         cleanedCode = normalizedRaw || '';
@@ -739,7 +741,7 @@ const EnhancedMarkdownRenderer: React.FC<{
       } else {
         // 优先尝试两个方法：1. 清理后的代码 2. 修复后的代码
         // 如果任一方法成功，则不尝试其他方法
-        
+
         // 方法1：尝试清理后的代码
         if (isCompleteMermaid(cleanedCode)) {
           console.log('[Mermaid] 方法1成功：使用清理后的代码:', cleanedCode);
@@ -755,7 +757,7 @@ const EnhancedMarkdownRenderer: React.FC<{
           }
         }
       }
-      
+
       // 如果代码完全无法识别，跳过渲染
       if (!cleanedCode || !cleanedCode.trim()) {
         // 在代码块上添加提示
@@ -770,7 +772,7 @@ const EnhancedMarkdownRenderer: React.FC<{
             <span>等待 Mermaid 图表完成...</span>
           </div>
         `;
-        
+
         if (parentPre && parentPre.parentNode) {
           parentPre.parentNode.replaceChild(placeholder, parentPre);
         } else if (codeEl.parentNode) {
@@ -778,7 +780,7 @@ const EnhancedMarkdownRenderer: React.FC<{
         }
         return;
       }
-      
+
       // 当开启自动修复时才注入关键字与占位提示
       if (MERMAID_AUTO_FIX) {
         // 确保代码包含图表关键字，如果没有则添加
@@ -786,7 +788,7 @@ const EnhancedMarkdownRenderer: React.FC<{
           cleanedCode = `graph TD\n${cleanedCode}`;
           console.log('[Mermaid] 自动添加图表关键字:', cleanedCode);
         }
-        
+
         // 如果代码完全无法识别，跳过渲染
         if (!cleanedCode || !cleanedCode.trim()) {
           // 在代码块上添加提示
@@ -801,7 +803,7 @@ const EnhancedMarkdownRenderer: React.FC<{
               <span>等待 Mermaid 图表完成...</span>
             </div>
           `;
-          
+
           if (parentPre && parentPre.parentNode) {
             parentPre.parentNode.replaceChild(placeholder, parentPre);
           } else if (codeEl.parentNode) {
@@ -810,54 +812,54 @@ const EnhancedMarkdownRenderer: React.FC<{
           return;
         }
       }
-      
-              const p = (async () => {
 
-        
+      const p = (async () => {
+
+
         try {
-                    console.log('[Mermaid] 开始渲染图表:', id, '代码长度:', cleanedCode.length);
-        console.log('[Mermaid] 渲染代码:', cleanedCode.substring(0, 200) + '...');
-        console.log('[Mermaid] 完整代码:', cleanedCode);
-            
+          console.log('[Mermaid] 开始渲染图表:', id, '代码长度:', cleanedCode.length);
+          console.log('[Mermaid] 渲染代码:', cleanedCode.substring(0, 200) + '...');
+          console.log('[Mermaid] 完整代码:', cleanedCode);
 
-            
-                      // 为每个图表创建独立的渲染上下文
+
+
+          // 为每个图表创建独立的渲染上下文
           const { svg } = await mermaid.render(id, cleanedCode);
           if (cancelled) return;
-          
+
           console.log('[Mermaid] 渲染结果 SVG 长度:', svg?.length || 0);
           console.log('[Mermaid] 渲染结果 SVG 前100字符:', svg?.substring(0, 100) || 'null');
-          
+
           // 检查渲染结果是否包含特定的错误信息
-          if (svg.includes('Syntax error in text') && 
-              svg.includes('x="1440"') && 
-              svg.includes('y="250"') && 
-              svg.includes('font-size="150px"') && 
-              svg.includes('text-anchor: middle')) {
+          if (svg.includes('Syntax error in text') &&
+            svg.includes('x="1440"') &&
+            svg.includes('y="250"') &&
+            svg.includes('font-size="150px"') &&
+            svg.includes('text-anchor: middle')) {
             // 如果包含特定的错误信息，尝试第二个方法
             console.log('[Mermaid] 方法1失败，尝试方法2...');
-            
+
             // 方法2：尝试使用修复后的代码
             const { svg: svg2 } = await mermaid.render(id + '_retry', fixedCode);
             if (cancelled) return;
-            
+
             // 检查第二个方法的渲染结果
-            if (svg2.includes('Syntax error in text') && 
-                svg2.includes('x="1440"') && 
-                svg2.includes('y="250"') && 
-                svg2.includes('font-size="150px"') && 
-                svg2.includes('text-anchor: middle')) {
-                          // 两个方法都失败，不渲染，保持原代码块
-            console.log('[Mermaid] 两个方法都失败，跳过渲染');
-            return;
+            if (svg2.includes('Syntax error in text') &&
+              svg2.includes('x="1440"') &&
+              svg2.includes('y="250"') &&
+              svg2.includes('font-size="150px"') &&
+              svg2.includes('text-anchor: middle')) {
+              // 两个方法都失败，不渲染，保持原代码块
+              console.log('[Mermaid] 两个方法都失败，跳过渲染');
+              return;
             }
-            
+
             // 方法2成功，使用 svg2
             if (!svg2 || svg2.trim().length === 0 || !svg2.includes('<svg')) {
               console.log('[Mermaid] 方法2渲染结果为空或无效:', svg2);
               return;
             }
-            
+
             // 使用方法2的成功结果
             const safeSvg = DOMPurify.sanitize(svg2, {
               ALLOWED_TAGS: [
@@ -872,17 +874,17 @@ const EnhancedMarkdownRenderer: React.FC<{
               ],
               ALLOW_DATA_ATTR: false
             });
-            
+
             // 再次检查清理后的 SVG 是否包含特定的错误信息
-            if (safeSvg.includes('Syntax error in text') && 
-                safeSvg.includes('x="1440"') && 
-                safeSvg.includes('y="250"') && 
-                safeSvg.includes('font-size="150px"') && 
-                safeSvg.includes('text-anchor: middle')) {
+            if (safeSvg.includes('Syntax error in text') &&
+              safeSvg.includes('x="1440"') &&
+              safeSvg.includes('y="250"') &&
+              safeSvg.includes('font-size="150px"') &&
+              safeSvg.includes('text-anchor: middle')) {
               console.log('[Mermaid] 方法2清理后的 SVG 仍包含特定错误信息，跳过渲染');
               return;
             }
-            
+
             const wrapper = document.createElement('div');
             wrapper.className = 'mermaid-diagram my-2';
             wrapper.style.overflow = 'auto';
@@ -893,9 +895,9 @@ const EnhancedMarkdownRenderer: React.FC<{
             wrapper.setAttribute('contenteditable', 'false');
             wrapper.setAttribute('aria-hidden', 'false');
             wrapper.setAttribute('data-mermaid-id', id + '_retry'); // 添加唯一标识
-            
+
             console.log('[Mermaid] 创建包装器元素（方法2）:', wrapper);
-            
+
             // 使用 data URL 图片承载 SVG，避免直接插入 SVG 节点导致第三方监听器读取 SVGAnimatedString.className 报错
             const img = document.createElement('img');
             img.alt = 'mermaid diagram';
@@ -911,7 +913,7 @@ const EnhancedMarkdownRenderer: React.FC<{
             img.setAttribute('title', '点击放大查看');
             const dataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(safeSvg);
             img.src = dataUrl;
-            
+
             // 添加点击放大功能
             img.addEventListener('click', () => {
               const modal = document.createElement('div');
@@ -926,7 +928,7 @@ const EnhancedMarkdownRenderer: React.FC<{
               modal.style.justifyContent = 'center';
               modal.style.zIndex = '9999';
               modal.style.cursor = 'pointer';
-              
+
               const modalImg = document.createElement('img');
               modalImg.src = dataUrl;
               modalImg.style.maxWidth = '90%';
@@ -934,15 +936,15 @@ const EnhancedMarkdownRenderer: React.FC<{
               modalImg.style.objectFit = 'contain';
               modalImg.style.borderRadius = '8px';
               modalImg.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.3)';
-              
+
               modal.appendChild(modalImg);
               document.body.appendChild(modal);
-              
+
               // 点击关闭
               modal.addEventListener('click', () => {
                 document.body.removeChild(modal);
               });
-              
+
               // ESC 键关闭
               const handleKeyDown = (e: KeyboardEvent) => {
                 if (e.key === 'Escape') {
@@ -952,24 +954,24 @@ const EnhancedMarkdownRenderer: React.FC<{
               };
               document.addEventListener('keydown', handleKeyDown);
             });
-            
+
             wrapper.appendChild(img);
-            
-                      // 安全地替换元素
-          console.log('[Mermaid] 准备替换元素（方法2）');
-          if (parentPre && parentPre.parentNode) {
-            console.log('[Mermaid] 替换 parentPre（方法2）');
-            parentPre.parentNode.replaceChild(wrapper, parentPre);
-          } else if (codeEl.parentNode) {
-            console.log('[Mermaid] 替换 codeEl（方法2）');
-            codeEl.parentNode.replaceChild(wrapper, codeEl);
-          } else {
-            console.log('[Mermaid] 无法找到父节点进行替换（方法2）');
-          }
-            
+
+            // 安全地替换元素
+            console.log('[Mermaid] 准备替换元素（方法2）');
+            if (parentPre && parentPre.parentNode) {
+              console.log('[Mermaid] 替换 parentPre（方法2）');
+              parentPre.parentNode.replaceChild(wrapper, parentPre);
+            } else if (codeEl.parentNode) {
+              console.log('[Mermaid] 替换 codeEl（方法2）');
+              codeEl.parentNode.replaceChild(wrapper, codeEl);
+            } else {
+              console.log('[Mermaid] 无法找到父节点进行替换（方法2）');
+            }
+
             console.log('[Mermaid] 方法2成功渲染图表:', id + '_retry');
             console.log('[Mermaid] 包装器元素已添加到DOM（方法2）:', wrapper.parentNode);
-            
+
             // 延迟检查元素是否真的在DOM中
             setTimeout(() => {
               const checkElement = document.querySelector(`[data-mermaid-id="${id}_retry"]`);
@@ -978,17 +980,17 @@ const EnhancedMarkdownRenderer: React.FC<{
                 console.warn('[Mermaid] 元素在延迟检查中不存在，可能被清理函数删除了（方法2）');
               }
             }, 100);
-            
+
             return; // 方法2成功，直接返回
           }
-          
+
           // 方法1成功，继续处理
           // 检查 SVG 是否为空或无效
           if (!svg || svg.trim().length === 0 || !svg.includes('<svg')) {
             console.log('[Mermaid] 方法1渲染结果为空或无效:', svg);
             return;
           }
-          
+
           const safeSvg = DOMPurify.sanitize(svg, {
             ALLOWED_TAGS: [
               'svg', 'g', 'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'text', 'tspan',
@@ -1002,17 +1004,17 @@ const EnhancedMarkdownRenderer: React.FC<{
             ],
             ALLOW_DATA_ATTR: false
           });
-          
+
           // 再次检查清理后的 SVG 是否包含特定的错误信息
-          if (safeSvg.includes('Syntax error in text') && 
-              safeSvg.includes('x="1440"') && 
-              safeSvg.includes('y="250"') && 
-              safeSvg.includes('font-size="150px"') && 
-              safeSvg.includes('text-anchor: middle')) {
+          if (safeSvg.includes('Syntax error in text') &&
+            safeSvg.includes('x="1440"') &&
+            safeSvg.includes('y="250"') &&
+            safeSvg.includes('font-size="150px"') &&
+            safeSvg.includes('text-anchor: middle')) {
             console.log('[Mermaid] 方法1清理后的 SVG 仍包含特定错误信息，跳过渲染');
             return;
           }
-          
+
           const wrapper = document.createElement('div');
           wrapper.className = 'mermaid-diagram my-2';
           wrapper.style.overflow = 'auto';
@@ -1023,9 +1025,9 @@ const EnhancedMarkdownRenderer: React.FC<{
           wrapper.setAttribute('contenteditable', 'false');
           wrapper.setAttribute('aria-hidden', 'false');
           wrapper.setAttribute('data-mermaid-id', id); // 添加唯一标识
-          
+
           console.log('[Mermaid] 创建包装器元素（方法1）:', wrapper);
-          
+
           // 使用 data URL 图片承载 SVG，避免直接插入 SVG 节点导致第三方监听器读取 SVGAnimatedString.className 报错
           const img = document.createElement('img');
           img.alt = 'mermaid diagram';
@@ -1041,7 +1043,7 @@ const EnhancedMarkdownRenderer: React.FC<{
           img.setAttribute('title', '点击放大查看');
           const dataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(safeSvg);
           img.src = dataUrl;
-          
+
           // 添加点击放大功能
           img.addEventListener('click', () => {
             const modal = document.createElement('div');
@@ -1056,7 +1058,7 @@ const EnhancedMarkdownRenderer: React.FC<{
             modal.style.justifyContent = 'center';
             modal.style.zIndex = '9999';
             modal.style.cursor = 'pointer';
-            
+
             const modalImg = document.createElement('img');
             modalImg.src = dataUrl;
             modalImg.style.maxWidth = '90%';
@@ -1064,15 +1066,15 @@ const EnhancedMarkdownRenderer: React.FC<{
             modalImg.style.objectFit = 'contain';
             modalImg.style.borderRadius = '8px';
             modalImg.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.3)';
-            
+
             modal.appendChild(modalImg);
             document.body.appendChild(modal);
-            
+
             // 点击关闭
             modal.addEventListener('click', () => {
               document.body.removeChild(modal);
             });
-            
+
             // ESC 键关闭
             const handleKeyDown = (e: KeyboardEvent) => {
               if (e.key === 'Escape') {
@@ -1082,9 +1084,9 @@ const EnhancedMarkdownRenderer: React.FC<{
             };
             document.addEventListener('keydown', handleKeyDown);
           });
-          
+
           wrapper.appendChild(img);
-          
+
           // 安全地替换元素
           console.log('[Mermaid] 准备替换元素（方法1）');
           if (parentPre && parentPre.parentNode) {
@@ -1096,10 +1098,10 @@ const EnhancedMarkdownRenderer: React.FC<{
           } else {
             console.log('[Mermaid] 无法找到父节点进行替换（方法1）');
           }
-          
+
           console.log('[Mermaid] 方法1成功渲染图表:', id);
           console.log('[Mermaid] 包装器元素已添加到DOM（方法1）:', wrapper.parentNode);
-          
+
           // 延迟检查元素是否真的在DOM中
           setTimeout(() => {
             const checkElement = document.querySelector(`[data-mermaid-id="${id}"]`);
@@ -1108,7 +1110,7 @@ const EnhancedMarkdownRenderer: React.FC<{
               console.warn('[Mermaid] 元素在延迟检查中不存在，可能被清理函数删除了（方法1）');
             }
           }, 100);
-                          } catch (err) {
+        } catch (err) {
           // 渲染失败则不再继续尝试修复，提供复制按钮给用户自行渲染
           console.warn('[Mermaid] 两个方法都失败，渲染失败:', id, err);
 
@@ -1327,7 +1329,7 @@ const EnhancedMarkdownRenderer: React.FC<{
             {content}
           </pre>
         ) : (
-          <div 
+          <div
             className="prose prose-sm max-w-none p-3 rounded border overflow-x-auto bg-white
                      prose-headings:text-gray-800 prose-headings:font-semibold
                      prose-p:text-gray-700 prose-p:leading-relaxed
@@ -1405,7 +1407,7 @@ function renderMarkdown(content: string): string {
   }
 }
 
-  
+
 
 // 导出当前页为 TXT
 function downloadTextFile(filename: string, content: string) {
@@ -1446,7 +1448,7 @@ interface HistoryResponse {
 
 const LibreChatPage: React.FC = () => {
   const { setNotification } = useNotification();
-  
+
   // 为 LibreChat 页面添加豁免标记，避免完整性检查器误报
   useEffect(() => {
     // 在页面根元素添加豁免标记
@@ -1455,7 +1457,7 @@ const LibreChatPage: React.FC = () => {
       rootElement.setAttribute('data-component', 'LibreChatPage');
       rootElement.setAttribute('data-page', 'librechat');
     }
-    
+
     // 清理函数
     return () => {
       if (rootElement) {
@@ -1469,95 +1471,95 @@ const LibreChatPage: React.FC = () => {
   useEffect(() => {
     const originalError = console.error;
     const originalWarn = console.warn;
-    
-          // 拦截 console.error
-      console.error = (...args) => {
-        const errorMessage = args.join(' ');
-        
-        // 检查是否是 Mermaid 相关的语法错误
-        if (
-          errorMessage.includes('Syntax error in text') ||
-          errorMessage.includes('Error parsing') ||
-          errorMessage.includes('Error executing queue') ||
-          errorMessage.includes('Parse error on line') ||
-          errorMessage.includes('Expecting') ||
-          errorMessage.includes('got') ||
-          errorMessage.includes('Error: Error: Parse error') ||
-          errorMessage.includes('Error: Parse error') ||
-          errorMessage.includes('got \'PS\'')
-        ) {
-          // 静默处理 Mermaid 语法或执行错误
-          return;
-        }
-        
-        // 检查是否是其他 Mermaid 相关错误
-        if (errorMessage.includes('mermaid') || errorMessage.includes('Mermaid')) {
-          // 对于其他 Mermaid 错误，使用 warn 级别而不是 error
-          return; // 直接静默
-        }
-        
-        // 其他错误正常输出
-        originalError.apply(console, args);
-      };
-    
+
+    // 拦截 console.error
+    console.error = (...args) => {
+      const errorMessage = args.join(' ');
+
+      // 检查是否是 Mermaid 相关的语法错误
+      if (
+        errorMessage.includes('Syntax error in text') ||
+        errorMessage.includes('Error parsing') ||
+        errorMessage.includes('Error executing queue') ||
+        errorMessage.includes('Parse error on line') ||
+        errorMessage.includes('Expecting') ||
+        errorMessage.includes('got') ||
+        errorMessage.includes('Error: Error: Parse error') ||
+        errorMessage.includes('Error: Parse error') ||
+        errorMessage.includes('got \'PS\'')
+      ) {
+        // 静默处理 Mermaid 语法或执行错误
+        return;
+      }
+
+      // 检查是否是其他 Mermaid 相关错误
+      if (errorMessage.includes('mermaid') || errorMessage.includes('Mermaid')) {
+        // 对于其他 Mermaid 错误，使用 warn 级别而不是 error
+        return; // 直接静默
+      }
+
+      // 其他错误正常输出
+      originalError.apply(console, args);
+    };
+
     // 拦截 console.warn
     console.warn = (...args) => {
       const warnMessage = args.join(' ');
-      
+
       // 检查是否是 Mermaid 相关的警告，包括 dagre 布局引擎的调试输出
-      if (warnMessage.includes('mermaid') || 
-          warnMessage.includes('Mermaid') ||
-          warnMessage.includes('dagre') ||
-          warnMessage.includes('flowchart') ||
-          warnMessage.includes('Graph at first') ||
-          warnMessage.includes('Edge') ||
-          warnMessage.includes('Fix XXX') ||
-          warnMessage.includes('Adjusted Graph') ||
-          warnMessage.includes('extractor') ||
-          warnMessage.includes('Graph in recursive render') ||
-          warnMessage.includes('WARN :') ||
-          warnMessage.includes('30.639 : WARN :')) {
+      if (warnMessage.includes('mermaid') ||
+        warnMessage.includes('Mermaid') ||
+        warnMessage.includes('dagre') ||
+        warnMessage.includes('flowchart') ||
+        warnMessage.includes('Graph at first') ||
+        warnMessage.includes('Edge') ||
+        warnMessage.includes('Fix XXX') ||
+        warnMessage.includes('Adjusted Graph') ||
+        warnMessage.includes('extractor') ||
+        warnMessage.includes('Graph in recursive render') ||
+        warnMessage.includes('WARN :') ||
+        warnMessage.includes('30.639 : WARN :')) {
         // 静默处理 Mermaid 和 dagre 相关警告
         return;
       }
-      
+
       // 其他警告正常输出
       originalWarn.apply(console, args);
     };
-    
+
     // 拦截全局错误事件
     const handleGlobalError = (event: ErrorEvent) => {
       const errorMessage = event.message || '';
       const errorStack = event.error?.stack || '';
-      
+
       // 检查是否是 Mermaid 相关的错误
-      if (errorMessage.includes('Syntax error in text') && 
-          errorMessage.includes('mermaid') || 
-          errorMessage.includes('Mermaid') ||
-          errorStack.includes('mermaid') ||
-          errorStack.includes('Mermaid')) {
+      if (errorMessage.includes('Syntax error in text') &&
+        errorMessage.includes('mermaid') ||
+        errorMessage.includes('Mermaid') ||
+        errorStack.includes('mermaid') ||
+        errorStack.includes('Mermaid')) {
         // 阻止 Mermaid 错误传播
         event.preventDefault();
         event.stopPropagation();
         return false;
       }
     };
-    
+
     // 拦截未处理的 Promise 拒绝
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
       const reason = event.reason;
       const errorMessage = reason?.message || String(reason);
-      
+
       // 检查是否是 Mermaid 相关的 Promise 错误
-      if (errorMessage.includes('Syntax error in text') && 
-          errorMessage.includes('mermaid') || 
-          errorMessage.includes('Mermaid')) {
+      if (errorMessage.includes('Syntax error in text') &&
+        errorMessage.includes('mermaid') ||
+        errorMessage.includes('Mermaid')) {
         // 阻止 Mermaid Promise 错误传播
         event.preventDefault();
         return false;
       }
     };
-    
+
     // DOM 观察器：监控并删除包含 Mermaid 语法错误的元素
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
@@ -1565,34 +1567,34 @@ const LibreChatPage: React.FC = () => {
           mutation.addedNodes.forEach((node) => {
             if (node.nodeType === Node.ELEMENT_NODE) {
               const element = node as Element;
-              
+
               // 精确检查：ID 包含 dmermaid 并且包含特定的错误文本元素
               if (element.id && element.id.includes('dmermaid')) {
                 // 检查是否包含特定的错误文本元素
                 const errorText = element.querySelector('text.error-text');
-                if (errorText && 
-                    errorText.textContent?.includes('Syntax error in text') &&
-                    errorText.getAttribute('x') === '1440' &&
-                    errorText.getAttribute('y') === '250' &&
-                    errorText.getAttribute('font-size') === '150px' &&
-                    errorText.getAttribute('style')?.includes('text-anchor: middle')) {
+                if (errorText &&
+                  errorText.textContent?.includes('Syntax error in text') &&
+                  errorText.getAttribute('x') === '1440' &&
+                  errorText.getAttribute('y') === '250' &&
+                  errorText.getAttribute('font-size') === '150px' &&
+                  errorText.getAttribute('style')?.includes('text-anchor: middle')) {
                   // 只有同时满足所有条件才删除
                   element.remove();
                   console.log('[Mermaid] 已删除包含语法错误的元素:', element.id);
                   return;
                 }
               }
-              
+
               // 递归检查子元素，使用相同的精确条件
               const dmermaidElements = element.querySelectorAll('[id*="dmermaid"]');
               dmermaidElements.forEach((dmermaidEl) => {
                 const errorText = dmermaidEl.querySelector('text.error-text');
-                if (errorText && 
-                    errorText.textContent?.includes('Syntax error in text') &&
-                    errorText.getAttribute('x') === '1440' &&
-                    errorText.getAttribute('y') === '250' &&
-                    errorText.getAttribute('font-size') === '150px' &&
-                    errorText.getAttribute('style')?.includes('text-anchor: middle')) {
+                if (errorText &&
+                  errorText.textContent?.includes('Syntax error in text') &&
+                  errorText.getAttribute('x') === '1440' &&
+                  errorText.getAttribute('y') === '250' &&
+                  errorText.getAttribute('font-size') === '150px' &&
+                  errorText.getAttribute('style')?.includes('text-anchor: middle')) {
                   // 只有同时满足所有条件才删除
                   dmermaidEl.remove();
                   console.log('[Mermaid] 已删除包含语法错误的子元素:', dmermaidEl.id);
@@ -1603,74 +1605,74 @@ const LibreChatPage: React.FC = () => {
         }
       });
     });
-    
+
     // 立即检查现有元素
     const checkExistingElements = () => {
       const dmermaidElements = document.querySelectorAll('[id*="dmermaid"]');
       dmermaidElements.forEach((element) => {
         const errorText = element.querySelector('text.error-text');
-        if (errorText && 
-            errorText.textContent?.includes('Syntax error in text') &&
-            errorText.getAttribute('x') === '1440' &&
-            errorText.getAttribute('y') === '250' &&
-            errorText.getAttribute('font-size') === '150px' &&
-            errorText.getAttribute('style')?.includes('text-anchor: middle')) {
+        if (errorText &&
+          errorText.textContent?.includes('Syntax error in text') &&
+          errorText.getAttribute('x') === '1440' &&
+          errorText.getAttribute('y') === '250' &&
+          errorText.getAttribute('font-size') === '150px' &&
+          errorText.getAttribute('style')?.includes('text-anchor: middle')) {
           // 只有同时满足所有条件才删除
           element.remove();
           console.log('[Mermaid] 已删除现有的包含语法错误的元素:', element.id);
         }
       });
     };
-    
+
     // 开始观察 DOM 变化
     observer.observe(document.body, {
       childList: true,
       subtree: true
     });
-    
+
     // 延迟检查现有元素，确保页面已加载
     setTimeout(checkExistingElements, 100);
-    
+
     // 定期清理函数，每5秒检查一次是否有遗漏的错误元素
     const cleanupInterval = setInterval(() => {
       const dmermaidElements = document.querySelectorAll('[id*="dmermaid"]');
       dmermaidElements.forEach((element) => {
         const errorText = element.querySelector('text.error-text');
-        if (errorText && 
-            errorText.textContent?.includes('Syntax error in text') &&
-            errorText.getAttribute('x') === '1440' &&
-            errorText.getAttribute('y') === '250' &&
-            errorText.getAttribute('font-size') === '150px' &&
-            errorText.getAttribute('style')?.includes('text-anchor: middle')) {
+        if (errorText &&
+          errorText.textContent?.includes('Syntax error in text') &&
+          errorText.getAttribute('x') === '1440' &&
+          errorText.getAttribute('y') === '250' &&
+          errorText.getAttribute('font-size') === '150px' &&
+          errorText.getAttribute('style')?.includes('text-anchor: middle')) {
           // 只有同时满足所有条件才删除
           element.remove();
           console.log('[Mermaid] 定期清理：已删除包含语法错误的元素:', element.id);
         }
       });
     }, 5000);
-    
+
     // 添加事件监听器
     window.addEventListener('error', handleGlobalError, true);
     window.addEventListener('unhandledrejection', handleUnhandledRejection);
-    
+
     // 清理函数
     return () => {
       // 恢复原始的 console 方法
       console.error = originalError;
       console.warn = originalWarn;
-      
+
       // 停止观察器
       observer.disconnect();
-      
+
       // 清理定时器
       clearInterval(cleanupInterval);
-      
+
       // 移除事件监听器
       window.removeEventListener('error', handleGlobalError, true);
       window.removeEventListener('unhandledrejection', handleUnhandledRejection);
     };
   }, []);
-  
+
   // 作为 8192 tokens 的近似代理，前端采用同等数量的字符上限；
   // 真正的 token 计数应在后端/模型端完成（此处仅做输入侧保护）。
   const MAX_MESSAGE_LEN = 8192;
@@ -1716,8 +1718,8 @@ const LibreChatPage: React.FC = () => {
 
   // 自定义弹窗状态
   const [alertModal, setAlertModal] = useState<{ open: boolean; title?: string; message: string; type?: 'warning' | 'danger' | 'info' | 'success' }>({ open: false, message: '' });
-  const [confirmModal, setConfirmModal] = useState<{ open: boolean; title?: string; message: string; onConfirm: () => void; type?: 'warning' | 'danger' | 'info' }>({ open: false, message: '', onConfirm: () => {} });
-  const [promptModal, setPromptModal] = useState<{ open: boolean; title?: string; message?: string; placeholder?: string; defaultValue?: string; codeEditor?: boolean; language?: string; maxLength?: number; onConfirm: (value: string) => void }>({ open: false, message: '', onConfirm: () => {} });
+  const [confirmModal, setConfirmModal] = useState<{ open: boolean; title?: string; message: string; onConfirm: () => void; type?: 'warning' | 'danger' | 'info' }>({ open: false, message: '', onConfirm: () => { } });
+  const [promptModal, setPromptModal] = useState<{ open: boolean; title?: string; message?: string; placeholder?: string; defaultValue?: string; codeEditor?: boolean; language?: string; maxLength?: number; onConfirm: (value: string) => void }>({ open: false, message: '', onConfirm: () => { } });
 
   const apiBase = useMemo(() => getApiBaseUrl(), []);
 
@@ -1906,23 +1908,23 @@ const LibreChatPage: React.FC = () => {
       onConfirm: async () => {
         try {
           setNotification({ type: 'info', message: '正在批量删除消息...' });
-      const res = await fetch(`${apiBase}/api/librechat/messages`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify(token ? { token, messageIds: selectedIds } : { messageIds: selectedIds })
-      });
-      if (res.ok) {
-        setSelectedIds([]);
+          const res = await fetch(`${apiBase}/api/librechat/messages`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify(token ? { token, messageIds: selectedIds } : { messageIds: selectedIds })
+          });
+          if (res.ok) {
+            setSelectedIds([]);
             setNotification({ type: 'success', message: `已删除 ${selectedIds.length} 条消息` });
-        await fetchHistory(page);
-      } else {
-        setNotification({ type: 'error', message: '批量删除失败' });
-      }
-    } catch (e: unknown) {
-      const errorMessage = e instanceof Error ? e.message : '批量删除失败';
-      setNotification({ type: 'error', message: errorMessage });
-    }
+            await fetchHistory(page);
+          } else {
+            setNotification({ type: 'error', message: '批量删除失败' });
+          }
+        } catch (e: unknown) {
+          const errorMessage = e instanceof Error ? e.message : '批量删除失败';
+          setNotification({ type: 'error', message: errorMessage });
+        }
       }
     });
   };
@@ -1949,22 +1951,22 @@ const LibreChatPage: React.FC = () => {
         }
         try {
           setNotification({ type: 'info', message: '正在修改消息...' });
-      const res = await fetch(`${apiBase}/api/librechat/message`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(token ? { token, messageId: id, content } : { messageId: id, content })
-      });
-      if (res.ok) {
+          const res = await fetch(`${apiBase}/api/librechat/message`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(token ? { token, messageId: id, content } : { messageId: id, content })
+          });
+          if (res.ok) {
             setNotification({ type: 'success', message: '消息修改成功' });
-        await fetchHistory(page);
-      } else {
-        setNotification({ type: 'error', message: '修改失败' });
-      }
-    } catch (e: unknown) {
-      const errorMessage = e instanceof Error ? e.message : '修改失败';
-      setNotification({ type: 'error', message: errorMessage });
-    }
+            await fetchHistory(page);
+          } else {
+            setNotification({ type: 'error', message: '修改失败' });
+          }
+        } catch (e: unknown) {
+          const errorMessage = e instanceof Error ? e.message : '修改失败';
+          setNotification({ type: 'error', message: errorMessage });
+        }
       }
     });
   };
@@ -1978,14 +1980,14 @@ const LibreChatPage: React.FC = () => {
     try {
       setNotification({ type: 'info', message: '正在重试AI回复...' });
       const requestBody: RequestBody = token ? { token, messageId: id } : { messageId: id };
-      
+
       // 管理员发送 userRole 以跳过人机验证
       if (isAdmin) {
         requestBody.userRole = localStorage.getItem('userRole') || undefined;
       } else if (!!turnstileConfig.siteKey && turnstileToken) {
         requestBody.cfToken = turnstileToken;
       }
-      
+
       const res = await fetch(`${apiBase}/api/librechat/retry`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2016,17 +2018,17 @@ const LibreChatPage: React.FC = () => {
     }
     try {
       setNotification({ type: 'info', message: '正在导出当前页历史记录...' });
-    const now = new Date();
-    const dateStr = now.toISOString().slice(0, 10);
-    const header = `LibreChat 历史导出（当前页）\n导出时间：${now.toLocaleString()}\n总条数：${history.history.length}\n\n`;
-    const lines = history.history.map((m, idx) => {
-      const role = m.role === 'user' ? '用户' : '助手';
-      const content = m.role === 'user' ? m.content : sanitizeAssistantText(m.content);
-      const ts = m.createdAt ? ` @ ${m.createdAt}` : '';
-      return `#${idx + 1} 【${role}${ts}】\n${content}\n`;
-    });
-    const txt = header + lines.join('\n');
-    downloadTextFile(`LibreChat_聊天历史_第${page}页_${dateStr}.txt`, txt);
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0, 10);
+      const header = `LibreChat 历史导出（当前页）\n导出时间：${now.toLocaleString()}\n总条数：${history.history.length}\n\n`;
+      const lines = history.history.map((m, idx) => {
+        const role = m.role === 'user' ? '用户' : '助手';
+        const content = m.role === 'user' ? m.content : sanitizeAssistantText(m.content);
+        const ts = m.createdAt ? ` @ ${m.createdAt}` : '';
+        return `#${idx + 1} 【${role}${ts}】\n${content}\n`;
+      });
+      const txt = header + lines.join('\n');
+      downloadTextFile(`LibreChat_聊天历史_第${page}页_${dateStr}.txt`, txt);
       setNotification({ type: 'success', message: `已导出 ${history.history.length} 条历史记录` });
     } catch (e) {
       setNotification({ type: 'error', message: '导出历史记录失败' });
@@ -2037,46 +2039,46 @@ const LibreChatPage: React.FC = () => {
   const exportAll = async () => {
     try {
       setNotification({ type: 'info', message: '正在导出全部历史记录...' });
-    const params = new URLSearchParams();
-    if (token) params.set('token', token);
-    const res = await fetch(`${apiBase}/api/librechat/export?${params.toString()}`, {
-      method: 'GET',
-      credentials: 'include'
-    });
-    if (!res.ok) {
+      const params = new URLSearchParams();
+      if (token) params.set('token', token);
+      const res = await fetch(`${apiBase}/api/librechat/export?${params.toString()}`, {
+        method: 'GET',
+        credentials: 'include'
+      });
+      if (!res.ok) {
         setNotification({ type: 'error', message: '导出失败，请稍后再试' });
-      return;
-    }
-    // Try to normalize to UTF-8 with BOM for broad editor compatibility
-    const originalBlob = await res.blob();
-    let blob: Blob;
-    try {
-      const text = await originalBlob.text();
-      const utf8Text = text.startsWith('\uFEFF') ? text : '\uFEFF' + text;
-      blob = new Blob([utf8Text], { type: 'text/plain;charset=utf-8' });
-    } catch {
-      // Fallback: if not readable as text, keep original
-      blob = originalBlob;
-    }
-    // 从响应头尝试获取文件名
-    const cd = res.headers.get('Content-Disposition') || '';
-    const match = /filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i.exec(cd || '');
-    let filename = '';
-    if (match) {
-      filename = decodeURIComponent(match[1] || match[2] || '');
-    }
-    if (!filename) {
-      const date = new Date().toISOString().slice(0, 10);
-      filename = `LibreChat_历史_${date}.txt`;
-    }
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+        return;
+      }
+      // Try to normalize to UTF-8 with BOM for broad editor compatibility
+      const originalBlob = await res.blob();
+      let blob: Blob;
+      try {
+        const text = await originalBlob.text();
+        const utf8Text = text.startsWith('\uFEFF') ? text : '\uFEFF' + text;
+        blob = new Blob([utf8Text], { type: 'text/plain;charset=utf-8' });
+      } catch {
+        // Fallback: if not readable as text, keep original
+        blob = originalBlob;
+      }
+      // 从响应头尝试获取文件名
+      const cd = res.headers.get('Content-Disposition') || '';
+      const match = /filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i.exec(cd || '');
+      let filename = '';
+      if (match) {
+        filename = decodeURIComponent(match[1] || match[2] || '');
+      }
+      if (!filename) {
+        const date = new Date().toISOString().slice(0, 10);
+        filename = `LibreChat_历史_${date}.txt`;
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
       setNotification({ type: 'success', message: '全部历史记录导出成功' });
     } catch (e) {
       setNotification({ type: 'error', message: '导出全部历史记录失败' });
@@ -2097,21 +2099,21 @@ const LibreChatPage: React.FC = () => {
       onConfirm: async () => {
         try {
           setNotification({ type: 'info', message: '正在删除消息...' });
-      const res = await fetch(`${apiBase}/api/librechat/messages`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(token ? { token, messageIds: [id] } : { messageIds: [id] })
-      });
-      if (res.ok) {
+          const res = await fetch(`${apiBase}/api/librechat/messages`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(token ? { token, messageIds: [id] } : { messageIds: [id] })
+          });
+          if (res.ok) {
             setNotification({ type: 'success', message: '消息删除成功' });
-        await fetchHistory(page);
-      } else {
+            await fetchHistory(page);
+          } else {
             setNotification({ type: 'error', message: '删除失败，请稍后再试' });
-      }
-    } catch {
+          }
+        } catch {
           setNotification({ type: 'error', message: '删除失败，请稍后再试' });
-    }
+        }
       }
     });
   };
@@ -2134,15 +2136,15 @@ const LibreChatPage: React.FC = () => {
         const mapped: HistoryResponse = {
           history: Array.isArray(responseData.history)
             ? responseData.history.map((m: HistoryItem) => {
-                console.log('Processing message:', m); // 调试信息
-                return {
-                  id: m.id || `msg_${Date.now()}_${Math.random()}`, // 确保有ID
-                  role: m.role || 'user', // 简化role判断逻辑
-                  content: m.message || m.content || '',
-                  createdAt: m.timestamp || m.createdAt
-                };
-              })
-              : [],
+              console.log('Processing message:', m); // 调试信息
+              return {
+                id: m.id || `msg_${Date.now()}_${Math.random()}`, // 确保有ID
+                role: m.role || 'user', // 简化role判断逻辑
+                content: m.message || m.content || '',
+                createdAt: m.timestamp || m.createdAt
+              };
+            })
+            : [],
           total: responseData.total || 0,
           currentPage: responseData.currentPage || toPage,
           totalPages: responseData.totalPages || 1
@@ -2153,7 +2155,7 @@ const LibreChatPage: React.FC = () => {
         console.log('History updated successfully'); // 调试信息
         if (mapped.history.length > 0) {
           setNotification({ type: 'success', message: `已加载 ${mapped.history.length} 条历史记录` });
-      } else {
+        } else {
           setNotification({ type: 'info', message: '暂无历史记录' });
         }
       } else {
@@ -2192,14 +2194,14 @@ const LibreChatPage: React.FC = () => {
   const handleSend = async () => {
     setSendError('');
     if (!message.trim()) return;
-    
+
     // 检查Turnstile验证（管理员除外）
     if (!isAdmin && !!turnstileConfig.siteKey && (!turnstileVerified || !turnstileToken)) {
       setSendError('请先完成人机验证');
       setNotification({ message: '请先完成人机验证', type: 'warning' });
       return;
     }
-    
+
     // 自动截断超长消息
     let toSend = message;
     if (toSend.length > MAX_MESSAGE_LEN) {
@@ -2207,25 +2209,25 @@ const LibreChatPage: React.FC = () => {
       setSendError(`超出部分已自动截断（最大 ${MAX_MESSAGE_LEN} 字符）`);
       setNotification({ type: 'warning', message: `消息过长，已自动截断（最大 ${MAX_MESSAGE_LEN} 字符）` });
     }
-    
+
     try {
       setSending(true);
       setStreaming(true);
       setStreamContent('');
       setNotification({ type: 'info', message: '正在发送消息...' });
-      
+
       console.log('Sending message:', toSend); // 调试信息
-      
+
       // 构建请求体
       const requestBody: RequestBody = token ? { token, message: toSend } : { message: toSend };
-      
+
       // 管理员发送 userRole 以跳过人机验证
       if (isAdmin) {
         requestBody.userRole = localStorage.getItem('userRole') || undefined;
       } else if (!!turnstileConfig.siteKey && turnstileToken) {
         requestBody.cfToken = turnstileToken;
       }
-      
+
       const res = await fetch(`${apiBase}/api/librechat/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2238,27 +2240,27 @@ const LibreChatPage: React.FC = () => {
       const txtRaw: string = (data && typeof data.response === 'string') ? data.response : '';
       const txt = txtRaw;
       setMessage('');
-      
+
       // 重置Turnstile状态
       if (!isAdmin) {
         setTurnstileToken('');
         setTurnstileVerified(false);
         setTurnstileKey(k => k + 1);
       }
-      
+
       console.log('Message sent, waiting for response...'); // 调试信息
       if (txt) {
         console.log('AI response received:', txt.substring(0, 100) + '...'); // 调试信息
         setNotification({ type: 'success', message: 'AI回复已收到，正在生成...' });
       }
-      
+
       // 检测历史记录中是否已有助手回复的函数
       const checkForExistingAssistantResponse = async () => {
         try {
           const params = new URLSearchParams({ page: '1', limit: '10' });
           if (token) params.set('token', token);
-          const checkRes = await fetch(`${apiBase}/api/librechat/history?${params.toString()}`, { 
-            credentials: 'include' 
+          const checkRes = await fetch(`${apiBase}/api/librechat/history?${params.toString()}`, {
+            credentials: 'include'
           });
           if (checkRes.ok) {
             const checkData = await checkRes.json();
@@ -2270,7 +2272,7 @@ const LibreChatPage: React.FC = () => {
                 const content = msg.message || msg.content || '';
                 return role === 'assistant' && content.trim().length > 0;
               });
-              
+
               if (hasAssistantResponse) {
                 console.log('检测到历史记录中已有助手回复，停止流式展示');
                 return true;
@@ -2282,7 +2284,7 @@ const LibreChatPage: React.FC = () => {
         }
         return false;
       };
-      
+
       // 智能流式展示：按字符逐步显示，但避免渲染不完整的 Mermaid 代码
       if (txt) {
         let i = 0;
@@ -2306,7 +2308,7 @@ const LibreChatPage: React.FC = () => {
               return;
             }
           }
-          
+
           i = i + Math.max(1, Math.floor(txt.length / 80)); // 自适应步长
           if (i >= txt.length) {
             setStreamContent(txt);
@@ -2321,25 +2323,25 @@ const LibreChatPage: React.FC = () => {
             }, 2000); // 增加延迟到2秒确保后端数据已保存
           } else {
             const partialContent = txt.slice(0, i);
-            
+
             // 检查是否包含不完整的 Mermaid 代码块
             const mermaidBlocks = partialContent.match(/```mermaid[\s\S]*?```/g) || [];
             const hasIncompleteMermaid = mermaidBlocks.some(block => {
               const code = block.replace(/```mermaid\n?/, '').replace(/```$/, '');
               const trimmed = code.trim();
-              
+
               // 检查是否包含基本的 Mermaid 语法结构
               const hasGraphKeyword = /^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|journey|gantt|pie|gitgraph|mindmap|timeline|zenuml|sankey)/i.test(trimmed);
               const hasEndMarker = /end\s*$/i.test(trimmed) || /}\s*$/i.test(trimmed) || /\)\s*$/i.test(trimmed);
               const hasBalancedBraces = (trimmed.match(/\{/g) || []).length === (trimmed.match(/\}/g) || []).length;
               const hasBalancedParens = (trimmed.match(/\(/g) || []).length === (trimmed.match(/\)/g) || []).length;
-              
+
               // 对于简单的图表，不要求必须有结束标记
               const isSimpleChart = /^(pie|gantt|gitgraph|mindmap|timeline)/i.test(trimmed);
-              
+
               return hasGraphKeyword && !(isSimpleChart || hasBalancedBraces || hasBalancedParens);
             });
-            
+
             // 如果包含不完整的 Mermaid 代码，显示提示而不是渲染
             if (hasIncompleteMermaid) {
               const processedContent = partialContent.replace(/```mermaid[\s\S]*?```/g, (match) => {
@@ -2372,31 +2374,31 @@ const LibreChatPage: React.FC = () => {
   const handleClear = async () => {
     try {
       setNotification({ type: 'info', message: '正在清除历史记录...' });
-      
+
       // 构建请求体，确保包含token信息
       const requestBody: RequestBody = {};
       if (token && token.trim()) {
         requestBody.token = token;
       }
-      
+
       console.log('清除历史记录请求体:', requestBody); // 调试信息
-      
+
       const res = await fetch(`${apiBase}/api/librechat/clear`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(requestBody)
       });
-      
+
       if (res.ok) {
         const result = await res.json();
         console.log('清除历史记录成功:', result); // 调试信息
         setNotification({ type: 'success', message: '历史记录已清除' });
-        
+
         // 清除本地状态
         setHistory(null);
         setSelectedIds([]);
-        
+
         // 重新获取历史记录（应该为空）
         await fetchHistory(1);
       } else {
@@ -2472,14 +2474,14 @@ const LibreChatPage: React.FC = () => {
       setNotification({ type: 'warning', message: '请输入消息内容' });
       return;
     }
-    
+
     // 检查Turnstile验证（管理员除外）
     if (!isAdmin && !!turnstileConfig.siteKey && (!turnstileVerified || !turnstileToken)) {
       setRtError('请先完成人机验证');
       setNotification({ message: '请先完成人机验证', type: 'warning' });
       return;
     }
-    
+
     // 自动截断超长消息
     let toSend = rtMessage;
     if (toSend.length > MAX_MESSAGE_LEN) {
@@ -2498,14 +2500,14 @@ const LibreChatPage: React.FC = () => {
       setRtMessage('');
       // 构建请求体
       const requestBody: RequestBody = token ? { token, message: toSend } : { message: toSend };
-      
+
       // 管理员发送 userRole 以跳过人机验证
       if (isAdmin) {
         requestBody.userRole = localStorage.getItem('userRole') || undefined;
       } else if (!!turnstileConfig.siteKey && turnstileToken) {
         requestBody.cfToken = turnstileToken;
       }
-      
+
       const res = await fetch(`${apiBase}/api/librechat/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2523,14 +2525,14 @@ const LibreChatPage: React.FC = () => {
         setRtSending(false);
         return;
       }
-      
+
       // 检测历史记录中是否已有助手回复的函数（实时对话框版本）
       const checkForExistingAssistantResponseRealtime = async () => {
         try {
           const params = new URLSearchParams({ page: '1', limit: '10' });
           if (token) params.set('token', token);
-          const checkRes = await fetch(`${apiBase}/api/librechat/history?${params.toString()}`, { 
-            credentials: 'include' 
+          const checkRes = await fetch(`${apiBase}/api/librechat/history?${params.toString()}`, {
+            credentials: 'include'
           });
           if (checkRes.ok) {
             const checkData = await checkRes.json();
@@ -2542,7 +2544,7 @@ const LibreChatPage: React.FC = () => {
                 const content = msg.message || msg.content || '';
                 return role === 'assistant' && content.trim().length > 0;
               });
-              
+
               if (hasAssistantResponse) {
                 console.log('实时对话框：检测到历史记录中已有助手回复，停止流式展示');
                 return true;
@@ -2554,7 +2556,7 @@ const LibreChatPage: React.FC = () => {
         }
         return false;
       };
-      
+
       // 放入一个助手占位项，随着流式更新
       let assistantIndex = -1;
       setRtHistory((prev) => {
@@ -2597,7 +2599,7 @@ const LibreChatPage: React.FC = () => {
               return;
             }
           }
-          
+
           i = i + Math.max(1, Math.floor(txt.length / 80));
           if (i >= txt.length) {
             setRtStreamContent(txt); // 兼容旧显示区域
@@ -2615,14 +2617,14 @@ const LibreChatPage: React.FC = () => {
             }
             setRtStreaming(false);
             setRtSending(false);
-            
+
             // 重置Turnstile状态
             if (!isAdmin) {
               setTurnstileToken('');
               setTurnstileVerified(false);
               setTurnstileKey(k => k + 1);
             }
-            
+
             // 实时对话框发送完成后也刷新历史记录
             console.log('Realtime dialog completed, refreshing history...'); // 调试信息
             setNotification({ type: 'success', message: '实时对话完成，正在刷新历史记录...' });
@@ -2631,25 +2633,25 @@ const LibreChatPage: React.FC = () => {
             }, 500);
           } else {
             const partial = txt.slice(0, i);
-            
+
             // 检查是否包含不完整的 Mermaid 代码块
             const mermaidBlocks = partial.match(/```mermaid[\s\S]*?```/g) || [];
             const hasIncompleteMermaid = mermaidBlocks.some(block => {
               const code = block.replace(/```mermaid\n?/, '').replace(/```$/, '');
               const trimmed = code.trim();
-              
+
               // 检查是否包含基本的 Mermaid 语法结构
               const hasGraphKeyword = /^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|journey|gantt|pie|gitgraph|mindmap|timeline|zenuml|sankey)/i.test(trimmed);
               const hasEndMarker = /end\s*$/i.test(trimmed) || /}\s*$/i.test(trimmed) || /\)\s*$/i.test(trimmed);
               const hasBalancedBraces = (trimmed.match(/\{/g) || []).length === (trimmed.match(/\}/g) || []).length;
               const hasBalancedParens = (trimmed.match(/\(/g) || []).length === (trimmed.match(/\)/g) || []).length;
-              
+
               // 对于简单的图表，不要求必须有结束标记
               const isSimpleChart = /^(pie|gantt|gitgraph|mindmap|timeline)/i.test(trimmed);
-              
+
               return hasGraphKeyword && !(isSimpleChart || hasBalancedBraces || hasBalancedParens);
             });
-            
+
             // 如果包含不完整的 Mermaid 代码，显示提示而不是渲染
             let processedPartial = partial;
             if (hasIncompleteMermaid) {
@@ -2657,7 +2659,7 @@ const LibreChatPage: React.FC = () => {
                 return match.replace(/```mermaid\n?/, '```mermaid\n[等待图表完成...]\n');
               });
             }
-            
+
             setRtStreamContent(processedPartial);
             setRtHistory((prev) => {
               const next = [...prev];
@@ -2702,7 +2704,7 @@ const LibreChatPage: React.FC = () => {
       const params = new URLSearchParams();
       if (token) params.set('token', token);
       const sseUrl = `${apiBase}/api/librechat/sse?${params.toString()}`;
-      
+
       const eventSource = new EventSource(sseUrl);
       sseRef.current = eventSource;
 
@@ -2720,11 +2722,11 @@ const LibreChatPage: React.FC = () => {
             case 'connected':
               console.log('[SSE] 连接确认，客户端ID:', data.clientId);
               break;
-            
+
             case 'ping':
               // 心跳包，保持连接活跃
               break;
-            
+
             case 'message_completed':
               console.log('[SSE] 消息完成通知:', data.data);
               // 立即停止流式展示并刷新历史记录
@@ -2734,12 +2736,12 @@ const LibreChatPage: React.FC = () => {
               setRtStreaming(false);
               setRtStreamContent('');
               setRtSending(false);
-              
+
               // 立即刷新历史记录
               setNotification({ type: 'success', message: 'AI回复已完成，正在刷新历史记录...' });
               fetchHistory(1);
               break;
-            
+
             case 'retry_completed':
               console.log('[SSE] 重试完成通知:', data.data);
               // 立即停止流式展示并刷新历史记录
@@ -2749,12 +2751,12 @@ const LibreChatPage: React.FC = () => {
               setRtStreaming(false);
               setRtStreamContent('');
               setRtSending(false);
-              
+
               // 立即刷新历史记录
               setNotification({ type: 'success', message: 'AI重试已完成，正在刷新历史记录...' });
               fetchHistory(1);
               break;
-            
+
             default:
               console.log('[SSE] 未知消息类型:', data.type);
           }
@@ -2766,7 +2768,7 @@ const LibreChatPage: React.FC = () => {
       eventSource.onerror = (error) => {
         console.error('[SSE] 连接错误:', error);
         setSseConnected(false);
-        
+
         // 自动重连（延迟3秒）
         setTimeout(() => {
           if (sseRef.current === eventSource) {
@@ -2818,306 +2820,321 @@ const LibreChatPage: React.FC = () => {
     );
   }
 
+  const contextValue: LibreChatContextValue = {
+    state: {
+      rtOpen, token, rtMessage, rtSending, rtStreaming, rtError,
+      isAdmin, turnstileConfigLoading, turnstileConfig, turnstileVerified, turnstileKey,
+      rtHistory, rtStreamContent, MAX_MESSAGE_LEN
+    },
+    actions: {
+      closeRealtimeDialog, setToken, onChangeRtMessage, handleRealtimeSend,
+      handleTurnstileVerify, handleTurnstileExpire, handleTurnstileError,
+      setNotification, sanitizeAssistantText
+    },
+    meta: {}
+  };
+
   return (
-    <motion.div
-      className="space-y-6"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6 }}
-    >
-      {/* 标题和说明 */}
+    <LibreChatContext.Provider value={contextValue}>
       <motion.div
-        className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100"
+        className="space-y-6"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <h2 className="text-2xl font-bold text-blue-700 mb-3 flex items-center gap-2">
-          <FaEnvelope className="text-blue-500" />
-          LibreChat 聊天
-        </h2>
-        <div className="text-gray-600 space-y-2">
-          <p>与 LibreChat 进行智能对话，支持历史记录管理、消息编辑和导出功能。</p>
-          <div className="flex items-start gap-2 text-sm">
-            <div>
-              <p className="font-semibold text-blue-700">功能说明：</p>
-              <ul className="list-disc list-inside space-y-1 mt-1">
-                <li>智能对话和流式响应</li>
-                <li>历史记录查看和管理</li>
-                <li>消息编辑和批量删除（支持VSCode Dark+主题代码编辑器）</li>
-                <li>聊天记录导出功能</li>
-                <li>游客模式和用户模式</li>
-                <li>实时通知和自动刷新</li>
-              </ul>
-            </div>
-          </div>
-          {/* SSE连接状态指示器 */}
-          <div className="flex items-center gap-2 mt-2">
-            <div className={`w-2 h-2 rounded-full ${sseConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-            <span className="text-xs text-gray-500">
-              {sseConnected ? '实时连接已建立' : '实时连接已断开'}
-            </span>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* 最新镜像信息 */}
-      <motion.div
-        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-          <FaDownload className="text-lg text-blue-500" />
-          LibreChat 最新镜像
-        </h3>
-        {loadingLatest ? (
-          <UnifiedLoadingSpinner 
-            size="md" 
-            text="正在获取最新镜像信息..." 
-            className="py-8"
-          />
-        ) : latest ? (
-          <div className="space-y-3">
-            {latest.update_time && (
-              <div className="flex items-center gap-2 text-sm text-gray-700">
-                <FaInfoCircle className="text-blue-500" />
-                <span>更新时间：{latest.update_time}</span>
-              </div>
-            )}
-            {latest.image_name && (
-              <div className="flex items-center gap-2 text-sm text-gray-700">
-                <FaDownload className="text-green-500" />
-                <span>镜像名称：{latest.image_name}</span>
-              </div>
-            )}
-            {latest.image_url && (
-              <div className="flex items-center gap-2 text-sm text-gray-700">
-                <FaEnvelope className="text-orange-500" />
-                <span className="break-all">镜像地址：{latest.image_url}</span>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="text-center py-8 text-gray-500">
-            <FaDownload className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-            暂无数据
-          </div>
-        )}
-      </motion.div>
-
-      {/* 游客须知 */}
-      <AnimatePresence>
-        {guestMode && !guestNoticeDismissed && (
-          <motion.div
-            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 relative"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-          >
-            <button
-              onClick={() => setGuestNoticeDismissed(true)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
-              title="关闭并不再提示"
-            >
-              <FaTimes className="w-5 h-5" />
-            </button>
-            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <FaExclamationTriangle className="text-orange-500" />
-              使用须知（游客）
-            </h3>
-            <div className="space-y-4 text-sm text-gray-700">
+        {/* 标题和说明 */}
+        <motion.div
+          className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <h2 className="text-2xl font-bold text-blue-700 mb-3 flex items-center gap-2">
+            <FaEnvelope className="text-blue-500" />
+            LibreChat 聊天
+          </h2>
+          <div className="text-gray-600 space-y-2">
+            <p>与 LibreChat 进行智能对话，支持历史记录管理、消息编辑和导出功能。</p>
+            <div className="flex items-start gap-2 text-sm">
               <div>
-                <p className="font-medium mb-2 text-gray-800">1. 禁止内容范围：</p>
-                <ul className="list-disc list-inside ml-4 space-y-1">
-                  <li>政治敏感、民族歧视内容</li>
-                  <li>色情、暴力、恐怖主义内容</li>
-                  <li>侵犯知识产权内容</li>
-                  <li>虚假信息或误导性内容</li>
+                <p className="font-semibold text-blue-700">功能说明：</p>
+                <ul className="list-disc list-inside space-y-1 mt-1">
+                  <li>智能对话和流式响应</li>
+                  <li>历史记录查看和管理</li>
+                  <li>消息编辑和批量删除（支持VSCode Dark+主题代码编辑器）</li>
+                  <li>聊天记录导出功能</li>
+                  <li>游客模式和用户模式</li>
+                  <li>实时通知和自动刷新</li>
                 </ul>
               </div>
-              <div>
-                <p className="font-medium mb-2 text-gray-800">2. 违规处理措施：</p>
-                <ul className="list-disc list-inside ml-4 space-y-1">
-                  <li>立即停止服务并封禁账号</li>
-                  <li>配合执法部门调查</li>
-                  <li>提供使用记录和生成内容</li>
-                  <li>保留追究法律责任权利</li>
-                </ul>
-              </div>
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                <h4 className="text-blue-700 font-semibold mb-2 flex items-center gap-2">
-                  <FaEnvelope className="text-blue-500" />
-                  联系我们
-                </h4>
-                <p className="text-blue-700 text-sm">
-                  如有任何问题或建议，请联系开发者：
-                  <a
-                    href="mailto:admin@hapxs.com"
-                    className="font-medium hover:text-blue-800 transition-colors duration-200 ml-1 underline"
-                  >
-                    admin@hapxs.com
-                  </a>
-                </p>
-              </div>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            {/* SSE连接状态指示器 */}
+            <div className="flex items-center gap-2 mt-2">
+              <div className={`w-2 h-2 rounded-full ${sseConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+              <span className="text-xs text-gray-500">
+                {sseConnected ? '实时连接已建立' : '实时连接已断开'}
+              </span>
+            </div>
+          </div>
+        </motion.div>
 
-      {/* 发送消息 */}
-      <motion.div
-        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <FaPaperPlane className="text-lg text-blue-500" />
-            发送消息
+        {/* 最新镜像信息 */}
+        <motion.div
+          className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+            <FaDownload className="text-lg text-blue-500" />
+            LibreChat 最新镜像
           </h3>
-          {guestMode && (
-            <span
-              className="inline-flex items-center text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-full px-3 py-1"
-              title="未填写令牌，将以游客模式使用 HttpOnly Cookie 维持会话"
-            >
-              <FaUser className="w-3 h-3 mr-1" />
-              游客模式
-            </span>
-          )}
-          {!guestMode && token && (
-            <span
-              className="inline-flex items-center text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-3 py-1"
-              title={`当前Token: ${token.substring(0, 8)}...`}
-            >
-              <FaUser className="w-3 h-3 mr-1" />
-              用户模式
-            </span>
-          )}
-        </div>
-        
-        <div className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="relative">
-              <input
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-                placeholder="请输入 Token"
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-              />
-            </div>
-            <div className="relative sm:col-span-2">
-              <input
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-                placeholder="请输入消息"
-                value={message}
-                maxLength={MAX_MESSAGE_LEN}
-                onChange={(e) => onChangeMessage(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleSend(); }}
-              />
-            </div>
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <div className="text-xs text-gray-400">{message.length}/{MAX_MESSAGE_LEN}</div>
-            {guestMode && !guestHintDismissed && (
-              <div className="text-xs text-gray-500 flex items-center gap-2">
-                <span>当前以游客身份使用，会话通过浏览器 Cookie 保存。</span>
-                <button
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                  onClick={() => setGuestHintDismissed(true)}
-                  title="不再提示"
-                >
-                  <FaTimes className="w-3 h-3" />
-                </button>
-              </div>
-            )}
-          </div>
-          
-          {sendError && (
-            <div className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-lg p-3">
-              {sendError}
-            </div>
-          )}
-          
-          {/* Turnstile 人机验证（非管理员用户） */}
-          {!isAdmin && !turnstileConfigLoading && turnstileConfig.siteKey && typeof turnstileConfig.siteKey === 'string' && (
-            <motion.div
-              className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <div className="text-sm text-gray-700 mb-3 text-center">
-                人机验证
-                {turnstileVerified && (
-                  <span className="ml-2 text-green-600 font-medium">✓ 验证通过</span>
-                )}
-              </div>
-              
-              <TurnstileWidget
-                key={turnstileKey}
-                siteKey={turnstileConfig.siteKey}
-                onVerify={handleTurnstileVerify}
-                onExpire={handleTurnstileExpire}
-                onError={handleTurnstileError}
-                theme="light"
-                size="normal"
-              />
-              
-              {turnstileError && (
-                <div className="mt-2 text-sm text-red-500 text-center">
-                  验证失败，请重新验证
+          {loadingLatest ? (
+            <UnifiedLoadingSpinner
+              size="md"
+              text="正在获取最新镜像信息..."
+              className="py-8"
+            />
+          ) : latest ? (
+            <div className="space-y-3">
+              {latest.update_time && (
+                <div className="flex items-center gap-2 text-sm text-gray-700">
+                  <FaInfoCircle className="text-blue-500" />
+                  <span>更新时间：{latest.update_time}</span>
                 </div>
               )}
+              {latest.image_name && (
+                <div className="flex items-center gap-2 text-sm text-gray-700">
+                  <FaDownload className="text-green-500" />
+                  <span>镜像名称：{latest.image_name}</span>
+                </div>
+              )}
+              {latest.image_url && (
+                <div className="flex items-center gap-2 text-sm text-gray-700">
+                  <FaEnvelope className="text-orange-500" />
+                  <span className="break-all">镜像地址：{latest.image_url}</span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <FaDownload className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+              暂无数据
+            </div>
+          )}
+        </motion.div>
+
+        {/* 游客须知 */}
+        <AnimatePresence>
+          {guestMode && !guestNoticeDismissed && (
+            <motion.div
+              className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 relative"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <button
+                onClick={() => setGuestNoticeDismissed(true)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                title="关闭并不再提示"
+              >
+                <FaTimes className="w-5 h-5" />
+              </button>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <FaExclamationTriangle className="text-orange-500" />
+                使用须知（游客）
+              </h3>
+              <div className="space-y-4 text-sm text-gray-700">
+                <div>
+                  <p className="font-medium mb-2 text-gray-800">1. 禁止内容范围：</p>
+                  <ul className="list-disc list-inside ml-4 space-y-1">
+                    <li>政治敏感、民族歧视内容</li>
+                    <li>色情、暴力、恐怖主义内容</li>
+                    <li>侵犯知识产权内容</li>
+                    <li>虚假信息或误导性内容</li>
+                  </ul>
+                </div>
+                <div>
+                  <p className="font-medium mb-2 text-gray-800">2. 违规处理措施：</p>
+                  <ul className="list-disc list-inside ml-4 space-y-1">
+                    <li>立即停止服务并封禁账号</li>
+                    <li>配合执法部门调查</li>
+                    <li>提供使用记录和生成内容</li>
+                    <li>保留追究法律责任权利</li>
+                  </ul>
+                </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                  <h4 className="text-blue-700 font-semibold mb-2 flex items-center gap-2">
+                    <FaEnvelope className="text-blue-500" />
+                    联系我们
+                  </h4>
+                  <p className="text-blue-700 text-sm">
+                    如有任何问题或建议，请联系开发者：
+                    <a
+                      href="mailto:admin@hapxs.com"
+                      className="font-medium hover:text-blue-800 transition-colors duration-200 ml-1 underline"
+                    >
+                      admin@hapxs.com
+                    </a>
+                  </p>
+                </div>
+              </div>
             </motion.div>
           )}
-          
-          <div className="flex flex-wrap gap-3">
-            <motion.button
-              onClick={handleSend}
-              disabled={sending || (!isAdmin && !!turnstileConfig.siteKey && !turnstileVerified)}
-              className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium flex items-center gap-2 disabled:opacity-50"
-              whileTap={{ scale: 0.95 }}
-            >
-              <FaPaperPlane className="w-4 h-4" />
-              {sending ? '发送中...' : '发送'}
-            </motion.button>
-            <motion.button
-              onClick={() => {
-                setConfirmModal({
-                  open: true,
-                  title: '确认清除历史',
-                  message: '确定要清除所有聊天历史记录吗？此操作不可恢复。',
-                  type: 'danger',
-                  onConfirm: handleClear
-                });
-              }}
-              className="px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
-              whileTap={{ scale: 0.95 }}
-            >
-              清除历史
-            </motion.button>
-            <motion.button
-              onClick={openRealtimeDialog}
-              className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-medium flex items-center gap-2"
-              title="打开单次实时对话框"
-              whileTap={{ scale: 0.95 }}
-            >
-              <FaPaperPlane className="w-4 h-4" />
-              单次对话
-            </motion.button>
-            <motion.button
-              onClick={() => {
-                setPromptModal({
-                  open: true,
-                  title: '测试代码编辑器',
-                  message: '这是一个测试，展示原生代码编辑器功能：',
-                  placeholder: '请输入代码内容...',
-                  defaultValue: `// 这是一个JavaScript示例
+        </AnimatePresence>
+
+        {/* 发送消息 */}
+        <motion.div
+          className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+              <FaPaperPlane className="text-lg text-blue-500" />
+              发送消息
+            </h3>
+            {guestMode && (
+              <span
+                className="inline-flex items-center text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-full px-3 py-1"
+                title="未填写令牌，将以游客模式使用 HttpOnly Cookie 维持会话"
+              >
+                <FaUser className="w-3 h-3 mr-1" />
+                游客模式
+              </span>
+            )}
+            {!guestMode && token && (
+              <span
+                className="inline-flex items-center text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-3 py-1"
+                title={`当前Token: ${token.substring(0, 8)}...`}
+              >
+                <FaUser className="w-3 h-3 mr-1" />
+                用户模式
+              </span>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="relative">
+                <input
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                  placeholder="请输入 Token"
+                  value={token}
+                  onChange={(e) => setToken(e.target.value)}
+                />
+              </div>
+              <div className="relative sm:col-span-2">
+                <input
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                  placeholder="请输入消息"
+                  value={message}
+                  maxLength={MAX_MESSAGE_LEN}
+                  onChange={(e) => onChangeMessage(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleSend(); }}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="text-xs text-gray-400">{message.length}/{MAX_MESSAGE_LEN}</div>
+              {guestMode && !guestHintDismissed && (
+                <div className="text-xs text-gray-500 flex items-center gap-2">
+                  <span>当前以游客身份使用，会话通过浏览器 Cookie 保存。</span>
+                  <button
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                    onClick={() => setGuestHintDismissed(true)}
+                    title="不再提示"
+                  >
+                    <FaTimes className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {sendError && (
+              <div className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-lg p-3">
+                {sendError}
+              </div>
+            )}
+
+            {/* Turnstile 人机验证（非管理员用户） */}
+            {!isAdmin && !turnstileConfigLoading && turnstileConfig.siteKey && typeof turnstileConfig.siteKey === 'string' && (
+              <motion.div
+                className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+              >
+                <div className="text-sm text-gray-700 mb-3 text-center">
+                  人机验证
+                  {turnstileVerified && (
+                    <span className="ml-2 text-green-600 font-medium">✓ 验证通过</span>
+                  )}
+                </div>
+
+                <TurnstileWidget
+                  key={turnstileKey}
+                  siteKey={turnstileConfig.siteKey}
+                  onVerify={handleTurnstileVerify}
+                  onExpire={handleTurnstileExpire}
+                  onError={handleTurnstileError}
+                  theme="light"
+                  size="normal"
+                />
+
+                {turnstileError && (
+                  <div className="mt-2 text-sm text-red-500 text-center">
+                    验证失败，请重新验证
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            <div className="flex flex-wrap gap-3">
+              <motion.button
+                onClick={handleSend}
+                disabled={sending || (!isAdmin && !!turnstileConfig.siteKey && !turnstileVerified)}
+                className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium flex items-center gap-2 disabled:opacity-50"
+                whileTap={{ scale: 0.95 }}
+              >
+                <FaPaperPlane className="w-4 h-4" />
+                {sending ? '发送中...' : '发送'}
+              </motion.button>
+              <motion.button
+                onClick={() => {
+                  setConfirmModal({
+                    open: true,
+                    title: '确认清除历史',
+                    message: '确定要清除所有聊天历史记录吗？此操作不可恢复。',
+                    type: 'danger',
+                    onConfirm: handleClear
+                  });
+                }}
+                className="px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
+                whileTap={{ scale: 0.95 }}
+              >
+                清除历史
+              </motion.button>
+              <motion.button
+                onClick={openRealtimeDialog}
+                className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-medium flex items-center gap-2"
+                title="打开单次实时对话框"
+                whileTap={{ scale: 0.95 }}
+              >
+                <FaPaperPlane className="w-4 h-4" />
+                单次对话
+              </motion.button>
+              <motion.button
+                onClick={() => {
+                  setPromptModal({
+                    open: true,
+                    title: '测试代码编辑器',
+                    message: '这是一个测试，展示原生代码编辑器功能：',
+                    placeholder: '请输入代码内容...',
+                    defaultValue: `// 这是一个JavaScript示例
 function greet(name) {
   return \`Hello, \${name}!\`;
 }
@@ -3131,488 +3148,308 @@ const config = {
   "language": "javascript",
   "features": ["syntax-highlighting", "line-numbers", "auto-detection"]
 };`,
-                  codeEditor: true,
-                  language: 'auto',
-                  maxLength: 5000,
-                  onConfirm: (content: string) => {
-                    setNotification({ type: 'success', message: '代码编辑器测试完成！' });
-                    console.log('测试代码内容:', content);
-                  }
-                });
-              }}
-              className="px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition font-medium flex items-center gap-2"
-              title="测试代码编辑器功能"
-              whileTap={{ scale: 0.95 }}
-            >
-              <FaCode className="w-4 h-4" />
-              测试编辑器
-            </motion.button>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* 聊天历史 */}
-      <motion.div
-        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        {/* 工具栏 */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <FaHistory className="text-lg text-blue-500" />
-            聊天历史
-            {history && (
-              <span className="text-sm text-gray-500 font-normal">
-                (共 {history.total} 条记录)
-              </span>
-            )}
-          </h3>
-          <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
-            <span>第 {page} / {history?.totalPages || 1} 页，共 {history?.total || 0} 条</span>
-            <motion.button
-              onClick={refreshHistory}
-              className="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-50 transition flex items-center gap-1"
-              title="刷新"
-              whileTap={{ scale: 0.95 }}
-            >
-              <FaRedo className="w-3 h-3" />
-              刷新
-            </motion.button>
-            <motion.button
-              onClick={exportCurrentPage}
-              className="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-50 transition flex items-center gap-1"
-              title="导出本页"
-              whileTap={{ scale: 0.95 }}
-            >
-              <FaDownload className="w-3 h-3" />
-              导出本页
-            </motion.button>
-            <motion.button
-              onClick={exportAll}
-              className="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-50 transition flex items-center gap-1"
-              title="导出全部"
-              whileTap={{ scale: 0.95 }}
-            >
-              <FaDownload className="w-3 h-3" />
-              导出全部
-            </motion.button>
-            <motion.button
-              onClick={handleBatchDelete}
-              disabled={selectedIds.length === 0}
-              className={`px-3 py-1 rounded-lg border transition flex items-center gap-1 ${
-                selectedIds.length === 0 
-                  ? 'border-gray-200 text-gray-300' 
-                  : 'border-red-200 text-red-600 hover:bg-red-50'
-              }`}
-              title="批量删除所选"
-              whileTap={{ scale: 0.95 }}
-            >
-              <FaTrash className="w-3 h-3" />
-              批量删除
-            </motion.button>
-          </div>
-        </div>
-        
-        {/* 聊天记录内容区域 */}
-        <div className="border-t border-gray-200 pt-4">
-          {loadingHistory ? (
-            <UnifiedLoadingSpinner 
-              size="md" 
-              text="正在加载聊天历史..." 
-              className="py-8"
-            />
-          ) : (
-            <div className="max-h-[60vh] overflow-auto pr-1">
-              {streaming && (
-                <motion.div 
-                  className="mb-4 p-4 border border-gray-200 rounded-lg bg-white"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
-                      <FaRobot className="w-4 h-4 text-white" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium text-green-700">助手</span>
-                      <span className="text-xs text-gray-500">生成中...</span>
-                    </div>
-                  </div>
-                  <EnhancedMarkdownRenderer 
-                    content={sanitizeAssistantText(streamContent || '...')}
-                    showControls={false}
-                    onCodeCopy={(success) => {
-                      if (success) {
-                        setNotification({ type: 'success', message: '代码已复制' });
-                      } else {
-                        setNotification({ type: 'error', message: '复制失败' });
-                      }
-                    }}
-                  />
-                </motion.div>
-              )}
-              {/* 调试信息 */}
-              <div className="text-xs text-gray-500 mb-2">
-                历史记录状态: {history ? `已加载 (${history.history.length} 条)` : '未加载'} | 
-                加载状态: {loadingHistory ? '加载中' : '已完成'}
-              </div>
-              {history && history.history.length > 0 ? (
-                <div className="space-y-4">
-                  {history.history.map((m: HistoryItem, idx: number) => (
-                    <motion.div 
-                      key={idx} 
-                      className="p-4 border border-gray-200 rounded-lg bg-white"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: 0.05 * idx }}
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                              m.role === 'user' 
-                                ? 'bg-blue-500' 
-                                : 'bg-green-500'
-                            }`}>
-                              {m.role === 'user' ? (
-                                <FaUser className="w-4 h-4 text-white" />
-                              ) : (
-                                <FaRobot className="w-4 h-4 text-white" />
-                              )}
-                            </div>
-                            <div className="flex flex-col">
-                              <span className={`text-sm font-medium ${
-                                m.role === 'user' 
-                                  ? 'text-blue-700' 
-                                  : 'text-green-700'
-                              }`}>
-                                {m.role === 'user' ? '用户' : '助手'}
-                              </span>
-                              {m.createdAt && (
-                                <span className="text-xs text-gray-500">{m.createdAt}</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {m.id && (
-                            <input
-                              type="checkbox"
-                              className="w-4 h-4"
-                              checked={selectedIds.includes(m.id)}
-                              onChange={() => toggleSelect(m.id)}
-                              title="选择此消息"
-                            />
-                          )}
-                          <motion.button
-                            onClick={() => copyText(m.role === 'user' ? m.content : sanitizeAssistantText(m.content))}
-                            className="px-2 py-1 text-xs rounded border border-gray-300 hover:bg-gray-50 transition flex items-center gap-1"
-                            whileTap={{ scale: 0.95 }}
-                          >
-                            <FaCopy className="w-3 h-3" />
-                            复制
-                          </motion.button>
-                        </div>
-                      </div>
-                      <EnhancedMarkdownRenderer 
-                        content={m.role === 'user' ? m.content : sanitizeAssistantText(m.content)}
-                        showControls={true}
-                        onCopy={(content) => setNotification({ type: 'success', message: 'Markdown内容已复制到剪贴板' })}
-                        onCodeCopy={(success) => {
-                          if (success) {
-                            setNotification({ type: 'success', message: '代码已复制' });
-                          } else {
-                            setNotification({ type: 'error', message: '复制失败' });
-                          }
-                        }}
-                      />
-                      {m.id && (
-                        <div className="mt-3 flex justify-end gap-2">
-                          <motion.button
-                            onClick={() => handleEdit(m.id, m.content)}
-                            className="px-3 py-1 text-xs rounded border border-gray-300 hover:bg-gray-50 transition flex items-center gap-1"
-                            whileTap={{ scale: 0.95 }}
-                          >
-                            <FaEdit className="w-3 h-3" />
-                            编辑
-                          </motion.button>
-                          {m.role !== 'user' && (
-                            <motion.button
-                              onClick={() => handleRetry(m.id)}
-                              className="px-3 py-1 text-xs rounded border border-blue-200 text-blue-600 hover:bg-blue-50 transition flex items-center gap-1"
-                              whileTap={{ scale: 0.95 }}
-                            >
-                              <FaRedo className="w-3 h-3" />
-                              重试
-                            </motion.button>
-                          )}
-                          <motion.button
-                            onClick={() => handleDelete(m.id)}
-                            className="px-3 py-1 text-xs rounded border border-red-200 text-red-600 hover:bg-red-50 transition flex items-center gap-1"
-                            whileTap={{ scale: 0.95 }}
-                          >
-                            <FaTrash className="w-3 h-3" />
-                            删除
-                          </motion.button>
-                        </div>
-                      )}
-                    </motion.div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12 text-gray-500">
-                  <FaHistory className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                  {loadingHistory ? '加载中...' : '暂无历史记录'}
-                </div>
-              )}
-            </div>
-          )}
-          {/* 分页控制 */}
-          {history && history.history.length > 0 && (
-            <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
-              <motion.button
-                className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition flex items-center gap-2"
-                disabled={page <= 1}
-                onClick={() => {
-                  setNotification({ type: 'info', message: '正在加载上一页...' });
-                  fetchHistory(Math.max(1, page - 1));
+                    codeEditor: true,
+                    language: 'auto',
+                    maxLength: 5000,
+                    onConfirm: (content: string) => {
+                      setNotification({ type: 'success', message: '代码编辑器测试完成！' });
+                      console.log('测试代码内容:', content);
+                    }
+                  });
                 }}
+                className="px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition font-medium flex items-center gap-2"
+                title="测试代码编辑器功能"
                 whileTap={{ scale: 0.95 }}
               >
-                <FaChevronLeft className="text-xs" />
-                上一页
-              </motion.button>
-              <motion.button
-                className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition flex items-center gap-2"
-                disabled={history ? page >= history.totalPages : true}
-                onClick={() => {
-                  setNotification({ type: 'info', message: '正在加载下一页...' });
-                  fetchHistory(page + 1);
-                }}
-                whileTap={{ scale: 0.95 }}
-              >
-                下一页
-                <FaChevronRight className="text-xs" />
+                <FaCode className="w-4 h-4" />
+                测试编辑器
               </motion.button>
             </div>
-          )}
-        </div>
-      </motion.div>
+          </div>
+        </motion.div>
 
-      {/* 单次实时对话框 */}
-      <AnimatePresence>
-        {rtOpen && (
-          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="w-full max-w-2xl bg-white rounded-xl p-6 shadow-sm border border-gray-200 relative"
-            >
-              <div className="flex items-center mb-4 pr-10">
-                <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                  <FaPaperPlane className="text-blue-500" />
-                  实时对话（支持上下文）
-                </h3>
-                <button
-                  onClick={closeRealtimeDialog}
-                  className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-100 bg-white transition-colors"
-                  aria-label="关闭"
-                  title="关闭"
-                >
-                  <FaTimes className="w-4 h-4" />
-                </button>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <input
-                    className="border-2 border-gray-200 rounded-lg px-4 py-3 w-full focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-                    placeholder="请输入 Token"
-                    value={token}
-                    onChange={(e) => setToken(e.target.value)}
-                  />
-                  <input
-                    className="border-2 border-gray-200 rounded-lg px-4 py-3 w-full sm:col-span-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-                    placeholder="请输入消息（支持上下文）"
-                    value={rtMessage}
-                    maxLength={MAX_MESSAGE_LEN}
-                    onChange={(e) => onChangeRtMessage(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' && !rtSending && !rtStreaming) handleRealtimeSend(); }}
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="text-xs text-gray-400">{rtMessage.length}/{MAX_MESSAGE_LEN}</div>
-                  {rtError && <div className="text-red-500 text-sm">{rtError}</div>}
-                </div>
-                
-                {/* Turnstile 人机验证（非管理员用户） */}
-                {!isAdmin && !turnstileConfigLoading && turnstileConfig.siteKey && typeof turnstileConfig.siteKey === 'string' && (
+        {/* 聊天历史 */}
+        <motion.div
+          className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          {/* 工具栏 */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+              <FaHistory className="text-lg text-blue-500" />
+              聊天历史
+              {history && (
+                <span className="text-sm text-gray-500 font-normal">
+                  (共 {history.total} 条记录)
+                </span>
+              )}
+            </h3>
+            <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
+              <span>第 {page} / {history?.totalPages || 1} 页，共 {history?.total || 0} 条</span>
+              <motion.button
+                onClick={refreshHistory}
+                className="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-50 transition flex items-center gap-1"
+                title="刷新"
+                whileTap={{ scale: 0.95 }}
+              >
+                <FaRedo className="w-3 h-3" />
+                刷新
+              </motion.button>
+              <motion.button
+                onClick={exportCurrentPage}
+                className="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-50 transition flex items-center gap-1"
+                title="导出本页"
+                whileTap={{ scale: 0.95 }}
+              >
+                <FaDownload className="w-3 h-3" />
+                导出本页
+              </motion.button>
+              <motion.button
+                onClick={exportAll}
+                className="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-50 transition flex items-center gap-1"
+                title="导出全部"
+                whileTap={{ scale: 0.95 }}
+              >
+                <FaDownload className="w-3 h-3" />
+                导出全部
+              </motion.button>
+              <motion.button
+                onClick={handleBatchDelete}
+                disabled={selectedIds.length === 0}
+                className={`px-3 py-1 rounded-lg border transition flex items-center gap-1 ${selectedIds.length === 0
+                    ? 'border-gray-200 text-gray-300'
+                    : 'border-red-200 text-red-600 hover:bg-red-50'
+                  }`}
+                title="批量删除所选"
+                whileTap={{ scale: 0.95 }}
+              >
+                <FaTrash className="w-3 h-3" />
+                批量删除
+              </motion.button>
+            </div>
+          </div>
+
+          {/* 聊天记录内容区域 */}
+          <div className="border-t border-gray-200 pt-4">
+            {loadingHistory ? (
+              <UnifiedLoadingSpinner
+                size="md"
+                text="正在加载聊天历史..."
+                className="py-8"
+              />
+            ) : (
+              <div className="max-h-[60vh] overflow-auto pr-1">
+                {streaming && (
                   <motion.div
-                    className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200"
-                    initial={{ opacity: 0, y: 20 }}
+                    className="mb-4 p-4 border border-gray-200 rounded-lg bg-white"
+                    initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5 }}
                   >
-                    <div className="text-sm text-gray-700 mb-3 text-center">
-                      人机验证
-                      {turnstileVerified && (
-                        <span className="ml-2 text-green-600 font-medium">✓ 验证通过</span>
-                      )}
-                    </div>
-                    
-                    <TurnstileWidget
-                      key={turnstileKey}
-                      siteKey={turnstileConfig.siteKey}
-                      onVerify={handleTurnstileVerify}
-                      onExpire={handleTurnstileExpire}
-                      onError={handleTurnstileError}
-                      theme="light"
-                      size="normal"
-                    />
-                    
-                    {turnstileError && (
-                      <div className="mt-2 text-sm text-red-500 text-center">
-                        验证失败，请重新验证
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
+                        <FaRobot className="w-4 h-4 text-white" />
                       </div>
-                    )}
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-green-700">助手</span>
+                        <span className="text-xs text-gray-500">生成中...</span>
+                      </div>
+                    </div>
+                    <EnhancedMarkdownRenderer
+                      content={sanitizeAssistantText(streamContent || '...')}
+                      showControls={false}
+                      onCodeCopy={(success) => {
+                        if (success) {
+                          setNotification({ type: 'success', message: '代码已复制' });
+                        } else {
+                          setNotification({ type: 'error', message: '复制失败' });
+                        }
+                      }}
+                    />
                   </motion.div>
                 )}
-                
-                <div className="flex items-center justify-end gap-2">
-                  <motion.button
-                    onClick={handleRealtimeSend}
-                    disabled={rtSending || (!isAdmin && !!turnstileConfig.siteKey && !turnstileVerified)}
-                    className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <FaPaperPlane className="w-4 h-4" />
-                    {rtSending ? '发送中...' : '发送'}
-                  </motion.button>
+                {/* 调试信息 */}
+                <div className="text-xs text-gray-500 mb-2">
+                  历史记录状态: {history ? `已加载 (${history.history.length} 条)` : '未加载'} |
+                  加载状态: {loadingHistory ? '加载中' : '已完成'}
                 </div>
-                
-                <div className="mt-4">
-                  {rtHistory.length > 0 ? (
-                    <div className="space-y-3 max-h-[45vh] overflow-auto pr-1">
-                      {rtHistory.map((m, idx) => (
-                        <motion.div 
-                          key={idx} 
-                          className="p-4 border border-gray-200 rounded-lg bg-white"
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                        >
-                          <div className="flex items-center gap-3 mb-3">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                              m.role === 'user' 
-                                ? 'bg-blue-500' 
-                                : 'bg-green-500'
-                            }`}>
-                              {m.role === 'user' ? (
-                                <FaUser className="w-4 h-4 text-white" />
-                              ) : (
-                                <FaRobot className="w-4 h-4 text-white" />
-                              )}
-                            </div>
-                            <div className="flex flex-col">
-                              <span className={`text-sm font-medium ${
-                                m.role === 'user' 
-                                  ? 'text-blue-700' 
-                                  : 'text-green-700'
-                              }`}>
-                                {m.role === 'user' ? '用户' : '助手'}
-                                {rtStreaming && idx === rtHistory.length - 1 ? '（生成中...）' : ''}
-                              </span>
+                {history && history.history.length > 0 ? (
+                  <div className="space-y-4">
+                    {history.history.map((m: HistoryItem, idx: number) => (
+                      <motion.div
+                        key={idx}
+                        className="p-4 border border-gray-200 rounded-lg bg-white"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: 0.05 * idx }}
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${m.role === 'user'
+                                  ? 'bg-blue-500'
+                                  : 'bg-green-500'
+                                }`}>
+                                {m.role === 'user' ? (
+                                  <FaUser className="w-4 h-4 text-white" />
+                                ) : (
+                                  <FaRobot className="w-4 h-4 text-white" />
+                                )}
+                              </div>
+                              <div className="flex flex-col">
+                                <span className={`text-sm font-medium ${m.role === 'user'
+                                    ? 'text-blue-700'
+                                    : 'text-green-700'
+                                  }`}>
+                                  {m.role === 'user' ? '用户' : '助手'}
+                                </span>
+                                {m.createdAt && (
+                                  <span className="text-xs text-gray-500">{m.createdAt}</span>
+                                )}
+                              </div>
                             </div>
                           </div>
-                          <EnhancedMarkdownRenderer 
-                            content={m.role === 'user' ? m.content : sanitizeAssistantText(m.content)}
-                            showControls={false}
-                            onCodeCopy={(success) => {
-                              if (success) {
-                                setNotification({ type: 'success', message: '代码已复制' });
-                              } else {
-                                setNotification({ type: 'error', message: '复制失败' });
-                              }
-                            }}
-                          />
-                        </motion.div>
-                      ))}
-                    </div>
-                  ) : rtStreaming || rtStreamContent ? (
-                    <motion.div 
-                      className="p-4 border border-gray-200 rounded-lg bg-white"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                    >
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
-                          <FaRobot className="w-4 h-4 text-white" />
+                          <div className="flex items-center gap-2">
+                            {m.id && (
+                              <input
+                                type="checkbox"
+                                className="w-4 h-4"
+                                checked={selectedIds.includes(m.id)}
+                                onChange={() => toggleSelect(m.id)}
+                                title="选择此消息"
+                              />
+                            )}
+                            <motion.button
+                              onClick={() => copyText(m.role === 'user' ? m.content : sanitizeAssistantText(m.content))}
+                              className="px-2 py-1 text-xs rounded border border-gray-300 hover:bg-gray-50 transition flex items-center gap-1"
+                              whileTap={{ scale: 0.95 }}
+                            >
+                              <FaCopy className="w-3 h-3" />
+                              复制
+                            </motion.button>
+                          </div>
                         </div>
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium text-green-700">
-                            助手{rtStreaming ? '（生成中...）' : ''}
-                          </span>
-                        </div>
-                      </div>
-                      <EnhancedMarkdownRenderer 
-                        content={sanitizeAssistantText(rtStreamContent || '')}
-                        showControls={false}
-                        onCodeCopy={(success) => {
-                          if (success) {
-                            setNotification({ type: 'success', message: '代码已复制' });
-                          } else {
-                            setNotification({ type: 'error', message: '复制失败' });
-                          }
-                        }}
-                      />
-                    </motion.div>
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      <FaPaperPlane className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                      输入内容并点击发送以开始单次对话
-                    </div>
-                  )}
-                </div>
+                        <EnhancedMarkdownRenderer
+                          content={m.role === 'user' ? m.content : sanitizeAssistantText(m.content)}
+                          showControls={true}
+                          onCopy={(content) => setNotification({ type: 'success', message: 'Markdown内容已复制到剪贴板' })}
+                          onCodeCopy={(success) => {
+                            if (success) {
+                              setNotification({ type: 'success', message: '代码已复制' });
+                            } else {
+                              setNotification({ type: 'error', message: '复制失败' });
+                            }
+                          }}
+                        />
+                        {m.id && (
+                          <div className="mt-3 flex justify-end gap-2">
+                            <motion.button
+                              onClick={() => handleEdit(m.id, m.content)}
+                              className="px-3 py-1 text-xs rounded border border-gray-300 hover:bg-gray-50 transition flex items-center gap-1"
+                              whileTap={{ scale: 0.95 }}
+                            >
+                              <FaEdit className="w-3 h-3" />
+                              编辑
+                            </motion.button>
+                            {m.role !== 'user' && (
+                              <motion.button
+                                onClick={() => handleRetry(m.id)}
+                                className="px-3 py-1 text-xs rounded border border-blue-200 text-blue-600 hover:bg-blue-50 transition flex items-center gap-1"
+                                whileTap={{ scale: 0.95 }}
+                              >
+                                <FaRedo className="w-3 h-3" />
+                                重试
+                              </motion.button>
+                            )}
+                            <motion.button
+                              onClick={() => handleDelete(m.id)}
+                              className="px-3 py-1 text-xs rounded border border-red-200 text-red-600 hover:bg-red-50 transition flex items-center gap-1"
+                              whileTap={{ scale: 0.95 }}
+                            >
+                              <FaTrash className="w-3 h-3" />
+                              删除
+                            </motion.button>
+                          </div>
+                        )}
+                      </motion.div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-gray-500">
+                    <FaHistory className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    {loadingHistory ? '加载中...' : '暂无历史记录'}
+                  </div>
+                )}
               </div>
-            </motion.div>
+            )}
+            {/* 分页控制 */}
+            {history && history.history.length > 0 && (
+              <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
+                <motion.button
+                  className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition flex items-center gap-2"
+                  disabled={page <= 1}
+                  onClick={() => {
+                    setNotification({ type: 'info', message: '正在加载上一页...' });
+                    fetchHistory(Math.max(1, page - 1));
+                  }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <FaChevronLeft className="text-xs" />
+                  上一页
+                </motion.button>
+                <motion.button
+                  className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition flex items-center gap-2"
+                  disabled={history ? page >= history.totalPages : true}
+                  onClick={() => {
+                    setNotification({ type: 'info', message: '正在加载下一页...' });
+                    fetchHistory(page + 1);
+                  }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  下一页
+                  <FaChevronRight className="text-xs" />
+                </motion.button>
+              </div>
+            )}
           </div>
-        )}
-      </AnimatePresence>
+        </motion.div>
 
-      {/* 自定义弹窗组件 */}
-      <AlertModal
-        open={alertModal.open}
-        onClose={() => setAlertModal({ open: false, message: '' })}
-        title={alertModal.title}
-        message={alertModal.message}
-        type={alertModal.type}
-      />
-      
-      <ConfirmModal
-        open={confirmModal.open}
-        onClose={() => setConfirmModal({ open: false, message: '', onConfirm: () => {} })}
-        onConfirm={confirmModal.onConfirm}
-        title={confirmModal.title}
-        message={confirmModal.message}
-        type={confirmModal.type}
-      />
-      
-      <PromptModal
-        open={promptModal.open}
-        onClose={() => setPromptModal({ open: false, message: '', onConfirm: () => {} })}
-        onConfirm={promptModal.onConfirm}
-        title={promptModal.title}
-        message={promptModal.message}
-        placeholder={promptModal.placeholder}
-        defaultValue={promptModal.defaultValue}
-        codeEditor={promptModal.codeEditor}
-        language={promptModal.language}
-        maxLength={promptModal.maxLength}
-      />
-    </motion.div>
+        {/* 单次实时对话框 */}
+        <LibreChatRealtimeDialog />
+
+        {/* 自定义弹窗组件 */}
+        <AlertModal
+          open={alertModal.open}
+          onClose={() => setAlertModal({ open: false, message: '' })}
+          title={alertModal.title}
+          message={alertModal.message}
+          type={alertModal.type}
+        />
+
+        <ConfirmModal
+          open={confirmModal.open}
+          onClose={() => setConfirmModal({ open: false, message: '', onConfirm: () => { } })}
+          onConfirm={confirmModal.onConfirm}
+          title={confirmModal.title}
+          message={confirmModal.message}
+          type={confirmModal.type}
+        />
+
+        <PromptModal
+          open={promptModal.open}
+          onClose={() => setPromptModal({ open: false, message: '', onConfirm: () => { } })}
+          onConfirm={promptModal.onConfirm}
+          title={promptModal.title}
+          message={promptModal.message}
+          placeholder={promptModal.placeholder}
+          defaultValue={promptModal.defaultValue}
+          codeEditor={promptModal.codeEditor}
+          language={promptModal.language}
+          maxLength={promptModal.maxLength}
+        />
+      </motion.div>
+    </LibreChatContext.Provider>
   );
 };
 

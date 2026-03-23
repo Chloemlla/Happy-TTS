@@ -75,6 +75,7 @@ import {
 } from "./middleware/routeLimiters";
 import { tamperProtectionMiddleware } from "./middleware/tamperProtection";
 import { wafMiddleware } from "./middleware/wafMiddleware";
+import { requestIdMiddleware } from "./middleware/requestId";
 import adminRoutes from "./routes/adminRoutes";
 import antaRoutes from "./routes/antaRoutes";
 import apiKeyRoutes from "./routes/apiKeyRoutes";
@@ -117,6 +118,7 @@ import nexaiSecurityRoutes from "./routes/nexaiSecurityRoutes";
 import webhookRoutes from "./routes/webhookRoutes";
 import { getIPInfo } from "./services/ip";
 import { isConnected as isMongoConnected } from "./services/mongoService";
+import { AuditLogService } from "./services/auditLogService";
 import { schedulerService } from "./services/schedulerService";
 import { wsService } from "./services/wsService";
 import logger from "./utils/logger";
@@ -143,7 +145,7 @@ var _OUTEMAIL_SERVICE_STATUS: { available: boolean; error?: string };
 const readOpenapiJsonSync = (): string => {
   const candidates = [
     process.env.OPENAPI_JSON_PATH &&
-      path.resolve(process.env.OPENAPI_JSON_PATH),
+    path.resolve(process.env.OPENAPI_JSON_PATH),
     "/app/openapi.json",
     path.join(process.cwd(), "openapi.json"),
     path.join(__dirname, "../openapi.json"),
@@ -179,6 +181,7 @@ app.use("/", dataCollectionRoutes);
 
 // ========== 全局中间件 ==========
 
+app.use(requestIdMiddleware);
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
@@ -197,6 +200,9 @@ app.get("/health", (_req: Request, res: Response) => {
 
 // 全局 IP 封禁检查
 app.use(ipBanCheckWithRateLimit);
+
+// 自动全局审计记录
+app.use(AuditLogService.globalAuditMiddleware());
 
 // WAF 安全校验（在 body parser 之后、路由之前，确保能检查 body）
 if (process.env.WAF_ENABLED !== "false") {
@@ -407,7 +413,7 @@ const swaggerSpec = swaggerJSDoc(swaggerOptions);
 const readOpenapiJson = async (): Promise<string> => {
   const candidates = [
     process.env.OPENAPI_JSON_PATH &&
-      path.resolve(process.env.OPENAPI_JSON_PATH),
+    path.resolve(process.env.OPENAPI_JSON_PATH),
     "/app/openapi.json",
     path.join(process.cwd(), "openapi.json"),
     path.join(__dirname, "../openapi.json"),
@@ -513,14 +519,14 @@ app.use(
   swaggerUi.serve,
   preferSwaggerUrl
     ? swaggerUi.setup(undefined, {
-        swaggerUrl: "/openapi.json",
-        customSiteTitle: "Happy API",
-        customCss: swaggerCustomCss,
-      })
+      swaggerUrl: "/openapi.json",
+      customSiteTitle: "Happy API",
+      customCss: swaggerCustomCss,
+    })
     : swaggerUi.setup(swaggerUiSpec, {
-        customSiteTitle: "Happy API",
-        customCss: swaggerCustomCss,
-      })
+      customSiteTitle: "Happy API",
+      customCss: swaggerCustomCss,
+    })
 );
 
 // ========== 音频静态文件 ==========
@@ -951,7 +957,7 @@ class RateLimiter {
   constructor(
     private maxCalls: number,
     private period: number
-  ) {}
+  ) { }
   attempt(): boolean {
     const now = Date.now();
     this.calls = this.calls.filter((call) => call > now - this.period);

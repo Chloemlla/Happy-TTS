@@ -1,6 +1,8 @@
 import { mongoose } from "../services/mongoService";
 
 export interface IAuditLog {
+  /** 请求 ID (用于链路追踪) */
+  requestId?: string;
   /** 操作者 ID */
   userId: string;
   /** 操作者用户名 */
@@ -35,6 +37,7 @@ export interface IAuditLog {
 
 const AuditLogSchema = new mongoose.Schema<IAuditLog>(
   {
+    requestId: { type: String, index: true },
     userId: { type: String, required: true, index: true },
     username: { type: String, required: true },
     role: { type: String, required: true },
@@ -58,6 +61,7 @@ const AuditLogSchema = new mongoose.Schema<IAuditLog>(
 );
 
 // 查询索引
+AuditLogSchema.index({ requestId: 1 });
 AuditLogSchema.index({ createdAt: -1 });
 AuditLogSchema.index({ module: 1, createdAt: -1 });
 AuditLogSchema.index({ userId: 1, createdAt: -1 });

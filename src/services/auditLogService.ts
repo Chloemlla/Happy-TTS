@@ -1,7 +1,10 @@
+import type { Request, Response, NextFunction } from "express";
 import { AuditLogModel, type IAuditLog } from "../models/auditLogModel";
 import logger from "../utils/logger";
+import { config } from "../config/config";
 
 export interface AuditEntry {
+  requestId?: string;
   userId: string;
   username: string;
   role: string;
@@ -70,6 +73,7 @@ export class AuditLogService {
    * 构建安全的静态过滤条件（不含任何用户可控字符串）
    */
   private static buildStaticFilter(params: {
+    requestId?: string;
     module?: string;
     action?: string;
     userId?: string;
@@ -78,6 +82,10 @@ export class AuditLogService {
     endDate?: string;
   }): Record<string, any> {
     const filter: Record<string, any> = {};
+
+    if (params.requestId && /^[a-zA-Z0-9_-]+$/.test(params.requestId)) {
+      filter.requestId = params.requestId;
+    }
 
     if (params.module && ALLOWED_MODULES.has(params.module)) {
       filter.module = params.module;
@@ -124,6 +132,7 @@ export class AuditLogService {
   static async query(params: {
     page?: number;
     pageSize?: number;
+    requestId?: string;
     module?: string;
     action?: string;
     userId?: string;
@@ -141,7 +150,7 @@ export class AuditLogService {
     const safeKeyword = AuditLogService.sanitizeKeyword(params.keyword);
     if (safeKeyword) {
       const re = new RegExp(escapeRegex(safeKeyword), "i");
-      filter.$or = [{ username: re }, { action: re }, { targetName: re }, { ip: re }];
+      filter.$or = [{ requestId: re }, { username: re }, { action: re }, { targetName: re }, { ip: re }];
     }
 
     const safePage = Math.max(1, page);
@@ -173,6 +182,129 @@ export class AuditLogService {
       byResult: byResult.map((r: { _id: string; count: number }) => ({ result: r._id, count: r.count })),
       last24h: recentCount,
       total: await AuditLogModel.estimatedDocumentCount(),
+    };
+  }
+
+  /**
+   * 全局审计中间件：自动拦截所有请求，覆盖所有事件
+   */
+  static globalAuditMiddleware() {
+    return (req: Request, res: Response, next: NextFunction) => {
+      // 过滤掉静态文件、Swagger等非接口请求
+      if (!req.originalUrl?.startsWith("/api/")) {
+        return next();
+      }
+
+      const startTime = Date.now();
+      let audited = false;
+
+      const originalJson = res.json.bind(res);
+      const originalSend = res.send.bind(res);
+
+      const writeAudit = (result: "success" | "failure", errorMessage?: string, resBody?: any) => {
+        if (audited) return;
+        audited = true;
+
+        const user = (req as any).user;
+        const durationMs = Date.now() - startTime;
+
+        // 尝试从 URL 中推断 action 和 module
+        const segments = req.path.split("/").filter(Boolean);
+        const moduleName = segments[1] || "system"; // /api/moduleName
+        const actionStr = `${req.method.toLowerCase()} ${req.path}`;
+
+        let safeModule = "other" as IAuditLog["module"];
+        if (ALLOWED_MODULES.has(moduleName)) {
+          safeModule = moduleName as any;
+        }
+
+        // 脱敏与截断处理函数
+        const sanitizePayload = (obj: any): any => {
+          if (!obj) return obj;
+          if (typeof obj === "string") return obj.length > 2000 ? obj.substring(0, 2000) + "..." : obj;
+          if (typeof obj !== "object") return obj;
+          if (Buffer.isBuffer(obj)) return "[Buffer]";
+
+          let parsedObj = obj;
+          // 若为对象，则深度克隆并脱敏
+          try {
+            parsedObj = JSON.parse(JSON.stringify(obj));
+          } catch {
+            return "[Unserializable Object]";
+          }
+
+          const SENSITIVE_KEYS = ["password", "token", "secret", "authorization", "apikey", "session"];
+          const sanitizeNode = (node: any) => {
+            if (!node || typeof node !== "object") return;
+            for (const key of Object.keys(node)) {
+              const lowerKey = key.toLowerCase();
+              if (config.auditLogMasking && SENSITIVE_KEYS.some((s) => lowerKey.includes(s))) {
+                node[key] = "***";
+              } else if (typeof node[key] === "string" && node[key].length > 2000) {
+                node[key] = node[key].substring(0, 2000) + "...[truncated]";
+              } else if (typeof node[key] === "object") {
+                sanitizeNode(node[key]);
+              }
+            }
+          };
+          sanitizeNode(parsedObj);
+          return parsedObj;
+        };
+
+        const entry: AuditEntry = {
+          requestId: (req as any).requestId,
+          userId: user?.id || user?._id || "unknown",
+          username: user?.username || user?.name || "unknown",
+          role: user?.role || "unknown",
+          action: actionStr.substring(0, 100),
+          module: safeModule,
+          result,
+          errorMessage: errorMessage ? String(errorMessage).substring(0, 500) : undefined,
+          detail: {
+            durationMs,
+            query: Object.keys(req.query).length ? req.query : undefined,
+            reqBody: Object.keys(req.body || {}).length ? sanitizePayload(req.body) : undefined,
+            resBody: resBody !== undefined ? sanitizePayload(resBody) : undefined
+          },
+          ip: req.ip || req.socket.remoteAddress || "unknown",
+          userAgent: req.headers["user-agent"],
+          path: req.originalUrl || req.path,
+          method: req.method,
+        };
+
+        AuditLogService.log(entry).catch((err) => {
+          logger.error("[GlobalAudit] 写入全局审计日志失败", err);
+        });
+      };
+
+      res.json = (body: any) => {
+        const statusCode = res.statusCode;
+        if (statusCode >= 200 && statusCode < 400) {
+          writeAudit("success", undefined, body);
+        } else {
+          writeAudit("failure", body?.error || body?.message || "Request failed", body);
+        }
+        return originalJson(body);
+      };
+
+      res.send = (body: any) => {
+        const statusCode = res.statusCode;
+        if (statusCode >= 200 && statusCode < 400) {
+          writeAudit("success", undefined, body);
+        } else {
+          writeAudit("failure", typeof body === "string" ? body : "Request failed", body);
+        }
+        return originalSend(body);
+      };
+
+      // 捕获请求异常终止
+      res.on('close', () => {
+        if (!res.writableEnded) {
+          writeAudit("failure", "Connection closed prematurely");
+        }
+      });
+
+      next();
     };
   }
 }
