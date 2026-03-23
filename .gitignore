@@ -19,6 +19,8 @@ client_secret_17055657909-fvhkanhq0ht0gm69ra2sjb5onpeqrh91.apps.googleuserconten
 scripts\inspect.json
 tts-node_*.sh
 tts-node_*.json
+.agents/
+skills-lock.json
 # 允许特定环境文件
 !**/pnpm-lock.yaml
 !frontend/.env
