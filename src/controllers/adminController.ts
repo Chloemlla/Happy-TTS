@@ -109,6 +109,150 @@ function sanitizeInput(str: string) {
   return str.replace(/[<>]/g, "");
 }
 
+// 安全校验辅助：是否为合法的用户 ID 字符串（防 NoSQL/路径注入）
+function isValidUserId(id: unknown): id is string {
+  return typeof id === "string" && /^[a-zA-Z0-9_-]+$/.test(id) && id.length > 0 && id.length <= 128;
+}
+
+// 合法 role 枚举
+const VALID_ROLES = new Set(["user", "admin"]);
+
+// 合法 announcement format 枚举
+const VALID_ANNOUNCEMENT_FORMATS = new Set(["markdown", "html"]);
+
+/**
+ * 对 updateUser / createUser 中允许写入的各字段做严格类型与范围校验。
+ * 返回净化后的 updates 对象，遇到非法值则抛出带描述的 Error。
+ * token 字段故意不在白名单内（禁止通过此接口直接写 token）。
+ */
+function validateAndSanitizeUserUpdates(body: Record<string, any>): Record<string, any> {
+  const out: Record<string, any> = {};
+
+  // username: 3-20 位字母数字下划线
+  if (body.username !== undefined) {
+    if (typeof body.username !== "string" || !/^[a-zA-Z0-9_]{3,20}$/.test(body.username.trim())) {
+      throw new Error("用户名格式不合法（3-20位字母数字下划线）");
+    }
+    out.username = body.username.trim();
+  }
+
+  // email
+  if (body.email !== undefined) {
+    if (typeof body.email !== "string" || body.email.length > 254 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(body.email.trim())) {
+      throw new Error("邮箱格式不合法");
+    }
+    out.email = body.email.trim().toLowerCase();
+  }
+
+  // role: 枚举限制
+  if (body.role !== undefined) {
+    if (!VALID_ROLES.has(body.role)) {
+      throw new Error("role 值非法，只允许 user 或 admin");
+    }
+    out.role = body.role;
+  }
+
+  // dailyUsage: 非负整数
+  if (body.dailyUsage !== undefined) {
+    const v = Number(body.dailyUsage);
+    if (!Number.isInteger(v) || v < 0 || v > 1_000_000) {
+      throw new Error("dailyUsage 必须为 0-1000000 的整数");
+    }
+    out.dailyUsage = v;
+  }
+
+  // lastUsageDate: ISO 日期字符串或空串
+  if (body.lastUsageDate !== undefined) {
+    if (typeof body.lastUsageDate !== "string" || body.lastUsageDate.length > 64) {
+      throw new Error("lastUsageDate 格式不合法");
+    }
+    out.lastUsageDate = body.lastUsageDate.trim();
+  }
+
+  // tokenExpiresAt: 允许管理员置 0 使 token 立即失效，但不允许超远未来
+  if (body.tokenExpiresAt !== undefined) {
+    const v = Number(body.tokenExpiresAt);
+    if (!Number.isFinite(v) || v < 0) {
+      throw new Error("tokenExpiresAt 必须为非负数");
+    }
+    const maxAllowed = Date.now() + 365 * 24 * 60 * 60 * 1000;
+    if (v > maxAllowed) {
+      throw new Error("tokenExpiresAt 不得超过当前时间 365 天");
+    }
+    out.tokenExpiresAt = v;
+  }
+
+  // totpEnabled: boolean
+  if (body.totpEnabled !== undefined) {
+    out.totpEnabled = Boolean(body.totpEnabled);
+  }
+
+  // totpSecret: 长度限制
+  if (body.totpSecret !== undefined) {
+    if (typeof body.totpSecret !== "string" || body.totpSecret.length > 256) {
+      throw new Error("totpSecret 格式不合法");
+    }
+    out.totpSecret = body.totpSecret.trim();
+  }
+
+  // backupCodes: 字符串数组，最多 20 条，每条最长 128 字符
+  if (body.backupCodes !== undefined) {
+    if (!Array.isArray(body.backupCodes) || body.backupCodes.length > 20) {
+      throw new Error("backupCodes 必须为不超过 20 个元素的数组");
+    }
+    for (const code of body.backupCodes) {
+      if (typeof code !== "string" || code.length > 128) {
+        throw new Error("backupCodes 中包含非法元素");
+      }
+    }
+    out.backupCodes = body.backupCodes.map((c: string) => c.trim()).filter(Boolean);
+  }
+
+  // passkeyEnabled / passkeyVerified: boolean
+  if (body.passkeyEnabled !== undefined) out.passkeyEnabled = Boolean(body.passkeyEnabled);
+  if (body.passkeyVerified !== undefined) out.passkeyVerified = Boolean(body.passkeyVerified);
+
+  // pendingChallenge / currentChallenge: 字符串，长度限制
+  for (const field of ["pendingChallenge", "currentChallenge"]) {
+    if (body[field] !== undefined) {
+      if (typeof body[field] !== "string" || body[field].length > 512) {
+        throw new Error(field + " 格式不合法");
+      }
+      out[field] = (body[field] as string).trim();
+    }
+  }
+
+  // avatarUrl: 只允许 http/https 或空串
+  if (body.avatarUrl !== undefined) {
+    if (typeof body.avatarUrl !== "string" || body.avatarUrl.length > 2048) {
+      throw new Error("avatarUrl 格式不合法");
+    }
+    const trimmed = body.avatarUrl.trim();
+    if (trimmed !== "" && !/^https?:\/\//i.test(trimmed)) {
+      throw new Error("avatarUrl 只允许 http/https 协议");
+    }
+    out.avatarUrl = trimmed;
+  }
+
+  // requireFingerprint / fingerprintRequestDismissedOnce: boolean
+  if (body.requireFingerprint !== undefined) out.requireFingerprint = Boolean(body.requireFingerprint);
+  if (body.fingerprintRequestDismissedOnce !== undefined)
+    out.fingerprintRequestDismissedOnce = Boolean(body.fingerprintRequestDismissedOnce);
+
+  // requireFingerprintAt / fingerprintRequestDismissedAt: 非负整数时间戳
+  for (const field of ["requireFingerprintAt", "fingerprintRequestDismissedAt"]) {
+    if (body[field] !== undefined) {
+      const v = Number(body[field]);
+      if (!Number.isFinite(v) || v < 0) {
+        throw new Error(field + " 必须为非负数");
+      }
+      out[field] = v;
+    }
+  }
+
+  return out;
+}
+
 export const adminController = {
   getUsers: async (req: Request, res: Response) => {
     try {
@@ -235,10 +379,25 @@ export const adminController = {
 
   createUser: async (req: Request, res: Response) => {
     try {
-      const { username, email, password, role } = req.body;
+      const { username, email, password } = req.body;
       if (!username || !email || !password) {
         return res.status(400).json({ error: "参数不全" });
       }
+      if (typeof password !== "string" || password.length < 8 || password.length > 256) {
+        return res.status(400).json({ error: "密码长度须在 8-256 字符之间" });
+      }
+
+      // 校验并净化可选字段（username/email 由 createUser 内部再次校验）
+      let extraUpdates: Record<string, any>;
+      try {
+        extraUpdates = validateAndSanitizeUserUpdates(req.body);
+        // 这两个字段由 createUser 处理，避免重复覆写
+        delete extraUpdates.username;
+        delete extraUpdates.email;
+      } catch (validationError: any) {
+        return res.status(400).json({ error: validationError.message || "字段校验失败" });
+      }
+
       const exist = await UserStorage.getUserByUsername(username);
       if (exist) {
         return res.status(400).json({ error: "用户名已存在" });
@@ -246,18 +405,6 @@ export const adminController = {
       const user = await UserStorage.createUser(username, email, password);
       if (!user) return res.status(500).json({ error: "创建用户失败" });
 
-      // 支持一次性设置所有可选字段
-      const allowedFields = [
-        "role", "dailyUsage", "lastUsageDate", "token", "tokenExpiresAt",
-        "totpSecret", "totpEnabled", "backupCodes",
-        "passkeyEnabled", "passkeyVerified", "pendingChallenge", "currentChallenge",
-        "avatarUrl", "requireFingerprint", "requireFingerprintAt",
-        "fingerprintRequestDismissedOnce", "fingerprintRequestDismissedAt",
-      ];
-      const extraUpdates: Record<string, any> = {};
-      for (const field of allowedFields) {
-        if (req.body[field] !== undefined) extraUpdates[field] = req.body[field];
-      }
       if (Object.keys(extraUpdates).length > 0) {
         await UserStorage.updateUser(user.id, extraUpdates as any);
       }
@@ -273,35 +420,40 @@ export const adminController = {
 
   updateUser: async (req: Request, res: Response) => {
     try {
+      // 路径参数格式校验（防 NoSQL/路径注入）
+      if (!isValidUserId(req.params.id)) {
+        return res.status(400).json({ error: "非法的用户 ID" });
+      }
+
       const user = await UserStorage.getUserById(req.params.id);
       if (!user) {
         return res.status(404).json({ error: "用户不存在" });
       }
 
-      // 白名单：所有允许管理员更新的 user_datas 字段
-      const allowedFields: string[] = [
-        "username", "email", "role",
-        "dailyUsage", "lastUsageDate",
-        "token", "tokenExpiresAt",
-        "totpSecret", "totpEnabled", "backupCodes",
-        "passkeyEnabled", "passkeyVerified", "pendingChallenge", "currentChallenge",
-        "avatarUrl",
-        "requireFingerprint", "requireFingerprintAt",
-        "fingerprintRequestDismissedOnce", "fingerprintRequestDismissedAt",
-      ];
-
-      const updates: Record<string, any> = {};
-      for (const field of allowedFields) {
-        if (req.body[field] !== undefined) {
-          updates[field] = req.body[field];
-        }
+      // 禁止管理员修改自身角色（防止意外降权/误操作锁死系统）
+      if (req.user?.id === user.id && req.body.role !== undefined && req.body.role !== user.role) {
+        return res.status(403).json({ error: "不允许修改自身角色" });
       }
 
-      // 密码单独处理：仅在传入非空时才更新
+      // 校验并净化字段（token 在函数内不会出现在白名单）
+      let updates: Record<string, any>;
+      try {
+        updates = validateAndSanitizeUserUpdates(req.body);
+      } catch (validationError: any) {
+        return res.status(400).json({ error: validationError.message || "字段校验失败" });
+      }
+
+      // 密码单独处理：仅在传入非空字符串时才更新
       const newPassword = req.body.password;
-      if (newPassword && typeof newPassword === "string" && newPassword.trim().length > 0) {
+      if (newPassword !== undefined) {
+        if (typeof newPassword !== "string" || newPassword.trim().length < 8 || newPassword.trim().length > 256) {
+          return res.status(400).json({ error: "密码长度须在 8-256 字符之间" });
+        }
         updates.password = newPassword.trim();
       }
+
+      // token 字段禁止通过此接口直接覆写（防 session 固定攻击）
+      delete updates.token;
 
       if (Object.keys(updates).length === 0) {
         return res.status(400).json({ error: "没有提供任何可更新的字段" });
@@ -318,10 +470,21 @@ export const adminController = {
 
   deleteUser: async (req: Request, res: Response) => {
     try {
+      // 路径参数格式校验
+      if (!isValidUserId(req.params.id)) {
+        return res.status(400).json({ error: "非法的用户 ID" });
+      }
+
       const user = await UserStorage.getUserById(req.params.id);
       if (!user) {
         return res.status(404).json({ error: "用户不存在" });
       }
+
+      // 禁止管理员自我删除（防止锁死系统）
+      if (req.user?.id === user.id) {
+        return res.status(403).json({ error: "不允许删除自身账户" });
+      }
+
       await UserStorage.deleteUser(user.id);
       const { password, ...deletedUser } = user;
       res.json(deletedUser);
@@ -363,12 +526,14 @@ export const adminController = {
       const { content, format } = req.body;
       if (typeof content !== "string" || !content.trim() || content.length > 2000)
         return res.status(400).json({ error: "公告内容不能为空且不超过2000字" });
+      // format 枚举校验：只允许 markdown 或 html
+      const safeFormat = VALID_ANNOUNCEMENT_FORMATS.has(format) ? format : "markdown";
       const safeContent = sanitizeInput(content);
       if (STORAGE_MODE === "mongo" && mongoose.connection.readyState === 1) {
         await ensureMongoAnnouncementCollection();
         const ann = await AnnouncementModel.create({
           content: safeContent,
-          format: format || "markdown",
+          format: safeFormat,
           updatedAt: new Date(),
         });
         logger.info(`[公告] 管理员${req.user.username} 更新公告`);
@@ -378,14 +543,14 @@ export const adminController = {
         await ensureMysqlTable(conn);
         await conn.execute("INSERT INTO announcements (content, format, updatedAt) VALUES (?, ?, NOW())", [
           safeContent,
-          format || "markdown",
+          safeFormat,
         ]);
         const [rows] = await conn.execute("SELECT * FROM announcements ORDER BY updatedAt DESC LIMIT 1");
         await conn.end();
         logger.info(`[公告] 管理员${req.user.username} 更新公告`);
         return res.json({ success: true, announcement: (rows as any[])[0] });
       } else {
-        const data = { content: safeContent, format: format || "markdown", updatedAt: new Date().toISOString() };
+        const data = { content: safeContent, format: safeFormat, updatedAt: new Date().toISOString() };
         fs.writeFileSync(ANNOUNCEMENT_FILE, JSON.stringify(data, null, 2));
         logger.info(`[公告] 管理员${req.user.username} 更新公告`);
         return res.json({ success: true, announcement: data });
@@ -712,12 +877,13 @@ export const adminController = {
   },
 
   // 脱敏敏感信息
-  maskSensitiveValue(value: string): string {
-    if (!value || value.length < 8) {
+  maskSensitiveValue(value: string | undefined): string {
+    if (!value || value.length < 4) {
       return "***";
     }
-    const visibleChars = Math.min(4, Math.floor(value.length * 0.2));
-    const maskedChars = value.length - visibleChars * 2;
+    // 确保 visibleChars * 2 不超过字符串长度，避免 repeat 负数异常
+    const visibleChars = Math.max(1, Math.min(4, Math.floor(value.length * 0.2)));
+    const maskedChars = Math.max(0, value.length - visibleChars * 2);
     return value.substring(0, visibleChars) + "*".repeat(maskedChars) + value.substring(value.length - visibleChars);
   },
 
