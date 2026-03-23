@@ -102,6 +102,7 @@ export const LoginPage: React.FC = () => {
         setShowVerificationSelector(false); setLoading(true);
         try {
             if (method === 'passkey') {
+                // authenticateWithPasskey throws on failure (including "not enabled" 400 errors)
                 const success = await authenticateWithPasskey(pendingVerificationData.username);
                 if (success) { setPendingVerificationData(null); window.location.reload(); }
                 else { setError('Passkey 验证失败'); setNotification({ message: 'Passkey 验证失败', type: 'error' }); }
@@ -109,7 +110,11 @@ export const LoginPage: React.FC = () => {
                 setPending2FA({ userId: pendingVerificationData.userId, username: pendingVerificationData.username, type: ['TOTP'] });
                 setShowTOTPVerification(true); setNotification({ message: '请进行 TOTP 验证', type: 'info' });
             }
-        } catch (e: any) { setError(e.message || '验证失败'); } finally { setLoading(false); }
+        } catch (e: any) {
+            const msg = e.message || '验证失败';
+            setError(msg);
+            setNotification({ message: msg, type: 'error' });
+        } finally { setLoading(false); }
     };
 
     const handleVerificationSelectorClose = () => { setShowVerificationSelector(false); setPendingVerificationData(null); setPending2FA(null); };
