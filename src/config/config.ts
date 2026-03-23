@@ -85,6 +85,9 @@ export const config = {
   // 前端基础URL
   frontendBaseUrl: process.env.FRONTEND_URL || "https://tts.951100.xyz",
 
+  // 审计日志脱敏开关 (自动隐藏密码/鉴权头)，默认开启
+  auditLogMasking: process.env.AUDIT_LOG_MASKING !== "false",
+
   // ========== NexAI 独立鉴权配置 ==========
   nexai: {
     jwtSecret:
