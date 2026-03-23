@@ -172,10 +172,9 @@ export const usePasskey = (): UsePasskeyReturn & {
                         error: error.response.data?.error || error.message,
                         timestamp: new Date().toISOString()
                     });
-                    // 弹窗提示
-                    window.alert('未启用 Passkey，请用其他方式登录或先注册 Passkey。');
+                    // 抛出错误，由调用方通过 notification 展示，而非 window.alert
                     setIsLoading(false);
-                    return false;
+                    throw new Error(error.response.data?.error || '该账户未启用 Passkey，请使用密码登录或先在账户设置中注册 Passkey。');
                 }
                 // 其他错误抛出
                 throw error;
