@@ -227,13 +227,16 @@ interface NotificationItemProps {
     onClose: () => void;
 }
 
-const NotificationCard = React.memo(React.forwardRef<HTMLDivElement, NotificationItemProps>(({
+type NotificationCardProps = NotificationItemProps & { ref?: React.Ref<HTMLDivElement>; };
+
+const NotificationCard = React.memo(({
     notification,
     index,
     onMouseEnter,
     onMouseLeave,
     onClose,
-}, ref) => {
+    ref
+}: NotificationCardProps) => {
     const duration = notification.itemDuration;
     const progressRef = React.useRef<HTMLDivElement>(null);
     const animationRef = React.useRef<number | null>(null);
@@ -388,7 +391,7 @@ const NotificationCard = React.memo(React.forwardRef<HTMLDivElement, Notificatio
             )}
         </motion.div>
     );
-}));
+});
 
 function StatusIcon({ type }: { type: NotificationData['type'] }) {
     switch (type) {

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
+import React, { useEffect, useRef, useCallback, useImperativeHandle } from 'react';
 
 interface HCaptchaWidgetProps {
   siteKey: string;
@@ -30,7 +30,9 @@ declare global {
   }
 }
 
-const HCaptchaWidget = forwardRef<HCaptchaWidgetRef, HCaptchaWidgetProps>(({
+type HCaptchaWidgetInternalProps = HCaptchaWidgetProps & { ref?: React.Ref<HCaptchaWidgetRef> };
+
+const HCaptchaWidget = ({
   siteKey,
   onVerify,
   onExpire,
@@ -38,8 +40,9 @@ const HCaptchaWidget = forwardRef<HCaptchaWidgetRef, HCaptchaWidgetProps>(({
   theme = 'light',
   size = 'normal',
   tabIndex,
-  'aria-label': ariaLabel = 'hCaptcha 人机验证'
-}, ref) => {
+  'aria-label': ariaLabel = 'hCaptcha 人机验证',
+  ref
+}: HCaptchaWidgetInternalProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
   const isLoadingRef = useRef(false);
@@ -176,7 +179,7 @@ const HCaptchaWidget = forwardRef<HCaptchaWidgetRef, HCaptchaWidgetProps>(({
       className="hcaptcha-container"
     />
   );
-});
+};
 
 HCaptchaWidget.displayName = 'HCaptchaWidget';
 
