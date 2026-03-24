@@ -296,15 +296,21 @@ export async function getDeviceList(req: Request, res: Response): Promise<void> 
 
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
-    const riskLevel = req.query.riskLevel as string;
-    const search = req.query.search as string;
+    const riskLevelParam = req.query.riskLevel;
+    const searchParam = req.query.search;
 
     const query: any = {};
-    if (riskLevel && riskLevel !== "all") query.riskLevel = riskLevel;
-    if (search) {
+
+    if (typeof riskLevelParam === "string" && riskLevelParam !== "all") {
+      query.riskLevel = riskLevelParam;
+    }
+
+    if (typeof searchParam === "string" && searchParam) {
+      // Escape special characters for safe regex search
+      const escapedSearch = searchParam.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       query.$or = [
-        { deviceFingerprint: { $regex: search, $options: "i" } },
-        { userId: { $regex: search, $options: "i" } },
+        { deviceFingerprint: { $regex: escapedSearch, $options: "i" } },
+        { userId: { $regex: escapedSearch, $options: "i" } },
       ];
     }
 
@@ -335,12 +341,16 @@ export async function getSecurityEvents(req: Request, res: Response): Promise<vo
 
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
-    const eventType = req.query.eventType as string;
-    const deviceFingerprint = req.query.deviceFingerprint as string;
+    const eventTypeParam = req.query.eventType;
+    const deviceFingerprintParam = req.query.deviceFingerprint;
 
     const query: any = {};
-    if (eventType && eventType !== "all") query.eventType = eventType;
-    if (deviceFingerprint) query.deviceFingerprint = deviceFingerprint;
+    if (typeof eventTypeParam === "string" && eventTypeParam !== "all") {
+      query.eventType = eventTypeParam;
+    }
+    if (typeof deviceFingerprintParam === "string" && deviceFingerprintParam) {
+      query.deviceFingerprint = deviceFingerprintParam;
+    }
 
     const total = await SecurityEvent.countDocuments(query);
     const events = await SecurityEvent.find(query)
