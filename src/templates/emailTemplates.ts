@@ -40,10 +40,12 @@ function renderTemplate(
     template: string,
     variables: Record<string, string>,
 ): string {
-    return Object.entries(variables).reduce(
-        (html, [key, value]) => html.replaceAll(`{{${key}}}`, value),
-        template,
-    );
+    let html = template;
+    for (const [key, value] of Object.entries(variables)) {
+        const placeholder = `{{${key}}}`;
+        html = html.split(placeholder).join(value);
+    }
+    return html;
 }
 
 // ---------------------------------------------------------------------------
