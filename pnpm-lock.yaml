@@ -117,8 +117,8 @@ importers:
         specifier: ^7.0.1
         version: 7.0.1
       mongoose:
-        specifier: ^9.3.0
-        version: 9.3.0(socks@2.8.7)
+        specifier: ^9.3.2
+        version: 9.3.2(socks@2.8.7)
       morgan:
         specifier: ^1.10.1
         version: 1.10.1
@@ -2820,8 +2820,8 @@ packages:
       socks:
         optional: true
 
-  mongoose@9.3.0:
-    resolution: {integrity: sha512-Tv2p3DLBkftoGFp+VM/19k0t0RYPAAYjGIbCVGlV6Tf5Dnq6TICfYyeKeYvwQ06nK9sRDvymP3B+tjGHnUlaxw==}
+  mongoose@9.3.2:
+    resolution: {integrity: sha512-4hMJA4vLAeNG6LnDwJImPYM+uJMVw+sFs7jtS/91OKOT7rzv19ytAAeswtAdWoinVBUVrzmClL/ZoPhcU5RL8w==}
     engines: {node: '>=20.19.0'}
 
   morgan@1.10.1:
@@ -6050,7 +6050,7 @@ snapshots:
       marked: 17.0.4
       mongodb: 7.1.0(socks@2.8.7)
       mongodb-connection-string-url: 7.0.1
-      mongoose: 9.3.0(socks@2.8.7)
+      mongoose: 9.3.2(socks@2.8.7)
       morgan: 1.10.1
       multer: 2.1.1
       mysql2: 3.20.0(@types/node@25.5.0)
@@ -6951,7 +6951,7 @@ snapshots:
     optionalDependencies:
       socks: 2.8.7
 
-  mongoose@9.3.0(socks@2.8.7):
+  mongoose@9.3.2(socks@2.8.7):
     dependencies:
       kareem: 3.2.0
       mongodb: 7.1.0(socks@2.8.7)
