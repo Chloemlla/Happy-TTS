@@ -128,7 +128,7 @@ export class AuthController {
       const emailHtml = generateVerificationLinkEmailHtml(username, verificationLink);
       const result = await sendEmail({
         to: email,
-        subject: "Happy-TTS 邮箱验证",
+        subject: "Happy-TTS 电子邮件确认",
         html: emailHtml,
         logTag: "邮箱验证链接",
       });
@@ -282,7 +282,7 @@ export class AuthController {
       );
       const result = await sendEmail({
         to: email,
-        subject: "Happy-TTS 邮箱验证码",
+        subject: "Happy-TTS 电子邮件确认码",
         html: emailHtml,
         logTag: "重发邮箱验证码",
       });
@@ -649,7 +649,7 @@ export class AuthController {
       );
       const result = await sendEmail({
         to: email,
-        subject: "Happy-TTS 密码重置",
+        subject: "Happy-TTS 账号密码重置",
         html: emailHtml,
         logTag: "密码重置",
       });

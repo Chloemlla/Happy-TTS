@@ -81,7 +81,7 @@ export async function createAndSendVerificationLink(
     );
     const emailResult = await EmailService.sendHtmlEmail(
       [email],
-      "Happy-TTS 邮箱验证",
+      "Happy-TTS 电子邮件确认",
       emailHtml
     );
 
@@ -200,7 +200,7 @@ export async function createAndSendPasswordResetLink(
     const emailHtml = generatePasswordResetLinkEmailHtml(username, resetLink);
     const emailResult = await EmailService.sendHtmlEmail(
       [email],
-      "Happy-TTS 密码重置",
+      "Happy-TTS 账号密码重置",
       emailHtml
     );
 
