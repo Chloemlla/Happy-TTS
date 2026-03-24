@@ -81,7 +81,7 @@ export async function createAndSendVerificationLink(
     );
     const emailResult = await EmailService.sendHtmlEmail(
       [email],
-      "Synapse 邮箱验证",
+      "Synapse 电子邮件确认",
       emailHtml
     );
 
@@ -200,7 +200,7 @@ export async function createAndSendPasswordResetLink(
     const emailHtml = generatePasswordResetLinkEmailHtml(username, resetLink);
     const emailResult = await EmailService.sendHtmlEmail(
       [email],
-      "Synapse 密码重置",
+      "Synapse 账号密码重置",
       emailHtml
     );
 
