@@ -84,6 +84,7 @@ COPY src/ ./src/
 COPY tsconfig.json ./
 
 RUN pnpm run build:backend
+RUN mkdir -p dist-obfuscated/templates && cp src/templates/*.html dist-obfuscated/templates/
 RUN pnpm run generate:openapi
 
 # ============================================
