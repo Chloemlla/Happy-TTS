@@ -3,15 +3,12 @@ import {
   VerificationTokenType,
   verificationTokenStorage,
 } from "../models/verificationTokenModel";
-import {
-  addEmailUsage,
-  EmailService,
-  getEmailQuota,
-} from "../services/emailService";
+import { sendEmail } from "../services/emailSender";
 import { TurnstileService } from "../services/turnstileService";
 import * as VerificationService from "../services/verificationService";
 import {
   generatePasswordResetLinkEmailHtml,
+  generateVerificationCodeEmailHtml,
   generateVerificationLinkEmailHtml,
   generateWelcomeEmailHtml,
 } from "../templates/emailTemplates";
@@ -50,395 +47,6 @@ type UserWithVerified = User & { verified?: boolean };
 // 获取前端基础URL
 function getFrontendBaseUrl(): string {
   return process.env.FRONTEND_URL || "https://tts.951100.xyz";
-}
-
-// 生成邮箱验证码HTML模板（与TtsPage UI风格统一）
-function generateVerificationEmailHtml(username: string, code: string): string {
-  return `
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Happy-TTS 邮箱验证码</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background: linear-gradient(135deg, #f0f8ff 0%, #ffffff 50%, #f8f0ff 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(10px);
-            border-radius: 24px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            overflow: hidden;
-        }
-        .header {
-            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-            color: white;
-            padding: 40px 30px;
-            text-align: center;
-        }
-        .header h1 {
-            font-size: 32px;
-            font-weight: bold;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-        }
-        .header .icon {
-            width: 40px;
-            height: 40px;
-            background: rgba(0, 0, 0, 0.22);
-            border-radius: 50%;
-            display: inline-block;
-            text-align: center;
-            line-height: 40px;
-            font-size: 18px;
-            font-weight: 700;
-            color: #ffffff;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-            border: 1px solid rgba(255, 255, 255, 0.55);
-        }
-        .header p {
-            color: #bfdbfe;
-            font-size: 18px;
-        }
-        .content {
-            padding: 40px 30px;
-        }
-        .welcome {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .welcome h2 {
-            font-size: 24px;
-            color: #1f2937;
-            margin-bottom: 10px;
-        }
-        .welcome p {
-            color: #6b7280;
-            font-size: 16px;
-        }
-        .code-section {
-            background: #f9fafb;
-            border-radius: 16px;
-            padding: 30px;
-            text-align: center;
-            margin: 30px 0;
-            border: 1px solid #e5e7eb;
-        }
-        .code-label {
-            color: #374151;
-            font-size: 16px;
-            margin-bottom: 15px;
-            font-weight: 500;
-        }
-        .verification-code {
-            font-size: 36px;
-            font-weight: bold;
-            color: #3b82f6;
-            letter-spacing: 6px;
-            font-family: 'Courier New', monospace;
-            background: white;
-            padding: 20px 30px;
-            border-radius: 12px;
-            border: 2px solid #3b82f6;
-            display: inline-block;
-            margin: 10px 0;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
-        }
-        .instructions {
-            background: rgba(59, 130, 246, 0.05);
-            border-left: 4px solid #3b82f6;
-            padding: 20px;
-            border-radius: 8px;
-            margin: 20px 0;
-        }
-        .instructions h3 {
-            color: #1f2937;
-            font-size: 18px;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .instructions ul {
-            color: #4b5563;
-            padding-left: 20px;
-        }
-        .instructions li {
-            margin-bottom: 8px;
-        }
-        .warning {
-            background: rgba(239, 68, 68, 0.05);
-            border: 1px solid rgba(239, 68, 68, 0.2);
-            border-radius: 12px;
-            padding: 20px;
-            margin: 20px 0;
-            text-align: center;
-        }
-        .warning p {
-            color: #dc2626;
-            font-size: 14px;
-            margin: 5px 0;
-        }
-        .footer {
-            background: #f9fafb;
-            padding: 30px;
-            text-align: center;
-            border-top: 1px solid #e5e7eb;
-        }
-        .footer p {
-            color: #6b7280;
-            font-size: 14px;
-            margin-bottom: 10px;
-        }
-        .footer .brand {
-            color: #3b82f6;
-            font-weight: 600;
-            font-size: 16px;
-        }
-        @media (max-width: 600px) {
-            .container {
-                margin: 10px;
-                border-radius: 16px;
-            }
-            .header {
-                padding: 30px 20px;
-            }
-            .header h1 {
-                font-size: 24px;
-            }
-            .content {
-                padding: 30px 20px;
-            }
-            .verification-code {
-                font-size: 28px;
-                letter-spacing: 4px;
-                padding: 15px 20px;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header" style="text-align:center;">
-            <h1 style="margin:0;text-align:center;">
-                <span class="icon" style="display:inline-block;width:40px;height:40px;line-height:40px;background:rgba(0,0,0,0.22);border-radius:50%;text-align:center;color:#ffffff;font-weight:700;border:1px solid rgba(255,255,255,0.55);">H</span>
-                 <span class="logo-text">Happy-TTS</span>
-            </h1>
-            <p style="text-align:center;">文本转语音服务平台</p>
-        </div>
-        
-        <div class="content">
-            <div class="welcome">
-                <h2>欢迎注册 Happy-TTS！</h2>
-                <p>亲爱的 <strong>${username}</strong>，感谢您选择我们的服务</p>
-            </div>
-            
-            <div class="code-section">
-                <div class="code-label">您的邮箱验证码</div>
-                <div class="verification-code">${code}</div>
-                <p style="color: #6b7280; font-size: 14px; margin-top: 10px;">
-                    验证码有效期为 10 分钟
-                </p>
-            </div>
-            
-            <div class="instructions">
-                <h3>
-                    📋 验证步骤
-                </h3>
-                <ul>
-                    <li>返回注册页面</li>
-                    <li>在验证码输入框中输入上方的 8 位数字验证码</li>
-                    <li>点击"创建账户"完成注册</li>
-                    <li>开始享受我们的文本转语音服务</li>
-                </ul>
-            </div>
-            
-            <div class="warning">
-                <p><strong>⚠️ 安全提醒</strong></p>
-                <p>请勿将验证码告知他人，我们不会主动索要您的验证码</p>
-                <p>如果您没有进行注册操作，请忽略此邮件</p>
-            </div>
-        </div>
-        
-        <div class="footer">
-            <p class="brand">Happy-TTS 团队</p>
-            <p>让文字拥有声音的力量</p>
-            <p style="font-size: 12px; color: #9ca3af;">
-                此邮件由系统自动发送，请勿回复
-            </p>
-        </div>
-    </div>
-</body>
-</html>
-    `.trim();
-}
-
-// 欢迎邮件 HTML 模板
-function _ggenerateWelcomeEmailHtml(username: string): string {
-  return `
-<!DOCTYPE html>
-<html lang="zh-CN">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>欢迎加入 Happy-TTS</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: #f7fbff;
-            color: #1f2937;
-            padding: 24px;
-        }
-
-        .card {
-            max-width: 680px;
-            margin: 0 auto;
-            background: #ffffff;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
-            overflow: hidden;
-            border: 1px solid #eef2f7;
-        }
-
-        .header {
-            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-            color: #fff;
-            padding: 36px 28px;
-            text-align: center;
-        }
-
-        .header h1 {
-            font-size: 28px;
-            margin: 0;
-            display: inline-flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .icon {
-            width: 40px;
-            height: 40px;
-            background: rgba(0, 0, 0, 0.22);
-            border-radius: 50%;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-            border: 1px solid rgba(255, 255, 255, 0.55);
-        }
-
-        .badge {
-            display: inline-block;
-            margin-top: 8px;
-            background: rgba(255, 255, 255, 0.18);
-            padding: 6px 10px;
-            border-radius: 999px;
-            font-size: 12px;
-        }
-
-        .content {
-            padding: 28px;
-        }
-
-        .hello {
-            font-size: 18px;
-            color: #374151;
-            margin-bottom: 16px;
-        }
-
-        .list {
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            padding: 16px 18px;
-        }
-
-        .list h3 {
-            margin: 0 0 10px 0;
-            font-size: 16px;
-            color: #111827;
-        }
-
-        .list ul {
-            margin: 0;
-            padding-left: 18px;
-            color: #4b5563;
-        }
-
-        .list li {
-            margin: 6px 0;
-        }
-
-        .cta {
-            margin-top: 22px;
-            padding: 16px;
-            background: #eef2ff;
-            border-left: 4px solid #6366f1;
-            border-radius: 10px;
-            color: #374151;
-        }
-
-        .footer {
-            padding: 20px 28px;
-            border-top: 1px solid #eef2f7;
-            color: #6b7280;
-            font-size: 13px;
-            text-align: center;
-            background: #f9fafb;
-        }
-    </style>
-</head>
-
-<body>
-    <div class="card">
-        <div class="header" style="text-align:center;">
-            <h1 style="margin:0;text-align:center;"><span class="icon" style="display:inline-block;width:40px;height:40px;line-height:40px;background:rgba(0,0,0,0.22);border-radius:50%;text-align:center;color:#ffffff;font-weight:700;border:1px solid rgba(255,255,255,0.55);">H</span>
-                <span class="logo-text">Happy-TTS</span>
-            </h1>
-            <div class="badge">让文字拥有声音的力量</div>
-        </div>
-        <div class="content">
-            <p class="hello">亲爱的 <strong>${username}</strong>，欢迎来到 Happy-TTS！您的账户已创建成功。</p>
-            <div class="list">
-                <h3>您现在可以：</h3>
-                <ul>
-                    <li>访问个人中心管理资料与头像（导航：Profile）</li>
-                    <li>前往各类内置工具与页面（导航：Case Converter、API Docs、Markdown Export、LibreChat 等）</li>
-                    <li>在移动端体验便捷的菜单导航（MobileNav）</li>
-                    <li>开启双重验证（TOTP）以增强账户安全</li>
-                </ul>
-            </div>
-            <div class="cta">
-                温馨提示：请妥善保管您的账户信息。如需帮助，直接在站内反馈或联系管理员。
-            </div>
-        </div>
-        <div class="footer">
-            Happy-TTS 团队 · 感谢使用我们的服务！
-        </div>
-    </div>
-</body>
-
-</html>
-    `.trim();
 }
 
 export class AuthController {
@@ -502,21 +110,7 @@ export class AuthController {
       if (existUser || existEmail) {
         return res.status(400).json({ error: "用户名或邮箱已被使用" });
       }
-      // 邮件配额检查（按邮箱计数）
-      try {
-        const quota = await getEmailQuota(email);
-        if (quota.used >= quota.total) {
-          logger.warn(
-            `[邮箱验证码] 配额已用尽: ${email}, used=${quota.used}, total=${quota.total}`
-          );
-          return res
-            .status(429)
-            .json({ error: "验证码发送次数已达上限，请明日再试" });
-        }
-      } catch (e) {
-        // 配额查询异常不阻断注册流程，但记录日志
-        logger.warn(`[邮箱验证码] 配额查询异常: ${email}`, e);
-      }
+
       // 创建验证令牌
       const verificationToken = verificationTokenStorage.createToken(
         VerificationTokenType.EMAIL_REGISTRATION,
@@ -530,40 +124,27 @@ export class AuthController {
       const frontendBaseUrl = getFrontendBaseUrl();
       const verificationLink = `${frontendBaseUrl}/verify-email?token=${verificationToken.token}`;
 
-      // 发送邮件验证链接
-      try {
-        const emailHtml = generateVerificationLinkEmailHtml(
-          username,
-          verificationLink
-        );
-        const emailResult = await EmailService.sendHtmlEmail(
-          [email],
-          "Happy-TTS 邮箱验证",
-          emailHtml
-        );
+      // 统一邮件发送
+      const emailHtml = generateVerificationLinkEmailHtml(username, verificationLink);
+      const result = await sendEmail({
+        to: email,
+        subject: "Happy-TTS 邮箱验证",
+        html: emailHtml,
+        logTag: "邮箱验证链接",
+      });
 
-        if (emailResult.success) {
-          try {
-            await addEmailUsage(email, 1);
-          } catch (e) {
-            logger.warn("[邮箱验证链接] 配额递增失败", { email, error: e });
-          }
-          logger.info(`[邮箱验证链接] 成功发送到: ${email}`);
-          res.json({
-            needVerify: true,
-            message: "验证链接已发送到邮箱，请查收",
-          });
+      if (result.success) {
+        res.json({
+          needVerify: true,
+          message: "验证链接已发送到邮箱，请查收",
+        });
+      } else {
+        verificationTokenStorage.deleteToken(verificationToken.token);
+        if (result.error?.includes("上限")) {
+          res.status(429).json({ error: result.error });
         } else {
-          logger.error(
-            `[邮箱验证链接] 发送失败: ${email}, 错误: ${emailResult.error}`
-          );
-          verificationTokenStorage.deleteToken(verificationToken.token);
           res.status(500).json({ error: "验证链接发送失败，请稍后重试" });
         }
-      } catch (emailError) {
-        logger.error(`[邮箱验证链接] 发送异常: ${email}`, emailError);
-        verificationTokenStorage.deleteToken(verificationToken.token);
-        res.status(500).json({ error: "验证链接发送失败，请稍后重试" });
       }
     } catch (_error) {
       res.status(500).json({ error: "注册失败" });
@@ -651,16 +232,16 @@ export class AuthController {
       );
       emailCodeMap.delete(email);
       // 发送欢迎邮件（不影响主流程）
-      try {
-        const welcomeHtml = generateWelcomeEmailHtml(regInfo.username);
-        await EmailService.sendHtmlEmail(
-          [regInfo.email],
-          "欢迎加入 Happy-TTS",
-          welcomeHtml
-        );
-      } catch (e) {
+      const welcomeHtml = generateWelcomeEmailHtml(regInfo.username);
+      sendEmail({
+        to: regInfo.email,
+        subject: "欢迎加入 Happy-TTS",
+        html: welcomeHtml,
+        logTag: "欢迎邮件",
+        checkQuota: false,
+      }).catch((e) => {
         logger.warn(`[欢迎邮件] 发送失败: ${regInfo.email}`, e);
-      }
+      });
       res.json({ success: true });
     } catch (_error) {
       res.status(500).json({ error: "邮箱验证失败" });
@@ -685,21 +266,6 @@ export class AuthController {
         return res.status(400).json({ error: "请先进行注册操作" });
       }
 
-      // 邮件配额检查（按邮箱计数）
-      try {
-        const quota = await getEmailQuota(email);
-        if (quota.used >= quota.total) {
-          logger.warn(
-            `[重发邮箱验证码] 配额已用尽: ${email}, used=${quota.used}, total=${quota.total}`
-          );
-          return res
-            .status(429)
-            .json({ error: "验证码发送次数已达上限，请明日再试" });
-        }
-      } catch (e) {
-        logger.warn(`[重发邮箱验证码] 配额查询异常: ${email}`, e);
-      }
-
       // 生成8位数字验证码
       let code = "";
       for (let i = 0; i < 8; i++) {
@@ -709,35 +275,26 @@ export class AuthController {
       // 重新发码时重置失败计数
       emailCodeMap.set(email, { code, time: now, regInfo: entry.regInfo, attempts: 0 });
 
-      // 发送邮件验证码
-      try {
-        const emailHtml = generateVerificationEmailHtml(
-          entry.regInfo.username,
-          code
-        );
-        const emailResult = await EmailService.sendHtmlEmail(
-          [email],
-          "Happy-TTS 邮箱验证码",
-          emailHtml
-        );
+      // 统一邮件发送
+      const emailHtml = generateVerificationCodeEmailHtml(
+        entry.regInfo.username,
+        code
+      );
+      const result = await sendEmail({
+        to: email,
+        subject: "Happy-TTS 邮箱验证码",
+        html: emailHtml,
+        logTag: "重发邮箱验证码",
+      });
 
-        if (emailResult.success) {
-          try {
-            await addEmailUsage(email, 1);
-          } catch (e) {
-            logger.warn("[重发邮箱验证码] 配额递增失败", { email, error: e });
-          }
-          logger.info(`[重发邮箱验证码] 成功发送到: ${email}`);
-          res.json({ success: true });
+      if (result.success) {
+        res.json({ success: true });
+      } else {
+        if (result.error?.includes("上限")) {
+          res.status(429).json({ error: result.error });
         } else {
-          logger.error(
-            `[重发邮箱验证码] 发送失败: ${email}, 错误: ${emailResult.error}`
-          );
           res.status(500).json({ error: "验证码发送失败，请稍后重试" });
         }
-      } catch (emailError) {
-        logger.error(`[重发邮箱验证码] 发送异常: ${email}`, emailError);
-        res.status(500).json({ error: "验证码发送失败，请稍后重试" });
       }
     } catch (_error) {
       res.status(500).json({ error: "验证码发送失败" });
@@ -1056,21 +613,6 @@ export class AuthController {
         });
       }
 
-      // 邮件配额检查
-      try {
-        const quota = await getEmailQuota(email);
-        if (quota.used >= quota.total) {
-          logger.warn(
-            `[密码重置] 配额已用尽: ${email}, used=${quota.used}, total=${quota.total}`
-          );
-          return res
-            .status(429)
-            .json({ error: "重置链接发送次数已达上限，请明日再试" });
-        }
-      } catch (e) {
-        logger.warn(`[密码重置] 配额查询异常: ${email}`, e);
-      }
-
       // 获取客户端IP（优先使用前端发送的IP，否则使用后端获取的）
       const serverIP = req.ip || req.connection.remoteAddress || "unknown";
       const ipAddress = clientIP || serverIP;
@@ -1100,37 +642,27 @@ export class AuthController {
       const frontendBaseUrl = getFrontendBaseUrl();
       const resetLink = `${frontendBaseUrl}/reset-password?token=${verificationToken.token}`;
 
-      // 发送邮件重置链接
-      try {
-        const emailHtml = generatePasswordResetLinkEmailHtml(
-          user.username,
-          resetLink
-        );
-        const emailResult = await EmailService.sendHtmlEmail(
-          [email],
-          "Happy-TTS 密码重置",
-          emailHtml
-        );
+      // 统一邮件发送
+      const emailHtml = generatePasswordResetLinkEmailHtml(
+        user.username,
+        resetLink
+      );
+      const result = await sendEmail({
+        to: email,
+        subject: "Happy-TTS 密码重置",
+        html: emailHtml,
+        logTag: "密码重置",
+      });
 
-        if (emailResult.success) {
-          try {
-            await addEmailUsage(email, 1);
-          } catch (e) {
-            logger.warn("[密码重置] 配额递增失败", { email, error: e });
-          }
-          logger.info(`[密码重置] 成功发送到: ${email}`);
-          res.json({ success: true, message: "重置链接已发送到您的邮箱" });
+      if (result.success) {
+        res.json({ success: true, message: "重置链接已发送到您的邮箱" });
+      } else {
+        resetPasswordCodeMap.delete(email);
+        if (result.error?.includes("上限")) {
+          res.status(429).json({ error: "重置链接发送次数已达上限，请明日再试" });
         } else {
-          logger.error(
-            `[密码重置] 发送失败: ${email}, 错误: ${emailResult.error}`
-          );
-          resetPasswordCodeMap.delete(email);
           res.status(500).json({ error: "验证码发送失败，请稍后重试" });
         }
-      } catch (emailError) {
-        logger.error(`[密码重置] 发送异常: ${email}`, emailError);
-        resetPasswordCodeMap.delete(email);
-        res.status(500).json({ error: "验证码发送失败，请稍后重试" });
       }
     } catch (error) {
       logger.error("[密码重置] 流程异常:", error);
