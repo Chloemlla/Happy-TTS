@@ -14,14 +14,21 @@ import {
 
 // ========== 工具函数 ==========
 
-/** 生成短链接 ID */
 function generateShortId(length = 12): string {
   const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  const bytes = crypto.randomBytes(length);
+  const charsLength = chars.length;
+  const maxByteValue = 256 - (256 % charsLength);
   let result = "";
-  for (let i = 0; i < length; i++) {
-    result += chars[bytes[i] % chars.length];
+
+  while (result.length < length) {
+    const bytes = crypto.randomBytes(length - result.length + 5);
+    for (let i = 0; i < bytes.length && result.length < length; i++) {
+      if (bytes[i] < maxByteValue) {
+        result += chars[bytes[i] % charsLength];
+      }
+    }
   }
+
   return result;
 }
 
