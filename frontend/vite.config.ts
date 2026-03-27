@@ -336,7 +336,6 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       global: "globalThis",
-      "process.env": "{}",
     },
     esbuild: {
       sourcemap: false,
