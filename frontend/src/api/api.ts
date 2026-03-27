@@ -7,12 +7,12 @@ const getApiBaseUrl = () => {
         // 在开发环境下，根据当前访问的URL自动切换后端地址
         const currentHost = window.location.hostname;
         const currentPort = window.location.port;
-        
+
         // 如果访问的是 192.168.10.7:3001，后端地址切换为 192.168.10.7:3000
         if (currentHost === '192.168.10.7' && currentPort === '3001') {
             return 'http://192.168.10.7:3000';
         }
-        
+
         // 默认本地开发地址
         return 'http://localhost:3000';
     }
@@ -45,12 +45,47 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
+// 指纹通知去重 hash 集合（HTTP + WS 共享，防止双重触发）
+const processedFingerprintHashes = new Set<string>();
+
+/**
+ * 检查并处理指纹请求（去重）
+ * @returns true 如果是新的请求需要处理
+ */
+export function handleFingerprintHeader(headers: Record<string, string> | undefined): boolean {
+    if (!headers) return false;
+    const flag = headers['x-require-fingerprint'] || headers['X-Require-Fingerprint'];
+    if (flag !== '1') return false;
+
+    const hash = headers['x-fingerprint-hash'] || headers['X-Fingerprint-Hash'];
+    if (hash) {
+        if (processedFingerprintHashes.has(hash)) {
+            // 已处理过此 hash，跳过（WS 或上一次 HTTP 已触发）
+            return false;
+        }
+        processedFingerprintHashes.add(hash);
+        // LRU 清理
+        if (processedFingerprintHashes.size > 100) {
+            const arr = Array.from(processedFingerprintHashes);
+            processedFingerprintHashes.clear();
+            arr.slice(-50).forEach(h => processedFingerprintHashes.add(h));
+        }
+    }
+    return true;
+}
+
+/**
+ * 标记指纹 hash 已处理（由 WS 端调用，防止 HTTP 重复触发）
+ */
+export function markFingerprintHashProcessed(hash: string): void {
+    processedFingerprintHashes.add(hash);
+}
+
 // 响应拦截器：处理错误和重试
 api.interceptors.response.use(
     (response) => {
         try {
-            const flag = response.headers?.['x-require-fingerprint'] || response.headers?.['X-Require-Fingerprint'];
-            if (flag === '1') {
+            if (handleFingerprintHeader(response.headers as any)) {
                 // 异步触发上报（不阻塞当前请求）
                 reportFingerprintOnce();
             }
@@ -59,10 +94,9 @@ api.interceptors.response.use(
     },
     async (error) => {
         const originalRequest = error.config;
-        
+
         try {
-            const flag = error?.response?.headers?.['x-require-fingerprint'] || error?.response?.headers?.['X-Require-Fingerprint'];
-            if (flag === '1') {
+            if (handleFingerprintHeader(error?.response?.headers as any)) {
                 reportFingerprintOnce();
             }
         } catch { }
@@ -111,7 +145,7 @@ api.interceptors.response.use(
             try {
                 // 等待指定时间后重试
                 await delay(RETRY_DELAY);
-                
+
                 console.log(`🔄 开始重试API请求:`, {
                     url: originalRequest.url,
                     method: originalRequest.method,
@@ -128,7 +162,7 @@ api.interceptors.response.use(
                     retryError: retryError instanceof Error ? retryError.message : retryError,
                     totalAttempts: 2
                 });
-                
+
                 // 重试失败，返回原始错误
                 return Promise.reject(error);
             }
@@ -154,19 +188,19 @@ export const apiWithRetry = {
     get: <T = any>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
         return api.get<T>(url, config);
     },
-    
+
     post: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
         return api.post<T>(url, data, config);
     },
-    
+
     put: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
         return api.put<T>(url, data, config);
     },
-    
+
     delete: <T = any>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
         return api.delete<T>(url, config);
     },
-    
+
     patch: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
         return api.patch<T>(url, data, config);
     }

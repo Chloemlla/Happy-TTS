@@ -2,6 +2,8 @@ import { useCallback } from 'react';
 import { useWebSocket, WsServerMessage } from './useWebSocket';
 import { useNotification } from '../components/Notification';
 import { useBroadcastModal } from '../components/BroadcastModal';
+import { markFingerprintHashProcessed } from '../api/api';
+import { reportFingerprintOnce } from '../utils/fingerprint';
 
 /**
  * 将 WebSocket 消息接入应用通知系统
@@ -13,8 +15,8 @@ export function useWsNotifications() {
 
   const mapLevel = (level?: string) =>
     level === 'error' ? 'error' as const
-    : level === 'warn' ? 'warning' as const
-    : 'info' as const;
+      : level === 'warn' ? 'warning' as const
+        : 'info' as const;
 
   const onMessage = useCallback((msg: WsServerMessage) => {
     switch (msg.type) {
@@ -44,7 +46,7 @@ export function useWsNotifications() {
             format: msg.data?.format || 'text',
             level: msg.data?.level === 'error' ? 'error'
               : msg.data?.level === 'warn' ? 'warn'
-              : 'info',
+                : 'info',
           });
         } else {
           setNotification({
@@ -54,8 +56,33 @@ export function useWsNotifications() {
           });
         }
         break;
+
+      case 'fingerprint:require': {
+        // 服务端通知前端需要上报指纹
+        const hash = msg.data?.hash;
+        if (hash) {
+          // 标记 hash 已处理，防止后续 HTTP header 重复触发
+          markFingerprintHashProcessed(hash);
+        }
+        if (msg.data?.requireFingerprint) {
+          reportFingerprintOnce();
+        }
+        break;
+      }
+
+      case 'fingerprint:ack': {
+        // 服务端确认指纹已上报成功
+        const ackHash = msg.data?.hash;
+        if (ackHash) {
+          markFingerprintHashProcessed(ackHash);
+        }
+        break;
+      }
     }
   }, [setNotification, showBroadcastModal]);
 
-  return useWebSocket({ onMessage });
+  const wsHandle = useWebSocket({ onMessage });
+
+  // 暴露 send 方法，供外部发送 fingerprint:ack
+  return wsHandle;
 }

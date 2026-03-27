@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import type { Server as HttpServer, IncomingMessage } from "node:http";
 import { URL } from "node:url";
 import jwt from "jsonwebtoken";
@@ -8,13 +9,15 @@ import logger from "../utils/logger";
 
 /** 客户端 → 服务端消息 */
 interface WsClientMessage {
-  type: "ping" | "subscribe" | "unsubscribe";
+  type: "ping" | "subscribe" | "unsubscribe" | "fingerprint:ack";
   channel?: string;
+  /** 指纹通知的去重 hash，前端收到 fingerprint:require 后回传 */
+  hash?: string;
 }
 
 /** 服务端 → 客户端消息 */
 export interface WsServerMessage {
-  type: "pong" | "tts:progress" | "tts:complete" | "tts:error" | "notification" | "admin:broadcast";
+  type: "pong" | "tts:progress" | "tts:complete" | "tts:error" | "notification" | "admin:broadcast" | "fingerprint:require" | "fingerprint:ack";
   data?: any;
   timestamp: number;
 }
@@ -27,12 +30,31 @@ interface WsClient {
   lastPing: number;
 }
 
+/**
+ * 生成指纹通知的去重 hash
+ * 同一事件只需处理一次，无论通过 HTTP header 还是 WS 推送到达前端
+ */
+function generateFingerprintHash(userId: string, enabled: boolean, ts: number): string {
+  return crypto
+    .createHash("sha256")
+    .update(`fp:${userId}:${enabled}:${ts}`)
+    .digest("hex")
+    .substring(0, 16);
+}
+
 // ========== WebSocket 服务 ==========
 
 class WsService {
   private wss: WebSocketServer | null = null;
   private clients = new Map<WebSocket, WsClient>();
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+
+  /**
+   * 已处理的指纹通知 hash 集合，用于前后端同步去重。
+   * 前端通过 HTTP header 或 WS 推送收到指纹请求后，回传 hash 确认。
+   * 后续相同 hash 的通知将被跳过，防止双重触发。
+   */
+  private processedFingerprintHashes = new Set<string>();
 
   /**
    * 将 WebSocket 服务器绑定到已有的 HTTP server
@@ -139,6 +161,19 @@ class WsService {
           client.channels.delete(msg.channel);
         }
         break;
+
+      case "fingerprint:ack":
+        // 前端确认已收到指纹通知，记录 hash 用于去重
+        if (msg.hash && client.userId) {
+          this.processedFingerprintHashes.add(msg.hash);
+          logger.debug("[WS] 收到指纹通知确认", { userId: client.userId, hash: msg.hash });
+          // 清理过期的 hash（保留最近 200 条）
+          if (this.processedFingerprintHashes.size > 200) {
+            const arr = Array.from(this.processedFingerprintHashes);
+            this.processedFingerprintHashes = new Set(arr.slice(-100));
+          }
+        }
+        break;
     }
   }
 
@@ -232,6 +267,79 @@ class WsService {
       type: "admin:broadcast",
       data: { message, ...data },
     });
+  }
+
+  // ========== 便捷方法：指纹通知推送 ==========
+
+  /**
+   * 通知指定用户需要上报指纹（管理员设置 requireFingerprint 后触发）
+   * 前端收到后展示指纹采集 UI，防止 HTTP header 与 WS 双重触发
+   * @param userId  目标用户 ID
+   * @param enabled 是否启用指纹要求
+   * @returns 去重 hash，同时也会通过 HTTP header X-Fingerprint-Hash 下发
+   */
+  notifyFingerprintRequired(userId: string, enabled: boolean): string {
+    const ts = Date.now();
+    const hash = generateFingerprintHash(userId, enabled, ts);
+
+    // 如果该 hash 已被前端确认处理过，不再推送
+    if (this.processedFingerprintHashes.has(hash)) {
+      logger.debug("[WS] 指纹通知已被处理，跳过推送", { userId, hash });
+      return hash;
+    }
+
+    this.sendToUser(userId, {
+      type: "fingerprint:require",
+      data: {
+        requireFingerprint: enabled,
+        requireFingerprintAt: enabled ? ts : 0,
+        hash,
+      },
+    });
+
+    logger.info("[WS] 推送指纹通知", { userId, enabled, hash });
+    return hash;
+  }
+
+  /**
+   * 通知指定用户指纹已上报成功（清除前端指纹采集 UI）
+   * @param userId 目标用户 ID
+   */
+  notifyFingerprintAck(userId: string): void {
+    const ts = Date.now();
+    const hash = generateFingerprintHash(userId, false, ts);
+
+    this.sendToUser(userId, {
+      type: "fingerprint:ack",
+      data: {
+        requireFingerprint: false,
+        requireFingerprintAt: 0,
+        hash,
+        message: "指纹上报成功",
+      },
+    });
+
+    logger.info("[WS] 推送指纹确认", { userId, hash });
+  }
+
+  /**
+   * 检查指纹通知 hash 是否已被处理
+   * 由 HTTP 中间件调用，避免与 WS 推送双重触发
+   */
+  isFingerprintHashProcessed(hash: string): boolean {
+    return this.processedFingerprintHashes.has(hash);
+  }
+
+  /**
+   * 记录指纹通知 hash 已被处理（HTTP 端调用）
+   */
+  markFingerprintHashProcessed(hash: string): void {
+    this.processedFingerprintHashes.add(hash);
+    // 清理过期的 hash
+    if (this.processedFingerprintHashes.size > 200) {
+      const arr = Array.from(this.processedFingerprintHashes);
+      this.processedFingerprintHashes = new Set(arr.slice(-100));
+    }
   }
 
   /** 获取当前连接数 */
