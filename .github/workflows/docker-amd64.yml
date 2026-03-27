@@ -131,7 +131,7 @@ jobs:
           chmod +x scripts/deploy_image.js
 
       - name: Run deployment script
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' || github.actor == 'Chloemlla'
         env:
           SERVER_ADDRESS: ${{ secrets.SERVER_ADDRESS }}
           USERNAME: ${{ secrets.USERNAME }}
