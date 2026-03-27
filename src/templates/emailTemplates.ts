@@ -323,3 +323,32 @@ export function generateAdminUserUpdatedEmailHtml(
         credentialsBlock: credentialsBlockHtml,
     });
 }
+
+/**
+ * 生成异地登录提醒 HTML 邮件内容。
+ *
+ * 占位符：
+ * - `{{username}}`  – 用户名
+ * - `{{currentIp}}` – 本次登录 IP
+ * - `{{lastIp}}`    – 上次登录 IP
+ * - `{{loginTime}}` – 登录时间
+ * - `{{userAgent}}` – 设备 User-Agent
+ */
+export function generateLoginIpChangedEmailHtml(
+    username: string,
+    currentIp: string,
+    lastIp: string,
+    loginTime: string,
+    userAgent: string,
+): string {
+    const tpl = loadTemplate("login-ip-changed.html");
+    // 截断过长的 User-Agent
+    const shortUA = userAgent.length > 120 ? userAgent.substring(0, 120) + "..." : userAgent;
+    return renderTemplate(tpl, {
+        username,
+        currentIp,
+        lastIp,
+        loginTime,
+        userAgent: shortUA,
+    });
+}
