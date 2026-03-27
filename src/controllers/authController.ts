@@ -13,9 +13,11 @@ import {
   generateVerificationCodeEmailHtml,
   generateVerificationLinkEmailHtml,
   generateWelcomeEmailHtml,
+  generateLoginIpChangedEmailHtml,
 } from "../templates/emailTemplates";
 import logger from "../utils/logger";
 import { type User, UserStorage } from "../utils/userStorage";
+import { getClientIP } from "../utils/ipUtils";
 
 // 支持的主流邮箱后缀
 const allowedDomains = [
@@ -306,17 +308,17 @@ export class AuthController {
   public static async login(req: Request, res: Response) {
     const t0 = Date.now();
     try {
+      const { identifier, password } = req.body;
+      const ip = getClientIP(req);
+      const userAgent = req.headers["user-agent"] || "unknown";
+
       // 记录收到的请求体（不记录密码等敏感字段）
       logger.info("收到登录请求", {
         identifier: req.body?.identifier,
-        ip: req.ip,
+        ip,
         userAgent: req.headers?.["user-agent"],
         timestamp: new Date().toISOString(),
       });
-
-      const { identifier, password } = req.body;
-      const ip = req.ip || "unknown";
-      const userAgent = req.headers["user-agent"] || "unknown";
 
       // 验证必填字段
       if (!identifier) {
@@ -401,6 +403,42 @@ export class AuthController {
         config.jwtSecret,
         { expiresIn: "2h" }
       );
+
+      // 异地登录检测：比较当前IP与上次登录IP
+      const lastIp = user.lastLoginIp;
+      if (lastIp && lastIp !== "unknown" && ip !== "unknown" && lastIp !== ip && user.email) {
+        try {
+          const loginTime = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
+          const emailHtml = generateLoginIpChangedEmailHtml(
+            user.username,
+            ip,
+            lastIp,
+            loginTime,
+            userAgent,
+          );
+          sendEmail({
+            to: user.email,
+            subject: "Happy-TTS 异地登录安全提醒",
+            html: emailHtml,
+            logTag: "异地登录提醒",
+            checkQuota: false,
+          }).catch((e) => {
+            logger.warn(`[异地登录] 提醒邮件发送失败: ${user.email}`, e);
+          });
+          logger.info(`[异地登录] 已发送提醒邮件至 ${user.email}，上次IP=${lastIp}，本次IP=${ip}`);
+        } catch (notifyErr) {
+          logger.warn("[异地登录] 发送提醒邮件失败:", notifyErr);
+        }
+      }
+
+      // 更新上次登录IP和时间
+      UserStorage.updateUser(user.id, {
+        lastLoginIp: ip,
+        lastLoginAt: new Date().toISOString(),
+      } as any).catch((e) => {
+        logger.warn("[登录] 更新lastLoginIp失败:", e);
+      });
+
       // 不再写入user.token，仅返回JWT
       const { id, username, email, role } = user;
       const t1 = Date.now();
@@ -557,6 +595,43 @@ export class AuthController {
         userId: user.id,
         username,
         tokenType: "JWT",
+      });
+
+      // 异地登录检测（Passkey验证通过后）
+      const ip = getClientIP(req);
+      const userAgent = req.headers["user-agent"] || "unknown";
+      const lastIp = user.lastLoginIp;
+      if (lastIp && lastIp !== "unknown" && ip !== "unknown" && lastIp !== ip && user.email) {
+        try {
+          const loginTime = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
+          const emailHtml = generateLoginIpChangedEmailHtml(
+            user.username,
+            ip,
+            lastIp,
+            loginTime,
+            userAgent,
+          );
+          sendEmail({
+            to: user.email,
+            subject: "Happy-TTS 异地登录安全提醒",
+            html: emailHtml,
+            logTag: "异地登录提醒(Passkey)",
+            checkQuota: false,
+          }).catch((e) => {
+            logger.warn(`[异地登录] Passkey路径提醒邮件发送失败: ${user.email}`, e);
+          });
+          logger.info(`[异地登录] Passkey路径已发送提醒邮件至 ${user.email}，上次IP=${lastIp}，本次IP=${ip}`);
+        } catch (notifyErr) {
+          logger.warn("[异地登录] Passkey路径发送提醒邮件失败:", notifyErr);
+        }
+      }
+
+      // 更新上次登录IP和时间
+      UserStorage.updateUser(user.id, {
+        lastLoginIp: ip,
+        lastLoginAt: new Date().toISOString(),
+      } as any).catch((e) => {
+        logger.warn("[登录] Passkey路径更新lastLoginIp失败:", e);
       });
 
       const { password: _, ...userWithoutPassword } = user;

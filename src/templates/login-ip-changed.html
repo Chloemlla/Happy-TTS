@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="format-detection" content="email=no" />
+    <meta name="format-detection" content="date=no" />
+    <title>Happy-TTS 异地登录提醒</title>
+    <style>
+        .afal a {
+            color: #b0b0b0;
+            text-decoration: none;
+        }
+
+        @media screen and (min-width: 600px) {
+            .mdv2rw {
+                padding: 40px 40px;
+            }
+        }
+    </style>
+    <link href="//fonts.googleapis.com/css?family=Google+Sans" rel="stylesheet" type="text/css" />
+</head>
+
+<body style="margin: 0; padding: 0;" bgcolor="#FFFFFF">
+    <table width="100%" height="100%" style="min-width: 348px;" border="0" cellspacing="0" cellpadding="0">
+        <tr height="32" style="height: 32px;">
+            <td></td>
+        </tr>
+        <tr align="center">
+            <td>
+                <table border="0" cellspacing="0" cellpadding="0"
+                    style="padding-bottom: 20px; max-width: 516px; min-width: 220px;">
+                    <tr>
+                        <td width="8" style="width: 8px;"></td>
+                        <td>
+                            <div style="border-style: solid; border-width: thin; border-color: #dadce0; border-radius: 8px; padding: 40px 20px;"
+                                align="center" class="mdv2rw">
+                                <!-- Logo -->
+                                <div
+                                    style="display: inline-block; width: 44px; height: 44px; line-height: 44px; background: linear-gradient(135deg, #e65100 0%, #ff6d00 100%); border-radius: 50%; text-align: center; color: #ffffff; font-family: 'Google Sans', Roboto, Arial, sans-serif; font-weight: 700; font-size: 20px; margin-bottom: 16px;">
+                                    !</div>
+
+                                <!-- Title -->
+                                <div
+                                    style="font-family: 'Google Sans', Roboto, RobotoDraft, Helvetica, Arial, sans-serif; border-bottom: thin solid #dadce0; color: rgba(0,0,0,0.87); line-height: 32px; padding-bottom: 24px; text-align: center; word-break: break-word;">
+                                    <div style="font-size: 24px;">异地登录安全提醒</div>
+                                    <table align="center" style="margin-top: 8px;">
+                                        <tr style="line-height: normal;">
+                                            <td>
+                                                <span
+                                                    style="font-family: 'Google Sans', Roboto, Arial, sans-serif; color: rgba(0,0,0,0.87); font-size: 14px; line-height: 20px;">尊敬的
+                                                    {{username}}：</span>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </div>
+
+                                <!-- Body -->
+                                <div
+                                    style="font-family: Roboto-Regular, Helvetica, Arial, sans-serif; font-size: 14px; color: rgba(0,0,0,0.87); line-height: 20px; padding-top: 20px; text-align: left;">
+
+                                    <!-- Warning Banner -->
+                                    <div
+                                        style="margin-bottom: 16px; padding: 14px 16px; background-color: #fff3e0; border-left: 4px solid #ff9800; border-radius: 4px;">
+                                        <strong style="color: #e65100;">&#9888;&#65039; 检测到您的账号在新的IP地址登录</strong>
+                                        <p style="font-size: 13px; color: #5f6368; margin: 8px 0 0 0;">
+                                            本次登录的IP地址与您上次登录不同，如果这是您本人的操作，可以忽略此邮件。
+                                        </p>
+                                    </div>
+
+                                    <!-- Login Info Table -->
+                                    <p style="font-size: 14px; margin-bottom: 8px;"><strong>本次登录信息：</strong></p>
+                                    <table width="100%" cellspacing="0" cellpadding="0"
+                                        style="margin-bottom: 16px; border: 1px solid #e8eaed; border-radius: 8px; overflow: hidden;">
+                                        <tr style="background-color: #f8f9fa;">
+                                            <td
+                                                style="padding: 10px 16px; font-size: 13px; color: #5f6368; border-bottom: 1px solid #e8eaed; width: 110px;">
+                                                本次 IP 地址
+                                            </td>
+                                            <td
+                                                style="padding: 10px 16px; font-size: 13px; color: rgba(0,0,0,0.87); border-bottom: 1px solid #e8eaed; font-weight: 600;">
+                                                {{currentIp}}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td
+                                                style="padding: 10px 16px; font-size: 13px; color: #5f6368; border-bottom: 1px solid #e8eaed;">
+                                                上次 IP 地址
+                                            </td>
+                                            <td
+                                                style="padding: 10px 16px; font-size: 13px; color: rgba(0,0,0,0.54); border-bottom: 1px solid #e8eaed;">
+                                                {{lastIp}}
+                                            </td>
+                                        </tr>
+                                        <tr style="background-color: #f8f9fa;">
+                                            <td
+                                                style="padding: 10px 16px; font-size: 13px; color: #5f6368; border-bottom: 1px solid #e8eaed;">
+                                                登录时间
+                                            </td>
+                                            <td
+                                                style="padding: 10px 16px; font-size: 13px; color: rgba(0,0,0,0.87); border-bottom: 1px solid #e8eaed;">
+                                                {{loginTime}}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding: 10px 16px; font-size: 13px; color: #5f6368;">
+                                                设备信息
+                                            </td>
+                                            <td style="padding: 10px 16px; font-size: 13px; color: rgba(0,0,0,0.87);">
+                                                {{userAgent}}
+                                            </td>
+                                        </tr>
+                                    </table>
+
+                                    <div style="padding-top: 8px;">
+                                        <div style="border-bottom: thin solid #dadce0; padding-bottom: 24px;">
+                                            <span
+                                                style="color: #d93025; font-size: 13px;">安全提示：如果这不是您本人的操作，您的账号可能存在安全风险。请立即修改密码，并启用两步验证以提升账号安全性。</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Footer inside card -->
+                                <div
+                                    style="padding-top: 20px; font-size: 12px; line-height: 16px; color: #5f6368; letter-spacing: 0.3px; text-align: center;">
+                                    本邮件由系统自动发出，请勿直接回复。
+                                </div>
+                            </div>
+
+                            <!-- Footer outside card -->
+                            <div style="text-align: left;">
+                                <div
+                                    style="font-family: Roboto-Regular, Helvetica, Arial, sans-serif; color: rgba(0,0,0,0.54); font-size: 11px; line-height: 18px; padding-top: 12px; text-align: center;">
+                                    <div>Happy-TTS 团队 · 致力于让文字拥有声音的力量</div>
+                                    <div style="direction: ltr;">&copy; 2026 Happy-TTS</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td width="8" style="width: 8px;"></td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        <tr height="32" style="height: 32px;">
+            <td></td>
+        </tr>
+    </table>
+</body>
+
+</html>

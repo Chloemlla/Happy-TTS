@@ -48,6 +48,9 @@ const userSchema = new mongoose.Schema(
         deviceInfo: { type: mongoose.Schema.Types.Mixed },
       },
     ],
+    // 上次登录IP和时间（用于异地登录检测）
+    lastLoginIp: { type: String },
+    lastLoginAt: { type: String },
   },
   { collection: "user_datas" },
 );
@@ -76,7 +79,7 @@ export const getUserById = async (id: string): Promise<UserType | null> => {
   // 修复：select 字段包含所有passkey相关字段
   const doc = await UserModel.findOne({ id })
     .select(
-      "id username email role password avatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints",
+      "id username email role password avatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt",
     )
     .lean();
 
@@ -99,7 +102,7 @@ export const getUserByUsername = async (username: string): Promise<UserType | nu
   }
   const doc = await UserModel.findOne({ username })
     .select(
-      "id username email role token tokenExpiresAt password avatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints",
+      "id username email role token tokenExpiresAt password avatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt",
     )
     .lean();
 
@@ -114,7 +117,7 @@ export const getUserByEmail = async (email: string): Promise<UserType | null> =>
   if (!validator.isEmail(safeEmail)) return null;
   const doc = await UserModel.findOne({ email: safeEmail })
     .select(
-      "id username email role token tokenExpiresAt password avatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints",
+      "id username email role token tokenExpiresAt password avatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt",
     )
     .lean();
 
@@ -156,8 +159,8 @@ export const updateUser = async (id: string, updates: Partial<UserType>): Promis
     const lines = JSON.stringify(safeDoc, null, 2).split("\n").slice(0, 20).join("\n");
     console.log(
       "[updateUser] 更新后文档(前20行):\n" +
-        lines +
-        (lines.length < JSON.stringify(safeDoc, null, 2).length ? "\n...（已截断）" : ""),
+      lines +
+      (lines.length < JSON.stringify(safeDoc, null, 2).length ? "\n...（已截断）" : ""),
     );
   }
   return doc ? (removeAvatarBase64(doc) as unknown as UserType) : null;

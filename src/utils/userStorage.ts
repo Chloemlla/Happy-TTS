@@ -77,6 +77,9 @@ export interface User {
     ua?: string;
     ip?: string;
   }[];
+  // 上次登录IP和时间（用于异地登录检测）
+  lastLoginIp?: string;
+  lastLoginAt?: string;
 }
 
 // 获取 MySQL 连接
