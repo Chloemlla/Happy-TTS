@@ -1,7 +1,12 @@
 {
   "compilerOptions": {
+    "ignoreDeprecations": "6.0",
     "target": "es2020",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -16,8 +21,17 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "baseUrl": "src",
-    "types": ["vite/client", "@testing-library/jest-dom", "vitest/globals"]
+    "types": [
+      "vite/client",
+      "@testing-library/jest-dom",
+      "vitest/globals"
+    ]
   },
-  "include": ["src/**/*", "vitest.setup.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "src/**/*",
+    "vitest.setup.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }
