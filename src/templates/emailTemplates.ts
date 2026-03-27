@@ -230,3 +230,96 @@ export function generateAdminPasswordChangedEmailHtml(
         adminNotice: adminNoticeHtml,
     });
 }
+
+/**
+ * 字段名称映射（英文 → 中文），用于邮件通知中的可读显示。
+ */
+const FIELD_LABELS: Record<string, string> = {
+    username: "用户名",
+    email: "邮箱地址",
+    role: "角色",
+    password: "密码",
+    dailyUsage: "每日用量",
+    lastUsageDate: "最后使用日期",
+    totpEnabled: "两步验证",
+    passkeyEnabled: "Passkey",
+    avatarUrl: "头像",
+};
+
+/**
+ * 生成管理员修改用户信息通知 HTML 邮件内容（通用版）。
+ * 使用 admin-user-updated.html 模板，列出所有被修改的字段。
+ *
+ * @param username      用户名
+ * @param changeTime    变更时间
+ * @param adminUsername 执行操作的管理员用户名
+ * @param changes       变更列表 [{ field, oldValue, newValue }]
+ * @param newPassword   可选，如果密码被修改则传入明文新密码
+ */
+export function generateAdminUserUpdatedEmailHtml(
+    username: string,
+    changeTime: string,
+    adminUsername: string,
+    changes: Array<{ field: string; oldValue: string; newValue: string }>,
+    newPassword?: string,
+): string {
+    const tpl = loadTemplate("admin-user-updated.html");
+
+    // 构建变更明细表格
+    const changeRows = changes
+        .filter(c => c.field !== "password") // 密码单独展示
+        .map((c, i) => {
+            const label = FIELD_LABELS[c.field] || c.field;
+            const bg = i % 2 === 0 ? ' style="background-color: #f8f9fa;"' : "";
+            return `<tr${bg}>
+                <td style="padding: 10px 16px; font-size: 13px; color: #5f6368; border-bottom: 1px solid #e8eaed; width: 100px;">${label}</td>
+                <td style="padding: 10px 16px; font-size: 13px; color: rgba(0,0,0,0.54); border-bottom: 1px solid #e8eaed; text-decoration: line-through;">${c.oldValue || "（空）"}</td>
+                <td style="padding: 10px 16px; font-size: 13px; color: rgba(0,0,0,0.87); border-bottom: 1px solid #e8eaed; font-weight: 600;">${c.newValue}</td>
+            </tr>`;
+        })
+        .join("\n");
+
+    let changesTableHtml = "";
+    if (changeRows) {
+        changesTableHtml = `
+            <p style="font-size: 14px; color: rgba(0,0,0,0.87); margin-bottom: 8px;">以下信息已被修改：</p>
+            <table width="100%" cellspacing="0" cellpadding="0"
+                style="margin-bottom: 16px; border: 1px solid #e8eaed; border-radius: 8px; overflow: hidden;">
+                <tr style="background-color: #e8eaed;">
+                    <td style="padding: 8px 16px; font-size: 12px; color: #5f6368; border-bottom: 1px solid #e8eaed; font-weight: 600;">字段</td>
+                    <td style="padding: 8px 16px; font-size: 12px; color: #5f6368; border-bottom: 1px solid #e8eaed; font-weight: 600;">原值</td>
+                    <td style="padding: 8px 16px; font-size: 12px; color: #5f6368; border-bottom: 1px solid #e8eaed; font-weight: 600;">新值</td>
+                </tr>
+                ${changeRows}
+            </table>`;
+    }
+
+    // 密码变更凭据块
+    let credentialsBlockHtml = "";
+    if (newPassword) {
+        credentialsBlockHtml = `
+            <div style="margin-top: 12px; margin-bottom: 16px; padding: 16px; background-color: #fce8e6; border: 1px solid #d93025; border-radius: 8px;">
+                <p style="font-size: 14px; color: #d93025; margin: 0 0 12px 0; font-weight: 600;">🔑 您的密码已被重置，请使用以下新凭据登录：</p>
+                <table width="100%" cellspacing="0" cellpadding="0"
+                    style="border: 1px solid #e8eaed; border-radius: 6px; overflow: hidden;">
+                    <tr style="background-color: #f8f9fa;">
+                        <td style="padding: 10px 16px; font-size: 13px; color: #5f6368; border-bottom: 1px solid #e8eaed; width: 80px;">用户名</td>
+                        <td style="padding: 10px 16px; font-size: 13px; color: rgba(0,0,0,0.87); border-bottom: 1px solid #e8eaed; font-weight: 600;">${username}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px 16px; font-size: 13px; color: #5f6368;">新密码</td>
+                        <td style="padding: 10px 16px; font-size: 14px; color: rgba(0,0,0,0.87); font-family: 'Courier New', monospace; font-weight: 700; letter-spacing: 1px;">${newPassword}</td>
+                    </tr>
+                </table>
+                <p style="font-size: 12px; color: #d93025; margin: 12px 0 0 0;">❗ 请在登录后立即修改密码，不要将此密码分享给任何人。</p>
+            </div>`;
+    }
+
+    return renderTemplate(tpl, {
+        username,
+        changeTime,
+        adminUsername,
+        changesTable: changesTableHtml,
+        credentialsBlock: credentialsBlockHtml,
+    });
+}
