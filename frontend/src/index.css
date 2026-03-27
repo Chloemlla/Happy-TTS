@@ -209,10 +209,9 @@ body {
   }
 }
 
-/* 滚动条美化 */
+/* 滚动条美化 (commented out)
 
-
-/* ::-webkit-scrollbar {
+::-webkit-scrollbar {
   width: 5px;
   height: 5px;
 }
@@ -237,7 +236,7 @@ body {
   background: rgba(0, 0, 0, 0.4);
 }
 
-/* Firefox */
+Firefox
 * {
   scrollbar-width: thin;
   scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
