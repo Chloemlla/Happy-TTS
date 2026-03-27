@@ -231,7 +231,7 @@ export async function verifyPasswordResetLink(
   fingerprint: string,
   ipAddress: string,
   newPassword: string
-): Promise<{ success: boolean; error?: string; message?: string }> {
+): Promise<{ success: boolean; error?: string; message?: string; email?: string; username?: string }> {
   try {
     // 验证令牌
     const result = verificationTokenStorage.verifyAndUseToken(
@@ -276,12 +276,13 @@ export async function verifyPasswordResetLink(
     verificationTokenStorage.deleteToken(token);
 
     logger.info(`[密码重置] 用户 ${username} (${email}) 密码重置成功`);
-    return { success: true, message: "密码重置成功，请使用新密码登录" };
+    return { success: true, message: "密码重置成功，请使用新密码登录", email, username };
   } catch (error) {
     logger.error("[密码重置] 重置密码异常:", error);
     return { success: false, error: "密码重置失败" };
   }
 }
+
 
 /**
  * 导出工具函数

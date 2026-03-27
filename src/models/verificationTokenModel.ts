@@ -141,6 +141,44 @@ class VerificationTokenStorage {
   }
 
   /**
+   * 验证令牌（只读检查，不标记为已使用）
+   * 用于前端预验证：检查令牌是否有效、设备指纹和IP是否匹配
+   * @param token 令牌
+   * @param fingerprint 当前设备指纹
+   * @param ipAddress 当前IP地址
+   * @returns 验证结果
+   */
+  validateToken(
+    token: string,
+    fingerprint: string,
+    ipAddress: string,
+  ): { valid: boolean; error?: string } {
+    const verificationToken = this.getToken(token);
+
+    if (!verificationToken) {
+      return { valid: false, error: "验证链接无效或已过期" };
+    }
+
+    if (verificationToken.used) {
+      return { valid: false, error: "验证链接已被使用" };
+    }
+
+    // 校验设备指纹
+    if (verificationToken.fingerprint !== fingerprint) {
+      logger.warn(`[验证令牌] 预验证失败：设备指纹不匹配`);
+      return { valid: false, error: "设备验证失败，请使用发起请求时的相同设备打开链接" };
+    }
+
+    // 校验IP地址
+    if (verificationToken.ipAddress !== ipAddress) {
+      logger.warn(`[验证令牌] 预验证失败：IP地址不匹配`);
+      return { valid: false, error: "网络验证失败，请使用发起请求时的相同网络打开链接" };
+    }
+
+    return { valid: true };
+  }
+
+  /**
    * 删除令牌
    */
   deleteToken(token: string): void {

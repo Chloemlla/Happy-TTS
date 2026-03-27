@@ -5,6 +5,8 @@ import type { Request, Response } from "express";
 import mysql from "mysql2/promise";
 import * as envModule from "../config/env";
 import { mongoose } from "../services/mongoService";
+import { sendEmail } from "../services/emailSender";
+import { generateAdminPasswordChangedEmailHtml } from "../templates/emailTemplates";
 import logger from "../utils/logger";
 import { UserStorage } from "../utils/userStorage";
 
@@ -461,6 +463,39 @@ export const adminController = {
 
       const updated = await UserStorage.updateUser(user.id, updates as any);
       const { password: _, ...updatedUser } = (updated || {}) as any;
+
+      // 如果管理员修改了密码，发送通知邮件给用户（包含新凭据）
+      if (newPassword && user.email) {
+        try {
+          const changeTime = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
+          const adminUsername = req.user?.username || "管理员";
+          const ipAddress = req.ip || req.connection?.remoteAddress || "unknown";
+          const deviceName = req.headers["user-agent"] || "unknown";
+
+          const emailHtml = generateAdminPasswordChangedEmailHtml(
+            user.username,
+            changeTime,
+            ipAddress,
+            deviceName,
+            "admin-operation",
+            adminUsername,
+            newPassword.trim(),
+          );
+          sendEmail({
+            to: user.email,
+            subject: "Happy-TTS 账号密码被管理员修改通知",
+            html: emailHtml,
+            logTag: "管理员修改密码通知",
+            checkQuota: false,
+          }).catch((e) => {
+            logger.warn(`[管理员修改密码] 通知邮件发送失败: ${user.email}`, e);
+          });
+          logger.info(`[管理员修改密码] 已发送通知邮件至 ${user.email}，操作者: ${adminUsername}`);
+        } catch (notifyError) {
+          logger.warn("[管理员修改密码] 发送通知邮件失败:", notifyError);
+        }
+      }
+
       res.json(updatedUser);
     } catch (error) {
       logger.error("更新用户失败:", error);

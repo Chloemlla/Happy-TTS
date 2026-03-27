@@ -7,7 +7,9 @@ import { sendEmail } from "../services/emailSender";
 import { TurnstileService } from "../services/turnstileService";
 import * as VerificationService from "../services/verificationService";
 import {
+  generatePasswordChangedEmailHtml,
   generatePasswordResetLinkEmailHtml,
+  generatePasswordResetSuccessEmailHtml,
   generateVerificationCodeEmailHtml,
   generateVerificationLinkEmailHtml,
   generateWelcomeEmailHtml,
@@ -35,8 +37,8 @@ const emailPattern = new RegExp(
 
 // 临时存储验证码和注册信息
 const emailCodeMap = new Map<string, { code: string; time: number; regInfo: any; attempts: number }>(); // email -> { code, time, regInfo, attempts }
-// 临时存储密码重置验证码
-const resetPasswordCodeMap = new Map<string, { code: string; time: number; userId: string; attempts: number }>(); // email -> { code, time, userId, attempts }
+// 临时存储密码重置验证码（含设备指纹和IP用于验证一致性）
+const resetPasswordCodeMap = new Map<string, { code: string; time: number; userId: string; attempts: number; fingerprint?: string; ipAddress?: string }>(); // email -> { code, time, userId, attempts, fingerprint, ipAddress }
 
 // 最大验证码失败次数（防暴力枚举）
 const MAX_CODE_ATTEMPTS = 5;
@@ -673,7 +675,7 @@ export class AuthController {
   // 新增：密码重置链接验证
   public static async resetPasswordLink(req: Request, res: Response) {
     try {
-      const { token, fingerprint, newPassword } = req.body;
+      const { token, fingerprint, newPassword, clientIP, deviceName } = req.body;
 
       if (!token) {
         return res.status(400).json({ error: "验证令牌缺失" });
@@ -692,8 +694,11 @@ export class AuthController {
         return res.status(400).json({ error: "新密码长度须在 8-128 字符之间" });
       }
 
-      // 获取客户端IP
-      const ipAddress = req.ip || req.connection.remoteAddress || "unknown";
+      // 获取客户端IP（优先使用前端发送的IP）
+      const serverIP = req.ip || req.connection.remoteAddress || "unknown";
+      const ipAddress = clientIP || serverIP;
+      const userAgent = req.headers["user-agent"] || "unknown";
+      const resolvedDeviceName = deviceName || userAgent;
 
       // 使用验证服务重置密码
       const result = await VerificationService.verifyPasswordResetLink(
@@ -704,6 +709,32 @@ export class AuthController {
       );
 
       if (result.success) {
+        // 发送密码变更通知邮件（包含设备环境信息）
+        try {
+          const changeTime = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
+
+          if (result.email && result.username) {
+            const emailHtml = generatePasswordChangedEmailHtml(
+              result.username,
+              changeTime,
+              ipAddress,
+              resolvedDeviceName,
+              fingerprint
+            );
+            sendEmail({
+              to: result.email,
+              subject: "Happy-TTS 账号密码变更通知",
+              html: emailHtml,
+              logTag: "密码变更通知",
+              checkQuota: false,
+            }).catch((e) => {
+              logger.warn(`[密码变更通知] 邮件发送失败: ${result.email}`, e);
+            });
+          }
+        } catch (notifyError) {
+          logger.warn("[密码变更通知] 发送通知邮件失败:", notifyError);
+        }
+
         res.json({ success: true, message: result.message });
       } else {
         res.status(400).json({ error: result.error });
@@ -714,10 +745,46 @@ export class AuthController {
     }
   }
 
+  // 新增：预验证重置令牌（只读检查设备指纹和IP，不消费令牌）
+  public static async validateResetToken(req: Request, res: Response) {
+    try {
+      const { token, fingerprint, clientIP } = req.body;
+
+      if (!token) {
+        return res.status(400).json({ valid: false, error: "验证令牌缺失" });
+      }
+
+      if (!fingerprint) {
+        return res.status(400).json({ valid: false, error: "设备信息缺失" });
+      }
+
+      // 获取客户端IP（优先使用前端发送的IP）
+      const serverIP = req.ip || req.connection.remoteAddress || "unknown";
+      const ipAddress = clientIP || serverIP;
+
+      // 使用验证令牌存储的 validateToken 方法进行只读检查
+      const result = verificationTokenStorage.validateToken(
+        token,
+        fingerprint,
+        ipAddress
+      );
+
+      if (result.valid) {
+        res.json({ valid: true });
+      } else {
+        logger.warn(`[重置令牌预验证] 验证失败: ${result.error}`);
+        res.status(400).json({ valid: false, error: result.error });
+      }
+    } catch (error) {
+      logger.error("[重置令牌预验证] 异常:", error);
+      res.status(500).json({ valid: false, error: "令牌验证失败" });
+    }
+  }
+
   // 重置密码 - 验证码验证并更新密码（旧版）
   public static async resetPassword(req: Request, res: Response) {
     try {
-      const { email, code, newPassword } = req.body;
+      const { email, code, newPassword, clientIP, deviceName, fingerprint: reqFingerprint } = req.body;
 
       if (!email || !code || !newPassword) {
         return res.status(400).json({ error: "参数缺失" });
@@ -751,6 +818,20 @@ export class AuthController {
         return res.status(429).json({ error: "验证码尝试次数过多，请重新申请" });
       }
 
+      // 校验设备指纹（如果存储时有记录）
+      if (entry.fingerprint && reqFingerprint && entry.fingerprint !== reqFingerprint) {
+        logger.warn(`[密码重置] 设备指纹不匹配: email=${email}`);
+        return res.status(403).json({ error: "设备验证失败，请使用发起请求时的相同设备" });
+      }
+
+      // 校验IP地址（如果存储时有记录）
+      const serverIP2 = req.ip || req.connection.remoteAddress || "unknown";
+      const currentIP = clientIP || serverIP2;
+      if (entry.ipAddress && entry.ipAddress !== "unknown" && currentIP !== "unknown" && entry.ipAddress !== currentIP) {
+        logger.warn(`[密码重置] IP地址不匹配: email=${email}, 存储=${entry.ipAddress}, 当前=${currentIP}`);
+        return res.status(403).json({ error: "网络验证失败，请使用发起请求时的相同网络" });
+      }
+
       if (entry.code !== code) {
         entry.attempts = (entry.attempts || 0) + 1;
         resetPasswordCodeMap.set(email, entry);
@@ -782,6 +863,36 @@ export class AuthController {
       resetPasswordCodeMap.delete(email);
 
       logger.info(`[密码重置] 用户 ${user.username} (${email}) 密码重置成功`);
+
+      // 发送密码重置成功通知邮件（包含设备环境信息）
+      try {
+        const serverIP = req.ip || req.connection.remoteAddress || "unknown";
+        const ipAddress = clientIP || serverIP;
+        const userAgent = req.headers["user-agent"] || "unknown";
+        const resolvedDeviceName = deviceName || userAgent;
+        const resolvedFingerprint = reqFingerprint || "未提供";
+        const changeTime = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
+
+        const notifyHtml = generatePasswordResetSuccessEmailHtml(
+          user.username,
+          changeTime,
+          ipAddress,
+          resolvedDeviceName,
+          resolvedFingerprint
+        );
+        sendEmail({
+          to: email,
+          subject: "Happy-TTS 密码重置成功通知",
+          html: notifyHtml,
+          logTag: "密码重置成功通知",
+          checkQuota: false,
+        }).catch((e) => {
+          logger.warn(`[密码重置成功通知] 邮件发送失败: ${email}`, e);
+        });
+      } catch (notifyError) {
+        logger.warn("[密码重置成功通知] 发送通知邮件失败:", notifyError);
+      }
+
       res.json({ success: true, message: "密码重置成功，请使用新密码登录" });
     } catch (error) {
       logger.error("[密码重置] 重置密码异常:", error);
