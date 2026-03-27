@@ -16,7 +16,7 @@
     "build": "npm run build:backend && npm run build:frontend && npm run build:docs",
     "build:simple": "npm run build:backend && npm run build:frontend:simple && npm run build:docs:simple",
     "build:minimal": "npm run build:backend && npm run build:frontend:minimal && npm run build:docs:minimal",
-    "build:backend": "tsc && mkdir -p dist/templates && cp src/templates/*.html dist/templates/ && npm run obfuscate",
+    "build:backend": "tsc && node scripts/copy-templates.js && npm run obfuscate",
     "build:backend:clean": "rm -rf dist && tsc && npm run obfuscate",
     "obfuscate": "javascript-obfuscator dist --output dist-obfuscated --config package.json",
     "build:frontend": "cd frontend && npm run build",
