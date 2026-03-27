@@ -87,14 +87,18 @@ router.use(authMiddleware);
 router.use(adminAuthMiddleware);
 router.use(adminLimiter); // 已登录管理员不再限速
 
-// 在所有已认证/管理员路由上，若用户被标记为需要上报指纹，则告知前端
+// 在所有已认证/管理员路由上，若用户被标记为需要上报指纹，则通知前端（带去重 hash）
 router.use(async (req: any, res: any, next: any) => {
   try {
     if (req.user?.id) {
       const { getUserById } = require("../services/userService");
       const current = await getUserById(req.user.id);
       if (current && (current as any).requireFingerprint) {
+        // 生成去重 hash，前端收到后通过 WS 回传确认，避免与 WS 推送双重触发
+        const { wsService } = require("../services/wsService");
+        const hash = wsService.notifyFingerprintRequired(req.user.id, true);
         res.setHeader("X-Require-Fingerprint", "1");
+        res.setHeader("X-Fingerprint-Hash", hash);
       }
     }
   } catch (_e) {
@@ -161,7 +165,17 @@ router.post("/users/:id/fingerprint/require", async (req, res) => {
       updates.requireFingerprintAt = 0;
     }
     await updateUser(userId, updates as any);
-    return res.json({ success: true, requireFingerprint: enabled, requireFingerprintAt: updates.requireFingerprintAt });
+
+    // 通过 WebSocket 实时推送指纹通知，带去重 hash
+    const { wsService } = require("../services/wsService");
+    const hash = wsService.notifyFingerprintRequired(userId, enabled);
+
+    return res.json({
+      success: true,
+      requireFingerprint: enabled,
+      requireFingerprintAt: updates.requireFingerprintAt,
+      hash, // 去重 hash，前端可用于 HTTP/WS 去重
+    });
   } catch (e) {
     console.error("设置指纹上报需求失败", e);
     return res.status(500).json({ error: "设置失败" });
@@ -1039,6 +1053,15 @@ router.post("/user/fingerprint", authMiddleware, async (req, res) => {
 
     // 保存指纹并清除一次性上报需求标记及时间戳
     await updateUser(user.id, { fingerprints: next, requireFingerprint: false, requireFingerprintAt: 0 } as any);
+
+    // 通过 WebSocket 推送指纹已上报确认
+    try {
+      const { wsService } = require("../services/wsService");
+      wsService.notifyFingerprintAck(user.id);
+    } catch (_wsErr) {
+      // WS 推送失败不影响主流程
+    }
+
     res.json({ success: true });
   } catch (e) {
     console.error("保存指纹失败", e);

@@ -115,11 +115,11 @@ router.post("/fingerprint/report", authenticateToken, authenticatedFingerprintLi
       hasDeviceSignals: !!deviceSignals,
       deviceSignalsPreview: deviceSignals
         ? {
-            screen: deviceSignals.screen,
-            timezone: deviceSignals.timezone,
-            navigatorKeys: deviceSignals.navigator ? Object.keys(deviceSignals.navigator) : [],
-            window: deviceSignals.window ? "present" : "missing",
-          }
+          screen: deviceSignals.screen,
+          timezone: deviceSignals.timezone,
+          navigatorKeys: deviceSignals.navigator ? Object.keys(deviceSignals.navigator) : [],
+          window: deviceSignals.window ? "present" : "missing",
+        }
         : null,
     });
 
@@ -184,6 +184,14 @@ router.post("/fingerprint/report", authenticateToken, authenticatedFingerprintLi
         clientIp: validatedClientIp,
         timestamp: new Date().toISOString(),
       });
+
+      // 通过 WebSocket 推送指纹已上报确认，清除前端指纹采集 UI
+      try {
+        const { wsService } = require("../services/wsService");
+        wsService.notifyFingerprintAck(userId);
+      } catch (_wsErr) {
+        // WS 推送失败不影响主流程
+      }
     } catch (saveError) {
       console.error("❌ 保存指纹到用户记录失败:", saveError);
       // 即使保存失败，也返回成功，避免影响用户体验
