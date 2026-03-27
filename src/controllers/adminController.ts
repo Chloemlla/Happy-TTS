@@ -6,7 +6,6 @@ import mysql from "mysql2/promise";
 import * as envModule from "../config/env";
 import { mongoose } from "../services/mongoService";
 import { sendEmail } from "../services/emailSender";
-import { generateAdminPasswordChangedEmailHtml } from "../templates/emailTemplates";
 import logger from "../utils/logger";
 import { UserStorage } from "../utils/userStorage";
 
@@ -464,35 +463,86 @@ export const adminController = {
       const updated = await UserStorage.updateUser(user.id, updates as any);
       const { password: _, ...updatedUser } = (updated || {}) as any;
 
-      // 如果管理员修改了密码，发送通知邮件给用户（包含新凭据）
-      if (newPassword && user.email) {
+      // 管理员修改用户信息后，发送通知邮件给用户
+      // 需要通知的关键字段
+      const NOTIFY_FIELDS = new Set([
+        "username", "email", "role", "password",
+        "dailyUsage", "totpEnabled", "passkeyEnabled", "avatarUrl",
+      ]);
+
+      // 检测实际变更的字段
+      const changes: Array<{ field: string; oldValue: string; newValue: string }> = [];
+      for (const [field, newVal] of Object.entries(updates)) {
+        if (!NOTIFY_FIELDS.has(field)) continue;
+        const oldVal = (user as any)[field];
+        // 密码：只要提交了新密码就算变更（无法比对哈希值）
+        if (field === "password") {
+          changes.push({ field, oldValue: "******", newValue: "******（已重置）" });
+          continue;
+        }
+        // 其他字段：值确实发生了变化才记录
+        if (String(newVal ?? "") !== String(oldVal ?? "")) {
+          changes.push({
+            field,
+            oldValue: String(oldVal ?? ""),
+            newValue: String(newVal ?? ""),
+          });
+        }
+      }
+
+      // 有变更才发送邮件
+      if (changes.length > 0 && user.email) {
         try {
+          const { generateAdminUserUpdatedEmailHtml } = require("../templates/emailTemplates");
           const changeTime = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
           const adminUsername = req.user?.username || "管理员";
-          const ipAddress = req.ip || req.connection?.remoteAddress || "unknown";
-          const deviceName = req.headers["user-agent"] || "unknown";
 
-          const emailHtml = generateAdminPasswordChangedEmailHtml(
+          const emailHtml = generateAdminUserUpdatedEmailHtml(
             user.username,
             changeTime,
-            ipAddress,
-            deviceName,
-            "admin-operation",
             adminUsername,
-            newPassword.trim(),
+            changes,
+            newPassword ? newPassword.trim() : undefined,
           );
+
+          // 确定邮件主题
+          const changedFieldNames = changes.map(c => {
+            const labels: Record<string, string> = {
+              username: "用户名", email: "邮箱", role: "角色", password: "密码",
+              dailyUsage: "用量", totpEnabled: "两步验证", passkeyEnabled: "Passkey", avatarUrl: "头像",
+            };
+            return labels[c.field] || c.field;
+          });
+          const subject = `Happy-TTS 账号${changedFieldNames.join("、")}被管理员修改通知`;
+
+          // 发送到当前邮箱
           sendEmail({
             to: user.email,
-            subject: "Happy-TTS 账号密码被管理员修改通知",
+            subject,
             html: emailHtml,
-            logTag: "管理员修改密码通知",
+            logTag: "管理员修改用户信息通知",
             checkQuota: false,
           }).catch((e) => {
-            logger.warn(`[管理员修改密码] 通知邮件发送失败: ${user.email}`, e);
+            logger.warn(`[管理员修改用户] 通知邮件发送失败: ${user.email}`, e);
           });
-          logger.info(`[管理员修改密码] 已发送通知邮件至 ${user.email}，操作者: ${adminUsername}`);
+
+          // 如果邮箱本身被修改了，也通知旧邮箱
+          const emailChange = changes.find(c => c.field === "email");
+          if (emailChange && emailChange.oldValue && emailChange.oldValue !== emailChange.newValue) {
+            sendEmail({
+              to: emailChange.oldValue,
+              subject: "Happy-TTS 账号邮箱地址被管理员修改通知",
+              html: emailHtml,
+              logTag: "管理员修改邮箱通知(旧邮箱)",
+              checkQuota: false,
+            }).catch((e) => {
+              logger.warn(`[管理员修改用户] 旧邮箱通知发送失败: ${emailChange.oldValue}`, e);
+            });
+          }
+
+          logger.info(`[管理员修改用户] 已发送通知邮件至 ${user.email}，变更字段: ${changedFieldNames.join(", ")}，操作者: ${adminUsername}`);
         } catch (notifyError) {
-          logger.warn("[管理员修改密码] 发送通知邮件失败:", notifyError);
+          logger.warn("[管理员修改用户] 发送通知邮件失败:", notifyError);
         }
       }
 

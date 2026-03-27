@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="format-detection" content="email=no" />
+    <meta name="format-detection" content="date=no" />
+    <title>Happy-TTS 账号信息变更通知</title>
+    <style>
+        .afal a {
+            color: #b0b0b0;
+            text-decoration: none;
+        }
+
+        @media screen and (min-width: 600px) {
+            .mdv2rw {
+                padding: 40px 40px;
+            }
+        }
+    </style>
+    <link href="//fonts.googleapis.com/css?family=Google+Sans" rel="stylesheet" type="text/css" />
+</head>
+
+<body style="margin: 0; padding: 0;" bgcolor="#FFFFFF">
+    <table width="100%" height="100%" style="min-width: 348px;" border="0" cellspacing="0" cellpadding="0">
+        <tr height="32" style="height: 32px;">
+            <td></td>
+        </tr>
+        <tr align="center">
+            <td>
+                <table border="0" cellspacing="0" cellpadding="0"
+                    style="padding-bottom: 20px; max-width: 516px; min-width: 220px;">
+                    <tr>
+                        <td width="8" style="width: 8px;"></td>
+                        <td>
+                            <div style="border-style: solid; border-width: thin; border-color: #dadce0; border-radius: 8px; padding: 40px 20px;"
+                                align="center" class="mdv2rw">
+                                <!-- Logo -->
+                                <div
+                                    style="display: inline-block; width: 44px; height: 44px; line-height: 44px; background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); border-radius: 50%; text-align: center; color: #ffffff; font-family: 'Google Sans', Roboto, Arial, sans-serif; font-weight: 700; font-size: 20px; margin-bottom: 16px;">
+                                    H</div>
+
+                                <!-- Title -->
+                                <div
+                                    style="font-family: 'Google Sans', Roboto, RobotoDraft, Helvetica, Arial, sans-serif; border-bottom: thin solid #dadce0; color: rgba(0,0,0,0.87); line-height: 32px; padding-bottom: 24px; text-align: center; word-break: break-word;">
+                                    <div style="font-size: 24px;">账号信息变更通知</div>
+                                    <table align="center" style="margin-top: 8px;">
+                                        <tr style="line-height: normal;">
+                                            <td>
+                                                <span
+                                                    style="font-family: 'Google Sans', Roboto, Arial, sans-serif; color: rgba(0,0,0,0.87); font-size: 14px; line-height: 20px;">尊敬的
+                                                    {{username}}：</span>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </div>
+
+                                <!-- Body -->
+                                <div
+                                    style="font-family: Roboto-Regular, Helvetica, Arial, sans-serif; font-size: 14px; color: rgba(0,0,0,0.87); line-height: 20px; padding-top: 20px; text-align: left;">
+
+                                    <!-- Admin Notice -->
+                                    <div
+                                        style="margin-bottom: 16px; padding: 16px; background-color: #fef7e0; border: 1px solid #f9ab00; border-radius: 8px;">
+                                        <div style="margin-bottom: 8px;">
+                                            <strong style="font-size: 14px; color: #b06000;">&#9888;&#65039;
+                                                管理员操作通知</strong>
+                                        </div>
+                                        <p style="font-size: 13px; color: #5f6368; margin: 0;">
+                                            管理员 <strong>{{adminUsername}}</strong> 于 <strong>{{changeTime}}</strong>
+                                            修改了您的账号信息。
+                                        </p>
+                                    </div>
+
+                                    <!-- Changes Table -->
+                                    {{changesTable}}
+
+                                    <!-- Credentials (optional, only when password is changed) -->
+                                    {{credentialsBlock}}
+
+                                    <div style="padding-top: 16px;">
+                                        <div style="border-bottom: thin solid #dadce0; padding-bottom: 24px;">
+                                            <span
+                                                style="color: #d93025; font-size: 13px;">安全提示：如果您对此次变更存在疑问，请立即联系管理员确认，并检查您的账号安全设置。</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Footer inside card -->
+                                <div
+                                    style="padding-top: 20px; font-size: 12px; line-height: 16px; color: #5f6368; letter-spacing: 0.3px; text-align: center;">
+                                    本邮件由系统自动发出，请勿直接回复。
+                                </div>
+                            </div>
+
+                            <!-- Footer outside card -->
+                            <div style="text-align: left;">
+                                <div
+                                    style="font-family: Roboto-Regular, Helvetica, Arial, sans-serif; color: rgba(0,0,0,0.54); font-size: 11px; line-height: 18px; padding-top: 12px; text-align: center;">
+                                    <div>Happy-TTS 团队 · 致力于让文字拥有声音的力量</div>
+                                    <div style="direction: ltr;">&copy; 2026 Happy-TTS</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td width="8" style="width: 8px;"></td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        <tr height="32" style="height: 32px;">
+            <td></td>
+        </tr>
+    </table>
+</body>
+
+</html>
