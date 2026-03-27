@@ -179,6 +179,33 @@ router.post("/forgot-password", AuthController.forgotPassword);
 
 /**
  * @openapi
+ * /auth/validate-reset-token:
+ *   post:
+ *     summary: 预验证重置令牌
+ *     description: 验证重置令牌是否有效，检查设备指纹和IP是否与发起请求时一致（不消费令牌）
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               token:
+ *                 type: string
+ *               fingerprint:
+ *                 type: string
+ *               clientIP:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 令牌有效
+ *       400:
+ *         description: 令牌无效或设备/网络不匹配
+ */
+router.post("/validate-reset-token", AuthController.validateResetToken);
+
+/**
+ * @openapi
  * /auth/reset-password-link:
  *   post:
  *     summary: 重置密码链接

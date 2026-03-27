@@ -7,6 +7,7 @@ import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
 import { LazyMotion, domAnimation, m, useReducedMotion } from 'framer-motion';
 import { FaEnvelope, FaLock, FaArrowLeft, FaVolumeUp, FaEye, FaEyeSlash, FaKey, FaCheckCircle } from 'react-icons/fa';
 import getApiBaseUrl from '../api';
+import { getFingerprint, getClientIP } from '../utils/fingerprint';
 
 const NO_TRANSITION = { duration: 0 } as const;
 const FADE_VARIANTS = { hidden: { opacity: 0 }, visible: { opacity: 1 } } as const;
@@ -61,9 +62,11 @@ export const ResetPasswordPage: React.FC = () => {
         }
         setLoading(true);
         try {
+            const [clientIP, fingerprint] = await Promise.all([getClientIP(), getFingerprint()]);
+            const deviceName = navigator.userAgent || 'unknown';
             const response = await fetch(getApiBaseUrl() + '/api/auth/reset-password', {
                 method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                body: JSON.stringify({ email: sanitizedEmail, code: sanitizedCode, newPassword, turnstileToken: turnstileConfig.siteKey ? turnstileToken : undefined }),
+                body: JSON.stringify({ email: sanitizedEmail, code: sanitizedCode, newPassword, turnstileToken: turnstileConfig.siteKey ? turnstileToken : undefined, clientIP, deviceName, fingerprint }),
                 credentials: 'same-origin'
             });
             const data = await response.json();

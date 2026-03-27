@@ -4,7 +4,7 @@ import { useNotification } from './Notification';
 import { LazyMotion, domAnimation, m, useReducedMotion } from 'framer-motion';
 import { FaVolumeUp, FaLock, FaEye, FaEyeSlash, FaCheckCircle, FaTimesCircle, FaArrowLeft } from 'react-icons/fa';
 import getApiBaseUrl from '../api';
-import { getFingerprint } from '../utils/fingerprint';
+import { getFingerprint, getClientIP } from '../utils/fingerprint';
 import DOMPurify from 'dompurify';
 
 const NO_TRANSITION = { duration: 0 } as const;
@@ -39,8 +39,49 @@ export const ResetPasswordLinkPage: React.FC = () => {
     useEffect(() => {
         const validateToken = async () => {
             const tokenParam = searchParams.get('token');
-            if (!tokenParam) { setError('重置链接无效：缺少令牌'); setTokenValid(false); setVerifying(false); return; }
-            setToken(tokenParam); setTokenValid(true); setVerifying(false);
+            if (!tokenParam) {
+                setError('重置链接无效：缺少令牌');
+                setTokenValid(false);
+                setVerifying(false);
+                return;
+            }
+            setToken(tokenParam);
+
+            try {
+                // 获取当前设备指纹和IP，用于与发起请求时的设备/网络进行比对
+                const [fingerprint, clientIP] = await Promise.all([
+                    getFingerprint(),
+                    getClientIP()
+                ]);
+
+                if (!fingerprint) {
+                    setError('无法获取设备信息，请刷新页面重试');
+                    setTokenValid(false);
+                    setVerifying(false);
+                    return;
+                }
+
+                // 调用后端预验证接口，检查令牌有效性+设备/网络一致性
+                const response = await fetch(getApiBaseUrl() + '/api/auth/validate-reset-token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: tokenParam, fingerprint, clientIP }),
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.valid) {
+                    setTokenValid(true);
+                } else {
+                    setError(data.error || '重置链接验证失败');
+                    setTokenValid(false);
+                }
+            } catch (err) {
+                setError('验证重置链接时发生网络错误，请刷新页面重试');
+                setTokenValid(false);
+            }
+
+            setVerifying(false);
         };
         validateToken();
     }, [searchParams]);
@@ -57,10 +98,13 @@ export const ResetPasswordLinkPage: React.FC = () => {
         try {
             const fingerprint = await getFingerprint();
             if (!fingerprint) { setError('无法获取设备信息，请刷新页面重试'); setLoading(false); return; }
+            const clientIP = await getClientIP();
+            const deviceName = navigator.userAgent || 'unknown';
             const response = await fetch(getApiBaseUrl() + '/api/auth/reset-password-link', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token, fingerprint, newPassword: sanitizedPassword }),
+                body: JSON.stringify({ token, fingerprint, newPassword: sanitizedPassword, clientIP, deviceName }),
             });
+
             const data = await response.json();
             if (response.ok && data.success) {
                 setSuccess(true); setNotification({ message: data.message || '密码重置成功！', type: 'success' });
