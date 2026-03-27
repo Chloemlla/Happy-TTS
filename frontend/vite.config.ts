@@ -8,6 +8,27 @@ import JavaScriptObfuscator from "javascript-obfuscator";
 import { execSync } from "child_process";
 import fs from "fs";
 
+// Shared manual chunks mapping — used as a function for rolldown (Vite 7) compatibility
+const MANUAL_CHUNKS: Record<string, string[]> = {
+  "react-vendor": ["react", "react-dom"],
+  router: ["react-router-dom"],
+  ui: ["@radix-ui/react-dialog", "react-icons"],
+  utils: ["axios", "clsx", "tailwind-merge"],
+  auth: ["@simplewebauthn/browser", "qrcode.react"],
+  animations: ["framer-motion"],
+  "code-highlight": ["react-syntax-highlighter", "prismjs"],
+  toast: ["react-toastify"],
+  swagger: ["swagger-ui-react"],
+};
+
+function getManualChunk(id: string): string | undefined {
+  for (const [chunkName, deps] of Object.entries(MANUAL_CHUNKS)) {
+    if (deps.some((dep) => id.includes(`node_modules/${dep}`) || id.includes(`node_modules\\${dep}`))) {
+      return chunkName;
+    }
+  }
+}
+
 function obfuscateDistJs() {
   const distDir = path.resolve(__dirname, "dist/assets");
   if (!fs.existsSync(distDir)) return;
@@ -266,35 +287,35 @@ export default defineConfig(({ mode }) => {
       proxy:
         mode === "development"
           ? {
-              // '/api': {
-              //   target: 'http://127.0.0.1:3000',
-              //   changeOrigin: true,
-              //   secure: false,
-              //   ws: true,
-              //   configure: (proxy, _options) => {
-              //     proxy.on('error', (err, _req, _res) => {
-              //       console.log('proxy error', err);
-              //     });
-              //     proxy.on('proxyReq', (proxyReq, req, _res) => {
-              //       console.log('Sending Request:', req.method, req.url);
-              //     });
-              //     proxy.on('proxyRes', (proxyRes, req, _res) => {
-              //       console.log('Received Response:', proxyRes.statusCode, req.url);
-              //     });
-              //   }
-              // },
-              // '/static': {
-              //   target: 'http://127.0.0.1:3000',
-              //   changeOrigin: true,
-              //   secure: false,
-              // },
-              // '/collect_data': {
-              //   target: 'http://127.0.0.1:3000',
-              //   changeOrigin: true,
-              //   secure: false,
-              //   rewrite: (path) => '/api/data-collection/collect_data'
-              // }
-            }
+            // '/api': {
+            //   target: 'http://127.0.0.1:3000',
+            //   changeOrigin: true,
+            //   secure: false,
+            //   ws: true,
+            //   configure: (proxy, _options) => {
+            //     proxy.on('error', (err, _req, _res) => {
+            //       console.log('proxy error', err);
+            //     });
+            //     proxy.on('proxyReq', (proxyReq, req, _res) => {
+            //       console.log('Sending Request:', req.method, req.url);
+            //     });
+            //     proxy.on('proxyRes', (proxyRes, req, _res) => {
+            //       console.log('Received Response:', proxyRes.statusCode, req.url);
+            //     });
+            //   }
+            // },
+            // '/static': {
+            //   target: 'http://127.0.0.1:3000',
+            //   changeOrigin: true,
+            //   secure: false,
+            // },
+            // '/collect_data': {
+            //   target: 'http://127.0.0.1:3000',
+            //   changeOrigin: true,
+            //   secure: false,
+            //   rewrite: (path) => '/api/data-collection/collect_data'
+            // }
+          }
           : undefined,
       allowedHosts: [
         "tts.hapx.one",
@@ -356,17 +377,7 @@ export default defineConfig(({ mode }) => {
           return false;
         },
         output: {
-          manualChunks: {
-            "react-vendor": ["react", "react-dom"],
-            router: ["react-router-dom"],
-            ui: ["@radix-ui/react-dialog", "react-icons"],
-            utils: ["axios", "clsx", "tailwind-merge"],
-            auth: ["@simplewebauthn/browser", "qrcode.react"],
-            animations: ["framer-motion"],
-            "code-highlight": ["react-syntax-highlighter", "prismjs"],
-            toast: ["react-toastify"],
-            swagger: ["swagger-ui-react"],
-          },
+          manualChunks: getManualChunk,
           entryFileNames: "assets/[name].[hash].js",
           chunkFileNames: "assets/[name].[hash].js",
           assetFileNames: (assetInfo: any) => {
@@ -432,17 +443,7 @@ export default defineConfig(({ mode }) => {
     // 只在 output 层级添加 writeBundle 钩子
     if (!config.build.rollupOptions.output)
       config.build.rollupOptions.output = {
-        manualChunks: {
-          "react-vendor": ["react", "react-dom"],
-          router: ["react-router-dom"],
-          ui: ["@radix-ui/react-dialog", "react-icons"],
-          utils: ["axios", "clsx", "tailwind-merge"],
-          auth: ["@simplewebauthn/browser", "qrcode.react"],
-          animations: ["framer-motion"],
-          "code-highlight": ["react-syntax-highlighter", "prismjs"],
-          toast: ["react-toastify"],
-          swagger: ["swagger-ui-react"],
-        },
+        manualChunks: getManualChunk,
         entryFileNames: "assets/[name].[hash].js",
         chunkFileNames: "assets/[name].[hash].js",
         assetFileNames: (assetInfo: any) => {
