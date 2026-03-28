@@ -1,5 +1,5 @@
-import {themes as prismThemes} from 'prism-react-renderer';
-import type {Config} from '@docusaurus/types';
+import { themes as prismThemes } from 'prism-react-renderer';
+import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
@@ -145,8 +145,8 @@ const config: Config = {
       darkTheme: prismThemes.dracula,
     },
     metadata: [
-      {name: 'keywords', content: 'TTS, 文本转语音, API, 文档'},
-      {name: 'description', content: 'Happy-TTS 文本转语音服务 API 文档'},
+      { name: 'keywords', content: 'TTS, 文本转语音, API, 文档' },
+      { name: 'description', content: 'Happy-TTS 文本转语音服务 API 文档' },
     ],
   } satisfies Preset.ThemeConfig,
 
@@ -168,6 +168,63 @@ const config: Config = {
   // 添加插件配置
   plugins: [
     require.resolve('./plugins/email-protection'),
+    function svgoWarningFixPlugin() {
+      return {
+        name: 'svgo-warning-fix-plugin',
+        configureWebpack(config) {
+          if (!config.module || !config.module.rules) return {};
+
+          config.module.rules.forEach((rule) => {
+            if (typeof rule === 'object' && rule !== null && 'oneOf' in rule) {
+              const ruleOneOf = (rule as any).oneOf;
+              if (Array.isArray(ruleOneOf)) {
+                ruleOneOf.forEach((r: any) => {
+                  if (r.use && Array.isArray(r.use)) {
+                    r.use.forEach((u: any) => {
+                      if (
+                        u.loader &&
+                        typeof u.loader === 'string' &&
+                        u.loader.includes('@svgr/webpack') &&
+                        u.options &&
+                        u.options.svgoConfig &&
+                        Array.isArray(u.options.svgoConfig.plugins)
+                      ) {
+                        const plugins = u.options.svgoConfig.plugins;
+                        const defaultPreset = plugins.find(
+                          (p: any) => typeof p === 'object' && p !== null && p.name === 'preset-default'
+                        );
+                        if (
+                          defaultPreset &&
+                          defaultPreset.params &&
+                          defaultPreset.params.overrides
+                        ) {
+                          const overrides = defaultPreset.params.overrides;
+                          if ('removeTitle' in overrides) {
+                            plugins.push({
+                              name: 'removeTitle',
+                              active: overrides.removeTitle !== false,
+                            });
+                            delete overrides.removeTitle;
+                          }
+                          if ('removeViewBox' in overrides) {
+                            plugins.push({
+                              name: 'removeViewBox',
+                              active: overrides.removeViewBox !== false,
+                            });
+                            delete overrides.removeViewBox;
+                          }
+                        }
+                      }
+                    });
+                  }
+                });
+              }
+            }
+          });
+          return {};
+        },
+      };
+    },
   ],
 
   // 添加主题配置
