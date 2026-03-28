@@ -691,7 +691,7 @@ class IntegrityChecker {
     }
 
     // 检查关键文本是否被替换
-    const criticalTexts = ["SynapticArch", "Happy TTS", "Happy"];
+    const criticalTexts = ["SynapticArch", "Synapse", "Happy"];
     const missingTexts: string[] = [];
 
     criticalTexts.forEach((text) => {
@@ -1040,7 +1040,7 @@ class IntegrityChecker {
 
     const protectedPatterns = [
       { original: "SynapticArch", pattern: /Happy[-]?clo/gi },
-      { original: "Happy TTS", pattern: /Happy\s*TTS/gi },
+      { original: "Synapse", pattern: /Happy\s*TTS/gi },
       { original: "Happy", pattern: /Happy(?![-\s]?(clo|tts))/gi },
     ];
 
@@ -1223,7 +1223,7 @@ class IntegrityChecker {
 
   private performRecovery(): void {
     // 恢复所有被保护的文本
-    const protectedTexts = ["SynapticArch", "Happy TTS", "Happy"];
+    const protectedTexts = ["SynapticArch", "Synapse", "Happy"];
     const walker = document.createTreeWalker(
       document.body,
       NodeFilter.SHOW_TEXT,
@@ -1344,7 +1344,7 @@ class IntegrityChecker {
   }
 
   private checkTextIntegrity(): void {
-    const protectedTexts = ["SynapticArch", "Happy TTS", "Happy"];
+    const protectedTexts = ["SynapticArch", "Synapse", "Happy"];
     const bodyText = document.body.innerText;
 
     protectedTexts.forEach((text) => {
@@ -1483,7 +1483,7 @@ class IntegrityChecker {
         clearInterval(interval);
         warning.remove();
         // 触发全屏水印
-        window.dispatchEvent(new Event("show-happy-tts-watermark"));
+        window.dispatchEvent(new Event("show-Synapse-watermark"));
         // 关闭页面
         window.close();
       }
@@ -2075,7 +2075,7 @@ class IntegrityChecker {
         case "proxy":
           this.handleProxyTampering({
             hasProxyTampering: true,
-            replacedTexts: ["Happy TTS"],
+            replacedTexts: ["Synapse"],
             addedContent: [],
             removedContent: [],
             confidence: 80,
@@ -2178,7 +2178,7 @@ class IntegrityChecker {
     missingTexts: string[];
     message: string;
   } {
-    const protectedTexts = ["SynapticArch", "Happy TTS", "Happy"];
+    const protectedTexts = ["SynapticArch", "Synapse", "Happy"];
     const bodyText = document.body.innerText;
     const missingTexts: string[] = [];
 
@@ -2276,10 +2276,10 @@ class IntegrityChecker {
       switch (elementId) {
         case "app-brand-text":
           // 恢复品牌文本
-          if (element.textContent !== "Happy TTS") {
-            element.textContent = "Happy TTS";
-            element.setAttribute("data-original-text", "Happy TTS");
-            element.setAttribute("data-critical-text", "Happy TTS");
+          if (element.textContent !== "Synapse") {
+            element.textContent = "Synapse";
+            element.setAttribute("data-original-text", "Synapse");
+            element.setAttribute("data-critical-text", "Synapse");
           }
           break;
 
@@ -2316,8 +2316,8 @@ class IntegrityChecker {
   private restoreBrandContainerContent(container: Element): void {
     // 检查品牌文本
     const brandTextElement = container.querySelector("#app-brand-text");
-    if (brandTextElement && brandTextElement.textContent !== "Happy TTS") {
-      brandTextElement.textContent = "Happy TTS";
+    if (brandTextElement && brandTextElement.textContent !== "Synapse") {
+      brandTextElement.textContent = "Synapse";
     }
 
     // 检查品牌图标
@@ -2426,7 +2426,7 @@ class IntegrityChecker {
     // 检查品牌文本
     const brandTextElement = document.getElementById("app-brand-text");
     if (brandTextElement) {
-      const expectedText = "Happy TTS";
+      const expectedText = "Synapse";
       if (brandTextElement.textContent !== expectedText) {
         if (this.debugMode) {
           this.safeLog("warn", "🚨 品牌文本被篡改:", {
@@ -2554,7 +2554,7 @@ class IntegrityChecker {
       case "app-brand-logo":
         element.setAttribute("data-integrity", "critical");
         element.setAttribute("data-protection", "brand-identity");
-        element.setAttribute("data-critical-text", "Happy TTS");
+        element.setAttribute("data-critical-text", "Synapse");
         break;
 
       case "app-brand-icon":
@@ -2565,8 +2565,8 @@ class IntegrityChecker {
       case "app-brand-text":
         element.setAttribute("data-integrity", "critical");
         element.setAttribute("data-protection", "brand-text");
-        element.setAttribute("data-critical-text", "Happy TTS");
-        element.setAttribute("data-original-text", "Happy TTS");
+        element.setAttribute("data-critical-text", "Synapse");
+        element.setAttribute("data-original-text", "Synapse");
         break;
     }
 

@@ -94,7 +94,7 @@ const Footer: React.FC = () => {
   return (
     <footer className="text-center text-gray-500 mt-8 mb-2 text-sm select-none flex flex-col items-center gap-1">
       <div>
-        Copyright ©{year} Happy-TTS. All rights reserved.
+        Copyright ©{year} Synapse. All rights reserved.
       </div>
       <div className="mt-1 px-2 py-1 bg-yellow-50 border border-yellow-200 rounded text-yellow-700 text-xs max-w-xs">
         <FaExclamationTriangle className="inline mr-1" /> 本站为个人独立开发项目，与 OpenAI 官方无任何隶属或合作关系。请勿将本站内容视为 OpenAI 官方服务。

@@ -8,7 +8,7 @@ slug: rest-api
 
 ## 简介
 
-Happy-TTS 提供了标准的 RESTful API 接口，支持通过 HTTP 请求进行文本转语音（TTS）操作，适用于各种语言和平台的集成。
+Synapse 提供了标准的 RESTful API 接口，支持通过 HTTP 请求进行文本转语音（TTS）操作，适用于各种语言和平台的集成。
 
 ## 主要接口
 

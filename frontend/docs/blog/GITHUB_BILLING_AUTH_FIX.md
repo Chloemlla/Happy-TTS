@@ -2,7 +2,7 @@
 title: GitHub Billing Dashboard 认证系统修复
 description: 修复 GitHub Billing Dashboard 的 CORS 和认证问题，统一使用 Turnstile 访问令牌
 date: 2025-09-11
-author: Happy TTS Team
+author: Synapse Team
 tags: [前端, 后端, 认证, CORS, GitHub API, 用户体验]
 ---
 

@@ -1,4 +1,4 @@
-name = "happy-tts-api"
+name = "synapse-api"
 main = "src/index.ts"
 compatibility_date = "2024-10-18"
 compatibility_flags = ["nodejs_compat"]
@@ -37,11 +37,11 @@ id = "YOUR_KV_ID_HERE"
 # ========== R2 Buckets ==========
 [[r2_buckets]]
 binding = "AUDIO_BUCKET"
-bucket_name = "happy-tts-audio"
+bucket_name = "Synapse-audio"
 
 [[r2_buckets]]
 binding = "DATA_BUCKET"
-bucket_name = "happy-tts-data"
+bucket_name = "Synapse-data"
 
 # ========== 敏感变量通过 wrangler secret put 设置 ==========
 # wrangler secret put OPENAI_API_KEY
@@ -58,10 +58,10 @@ bucket_name = "happy-tts-data"
 
 # ========== 生产环境 ==========
 [env.production]
-name = "happy-tts-api"
+name = "Synapse-api"
 
 # ========== 开发环境 ==========
 [env.dev]
-name = "happy-tts-api-dev"
+name = "Synapse-api-dev"
 [env.dev.vars]
 NODE_ENV = "development"

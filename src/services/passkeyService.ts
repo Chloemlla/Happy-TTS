@@ -269,7 +269,7 @@ export class PasskeyService {
       // 注意：@simplewebauthn/server 不直接接受 origin 参数
       // origin 验证在 verifyRegistrationResponse 时进行
       const registrationOptions = await generateRegistrationOptions({
-        rpName: "Happy TTS",
+        rpName: "Synapse",
         rpID: getRpId(),
         // 使用 Uint8Array(user.id) 以兼容 @simplewebauthn/server 要求的 userID 类型
         userID: Buffer.from(String(user.id)),

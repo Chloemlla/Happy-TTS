@@ -9,7 +9,7 @@ tags: [turnstile, captcha, security, frontend, api, blog]
 
 ## 问题背景
 
-在 HappyTTS 项目中，Turnstile 人机验证模块没有正常显示在登录表单下方，导致用户无法完成人机验证，影响登录和注册功能。
+在 Synapse 项目中，Turnstile 人机验证模块没有正常显示在登录表单下方，导致用户无法完成人机验证，影响登录和注册功能。
 
 ### 错误信息
 

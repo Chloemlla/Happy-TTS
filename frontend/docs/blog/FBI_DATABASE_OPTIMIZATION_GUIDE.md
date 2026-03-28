@@ -2,7 +2,7 @@
 title: FBI通缉犯数据库优化指南
 description: MongoDB索引优化和查询性能提升实施指南，包含监控工具和维护计划
 date: 2025-11-22
-author: Happy TTS Team
+author: Synapse Team
 tags: [数据库, MongoDB, 索引优化, 性能监控, FBI通缉犯, 运维指南]
 ---
 
@@ -185,7 +185,7 @@ const timer = scheduleIndexAnalysis(7);
    ```bash
    git pull origin main
    npm run build
-   pm2 restart happy-tts
+   pm2 restart Synapse
    ```
 
 2. **同步索引**
@@ -216,7 +216,7 @@ const timer = scheduleIndexAnalysis(7);
 
 ```bash
 # 1. 停止应用
-pm2 stop happy-tts
+pm2 stop Synapse
 
 # 2. 回滚代码
 git checkout <previous-commit>
@@ -230,7 +230,7 @@ db.fbiwanteds.dropIndex("idx_active_status_danger_date")
 db.fbiwanteds.dropIndex("idx_text_search")
 
 # 4. 重启应用
-pm2 restart happy-tts
+pm2 restart Synapse
 ```
 
 ## 📊 性能基准测试

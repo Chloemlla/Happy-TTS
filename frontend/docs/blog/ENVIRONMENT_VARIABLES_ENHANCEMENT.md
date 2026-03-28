@@ -1,7 +1,7 @@
 ---
 title: 环境变量管理功能增强
 description: 扩展EnvManager功能，支持读取Docker、Node.js、系统等多种环境变量，并实现敏感信息脱敏
-author: Happy-TTS Team
+author: Synapse Team
 date: 2025-07-26
 tags: [env-manager, docker, security, backend, environment]
 ---

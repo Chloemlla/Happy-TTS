@@ -139,7 +139,7 @@ function demonstrateAPIEndpoints() {
  * 主函数
  */
 async function main() {
-  console.log('🚀 Happy TTS 备用恢复码功能演示\n');
+  console.log('🚀 Synapse 备用恢复码功能演示\n');
   console.log('=' .repeat(50));
   
   await demonstrateBackupCodes();

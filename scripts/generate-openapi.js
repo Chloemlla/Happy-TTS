@@ -6,7 +6,7 @@ const swaggerOptions = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'Happy-TTS API 文档',
+      title: 'Synapse API 文档',
       version: '1.0.0',
       description: '基于 OpenAPI 3.0 的接口文档'
     }

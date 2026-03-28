@@ -7,7 +7,7 @@ sidebar_position: 7
 
 ## 简介
 
-本 SDK 文档介绍如何在 Rust 项目中通过 HTTP API 调用 Happy-TTS 文本转语音（TTS）服务，适用于需要在 Rust 后端或工具中集成 TTS 功能的场景。
+本 SDK 文档介绍如何在 Rust 项目中通过 HTTP API 调用 Synapse 文本转语音（TTS）服务，适用于需要在 Rust 后端或工具中集成 TTS 功能的场景。
 
 ## 依赖
 

@@ -9,7 +9,7 @@ tags: [batch, upload, notification, user-experience, feedback, blog]
 
 ## 问题背景
 
-在 HappyTTS 项目的批量图片上传功能中，用户在上传完成后缺乏清晰的操作指引：
+在 Synapse 项目的批量图片上传功能中，用户在上传完成后缺乏清晰的操作指引：
 
 1. **信息不明确**：用户不知道上传完成后应该去哪里查看结果
 2. **操作指引缺失**：没有明确告诉用户下一步应该做什么

@@ -18,7 +18,7 @@ class DOMProtector {
   private checkInterval: number | null = null;
   private protectedTexts: ProtectedText[] = [
     { original: 'SynapticArch', pattern: /SynapticArch/gi },
-    { original: 'Happy TTS', pattern: /Happy TTS/gi },
+    { original: 'Synapse', pattern: /Synapse/gi },
     { original: 'Happy', pattern: /Happy(?![\w-])/gi }  // 防止匹配 SynapticArch
   ];
 

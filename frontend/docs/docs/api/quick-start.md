@@ -1,8 +1,8 @@
-# Happy-TTS API 快速入门
+# Synapse API 快速入门
 
 ## 简介
 
-本文档将帮助您快速了解和使用 Happy-TTS 的核心 API 接口。
+本文档将帮助您快速了解和使用 Synapse 的核心 API 接口。
 
 ## 基础配置
 
@@ -331,10 +331,10 @@ async function loginWithPasskey(username) {
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Happy-TTS 示例</title>
+    <title>Synapse 示例</title>
   </head>
   <body>
-    <h1>Happy-TTS 文本转语音</h1>
+    <h1>Synapse 文本转语音</h1>
 
     <div>
       <input type="text" id="username" placeholder="用户名" />

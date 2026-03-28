@@ -4,13 +4,13 @@ title: 介绍
 sidebar_position: 1
 ---
 
-# Happy-TTS API 文档
+# Synapse API 文档
 
-欢迎使用 Happy-TTS 文本转语音服务 API 文档！
+欢迎使用 Synapse 文本转语音服务 API 文档！
 
 ## 概述
 
-Happy-TTS 是一个基于 OpenAI TTS 技术的文本转语音服务，提供高质量的语音合成功能。本 API 支持多种语音模型和发音人，可以满足不同场景的语音合成需求。
+Synapse 是一个基于 OpenAI TTS 技术的文本转语音服务，提供高质量的语音合成功能。本 API 支持多种语音模型和发音人，可以满足不同场景的语音合成需求。
 
 ## 主要特性
 
@@ -76,8 +76,8 @@ API 使用标准的 HTTP 状态码表示请求结果：
 如果您在使用过程中遇到问题或有任何建议，请通过以下方式联系我们：
 
 - 📧 **邮箱**: support@hapxs.com
-- 🐛 **问题反馈**: [GitHub Issues](https://github.com/happy-tts/happy-tts/issues)
-- 💬 **社区讨论**: [Discord](https://discord.gg/happy-tts)
+- 🐛 **问题反馈**: [GitHub Issues](https://github.com/Synapse/Synapse/issues)
+- 💬 **社区讨论**: [Discord](https://discord.gg/Synapse)
 
 ---
 

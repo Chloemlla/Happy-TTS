@@ -8,7 +8,7 @@ slug: title-protection-test
 
 ## 🎯 功能概述
 
-为 HTML 页面的`<title>`标签添加防篡改保护，确保页面标题始终为"Happy TTS - 文本转语音服务"。
+为 HTML 页面的`<title>`标签添加防篡改保护，确保页面标题始终为"Synapse - 文本转语音服务"。
 
 ## 🔧 实现方案
 
@@ -19,7 +19,7 @@ slug: title-protection-test
 ```typescript
 class DOMProtector {
   private titleObserver: MutationObserver | null = null;
-  private originalTitle: string = "Happy TTS - 文本转语音服务";
+  private originalTitle: string = "Synapse - 文本转语音服务";
 
   // 检查并修复title标签
   private checkTitle(): boolean {
@@ -96,7 +96,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 **预期结果：**
 
-- ✅ 标题显示为"Happy TTS - 文本转语音服务"
+- ✅ 标题显示为"Synapse - 文本转语音服务"
 - ✅ 控制台无警告信息
 
 ### 测试用例 2：通过 JavaScript 修改 title
@@ -109,7 +109,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 **预期结果：**
 
-- ✅ 标题立即被恢复为"Happy TTS - 文本转语音服务"
+- ✅ 标题立即被恢复为"Synapse - 文本转语音服务"
 - ✅ 控制台显示警告："检测到 title 标签被篡改，正在恢复..."
 
 ### 测试用例 3：通过 DOM 操作修改 title
@@ -122,7 +122,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 **预期结果：**
 
-- ✅ 标题立即被恢复为"Happy TTS - 文本转语音服务"
+- ✅ 标题立即被恢复为"Synapse - 文本转语音服务"
 - ✅ 控制台显示警告信息
 
 ### 测试用例 4：动态修改 title 内容
@@ -139,7 +139,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 **预期结果：**
 
-- ✅ 标题立即被恢复为"Happy TTS - 文本转语音服务"
+- ✅ 标题立即被恢复为"Synapse - 文本转语音服务"
 - ✅ 控制台显示警告信息
 
 ### 测试用例 5：定期检查功能
@@ -154,7 +154,7 @@ document.addEventListener("DOMContentLoaded", () => {
 **预期结果：**
 
 - ✅ 即使 MutationObserver 没有触发，定期检查也会恢复标题
-- ✅ 标题始终为"Happy TTS - 文本转语音服务"
+- ✅ 标题始终为"Synapse - 文本转语音服务"
 
 ## 🔍 监控机制
 

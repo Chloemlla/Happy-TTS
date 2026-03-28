@@ -76,7 +76,7 @@ router.post(
 ```json
 {
   "rp": {
-    "name": "Happy TTS",
+    "name": "Synapse",
     "id": "api.hapxs.com"
   },
   "user": {

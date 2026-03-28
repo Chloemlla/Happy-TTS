@@ -2,7 +2,7 @@
 title: 生活信息服务MongoDB日志增强
 description: 为LifeService添加详细的请求和响应日志记录到MongoDB，支持完整的API调用追踪和统计分析
 date: 2025-10-19
-author: Happy TTS Team
+author: Synapse Team
 tags: [后端, MongoDB, 日志, 监控, 生活信息, API追踪]
 ---
 

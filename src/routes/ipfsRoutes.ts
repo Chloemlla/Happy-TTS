@@ -182,7 +182,7 @@ router.get("/settings", authenticateAdmin, IPFSController.getConfig);
  *               ipfsUa:
  *                 type: string
  *                 description: IPFS上传User-Agent
- *                 example: "HappyTTS-IPFS-Uploader/1.0 (+https://example.com)"
+ *                 example: "Synapse-IPFS-Uploader/1.0 (+https://example.com)"
  *               bypassUAKeyword:
  *                 type: string
  *                 description: UA绕过Turnstile验证的关键字

@@ -2,7 +2,7 @@
 title: 首次访问验证页面UI美化
 description: 优化FirstVisitVerification组件的视觉效果和用户体验
 date: 2025-09-15
-author: Happy TTS Team
+author: Synapse Team
 tags: [前端, UI设计, 动画效果, 用户体验, Framer Motion]
 ---
 
@@ -225,14 +225,14 @@ const BackgroundParticles = () => (
   transition={{ duration: 0.5, delay: 0.4 }}
   className="text-center text-gray-600 mb-2 text-sm font-medium"
 >
-  Happy TTS
+  Synapse
 </motion.p>
 ```
 
 #### 改进特性
 
 - **渐变文字** - 标题使用渐变色彩
-- **品牌标识** - 添加"Happy TTS"副标题
+- **品牌标识** - 添加"Synapse"副标题
 - **动画进入** - 文字元素依次动画进入
 - **优化文案** - 更友好的说明文字
 
@@ -539,7 +539,7 @@ const BackgroundParticles = () => (
 
 ### 4. 品牌一致性
 
-- 符合Happy TTS品牌色彩
+- 符合Synapse品牌色彩
 - 统一的设计语言
 - 专业的视觉呈现
 

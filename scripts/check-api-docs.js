@@ -54,7 +54,7 @@ function checkPortListening() {
 }
 
 (async () => {
-  console.log('--- Happy-TTS /api-docs 自动化排查 ---');
+  console.log('--- Synapse /api-docs 自动化排查 ---');
   console.log('1. 检查端口监听...');
   const portOk = await checkPortListening();
   if (!portOk) {

@@ -17,7 +17,7 @@
   
   <!-- 主标题 -->
   <text x="600" y="250" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="72" font-weight="bold">
-    Happy-TTS API
+    Synapse API
   </text>
   
   <!-- 副标题 -->

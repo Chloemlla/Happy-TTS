@@ -132,7 +132,7 @@ export class AuthController {
       const emailHtml = generateVerificationLinkEmailHtml(username, verificationLink);
       const result = await sendEmail({
         to: email,
-        subject: "Happy-TTS 电子邮件确认",
+        subject: "Synapse 电子邮件确认",
         html: emailHtml,
         logTag: "邮箱验证链接",
       });
@@ -239,7 +239,7 @@ export class AuthController {
       const welcomeHtml = generateWelcomeEmailHtml(regInfo.username);
       sendEmail({
         to: regInfo.email,
-        subject: "欢迎加入 Happy-TTS",
+        subject: "欢迎加入 Synapse",
         html: welcomeHtml,
         logTag: "欢迎邮件",
         checkQuota: false,
@@ -286,7 +286,7 @@ export class AuthController {
       );
       const result = await sendEmail({
         to: email,
-        subject: "Happy-TTS 电子邮件确认码",
+        subject: "Synapse 电子邮件确认码",
         html: emailHtml,
         logTag: "重发邮箱验证码",
       });
@@ -418,7 +418,7 @@ export class AuthController {
           );
           sendEmail({
             to: user.email,
-            subject: "Happy-TTS 异地登录安全提醒",
+            subject: "Synapse 异地登录安全提醒",
             html: emailHtml,
             logTag: "异地登录提醒",
             checkQuota: false,
@@ -613,7 +613,7 @@ export class AuthController {
           );
           sendEmail({
             to: user.email,
-            subject: "Happy-TTS 异地登录安全提醒",
+            subject: "Synapse 异地登录安全提醒",
             html: emailHtml,
             logTag: "异地登录提醒(Passkey)",
             checkQuota: false,
@@ -726,7 +726,7 @@ export class AuthController {
       );
       const result = await sendEmail({
         to: email,
-        subject: "Happy-TTS 账号密码重置",
+        subject: "Synapse 账号密码重置",
         html: emailHtml,
         logTag: "密码重置",
       });
@@ -798,7 +798,7 @@ export class AuthController {
             );
             sendEmail({
               to: result.email,
-              subject: "Happy-TTS 账号密码变更通知",
+              subject: "Synapse 账号密码变更通知",
               html: emailHtml,
               logTag: "密码变更通知",
               checkQuota: false,
@@ -957,7 +957,7 @@ export class AuthController {
         );
         sendEmail({
           to: email,
-          subject: "Happy-TTS 密码重置成功通知",
+          subject: "Synapse 密码重置成功通知",
           html: notifyHtml,
           logTag: "密码重置成功通知",
           checkQuota: false,

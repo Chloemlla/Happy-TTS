@@ -1,6 +1,6 @@
-# Happy-TTS Cloudflare Workers 部署
+# Synapse Cloudflare Workers 部署
 
-本目录包含将 Happy-TTS 后端适配到 Cloudflare Workers 运行的全部代码。
+本目录包含将 Synapse 后端适配到 Cloudflare Workers 运行的全部代码。
 
 ## 架构说明
 

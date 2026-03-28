@@ -81,7 +81,7 @@ export async function createAndSendVerificationLink(
     );
     const emailResult = await EmailService.sendHtmlEmail(
       [email],
-      "Happy-TTS 电子邮件确认",
+      "Synapse 电子邮件确认",
       emailHtml
     );
 
@@ -151,7 +151,7 @@ export async function verifyEmailLink(
       const welcomeHtml = generateWelcomeEmailHtml(username);
       await EmailService.sendHtmlEmail(
         [email],
-        "欢迎加入 Happy-TTS",
+        "欢迎加入 Synapse",
         welcomeHtml
       );
     } catch (e) {
@@ -200,7 +200,7 @@ export async function createAndSendPasswordResetLink(
     const emailHtml = generatePasswordResetLinkEmailHtml(username, resetLink);
     const emailResult = await EmailService.sendHtmlEmail(
       [email],
-      "Happy-TTS 账号密码重置",
+      "Synapse 账号密码重置",
       emailHtml
     );
 

@@ -2,7 +2,7 @@
 title: FBI通缉犯数据验证增强方案
 description: 增强FBI通缉犯功能的输入验证和XSS防护，提升系统安全性
 date: 2025-11-22
-author: Happy TTS Team
+author: Synapse Team
 tags: [后端, 安全, 数据验证, XSS防护, FBI通缉犯]
 ---
 

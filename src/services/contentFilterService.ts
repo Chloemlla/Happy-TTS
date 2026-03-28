@@ -40,7 +40,7 @@ export class ContentFilterService {
         params: { text: text.trim() },
         timeout: ContentFilterService.TIMEOUT,
         headers: {
-          "User-Agent": "Happy-TTS/1.0",
+          "User-Agent": "Synapse/1.0",
         },
       });
 

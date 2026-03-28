@@ -8,7 +8,7 @@ slug: python-sdk
 
 ## 简介
 
-本 SDK 提供了通过 Python 语言调用 Happy-TTS 文本转语音（TTS）服务的能力，适用于需要在 Python 项目中集成 TTS 功能的场景。
+本 SDK 提供了通过 Python 语言调用 Synapse 文本转语音（TTS）服务的能力，适用于需要在 Python 项目中集成 TTS 功能的场景。
 
 ## 安装
 

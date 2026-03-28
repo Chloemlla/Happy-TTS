@@ -7,7 +7,7 @@ function testOTPAuthURL() {
     console.log('🧪 测试TOTP otpauth URL格式...\n');
 
     const testCases = [
-        { username: 'testuser', serviceName: 'Happy TTS' },
+        { username: 'testuser', serviceName: 'Synapse' },
         { username: 'user_with_underscore', serviceName: 'Test Service' },
         { username: 'user@domain.com', serviceName: 'Service with Spaces' },
         { username: '中文用户', serviceName: '中文服务' }

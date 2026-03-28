@@ -1,5 +1,5 @@
 /**
- * Happy-TTS Cloudflare Workers 入口
+ * Synapse Cloudflare Workers 入口
  *
  * 使用 Hono 框架替代 Express，适配 CF Workers 运行时。
  * 所有 Node.js 特有 API (fs, path, child_process 等) 已替换为

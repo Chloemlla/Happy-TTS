@@ -2,7 +2,7 @@
 title: Redis IP封禁配置指南
 description: 使用Redis优化IP封禁系统，提供更快的查询速度和更好的性能
 date: 2025-11-22
-author: Happy TTS Team
+author: Synapse Team
 tags: [后端, Redis, 安全, IP封禁, 性能优化, 配置]
 ---
 

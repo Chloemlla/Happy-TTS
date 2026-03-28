@@ -36,7 +36,7 @@ function base32Decode(str: string): Buffer {
 
 describe("TOTP密钥调试测试", () => {
   const testUsername = "testuser";
-  const testServiceName = "Happy TTS";
+  const testServiceName = "Synapse";
 
   describe("密钥生成和验证", () => {
     test("应该生成有效的TOTP密钥", () => {
@@ -221,13 +221,13 @@ describe("TOTP密钥调试测试", () => {
 
       // 测试包含特殊字符的用户名和服务名
       const specialUsername = "test@user.com";
-      const specialServiceName = "Happy TTS & Co.";
+      const specialServiceName = "Synapse & Co.";
 
       const otpauthUrl = TOTPService.generateOTPAuthURL(secret, specialUsername, specialServiceName);
 
       // URL应该被正确编码
       expect(otpauthUrl).toContain("test_user_com"); // 特殊字符被替换为下划线
-      expect(otpauthUrl).toContain("Happy-TTS---Co-"); // 特殊字符被替换为中划线
+      expect(otpauthUrl).toContain("Synapse---Co-"); // 特殊字符被替换为中划线
       expect(otpauthUrl).toContain(`secret=${secret}`); // 密钥应该保持不变
     });
   });
@@ -319,7 +319,7 @@ describe("TOTP密钥调试测试", () => {
 
       // 验证所有必要参数都存在
       expect(params.get("secret")).toBe(secret);
-      expect(params.get("issuer")).toBe("Happy-TTS");
+      expect(params.get("issuer")).toBe("Synapse");
       expect(params.get("algorithm")).toBe("SHA1");
       expect(params.get("digits")).toBe("6");
       expect(params.get("period")).toBe("30");

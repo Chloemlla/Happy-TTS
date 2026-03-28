@@ -61,7 +61,7 @@ export class TamperDetectionAPI {
    * await TamperDetection.report({
    *   type: 'dom_modification',
    *   elementId: 'app-header',
-   *   original: 'Happy TTS',
+   *   original: 'Synapse',
    *   tampered: 'Modified Content'
    * });
    * 
@@ -286,7 +286,7 @@ export class TamperDetectionAPI {
   TamperDetection.report({
     type: 'dom_modification',
     elementId: 'app-header',
-    original: 'Happy TTS',
+    original: 'Synapse',
     tampered: 'Modified'
   })
 

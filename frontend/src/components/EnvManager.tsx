@@ -1727,23 +1727,23 @@ const EnvManager: React.FC = () => {
   const handleSaveClarityConfig = useCallback(async () => {
     if (clarityConfigSaving) return;
     const value = clarityProjectIdInput.trim().toLowerCase();
-    
+
     // 前端格式验证
     if (!value) {
       setNotification({ message: '请填写 Clarity Project ID', type: 'error' });
       return;
     }
-    
+
     // 验证格式：10位小写字母数字组合
     const clarityIdPattern = /^[a-z0-9]{10}$/;
     if (!clarityIdPattern.test(value)) {
-      setNotification({ 
-        message: 'Project ID 格式无效，应为10位小写字母数字组合（例如：t1dkcavsyz）', 
-        type: 'error' 
+      setNotification({
+        message: 'Project ID 格式无效，应为10位小写字母数字组合（例如：t1dkcavsyz）',
+        type: 'error'
       });
       return;
     }
-    
+
     setClarityConfigSaving(true);
     try {
       const res = await fetch(CLARITY_CONFIG_API, {
@@ -1752,7 +1752,7 @@ const EnvManager: React.FC = () => {
         body: JSON.stringify({ projectId: value })
       });
       const data = await res.json();
-      
+
       if (!res.ok || !data.success) {
         // 显示详细的错误信息
         const errorMsg = data.error || data.message || '保存失败';
@@ -1761,7 +1761,7 @@ const EnvManager: React.FC = () => {
         setNotification({ message: fullMessage, type: 'error' });
         return;
       }
-      
+
       setNotification({ message: '保存成功', type: 'success' });
       setClarityProjectIdInput('');
       await fetchClarityConfig();
@@ -1781,7 +1781,7 @@ const EnvManager: React.FC = () => {
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }
       });
       const data = await res.json();
-      
+
       if (!res.ok || !data.success) {
         // 显示详细的错误信息
         const errorMsg = data.error || data.message || '删除失败';
@@ -1790,7 +1790,7 @@ const EnvManager: React.FC = () => {
         setNotification({ message: fullMessage, type: 'error' });
         return;
       }
-      
+
       setNotification({ message: '删除成功', type: 'success' });
       await fetchClarityConfig();
     } catch (e) {
@@ -1835,7 +1835,7 @@ const EnvManager: React.FC = () => {
       setNotification({ message: '请填写 curl 命令', type: 'error' });
       return;
     }
-    
+
     // 安全的 GitHub URL 验证
     try {
       // 从 curl 命令中提取 URL（匹配引号内的 URL 或空格后的第一个 URL）
@@ -1844,31 +1844,31 @@ const EnvManager: React.FC = () => {
         setNotification({ message: '无法从 curl 命令中提取有效的 URL', type: 'error' });
         return;
       }
-      
+
       const url = new URL(urlMatch[1] || urlMatch[2]);
-      
+
       // 严格验证主机名：必须是 github.com 或其子域名
       const hostname = url.hostname.toLowerCase();
       const isValidGithubDomain = hostname === 'github.com' || hostname.endsWith('.github.com');
-      
+
       // 验证协议必须是 https
       const isSecureProtocol = url.protocol === 'https:';
-      
+
       if (!isValidGithubDomain || !isSecureProtocol) {
-        setNotification({ 
-          message: '请提供有效的 GitHub API curl 命令（必须使用 https://github.com 或其子域名）', 
-          type: 'error' 
+        setNotification({
+          message: '请提供有效的 GitHub API curl 命令（必须使用 https://github.com 或其子域名）',
+          type: 'error'
         });
         return;
       }
     } catch (e) {
-      setNotification({ 
-        message: '无效的 curl 命令格式，请确保包含有效的 GitHub API URL', 
-        type: 'error' 
+      setNotification({
+        message: '无效的 curl 命令格式，请确保包含有效的 GitHub API URL',
+        type: 'error'
       });
       return;
     }
-    
+
     setGithubBillingConfigSaving(true);
     try {
       const res = await fetch(getApiBaseUrl() + `/api/github-billing/multi-config/${selectedConfigKey}`, {
@@ -2556,7 +2556,7 @@ const EnvManager: React.FC = () => {
               <input
                 value={ipfsUserAgentInput}
                 onChange={(e) => setIpfsUserAgentInput(e.target.value)}
-                placeholder="例如：HappyTTS-IPFS-Uploader/1.0 (+https://example.com)"
+                placeholder="例如：Synapse-IPFS-Uploader/1.0 (+https://example.com)"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
               />
             </div>
@@ -3534,8 +3534,8 @@ const EnvManager: React.FC = () => {
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 mb-3">
                             <div className="flex items-center gap-2">
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${log.success
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-red-100 text-red-800'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-red-100 text-red-800'
                                 }`}>
                                 {log.success ? '✓ 成功' : '✗ 失败'}
                               </span>

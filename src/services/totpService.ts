@@ -12,7 +12,7 @@ export class TOTPService {
   /**
    * 生成TOTP密钥
    */
-  public static generateSecret(username: string, serviceName: string = "Happy TTS"): string {
+  public static generateSecret(username: string, serviceName: string = "Synapse"): string {
     // 参数校验
     if (!username || typeof username !== "string" || username.trim().length === 0) {
       throw new Error("用户名不能为空");
@@ -40,7 +40,7 @@ export class TOTPService {
   /**
    * 生成otpauth URL
    */
-  public static generateOTPAuthURL(secret: string, username: string, serviceName: string = "Happy TTS"): string {
+  public static generateOTPAuthURL(secret: string, username: string, serviceName: string = "Synapse"): string {
     // 参数校验
     if (!secret || typeof secret !== "string" || secret.trim().length === 0) {
       throw new Error("TOTP密钥不能为空");
@@ -94,7 +94,7 @@ export class TOTPService {
   public static async generateQRCodeDataURL(
     secret: string,
     username: string,
-    serviceName: string = "Happy TTS",
+    serviceName: string = "Synapse",
   ): Promise<string> {
     // 参数校验
     if (!secret || typeof secret !== "string" || secret.trim().length === 0) {

@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # 基础使用教程
 
-本教程将指导您完成 Happy-TTS 的基础使用流程，从注册账户到生成第一个语音文件。
+本教程将指导您完成 Synapse 的基础使用流程，从注册账户到生成第一个语音文件。
 
 ## 准备工作
 
@@ -12,7 +12,7 @@ sidebar_position: 1
 
 - **浏览器**: 支持现代浏览器的 Fetch API
 - **网络**: 稳定的互联网连接
-- **账户**: Happy-TTS 用户账户
+- **账户**: Synapse 用户账户
 
 ### 2. 获取 API 信息
 
@@ -24,7 +24,7 @@ sidebar_position: 1
 
 ### 创建用户账户
 
-首先，您需要注册一个 Happy-TTS 账户：
+首先，您需要注册一个 Synapse 账户：
 
 ```javascript
 async function registerUser(username, password) {
@@ -195,7 +195,7 @@ async function generateSpeech(text, options = {}) {
 }
 
 // 使用示例
-generateSpeech("你好，欢迎使用 Happy-TTS！")
+generateSpeech("你好，欢迎使用 Synapse！")
   .then((result) => {
     console.log("音频文件地址:", result.audioUrl);
     // 播放音频
@@ -281,8 +281,8 @@ getHistory()
 ### 完整的应用流程
 
 ```javascript
-// 完整的 Happy-TTS 使用流程
-class HappyTTSClient {
+// 完整的 Synapse 使用流程
+class SynapseClient {
   constructor() {
     this.baseUrl = "https://api.hapxs.com";
     this.token = localStorage.getItem("auth_token");
@@ -382,7 +382,7 @@ class HappyTTSClient {
 
 // 使用示例
 async function main() {
-  const client = new HappyTTSClient();
+  const client = new SynapseClient();
 
   try {
     // 1. 注册用户（如果还没有账户）

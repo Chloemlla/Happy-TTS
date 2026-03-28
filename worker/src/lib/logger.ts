@@ -5,7 +5,7 @@
 export class Logger {
   private prefix: string;
 
-  constructor(prefix = 'happy-tts') {
+  constructor(prefix = 'synapse') {
     this.prefix = prefix;
   }
 

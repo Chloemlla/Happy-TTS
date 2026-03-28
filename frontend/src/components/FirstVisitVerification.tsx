@@ -1196,7 +1196,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
             className={`text-center text-gray-600 mb-2 font-medium ${isMobile ? 'text-sm' : 'text-base'
               }`}
           >
-            Happy TTS
+            Synapse
           </motion.p>
 
           {/* 说明文字 */}

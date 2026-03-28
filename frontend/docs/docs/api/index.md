@@ -1,6 +1,6 @@
-# Happy-TTS API 文档索引
+# Synapse API 文档索引
 
-欢迎使用 Happy-TTS API 文档！本文档提供了完整的接口参考和使用指南。
+欢迎使用 Synapse API 文档！本文档提供了完整的接口参考和使用指南。
 
 ## 📚 文档导航
 
@@ -175,4 +175,4 @@ new Audio(audioUrl).play();
 
 ---
 
-**Happy-TTS API** - 让文本转语音变得简单高效！ 🎵
+**Synapse API** - 让文本转语音变得简单高效！ 🎵

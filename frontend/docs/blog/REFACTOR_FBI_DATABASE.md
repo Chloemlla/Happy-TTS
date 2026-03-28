@@ -2,7 +2,7 @@
 title: FBI通缉犯数据库优化方案
 description: MongoDB索引优化和查询性能提升方案，实现70%+性能提升
 date: 2025-11-22
-author: Happy TTS Team
+author: Synapse Team
 tags: [数据库, MongoDB, 索引优化, 查询优化, FBI通缉犯, 性能]
 ---
 

@@ -179,10 +179,10 @@ Dockerfile 包含自动重试逻辑：
 
    ```bash
    # 先构建基础镜像
-   docker build --target frontend-builder -t happy-tts:frontend .
+   docker build --target frontend-builder -t Synapse:frontend .
 
    # 再构建完整镜像
-   docker build --target backend-builder -t happy-tts:latest .
+   docker build --target backend-builder -t Synapse:latest .
    ```
 
 ## 性能优化建议
@@ -246,7 +246,7 @@ htop
 npm run docker:build
 
 # 或直接使用Docker
-docker build -t happy-tts:latest .
+docker build -t Synapse:latest .
 ```
 
 如果遇到问题，请参考故障排除部分或使用简化构建模式。

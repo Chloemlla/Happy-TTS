@@ -9,7 +9,7 @@ tags: [librechat, turnstile, backend, verification, security, api, blog]
 
 ## 问题背景
 
-在 HappyTTS 项目的 LibreChat 聊天功能中，前端已经集成了 Turnstile 人机验证，但后端也需要相应的验证机制来确保：
+在 Synapse 项目的 LibreChat 聊天功能中，前端已经集成了 Turnstile 人机验证，但后端也需要相应的验证机制来确保：
 
 1. **安全性**：防止绕过前端验证直接调用 API
 2. **一致性**：前后端验证逻辑保持一致

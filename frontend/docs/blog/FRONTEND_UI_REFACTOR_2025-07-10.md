@@ -8,7 +8,7 @@ slug: frontend_ui_refactor_2025_07_10
 
 ## 1. 目标与背景
 
-近期对 Happy-TTS 前端 UI 进行了大规模重构，目标：
+近期对 Synapse 前端 UI 进行了大规模重构，目标：
 
 - 移除所有 ./ui/Button、Card、Dialog、Input 等冗余组件，统一用 framer-motion 动画和原生标签实现。
 - 所有弹窗、按钮、输入框均支持动画，体验更现代。

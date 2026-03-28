@@ -5,7 +5,7 @@ REM Docker构建脚本 - Windows版本
 REM 使用方法: scripts\build-docker.bat [tag]
 
 set "TAG=%1"
-if "%TAG%"=="" set "TAG=happy-tts:latest"
+if "%TAG%"=="" set "TAG=Synapse:latest"
 
 echo [INFO] 开始构建Docker镜像: %TAG%
 
@@ -62,7 +62,7 @@ if errorlevel 1 (
     set /p "RUN=是否运行容器进行测试? (y/N): "
     if /i "!RUN!"=="y" (
         echo [INFO] 启动测试容器...
-        start "Happy-TTS Container" docker run --rm -p 3000:3000 -p 3001:3001 -p 3002:3002 %TAG%
+        start "Synapse Container" docker run --rm -p 3000:3000 -p 3001:3001 -p 3002:3002 %TAG%
         
         echo [INFO] 容器已启动
         echo [INFO] 访问地址:

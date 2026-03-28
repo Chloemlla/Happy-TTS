@@ -101,12 +101,12 @@ const ApiDocs: React.FC = () => {
                   <FaFileAlt className="w-8 h-8 sm:w-10 sm:h-10 text-[#219EBC]" />
                 </m.div>
                 <h2 className="text-2xl font-bold font-songti text-[#023047] mb-3">
-                  {lang === 'zh' ? 'Happy-TTS API 文档' : 'Happy-TTS API Documentation'}
+                  {lang === 'zh' ? 'Synapse API 文档' : 'Synapse API Documentation'}
                 </h2>
                 <p className="text-[#023047]/60 mb-6 max-w-2xl mx-auto leading-relaxed text-sm">
                   {lang === 'zh'
-                    ? '您即将跳转到 Happy-TTS API 文档站点，该站点包含完整的 API 参考、教程和最佳实践。'
-                    : 'You are about to be redirected to the Happy-TTS API documentation site, which contains complete API reference, tutorials and best practices.'
+                    ? '您即将跳转到 Synapse API 文档站点，该站点包含完整的 API 参考、教程和最佳实践。'
+                    : 'You are about to be redirected to the Synapse API documentation site, which contains complete API reference, tutorials and best practices.'
                   }
                 </p>
               </m.div>
@@ -122,8 +122,8 @@ const ApiDocs: React.FC = () => {
                   <div className="mt-1 text-sm text-[#023047]/70">
                     <p className="mb-2">
                       {lang === 'zh'
-                        ? <><span className="font-semibold text-[#219EBC]">Happy-TTS API 文档服务</span> 由以下两个附属站点联合提供，内容完全一致，均为官方维护：</>
-                        : <><span className="font-semibold text-[#219EBC]">Happy-TTS API documentation</span> is provided by two official affiliate sites below. Content is identical and officially maintained:</>
+                        ? <><span className="font-semibold text-[#219EBC]">Synapse API 文档服务</span> 由以下两个附属站点联合提供，内容完全一致，均为官方维护：</>
+                        : <><span className="font-semibold text-[#219EBC]">Synapse API documentation</span> is provided by two official affiliate sites below. Content is identical and officially maintained:</>
                       }
                     </p>
                     <ul className="text-left text-xs md:text-sm mt-2 ml-4 list-disc space-y-1">
@@ -139,7 +139,7 @@ const ApiDocs: React.FC = () => {
                       </li>
                     </ul>
                     <div className="mt-2 text-xs text-[#023047]/30">
-                      {lang === 'zh' ? '所有文档均为 Happy-TTS 官方团队维护，确保内容权威、及时更新。' : 'All docs are maintained by the Happy-TTS official team, ensuring authority and timely updates.'}
+                      {lang === 'zh' ? '所有文档均为 Synapse 官方团队维护，确保内容权威、及时更新。' : 'All docs are maintained by the Synapse official team, ensuring authority and timely updates.'}
                     </div>
                   </div>
                 </div>
@@ -191,7 +191,7 @@ const ApiDocs: React.FC = () => {
                     {lang === 'zh' ? (
                       <>
                         <span className="block mb-1 font-semibold text-[#219EBC]">官方 API 文档站点</span>
-                        <span className="block mb-1">Happy-TTS 致力于为开发者提供权威、详尽、持续更新的 API 文档，助力高效集成与创新应用。</span>
+                        <span className="block mb-1">Synapse 致力于为开发者提供权威、详尽、持续更新的 API 文档，助力高效集成与创新应用。</span>
                         <span className="block mb-1 text-[#219EBC]">主站点响应速度快，稳定性高，推荐优先访问。</span>
                         <span className="block mb-1 text-[#023047]/50">如遇网络问题，可选择备用站点，内容完全一致。</span>
                         <span className="block mt-2 text-xs text-[#023047]/30">（为保障访问体验，5 秒后将自动跳转主站点）</span>
@@ -199,7 +199,7 @@ const ApiDocs: React.FC = () => {
                     ) : (
                       <>
                         <span className="block mb-1 font-semibold text-[#219EBC]">Official API Documentation Sites</span>
-                        <span className="block mb-1">Happy-TTS is committed to providing developers with authoritative, detailed, and continuously updated API docs.</span>
+                        <span className="block mb-1">Synapse is committed to providing developers with authoritative, detailed, and continuously updated API docs.</span>
                         <span className="block mb-1 text-[#219EBC]">The main site is fast and highly stable. Recommended for most users.</span>
                         <span className="block mb-1 text-[#023047]/50">If you have network issues, use the backup site. Content is identical.</span>
                         <span className="block mt-2 text-xs text-[#023047]/30">(Auto redirect to main site in 5 seconds)</span>
@@ -279,7 +279,7 @@ const ApiDocs: React.FC = () => {
                       },
                       {
                         q: lang === 'zh' ? 'Q: 站点内容有区别吗？' : 'Q: Is there any difference between the two sites?',
-                        a: lang === 'zh' ? '两个站点内容完全一致，均为 Happy-TTS 官方团队同步维护。' : 'Both sites have identical content and are maintained by the Happy-TTS official team.'
+                        a: lang === 'zh' ? '两个站点内容完全一致，均为 Synapse 官方团队同步维护。' : 'Both sites have identical content and are maintained by the Synapse official team.'
                       }
                     ].map(({ q, a }) => (
                       <div key={q} className="mb-3 last:mb-0">

@@ -2,7 +2,7 @@
 title: 数据收集服务增强实现
 description: 全面增强数据收集服务的安全性、高性能、容错能力和扩展性
 date: 2025-10-19
-author: Happy TTS Team
+author: Synapse Team
 tags: [后端, 安全, 性能优化, MongoDB, 批量处理, 断路器, 限流]
 ---
 

@@ -88,7 +88,7 @@ export const ResetPasswordPage: React.FC = () => {
                     <m.div className="mb-8 text-center" variants={effectiveCardVariants} initial="hidden" animate="visible" transition={{ duration: 0.5 }}>
                         <div className="mb-3 inline-flex items-center gap-3">
                             <FaVolumeUp className="h-10 w-10 text-[#219EBC]" />
-                            <h1 className="text-3xl font-bold font-songti text-[#023047]">Happy TTS</h1>
+                            <h1 className="text-3xl font-bold font-songti text-[#023047]">Synapse</h1>
                         </div>
                         <p className="text-[#023047]/60 text-sm tracking-wide">重置密码</p>
                     </m.div>

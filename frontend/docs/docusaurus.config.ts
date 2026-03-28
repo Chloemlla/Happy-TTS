@@ -8,8 +8,8 @@ if (!process.env.DOCUSAURUS_DISABLE_GIT_INFO) process.env.DOCUSAURUS_DISABLE_GIT
 if (!process.env.DISABLE_GIT_INFO) process.env.DISABLE_GIT_INFO = 'true';
 
 const config: Config = {
-  title: 'Happy-TTS API 文档',
-  tagline: 'Happy-TTS 文本转语音服务 API 文档',
+  title: 'Synapse API 文档',
+  tagline: 'Synapse 文本转语音服务 API 文档',
   favicon: 'img/favicon.svg',
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
@@ -25,8 +25,8 @@ const config: Config = {
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
-  organizationName: 'happy-tts', // Usually your GitHub org/user name.
-  projectName: 'happy-tts', // Usually your repo name.
+  organizationName: 'Synapse', // Usually your GitHub org/user name.
+  projectName: 'Synapse', // Usually your repo name.
 
   onBrokenLinks: 'ignore',
   onBrokenMarkdownLinks: 'ignore',
@@ -65,7 +65,7 @@ const config: Config = {
           showLastUpdateAuthor: false,
           feedOptions: {
             type: 'all',
-            copyright: `Copyright © ${new Date().getFullYear()} Happy-TTS`,
+            copyright: `Copyright © ${new Date().getFullYear()} Synapse`,
           },
           // 忽略未在 authors.yml 定义的内联作者和未添加截断标记的博文警告
           onInlineAuthors: 'ignore',
@@ -79,9 +79,9 @@ const config: Config = {
     // Replace with your project's social card
     image: 'img/social-card.svg',
     navbar: {
-      title: 'Happy-TTS API',
+      title: 'Synapse API',
       logo: {
-        alt: 'Happy-TTS Logo',
+        alt: 'Synapse Logo',
         src: 'img/logo.svg',
       },
       items: [
@@ -97,7 +97,7 @@ const config: Config = {
           position: 'left'
         },
         {
-          href: 'https://github.com/hapxscom/happy-tts',
+          href: 'https://github.com/hapxscom/Synapse',
           label: 'GitHub',
           position: 'right',
         },
@@ -124,7 +124,7 @@ const config: Config = {
           items: [
             {
               label: 'GitHub Issues',
-              href: 'https://github.com/hapxscom/happy-tts/issues',
+              href: 'https://github.com/hapxscom/Synapse/issues',
             },
           ],
         },
@@ -133,12 +133,12 @@ const config: Config = {
           items: [
             {
               label: 'GitHub',
-              href: 'https://github.com/hapxscom/happy-tts',
+              href: 'https://github.com/hapxscom/Synapse',
             },
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Happy-TTS.`,
+      copyright: `Copyright © ${new Date().getFullYear()} Synapse.`,
     },
     prism: {
       theme: prismThemes.github,
@@ -146,7 +146,7 @@ const config: Config = {
     },
     metadata: [
       { name: 'keywords', content: 'TTS, 文本转语音, API, 文档' },
-      { name: 'description', content: 'Happy-TTS 文本转语音服务 API 文档' },
+      { name: 'description', content: 'Synapse 文本转语音服务 API 文档' },
     ],
   } satisfies Preset.ThemeConfig,
 

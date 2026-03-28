@@ -7,7 +7,7 @@ sidebar_position: 4
 
 ## 简介
 
-本文档介绍如何在 Java 项目中通过 HTTP API 调用 Happy-TTS 文本转语音（TTS）服务，适用于需要在 Java 后端或桌面应用中集成 TTS 功能的场景。
+本文档介绍如何在 Java 项目中通过 HTTP API 调用 Synapse 文本转语音（TTS）服务，适用于需要在 Java 后端或桌面应用中集成 TTS 功能的场景。
 
 ## 依赖
 

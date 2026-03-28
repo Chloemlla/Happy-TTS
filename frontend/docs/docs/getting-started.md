@@ -6,7 +6,7 @@ sidebar_position: 2
 
 # 快速开始
 
-本指南将帮助您快速上手 Happy-TTS API，包括注册账户、获取认证令牌和发送第一个请求。
+本指南将帮助您快速上手 Synapse API，包括注册账户、获取认证令牌和发送第一个请求。
 
 ## 用户注册
 
@@ -126,7 +126,7 @@ sidebar_position: 2
     -H "Authorization: Bearer YOUR_TOKEN" \
     -H "Content-Type: application/json" \
     -d '{
-      "text": "你好，欢迎使用 Happy-TTS！",
+      "text": "你好，欢迎使用 Synapse！",
       "model": "tts-1",
       "voice": "alloy",
       "outputFormat": "mp3",
@@ -165,7 +165,7 @@ sidebar_position: 2
   {
     "records": [
       {
-        "text": "你好，欢迎使用 Happy-TTS！",
+        "text": "你好，欢迎使用 Synapse！",
         "fileName": "abc123.mp3",
         "timestamp": "2024-01-01T12:00:00Z"
       }
@@ -201,4 +201,4 @@ sidebar_position: 2
 
 ---
 
-如需更多帮助，请联系 support@hapxs.com 或访问 [GitHub Issues](https://github.com/hapxscom/happy-tts/issues)。
+如需更多帮助，请联系 support@hapxs.com 或访问 [GitHub Issues](https://github.com/hapxscom/Synapse/issues)。

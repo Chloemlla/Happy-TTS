@@ -2,14 +2,14 @@
 title: 批量图片上传功能实现
 date: 2025-08-27
 slug: batch-image-upload
-tags: [batch, upload, image, happytts]
+tags: [batch, upload, image, Synapse]
 ---
 
 # 批量图片上传功能实现
 
 ## 功能概述
 
-在 HappyTTS 项目中，我们实现了强大的批量图片上传功能，支持用户一次性选择多个图片文件进行上传，并提供了完整的进度跟踪和状态管理。
+在 Synapse 项目中，我们实现了强大的批量图片上传功能，支持用户一次性选择多个图片文件进行上传，并提供了完整的进度跟踪和状态管理。
 
 ## 核心特性
 

@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # 认证机制
 
-Happy-TTS API 使用 JWT (JSON Web Token) 进行身份认证。本文档详细介绍了认证流程和令牌管理。
+Synapse API 使用 JWT (JSON Web Token) 进行身份认证。本文档详细介绍了认证流程和令牌管理。
 
 ## 认证流程
 
@@ -83,7 +83,7 @@ curl -X POST https://api.hapxs.com/api/tts/generate \
 
 ### 令牌格式
 
-Happy-TTS 使用标准的 JWT 格式，包含以下信息：
+Synapse 使用标准的 JWT 格式，包含以下信息：
 
 - **Header**: 算法信息
 - **Payload**: 用户信息和过期时间

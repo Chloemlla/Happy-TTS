@@ -59,7 +59,7 @@ async function getIPFSUserAgent(): Promise<string> {
   }
 
   // 如果没有配置，使用默认User-Agent
-  const defaultUA = "Happy-TTS-IPFS-Client/1.0";
+  const defaultUA = "Synapse-IPFS-Client/1.0";
   logger.info("[IPFS] 使用默认User-Agent:", defaultUA);
   return defaultUA;
 }

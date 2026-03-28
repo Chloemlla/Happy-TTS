@@ -2,7 +2,7 @@
 title: 登录注册页面分离重构实施总结
 description: 将认证功能从WelcomePage拆分为独立的LoginPage和RegisterPage组件，提升用户体验和代码维护性
 date: 2025-11-22
-author: Happy TTS Team
+author: Synapse Team
 tags: [前端, React, 路由, 用户认证, 重构, TypeScript, UI优化]
 ---
 

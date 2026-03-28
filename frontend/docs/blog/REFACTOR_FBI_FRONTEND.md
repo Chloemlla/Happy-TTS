@@ -2,7 +2,7 @@
 title: FBI通缉犯前端优化方案
 description: 前端类型统一、API层重构和图片缓存优化方案
 date: 2025-11-22
-author: Happy TTS Team
+author: Synapse Team
 tags: [前端, TypeScript, API设计, 性能优化, FBI通缉犯, IndexedDB]
 ---
 

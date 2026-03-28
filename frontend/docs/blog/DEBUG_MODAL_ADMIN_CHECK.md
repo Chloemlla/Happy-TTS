@@ -9,7 +9,7 @@ tags: [debug, admin, security, modal, authentication, blog]
 
 ## 问题背景
 
-在 HappyTTS 项目中，调试信息模态框（DebugInfoModal）原本对所有用户都可见，这可能导致以下问题：
+在 Synapse 项目中，调试信息模态框（DebugInfoModal）原本对所有用户都可见，这可能导致以下问题：
 
 1. **安全风险**：非管理员用户可能看到敏感的调试信息
 2. **信息泄露**：调试信息可能包含系统内部结构和配置信息

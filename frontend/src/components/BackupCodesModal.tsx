@@ -75,7 +75,7 @@ const BackupCodesModal: React.FC<BackupCodesModalProps> = ({ isOpen, onClose }) 
   };
 
   const downloadBackupCodes = () => {
-    const content = `Happy TTS 备用恢复码
+    const content = `Synapse 备用恢复码
 
 重要提示：
 - 请妥善保管这些恢复码，它们可以用于在无法使用认证器时登录您的账户
@@ -122,7 +122,7 @@ ${backupCodes.map((code, index) => `${index + 1}. ${code}`).join('\n')}
       </head>
       <body>
         <div class="header">
-          <h1>Happy TTS 备用恢复码</h1>
+          <h1>Synapse 备用恢复码</h1>
         </div>
         
         <div class="warning">

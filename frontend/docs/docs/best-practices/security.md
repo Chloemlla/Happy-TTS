@@ -7,7 +7,7 @@ sidebar_position: 2
 
 ## 简介
 
-本章节专门介绍 Happy-TTS 的安全最佳实践，包括 API 密钥管理、输入验证、访问控制等安全相关建议。
+本章节专门介绍 Synapse 的安全最佳实践，包括 API 密钥管理、输入验证、访问控制等安全相关建议。
 
 ## API 密钥管理
 
@@ -306,7 +306,7 @@ class SecureTTSClient {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${this.apiKey}`,
-        "User-Agent": "Happy-TTS-Client/1.0",
+        "User-Agent": "Synapse-Client/1.0",
       },
       body: JSON.stringify(data),
     });

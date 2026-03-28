@@ -1,5 +1,5 @@
 {
-  "name": "happy-tts-frontend",
+  "name": "synapse-frontend",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -54,7 +54,7 @@
     "express-rate-limit": "^7.5.0",
     "form-data": "^4.0.5",
     "framer-motion": "^12.38.0",
-    "happy-tts-frontend": "file:",
+    "synapse-frontend": "file:",
     "html2canvas": "^1.4.1",
     "idb": "^8.0.3",
     "javascript-obfuscator": "^5.4.1",

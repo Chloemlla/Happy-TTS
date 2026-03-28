@@ -4,7 +4,7 @@ sidebar_position: 2
 
 # TTS 接口文档
 
-Happy-TTS 提供完整的文本转语音 API 接口，支持多种语音模型和发音人选择。
+Synapse 提供完整的文本转语音 API 接口，支持多种语音模型和发音人选择。
 
 ## 生成语音
 
@@ -61,7 +61,7 @@ curl -X POST https://api.hapxs.com/api/tts/generate \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "text": "欢迎使用 Happy-TTS 文本转语音服务！",
+    "text": "欢迎使用 Synapse 文本转语音服务！",
     "model": "tts-1",
     "voice": "alloy",
     "output_format": "mp3",
@@ -119,7 +119,7 @@ curl -X GET https://api.hapxs.com/api/tts/history \
 {
   "records": [
     {
-      "text": "欢迎使用 Happy-TTS 文本转语音服务！",
+      "text": "欢迎使用 Synapse 文本转语音服务！",
       "fileName": "abc123def456.mp3",
       "timestamp": "2024-01-01T12:00:00.000Z",
       "model": "tts-1",

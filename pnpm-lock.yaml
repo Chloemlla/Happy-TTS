@@ -83,7 +83,7 @@ importers:
       google-auth-library:
         specifier: ^10.6.2
         version: 10.6.2
-      happy-tts:
+      synapse:
         specifier: 'file:'
         version: file:(@noble/hashes@1.8.0)(@types/node@25.5.0)(openapi-types@12.1.3)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(socks@2.8.7)
       helmet:
@@ -2139,7 +2139,7 @@ packages:
     engines: {node: '>=0.4.7'}
     hasBin: true
 
-  'happy-tts@file:':
+  'synapse@file:':
     resolution: {directory: '', type: directory}
 
   has-flag@3.0.0:
@@ -5950,7 +5950,7 @@ snapshots:
     optionalDependencies:
       uglify-js: 3.19.3
 
-  happy-tts@file:(@noble/hashes@1.8.0)(@types/node@25.5.0)(openapi-types@12.1.3)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(socks@2.8.7):
+  synapse@file:(@noble/hashes@1.8.0)(@types/node@25.5.0)(openapi-types@12.1.3)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(socks@2.8.7):
     dependencies:
       '@fingerprintjs/fingerprintjs': 5.1.0
       '@simplewebauthn/browser': 13.3.0

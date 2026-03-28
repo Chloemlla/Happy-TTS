@@ -2,7 +2,7 @@
 title: 生产级服务基础类框架
 description: 可复用的生产级服务基础类，提供断路器、限流器、缓存、监控等通用功能
 date: 2025-10-19
-author: Happy TTS Team
+author: Synapse Team
 tags: [后端, 架构, 基础框架, 断路器, 限流, 缓存, 监控, 复用]
 ---
 

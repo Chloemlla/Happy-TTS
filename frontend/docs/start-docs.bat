@@ -1,5 +1,5 @@
 @echo off
-echo 正在启动 Happy-TTS API 文档服务...
+echo 正在启动 Synapse API 文档服务...
 echo 端口: 6000
 echo 地址: http://localhost:6000
 echo.

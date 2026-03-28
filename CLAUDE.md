@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Happy TTS is a comprehensive full-stack web application platform centered around text-to-speech functionality, with extensive user authentication, security features, resource management, and data analytics capabilities. The platform uses a frontend-backend separation architecture with 42 route modules, 50+ service modules, and 100+ React components.
+Synapse is a comprehensive full-stack web application platform centered around text-to-speech functionality, with extensive user authentication, security features, resource management, and data analytics capabilities. The platform uses a frontend-backend separation architecture with 42 route modules, 50+ service modules, and 100+ React components.
 
 ## Development Commands
 

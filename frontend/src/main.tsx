@@ -1820,7 +1820,7 @@ function isFirstVisitVerificationPage(): boolean {
     // 通过页面内容检查
     document.body.innerHTML.includes("FirstVisitVerification") ||
     (document.body.innerHTML.includes("欢迎访问") &&
-      document.body.innerHTML.includes("Happy TTS")) ||
+      document.body.innerHTML.includes("Synapse")) ||
     // 通过URL路径检查
     window.location.pathname.includes("first-visit") ||
     window.location.hash.includes("first-visit") ||

@@ -2,7 +2,7 @@
 title: 弹窗自动滚动系统实现
 description: 实现统一的弹窗自动滚动和位置恢复系统，提供流畅的用户体验
 date: 2025-09-27
-author: Happy TTS Team
+author: Synapse Team
 tags: [前端, 用户体验, React, 弹窗管理, 滚动控制, 状态管理]
 ---
 

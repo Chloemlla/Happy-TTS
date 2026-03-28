@@ -6,7 +6,7 @@ import { TOTPService } from "../services/totpService";
 describe("TOTP URL Format Tests", () => {
   test("should generate valid otpauth URL for standard username", () => {
     const username = "testuser";
-    const serviceName = "Happy TTS";
+    const serviceName = "Synapse";
 
     // 生成密钥
     const secret = TOTPService.generateSecret(username, serviceName);
@@ -20,9 +20,9 @@ describe("TOTP URL Format Tests", () => {
     const match = otpauthUrl.match(urlPattern);
 
     expect(match).toBeTruthy();
-    expect(match?.[1]).toBe("Happy-TTS:testuser"); // 发行者:账户名
+    expect(match?.[1]).toBe("Synapse:testuser"); // 发行者:账户名
     expect(match?.[2]).toBe(secret); // 密钥
-    expect(match?.[3]).toBe("Happy-TTS"); // 发行者参数
+    expect(match?.[3]).toBe("Synapse"); // 发行者参数
     expect(match?.[4]).toBe("SHA1"); // 算法
     expect(match?.[5]).toBe("6"); // 位数
     expect(match?.[6]).toBe("30"); // 周期
@@ -54,7 +54,7 @@ describe("TOTP URL Format Tests", () => {
 
   test("should include all required parameters", () => {
     const username = "testuser";
-    const serviceName = "Happy TTS";
+    const serviceName = "Synapse";
 
     const secret = TOTPService.generateSecret(username, serviceName);
     const otpauthUrl = TOTPService.generateOTPAuthURL(secret, username, serviceName);
@@ -68,7 +68,7 @@ describe("TOTP URL Format Tests", () => {
 
   test("should generate valid secret", () => {
     const username = "testuser";
-    const serviceName = "Happy TTS";
+    const serviceName = "Synapse";
 
     const secret = TOTPService.generateSecret(username, serviceName);
 
@@ -79,7 +79,7 @@ describe("TOTP URL Format Tests", () => {
 
   test("should throw error for empty username", () => {
     expect(() => {
-      TOTPService.generateSecret("", "Happy TTS");
+      TOTPService.generateSecret("", "Synapse");
     }).toThrow("用户名不能为空");
   });
 

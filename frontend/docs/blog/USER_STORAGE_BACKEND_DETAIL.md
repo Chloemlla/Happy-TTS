@@ -7,7 +7,7 @@ tags: [user, storage, mongodb, mysql, file, backend, blog]
 
 # 后端用户本地存储（文件/MongoDB/MySQL）技术细节与对比
 
-本篇详细介绍 Happy-TTS 用户数据后端三种主流存储方案：本地文件、MongoDB、MySQL。内容涵盖架构原理、关键代码、数据结构、接口实现、优缺点与迁移建议。
+本篇详细介绍 Synapse 用户数据后端三种主流存储方案：本地文件、MongoDB、MySQL。内容涵盖架构原理、关键代码、数据结构、接口实现、优缺点与迁移建议。
 
 ---
 

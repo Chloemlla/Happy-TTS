@@ -2,7 +2,7 @@
 title: FBI通缉犯路由重构方案
 description: 统一FBI通缉犯路由架构，简化公开和管理员API的路由结构
 date: 2025-11-22
-author: Happy TTS Team
+author: Synapse Team
 tags: [后端, 路由, API设计, FBI通缉犯, Express]
 ---
 

@@ -2,7 +2,7 @@
 title: UI 展示页面 - 四大精美移动应用界面
 description: 小红书、冥想APP、音乐播放器、记账理财四大移动应用UI展示，包含完整交互逻辑、Canvas动画、响应式布局和lucide-react图标系统
 date: 2025-10-23
-author: Happy-TTS Team
+author: Synapse Team
 slug: ui-demo-showcase
 tags:
   [
@@ -36,7 +36,7 @@ tags:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     Happy-TTS-1 应用                         │
+│                     Synapse-1 应用                         │
 │                         (App.tsx)                            │
 └─────────────────────────┬───────────────────────────────────┘
                           │
@@ -1030,7 +1030,7 @@ ChevronRight, LogOut, Settings...
 
 如有问题或建议，欢迎反馈！
 
-**项目地址**: Happy-TTS-1  
+**项目地址**: Synapse-1  
 **作者**: SynapticArch  
 **创建日期**: 2025-10-23  
 **版本**: v1.0.0  

@@ -68,7 +68,7 @@ await TamperDetection.check({ force: true });
 await TamperDetection.report({
   type: "dom_modification",
   elementId: "app-header",
-  original: "Happy TTS",
+  original: "Synapse",
   tampered: "Modified Content",
   tamperType: "dom",
   method: "manual-detection",
@@ -95,7 +95,7 @@ await TamperDetection.report({
 ```javascript
 await TamperDetection.report({
   type: "proxy_tampering",
-  original: "Happy TTS",
+  original: "Synapse",
   tampered: "Replaced by Proxy",
   tamperType: "proxy",
   method: "content-analysis",

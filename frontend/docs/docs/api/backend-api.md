@@ -1,8 +1,8 @@
-# Happy-TTS 后端 API 文档
+# Synapse 后端 API 文档
 
 ## 概述
 
-Happy-TTS 是一个基于 Node.js 和 Express 的文本转语音服务，提供完整的用户认证、TTS 生成、双因素认证等功能。本文档详细介绍了所有可用的 API 接口。
+Synapse 是一个基于 Node.js 和 Express 的文本转语音服务，提供完整的用户认证、TTS 生成、双因素认证等功能。本文档详细介绍了所有可用的 API 接口。
 
 ## 基础信息
 

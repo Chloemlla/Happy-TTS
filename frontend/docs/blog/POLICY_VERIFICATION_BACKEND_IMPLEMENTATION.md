@@ -2,7 +2,7 @@
 title: 隐私政策验证后端接口实施总结
 description: 完整的隐私政策验证系统实现，包括数据模型、控制器、路由和测试工具
 date: 2025-11-22
-author: Happy TTS Team
+author: Synapse Team
 tags: [后端, 隐私政策, 用户验证, MongoDB, Express, 合规]
 ---
 
@@ -10,7 +10,7 @@ tags: [后端, 隐私政策, 用户验证, MongoDB, Express, 合规]
 
 ## 🎯 实施概述
 
-成功为 Happy-TTS 项目添加了完整的隐私政策验证后端接口系统，包括数据模型、控制器、路由和测试工具。
+成功为 Synapse 项目添加了完整的隐私政策验证后端接口系统，包括数据模型、控制器、路由和测试工具。
 
 ## 📁 新增文件结构
 

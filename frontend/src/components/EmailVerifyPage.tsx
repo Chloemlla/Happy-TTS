@@ -74,7 +74,7 @@ export const EmailVerifyPage: React.FC = () => {
                 <div className="mb-8 text-center animate-slideInUp">
                     <div className="mb-4 inline-flex items-center gap-3">
                         <FaVolumeUp className="h-10 w-10 text-blue-600" />
-                        <h1 className="text-3xl font-bold text-blue-600">Happy TTS</h1>
+                        <h1 className="text-3xl font-bold text-blue-600">Synapse</h1>
                     </div>
                     <p className="text-gray-600">邮箱验证</p>
                 </div>

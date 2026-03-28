@@ -131,7 +131,7 @@ tags: [security, fix, summary]
 npm test -- src/tests/security-fixes.test.ts
 
 # 构建Docker镜像
-docker build -t happy-tts .
+docker build -t Synapse .
 
 # 检查构建日志
 docker logs <container_id>

@@ -150,7 +150,7 @@ function WelcomePageComponent(): React.ReactElement<any> {
                   transition={effectiveIconEnterTransition}
                 >
                   <FaVolumeUp className="text-4xl" />
-                  <h1 className="text-4xl font-bold font-songti">欢迎使用 Happy TTS</h1>
+                  <h1 className="text-4xl font-bold font-songti">欢迎使用 Synapse</h1>
                 </m.div>
                 <m.p
                   className="text-[#8ECAE6] text-lg"
@@ -176,7 +176,7 @@ function WelcomePageComponent(): React.ReactElement<any> {
                 transition={effectiveAuthTransition}
               >
                 <p className="text-lg text-[#023047]/70 mb-6">
-                  立即开始使用 Happy TTS，体验先进的语音合成技术
+                  立即开始使用 Synapse，体验先进的语音合成技术
                 </p>
 
                 <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">

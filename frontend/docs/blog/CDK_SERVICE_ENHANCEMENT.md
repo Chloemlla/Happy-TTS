@@ -2,7 +2,7 @@
 title: CDK兑换服务生产级增强
 description: 全面增强CDK兑换服务的安全性、高性能、容错能力和监控系统
 date: 2025-10-19
-author: Happy TTS Team
+author: Synapse Team
 tags: [后端, 安全, 性能优化, MongoDB, CDK, 断路器, 限流]
 ---
 

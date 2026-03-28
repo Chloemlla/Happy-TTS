@@ -7,7 +7,7 @@ sidebar_position: 3
 
 ## 简介
 
-本章节提供 Happy-TTS 在不同平台和框架中的集成示例，帮助开发者快速上手。
+本章节提供 Synapse 在不同平台和框架中的集成示例，帮助开发者快速上手。
 
 ## Web 前端集成
 
@@ -193,7 +193,7 @@ app.post("/api/tts/generate", async (req, res) => {
   try {
     const { text, model = "tts-1", voice = "alloy" } = req.body;
 
-    // 调用 Happy-TTS API
+    // 调用 Synapse API
     const response = await axios.post(
       "https://api.hapxs.com/api/tts/generate",
       {
@@ -272,7 +272,7 @@ def generate_tts():
         model = data.get('model', 'tts-1')
         voice = data.get('voice', 'alloy')
 
-        # 调用 Happy-TTS API
+        # 调用 Synapse API
         response = requests.post(
             'https://api.hapxs.com/api/tts/generate',
             json={

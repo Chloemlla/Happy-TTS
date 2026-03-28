@@ -1,7 +1,7 @@
 ---
 title: 命令管理系统MongoDB存储实现
 description: 为命令队列和执行历史添加MongoDB持久化存储，实现数据持久化和跨会话管理
-author: Happy-TTS Team
+author: Synapse Team
 date: 2025-07-26
 tags: [command-management, mongodb, storage, backend, database]
 ---

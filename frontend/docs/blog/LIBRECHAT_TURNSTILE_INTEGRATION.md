@@ -9,7 +9,7 @@ tags: [librechat, turnstile, verification, security, user-experience, blog]
 
 ## 问题背景
 
-在 HappyTTS 项目的 LibreChat 聊天功能中，需要为普通用户添加人机验证机制，以防止恶意使用和滥用：
+在 Synapse 项目的 LibreChat 聊天功能中，需要为普通用户添加人机验证机制，以防止恶意使用和滥用：
 
 1. **安全需求**：防止机器人恶意发送消息
 2. **资源保护**：避免 AI 资源被滥用

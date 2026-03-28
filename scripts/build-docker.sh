@@ -13,7 +13,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # 默认标签
-TAG=${1:-"happy-tts:latest"}
+TAG=${1:-"Synapse:latest"}
 
 echo -e "${BLUE}开始构建Docker镜像: ${TAG}${NC}"
 

@@ -1,7 +1,7 @@
 {
-  "name": "happy-tts",
+  "name": "synapse",
   "version": "1.0.0",
-  "description": "Happy TTS with Node.js",
+  "description": "Synapse with Node.js",
   "main": "dist/app.js",
   "sideEffects": true,
   "scripts": {
@@ -52,8 +52,8 @@
     "check:tree-shaking-config": "node scripts/check-tree-shaking.js",
     "docker:build": "scripts/build-docker.sh",
     "docker:build:win": "scripts\\build-docker.bat",
-    "docker:build:simple": "docker build --platform linux/amd64 --memory=4g --memory-swap=4g -t happy-tts:simple .",
-    "docker:build:minimal": "docker build --platform linux/amd64 --memory=2g --memory-swap=2g -t happy-tts:minimal ."
+    "docker:build:simple": "docker build --platform linux/amd64 --memory=4g --memory-swap=4g -t synapse:simple .",
+    "docker:build:minimal": "docker build --platform linux/amd64 --memory=2g --memory-swap=2g -t synapse:minimal ."
   },
   "keywords": [
     "happy",
@@ -85,7 +85,7 @@
     "express-rate-limit": "^7.5.1",
     "form-data": "^4.0.5",
     "google-auth-library": "^10.6.2",
-    "happy-tts": "file:",
+    "synapse": "file:",
     "helmet": "^8.1.0",
     "http-proxy-agent": "^8.0.0",
     "jsdom": "^29.0.1",

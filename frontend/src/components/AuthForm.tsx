@@ -351,11 +351,11 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                     email: sanitizedEmail,
                     password: sanitizedPassword
                 };
-                
+
                 if (turnstileConfig.siteKey && turnstileToken) {
                     requestBody.cfToken = turnstileToken;
                 }
-                
+
                 const res = await fetch(getApiBaseUrl() + '/api/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -600,7 +600,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                         {isLogin ? '登录' : '注册'}
                     </h2>
                     <div className="text-center text-gray-500 text-base mb-4">
-                        欢迎使用 HappyTTS
+                        欢迎使用 Synapse
                     </div>
                 </div>
                 <form className="space-y-6" onSubmit={handleSubmit}>

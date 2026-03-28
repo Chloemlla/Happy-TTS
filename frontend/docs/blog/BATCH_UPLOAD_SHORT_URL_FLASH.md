@@ -9,7 +9,7 @@ tags: [batch, upload, short-url, flash, animation, user-experience, blog]
 
 ## 问题背景
 
-在 HappyTTS 项目的批量图片上传功能中，存在以下用户体验问题：
+在 Synapse 项目的批量图片上传功能中，存在以下用户体验问题：
 
 1. **短链接不可见**：批量上传成功后，用户无法直接看到每个文件的短链接
 2. **成功反馈不足**：用户无法直观地知道哪些文件上传成功并已添加到本地历史记录

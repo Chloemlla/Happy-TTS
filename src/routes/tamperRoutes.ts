@@ -60,7 +60,7 @@ const router = Router();
  *               originalContent:
  *                 type: string
  *                 description: 原始内容
- *                 example: "Happy TTS"
+ *                 example: "Synapse"
  *               tamperContent:
  *                 type: string
  *                 description: 篡改后的内容
@@ -82,7 +82,7 @@ const router = Router();
  *                     example: "1920x1080"
  *                   pageTitle:
  *                     type: string
- *                     example: "Happy TTS"
+ *                     example: "Synapse"
  *                   referrer:
  *                     type: string
  *                     example: "https://google.com"
@@ -97,13 +97,13 @@ const router = Router();
  *                 timestamp: "2024-01-01T12:00:00.000Z"
  *                 tamperType: "dom"
  *                 detectionMethod: "mutation-observer"
- *                 originalContent: "Happy TTS"
+ *                 originalContent: "Synapse"
  *                 tamperContent: "Modified Content"
  *                 attempts: 1
  *                 checksum: "sha256:abc123def456"
  *                 additionalInfo:
  *                   screenResolution: "1920x1080"
- *                   pageTitle: "Happy TTS"
+ *                   pageTitle: "Synapse"
  *                   referrer: "https://google.com"
  *             scriptInjection:
  *               summary: 脚本注入事件
@@ -127,7 +127,7 @@ const router = Router();
  *                 timestamp: "2024-01-01T12:00:00.000Z"
  *                 tamperType: "proxy"
  *                 detectionMethod: "network-analysis"
- *                 originalContent: "Happy TTS"
+ *                 originalContent: "Synapse"
  *                 tamperContent: "Replaced Content"
  *                 additionalInfo:
  *                   proxyHeaders: ["via", "x-forwarded-for"]

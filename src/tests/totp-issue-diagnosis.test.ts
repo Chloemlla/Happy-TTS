@@ -3,7 +3,7 @@ import { TOTPService } from "../services/totpService";
 
 describe("TOTP密钥问题诊断", () => {
   const testUsername = "testuser";
-  const testServiceName = "Happy TTS";
+  const testServiceName = "Synapse";
 
   describe("密钥生成问题诊断", () => {
     test("诊断密钥长度问题", () => {
@@ -110,7 +110,7 @@ describe("TOTP密钥问题诊断", () => {
 
       // 测试包含特殊字符的用户名和服务名
       const specialUsername = "test@user.com";
-      const specialServiceName = "Happy TTS & Co.";
+      const specialServiceName = "Synapse & Co.";
 
       const otpauthUrl = TOTPService.generateOTPAuthURL(secret, specialUsername, specialServiceName);
 
@@ -120,7 +120,7 @@ describe("TOTP密钥问题诊断", () => {
 
       // 验证特殊字符是否被正确处理
       expect(otpauthUrl).toContain("test_user_com");
-      expect(otpauthUrl).toContain("Happy-TTS---Co-");
+      expect(otpauthUrl).toContain("Synapse---Co-");
       expect(otpauthUrl).toContain(`secret=${secret}`);
     });
   });

@@ -1,12 +1,12 @@
-# Happy-TTS API 文档
+# Synapse API 文档
 
-这是 Happy-TTS 文本转语音服务的 API 文档站点，基于 Docusaurus 构建，具有现代化的 UI 设计和丰富的功能。
+这是 Synapse 文本转语音服务的 API 文档站点，基于 Docusaurus 构建，具有现代化的 UI 设计和丰富的功能。
 
 ## 🎨 美化特性
 
 ### 视觉设计
 
-- **现代化配色方案**: 使用 Happy-TTS 品牌色彩（蓝色渐变主题）
+- **现代化配色方案**: 使用 Synapse 品牌色彩（蓝色渐变主题）
 - **响应式设计**: 完美适配桌面端和移动端
 - **深色模式支持**: 自动适配系统主题偏好
 - **动画效果**: 平滑的过渡动画和悬停效果
@@ -117,8 +117,8 @@ npm run serve
 ### Docker 部署
 
 ```bash
-docker build -t happy-tts-docs .
-docker run -p 3002:3002 happy-tts-docs
+docker build -t Synapse-docs .
+docker run -p 3002:3002 Synapse-docs
 ```
 
 ## 📝 维护

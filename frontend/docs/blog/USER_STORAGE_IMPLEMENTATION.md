@@ -8,7 +8,7 @@ slug: user_storage_implementation
 
 ## 概述
 
-`UserStorage` 是 Happy-TTS 项目的核心用户数据管理模块，支持三种存储模式：本地文件存储、MongoDB 数据库和 MySQL 数据库。该模块采用统一接口设计，确保在不同存储模式下提供一致的用户管理功能。
+`UserStorage` 是 Synapse 项目的核心用户数据管理模块，支持三种存储模式：本地文件存储、MongoDB 数据库和 MySQL 数据库。该模块采用统一接口设计，确保在不同存储模式下提供一致的用户管理功能。
 
 ## 核心特性
 
@@ -461,7 +461,7 @@ public static async tryFix(): Promise<boolean> {
 
 ## 总结
 
-`UserStorage` 模块通过统一接口设计、多存储模式支持、健壮性保障和完整的日志记录，为 Happy-TTS 项目提供了可靠的用户数据管理解决方案。该模块遵循 KISS、DRY、YAGNI 原则，确保代码简洁、可维护且易于扩展。
+`UserStorage` 模块通过统一接口设计、多存储模式支持、健壮性保障和完整的日志记录，为 Synapse 项目提供了可靠的用户数据管理解决方案。该模块遵循 KISS、DRY、YAGNI 原则，确保代码简洁、可维护且易于扩展。
 
 ## 相关文档
 

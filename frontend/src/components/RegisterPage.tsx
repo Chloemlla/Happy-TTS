@@ -170,7 +170,7 @@ export const RegisterPage: React.FC = () => {
                     <m.div className="mb-8 text-center" variants={effectiveCardVariants} initial="hidden" animate="visible" transition={{ duration: 0.5 }}>
                         <div className="mb-3 inline-flex items-center gap-3">
                             <FaVolumeUp className="h-10 w-10 text-[#219EBC]" />
-                            <h1 className="text-3xl font-bold font-songti text-[#023047]">Happy TTS</h1>
+                            <h1 className="text-3xl font-bold font-songti text-[#023047]">Synapse</h1>
                         </div>
                         <p className="text-[#023047]/60 text-sm tracking-wide">Create your account!</p>
                     </m.div>
@@ -294,7 +294,7 @@ export const RegisterPage: React.FC = () => {
                                             <svg className="w-5 h-5 text-[#219EBC] mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>
                                             <div className="text-sm text-[#023047]">
                                                 <p className="font-semibold mb-2">下一步操作：</p>
-                                                <ul className="list-disc list-inside space-y-1"><li>打开您的邮箱</li><li>找到来自 Happy-TTS 的验证邮件</li><li>点击邮件中的验证按钮</li><li>使用<strong>相同的设备和网络</strong>打开链接</li></ul>
+                                                <ul className="list-disc list-inside space-y-1"><li>打开您的邮箱</li><li>找到来自 Synapse 的验证邮件</li><li>点击邮件中的验证按钮</li><li>使用<strong>相同的设备和网络</strong>打开链接</li></ul>
                                             </div>
                                         </div>
                                     </div>

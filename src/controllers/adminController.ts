@@ -513,7 +513,7 @@ export const adminController = {
             };
             return labels[c.field] || c.field;
           });
-          const subject = `Happy-TTS 账号${changedFieldNames.join("、")}被管理员修改通知`;
+          const subject = `Synapse 账号${changedFieldNames.join("、")}被管理员修改通知`;
 
           // 发送到当前邮箱
           sendEmail({
@@ -531,7 +531,7 @@ export const adminController = {
           if (emailChange && emailChange.oldValue && emailChange.oldValue !== emailChange.newValue) {
             sendEmail({
               to: emailChange.oldValue,
-              subject: "Happy-TTS 账号邮箱地址被管理员修改通知",
+              subject: "Synapse 账号邮箱地址被管理员修改通知",
               html: emailHtml,
               logTag: "管理员修改邮箱通知(旧邮箱)",
               checkQuota: false,

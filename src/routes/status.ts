@@ -35,7 +35,7 @@ router.get("/", (_req, res) => {
   res.json({
     status: "ok",
     timestamp: new Date().toISOString(),
-    service: "Happy-TTS API",
+    service: "Synapse API",
     version: "1.0.0",
   });
 });

@@ -142,7 +142,7 @@ export const ForgotPasswordPage: React.FC = () => {
                     <m.div className="mb-8 text-center" variants={effectiveCardVariants} initial="hidden" animate="visible" transition={{ duration: 0.5 }}>
                         <div className="mb-3 inline-flex items-center gap-3">
                             <FaVolumeUp className="h-10 w-10 text-[#219EBC]" />
-                            <h1 className="text-3xl font-bold font-songti text-[#023047]">Happy TTS</h1>
+                            <h1 className="text-3xl font-bold font-songti text-[#023047]">Synapse</h1>
                         </div>
                         <p className="text-[#023047]/60 text-sm tracking-wide">找回密码</p>
                     </m.div>
@@ -178,7 +178,7 @@ export const ForgotPasswordPage: React.FC = () => {
                                                 <p className="font-semibold mb-2 text-[#023047]">后续步骤：</p>
                                                 <ul className="list-disc list-inside space-y-1 text-xs">
                                                     <li>检查您的邮箱收件箱</li>
-                                                    <li>找到发自 Happy-TTS 的邮件</li>
+                                                    <li>找到发自 Synapse 的邮件</li>
                                                     <li>点击 "重置密码" 按钮</li>
                                                     <li>请在<strong>相同设备和网络</strong>下打开链接</li>
                                                 </ul>

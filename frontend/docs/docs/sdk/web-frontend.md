@@ -7,7 +7,7 @@ sidebar_position: 6
 
 ## 简介
 
-本示例介绍如何在 Web 前端（如 React/Vue/原生 JS）中通过 HTTP API 调用 Happy-TTS 文本转语音（TTS）服务。
+本示例介绍如何在 Web 前端（如 React/Vue/原生 JS）中通过 HTTP API 调用 Synapse 文本转语音（TTS）服务。
 
 ## 主要接口
 

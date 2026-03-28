@@ -163,7 +163,7 @@ export class TOTPDebugger {
         const otpauthUrl = speakeasy.otpauthURL({
           secret,
           label: username,
-          issuer: "Happy TTS",
+          issuer: "Synapse",
           algorithm: "sha1",
           digits: 6,
           period: 30,

@@ -60,7 +60,7 @@ create_motd_script() {
 # 获取脚本目录
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../scripts" 2>/dev/null && pwd)"
 if [[ -z "$SCRIPT_DIR" ]]; then
-    SCRIPT_DIR="/opt/happy-tts/scripts"
+    SCRIPT_DIR="/opt/Synapse/scripts"
 fi
 
 SYSTEM_INFO_SCRIPT="$SCRIPT_DIR/system-info.sh"
@@ -72,7 +72,7 @@ if [[ -f "$SYSTEM_INFO_SCRIPT" && -x "$SYSTEM_INFO_SCRIPT" ]]; then
 else
     # 备用方案：直接显示基本信息
     echo "=========================================="
-    echo "  Happy TTS 系统信息"
+    echo "  Synapse 系统信息"
     echo "=========================================="
     echo "  运行时间: $(uptime -p 2>/dev/null || echo '未知')"
     echo "  系统负载: $(uptime | awk -F'load average:' '{print $2}' 2>/dev/null || echo '未知')"
@@ -94,7 +94,7 @@ create_static_motd() {
     # 添加静态内容
     cat >> "$MOTD_FILE" << 'EOF'
 ==========================================
-  Happy TTS 系统信息
+  Synapse 系统信息
 ==========================================
 EOF
 

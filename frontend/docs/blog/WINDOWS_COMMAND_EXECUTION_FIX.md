@@ -1,7 +1,7 @@
 ---
 title: Windows命令执行兼容性修复
 description: 修复Windows系统下命令执行问题，支持dir、cd等内置命令的正确执行
-author: Happy-TTS Team
+author: Synapse Team
 date: 2025-07-26
 tags: [command-execution, windows, compatibility, backend, shell]
 ---

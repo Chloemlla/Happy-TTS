@@ -1,11 +1,11 @@
-# Happy-TTS API 文档完成总结
+# Synapse API 文档完成总结
 
 ## 已完成的工作
 
 ### 1. Docusaurus 项目设置
 
 ✅ **项目初始化**: 成功创建了基于 Docusaurus 的文档站点
-✅ **配置优化**: 配置了中文界面和 Happy-TTS 品牌信息
+✅ **配置优化**: 配置了中文界面和 Synapse 品牌信息
 ✅ **导航结构**: 设计了完整的文档导航结构
 
 ### 2. 核心文档页面
@@ -53,8 +53,8 @@
 ```typescript
 // docusaurus.config.ts 主要配置
 {
-  title: 'Happy-TTS API 文档',
-  tagline: 'Happy-TTS 文本转语音服务 API 文档',
+  title: 'Synapse API 文档',
+  tagline: 'Synapse 文本转语音服务 API 文档',
   i18n: { defaultLocale: 'zh-Hans' },
   // 完整的导航和主题配置
 }
@@ -143,7 +143,7 @@ npm start
 
 ### 8. 总结
 
-本次文档建设工作已经完成了 Happy-TTS API 的核心文档，包括：
+本次文档建设工作已经完成了 Synapse API 的核心文档，包括：
 
 - ✅ **完整的 API 参考**: 基于真实代码的准确文档
 - ✅ **详细的教程指南**: 从入门到进阶的完整教程

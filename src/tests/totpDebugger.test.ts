@@ -17,7 +17,7 @@ describe("TOTPDebugger", () => {
     // 生成有效的TOTP密钥和令牌用于测试
     const secretObj = speakeasy.generateSecret({
       name: "Test User",
-      issuer: "Happy TTS",
+      issuer: "Synapse",
       length: 32,
     });
     validSecret = secretObj.base32!;

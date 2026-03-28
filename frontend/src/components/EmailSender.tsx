@@ -116,7 +116,7 @@ const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.data.domains) setSenderDomains(res.data.domains);
-      } catch {}
+      } catch { }
     })();
   }, []);
 
@@ -131,7 +131,7 @@ const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
         total: response.data.quotaTotal || response.data.total,
         resetAt: response.data.resetAt,
       });
-    } catch {}
+    } catch { }
   };
 
   // 监听发件人域名变化自动刷新配额
@@ -450,12 +450,12 @@ const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
   };
 
   const htmlTemplates = [
-    // Happy-TTS 风格：验证类（与站内 UI 一致）
+    // Synapse 风格：验证类（与站内 UI 一致）
     {
       name: "验证-现代卡片",
       code: `<div style="max-width:560px;margin:0 auto;padding:0;background:#f6f7fb;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
   <div style="background:linear-gradient(90deg,#3b82f6,#8b5cf6);padding:24px 20px;color:#fff;text-align:center;">
-    <div style="font-size:22px;font-weight:700;letter-spacing:0.5px;">Happy TTS</div>
+    <div style="font-size:22px;font-weight:700;letter-spacing:0.5px;">Synapse</div>
     <div style="opacity:.9;font-size:13px;margin-top:4px;">语音合成服务 · 邮件验证</div>
   </div>
   <div style="background:#ffffffcc;backdrop-filter:blur(4px);margin:16px;border-radius:16px;box-shadow:0 8px 30px rgba(36,40,72,.08);border:1px solid rgba(255,255,255,.4);padding:24px 20px;">
@@ -463,11 +463,11 @@ const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
     <div style="font-size:28px;letter-spacing:6px;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;background:#f3f4f6;padding:14px 12px;border-radius:12px;color:#111827;font-weight:700;box-shadow:inset 0 1px 0 rgba(255,255,255,.6);text-align:center;">12345678</div>
     <p style="color:#4b5563;font-size:14px;line-height:22px;margin:14px 0 0;">请在页面输入上方验证码完成验证。验证码有效期10分钟，请勿泄露。</p>
     <div style="text-align:center;margin-top:16px;">
-      <a href="https://tts.951100.xyz" style="display:inline-block;padding:10px 20px;background:linear-gradient(90deg,#6366f1,#8b5cf6);color:#fff;border-radius:999px;text-decoration:none;font-weight:600;box-shadow:0 6px 16px rgba(99,102,241,.25);">前往 Happy TTS</a>
+      <a href="https://tts.951100.xyz" style="display:inline-block;padding:10px 20px;background:linear-gradient(90deg,#6366f1,#8b5cf6);color:#fff;border-radius:999px;text-decoration:none;font-weight:600;box-shadow:0 6px 16px rgba(99,102,241,.25);">前往 Synapse</a>
     </div>
     <p style="color:#9ca3af;font-size:12px;margin-top:18px;text-align:center;">如果不是您本人操作，请忽略本邮件。</p>
   </div>
-  <div style="text-align:center;color:#9ca3af;font-size:12px;padding:6px 0 16px;">© ${new Date().getFullYear()} Happy TTS</div>
+  <div style="text-align:center;color:#9ca3af;font-size:12px;padding:6px 0 16px;">© ${new Date().getFullYear()} Synapse</div>
 </div>`,
     },
 
@@ -475,9 +475,9 @@ const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
     {
       name: "欢迎-入门指南",
       code: `<div style="max-width:600px;margin:0 auto;background:#fff;border-radius:16px;box-shadow:0 10px 30px rgba(99,102,241,.15);overflow:hidden;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
-  <div style="background:linear-gradient(90deg,#6366f1,#8b5cf6);color:#fff;padding:20px 24px;font-weight:700;font-size:18px;">欢迎加入 Happy TTS</div>
+  <div style="background:linear-gradient(90deg,#6366f1,#8b5cf6);color:#fff;padding:20px 24px;font-weight:700;font-size:18px;">欢迎加入 Synapse</div>
   <div style="padding:24px 22px;color:#374151;">
-    <p style="margin:0 0 12px;">您好，欢迎使用 <strong>Happy TTS</strong>！以下是快速入门指南：</p>
+    <p style="margin:0 0 12px;">您好，欢迎使用 <strong>Synapse</strong>！以下是快速入门指南：</p>
     <ol style="margin:0 0 16px;padding-left:18px;line-height:1.7;">
       <li>注册并完成邮箱验证</li>
       <li>前往控制台创建您的第一个语音项目</li>
@@ -509,7 +509,7 @@ const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
     {
       name: "资讯-Newsletter",
       code: `<div style="max-width:680px;margin:0 auto;background:#fff;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.08);font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;overflow:hidden;">
-  <div style="padding:22px 24px;background:linear-gradient(90deg,#3b82f6,#8b5cf6);color:#fff;font-weight:700;">Happy TTS 每周更新</div>
+  <div style="padding:22px 24px;background:linear-gradient(90deg,#3b82f6,#8b5cf6);color:#fff;font-weight:700;">Synapse 每周更新</div>
   <div style="padding:22px 24px;color:#374151;">
     <h2 style="margin:0 0 10px;font-size:18px;color:#111827;">本周亮点</h2>
     <ul style="margin:0;padding-left:18px;line-height:1.8;">
@@ -565,7 +565,7 @@ const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
         </tr>
         <tr>
           <td style="padding:8px 0;color:#6b7280;">产品</td>
-          <td style="text-align:right;">Happy TTS 专业版（年付）</td>
+          <td style="text-align:right;">Synapse 专业版（年付）</td>
         </tr>
         <tr>
           <td style="padding:8px 0;color:#6b7280;">金额</td>
@@ -783,11 +783,10 @@ const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
                     <div className="flex items-center justify-center sm:justify-end gap-1 sm:gap-2">
                       <motion.button
                         onClick={() => setEmailMode("simple")}
-                        className={`px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
-                          emailMode === "simple"
+                        className={`px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${emailMode === "simple"
                             ? "bg-white text-indigo-600 shadow-md"
                             : "text-white/80 hover:text-white hover:bg-white/10"
-                        }`}
+                          }`}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                       >
@@ -796,11 +795,10 @@ const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
                       </motion.button>
                       <motion.button
                         onClick={() => setEmailMode("html")}
-                        className={`px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
-                          emailMode === "html"
+                        className={`px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${emailMode === "html"
                             ? "bg-white text-indigo-600 shadow-md"
                             : "text-white/80 hover:text-white hover:bg-white/10"
-                        }`}
+                          }`}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                       >
@@ -808,11 +806,10 @@ const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
                       </motion.button>
                       <motion.button
                         onClick={() => setEmailMode("markdown")}
-                        className={`px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
-                          emailMode === "markdown"
+                        className={`px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${emailMode === "markdown"
                             ? "bg-white text-indigo-600 shadow-md"
                             : "text-white/80 hover:text-white hover:bg-white/10"
-                        }`}
+                          }`}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                       >
@@ -830,11 +827,10 @@ const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
                     <motion.div
                       initial={{ opacity: 0, y: -10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className={`p-3 rounded-lg border ${
-                        serviceStatus.available
+                      className={`p-3 rounded-lg border ${serviceStatus.available
                           ? "bg-green-50 border-green-200 text-green-800"
                           : "bg-red-50 border-red-200 text-red-800"
-                      }`}
+                        }`}
                     >
                       <div className="flex items-start space-x-2">
                         <motion.svg
@@ -966,11 +962,10 @@ const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
                       <motion.button
                         onClick={checkDomainExemption}
                         disabled={checkingExemption}
-                        className={`w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-medium text-sm transition-all duration-200 ${
-                          checkingExemption
+                        className={`w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-medium text-sm transition-all duration-200 ${checkingExemption
                             ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                             : "bg-blue-500 hover:bg-blue-600 text-white shadow-md hover:shadow-lg"
-                        }`}
+                          }`}
                         whileHover={!checkingExemption ? { scale: 1.02 } : {}}
                         whileTap={!checkingExemption ? { scale: 0.98 } : {}}
                       >
@@ -1017,19 +1012,17 @@ const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
                           initial={{ opacity: 0, height: 0 }}
                           animate={{ opacity: 1, height: "auto" }}
                           exit={{ opacity: 0, height: 0 }}
-                          className={`mt-3 p-3 rounded-lg border ${
-                            domainExemptionStatus.exempted
+                          className={`mt-3 p-3 rounded-lg border ${domainExemptionStatus.exempted
                               ? "bg-green-50 border-green-200 text-green-800"
                               : "bg-yellow-50 border-yellow-200 text-yellow-800"
-                          }`}
+                            }`}
                         >
                           <div className="flex items-start space-x-2">
                             <motion.svg
-                              className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
-                                domainExemptionStatus.exempted
+                              className={`w-5 h-5 flex-shrink-0 mt-0.5 ${domainExemptionStatus.exempted
                                   ? "text-green-500"
                                   : "text-yellow-500"
-                              }`}
+                                }`}
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -1153,21 +1146,20 @@ const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
                           checkingRecipientWhitelist ||
                           !form.to.find((email) => email.trim())
                         }
-                        className={`w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-medium text-sm transition-all duration-200 ${
-                          checkingRecipientWhitelist ||
-                          !form.to.find((email) => email.trim())
+                        className={`w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-medium text-sm transition-all duration-200 ${checkingRecipientWhitelist ||
+                            !form.to.find((email) => email.trim())
                             ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                             : "bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg"
-                        }`}
+                          }`}
                         whileHover={
                           !checkingRecipientWhitelist &&
-                          form.to.find((email) => email.trim())
+                            form.to.find((email) => email.trim())
                             ? { scale: 1.02 }
                             : {}
                         }
                         whileTap={
                           !checkingRecipientWhitelist &&
-                          form.to.find((email) => email.trim())
+                            form.to.find((email) => email.trim())
                             ? { scale: 0.98 }
                             : {}
                         }
@@ -1215,19 +1207,17 @@ const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
                           initial={{ opacity: 0, height: 0 }}
                           animate={{ opacity: 1, height: "auto" }}
                           exit={{ opacity: 0, height: 0 }}
-                          className={`mt-3 p-3 rounded-lg border ${
-                            recipientWhitelistStatus.whitelisted
+                          className={`mt-3 p-3 rounded-lg border ${recipientWhitelistStatus.whitelisted
                               ? "bg-green-50 border-green-200 text-green-800"
                               : "bg-orange-50 border-orange-200 text-orange-800"
-                          }`}
+                            }`}
                         >
                           <div className="flex items-start space-x-2">
                             <motion.svg
-                              className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
-                                recipientWhitelistStatus.whitelisted
+                              className={`w-5 h-5 flex-shrink-0 mt-0.5 ${recipientWhitelistStatus.whitelisted
                                   ? "text-green-500"
                                   : "text-orange-500"
-                              }`}
+                                }`}
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -1484,11 +1474,10 @@ const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
                   <motion.button
                     onClick={handleSendEmail}
                     disabled={loading || !serviceStatus?.available}
-                    className={`w-full py-3 sm:py-4 px-4 sm:px-6 rounded-lg font-semibold text-white transition-all duration-200 ${
-                      loading || !serviceStatus?.available
+                    className={`w-full py-3 sm:py-4 px-4 sm:px-6 rounded-lg font-semibold text-white transition-all duration-200 ${loading || !serviceStatus?.available
                         ? "bg-gray-400 cursor-not-allowed"
                         : "bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 shadow-lg hover:shadow-xl"
-                    }`}
+                      }`}
                     whileHover={
                       !loading && serviceStatus?.available
                         ? { scale: 1.02 }

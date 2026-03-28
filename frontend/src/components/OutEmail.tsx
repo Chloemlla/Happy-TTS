@@ -34,7 +34,7 @@ const OutEmail: React.FC = () => {
   const [error, setError] = useState('');
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const [fromUser, setFromUser] = useState('noreply');
-  const [displayName, setDisplayName] = useState('HappyTTS');
+  const [displayName, setDisplayName] = useState('Synapse');
   const OUTEMAIL_DOMAIN = 'arteam.dev'; // 可通过接口/环境变量动态获取
   const [domains, setDomains] = useState<string[]>([OUTEMAIL_DOMAIN]);
   const [selectedDomain, setSelectedDomain] = useState(OUTEMAIL_DOMAIN);
@@ -101,7 +101,7 @@ const OutEmail: React.FC = () => {
         if (data?.success) {
           setQuota({ used: Number(data.used) || 0, total: Number(data.total) || 0, resetAt: String(data.resetAt || '') });
         }
-      } catch {}
+      } catch { }
     };
     fetchQuota();
     const t = setInterval(fetchQuota, 30_000);
@@ -177,7 +177,7 @@ const OutEmail: React.FC = () => {
     }
     const from = fromUserTrimmed;
     const domain = selectedDomain;
-    
+
     setLoading(true);
     try {
       if (batchMode) {
@@ -195,7 +195,7 @@ const OutEmail: React.FC = () => {
         }
         const invalid = uniqueRecipients.filter(r => !emailRegex.test(r));
         if (invalid.length) {
-          throw new Error(`存在无效邮箱：${invalid.slice(0,3).join(', ')}${invalid.length>3?' 等':''}`);
+          throw new Error(`存在无效邮箱：${invalid.slice(0, 3).join(', ')}${invalid.length > 3 ? ' 等' : ''}`);
         }
         const messages = uniqueRecipients.map(r => ({ to: r, subject: subjectTrimmed, content: contentTrimmed }));
         const res = await fetch(getApiBaseUrl() + '/api/outemail/batch-send', {
@@ -230,7 +230,7 @@ const OutEmail: React.FC = () => {
               const u = new URL(url);
               const base = u.pathname.split('/').filter(Boolean).pop();
               if (base) filename = decodeURIComponent(base);
-            } catch {}
+            } catch { }
             return { path: url, filename } as { path: string; filename: string };
           });
         const fileList = await Promise.all(selectedFiles.map(async (f) => ({ filename: f.name, content: await fileToBase64(f) })));
@@ -254,7 +254,7 @@ const OutEmail: React.FC = () => {
           setContent('');
           setCode('');
           setFromUser('noreply');
-          setDisplayName('HappyTTS');
+          setDisplayName('Synapse');
           setSelectedDomain(domains[0] || '');
           setRemoteAttachmentUrls('');
           setSelectedFiles([]);
@@ -515,7 +515,7 @@ const OutEmail: React.FC = () => {
               value={displayName}
               onChange={e => setDisplayName(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
-              placeholder="HappyTTS"
+              placeholder="Synapse"
             />
           </div>
 
@@ -553,8 +553,8 @@ const OutEmail: React.FC = () => {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className={`mt-2 p-3 rounded-lg border ${domainExemptionStatus.exempted
-                    ? 'bg-green-50 border-green-200'
-                    : 'bg-yellow-50 border-yellow-200'
+                  ? 'bg-green-50 border-green-200'
+                  : 'bg-yellow-50 border-yellow-200'
                   }`}
               >
                 <div className="flex items-center gap-2">
@@ -666,8 +666,8 @@ const OutEmail: React.FC = () => {
             onClick={handleSend}
             disabled={loading}
             className={`w-full py-3 px-6 rounded-lg font-semibold text-white transition-all duration-200 ${loading
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 shadow-lg hover:shadow-xl'
+              ? 'bg-gray-400 cursor-not-allowed'
+              : 'bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 shadow-lg hover:shadow-xl'
               }`}
             whileHover={!loading ? { scale: 1.02 } : {}}
             whileTap={!loading ? { scale: 0.98 } : {}}

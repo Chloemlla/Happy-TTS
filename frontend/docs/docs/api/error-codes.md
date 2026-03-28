@@ -2,9 +2,9 @@
 sidebar_position: 5
 ---
 
-# Happy-TTS API 错误代码参考
+# Synapse API 错误代码参考
 
-本文档列出了 Happy-TTS API 中可能遇到的所有错误代码及其解决方案。
+本文档列出了 Synapse API 中可能遇到的所有错误代码及其解决方案。
 
 ## HTTP 状态码
 

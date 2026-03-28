@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Happy-TTS 文件存储模式启动脚本
+# Synapse 文件存储模式启动脚本
 
-echo "=== Happy-TTS 文件存储模式启动脚本 ==="
+echo "=== Synapse 文件存储模式启动脚本 ==="
 echo "此脚本将使用文件存储模式启动应用"
 echo ""
 
@@ -25,7 +25,7 @@ echo "✅ 目录检查完成"
 echo ""
 
 # 启动应用
-echo "启动 Happy-TTS 应用..."
+echo "启动 Synapse 应用..."
 echo "使用文件存储模式，无需数据库连接"
 echo ""
 
