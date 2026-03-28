@@ -20,6 +20,7 @@ scripts\inspect.json
 tts-node_*.sh
 tts-node_*.json
 .agents/
+frontend/docs/build-simple/
 skills-lock.json
 # 允许特定环境文件
 !**/pnpm-lock.yaml
