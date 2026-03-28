@@ -1483,7 +1483,7 @@ class IntegrityChecker {
         clearInterval(interval);
         warning.remove();
         // 触发全屏水印
-        window.dispatchEvent(new Event("show-synapse-watermark"));
+        window.dispatchEvent(new Event("show-Synapse-watermark"));
         // 关闭页面
         window.close();
       }

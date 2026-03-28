@@ -25,8 +25,8 @@ const config: Config = {
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
-  organizationName: 'synapse', // Usually your GitHub org/user name.
-  projectName: 'synapse', // Usually your repo name.
+  organizationName: 'Synapse', // Usually your GitHub org/user name.
+  projectName: 'Synapse', // Usually your repo name.
 
   onBrokenLinks: 'ignore',
   onBrokenMarkdownLinks: 'ignore',
@@ -97,7 +97,7 @@ const config: Config = {
           position: 'left'
         },
         {
-          href: 'https://github.com/hapxscom/synapse',
+          href: 'https://github.com/hapxscom/Synapse',
           label: 'GitHub',
           position: 'right',
         },
@@ -124,7 +124,7 @@ const config: Config = {
           items: [
             {
               label: 'GitHub Issues',
-              href: 'https://github.com/hapxscom/synapse/issues',
+              href: 'https://github.com/hapxscom/Synapse/issues',
             },
           ],
         },
@@ -133,7 +133,7 @@ const config: Config = {
           items: [
             {
               label: 'GitHub',
-              href: 'https://github.com/hapxscom/synapse',
+              href: 'https://github.com/hapxscom/Synapse',
             },
           ],
         },

@@ -571,10 +571,10 @@ const App: React.FC = () => {
       setShowWatermark(true);
     };
 
-    window.addEventListener('show-synapse-watermark', handleShowWatermark);
+    window.addEventListener('show-Synapse-watermark', handleShowWatermark);
 
     return () => {
-      window.removeEventListener('show-synapse-watermark', handleShowWatermark);
+      window.removeEventListener('show-Synapse-watermark', handleShowWatermark);
     };
   }, []);
 

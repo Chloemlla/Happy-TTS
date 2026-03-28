@@ -260,7 +260,7 @@ git checkout HEAD~1 src/app.ts
 
 # 2. 重启服务
 npm run build
-pm2 restart synapse
+pm2 restart Synapse
 ```
 
 ### 数据库索引回滚

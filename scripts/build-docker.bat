@@ -5,7 +5,7 @@ REM Docker构建脚本 - Windows版本
 REM 使用方法: scripts\build-docker.bat [tag]
 
 set "TAG=%1"
-if "%TAG%"=="" set "TAG=synapse:latest"
+if "%TAG%"=="" set "TAG=Synapse:latest"
 
 echo [INFO] 开始构建Docker镜像: %TAG%
 

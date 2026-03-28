@@ -60,7 +60,7 @@ create_motd_script() {
 # 获取脚本目录
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../scripts" 2>/dev/null && pwd)"
 if [[ -z "$SCRIPT_DIR" ]]; then
-    SCRIPT_DIR="/opt/synapse/scripts"
+    SCRIPT_DIR="/opt/Synapse/scripts"
 fi
 
 SYSTEM_INFO_SCRIPT="$SCRIPT_DIR/system-info.sh"

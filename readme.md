@@ -339,7 +339,7 @@ Synapse 是一个综合性 Web 应用平台，围绕文本转语音核心功能�
 ## 📁 项目结构
 
 ```
-synapse/
+Synapse/
 ├── src/                              # 后端源代码
 │   ├── app.ts                        # 应用入口（路由注册、中间件配置、服务器启动）
 │   ├── config.ts                     # 主配置文件
@@ -515,7 +515,7 @@ pnpm start
 docker-compose up -d
 
 # 手动构建镜像
-docker build -t synapse:latest .
+docker build -t Synapse:latest .
 
 # 运行容器
 docker run -d \
@@ -524,7 +524,7 @@ docker run -d \
   -p 3002:3002 \
   --env-file .env \
   -v ./data:/app/data \
-  synapse:latest
+  Synapse:latest
 
 # 查看日志
 docker-compose logs -f app

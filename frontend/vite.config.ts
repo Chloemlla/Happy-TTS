@@ -41,7 +41,7 @@ function obfuscateDistJs() {
       controlFlowFlattening: false,
       deadCodeInjection: false,
       stringArray: true,
-      stringArrayEncoding: ["base64"],
+      stringArrayEncoding: [],
       stringArrayThreshold: 0.5,
       selfDefending: false,
       disableConsoleOutput: false,

@@ -190,7 +190,7 @@ https://evil.com          -> 客户端发送 clientOrigin=https://evil.com -> �
 version: "3.8"
 services:
   app:
-    image: synapse:latest
+    image: Synapse:latest
     environment:
       RP_ID: example.com
       RP_ORIGIN: https://app.example.com

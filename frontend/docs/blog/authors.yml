@@ -1,7 +1,7 @@
-synapse:
+Synapse:
   name: Synapse Team
   title: Synapse 开发团队
-  url: https://github.com/hapxscom/synapse
+  url: https://github.com/hapxscom/Synapse
   image_url: https://github.com/hapxscom.png
   bio: Synapse 文本转语音服务开发团队
   email: team@hapxs.com

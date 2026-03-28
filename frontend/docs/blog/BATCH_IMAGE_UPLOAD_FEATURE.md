@@ -2,7 +2,7 @@
 title: 批量图片上传功能实现
 date: 2025-08-27
 slug: batch-image-upload
-tags: [batch, upload, image, synapse]
+tags: [batch, upload, image, Synapse]
 ---
 
 # 批量图片上传功能实现

@@ -117,8 +117,8 @@ npm run serve
 ### Docker 部署
 
 ```bash
-docker build -t synapse-docs .
-docker run -p 3002:3002 synapse-docs
+docker build -t Synapse-docs .
+docker run -p 3002:3002 Synapse-docs
 ```
 
 ## 📝 维护

@@ -185,7 +185,7 @@ const timer = scheduleIndexAnalysis(7);
    ```bash
    git pull origin main
    npm run build
-   pm2 restart synapse
+   pm2 restart Synapse
    ```
 
 2. **同步索引**
@@ -216,7 +216,7 @@ const timer = scheduleIndexAnalysis(7);
 
 ```bash
 # 1. 停止应用
-pm2 stop synapse
+pm2 stop Synapse
 
 # 2. 回滚代码
 git checkout <previous-commit>
@@ -230,7 +230,7 @@ db.fbiwanteds.dropIndex("idx_active_status_danger_date")
 db.fbiwanteds.dropIndex("idx_text_search")
 
 # 4. 重启应用
-pm2 restart synapse
+pm2 restart Synapse
 ```
 
 ## 📊 性能基准测试

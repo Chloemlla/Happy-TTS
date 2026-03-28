@@ -351,11 +351,11 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                     email: sanitizedEmail,
                     password: sanitizedPassword
                 };
-                
+
                 if (turnstileConfig.siteKey && turnstileToken) {
                     requestBody.cfToken = turnstileToken;
                 }
-                
+
                 const res = await fetch(getApiBaseUrl() + '/api/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
