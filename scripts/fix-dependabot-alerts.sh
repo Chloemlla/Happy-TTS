@@ -8,11 +8,13 @@
 # - undici: Unhandled Exception / DoS / HTTP Request Smuggling
 # - picomatch: ReDoS via extglob quantifiers
 # - brace-expansion: Zero-step sequence causes process hang 
+# - path-to-regexp: ReDoS and Denial of Service
+# - serialize-javascript: CPU Exhaustion via crafted array-like objects
 #
 # Dependabot Alert Locations:
-# - Root: handlebars, undici, picomatch, brace-expansion
+# - Root: handlebars, undici, picomatch, brace-expansion, path-to-regexp
 # - frontend: flatted, picomatch, brace-expansion
-# - frontend/docs: picomatch, brace-expansion
+# - frontend/docs: picomatch, brace-expansion, path-to-regexp, serialize-javascript
 # ============================================================
 set -e
 
@@ -24,7 +26,7 @@ echo "=========================================="
 # 1. Root
 echo ""
 echo "[1/3] Root: upgrading vulnerable packages..."
-pnpm update handlebars undici picomatch brace-expansion --depth Infinity || pnpm update handlebars undici picomatch brace-expansion
+pnpm update handlebars undici picomatch brace-expansion path-to-regexp --depth Infinity || pnpm update handlebars undici picomatch brace-expansion path-to-regexp
 pnpm install --no-frozen-lockfile
 echo "✅ Root done"
 
@@ -41,7 +43,7 @@ echo "✅ frontend done"
 echo ""
 echo "[3/3] frontend/docs: upgrading vulnerable packages..."
 cd frontend/docs
-pnpm update picomatch brace-expansion --depth Infinity || pnpm update picomatch brace-expansion
+pnpm update picomatch brace-expansion path-to-regexp serialize-javascript --depth Infinity || pnpm update picomatch brace-expansion path-to-regexp serialize-javascript
 pnpm install --no-frozen-lockfile
 cd ../..
 echo "✅ frontend/docs done"
@@ -70,4 +72,6 @@ echo "  - flatted (frontend)"
 echo "  - undici (root)"
 echo "  - picomatch (root, frontend, frontend/docs)"
 echo "  - brace-expansion (root, frontend, frontend/docs)"
+echo "  - path-to-regexp (root, frontend/docs)"
+echo "  - serialize-javascript (frontend/docs)"
 echo "=========================================="
