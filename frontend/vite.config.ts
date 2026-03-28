@@ -241,8 +241,8 @@ export default defineConfig(({ mode }) => {
         name: "obfuscator",
         enforce: "post" as const,
         transform(code: string, id: string) {
-          // 只在生产环境进行代码混淆
-          if (mode === "production" && id.endsWith(".js")) {
+          // 只在生产环境进行代码混淆，避免混淆外部依赖导致打包失败
+          if (mode === "production" && id.endsWith(".js") && !id.includes("node_modules") && !id.includes("node_modules\\")) {
             const obfuscationResult = JavaScriptObfuscator.obfuscate(code, {
               compact: true, // 启用紧凑模式，移除所有多余的空白字符和换行符以最小化文件体积
               controlFlowFlattening: false, // 禁用控制流扁平化，避免性能损失和执行速度下降
@@ -439,7 +439,6 @@ export default defineConfig(({ mode }) => {
   if (mode === "production") {
     config.build = config.build || {};
     config.build.rollupOptions = config.build.rollupOptions || {};
-    // 只在 output 层级添加 writeBundle 钩子
     if (!config.build.rollupOptions.output)
       config.build.rollupOptions.output = {
         manualChunks: getManualChunk,
@@ -460,18 +459,19 @@ export default defineConfig(({ mode }) => {
           return `assets/[name].[hash].${ext}`;
         },
       };
-    const output = config.build.rollupOptions.output;
-    const originalWriteBundle =
-      typeof output === "object" && "writeBundle" in output
-        ? (output as any).writeBundle
-        : undefined;
-    (output as any).writeBundle = () => {
-      obfuscateDistJs();
-      escapeUnicodeInDistJs();
-      generateSitemapXml();
-      obfuscateEmailsInDist();
-      if (originalWriteBundle) originalWriteBundle();
-    };
+
+    // 使用 Vite 插件的形式执行构建后的任务，因为 writeBundle 不能再作为 output option
+    config.plugins.push({
+      name: "post-build-obfuscate-and-protect",
+      apply: "build",
+      enforce: "post",
+      closeBundle() {
+        obfuscateDistJs();
+        escapeUnicodeInDistJs();
+        generateSitemapXml();
+        obfuscateEmailsInDist();
+      }
+    } as any);
   }
   return config as any;
 });
