@@ -330,6 +330,3 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
 });
 
 export default MobileNav;
-
-
-export default MobileNav;
