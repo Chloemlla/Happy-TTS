@@ -1,7 +1,8 @@
 import React, { memo } from 'react';
-import { LazyMotion, domAnimation, m, useReducedMotion } from 'framer-motion';
+import { LazyMotion, domAnimation, m, useReducedMotion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { FaVolumeUp, FaStar, FaUsers, FaRocket, FaSignInAlt, FaUserPlus } from 'react-icons/fa';
+import { FaVolumeUp, FaStar, FaUsers, FaRocket, FaSignInAlt, FaUserPlus, FaUserCircle, FaTimes, FaChevronRight } from 'react-icons/fa';
+import { useAuth, SavedAccount } from '../hooks/useAuth';
 
 // 统一的 viewport 与过渡动画配置
 const VIEWPORT_20 = { once: true, amount: 0.2 } as const;
@@ -33,19 +34,14 @@ const headerVariants = {
   visible: { opacity: 1, y: 0 }
 };
 
-const textFadeVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1 }
+const itemVariants = {
+  hidden: { opacity: 0, y: 30, scale: 0.95 },
+  visible: { opacity: 1, y: 0, scale: 1 }
 };
 
 const listVariants = {
   hidden: {},
-  visible: { transition: { staggerChildren: 0.15 } }
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 30, scale: 0.95 },
-  visible: { opacity: 1, y: 0, scale: 1 }
+  visible: { transition: { staggerChildren: 0.1 } }
 };
 
 // FeatureCard — 浅色设计语言
@@ -78,6 +74,7 @@ const FeatureCard = memo(function FeatureCard({ title, desc, Icon, variants, tra
 });
 
 function WelcomePageComponent(): React.ReactElement<any> {
+  const { savedAccounts, switchAccount, removeAccountFromList } = useAuth();
   const prefersReducedMotion = useReducedMotion();
 
   const effectiveHeaderVariants = React.useMemo(() => (
@@ -95,36 +92,12 @@ function WelcomePageComponent(): React.ReactElement<any> {
   const effectiveCardTransition = React.useMemo(() => (
     prefersReducedMotion ? NO_TRANSITION : CARD_SPRING_TRANSITION
   ), [prefersReducedMotion]);
-  const effectiveIconInitial = React.useMemo(() => (
-    prefersReducedMotion ? undefined : ICON_INITIAL
-  ), [prefersReducedMotion]);
-  const effectiveIconVisible = React.useMemo(() => (
-    prefersReducedMotion ? undefined : ICON_VISIBLE
-  ), [prefersReducedMotion]);
-  const effectiveIconEnterTransition = React.useMemo(() => (
-    prefersReducedMotion ? NO_TRANSITION : ICON_ENTER_TRANSITION
-  ), [prefersReducedMotion]);
-  const effectiveDescEnterTransition = React.useMemo(() => (
-    prefersReducedMotion ? NO_TRANSITION : DESC_ENTER_TRANSITION
-  ), [prefersReducedMotion]);
   const effectiveItemHover = React.useMemo(() => (
     prefersReducedMotion ? undefined : ITEM_HOVER
   ), [prefersReducedMotion]);
   const effectiveButtonTap = React.useMemo(() => (
     prefersReducedMotion ? undefined : BUTTON_TAP
   ), [prefersReducedMotion]);
-
-  // 空闲时间预取登录和注册页面
-  React.useEffect(() => {
-    const win: any = typeof window !== 'undefined' ? window : undefined;
-    const schedule = win && win.requestIdleCallback ? win.requestIdleCallback : (cb: () => void) => setTimeout(cb, 300);
-    const cancel = win && win.cancelIdleCallback ? win.cancelIdleCallback : (id: any) => clearTimeout(id);
-    const id = schedule(() => {
-      import('./LoginPage');
-      import('./RegisterPage');
-    });
-    return () => cancel(id);
-  }, []);
 
   return (
     <LazyMotion features={domAnimation}>
@@ -139,55 +112,80 @@ function WelcomePageComponent(): React.ReactElement<any> {
             variants={effectiveHeaderVariants}
             transition={effectiveHeaderTransition}
           >
-            {/* 头部横幅 — 渐变 */}
+            {/* 头部横幅 */}
             <div className="bg-[#023047] text-white p-6">
               <div className="text-center">
-                <m.div
-                  className="flex items-center justify-center gap-3 mb-4"
-                  initial={effectiveIconInitial}
-                  whileInView={effectiveIconVisible}
-                  viewport={VIEWPORT_40}
-                  transition={effectiveIconEnterTransition}
-                >
+                <m.div className="flex items-center justify-center gap-3 mb-4">
                   <FaVolumeUp className="text-4xl" />
                   <h1 className="text-4xl font-bold font-songti">欢迎使用 Synapse</h1>
                 </m.div>
-                <m.p
-                  className="text-[#8ECAE6] text-lg"
-                  variants={textFadeVariants}
-                  initial="hidden"
-                  whileInView="visible"
-                  viewport={VIEWPORT_40}
-                  transition={effectiveDescEnterTransition}
-                >
-                  使用最新的语音合成技术，生成自然流畅的语音
-                </m.p>
+                <p className="text-[#8ECAE6] text-lg opacity-80">使用最新的语音合成技术，生成自然流畅的语音</p>
               </div>
             </div>
 
             {/* 行动号召区域 */}
-            <div className="p-8 bg-[#8ECAE6]/10">
-              <m.div
-                className="max-w-2xl mx-auto text-center space-y-6"
-                variants={effectiveItemVariants}
-                initial="hidden"
-                whileInView="visible"
-                viewport={VIEWPORT_30}
-                transition={effectiveAuthTransition}
-              >
-                <p className="text-lg text-[#023047]/70 mb-6">
-                  立即开始使用 Synapse，体验先进的语音合成技术
-                </p>
+            <div className="p-8 bg-[#8ECAE6]/5">
+              <div className="max-w-2xl mx-auto text-center space-y-8">
+                
+                {/* 账号切换列表 - 单设备多用户核心体现 */}
+                <AnimatePresence>
+                  {savedAccounts.length > 0 && (
+                    <m.div 
+                      className="space-y-4"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                    >
+                      <h4 className="text-xs font-bold text-[#023047]/40 uppercase tracking-widest">继续使用您的账号</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {savedAccounts.map((account) => (
+                          <m.div
+                            key={account.user.id}
+                            className="relative group bg-white border border-[#8ECAE6]/40 p-3 rounded-xl flex items-center justify-between hover:border-[#219EBC] hover:shadow-md transition-all cursor-pointer"
+                            whileHover={{ y: -2 }}
+                            onClick={() => switchAccount(account.user.id)}
+                          >
+                            <div className="flex items-center gap-3 overflow-hidden">
+                              {account.user.avatarUrl ? (
+                                <img src={account.user.avatarUrl} alt="" className="w-10 h-10 rounded-full object-cover border-2 border-indigo-50" />
+                              ) : (
+                                <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-500">
+                                  <FaUserCircle size={24} />
+                                </div>
+                              )}
+                              <div className="text-left overflow-hidden">
+                                <p className="font-bold text-[#023047] truncate">{account.user.username}</p>
+                                <p className="text-[10px] text-[#023047]/50 truncate">{account.user.email}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <FaChevronRight className="text-[#8ECAE6] group-hover:text-[#219EBC] transition-colors" size={12} />
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeAccountFromList(account.user.id);
+                                }}
+                                className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                title="从列表中移除"
+                              >
+                                <FaTimes size={10} />
+                              </button>
+                            </div>
+                          </m.div>
+                        ))}
+                      </div>
+                    </m.div>
+                  )}
+                </AnimatePresence>
 
                 <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                   <m.div whileHover={effectiveItemHover} whileTap={effectiveButtonTap}>
                     <Link
                       to="/login"
                       className="group flex items-center gap-2 px-8 py-3 bg-[#FFB703] hover:bg-[#FB8500] text-[#023047] font-semibold rounded-lg shadow-lg shadow-[#FFB703]/20 transition-all duration-300"
-                      aria-label="登录到您的账户"
                     >
                       <FaSignInAlt className="text-xl" />
-                      <span>登录</span>
+                      <span>{savedAccounts.length > 0 ? '登录其他账号' : '登录'}</span>
                     </Link>
                   </m.div>
 
@@ -195,18 +193,13 @@ function WelcomePageComponent(): React.ReactElement<any> {
                     <Link
                       to="/register"
                       className="group flex items-center gap-2 px-8 py-3 bg-[#8ECAE6]/10 hover:bg-[#8ECAE6]/20 text-[#023047]/70 hover:text-[#023047] font-semibold rounded-lg border border-[#8ECAE6]/30 hover:border-[#219EBC] transition-all duration-300"
-                      aria-label="创建新账户"
                     >
                       <FaUserPlus className="text-xl" />
                       <span>注册账号</span>
                     </Link>
                   </m.div>
                 </div>
-
-                <p className="text-sm text-[#023047]/30 mt-4">
-                  还没有账号？注册只需一分钟
-                </p>
-              </m.div>
+              </div>
             </div>
           </m.div>
 
