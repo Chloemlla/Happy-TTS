@@ -85,7 +85,6 @@
     "express-rate-limit": "^7.5.1",
     "form-data": "^4.0.5",
     "google-auth-library": "^10.6.2",
-    "synapse": "file:",
     "helmet": "^8.1.0",
     "http-proxy-agent": "^8.0.0",
     "jsdom": "^29.0.1",
