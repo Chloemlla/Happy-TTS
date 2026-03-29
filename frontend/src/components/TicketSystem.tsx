@@ -576,9 +576,16 @@ const TicketSystem: React.FC = () => {
                           {/* 消息元信息 */}
                           <div className={`flex items-center gap-2 mb-1 text-[10px] text-gray-400 ${isMe ? 'justify-end' : 'justify-start'}`}>
                             {!isMe && (
-                              <span className={`font-bold ${isAdminMsg ? 'text-blue-600' : 'text-gray-500'}`}>
-                                {isAi ? "🤖 智能助手" : isAdminMsg ? "Official Customer Service" : "👤 用户"}
-                              </span>
+                              <div className="flex flex-col">
+                                {isAdminMsg && (
+                                  <div className="text-[8px] sm:text-[10px] font-black text-blue-600 mb-1 uppercase tracking-tighter flex items-center gap-1">
+                                    <FiCheckCircle size={10} /> OFFICIAL REPLY
+                                  </div>
+                                )}
+                                <span className={`font-bold ${isAdminMsg ? 'text-blue-600' : 'text-gray-500'}`}>
+                                  {isAi ? "🤖 智能助手" : isAdminMsg ? "Official Customer Service" : "👤 用户"}
+                                </span>
+                              </div>
                             )}
                             <span>{new Date(msg.createdAt).toLocaleString()}</span>
                           </div>
