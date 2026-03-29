@@ -452,7 +452,28 @@ export function generateResourceExpiryWarningEmailHtml(username: string, resourc
 }
 
 /** 互动：反馈/工单回复通知 */
-export function generateFeedbackRepliedEmailHtml(username: string, feedbackTitle: string, replyContent: string, time: string): string {
-    const description = `您提交的反馈 <strong>「${feedbackTitle}」</strong> 已得到管理员的回复：<br/><br/><div style="padding: 12px; background: #fff; border-left: 4px solid #4F46E5; font-style: italic;">${replyContent}</div>`;
-    return generateSecurityNoticeHtml(username, "您收到了一条新的反馈回复", description, time, "系统支持面板", "Web 终端", "您可以登录系统查看完整对话记录或进行补充。");
+export function generateFeedbackRepliedEmailHtml(username: string, ticketTitle: string, replyContent: string, time: string): string {
+    const description = `您提交的工单/反馈 <strong>「${ticketTitle}」</strong> 已收到新的回复：<br/><br/><div style="padding: 12px; background: #fff; border-left: 4px solid #4F46E5; font-style: italic;">${replyContent}</div>`;
+    return generateSecurityNoticeHtml(username, "收到新的回复通知", description, time, "系统支持中心", "Web 终端", "您可以登录系统查看完整对话记录或进行回复。");
 }
+
+/** 工单：新工单创建通知 (发送给管理员) */
+export function generateTicketCreatedEmailHtml(adminName: string, userName: string, ticketTitle: string, priority: string, time: string): string {
+    const priorityText = priority === "high" ? '<span style="color: #d93025; font-weight: bold;">[紧急]</span> ' : priority === "medium" ? "[一般] " : "[低] ";
+    const description = `用户 <strong>${userName}</strong> 提交了一个新的工单：<br/><br/>标题：${priorityText}<strong>${ticketTitle}</strong>`;
+    return generateSecurityNoticeHtml(adminName, "收到新的支持工单", description, time, "系统支持中心", "用户提交", "请及时登录管理后台进行处理。");
+}
+
+/** 工单：工单状态变更通知 */
+export function generateTicketStatusChangedEmailHtml(username: string, ticketTitle: string, newStatus: string, time: string): string {
+    const statusMap: Record<string, string> = {
+        "open": "待处理",
+        "in-progress": "处理中",
+        "resolved": "已解决",
+        "closed": "已关闭"
+    };
+    const statusText = statusMap[newStatus] || newStatus;
+    const description = `您的工单 <strong>「${ticketTitle}」</strong> 状态已更新为：<strong>${statusText}</strong>。`;
+    return generateSecurityNoticeHtml(username, "工单处理状态更新", description, time, "系统支持中心", "Web 终端", "如果对处理结果有疑问，您可以登录系统进行反馈。");
+}
+

@@ -1,6 +1,4 @@
-import { config } from "../config/config";
-
-const API_BASE = `${config.apiBase}/tickets`;
+import { api } from "./api";
 
 export interface ITicketMessage {
   senderId: string;
@@ -25,13 +23,8 @@ export interface ITicket {
 export const ticketApi = {
   // 用户获取自己的工单
   async getMyTickets(): Promise<ITicket[]> {
-    const response = await fetch(`${API_BASE}`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-    });
-    if (!response.ok) throw new Error("获取工单列表失败");
-    return response.json();
+    const response = await api.get("/api/tickets");
+    return response.data;
   },
 
   // 用户创建工单
@@ -40,41 +33,20 @@ export const ticketApi = {
     description: string;
     priority?: string;
   }): Promise<ITicket> {
-    const response = await fetch(`${API_BASE}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-      body: JSON.stringify(data),
-    });
-    if (!response.ok) throw new Error("创建工单失败");
-    return response.json();
+    const response = await api.post("/api/tickets", data);
+    return response.data;
   },
 
   // 获取工单详情
   async getTicket(id: string): Promise<ITicket> {
-    const response = await fetch(`${API_BASE}/${id}`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-    });
-    if (!response.ok) throw new Error("获取工单详情失败");
-    return response.json();
+    const response = await api.get(`/api/tickets/${id}`);
+    return response.data;
   },
 
   // 回复工单
   async replyTicket(id: string, content: string): Promise<ITicket> {
-    const response = await fetch(`${API_BASE}/${id}/messages`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-      body: JSON.stringify({ content }),
-    });
-    if (!response.ok) throw new Error("回复失败");
-    return response.json();
+    const response = await api.post(`/api/tickets/${id}/messages`, { content });
+    return response.data;
   },
 
   // 管理员获取所有工单
@@ -82,27 +54,13 @@ export const ticketApi = {
     status?: string;
     priority?: string;
   }): Promise<ITicket[]> {
-    const query = new URLSearchParams(params as any).toString();
-    const response = await fetch(`${API_BASE}/admin/all?${query}`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-    });
-    if (!response.ok) throw new Error("获取全部工单失败");
-    return response.json();
+    const response = await api.get("/api/tickets/admin/all", { params });
+    return response.data;
   },
 
   // 管理员更新状态
   async updateStatus(id: string, status: string): Promise<ITicket> {
-    const response = await fetch(`${API_BASE}/admin/${id}/status`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-      body: JSON.stringify({ status }),
-    });
-    if (!response.ok) throw new Error("更新状态失败");
-    return response.json();
+    const response = await api.patch(`/api/tickets/admin/${id}/status`, { status });
+    return response.data;
   },
 };
