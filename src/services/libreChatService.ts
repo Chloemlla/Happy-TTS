@@ -591,6 +591,7 @@ class LibreChatService {
     userId?: string,
     cfToken?: string,
     userRole?: string,
+    onDelta?: (delta: string) => void,
   ): Promise<string> {
     // 检查非管理员用户的 Turnstile 验证
     const isAdmin = userRole === "admin" || userRole === "administrator";
@@ -762,6 +763,8 @@ class LibreChatService {
 
     // 依序尝试 providers，失败自动切换到下一个
     let lastError: any = null;
+    const isStream = typeof onDelta === "function";
+
     for (const p of providers) {
       const baseURL = p.baseUrl;
       const apiKey = p.apiKey;
@@ -775,14 +778,15 @@ class LibreChatService {
             model,
             messages: messagesPayload,
             temperature: 0.7,
-            stream: false,
+            stream: isStream,
           },
           {
             headers: {
               Authorization: `Bearer ${apiKey}`,
               "Content-Type": "application/json",
             },
-            timeout: 60_000,
+            timeout: isStream ? 300_000 : 60_000,
+            responseType: isStream ? "stream" : "json",
             // 避免使用系统代理造成的 302 循环重定向
             proxy: false,
             // 限制重定向次数，防止 provider 端异常配置导致死循环
@@ -790,9 +794,44 @@ class LibreChatService {
           },
         );
 
-        // 解析 OpenAI 兼容响应并清洗 think 标签
-        const aiTextRaw = resp?.data?.choices?.[0]?.message?.content?.trim() || "（无有效回复）";
-        const aiText = sanitizeAssistantText(aiTextRaw);
+        let aiText = "";
+
+        if (isStream) {
+          const stream = resp.data;
+          await new Promise<void>((resolve, reject) => {
+            let buffer = "";
+            stream.on("data", (chunk: Buffer) => {
+              buffer += chunk.toString();
+              const lines = buffer.split("\n");
+              buffer = lines.pop() || "";
+
+              for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed || trimmed === "data: [DONE]") continue;
+                if (trimmed.startsWith("data: ")) {
+                  try {
+                    const data = JSON.parse(trimmed.slice(6));
+                    const delta = data.choices?.[0]?.delta?.content || "";
+                    if (delta) {
+                      aiText += delta;
+                      onDelta?.(delta);
+                    }
+                  } catch (e) {
+                    // 忽略解析错误
+                  }
+                }
+              }
+            });
+
+            stream.on("end", () => resolve());
+            stream.on("error", (err: Error) => reject(err));
+          });
+          aiText = sanitizeAssistantText(aiText);
+        } else {
+          // 解析 OpenAI 兼容响应并清洗 think 标签
+          const aiTextRaw = resp?.data?.choices?.[0]?.message?.content?.trim() || "（无有效回复）";
+          aiText = sanitizeAssistantText(aiTextRaw);
+        }
 
         // 持久化助手回复
         const aiMsg: ChatMessage = {

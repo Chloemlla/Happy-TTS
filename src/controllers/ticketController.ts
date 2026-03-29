@@ -47,10 +47,17 @@ async function generateAiTicketResponse(ticket: any) {
         `${systemPrompt}\n\n当前用户反馈: ${lastMessage.content}`,
         "system_ai_assistant",
         undefined,
-        "admin" 
+        "admin",
+        (delta) => {
+          // 通过 WebSocket 发送流式分片
+          wsService.notifyTicketAiResponse(ticket.userId, ticketId, delta, false);
+        }
       );
 
       if (aiResponse) {
+        // 发送流式结束标志
+        wsService.notifyTicketAiResponse(ticket.userId, ticketId, "", true);
+        
         // 发送进度：AI 生成完成
         wsService.notifyTicketProcess(ticket.userId, ticketId, "ai_complete");
         
