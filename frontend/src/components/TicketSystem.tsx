@@ -78,12 +78,30 @@ const TicketSystem: React.FC = () => {
 
   // 实时处理状态
   const [processingStep, setProcessingStep] = useState<TicketProcessStep | null>(null);
+  
+  // 实时流式响应
+  const [streamingAiResponse, setStreamingAiResponse] = useState<{ ticketId: string, content: string } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prefersReducedMotion = useReducedMotion();
 
   // WebSocket 实时监听
   const onMessage = useCallback((msg: WsServerMessage) => {
+    // 处理流式响应
+    if (msg.type === "ticket:ai_response") {
+      const { ticketId, content, isFinished } = msg.data;
+      if (ticketId === selectedTicket?._id || (!selectedTicket && ticketId === "new")) {
+        if (isFinished) {
+          setStreamingAiResponse(null);
+        } else {
+          setStreamingAiResponse(prev => ({
+            ticketId,
+            content: (prev && prev.ticketId === ticketId ? prev.content : "") + content
+          }));
+        }
+      }
+    }
+
     // 处理工单更新
     if (msg.type === "ticket:update") {
       const updatedTicket = msg.data;
@@ -679,6 +697,28 @@ const TicketSystem: React.FC = () => {
                       </motion.div>
                     );
                   })}
+
+                  {/* 实时流式 AI 响应 */}
+                  <AnimatePresence>
+                    {streamingAiResponse && streamingAiResponse.ticketId === selectedTicket?._id && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="flex justify-start mb-4"
+                      >
+                        <div className="max-w-[85%] sm:max-w-[75%] relative order-2">
+                          <div className="flex items-center gap-2 mb-1 text-[10px] text-gray-400 justify-start">
+                            <span className="font-bold text-gray-500">🤖 智能助手 (正在输入...)</span>
+                          </div>
+                          <div className="relative p-3 sm:p-4 rounded-2xl shadow-sm border bg-white border-2 border-indigo-100 text-gray-800 rounded-tl-none shadow-indigo-50">
+                            <MarkdownMessage content={streamingAiResponse.content} />
+                            <span className="inline-block w-1.5 h-4 ml-1 bg-indigo-500 animate-pulse align-middle"></span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
                   {/* 实时处理进度指示器 */}
                   <AnimatePresence>

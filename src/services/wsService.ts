@@ -17,7 +17,7 @@ interface WsClientMessage {
 
 /** 服务端 → 客户端消息 */
 export interface WsServerMessage {
-  type: "pong" | "tts:progress" | "tts:complete" | "tts:error" | "notification" | "admin:broadcast" | "fingerprint:require" | "fingerprint:ack" | "ticket:update" | "ticket:process";
+  type: "pong" | "tts:progress" | "tts:complete" | "tts:error" | "notification" | "admin:broadcast" | "fingerprint:require" | "fingerprint:ack" | "ticket:update" | "ticket:process" | "ticket:ai_response";
   data?: any;
   timestamp: number;
 }
@@ -370,6 +370,16 @@ class WsService {
     this.sendToUser(userId, {
       type: "ticket:process",
       data: { ticketId, step }
+    });
+  }
+
+  /**
+   * 通知工单 AI 回复进度（流式传输）
+   */
+  notifyTicketAiResponse(userId: string, ticketId: string, content: string, isFinished = false) {
+    this.sendToUser(userId, {
+      type: "ticket:ai_response",
+      data: { ticketId, content, isFinished }
     });
   }
 
