@@ -106,6 +106,46 @@ export const ticketController = {
         const descReason = isDescViolated ? await ModerationService.getAiViolationReason(description) : "";
         
         const punishment = await ModerationService.handleViolation(userObj);
+        const combinedReason = `标题: ${titleReason || "合规"} | 描述: ${descReason || "合规"}`;
+
+        // 发送违规通知邮件
+        (async () => {
+          try {
+            const user = await UserStorage.getUserById(userObj.id);
+            if (user && user.email) {
+              let html = "";
+              const time = new Date().toLocaleString();
+              const banStatus = ModerationService.isUserBanned(user);
+              
+              if (banStatus.isBanned) {
+                html = emailTemplates.generateTicketBannedEmailHtml(
+                  user.username,
+                  user.ticketViolationCount || 0,
+                  combinedReason,
+                  banStatus.remainingTime || "未知",
+                  time
+                );
+              } else {
+                html = emailTemplates.generateTicketViolationWarningEmailHtml(
+                  user.username,
+                  `标题: ${title} / 描述: ${description}`,
+                  combinedReason,
+                  time
+                );
+              }
+
+              await EmailService.sendEmail({
+                from: DEFAULT_EMAIL_FROM,
+                to: [user.email],
+                subject: banStatus.isBanned ? "🚫 工单访问权限已封禁" : "⚠️ 工单言论违规警告",
+                html
+              });
+            }
+          } catch (err) {
+            logger.error("发送违规通知邮件失败:", err);
+          }
+        })();
+
         return res.status(403).json({ 
           error: "AI 审查判定违规", 
           details: `标题: ${titleReason || "合规"}\n描述: ${descReason || "合规"}`,
@@ -248,6 +288,45 @@ export const ticketController = {
         if (isViolated) {
           const reason = await ModerationService.getAiViolationReason(content);
           const punishment = await ModerationService.handleViolation(userObj);
+
+          // 发送违规通知邮件
+          (async () => {
+            try {
+              const user = await UserStorage.getUserById(userObj.id);
+              if (user && user.email) {
+                let html = "";
+                const time = new Date().toLocaleString();
+                const banStatus = ModerationService.isUserBanned(user);
+                
+                if (banStatus.isBanned) {
+                  html = emailTemplates.generateTicketBannedEmailHtml(
+                    user.username,
+                    user.ticketViolationCount || 0,
+                    reason,
+                    banStatus.remainingTime || "未知",
+                    time
+                  );
+                } else {
+                  html = emailTemplates.generateTicketViolationWarningEmailHtml(
+                    user.username,
+                    content,
+                    reason,
+                    time
+                  );
+                }
+
+                await EmailService.sendEmail({
+                  from: DEFAULT_EMAIL_FROM,
+                  to: [user.email],
+                  subject: banStatus.isBanned ? "🚫 工单访问权限已封禁" : "⚠️ 工单言论违规警告",
+                  html
+                });
+              }
+            } catch (err) {
+              logger.error("发送违规通知邮件失败:", err);
+            }
+          })();
+
           return res.status(403).json({ 
             error: "AI 审查判定违规", 
             details: reason,
