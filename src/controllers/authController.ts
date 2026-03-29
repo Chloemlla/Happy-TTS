@@ -559,7 +559,7 @@ export class AuthController {
 
   /**
    * Passkey 二次校验接口
-   * @param req.body { username: string, passkeyCredentialId: string }
+   * @param req.body { username: string, passkeyCredentialId: any }
    */
   public static async passkeyVerify(req: Request, res: Response) {
     try {
@@ -605,95 +605,103 @@ export class AuthController {
         return res.status(400).json({ error: "用户名验证失败" });
       }
 
-      // 校验 passkeyCredentialId 是否存在
-      const found = user.passkeyCredentials.some(
-        (cred) => cred.credentialID === passkeyCredentialId
-      );
-      if (!found) {
-        logger.warn(
-          "[AuthController] Passkey校验失败：找不到匹配的credentialID",
-          {
-            username,
-            userId: user.id,
-            providedCredentialId: passkeyCredentialId,
-            availableCredentialIds: user.passkeyCredentials.map(
-              (c) => `${c.credentialID?.substring(0, 10)}...`
-            ),
+      // Passkey 验证：调用 PasskeyService 进行真实的密码学验证
+      try {
+        const { PasskeyService } = require("../services/passkeyService");
+        let passkeyResponse = passkeyCredentialId;
+        if (typeof passkeyCredentialId === "string") {
+          try {
+            passkeyResponse = JSON.parse(passkeyCredentialId);
+          } catch (e) {
+            // 保持原样，PasskeyService 会处理
           }
-        );
-        return res.status(401).json({ error: "Passkey 校验失败" });
-      }
-
-      // 更新用户状态（如添加 passkeyVerified 字段）
-      await UserStorage.updateUser(user.id, { passkeyVerified: true });
-      logger.info("[AuthController] Passkey 校验通过，已更新用户状态", {
-        userId: user.id,
-        username,
-        credentialId: `${passkeyCredentialId.substring(0, 10)}...`,
-      });
-
-      // 生成JWT token
-      const jwt = require("jsonwebtoken");
-      const config = require("../config/config").config;
-      const token = jwt.sign(
-        { userId: user.id, username: user.username, role: user.role || "user" },
-        config.jwtSecret,
-        { expiresIn: "2h" }
-      );
-
-      logger.info("[AuthController] Passkey验证成功，生成JWT token", {
-        userId: user.id,
-        username,
-        tokenType: "JWT",
-      });
-
-      // 异地登录检测（Passkey验证通过后）
-      const ip = getClientIP(req);
-      const userAgent = req.headers["user-agent"] || "unknown";
-      const lastIp = user.lastLoginIp;
-      if (lastIp && lastIp !== "unknown" && ip !== "unknown" && lastIp !== ip && user.email) {
-        try {
-          const loginTime = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
-          const emailHtml = generateLoginIpChangedEmailHtml(
-            user.username,
-            ip,
-            lastIp,
-            loginTime,
-            userAgent,
-          );
-          sendEmail({
-            to: user.email,
-            subject: "Synapse 异地登录安全提醒",
-            html: emailHtml,
-            logTag: "异地登录提醒(Passkey)",
-            checkQuota: false,
-          }).catch((e) => {
-            logger.warn(`[异地登录] Passkey路径提醒邮件发送失败: ${user.email}`, e);
-          });
-          logger.info(`[异地登录] Passkey路径已发送提醒邮件至 ${user.email}，上次IP=${lastIp}，本次IP=${ip}`);
-        } catch (notifyErr) {
-          logger.warn("[异地登录] Passkey路径发送提醒邮件失败:", notifyErr);
         }
+
+        const clientIP = getClientIP(req);
+        const verification = await PasskeyService.verifyAuthentication(
+          user,
+          passkeyResponse,
+          clientIP,
+          clientIP
+        );
+
+        if (!verification.verified) {
+          return res.status(401).json({ error: "Passkey 校验失败" });
+        }
+
+        // 更新用户状态（如添加 passkeyVerified 字段）
+        await UserStorage.updateUser(user.id, { passkeyVerified: true });
+        logger.info("[AuthController] Passkey 校验通过，已更新用户状态", {
+          userId: user.id,
+          username,
+        });
+
+        // 生成JWT token
+        const jwt = require("jsonwebtoken");
+        const config = require("../config/config").config;
+        const token = jwt.sign(
+          { userId: user.id, username: user.username, role: user.role || "user" },
+          config.jwtSecret,
+          { expiresIn: "2h" }
+        );
+
+        logger.info("[AuthController] Passkey验证成功，生成JWT token", {
+          userId: user.id,
+          username,
+          tokenType: "JWT",
+        });
+
+        // 异地登录检测（Passkey验证通过后）
+        const ip = getClientIP(req);
+        const userAgent = req.headers["user-agent"] || "unknown";
+        const lastIp = user.lastLoginIp;
+        if (lastIp && lastIp !== "unknown" && ip !== "unknown" && lastIp !== ip && user.email) {
+          try {
+            const loginTime = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
+            const emailHtml = generateLoginIpChangedEmailHtml(
+              user.username,
+              ip,
+              lastIp,
+              loginTime,
+              userAgent,
+            );
+            sendEmail({
+              to: user.email,
+              subject: "Synapse 异地登录安全提醒",
+              html: emailHtml,
+              logTag: "异地登录提醒(Passkey)",
+              checkQuota: false,
+            }).catch((e) => {
+              logger.warn(`[异地登录] Passkey路径提醒邮件发送失败: ${user.email}`, e);
+            });
+            logger.info(`[异地登录] Passkey路径已发送提醒邮件至 ${user.email}，上次IP=${lastIp}，本次IP=${ip}`);
+          } catch (notifyErr) {
+            logger.warn("[异地登录] Passkey路径发送提醒邮件失败:", notifyErr);
+          }
+        }
+
+        // 更新上次登录IP和时间
+        UserStorage.updateUser(user.id, {
+          lastLoginIp: ip,
+          lastLoginAt: new Date().toISOString(),
+        } as any).catch((e) => {
+          logger.warn("[登录] Passkey路径更新lastLoginIp失败:", e);
+        });
+
+        const { password: _, ...userWithoutPassword } = user;
+        return res.json({
+          success: true,
+          token,
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+          },
+        });
+      } catch (passkeyErr) {
+        logger.error(`[passkeyVerify] Passkey 验证异常: userId=${user.id}`, passkeyErr);
+        return res.status(401).json({ error: "Passkey 校验异常" });
       }
-
-      // 更新上次登录IP和时间
-      UserStorage.updateUser(user.id, {
-        lastLoginIp: ip,
-        lastLoginAt: new Date().toISOString(),
-      } as any).catch((e) => {
-        logger.warn("[登录] Passkey路径更新lastLoginIp失败:", e);
-      });
-
-      const { password: _, ...userWithoutPassword } = user;
-      return res.json({
-        success: true,
-        token,
-        user: {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-        },
-      });
     } catch (error) {
       logger.error("[AuthController] Passkey 校验接口异常", {
         error: error instanceof Error ? error.message : String(error),
@@ -1075,23 +1083,44 @@ export class AuthController {
       }
 
       if (!verificationResult && hasPasskey) {
-        // Passkey验证（仅记录部分 credentialId，防止凭证 ID 泄露）
-        const { username, passkeyCredentials } = user;
-        if (username && passkeyCredentials && passkeyCredentials.length > 0) {
-          const credIdPreview = typeof verificationCode === "string"
-            ? verificationCode.substring(0, 10) + "..."
-            : "[invalid]";
-          const found = passkeyCredentials.some(
-            (cred) => cred.credentialID === verificationCode
-          );
-          if (found) {
-            verificationResult = true;
-            logger.info(`Passkey验证成功: userId=${userId}, credentialId=${credIdPreview}`);
-          } else {
-            logger.warn(`Passkey验证失败: userId=${userId}, credentialId=${credIdPreview}`);
+        // Passkey 验证：调用 PasskeyService 进行真实的密码学验证
+        try {
+          const { PasskeyService } = require("../services/passkeyService");
+          // 注意：此处 verificationCode 应为完整的 WebAuthn 响应对象（JSON 格式）
+          let passkeyResponse = verificationCode;
+          if (typeof verificationCode === "string") {
+            try {
+              passkeyResponse = JSON.parse(verificationCode);
+            } catch (e) {
+              logger.warn("[verifyUser] verificationCode 不是有效的 JSON 字符串，尝试作为原始 ID 查找");
+            }
           }
-        } else {
-          logger.warn(`Passkey验证失败: userId=${userId}, 用户未启用Passkey`);
+
+          if (passkeyResponse && typeof passkeyResponse === "object") {
+            const clientIP = req.body.clientIP || req.ip || "unknown";
+            const verification = await PasskeyService.verifyAuthentication(
+              user,
+              passkeyResponse,
+              clientIP,
+              clientIP
+            );
+
+            if (verification.verified) {
+              verificationResult = true;
+              logger.info(`Passkey 密码学验证成功: userId=${userId}`);
+            }
+          } else {
+            // 回退逻辑：如果不是对象，尝试进行基础 ID 匹配（仅用于向后兼容或特殊简单的验证场景）
+            const found = user.passkeyCredentials.some(
+              (cred: any) => cred.credentialID === verificationCode || cred.id === verificationCode
+            );
+            if (found) {
+              verificationResult = true;
+              logger.info(`Passkey 基础 ID 匹配成功: userId=${userId}`);
+            }
+          }
+        } catch (passkeyErr) {
+          logger.error(`[verifyUser] Passkey 验证异常: userId=${userId}`, passkeyErr);
         }
       }
 
