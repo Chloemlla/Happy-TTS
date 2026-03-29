@@ -39,7 +39,7 @@ export default function PolicyPage() {
               <li>如涉及评论、反馈等交互，可能会收集您主动填写的邮箱、昵称等信息</li>
               <li>本站采用合理的技术措施保护您的数据安全，不会将您的个人信息用于未经授权的用途</li>
               <li>本站可能使用 Cookie 或本地存储以提升用户体验，您可自行管理浏览器相关设置</li>
-              <li>如有疑问请联系：<a href="mailto:support@hapxs.com" style={{ color: '#6366f1', fontWeight: 700 }}>support@hapxs.com</a></li>
+              <li>如有疑问请联系：<a href="mailto:support@951100.xyz" style={{ color: '#6366f1', fontWeight: 700 }}>support@951100.xyz</a></li>
             </ul>
           </section>
           <section style={{ marginBottom: 24 }}>
@@ -60,7 +60,7 @@ export default function PolicyPage() {
           <section style={{ marginBottom: 24 }}>
             <h2 style={{ fontSize: 22, fontWeight: 600, color: '#1e293b', marginBottom: 8 }}>联系方式</h2>
             <div style={{ color: '#334155', fontSize: 16 }}>
-              如有任何疑问、建议或投诉，请通过邮箱 <a href="mailto:support@hapxs.com" style={{ color: '#6366f1', fontWeight: 700 }}>support@hapxs.com</a> 联系我们。
+              如有任何疑问、建议或投诉，请通过邮箱 <a href="mailto:support@951100.xyz" style={{ color: '#6366f1', fontWeight: 700 }}>support@951100.xyz</a> 联系我们。
             </div>
           </section>
           <div style={{ color: '#64748b', fontSize: 13, marginTop: 12 }}>

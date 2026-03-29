@@ -4,7 +4,7 @@ import type { NextFunction, Request, Response } from "express";
 // 允许的域名
 const allowedOrigins = [
   "https://tts.hapx.one",
-  "https://tts.hapxs.com",
+  "https://tts.951100.xyz",
   "https://tts.951100.xyz",
   "https://951100.xyz",
   "https://tts.951100.xyz",
@@ -51,7 +51,7 @@ const CORS_EXPOSED_HEADERS = [
   "Cache-Control",
 ];
 
-/** 判断 origin 是否在白名单内（含 *.hapxs.com 通配） */
+/** 判断 origin 是否在白名单内（含 *.951100.xyz 通配） */
 function isOriginAllowed(origin: string | undefined): boolean {
   if (!origin) return true; // 无 origin（curl/postman）放行
   if (/^https:\/\/([a-zA-Z0-9-]+\.)*hapxs\.com$/.test(origin)) return true;

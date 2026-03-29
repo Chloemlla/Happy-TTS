@@ -64,7 +64,7 @@ const ShortUrlMigrationManager: React.FC = () => {
 
   // 执行迁移
   const executeMigration = async () => {
-    if (!window.confirm('确定要执行短链迁移吗？这将把所有的 ipfs.crossbell.io 域名替换为 ipfs.hapxs.com')) {
+    if (!window.confirm('确定要执行短链迁移吗？这将把所有的 ipfs.crossbell.io 域名替换为 ipfs.951100.xyz')) {
       return;
     }
 
@@ -86,7 +86,7 @@ const ShortUrlMigrationManager: React.FC = () => {
       const result = await response.json();
       setMigrationResult(result.data);
       setNotification({ message: result.message || '迁移完成', type: 'success' });
-      
+
       // 迁移完成后刷新统计信息
       await fetchStats();
     } catch (error: any) {
@@ -111,7 +111,7 @@ const ShortUrlMigrationManager: React.FC = () => {
           短链域名迁移管理
         </h2>
         <div className="text-gray-600 space-y-2">
-          <p>此功能用于将短链数据库中的旧域名 <code className="bg-gray-200 px-1 rounded">ipfs.crossbell.io</code> 自动替换为新域名 <code className="bg-gray-200 px-1 rounded">ipfs.hapxs.com</code></p>
+          <p>此功能用于将短链数据库中的旧域名 <code className="bg-gray-200 px-1 rounded">ipfs.crossbell.io</code> 自动替换为新域名 <code className="bg-gray-200 px-1 rounded">ipfs.951100.xyz</code></p>
           <div className="flex items-start gap-2 text-sm">
             <FaInfoCircle className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
             <div>
@@ -180,17 +180,17 @@ const ShortUrlMigrationManager: React.FC = () => {
                     className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1"
                   >
                     {showOtherDomains ? '收起' : '展开'}
-                    <svg 
-                      className={`w-4 h-4 transition-transform ${showOtherDomains ? 'rotate-180' : ''}`} 
-                      fill="none" 
-                      stroke="currentColor" 
+                    <svg
+                      className={`w-4 h-4 transition-transform ${showOtherDomains ? 'rotate-180' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
                       viewBox="0 0 24 24"
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
                 </div>
-                
+
                 {showOtherDomains && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}

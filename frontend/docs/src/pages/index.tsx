@@ -95,8 +95,8 @@ function SupportModal({ open, onClose }: { open: boolean; onClose: () => void })
         <div style={{ fontSize: 38, marginBottom: 12, color: '#6366f1' }}>📧</div>
         <h3 style={{ margin: '0 0 8px 0', color: '#3730a3' }}>开发者联系方式</h3>
         <p style={{ margin: 0, fontSize: 18, color: '#475569' }}>如有问题或建议，请联系：</p>
-        <a href="mailto:support@hapxs.com" style={{ color: '#6366f1', fontWeight: 700, fontSize: 20 }}>
-          support@hapxs.com</a>
+        <a href="mailto:support@951100.xyz" style={{ color: '#6366f1', fontWeight: 700, fontSize: 20 }}>
+          support@951100.xyz</a>
         <div style={{ marginTop: 24, marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
           <input type="checkbox" id="policy-check" checked={checked} onChange={e => setChecked(e.target.checked)} style={{ width: 18, height: 18 }} />
           <label htmlFor="policy-check" style={{ fontSize: 15, color: '#334155', userSelect: 'none' }}>

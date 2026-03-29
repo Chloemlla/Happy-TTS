@@ -849,8 +849,8 @@ router.get("/user/profile", authMiddleware, async (req, res) => {
     if (dbUser) {
       email = dbUser.email;
       if (dbUser.avatarUrl && typeof dbUser.avatarUrl === "string" && dbUser.avatarUrl.length > 0) {
-        // 将 ipfs.crossbell.io 替换为 ipfs.hapxs.com
-        avatarUrl = dbUser.avatarUrl.replace("ipfs.crossbell.io", "ipfs.hapxs.com");
+        // 将 ipfs.crossbell.io 替换为 ipfs.951100.xyz
+        avatarUrl = dbUser.avatarUrl.replace("ipfs.crossbell.io", "ipfs.951100.xyz");
         // 尝试从URL中提取hash（如文件名带hash），否则可用md5等生成
         const match = avatarUrl.match(/([a-fA-F0-9]{8,})\.(jpg|jpeg|png|webp|gif)$/);
         if (match) {

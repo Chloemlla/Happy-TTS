@@ -80,10 +80,10 @@ class IntegrityChecker {
   private readonly TRUSTED_HOST_PREFIXES: string[] = [
     "http://localhost",
     "https://localhost",
-    "https://ipfs.hapxs.com",
+    "https://ipfs.951100.xyz",
     "https://cdn.jsdelivr.net",
     "https://tts-api-docs.hapx.one",
-    "https://tts-api-docs.hapxs.com",
+    "https://tts-api-docs.951100.xyz",
     "https://api.951100.xyz",
     "https://tts.951100.xyz",
     "https://951100.xyz",

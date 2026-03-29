@@ -320,16 +320,20 @@ app.use(
           "'self'",
           "https://api.openai.com",
           "https://api.951100.xyz",
-          "http://localhost:3000",
-          "http://localhost:3001",
-          "http://localhost:6000",
-          "http://localhost:6001",
-          "http://127.0.0.1:3001",
-          "http://127.0.0.1:6000",
-          "http://127.0.0.1:6001",
-          "http://192.168.10.7:3001",
-          "http://192.168.10.7:6000",
-          "http://192.168.10.7:6001",
+          ...(process.env.NODE_ENV !== "production"
+            ? [
+              "http://localhost:3000",
+              "http://localhost:3001",
+              "http://localhost:6000",
+              "http://localhost:6001",
+              "http://127.0.0.1:3001",
+              "http://127.0.0.1:6000",
+              "http://127.0.0.1:6001",
+              "http://192.168.10.7:3001",
+              "http://192.168.10.7:6000",
+              "http://192.168.10.7:6001",
+            ]
+            : []),
           "https://api.hcaptcha.com",
           "https://*.hcaptcha.com",
           "https://www.google-analytics.com",
@@ -485,17 +489,17 @@ const preferSwaggerUrl =
   !!process.env.OPENAPI_JSON_PATH || fs.existsSync("/app/openapi.json");
 
 app.get("/api-docs/favicon-32x32.png", (_req: Request, res: Response) => {
-  res.redirect(302, "https://png.hapxs.com/i/2025/08/08/68953253d778d.png");
+  res.redirect(302, "https://cy-pic.kuaizhan.com/g3/bf/6b/e222-0387-46c3-8276-c34a308863b106?cysign=0a8bf04f93a65b72d478b5e490ad177f&cyt=1774775612");
 });
 app.get("/api-docs/favicon-16x16.png", (_req: Request, res: Response) => {
-  res.redirect(302, "https://png.hapxs.com/i/2025/08/08/68953253d778d.png");
+  res.redirect(302, "https://cy-pic.kuaizhan.com/g3/bf/6b/e222-0387-46c3-8276-c34a308863b106?cysign=0a8bf04f93a65b72d478b5e490ad177f&cyt=1774775612");
 });
 
 const swaggerCustomCss = `
   .swagger-ui .topbar .link img,
   .swagger-ui .topbar .link svg { display: none !important; }
   .swagger-ui .topbar .link {
-    background-image: url('https://png.hapxs.com/i/2025/08/08/68953253d778d.png');
+    background-image: url('https://cy-pic.kuaizhan.com/g3/bf/6b/e222-0387-46c3-8276-c34a308863b106?cysign=0a8bf04f93a65b72d478b5e490ad177f&cyt=1774775612');
     background-repeat: no-repeat;
     background-position: left center;
     background-size: auto 40px;
@@ -651,7 +655,7 @@ app.get("/", rootLimiter, (_req, res) => {
 });
 
 app.get("/favicon.ico", (_req, res) => {
-  res.redirect(302, "https://png.hapxs.com/i/2025/08/08/68953253d778d.png");
+  res.redirect(302, "https://cy-pic.kuaizhan.com/g3/bf/6b/e222-0387-46c3-8276-c34a308863b106?cysign=0a8bf04f93a65b72d478b5e490ad177f&cyt=1774775612");
 });
 
 // 兼容旧路径

@@ -91,7 +91,7 @@ app.get("/", (c) => c.redirect("https://tts.951100.xyz/", 302));
 
 // favicon
 app.get("/favicon.ico", (c) =>
-  c.redirect("https://png.hapxs.com/i/2025/08/08/68953253d778d.png", 302)
+  c.redirect("https://cy-pic.kuaizhan.com/g3/bf/6b/e222-0387-46c3-8276-c34a308863b106?cysign=0a8bf04f93a65b72d478b5e490ad177f&cyt=1774775612", 302)
 );
 
 // IP 查询

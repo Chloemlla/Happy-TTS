@@ -178,7 +178,7 @@ router.get("/settings", authenticateAdmin, IPFSController.getConfig);
  *               ipfsUploadUrl:
  *                 type: string
  *                 description: IPFS上传URL
- *                 example: "https://ipfs-webui.hapxs.com/api/v0/add"
+ *                 example: "https://ipfs-webui.951100.xyz/api/v0/add"
  *               ipfsUa:
  *                 type: string
  *                 description: IPFS上传User-Agent
