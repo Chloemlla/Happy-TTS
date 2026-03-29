@@ -21,7 +21,7 @@ const api = axios.create({
         'Content-Type': 'application/json',
         'Accept': 'application/json'
     },
-    timeout: 5000
+    timeout: 5000 // 5秒超时
 });
 
 api.interceptors.request.use(config => {
@@ -32,16 +32,34 @@ api.interceptors.request.use(config => {
     return config;
 });
 
+// 添加请求拦截器
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        return Promise.reject(error);
+    }
+);
+
 export const useAuth = () => {
     const [user, setUser] = useState<User | null>(null);
     const [savedAccounts, setSavedAccounts] = useState<SavedAccount[]>([]);
     const [loading, setLoading] = useState(true);
+    const [pendingTOTP, setPendingTOTP] = useState<{ userId: string } | null>(null);
     const [pending2FA, setPending2FA] = useState<{ userId: string; type: string[]; username?: string } | null>(null);
     
     const navigate = useNavigate();
     const location = useLocation();
     
     const checkingRef = useRef(false);
+    const lastCheckRef = useRef(0);
+    const lastErrorRef = useRef(0);
+    const isAdminCheckedRef = useRef(false);
+    const locationPathRef = useRef('');
+
+    const CHECK_INTERVAL = 30000; 
+    const ERROR_RETRY_INTERVAL = 60000;
+
+    locationPathRef.current = location.pathname;
 
     // 加载保存的账号列表
     const loadSavedAccounts = useCallback(() => {
@@ -49,8 +67,9 @@ export const useAuth = () => {
         if (stored) {
             try {
                 const parsed = JSON.parse(stored) as SavedAccount[];
-                setSavedAccounts(parsed.sort((a, b) => b.lastActive - a.lastActive));
-                return parsed;
+                const sorted = parsed.sort((a, b) => b.lastActive - a.lastActive);
+                setSavedAccounts(sorted);
+                return sorted;
             } catch (e) {
                 return [];
             }
@@ -60,15 +79,25 @@ export const useAuth = () => {
 
     // 保存账号到列表
     const saveAccount = useCallback((user: User, token: string) => {
-        const current = loadSavedAccounts();
+        const stored = localStorage.getItem(ACCOUNTS_KEY);
+        let current: SavedAccount[] = [];
+        if (stored) {
+            try { current = JSON.parse(stored); } catch (e) {}
+        }
         const filtered = current.filter(a => a.user.id !== user.id);
         const updated = [{ user, token, lastActive: Date.now() }, ...filtered];
         localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(updated));
         setSavedAccounts(updated);
-    }, [loadSavedAccounts]);
+    }, []);
 
     const checkAuth = useCallback(async () => {
         if (checkingRef.current) return;
+
+        const now = Date.now();
+        if (now - lastCheckRef.current < CHECK_INTERVAL || now - lastErrorRef.current < ERROR_RETRY_INTERVAL) {
+            return;
+        }
+
         checkingRef.current = true;
 
         try {
@@ -84,15 +113,25 @@ export const useAuth = () => {
             });
 
             if (response.data) {
-                setUser(response.data);
-                // 更新当前账号在列表中的最后活跃时间
-                saveAccount(response.data, token);
+                const data = response.data;
+                setUser(data);
+                saveAccount(data, token); // 同步到多账号列表
+                
+                if (data.role === 'admin' && !isAdminCheckedRef.current) {
+                    isAdminCheckedRef.current = true;
+                    const excludedPaths = ['/policy', '/welcome', '/admin/users', '/admin/store', '/admin/resources', '/admin/cdks'];
+                    if (locationPathRef.current === '/' && !excludedPaths.includes(locationPathRef.current)) {
+                        navigate('/', { replace: true });
+                    }
+                }
             } else {
                 setUser(null);
                 localStorage.removeItem('token');
             }
+            lastCheckRef.current = now;
         } catch (error: any) {
-            if (error.response?.status === 401) {
+            lastErrorRef.current = now;
+            if (error.response?.status !== 429) {
                 setUser(null);
                 localStorage.removeItem('token');
             }
@@ -100,12 +139,12 @@ export const useAuth = () => {
             setLoading(false);
             checkingRef.current = false;
         }
-    }, [saveAccount]);
+    }, [saveAccount, navigate]);
 
     useEffect(() => {
         loadSavedAccounts();
         checkAuth();
-    }, []);
+    }, [loadSavedAccounts, checkAuth]);
 
     // 切换账号
     const switchAccount = async (userId: string) => {
@@ -115,11 +154,12 @@ export const useAuth = () => {
             localStorage.setItem('token', target.token);
             setLoading(true);
             try {
-                const res = await api.get<User>('/api/auth/me', {
+                const response = await api.get<User>('/api/auth/me', {
                     headers: { Authorization: `Bearer ${target.token}` }
                 });
-                setUser(res.data);
-                saveAccount(res.data, target.token);
+                setUser(response.data);
+                saveAccount(response.data, target.token);
+                isAdminCheckedRef.current = false;
                 navigate('/');
             } catch (e) {
                 const updated = accounts.filter(a => a.user.id !== userId);
@@ -143,7 +183,7 @@ export const useAuth = () => {
             });
             const { user, token, requires2FA, twoFactorType } = response.data;
             
-            if (requires2FA && twoFactorType) {
+            if (requires2FA && twoFactorType && twoFactorType.length > 0) {
                 setPending2FA({ userId: user.id, type: twoFactorType, username: user.username });
                 return { requires2FA: true, user, token, twoFactorType };
             }
@@ -152,49 +192,12 @@ export const useAuth = () => {
                 localStorage.setItem('token', token);
                 saveAccount(user, token);
                 setUser(user);
+                lastCheckRef.current = Date.now();
             }
             return { requires2FA: false };
         } catch (error: any) {
-            throw new Error(error.response?.data?.error || '登录失败');
-        }
-    };
-
-    const register = async (username: string, email: string, password: string, cfToken?: string) => {
-        try {
-            const response = await api.post<{ user: User; token: string }>('/api/auth/register', {
-                username,
-                email,
-                password,
-                ...(cfToken && { cfToken })
-            });
-            const { user, token } = response.data;
-            if (token) {
-                localStorage.setItem('token', token);
-                saveAccount(user, token);
-                setUser(user);
-            }
-            return response.data;
-        } catch (error: any) {
-            throw new Error(error.response?.data?.error || '注册失败');
-        }
-    };
-
-    const verifyTOTP = async (userId: string, code: string) => {
-        try {
-            const response = await api.post<{ user: User; token: string }>('/api/auth/verify-totp', {
-                userId,
-                code
-            });
-            const { user, token } = response.data;
-            if (token) {
-                localStorage.setItem('token', token);
-                saveAccount(user, token);
-                setUser(user);
-                setPending2FA(null);
-            }
-            return response.data;
-        } catch (error: any) {
-            throw new Error(error.response?.data?.error || '验证失败');
+            const msg = error.response?.data?.error || error.message || '登录失败';
+            throw new Error(msg);
         }
     };
 
@@ -202,6 +205,54 @@ export const useAuth = () => {
         localStorage.setItem('token', token);
         saveAccount(user, token);
         setUser(user);
+        lastCheckRef.current = Date.now();
+    };
+
+    const verifyTOTP = async (code: string, backupCode?: string) => {
+        const userId = pendingTOTP?.userId || pending2FA?.userId;
+        if (!userId) throw new Error('没有待验证的请求');
+        
+        try {
+            const token = localStorage.getItem('token');
+            const response = await api.post('/api/totp/verify-token', {
+                userId,
+                token: backupCode ? undefined : code,
+                backupCode
+            }, {
+                headers: token ? { Authorization: `Bearer ${token}` } : {}
+            });
+
+            if (response.data.verified && response.data.token) {
+                const newToken = response.data.token;
+                localStorage.setItem('token', newToken);
+                const userRes = await api.get<User>('/api/auth/me', {
+                    headers: { Authorization: `Bearer ${newToken}` }
+                });
+                setUser(userRes.data);
+                saveAccount(userRes.data, newToken);
+                setPendingTOTP(null);
+                setPending2FA(null);
+                return true;
+            }
+            throw new Error('验证失败');
+        } catch (error: any) {
+            throw new Error(error.response?.data?.error || '验证失败');
+        }
+    };
+
+    const register = async (username: string, email: string, password: string) => {
+        try {
+            const response = await api.post<{ user: User; token: string }>('/api/auth/register', {
+                username, email, password
+            });
+            const { user, token } = response.data;
+            localStorage.setItem('token', token);
+            saveAccount(user, token);
+            setUser(user);
+            lastCheckRef.current = Date.now();
+        } catch (error: any) {
+            throw new Error(error.response?.data?.error || '注册失败');
+        }
     };
 
     const logout = async () => {
@@ -214,7 +265,9 @@ export const useAuth = () => {
 
         localStorage.removeItem('token');
         setUser(null);
+        setPendingTOTP(null);
         setPending2FA(null);
+        isAdminCheckedRef.current = false;
 
         const remaining = loadSavedAccounts();
         if (remaining.length > 0) {
@@ -229,6 +282,7 @@ export const useAuth = () => {
         localStorage.removeItem(ACCOUNTS_KEY);
         setUser(null);
         setSavedAccounts([]);
+        isAdminCheckedRef.current = false;
         navigate('/welcome');
     };
 
@@ -250,19 +304,28 @@ export const useAuth = () => {
     };
 
     const updateUserAvatar = async () => {
-        await checkAuth();
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        try {
+            const response = await api.get<User>('/api/auth/me');
+            if (response.data) {
+                setUser(response.data);
+                saveAccount(response.data, token);
+            }
+        } catch (e) {}
     };
 
     return {
         user,
         savedAccounts,
         loading,
+        pendingTOTP,
         pending2FA,
         setPending2FA,
         login,
-        register,
-        verifyTOTP,
         loginWithToken,
+        verifyTOTP,
+        register,
         switchAccount,
         logout,
         logoutAll,
