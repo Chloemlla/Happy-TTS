@@ -64,4 +64,16 @@ export const ticketApi = {
     const response = await api.patch(`/api/tickets/admin/${id}/status`, { status });
     return response.data;
   },
+
+  // 管理员编辑消息
+  async adminEditMessage(ticketId: string, messageIndex: number, content: string): Promise<ITicket> {
+    const response = await api.put(`/api/tickets/admin/${ticketId}/messages/${messageIndex}`, { content });
+    return response.data;
+  },
+
+  // 管理员删除消息
+  async adminDeleteMessage(ticketId: string, messageIndex: number): Promise<ITicket> {
+    const response = await api.delete(`/api/tickets/admin/${ticketId}/messages/${messageIndex}`);
+    return response.data;
+  },
 };

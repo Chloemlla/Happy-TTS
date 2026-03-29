@@ -483,4 +483,59 @@ export const ticketController = {
       res.status(500).json({ error: "服务器内部错误" });
     }
   },
+
+  // 管理员编辑特定消息
+  async adminEditMessage(req: Request, res: Response) {
+    try {
+      const { id, messageIndex } = req.params;
+      const { content } = req.body;
+      const idx = parseInt(messageIndex);
+
+      if (!content) return res.status(400).json({ error: "内容不能为空" });
+      if (isNaN(idx)) return res.status(400).json({ error: "无效的消息索引" });
+
+      const ticket = await TicketModel.findById(id);
+      if (!ticket) return res.status(404).json({ error: "工单不存在" });
+
+      if (idx < 0 || idx >= ticket.messages.length) {
+        return res.status(400).json({ error: "消息索引越界" });
+      }
+
+      ticket.messages[idx].content = String(content);
+      // 记录修改标记 (可选)
+      // ticket.messages[idx].isEdited = true; 
+      
+      await ticket.save();
+      logger.info(`[管理员] 修改了工单 ${id} 的第 ${idx} 条消息`);
+      res.json(ticket);
+    } catch (error) {
+      logger.error("管理员编辑消息失败:", error);
+      res.status(500).json({ error: "服务器内部错误" });
+    }
+  },
+
+  // 管理员删除特定消息
+  async adminDeleteMessage(req: Request, res: Response) {
+    try {
+      const { id, messageIndex } = req.params;
+      const idx = parseInt(messageIndex);
+
+      if (isNaN(idx)) return res.status(400).json({ error: "无效的消息索引" });
+
+      const ticket = await TicketModel.findById(id);
+      if (!ticket) return res.status(404).json({ error: "工单不存在" });
+
+      if (idx < 0 || idx >= ticket.messages.length) {
+        return res.status(400).json({ error: "消息索引越界" });
+      }
+
+      ticket.messages.splice(idx, 1);
+      await ticket.save();
+      logger.info(`[管理员] 删除了工单 ${id} 的第 ${idx} 条消息`);
+      res.json(ticket);
+    } catch (error) {
+      logger.error("管理员删除消息失败:", error);
+      res.status(500).json({ error: "服务器内部错误" });
+    }
+  },
 };

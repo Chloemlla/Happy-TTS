@@ -24,5 +24,7 @@ const adminOnly = (req: any, res: any, next: any) => {
 
 router.get("/admin/all", adminOnly, ticketController.getAllTickets);
 router.patch("/admin/:id/status", adminOnly, ticketController.updateTicketStatus);
+router.put("/admin/:id/messages/:messageIndex", adminOnly, ticketController.adminEditMessage);
+router.delete("/admin/:id/messages/:messageIndex", adminOnly, ticketController.adminDeleteMessage);
 
 export default router;
