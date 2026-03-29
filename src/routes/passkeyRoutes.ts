@@ -3,7 +3,13 @@ import { authenticateToken } from "../middleware/authenticateToken";
 import { rateLimitMiddleware } from "../middleware/rateLimit";
 import { PasskeyDataRepairService } from "../services/passkeyDataRepairService";
 import { PasskeyService } from "../services/passkeyService";
+import { sendEmail } from "../services/emailSender";
+import {
+  generatePasskeyAddedEmailHtml,
+  generatePasskeyRemovedEmailHtml,
+} from "../templates/emailTemplates";
 import logger from "../utils/logger";
+import { getClientIP } from "../utils/ipUtils";
 import { PasskeyCredentialIdFixer } from "../utils/passkeyCredentialIdFixer";
 import { UserStorage } from "../utils/userStorage";
 
@@ -143,6 +149,25 @@ router.post("/register/finish", authenticateToken, rateLimitMiddleware, async (r
     );
     // 注册成功后，返回最新的passkeyCredentials
     const updatedUser = await UserStorage.getUserById(userId);
+
+    // 发送邮件通知
+    if (verification?.verified && updatedUser) {
+      try {
+        const time = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
+        const ip = getClientIP(req);
+        const device = req.headers["user-agent"] || "unknown";
+        const emailHtml = generatePasskeyAddedEmailHtml(updatedUser.username, credentialName, time, ip, device);
+        sendEmail({
+          to: updatedUser.email,
+          subject: "Synapse 已成功添加 Passkey",
+          html: emailHtml,
+          logTag: "Passkey添加通知",
+          checkQuota: false,
+        }).catch((e) => logger.warn(`[Passkey添加通知] 邮件发送失败: ${updatedUser.email}`, e));
+      } catch (notifyErr) {
+        logger.warn("[Passkey添加通知] 发送通知邮件失败:", notifyErr);
+      }
+    }
 
     // 记录本次 finish 的简短 payload 以便管理员调试（只包含非敏感字段）
     try {
@@ -564,7 +589,28 @@ router.delete("/credentials/:credentialId", authenticateToken, rateLimitMiddlewa
       return res.status(400).json({ error: "凭证ID是必需的" });
     }
 
+    const user = await UserStorage.getUserById(userId);
     await PasskeyService.removeCredential(userId, credentialId);
+
+    // 发送邮件通知
+    if (user) {
+      try {
+        const time = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
+        const ip = getClientIP(req);
+        const device = req.headers["user-agent"] || "unknown";
+        const emailHtml = generatePasskeyRemovedEmailHtml(user.username, time, ip, device);
+        sendEmail({
+          to: user.email,
+          subject: "Synapse Passkey 已移除",
+          html: emailHtml,
+          logTag: "Passkey移除通知",
+          checkQuota: false,
+        }).catch((e) => logger.warn(`[Passkey移除通知] 邮件发送失败: ${user.email}`, e));
+      } catch (notifyErr) {
+        logger.warn("[Passkey移除通知] 发送通知邮件失败:", notifyErr);
+      }
+    }
+
     res.json({ success: true });
   } catch (error) {
     console.error("删除 Passkey 凭证失败:", error);

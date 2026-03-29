@@ -1207,6 +1207,35 @@ export class UserStorage {
       if (dailyUsage >= UserStorage.DAILY_LIMIT) return false;
       dailyUsage++;
       await userService.updateUser(userId, { dailyUsage, lastUsageDate: new Date().toISOString() });
+
+      // 发送用量警报邮件
+      if (user.email && user.role !== "admin") {
+        const usagePercent = (dailyUsage / UserStorage.DAILY_LIMIT) * 100;
+        if (usagePercent === 80 || usagePercent === 100) {
+          try {
+            const { sendEmail } = await import("../services/emailSender");
+            const { generateUsageAlertEmailHtml } = await import("../templates/emailTemplates");
+            const time = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
+            const emailHtml = generateUsageAlertEmailHtml(
+              user.username,
+              `${usagePercent}%`,
+              dailyUsage,
+              UserStorage.DAILY_LIMIT,
+              time
+            );
+            sendEmail({
+              to: user.email,
+              subject: `Synapse 每日用量警报 (${usagePercent}%)`,
+              html: emailHtml,
+              logTag: "用量警报通知",
+              checkQuota: false,
+            }).catch(e => logger.warn(`[用量警报通知] 邮件发送失败: ${user.email}`, e));
+          } catch (notifyErr) {
+            logger.warn("[用量警报通知] 发送通知邮件失败:", notifyErr);
+          }
+        }
+      }
+
       return true;
     } else if (STORAGE_MODE === "mysql") {
       const conn = await getMysqlConnection();
@@ -1228,6 +1257,35 @@ export class UserStorage {
           new Date().toISOString(),
           userId,
         ]);
+
+        // 发送用量警报邮件
+        if (user.email && user.role !== "admin") {
+          const usagePercent = (dailyUsage / UserStorage.DAILY_LIMIT) * 100;
+          if (usagePercent === 80 || usagePercent === 100) {
+            try {
+              const { sendEmail } = await import("../services/emailSender");
+              const { generateUsageAlertEmailHtml } = await import("../templates/emailTemplates");
+              const time = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
+              const emailHtml = generateUsageAlertEmailHtml(
+                user.username,
+                `${usagePercent}%`,
+                dailyUsage,
+                UserStorage.DAILY_LIMIT,
+                time
+              );
+              sendEmail({
+                to: user.email,
+                subject: `Synapse 每日用量警报 (${usagePercent}%)`,
+                html: emailHtml,
+                logTag: "用量警报通知(MySQL)",
+                checkQuota: false,
+              }).catch(e => logger.warn(`[用量警报通知] 邮件发送失败: ${user.email}`, e));
+            } catch (notifyErr) {
+              logger.warn("[用量警报通知] 发送通知邮件失败:", notifyErr);
+            }
+          }
+        }
+
         return true;
       } finally {
         await conn.end();
@@ -1247,6 +1305,35 @@ export class UserStorage {
       if (user.dailyUsage >= UserStorage.DAILY_LIMIT) return false;
       user.dailyUsage++;
       UserStorage.writeUsers(users);
+
+      // 发送用量警报邮件
+      if (user.email && user.role !== "admin") {
+        const usagePercent = (user.dailyUsage / UserStorage.DAILY_LIMIT) * 100;
+        if (usagePercent === 80 || usagePercent === 100) {
+          try {
+            const { sendEmail } = await import("../services/emailSender");
+            const { generateUsageAlertEmailHtml } = await import("../templates/emailTemplates");
+            const time = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
+            const emailHtml = generateUsageAlertEmailHtml(
+              user.username,
+              `${usagePercent}%`,
+              user.dailyUsage,
+              UserStorage.DAILY_LIMIT,
+              time
+            );
+            sendEmail({
+              to: user.email,
+              subject: `Synapse 每日用量警报 (${usagePercent}%)`,
+              html: emailHtml,
+              logTag: "用量警报通知(File)",
+              checkQuota: false,
+            }).catch(e => logger.warn(`[用量警报通知] 邮件发送失败: ${user.email}`, e));
+          } catch (notifyErr) {
+            logger.warn("[用量警报通知] 发送通知邮件失败:", notifyErr);
+          }
+        }
+      }
+
       return true;
     }
   }
