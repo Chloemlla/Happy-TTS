@@ -114,6 +114,7 @@ const NexAISecurityDashboard = React.lazy(() => import('./components/NexAISecuri
 
 // Artifact 分享页面懒加载
 const ArtifactSharePage = React.lazy(() => import('./components/ArtifactSharePage'));
+const TicketSystem = React.lazy(() => import('./components/TicketSystem'));
 
 // 恢复 EmailSender 懒加载
 const EmailSenderPage: React.FC = () => {
@@ -409,6 +410,7 @@ const App: React.FC = () => {
       '/email-sender': 'Synapse - 邮件发送',
       '/profile': 'Synapse - 个人资料',
       '/outemail': 'Synapse - 外部邮件',
+      '/support': 'Synapse - 支持中心',
       '/modlist': 'Synapse - 模组列表',
       '/smart-human-check': 'Synapse - 智能人机验证',
       '/notification-test': 'Synapse - 通知测试',
@@ -1371,6 +1373,23 @@ const App: React.FC = () => {
                     >
                       <OutEmail />
                     </m.div>
+                  } />
+                  <Route path="/support" element={
+                    user ? (
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <m.div
+                          variants={pageVariants}
+                          initial="initial"
+                          animate="in"
+                          exit="out"
+                          transition={pageTransition}
+                        >
+                          <TicketSystem />
+                        </m.div>
+                      </Suspense>
+                    ) : (
+                      <Navigate to="/welcome" replace state={{ from: location.pathname }} />
+                    )
                   } />
                   <Route path="/modlist" element={
                     <m.div

@@ -418,3 +418,41 @@ export function generateCDKActivatedEmailHtml(username: string, cdk: string, inf
 export function generateUsageAlertEmailHtml(username: string, percent: string, current: number, total: number, time: string): string {
     return generateSecurityNoticeHtml(username, "账号额度消耗警报", `您的每日使用额度已消耗达 <strong>${percent}</strong>。<br/>当前已使用：${current} / 总额度：${total}`, time, "系统自动检测", "N/A", percent === "100%" ? "您的今日额度已耗尽，服务将暂时无法使用，直至额度重置。" : "请注意合理安排您的使用进度。");
 }
+
+/** 账户：邮箱变更通知（发送至旧邮箱） */
+export function generateEmailChangeOldNoticeHtml(username: string, newEmail: string, time: string, ip: string, device: string): string {
+    return generateSecurityNoticeHtml(username, "账户邮箱已更改", `您的 Synapse 账户邮箱已从当前地址更改为 <strong>${newEmail}</strong>。此后，所有系统通知将发送至新邮箱。`, time, ip, device, "如果您并未进行此操作，请立即通过新邮箱重置密码或联系管理员找回账号。");
+}
+
+/** 账户：邮箱变更成功（发送至新邮箱） */
+export function generateEmailChangeNewNoticeHtml(username: string, oldEmail: string, time: string, ip: string, device: string): string {
+    return generateSecurityNoticeHtml(username, "账户邮箱绑定成功", `您的 Synapse 账户已成功绑定至此邮箱地址（原邮箱：${oldEmail}）。您现在可以使用此邮箱进行登录和接收通知。`, time, ip, device, "欢迎使用 Synapse 邮件通知服务。");
+}
+
+/** 账户：角色/权限变更 */
+export function generateRoleChangedEmailHtml(username: string, newRole: string, time: string, ip: string, device: string): string {
+    const roleName = newRole === "admin" ? "管理员" : "普通用户";
+    return generateSecurityNoticeHtml(username, "账户权限已变更", `您的账户权限级别已更新为：<strong>${roleName}</strong>。这可能会影响您访问特定功能或管理面板的权限。`, time, ip, device, "如果是管理员进行的操作，您无需采取任何行动；如有疑问请联系系统支持。");
+}
+
+/** 账户：注销申请确认 */
+export function generateAccountDeletionRequestedEmailHtml(username: string, time: string, ip: string, device: string): string {
+    return generateSecurityNoticeHtml(username, "账号注销申请已收到", "我们已收到您注销账户的请求。请注意，账号一旦注销，您的所有数据（包括配置、历史记录和余额）将无法恢复。", time, ip, device, "如果您后悔了，请在 24 小时内尝试登录并取消注销申请，或立即联系管理员。");
+}
+
+/** 账户：账号已彻底注销 */
+export function generateAccountDeletedEmailHtml(username: string, time: string): string {
+    return generateSecurityNoticeHtml(username, "账号注销成功", "您的 Synapse 账户及其关联数据已按照您的请求被永久删除。感谢您曾经选择 Synapse。", time, "N/A", "N/A", "再见，祝您前程似锦。");
+}
+
+/** 资源：有效期预警 */
+export function generateResourceExpiryWarningEmailHtml(username: string, resourceName: string, expiryDate: string, daysLeft: number): string {
+    const title = daysLeft <= 3 ? "❗ 资源即将过期提醒" : "资源续期提醒";
+    return generateSecurityNoticeHtml(username, title, `您的资源 <strong>${resourceName}</strong> 即将到期。<br/>到期时间：${expiryDate}<br/>剩余时间：<strong>${daysLeft} 天</strong>`, new Date().toLocaleString(), "系统自动检测", "N/A", "为避免影响您的正常使用，请及时通过 CDK 或相关渠道进行续期。");
+}
+
+/** 互动：反馈/工单回复通知 */
+export function generateFeedbackRepliedEmailHtml(username: string, feedbackTitle: string, replyContent: string, time: string): string {
+    const description = `您提交的反馈 <strong>「${feedbackTitle}」</strong> 已得到管理员的回复：<br/><br/><div style="padding: 12px; background: #fff; border-left: 4px solid #4F46E5; font-style: italic;">${replyContent}</div>`;
+    return generateSecurityNoticeHtml(username, "您收到了一条新的反馈回复", description, time, "系统支持面板", "Web 终端", "您可以登录系统查看完整对话记录或进行补充。");
+}
