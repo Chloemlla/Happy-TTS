@@ -17,10 +17,13 @@ interface WsClientMessage {
 
 /** 服务端 → 客户端消息 */
 export interface WsServerMessage {
-  type: "pong" | "tts:progress" | "tts:complete" | "tts:error" | "notification" | "admin:broadcast" | "fingerprint:require" | "fingerprint:ack";
+  type: "pong" | "tts:progress" | "tts:complete" | "tts:error" | "notification" | "admin:broadcast" | "fingerprint:require" | "fingerprint:ack" | "ticket:update" | "ticket:process";
   data?: any;
   timestamp: number;
 }
+
+/** 工单处理细分状态 */
+export type TicketProcessStep = "audit_start" | "audit_passed" | "ai_start" | "ai_complete" | "saving";
 
 interface WsClient {
   ws: WebSocket;
@@ -340,6 +343,32 @@ class WsService {
       const arr = Array.from(this.processedFingerprintHashes);
       this.processedFingerprintHashes = new Set(arr.slice(-100));
     }
+  }
+
+  /**
+   * 通知工单更新
+   * @param userId 工单所属用户ID
+   * @param ticket 完整的工单数据或更新的部分
+   */
+  notifyTicketUpdate(userId: string, ticket: any) {
+    const payload = {
+      type: "ticket:update",
+      data: ticket,
+    };
+    // 发送给工单拥有者
+    this.sendToUser(userId, payload);
+    // 广播给所有管理员，以便实时查看处理进度
+    this.broadcastToAdmins(payload);
+  }
+
+  /**
+   * 通知工单处理进度（审查、AI生成等）
+   */
+  notifyTicketProcess(userId: string, ticketId: string, step: TicketProcessStep) {
+    this.sendToUser(userId, {
+      type: "ticket:process",
+      data: { ticketId, step }
+    });
   }
 
   /** 获取当前连接数 */
