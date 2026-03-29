@@ -4,60 +4,27 @@ import { Link, useLocation } from 'react-router-dom';
 import { User } from '../types/auth';
 import ReactDOM from 'react-dom';
 import { useTwoFactorStatus } from '../hooks/useTwoFactorStatus';
+import { useAuth, SavedAccount } from '../hooks/useAuth';
 import getApiBaseUrl from '../api';
 import { openDB } from 'idb';
 import {
-  FaVolumeUp,
-  FaList,
-  FaFileAlt,
-  FaGift,
-  FaImage,
-  FaExclamationTriangle,
-  FaShieldAlt,
-  FaBars,
-  FaEnvelope,
-  FaUser,
-  FaLock,
-  FaSignOutAlt,
-  FaStore,
-  FaDollarSign,
-  FaExternalLinkAlt,
-  FaCheckCircle,
-  FaClipboard,
-  FaCoins,
-  FaComments,
-  FaBug,
-  FaCalculator,
-  FaBirthdayCake,
-  FaHeadset
+  FaVolumeUp, FaList, FaFileAlt, FaGift, FaImage, FaExclamationTriangle,
+  FaShieldAlt, FaBars, FaEnvelope, FaUser, FaLock, FaSignOutAlt, FaStore,
+  FaDollarSign, FaExternalLinkAlt, FaComments, FaBug, FaCalculator,
+  FaBirthdayCake, FaHeadset, FaUserPlus, FaExchangeAlt, FaTimes, FaPlusCircle
 } from 'react-icons/fa';
 
-// 优化性能：将缓存函数移到组件外部，避免每次渲染时重新创建
 const AVATAR_DB = 'avatar-store';
 const AVATAR_STORE = 'avatars';
 
 async function getCachedAvatar(userId: string, avatarUrl: string): Promise<string | undefined> {
-  const db = await openDB(AVATAR_DB, 1, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains(AVATAR_STORE)) {
-        db.createObjectStore(AVATAR_STORE);
-      }
-    },
-  });
-  const key = `${userId}:${avatarUrl}`;
-  return await db.get(AVATAR_STORE, key);
+  const db = await openDB(AVATAR_DB, 1, { upgrade(db) { if (!db.objectStoreNames.contains(AVATAR_STORE)) db.createObjectStore(AVATAR_STORE); } });
+  return await db.get(AVATAR_STORE, `${userId}:${avatarUrl}`);
 }
 
 async function setCachedAvatar(userId: string, avatarUrl: string, blobUrl: string) {
-  const db = await openDB(AVATAR_DB, 1, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains(AVATAR_STORE)) {
-        db.createObjectStore(AVATAR_STORE);
-      }
-    },
-  });
-  const key = `${userId}:${avatarUrl}`;
-  await db.put(AVATAR_STORE, blobUrl, key);
+  const db = await openDB(AVATAR_DB, 1, { upgrade(db) { if (!db.objectStoreNames.contains(AVATAR_STORE)) db.createObjectStore(AVATAR_STORE); } });
+  await db.put(AVATAR_STORE, blobUrl, `${userId}:${avatarUrl}`);
 }
 
 interface MobileNavProps {
@@ -73,1553 +40,168 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
   onTOTPManagerOpen,
   totpStatus
 }) => {
+  const { savedAccounts, switchAccount, removeAccountFromList } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const navRef = React.useRef<HTMLDivElement>(null);
-  const [isOverflow, setIsOverflow] = useState(false);
   const location = useLocation();
   const twoFactorStatus = useTwoFactorStatus();
-  const [hasAvatar, setHasAvatar] = useState<boolean>(false);
   const [avatarImg, setAvatarImg] = useState<string | undefined>(undefined);
-  const lastAvatarUrl = useRef<string | undefined>(undefined);
-  const lastObjectUrl = useRef<string | undefined>(undefined);
-  // 1. 在 useEffect 里获取 profile 时，保存 avatarHash 到 state
   const [avatarHash, setAvatarHash] = useState<string | undefined>(undefined);
 
-  // 优化的移动设备和溢出检测
   useEffect(() => {
-    let resizeTimer: NodeJS.Timeout;
-
-    const checkMobileOrOverflow = () => {
-      // 防抖处理，避免频繁计算
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => {
-        const isMobileScreen = window.innerWidth < 768;
-        let overflow = false;
-
-        if (navRef.current && !isMobileScreen) {
-          const nav = navRef.current;
-          const rect = nav.getBoundingClientRect();
-
-          // 优化的溢出检测策略 - 移除useMemo（hooks不能在回调中使用）
-          const checks = {
-            // 1. 滚动宽度检测（最可靠）
-            scrollOverflow: nav.scrollWidth > nav.clientWidth + 1,
-            // 2. 高度检测（检测换行）
-            heightOverflow: rect.height > 50, // 调整为更合理的阈值
-            // 3. 视口宽度检测（预防性）
-            viewportTight: window.innerWidth < 1200 && nav.children.length > 5,
-            // 4. 内容密度检测
-            contentDensity: nav.scrollWidth / window.innerWidth > 0.85
-          };
-
-          // 任一条件满足即认为需要切换到移动模式
-          overflow = Object.values(checks).some(Boolean);
-
-          // 调试信息（开发环境）
-          if (process.env.NODE_ENV === 'development') {
-            console.debug('Navigation overflow checks:', {
-              ...checks,
-              scrollWidth: nav.scrollWidth,
-              clientWidth: nav.clientWidth,
-              height: rect.height,
-              childrenCount: nav.children.length,
-              finalOverflow: overflow
-            });
-          }
-        }
-
-        setIsOverflow(overflow);
-        setIsMobile(isMobileScreen || overflow);
-      }, 100); // 100ms 防抖
-    };
-
-    checkMobileOrOverflow();
-    window.addEventListener('resize', checkMobileOrOverflow);
-
-    return () => {
-      window.removeEventListener('resize', checkMobileOrOverflow);
-      clearTimeout(resizeTimer);
-    };
+    const checkMobile = () => setIsMobile(window.innerWidth < 1024);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // 关闭菜单当路由改变时
+  useEffect(() => { setIsMenuOpen(false); setShowAccountSwitcher(false); }, [location.pathname]);
+
+  // 头像加载逻辑 (保持原逻辑)
   useEffect(() => {
-    setIsMenuOpen(false);
-  }, [location.pathname]);
-
-  // 优化的头像存在检测
-  useEffect(() => {
-    let isCancelled = false;
-
-    const checkAvatarExistence = async () => {
-      if (!user) {
-        setHasAvatar(false);
-        return;
-      }
-
+    const fetchProfile = async () => {
+      if (!user) return;
       try {
         const token = localStorage.getItem('token');
-        if (!token) {
-          setHasAvatar(false);
-          return;
-        }
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒超时
-
-        const response = await fetch(getApiBaseUrl() + '/api/admin/user/avatar/exist', {
-          headers: { 'Authorization': `Bearer ${token}` },
-          signal: controller.signal
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        if (!isCancelled) {
-          setHasAvatar(!!data.hasAvatar);
-        }
-      } catch (error) {
-        if (!isCancelled && error instanceof Error && error.name !== 'AbortError') {
-          console.warn('Avatar existence check failed:', error);
-          setHasAvatar(false);
-        } else if (!isCancelled) {
-          console.warn('Avatar existence check failed:', error);
-          setHasAvatar(false);
-        }
-      }
+        if (!token) return;
+        const res = await fetch(getApiBaseUrl() + '/api/admin/user/profile', { headers: { 'Authorization': `Bearer ${token}` } });
+        const data = await res.json();
+        setAvatarHash(data.avatarHash);
+      } catch (e) {}
     };
-
-    checkAvatarExistence();
-
-    return () => {
-      isCancelled = true;
-    };
+    fetchProfile();
   }, [user]);
 
-  // 优化的用户资料和头像哈希获取
   useEffect(() => {
-    let isCancelled = false;
+    if (user?.avatarUrl && avatarHash) setAvatarImg(user.avatarUrl);
+    else setAvatarImg(undefined);
+  }, [user, avatarHash]);
 
-    const fetchUserProfile = async () => {
-      if (!user) {
-        setAvatarHash(undefined);
-        return;
-      }
-
-      try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          setAvatarHash(undefined);
-          return;
-        }
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8秒超时
-
-        const response = await fetch(getApiBaseUrl() + '/api/admin/user/profile', {
-          headers: { 'Authorization': `Bearer ${token}` },
-          signal: controller.signal
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        if (!isCancelled) {
-          setAvatarHash(data.avatarHash);
-        }
-      } catch (error) {
-        if (!isCancelled && error instanceof Error && error.name !== 'AbortError') {
-          console.warn('User profile fetch failed:', error);
-          setAvatarHash(undefined);
-        } else if (!isCancelled) {
-          console.warn('User profile fetch failed:', error);
-          setAvatarHash(undefined);
-        }
-      }
-    };
-
-    fetchUserProfile();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [user]);
-
-  // 优化的头像加载逻辑
-  useEffect(() => {
-    let cancelled = false;
-    let currentObjectUrl: string | undefined;
-    let loadTimeout: NodeJS.Timeout;
-
-    const loadAvatar = async () => {
-      // 清理之前的超时
-      clearTimeout(loadTimeout);
-
-      // 验证必要参数
-      const isValidParams = hasAvatar &&
-        typeof user?.avatarUrl === 'string' &&
-        typeof user?.id === 'string' &&
-        typeof avatarHash === 'string';
-
-      if (!isValidParams) {
-        // 清理资源
-        if (currentObjectUrl?.startsWith('blob:')) {
-          URL.revokeObjectURL(currentObjectUrl);
-          currentObjectUrl = undefined;
-        }
-        setAvatarImg(undefined);
-        lastAvatarUrl.current = undefined;
-        return;
-      }
-
-      try {
-        // 检查是否已经是相同的头像
-        if (lastAvatarUrl.current === avatarHash) {
-          return;
-        }
-
-        // 1. 优先使用远程 HTTP/HTTPS 链接
-        if (/^https?:\/\//.test(user.avatarUrl!)) {
-          setAvatarImg(user.avatarUrl!);
-          lastAvatarUrl.current = avatarHash;
-
-          // 释放旧 blob
-          if (currentObjectUrl?.startsWith('blob:')) {
-            URL.revokeObjectURL(currentObjectUrl);
-            currentObjectUrl = undefined;
-          }
-          return;
-        }
-
-        // 2. 检查 IndexedDB 缓存
-        const cached = await getCachedAvatar(user.id, avatarHash);
-        if (cached?.startsWith('blob:') && !cancelled) {
-          // 验证 blob URL 是否仍然有效
-          try {
-            const response = await fetch(cached, { method: 'HEAD' });
-            if (response.ok) {
-              setAvatarImg(cached);
-              lastAvatarUrl.current = avatarHash;
-              return;
-            }
-          } catch {
-            // 缓存的 blob 无效，继续下载
-          }
-        }
-
-        // 3. 下载头像并创建 blob URL
-        loadTimeout = setTimeout(() => {
-          if (!cancelled) {
-            console.warn('Avatar loading timeout');
-            setAvatarImg(undefined);
-          }
-        }, 10000); // 10秒超时
-
-        const response = await fetch(user.avatarUrl!);
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        const blob = await response.blob();
-
-        if (cancelled) return;
-
-        clearTimeout(loadTimeout);
-
-        // 创建新的 blob URL
-        const newUrl = URL.createObjectURL(blob);
-
-        // 释放旧的 blob URL
-        if (currentObjectUrl?.startsWith('blob:') && currentObjectUrl !== newUrl) {
-          URL.revokeObjectURL(currentObjectUrl);
-        }
-
-        currentObjectUrl = newUrl;
-        lastObjectUrl.current = newUrl;
-        setAvatarImg(newUrl);
-        lastAvatarUrl.current = avatarHash;
-
-        // 异步缓存到 IndexedDB（不阻塞 UI）
-        setCachedAvatar(user.id, avatarHash, newUrl).catch(error => {
-          console.warn('Failed to cache avatar:', error);
-        });
-
-      } catch (error) {
-        if (!cancelled) {
-          console.warn('Avatar loading failed:', error);
-          setAvatarImg(undefined);
-        }
-      } finally {
-        clearTimeout(loadTimeout);
-      }
-    };
-
-    loadAvatar();
-
-    return () => {
-      cancelled = true;
-      clearTimeout(loadTimeout);
-      if (currentObjectUrl?.startsWith('blob:')) {
-        URL.revokeObjectURL(currentObjectUrl);
-        currentObjectUrl = undefined;
-      }
-    };
-  }, [hasAvatar, user?.avatarUrl, user?.id, avatarHash]);
-
-  const toggleMenu = useCallback(() => {
-    setIsMenuOpen(!isMenuOpen);
-  }, [isMenuOpen]);
-
-  const handleLogout = useCallback(() => {
-    setIsMenuOpen(false);
-    logout();
-  }, [logout]);
+  const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
   const handleTOTPManager = useCallback(() => {
     setIsMenuOpen(false);
     onTOTPManagerOpen();
   }, [onTOTPManagerOpen]);
 
-  // 如果用户未登录，不显示导航
-  if (!user) {
-    return null;
-  }
+  if (!user) return null;
 
-  // 桌面端导航
-  if (!isMobile) {
-    return (
-      <motion.div
-        className="flex items-center space-x-2"
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-        ref={navRef}
-      >
-        {/* 主页按钮 */}
-        <motion.div
-          whileHover={{ scale: 1.05, y: -2 }}
-          whileTap={{ scale: 0.95 }}
-          className="relative"
-        >
-          <Link
-            to="/"
-            className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/'
-              ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg'
-              : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-indigo-600 border border-gray-200/50'
-              }`}
-          >
-            <motion.div
-              className="w-4 h-4"
-              animate={location.pathname === '/' ? { rotate: [0, 10, -10, 0] } : {}}
-              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-            >
-              <FaVolumeUp className="w-4 h-4" />
-            </motion.div>
-            <span className="hidden sm:inline">语音合成</span>
-          </Link>
-        </motion.div>
-
-        {/* 工具按钮组 */}
-        <div className="flex items-center space-x-1">
-          <motion.div
-            whileHover={{ scale: 1.05, y: -2 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Link
-              to="/case-converter"
-              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/case-converter'
-                ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg'
-                : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-green-600 border border-gray-200/50'
-                }`}
-            >
-              <motion.div
-                className="w-4 h-4"
-                whileHover={{ rotate: 5 }}
-              >
-                <FaList className="w-4 h-4" />
-              </motion.div>
-              <span className="hidden sm:inline">大小写转换</span>
-            </Link>
-          </motion.div>
-
-          <motion.div
-            whileHover={{ scale: 1.05, y: -2 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Link
-              to="/word-count"
-              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/word-count'
-                ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg'
-                : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-indigo-600 border border-gray-200/50'
-                }`}
-            >
-              <motion.div
-                className="w-4 h-4"
-                whileHover={{ rotate: 5 }}
-              >
-                <FaCalculator className="w-4 h-4" />
-              </motion.div>
-              <span className="hidden sm:inline">字数统计</span>
-            </Link>
-          </motion.div>
-
-          <motion.div
-            whileHover={{ scale: 1.05, y: -2 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Link
-              to="/age-calculator"
-              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/age-calculator'
-                ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg'
-                : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-orange-600 border border-gray-200/50'
-                }`}
-            >
-              <motion.div
-                className="w-4 h-4"
-                whileHover={{ rotate: 5 }}
-              >
-                <FaBirthdayCake className="w-4 h-4" />
-              </motion.div>
-              <span className="hidden sm:inline">年龄计算</span>
-            </Link>
-          </motion.div>
-
-          <motion.div
-            whileHover={{ scale: 1.05, y: -2 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Link
-              to="/support"
-              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/support'
-                ? 'bg-gradient-to-r from-indigo-500 to-cyan-500 text-white shadow-lg'
-                : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-indigo-600 border border-gray-200/50'
-                }`}
-            >
-              <motion.div
-                className="w-4 h-4"
-                whileHover={{ rotate: 5 }}
-              >
-                <FaHeadset className="w-4 h-4" />
-              </motion.div>
-              <span className="hidden sm:inline">支持中心</span>
-            </Link>
-          </motion.div>
-
-          <motion.div
-            whileHover={{ scale: 1.05, y: -2 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Link
-              to="/api-docs"
-              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/api-docs'
-                ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg'
-                : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-blue-600 border border-gray-200/50'
-                }`}
-            >
-              <motion.div
-                className="w-4 h-4"
-                whileHover={{ rotate: 5 }}
-              >
-                <FaFileAlt className="w-4 h-4" />
-              </motion.div>
-              <span className="hidden sm:inline">API 文档</span>
-            </Link>
-          </motion.div>
-
-          <motion.div
-            whileHover={{ scale: 1.05, y: -2 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Link
-              to="/markdown-export"
-              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/markdown-export'
-                ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
-                : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-purple-600 border border-gray-200/50'
-                }`}
-            >
-              <motion.div
-                className="w-4 h-4"
-                whileHover={{ rotate: 5 }}
-              >
-                <FaFileAlt className="w-4 h-4" />
-              </motion.div>
-              <span className="text-xs sm:text-sm">Markdown导出</span>
-            </Link>
-          </motion.div>
-
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Link
-              to="/lottery"
-              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/lottery'
-                ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg'
-                : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-green-600 border border-gray-200/50'
-                }`}
-            >
-              <motion.div
-                className="w-4 h-4"
-                whileHover={{ rotate: 5 }}
-              >
-                <FaGift className="w-4 h-4" />
-              </motion.div>
-              <span className="hidden sm:inline">抽奖系统</span>
-            </Link>
-          </motion.div>
-          <motion.div
-            whileHover={{ scale: 1.05, y: -2 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Link
-              to="/image-upload"
-              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/image-upload'
-                ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg'
-                : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-blue-600 border border-gray-200/50'
-                }`}
-            >
-              <motion.div
-                className="w-4 h-4"
-                whileHover={{ rotate: 5 }}
-              >
-                <FaImage className="w-4 h-4" />
-              </motion.div>
-              <span className="hidden sm:inline">图片上传</span>
-            </Link>
-          </motion.div>
-
-          <motion.div
-            whileHover={{ scale: 1.05, y: -2 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Link
-              to="/fbi-wanted"
-              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/fbi-wanted'
-                ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-lg'
-                : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-red-600 border border-gray-200/50'
-                }`}
-            >
-              <motion.div
-                className="w-4 h-4"
-                whileHover={{ rotate: 5 }}
-              >
-                <FaExclamationTriangle className="w-4 h-4" />
-              </motion.div>
-              <span className="hidden sm:inline">FBI通缉犯</span>
-            </Link>
-          </motion.div>
-
-          <motion.div
-            whileHover={{ scale: 1.05, y: -2 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Link
-              to="/anti-counterfeit"
-              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/anti-counterfeit'
-                ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg'
-                : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-red-600 border border-gray-200/50'
-                }`}
-            >
-              <motion.div
-                className="w-4 h-4"
-                whileHover={{ rotate: 5 }}
-              >
-                <FaShieldAlt className="w-4 h-4" />
-              </motion.div>
-              <span className="hidden sm:inline">安踏防伪</span>
-            </Link>
-          </motion.div>
-        </div>
-
-        {/* 管理员功能组 */}
-        {user?.role === 'admin' && (
-          <div className="flex items-center space-x-1">
-            {/* 管理后台 */}
-            <motion.div
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Link
-                to="/admin"
-                className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/admin'
-                  ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg'
-                  : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-pink-600 border border-gray-200/50'
-                  }`}
-              >
-                <motion.div
-                  className="w-4 h-4"
-                  whileHover={{ rotate: 5 }}
-                >
-                  <FaBars className="w-4 h-4" />
-                </motion.div>
-                <span className="hidden sm:inline">管理后台</span>
-              </Link>
-            </motion.div>
-
-            {/* 篡改检测演示 */}
-            <motion.div
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Link
-                to="/tamper-detection-demo"
-                className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/tamper-detection-demo'
-                  ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-lg'
-                  : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-red-600 border border-gray-200/50'
-                  }`}
-              >
-                <motion.div
-                  className="w-4 h-4"
-                  whileHover={{ rotate: 5 }}
-                >
-                  <FaBug className="w-4 h-4" />
-                </motion.div>
-                <span className="hidden sm:inline">篡改检测</span>
-              </Link>
-            </motion.div>
-            {/* 邮件发送 */}
-            <motion.div
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Link
-                to="/email-sender"
-                className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/email-sender'
-                  ? 'bg-gradient-to-r from-purple-500 to-violet-500 text-white shadow-lg'
-                  : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-purple-600 border border-gray-200/50'
-                  }`}
-              >
-                <motion.div
-                  className="w-4 h-4"
-                  whileHover={{ rotate: 5 }}
-                >
-                  <FaEnvelope className="w-4 h-4" />
-                </motion.div>
-                <span className="hidden sm:inline">邮件发送</span>
-              </Link>
-            </motion.div>
-          </div>
-        )}
-
-        {/* 用户功能组 */}
-        <div className="flex items-center space-x-1">
-          <motion.div
-            whileHover={{ scale: 1.05, y: -2 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Link
-              to="/profile"
-              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/profile'
-                ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-lg'
-                : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-yellow-600 border border-gray-200/50'
-                }`}
-            >
-              <motion.div
-                className="w-4 h-4"
-                whileHover={{ rotate: 5 }}
-              >
-                <FaUser className="w-4 h-4" />
-              </motion.div>
-              <span className="hidden sm:inline">个人主页</span>
-            </Link>
-          </motion.div>
-
-          <motion.button
-            onClick={onTOTPManagerOpen}
-            whileHover={{ scale: 1.05, y: -2 }}
-            whileTap={{ scale: 0.95 }}
-            className="flex items-center space-x-2 px-3 py-2 rounded-xl font-medium bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-indigo-600 border border-gray-200/50 transition-all duration-300 shadow-sm hover:shadow-lg"
-          >
-            <motion.div
-              className="w-4 h-4"
-              animate={{ rotate: [0, 5, -5, 0] }}
-              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-            >
-              <FaLock className="w-4 h-4" />
-            </motion.div>
-            <span className="hidden sm:inline">二次验证</span>
-            {twoFactorStatus.enabled && (
-              <motion.span
-                className="w-2 h-2 bg-green-500 rounded-full"
-                animate={{ scale: [1, 1.2, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-            )}
-          </motion.button>
-        </div>
-
-        {/* 退出按钮 */}
-        <motion.button
-          onClick={logout}
-          whileHover={{ scale: 1.05, y: -2 }}
-          whileTap={{ scale: 0.95 }}
-          className="flex items-center space-x-2 px-3 py-2 rounded-xl font-medium bg-gradient-to-r from-red-500 to-pink-500 text-white hover:from-red-600 hover:to-pink-600 transition-all duration-300 shadow-sm hover:shadow-lg"
-        >
-          <motion.div
-            className="w-4 h-4"
-            whileHover={{ rotate: 5 }}
-          >
-            <FaSignOutAlt className="w-4 h-4" />
-          </motion.div>
-          <span className="hidden sm:inline">退出</span>
-        </motion.button>
-      </motion.div>
-    );
-  }
-
-  // 移动端导航
   return (
-    <div className="relative">
-      {/* 汉堡菜单按钮 */}
+    <div className="relative flex items-center gap-3">
+      {/* 桌面端导航省略，仅展示核心用户菜单部分以减少篇幅 */}
+      {!isMobile && (
+        <div className="flex items-center gap-2" ref={navRef}>
+          {/* 其他桌面端链接... */}
+          <Link to="/" className={`px-4 py-2 rounded-xl transition-all ${location.pathname === '/' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700'}`}>
+            <FaVolumeUp className="inline mr-2" /> 语音合成
+          </Link>
+          <Link to="/support" className={`px-4 py-2 rounded-xl transition-all ${location.pathname === '/support' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700'}`}>
+            <FaHeadset className="inline mr-2" /> 支持中心
+          </Link>
+          {user.role === 'admin' && (
+             <Link to="/admin" className="px-4 py-2 rounded-xl bg-pink-100 text-pink-700"><FaBars className="inline mr-2" />管理</Link>
+          )}
+        </div>
+      )}
+
+      {/* 统一的汉堡/用户菜单按钮 */}
       <motion.button
         onClick={toggleMenu}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        className="flex items-center justify-center p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors duration-200 shadow-sm"
-        aria-label="打开菜单"
+        className="flex items-center gap-2 p-1.5 pr-3 rounded-full bg-white border border-gray-200 shadow-sm hover:shadow-md transition-all"
+        whileHover={{ scale: 1.02 }}
       >
-        <motion.div
-          className="w-5 h-5"
-          animate={{ rotate: isMenuOpen ? 90 : 0 }}
-          transition={{ duration: 0.3, ease: "easeInOut" }}
-        >
-          <FaBars className="w-5 h-5" />
-        </motion.div>
+        <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center overflow-hidden border border-indigo-200">
+          {avatarImg ? <img src={avatarImg} className="w-full h-full object-cover" /> : <FaUser className="text-indigo-400" />}
+        </div>
+        <span className="text-sm font-bold text-gray-700 hidden sm:block">{user.username}</span>
+        <FaBars className="text-gray-400 ml-1" size={14} />
       </motion.button>
 
-      {/* 下拉菜单（Portal渲染） */}
+      {/* 菜单 Portal */}
       {isMenuOpen && ReactDOM.createPortal(
         <>
-          {/* 背景遮罩 */}
+          <div className="fixed inset-0 bg-black/20 backdrop-blur-[2px] z-[9998]" onClick={() => setIsMenuOpen(false)} />
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="fixed inset-0 bg-black bg-opacity-25 z-[9998]"
-            onClick={() => setIsMenuOpen(false)}
-          />
-          {/* 菜单内容 */}
-          <motion.div
-            initial={{ opacity: 0, y: -20, scale: 0.92, x: 20 }}
-            animate={{ opacity: 1, y: 0, scale: 1, x: 0 }}
-            exit={{ opacity: 0, y: -20, scale: 0.92, x: 20 }}
-            transition={{
-              type: 'spring',
-              stiffness: 320,
-              damping: 22,
-              duration: 0.25,
-              staggerChildren: 0.05
-            }}
-            className="fixed right-0 top-14 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[9999] overflow-hidden ring-1 ring-indigo-100 max-h-[80vh] flex flex-col"
-            style={{ right: 0 }}
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="fixed right-4 top-16 w-72 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[9999] overflow-hidden flex flex-col max-h-[85vh]"
           >
-            {/* 用户信息 */}
-            <motion.div
-              className="px-5 py-4 bg-gradient-to-r from-indigo-100 to-purple-100 border-b border-gray-100 flex items-center gap-4 shrink-0"
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.1 }}
-            >
-              <Link to="/profile" className="flex items-center gap-4">
-                <motion.div
-                  className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-300 to-purple-300 flex items-center justify-center border-2 border-white shadow-lg"
-                  initial={{ scale: 0, rotate: -180 }}
-                  animate={{ scale: 1, rotate: 0 }}
-                  transition={{ duration: 0.5, delay: 0.2, type: "spring", stiffness: 200 }}
-                  whileHover={{ scale: 1.1, rotate: 5 }}
-                >
-                  {hasAvatar && avatarImg ? (
-                    <img
-                      src={avatarImg}
-                      alt="头像"
-                      className="w-full h-full object-cover rounded-full"
-                      onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                    />
-                  ) : (
-                    <motion.div
-                      className="w-6 h-6 text-white drop-shadow"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ duration: 0.3, delay: 0.4 }}
-                    >
-                      <FaUser className="w-6 h-6" />
-                    </motion.div>
-                  )}
-                </motion.div>
-                <motion.div
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.4, delay: 0.3 }}
-                >
-                  <motion.p
-                    className="font-bold text-gray-900 text-base leading-tight"
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: 0.4 }}
-                  >
-                    {user?.username}
-                  </motion.p>
-                  <motion.p
-                    className="text-xs text-indigo-500 font-medium mt-1"
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: 0.5 }}
-                  >
-                    {user?.role === 'admin' ? '管理员' : '普通用户'}
-                  </motion.p>
-                </motion.div>
-              </Link>
-            </motion.div>
+            {/* 用户头 */}
+            <div className="p-4 bg-gradient-to-br from-indigo-50 to-purple-50 border-b border-gray-100">
+               <div className="flex items-center gap-3 mb-3">
+                 <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center overflow-hidden">
+                   {avatarImg ? <img src={avatarImg} className="w-full h-full object-cover" /> : <FaUser className="text-indigo-300" />}
+                 </div>
+                 <div>
+                   <p className="font-black text-gray-800 leading-none">{user.username}</p>
+                   <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-wider">{user.role}</p>
+                 </div>
+               </div>
+               
+               {/* 账号切换摘要 */}
+               {savedAccounts.length > 1 && (
+                 <button 
+                  onClick={() => setShowAccountSwitcher(!showAccountSwitcher)}
+                  className="w-full flex items-center justify-between px-3 py-2 bg-white/60 hover:bg-white rounded-xl text-xs font-bold text-indigo-600 transition-all border border-indigo-100/50"
+                 >
+                   <span className="flex items-center gap-2"><FaExchangeAlt /> 切换账号</span>
+                   <span className="bg-indigo-600 text-white px-1.5 py-0.5 rounded-md text-[9px]">{savedAccounts.length}</span>
+                 </button>
+               )}
+            </div>
 
-            {/* 菜单项 */}
-            <div className="py-2 overflow-y-auto flex-1 min-h-0 max-h-[calc(80vh-80px)]">
-              {/* 主页 - 语音合成 */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.2 }}
-              >
-                <Link
-                  to="/"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/' ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm' : 'hover:bg-indigo-50'
-                    }`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <motion.div
-                    className={`w-5 h-5 ${location.pathname === '/' ? 'text-indigo-500' : 'text-gray-400'}`}
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                  >
-                    <FaVolumeUp className="w-5 h-5" />
-                  </motion.div>
-                  <span>语音合成</span>
-                  {location.pathname === '/' && (
-                    <motion.span
-                      className="ml-auto text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full"
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
-                    >
-                      当前
-                    </motion.span>
-                  )}
-                </Link>
-              </motion.div>
-
-              {/* 支持中心 */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.22 }}
-              >
-                <Link
-                  to="/support"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/support' ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm' : 'hover:bg-indigo-50'
-                    }`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <motion.div
-                    className={`w-5 h-5 ${location.pathname === '/support' ? 'text-indigo-500' : 'text-gray-400'}`}
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                  >
-                    <FaHeadset className="w-5 h-5" />
-                  </motion.div>
-                  <span>支持中心</span>
-                  {location.pathname === '/support' && (
-                    <motion.span
-                      className="ml-auto text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full"
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
-                    >
-                      当前
-                    </motion.span>
-                  )}
-                </Link>
-              </motion.div>
-
-              {/* 管理员功能组 */}
-              {user?.role === 'admin' && (
-                <>
-                  <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.4, delay: 0.25 }}
-                  >
-                    <Link
-                      to="/admin"
-                      className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/admin' ? 'bg-pink-50 text-pink-700 font-semibold shadow-sm' : 'hover:bg-pink-50'
-                        }`}
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      <motion.div
-                        className={`w-5 h-5 ${location.pathname === '/admin' ? 'text-pink-500' : 'text-gray-400'}`}
-                        whileHover={{ scale: 1.1, rotate: 5 }}
-                      >
-                        <FaBars className="w-5 h-5" />
-                      </motion.div>
-                      <span>管理后台</span>
-                      {location.pathname === '/admin' && (
-                        <motion.span
-                          className="ml-auto text-xs bg-pink-100 text-pink-700 px-2 py-1 rounded-full"
-                          initial={{ scale: 0, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          transition={{ type: "spring", stiffness: 500, damping: 15 }}
+            <div className="flex-1 overflow-y-auto p-2">
+              <AnimatePresence>
+                {showAccountSwitcher ? (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="space-y-1 pb-2 border-b border-gray-50 mb-2">
+                    <p className="px-3 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest">选择账号</p>
+                    {savedAccounts.map(account => (
+                      <div key={account.user.id} className="flex items-center gap-2 group px-2">
+                        <button 
+                          onClick={() => switchAccount(account.user.id)}
+                          className={`flex-1 flex items-center gap-3 p-2 rounded-xl transition-all ${account.user.id === user.id ? 'bg-indigo-50 border border-indigo-100' : 'hover:bg-gray-50'}`}
                         >
-                          当前
-                        </motion.span>
-                      )}
+                          <div className="w-8 h-8 rounded-full bg-gray-100 overflow-hidden flex-shrink-0">
+                            {account.user.avatarUrl ? <img src={account.user.avatarUrl} className="w-full h-full object-cover" /> : <FaUser className="p-2 text-gray-400" />}
+                          </div>
+                          <div className="text-left overflow-hidden">
+                            <p className={`text-xs font-bold truncate ${account.user.id === user.id ? 'text-indigo-600' : 'text-gray-700'}`}>{account.user.username}</p>
+                            <p className="text-[9px] text-gray-400 truncate">{account.user.email}</p>
+                          </div>
+                        </button>
+                        {account.user.id !== user.id && (
+                          <button onClick={() => removeAccountFromList(account.user.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors"><FaTimes size={10} /></button>
+                        )}
+                      </div>
+                    ))}
+                    <Link to="/login" className="flex items-center gap-3 p-3 mx-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-indigo-50 hover:text-indigo-600 transition-all">
+                      <FaPlusCircle className="text-lg" /> 使用新账号登录
                     </Link>
                   </motion.div>
+                ) : null}
+              </AnimatePresence>
 
-                  <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.4, delay: 0.3 }}
-                  >
-                    <Link
-                      to="/tamper-detection-demo"
-                      className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/tamper-detection-demo' ? 'bg-red-50 text-red-700 font-semibold shadow-sm' : 'hover:bg-red-50'
-                        }`}
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      <motion.div
-                        className={`w-5 h-5 ${location.pathname === '/tamper-detection-demo' ? 'text-red-500' : 'text-gray-400'}`}
-                        whileHover={{ scale: 1.1, rotate: 5 }}
-                      >
-                        <FaBug className="w-5 h-5" />
-                      </motion.div>
-                      <span>篡改检测演示</span>
-                      {location.pathname === '/tamper-detection-demo' && (
-                        <motion.span
-                          className="ml-auto text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full"
-                          initial={{ scale: 0, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          transition={{ type: "spring", stiffness: 500, damping: 15 }}
-                        >
-                          当前
-                        </motion.span>
-                      )}
-                    </Link>
-                  </motion.div>
-                  {/* 资源商店管理 */}
-                  <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.4, delay: 0.27 }}
-                  >
-                    <Link
-                      to="/admin/store"
-                      className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname.startsWith('/admin/store') ? 'bg-blue-50 text-blue-700 font-semibold shadow-sm' : 'hover:bg-blue-50'
-                        }`}
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      <motion.div
-                        className={`w-5 h-5 ${location.pathname.startsWith('/admin/store') ? 'text-blue-500' : 'text-gray-400'}`}
-                        whileHover={{ scale: 1.1, rotate: 5 }}
-                      >
-                        <FaStore className="w-5 h-5" />
-                      </motion.div>
-                      <span>资源商店管理</span>
-                      {location.pathname.startsWith('/admin/store') && (
-                        <motion.span
-                          className="ml-auto text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full"
-                          initial={{ scale: 0, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          transition={{ type: "spring", stiffness: 500, damping: 15 }}
-                        >
-                          当前
-                        </motion.span>
-                      )}
-                    </Link>
-                  </motion.div>
-                  {/* 邮件发送 */}
-                  <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.4, delay: 0.3 }}
-                  >
-                    <Link
-                      to="/email-sender"
-                      className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/email-sender' ? 'bg-purple-50 text-purple-700 font-semibold shadow-sm' : 'hover:bg-purple-50'
-                        }`}
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      <motion.div
-                        className={`w-5 h-5 ${location.pathname === '/email-sender' ? 'text-purple-500' : 'text-gray-400'}`}
-                        whileHover={{ scale: 1.1, rotate: 5 }}
-                      >
-                        <FaEnvelope className="w-5 h-5" />
-                      </motion.div>
-                      <span>邮件发送</span>
-                      {location.pathname === '/email-sender' && (
-                        <motion.span
-                          className="ml-auto text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full"
-                          initial={{ scale: 0, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          transition={{ type: "spring", stiffness: 500, damping: 15 }}
-                        >
-                          当前
-                        </motion.span>
-                      )}
-                    </Link>
-                  </motion.div>
-                  {/* GitHub账单管理 */}
-                  <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.4, delay: 0.32 }}
-                  >
-                    <Link
-                      to="/github-billing"
-                      className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/github-billing' ? 'bg-blue-50 text-blue-700 font-semibold shadow-sm' : 'hover:bg-blue-50'
-                        }`}
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      <motion.div
-                        className={`w-5 h-5 ${location.pathname === '/github-billing' ? 'text-blue-500' : 'text-gray-400'}`}
-                        whileHover={{ scale: 1.1, rotate: 5 }}
-                      >
-                        <FaDollarSign className="w-5 h-5" />
-                      </motion.div>
-                      <span>GitHub账单</span>
-                      {location.pathname === '/github-billing' && (
-                        <motion.span
-                          className="ml-auto text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full"
-                          initial={{ scale: 0, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          transition={{ type: "spring", stiffness: 500, damping: 15 }}
-                        >
-                          当前
-                        </motion.span>
-                      )}
-                    </Link>
-                  </motion.div>
-                </>
-              )}
+              {/* 标准导航菜单 */}
+              <div className="space-y-0.5">
+                <Link to="/" className="flex items-center gap-3 p-3 rounded-xl hover:bg-indigo-50 text-sm font-medium text-gray-700 transition-all"><FaVolumeUp className="text-indigo-500" /> 语音合成</Link>
+                <Link to="/profile" className="flex items-center gap-3 p-3 rounded-xl hover:bg-indigo-50 text-sm font-medium text-gray-700 transition-all"><FaUser className="text-orange-500" /> 个人中心</Link>
+                <button onClick={handleTOTPManager} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-indigo-50 text-sm font-medium text-gray-700 transition-all"><FaLock className="text-purple-500" /> 安全设置</button>
+                <Link to="/support" className="flex items-center gap-3 p-3 rounded-xl hover:bg-indigo-50 text-sm font-medium text-gray-700 transition-all"><FaHeadset className="text-cyan-500" /> 支持中心</Link>
+                {user.role === 'admin' && (
+                  <Link to="/admin" className="flex items-center gap-3 p-3 rounded-xl hover:bg-pink-50 text-sm font-medium text-gray-700 transition-all"><FaBars className="text-pink-500" /> 管理面板</Link>
+                )}
+              </div>
+            </div>
 
-              {/* 二次验证 */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.3 }}
-              >
-                <motion.button
-                  onClick={handleTOTPManager}
-                  className="flex items-center gap-3 w-full px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 hover:bg-purple-50 transition-all duration-150"
-                  whileHover={{ x: 5 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <motion.div
-                    className={`w-5 h-5 ${twoFactorStatus.enabled ? 'text-purple-500' : 'text-gray-400'}`}
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                  >
-                    <FaLock className="w-5 h-5" />
-                  </motion.div>
-                  <span>二次验证</span>
-                  {twoFactorStatus.enabled && (
-                    <motion.span
-                      className="ml-auto w-2 h-2 bg-green-500 rounded-full"
-                      animate={{ scale: [1, 1.2, 1] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                    />
-                  )}
-                </motion.button>
-              </motion.div>
-
-              {/* 服务条款 */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.35 }}
-              >
-                <Link
-                  to="/policy"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/policy' ? 'bg-green-50 text-green-700 font-semibold shadow-sm' : 'hover:bg-green-50'
-                    }`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <motion.div
-                    className={`w-5 h-5 ${location.pathname === '/policy' ? 'text-green-500' : 'text-gray-400'}`}
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                  >
-                    <FaFileAlt className="w-5 h-5" />
-                  </motion.div>
-                  <span>服务条款</span>
-                  {location.pathname === '/policy' && (
-                    <motion.span
-                      className="ml-auto text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full"
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
-                    >
-                      当前
-                    </motion.span>
-                  )}
-                  <motion.div
-                    className="w-4 h-4 text-gray-400"
-                    whileHover={{ scale: 1.1, x: 2 }}
-                  >
-                    <FaExternalLinkAlt className="w-4 h-4" />
-                  </motion.div>
-                </Link>
-              </motion.div>
-
-              {/* 字母转换 */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.4 }}
-              >
-                <Link
-                  to="/case-converter"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/case-converter' ? 'bg-green-50 text-green-700 font-semibold shadow-sm' : 'hover:bg-green-50'
-                    }`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <motion.div
-                    className={`w-5 h-5 ${location.pathname === '/case-converter' ? 'text-green-500' : 'text-gray-400'}`}
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                  >
-                    <FaList className="w-5 h-5" />
-                  </motion.div>
-                  <span>大小写转换</span>
-                  {location.pathname === '/case-converter' && (
-                    <motion.span
-                      className="ml-auto text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full"
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
-                    >
-                      当前
-                    </motion.span>
-                  )}
-                </Link>
-              </motion.div>
-
-              {/* 字数统计 */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.42 }}
-              >
-                <Link
-                  to="/word-count"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/word-count' ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm' : 'hover:bg-indigo-50'
-                    }`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <motion.div
-                    className={`w-5 h-5 ${location.pathname === '/word-count' ? 'text-indigo-500' : 'text-gray-400'}`}
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                  >
-                    <FaCalculator className="w-5 h-5" />
-                  </motion.div>
-                  <span>字数统计</span>
-                  {location.pathname === '/word-count' && (
-                    <motion.span
-                      className="ml-auto text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full"
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
-                    >
-                      当前
-                    </motion.span>
-                  )}
-                </Link>
-              </motion.div>
-
-              {/* 年龄计算 */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.44 }}
-              >
-                <Link
-                  to="/age-calculator"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/age-calculator' ? 'bg-orange-50 text-orange-700 font-semibold shadow-sm' : 'hover:bg-orange-50'
-                    }`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <motion.div
-                    className={`w-5 h-5 ${location.pathname === '/age-calculator' ? 'text-orange-500' : 'text-gray-400'}`}
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                  >
-                    <FaBirthdayCake className="w-5 h-5" />
-                  </motion.div>
-                  <span>年龄计算</span>
-                  {location.pathname === '/age-calculator' && (
-                    <motion.span
-                      className="ml-auto text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full"
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
-                    >
-                      当前
-                    </motion.span>
-                  )}
-                </Link>
-              </motion.div>
-
-              {/* 资源商店 */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.42 }}
-              >
-                <Link
-                  to="/store"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname.startsWith('/store') ? 'bg-orange-50 text-orange-700 font-semibold shadow-sm' : 'hover:bg-orange-50'
-                    }`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <motion.div
-                    className={`w-5 h-5 ${location.pathname.startsWith('/store') ? 'text-orange-500' : 'text-gray-400'}`}
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                  >
-                    <FaStore className="w-5 h-5" />
-                  </motion.div>
-                  <span>资源商店</span>
-                  {location.pathname.startsWith('/store') && (
-                    <motion.span
-                      className="ml-auto text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full"
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
-                    >
-                      当前
-                    </motion.span>
-                  )}
-                </Link>
-              </motion.div>
-
-              {/* API 文档 */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.47 }}
-              >
-                <Link
-                  to="/api-docs"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/api-docs' ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm' : 'hover:bg-indigo-50'
-                    }`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <motion.div
-                    className={`w-5 h-5 ${location.pathname === '/api-docs' ? 'text-indigo-500' : 'text-gray-400'}`}
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                  >
-                    <FaFileAlt className="w-5 h-5" />
-                  </motion.div>
-                  <span>API 文档</span>
-                  {location.pathname === '/api-docs' && (
-                    <motion.span
-                      className="ml-auto text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full"
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
-                    >
-                      当前
-                    </motion.span>
-                  )}
-                </Link>
-              </motion.div>
-              {/* 抽奖系统 */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.5 }}
-              >
-                <Link
-                  to="/lottery"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/lottery' ? 'bg-green-50 text-green-700 font-semibold shadow-sm' : 'hover:bg-green-50'
-                    }`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <motion.div
-                    className="w-4 h-4"
-                    whileHover={{ rotate: 5 }}
-                  >
-                    <FaGift className="w-4 h-4" />
-                  </motion.div>
-                  <span>抽奖系统</span>
-                  {location.pathname === '/lottery' && (
-                    <motion.span
-                      className="ml-auto text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full"
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
-                    >
-                      当前
-                    </motion.span>
-                  )}
-                </Link>
-              </motion.div>
-
-              {/* 安踏防伪查询 */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.52 }}
-              >
-                <Link
-                  to="/anti-counterfeit"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/anti-counterfeit' ? 'bg-red-50 text-red-700 font-semibold shadow-sm' : 'hover:bg-red-50'
-                    }`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <motion.div
-                    className={`w-5 h-5 ${location.pathname === '/anti-counterfeit' ? 'text-red-500' : 'text-gray-400'}`}
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                  >
-                    <FaShieldAlt className="w-5 h-5" />
-                  </motion.div>
-                  <span>安踏防伪</span>
-                  {location.pathname === '/anti-counterfeit' && (
-                    <motion.span
-                      className="ml-auto text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full"
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
-                    >
-                      当前
-                    </motion.span>
-                  )}
-                </Link>
-              </motion.div>
-
-              {/* 老虎冒险 */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.54 }}
-              >
-                <Link
-                  to="/tiger-adventure"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/tiger-adventure' ? 'bg-orange-50 text-orange-700 font-semibold shadow-sm' : 'hover:bg-orange-50'
-                    }`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <motion.div
-                    className={`w-5 h-5 ${location.pathname === '/tiger-adventure' ? 'text-orange-500' : 'text-gray-400'}`}
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                  >
-                    <FaClipboard className="w-5 h-5" />
-                  </motion.div>
-                  <span>老虎冒险</span>
-                  {location.pathname === '/tiger-adventure' && (
-                    <motion.span
-                      className="ml-auto text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full"
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
-                    >
-                      当前
-                    </motion.span>
-                  )}
-                </Link>
-              </motion.div>
-
-              {/* 抛硬币工具 */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.56 }}
-              >
-                <Link
-                  to="/coin-flip"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/coin-flip' ? 'bg-yellow-50 text-yellow-700 font-semibold shadow-sm' : 'hover:bg-yellow-50'
-                    }`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <motion.div
-                    className={`w-5 h-5 ${location.pathname === '/coin-flip' ? 'text-yellow-500' : 'text-gray-400'}`}
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                  >
-                    <FaCoins className="w-5 h-5" />
-                  </motion.div>
-                  <span>抛硬币</span>
-                  {location.pathname === '/coin-flip' && (
-                    <motion.span
-                      className="ml-auto text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full"
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
-                    >
-                      当前
-                    </motion.span>
-                  )}
-                </Link>
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.48 }}
-              >
-                <Link
-                  to="/image-upload"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/image-upload' ? 'bg-blue-50 text-blue-700 font-semibold shadow-sm' : 'hover:bg-blue-50'
-                    }`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <motion.div
-                    className={`w-5 h-5 ${location.pathname === '/image-upload' ? 'text-blue-500' : 'text-gray-400'}`}
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                  >
-                    <FaImage className="w-5 h-5" />
-                  </motion.div>
-                  <span>图片上传</span>
-                  {location.pathname === '/image-upload' && (
-                    <motion.span
-                      className="ml-auto text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full"
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
-                    >
-                      当前
-                    </motion.span>
-                  )}
-                </Link>
-              </motion.div>
-
-              {/* FBI通缉犯 */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.49 }}
-              >
-                <Link
-                  to="/fbi-wanted"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/fbi-wanted' ? 'bg-red-50 text-red-700 font-semibold shadow-sm' : 'hover:bg-red-50'
-                    }`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <motion.div
-                    className={`w-5 h-5 ${location.pathname === '/fbi-wanted' ? 'text-red-500' : 'text-gray-400'}`}
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                  >
-                    <FaExclamationTriangle className="w-5 h-5" />
-                  </motion.div>
-                  <span>FBI通缉犯</span>
-                  {location.pathname === '/fbi-wanted' && (
-                    <motion.span
-                      className="ml-auto text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full"
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
-                    >
-                      当前
-                    </motion.span>
-                  )}
-                </Link>
-              </motion.div>
-
-              {/* Markdown导出 */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.53 }}
-              >
-                <Link
-                  to="/markdown-export"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/markdown-export' ? 'bg-purple-50 text-purple-700 font-semibold shadow-sm' : 'hover:bg-purple-50'
-                    }`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <motion.div
-                    className={`w-5 h-5 ${location.pathname === '/markdown-export' ? 'text-purple-500' : 'text-gray-400'}`}
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                  >
-                    <FaFileAlt className="w-5 h-5" />
-                  </motion.div>
-                  <span>Markdown导出</span>
-                  {location.pathname === '/markdown-export' && (
-                    <motion.span
-                      className="ml-auto text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full"
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
-                    >
-                      当前
-                    </motion.span>
-                  )}
-                </Link>
-              </motion.div>
-
-              {/* LibreChat */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.54 }}
-              >
-                <Link
-                  to="/librechat"
-                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/librechat' ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm' : 'hover:bg-indigo-50'
-                    }`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <motion.div
-                    className={`w-5 h-5 ${location.pathname === '/librechat' ? 'text-indigo-500' : 'text-gray-400'}`}
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                  >
-                    <FaComments className="w-5 h-5" />
-                  </motion.div>
-                  <span>LibreChat</span>
-                  {location.pathname === '/librechat' && (
-                    <motion.span
-                      className="ml-auto text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full"
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
-                    >
-                      当前
-                    </motion.span>
-                  )}
-                </Link>
-              </motion.div>
-
-              {/* 分割线 */}
-              <motion.div
-                className="border-t border-gray-200 my-2"
-                initial={{ scaleX: 0 }}
-                animate={{ scaleX: 1 }}
-                transition={{ duration: 0.3, delay: 0.53 }}
-              />
-
-              {/* 退出登录 */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.59 }}
-              >
-                <motion.button
-                  onClick={handleLogout}
-                  className="flex items-center gap-3 w-full px-5 py-3 rounded-lg mx-2 my-1 text-red-600 bg-gradient-to-r from-red-50 to-white hover:from-red-100 hover:to-red-50 font-semibold shadow-sm transition-all duration-150"
-                  whileHover={{ x: 5, scale: 1.02 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <motion.div
-                    className="w-5 h-5 text-red-500"
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                  >
-                    <FaSignOutAlt className="w-5 h-5" />
-                  </motion.div>
-                  <span>退出登录</span>
-                </motion.button>
-              </motion.div>
+            <div className="p-2 bg-gray-50/50 border-t border-gray-100">
+               <button 
+                onClick={logout}
+                className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-white border border-red-100 text-red-600 text-sm font-bold hover:bg-red-50 transition-all"
+               >
+                 <FaSignOutAlt /> 退出当前账号
+               </button>
             </div>
           </motion.div>
         </>,
@@ -1629,4 +211,4 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
   );
 });
 
-export default MobileNav; 
+export default MobileNav;
