@@ -17,6 +17,7 @@ const ITEM_HOVER = { scale: 1.04 } as const;
 const BUTTON_TAP = { scale: 0.96 } as const;
 
 export const ForgotPasswordPage: React.FC = () => {
+    const { user } = useAuth();
     const { setNotification } = useNotification();
     const navigate = useNavigate();
     const { config: turnstileConfig, loading: turnstileConfigLoading } = useTurnstileConfig({ usePublicConfig: true });
@@ -218,6 +219,19 @@ export const ForgotPasswordPage: React.FC = () => {
                                 </div>
 
                                 <div className="px-8 py-8">
+                                    {user && (
+                                        <m.div 
+                                            initial={{ opacity: 0, y: -10 }} 
+                                            animate={{ opacity: 1, y: 0 }} 
+                                            className="mb-6 p-4 bg-indigo-50 border border-indigo-100 rounded-xl flex items-start gap-3 text-left"
+                                        >
+                                            <FaVolumeUp className="text-indigo-500 mt-1 flex-shrink-0" />
+                                            <div>
+                                                <p className="text-xs font-bold text-indigo-700">您当前登录为 {user.username}</p>
+                                                <p className="text-[11px] text-indigo-600/80 mt-0.5">您可以为当前账号或任何其他已注册账号重置密码。</p>
+                                            </div>
+                                        </m.div>
+                                    )}
                                     <form className="space-y-5" onSubmit={handleSubmit}>
                                         {error && (
                                             <div

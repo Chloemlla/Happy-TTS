@@ -15,6 +15,7 @@ const ITEM_HOVER = { scale: 1.04 } as const;
 const BUTTON_TAP = { scale: 0.96 } as const;
 
 export const ResetPasswordLinkPage: React.FC = () => {
+    const { user } = useAuth();
     const { setNotification } = useNotification();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -101,7 +102,7 @@ export const ResetPasswordLinkPage: React.FC = () => {
             const clientIP = await getClientIP();
             const deviceName = navigator.userAgent || 'unknown';
             const response = await fetch(getApiBaseUrl() + '/api/auth/reset-password-link', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                method: 'POST headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ token, fingerprint, newPassword: sanitizedPassword, clientIP, deviceName }),
             });
 
@@ -137,6 +138,19 @@ export const ResetPasswordLinkPage: React.FC = () => {
                         </div>
 
                         <div className="px-8 py-8">
+                            {user && (
+                                <m.div 
+                                    initial={{ opacity: 0, y: -10 }} 
+                                    animate={{ opacity: 1, y: 0 }} 
+                                    className="mb-6 p-4 bg-indigo-50 border border-indigo-100 rounded-xl flex items-start gap-3 text-left"
+                                >
+                                    <FaLock className="text-indigo-500 mt-1 flex-shrink-0" />
+                                    <div>
+                                        <p className="text-xs font-bold text-indigo-700">您当前登录为 {user.username}</p>
+                                        <p className="text-[11px] text-indigo-600/80 mt-0.5">您正在为另一个账号设置新密码。重置完成后，该账号的登录状态将生效。</p>
+                                    </div>
+                                </m.div>
+                            )}
                             {verifying ? (
                                 <div className="text-center py-8">
                                     <div className="w-16 h-16 border-4 border-[#219EBC] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
