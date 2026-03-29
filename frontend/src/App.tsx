@@ -1061,41 +1061,33 @@ const App: React.FC = () => {
                   <Route
                     path="/login"
                     element={
-                      user ? (
-                        <Navigate to="/" replace />
-                      ) : (
-                        <Suspense fallback={<LoadingSpinner />}>
-                          <m.div
-                            variants={pageVariants}
-                            initial="initial"
-                            animate="in"
-                            exit="out"
-                            transition={pageTransition}
-                          >
-                            <LoginPage />
-                          </m.div>
-                        </Suspense>
-                      )
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <m.div
+                          variants={pageVariants}
+                          initial="initial"
+                          animate="in"
+                          exit="out"
+                          transition={pageTransition}
+                        >
+                          <LoginPage />
+                        </m.div>
+                      </Suspense>
                     }
                   />
                   <Route
                     path="/register"
                     element={
-                      user ? (
-                        <Navigate to="/" replace />
-                      ) : (
-                        <Suspense fallback={<LoadingSpinner />}>
-                          <m.div
-                            variants={pageVariants}
-                            initial="initial"
-                            animate="in"
-                            exit="out"
-                            transition={pageTransition}
-                          >
-                            <RegisterPage />
-                          </m.div>
-                        </Suspense>
-                      )
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <m.div
+                          variants={pageVariants}
+                          initial="initial"
+                          animate="in"
+                          exit="out"
+                          transition={pageTransition}
+                        >
+                          <RegisterPage />
+                        </m.div>
+                      </Suspense>
                     }
                   />
                   <Route
