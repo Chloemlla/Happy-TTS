@@ -706,9 +706,9 @@ export class PasskeyService {
         expectedChallenge: user.pendingChallenge,
         expectedOrigin: finalOrigin,
         expectedRPID: getRpId(),
-        authenticator: {
-          credentialID: Buffer.from(authenticator.credentialID, "base64url"),
-          credentialPublicKey: Buffer.from(authenticator.credentialPublicKey, "base64"),
+        credential: {
+          id: authenticator.credentialID,
+          publicKey: Buffer.from(authenticator.credentialPublicKey, "base64"),
           counter: authenticator.counter,
         },
       });

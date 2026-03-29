@@ -1111,7 +1111,7 @@ export class AuthController {
             }
           } else {
             // 回退逻辑：如果不是对象，尝试进行基础 ID 匹配（仅用于向后兼容或特殊简单的验证场景）
-            const found = user.passkeyCredentials.some(
+            const found = user.passkeyCredentials?.some(
               (cred: any) => cred.credentialID === verificationCode || cred.id === verificationCode
             );
             if (found) {
