@@ -74,7 +74,7 @@ const FeatureCard = memo(function FeatureCard({ title, desc, Icon, variants, tra
 });
 
 function WelcomePageComponent(): React.ReactElement<any> {
-  const { savedAccounts, switchAccount, removeAccountFromList } = useAuth();
+  const { user, savedAccounts, switchAccount, removeAccountFromList } = useAuth();
   const prefersReducedMotion = useReducedMotion();
 
   const effectiveHeaderVariants = React.useMemo(() => (

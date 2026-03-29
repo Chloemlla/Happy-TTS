@@ -5,7 +5,16 @@ import { FaVolumeUp, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
 import getApiBaseUrl from '../api';
 import { getFingerprint } from '../utils/fingerprint';
 
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
+import { useNotification } from './Notification';
+import { FaVolumeUp, FaCheckCircle, FaTimesCircle, FaUser, FaInfoCircle } from 'react-icons/fa';
+import getApiBaseUrl from '../api';
+import { getFingerprint } from '../utils/fingerprint';
+
 export const EmailVerifyPage: React.FC = () => {
+    const { user } = useAuth();
     const { setNotification } = useNotification();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -81,6 +90,15 @@ export const EmailVerifyPage: React.FC = () => {
 
                 {/* Card */}
                 <div className="bg-white rounded-2xl shadow-xl border border-gray-100 px-8 py-12 hover:shadow-2xl transition-all duration-300">
+                    {user && (
+                        <div className="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-xl flex items-start gap-3 text-left animate-fadeIn">
+                            <FaInfoCircle className="text-blue-500 mt-1 flex-shrink-0" />
+                            <div>
+                                <p className="text-xs font-bold text-blue-700">您当前登录为 {user.username}</p>
+                                <p className="text-[11px] text-blue-600/80 mt-0.5">您正在验证另一个账号。验证完成后，您可以将其添加至此设备。</p>
+                            </div>
+                        </div>
+                    )}
                     {loading ? (
                         <div className="text-center py-8">
                             <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
@@ -167,5 +185,8 @@ export const EmailVerifyPage: React.FC = () => {
         </div>
     );
 };
+
+export default EmailVerifyPage;
+
 
 export default EmailVerifyPage;
