@@ -107,7 +107,10 @@ export const ticketController = {
       if (isTitleViolated || isDescViolated) {
         const titleReason = isTitleViolated ? await ModerationService.getAiViolationReason(title) : "";
         const descReason = isDescViolated ? await ModerationService.getAiViolationReason(description) : "";
-        const punishment = await ModerationService.handleViolation(userObj);
+        
+        // 实时拉取最新数据，确保处罚次数准确自增
+        const freshUser = await UserStorage.getUserById(userObj.id) || userObj;
+        const punishment = await ModerationService.handleViolation(freshUser);
         const combinedReason = `标题: ${titleReason || "合规"} | 描述: ${descReason || "合规"}`;
 
         (async () => {
@@ -227,7 +230,11 @@ export const ticketController = {
         const isViolated = await ModerationService.checkContentWithAi(content);
         if (isViolated) {
           const reason = await ModerationService.getAiViolationReason(content);
-          const punishment = await ModerationService.handleViolation(userObj);
+          
+          // 实时拉取最新数据，确保处罚次数准确自增
+          const freshUser = await UserStorage.getUserById(userObj.id) || userObj;
+          const punishment = await ModerationService.handleViolation(freshUser);
+          
           (async () => {
             try {
               const user = await UserStorage.getUserById(userObj.id);

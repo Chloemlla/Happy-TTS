@@ -169,9 +169,12 @@ export class ModerationService {
    * 处理用户违规，应用梯度处罚并持久化到 MongoDB
    */
   public static async handleViolation(user: User, reason?: string): Promise<string> {
-    const newCount = (user.ticketViolationCount || 0) + 1;
+    const oldCount = user.ticketViolationCount || 0;
+    const newCount = oldCount + 1;
     let banDurationHours = 0;
     let punishmentMsg = "";
+
+    logger.info(`[Moderation] 正在处理用户违规: ${user.username} (ID: ${user.id}), 当前次数: ${oldCount}, 目标次数: ${newCount}`);
 
     switch (newCount) {
       case 1:
