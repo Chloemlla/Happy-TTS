@@ -42,7 +42,6 @@ export const useAuth = () => {
     const location = useLocation();
     
     const checkingRef = useRef(false);
-    const lastCheckRef = useRef(0);
 
     // 加载保存的账号列表
     const loadSavedAccounts = useCallback(() => {
@@ -114,7 +113,6 @@ export const useAuth = () => {
         const target = accounts.find(a => a.user.id === userId);
         if (target) {
             localStorage.setItem('token', target.token);
-            // 重新验证 token 有效性并获取最新用户信息
             setLoading(true);
             try {
                 const res = await api.get<User>('/api/auth/me', {
@@ -124,7 +122,6 @@ export const useAuth = () => {
                 saveAccount(res.data, target.token);
                 navigate('/');
             } catch (e) {
-                // 如果 token 过期，从列表中移除
                 const updated = accounts.filter(a => a.user.id !== userId);
                 localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(updated));
                 setSavedAccounts(updated);
@@ -162,16 +159,53 @@ export const useAuth = () => {
         }
     };
 
+    const register = async (username: string, email: string, password: string, cfToken?: string) => {
+        try {
+            const response = await api.post<{ user: User; token: string }>('/api/auth/register', {
+                username,
+                email,
+                password,
+                ...(cfToken && { cfToken })
+            });
+            const { user, token } = response.data;
+            if (token) {
+                localStorage.setItem('token', token);
+                saveAccount(user, token);
+                setUser(user);
+            }
+            return response.data;
+        } catch (error: any) {
+            throw new Error(error.response?.data?.error || '注册失败');
+        }
+    };
+
+    const verifyTOTP = async (userId: string, code: string) => {
+        try {
+            const response = await api.post<{ user: User; token: string }>('/api/auth/verify-totp', {
+                userId,
+                code
+            });
+            const { user, token } = response.data;
+            if (token) {
+                localStorage.setItem('token', token);
+                saveAccount(user, token);
+                setUser(user);
+                setPending2FA(null);
+            }
+            return response.data;
+        } catch (error: any) {
+            throw new Error(error.response?.data?.error || '验证失败');
+        }
+    };
+
     const loginWithToken = async (token: string, user: User) => {
         localStorage.setItem('token', token);
         saveAccount(user, token);
         setUser(user);
     };
 
-    const logout = async (allDevices = false) => {
-        const currentToken = localStorage.getItem('token');
+    const logout = async () => {
         const accounts = loadSavedAccounts();
-        
         if (user) {
             const updated = accounts.filter(a => a.user.id !== user.id);
             localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(updated));
@@ -182,7 +216,6 @@ export const useAuth = () => {
         setUser(null);
         setPending2FA(null);
 
-        // 如果还有其他账号，自动切换到下一个，否则去欢迎页
         const remaining = loadSavedAccounts();
         if (remaining.length > 0) {
             switchAccount(remaining[0].user.id);
@@ -205,7 +238,6 @@ export const useAuth = () => {
         localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(updated));
         setSavedAccounts(updated);
         
-        // 如果删除的是当前账号
         if (user?.id === userId) {
             localStorage.removeItem('token');
             setUser(null);
@@ -217,6 +249,10 @@ export const useAuth = () => {
         }
     };
 
+    const updateUserAvatar = async () => {
+        await checkAuth();
+    };
+
     return {
         user,
         savedAccounts,
@@ -224,12 +260,14 @@ export const useAuth = () => {
         pending2FA,
         setPending2FA,
         login,
+        register,
+        verifyTOTP,
         loginWithToken,
         switchAccount,
         logout,
         logoutAll,
         removeAccountFromList,
         api,
-        updateUserAvatar: checkAuth
+        updateUserAvatar
     };
 };
