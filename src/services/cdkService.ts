@@ -489,6 +489,37 @@ export class CDKService {
         forceRedeem,
       });
 
+      // 发送邮件通知
+      if (userInfo && userInfo.userId) {
+        try {
+          const { UserStorage } = await import("../utils/userStorage");
+          const { sendEmail } = await import("./emailSender");
+          const { generateCDKActivatedEmailHtml } = await import("../templates/emailTemplates");
+          
+          const user = await UserStorage.getUserById(userInfo.userId);
+          if (user && user.email) {
+            const time = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
+            const emailHtml = generateCDKActivatedEmailHtml(
+              user.username,
+              cdk.code,
+              resource.title,
+              time,
+              "N/A (API)",
+              "N/A"
+            );
+            sendEmail({
+              to: user.email,
+              subject: "Synapse 兑换码使用成功通知",
+              html: emailHtml,
+              logTag: "CDK兑换通知",
+              checkQuota: false,
+            }).catch(e => logger.warn(`[CDK兑换通知] 邮件发送失败: ${user.email}`, e));
+          }
+        } catch (notifyErr) {
+          logger.warn("[CDK兑换通知] 发送通知邮件失败:", notifyErr);
+        }
+      }
+
       // 记录成功统计
       this.stats.successfulRedemptions++;
       this.recordCircuitBreakerSuccess();

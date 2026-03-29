@@ -352,3 +352,69 @@ export function generateLoginIpChangedEmailHtml(
         userAgent: shortUA,
     });
 }
+
+/**
+ * 通用安全通知生成函数（使用 security-notice.html 模板）
+ */
+function generateSecurityNoticeHtml(
+    username: string,
+    title: string,
+    description: string,
+    time: string,
+    ip: string,
+    device: string,
+    warning: string = "如果您并未进行此操作，请立即修改密码并检查账号安全。",
+): string {
+    const tpl = loadTemplate("security-notice.html");
+    const shortUA = device.length > 120 ? device.substring(0, 120) + "..." : device;
+    return renderTemplate(tpl, {
+        username,
+        title,
+        description,
+        time,
+        ip,
+        device: shortUA,
+        warning,
+    });
+}
+
+/** 2FA 变更：启用 TOTP */
+export function generateTOTPEnabledEmailHtml(username: string, time: string, ip: string, device: string): string {
+    return generateSecurityNoticeHtml(username, "两步验证 (TOTP) 已开启", "您的账号已成功启用两步验证 (TOTP)，账户安全性已得到进一步提升。", time, ip, device, "如果您并未进行此操作，请立即通过其他设备修改密码并尝试找回控制权。");
+}
+
+/** 2FA 变更：禁用 TOTP */
+export function generateTOTPDisabledEmailHtml(username: string, time: string, ip: string, device: string): string {
+    return generateSecurityNoticeHtml(username, "两步验证 (TOTP) 已关闭", "您的账号已关闭两步验证 (TOTP)。由于安全性降低，建议您尽快重新开启或启用 Passkey。", time, ip, device, "警告：禁用两步验证会显著降低账号安全性。如果您并未进行此操作，您的账号可能已被他人控制，请立即修改密码。");
+}
+
+/** 2FA 变更：添加 Passkey */
+export function generatePasskeyAddedEmailHtml(username: string, name: string, time: string, ip: string, device: string): string {
+    return generateSecurityNoticeHtml(username, "新 Passkey 已添加", `您的账号已成功添加新的 Passkey 凭证：<strong>${name}</strong>。`, time, ip, device);
+}
+
+/** 2FA 变更：删除 Passkey */
+export function generatePasskeyRemovedEmailHtml(username: string, time: string, ip: string, device: string): string {
+    return generateSecurityNoticeHtml(username, "Passkey 已移除", "您的账号已移除一个 Passkey 凭证。如果您移除了所有凭证，建议您重新添加或确保 TOTP 已开启。", time, ip, device);
+}
+
+/** 安全事件：账号被锁定 */
+export function generateAccountLockedEmailHtml(username: string, time: string, ip: string, device: string, duration: string): string {
+    return generateSecurityNoticeHtml(username, "账号因异常尝试被锁定", `您的账号在短时间内出现了多次失败的验证尝试，出于安全考虑，系统已暂时锁定您的账号验证功能 <strong>${duration}</strong>。`, time, ip, device, "如果是您本人操作，请在锁定时间结束后重试；如果不是，请考虑修改登录密码。");
+}
+
+/** 安全事件：恢复码使用通知 */
+export function generateBackupCodeUsedEmailHtml(username: string, remaining: number, time: string, ip: string, device: string): string {
+    const warning = remaining <= 2 ? `❗ 警告：您仅剩 ${remaining} 个可用的恢复码，请尽快重新生成。` : "请确保这些操作是您本人进行的。";
+    return generateSecurityNoticeHtml(username, "备用恢复码已使用", `您成功使用了一个备用恢复码登录系统。目前您还剩余 <strong>${remaining}</strong> 个可用的恢复码。`, time, ip, device, warning);
+}
+
+/** 资源：CDK 兑换成功 */
+export function generateCDKActivatedEmailHtml(username: string, cdk: string, info: string, time: string, ip: string, device: string): string {
+    return generateSecurityNoticeHtml(username, "礼品卡/兑换码使用成功", `您已成功兑换了以下资源：<strong>${info}</strong>。<br/>兑换码：<code>${cdk}</code>`, time, ip, device, "祝您使用愉快！");
+}
+
+/** 资源：用量警报 */
+export function generateUsageAlertEmailHtml(username: string, percent: string, current: number, total: number, time: string): string {
+    return generateSecurityNoticeHtml(username, "账号额度消耗警报", `您的每日使用额度已消耗达 <strong>${percent}</strong>。<br/>当前已使用：${current} / 总额度：${total}`, time, "系统自动检测", "N/A", percent === "100%" ? "您的今日额度已耗尽，服务将暂时无法使用，直至额度重置。" : "请注意合理安排您的使用进度。");
+}

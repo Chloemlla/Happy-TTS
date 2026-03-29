@@ -14,10 +14,16 @@ import {
   generateVerificationLinkEmailHtml,
   generateWelcomeEmailHtml,
   generateLoginIpChangedEmailHtml,
+  generateAccountLockedEmailHtml,
 } from "../templates/emailTemplates";
 import logger from "../utils/logger";
 import { type User, UserStorage } from "../utils/userStorage";
 import { getClientIP } from "../utils/ipUtils";
+
+// 登录失败尝试次数限制
+const LOGIN_ATTEMPT_LIMIT = 5;
+const LOGIN_LOCKOUT_DURATION = 15 * 60 * 1000; // 15分钟
+const loginAttempts = new Map<string, { count: number; lastAttempt: number; lockedUntil?: number }>();
 
 // 支持的主流邮箱后缀
 const allowedDomains = [
@@ -339,15 +345,59 @@ export class AuthController {
 
       logger.info("开始用户认证", logDetails);
 
+      // 检查登录尝试限制
+      const attempts = loginAttempts.get(identifier) || { count: 0, lastAttempt: 0 };
+      if (attempts.lockedUntil && Date.now() < attempts.lockedUntil) {
+        const remainingMinutes = Math.ceil((attempts.lockedUntil - Date.now()) / 60000);
+        return res.status(429).json({ error: `尝试次数过多，请在 ${remainingMinutes} 分钟后重试` });
+      }
+
       // 使用 UserStorage 进行认证
       const user = await UserStorage.authenticateUser(identifier, password);
 
       if (!user) {
+        // 记录失败尝试
+        attempts.count += 1;
+        attempts.lastAttempt = Date.now();
+        if (attempts.count >= LOGIN_ATTEMPT_LIMIT) {
+          attempts.lockedUntil = Date.now() + LOGIN_LOCKOUT_DURATION;
+          loginAttempts.set(identifier, attempts);
+          
+          // 发送锁定通知邮件
+          const targetUser = await UserStorage.getUserByUsername(identifier) || await UserStorage.getUserByEmail(identifier);
+          if (targetUser && targetUser.email) {
+            try {
+              const time = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
+              const lockEmailHtml = generateAccountLockedEmailHtml(
+                targetUser.username,
+                time,
+                ip,
+                userAgent,
+                "15 分钟"
+              );
+              sendEmail({
+                to: targetUser.email,
+                subject: "Synapse 账号登录安全警报",
+                html: lockEmailHtml,
+                logTag: "账号锁定提醒",
+                checkQuota: false,
+              }).catch(e => logger.warn(`[账号锁定提醒] 邮件发送失败: ${targetUser.email}`, e));
+            } catch (notifyErr) {
+              logger.warn("[账号锁定提醒] 发送通知邮件失败:", notifyErr);
+            }
+          }
+          
+          return res.status(429).json({ error: "尝试次数过多，账号已锁定 15 分钟" });
+        }
+        loginAttempts.set(identifier, attempts);
+
         // 不区分「用户不存在」和「密码错误」，统一返回模糊提示（防用户名枚举）
-        // 绝不在日志中记录密码（包括哈希值）
         logger.warn("登录失败：用户名或密码错误", logDetails);
         return res.status(401).json({ error: "用户名/邮箱或密码错误" });
       }
+
+      // 登录成功，重置尝试次数
+      loginAttempts.delete(identifier);
 
       // 检查用户是否启用了TOTP或Passkey
       const hasTOTP = !!user.totpEnabled;

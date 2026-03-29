@@ -1,8 +1,11 @@
-import type { Request, Response } from "express";
-import { TOTPService } from "../services/totpService";
-import logger from "../utils/logger";
-import { TOTPDebugger } from "../utils/totpDebugger";
-import { UserStorage } from "../utils/userStorage";
+import {
+  generateAccountLockedEmailHtml,
+  generateBackupCodeUsedEmailHtml,
+  generateTOTPDisabledEmailHtml,
+  generateTOTPEnabledEmailHtml,
+} from "../templates/emailTemplates";
+import { sendEmail } from "../services/emailSender";
+import { getClientIP } from "../utils/ipUtils";
 
 // TOTP验证尝试次数限制
 const TOTP_ATTEMPT_LIMIT = 5;
@@ -242,6 +245,23 @@ export class TOTPController {
 
       logger.info("TOTP启用成功:", { userId, username: currentUser.username });
 
+      // 发送邮件通知
+      try {
+        const time = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
+        const ip = getClientIP(req);
+        const device = req.headers["user-agent"] || "unknown";
+        const emailHtml = generateTOTPEnabledEmailHtml(currentUser.username, time, ip, device);
+        sendEmail({
+          to: currentUser.email,
+          subject: "Synapse 两步验证 (TOTP) 已启用",
+          html: emailHtml,
+          logTag: "TOTP启用通知",
+          checkQuota: false,
+        }).catch((e) => logger.warn(`[TOTP启用通知] 邮件发送失败: ${currentUser.email}`, e));
+      } catch (notifyErr) {
+        logger.warn("[TOTP启用通知] 发送通知邮件失败:", notifyErr);
+      }
+
       res.json({
         message: "TOTP设置成功",
         enabled: true,
@@ -328,6 +348,23 @@ export class TOTPController {
             remainingCount,
             codesRemoved: originalCount - remainingCount,
           });
+
+          // 发送邮件通知
+          try {
+            const time = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
+            const ip = getClientIP(req);
+            const device = req.headers["user-agent"] || "unknown";
+            const emailHtml = generateBackupCodeUsedEmailHtml(user.username, remainingCount, time, ip, device);
+            sendEmail({
+              to: user.email,
+              subject: "Synapse 备用恢复码已使用通知",
+              html: emailHtml,
+              logTag: "恢复码使用通知",
+              checkQuota: false,
+            }).catch((e) => logger.warn(`[恢复码使用通知] 邮件发送失败: ${user.email}`, e));
+          } catch (notifyErr) {
+            logger.warn("[恢复码使用通知] 发送通知邮件失败:", notifyErr);
+          }
 
           // 如果恢复码用完，记录警告
           if (remainingCount === 0) {
@@ -489,6 +526,23 @@ export class TOTPController {
       await TOTPController.updateUserTOTP(userId, "", false, []);
 
       logger.info("TOTP禁用成功:", { userId, username: user.username });
+
+      // 发送邮件通知
+      try {
+        const time = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
+        const ip = getClientIP(req);
+        const device = req.headers["user-agent"] || "unknown";
+        const emailHtml = generateTOTPDisabledEmailHtml(user.username, time, ip, device);
+        sendEmail({
+          to: user.email,
+          subject: "Synapse 两步验证 (TOTP) 已禁用",
+          html: emailHtml,
+          logTag: "TOTP禁用通知",
+          checkQuota: false,
+        }).catch((e) => logger.warn(`[TOTP禁用通知] 邮件发送失败: ${user.email}`, e));
+      } catch (notifyErr) {
+        logger.warn("[TOTP禁用通知] 发送通知邮件失败:", notifyErr);
+      }
 
       res.json({
         message: "TOTP已禁用",
