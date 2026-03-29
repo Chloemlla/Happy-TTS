@@ -1,16 +1,57 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useAuth } from "../hooks/useAuth";
-import { ticketApi, ITicket } from "../api/ticketApi";
+import { ticketApi, ITicket, ITicketMessage } from "../api/ticketApi";
 import { useNotification } from "./Notification";
 import { 
   FiSend, FiPlus, FiMessageSquare, FiClock, 
   FiCheckCircle, FiAlertCircle, FiX, FiFilter,
-  FiUser, FiTag, FiChevronRight, FiSearch, FiInfo
+  FiUser, FiTag, FiChevronRight, FiSearch, FiInfo,
+  FiCpu, FiCheck, FiTerminal
 } from "react-icons/fi";
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
+import hljs from 'highlight.js';
+import 'highlight.js/styles/github-dark.css';
+
+// 配置 marked
+marked.use({
+  async: true,
+  pedantic: false,
+  gfm: true,
+  renderer: {
+    code({ text, lang }: { text: string; lang?: string }) {
+      const language = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
+      const highlighted = hljs.highlight(text, { language }).value;
+      return `<pre class="bg-gray-900 text-gray-100 rounded-lg p-3 my-2 overflow-x-auto"><code class="hljs language-${language}">${highlighted}</code></pre>`;
+    }
+  }
+});
 
 const ROW_INITIAL = { opacity: 0, x: -20 } as const;
 const ROW_ANIMATE = { opacity: 1, x: 0 } as const;
+
+// Markdown 消息渲染组件
+const MarkdownMessage: React.FC<{ content: string, isDark?: boolean }> = ({ content, isDark }) => {
+  const [html, setHtml] = useState("");
+
+  useEffect(() => {
+    const renderMarkdown = async () => {
+      const parsed = await marked.parse(content);
+      setHtml(DOMPurify.sanitize(parsed));
+    };
+    renderMarkdown();
+  }, [content]);
+
+  return (
+    <div 
+      className={`prose prose-sm max-w-none break-words ${isDark ? 'prose-invert text-white' : 'text-gray-800'} 
+        prose-pre:bg-gray-900 prose-pre:p-0 prose-code:bg-gray-100 prose-code:text-pink-600 
+        prose-code:px-1 prose-code:rounded prose-headings:text-inherit prose-strong:text-inherit`}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+};
 
 const TicketSystem: React.FC = () => {
   const { user } = useAuth();
@@ -86,8 +127,16 @@ const TicketSystem: React.FC = () => {
       setShowDetailOnMobile(false);
       setNewTicket({ title: "", description: "", priority: "medium" });
       fetchTickets();
-    } catch (error) {
-      setNotification({ type: 'error', message: "提交失败" });
+    } catch (error: any) {
+      if (error.response?.status === 403) {
+        const data = error.response.data;
+        setNotification({ 
+          type: 'error', 
+          message: `${data.error}: ${data.details || ''} ${data.punishment || ''}`.trim() 
+        });
+      } else {
+        setNotification({ type: 'error', message: "提交失败" });
+      }
     }
   };
 
@@ -99,8 +148,16 @@ const TicketSystem: React.FC = () => {
       setSelectedTicket(updated);
       setReplyContent("");
       setTickets(prev => prev.map(t => t._id === updated._id ? updated : t));
-    } catch (error) {
-      setNotification({ type: 'error', message: "发送失败" });
+    } catch (error: any) {
+      if (error.response?.status === 403) {
+        const data = error.response.data;
+        setNotification({ 
+          type: 'error', 
+          message: `${data.error}: ${data.details || ''} ${data.punishment || ''}`.trim() 
+        });
+      } else {
+        setNotification({ type: 'error', message: "发送失败" });
+      }
     }
   };
 
@@ -420,30 +477,68 @@ const TicketSystem: React.FC = () => {
 
                 {/* 消息区域 */}
                 <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6 bg-white custom-scrollbar">
-                  {selectedTicket.messages.map((msg, idx) => (
-                    <motion.div
-                      key={idx}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.05 }}
-                      className={`flex ${msg.senderRole === "admin" ? "justify-start" : "justify-end"}`}
-                    >
-                      <div className={`max-w-[90%] sm:max-w-[85%] space-y-1 ${msg.senderRole === "admin" ? "items-start" : "items-end"} flex flex-col`}>
-                        <div className={`px-3 py-2 sm:px-4 sm:py-3 rounded-2xl shadow-sm text-xs sm:text-sm leading-relaxed
-                          ${msg.senderRole === "admin" 
-                            ? "bg-gray-100 text-gray-800 rounded-tl-none border border-gray-200" 
-                            : "bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-tr-none shadow-blue-100"
-                          }`}
-                        >
-                          {msg.senderRole === "admin" && (
-                            <div className="text-[8px] sm:text-[10px] font-black text-blue-600 mb-1 uppercase tracking-tighter">OFFICIAL REPLY</div>
-                          )}
-                          <p className="whitespace-pre-wrap">{msg.content}</p>
+                  {selectedTicket.messages.map((msg, idx) => {
+                    const isAi = msg.senderRole === "ai" || msg.isAi;
+                    const isAdminMsg = msg.senderRole === "admin";
+                    const isUserMsg = msg.senderRole === "user";
+
+                    return (
+                      <motion.div
+                        key={idx}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.05 }}
+                        className={`flex ${isUserMsg ? "justify-end" : "justify-start"}`}
+                      >
+                        <div className={`max-w-[95%] sm:max-w-[85%] space-y-1 ${isUserMsg ? "items-end" : "items-start"} flex flex-col`}>
+                          <div className={`px-3 py-2 sm:px-4 sm:py-3 rounded-2xl shadow-sm text-xs sm:text-sm leading-relaxed relative
+                            ${isUserMsg 
+                              ? "bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-tr-none shadow-blue-100" 
+                              : isAi
+                                ? "bg-white border-2 border-indigo-100 text-gray-800 rounded-tl-none shadow-indigo-50"
+                                : "bg-gray-100 text-gray-800 rounded-tl-none border border-gray-200"
+                            }`}
+                          >
+                            {isAdminMsg && (
+                              <div className="text-[8px] sm:text-[10px] font-black text-blue-600 mb-1 uppercase tracking-tighter flex items-center gap-1">
+                                <FiCheckCircle size={10} /> OFFICIAL REPLY
+                              </div>
+                            )}
+                            {isAi && (
+                              <div className="flex items-center gap-1.5 mb-2 py-0.5 px-2 bg-indigo-50 rounded-lg w-fit border border-indigo-100">
+                                <div className="p-0.5 bg-indigo-500 rounded text-white">
+                                  <FiCpu size={10} />
+                                </div>
+                                <span className="text-[9px] sm:text-[10px] font-bold text-indigo-600 uppercase tracking-wider">AI 智能诊断</span>
+                                <div className="flex gap-0.5">
+                                  <span className="w-1 h-1 bg-indigo-400 rounded-full animate-pulse"></span>
+                                  <span className="w-1 h-1 bg-indigo-400 rounded-full animate-pulse delay-75"></span>
+                                  <span className="w-1 h-1 bg-indigo-400 rounded-full animate-pulse delay-150"></span>
+                                </div>
+                              </div>
+                            )}
+
+                            {isAi ? (
+                              <MarkdownMessage content={msg.content} />
+                            ) : (
+                              <div className={isUserMsg ? "text-white" : "text-gray-800"}>
+                                <MarkdownMessage content={msg.content} isDark={isUserMsg} />
+                              </div>
+                            )}
+                            
+                            {isAi && (
+                              <div className="mt-3 pt-2 border-t border-indigo-50 flex items-center justify-between text-[9px] text-indigo-400 italic">
+                                <span className="flex items-center gap-1">
+                                  <FiInfo size={10} /> 基于上下文生成的建议方案，仅供参考
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <span className="text-[8px] sm:text-[10px] text-gray-400 px-1">{new Date(msg.createdAt).toLocaleString()}</span>
                         </div>
-                        <span className="text-[8px] sm:text-[10px] text-gray-400 px-1">{new Date(msg.createdAt).toLocaleString()}</span>
-                      </div>
-                    </motion.div>
-                  ))}
+                      </motion.div>
+                    );
+                  })}
                   <div ref={messagesEndRef} />
                 </div>
 

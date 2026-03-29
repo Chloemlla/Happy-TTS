@@ -2,8 +2,9 @@ import { mongoose } from "../services/mongoService";
 
 const ticketMessageSchema = new mongoose.Schema({
   senderId: { type: String, required: true },
-  senderRole: { type: String, enum: ["user", "admin"], required: true },
+  senderRole: { type: String, enum: ["user", "admin", "ai"], required: true },
   content: { type: String, required: true },
+  isAi: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
 });
 
@@ -37,8 +38,9 @@ export const TicketModel =
 
 export interface ITicketMessage {
   senderId: string;
-  senderRole: "user" | "admin";
+  senderRole: "user" | "admin" | "ai";
   content: string;
+  isAi?: boolean;
   createdAt: Date;
 }
 
