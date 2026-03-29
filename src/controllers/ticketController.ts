@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
+import { mongoose } from "../services/mongoService";
 import { TicketModel, ITicket } from "../models/ticketModel";
-import { UserStorage, User as UserType } from "../utils/userStorage";
+import { UserStorage } from "../utils/userStorage";
 import { EmailService, DEFAULT_EMAIL_FROM } from "../services/emailService";
 import * as emailTemplates from "../templates/emailTemplates";
 import logger from "../utils/logger";
@@ -16,17 +17,21 @@ export const ticketController = {
         return res.status(400).json({ error: "标题和描述不能为空" });
       }
 
+      // 验证优先级
+      const validPriorities = ["low", "medium", "high"];
+      const ticketPriority = validPriorities.includes(priority) ? priority : "medium";
+
       const newTicket = new TicketModel({
         userId: user.id,
         username: user.username,
-        title,
-        description,
-        priority: priority || "medium",
+        title: String(title),
+        description: String(description),
+        priority: ticketPriority,
         messages: [
           {
             senderId: user.id,
             senderRole: "user",
-            content: description,
+            content: String(description),
           },
         ],
       });
@@ -44,8 +49,8 @@ export const ticketController = {
             const html = emailTemplates.generateTicketCreatedEmailHtml(
               "管理员", 
               user.username, 
-              title, 
-              priority || "medium", 
+              String(title), 
+              ticketPriority, 
               new Date().toLocaleString()
             );
             await EmailService.sendBatchHtmlEmails(adminEmails, `[新工单] ${title}`, html);
@@ -66,7 +71,8 @@ export const ticketController = {
   async getUserTickets(req: Request, res: Response) {
     try {
       const user = (req as any).user;
-      const tickets = await TicketModel.find({ userId: user.id }).sort({
+      // 确保使用字符串形式的 userId 进行查询
+      const tickets = await TicketModel.find({ userId: String(user.id) }).sort({
         updatedAt: -1,
       });
       res.json(tickets);
@@ -81,6 +87,10 @@ export const ticketController = {
     try {
       const { id } = req.params;
       const user = (req as any).user;
+
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ error: "无效的工单ID" });
+      }
 
       const ticket = await TicketModel.findById(id) as ITicket | null;
       if (!ticket) {
@@ -111,6 +121,10 @@ export const ticketController = {
         return res.status(400).json({ error: "回复内容不能为空" });
       }
 
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ error: "无效的工单ID" });
+      }
+
       const ticket = await TicketModel.findById(id);
       if (!ticket) {
         return res.status(404).json({ error: "工单不存在" });
@@ -127,7 +141,7 @@ export const ticketController = {
       ticket.messages.push({
         senderId: user.id,
         senderRole,
-        content,
+        content: String(content),
         createdAt: new Date(),
       });
 
@@ -147,7 +161,7 @@ export const ticketController = {
               const html = emailTemplates.generateFeedbackRepliedEmailHtml(
                 ticketUser.username,
                 ticket.title,
-                content,
+                String(content),
                 new Date().toLocaleString()
               );
               await EmailService.sendEmail({
@@ -172,7 +186,7 @@ export const ticketController = {
               const html = emailTemplates.generateFeedbackRepliedEmailHtml(
                 "管理员",
                 `[用户回复] ${ticket.title}`,
-                content,
+                String(content),
                 new Date().toLocaleString()
               );
               await EmailService.sendBatchHtmlEmails(adminEmails, `[追加回复] ${ticket.title}`, html);
@@ -195,8 +209,17 @@ export const ticketController = {
     try {
       const { status, priority } = req.query;
       const query: any = {};
-      if (typeof status === 'string' && status) query.status = status;
-      if (typeof priority === 'string' && priority) query.priority = priority;
+      
+      // 严格验证过滤参数
+      const validStatuses = ["open", "in-progress", "resolved", "closed"];
+      const validPriorities = ["low", "medium", "high"];
+
+      if (typeof status === 'string' && validStatuses.includes(status)) {
+        query.status = status;
+      }
+      if (typeof priority === 'string' && validPriorities.includes(priority)) {
+        query.priority = priority;
+      }
 
       const tickets = await TicketModel.find(query).sort({ updatedAt: -1 });
       res.json(tickets);
@@ -212,13 +235,19 @@ export const ticketController = {
       const { id } = req.params;
       const { status } = req.body;
 
-      if (!["open", "in-progress", "resolved", "closed"].includes(status)) {
-        return res.status(400).json({ error: "无效的状态" });
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ error: "无效的工单ID" });
       }
 
+      const validStatuses = ["open", "in-progress", "resolved", "closed"];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ error: "无效的状态值" });
+      }
+
+      // 修复：确保使用经过校验的变量，并显式指定更新对象
       const ticket = await TicketModel.findByIdAndUpdate(
         id,
-        { status },
+        { $set: { status: String(status) } },
         { new: true }
       );
 
@@ -234,7 +263,7 @@ export const ticketController = {
             const html = emailTemplates.generateTicketStatusChangedEmailHtml(
               ticketUser.username,
               ticket.title,
-              status,
+              String(status),
               new Date().toLocaleString()
             );
             await EmailService.sendEmail({
