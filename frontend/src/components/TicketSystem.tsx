@@ -65,8 +65,44 @@ const TicketSystem: React.FC = () => {
   const [adminFilter, setAdminFilter] = useState({ status: "", priority: "" });
   const [isMobile, setIsMobile] = useState(false);
   const [showDetailOnMobile, setShowDetailOnMobile] = useState(false);
+  
+  // 管理员编辑状态
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [isUpdating, setIsUpdating] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prefersReducedMotion = useReducedMotion();
+
+  // ... (checkMobile effect) ...
+
+  const handleAdminEdit = async (ticketId: string, idx: number) => {
+    if (!editValue.trim()) return;
+    setIsUpdating(true);
+    try {
+      const updated = await ticketApi.adminEditMessage(ticketId, idx, editValue);
+      setSelectedTicket(updated);
+      setTickets(prev => prev.map(t => t._id === updated._id ? updated : t));
+      setEditingIdx(null);
+      setNotification({ type: 'success', message: "消息已修改" });
+    } catch (error) {
+      setNotification({ type: 'error', message: "修改失败" });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleAdminDelete = async (ticketId: string, idx: number) => {
+    if (!window.confirm("确定要删除这条消息吗？此操作不可撤销。")) return;
+    try {
+      const updated = await ticketApi.adminDeleteMessage(ticketId, idx);
+      setSelectedTicket(updated);
+      setTickets(prev => prev.map(t => t._id === updated._id ? updated : t));
+      setNotification({ type: 'success', message: "消息已删除" });
+    } catch (error) {
+      setNotification({ type: 'error', message: "删除失败" });
+    }
+  };
 
   // 监听屏幕尺寸
   useEffect(() => {
@@ -518,12 +554,62 @@ const TicketSystem: React.FC = () => {
                               </div>
                             )}
 
-                            {isAi ? (
-                              <MarkdownMessage content={msg.content} />
-                            ) : (
-                              <div className={isUserMsg ? "text-white" : "text-gray-800"}>
-                                <MarkdownMessage content={msg.content} isDark={isUserMsg} />
+                            {/* 管理员操作按钮组 */}
+                            {isAdmin && !isAi && (
+                              <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button 
+                                  onClick={() => { setEditingIdx(idx); setEditValue(msg.content); }}
+                                  className="p-1 hover:bg-gray-200 rounded text-blue-600 transition-colors"
+                                  title="编辑消息"
+                                >
+                                  <FiPlus className="rotate-45" size={12} /> {/* 使用现有图标组合或 FiEdit */}
+                                  <FiPlus className="sr-only" />
+                                </button>
+                                <button 
+                                  onClick={() => handleAdminDelete(selectedTicket._id, idx)}
+                                  className="p-1 hover:bg-gray-200 rounded text-red-600 transition-colors"
+                                  title="删除消息"
+                                >
+                                  <FiX size={12} />
+                                </button>
                               </div>
+                            )}
+
+                            {editingIdx === idx ? (
+                              <div className="space-y-2 min-w-[200px] sm:min-w-[300px]">
+                                <textarea
+                                  className="w-full p-2 text-xs sm:text-sm border-2 border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800"
+                                  rows={4}
+                                  value={editValue}
+                                  onChange={e => setEditValue(e.target.value)}
+                                  autoFocus
+                                />
+                                <div className="flex justify-end gap-2">
+                                  <button
+                                    disabled={isUpdating}
+                                    onClick={() => handleAdminEdit(selectedTicket._id, idx)}
+                                    className="px-3 py-1 bg-blue-600 text-white text-[10px] sm:text-xs rounded-md font-bold disabled:opacity-50"
+                                  >
+                                    {isUpdating ? "保存中..." : "保存"}
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingIdx(null)}
+                                    className="px-3 py-1 bg-gray-200 text-gray-600 text-[10px] sm:text-xs rounded-md font-bold"
+                                  >
+                                    取消
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                {isAi ? (
+                                  <MarkdownMessage content={msg.content} />
+                                ) : (
+                                  <div className={isUserMsg ? "text-white" : "text-gray-800"}>
+                                    <MarkdownMessage content={msg.content} isDark={isUserMsg} />
+                                  </div>
+                                )}
+                              </>
                             )}
                             
                             {isAi && (

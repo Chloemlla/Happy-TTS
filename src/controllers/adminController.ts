@@ -41,7 +41,7 @@ async function ensureMongoAnnouncementCollection() {
     const db = (mongoose.connection.db ?? undefined) as typeof mongoose.connection.db | undefined;
     if (!db) return;
     const collections = await db.listCollections().toArray();
-    if (!collections.find((c) => c.name === "announcements")) {
+    if (!collections.find((c: any) => c.name === "announcements")) {
       await db.createCollection("announcements");
     }
   }
@@ -523,7 +523,7 @@ export const adminController = {
           );
 
           // 确定邮件主题
-          const changedFieldNames = changes.map(c => {
+          const changedFieldNames = changes.map((c: { field: string; oldValue: string; newValue: string }) => {
             const labels: Record<string, string> = {
               username: "用户名", email: "邮箱", role: "角色", password: "密码",
               dailyUsage: "用量", totpEnabled: "两步验证", passkeyEnabled: "Passkey", avatarUrl: "头像",
@@ -544,7 +544,7 @@ export const adminController = {
           });
 
           // 如果邮箱本身被修改了，也通知旧邮箱
-          const emailChange = changes.find(c => c.field === "email");
+          const emailChange = changes.find((c: { field: string; oldValue: string; newValue: string }) => c.field === "email");
           if (emailChange && emailChange.oldValue && emailChange.oldValue !== emailChange.newValue) {
             sendEmail({
               to: emailChange.oldValue,
