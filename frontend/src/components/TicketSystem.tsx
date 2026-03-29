@@ -3,6 +3,7 @@ import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useAuth } from "../hooks/useAuth";
 import { ticketApi, ITicket, ITicketMessage } from "../api/ticketApi";
 import { useNotification } from "./Notification";
+import { useWebSocket, WsServerMessage } from "../hooks/useWebSocket";
 import { 
   FiSend, FiPlus, FiMessageSquare, FiClock, 
   FiCheckCircle, FiAlertCircle, FiX, FiFilter,
@@ -80,6 +81,30 @@ const TicketSystem: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prefersReducedMotion = useReducedMotion();
 
+  // WebSocket 实时监听
+  const onMessage = useCallback((msg: WsServerMessage) => {
+    // 处理工单更新
+    if (msg.type === "ticket:update") {
+      const updatedTicket = msg.data;
+      setTickets(prev => prev.map(t => t._id === updatedTicket._id ? updatedTicket : t));
+      setSelectedTicket(prev => prev?._id === updatedTicket._id ? updatedTicket : prev);
+      
+      // 收到正式更新，清除处理状态
+      setProcessingStep(null);
+    }
+    
+    // 处理实时进度
+    if (msg.type === "ticket:process") {
+      const { ticketId, step } = msg.data;
+      // 如果是当前工单或正在创建的新工单
+      if (ticketId === "new" || ticketId === selectedTicket?._id) {
+        setProcessingStep(step);
+      }
+    }
+  }, [selectedTicket?._id]);
+
+  useWebSocket({ onMessage });
+
   const handleAdminEdit = async (ticketId: string, idx: number) => {
     if (!editValue.trim()) return;
     setIsUpdating(true);
@@ -147,48 +172,6 @@ const TicketSystem: React.FC = () => {
       setLoading(false);
     }
   };
-
-  // WebSocket 实时监听
-  useEffect(() => {
-    // 监听全局 WebSocket 事件 (假设 wsService 已在全局或通过 hook 暴露)
-    // 这里的实现取决于项目的 WS 架构，通常是通过 window.addEventListener 或专门的消息总线
-    const handleWsMessage = (event: any) => {
-      try {
-        const msg = JSON.parse(event.data);
-        
-        // 处理工单更新
-        if (msg.type === "ticket:update") {
-          const updatedTicket = msg.data;
-          setTickets(prev => prev.map(t => t._id === updatedTicket._id ? updatedTicket : t));
-          setSelectedTicket(prev => prev?._id === updatedTicket._id ? updatedTicket : prev);
-          
-          // 收到正式更新，清除处理状态
-          setProcessingStep(null);
-        }
-        
-        // 处理实时进度
-        if (msg.type === "ticket:process") {
-          const { ticketId, step } = msg.data;
-          // 如果是当前工单或正在创建的新工单
-          if (ticketId === "new" || ticketId === selectedTicket?._id) {
-            setProcessingStep(step);
-          }
-        }
-      } catch (err) {
-        // 忽略
-      }
-    };
-
-    // 如果 WebSocket 实例暴露在 window 或特定的 service 上
-    // 这里的实现假设 wsService 已经初始化并正在运行
-    // 由于后端在 wsService.ts 中定义了 WS 服务，前端通常会有一个配套的 ws 监听逻辑
-    // 暂且使用这种通用的监听方式，实际项目中可能需要注入特定的 WS 实例
-    const ws = (window as any).ws;
-    if (ws && ws.addEventListener) {
-      ws.addEventListener("message", handleWsMessage);
-      return () => ws.removeEventListener("message", handleWsMessage);
-    }
-  }, [selectedTicket?._id]);
 
   useEffect(() => {
     fetchTickets();
@@ -577,11 +560,6 @@ const TicketSystem: React.FC = () => {
                           <div className={`flex items-center gap-2 mb-1 text-[10px] text-gray-400 ${isMe ? 'justify-end' : 'justify-start'}`}>
                             {!isMe && (
                               <div className="flex flex-col">
-                                {isAdminMsg && (
-                                  <div className="text-[8px] sm:text-[10px] font-black text-blue-600 mb-1 uppercase tracking-tighter flex items-center gap-1">
-                                    <FiCheckCircle size={10} /> OFFICIAL REPLY
-                                  </div>
-                                )}
                                 <span className={`font-bold ${isAdminMsg ? 'text-blue-600' : 'text-gray-500'}`}>
                                   {isAi ? "🤖 智能助手" : isAdminMsg ? "Official Customer Service" : "👤 用户"}
                                 </span>
@@ -592,11 +570,17 @@ const TicketSystem: React.FC = () => {
 
                           {/* 消息气泡 */}
                           <div className={`relative p-3 sm:p-4 rounded-2xl shadow-sm border ${
-                            isAi ? 'bg-indigo-600 border-indigo-500 text-white rounded-tl-none' :
-                            isAdminMsg ? 'bg-blue-50 border-blue-100 text-blue-900 rounded-tl-none' :
-                            isMe ? 'bg-blue-600 border-blue-500 text-white rounded-tr-none' :
-                            'bg-gray-50 border-gray-100 text-gray-800 rounded-tl-none'
+                            isMe 
+                              ? "bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-tr-none shadow-blue-100" 
+                              : isAi
+                                ? "bg-white border-2 border-indigo-100 text-gray-800 rounded-tl-none shadow-indigo-50"
+                                : "bg-gray-100 text-gray-800 rounded-tl-none border border-gray-200"
                           }`}>
+                            {isAdminMsg && (
+                              <div className="text-[8px] sm:text-[10px] font-black text-blue-600 mb-1 uppercase tracking-tighter flex items-center gap-1">
+                                <FiCheckCircle size={10} /> OFFICIAL REPLY
+                              </div>
+                            )}
                             {editingIdx === idx ? (
                               <div className="space-y-2">
                                 <textarea
@@ -742,6 +726,49 @@ const TicketSystem: React.FC = () => {
           </AnimatePresence>
         </motion.div>
       </div>
+
+      {/* 实时处理进度全局浮窗 (用于新工单或回复后的进度反馈) */}
+      <AnimatePresence>
+        {processingStep && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+            className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[60] w-[90%] max-w-md"
+          >
+            <div className="bg-white/90 backdrop-blur-md border border-indigo-100 rounded-2xl p-4 shadow-2xl flex items-center gap-4 border-l-4 border-l-indigo-500">
+              <div className="flex gap-1">
+                <span className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce"></span>
+                <span className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce delay-75"></span>
+                <span className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce delay-150"></span>
+              </div>
+              <div className="flex-1">
+                <div className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-0.5">Processing</div>
+                <div className="text-sm font-semibold text-indigo-700 flex items-center gap-2">
+                  {processingStep === "audit_start" && (
+                    <><FiSearch className="animate-pulse" /> AI 正在进行安全与合规性审查...</>
+                  )}
+                  {processingStep === "audit_passed" && (
+                    <><FiCheckCircle className="text-green-500" /> 审查通过，正在准备数据...</>
+                  )}
+                  {processingStep === "ai_start" && (
+                    <><FiCpu className="animate-spin" /> 智能助手正在为您分析并生成方案...</>
+                  )}
+                  {processingStep === "ai_complete" && (
+                    <><FiCheckCircle className="text-green-500" /> 方案生成完毕，正在最后同步...</>
+                  )}
+                  {processingStep === "saving" && (
+                    <><FiTerminal className="text-blue-500" /> 正在同步至云端存储...</>
+                  )}
+                </div>
+              </div>
+              <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center">
+                <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

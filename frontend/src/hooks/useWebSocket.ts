@@ -4,7 +4,7 @@ import { getApiBaseUrl } from '../api/api';
 // ========== 类型 ==========
 
 export interface WsServerMessage {
-  type: 'pong' | 'tts:progress' | 'tts:complete' | 'tts:error' | 'notification' | 'admin:broadcast' | 'fingerprint:require' | 'fingerprint:ack';
+  type: 'pong' | 'tts:progress' | 'tts:complete' | 'tts:error' | 'notification' | 'admin:broadcast' | 'fingerprint:require' | 'fingerprint:ack' | 'ticket:update' | 'ticket:process';
   data?: any;
   timestamp: number;
 }
