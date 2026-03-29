@@ -14,6 +14,9 @@ import DOMPurify from 'dompurify';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github-dark.css';
 
+// 工单处理细分状态类型
+type TicketProcessStep = "audit_start" | "audit_passed" | "ai_start" | "ai_complete" | "saving";
+
 // 配置 marked
 marked.use({
   async: true,
@@ -76,8 +79,6 @@ const TicketSystem: React.FC = () => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prefersReducedMotion = useReducedMotion();
-
-  // ... (checkMobile effect) ...
 
   const handleAdminEdit = async (ticketId: string, idx: number) => {
     if (!editValue.trim()) return;
@@ -559,7 +560,90 @@ const TicketSystem: React.FC = () => {
                 {/* 消息区域 */}
                 <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6 bg-white custom-scrollbar">
                   {selectedTicket.messages.map((msg, idx) => {
-                    // ... (existing message mapping logic) ...
+                    const isAi = msg.senderRole === "ai" || msg.isAi;
+                    const isMe = msg.senderId === user?.id;
+                    const isAdminMsg = msg.senderRole === "admin";
+                    
+                    return (
+                      <motion.div
+                        key={`${selectedTicket._id}-${idx}`}
+                        className={`flex ${isMe ? 'justify-end' : 'justify-start'} group mb-4`}
+                        initial={ROW_INITIAL}
+                        animate={ROW_ANIMATE}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <div className={`max-w-[85%] sm:max-w-[75%] relative ${isMe ? 'order-1' : 'order-2'}`}>
+                          {/* 消息元信息 */}
+                          <div className={`flex items-center gap-2 mb-1 text-[10px] text-gray-400 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                            {!isMe && (
+                              <span className="font-bold text-gray-500">
+                                {isAi ? "🤖 智能助手" : isAdminMsg ? "🛡️ 客服人员" : "👤 用户"}
+                              </span>
+                            )}
+                            <span>{new Date(msg.createdAt).toLocaleString()}</span>
+                          </div>
+
+                          {/* 消息气泡 */}
+                          <div className={`relative p-3 sm:p-4 rounded-2xl shadow-sm border ${
+                            isAi ? 'bg-indigo-600 border-indigo-500 text-white rounded-tl-none' :
+                            isAdminMsg ? 'bg-blue-50 border-blue-100 text-blue-900 rounded-tl-none' :
+                            isMe ? 'bg-blue-600 border-blue-500 text-white rounded-tr-none' :
+                            'bg-gray-50 border-gray-100 text-gray-800 rounded-tl-none'
+                          }`}>
+                            {editingIdx === idx ? (
+                              <div className="space-y-2">
+                                <textarea
+                                  className="w-full bg-white/10 border border-white/20 rounded-lg p-2 text-sm focus:outline-none focus:ring-1 focus:ring-white/50 min-h-[100px]"
+                                  value={editValue}
+                                  onChange={(e) => setEditValue(e.target.value)}
+                                  autoFocus
+                                />
+                                <div className="flex gap-2 justify-end">
+                                  <button
+                                    onClick={() => handleAdminEdit(selectedTicket._id, idx)}
+                                    disabled={isUpdating}
+                                    className="px-3 py-1 bg-green-500 text-white text-xs rounded-md font-bold flex items-center gap-1"
+                                  >
+                                    {isUpdating ? <span className="animate-spin">⌛</span> : <FiCheck />} 保存
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingIdx(null)}
+                                    className="px-3 py-1 bg-white/20 text-white text-xs rounded-md font-bold"
+                                  >
+                                    取消
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <MarkdownMessage content={msg.content} isDark={isMe || isAi} />
+                            )}
+
+                            {/* 管理员操作按钮 (仅限管理员，且非编辑模式) */}
+                            {isAdmin && editingIdx !== idx && (
+                              <div className={`absolute -bottom-6 ${isMe ? 'left-0' : 'right-0'} opacity-0 group-hover:opacity-100 transition-opacity flex gap-2`}>
+                                <button
+                                  onClick={() => {
+                                    setEditingIdx(idx);
+                                    setEditValue(msg.content);
+                                  }}
+                                  className="p-1 text-gray-400 hover:text-blue-500 transition-colors"
+                                  title="编辑消息"
+                                >
+                                  <FiEdit2 size={12} />
+                                </button>
+                                <button
+                                  onClick={() => handleAdminDelete(selectedTicket._id, idx)}
+                                  className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                                  title="删除消息"
+                                >
+                                  <FiTrash2 size={12} />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
                   })}
 
                   {/* 实时处理进度指示器 */}
