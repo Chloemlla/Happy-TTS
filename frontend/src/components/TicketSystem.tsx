@@ -226,17 +226,20 @@ const TicketSystem: React.FC = () => {
     } catch (error: any) {
       if (error.response?.status === 403) {
         const data = error.response.data;
-        setNotification({ 
-          type: 'error', 
-          message: `${data.error}: ${data.details || ''} ${data.punishment || ''}`.trim() 
+        setNotification({
+          type: 'error',
+          title: data.error || '提交失败',
+          message: data.punishment || '您的内容未能通过 AI 审核',
+          details: data.details ? data.details.split('\n') : undefined,
+          duration: 6000
         });
       } else {
         setNotification({ type: 'error', message: "提交失败" });
       }
     }
-  };
+    };
 
-  const handleReply = async (e: React.FormEvent) => {
+    const handleReply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedTicket || !replyContent.trim()) return;
     try {
@@ -247,16 +250,18 @@ const TicketSystem: React.FC = () => {
     } catch (error: any) {
       if (error.response?.status === 403) {
         const data = error.response.data;
-        setNotification({ 
-          type: 'error', 
-          message: `${data.error}: ${data.details || ''} ${data.punishment || ''}`.trim() 
+        setNotification({
+          type: 'error',
+          title: data.error || '发送失败',
+          message: data.punishment || '您的回复未能通过 AI 审核',
+          details: data.details ? data.details.split('\n') : undefined,
+          duration: 6000
         });
       } else {
         setNotification({ type: 'error', message: "发送失败" });
       }
     }
-  };
-
+    };
   const handleUpdateStatus = async (id: string, status: string) => {
     try {
       const updated = await ticketApi.updateStatus(id, status);

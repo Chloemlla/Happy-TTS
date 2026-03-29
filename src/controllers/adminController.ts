@@ -510,9 +510,17 @@ export const adminController = {
       // 有变更才发送邮件
       if (changes.length > 0 && user.email) {
         try {
-          const { generateAdminUserUpdatedEmailHtml } = require("../templates/emailTemplates");
+          const { 
+            generateAdminUserUpdatedEmailHtml,
+            generateRoleChangedEmailHtml,
+            generateEmailChangeOldNoticeHtml,
+            generateEmailChangeNewNoticeHtml
+          } = require("../templates/emailTemplates");
+          const { getClientIP } = require("../utils/ipUtils");
           const changeTime = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
           const adminUsername = req.user?.username || "管理员";
+          const clientIP = getClientIP(req);
+          const deviceName = req.headers["user-agent"] || "未知设备";
 
           const emailHtml = generateAdminUserUpdatedEmailHtml(
             user.username,
@@ -532,7 +540,7 @@ export const adminController = {
           });
           const subject = `Synapse 账号${changedFieldNames.join("、")}被管理员修改通知`;
 
-          // 发送到当前邮箱
+          // 1. 发送通用变更通知到当前邮箱
           sendEmail({
             to: user.email,
             subject,
@@ -543,17 +551,45 @@ export const adminController = {
             logger.warn(`[管理员修改用户] 通知邮件发送失败: ${user.email}`, e);
           });
 
-          // 如果邮箱本身被修改了，也通知旧邮箱
+          // 2. 针对特定字段变更发送专门模板通知
+          // 2.1 角色变更通知
+          const roleChange = changes.find(c => c.field === "role");
+          if (roleChange) {
+            const roleEmailHtml = generateRoleChangedEmailHtml(user.username, roleChange.newValue, changeTime, clientIP, deviceName);
+            sendEmail({
+              to: user.email,
+              subject: "Synapse 账户权限变更通知",
+              html: roleEmailHtml,
+              logTag: "角色变更专门通知",
+              checkQuota: false,
+            }).catch(() => {});
+          }
+
+          // 2.2 邮箱变更通知 (旧邮箱和新邮箱)
           const emailChange = changes.find((c: { field: string; oldValue: string; newValue: string }) => c.field === "email");
           if (emailChange && emailChange.oldValue && emailChange.oldValue !== emailChange.newValue) {
+            // 通知旧邮箱
+            const oldEmailHtml = generateEmailChangeOldNoticeHtml(user.username, emailChange.newValue, changeTime, clientIP, deviceName);
             sendEmail({
               to: emailChange.oldValue,
-              subject: "Synapse 账号邮箱地址被管理员修改通知",
-              html: emailHtml,
-              logTag: "管理员修改邮箱通知(旧邮箱)",
+              subject: "Synapse 账户邮箱地址变更安全通知",
+              html: oldEmailHtml,
+              logTag: "邮箱变更安全通知(旧邮箱)",
               checkQuota: false,
             }).catch((e) => {
-              logger.warn(`[管理员修改用户] 旧邮箱通知发送失败: ${emailChange.oldValue}`, e);
+              logger.warn(`[管理员修改用户] 旧邮箱安全通知发送失败: ${emailChange.oldValue}`, e);
+            });
+
+            // 通知新邮箱
+            const newEmailHtml = generateEmailChangeNewNoticeHtml(user.username, emailChange.oldValue, changeTime, clientIP, deviceName);
+            sendEmail({
+              to: emailChange.newValue,
+              subject: "Synapse 账户邮箱绑定成功通知",
+              html: newEmailHtml,
+              logTag: "新邮箱绑定通知",
+              checkQuota: false,
+            }).catch((e) => {
+              logger.warn(`[管理员修改用户] 新邮箱通知发送失败: ${emailChange.newValue}`, e);
             });
           }
 
@@ -588,6 +624,21 @@ export const adminController = {
       }
 
       await UserStorage.deleteUser(user.id);
+      
+      // 发送账号删除通知
+      if (user.email) {
+        const { generateAccountDeletedEmailHtml } = require("../templates/emailTemplates");
+        const changeTime = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
+        const emailHtml = generateAccountDeletedEmailHtml(user.username, changeTime);
+        sendEmail({
+          to: user.email,
+          subject: "Synapse 账户注销成功通知",
+          html: emailHtml,
+          logTag: "账户删除通知",
+          checkQuota: false,
+        }).catch(() => {});
+      }
+
       const { password, ...deletedUser } = user;
       res.json(deletedUser);
     } catch (error) {
