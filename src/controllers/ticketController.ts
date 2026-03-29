@@ -1,5 +1,8 @@
 import type { Request, Response } from "express";
 import { TicketModel } from "../models/ticketModel";
+import { NexaiUserModel, INexaiUser } from "../models/nexaiUserModel";
+import { EmailService, DEFAULT_EMAIL_FROM } from "../services/emailService";
+import * as emailTemplates from "../templates/emailTemplates";
 import logger from "../utils/logger";
 
 export const ticketController = {
@@ -29,6 +32,28 @@ export const ticketController = {
       });
 
       await newTicket.save();
+
+      // 异步发送邮件通知给管理员
+      (async () => {
+        try {
+          const admins = await NexaiUserModel.find({ role: "admin" }) as INexaiUser[];
+          const adminEmails = admins.map((a: INexaiUser) => a.email).filter(Boolean);
+          
+          if (adminEmails.length > 0) {
+            const html = emailTemplates.generateTicketCreatedEmailHtml(
+              "管理员", 
+              user.username, 
+              title, 
+              priority || "medium", 
+              new Date().toLocaleString()
+            );
+            await EmailService.sendBatchHtmlEmails(adminEmails, `[新工单] ${title}`, html);
+          }
+        } catch (err) {
+          logger.error("发送新工单邮件通知失败:", err);
+        }
+      })();
+
       res.status(201).json(newTicket);
     } catch (error) {
       logger.error("创建工单失败:", error);
@@ -61,7 +86,7 @@ export const ticketController = {
         return res.status(404).json({ error: "工单不存在" });
       }
 
-      // 权限检查：只有工单所有者或管理员可以查看
+      // 权限检查
       if (ticket.userId !== user.id && user.role !== "admin") {
         return res.status(403).json({ error: "无权访问此工单" });
       }
@@ -95,19 +120,65 @@ export const ticketController = {
       }
 
       // 添加消息
+      const senderRole = user.role === "admin" ? "admin" : "user";
       ticket.messages.push({
         senderId: user.id,
-        senderRole: user.role === "admin" ? "admin" : "user",
+        senderRole,
         content,
         createdAt: new Date(),
       });
 
-      // 如果是管理员回复，自动将状态改为 in-progress (如果当前是 open)
-      if (user.role === "admin" && ticket.status === "open") {
+      // 如果是管理员回复，且当前是 open，自动改为 in-progress
+      if (senderRole === "admin" && ticket.status === "open") {
         ticket.status = "in-progress";
       }
 
       await ticket.save();
+
+      // 如果是管理员回复，异步发送邮件给工单发起者
+      if (senderRole === "admin") {
+        (async () => {
+          try {
+            const ticketUser = await NexaiUserModel.findOne({ id: ticket.userId }) as INexaiUser | null;
+            if (ticketUser && ticketUser.email) {
+              const html = emailTemplates.generateFeedbackRepliedEmailHtml(
+                ticketUser.username,
+                ticket.title,
+                content,
+                new Date().toLocaleString()
+              );
+              await EmailService.sendEmail({
+                from: DEFAULT_EMAIL_FROM,
+                to: [ticketUser.email],
+                subject: `[回复] 您的工单「${ticket.title}」有了新回复`,
+                html
+              });
+            }
+          } catch (err) {
+            logger.error("发送工单回复邮件通知失败:", err);
+          }
+        })();
+      } else {
+        // 如果是用户回复，通知管理员
+        (async () => {
+          try {
+            const admins = await NexaiUserModel.find({ role: "admin" }) as INexaiUser[];
+            const adminEmails = admins.map((a: INexaiUser) => a.email).filter(Boolean);
+            if (adminEmails.length > 0) {
+              const html = emailTemplates.generateFeedbackRepliedEmailHtml(
+                "管理员",
+                `[用户回复] ${ticket.title}`,
+                content,
+                new Date().toLocaleString()
+              );
+              await EmailService.sendBatchHtmlEmails(adminEmails, `[追加回复] ${ticket.title}`, html);
+            }
+          } catch (err) {
+            logger.error("发送用户追加回复邮件通知失败:", err);
+          }
+        })();
+      }
+
       res.json(ticket);
     } catch (error) {
       logger.error("回复工单失败:", error);
@@ -120,8 +191,8 @@ export const ticketController = {
     try {
       const { status, priority } = req.query;
       const query: any = {};
-      if (status) query.status = status;
-      if (priority) query.priority = priority;
+      if (typeof status === 'string') query.status = status;
+      if (typeof priority === 'string') query.priority = priority;
 
       const tickets = await TicketModel.find(query).sort({ updatedAt: -1 });
       res.json(tickets);
@@ -150,6 +221,29 @@ export const ticketController = {
       if (!ticket) {
         return res.status(404).json({ error: "工单不存在" });
       }
+
+      // 异步发送状态变更通知给用户
+      (async () => {
+        try {
+          const ticketUser = await NexaiUserModel.findOne({ id: ticket.userId }) as INexaiUser | null;
+          if (ticketUser && ticketUser.email) {
+            const html = emailTemplates.generateTicketStatusChangedEmailHtml(
+              ticketUser.username,
+              ticket.title,
+              status,
+              new Date().toLocaleString()
+            );
+            await EmailService.sendEmail({
+              from: DEFAULT_EMAIL_FROM,
+              to: [ticketUser.email],
+              subject: `[状态更新] 您的工单「${ticket.title}」已更新为 ${status}`,
+              html
+            });
+          }
+        } catch (err) {
+          logger.error("发送工单状态变更邮件通知失败:", err);
+        }
+      })();
 
       res.json(ticket);
     } catch (error) {

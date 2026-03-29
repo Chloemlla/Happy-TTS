@@ -21,7 +21,7 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY || "re_xxxxxxxxx";
 
 // 统一Resend发件人域名
 const RESEND_DOMAIN = process.env.RESEND_DOMAIN || "951100.xyz";
-const DEFAULT_EMAIL_FROM = `noreply@${RESEND_DOMAIN}`;
+export const DEFAULT_EMAIL_FROM = `noreply@${RESEND_DOMAIN}`;
 
 // 创建Resend实例
 const _resend = new Resend(RESEND_API_KEY);
