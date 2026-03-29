@@ -477,3 +477,29 @@ export function generateTicketStatusChangedEmailHtml(username: string, ticketTit
     return generateSecurityNoticeHtml(username, "工单处理状态更新", description, time, "系统支持中心", "Web 终端", "如果对处理结果有疑问，您可以登录系统进行反馈。");
 }
 
+/** 工单：言论违规警告 */
+export function generateTicketViolationWarningEmailHtml(username: string, content: string, reason: string, time: string): string {
+    const description = `我们在您的工单互动中检测到了不当言论：<br/><br/>
+        <div style="padding: 12px; background: #fff; border-left: 4px solid #f9ab00; margin-bottom: 8px;">
+            <strong>提交内容：</strong> ${content}<br/>
+            <strong>违规判定：</strong> <span style="color: #d93025;">${reason}</span>
+        </div>
+        请注意：维护和谐的沟通环境是每位用户的责任。`;
+    return generateSecurityNoticeHtml(username, "⚠️ 工单言论违规警告", description, time, "AI 审查中心", "系统自动审计", "这是您的首次违规警告，后续再次违规将导致您的工单权限被暂时或永久封禁。");
+}
+
+/** 工单：权限封禁通知 */
+export function generateTicketBannedEmailHtml(username: string, count: number, reason: string, remaining: string, time: string): string {
+    const description = `由于您多次违反社区准则，您的工单支持权限已被暂时限制。<br/><br/>
+        <strong>累计违规：</strong> ${count} 次<br/>
+        <strong>本次违规原因：</strong> <span style="color: #d93025;">${reason}</span><br/>
+        <strong>封禁有效期：</strong> <strong style="color: #d93025;">${remaining}</strong>`;
+    return generateSecurityNoticeHtml(username, "🚫 工单访问权限已封禁", description, time, "安全管理中心", "系统自动执行", "在封禁期间，您将无法创建新工单或回复已有工单。请在封禁结束后文明发言。");
+}
+
+/** 工单：封禁解除通知 */
+export function generateTicketUnbannedEmailHtml(username: string, time: string): string {
+    const description = "您的工单系统访问限制现已解除。现在您可以正常使用工单咨询与反馈服务了。";
+    return generateSecurityNoticeHtml(username, "✅ 工单权限恢复通知", description, time, "安全管理中心", "系统自动解除", "我们期待您能遵守社区准则，共同维护文明专业的沟通环境。");
+}
+

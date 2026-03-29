@@ -67,6 +67,9 @@ interface User {
   fingerprintRequestDismissedOnce?: boolean;
   fingerprintRequestDismissedAt?: number;
   fingerprints?: FingerprintRecord[];
+  // 工单违规处罚相关
+  ticketViolationCount?: number;
+  ticketBannedUntil?: string;
 }
 
 const emptyUser: User = {
@@ -92,6 +95,8 @@ const emptyUser: User = {
   requireFingerprintAt: 0,
   fingerprintRequestDismissedOnce: false,
   fingerprintRequestDismissedAt: 0,
+  ticketViolationCount: 0,
+  ticketBannedUntil: '',
 };
 
 // AES-256解密函数
@@ -188,6 +193,14 @@ const FIELD_SECTIONS: FieldSection[] = [
       { name: 'fingerprintRequestDismissedAt', label: '关闭指纹请求时间戳', type: 'number', placeholder: '毫秒时间戳' },
     ],
   },
+  {
+    title: '工单限制管理',
+    icon: <FaShieldAlt className="text-orange-500" />,
+    fields: [
+      { name: 'ticketViolationCount', label: '工单违规次数', type: 'number', placeholder: '0' },
+      { name: 'ticketBannedUntil', label: '工单封禁截止', type: 'text', placeholder: 'ISO 日期字符串，留空解除' },
+    ],
+  },
 ];
 
 // 所有可在列表中展示的字段（除 fingerprints/passkeyCredentials/backupCodes 等复杂数组）
@@ -196,9 +209,10 @@ const TABLE_COLUMNS = [
   { key: 'email', label: '邮箱' },
   { key: 'role', label: '角色' },
   { key: 'createdAt', label: '创建时间' },
+  { key: 'dailyUsage', label: '用量' },
   { key: 'totpEnabled', label: 'TOTP' },
   { key: 'passkeyEnabled', label: 'Passkey' },
-  { key: 'dailyUsage', label: '今日用量' },
+  { key: 'ticketStatus', label: '工单状态' },
 ];
 
 const UserManagement: React.FC = () => {
@@ -226,6 +240,22 @@ const UserManagement: React.FC = () => {
 
   const toggleSection = (idx: number) => {
     setCollapsedSections(prev => ({ ...prev, [idx]: !prev[idx] }));
+  };
+
+  // 获取工单封禁剩余时间描述
+  const getBanRemainingText = (bannedUntil?: string) => {
+    if (!bannedUntil) return null;
+    const banTime = new Date(bannedUntil);
+    const now = new Date();
+    if (banTime <= now) return null;
+
+    const diffMs = banTime.getTime() - now.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    
+    if (diffHours > 24 * 365) return '永久封禁';
+    if (diffHours >= 1) return `剩余 ${diffHours} 小时`;
+    const diffMins = Math.ceil(diffMs / (1000 * 60));
+    return `剩余 ${diffMins} 分钟`;
   };
 
   // 获取用户列表
@@ -676,6 +706,25 @@ const UserManagement: React.FC = () => {
                         : <span className="text-gray-400 text-xs">-</span>}
                     </td>
                     <td className="px-4 py-3 text-gray-600">{u.dailyUsage ?? 0}</td>
+                    {/* 工单状态列 */}
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col gap-1">
+                        {u.ticketViolationCount && u.ticketViolationCount > 0 ? (
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${u.ticketViolationCount >= 3 ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
+                            违规: {u.ticketViolationCount} 次
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700">
+                            正常
+                          </span>
+                        )}
+                        {getBanRemainingText(u.ticketBannedUntil) && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[9px] font-medium bg-red-50 text-red-600 border border-red-100 italic">
+                            🚫 {getBanRemainingText(u.ticketBannedUntil)}
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     {/* 指纹列 */}
                     <td className="px-4 py-3 text-gray-600 text-xs">
                       {u.fingerprints && u.fingerprints.length > 0 ? (

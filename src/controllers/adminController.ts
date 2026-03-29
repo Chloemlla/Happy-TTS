@@ -251,6 +251,23 @@ function validateAndSanitizeUserUpdates(body: Record<string, any>): Record<strin
     }
   }
 
+  // ticketViolationCount: 非负整数
+  if (body.ticketViolationCount !== undefined) {
+    const v = Number(body.ticketViolationCount);
+    if (!Number.isInteger(v) || v < 0) {
+      throw new Error("ticketViolationCount 必须为非负整数");
+    }
+    out.ticketViolationCount = v;
+  }
+
+  // ticketBannedUntil: ISO 日期字符串或空串
+  if (body.ticketBannedUntil !== undefined) {
+    if (typeof body.ticketBannedUntil !== "string") {
+      throw new Error("ticketBannedUntil 必须为字符串");
+    }
+    out.ticketBannedUntil = body.ticketBannedUntil.trim();
+  }
+
   return out;
 }
 
