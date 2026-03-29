@@ -28,7 +28,8 @@ import {
   FaComments,
   FaBug,
   FaCalculator,
-  FaBirthdayCake
+  FaBirthdayCake,
+  FaHeadset
 } from 'react-icons/fa';
 
 // 优化性能：将缓存函数移到组件外部，避免每次渲染时重新创建
@@ -499,6 +500,27 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
             whileTap={{ scale: 0.95 }}
           >
             <Link
+              to="/support"
+              className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/support'
+                ? 'bg-gradient-to-r from-indigo-500 to-cyan-500 text-white shadow-lg'
+                : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:text-indigo-600 border border-gray-200/50'
+                }`}
+            >
+              <motion.div
+                className="w-4 h-4"
+                whileHover={{ rotate: 5 }}
+              >
+                <FaHeadset className="w-4 h-4" />
+              </motion.div>
+              <span className="hidden sm:inline">支持中心</span>
+            </Link>
+          </motion.div>
+
+          <motion.div
+            whileHover={{ scale: 1.05, y: -2 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Link
               to="/api-docs"
               className={`flex items-center space-x-2 px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-lg ${location.pathname === '/api-docs'
                 ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg'
@@ -883,6 +905,38 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
                   </motion.div>
                   <span>语音合成</span>
                   {location.pathname === '/' && (
+                    <motion.span
+                      className="ml-auto text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full"
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                    >
+                      当前
+                    </motion.span>
+                  )}
+                </Link>
+              </motion.div>
+
+              {/* 支持中心 */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.22 }}
+              >
+                <Link
+                  to="/support"
+                  className={`flex items-center gap-3 px-5 py-3 rounded-lg mx-2 my-1 text-gray-700 transition-all duration-150 ${location.pathname === '/support' ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm' : 'hover:bg-indigo-50'
+                    }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <motion.div
+                    className={`w-5 h-5 ${location.pathname === '/support' ? 'text-indigo-500' : 'text-gray-400'}`}
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                  >
+                    <FaHeadset className="w-5 h-5" />
+                  </motion.div>
+                  <span>支持中心</span>
+                  {location.pathname === '/support' && (
                     <motion.span
                       className="ml-auto text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full"
                       initial={{ scale: 0, opacity: 0 }}
