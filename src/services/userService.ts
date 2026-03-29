@@ -51,6 +51,9 @@ const userSchema = new mongoose.Schema(
     // 上次登录IP和时间（用于异地登录检测）
     lastLoginIp: { type: String },
     lastLoginAt: { type: String },
+    // 工单违规处罚相关
+    ticketViolationCount: { type: Number, default: 0 },
+    ticketBannedUntil: { type: String }, // ISO 日期字符串
   },
   { collection: "user_datas" },
 );
@@ -79,7 +82,7 @@ export const getUserById = async (id: string): Promise<UserType | null> => {
   // 修复：select 字段包含所有passkey相关字段
   const doc = await UserModel.findOne({ id })
     .select(
-      "id username email role password avatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt",
+      "id username email role password avatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil",
     )
     .lean();
 
@@ -102,7 +105,7 @@ export const getUserByUsername = async (username: string): Promise<UserType | nu
   }
   const doc = await UserModel.findOne({ username })
     .select(
-      "id username email role token tokenExpiresAt password avatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt",
+      "id username email role token tokenExpiresAt password avatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil",
     )
     .lean();
 
@@ -117,7 +120,7 @@ export const getUserByEmail = async (email: string): Promise<UserType | null> =>
   if (!validator.isEmail(safeEmail)) return null;
   const doc = await UserModel.findOne({ email: safeEmail })
     .select(
-      "id username email role token tokenExpiresAt password avatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt",
+      "id username email role token tokenExpiresAt password avatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil",
     )
     .lean();
 
