@@ -8,13 +8,13 @@ import { imageDataApi } from '../api/imageData';
 import { openDB, deleteDB } from 'idb';
 import { TurnstileWidget } from './TurnstileWidget';
 import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
-import { 
-  FaImage, 
-  FaUpload, 
-  FaFolder, 
-  FaDatabase, 
-  FaDownload, 
-  FaUpload as FaImport, 
+import {
+  FaImage,
+  FaUpload,
+  FaFolder,
+  FaDatabase,
+  FaDownload,
+  FaUpload as FaImport,
   FaTrash,
   FaCheck,
   FaCopy,
@@ -45,14 +45,14 @@ async function getImageDB() {
   return await openDB(IMAGE_DB, 2, {
     upgrade(db, oldVersion, newVersion) {
       console.log(`[图片存储] 数据库升级: v${oldVersion} -> v${newVersion}`);
-      
+
       if (oldVersion < 1) {
         // 初始版本：创建存储对象
         if (!db.objectStoreNames.contains(IMAGE_STORE)) {
           db.createObjectStore(IMAGE_STORE, { keyPath: 'imageId' });
         }
       }
-      
+
       if (oldVersion < 2) {
         // 版本2：确保使用 imageId 作为 keyPath
         if (db.objectStoreNames.contains(IMAGE_STORE)) {
@@ -221,10 +221,10 @@ function generateImageId(): string {
       console.warn('[UUID生成] crypto.randomUUID 失败，使用兼容方法:', error);
     }
   }
-  
+
   // 兼容性UUID生成方法
   const pattern = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx';
-  return pattern.replace(/[xy]/g, function(c) {
+  return pattern.replace(/[xy]/g, function (c) {
     const r = (Math.random() * 16) | 0;
     const v = c === 'x' ? r : (r & 0x3) | 0x8;
     return v.toString(16);
@@ -259,9 +259,9 @@ function generateSimpleHash(fileContent: ArrayBuffer): string {
     hash = ((hash << 5) - hash) + bytes[i];
     hash = hash & hash; // 转换为32位整数
   }
-  return Math.abs(hash).toString(16).padStart(8, '0') + 
-         Date.now().toString(16) + 
-         Math.random().toString(16).substring(2, 10);
+  return Math.abs(hash).toString(16).padStart(8, '0') +
+    Date.now().toString(16) +
+    Math.random().toString(16).substring(2, 10);
 }
 // 生成MD5 Hash (使用CryptoJS，因为Web Crypto API不支持MD5)
 function generateMD5Hash(fileContent: ArrayBuffer): string {
@@ -277,7 +277,7 @@ function generateMD5Hash(fileContent: ArrayBuffer): string {
 
 // 工具函数：替换旧域名为新域名
 function fixIpfsDomain(url: string) {
-  return url.replace(/ipfs\.crossbell\.io/gi, 'ipfs.hapxs.com');
+  return url.replace(/ipfs\.crossbell\.io/gi, 'ipfs.951100.xyz');
 }
 
 const ImageUploadPage: React.FC = () => {
@@ -297,14 +297,14 @@ const ImageUploadPage: React.FC = () => {
   const [showBatchList, setShowBatchList] = useState(false);
   const [batchUploadResults, setBatchUploadResults] = useState<{ [key: string]: { web2url: string, shortUrl?: string } }>({});
   const batchFileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // 新增闪烁效果状态
   const [flashingImages, setFlashingImages] = useState<Set<string>>(new Set());
 
   // 2. 新增本地图片管理相关state
   const [storedImages, setStoredImages] = useState<any[]>([]);
   const [dragActive, setDragActive] = useState(false);
-  
+
   // Turnstile 相关状态
   const { config: turnstileConfig, loading: turnstileConfigLoading } = useTurnstileConfig();
   const [turnstileToken, setTurnstileToken] = useState<string>('');
@@ -327,7 +327,7 @@ const ImageUploadPage: React.FC = () => {
     };
     loadImages();
   }, []);
-  
+
   // 刷新本地图片
   const reloadImages = async () => {
     const images = await getStoredImages();
@@ -351,12 +351,12 @@ const ImageUploadPage: React.FC = () => {
     setFile(f);
     setUploadedUrl(null);
     setError(null);
-    
+
     // 重置Turnstile状态
     setTurnstileToken('');
     setTurnstileVerified(false);
     setTurnstileKey(k => k + 1);
-    
+
     const url = URL.createObjectURL(f);
     setPreviewUrl(url);
     console.log('[图片上传] 预览URL:', url);
@@ -366,13 +366,13 @@ const ImageUploadPage: React.FC = () => {
   const handleBatchFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     console.log('[批量上传] 选择文件数量:', files.length);
-    
+
     if (files.length === 0) return;
-    
+
     // 验证文件
     const validFiles: File[] = [];
     const invalidFiles: string[] = [];
-    
+
     files.forEach(file => {
       if (!ALLOWED_TYPES.includes(file.type)) {
         invalidFiles.push(`${file.name} (格式不支持)`);
@@ -382,31 +382,31 @@ const ImageUploadPage: React.FC = () => {
         validFiles.push(file);
       }
     });
-    
+
     if (invalidFiles.length > 0) {
-      setNotification({ 
-        message: `以下文件不符合要求：${invalidFiles.slice(0, 3).join(', ')}${invalidFiles.length > 3 ? '...' : ''}`, 
-        type: 'warning' 
+      setNotification({
+        message: `以下文件不符合要求：${invalidFiles.slice(0, 3).join(', ')}${invalidFiles.length > 3 ? '...' : ''}`,
+        type: 'warning'
       });
     }
-    
+
     if (validFiles.length > 0) {
       setBatchFiles(prev => [...prev, ...validFiles]);
-      
+
       // 初始化进度状态
       const newProgress: { [key: string]: { status: 'pending' | 'uploading' | 'success' | 'error', progress?: number, error?: string } } = {};
       validFiles.forEach(file => {
         newProgress[file.name] = { status: 'pending' };
       });
       setBatchProgress(prev => ({ ...prev, ...newProgress }));
-      
+
       setShowBatchList(true);
-      setNotification({ 
-        message: `已添加 ${validFiles.length} 个文件到批量上传队列`, 
-        type: 'success' 
+      setNotification({
+        message: `已添加 ${validFiles.length} 个文件到批量上传队列`,
+        type: 'success'
       });
     }
-    
+
     // 清空文件输入框
     if (batchFileInputRef.current) {
       batchFileInputRef.current.value = '';
@@ -419,12 +419,12 @@ const ImageUploadPage: React.FC = () => {
     setPreviewUrl(null);
     setUploadedUrl(null);
     setError(null);
-    
+
     // 重置Turnstile状态
     setTurnstileToken('');
     setTurnstileVerified(false);
     setTurnstileKey(k => k + 1);
-    
+
     // 清空文件输入框
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -439,7 +439,7 @@ const ImageUploadPage: React.FC = () => {
       delete newProgress[fileName];
       return newProgress;
     });
-    
+
     if (batchFiles.length <= 1) {
       setShowBatchList(false);
     }
@@ -473,14 +473,14 @@ const ImageUploadPage: React.FC = () => {
 
   const handleUpload = async () => {
     if (!file) return;
-    
+
     // 检查Turnstile验证
     if (!!turnstileConfig.siteKey && (!turnstileVerified || !turnstileToken)) {
       setError('请先完成人机验证');
       setNotification({ message: '请先完成人机验证', type: 'warning' });
       return;
     }
-    
+
     setUploading(true);
     setError(null);
     setUploadedUrl(null);
@@ -507,17 +507,17 @@ const ImageUploadPage: React.FC = () => {
         setUploadedUrl(result.data.web2url);
         setUploadedShortUrl(result.data.shortUrl || null);
         setNotification({ message: '上传成功', type: 'success' });
-        
+
         // 重置Turnstile状态
         setTurnstileToken('');
         setTurnstileVerified(false);
         setTurnstileKey(k => k + 1);
-        
+
         // 生成图片数据验证信息
         let imageId: string;
         let fileHash: string;
         let md5Hash: string;
-        
+
         try {
           imageId = generateImageId();
           const fileArrayBuffer = await file.arrayBuffer();
@@ -530,7 +530,7 @@ const ImageUploadPage: React.FC = () => {
           fileHash = 'hash-generation-failed';
           md5Hash = 'md5-generation-failed';
         }
-        
+
         // 保存到本地存储
         const imageData = {
           imageId,
@@ -560,7 +560,7 @@ const ImageUploadPage: React.FC = () => {
             console.error('[图片上传] 记录到后端失败:', error);
             setNotification({ message: '图片上传成功，但数据记录失败', type: 'warning' });
           });
-          
+
           reloadImages().then(() => {
             console.log('[图片上传] 上传成功，web2url:', result.data.web2url);
             // 清空文件输入框，避免重复选择
@@ -590,50 +590,50 @@ const ImageUploadPage: React.FC = () => {
   // 批量上传处理
   const handleBatchUpload = async () => {
     if (batchFiles.length === 0) return;
-    
+
     // 检查Turnstile验证（批量上传只需要验证一次）
     if (!!turnstileConfig.siteKey && (!turnstileVerified || !turnstileToken)) {
       setNotification({ message: '请先完成人机验证', type: 'warning' });
       return;
     }
-    
+
     setBatchUploading(true);
     const token = localStorage.getItem('token');
     const uploadUrl = getApiBaseUrl() + '/api/ipfs/upload';
-    
+
     console.log('[批量上传] 开始上传，文件数量:', batchFiles.length);
-    
+
     // 逐个上传文件
     for (let i = 0; i < batchFiles.length; i++) {
       const file = batchFiles[i];
       const fileName = file.name;
-      
+
       try {
         // 更新进度状态
         setBatchProgress(prev => ({
           ...prev,
           [fileName]: { status: 'uploading', progress: 0 }
         }));
-        
+
         const formData = new FormData();
         formData.append('file', file);
         formData.append('source', 'batch-imgupload'); // 标记批量上传来源
-        
+
         // 只在第一个文件时添加 Turnstile token
         if (!!turnstileConfig.siteKey && turnstileToken && i === 0) {
           formData.append('cfToken', turnstileToken);
         }
-        
+
         console.log(`[批量上传] 上传文件 ${i + 1}/${batchFiles.length}:`, fileName);
-        
+
         const res = await fetch(uploadUrl, {
           method: 'POST',
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
           body: formData,
         });
-        
+
         const result = await res.json();
-        
+
         if (result?.data?.web2url) {
           // 上传成功
           const shortUrl = result.data.shortUrl || null;
@@ -641,7 +641,7 @@ const ImageUploadPage: React.FC = () => {
             ...prev,
             [fileName]: { status: 'success', progress: 100, shortUrl }
           }));
-          
+
           // 保存上传结果
           setBatchUploadResults(prev => ({
             ...prev,
@@ -650,12 +650,12 @@ const ImageUploadPage: React.FC = () => {
               shortUrl: shortUrl || undefined
             }
           }));
-          
+
           // 生成图片数据验证信息
           let imageId: string;
           let fileHash: string;
           let md5Hash: string;
-          
+
           try {
             imageId = generateImageId();
             const fileArrayBuffer = await file.arrayBuffer();
@@ -667,7 +667,7 @@ const ImageUploadPage: React.FC = () => {
             fileHash = 'hash-generation-failed';
             md5Hash = 'md5-generation-failed';
           }
-          
+
           // 保存到本地存储
           const imageData = {
             imageId,
@@ -680,14 +680,14 @@ const ImageUploadPage: React.FC = () => {
             fileHash,
             md5Hash
           };
-          
+
           try {
             await saveImageToStorage(imageData);
             console.log(`[批量上传] 文件 ${fileName} 已保存到本地存储`);
           } catch (error) {
             console.error('[批量上传] 保存到本地存储失败:', error);
           }
-          
+
           // 记录到后端数据库
           try {
             await imageDataApi.recordImageData({
@@ -704,7 +704,7 @@ const ImageUploadPage: React.FC = () => {
           } catch (error) {
             console.error('[批量上传] 记录到后端失败:', error);
           }
-          
+
           console.log(`[批量上传] 文件 ${fileName} 上传成功`);
         } else {
           // 上传失败
@@ -724,37 +724,37 @@ const ImageUploadPage: React.FC = () => {
         }));
         console.error(`[批量上传] 文件 ${fileName} 上传异常:`, error);
       }
-      
+
       // 添加延迟，避免请求过于频繁
       if (i < batchFiles.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
-    
+
     setBatchUploading(false);
-    
+
     // 重新加载图片列表，确保显示所有成功上传的文件
     try {
       await reloadImages();
       console.log('[批量上传] 本地图片列表已重新加载');
-      
+
       // 为成功上传的图片添加闪烁效果
       const successfulFiles = batchFiles.filter(file => {
         const progress = batchProgress[file.name];
         return progress && progress.status === 'success';
       });
-      
+
       if (successfulFiles.length > 0) {
         // 获取新上传的图片ID用于闪烁效果
         const newImageIds = new Set<string>();
-        
+
         // 延迟一点时间确保图片列表已经更新
         setTimeout(() => {
           for (const file of successfulFiles) {
             const result = batchUploadResults[file.name];
             if (result) {
               // 通过文件名和web2url来匹配新上传的图片
-              const newImage = storedImages.find(img => 
+              const newImage = storedImages.find(img =>
                 img.fileName === file.name && img.web2url === result.web2url
               );
               if (newImage) {
@@ -762,10 +762,10 @@ const ImageUploadPage: React.FC = () => {
               }
             }
           }
-          
+
           // 设置闪烁效果
           setFlashingImages(newImageIds);
-          
+
           // 3秒后清除闪烁效果
           setTimeout(() => {
             setFlashingImages(new Set());
@@ -775,45 +775,45 @@ const ImageUploadPage: React.FC = () => {
     } catch (error) {
       console.error('[批量上传] 重新加载图片列表失败:', error);
     }
-    
+
     // 统计上传结果
     const successCount = Object.values(batchProgress).filter(p => p.status === 'success').length;
     const errorCount = Object.values(batchProgress).filter(p => p.status === 'error').length;
-    
+
     if (successCount > 0) {
       // 获取成功上传的文件列表
       const successfulFiles = batchFiles.filter(file => {
         const progress = batchProgress[file.name];
         return progress && progress.status === 'success';
       });
-      
+
       // 显示成功上传的文件列表
       const successfulFileNames = successfulFiles.map(file => file.name).join(', ');
-      
+
       // 根据上传结果显示不同的通知
       if (successCount === batchFiles.length) {
         // 全部成功
-        setNotification({ 
-          message: `批量上传完成！所有 ${successCount} 个文件上传成功。相关信息请在页面下方的"本地存储管理"区域查看。`, 
-          type: 'success' 
+        setNotification({
+          message: `批量上传完成！所有 ${successCount} 个文件上传成功。相关信息请在页面下方的"本地存储管理"区域查看。`,
+          type: 'success'
         });
       } else if (successCount > 0) {
         // 部分成功
-        setNotification({ 
-          message: `批量上传完成！成功 ${successCount} 个，失败 ${errorCount} 个。成功上传的文件信息请在页面下方的"本地存储管理"区域查看。`, 
-          type: 'warning' 
+        setNotification({
+          message: `批量上传完成！成功 ${successCount} 个，失败 ${errorCount} 个。成功上传的文件信息请在页面下方的"本地存储管理"区域查看。`,
+          type: 'warning'
         });
       } else {
         // 全部失败
-        setNotification({ 
-          message: `批量上传失败！所有 ${errorCount} 个文件上传失败，请检查网络连接或文件格式后重试。`, 
-          type: 'error' 
+        setNotification({
+          message: `批量上传失败！所有 ${errorCount} 个文件上传失败，请检查网络连接或文件格式后重试。`,
+          type: 'error'
         });
       }
-      
+
       // 更新批量文件列表，只保留成功的文件
       setBatchFiles(successfulFiles);
-      
+
       // 更新进度状态，只保留成功的文件
       const successfulProgress: { [key: string]: { status: 'pending' | 'uploading' | 'success' | 'error', progress?: number, error?: string } } = {};
       successfulFiles.forEach(file => {
@@ -823,16 +823,16 @@ const ImageUploadPage: React.FC = () => {
         }
       });
       setBatchProgress(successfulProgress);
-      
+
       // 如果所有文件都上传成功，隐藏批量上传列表
       if (successCount === batchFiles.length) {
         setShowBatchList(false);
       }
-      
+
       // 显示成功上传的文件已添加到本地历史记录
       console.log(`[批量上传] 成功上传的文件已添加到本地历史记录：`, successfulFileNames);
     }
-    
+
     // 重置 Turnstile 状态
     setTurnstileToken('');
     setTurnstileVerified(false);
@@ -858,10 +858,10 @@ const ImageUploadPage: React.FC = () => {
       if (imageFiles.length > 0) {
         if (imageFiles.length === 1) {
           // 单文件上传
-          handleFileChange({ target: { files: imageFiles }, preventDefault: () => {} } as any);
+          handleFileChange({ target: { files: imageFiles }, preventDefault: () => { } } as any);
         } else {
           // 多文件批量上传
-          handleBatchFileChange({ target: { files: imageFiles }, preventDefault: () => {} } as any);
+          handleBatchFileChange({ target: { files: imageFiles }, preventDefault: () => { } } as any);
         }
       }
     }
@@ -878,7 +878,7 @@ const ImageUploadPage: React.FC = () => {
   };
 
   // 5. 导出、导入、清空等操作
-  const [exportType, setExportType] = useState<'plain'|'base64'|'aes256'>('plain');
+  const [exportType, setExportType] = useState<'plain' | 'base64' | 'aes256'>('plain');
   const [showExportMenu, setShowExportMenu] = useState(false);
 
   // 点击外部关闭导出菜单
@@ -949,7 +949,7 @@ const ImageUploadPage: React.FC = () => {
         } else {
           throw new Error('未知的数据格式');
         }
-        
+
         // 验证数据完整性
         const validateImportData = async () => {
           try {
@@ -960,17 +960,17 @@ const ImageUploadPage: React.FC = () => {
                 fileHash: item.fileHash,
                 md5Hash: item.md5Hash
               }));
-            
+
             if (validationList.length > 0) {
               const validationResults = await imageDataApi.validateBatchImageData(validationList);
               const invalidItems = validationResults.filter(result => !result.isValid);
-              
+
               if (invalidItems.length > 0) {
                 const invalidCount = invalidItems.length;
                 const totalCount = validationList.length;
-                setNotification({ 
-                  message: `导入完成，但发现 ${invalidCount}/${totalCount} 个数据验证失败`, 
-                  type: 'warning' 
+                setNotification({
+                  message: `导入完成，但发现 ${invalidCount}/${totalCount} 个数据验证失败`,
+                  type: 'warning'
                 });
                 console.warn('[图片导入] 数据验证失败:', invalidItems);
               } else {
@@ -982,23 +982,23 @@ const ImageUploadPage: React.FC = () => {
             setNotification({ message: '数据验证失败，但导入继续', type: 'warning' });
           }
         };
-        
+
         const validData = importedData.filter((item: any) => item.cid && item.web2url && item.fileName);
         if (validData.length === 0) throw new Error('没有找到有效的图片数据');
-        
+
         // 从IndexedDB获取现有图片
         getStoredImages().then(async (existingImages) => {
           const existingCids = new Set(existingImages.map((img: any) => img.cid));
           const newImages = validData.filter((img: any) => !existingCids.has(img.cid));
           const mergedImages = [...existingImages, ...newImages];
-          
+
           // 保存到IndexedDB
           await importImagesToDB(mergedImages);
           await reloadImages();
-          
+
           // 执行数据验证
           validateImportData();
-          
+
           setNotification({ message: `导入成功！新增 ${newImages.length} 张图片记录`, type: 'success' });
         });
       } catch (error: any) {
@@ -1015,7 +1015,7 @@ const ImageUploadPage: React.FC = () => {
       setNotification({ message: '数据已清空', type: 'success' });
     }
   };
-  
+
   const handleDelete = async (index: number) => {
     if (window.confirm('确定要删除这张图片的记录吗？')) {
       await deleteImageFromStorage(index);
@@ -1025,14 +1025,14 @@ const ImageUploadPage: React.FC = () => {
   };
 
   return (
-      <motion.div
+    <motion.div
       className="space-y-6"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
     >
       {/* 标题和说明 */}
-      <motion.div 
+      <motion.div
         className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -1057,7 +1057,7 @@ const ImageUploadPage: React.FC = () => {
           </div>
         </div>
       </motion.div>
-      
+
       {/* 上传图片分区 */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -1113,7 +1113,7 @@ const ImageUploadPage: React.FC = () => {
             onChange={handleFileChange}
             disabled={uploading}
           />
-          <div 
+          <div
             className="flex flex-col items-center justify-center select-none"
             onClick={() => !uploading && !file && fileInputRef.current?.click()}
             style={{ cursor: (uploading || file) ? 'not-allowed' : 'pointer' }}
@@ -1141,7 +1141,7 @@ const ImageUploadPage: React.FC = () => {
               >移除</motion.button>
             </motion.div>
           )}
-          
+
           {/* Turnstile 人机验证 */}
           {!turnstileConfigLoading && turnstileConfig.siteKey && typeof turnstileConfig.siteKey === 'string' && (
             <motion.div
@@ -1156,7 +1156,7 @@ const ImageUploadPage: React.FC = () => {
                   <span className="ml-2 text-green-600 font-medium">✓ 验证通过</span>
                 )}
               </div>
-              
+
               <TurnstileWidget
                 key={turnstileKey}
                 siteKey={turnstileConfig.siteKey}
@@ -1166,7 +1166,7 @@ const ImageUploadPage: React.FC = () => {
                 theme="light"
                 size="normal"
               />
-              
+
               {turnstileError && (
                 <div className="mt-2 text-sm text-red-500 text-center">
                   验证失败，请重新验证
@@ -1174,7 +1174,7 @@ const ImageUploadPage: React.FC = () => {
               )}
             </motion.div>
           )}
-          
+
           {/* 批量上传列表 */}
           {showBatchList && batchFiles.length > 0 && (
             <motion.div
@@ -1195,7 +1195,7 @@ const ImageUploadPage: React.FC = () => {
                   清空队列
                 </motion.button>
               </div>
-              
+
               <div className="max-h-40 overflow-y-auto space-y-2">
                 {batchFiles.map((file, index) => {
                   const progress = batchProgress[file.name];
@@ -1259,7 +1259,7 @@ const ImageUploadPage: React.FC = () => {
                   );
                 })}
               </div>
-              
+
               <motion.button
                 className="w-full mt-3 px-4 py-2 rounded-lg bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold shadow hover:from-green-700 hover:to-emerald-700 transition disabled:opacity-50 text-sm"
                 onClick={handleBatchUpload}
@@ -1270,7 +1270,7 @@ const ImageUploadPage: React.FC = () => {
               </motion.button>
             </motion.div>
           )}
-          
+
           <motion.button
             className="w-full mt-2 px-4 py-3 sm:py-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold shadow hover:from-blue-700 hover:to-indigo-700 transition disabled:opacity-50 text-base sm:text-lg tracking-wide min-h-[48px] sm:min-h-[44px]"
             onClick={handleUpload}
@@ -1344,7 +1344,7 @@ const ImageUploadPage: React.FC = () => {
                 导入
               </motion.button>
             </div>
-            
+
             {/* 导出菜单 */}
             <div className="relative export-menu-container">
               <motion.button
@@ -1355,9 +1355,9 @@ const ImageUploadPage: React.FC = () => {
                 <FaDownload className="w-4 h-4" />
                 导出
               </motion.button>
-              
+
               <AnimatePresence>
-              {showExportMenu && (
+                {showExportMenu && (
                   <motion.div
                     className="absolute right-0 top-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[200px]"
                     initial={{ opacity: 0, y: -10 }}
@@ -1397,25 +1397,25 @@ const ImageUploadPage: React.FC = () => {
                         className="w-full mt-2 px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-sm"
                       >
                         确认导出
-              </button>
-                </div>
+                      </button>
+                    </div>
                   </motion.div>
-              )}
+                )}
               </AnimatePresence>
             </div>
-            
+
             {/* 清除按钮 */}
             <motion.button
               onClick={handleClear}
               className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition text-sm font-medium flex items-center gap-2"
               whileTap={{ scale: 0.95 }}
             >
-                              <FaTrash className="w-4 h-4" />
+              <FaTrash className="w-4 h-4" />
               清除
             </motion.button>
           </div>
         </div>
-        <motion.div 
+        <motion.div
           className="bg-blue-50 rounded-lg p-3 sm:p-4 mb-4 text-center"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1426,7 +1426,7 @@ const ImageUploadPage: React.FC = () => {
         </motion.div>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
           {storedImages.length === 0 ? (
-            <motion.div 
+            <motion.div
               className="col-span-full text-gray-400 text-center py-8 sm:py-10 text-sm sm:text-base"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1436,23 +1436,22 @@ const ImageUploadPage: React.FC = () => {
             </motion.div>
           ) : (
             storedImages.map((img, idx) => (
-              <motion.div 
-                key={img.cid} 
-                className={`bg-white rounded-xl p-3 flex flex-col border shadow-sm ${
-                  flashingImages.has(img.imageId) 
-                    ? 'border-green-400 shadow-lg shadow-green-200 animate-pulse' 
+              <motion.div
+                key={img.cid}
+                className={`bg-white rounded-xl p-3 flex flex-col border shadow-sm ${flashingImages.has(img.imageId)
+                    ? 'border-green-400 shadow-lg shadow-green-200 animate-pulse'
                     : 'border-gray-200'
-                }`}
+                  }`}
                 initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ 
-                  opacity: 1, 
+                animate={{
+                  opacity: 1,
                   scale: flashingImages.has(img.imageId) ? 1.05 : 1,
-                  boxShadow: flashingImages.has(img.imageId) 
-                    ? '0 0 20px rgba(34, 197, 94, 0.3)' 
+                  boxShadow: flashingImages.has(img.imageId)
+                    ? '0 0 20px rgba(34, 197, 94, 0.3)'
                     : '0 1px 3px rgba(0,0,0,0.1)'
                 }}
-                transition={{ 
-                  duration: flashingImages.has(img.imageId) ? 0.6 : 0.3, 
+                transition={{
+                  duration: flashingImages.has(img.imageId) ? 0.6 : 0.3,
                   delay: idx * 0.1,
                   repeat: flashingImages.has(img.imageId) ? 3 : 0,
                   repeatType: "reverse"
@@ -1465,8 +1464,8 @@ const ImageUploadPage: React.FC = () => {
                 <div className="text-xs sm:text-sm text-gray-800 mb-1 truncate">{img.fileName}</div>
                 <div className="text-xs text-gray-400 mb-2">{formatFileSize(img.fileSize)} • {formatDate(img.uploadTime)}</div>
                 <div className="flex flex-col sm:flex-row gap-1 mt-auto">
-                  <motion.button 
-                    className="flex-1 px-2 py-2 rounded-lg bg-green-100 text-green-700 text-xs font-semibold hover:bg-green-200 min-h-[36px] transition-colors flex items-center justify-center gap-1" 
+                  <motion.button
+                    className="flex-1 px-2 py-2 rounded-lg bg-green-100 text-green-700 text-xs font-semibold hover:bg-green-200 min-h-[36px] transition-colors flex items-center justify-center gap-1"
                     onClick={() => handleCopy(fixIpfsDomain(img.web2url))}
                     whileTap={{ scale: 0.95 }}
                   >
@@ -1474,18 +1473,18 @@ const ImageUploadPage: React.FC = () => {
                     复制链接
                   </motion.button>
                   {/* 预览按钮始终使用后端返回的 web2url，确保域名和路径与后端一致 */}
-                  <motion.a 
-                    className="flex-1 px-2 py-2 rounded-lg bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200 text-center min-h-[36px] flex items-center justify-center gap-1 transition-colors" 
-                    href={fixIpfsDomain(img.web2url)} 
-                    target="_blank" 
+                  <motion.a
+                    className="flex-1 px-2 py-2 rounded-lg bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200 text-center min-h-[36px] flex items-center justify-center gap-1 transition-colors"
+                    href={fixIpfsDomain(img.web2url)}
+                    target="_blank"
                     rel="noopener noreferrer"
                     whileTap={{ scale: 0.95 }}
                   >
                     <FaEye className="w-3 h-3" />
                     预览
                   </motion.a>
-                  <motion.button 
-                    className="flex-1 px-2 py-2 rounded-lg bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 min-h-[36px] transition-colors flex items-center justify-center gap-1" 
+                  <motion.button
+                    className="flex-1 px-2 py-2 rounded-lg bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 min-h-[36px] transition-colors flex items-center justify-center gap-1"
                     onClick={() => handleDelete(idx)}
                     whileTap={{ scale: 0.95 }}
                   >

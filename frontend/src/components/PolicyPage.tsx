@@ -319,7 +319,7 @@ const PolicyPage: React.FC<{ error?: any }> = ({ error }) => {
                     <FaExclamationTriangle className="text-gray-500 mr-2 inline" /> 本隐私政策可能会随时更新，建议您定期查阅相关条款。如有重大变更，我们将通过网站公告或邮件通知。
                   </li>
                   <li className="transition-all duration-200 hover:scale-105 hover:-translate-y-1 cursor-pointer">
-                    <FaEnvelope className="text-gray-500 mr-2 inline" /> 如对隐私政策有任何疑问，请通过以下方式联系我们：<a href="mailto:support@hapxs.com" className="text-blue-700 font-bold ml-1">support@hapxs.com</a>
+                    <FaEnvelope className="text-gray-500 mr-2 inline" /> 如对隐私政策有任何疑问，请通过以下方式联系我们：<a href="mailto:support@951100.xyz" className="text-blue-700 font-bold ml-1">support@951100.xyz</a>
                   </li>
                 </ul>
               </motion.section>
@@ -419,7 +419,7 @@ const PolicyPage: React.FC<{ error?: any }> = ({ error }) => {
                     <FaEnvelope className="text-blue-500 mr-2 inline" />如有任何疑问或反馈，请通过以下方式联系我们：
                   </p>
                   <p className="text-blue-700 font-bold">
-                    <a href="mailto:support@hapxs.com" className="transition-all duration-200 hover:scale-110 hover:-translate-y-1 cursor-pointer"> support@hapxs.com</a>
+                    <a href="mailto:support@951100.xyz" className="transition-all duration-200 hover:scale-110 hover:-translate-y-1 cursor-pointer"> support@951100.xyz</a>
                   </p>
                 </div>
               </motion.section>
@@ -559,10 +559,10 @@ const PolicyPage: React.FC<{ error?: any }> = ({ error }) => {
                     <p className="text-blue-700 text-sm">
                       如有任何问题或建议，请联系开发者：
                       <a
-                        href="mailto:admin@hapxs.com"
+                        href="mailto:admin@951100.xyz"
                         className="font-medium hover:text-blue-800 transition-colors duration-200 ml-1 underline"
                       >
-                        admin@hapxs.com
+                        admin@951100.xyz
                       </a>
                     </p>
                   </div>
@@ -597,21 +597,21 @@ const PolicyPage: React.FC<{ error?: any }> = ({ error }) => {
                         <h4 className="font-bold text-red-700">撤销授权后的处理措施：</h4>
                       </div>
                       <ul className="text-red-600 space-y-2 text-sm">
-                            <li className="flex items-start gap-2">
-                              <FaUserTimes className="text-red-500 mt-1 flex-shrink-0" />
-                              <span><b>账户删除：</b>我们会立即删除您的账户</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                              <FaFileAlt className="text-red-500 mt-1 flex-shrink-0" />
-                              <span><b>数据归档：</b>将您的所有账户数据进行归档处理</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                              <FaGlobe className="text-red-500 mt-1 flex-shrink-0" />
-                              <span><b>数据分发：</b>服务方有权将归档数据分发到任何渠道</span>
-                            </li>
-                          </ul>
-                        </div>
-                      </div>
+                        <li className="flex items-start gap-2">
+                          <FaUserTimes className="text-red-500 mt-1 flex-shrink-0" />
+                          <span><b>账户删除：</b>我们会立即删除您的账户</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <FaFileAlt className="text-red-500 mt-1 flex-shrink-0" />
+                          <span><b>数据归档：</b>将您的所有账户数据进行归档处理</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <FaGlobe className="text-red-500 mt-1 flex-shrink-0" />
+                          <span><b>数据分发：</b>服务方有权将归档数据分发到任何渠道</span>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
 
                   <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4">
                     <div className="flex items-center gap-2 mb-2">
@@ -627,10 +627,10 @@ const PolicyPage: React.FC<{ error?: any }> = ({ error }) => {
                     <p className="text-red-600 font-semibold">
                       官方联系方式：
                       <a
-                        href="mailto:support@hapxs.com"
+                        href="mailto:support@951100.xyz"
                         className="text-red-700 font-bold underline hover:text-red-800 transition-colors duration-200 ml-1"
                       >
-                        support@hapxs.com
+                        support@951100.xyz
                       </a>
                     </p>
                   </div>
@@ -649,7 +649,7 @@ const PolicyPage: React.FC<{ error?: any }> = ({ error }) => {
                     <h2 className="text-2xl font-bold text-red-800">用户评论与法律风险声明</h2>
                     <FaExclamationTriangle className="text-red-600 text-3xl" />
                   </div>
-                  
+
                   <div className="bg-white border-2 border-red-200 rounded-lg p-6 mb-4">
                     <div className="flex items-start gap-3 mb-4">
                       <FaBan className="text-red-500 text-xl mt-1 flex-shrink-0" />
@@ -660,7 +660,7 @@ const PolicyPage: React.FC<{ error?: any }> = ({ error }) => {
                         </p>
                       </div>
                     </div>
-                    
+
                     <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                       <div className="flex items-start gap-3 mb-3">
                         <FaGavel className="text-red-600 mt-1 flex-shrink-0" />

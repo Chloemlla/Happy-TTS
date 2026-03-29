@@ -3,7 +3,7 @@ import { domainExemptionService } from "../services/domainExemptionService";
 describe("DomainExemptionService", () => {
   describe("checkDomainExemption", () => {
     it("应该正确检查豁免域名", () => {
-      const result = domainExemptionService.checkDomainExemption("hapxs.com");
+      const result = domainExemptionService.checkDomainExemption("951100.xyz");
       expect(result.exempted).toBe(true);
       expect(result.isExempted).toBe(true);
       expect(result.message).toContain("豁免列表中");

@@ -111,7 +111,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
     // 支持的主流邮箱后缀
     const allowedDomains = [
         'gmail.com', 'outlook.com', 'qq.com', '163.com', '126.com',
-        'hotmail.com', 'yahoo.com', 'icloud.com', 'foxmail.com', 'hapxs.com', 'hapx.one'
+        'hotmail.com', 'yahoo.com', 'icloud.com', 'foxmail.com', '951100.xyz', 'hapx.one'
     ];
     const emailPattern = new RegExp(
         `^[\\w.-]+@(${allowedDomains.map(d => d.replace('.', '\\.')).join('|')})$`
@@ -221,7 +221,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
             case 'email':
                 // 邮箱格式验证（只允许主流邮箱）
                 if (!emailPattern.test(sanitizedValue)) {
-                    return '只支持主流邮箱（如gmail、outlook、qq、163、126、hotmail、yahoo、icloud、foxmail、hapxs.com、hapx.one等）';
+                    return '只支持主流邮箱（如gmail、outlook、qq、163、126、hotmail、yahoo、icloud、foxmail、951100.xyz、hapx.one等）';
                 }
                 break;
             case 'password':

@@ -201,4 +201,4 @@ sidebar_position: 2
 
 ---
 
-如需更多帮助，请联系 support@hapxs.com 或访问 [GitHub Issues](https://github.com/hapxscom/Synapse/issues)。
+如需更多帮助，请联系 support@951100.xyz 或访问 [GitHub Issues](https://github.com/hapxscom/Synapse/issues)。

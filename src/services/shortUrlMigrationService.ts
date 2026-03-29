@@ -19,9 +19,9 @@ class ShortUrlMigrationService {
   private static instance: ShortUrlMigrationService;
   private readonly OLD_DOMAIN = "ipfs\\.crossbell\\.io";
   private readonly OLD_DOMAIN_LITERAL = "ipfs.crossbell.io";
-  private readonly NEW_DOMAIN = "ipfs.hapxs.com";
+  private readonly NEW_DOMAIN = "ipfs.951100.xyz";
 
-  private constructor() {}
+  private constructor() { }
 
   /**
    * Escape a string for safe use in a regular expression.

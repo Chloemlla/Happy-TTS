@@ -159,8 +159,8 @@ router.use(adminAuthMiddleware);
  *             properties:
  *               from:
  *                 type: string
- *                 description: 发件人邮箱（必须是 @hapxs.com 域名）
- *                 example: "noreply@hapxs.com"
+ *                 description: 发件人邮箱（必须是 @951100.xyz 域名）
+ *                 example: "noreply@951100.xyz"
  *               to:
  *                 type: array
  *                 items:
@@ -220,8 +220,8 @@ router.post("/send", emailSendLimiter, EmailController.sendEmail);
  *             properties:
  *               from:
  *                 type: string
- *                 description: 发件人邮箱，必须为 @hapxs.com 域名
- *                 example: "noreply@hapxs.com"
+ *                 description: 发件人邮箱，必须为 @951100.xyz 域名
+ *                 example: "noreply@951100.xyz"
  *               to:
  *                 type: array
  *                 maxItems: 100
@@ -287,8 +287,8 @@ router.post("/batch-send", emailSendLimiter, EmailController.sendEmailBatch);
  *                 example: "这是一封简单的通知邮件。"
  *               from:
  *                 type: string
- *                 description: 发件人邮箱（可选，必须是 @hapxs.com 域名）
- *                 example: "noreply@hapxs.com"
+ *                 description: 发件人邮箱（可选，必须是 @951100.xyz 域名）
+ *                 example: "noreply@951100.xyz"
  *               skipWhitelist:
  *                 type: boolean
  *                 description: 是否跳过收件人域名白名单检查（仅管理员可用）
@@ -327,8 +327,8 @@ router.post("/send-simple", emailSendLimiter, EmailController.sendSimpleEmail);
  *             properties:
  *               from:
  *                 type: string
- *                 description: 发件人邮箱（必须是 @hapxs.com 域名）
- *                 example: "noreply@hapxs.com"
+ *                 description: 发件人邮箱（必须是 @951100.xyz 域名）
+ *                 example: "noreply@951100.xyz"
  *               to:
  *                 type: array
  *                 items:
@@ -418,7 +418,7 @@ router.get("/status", statusQueryLimiter, EmailController.getServiceStatus);
  *               email:
  *                 type: string
  *                 description: 要验证的发件人邮箱地址
- *                 example: "noreply@hapxs.com"
+ *                 example: "noreply@951100.xyz"
  *     responses:
  *       200:
  *         description: 域名验证成功
@@ -432,13 +432,13 @@ router.get("/status", statusQueryLimiter, EmailController.getServiceStatus);
  *                   example: true
  *                 email:
  *                   type: string
- *                   example: "noreply@hapxs.com"
+ *                   example: "noreply@951100.xyz"
  *                 isValid:
  *                   type: boolean
  *                   example: true
  *                 allowedDomain:
  *                   type: string
- *                   example: "hapxs.com"
+ *                   example: "951100.xyz"
  *       400:
  *         description: 请求参数错误
  *       401:
@@ -576,7 +576,7 @@ router.get("/quota", authMiddleware, adminAuthMiddleware, EmailController.getQuo
  *                   type: array
  *                   items:
  *                     type: string
- *                   example: ["hapxs.com", "example.com"]
+ *                   example: ["951100.xyz", "example.com"]
  *                 error:
  *                   type: string
  *                   example: null
@@ -611,7 +611,7 @@ router.get("/domains", authMiddleware, EmailController.getDomains);
  *               domain:
  *                 type: string
  *                 description: 要检查的域名
- *                 example: "hapxs.com"
+ *                 example: "951100.xyz"
  *     responses:
  *       200:
  *         description: 检查成功
@@ -634,7 +634,7 @@ router.get("/domains", authMiddleware, EmailController.getDomains);
  *                 domain:
  *                   type: string
  *                   description: 检查的域名
- *                   example: "hapxs.com"
+ *                   example: "951100.xyz"
  *                 isInternal:
  *                   type: boolean
  *                   description: 是否为内部域名

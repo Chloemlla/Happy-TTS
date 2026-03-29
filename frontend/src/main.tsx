@@ -1229,10 +1229,10 @@ function hasDangerousExtension() {
   const TRUSTED_HOST_PREFIXES = [
     "http://localhost",
     "https://localhost",
-    "https://ipfs.hapxs.com",
+    "https://ipfs.951100.xyz",
     "https://cdn.jsdelivr.net",
     "https://tts-api-docs.hapx.one",
-    "https://tts-api-docs.hapxs.com",
+    "https://tts-api-docs.951100.xyz",
     "https://api.951100.xyz",
     "https://tts.951100.xyz",
   ];
@@ -1468,15 +1468,15 @@ function hasDangerousExtension() {
     const originalObserver = window.MutationObserver;
     const obsStr =
       originalObserver &&
-      originalObserver.prototype &&
-      originalObserver.prototype.observe
+        originalObserver.prototype &&
+        originalObserver.prototype.observe
         ? originalObserver.prototype.observe.toString()
         : "";
     if (obsStr.includes("copy") || obsStr.includes("download")) {
       detectedReasons.push("MutationObserver监听器可能拦截copy/download");
       confidence += 1;
     }
-  } catch (e) {}
+  } catch (e) { }
 
   // 11. 检查油猴脚本管理器（强信号：立即触发）
   try {
@@ -1500,7 +1500,7 @@ function hasDangerousExtension() {
       detectedReasons.push("检测到油猴特有 unsafeWindow");
       return true;
     }
-  } catch (e) {}
+  } catch (e) { }
 
   // 12. 检查用户脚本内容（弱信号：累加）
   try {
@@ -1543,7 +1543,7 @@ function hasDangerousExtension() {
         }
       }
     }
-  } catch (e) {}
+  } catch (e) { }
 
   // 13. 检查油猴注入的DOM元素（弱信号：累加）
   try {
@@ -1583,7 +1583,7 @@ function hasDangerousExtension() {
         break;
       }
     }
-  } catch (e) {}
+  } catch (e) { }
 
   // 14. 检查油猴的脚本管理器特征（弱信号：累加；隐藏标记为强信号）
   try {
@@ -1619,7 +1619,7 @@ function hasDangerousExtension() {
       detectedReasons.push("window.__violentmonkey__ 命中");
       return true;
     }
-  } catch (e) {}
+  } catch (e) { }
 
   // 若仅有弱信号，则需要至少两个独立命中才拦截
   return confidence >= 2;

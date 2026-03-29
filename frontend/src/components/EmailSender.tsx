@@ -45,7 +45,7 @@ interface EmailQuota {
 
 const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
   const [form, setForm] = useState<EmailForm>({
-    from: `noreply@${import.meta.env.VITE_RESEND_DOMAIN || "hapxs.com"}`,
+    from: `noreply@${import.meta.env.VITE_RESEND_DOMAIN || "951100.xyz"}`,
     to: [""],
     subject: "",
     html: "<h1>Hello World</h1><p>这是一封测试邮件。</p>",
@@ -103,7 +103,7 @@ const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
 
   // 获取发件人域名（自动适配后端环境变量）
   const getResendDomain = () => {
-    return import.meta.env.VITE_RESEND_DOMAIN || "hapxs.com";
+    return import.meta.env.VITE_RESEND_DOMAIN || "951100.xyz";
   };
   const resendDomain = getResendDomain();
 
@@ -324,7 +324,7 @@ const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
     }
 
     // 验证邮箱格式
-    const allEmails = [...validRecipients]; // 发件人邮箱固定为hapxs.com，无需验证
+    const allEmails = [...validRecipients]; // 发件人邮箱固定为951100.xyz，无需验证
     const validation = await validateEmails(allEmails);
 
     if (validation.invalid.length > 0) {
@@ -784,8 +784,8 @@ const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
                       <motion.button
                         onClick={() => setEmailMode("simple")}
                         className={`px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${emailMode === "simple"
-                            ? "bg-white text-indigo-600 shadow-md"
-                            : "text-white/80 hover:text-white hover:bg-white/10"
+                          ? "bg-white text-indigo-600 shadow-md"
+                          : "text-white/80 hover:text-white hover:bg-white/10"
                           }`}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
@@ -796,8 +796,8 @@ const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
                       <motion.button
                         onClick={() => setEmailMode("html")}
                         className={`px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${emailMode === "html"
-                            ? "bg-white text-indigo-600 shadow-md"
-                            : "text-white/80 hover:text-white hover:bg-white/10"
+                          ? "bg-white text-indigo-600 shadow-md"
+                          : "text-white/80 hover:text-white hover:bg-white/10"
                           }`}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
@@ -807,8 +807,8 @@ const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
                       <motion.button
                         onClick={() => setEmailMode("markdown")}
                         className={`px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${emailMode === "markdown"
-                            ? "bg-white text-indigo-600 shadow-md"
-                            : "text-white/80 hover:text-white hover:bg-white/10"
+                          ? "bg-white text-indigo-600 shadow-md"
+                          : "text-white/80 hover:text-white hover:bg-white/10"
                           }`}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
@@ -828,8 +828,8 @@ const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
                       initial={{ opacity: 0, y: -10 }}
                       animate={{ opacity: 1, y: 0 }}
                       className={`p-3 rounded-lg border ${serviceStatus.available
-                          ? "bg-green-50 border-green-200 text-green-800"
-                          : "bg-red-50 border-red-200 text-red-800"
+                        ? "bg-green-50 border-green-200 text-green-800"
+                        : "bg-red-50 border-red-200 text-red-800"
                         }`}
                     >
                       <div className="flex items-start space-x-2">
@@ -963,8 +963,8 @@ const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
                         onClick={checkDomainExemption}
                         disabled={checkingExemption}
                         className={`w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-medium text-sm transition-all duration-200 ${checkingExemption
-                            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                            : "bg-blue-500 hover:bg-blue-600 text-white shadow-md hover:shadow-lg"
+                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                          : "bg-blue-500 hover:bg-blue-600 text-white shadow-md hover:shadow-lg"
                           }`}
                         whileHover={!checkingExemption ? { scale: 1.02 } : {}}
                         whileTap={!checkingExemption ? { scale: 0.98 } : {}}
@@ -1013,15 +1013,15 @@ const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
                           animate={{ opacity: 1, height: "auto" }}
                           exit={{ opacity: 0, height: 0 }}
                           className={`mt-3 p-3 rounded-lg border ${domainExemptionStatus.exempted
-                              ? "bg-green-50 border-green-200 text-green-800"
-                              : "bg-yellow-50 border-yellow-200 text-yellow-800"
+                            ? "bg-green-50 border-green-200 text-green-800"
+                            : "bg-yellow-50 border-yellow-200 text-yellow-800"
                             }`}
                         >
                           <div className="flex items-start space-x-2">
                             <motion.svg
                               className={`w-5 h-5 flex-shrink-0 mt-0.5 ${domainExemptionStatus.exempted
-                                  ? "text-green-500"
-                                  : "text-yellow-500"
+                                ? "text-green-500"
+                                : "text-yellow-500"
                                 }`}
                               fill="none"
                               stroke="currentColor"
@@ -1147,9 +1147,9 @@ const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
                           !form.to.find((email) => email.trim())
                         }
                         className={`w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-medium text-sm transition-all duration-200 ${checkingRecipientWhitelist ||
-                            !form.to.find((email) => email.trim())
-                            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                            : "bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg"
+                          !form.to.find((email) => email.trim())
+                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                          : "bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg"
                           }`}
                         whileHover={
                           !checkingRecipientWhitelist &&
@@ -1208,15 +1208,15 @@ const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
                           animate={{ opacity: 1, height: "auto" }}
                           exit={{ opacity: 0, height: 0 }}
                           className={`mt-3 p-3 rounded-lg border ${recipientWhitelistStatus.whitelisted
-                              ? "bg-green-50 border-green-200 text-green-800"
-                              : "bg-orange-50 border-orange-200 text-orange-800"
+                            ? "bg-green-50 border-green-200 text-green-800"
+                            : "bg-orange-50 border-orange-200 text-orange-800"
                             }`}
                         >
                           <div className="flex items-start space-x-2">
                             <motion.svg
                               className={`w-5 h-5 flex-shrink-0 mt-0.5 ${recipientWhitelistStatus.whitelisted
-                                  ? "text-green-500"
-                                  : "text-orange-500"
+                                ? "text-green-500"
+                                : "text-orange-500"
                                 }`}
                               fill="none"
                               stroke="currentColor"
@@ -1475,8 +1475,8 @@ const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
                     onClick={handleSendEmail}
                     disabled={loading || !serviceStatus?.available}
                     className={`w-full py-3 sm:py-4 px-4 sm:px-6 rounded-lg font-semibold text-white transition-all duration-200 ${loading || !serviceStatus?.available
-                        ? "bg-gray-400 cursor-not-allowed"
-                        : "bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 shadow-lg hover:shadow-xl"
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : "bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 shadow-lg hover:shadow-xl"
                       }`}
                     whileHover={
                       !loading && serviceStatus?.available

@@ -43,7 +43,7 @@ export class EmailController {
 
       // 验证发件人域名
       const fromDomain = from.split("@")[1];
-      if (fromDomain !== "hapxs.com") {
+      if (fromDomain !== "951100.xyz") {
         logger.warn("邮件发送失败：发件人域名不允许", {
           fromDomain,
           from,
@@ -51,7 +51,7 @@ export class EmailController {
           userId: user?.id,
         });
         return res.status(400).json({
-          error: "发件人邮箱必须是 @hapxs.com 域名",
+          error: "发件人邮箱必须是 @951100.xyz 域名",
           invalidDomain: fromDomain,
         });
       }
@@ -207,9 +207,9 @@ export class EmailController {
 
       // 验证发件人域名
       const fromDomain = String(from).split("@")[1];
-      if (fromDomain !== "hapxs.com") {
+      if (fromDomain !== "951100.xyz") {
         logger.warn("批量邮件发送失败：发件人域名不允许", { from, fromDomain, ip, userId: user?.id });
-        return res.status(400).json({ error: "发件人邮箱必须是 @hapxs.com 域名", invalidDomain: fromDomain });
+        return res.status(400).json({ error: "发件人邮箱必须是 @951100.xyz 域名", invalidDomain: fromDomain });
       }
 
       // 验证收件人邮箱格式
@@ -223,11 +223,11 @@ export class EmailController {
         html && html.trim().length > 0
           ? html
           : `<pre style="white-space:pre-wrap;word-wrap:break-word;margin:0;font-family:Consolas,Menlo,Monaco,monospace;">${String(
-              text || "",
-            )
-              .replace(/&/g, "&amp;")
-              .replace(/</g, "&lt;")
-              .replace(/>/g, "&gt;")}</pre>`;
+            text || "",
+          )
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")}</pre>`;
 
       // 发送批量邮件
       const result = await EmailService.sendBatchHtmlEmails(validation.valid, subject, htmlContent, from);
@@ -303,7 +303,7 @@ export class EmailController {
       // 验证发件人域名（如果提供了from参数）
       if (from) {
         const fromDomain = from.split("@")[1];
-        if (fromDomain !== "hapxs.com") {
+        if (fromDomain !== "951100.xyz") {
           logger.warn("简单邮件发送失败：发件人域名不允许", {
             fromDomain,
             from,
@@ -311,7 +311,7 @@ export class EmailController {
             userId: user?.id,
           });
           return res.status(400).json({
-            error: "发件人邮箱必须是 @hapxs.com 域名",
+            error: "发件人邮箱必须是 @951100.xyz 域名",
             invalidDomain: fromDomain,
           });
         }
@@ -441,7 +441,7 @@ export class EmailController {
 
       // 验证发件人域名
       const fromDomain = from.split("@")[1];
-      if (fromDomain !== "hapxs.com") {
+      if (fromDomain !== "951100.xyz") {
         logger.warn("Markdown邮件发送失败：发件人域名不允许", {
           fromDomain,
           from,
@@ -449,7 +449,7 @@ export class EmailController {
           userId: user?.id,
         });
         return res.status(400).json({
-          error: "发件人邮箱必须是 @hapxs.com 域名",
+          error: "发件人邮箱必须是 @951100.xyz 域名",
           invalidDomain: fromDomain,
         });
       }
@@ -696,7 +696,7 @@ export class EmailController {
         success: true,
         email,
         isValid,
-        allowedDomain: "hapxs.com",
+        allowedDomain: "951100.xyz",
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "未知错误";

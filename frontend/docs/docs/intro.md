@@ -75,7 +75,7 @@ API 使用标准的 HTTP 状态码表示请求结果：
 
 如果您在使用过程中遇到问题或有任何建议，请通过以下方式联系我们：
 
-- 📧 **邮箱**: support@hapxs.com
+- 📧 **邮箱**: support@951100.xyz
 - 🐛 **问题反馈**: [GitHub Issues](https://github.com/Synapse/Synapse/issues)
 - 💬 **社区讨论**: [Discord](https://discord.gg/Synapse)
 

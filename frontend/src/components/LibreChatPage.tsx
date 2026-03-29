@@ -2972,10 +2972,10 @@ const LibreChatPage: React.FC = () => {
                   <p className="text-blue-700 text-sm">
                     如有任何问题或建议，请联系开发者：
                     <a
-                      href="mailto:admin@hapxs.com"
+                      href="mailto:admin@951100.xyz"
                       className="font-medium hover:text-blue-800 transition-colors duration-200 ml-1 underline"
                     >
-                      admin@hapxs.com
+                      admin@951100.xyz
                     </a>
                   </p>
                 </div>
@@ -3219,8 +3219,8 @@ const config = {
                 onClick={handleBatchDelete}
                 disabled={selectedIds.length === 0}
                 className={`px-3 py-1 rounded-lg border transition flex items-center gap-1 ${selectedIds.length === 0
-                    ? 'border-gray-200 text-gray-300'
-                    : 'border-red-200 text-red-600 hover:bg-red-50'
+                  ? 'border-gray-200 text-gray-300'
+                  : 'border-red-200 text-red-600 hover:bg-red-50'
                   }`}
                 title="批量删除所选"
                 whileTap={{ scale: 0.95 }}
@@ -3288,8 +3288,8 @@ const config = {
                           <div className="flex items-center gap-3">
                             <div className="flex items-center gap-2">
                               <div className={`w-8 h-8 rounded-full flex items-center justify-center ${m.role === 'user'
-                                  ? 'bg-blue-500'
-                                  : 'bg-green-500'
+                                ? 'bg-blue-500'
+                                : 'bg-green-500'
                                 }`}>
                                 {m.role === 'user' ? (
                                   <FaUser className="w-4 h-4 text-white" />
@@ -3299,8 +3299,8 @@ const config = {
                               </div>
                               <div className="flex flex-col">
                                 <span className={`text-sm font-medium ${m.role === 'user'
-                                    ? 'text-blue-700'
-                                    : 'text-green-700'
+                                  ? 'text-blue-700'
+                                  : 'text-green-700'
                                   }`}>
                                   {m.role === 'user' ? '用户' : '助手'}
                                 </span>

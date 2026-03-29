@@ -15,7 +15,7 @@ export const TtsPage: React.FC = () => {
         audioUrl,
         generateSpeech
     } = useTts();
-    
+
 
     const [isPlaying, setIsPlaying] = useState(false);
     const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
@@ -30,10 +30,10 @@ export const TtsPage: React.FC = () => {
             setIsPlaying(false);
         }
     }, [audioElement]);
-    
+
     const togglePlayPause = useCallback(() => {
         if (!audioUrl) return;
-        
+
         if (!audioElement) {
             const audio = new Audio(audioUrl);
             audio.onended = () => setIsPlaying(false);
@@ -49,7 +49,7 @@ export const TtsPage: React.FC = () => {
             }
         }
     }, [audioUrl, audioElement, isPlaying]);
-    
+
     const handleDownload = useCallback(() => {
         if (audioUrl) {
             const link = document.createElement('a');
@@ -65,7 +65,7 @@ export const TtsPage: React.FC = () => {
         <div className="min-h-screen bg-gradient-to-br from-[#8ECAE6]/20 via-white to-[#219EBC]/10 py-8 rounded-3xl">
             <div className="max-w-7xl mx-auto px-4 space-y-8">
                 {/* 优化的标题和使用须知部分 */}
-                <motion.div 
+                <motion.div
                     className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-[#8ECAE6]/30 overflow-hidden"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -73,7 +73,7 @@ export const TtsPage: React.FC = () => {
                 >
                     <div className="bg-[#023047] text-white p-6">
                         <div className="text-center">
-                            <motion.div 
+                            <motion.div
                                 className="flex items-center justify-center gap-3 mb-4"
                                 initial={{ scale: 0.9 }}
                                 animate={{ scale: 1 }}
@@ -82,7 +82,7 @@ export const TtsPage: React.FC = () => {
                                 <FaVolumeUp className="text-4xl" />
                                 <h1 className="text-4xl font-bold">文本转语音</h1>
                             </motion.div>
-                            <motion.p 
+                            <motion.p
                                 className="text-[#8ECAE6] text-lg"
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
@@ -92,67 +92,67 @@ export const TtsPage: React.FC = () => {
                             </motion.p>
                         </div>
                     </div>
-                    
+
                     <div className="p-6">
                         <div className="flex items-center gap-2 mb-4 p-3 bg-[#8ECAE6]/10 rounded-lg">
                             <FaInfoCircle className="text-[#219EBC]" />
                             <span className="font-semibold text-[#023047]">使用须知与联系方式</span>
                         </div>
-                        
+
                         <div
                             ref={noticeRef as React.RefObject<HTMLDivElement | null>}
                             className="space-y-4"
                         >
-                                    <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                                        <div className="flex items-center gap-2 mb-3">
-                                            <FaShieldAlt className="text-red-600" />
-                                            <h3 className="text-red-700 font-semibold">使用须知</h3>
-                                        </div>
-                                        <div className="space-y-3 text-sm text-red-700">
-                                            <div>
-                                                <p className="font-medium mb-2">1. 禁止生成违法违规内容：</p>
-                                                <ul className="list-disc list-inside ml-4 space-y-1">
-                                                    <li>政治敏感、民族歧视内容</li>
-                                                    <li>色情、暴力、恐怖主义内容</li>
-                                                    <li>侵犯知识产权内容</li>
-                                                    <li>虚假信息或误导性内容</li>
-                                                </ul>
-                                            </div>
-                                            <div>
-                                                <p className="font-medium mb-2">2. 违规处理措施：</p>
-                                                <ul className="list-disc list-inside ml-4 space-y-1">
-                                                    <li>立即停止服务并封禁账号</li>
-                                                    <li>配合执法部门调查</li>
-                                                    <li>提供使用记录和生成内容</li>
-                                                    <li>保留追究法律责任权利</li>
-                                                </ul>
-                                            </div>
-                                        </div>
+                            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <FaShieldAlt className="text-red-600" />
+                                    <h3 className="text-red-700 font-semibold">使用须知</h3>
+                                </div>
+                                <div className="space-y-3 text-sm text-red-700">
+                                    <div>
+                                        <p className="font-medium mb-2">1. 禁止生成违法违规内容：</p>
+                                        <ul className="list-disc list-inside ml-4 space-y-1">
+                                            <li>政治敏感、民族歧视内容</li>
+                                            <li>色情、暴力、恐怖主义内容</li>
+                                            <li>侵犯知识产权内容</li>
+                                            <li>虚假信息或误导性内容</li>
+                                        </ul>
                                     </div>
-                                    <div className="bg-[#8ECAE6]/10 border border-[#8ECAE6]/30 rounded-xl p-4">
-                                        <h3 className="text-[#219EBC] font-semibold mb-2 flex items-center gap-2">
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                                            </svg>
-                                            联系我们
-                                        </h3>
-                                        <p className="text-[#219EBC] text-sm">
-                                            如有任何问题或建议，请联系开发者：
-                                            <a
-                                                href="mailto:admin@hapxs.com"
-                                                className="font-medium hover:text-[#023047] transition-colors duration-200 ml-1 underline"
-                                            >
-                                                admin@hapxs.com
-                                            </a>
-                                         </p>
+                                    <div>
+                                        <p className="font-medium mb-2">2. 违规处理措施：</p>
+                                        <ul className="list-disc list-inside ml-4 space-y-1">
+                                            <li>立即停止服务并封禁账号</li>
+                                            <li>配合执法部门调查</li>
+                                            <li>提供使用记录和生成内容</li>
+                                            <li>保留追究法律责任权利</li>
+                                        </ul>
                                     </div>
+                                </div>
+                            </div>
+                            <div className="bg-[#8ECAE6]/10 border border-[#8ECAE6]/30 rounded-xl p-4">
+                                <h3 className="text-[#219EBC] font-semibold mb-2 flex items-center gap-2">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                    </svg>
+                                    联系我们
+                                </h3>
+                                <p className="text-[#219EBC] text-sm">
+                                    如有任何问题或建议，请联系开发者：
+                                    <a
+                                        href="mailto:admin@951100.xyz"
+                                        className="font-medium hover:text-[#023047] transition-colors duration-200 ml-1 underline"
+                                    >
+                                        admin@951100.xyz
+                                    </a>
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </motion.div>
 
                 {/* 优化的表单和音频预览部分 */}
                 <div className="flex flex-col xl:flex-row gap-8">
-                    <motion.div 
+                    <motion.div
                         className="flex-1"
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
@@ -167,7 +167,7 @@ export const TtsPage: React.FC = () => {
                             />
                             <AnimatePresence>
                                 {error && (
-                                    <motion.div 
+                                    <motion.div
                                         className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 flex items-center gap-2"
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
@@ -186,7 +186,7 @@ export const TtsPage: React.FC = () => {
 
                     <AnimatePresence>
                         {audioUrl && (
-                            <motion.div 
+                            <motion.div
                                 className="flex-1 xl:max-w-md"
                                 initial={{ opacity: 0, x: 20, scale: 0.95 }}
                                 animate={{ opacity: 1, x: 0, scale: 1 }}
@@ -201,8 +201,8 @@ export const TtsPage: React.FC = () => {
                                     </h3>
                                     <div className="space-y-4">
                                         <div className="bg-[#8ECAE6]/10 rounded-xl p-4">
-                                            <audio 
-                                                controls 
+                                            <audio
+                                                controls
                                                 className="w-full"
                                                 onPlay={() => setIsPlaying(true)}
                                                 onPause={() => setIsPlaying(false)}

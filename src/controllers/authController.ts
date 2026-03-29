@@ -30,7 +30,7 @@ const allowedDomains = [
   "yahoo.com",
   "icloud.com",
   "foxmail.com",
-  "hapxs.com",
+  "951100.xyz",
   "hapx.one",
 ];
 const emailPattern = new RegExp(

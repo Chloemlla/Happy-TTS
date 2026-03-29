@@ -1,4 +1,4 @@
-export {};
+export { };
 
 describe("EmailController - 跳过白名单检查功能", () => {
   let _adminToken: string;
@@ -11,7 +11,7 @@ describe("EmailController - 跳过白名单检查功能", () => {
   describe("POST /api/email/send", () => {
     it("应该允许跳过白名单检查发送邮件到无效格式邮箱", async () => {
       const _emailData = {
-        from: "noreply@hapxs.com",
+        from: "noreply@951100.xyz",
         to: ["jubao@dinghaoinc.com"], // 这个邮箱格式可能无效
         subject: "测试邮件",
         html: "<h1>测试</h1>",
@@ -30,7 +30,7 @@ describe("EmailController - 跳过白名单检查功能", () => {
 
     it("不跳过白名单检查时应该验证邮箱格式", async () => {
       const _emailData = {
-        from: "noreply@hapxs.com",
+        from: "noreply@951100.xyz",
         to: ["invalid-email-format"],
         subject: "测试邮件",
         html: "<h1>测试</h1>",
@@ -71,7 +71,7 @@ describe("EmailController - 跳过白名单检查功能", () => {
   describe("POST /api/email/send-markdown", () => {
     it("应该允许跳过白名单检查发送Markdown邮件", async () => {
       const _emailData = {
-        from: "noreply@hapxs.com",
+        from: "noreply@951100.xyz",
         to: ["jubao@dinghaoinc.com"],
         subject: "测试Markdown邮件",
         markdown: "# 测试\n这是一封测试邮件",

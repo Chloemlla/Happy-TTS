@@ -8,14 +8,15 @@
     "tail": "wrangler tail"
   },
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "hono": "^4.6.0",
     "jose": "^5.9.0",
-    "bcryptjs": "^2.4.3"
+    "synapse-worker": "file:"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241018.0",
-    "wrangler": "^3.80.0",
+    "@types/bcryptjs": "^2.4.6",
     "typescript": "^5.6.0",
-    "@types/bcryptjs": "^2.4.6"
+    "wrangler": "^3.80.0"
   }
 }

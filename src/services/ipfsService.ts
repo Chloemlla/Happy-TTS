@@ -426,7 +426,7 @@ export class IPFSService {
         } else {
           // 标准 IPFS API 响应格式: { "Name": "文件名", "Hash": "CID", "Size": "文件大小" }
           cid = response.data.Hash || "";
-          web2url = `https://ipfs.hapxs.com/ipfs/${cid}`;
+          web2url = `https://ipfs.951100.xyz/ipfs/${cid}`;
           fileSize = response.data.Size || fileBuffer.length.toString();
           logger.info(`[IPFS] 标准 IPFS 上传成功: ${filename}, CID: ${cid}, 文件大小: ${fileSize} bytes`);
         }

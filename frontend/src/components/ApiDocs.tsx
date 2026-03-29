@@ -3,7 +3,7 @@ import { LazyMotion, domAnimation, m, AnimatePresence, useReducedMotion } from '
 import { FaFileAlt, FaInfoCircle, FaExternalLinkAlt, FaLink, FaQuestionCircle, FaTimes } from 'react-icons/fa';
 
 const MAIN_DOC_URL = 'https://tts-api-docs.hapx.one';
-const BACKUP_DOC_URL = 'https://tts-api-docs.hapxs.com';
+const BACKUP_DOC_URL = 'https://tts-api-docs.951100.xyz';
 
 const NO_TRANSITION = { duration: 0 } as const;
 const FADE_VARIANTS = { hidden: { opacity: 0 }, visible: { opacity: 1 } } as const;
@@ -134,7 +134,7 @@ const ApiDocs: React.FC = () => {
                       </li>
                       <li>
                         <span className="font-semibold text-[#023047]">{lang === 'zh' ? '备用站点：' : 'Backup: '}</span>
-                        <a href={BACKUP_DOC_URL} target="_blank" rel="noopener noreferrer" className="text-[#219EBC] underline hover:text-[#023047]">tts-api-docs.hapxs.com</a>
+                        <a href={BACKUP_DOC_URL} target="_blank" rel="noopener noreferrer" className="text-[#219EBC] underline hover:text-[#023047]">tts-api-docs.951100.xyz</a>
                         <span className="ml-1 text-[#023047]/40">{lang === 'zh' ? '（如主站点无法访问时使用）' : ' (Use if main is unavailable)'}</span>
                       </li>
                     </ul>
@@ -238,7 +238,7 @@ const ApiDocs: React.FC = () => {
                       className="relative flex-1 border-2 border-[#8ECAE6]/40 bg-[#8ECAE6]/10 hover:bg-[#8ECAE6]/20 text-[#023047] font-semibold py-3 px-4 rounded-xl transition-all duration-200 text-base flex items-center justify-center gap-2"
                       whileHover={ITEM_HOVER} whileTap={BUTTON_TAP}>
                       <FaLink className="w-4 h-4 flex-shrink-0" />
-                      <span className="truncate">{lang === 'zh' ? '备用站点：hapxs.com' : 'Backup: hapxs.com'}</span>
+                      <span className="truncate">{lang === 'zh' ? '备用站点：951100.xyz' : 'Backup: 951100.xyz'}</span>
                       <span className="absolute top-1 right-1 text-xs bg-[#8ECAE6]/30 text-[#023047] rounded px-1.5 py-0.5 font-mono">2</span>
                     </m.button>
                   </div>
