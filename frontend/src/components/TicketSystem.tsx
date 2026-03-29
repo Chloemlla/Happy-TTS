@@ -25,6 +25,7 @@ const TicketSystem: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prefersReducedMotion = useReducedMotion();
 
+  // 确保 isAdmin 判定准确，兼容可能的多种 role 格式
   const isAdmin = user?.role === "admin";
 
   const hoverScale = useCallback((scale: number, enabled: boolean = true) => (
@@ -42,8 +43,10 @@ const TicketSystem: React.FC = () => {
         ? await ticketApi.getAllTickets(adminFilter)
         : await ticketApi.getMyTickets();
       setTickets(data);
-      if (data.length > 0) {
-        setNotification({ type: 'success', message: `已加载 ${data.length} 个工单` });
+      
+      // 如果当前没有选中的工单且列表不为空，自动选中第一个
+      if (data.length > 0 && !selectedTicket && !isCreating) {
+        setSelectedTicket(data[0]);
       }
     } catch (error) {
       setNotification({ type: 'error', message: "加载工单失败" });
@@ -54,7 +57,7 @@ const TicketSystem: React.FC = () => {
 
   useEffect(() => {
     fetchTickets();
-  }, [isAdmin, adminFilter]);
+  }, [isAdmin, adminFilter, user?.id]); // 增加 user.id 依赖，防止账号切换后数据不刷新
 
   useEffect(() => {
     if (messagesEndRef.current) {
