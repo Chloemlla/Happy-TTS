@@ -351,14 +351,16 @@ class WsService {
    * @param ticket 完整的工单数据或更新的部分
    */
   notifyTicketUpdate(userId: string, ticket: any) {
-    const payload = {
+    // 发送给工单拥有者
+    this.sendToUser(userId, {
       type: "ticket:update",
       data: ticket,
-    };
-    // 发送给工单拥有者
-    this.sendToUser(userId, payload);
+    });
     // 广播给所有管理员，以便实时查看处理进度
-    this.broadcastToAdmins(payload);
+    this.broadcastToAdmins({
+      type: "ticket:update",
+      data: ticket,
+    });
   }
 
   /**
