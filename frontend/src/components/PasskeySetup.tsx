@@ -259,7 +259,7 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
                 transition={{ duration: 0.5, ease: 'easeOut' }}
                 className="space-y-3 sm:space-y-4 bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-lg overflow-visible"
             >
-                {/* 新增：Passkey唯一性提示 */}
+                {/* 新增：Passkey 提示 */}
                 <motion.div 
                     className="mb-4"
                     initial={{ opacity: 0, y: -10 }}
@@ -275,16 +275,27 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
                             <FaKey className="w-5 h-5 text-blue-500" />
                         </motion.div>
                         <div className="flex-1 min-w-0">
-                            <span className="font-semibold block text-sm sm:text-base md:text-lg leading-relaxed">每个账户仅允许设置<strong>一个</strong>Passkey作为无密码验证方式。</span>
-                            <span className="text-xs sm:text-sm text-blue-600 mt-1 block leading-relaxed">如需更换设备或认证方式，请先删除原有Passkey后再注册新Passkey。</span>
+                            <span className="font-semibold block text-sm sm:text-base md:text-lg leading-relaxed">您可以为您的账户添加<strong>多个</strong> Passkey 作为无密码验证方式。</span>
+                            <span className="text-xs sm:text-sm text-blue-600 mt-1 block leading-relaxed">建议在您的所有常用设备（手机、电脑等）上分别注册，以确保在任何情况下都能安全登录。</span>
                         </div>
                     </div>
                 </motion.div>
-                <div className="mb-2">
-                    <h2 className="text-lg sm:text-xl md:text-2xl font-bold flex items-center gap-2 relative z-40 bg-white px-2 sm:px-4">
+                <div className="mb-2 flex items-center justify-between relative z-40 bg-white px-2 sm:px-4">
+                    <h2 className="text-lg sm:text-xl md:text-2xl font-bold flex items-center gap-2">
                         <FaKey className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 text-indigo-500" />
                         <span className="truncate">Passkey 无密码认证</span>
                     </h2>
+                    {Array.isArray(credentials) && credentials.length > 0 && (
+                        <motion.button
+                            onClick={() => setIsOpen(true)}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full p-2 shadow-md flex items-center gap-1 sm:px-3 sm:py-1.5 sm:rounded-lg transition-all"
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                        >
+                            <FaPlus className="w-4 h-4" />
+                            <span className="hidden sm:inline text-sm font-medium">添加新设备</span>
+                        </motion.button>
+                    )}
                 </div>
                 <div className="w-full flex flex-col items-start justify-center mt-6 sm:mt-8">
                     <div className="w-full flex justify-start px-2 sm:px-4">
@@ -433,8 +444,7 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
                                     whileHover={{ scale: 1.02 }}
                                     transition={{ type: "spring", stiffness: 300 }}
                                 >
-                                    <strong>注意：</strong>每个账户<strong>只能设置一个</strong>Passkey，注册新Passkey会覆盖旧的。<br />
-                                    建议在常用且安全的设备上设置。若设备丢失或更换，请及时删除原有Passkey并重新注册。
+                                    <strong>建议：</strong>在您的常用且安全的设备上分别注册 Passkey。如果您拥有多个设备（如手机和电脑），可以分别为它们添加凭证，以便在不同场景下都能快速登录。
                                 </motion.div>
                             </motion.div>
                             <div className="space-y-2 mb-4 sm:mb-6">

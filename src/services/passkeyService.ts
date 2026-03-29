@@ -3,6 +3,7 @@ import {
   generateRegistrationOptions,
   type VerifiedAuthenticationResponse,
   type VerifiedRegistrationResponse,
+  verifyAuthenticationResponse,
   verifyRegistrationResponse,
 } from "@simplewebauthn/server";
 import jwt from "jsonwebtoken";
@@ -666,9 +667,8 @@ export class PasskeyService {
   public static async verifyAuthentication(
     user: User,
     response: any,
-    _clientOrigin?: string,
-    _requestOrigin?: string,
-    _retryCount: number = 0
+    clientOrigin?: string,
+    requestOrigin?: string
   ): Promise<VerifiedAuthenticationResponse> {
     await fixUserPasskeyCredentialIDs(user);
     if (!user.pendingChallenge) {
@@ -677,24 +677,73 @@ export class PasskeyService {
 
     const userAuthenticators = user.passkeyCredentials || [];
 
-    // 仅本地校验，不调用 @simplewebauthn/server
-    const credentialId = response.rawId;
+    // 1. 查找匹配的认证器
+    const credentialId = response.rawId || response.id;
     if (!credentialId || typeof credentialId !== "string") {
       throw new Error("认证响应 credentialID 格式无效");
     }
+
     const authenticator = userAuthenticators.find(
-      (auth) => auth.credentialID === credentialId
+      (auth) => auth.credentialID === credentialId || auth.id === credentialId
     );
+
     if (!authenticator) {
+      logger.error("[Passkey] 找不到匹配的认证器", {
+        userId: user.id,
+        providedId: credentialId,
+        availableIds: userAuthenticators.map(a => a.credentialID)
+      });
       throw new Error("找不到匹配的认证器");
     }
-    // 本地校验通过，直接返回 success
-    return {
-      verified: true,
-      authenticationInfo: {
-        newCounter: authenticator.counter,
-      },
-    } as any;
+
+    // 2. 执行密码学验证
+    let verification: VerifiedAuthenticationResponse;
+    try {
+      const finalOrigin = getRpOrigin(clientOrigin) || requestOrigin || getRpOrigin();
+      
+      verification = await verifyAuthenticationResponse({
+        response,
+        expectedChallenge: user.pendingChallenge,
+        expectedOrigin: finalOrigin,
+        expectedRPID: getRpId(),
+        authenticator: {
+          credentialID: Buffer.from(authenticator.credentialID, "base64url"),
+          credentialPublicKey: Buffer.from(authenticator.credentialPublicKey, "base64"),
+          counter: authenticator.counter,
+        },
+      });
+    } catch (error) {
+      logger.error("验证认证响应失败:", error);
+      throw new Error("验证认证响应失败");
+    }
+
+    const { verified, authenticationInfo } = verification;
+    if (!verified || !authenticationInfo) {
+      throw new Error("认证验证未通过");
+    }
+
+    // 3. 更新计数器并保存
+    const { newCounter } = authenticationInfo;
+    const updatedCredentials = userAuthenticators.map(auth => {
+      if (auth.credentialID === authenticator.credentialID || auth.id === authenticator.id) {
+        return { ...auth, counter: newCounter };
+      }
+      return auth;
+    });
+
+    await UserStorage.updateUser(user.id, {
+      passkeyCredentials: updatedCredentials,
+      pendingChallenge: undefined, // 验证成功后清除挑战
+    });
+
+    logger.info("[Passkey] 认证成功并更新计数器", {
+      userId: user.id,
+      credentialId: authenticator.credentialID,
+      oldCounter: authenticator.counter,
+      newCounter
+    });
+
+    return verification;
   }
 
   // 删除认证器
