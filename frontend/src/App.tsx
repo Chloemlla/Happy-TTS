@@ -1043,19 +1043,15 @@ const App: React.FC = () => {
                   <Route
                     path="/welcome"
                     element={
-                      user ? (
-                        <Navigate to="/" replace />
-                      ) : (
-                        <m.div
-                          variants={pageVariants}
-                          initial="initial"
-                          animate="in"
-                          exit="out"
-                          transition={pageTransition}
-                        >
-                          <WelcomePage />
-                        </m.div>
-                      )
+                      <m.div
+                        variants={pageVariants}
+                        initial="initial"
+                        animate="in"
+                        exit="out"
+                        transition={pageTransition}
+                      >
+                        <WelcomePage />
+                      </m.div>
                     }
                   />
                   <Route
@@ -1093,61 +1089,49 @@ const App: React.FC = () => {
                   <Route
                     path="/forgot-password"
                     element={
-                      user ? (
-                        <Navigate to="/" replace />
-                      ) : (
-                        <Suspense fallback={<LoadingSpinner />}>
-                          <m.div
-                            variants={pageVariants}
-                            initial="initial"
-                            animate="in"
-                            exit="out"
-                            transition={pageTransition}
-                          >
-                            <ForgotPasswordPage />
-                          </m.div>
-                        </Suspense>
-                      )
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <m.div
+                          variants={pageVariants}
+                          initial="initial"
+                          animate="in"
+                          exit="out"
+                          transition={pageTransition}
+                        >
+                          <ForgotPasswordPage />
+                        </m.div>
+                      </Suspense>
                     }
                   />
                   <Route
                     path="/reset-password"
                     element={
-                      user ? (
-                        <Navigate to="/" replace />
-                      ) : (
-                        <Suspense fallback={<LoadingSpinner />}>
-                          <m.div
-                            variants={pageVariants}
-                            initial="initial"
-                            animate="in"
-                            exit="out"
-                            transition={pageTransition}
-                          >
-                            <ResetPasswordLinkPage />
-                          </m.div>
-                        </Suspense>
-                      )
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <m.div
+                          variants={pageVariants}
+                          initial="initial"
+                          animate="in"
+                          exit="out"
+                          transition={pageTransition}
+                        >
+                          <ResetPasswordLinkPage />
+                        </m.div>
+                      </Suspense>
                     }
                   />
                   <Route
                     path="/verify-email"
                     element={
-                      user ? (
-                        <Navigate to="/" replace />
-                      ) : (
-                        <Suspense fallback={<LoadingSpinner />}>
-                          <m.div
-                            variants={pageVariants}
-                            initial="initial"
-                            animate="in"
-                            exit="out"
-                            transition={pageTransition}
-                          >
-                            <EmailVerifyPage />
-                          </m.div>
-                        </Suspense>
-                      )
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <m.div
+                          variants={pageVariants}
+                          initial="initial"
+                          animate="in"
+                          exit="out"
+                          transition={pageTransition}
+                        >
+                          <EmailVerifyPage />
+                        </m.div>
+                      </Suspense>
                     }
                   />
                   <Route
