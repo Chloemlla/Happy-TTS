@@ -28,6 +28,8 @@ api.interceptors.request.use(config => {
     const token = localStorage.getItem('token');
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+        // 保持原始代码的调试日志
+        console.log('设置Authorization头:', `Bearer ${token}`);
     }
     return config;
 });
@@ -50,6 +52,12 @@ export const useAuth = () => {
     const navigate = useNavigate();
     const location = useLocation();
     
+    // 恢复原始代码的状态变量
+    const [isChecking, setIsChecking] = useState(false);
+    const [isAdminChecked, setIsAdminChecked] = useState(false);
+    const [lastCheckTime, setLastCheckTime] = useState(0);
+    const [lastErrorTime, setLastErrorTime] = useState(0);
+
     const checkingRef = useRef(false);
     const lastCheckRef = useRef(0);
     const lastErrorRef = useRef(0);
@@ -59,6 +67,7 @@ export const useAuth = () => {
     const CHECK_INTERVAL = 30000; 
     const ERROR_RETRY_INTERVAL = 60000;
 
+    isAdminCheckedRef.current = isAdminChecked;
     locationPathRef.current = location.pathname;
 
     // 加载保存的账号列表
@@ -79,15 +88,25 @@ export const useAuth = () => {
 
     // 保存账号到列表
     const saveAccount = useCallback((user: User, token: string) => {
-        const stored = localStorage.getItem(ACCOUNTS_KEY);
-        let current: SavedAccount[] = [];
-        if (stored) {
-            try { current = JSON.parse(stored); } catch (e) {}
-        }
+        const current = loadSavedAccounts();
         const filtered = current.filter(a => a.user.id !== user.id);
         const updated = [{ user, token, lastActive: Date.now() }, ...filtered];
         localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(updated));
         setSavedAccounts(updated);
+    }, [loadSavedAccounts]);
+
+    // 恢复原始代码的 getUserById
+    const getUserById = useCallback(async (userId: string): Promise<User> => {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) throw new Error('没有有效的认证token');
+            const response = await api.get<User>(`/api/auth/me`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            return response.data;
+        } catch (error: any) {
+            throw new Error('获取用户信息失败');
+        }
     }, []);
 
     const checkAuth = useCallback(async () => {
@@ -99,44 +118,65 @@ export const useAuth = () => {
         }
 
         checkingRef.current = true;
+        setIsChecking(true);
 
         try {
             const token = localStorage.getItem('token');
             if (!token) {
+                console.log('没有找到token，设置用户为null');
                 setUser(null);
                 setLoading(false);
                 return;
             }
 
+            console.log('检查认证状态，token:', token);
             const response = await api.get<User>('/api/auth/me', {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
-            if (response.data) {
-                const data = response.data;
+            console.log('认证检查响应:', response.status, response.data);
+
+            if (response.status === 401 || response.status === 403) {
+                localStorage.removeItem('token');
+                setUser(null);
+                setLoading(false);
+                return;
+            }
+
+            const data = response.data;
+            if (data) {
                 setUser(data);
-                saveAccount(data, token); // 同步到多账号列表
+                saveAccount(data, token);
                 
+                // 恢复原始重定向逻辑
                 if (data.role === 'admin' && !isAdminCheckedRef.current) {
-                    isAdminCheckedRef.current = true;
+                    console.log('检测到管理员用户，当前路径:', locationPathRef.current);
+                    setIsAdminChecked(true);
                     const excludedPaths = ['/policy', '/welcome', '/admin/users', '/admin/store', '/admin/resources', '/admin/cdks'];
                     if (locationPathRef.current === '/' && !excludedPaths.includes(locationPathRef.current)) {
+                        console.log('重定向到首页');
                         navigate('/', { replace: true });
                     }
                 }
             } else {
+                console.log('认证检查返回空数据，清除用户状态');
                 setUser(null);
                 localStorage.removeItem('token');
             }
             lastCheckRef.current = now;
+            setLastCheckTime(now);
         } catch (error: any) {
             lastErrorRef.current = now;
-            if (error.response?.status !== 429) {
+            setLastErrorTime(now);
+            if (error.response?.status === 429) {
+                console.warn('认证检查被限流，将在60秒后重试');
+            } else {
                 setUser(null);
                 localStorage.removeItem('token');
             }
         } finally {
             setLoading(false);
+            setIsChecking(false);
             checkingRef.current = false;
         }
     }, [saveAccount, navigate]);
@@ -146,7 +186,6 @@ export const useAuth = () => {
         checkAuth();
     }, [loadSavedAccounts, checkAuth]);
 
-    // 切换账号
     const switchAccount = async (userId: string) => {
         const accounts = loadSavedAccounts();
         const target = accounts.find(a => a.user.id === userId);
@@ -159,7 +198,7 @@ export const useAuth = () => {
                 });
                 setUser(response.data);
                 saveAccount(response.data, target.token);
-                isAdminCheckedRef.current = false;
+                setIsAdminChecked(false); // 重置管理员检查状态
                 navigate('/');
             } catch (e) {
                 const updated = accounts.filter(a => a.user.id !== userId);
@@ -185,6 +224,8 @@ export const useAuth = () => {
             
             if (requires2FA && twoFactorType && twoFactorType.length > 0) {
                 setPending2FA({ userId: user.id, type: twoFactorType, username: user.username });
+                // 同时支持旧版的 pendingTOTP
+                if (twoFactorType.includes('totp')) setPendingTOTP({ userId: user.id });
                 return { requires2FA: true, user, token, twoFactorType };
             }
 
@@ -193,24 +234,28 @@ export const useAuth = () => {
                 saveAccount(user, token);
                 setUser(user);
                 lastCheckRef.current = Date.now();
+                setLastCheckTime(Date.now());
             }
             return { requires2FA: false };
         } catch (error: any) {
-            const msg = error.response?.data?.error || error.message || '登录失败';
+            console.error('[login error]', error);
+            const msg = error.response?.data?.error || error.message || '登录失败，请检查网络或稍后重试';
             throw new Error(msg);
         }
     };
 
     const loginWithToken = async (token: string, user: User) => {
-        localStorage.setItem('token', token);
+        if (token) localStorage.setItem('token', token);
         saveAccount(user, token);
         setUser(user);
         lastCheckRef.current = Date.now();
+        setLastCheckTime(Date.now());
     };
 
+    // 恢复原始代码的精细化 verifyTOTP 错误处理
     const verifyTOTP = async (code: string, backupCode?: string) => {
         const userId = pendingTOTP?.userId || pending2FA?.userId;
-        if (!userId) throw new Error('没有待验证的请求');
+        if (!userId) throw new Error('没有待验证的TOTP请求');
         
         try {
             const token = localStorage.getItem('token');
@@ -225,18 +270,33 @@ export const useAuth = () => {
             if (response.data.verified && response.data.token) {
                 const newToken = response.data.token;
                 localStorage.setItem('token', newToken);
-                const userRes = await api.get<User>('/api/auth/me', {
-                    headers: { Authorization: `Bearer ${newToken}` }
-                });
-                setUser(userRes.data);
-                saveAccount(userRes.data, newToken);
+                const userData = await getUserById(userId);
+                setUser(userData);
+                saveAccount(userData, newToken);
                 setPendingTOTP(null);
                 setPending2FA(null);
+                lastCheckRef.current = Date.now();
+                setLastCheckTime(Date.now());
                 return true;
             }
-            throw new Error('验证失败');
+            throw new Error('TOTP验证失败');
         } catch (error: any) {
-            throw new Error(error.response?.data?.error || '验证失败');
+            setPendingTOTP(null);
+            const errorData = error.response?.data;
+            if (error.response?.status === 429) {
+                const remainingTime = Math.ceil((errorData.lockedUntil - Date.now()) / 1000 / 60);
+                throw new Error(`验证尝试次数过多，请${remainingTime}分钟后再试`);
+            } else if (errorData?.remainingAttempts !== undefined) {
+                const remainingAttempts = errorData.remainingAttempts;
+                if (remainingAttempts === 0) {
+                    const remainingTime = Math.ceil((errorData.lockedUntil - Date.now()) / 1000 / 60);
+                    throw new Error(`验证码错误，账户已被锁定，请${remainingTime}分钟后再试`);
+                } else {
+                    throw new Error(`验证码错误，还剩${remainingAttempts}次尝试机会`);
+                }
+            } else {
+                throw new Error(errorData?.error || error.message || 'TOTP验证失败');
+            }
         }
     };
 
@@ -250,8 +310,10 @@ export const useAuth = () => {
             saveAccount(user, token);
             setUser(user);
             lastCheckRef.current = Date.now();
+            setLastCheckTime(Date.now());
         } catch (error: any) {
-            throw new Error(error.response?.data?.error || '注册失败');
+            const msg = error.response?.data?.error || error.message || '注册失败';
+            throw new Error(msg);
         }
     };
 
@@ -267,7 +329,7 @@ export const useAuth = () => {
         setUser(null);
         setPendingTOTP(null);
         setPending2FA(null);
-        isAdminCheckedRef.current = false;
+        setIsAdminChecked(false);
 
         const remaining = loadSavedAccounts();
         if (remaining.length > 0) {
@@ -282,7 +344,7 @@ export const useAuth = () => {
         localStorage.removeItem(ACCOUNTS_KEY);
         setUser(null);
         setSavedAccounts([]);
-        isAdminCheckedRef.current = false;
+        setIsAdminChecked(false);
         navigate('/welcome');
     };
 
@@ -319,6 +381,8 @@ export const useAuth = () => {
         user,
         savedAccounts,
         loading,
+        isChecking,
+        lastCheckTime,
         pendingTOTP,
         pending2FA,
         setPending2FA,
