@@ -238,6 +238,7 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
                    <span className="flex items-center gap-2">
                      <FaUserPlus className={showAccountSwitcher ? 'text-white' : 'text-indigo-500'} /> 
                      {savedAccounts.length > 1 ? '切换与管理账号' : '多账号登录管理'}
+                     <span className="bg-amber-100 text-amber-700 text-[8px] px-1 rounded-sm ml-1 border border-amber-200 font-normal">多用户操作</span>
                    </span>
                    <span className={`${showAccountSwitcher ? 'bg-white/20' : 'bg-indigo-600 text-white'} px-1.5 py-0.5 rounded-md text-[9px]`}>
                      {savedAccounts.length}
@@ -270,7 +271,11 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
                           <div className="text-left overflow-hidden">
                             <p className={`text-xs font-bold truncate ${account.user.id === user.id ? 'text-indigo-600' : 'text-gray-700'}`}>
                               {account.user.username}
-                              {account.user.id === user.id && <span className="ml-2 text-[8px] bg-indigo-100 text-indigo-500 px-1 rounded">当前</span>}
+                              {account.user.id === user.id ? (
+                                <span className="ml-2 text-[8px] bg-indigo-100 text-indigo-500 px-1 rounded">当前</span>
+                              ) : (
+                                <span className="ml-2 text-[8px] bg-amber-50 text-amber-600 px-1 rounded border border-amber-100">多用户操作</span>
+                              )}
                             </p>
                             <p className="text-[9px] text-gray-400 truncate">{account.user.email}</p>
                           </div>
