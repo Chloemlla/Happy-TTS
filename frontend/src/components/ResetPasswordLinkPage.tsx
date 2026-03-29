@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 import { useNotification } from './Notification';
 import { LazyMotion, domAnimation, m, useReducedMotion } from 'framer-motion';
 import { FaVolumeUp, FaLock, FaEye, FaEyeSlash, FaCheckCircle, FaTimesCircle, FaArrowLeft } from 'react-icons/fa';
@@ -102,7 +103,8 @@ export const ResetPasswordLinkPage: React.FC = () => {
             const clientIP = await getClientIP();
             const deviceName = navigator.userAgent || 'unknown';
             const response = await fetch(getApiBaseUrl() + '/api/auth/reset-password-link', {
-                method: 'POST headers: { 'Content-Type': 'application/json' },
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ token, fingerprint, newPassword: sanitizedPassword, clientIP, deviceName }),
             });
 
