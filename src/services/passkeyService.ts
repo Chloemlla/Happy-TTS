@@ -264,7 +264,7 @@ export class PasskeyService {
     if (!user.username) {
       throw new Error("generateRegistrationOptions: user.username 为空");
     }
-    const userAuthenticators = user.passkeyCredentials || [];
+    const userAuthenticators = user?.passkeyCredentials || [];
     let options;
     try {
       // 注意：@simplewebauthn/server 不直接接受 origin 参数
@@ -466,7 +466,7 @@ export class PasskeyService {
     }
 
     await fixUserPasskeyCredentialIDs(user);
-    const userAuthenticators = user.passkeyCredentials || [];
+    const userAuthenticators = user?.passkeyCredentials || [];
 
     if (userAuthenticators.length === 0) {
       throw new Error("用户没有注册的认证器");
@@ -675,7 +675,7 @@ export class PasskeyService {
       throw new Error("认证会话已过期");
     }
 
-    const userAuthenticators = user.passkeyCredentials || [];
+    const userAuthenticators = user?.passkeyCredentials || [];
 
     // 1. 查找匹配的认证器
     const credentialId = response.rawId || response.id;
