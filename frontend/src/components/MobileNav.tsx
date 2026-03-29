@@ -42,7 +42,7 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
   onTOTPManagerOpen,
   totpStatus
 }) => {
-  const { savedAccounts, switchAccount, removeAccountFromList } = useAuth();
+  const { savedAccounts, switchAccount, removeAccountFromList, logoutAll } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -225,45 +225,87 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
                  </button>
                </div>
                
-               {/* 账号切换摘要 */}
-               {savedAccounts.length > 1 && (
+               {/* 账号管理/切换引导 */}
+               <div className="mt-1">
                  <button 
                   onClick={() => setShowAccountSwitcher(!showAccountSwitcher)}
-                  className="w-full flex items-center justify-between px-3 py-2 bg-white/60 hover:bg-white rounded-xl text-xs font-bold text-indigo-600 transition-all border border-indigo-100/50"
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
+                    showAccountSwitcher 
+                    ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm' 
+                    : 'bg-white/60 text-indigo-600 border-indigo-100/50 hover:bg-white hover:shadow-sm'
+                  }`}
                  >
-                   <span className="flex items-center gap-2"><FaExchangeAlt /> 切换账号</span>
-                   <span className="bg-indigo-600 text-white px-1.5 py-0.5 rounded-md text-[9px]">{savedAccounts.length}</span>
+                   <span className="flex items-center gap-2">
+                     <FaUserPlus className={showAccountSwitcher ? 'text-white' : 'text-indigo-500'} /> 
+                     {savedAccounts.length > 1 ? '切换与管理账号' : '多账号登录管理'}
+                   </span>
+                   <span className={`${showAccountSwitcher ? 'bg-white/20' : 'bg-indigo-600 text-white'} px-1.5 py-0.5 rounded-md text-[9px]`}>
+                     {savedAccounts.length}
+                   </span>
                  </button>
-               )}
+               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-3 space-y-4">
               <AnimatePresence>
                 {showAccountSwitcher ? (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="space-y-1 pb-3 border-b border-gray-50 mb-2">
-                    <p className="px-3 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest">选择账号</p>
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0, marginBottom: 0 }} 
+                    animate={{ opacity: 1, height: 'auto', marginBottom: 16 }} 
+                    exit={{ opacity: 0, height: 0, marginBottom: 0 }} 
+                    className="space-y-1 pb-3 border-b border-gray-50 overflow-hidden"
+                  >
+                    <div className="flex items-center justify-between px-3 py-1">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">已保存的账号</p>
+                    </div>
                     {savedAccounts.map(account => (
-                      <div key={account.user.id} className="flex items-center gap-2 group px-2">
+                      <div key={account.user.id} className="flex items-center gap-2 group px-1">
                         <button 
                           onClick={() => switchAccount(account.user.id)}
                           className={`flex-1 flex items-center gap-3 p-2 rounded-xl transition-all ${account.user.id === user.id ? 'bg-indigo-50 border border-indigo-100' : 'hover:bg-gray-50'}`}
                         >
-                          <div className="w-8 h-8 rounded-full bg-gray-100 overflow-hidden flex-shrink-0">
+                          <div className="w-8 h-8 rounded-full bg-gray-100 overflow-hidden flex-shrink-0 border border-gray-200">
                             {account.user.avatarUrl ? <img src={account.user.avatarUrl} alt="" className="w-full h-full object-cover" /> : <FaUser className="p-2 text-gray-400" />}
                           </div>
                           <div className="text-left overflow-hidden">
-                            <p className={`text-xs font-bold truncate ${account.user.id === user.id ? 'text-indigo-600' : 'text-gray-700'}`}>{account.user.username}</p>
+                            <p className={`text-xs font-bold truncate ${account.user.id === user.id ? 'text-indigo-600' : 'text-gray-700'}`}>
+                              {account.user.username}
+                              {account.user.id === user.id && <span className="ml-2 text-[8px] bg-indigo-100 text-indigo-500 px-1 rounded">当前</span>}
+                            </p>
                             <p className="text-[9px] text-gray-400 truncate">{account.user.email}</p>
                           </div>
                         </button>
                         {account.user.id !== user.id && (
-                          <button onClick={() => removeAccountFromList(account.user.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors"><FaTimes size={10} /></button>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if(window.confirm('确定要移除此账号的保存状态吗？')) {
+                                removeAccountFromList(account.user.id);
+                              }
+                            }} 
+                            className="p-2 text-gray-300 hover:text-red-500 transition-colors"
+                            title="移除此账号"
+                          >
+                            <FaTimes size={10} />
+                          </button>
                         )}
                       </div>
                     ))}
-                    <Link to="/login" className="flex items-center gap-3 p-3 mx-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-indigo-50 hover:text-indigo-600 transition-all">
-                      <FaPlusCircle className="text-lg" /> 使用新账号登录
-                    </Link>
+                    <div className="grid grid-cols-2 gap-2 mt-2 px-1">
+                      <Link to="/login" className="flex items-center justify-center gap-2 p-2 rounded-xl text-[11px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-all border border-indigo-100">
+                        <FaPlusCircle /> 添加账号
+                      </Link>
+                      <button 
+                        onClick={() => {
+                          if(window.confirm('确定要退出并清除所有已登录账号的保存状态吗？')) {
+                            logoutAll();
+                          }
+                        }}
+                        className="flex items-center justify-center gap-2 p-2 rounded-xl text-[11px] font-bold text-red-500 bg-red-50 hover:bg-red-100 transition-all border border-red-100"
+                      >
+                        <FaSignOutAlt /> 退出所有
+                      </button>
+                    </div>
                   </motion.div>
                 ) : null}
               </AnimatePresence>
