@@ -5,25 +5,23 @@ import DOMPurify from 'dompurify';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { marked } from 'marked';
-import { markedHighlight } from 'marked-highlight';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/base16/darcula.css';
 
-// 配置 marked 和代码高亮
+// 配置 marked
 marked.use({
   async: true,
   pedantic: false,
   gfm: true,
-});
-
-// 高亮扩展
-marked.use(markedHighlight({
-  langPrefix: 'hljs language-',
-  highlight(code: string, lang: string) {
-    const language = hljs.getLanguage(lang) ? lang : 'shell';
-    return hljs.highlight(code, { language }).value;
+  renderer: {
+    code(token: any) {
+      const { text, lang } = token;
+      const language = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
+      const highlighted = hljs.highlight(text, { language }).value;
+      return `<pre><code class="hljs language-${language}">${highlighted}</code></pre>`;
+    }
   }
-}));
+});
 
 interface ArtifactData {
   shortId: string;
