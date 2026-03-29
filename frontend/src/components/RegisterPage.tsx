@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 import DOMPurify from 'dompurify';
 import { useNotification } from './Notification';
 import { TurnstileWidget } from './TurnstileWidget';
@@ -20,6 +21,7 @@ const ITEM_HOVER = { scale: 1.04 } as const;
 const BUTTON_TAP = { scale: 0.96 } as const;
 
 export const RegisterPage: React.FC = () => {
+    const { user } = useAuth();
     const { setNotification } = useNotification();
     const navigate = useNavigate();
     const { config: turnstileConfig, loading: turnstileConfigLoading } = useTurnstileConfig({ usePublicConfig: true });
@@ -183,6 +185,19 @@ export const RegisterPage: React.FC = () => {
                         </div>
 
                         <div className="px-8 py-8">
+                            {user && (
+                                <m.div 
+                                    initial={{ opacity: 0, y: -10 }} 
+                                    animate={{ opacity: 1, y: 0 }} 
+                                    className="mb-6 p-4 bg-indigo-50 border border-indigo-100 rounded-xl flex items-start gap-3"
+                                >
+                                    <FaUser className="text-indigo-500 mt-1 flex-shrink-0" />
+                                    <div>
+                                        <p className="text-xs font-bold text-indigo-700">您已登录为 {user.username}</p>
+                                        <p className="text-[11px] text-indigo-600/80 mt-0.5">注册新账号将自动添加至此设备的账号列表中，您可以随时切换。</p>
+                                    </div>
+                                </m.div>
+                            )}
                             <form className="space-y-4" onSubmit={handleSubmit} aria-label="注册表单">
                                 {error && <div role="alert" aria-live="assertive" className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{error}</div>}
 
