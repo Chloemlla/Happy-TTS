@@ -8,7 +8,8 @@ import {
   FiSend, FiPlus, FiMessageSquare, FiClock, 
   FiCheckCircle, FiAlertCircle, FiX, FiFilter,
   FiUser, FiTag, FiChevronRight, FiSearch, FiInfo,
-  FiCpu, FiCheck, FiTerminal, FiEdit2, FiTrash2
+  FiCpu, FiCheck, FiTerminal, FiEdit2, FiTrash2,
+  FiRefreshCw
 } from "react-icons/fi";
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
@@ -279,158 +280,188 @@ const TicketSystem: React.FC = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
     >
-      {/* 标题和说明卡片 */}
-      <motion.div
-        className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 sm:p-6 border border-blue-100 shadow-sm"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        <h2 className="text-xl sm:text-2xl font-bold text-blue-700 mb-2 sm:mb-3 flex items-center gap-2">
-          <FiMessageSquare className="text-blue-600" />
-          支持中心
-        </h2>
-        <div className="text-gray-600 space-y-2 text-sm sm:text-base">
-          <p>欢迎使用工单支持系统，我们为您提供专业的问题咨询与反馈服务。</p>
-          <div className="hidden sm:flex items-start gap-2 text-sm">
-            <div>
-              <p className="font-semibold text-blue-700">功能说明：</p>
-              <ul className="list-disc list-inside space-y-1 mt-1">
-                <li>提交技术支持、功能反馈或投诉建议</li>
-                <li>实时查看客服回复并进行双向沟通</li>
-                <li>{isAdmin ? "管理全局工单，支持状态过滤与更新" : "管理个人工单历史，追踪处理进度"}</li>
-              </ul>
+      {/* 标题和说明卡片 - 移动端展开详情时隐藏以节省空间 */}
+      <AnimatePresence>
+        {(!isMobile || !showDetailOnMobile) && (
+          <motion.div
+            className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 sm:p-6 border border-blue-100 shadow-sm"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <h2 className="text-xl sm:text-2xl font-bold text-blue-700 mb-2 sm:mb-3 flex items-center gap-2">
+              <FiMessageSquare className="text-blue-600" />
+              支持中心
+            </h2>
+            <div className="text-gray-600 space-y-2 text-sm sm:text-base">
+              <p>欢迎使用工单支持系统，我们为您提供专业的问题咨询与反馈服务。</p>
+              <div className="hidden sm:flex items-start gap-2 text-sm">
+                <div>
+                  <p className="font-semibold text-blue-700">功能说明：</p>
+                  <ul className="list-disc list-inside space-y-1 mt-1">
+                    <li>提交技术支持、功能反馈或投诉建议</li>
+                    <li>实时查看客服回复并进行双向沟通</li>
+                    <li>{isAdmin ? "管理全局工单，支持状态过滤与更新" : "管理个人工单历史，追踪处理进度"}</li>
+                  </ul>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-[calc(100vh-250px)] min-h-[500px] sm:min-h-[600px]">
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-[calc(100dvh-200px)] lg:h-[600px] xl:h-[750px] min-h-[500px]">
         {/* 左侧列表卡片 */}
-        <motion.div
-          className={`${(isMobile && showDetailOnMobile) ? 'hidden' : 'flex'} lg:w-96 bg-white rounded-xl shadow-sm border border-gray-200 flex-col overflow-hidden w-full`}
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-        >
-          <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-            <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-              <FiFilter className="text-blue-500" />
-              {isAdmin ? "工单广场" : "历史工单"}
-            </h3>
-            {!isAdmin && (
-              <motion.button
-                onClick={() => {
-                  setIsCreating(true);
-                  if (isMobile) setShowDetailOnMobile(true);
-                }}
-                className="p-2 bg-blue-500 text-white rounded-lg shadow-md"
-                whileHover={hoverScale(1.05)}
-                whileTap={tapScale(0.95)}
-              >
-                <FiPlus />
-              </motion.button>
-            )}
-          </div>
-
-          {isAdmin && (
-            <div className="p-3 bg-white border-b border-gray-100 grid grid-cols-2 gap-2">
-              <select 
-                className="text-[10px] sm:text-xs p-2 rounded-lg border-2 border-gray-100 bg-white outline-none focus:ring-2 focus:ring-blue-400 transition-all appearance-none"
-                value={adminFilter.status}
-                onChange={e => setAdminFilter(prev => ({ ...prev, status: e.target.value }))}
-              >
-                <option value="">所有状态</option>
-                <option value="open">待处理</option>
-                <option value="in-progress">处理中</option>
-                <option value="resolved">已解决</option>
-                <option value="closed">已关闭</option>
-              </select>
-              <select 
-                className="text-[10px] sm:text-xs p-2 rounded-lg border-2 border-gray-100 bg-white outline-none focus:ring-2 focus:ring-blue-400 transition-all appearance-none"
-                value={adminFilter.priority}
-                onChange={e => setAdminFilter(prev => ({ ...prev, priority: e.target.value }))}
-              >
-                <option value="">所有优先级</option>
-                <option value="high">高</option>
-                <option value="medium">中</option>
-                <option value="low">低</option>
-              </select>
-            </div>
-          )}
-
-          <div className="flex-1 overflow-y-auto custom-scrollbar">
-            {loading ? (
-              <div className="flex flex-col items-center justify-center p-12 space-y-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                <span className="text-gray-400 text-sm">加载中...</span>
-              </div>
-            ) : tickets.length === 0 ? (
-              <div className="p-12 text-center">
-                <FiInfo className="mx-auto text-gray-200 mb-2" size={32} />
-                <p className="text-gray-400 text-sm">暂无工单数据</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-50">
-                {tickets.map((ticket, idx) => (
-                  <motion.div
-                    key={ticket._id}
+        <AnimatePresence mode="wait">
+          {(!isMobile || !showDetailOnMobile) && (
+            <motion.div
+              key="list"
+              className="lg:w-96 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden w-full h-full"
+              initial={isMobile ? { opacity: 0, x: -20 } : { opacity: 0 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={isMobile ? { opacity: 0, x: -20 } : undefined}
+              transition={{ duration: 0.3 }}
+            >
+              <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center shrink-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+                    <FiFilter className="text-blue-500" />
+                    {isAdmin ? "工单广场" : "历史工单"}
+                  </h3>
+                  <button 
+                    onClick={() => fetchTickets()}
+                    className={`p-1.5 text-gray-400 hover:text-blue-500 transition-colors ${loading ? 'animate-spin text-blue-500' : ''}`}
+                    title="刷新列表"
+                  >
+                    <FiRefreshCw size={14} />
+                  </button>
+                </div>
+                {!isAdmin && (
+                  <motion.button
                     onClick={() => {
-                      setSelectedTicket(ticket);
-                      setIsCreating(false);
+                      setIsCreating(true);
                       if (isMobile) setShowDetailOnMobile(true);
                     }}
-                    className={`p-4 cursor-pointer transition-all duration-200 ${
-                      selectedTicket?._id === ticket._id 
-                        ? "bg-blue-50/50 border-l-4 border-blue-500" 
-                        : "hover:bg-gray-50 border-l-4 border-transparent"
-                    }`}
-                    initial={ROW_INITIAL}
-                    animate={ROW_ANIMATE}
-                    transition={{ duration: 0.3, delay: 0.05 * idx }}
+                    className="p-2.5 bg-blue-500 text-white rounded-xl shadow-md active:scale-95 transition-transform"
+                    whileHover={hoverScale(1.05)}
+                    whileTap={tapScale(0.95)}
                   >
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-semibold text-gray-800 text-sm truncate max-w-[140px] sm:max-w-[180px]">{ticket.title}</h4>
-                      {getPriorityBadge(ticket.priority)}
-                    </div>
-                    <div className="flex items-center justify-between text-[11px] text-gray-500">
-                      <div className="flex items-center gap-1.5">
-                        {getStatusBadge(ticket.status)}
-                      </div>
-                      <span className="font-mono">{new Date(ticket.updatedAt).toLocaleDateString()}</span>
-                    </div>
-                    {isAdmin && (
-                      <div className="mt-2 text-[10px] text-indigo-500 font-medium flex items-center gap-1">
-                        <FiUser size={10} /> {ticket.username}
-                      </div>
-                    )}
-                  </motion.div>
-                ))}
+                    <FiPlus size={20} />
+                  </motion.button>
+                )}
               </div>
-            )}
-          </div>
-        </motion.div>
+
+              {isAdmin && (
+                <div className="p-3 bg-white border-b border-gray-100 grid grid-cols-2 gap-2 shrink-0">
+                  <select 
+                    className="text-xs p-2.5 rounded-lg border-2 border-gray-100 bg-gray-50 outline-none focus:ring-2 focus:ring-blue-400 appearance-none"
+                    value={adminFilter.status}
+                    onChange={e => setAdminFilter(prev => ({ ...prev, status: e.target.value }))}
+                  >
+                    <option value="">所有状态</option>
+                    <option value="open">待处理</option>
+                    <option value="in-progress">处理中</option>
+                    <option value="resolved">已解决</option>
+                    <option value="closed">已关闭</option>
+                  </select>
+                  <select 
+                    className="text-xs p-2.5 rounded-lg border-2 border-gray-100 bg-gray-50 outline-none focus:ring-2 focus:ring-blue-400 appearance-none"
+                    value={adminFilter.priority}
+                    onChange={e => setAdminFilter(prev => ({ ...prev, priority: e.target.value }))}
+                  >
+                    <option value="">所有优先级</option>
+                    <option value="high">高</option>
+                    <option value="medium">中</option>
+                    <option value="low">低</option>
+                  </select>
+                </div>
+              )}
+
+              <div className="flex-1 overflow-y-auto custom-scrollbar">
+                {loading ? (
+                  <div className="flex flex-col items-center justify-center p-12 space-y-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                    <span className="text-gray-400 text-sm">加载中...</span>
+                  </div>
+                ) : tickets.length === 0 ? (
+                  <div className="p-12 text-center">
+                    <FiInfo className="mx-auto text-gray-200 mb-2" size={32} />
+                    <p className="text-gray-400 text-sm">暂无工单数据</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-50">
+                    {tickets.map((ticket, idx) => (
+                      <motion.div
+                        key={ticket._id}
+                        onClick={() => {
+                          setSelectedTicket(ticket);
+                          setIsCreating(false);
+                          if (isMobile) setShowDetailOnMobile(true);
+                        }}
+                        className={`p-3 sm:p-4 cursor-pointer transition-all duration-200 ${
+                          selectedTicket?._id === ticket._id 
+                            ? "bg-blue-50/50 border-l-4 border-blue-500" 
+                            : "hover:bg-gray-50 border-l-4 border-transparent active:bg-gray-100"
+                        }`}
+                        initial={ROW_INITIAL}
+                        animate={ROW_ANIMATE}
+                        transition={{ duration: 0.2, delay: 0.03 * idx }}
+                      >
+                        <div className="flex justify-between items-start mb-1 sm:mb-2">
+                          <h4 className="font-semibold text-gray-800 text-xs sm:text-sm truncate max-w-[180px] sm:max-w-[200px]">{ticket.title}</h4>
+                          {getPriorityBadge(ticket.priority)}
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] sm:text-[11px] text-gray-500">
+                          <div className="flex items-center gap-1.5">
+                            {getStatusBadge(ticket.status)}
+                          </div>
+                          <span className="font-mono">{new Date(ticket.updatedAt).toLocaleDateString()}</span>
+                        </div>
+                        {isAdmin && (
+                          <div className="mt-2 text-[10px] text-indigo-500 font-medium flex items-center gap-1">
+                            <FiUser size={10} /> {ticket.username}
+                          </div>
+                        )}
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* 右侧内容卡片 */}
-        <motion.div
-          className={`${(isMobile && !showDetailOnMobile) ? 'hidden' : 'flex'} flex-1 bg-white rounded-xl shadow-sm border border-gray-200 flex-col overflow-hidden relative w-full`}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6, delay: 0.3 }}
-        >
-          {isMobile && showDetailOnMobile && (
-            <div className="p-2 border-b border-gray-100 bg-white">
-              <button 
-                onClick={() => setShowDetailOnMobile(false)}
-                className="flex items-center gap-1 text-sm text-blue-600 font-bold px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-all"
-              >
-                <FiChevronRight className="rotate-180" /> 返回工单列表
-              </button>
-            </div>
-          )}
+        <AnimatePresence mode="wait">
+          {(!isMobile || showDetailOnMobile) && (
+            <motion.div
+              key="detail-container"
+              className="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden relative w-full h-full"
+              initial={isMobile ? { opacity: 0, x: 20 } : { opacity: 0 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={isMobile ? { opacity: 0, x: 20 } : undefined}
+              transition={{ duration: 0.3 }}
+            >
+              {isMobile && (showDetailOnMobile || isCreating) && (
+                <div className="p-3 border-b border-gray-100 bg-white sticky top-0 z-20 flex items-center justify-between shrink-0 shadow-sm">
+                  <button 
+                    onClick={() => {
+                      setShowDetailOnMobile(false);
+                      setIsCreating(false);
+                    }}
+                    className="flex items-center gap-1.5 text-sm text-blue-600 font-bold px-3 py-2 rounded-xl bg-blue-50 active:bg-blue-100 transition-all"
+                  >
+                    <FiChevronRight className="rotate-180" size={18} /> 返回
+                  </button>
+                  <div className="text-xs font-bold text-gray-400 truncate max-w-[150px] px-2">
+                    {isCreating ? "发起新工单" : selectedTicket?.title}
+                  </div>
+                </div>
+              )}
 
-          <AnimatePresence mode="wait">
-            {isCreating ? (
+              <AnimatePresence mode="wait">
+                {isCreating ? (
               <motion.div
                 key="create"
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -737,6 +768,8 @@ const TicketSystem: React.FC = () => {
             )}
           </AnimatePresence>
         </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* 实时处理进度全局浮窗 (用于新工单或回复后的进度反馈) */}
