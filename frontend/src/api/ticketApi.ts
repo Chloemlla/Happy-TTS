@@ -2,8 +2,9 @@ import { api } from "./api";
 
 export interface ITicketMessage {
   senderId: string;
-  senderRole: "user" | "admin";
+  senderRole: "user" | "admin" | "ai";
   content: string;
+  isAi?: boolean;
   createdAt: string;
 }
 

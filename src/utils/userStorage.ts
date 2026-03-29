@@ -80,6 +80,9 @@ export interface User {
   // 上次登录IP和时间（用于异地登录检测）
   lastLoginIp?: string;
   lastLoginAt?: string;
+  // 工单违规处罚相关
+  ticketViolationCount?: number;
+  ticketBannedUntil?: string; // ISO 日期字符串
 }
 
 // 获取 MySQL 连接
