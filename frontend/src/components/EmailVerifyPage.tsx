@@ -1,12 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { useNotification } from './Notification';
-import { FaVolumeUp, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
-import getApiBaseUrl from '../api';
-import { getFingerprint } from '../utils/fingerprint';
-
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from './Notification';
 import { FaVolumeUp, FaCheckCircle, FaTimesCircle, FaUser, FaInfoCircle } from 'react-icons/fa';
@@ -185,8 +178,5 @@ export const EmailVerifyPage: React.FC = () => {
         </div>
     );
 };
-
-export default EmailVerifyPage;
-
 
 export default EmailVerifyPage;
