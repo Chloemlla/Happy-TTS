@@ -103,16 +103,8 @@ api.interceptors.response.use(
 
         // 处理 401 错误（未授权）
         if (error.response?.status === 401) {
-            // 检查当前是否在 /librechat 路由下
-            // 避免在 /welcome 路由下重复重定向
-            if (
-                !window.location.pathname.startsWith('/librechat') &&
-                window.location.pathname !== '/welcome'
-            ) {
-                localStorage.removeItem('token');
-                window.location.href = '/welcome';
-            }
-            // /librechat 或 /welcome 路由下不做跳转
+            // 不再自动重定向到 /welcome，由组件自行处理未授权状态
+            localStorage.removeItem('token');
             return Promise.reject(error);
         }
 

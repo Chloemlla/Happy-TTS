@@ -10,7 +10,7 @@ import PasskeyVerifyModal from './PasskeyVerifyModal';
 import TOTPVerification from './TOTPVerification';
 import VerificationMethodSelector from './VerificationMethodSelector';
 import { LazyMotion, domAnimation, m, useReducedMotion } from 'framer-motion';
-import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaFingerprint, FaVolumeUp, FaArrowLeft, FaQuestionCircle, FaChevronDown, FaChevronUp, FaShieldAlt, FaBolt, FaMobileAlt } from 'react-icons/fa';
+import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaFingerprint, FaVolumeUp, FaArrowLeft, FaQuestionCircle, FaChevronDown, FaChevronUp, FaShieldAlt, FaBolt, FaMobileAlt, FaUser } from 'react-icons/fa';
 
 const NO_TRANSITION = { duration: 0 } as const;
 const FADE_VARIANTS = { hidden: { opacity: 0 }, visible: { opacity: 1 } } as const;
