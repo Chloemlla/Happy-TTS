@@ -1,4 +1,4 @@
-import { type RequestHandler, Router } from "express";
+import { type Request, type Response, type RequestHandler, Router } from "express";
 import rateLimit from "express-rate-limit";
 import { config } from "../config/config";
 import { TOTPController } from "../controllers/totpController";

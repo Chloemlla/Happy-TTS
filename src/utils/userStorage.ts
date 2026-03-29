@@ -1209,7 +1209,7 @@ export class UserStorage {
       await userService.updateUser(userId, { dailyUsage, lastUsageDate: new Date().toISOString() });
 
       // 发送用量警报邮件
-      if (user.email && user.role !== "admin") {
+      if (user.email && (user.role as string) !== "admin") {
         const usagePercent = (dailyUsage / UserStorage.DAILY_LIMIT) * 100;
         if (usagePercent === 80 || usagePercent === 100) {
           try {
@@ -1259,7 +1259,7 @@ export class UserStorage {
         ]);
 
         // 发送用量警报邮件
-        if (user.email && user.role !== "admin") {
+        if (user.email && (user.role as string) !== "admin") {
           const usagePercent = (dailyUsage / UserStorage.DAILY_LIMIT) * 100;
           if (usagePercent === 80 || usagePercent === 100) {
             try {
@@ -1307,7 +1307,7 @@ export class UserStorage {
       UserStorage.writeUsers(users);
 
       // 发送用量警报邮件
-      if (user.email && user.role !== "admin") {
+      if (user.email && (user.role as string) !== "admin") {
         const usagePercent = (user.dailyUsage / UserStorage.DAILY_LIMIT) * 100;
         if (usagePercent === 80 || usagePercent === 100) {
           try {
