@@ -86,7 +86,18 @@ const TicketSystem: React.FC = () => {
     // 处理工单更新
     if (msg.type === "ticket:update") {
       const updatedTicket = msg.data;
-      setTickets(prev => prev.map(t => t._id === updatedTicket._id ? updatedTicket : t));
+      setTickets(prev => {
+        const index = prev.findIndex(t => t._id === updatedTicket._id);
+        if (index !== -1) {
+          const next = [...prev];
+          next[index] = updatedTicket;
+          return next;
+        }
+        // 新工单：插入到列表最前面
+        return [updatedTicket, ...prev];
+      });
+      
+      // 如果更新的是当前选中的工单，同步更新它
       setSelectedTicket(prev => prev?._id === updatedTicket._id ? updatedTicket : prev);
       
       // 收到正式更新，清除处理状态
@@ -186,11 +197,12 @@ const TicketSystem: React.FC = () => {
   const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await ticketApi.createTicket(newTicket);
+      const created = await ticketApi.createTicket(newTicket);
       setNotification({ type: 'success', message: "工单已提交" });
       setIsCreating(false);
       setShowDetailOnMobile(false);
       setNewTicket({ title: "", description: "", priority: "medium" });
+      setSelectedTicket(created);
       fetchTickets();
     } catch (error: any) {
       if (error.response?.status === 403) {
@@ -606,7 +618,7 @@ const TicketSystem: React.FC = () => {
                                 </div>
                               </div>
                             ) : (
-                              <MarkdownMessage content={msg.content} isDark={isMe || isAi} />
+                              <MarkdownMessage content={msg.content} isDark={isMe} />
                             )}
 
                             {/* 管理员操作按钮 (仅限管理员，且非编辑模式) */}
