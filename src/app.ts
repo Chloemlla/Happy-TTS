@@ -489,17 +489,17 @@ const preferSwaggerUrl =
   !!process.env.OPENAPI_JSON_PATH || fs.existsSync("/app/openapi.json");
 
 app.get("/api-docs/favicon-32x32.png", (_req: Request, res: Response) => {
-  res.redirect(302, "https://cy-pic.kuaizhan.com/g3/bf/6b/e222-0387-46c3-8276-c34a308863b106?cysign=0a8bf04f93a65b72d478b5e490ad177f&cyt=1774775612");
+  res.redirect(302, "https://picui.ogmua.cn/s1/2026/03/29/69c8f6226a17c.webp");
 });
 app.get("/api-docs/favicon-16x16.png", (_req: Request, res: Response) => {
-  res.redirect(302, "https://cy-pic.kuaizhan.com/g3/bf/6b/e222-0387-46c3-8276-c34a308863b106?cysign=0a8bf04f93a65b72d478b5e490ad177f&cyt=1774775612");
+  res.redirect(302, "https://picui.ogmua.cn/s1/2026/03/29/69c8f6226a17c.webp");
 });
 
 const swaggerCustomCss = `
   .swagger-ui .topbar .link img,
   .swagger-ui .topbar .link svg { display: none !important; }
   .swagger-ui .topbar .link {
-    background-image: url('https://cy-pic.kuaizhan.com/g3/bf/6b/e222-0387-46c3-8276-c34a308863b106?cysign=0a8bf04f93a65b72d478b5e490ad177f&cyt=1774775612');
+    background-image: url('https://picui.ogmua.cn/s1/2026/03/29/69c8f6226a17c.webp');
     background-repeat: no-repeat;
     background-position: left center;
     background-size: auto 40px;
@@ -655,7 +655,7 @@ app.get("/", rootLimiter, (_req, res) => {
 });
 
 app.get("/favicon.ico", (_req, res) => {
-  res.redirect(302, "https://cy-pic.kuaizhan.com/g3/bf/6b/e222-0387-46c3-8276-c34a308863b106?cysign=0a8bf04f93a65b72d478b5e490ad177f&cyt=1774775612");
+  res.redirect(302, "https://picui.ogmua.cn/s1/2026/03/29/69c8f6226a17c.webp");
 });
 
 // 兼容旧路径

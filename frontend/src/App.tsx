@@ -960,19 +960,16 @@ const App: React.FC = () => {
                     data-protection="brand-identity"
                     data-critical-text="Synapse"
                   >
-                    <m.svg
+                    <m.img
                       id="app-brand-icon"
-                      className="w-8 h-8 text-indigo-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      animate={{ rotate: [0, 10, -10, 0] }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                      className="w-8 h-8 rounded-lg shadow-sm"
+                      src="https://picui.ogmua.cn/s1/2026/03/29/69c8f6226a17c.webp"
+                      alt="Synapse Logo"
+                      animate={{ rotate: [0, 5, -5, 0] }}
+                      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                       data-integrity="critical"
                       data-protection="brand-icon"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                    </m.svg>
+                    />
                     <Link
                       id="app-brand-text"
                       to="/"

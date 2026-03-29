@@ -284,8 +284,7 @@ export class PasskeyService {
         excludeCredentials: userAuthenticators.map(
           (authenticator) =>
             ({
-              // ensure id is ArrayBuffer/Buffer for correct client options
-              id: Buffer.from(authenticator.credentialID, "base64url"),
+              id: authenticator.credentialID,
               type: "public-key",
               transports: ["internal"],
             }) as any
