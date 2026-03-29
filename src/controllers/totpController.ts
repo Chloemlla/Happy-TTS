@@ -1,3 +1,8 @@
+import type { Request, Response } from "express";
+import { TOTPService } from "../services/totpService";
+import logger from "../utils/logger";
+import { TOTPDebugger } from "../utils/totpDebugger";
+import { UserStorage } from "../utils/userStorage";
 import {
   generateAccountLockedEmailHtml,
   generateBackupCodeUsedEmailHtml,
