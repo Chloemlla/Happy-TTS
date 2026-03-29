@@ -79,6 +79,8 @@ async function generateAiTicketResponse(ticket: any) {
         wsService.notifyTicketUpdate(ticket.userId, ticket);
       }
     } catch (err) {
+      // 进度推送：AI 出错
+      wsService.notifyTicketProcess(ticket.userId, ticketId, "error");
       logger.error("生成工单 AI 回复失败:", err);
     }
   } catch (error) {
@@ -112,6 +114,9 @@ export const ticketController = {
       const isDescViolated = await ModerationService.checkContentWithAi(description);
 
       if (isTitleViolated || isDescViolated) {
+        // 推送进度：审核失败
+        wsService.notifyTicketProcess(userObj.id, "new", "audit_failed");
+
         const titleReason = isTitleViolated ? await ModerationService.getAiViolationReason(title) : "";
         const descReason = isDescViolated ? await ModerationService.getAiViolationReason(description) : "";
         

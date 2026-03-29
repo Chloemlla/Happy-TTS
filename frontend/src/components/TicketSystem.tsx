@@ -17,7 +17,7 @@ import hljs from 'highlight.js';
 import 'highlight.js/styles/github-dark.css';
 
 // 工单处理细分状态类型
-type TicketProcessStep = "audit_start" | "audit_passed" | "ai_start" | "ai_complete" | "saving";
+type TicketProcessStep = "audit_start" | "audit_passed" | "ai_start" | "ai_complete" | "saving" | "audit_failed" | "error";
 
 // 配置 marked
 marked.use({
@@ -84,6 +84,21 @@ const TicketSystem: React.FC = () => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prefersReducedMotion = useReducedMotion();
+
+  // 自动清理卡住或结束的进度指示器
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (processingStep) {
+      // 如果进入了结束/失败状态，缩短消失时间
+      const isEnding = ["ai_complete", "audit_failed", "error"].includes(processingStep);
+      timer = setTimeout(() => {
+        setProcessingStep(null);
+      }, isEnding ? 3000 : 20000); // 正常处理 20s 超时，结束状态 3s 消失
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [processingStep]);
 
   // WebSocket 实时监听
   const onMessage = useCallback((msg: WsServerMessage) => {
@@ -823,18 +838,34 @@ const TicketSystem: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9, transition: { duration: 0.2 } }}
             className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[60] w-[90%] max-w-md"
           >
-            <div className="bg-white/90 backdrop-blur-md border border-indigo-100 rounded-2xl p-4 shadow-2xl flex items-center gap-4 border-l-4 border-l-indigo-500">
+            <div className={`bg-white/95 backdrop-blur-md border rounded-2xl p-4 shadow-2xl flex items-center gap-4 border-l-4 group transition-colors ${
+              processingStep === 'audit_failed' || processingStep === 'error' 
+                ? 'border-red-500 border-l-red-500' 
+                : 'border-indigo-100 border-l-indigo-500'
+            }`}>
               <div className="flex gap-1">
-                <span className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce"></span>
-                <span className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce delay-75"></span>
-                <span className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce delay-150"></span>
+                {processingStep === 'audit_failed' || processingStep === 'error' ? (
+                  <FiAlertCircle className="text-red-500 animate-pulse" size={18} />
+                ) : (
+                  <>
+                    <span className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce"></span>
+                    <span className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce delay-75"></span>
+                    <span className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce delay-150"></span>
+                  </>
+                )}
               </div>
               <div className="flex-1">
-                <div className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-0.5">Processing</div>
-                <div className="text-sm font-semibold text-indigo-700 flex items-center gap-2">
+                <div className={`text-[10px] font-bold uppercase tracking-wider mb-0.5 ${
+                  processingStep === 'audit_failed' || processingStep === 'error' ? 'text-red-400' : 'text-indigo-400'
+                }`}>
+                  {processingStep === 'audit_failed' || processingStep === 'error' ? 'Failed' : 'Processing'}
+                </div>
+                <div className={`text-sm font-semibold flex items-center gap-2 ${
+                  processingStep === 'audit_failed' || processingStep === 'error' ? 'text-red-700' : 'text-indigo-700'
+                }`}>
                   {processingStep === "audit_start" && (
                     <><FiSearch className="animate-pulse" /> AI 正在进行安全与合规性审查...</>
                   )}
@@ -850,11 +881,32 @@ const TicketSystem: React.FC = () => {
                   {processingStep === "saving" && (
                     <><FiTerminal className="text-blue-500" /> 正在同步至云端存储...</>
                   )}
+                  {processingStep === "audit_failed" && (
+                    <><FiX className="text-red-500" /> 内容未通过 AI 审查...</>
+                  )}
+                  {processingStep === "error" && (
+                    <><FiAlertCircle className="text-red-500" /> 处理过程中发生错误...</>
+                  )}
                 </div>
               </div>
-              <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center">
-                <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-              </div>
+              
+              <button 
+                onClick={() => setProcessingStep(null)}
+                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                  processingStep === 'audit_failed' || processingStep === 'error' 
+                    ? 'bg-red-50 hover:bg-red-100' 
+                    : 'bg-indigo-50 hover:bg-indigo-100'
+                }`}
+              >
+                {["ai_complete", "audit_failed", "error"].includes(processingStep) ? (
+                  <FiX className={processingStep === 'ai_complete' ? 'text-indigo-600' : 'text-red-600'} size={14} />
+                ) : (
+                  <>
+                    <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin group-hover:hidden"></div>
+                    <FiX className="hidden group-hover:block text-indigo-600" size={14} />
+                  </>
+                )}
+              </button>
             </div>
           </motion.div>
         )}

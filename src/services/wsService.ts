@@ -23,7 +23,7 @@ export interface WsServerMessage {
 }
 
 /** 工单处理细分状态 */
-export type TicketProcessStep = "audit_start" | "audit_passed" | "ai_start" | "ai_complete" | "saving";
+export type TicketProcessStep = "audit_start" | "audit_passed" | "ai_start" | "ai_complete" | "saving" | "audit_failed" | "error";
 
 interface WsClient {
   ws: WebSocket;
