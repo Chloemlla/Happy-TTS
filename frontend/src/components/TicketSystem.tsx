@@ -25,8 +25,8 @@ const TicketSystem: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prefersReducedMotion = useReducedMotion();
 
-  // 确保 isAdmin 判定准确，兼容可能的多种 role 格式
-  const isAdmin = user?.role === "admin";
+  // 确保 isAdmin 判定准确，增加对大小写和空格的容错
+  const isAdmin = user?.role?.toLowerCase().trim() === "admin";
 
   const hoverScale = useCallback((scale: number, enabled: boolean = true) => (
     enabled && !prefersReducedMotion ? { scale } : undefined

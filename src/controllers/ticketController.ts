@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
-import { TicketModel } from "../models/ticketModel";
-import { NexaiUserModel, INexaiUser } from "../models/nexaiUserModel";
+import { TicketModel, ITicket } from "../models/ticketModel";
+import { UserStorage, User as UserType } from "../utils/userStorage";
 import { EmailService, DEFAULT_EMAIL_FROM } from "../services/emailService";
 import * as emailTemplates from "../templates/emailTemplates";
 import logger from "../utils/logger";
@@ -36,8 +36,9 @@ export const ticketController = {
       // 异步发送邮件通知给管理员
       (async () => {
         try {
-          const admins = await NexaiUserModel.find({ role: "admin" }) as INexaiUser[];
-          const adminEmails = admins.map((a: INexaiUser) => a.email).filter(Boolean);
+          const allUsers = await UserStorage.getAllUsers();
+          const admins = allUsers.filter(u => u.role === "admin");
+          const adminEmails = admins.map(a => a.email).filter(Boolean);
           
           if (adminEmails.length > 0) {
             const html = emailTemplates.generateTicketCreatedEmailHtml(
@@ -81,13 +82,14 @@ export const ticketController = {
       const { id } = req.params;
       const user = (req as any).user;
 
-      const ticket = await TicketModel.findById(id);
+      const ticket = await TicketModel.findById(id) as ITicket | null;
       if (!ticket) {
         return res.status(404).json({ error: "工单不存在" });
       }
 
       // 权限检查
-      if (ticket.userId !== user.id && user.role !== "admin") {
+      const isAdmin = user.role?.toLowerCase().trim() === "admin";
+      if (ticket.userId !== user.id && !isAdmin) {
         return res.status(403).json({ error: "无权访问此工单" });
       }
 
@@ -115,12 +117,13 @@ export const ticketController = {
       }
 
       // 权限检查
-      if (ticket.userId !== user.id && user.role !== "admin") {
+      const isAdmin = user.role?.toLowerCase().trim() === "admin";
+      if (ticket.userId !== user.id && !isAdmin) {
         return res.status(403).json({ error: "无权回复此工单" });
       }
 
       // 添加消息
-      const senderRole = user.role === "admin" ? "admin" : "user";
+      const senderRole = isAdmin ? "admin" : "user";
       ticket.messages.push({
         senderId: user.id,
         senderRole,
@@ -139,7 +142,7 @@ export const ticketController = {
       if (senderRole === "admin") {
         (async () => {
           try {
-            const ticketUser = await NexaiUserModel.findOne({ id: ticket.userId }) as INexaiUser | null;
+            const ticketUser = await UserStorage.getUserById(ticket.userId);
             if (ticketUser && ticketUser.email) {
               const html = emailTemplates.generateFeedbackRepliedEmailHtml(
                 ticketUser.username,
@@ -162,8 +165,9 @@ export const ticketController = {
         // 如果是用户回复，通知管理员
         (async () => {
           try {
-            const admins = await NexaiUserModel.find({ role: "admin" }) as INexaiUser[];
-            const adminEmails = admins.map((a: INexaiUser) => a.email).filter(Boolean);
+            const allUsers = await UserStorage.getAllUsers();
+            const admins = allUsers.filter(u => u.role === "admin");
+            const adminEmails = admins.map(a => a.email).filter(Boolean);
             if (adminEmails.length > 0) {
               const html = emailTemplates.generateFeedbackRepliedEmailHtml(
                 "管理员",
@@ -191,8 +195,8 @@ export const ticketController = {
     try {
       const { status, priority } = req.query;
       const query: any = {};
-      if (typeof status === 'string') query.status = status;
-      if (typeof priority === 'string') query.priority = priority;
+      if (typeof status === 'string' && status) query.status = status;
+      if (typeof priority === 'string' && priority) query.priority = priority;
 
       const tickets = await TicketModel.find(query).sort({ updatedAt: -1 });
       res.json(tickets);
@@ -225,7 +229,7 @@ export const ticketController = {
       // 异步发送状态变更通知给用户
       (async () => {
         try {
-          const ticketUser = await NexaiUserModel.findOne({ id: ticket.userId }) as INexaiUser | null;
+          const ticketUser = await UserStorage.getUserById(ticket.userId);
           if (ticketUser && ticketUser.email) {
             const html = emailTemplates.generateTicketStatusChangedEmailHtml(
               ticketUser.username,
