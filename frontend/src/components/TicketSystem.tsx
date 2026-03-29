@@ -577,7 +577,7 @@ const TicketSystem: React.FC = () => {
                           <div className={`flex items-center gap-2 mb-1 text-[10px] text-gray-400 ${isMe ? 'justify-end' : 'justify-start'}`}>
                             {!isMe && (
                               <span className={`font-bold ${isAdminMsg ? 'text-blue-600' : 'text-gray-500'}`}>
-                                {isAi ? "🤖 智能助手" : isAdminMsg ? "𝓞𝒻𝒻𝒾𝒸𝒾𝒶𝓁 𝓒𝓊𝓈𝓉ℴ𝓂ℯ𝓇 𝓢ℯ𝓇𝓋𝒾𝒸ℯ 𝓡ℯ𝓅𝓇ℯ𝓈ℯ𝓃𝓉𝒶𝓉𝒾𝓋ℯ" : "👤 用户"}
+                                {isAi ? "🤖 智能助手" : isAdminMsg ? "Official Customer Service" : "👤 用户"}
                               </span>
                             )}
                             <span>{new Date(msg.createdAt).toLocaleString()}</span>
