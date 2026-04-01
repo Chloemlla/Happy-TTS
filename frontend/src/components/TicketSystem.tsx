@@ -11,50 +11,74 @@ import {
   FiCpu, FiCheck, FiTerminal, FiEdit2, FiTrash2,
   FiRefreshCw
 } from "react-icons/fi";
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
-import hljs from 'highlight.js';
-import 'highlight.js/styles/github-dark.css';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import 'katex/dist/katex.min.css';
 
 // 工单处理细分状态类型
 type TicketProcessStep = "audit_start" | "audit_passed" | "ai_start" | "ai_complete" | "saving" | "audit_failed" | "error";
-
-// 配置 marked
-marked.use({
-  async: true,
-  pedantic: false,
-  gfm: true,
-  renderer: {
-    code({ text, lang }: { text: string; lang?: string }) {
-      const language = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
-      const highlighted = hljs.highlight(text, { language }).value;
-      return `<pre class="bg-gray-900 text-gray-100 rounded-lg p-3 my-2 overflow-x-auto"><code class="hljs language-${language}">${highlighted}</code></pre>`;
-    }
-  }
-});
 
 const ROW_INITIAL = { opacity: 0, x: -20 } as const;
 const ROW_ANIMATE = { opacity: 1, x: 0 } as const;
 
 // Markdown 消息渲染组件
 const MarkdownMessage: React.FC<{ content: string, isDark?: boolean }> = ({ content, isDark }) => {
-  const [html, setHtml] = useState("");
-
-  useEffect(() => {
-    const renderMarkdown = async () => {
-      const parsed = await marked.parse(content);
-      setHtml(DOMPurify.sanitize(parsed));
-    };
-    renderMarkdown();
-  }, [content]);
-
   return (
     <div 
       className={`prose prose-sm max-w-none break-words ${isDark ? 'prose-invert text-white' : 'text-gray-800'} 
-        prose-pre:bg-gray-900 prose-pre:p-0 prose-code:bg-gray-100 prose-code:text-pink-600 
-        prose-code:px-1 prose-code:rounded prose-headings:text-inherit prose-strong:text-inherit`}
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+        prose-pre:bg-transparent prose-pre:p-0 prose-pre:m-0
+        prose-code:bg-gray-100/50 prose-code:text-pink-600 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none
+        prose-headings:text-inherit prose-strong:text-inherit prose-a:text-blue-500 hover:prose-a:underline`}
+    >
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[rehypeKatex]}
+        components={{
+          code({ node, inline, className, children, ...props }: any) {
+            const match = /language-(\w+)/.exec(className || '');
+            return !inline && match ? (
+              <div className="my-4 rounded-xl overflow-hidden shadow-lg border border-gray-700/50">
+                <div className="bg-gray-800 px-4 py-2 text-gray-400 text-[10px] flex justify-between items-center border-b border-gray-700/30 font-mono">
+                  <span className="uppercase tracking-wider font-bold">{match[1]}</span>
+                  <div className="flex gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-red-500/50"></span>
+                    <span className="w-2 h-2 rounded-full bg-yellow-500/50"></span>
+                    <span className="w-2 h-2 rounded-full bg-green-500/50"></span>
+                  </div>
+                </div>
+                <SyntaxHighlighter
+                  {...props}
+                  style={vscDarkPlus}
+                  language={match[1]}
+                  PreTag="div"
+                  className="!m-0 !bg-gray-900 !p-4"
+                  customStyle={{ 
+                    fontSize: '12px',
+                    lineHeight: '1.6',
+                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
+                  }}
+                >
+                  {String(children).replace(/\n$/, '')}
+                </SyntaxHighlighter>
+              </div>
+            ) : (
+              <code className={className} {...props}>
+                {children}
+              </code>
+            );
+          },
+          a: ({ node, ...props }) => (
+            <a target="_blank" rel="noopener noreferrer" {...props} />
+          )
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
   );
 };
 

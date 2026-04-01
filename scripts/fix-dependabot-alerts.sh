@@ -32,9 +32,12 @@ echo "✅ Root done"
 
 # 2. frontend
 echo ""
-echo "[2/3] frontend: upgrading vulnerable packages..."
+echo "[2/3] frontend: upgrading vulnerable packages and installing markdown plugins..."
 cd frontend
 pnpm update flatted picomatch brace-expansion --depth Infinity || pnpm update flatted picomatch brace-expansion
+echo "Installing react-markdown and plugins..."
+pnpm add react-markdown react-syntax-highlighter remark-gfm remark-math rehype-katex
+pnpm add -D @types/react-syntax-highlighter
 pnpm install --no-frozen-lockfile
 cd ..
 echo "✅ frontend done"
