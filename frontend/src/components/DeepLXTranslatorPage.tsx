@@ -60,6 +60,9 @@ const QUICK_PHRASES = [
   '请将技术文档翻译成适合产品页面展示的语言。',
 ];
 
+const SOURCE_HOT_LANGUAGES = LANGUAGES.slice(0, 6);
+const TARGET_HOT_LANGUAGES = LANGUAGES.filter((item) => item.code !== AUTO_LANGUAGE_CODE).slice(0, 6);
+
 function getLanguageByCode(code: string): LanguageOption | undefined {
   return LANGUAGES.find((item) => item.code === code);
 }
@@ -326,18 +329,39 @@ export const DeepLXTranslatorPage: React.FC = () => {
     [autoTranslate],
   );
 
+  const statusCards = useMemo(
+    () => [
+      {
+        label: 'Status',
+        value: configLoading ? '读取中…' : config?.enabled ? '服务可用' : '等待配置',
+        tone: 'border-sky-100 bg-[linear-gradient(145deg,rgba(240,249,255,0.94),rgba(255,255,255,0.98))]',
+      },
+      {
+        label: 'Mode',
+        value: autoTranslate ? '自动翻译' : '手动翻译',
+        tone: 'border-violet-100 bg-[linear-gradient(145deg,rgba(245,243,255,0.94),rgba(255,255,255,0.98))]',
+      },
+      {
+        label: 'Direction',
+        value: `${sourceLanguageLabel} → ${targetLanguageLabel}`,
+        tone: 'border-emerald-100 bg-[linear-gradient(145deg,rgba(236,253,245,0.94),rgba(255,255,255,0.98))]',
+      },
+    ],
+    [autoTranslate, config?.enabled, configLoading, sourceLanguageLabel, targetLanguageLabel],
+  );
+
   const pageFont = '"Avenir Next","PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif';
   const displayFont = '"Iowan Old Style","Noto Serif SC","Source Han Serif SC",serif';
 
   if (user?.isTranslationEnabled === false) {
     return (
-      <div className="min-h-screen bg-slate-100 px-4 py-16" style={{ fontFamily: pageFont }}>
-        <div className="mx-auto max-w-3xl rounded-[32px] border border-rose-100 bg-white p-10 text-center shadow-xl">
+      <div className="min-h-screen bg-slate-100 px-4 py-10 sm:px-6 sm:py-16" style={{ fontFamily: pageFont }}>
+        <div className="mx-auto max-w-3xl rounded-[28px] border border-rose-100 bg-white p-6 text-center shadow-xl sm:rounded-[32px] sm:p-10">
           <div className="text-sm font-semibold uppercase tracking-[0.3em] text-rose-400">Translation Access</div>
-          <h1 className="mt-4 text-4xl font-semibold text-slate-900" style={{ fontFamily: displayFont }}>
+          <h1 className="mt-4 text-3xl font-semibold text-slate-900 sm:text-4xl" style={{ fontFamily: displayFont }}>
             当前账户已被停用翻译页面访问
           </h1>
-          <p className="mt-4 text-base leading-8 text-slate-500">
+          <p className="mt-4 text-sm leading-7 text-slate-500 sm:text-base sm:leading-8">
             管理员已撤销此账户的翻译页面权限。你仍可访问其他功能，但不能进入本翻译工作台。
           </p>
         </div>
@@ -347,7 +371,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
 
   return (
     <div
-      className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(68,92,190,0.16),_transparent_32%),linear-gradient(180deg,#eef2ff_0%,#f9fafb_42%,#eef4ff_100%)] px-4 py-8 sm:px-6 lg:px-10"
+      className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(68,92,190,0.16),_transparent_32%),linear-gradient(180deg,#eef2ff_0%,#f9fafb_42%,#eef4ff_100%)] px-3 py-4 sm:px-6 sm:py-8 lg:px-10"
       style={{ fontFamily: pageFont }}
     >
       <div className="mx-auto max-w-7xl">
@@ -355,66 +379,79 @@ export const DeepLXTranslatorPage: React.FC = () => {
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45 }}
-          className="mb-8 rounded-[32px] border border-white/70 bg-white/75 p-6 shadow-[0_30px_120px_rgba(32,48,90,0.14)] backdrop-blur-xl sm:p-8"
+          className="mb-5 rounded-[28px] border border-white/70 bg-white/75 p-4 shadow-[0_24px_90px_rgba(32,48,90,0.12)] backdrop-blur-xl sm:mb-8 sm:rounded-[32px] sm:p-8 sm:shadow-[0_30px_120px_rgba(32,48,90,0.14)]"
         >
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">
+              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-sky-700 sm:px-3 sm:text-xs sm:tracking-[0.18em]">
                 <FaLanguage />
                 DeepLX Translation Studio
               </div>
               <h1
-                className="text-4xl font-semibold leading-tight text-slate-900 sm:text-5xl"
+                className="text-[2rem] font-semibold leading-[1.05] text-slate-900 sm:text-5xl sm:leading-tight"
                 style={{ fontFamily: displayFont }}
               >
                 一套真正可用的双栏翻译工作台
               </h1>
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
+              <p className="mt-3 max-w-2xl text-[13px] leading-6 text-slate-600 sm:text-base sm:leading-7">
                 用 DeepLX 作为后端翻译引擎，保留高频翻译场景最需要的操作流：
                 自动识别、语言切换、自动翻译、候选译文、本地历史和语音朗读。
               </p>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <div className="text-[11px] uppercase tracking-[0.2em] text-slate-400">状态</div>
-                <div className="mt-2 text-sm font-semibold text-slate-800">
-                  {configLoading ? '读取中…' : config?.enabled ? '服务可用' : '等待配置'}
-                </div>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <div className="text-[11px] uppercase tracking-[0.2em] text-slate-400">模式</div>
-                <div className="mt-2 text-sm font-semibold text-slate-800">
-                  {autoTranslate ? '自动翻译' : '手动翻译'}
-                </div>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <div className="text-[11px] uppercase tracking-[0.2em] text-slate-400">方向</div>
-                <div className="mt-2 text-sm font-semibold text-slate-800">
-                  {sourceLanguageLabel} → {targetLanguageLabel}
-                </div>
+            <div className="-mx-1 overflow-x-auto px-1 pb-1 sm:mx-0 sm:px-0">
+              <div className="flex min-w-max gap-2 sm:grid sm:min-w-0 sm:grid-cols-3 sm:gap-3">
+                {statusCards.map((item) => (
+                  <div
+                    key={item.label}
+                    className={`min-w-[136px] rounded-[22px] border px-3 py-2.5 sm:min-w-0 sm:rounded-2xl sm:px-4 sm:py-3 ${item.tone}`}
+                  >
+                    <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">{item.label}</div>
+                    <div className="mt-2 text-sm font-semibold text-slate-800">{item.value}</div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
         </m.div>
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
           <m.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.05 }}
-            className="relative rounded-[34px] border border-slate-200/80 bg-white/85 p-3 shadow-[0_24px_90px_rgba(32,48,90,0.1)] backdrop-blur-xl sm:p-4"
+            className="relative rounded-[28px] border border-slate-200/80 bg-white/85 p-2.5 shadow-[0_20px_70px_rgba(32,48,90,0.1)] backdrop-blur-xl sm:rounded-[34px] sm:p-4 sm:shadow-[0_24px_90px_rgba(32,48,90,0.1)]"
           >
-            <div className="grid gap-3 lg:grid-cols-2">
-              <section className="rounded-[28px] border border-slate-200 bg-[#fbfcff] p-4 sm:p-5">
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex flex-wrap gap-2">
-                    {LANGUAGES.slice(0, 6).map((language) => (
+            <div className="mb-2.5 lg:hidden">
+              <div className="grid grid-cols-[minmax(0,1fr)_52px_minmax(0,1fr)] items-center gap-2 rounded-[24px] border border-slate-200/80 bg-[linear-gradient(135deg,rgba(239,246,255,0.96),rgba(255,255,255,0.92))] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+                <div className="min-w-0 rounded-[18px] bg-white/90 px-3 py-2.5">
+                  <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">From</div>
+                  <div className="mt-1 truncate text-sm font-semibold text-slate-900">{sourceLanguageLabel}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSwap}
+                  className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-slate-900 text-white shadow-lg shadow-slate-900/15 transition active:scale-[0.98]"
+                >
+                  <FaExchangeAlt />
+                </button>
+                <div className="min-w-0 rounded-[18px] bg-white/90 px-3 py-2.5 text-right">
+                  <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">To</div>
+                  <div className="mt-1 truncate text-sm font-semibold text-slate-900">{targetLanguageLabel}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-2.5 sm:gap-3 lg:grid-cols-2">
+              <section className="rounded-[24px] border border-slate-200 bg-[#fbfcff] p-3 sm:rounded-[28px] sm:p-5">
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                  <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
+                    {SOURCE_HOT_LANGUAGES.map((language) => (
                       <button
                         key={`source-${language.code}`}
                         type="button"
                         onClick={() => setSourceLang(language.code)}
-                        className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                        className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-semibold transition sm:text-xs ${
                           sourceLang === language.code
                             ? 'bg-slate-900 text-white shadow-sm'
                             : 'bg-white text-slate-500 hover:bg-slate-100'
@@ -427,7 +464,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
                   <select
                     value={sourceLang}
                     onChange={(event) => setSourceLang(event.target.value)}
-                    className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 outline-none"
+                    className="w-full rounded-[18px] border border-slate-200 bg-white px-3 py-2.5 text-xs font-medium text-slate-600 outline-none sm:w-auto sm:rounded-full sm:py-2"
                   >
                     {LANGUAGES.map((language) => (
                       <option key={language.code} value={language.code}>
@@ -447,15 +484,15 @@ export const DeepLXTranslatorPage: React.FC = () => {
                     }
                   }}
                   placeholder="输入想翻译的内容，或者直接把整段文案粘贴进来。"
-                  className="min-h-[280px] w-full resize-none bg-transparent text-lg leading-8 text-slate-900 outline-none placeholder:text-slate-300"
+                  className="min-h-[220px] w-full resize-none bg-transparent text-[15px] leading-7 text-slate-900 outline-none placeholder:text-slate-300 sm:min-h-[280px] sm:text-lg sm:leading-8"
                 />
 
-                <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex flex-wrap gap-2">
+                <div className="mt-4 flex flex-col gap-3 sm:mt-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                  <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                     <button
                       type="button"
                       onClick={handlePaste}
-                      className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
+                      className="inline-flex items-center justify-center gap-2 rounded-[18px] border border-slate-200 bg-white px-3 py-2.5 text-[11px] font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 sm:rounded-full sm:py-2 sm:text-xs"
                     >
                       <FaPaste />
                       粘贴
@@ -467,28 +504,28 @@ export const DeepLXTranslatorPage: React.FC = () => {
                         setTranslatedText('');
                         setAlternatives([]);
                       }}
-                      className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
+                      className="inline-flex items-center justify-center gap-2 rounded-[18px] border border-slate-200 bg-white px-3 py-2.5 text-[11px] font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 sm:rounded-full sm:py-2 sm:text-xs"
                     >
                       <FaTrash />
                       清空
                     </button>
                   </div>
 
-                  <div className="text-xs font-medium text-slate-400">
+                  <div className="text-right text-[11px] font-medium text-slate-400 sm:text-left sm:text-xs">
                     {sourceText.length} / 5000
                   </div>
                 </div>
               </section>
 
-              <section className="rounded-[28px] border border-slate-200 bg-white p-4 sm:p-5">
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex flex-wrap gap-2">
-                    {LANGUAGES.filter((item) => item.code !== AUTO_LANGUAGE_CODE).slice(0, 6).map((language) => (
+              <section className="rounded-[24px] border border-slate-200 bg-white p-3 sm:rounded-[28px] sm:p-5">
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                  <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
+                    {TARGET_HOT_LANGUAGES.map((language) => (
                       <button
                         key={`target-${language.code}`}
                         type="button"
                         onClick={() => setTargetLang(language.code)}
-                        className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                        className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-semibold transition sm:text-xs ${
                           targetLang === language.code
                             ? 'bg-[#2541b2] text-white shadow-sm'
                             : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
@@ -501,7 +538,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
                   <select
                     value={targetLang}
                     onChange={(event) => setTargetLang(event.target.value)}
-                    className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 outline-none"
+                    className="w-full rounded-[18px] border border-slate-200 bg-white px-3 py-2.5 text-xs font-medium text-slate-600 outline-none sm:w-auto sm:rounded-full sm:py-2"
                   >
                     {LANGUAGES.filter((item) => item.code !== AUTO_LANGUAGE_CODE).map((language) => (
                       <option key={language.code} value={language.code}>
@@ -511,8 +548,8 @@ export const DeepLXTranslatorPage: React.FC = () => {
                   </select>
                 </div>
 
-                <div className="min-h-[280px] rounded-[24px] bg-[linear-gradient(180deg,rgba(242,246,255,0.88),rgba(255,255,255,0.96))] p-4">
-                  <div className="mb-3 flex items-center justify-between gap-3 text-xs font-medium text-slate-400">
+                <div className="min-h-[220px] rounded-[22px] bg-[linear-gradient(180deg,rgba(242,246,255,0.88),rgba(255,255,255,0.96))] p-3.5 sm:min-h-[280px] sm:rounded-[24px] sm:p-4">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-[11px] font-medium text-slate-400 sm:text-xs">
                     <span>检测语言：{sourceLanguageLabel}</span>
                     <span>输出语言：{targetLanguageLabel}</span>
                   </div>
@@ -525,7 +562,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
                     </div>
                   ) : translatedText ? (
                     <div className="space-y-4">
-                      <p className="whitespace-pre-wrap text-lg leading-8 text-slate-900">
+                      <p className="whitespace-pre-wrap text-[15px] leading-7 text-slate-900 sm:text-lg sm:leading-8">
                         {translatedText}
                       </p>
                       {alternatives.length > 0 ? (
@@ -549,19 +586,19 @@ export const DeepLXTranslatorPage: React.FC = () => {
                       ) : null}
                     </div>
                   ) : (
-                    <div className="flex h-full min-h-[220px] items-center justify-center text-center text-sm text-slate-400">
+                    <div className="flex h-full min-h-[180px] items-center justify-center text-center text-[13px] text-slate-400 sm:min-h-[220px] sm:text-sm">
                       译文会出现在这里。开启自动翻译后，输入几秒内会直接刷新结果。
                     </div>
                   )}
                 </div>
 
-                <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex flex-wrap gap-2">
+                <div className="mt-4 flex flex-col gap-3 sm:mt-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                  <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                     <button
                       type="button"
                       onClick={handleCopyResult}
                       disabled={!translatedText.trim()}
-                      className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex items-center justify-center gap-2 rounded-[18px] border border-slate-200 bg-white px-3 py-2.5 text-[11px] font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50 sm:rounded-full sm:py-2 sm:text-xs"
                     >
                       <FaCopy />
                       复制
@@ -570,7 +607,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
                       type="button"
                       onClick={() => speakText(translatedText, getLanguageByCode(targetLang)?.voice)}
                       disabled={!translatedText.trim()}
-                      className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex items-center justify-center gap-2 rounded-[18px] border border-slate-200 bg-white px-3 py-2.5 text-[11px] font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50 sm:rounded-full sm:py-2 sm:text-xs"
                     >
                       <FaVolumeUp />
                       朗读
@@ -581,7 +618,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
                     type="button"
                     onClick={() => void translateNow()}
                     disabled={translating || !sourceText.trim()}
-                    className="inline-flex items-center gap-2 rounded-full bg-[#2541b2] px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-[#2541b2]/20 transition hover:bg-[#1f3794] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-[18px] bg-[#2541b2] px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-[#2541b2]/20 transition hover:bg-[#1f3794] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:rounded-full sm:py-2"
                   >
                     <FaBolt />
                     立即翻译
@@ -593,27 +630,27 @@ export const DeepLXTranslatorPage: React.FC = () => {
             <button
               type="button"
               onClick={handleSwap}
-              className="absolute left-1/2 top-1/2 z-10 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-xl transition hover:rotate-180 hover:text-[#2541b2]"
+              className="absolute left-1/2 top-1/2 z-10 hidden h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-xl transition hover:rotate-180 hover:text-[#2541b2] lg:flex"
             >
               <FaExchangeAlt />
             </button>
           </m.div>
 
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             <m.section
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.12 }}
-              className="rounded-[30px] border border-slate-200/80 bg-white/90 p-5 shadow-[0_20px_70px_rgba(32,48,90,0.08)] backdrop-blur-xl"
+              className="rounded-[26px] border border-slate-200/80 bg-white/90 p-4 shadow-[0_20px_70px_rgba(32,48,90,0.08)] backdrop-blur-xl sm:rounded-[30px] sm:p-5"
             >
-              <div className="mb-4 flex items-center justify-between">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
                     翻译引擎
                   </div>
                   <div className="mt-1 text-lg font-semibold text-slate-900">DeepLX Runtime</div>
                 </div>
-                <label className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600">
+                <label className="inline-flex self-start items-center gap-2 rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600">
                   <input
                     type="checkbox"
                     checked={autoTranslate}
@@ -623,7 +660,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
                 </label>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-600">
+              <div className="rounded-[20px] border border-slate-200 bg-slate-50 p-3.5 text-[13px] leading-6 text-slate-600 sm:rounded-2xl sm:p-4 sm:text-sm sm:leading-7">
                 <div>Base URL: {config?.baseUrl || '读取中…'}</div>
                 <div className="mt-2">
                   Endpoint: {config?.endpointPath || '读取中…'}
@@ -648,7 +685,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
                 {shortcuts.map((item) => (
                   <div
                     key={item.label}
-                    className="flex items-center justify-between rounded-2xl border border-slate-100 px-3 py-3 text-sm"
+                    className="flex flex-col gap-1 rounded-[20px] border border-slate-100 px-3 py-2.5 text-[13px] sm:flex-row sm:items-center sm:justify-between sm:rounded-2xl sm:py-3 sm:text-sm"
                   >
                     <span className="text-slate-500">{item.label}</span>
                     <span className="font-semibold text-slate-800">{item.value}</span>
@@ -661,10 +698,10 @@ export const DeepLXTranslatorPage: React.FC = () => {
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.18 }}
-              className="rounded-[30px] border border-slate-200/80 bg-white/90 p-5 shadow-[0_20px_70px_rgba(32,48,90,0.08)] backdrop-blur-xl"
+              className="rounded-[26px] border border-slate-200/80 bg-white/90 p-4 shadow-[0_20px_70px_rgba(32,48,90,0.08)] backdrop-blur-xl sm:rounded-[30px] sm:p-5"
             >
               <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-900 text-white">
+                <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-slate-900 text-white sm:h-10 sm:w-10">
                   <FaHistory />
                 </div>
                 <div>
@@ -690,7 +727,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
                         setTargetLang(item.targetLang || DEFAULT_TARGET);
                         setDetectedSourceLang(item.sourceLang || AUTO_LANGUAGE_CODE);
                       }}
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition hover:border-slate-300 hover:bg-white"
+                      className="w-full rounded-[20px] border border-slate-200 bg-slate-50 px-3.5 py-3 text-left transition hover:border-slate-300 hover:bg-white sm:rounded-2xl sm:px-4"
                     >
                       <div className="line-clamp-2 text-sm font-medium text-slate-800">
                         {item.sourceText}
@@ -711,7 +748,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.24 }}
-              className="rounded-[30px] border border-slate-200/80 bg-[#111827] p-5 text-white shadow-[0_20px_70px_rgba(17,24,39,0.18)]"
+              className="rounded-[26px] border border-slate-200/80 bg-[#111827] p-4 text-white shadow-[0_20px_70px_rgba(17,24,39,0.18)] sm:rounded-[30px] sm:p-5"
             >
               <div className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
                 快速填充
@@ -722,7 +759,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
                     key={phrase}
                     type="button"
                     onClick={() => setSourceText(phrase)}
-                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm text-slate-200 transition hover:border-white/20 hover:bg-white/10"
+                    className="w-full rounded-[20px] border border-white/10 bg-white/5 px-3.5 py-3 text-left text-[13px] text-slate-200 transition hover:border-white/20 hover:bg-white/10 sm:rounded-2xl sm:px-4 sm:text-sm"
                   >
                     {phrase}
                   </button>
