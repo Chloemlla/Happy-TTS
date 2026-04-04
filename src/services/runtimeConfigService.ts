@@ -158,14 +158,39 @@ function normalizeStoredLinuxDoConfig(
   };
 }
 
+export function extractGoogleAuthClientId(value: unknown): string {
+  const raw = asObject(value);
+  const web = asObject(raw.web);
+  const installed = asObject(raw.installed);
+
+  return normalizeOptionalString(
+    raw.clientId ??
+      raw.client_id ??
+      web.clientId ??
+      web.client_id ??
+      installed.clientId ??
+      installed.client_id,
+    "",
+    512,
+  );
+}
+
+export function looksLikeGoogleOAuthClientJson(value: unknown): boolean {
+  const raw = asObject(value);
+
+  return (
+    Object.prototype.hasOwnProperty.call(raw, "web") ||
+    Object.prototype.hasOwnProperty.call(raw, "installed") ||
+    Object.prototype.hasOwnProperty.call(raw, "client_id")
+  );
+}
+
 function normalizeStoredGoogleAuthConfig(
   value: unknown,
   defaults = runtimeConfigDefaults.googleAuth,
 ): GoogleAuthRuntimeConfig {
-  const raw = asObject(value);
-
   return {
-    clientId: normalizeOptionalString(raw.clientId, defaults.clientId, 512),
+    clientId: extractGoogleAuthClientId(value) || defaults.clientId,
   };
 }
 
@@ -487,15 +512,20 @@ export class RuntimeConfigService {
   }
 
   static async setGoogleAuthSetting(
-    input: Partial<GoogleAuthRuntimeConfig>,
+    input: Partial<GoogleAuthRuntimeConfig> | Record<string, unknown>,
   ): Promise<{ updatedAt: string }> {
     const currentDoc = await readRuntimeConfigDoc("GOOGLE_AUTH");
     const current = currentDoc
       ? normalizeStoredGoogleAuthConfig(currentDoc.value)
       : runtimeConfigCache.googleAuth;
+    const extractedClientId = extractGoogleAuthClientId(input);
+
+    if (looksLikeGoogleOAuthClientJson(input) && !extractedClientId) {
+      throw new Error("Google OAuth JSON 中缺少 client_id");
+    }
 
     const nextConfig: GoogleAuthRuntimeConfig = {
-      clientId: normalizeOptionalString(input.clientId, current.clientId, 512),
+      clientId: extractedClientId || current.clientId,
     };
 
     const now = new Date();

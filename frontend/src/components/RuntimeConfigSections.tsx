@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { FaSync } from 'react-icons/fa';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { FaSync, FaUpload } from 'react-icons/fa';
 import getApiBaseUrl from '../api';
 import { useNotification } from './Notification';
 
@@ -188,9 +188,11 @@ const RuntimeConfigSections: React.FC = () => {
   const [googleAuthLoading, setGoogleAuthLoading] = useState(false);
   const [googleAuthSaving, setGoogleAuthSaving] = useState(false);
   const [googleAuthDeleting, setGoogleAuthDeleting] = useState(false);
+  const [googleAuthImporting, setGoogleAuthImporting] = useState(false);
   const [googleAuthForm, setGoogleAuthForm] = useState({
     clientId: '',
   });
+  const googleAuthImportInputRef = useRef<HTMLInputElement | null>(null);
 
   const [deeplxSetting, setDeeplxSetting] = useState<DeepLXSettingResponse | null>(null);
   const [deeplxLoading, setDeeplxLoading] = useState(false);
@@ -545,6 +547,44 @@ const RuntimeConfigSections: React.FC = () => {
       });
     } finally {
       setGoogleAuthDeleting(false);
+    }
+  }, [fetchGoogleAuthSetting, handleRequestError, setNotification]);
+
+  const importGoogleAuthSetting = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setGoogleAuthImporting(true);
+    try {
+      const fileContent = await file.text();
+      const parsed = JSON.parse(fileContent);
+
+      if (!parsed || typeof parsed !== 'object') {
+        throw new Error('Google OAuth JSON 格式无效');
+      }
+
+      const res = await fetch(GOOGLE_AUTH_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify(parsed),
+      });
+      if (!res.ok) {
+        await handleRequestError(res, '导入 Google Auth JSON 失败');
+        return;
+      }
+
+      setNotification({ message: 'Google Auth JSON 已导入并保存', type: 'success' });
+      await fetchGoogleAuthSetting();
+    } catch (error) {
+      setNotification({
+        message: error instanceof Error ? error.message : '导入 Google Auth JSON 失败',
+        type: 'error',
+      });
+    } finally {
+      event.target.value = '';
+      setGoogleAuthImporting(false);
     }
   }, [fetchGoogleAuthSetting, handleRequestError, setNotification]);
 
@@ -912,10 +952,38 @@ const RuntimeConfigSections: React.FC = () => {
 
       <SectionCard
         title="Google Auth 运行时配置"
-        description="主站 Google 登录使用这里的 Client ID，不与 NexAI OAuth 配置共用。"
+        description="主站 Google 登录使用这里的 Client ID，支持一键导入 Google 控制台下载的 OAuth JSON，不与 NexAI OAuth 配置共用。"
         loading={googleAuthLoading}
         onRefresh={fetchGoogleAuthSetting}
       >
+        <input
+          ref={googleAuthImportInputRef}
+          type="file"
+          accept=".json,application/json"
+          onChange={importGoogleAuthSetting}
+          className="hidden"
+        />
+
+        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <div className="text-sm font-medium text-slate-800">导入 Google OAuth JSON</div>
+              <div className="mt-1 text-xs text-slate-500">
+                支持 Google Cloud Console 下载的 `web` / `installed` JSON，系统会自动提取 `client_id` 并保存到主站 Google 登录配置。
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => googleAuthImportInputRef.current?.click()}
+              disabled={googleAuthImporting}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <FaUpload />
+              {googleAuthImporting ? '导入中...' : '导入 JSON'}
+            </button>
+          </div>
+        </div>
+
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <FieldLabel label="Google Client ID" />
@@ -933,7 +1001,7 @@ const RuntimeConfigSections: React.FC = () => {
             <button
               type="button"
               onClick={deleteGoogleAuthSetting}
-              disabled={googleAuthDeleting}
+              disabled={googleAuthDeleting || googleAuthImporting}
               className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-700 disabled:opacity-60"
             >
               {googleAuthDeleting ? '重置中...' : '重置'}
@@ -941,7 +1009,7 @@ const RuntimeConfigSections: React.FC = () => {
             <button
               type="button"
               onClick={saveGoogleAuthSetting}
-              disabled={googleAuthSaving}
+              disabled={googleAuthSaving || googleAuthImporting}
               className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
             >
               {googleAuthSaving ? '保存中...' : '保存'}
