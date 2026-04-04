@@ -73,6 +73,8 @@ const STATE_TTL_MS = 10 * 60 * 1000;
 const TICKET_TTL_MS = 60 * 1000;
 const DISCOVERY_TTL_MS = 60 * 60 * 1000;
 const PLACEHOLDER_EMAIL_DOMAIN = "linuxdo.oauth.local";
+const TRUSTED_LINUXDO_DISCOVERY_URL =
+  "https://connect.linux.do/.well-known/openid-configuration";
 const TRUSTED_LINUXDO_OAUTH_HOSTS = new Set(["connect.linux.do"]);
 const RESERVED_USERNAMES = new Set([
   "admin",
@@ -321,11 +323,16 @@ function toExchangePayload(user: User, isNewUser: boolean): LinuxDoExchangePaylo
 }
 
 async function fetchLinuxDoDiscoveryDocument(): Promise<ResolvedLinuxDoDiscoveryDocument> {
-  const discoveryUrl = normalizeTrustedLinuxDoOAuthUrl(
-    config.linuxdo.discoveryUrl,
-    "discovery URL",
-  );
-  const response = await axios.get(discoveryUrl, {
+  if (
+    firstString(config.linuxdo.discoveryUrl) &&
+    config.linuxdo.discoveryUrl !== TRUSTED_LINUXDO_DISCOVERY_URL
+  ) {
+    logger.warn("[Linux.do Auth] Ignoring custom discovery URL and using trusted default", {
+      configuredDiscoveryUrl: config.linuxdo.discoveryUrl,
+    });
+  }
+
+  const response = await axios.get(TRUSTED_LINUXDO_DISCOVERY_URL, {
     headers: {
       Accept: "application/json",
     },
