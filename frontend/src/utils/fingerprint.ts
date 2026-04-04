@@ -440,8 +440,10 @@ export const reportFingerprintOnce = async (forceReport: boolean = false): Promi
 };
 
 // 临时指纹上报（用于首次访问检测）
-export const reportTempFingerprint = async (): Promise<{ isFirstVisit: boolean; verified: boolean }> => {
-  const fingerprint = await getFingerprint();
+export const reportTempFingerprint = async (
+  existingFingerprint?: string,
+): Promise<{ isFirstVisit: boolean; verified: boolean }> => {
+  const fingerprint = existingFingerprint || (await getFingerprint());
   if (!fingerprint) {
     throw new Error('无法生成指纹');
   }

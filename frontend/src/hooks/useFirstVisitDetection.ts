@@ -1,15 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
-import { getApiBaseUrl } from '../api/api';
-import { 
-  getFingerprint, 
-  reportTempFingerprint, 
-  checkTempFingerprintStatus,
+import { useCallback, useEffect, useState } from 'react';
+import {
   checkAccessToken,
-  getAccessToken,
-  verifyAccessToken,
-  storeAccessToken,
+  checkTempFingerprintStatus,
   cleanupExpiredAccessTokens,
-  getClientIP
+  getAccessToken,
+  getClientIP,
+  getFingerprint,
+  reportTempFingerprint,
+  verifyAccessToken,
 } from '../utils/fingerprint';
 
 interface UseFirstVisitDetectionReturn {
@@ -45,103 +43,65 @@ export const useFirstVisitDetection = (): UseFirstVisitDetectionReturn => {
       setBanReason(undefined);
       setBanExpiresAt(undefined);
 
-      // 清理过期的访问密钥
       cleanupExpiredAccessTokens();
 
-      // 获取客户端IP地址
-      const ip = await getClientIP();
+      const [ip, fp] = await Promise.all([getClientIP(), getFingerprint()]);
       setClientIP(ip);
 
-      // 生成指纹
-      const fp = await getFingerprint();
       if (!fp) {
-        throw new Error('无法生成浏览器指纹');
+        throw new Error('Unable to generate a browser fingerprint.');
       }
+
       setFingerprint(fp);
 
-      // 首先检查是否有有效的访问密钥
-      const hasValidToken = await checkAccessToken(fp);
-      if (hasValidToken) {
-        console.log('发现有效访问密钥，跳过首次访问验证');
+      const hasValidServerToken = await checkAccessToken(fp);
+      if (hasValidServerToken) {
         setIsFirstVisit(false);
         setIsVerified(true);
-        setIsLoading(false);
         return;
       }
 
-      // 检查本地存储的访问密钥
       const localToken = getAccessToken(fp);
       if (localToken) {
-        // 验证本地存储的密钥是否仍然有效
-        const isValid = await verifyAccessToken(localToken, fp);
-        if (isValid) {
-          console.log('本地访问密钥有效，跳过首次访问验证');
+        const isLocalTokenValid = await verifyAccessToken(localToken, fp);
+        if (isLocalTokenValid) {
           setIsFirstVisit(false);
           setIsVerified(true);
-          setIsLoading(false);
           return;
         }
       }
 
-      // 临时强制显示首次访问验证页面（用于测试）
-      // 注释掉下面的代码来恢复正常逻辑
-      setIsFirstVisit(true);
-      setIsVerified(false);
-      
-      // 即使强制显示，也要创建临时指纹记录
-      try {
-        await reportTempFingerprint();
-      } catch (err) {
-        console.warn('创建临时指纹记录失败:', err);
-        // 检查是否是IP封禁错误
-        if (err instanceof Error && err.message.includes('IP已被封禁')) {
-          setIsIpBanned(true);
-          setBanReason(err.message);
-          // 从错误对象中提取封禁信息
-          const banData = (err as any).banData;
-          if (banData && banData.expiresAt) {
-            setBanExpiresAt(new Date(banData.expiresAt));
-          }
-        }
-      }
-      
-      setIsLoading(false);
-      return;
-
-      // 正常逻辑（已注释）
-      /*
-      // 检查是否已经验证过
-      const status = await checkTempFingerprintStatus(fp);
-      if (status.exists && status.verified) {
-        setIsFirstVisit(false);
-        setIsVerified(true);
+      const tempFingerprintStatus = await checkTempFingerprintStatus(fp);
+      if (tempFingerprintStatus.exists) {
+        setIsFirstVisit(!tempFingerprintStatus.verified);
+        setIsVerified(tempFingerprintStatus.verified);
         return;
       }
 
-      // 上报指纹并检查是否首次访问
-      const result = await reportTempFingerprint();
-      setIsFirstVisit(result.isFirstVisit);
-      setIsVerified(result.verified);
-      */
-
+      const reportResult = await reportTempFingerprint(fp);
+      setIsFirstVisit(!reportResult.verified);
+      setIsVerified(reportResult.verified);
     } catch (err) {
-      console.error('首次访问检测失败:', err);
-      
-      // 检查是否是IP封禁错误
-      if (err instanceof Error && err.message.includes('IP已被封禁')) {
+      console.error('First-visit detection failed:', err);
+
+      if (err instanceof Error && err.message.includes('IP')) {
         setIsIpBanned(true);
         setBanReason(err.message);
-        // 从错误对象中提取封禁信息
-        const banData = (err as any).banData;
-        if (banData && banData.expiresAt) {
+
+        const banData =
+          err && typeof err === 'object' && 'banData' in err
+            ? (err as { banData?: { expiresAt?: string } }).banData
+            : undefined;
+
+        if (banData?.expiresAt) {
           setBanExpiresAt(new Date(banData.expiresAt));
         }
-        setError('您的IP地址已被封禁，请稍后再试');
+
+        setError('This IP is currently blocked. Please try again later.');
       } else {
-        setError(err instanceof Error ? err.message : '检测失败');
+        setError(err instanceof Error ? err.message : 'Detection failed.');
       }
-      
-      // 出错时默认不是首次访问，避免阻塞用户
+
       setIsFirstVisit(false);
       setIsVerified(false);
     } finally {
@@ -171,4 +131,4 @@ export const useFirstVisitDetection = (): UseFirstVisitDetectionReturn => {
     checkFirstVisit,
     markAsVerified,
   };
-}; 
+};
