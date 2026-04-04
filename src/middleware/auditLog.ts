@@ -1,7 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import type { IAuditLog } from "../models/auditLogModel";
 import { type AuditEntry, AuditLogService } from "../services/auditLogService";
-import { config } from "../config/config";
 
 /**
  * 审计日志中间件
@@ -53,13 +52,10 @@ export function auditLog(options: AuditLogOptions) {
         if (Buffer.isBuffer(obj)) return "[Buffer]";
         let parsedObj = obj;
         try { parsedObj = JSON.parse(JSON.stringify(obj)); } catch { return "[Unserializable]"; }
-        const SENSITIVE_KEYS = ["password", "token", "secret", "authorization", "apikey", "session"];
         const sanitizeNode = (node: any) => {
           if (!node || typeof node !== "object") return;
           for (const key of Object.keys(node)) {
-            const lowerKey = key.toLowerCase();
-            if (config.auditLogMasking && SENSITIVE_KEYS.some((s) => lowerKey.includes(s))) node[key] = "***";
-            else if (typeof node[key] === "string" && node[key].length > 2000) node[key] = node[key].substring(0, 2000) + "...";
+            if (typeof node[key] === "string" && node[key].length > 2000) node[key] = node[key].substring(0, 2000) + "...";
             else if (typeof node[key] === "object") sanitizeNode(node[key]);
           }
         };

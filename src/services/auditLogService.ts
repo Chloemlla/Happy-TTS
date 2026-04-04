@@ -1,7 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import { AuditLogModel, type IAuditLog } from "../models/auditLogModel";
 import logger from "../utils/logger";
-import { config } from "../config/config";
 
 export interface AuditEntry {
   requestId?: string;
@@ -233,14 +232,10 @@ export class AuditLogService {
             return "[Unserializable Object]";
           }
 
-          const SENSITIVE_KEYS = ["password", "token", "secret", "authorization", "apikey", "session"];
           const sanitizeNode = (node: any) => {
             if (!node || typeof node !== "object") return;
             for (const key of Object.keys(node)) {
-              const lowerKey = key.toLowerCase();
-              if (config.auditLogMasking && SENSITIVE_KEYS.some((s) => lowerKey.includes(s))) {
-                node[key] = "***";
-              } else if (typeof node[key] === "string" && node[key].length > 2000) {
+              if (typeof node[key] === "string" && node[key].length > 2000) {
                 node[key] = node[key].substring(0, 2000) + "...[truncated]";
               } else if (typeof node[key] === "object") {
                 sanitizeNode(node[key]);
