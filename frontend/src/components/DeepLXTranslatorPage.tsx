@@ -371,19 +371,19 @@ export const DeepLXTranslatorPage: React.FC = () => {
 
   return (
     <div
-      className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(68,92,190,0.16),_transparent_32%),linear-gradient(180deg,#eef2ff_0%,#f9fafb_42%,#eef4ff_100%)] px-3 py-4 sm:px-6 sm:py-8 lg:px-10"
+      className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top,_rgba(68,92,190,0.16),_transparent_32%),linear-gradient(180deg,#eef2ff_0%,#f9fafb_42%,#eef4ff_100%)] px-3 py-4 sm:px-6 sm:py-8 lg:px-10"
       style={{ fontFamily: pageFont }}
     >
-      <div className="mx-auto max-w-7xl">
+      <div className="mx-auto max-w-7xl min-w-0">
         <m.div
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45 }}
           className="mb-5 rounded-[28px] border border-white/70 bg-white/75 p-4 shadow-[0_24px_90px_rgba(32,48,90,0.12)] backdrop-blur-xl sm:mb-8 sm:rounded-[32px] sm:p-8 sm:shadow-[0_30px_120px_rgba(32,48,90,0.14)]"
         >
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-3xl">
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-sky-700 sm:px-3 sm:text-xs sm:tracking-[0.18em]">
+          <div className="flex min-w-0 flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl min-w-0">
+              <div className="mb-3 inline-flex max-w-full items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-sky-700 sm:px-3 sm:text-xs sm:tracking-[0.18em]">
                 <FaLanguage />
                 DeepLX Translation Studio
               </div>
@@ -399,15 +399,15 @@ export const DeepLXTranslatorPage: React.FC = () => {
               </p>
             </div>
 
-            <div className="-mx-1 overflow-x-auto px-1 pb-1 sm:mx-0 sm:px-0">
-              <div className="flex min-w-max gap-2 sm:grid sm:min-w-0 sm:grid-cols-3 sm:gap-3">
+            <div className="w-full lg:w-auto">
+              <div className="grid gap-2 sm:grid-cols-3 sm:gap-3">
                 {statusCards.map((item) => (
                   <div
                     key={item.label}
-                    className={`min-w-[136px] rounded-[22px] border px-3 py-2.5 sm:min-w-0 sm:rounded-2xl sm:px-4 sm:py-3 ${item.tone}`}
+                    className={`min-w-0 rounded-[22px] border px-3 py-2.5 sm:rounded-2xl sm:px-4 sm:py-3 ${item.tone}`}
                   >
                     <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">{item.label}</div>
-                    <div className="mt-2 text-sm font-semibold text-slate-800">{item.value}</div>
+                    <div className="mt-2 break-words text-sm font-semibold text-slate-800">{item.value}</div>
                   </div>
                 ))}
               </div>
@@ -420,7 +420,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.05 }}
-            className="relative rounded-[28px] border border-slate-200/80 bg-white/85 p-2.5 shadow-[0_20px_70px_rgba(32,48,90,0.1)] backdrop-blur-xl sm:rounded-[34px] sm:p-4 sm:shadow-[0_24px_90px_rgba(32,48,90,0.1)]"
+            className="relative min-w-0 rounded-[28px] border border-slate-200/80 bg-white/85 p-2.5 shadow-[0_20px_70px_rgba(32,48,90,0.1)] backdrop-blur-xl sm:rounded-[34px] sm:p-4 sm:shadow-[0_24px_90px_rgba(32,48,90,0.1)]"
           >
             <div className="mb-2.5 lg:hidden">
               <div className="grid grid-cols-[minmax(0,1fr)_52px_minmax(0,1fr)] items-center gap-2 rounded-[24px] border border-slate-200/80 bg-[linear-gradient(135deg,rgba(239,246,255,0.96),rgba(255,255,255,0.92))] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
@@ -442,8 +442,8 @@ export const DeepLXTranslatorPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid gap-2.5 sm:gap-3 lg:grid-cols-2">
-              <section className="rounded-[24px] border border-slate-200 bg-[#fbfcff] p-3 sm:rounded-[28px] sm:p-5">
+            <div className="grid min-w-0 gap-2.5 sm:gap-3 lg:grid-cols-2">
+              <section className="min-w-0 rounded-[24px] border border-slate-200 bg-[#fbfcff] p-3 sm:rounded-[28px] sm:p-5">
                 <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                   <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
                     {SOURCE_HOT_LANGUAGES.map((language) => (
@@ -517,7 +517,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
                 </div>
               </section>
 
-              <section className="rounded-[24px] border border-slate-200 bg-white p-3 sm:rounded-[28px] sm:p-5">
+              <section className="min-w-0 rounded-[24px] border border-slate-200 bg-white p-3 sm:rounded-[28px] sm:p-5">
                 <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                   <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
                     {TARGET_HOT_LANGUAGES.map((language) => (
@@ -562,7 +562,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
                     </div>
                   ) : translatedText ? (
                     <div className="space-y-4">
-                      <p className="whitespace-pre-wrap text-[15px] leading-7 text-slate-900 sm:text-lg sm:leading-8">
+                      <p className="whitespace-pre-wrap break-words text-[15px] leading-7 text-slate-900 sm:text-lg sm:leading-8">
                         {translatedText}
                       </p>
                       {alternatives.length > 0 ? (
@@ -636,7 +636,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
             </button>
           </m.div>
 
-          <div className="space-y-4 sm:space-y-6">
+          <div className="min-w-0 space-y-4 sm:space-y-6">
             <m.section
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
@@ -661,9 +661,13 @@ export const DeepLXTranslatorPage: React.FC = () => {
               </div>
 
               <div className="rounded-[20px] border border-slate-200 bg-slate-50 p-3.5 text-[13px] leading-6 text-slate-600 sm:rounded-2xl sm:p-4 sm:text-sm sm:leading-7">
-                <div>Base URL: {config?.baseUrl || '读取中…'}</div>
+                <div className="break-all">
+                  Base URL: {config?.baseUrl || '读取中…'}
+                </div>
                 <div className="mt-2">
-                  Endpoint: {config?.endpointPath || '读取中…'}
+                  <span className="break-all">
+                    Endpoint: {config?.endpointPath || '读取中…'}
+                  </span>
                 </div>
                 {translationRestricted ? (
                   <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-3 text-rose-700">
@@ -729,10 +733,10 @@ export const DeepLXTranslatorPage: React.FC = () => {
                       }}
                       className="w-full rounded-[20px] border border-slate-200 bg-slate-50 px-3.5 py-3 text-left transition hover:border-slate-300 hover:bg-white sm:rounded-2xl sm:px-4"
                     >
-                      <div className="line-clamp-2 text-sm font-medium text-slate-800">
+                      <div className="line-clamp-2 break-words text-sm font-medium text-slate-800">
                         {item.sourceText}
                       </div>
-                      <div className="mt-2 line-clamp-2 text-sm text-slate-500">
+                      <div className="mt-2 line-clamp-2 break-words text-sm text-slate-500">
                         {item.translatedText}
                       </div>
                       <div className="mt-3 text-[11px] uppercase tracking-[0.18em] text-slate-400">
