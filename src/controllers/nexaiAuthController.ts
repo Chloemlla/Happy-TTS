@@ -3,6 +3,7 @@
  * 处理所有 /api/nexai/auth/* 请求
  */
 import type { Request, Response } from "express";
+import { config } from "../config/config";
 import { NexaiAuthService } from "../services/nexaiAuthService";
 import logger from "../utils/logger";
 
@@ -185,7 +186,7 @@ export class NexaiAuthController {
             const result = await NexaiAuthService.githubAuth({ code, ip });
 
             // 重定向回前端，携带 token 参数
-            const frontendUrl = process.env.NEXAI_FRONTEND_URL || process.env.FRONTEND_URL || "https://tts.951100.xyz";
+            const frontendUrl = config.nexai.frontendUrl;
             const params = new URLSearchParams({
                 accessToken: result.accessToken,
                 refreshToken: result.refreshToken,
@@ -194,7 +195,7 @@ export class NexaiAuthController {
             res.redirect(`${frontendUrl}/nexai/auth/callback?${params.toString()}`);
         } catch (error: any) {
             logger.error("[NexAI] GitHub callback 错误:", error);
-            const frontendUrl = process.env.NEXAI_FRONTEND_URL || process.env.FRONTEND_URL || "https://tts.951100.xyz";
+            const frontendUrl = config.nexai.frontendUrl;
             res.redirect(`${frontendUrl}/nexai/auth/callback?error=${encodeURIComponent(error.message)}`);
         }
     }
@@ -502,12 +503,12 @@ export class NexaiAuthController {
             success: true,
             data: {
                 google: {
-                    enabled: !!process.env.NEXAI_GOOGLE_CLIENT_ID,
-                    clientId: process.env.NEXAI_GOOGLE_CLIENT_ID || "",
+                    enabled: !!config.nexai.google.clientId,
+                    clientId: config.nexai.google.clientId,
                 },
                 github: {
-                    enabled: !!(process.env.NEXAI_GITHUB_CLIENT_ID && process.env.NEXAI_GITHUB_CLIENT_SECRET),
-                    clientId: process.env.NEXAI_GITHUB_CLIENT_ID || "",
+                    enabled: !!(config.nexai.github.clientId && config.nexai.github.clientSecret),
+                    clientId: config.nexai.github.clientId,
                 },
             },
         });

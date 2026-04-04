@@ -1,9 +1,50 @@
 import path from "node:path";
 import dotenv from "dotenv";
+import {
+  buildRuntimeConfigDefaults,
+  type IpqsRuntimeConfig,
+  type LinuxDoRuntimeConfig,
+  type NexaiRuntimeConfig,
+} from "./runtimeConfigDefaults";
+import { RuntimeConfigService } from "../services/runtimeConfigService";
 import { MYSQL_DATABASE } from "./env";
 
-// 加载环境变量
 dotenv.config();
+
+const baseUrl =
+  process.env.VITE_API_URL ||
+  process.env.BASE_URL ||
+  "https://api.951100.xyz";
+
+const frontendBaseUrl = process.env.FRONTEND_URL || "https://tts.951100.xyz";
+
+const jwtSecret =
+  process.env.NODE_ENV === "production"
+    ? process.env.JWT_SECRET ||
+      (() => {
+        throw new Error("Production requires JWT_SECRET");
+      })()
+    : process.env.JWT_SECRET || "yb56beb12b35ab636b66c4f9fc168646785a8e85a";
+
+const runtimeDefaults = buildRuntimeConfigDefaults({
+  baseUrl,
+  frontendBaseUrl,
+  jwtSecret,
+});
+
+RuntimeConfigService.configureDefaults(runtimeDefaults);
+
+function getRuntimeIpqsConfig(): IpqsRuntimeConfig {
+  return RuntimeConfigService.getCachedConfig().ipqs;
+}
+
+function getRuntimeLinuxDoConfig(): LinuxDoRuntimeConfig {
+  return RuntimeConfigService.getCachedConfig().linuxdo;
+}
+
+function getRuntimeNexaiConfig(): NexaiRuntimeConfig {
+  return RuntimeConfigService.getCachedConfig().nexai;
+}
 
 export const config = {
   port: process.env.PORT || 3000,
@@ -14,52 +55,32 @@ export const config = {
   openaiSpeed: process.env.OPENAI_SPEED || "1.0",
   audioDir: path.join(process.cwd(), "finish"),
   adminUsername: process.env.ADMIN_USERNAME || "admin",
-  // 生产环境强制要求管理员密码
   adminPassword:
     process.env.NODE_ENV === "production"
       ? process.env.ADMIN_PASSWORD ||
-      (() => {
-        throw new Error("生产环境必须设置 ADMIN_PASSWORD 环境变量");
-      })()
+        (() => {
+          throw new Error("Production requires ADMIN_PASSWORD");
+        })()
       : process.env.ADMIN_PASSWORD || "admin",
-  // 添加本地 IP 配置
   localIps: ["127.0.0.1", "localhost", "::1"],
-  // 添加基础URL配置
-  baseUrl:
-    process.env.VITE_API_URL ||
-    process.env.BASE_URL ||
-    "https://api.951100.xyz",
-  // 添加生成码配置
+  baseUrl,
   generationCode: process.env.GENERATION_CODE || "admin",
-  // 生产环境强制要求 JWT 密钥
-  jwtSecret:
-    process.env.NODE_ENV === "production"
-      ? process.env.JWT_SECRET ||
-      (() => {
-        throw new Error("生产环境必须设置 JWT_SECRET 环境变量");
-      })()
-      : process.env.JWT_SECRET || "yb56beb12b35ab636b66c4f9fc168646785a8e85a",
+  jwtSecret,
   jwtExpiresIn: "24h",
-  // 密码加密配置
   bcryptSaltRounds: 12,
-  // 登录限制配置
   loginRateLimit: {
-    windowMs: 15 * 60 * 1000, // 15分钟
-    max: 5, // 最多5次尝试
+    windowMs: 15 * 60 * 1000,
+    max: 5,
   },
-  // 注册限制配置
   registerRateLimit: {
-    windowMs: 60 * 60 * 1000, // 1小时
-    max: 3, // 最多3次尝试
+    windowMs: 60 * 60 * 1000,
+    max: 3,
   },
-  // 用户数据存储方式: 'file' 或 'mongo'
   userStorageMode: process.env.USER_STORAGE_MODE || "file",
-  // Turnstile 配置
   turnstile: {
     secretKey: process.env.TURNSTILE_SECRET_KEY || "",
     siteKey: process.env.TURNSTILE_SITE_KEY || "",
   },
-
   mysql: {
     host: process.env.MYSQL_HOST || "localhost",
     port: process.env.MYSQL_PORT || 3306,
@@ -67,100 +88,22 @@ export const config = {
     password: process.env.MYSQL_PASSWORD || "root",
     database: MYSQL_DATABASE,
   },
-
-  // Redis 配置
   redis: {
-    url: process.env.REDIS_URL || "", // 例如: redis://localhost:6379
-    enabled: !!process.env.REDIS_URL, // 如果配置了 REDIS_URL 则启用
+    url: process.env.REDIS_URL || "",
+    enabled: !!process.env.REDIS_URL,
   },
-
-  // IP 封禁存储方式: 'redis' 或 'mongo'
-  // 如果配置了 Redis 则优先使用 Redis，否则使用 MongoDB
   ipBanStorage: process.env.REDIS_URL ? "redis" : "mongo",
-
-  // 首次访问验证功能开关
   enableFirstVisitVerification:
-    process.env.ENABLE_FIRST_VISIT_VERIFICATION !== "false", // 默认启用，设置为 'false' 时禁用
-
-  // 前端基础URL
-  ipqs: {
-    apiKeys: [
-      ...(process.env.IPQS_API_KEYS || "").split(","),
-      ...(process.env.IPQS_API_KEY || "").split(","),
-    ]
-      .map((item) => item.trim())
-      .filter(Boolean),
-    enabled:
-      process.env.ENABLE_IP_VERIFICATION !== "false" &&
-      [
-        ...(process.env.IPQS_API_KEYS || "").split(","),
-        ...(process.env.IPQS_API_KEY || "").split(","),
-      ]
-        .map((item) => item.trim())
-        .filter(Boolean).length > 0,
-    strictness: Number(process.env.IPQS_STRICTNESS || 1),
-    allowPublicAccessPoints: process.env.IPQS_ALLOW_PUBLIC_ACCESS_POINTS === "true",
-    lighterPenalties: process.env.IPQS_LIGHTER_PENALTIES !== "false",
-    timeoutMs: Number(process.env.IPQS_TIMEOUT_MS || 8000),
-    monthlyQuotaPerKey: Number(process.env.IPQS_MONTHLY_QUOTA_PER_KEY || 5000),
-    challengeFraudScore: Number(process.env.IPQS_CHALLENGE_FRAUD_SCORE || 75),
-    tokenTtlMinutes: Number(process.env.IP_VERIFICATION_TTL_MINUTES || 40),
-    failOpen: process.env.IPQS_FAIL_OPEN !== "false",
+    process.env.ENABLE_FIRST_VISIT_VERIFICATION !== "false",
+  get ipqs() {
+    return getRuntimeIpqsConfig();
   },
-
-  frontendBaseUrl: process.env.FRONTEND_URL || "https://tts.951100.xyz",
-
-  linuxdo: {
-    clientId: process.env.LINUXDO_CLIENT_ID || "",
-    clientSecret: process.env.LINUXDO_CLIENT_SECRET || "",
-    discoveryUrl:
-      process.env.LINUXDO_DISCOVERY_URL ||
-      "https://connect.linux.do/.well-known/openid-configuration",
-    scopes: process.env.LINUXDO_SCOPES || "openid profile email",
-    authorizationEndpoint:
-      process.env.LINUXDO_AUTHORIZATION_ENDPOINT ||
-      "https://connect.linux.do/oauth2/authorize",
-    tokenEndpoint:
-      process.env.LINUXDO_TOKEN_ENDPOINT ||
-      "https://connect.linux.do/oauth2/token",
-    userEndpoint:
-      process.env.LINUXDO_USER_ENDPOINT || "https://connect.linux.do/api/user",
-    forumBaseUrl: process.env.LINUXDO_FORUM_BASE_URL || "https://linux.do",
-    callbackUrl:
-      process.env.LINUXDO_REDIRECT_URI ||
-      `${
-        process.env.VITE_API_URL ||
-        process.env.BASE_URL ||
-        "https://api.951100.xyz"
-      }/api/auth/linuxdo/callback`,
-    frontendCallbackUrl:
-      process.env.LINUXDO_FRONTEND_CALLBACK_URL ||
-      `${
-        process.env.FRONTEND_URL || "https://tts.951100.xyz"
-      }/auth/linuxdo/callback`,
+  frontendBaseUrl,
+  get linuxdo() {
+    return getRuntimeLinuxDoConfig();
   },
-
-  // 审计日志脱敏开关 (自动隐藏密码/鉴权头)，默认开启
   auditLogMasking: process.env.AUDIT_LOG_MASKING !== "false",
-
-  // ========== NexAI 独立鉴权配置 ==========
-  nexai: {
-    jwtSecret:
-      process.env.NEXAI_JWT_SECRET ||
-      (process.env.JWT_SECRET || "yb56beb12b35ab636b66c4f9fc168646785a8e85a") +
-      "_nexai",
-    jwtExpiresIn: process.env.NEXAI_JWT_EXPIRES || "2h",
-    refreshExpiresIn: process.env.NEXAI_REFRESH_EXPIRES || "30d",
-    google: {
-      clientId: process.env.NEXAI_GOOGLE_CLIENT_ID || "",
-    },
-    github: {
-      clientId: process.env.NEXAI_GITHUB_CLIENT_ID || "",
-      clientSecret: process.env.NEXAI_GITHUB_CLIENT_SECRET || "",
-    },
-    frontendUrl:
-      process.env.NEXAI_FRONTEND_URL ||
-      process.env.FRONTEND_URL ||
-      "https://tts.951100.xyz",
+  get nexai() {
+    return getRuntimeNexaiConfig();
   },
 };

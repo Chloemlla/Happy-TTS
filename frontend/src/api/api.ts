@@ -1,4 +1,4 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosHeaders, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { reportFingerprintOnce } from '../utils/fingerprint';
 import { buildIpVerificationHeaders, clearIpVerificationToken, emitIpVerificationRequired } from '../utils/ipVerification';
 
@@ -39,15 +39,19 @@ export const api: AxiosInstance = axios.create({
 
 // 请求拦截器：添加 token
 api.interceptors.request.use(async (config) => {
-    const headers = (config.headers ??= {});
+    const headers =
+        config.headers instanceof AxiosHeaders
+            ? config.headers
+            : new AxiosHeaders(config.headers);
+    config.headers = headers;
     const token = localStorage.getItem('token');
     if (token) {
-        (headers as any).Authorization = `Bearer ${token}`;
+        headers.set('Authorization', `Bearer ${token}`);
     }
     try {
         const ipVerificationHeaders = await buildIpVerificationHeaders();
         Object.entries(ipVerificationHeaders).forEach(([key, value]) => {
-            (headers as any)[key] = value;
+            headers.set(key, value);
         });
     } catch {
         // ignore header injection failures and let the backend answer clearly

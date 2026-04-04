@@ -4,7 +4,7 @@ import axios from "axios";
 import { config } from "../config/config";
 import { IpVerificationTokenModel } from "../models/ipVerificationTokenModel";
 import { IpqsLookupLogModel } from "../models/ipqsLookupLogModel";
-import { IpqsQuotaModel } from "../models/ipqsQuotaModel";
+import { IpqsQuotaModel, type IpqsQuotaDoc } from "../models/ipqsQuotaModel";
 import { connectMongo, mongoose } from "./mongoService";
 import { TurnstileService } from "./turnstileService";
 import logger from "../utils/logger";
@@ -128,17 +128,12 @@ async function ensureMongoIfEnabled(): Promise<boolean> {
 }
 
 export class IpVerificationService {
-  private static readonly VERIFY_TTL_MS = config.ipqs.tokenTtlMinutes * 60 * 1000;
+  private static getVerifyTtlMs(): number {
+    return config.ipqs.tokenTtlMinutes * 60 * 1000;
+  }
 
   private static getApiKeys(): string[] {
-    const keys = [
-      ...(process.env.IPQS_API_KEYS || "").split(","),
-      ...(process.env.IPQS_API_KEY || "").split(","),
-    ]
-      .map((item) => item.trim())
-      .filter(Boolean);
-
-    return Array.from(new Set(keys));
+    return Array.from(new Set(config.ipqs.apiKeys.map((item) => item.trim()).filter(Boolean)));
   }
 
   private static async getReusableToken(
@@ -176,7 +171,7 @@ export class IpVerificationService {
     }
 
     const token = crypto.randomBytes(32).toString("hex");
-    const expiresAt = new Date(Date.now() + IpVerificationService.VERIFY_TTL_MS);
+    const expiresAt = new Date(Date.now() + IpVerificationService.getVerifyTtlMs());
 
     await IpVerificationTokenModel.deleteMany({
       fingerprint,
@@ -229,7 +224,7 @@ export class IpVerificationService {
     const quotaDocs = await IpqsQuotaModel.find({ monthKey: month }).lean().exec();
     const quotaMap = new Map<number, number>();
 
-    quotaDocs.forEach((doc) => {
+    quotaDocs.forEach((doc: IpqsQuotaDoc) => {
       quotaMap.set(doc.apiKeySlot, Number(doc.usageCount || 0));
     });
 

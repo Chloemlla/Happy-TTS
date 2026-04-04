@@ -378,6 +378,17 @@ router.get("/tts/setting", adminController.getTtsSetting);
 router.post("/tts/setting", adminController.setTtsSetting);
 router.delete("/tts/setting", adminController.deleteTtsSetting);
 
+// Runtime config management (admin)
+router.get("/ipqs/setting", adminController.getIpqsSetting);
+router.post("/ipqs/setting", adminController.setIpqsSetting);
+router.delete("/ipqs/setting", adminController.deleteIpqsSetting);
+router.get("/linuxdo/setting", adminController.getLinuxDoSetting);
+router.post("/linuxdo/setting", adminController.setLinuxDoSetting);
+router.delete("/linuxdo/setting", adminController.deleteLinuxDoSetting);
+router.get("/nexai/setting", adminController.getNexaiSetting);
+router.post("/nexai/setting", adminController.setNexaiSetting);
+router.delete("/nexai/setting", adminController.deleteNexaiSetting);
+
 // Webhook Secret management (admin)
 router.get("/webhook/secret", adminController.getWebhookSecret);
 router.post("/webhook/secret", adminController.setWebhookSecret);
