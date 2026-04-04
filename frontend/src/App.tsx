@@ -345,6 +345,101 @@ const WatermarkOverlay: React.FC = React.memo(() => {
   );
 });
 
+const ANNOUNCEMENT_SUPPRESSED_ROUTES = new Set([
+  '/welcome',
+  '/login',
+  '/register',
+  '/forgot-password',
+  '/reset-password',
+  '/verify-email',
+]);
+
+const RouteLoadingShell: React.FC<{ label?: string }> = ({ label = '正在加载页面内容…' }) => (
+  <div className="mx-auto flex min-h-[46vh] max-w-3xl items-center justify-center px-4 py-10">
+    <div className="w-full rounded-[28px] border border-white/70 bg-white/88 px-6 py-8 text-center shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
+        <SimpleLoadingSpinner size={0.75} />
+      </div>
+      <div className="mt-5 text-sm font-semibold uppercase tracking-[0.26em] text-slate-400">
+        Synapse Route
+      </div>
+      <p className="mt-3 text-sm leading-7 text-slate-600">
+        {label}
+      </p>
+    </div>
+  </div>
+);
+
+const AppLoadingScreen: React.FC<{ title: string; detail: string }> = ({ title, detail }) => (
+  <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.22),_transparent_34%),linear-gradient(180deg,#f8fbff_0%,#eef2ff_55%,#f8fafc_100%)] px-4 py-10">
+    <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.3)_0%,transparent_52%)]" />
+    <div className="relative mx-auto flex min-h-[78vh] max-w-xl items-center justify-center">
+      <div
+        role="status"
+        aria-live="polite"
+        className="w-full rounded-[32px] border border-white/80 bg-white/90 px-7 py-10 text-center shadow-[0_28px_120px_rgba(30,41,59,0.14)] backdrop-blur-xl"
+      >
+        <div className="mx-auto inline-flex items-center rounded-full border border-sky-100 bg-sky-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-sky-700">
+          Synapse Runtime
+        </div>
+        <div className="mt-6 flex justify-center">
+          <LoadingSpinner size={0.95} />
+        </div>
+        <h1 className="mt-6 text-[2rem] font-semibold leading-tight text-slate-900 sm:text-[2.35rem]">
+          {title}
+        </h1>
+        <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">
+          {detail}
+        </p>
+      </div>
+    </div>
+  </div>
+);
+
+const NotFoundPage: React.FC<{ path: string }> = ({ path }) => (
+  <section className="mx-auto max-w-4xl px-4 py-12 sm:py-20">
+    <div className="relative overflow-hidden rounded-[34px] border border-slate-200/80 bg-white/92 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-10">
+      <div className="absolute -right-12 top-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,_rgba(59,130,246,0.22),_transparent_68%)]" />
+      <div className="absolute -left-10 bottom-0 h-32 w-32 rounded-full bg-[radial-gradient(circle,_rgba(14,165,233,0.16),_transparent_70%)]" />
+      <div className="relative">
+        <div className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+          404
+        </div>
+        <h1 className="mt-5 text-3xl font-semibold leading-tight text-slate-900 sm:text-5xl">
+          这个入口不存在
+        </h1>
+        <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
+          链接可能已经失效、地址输入有误，或者这个页面还没有被正式挂载。
+        </p>
+        <div className="mt-6 rounded-[22px] border border-dashed border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-500">
+          当前路径：<code className="break-all font-medium text-slate-700">{path}</code>
+        </div>
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+          <button
+            type="button"
+            onClick={() => {
+              if (window.history.length > 1) {
+                window.history.back();
+                return;
+              }
+              window.location.assign('/');
+            }}
+            className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+          >
+            返回上一页
+          </button>
+          <Link
+            to="/"
+            className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
+          >
+            回到首页
+          </Link>
+        </div>
+      </div>
+    </div>
+  </section>
+);
+
 const App: React.FC = () => {
   const { user, loading, logout } = useAuth();
   const location = useLocation();
@@ -384,10 +479,34 @@ const App: React.FC = () => {
   // 在App组件内，提升isMobile/isOverflow状态
   const [isMobileNav, setIsMobileNav] = useState(false);
   const navRef = useRef<HTMLDivElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
+  const totpDialogRef = useRef<HTMLDivElement>(null);
+  const totpCloseButtonRef = useRef<HTMLButtonElement>(null);
+  const previousFocusedElementRef = useRef<HTMLElement | null>(null);
   const pageTransition = React.useMemo(() => (prefersReducedMotion ? { duration: 0 } : PAGE_TRANSITION), [prefersReducedMotion]);
   const navTransition = React.useMemo(() => (prefersReducedMotion ? { duration: 0 } : NAV_SPRING), [prefersReducedMotion]);
   const overlayTransition = React.useMemo(() => (prefersReducedMotion ? { duration: 0 } : { duration: 0.5 }), [prefersReducedMotion]);
   const showParticles = !prefersReducedMotion;
+  const loginRedirectPath = React.useMemo(
+    () => `/login?redirectTo=${encodeURIComponent(`${location.pathname}${location.search}`)}`,
+    [location.pathname, location.search],
+  );
+  const adminFallbackPath = user ? '/' : loginRedirectPath;
+  const isAnnouncementSuppressed = React.useMemo(() => (
+    ANNOUNCEMENT_SUPPRESSED_ROUTES.has(location.pathname)
+    || location.pathname.startsWith('/auth/')
+    || location.pathname.startsWith('/admin')
+  ), [location.pathname]);
+  const shouldBlockForFirstVisitCheck = enableFirstVisitVerification
+    && Boolean(fingerprint)
+    && (isIpBanned || (isFirstVisit && !isVerified));
+  const toastPosition = isMobileNav ? 'bottom-center' : 'top-right';
+  const closeTOTPManager = React.useCallback(() => {
+    setShowTOTPManager(false);
+    window.requestAnimationFrame(() => {
+      previousFocusedElementRef.current?.focus();
+    });
+  }, []);
 
   // React 19 文档元数据：路由配置优化，避免每次重新创建
   const routeConfig = React.useMemo(() => ({
@@ -537,6 +656,92 @@ const App: React.FC = () => {
       setIsInitialized(true);
     }
   }, [loading]);
+
+  useEffect(() => {
+    if (loading || !isInitialized || !configLoaded || isFirstVisitLoading || shouldBlockForFirstVisitCheck) {
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      mainRef.current?.focus();
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [
+    configLoaded,
+    isFirstVisitLoading,
+    isInitialized,
+    loading,
+    location.pathname,
+    location.search,
+    shouldBlockForFirstVisitCheck,
+  ]);
+
+  useEffect(() => {
+    if (!showTOTPManager) {
+      return;
+    }
+
+    previousFocusedElementRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const focusableSelector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+    const frameId = window.requestAnimationFrame(() => {
+      (totpCloseButtonRef.current || totpDialogRef.current?.querySelector<HTMLElement>(focusableSelector))?.focus();
+    });
+
+    const handleDialogKeydown = (event: KeyboardEvent) => {
+      if (!totpDialogRef.current) {
+        return;
+      }
+
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeTOTPManager();
+        return;
+      }
+
+      if (event.key !== 'Tab') {
+        return;
+      }
+
+      const focusableElements = Array.from(
+        totpDialogRef.current.querySelectorAll<HTMLElement>(focusableSelector),
+      ).filter((element) => !element.hasAttribute('disabled'));
+
+      if (focusableElements.length === 0) {
+        event.preventDefault();
+        return;
+      }
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      const activeElement = document.activeElement;
+
+      if (event.shiftKey && activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleDialogKeydown);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleDialogKeydown);
+    };
+  }, [closeTOTPManager, showTOTPManager]);
 
   // 上报用户指纹（内部自带节流与鉴权判断）
   useEffect(() => {
@@ -878,15 +1083,12 @@ const App: React.FC = () => {
   };
 
   if (loading || !isInitialized) {
-    let scale = 1;
-    if (typeof window !== 'undefined') {
-      if (window.innerWidth < 600) {
-        scale = Math.max(0.95, Math.min(1.2, window.innerWidth / 375)); // 移动端最小0.95
-      } else {
-        scale = Math.max(0.7, Math.min(1.2, window.innerWidth / 1200)); // 桌面端
-      }
-    }
-    return <LoadingSpinner size={scale} />;
+    return (
+      <AppLoadingScreen
+        title="正在恢复工作台状态"
+        detail="Synapse 正在检查登录态、恢复基础配置，并准备本次会话需要的界面资源。"
+      />
+    );
   }
 
   // 统一的渲染逻辑，不再区分管理员和普通用户
@@ -896,19 +1098,22 @@ const App: React.FC = () => {
     return (
       <NotificationProvider>
         <LazyMotion features={domAnimation}>
-          <LoadingSpinner />
+          <AppLoadingScreen
+            title="正在进行访问校验"
+            detail="首次访问检测与前端安全配置仍在同步中，完成后会自动进入对应页面。"
+          />
         </LazyMotion>
       </NotificationProvider>
     );
   }
 
   // 首次访问且未验证，且功能开关启用时，显示验证页面
-  if (enableFirstVisitVerification && fingerprint && (isIpBanned || (isFirstVisit && !isVerified))) {
+  if (shouldBlockForFirstVisitCheck) {
     return (
       <NotificationProvider>
         <LazyMotion features={domAnimation}>
           <FirstVisitVerification
-            fingerprint={fingerprint}
+            fingerprint={fingerprint ?? ''}
             onVerificationComplete={markAsVerified}
             isIpBanned={isIpBanned}
             banReason={banReason}
@@ -926,10 +1131,10 @@ const App: React.FC = () => {
       <BroadcastModalProvider>
         <WsConnector />
         <LazyMotion features={domAnimation}>
-          <ToastContainer position="top-center" autoClose={2000} hideProgressBar newestOnTop />
+          <ToastContainer position={toastPosition} autoClose={4500} hideProgressBar newestOnTop limit={3} />
           {/* 公告弹窗 */}
           <AnnouncementModal
-            open={showAnnouncement && !!announcement}
+            open={!isAnnouncementSuppressed && showAnnouncement && !!announcement}
             onClose={handleCloseAnnouncement}
             onCloseToday={handleCloseToday}
             onCloseForever={handleCloseForever}
@@ -940,6 +1145,12 @@ const App: React.FC = () => {
           />
           <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
             {showParticles && <BackgroundParticles />}
+            <a
+              href="#app-main-content"
+              className="absolute left-4 top-4 z-50 -translate-y-24 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-lg transition focus:translate-y-0"
+            >
+              跳到主要内容
+            </a>
             <m.nav
               initial={{ y: -100, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -961,8 +1172,8 @@ const App: React.FC = () => {
                   <m.div
                     id="app-brand-logo"
                     className="flex items-center space-x-2"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                    whileHover={prefersReducedMotion ? undefined : { scale: 1.05 }}
+                    whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
                     transition={{ type: "spring", stiffness: 400, damping: 10 }}
                     data-integrity="critical"
                     data-protection="brand-identity"
@@ -973,8 +1184,8 @@ const App: React.FC = () => {
                       className="w-8 h-8 rounded-lg shadow-sm"
                       src="https://picui.ogmua.cn/s1/2026/03/29/69c8f6226a17c.webp"
                       alt="Synapse Logo"
-                      animate={{ rotate: [0, 5, -5, 0] }}
-                      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                      animate={prefersReducedMotion ? undefined : { rotate: [0, 4, -4, 0] }}
+                      transition={prefersReducedMotion ? undefined : { duration: 4, repeat: Infinity, ease: "easeInOut" }}
                       data-integrity="critical"
                       data-protection="brand-icon"
                     />
@@ -994,7 +1205,7 @@ const App: React.FC = () => {
                   {/* 导航栏自适应切换 */}
                   <div ref={navRef} className="flex-1 flex justify-end">
                     {user ? (
-                      <Suspense fallback={<div className="w-8 h-8 bg-gray-200 rounded animate-pulse"></div>}>
+                      <Suspense fallback={<div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/80 shadow-sm"><SimpleLoadingSpinner size={0.6} /></div>}>
                         <MobileNav
                           user={user}
                           logout={logout}
@@ -1018,9 +1229,15 @@ const App: React.FC = () => {
               </div>
             </m.nav>
 
-            <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 relative z-10">
-              <AnimatePresence mode="wait">
-                <Routes location={location} key={location.pathname}>
+            <main
+              id="app-main-content"
+              ref={mainRef}
+              tabIndex={-1}
+              className="max-w-7xl mx-auto py-6 focus:outline-none sm:px-6 lg:px-8 relative z-10"
+            >
+              <Suspense fallback={<RouteLoadingShell />}>
+                <AnimatePresence mode="wait">
+                  <Routes location={location} key={location.pathname}>
                   <Route path="/api-docs" element={
                     <m.div
                       variants={pageVariants}
@@ -1134,7 +1351,7 @@ const App: React.FC = () => {
                           </m.div>
                         </Suspense>
                       ) : (
-                        <Navigate to="/login" replace />
+                        <Navigate to={loginRedirectPath} replace />
                       )
                     }
                   />
@@ -1240,7 +1457,7 @@ const App: React.FC = () => {
                         </m.div>
                       </Suspense>
                     ) : (
-                      <Navigate to="/" replace />
+                      <Navigate to={adminFallbackPath} replace />
                     )
                   } />
                   <Route path="/admin/users" element={
@@ -1255,7 +1472,7 @@ const App: React.FC = () => {
                         <UserManagement />
                       </m.div>
                     ) : (
-                      <Navigate to="/" replace />
+                      <Navigate to={adminFallbackPath} replace />
                     )
                   } />
                   <Route path="/admin" element={
@@ -1272,7 +1489,7 @@ const App: React.FC = () => {
                         </m.div>
                       </Suspense>
                     ) : (
-                      <Navigate to="/" replace />
+                      <Navigate to={adminFallbackPath} replace />
                     )
                   } />
                   <Route path="/nexai-security" element={
@@ -1289,7 +1506,7 @@ const App: React.FC = () => {
                         </m.div>
                       </Suspense>
                     ) : (
-                      <Navigate to="/" replace />
+                      <Navigate to={adminFallbackPath} replace />
                     )
                   } />
                   <Route path="/github-billing" element={
@@ -1367,7 +1584,7 @@ const App: React.FC = () => {
                         </Suspense>
                       </m.div>
                     ) : (
-                      <Navigate to="/" replace />
+                      <Navigate to={loginRedirectPath} replace />
                     )
                   } />
                   <Route path="/profile" element={
@@ -1562,7 +1779,7 @@ const App: React.FC = () => {
                         </m.div>
                       </Suspense>
                     ) : (
-                      <Navigate to="/" replace />
+                      <Navigate to={adminFallbackPath} replace />
                     )
                   } />
 
@@ -1674,7 +1891,7 @@ const App: React.FC = () => {
                         </m.div>
                       </Suspense>
                     ) : (
-                      <Navigate to="/admin/login" replace />
+                      <Navigate to={adminFallbackPath} replace />
                     )
                   } />
                   <Route path="/admin/store/resources" element={
@@ -1691,7 +1908,7 @@ const App: React.FC = () => {
                         </m.div>
                       </Suspense>
                     ) : (
-                      <Navigate to="/admin/login" replace />
+                      <Navigate to={adminFallbackPath} replace />
                     )
                   } />
                   <Route path="/admin/store/cdks" element={
@@ -1708,7 +1925,7 @@ const App: React.FC = () => {
                         </m.div>
                       </Suspense>
                     ) : (
-                      <Navigate to="/admin/login" replace />
+                      <Navigate to={adminFallbackPath} replace />
                     )
                   } />
                   <Route path="/public-shortlink" element={
@@ -1724,11 +1941,24 @@ const App: React.FC = () => {
                       </m.div>
                     </Suspense>
                   } />
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-              </AnimatePresence>
+                    <Route path="*" element={
+                      <m.div
+                        variants={pageVariants}
+                        initial="initial"
+                        animate="in"
+                        exit="out"
+                        transition={pageTransition}
+                      >
+                        <NotFoundPage path={location.pathname} />
+                      </m.div>
+                    } />
+                  </Routes>
+                </AnimatePresence>
+              </Suspense>
             </main>
-            <Footer />
+            <Suspense fallback={null}>
+              <Footer />
+            </Suspense>
 
             {/* TOTP管理器模态框 */}
             <AnimatePresence>
@@ -1738,23 +1968,29 @@ const App: React.FC = () => {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 backdrop-blur-sm"
-                  onClick={() => setShowTOTPManager(false)}
+                  onClick={closeTOTPManager}
                 >
                   <m.div
+                    ref={totpDialogRef}
                     initial={{ scale: 0.9, opacity: 0, y: 20 }}
                     animate={{ scale: 1, opacity: 1, y: 0 }}
                     exit={{ scale: 0.9, opacity: 0, y: 20 }}
                     transition={prefersReducedMotion ? { duration: 0 } : TOTP_SPRING}
-                    className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="totp-manager-title"
+                    className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto overscroll-contain"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="p-6">
                       <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-2xl font-bold text-gray-900">账户安全设置</h2>
+                        <h2 id="totp-manager-title" className="text-2xl font-bold text-gray-900">账户安全设置</h2>
                         <button
-                          onClick={() => setShowTOTPManager(false)}
-                          className="text-gray-400 hover:text-gray-600 transition-colors"
+                          ref={totpCloseButtonRef}
+                          onClick={closeTOTPManager}
+                          className="rounded-full p-2 text-gray-400 transition-colors hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                           title="关闭"
+                          aria-label="关闭账户安全设置"
                         >
                           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
