@@ -16,6 +16,7 @@ const FALLBACK_BASE_URL = "https://api.951100.xyz";
 const FALLBACK_FRONTEND_URL = "https://tts.951100.xyz";
 const FALLBACK_JWT_SECRET = "yb56beb12b35ab636b66c4f9fc168646785a8e85a";
 const DURATION_PATTERN = /^\d+[smhd]$/i;
+const TRUSTED_DEEPLX_BASE_URL = "https://api.deeplx.org";
 
 let runtimeConfigDefaults: RuntimeConfigDefaults = buildRuntimeConfigDefaults({
   baseUrl: FALLBACK_BASE_URL,
@@ -104,6 +105,27 @@ function buildDeepLXTranslateUrl(baseUrl: string, apiKey: string): string {
   const normalizedBaseUrl = baseUrl.replace(/\/+$/, "");
   const keySegment = apiKey.trim() || "<api-key>";
   return `${normalizedBaseUrl}/${keySegment}/translate`;
+}
+
+function normalizeDeepLXBaseUrl(value: unknown, fallback: string): string {
+  const candidate = normalizeUrl(value, fallback);
+
+  try {
+    const parsed = new URL(candidate);
+    if (
+      parsed.protocol === "https:" &&
+      parsed.hostname.toLowerCase() === "api.deeplx.org" &&
+      !parsed.username &&
+      !parsed.password &&
+      (!parsed.pathname || parsed.pathname === "/")
+    ) {
+      return TRUSTED_DEEPLX_BASE_URL;
+    }
+  } catch {
+    return fallback;
+  }
+
+  return fallback;
 }
 
 function normalizeStoredIpqsConfig(value: unknown, defaults = runtimeConfigDefaults.ipqs): IpqsRuntimeConfig {
@@ -201,7 +223,7 @@ function normalizeStoredDeepLXConfig(
   const raw = asObject(value);
 
   return {
-    baseUrl: normalizeUrl(raw.baseUrl, defaults.baseUrl),
+    baseUrl: normalizeDeepLXBaseUrl(raw.baseUrl, defaults.baseUrl),
     apiKey: normalizeOptionalString(raw.apiKey, defaults.apiKey, 2048),
   };
 }
@@ -577,9 +599,16 @@ export class RuntimeConfigService {
   static async setDeepLXSetting(input: Partial<DeepLXRuntimeConfig>): Promise<{ updatedAt: string }> {
     const currentDoc = await readRuntimeConfigDoc("DEEPLX");
     const current = currentDoc ? normalizeStoredDeepLXConfig(currentDoc.value) : runtimeConfigCache.deeplx;
+    const requestedBaseUrl = input.baseUrl === undefined
+      ? current.baseUrl
+      : normalizeUrl(input.baseUrl, current.baseUrl);
+
+    if (requestedBaseUrl !== TRUSTED_DEEPLX_BASE_URL) {
+      throw new Error(`DeepLX Base URL 仅允许 ${TRUSTED_DEEPLX_BASE_URL}`);
+    }
 
     const nextConfig: DeepLXRuntimeConfig = {
-      baseUrl: normalizeUrl(input.baseUrl, current.baseUrl),
+      baseUrl: TRUSTED_DEEPLX_BASE_URL,
       apiKey:
         typeof input.apiKey === "string" && input.apiKey.trim().length > 0
           ? input.apiKey.trim().slice(0, 2048)

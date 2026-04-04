@@ -42,14 +42,16 @@ describe("deeplxService", () => {
     });
   });
 
-  it("allows self-hosted endpoints without an API key", () => {
+  it("rejects non-official DeepLX hosts", () => {
     Object.assign(config.deeplx, {
       baseUrl: "https://deeplx.internal.example.com/",
       apiKey: "",
     });
 
-    expect(isDeepLXConfigured()).toBe(true);
-    expect(buildDeepLXTranslateUrl()).toBe("https://deeplx.internal.example.com/translate");
+    expect(isDeepLXConfigured()).toBe(false);
+    expect(() => buildDeepLXTranslateUrl()).toThrow(
+      "DeepLX base URL must use https://api.deeplx.org",
+    );
   });
 
   it("builds the hosted translate URL with the configured API key", () => {
