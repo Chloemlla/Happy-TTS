@@ -4,24 +4,8 @@ import { api } from '../api/api';
 import DOMPurify from 'dompurify';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { marked } from 'marked';
-import hljs from 'highlight.js';
-import 'highlight.js/styles/base16/darcula.css';
-
-// 配置 marked
-marked.use({
-  async: true,
-  pedantic: false,
-  gfm: true,
-  renderer: {
-    code(token: any) {
-      const { text, lang } = token;
-      const language = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
-      const highlighted = hljs.highlight(text, { language }).value;
-      return `<pre><code class="hljs language-${language}">${highlighted}</code></pre>`;
-    }
-  }
-});
+import MarkdownRenderer from './MarkdownRenderer';
+import Mermaid from './Mermaid';
 
 interface ArtifactData {
   shortId: string;
@@ -47,22 +31,12 @@ const ArtifactSharePage: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
   const [shared, setShared] = useState(false);
-  const [renderedMarkdown, setRenderedMarkdown] = useState<string>('');
 
   useEffect(() => {
     if (shortId) {
       fetchArtifact();
     }
   }, [shortId]);
-
-  // 渲染 Markdown
-  useEffect(() => {
-    if (artifact && artifact.contentType === 'markdown') {
-      marked.parse(artifact.content, { async: true }).then((html: string) => {
-        setRenderedMarkdown(DOMPurify.sanitize(html));
-      });
-    }
-  }, [artifact]);
 
   const fetchArtifact = async (pwd?: string) => {
     try {
@@ -324,22 +298,15 @@ const ArtifactSharePage: React.FC = () => {
 
       case 'markdown':
         return (
-          <div
-            className="artifact-markdown-content prose prose-lg prose-slate max-w-none
-                       bg-white rounded-xl p-8 shadow-xl
-                       prose-headings:font-bold prose-a:text-blue-600 hover:prose-a:text-blue-500
-                       prose-code:text-pink-600 prose-code:bg-pink-50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded
-                       prose-pre:shadow-lg"
-            dangerouslySetInnerHTML={{
-              __html: renderedMarkdown,
-            }}
-          />
+          <div className="bg-white rounded-xl p-8 shadow-xl">
+            <MarkdownRenderer content={artifact.content} />
+          </div>
         );
 
       case 'mermaid':
         return (
-          <div className="artifact-mermaid-content bg-white rounded-xl p-8 shadow-xl">
-            <pre className="mermaid text-center rounded-lg">{artifact.content}</pre>
+          <div className="bg-white rounded-xl p-8 shadow-xl">
+            <Mermaid code={artifact.content} />
           </div>
         );
 

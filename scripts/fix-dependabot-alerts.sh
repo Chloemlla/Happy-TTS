@@ -1,80 +1,112 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ============================================================
-# Fix Dependabot security alerts and dependency updates
+# Fix current Dependabot alerts reported by audit output.
 #
 # Current alerts:
-# - handlebars: JavaScript Injection / AST Type Confusion
-# - flatted: Prototype Pollution / DoS in parse()
-# - undici: Unhandled Exception / DoS / HTTP Request Smuggling
-# - picomatch: ReDoS via extglob quantifiers
-# - brace-expansion: Zero-step sequence causes process hang 
-# - path-to-regexp: ReDoS and Denial of Service
-# - serialize-javascript: CPU Exhaustion via crafted array-like objects
+# - frontend: lodash via swagger-ui-react
+# - frontend/docs: lodash via @docusaurus/core
 #
-# Dependabot Alert Locations:
-# - Root: handlebars, undici, picomatch, brace-expansion, path-to-regexp
-# - frontend: flatted, picomatch, brace-expansion
-# - frontend/docs: picomatch, brace-expansion, path-to-regexp, serialize-javascript
+# Target fix:
+# - force lodash to a patched version (>=4.18.0)
+# - refresh the direct packages that pull lodash in
+# - re-run audit for root, frontend, and frontend/docs
 # ============================================================
-set -e
 
-echo "=========================================="
-echo "  Fixing Security Vulnerabilities"
-echo "  and Updating Dependencies"
-echo "=========================================="
+set -euo pipefail
 
-# 1. Root
-echo ""
-echo "[1/3] Root: upgrading vulnerable packages..."
-pnpm update handlebars undici picomatch brace-expansion path-to-regexp --depth Infinity || pnpm update handlebars undici picomatch brace-expansion path-to-regexp
-pnpm install --no-frozen-lockfile
-echo "✅ Root done"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PATCHED_LODASH_VERSION=">=4.18.0"
 
-# 2. frontend
-echo ""
-echo "[2/3] frontend: upgrading vulnerable packages and installing markdown plugins..."
-cd frontend
-pnpm update flatted picomatch brace-expansion --depth Infinity || pnpm update flatted picomatch brace-expansion
-echo "Installing react-markdown and plugins..."
-pnpm add react-markdown react-syntax-highlighter remark-gfm remark-math rehype-katex
-pnpm add -D @types/react-syntax-highlighter
-pnpm install --no-frozen-lockfile
-cd ..
-echo "✅ frontend done"
+print_header() {
+  echo "=========================================="
+  echo "  Fixing Dependabot Alerts"
+  echo "=========================================="
+}
 
-# 3. frontend/docs
-echo ""
-echo "[3/3] frontend/docs: upgrading vulnerable packages..."
-cd frontend/docs
-pnpm update picomatch brace-expansion path-to-regexp serialize-javascript --depth Infinity || pnpm update picomatch brace-expansion path-to-regexp serialize-javascript
-pnpm install --no-frozen-lockfile
-cd ../..
-echo "✅ frontend/docs done"
+print_section() {
+  echo ""
+  echo "[$1/3] $2"
+}
 
-# Verify
+set_lodash_override() {
+  local package_json="$1"
+
+  node -e "
+const fs = require('fs');
+const packageJsonPath = process.argv[1];
+const lodashRange = process.argv[2];
+const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+pkg.pnpm ||= {};
+pkg.pnpm.overrides ||= {};
+pkg.pnpm.overrides.lodash = lodashRange;
+fs.writeFileSync(packageJsonPath, JSON.stringify(pkg, null, 2) + '\n');
+" "$package_json" "$PATCHED_LODASH_VERSION"
+}
+
+pnpm_update_latest() {
+  if ! pnpm update --latest "$@"; then
+    pnpm update "$@"
+  fi
+}
+
+run_audit() {
+  local title="$1"
+  local dir="$2"
+
+  echo ""
+  echo "--- $title ---"
+  (
+    cd "$dir"
+    pnpm audit 2>/dev/null || true
+  )
+}
+
+print_header
+
+print_section 1 "root: no action required from the current audit output"
+echo "Current root audit is clean, skipping dependency changes."
+echo "[ok] root"
+
+print_section 2 "frontend: override lodash and refresh swagger-ui-react"
+(
+  cd "$ROOT_DIR/frontend"
+  set_lodash_override "$PWD/package.json"
+  pnpm_update_latest swagger-ui-react lodash --depth Infinity
+  pnpm install --no-frozen-lockfile
+)
+echo "[ok] frontend"
+
+print_section 3 "frontend/docs: override lodash and refresh Docusaurus packages"
+(
+  cd "$ROOT_DIR/frontend/docs"
+  set_lodash_override "$PWD/package.json"
+  pnpm_update_latest \
+    @docusaurus/core \
+    @docusaurus/preset-classic \
+    @docusaurus/module-type-aliases \
+    @docusaurus/tsconfig \
+    @docusaurus/types \
+    lodash \
+    --depth Infinity
+  pnpm install --no-frozen-lockfile
+)
+echo "[ok] frontend/docs"
+
 echo ""
 echo "=========================================="
 echo "  Audit Results"
 echo "=========================================="
-echo ""
-echo "--- root ---"
-pnpm audit 2>/dev/null || true
-echo ""
-echo "--- frontend ---"
-cd frontend && pnpm audit 2>/dev/null || true && cd ..
-echo ""
-echo "--- frontend/docs ---"
-cd frontend/docs && pnpm audit 2>/dev/null || true && cd ../..
+
+run_audit "root" "$ROOT_DIR"
+run_audit "frontend" "$ROOT_DIR/frontend"
+run_audit "frontend/docs" "$ROOT_DIR/frontend/docs"
 
 echo ""
 echo "=========================================="
-echo "  Done. Review audit output above."
-echo "  Security fixes updated:"
-echo "  - handlebars (root)"
-echo "  - flatted (frontend)"
-echo "  - undici (root)"
-echo "  - picomatch (root, frontend, frontend/docs)"
-echo "  - brace-expansion (root, frontend, frontend/docs)"
-echo "  - path-to-regexp (root, frontend/docs)"
-echo "  - serialize-javascript (frontend/docs)"
+echo "  Done"
+echo "  Updated targets:"
+echo "  - frontend -> swagger-ui-react -> lodash"
+echo "  - frontend/docs -> @docusaurus/core -> lodash"
+echo "  Forced override:"
+echo "  - lodash $PATCHED_LODASH_VERSION"
 echo "=========================================="

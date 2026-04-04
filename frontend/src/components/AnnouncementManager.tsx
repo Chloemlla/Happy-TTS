@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import DOMPurify from 'dompurify';
-import { marked } from 'marked';
+import MarkdownRenderer from './MarkdownRenderer';
 import getApiBaseUrl from '../api';
 import { useNotification } from './Notification';
 import { useAuth } from '../hooks/useAuth';
@@ -23,16 +23,6 @@ function getAuthHeaders(): Record<string, string> {
   const token = localStorage.getItem('token');
   if (token) return { Authorization: `Bearer ${token}` };
   return {};
-}
-
-function renderMarkdownSafe(md: string) {
-  let html: string;
-  try {
-    html = marked(md) as string;
-  } catch {
-    html = md;
-  }
-  return DOMPurify.sanitize(html);
 }
 
 const AnnouncementManager: React.FC = () => {
@@ -365,10 +355,7 @@ const AnnouncementManager: React.FC = () => {
                   <div className="border-2 border-gray-200 rounded-lg p-4 min-h-[120px] bg-gray-50">
                     {content ? (
                       format === 'markdown' ? (
-                        <div 
-                          className="prose prose-sm max-w-none"
-                          dangerouslySetInnerHTML={{ __html: renderMarkdownSafe(content) }} 
-                        />
+                        <MarkdownRenderer content={content} />
                       ) : (
                         <div 
                           className="prose prose-sm max-w-none"
