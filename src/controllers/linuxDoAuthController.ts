@@ -15,41 +15,37 @@ function parseIntent(value: unknown): LinuxDoAuthIntent {
   return value === "register" ? "register" : "login";
 }
 
+function readCallbackField(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (Array.isArray(value) && typeof value[0] === "string") {
+    return value[0];
+  }
+
+  return "";
+}
+
 export class LinuxDoAuthController {
-  public static getConfig(_req: Request, res: Response) {
-    res.json(getLinuxDoConfigSummary());
-  }
-
-  public static async start(req: Request, res: Response) {
-    try {
-      if (!isLinuxDoAuthEnabled()) {
-        return res.status(503).json({ error: "Linux.do OAuth is not configured" });
-      }
-
-      const intent = parseIntent(req.query.intent);
-      const authorizationUrl = await createLinuxDoAuthorizationUrl(intent);
-      return res.redirect(302, authorizationUrl);
-    } catch (error) {
-      logger.error("[Linux.do Auth] Failed to start OAuth flow", error);
-      return res.status(500).json({ error: "Failed to start Linux.do OAuth flow" });
-    }
-  }
-
-  public static async callback(req: Request, res: Response) {
-    const code = typeof req.body?.code === "string" ? req.body.code : "";
-    const state = typeof req.body?.state === "string" ? req.body.state : "";
-    const oauthError =
-      typeof req.body?.error === "string" ? req.body.error : undefined;
+  private static async handleCallbackPayload(
+    req: Request,
+    res: Response,
+    source: unknown,
+    missingPayloadMessage: string,
+  ) {
+    const payload =
+      source && typeof source === "object" ? (source as Record<string, unknown>) : {};
+    const code = readCallbackField(payload.code);
+    const state = readCallbackField(payload.state);
+    const oauthError = readCallbackField(payload.error) || undefined;
 
     if (oauthError) {
       return res.redirect(302, getLinuxDoErrorRedirect(oauthError));
     }
 
     if (!code || !state) {
-      return res.redirect(
-        302,
-        getLinuxDoErrorRedirect("Missing Linux.do authorization code or state"),
-      );
+      return res.redirect(302, getLinuxDoErrorRedirect(missingPayloadMessage));
     }
 
     try {
@@ -72,7 +68,56 @@ export class LinuxDoAuthController {
     }
   }
 
-  public static callbackGet(_req: Request, res: Response) {
+  private static buildFrontendCallbackRelay(params: Record<string, string>): string {
+    const searchParams = new URLSearchParams(params);
+    const { frontendCallbackUrl } = getLinuxDoConfigSummary();
+    return `${frontendCallbackUrl}?${searchParams.toString()}`;
+  }
+
+  public static getConfig(_req: Request, res: Response) {
+    res.json(getLinuxDoConfigSummary());
+  }
+
+  public static async start(req: Request, res: Response) {
+    try {
+      if (!isLinuxDoAuthEnabled()) {
+        return res.status(503).json({ error: "Linux.do OAuth is not configured" });
+      }
+
+      const intent = parseIntent(req.query.intent);
+      const authorizationUrl = await createLinuxDoAuthorizationUrl(intent);
+      return res.redirect(302, authorizationUrl);
+    } catch (error) {
+      logger.error("[Linux.do Auth] Failed to start OAuth flow", error);
+      return res.status(500).json({ error: "Failed to start Linux.do OAuth flow" });
+    }
+  }
+
+  public static async callback(req: Request, res: Response) {
+    return LinuxDoAuthController.handleCallbackPayload(
+      req,
+      res,
+      req.body,
+      "Missing Linux.do authorization code or state",
+    );
+  }
+
+  public static callbackGet(req: Request, res: Response) {
+    const code = readCallbackField(req.query?.code);
+    const state = readCallbackField(req.query?.state);
+    const oauthError = readCallbackField(req.query?.error) || undefined;
+
+    if (oauthError) {
+      return res.redirect(302, getLinuxDoErrorRedirect(oauthError));
+    }
+
+    if (code && state) {
+      return res.redirect(
+        302,
+        LinuxDoAuthController.buildFrontendCallbackRelay({ code, state }),
+      );
+    }
+
     return res.redirect(
       302,
       getLinuxDoErrorRedirect("Linux.do callback must use POST form data"),

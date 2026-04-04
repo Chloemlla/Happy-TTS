@@ -21,6 +21,8 @@ export const LinuxDoAuthCallbackPage: React.FC = () => {
 
     const error = searchParams.get("error");
     const ticket = searchParams.get("ticket");
+    const code = searchParams.get("code");
+    const state = searchParams.get("state");
 
     if (error) {
       setStatus("Linux.do 登录失败，正在返回登录页...");
@@ -29,39 +31,80 @@ export const LinuxDoAuthCallbackPage: React.FC = () => {
       return;
     }
 
-    if (!ticket) {
+    const completeLogin = async (token: string, user: unknown, isNewUser: boolean) => {
+      await loginWithToken(token, user);
+      setNotification({
+        message: isNewUser ? "Linux.do 注册并登录成功" : "Linux.do 登录成功",
+        type: "success",
+      });
+      setStatus("登录成功，正在跳转...");
+
+      window.setTimeout(() => {
+        window.location.replace("/");
+      }, 250);
+    };
+
+    const exchangeTicket = async (ticketValue: string) => {
+      const response = await fetch(`${getApiBaseUrl()}/api/auth/linuxdo/exchange`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ ticket: ticketValue }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || "Linux.do 登录失败");
+      }
+
+      await completeLogin(data.token, data.user, Boolean(data.isNewUser));
+    };
+
+    const submitCallbackForm = async (codeValue: string, stateValue: string) => {
+      const response = await fetch(`${getApiBaseUrl()}/api/auth/linuxdo/callback`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        credentials: "include",
+        body: new URLSearchParams({
+          code: codeValue,
+          state: stateValue,
+        }).toString(),
+      });
+
+      const redirectedUrl = response.url ? new URL(response.url) : null;
+      const redirectedError = redirectedUrl?.searchParams.get("error");
+      if (redirectedError) {
+        throw new Error(redirectedError);
+      }
+
+      const redirectedTicket = redirectedUrl?.searchParams.get("ticket");
+      if (!redirectedTicket) {
+        throw new Error("缺少 Linux.do 登录票据");
+      }
+
+      await exchangeTicket(redirectedTicket);
+    };
+
+    if (!ticket && !(code && state)) {
       setStatus("缺少 Linux.do 登录票据，正在返回登录页...");
       setNotification({ message: "缺少 Linux.do 登录票据", type: "error" });
       window.setTimeout(() => navigate("/login", { replace: true }), 800);
       return;
     }
 
-    const exchangeTicket = async () => {
+    const finalizeLogin = async () => {
       try {
-        const response = await fetch(`${getApiBaseUrl()}/api/auth/linuxdo/exchange`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "same-origin",
-          body: JSON.stringify({ ticket }),
-        });
-
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data?.error || "Linux.do 登录失败");
+        if (ticket) {
+          await exchangeTicket(ticket);
+          return;
         }
 
-        await loginWithToken(data.token, data.user);
-        setNotification({
-          message: data.isNewUser ? "Linux.do 注册并登录成功" : "Linux.do 登录成功",
-          type: "success",
-        });
-        setStatus("登录成功，正在跳转...");
-
-        window.setTimeout(() => {
-          window.location.replace("/");
-        }, 250);
+        setStatus("正在提交 Linux.do 回调数据...");
+        await submitCallbackForm(code!, state!);
       } catch (exchangeError) {
         const message =
           exchangeError instanceof Error ? exchangeError.message : "Linux.do 登录失败";
@@ -71,7 +114,7 @@ export const LinuxDoAuthCallbackPage: React.FC = () => {
       }
     };
 
-    void exchangeTicket();
+    void finalizeLogin();
   }, [loginWithToken, navigate, searchParams, setNotification]);
 
   return (
