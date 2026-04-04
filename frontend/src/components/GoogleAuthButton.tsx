@@ -213,7 +213,7 @@ const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
           setScriptLoadFailed(true);
           if (!notifiedLoadFailureRef.current) {
             setNotification({
-              message: "无法加载 Google 登录模块，请检查网络或站点 CSP 配置",
+              message: "无法加载 Google 登录模块，请检查网络配置。",
               type: "error",
             });
             notifiedLoadFailureRef.current = true;
@@ -241,7 +241,7 @@ const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
         <img
           width="48"
           height="48"
-          src="https://img.icons8.com/color/48/google-logo.png"
+          src="https://www.gstatic.com/marketing-cms/assets/images/d5/dc/cfe9ce8b4425b410b49b7f2dd3f3/g.webp=s96-fcrop64=1,00000000ffffffff-rw"
           alt="google-logo"
           className="h-8 w-8 rounded-full object-cover shadow-sm flex-shrink-0"
           loading="lazy"
@@ -256,7 +256,7 @@ const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
       </div>
       {scriptLoadFailed ? (
         <div className="flex min-h-[44px] w-full items-center justify-center rounded-lg border border-amber-200 bg-amber-50 px-3 text-center text-xs text-amber-700">
-          无法加载 Google 登录模块，请检查网络或联系管理员确认 Google Client ID 与 CSP 配置。
+          无法加载 Google 登录模块，请检查网络配置。
         </div>
       ) : (
         <div ref={buttonRef} className="flex min-h-[44px] w-full items-center justify-center" />
