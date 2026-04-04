@@ -8,16 +8,13 @@ import { useAuth } from '../hooks/useAuth';
 import CryptoJS from 'crypto-js';
 import { useNotification } from './Notification';
 import {
-  FaUsers,
   FaUserPlus,
   FaEdit,
   FaTrash,
   FaSave,
   FaTimes,
   FaUser,
-  FaEnvelope,
   FaKey,
-  FaUserTag,
   FaList,
   FaShieldAlt,
   FaCog,
@@ -133,91 +130,650 @@ function decryptAES256(encryptedData: string, iv: string, key: string): string {
 const ROW_INITIAL = { opacity: 0, x: -20 } as const;
 const ROW_ANIMATE = { opacity: 1, x: 0 } as const;
 
-// 字段分组配置
-type FieldSection = {
+type UserFormChangeEvent = React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>;
+type UserFormChangeHandler = (event: UserFormChangeEvent) => void;
+type MotionScaleHandler = (scale: number, enabled?: boolean) => { scale: number } | undefined;
+type CollapsibleSectionKey = 'token' | 'security' | 'fingerprint' | 'backupCodes';
+type CollapsedSectionState = Record<CollapsibleSectionKey, boolean>;
+
+type UserFormSectionProps = {
   title: string;
   icon: React.ReactNode;
-  fields: FieldConfig[];
+  children: React.ReactNode;
+  collapsed?: boolean;
+  onToggle?: () => void;
+  contentClassName?: string;
 };
 
-type FieldConfig = {
-  name: keyof User;
+type UserTextFieldProps = {
   label: string;
-  type: 'text' | 'password' | 'email' | 'number' | 'select' | 'checkbox' | 'textarea';
+  name: keyof User;
+  value: string | number;
+  onChange: UserFormChangeHandler;
+  type?: 'text' | 'password' | 'email' | 'number';
   placeholder?: string;
-  options?: { value: string; label: string }[];
-  readOnlyOnEdit?: boolean;
-  hideOnCreate?: boolean;
+  hint?: string;
 };
 
-const FIELD_SECTIONS: FieldSection[] = [
-  {
-    title: '基本信息',
-    icon: <FaUser className="text-blue-500" />,
-    fields: [
-      { name: 'username', label: '用户名', type: 'text', placeholder: '3-20位字母数字下划线' },
-      { name: 'email', label: '邮箱', type: 'email', placeholder: '请输入邮箱' },
-      { name: 'password', label: '密码', type: 'text', placeholder: '留空则不修改' },
-      { name: 'role', label: '角色', type: 'select', options: [{ value: 'user', label: '普通用户' }, { value: 'admin', label: '管理员' }] },
-      { name: 'avatarUrl', label: '头像URL', type: 'text', placeholder: '用户头像图片URL' },
-      { name: 'dailyUsage', label: '今日使用次数', type: 'number', placeholder: '0' },
-      { name: 'lastUsageDate', label: '最后使用日期', type: 'text', placeholder: 'ISO 日期字符串' },
-    ],
-  },
-  {
-    title: 'Token 信息',
-    icon: <FaKey className="text-yellow-500" />,
-    fields: [
-      { name: 'token', label: 'Token', type: 'text', placeholder: '当前有效Token' },
-      { name: 'tokenExpiresAt', label: 'Token 过期时间戳', type: 'number', placeholder: '毫秒时间戳，0=立即过期' },
-    ],
-  },
-  {
-    title: 'TOTP 两步验证',
-    icon: <FaShieldAlt className="text-green-500" />,
-    fields: [
-      { name: 'totpEnabled', label: '启用 TOTP', type: 'checkbox' },
-      { name: 'totpSecret', label: 'TOTP 密钥', type: 'text', placeholder: 'Base32 密钥' },
-    ],
-  },
-  {
-    title: 'Passkey 配置',
-    icon: <FaShieldAlt className="text-purple-500" />,
-    fields: [
-      { name: 'passkeyEnabled', label: '启用 Passkey', type: 'checkbox' },
-      { name: 'passkeyVerified', label: 'Passkey 已验证', type: 'checkbox' },
-      { name: 'pendingChallenge', label: 'Pending Challenge', type: 'text', placeholder: 'WebAuthn 挑战' },
-      { name: 'currentChallenge', label: 'Current Challenge', type: 'text', placeholder: 'WebAuthn 当前挑战' },
-    ],
-  },
-  {
-    title: '指纹配置',
-    icon: <FaCog className="text-red-500" />,
-    fields: [
-      { name: 'requireFingerprint', label: '要求上报指纹', type: 'checkbox' },
-      { name: 'requireFingerprintAt', label: '指纹预约时间戳', type: 'number', placeholder: '毫秒时间戳' },
-      { name: 'fingerprintRequestDismissedOnce', label: '已关闭一次指纹请求', type: 'checkbox' },
-      { name: 'fingerprintRequestDismissedAt', label: '关闭指纹请求时间戳', type: 'number', placeholder: '毫秒时间戳' },
-    ],
-  },
-  {
-    title: '工单限制管理',
-    icon: <FaShieldAlt className="text-orange-500" />,
-    fields: [
-      { name: 'ticketViolationCount', label: '工单违规次数', type: 'number', placeholder: '0' },
-      { name: 'ticketBannedUntil', label: '工单封禁截止', type: 'text', placeholder: 'ISO 日期字符串，留空解除' },
-    ],
-  },
-  {
-    title: '翻译权限管理',
-    icon: <FaShieldAlt className="text-cyan-500" />,
-    fields: [
-      { name: 'isTranslationEnabled', label: '启用翻译页面', type: 'checkbox' },
-      { name: 'translationAccessUntil', label: '翻译限制截止', type: 'text', placeholder: 'ISO 日期字符串，留空表示无限制' },
-      { name: 'accountStatus', label: '账户状态', type: 'select', options: [{ value: 'active', label: '正常' }, { value: 'suspended', label: '封停' }] },
-    ],
-  },
+type UserSelectFieldProps = {
+  label: string;
+  name: keyof User;
+  value: string;
+  onChange: UserFormChangeHandler;
+  options: Array<{ value: string; label: string }>;
+};
+
+type UserCheckboxFieldProps = {
+  label: string;
+  name: keyof User;
+  checked: boolean;
+  onChange: UserFormChangeHandler;
+  hint?: string;
+};
+
+type SharedUserFormProps = {
+  form: User;
+  loading: boolean;
+  onSubmit: (event: React.FormEvent) => void;
+  onCancel: () => void;
+  onFieldChange: UserFormChangeHandler;
+  onBackupCodesChange: (value: string) => void;
+  collapsedSections: CollapsedSectionState;
+  onToggleSection: (section: CollapsibleSectionKey) => void;
+  hoverScale: MotionScaleHandler;
+  tapScale: MotionScaleHandler;
+};
+
+const ROLE_OPTIONS = [
+  { value: 'user', label: '普通用户' },
+  { value: 'admin', label: '管理员' },
 ];
+
+const ACCOUNT_STATUS_OPTIONS = [
+  { value: 'active', label: '正常' },
+  { value: 'suspended', label: '封停' },
+];
+
+const createDefaultCollapsedSections = (): CollapsedSectionState => ({
+  token: true,
+  security: true,
+  fingerprint: true,
+  backupCodes: true,
+});
+
+const parseBackupCodes = (value: string): string[] => (
+  value
+    .split('\n')
+    .map(item => item.trim())
+    .filter(Boolean)
+);
+
+const UserFormSection: React.FC<UserFormSectionProps> = ({
+  title,
+  icon,
+  children,
+  collapsed = false,
+  onToggle,
+  contentClassName = 'px-4 pb-4 pt-2 grid grid-cols-1 md:grid-cols-2 gap-4 bg-white border-t border-gray-100',
+}) => {
+  const headerContent = (
+    <span className="flex items-center gap-2 font-semibold text-gray-700 text-sm">
+      {icon}
+      {title}
+    </span>
+  );
+
+  return (
+    <div className="border border-gray-200 rounded-lg overflow-hidden">
+      {onToggle ? (
+        <button
+          type="button"
+          className="w-full flex items-center justify-between px-4 py-3 bg-white hover:bg-gray-50 transition-colors"
+          onClick={onToggle}
+        >
+          {headerContent}
+          {collapsed
+            ? <FaChevronDown className="text-gray-400 text-xs" />
+            : <FaChevronUp className="text-gray-400 text-xs" />}
+        </button>
+      ) : (
+        <div className="w-full flex items-center justify-between px-4 py-3 bg-white">
+          {headerContent}
+        </div>
+      )}
+
+      <AnimatePresence initial={false}>
+        {!collapsed && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className={contentClassName}>
+              {children}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+const UserTextField: React.FC<UserTextFieldProps> = ({
+  label,
+  name,
+  value,
+  onChange,
+  type = 'text',
+  placeholder,
+  hint,
+}) => (
+  <div>
+    <label className="block text-sm font-semibold text-gray-600 mb-1">
+      {label}
+      {hint && <span className="ml-1 text-xs font-normal text-gray-400">{hint}</span>}
+    </label>
+    <input
+      type={type}
+      name={String(name)}
+      value={String(value ?? '')}
+      onChange={onChange}
+      placeholder={placeholder}
+      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all text-sm"
+    />
+  </div>
+);
+
+const UserSelectField: React.FC<UserSelectFieldProps> = ({
+  label,
+  name,
+  value,
+  onChange,
+  options,
+}) => (
+  <div>
+    <label className="block text-sm font-semibold text-gray-600 mb-1">{label}</label>
+    <select
+      name={String(name)}
+      value={value}
+      onChange={onChange}
+      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all appearance-none bg-white text-sm"
+    >
+      {options.map(option => (
+        <option key={option.value} value={option.value}>{option.label}</option>
+      ))}
+    </select>
+  </div>
+);
+
+const UserCheckboxField: React.FC<UserCheckboxFieldProps> = ({
+  label,
+  name,
+  checked,
+  onChange,
+  hint,
+}) => (
+  <div>
+    <label className="block text-sm font-semibold text-gray-600 mb-1">
+      {label}
+      {hint && <span className="ml-1 text-xs font-normal text-gray-400">{hint}</span>}
+    </label>
+    <label className="flex items-center gap-2 cursor-pointer select-none">
+      <input
+        type="checkbox"
+        name={String(name)}
+        checked={checked}
+        onChange={onChange}
+        className="w-4 h-4 rounded"
+      />
+      <span className="text-sm text-gray-600">{checked ? '是' : '否'}</span>
+    </label>
+  </div>
+);
+
+const IdentitySection: React.FC<{
+  mode: 'create' | 'edit';
+  form: User;
+  onFieldChange: UserFormChangeHandler;
+}> = ({ mode, form, onFieldChange }) => (
+  <UserFormSection
+    title="基本信息"
+    icon={<FaUser className="text-blue-500" />}
+  >
+    <UserTextField
+      label="用户名"
+      name="username"
+      value={form.username ?? ''}
+      onChange={onFieldChange}
+      placeholder="3-20位字母数字下划线"
+    />
+    <UserTextField
+      label="邮箱"
+      name="email"
+      value={form.email ?? ''}
+      onChange={onFieldChange}
+      type="email"
+      placeholder="请输入邮箱"
+    />
+    <UserTextField
+      label="密码"
+      name="password"
+      value={form.password ?? ''}
+      onChange={onFieldChange}
+      type="password"
+      placeholder={mode === 'edit' ? '留空则不修改' : '请输入初始密码'}
+      hint={mode === 'edit' ? '（留空不修改）' : undefined}
+    />
+    <UserSelectField
+      label="角色"
+      name="role"
+      value={String(form.role ?? 'user')}
+      onChange={onFieldChange}
+      options={ROLE_OPTIONS}
+    />
+    <UserTextField
+      label="头像URL"
+      name="avatarUrl"
+      value={form.avatarUrl ?? ''}
+      onChange={onFieldChange}
+      placeholder="用户头像图片URL"
+    />
+    <UserTextField
+      label="今日使用次数"
+      name="dailyUsage"
+      value={form.dailyUsage ?? 0}
+      onChange={onFieldChange}
+      type="number"
+      placeholder="0"
+    />
+    <UserTextField
+      label="最后使用日期"
+      name="lastUsageDate"
+      value={form.lastUsageDate ?? ''}
+      onChange={onFieldChange}
+      placeholder="ISO 日期字符串"
+    />
+  </UserFormSection>
+);
+
+const TokenSection: React.FC<{
+  form: User;
+  onFieldChange: UserFormChangeHandler;
+  collapsed: boolean;
+  onToggle: () => void;
+}> = ({ form, onFieldChange, collapsed, onToggle }) => (
+  <UserFormSection
+    title="Token 信息"
+    icon={<FaKey className="text-yellow-500" />}
+    collapsed={collapsed}
+    onToggle={onToggle}
+  >
+    <UserTextField
+      label="Token"
+      name="token"
+      value={form.token ?? ''}
+      onChange={onFieldChange}
+      placeholder="当前有效Token"
+    />
+    <UserTextField
+      label="Token 过期时间戳"
+      name="tokenExpiresAt"
+      value={form.tokenExpiresAt ?? 0}
+      onChange={onFieldChange}
+      type="number"
+      placeholder="毫秒时间戳，0=立即过期"
+    />
+  </UserFormSection>
+);
+
+const SecuritySection: React.FC<{
+  form: User;
+  onFieldChange: UserFormChangeHandler;
+  collapsed: boolean;
+  onToggle: () => void;
+}> = ({ form, onFieldChange, collapsed, onToggle }) => (
+  <UserFormSection
+    title="安全配置"
+    icon={<FaShieldAlt className="text-green-500" />}
+    collapsed={collapsed}
+    onToggle={onToggle}
+    contentClassName="px-4 pb-4 pt-2 bg-white border-t border-gray-100 space-y-5"
+  >
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="md:col-span-2 text-xs font-semibold uppercase tracking-wide text-gray-400">TOTP 两步验证</div>
+      <UserCheckboxField
+        label="启用 TOTP"
+        name="totpEnabled"
+        checked={Boolean(form.totpEnabled)}
+        onChange={onFieldChange}
+      />
+      <UserTextField
+        label="TOTP 密钥"
+        name="totpSecret"
+        value={form.totpSecret ?? ''}
+        onChange={onFieldChange}
+        placeholder="Base32 密钥"
+      />
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-gray-100 pt-5">
+      <div className="md:col-span-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Passkey 配置</div>
+      <UserCheckboxField
+        label="启用 Passkey"
+        name="passkeyEnabled"
+        checked={Boolean(form.passkeyEnabled)}
+        onChange={onFieldChange}
+      />
+      <UserCheckboxField
+        label="Passkey 已验证"
+        name="passkeyVerified"
+        checked={Boolean(form.passkeyVerified)}
+        onChange={onFieldChange}
+      />
+      <UserTextField
+        label="Pending Challenge"
+        name="pendingChallenge"
+        value={form.pendingChallenge ?? ''}
+        onChange={onFieldChange}
+        placeholder="WebAuthn 挑战"
+      />
+      <UserTextField
+        label="Current Challenge"
+        name="currentChallenge"
+        value={form.currentChallenge ?? ''}
+        onChange={onFieldChange}
+        placeholder="WebAuthn 当前挑战"
+      />
+    </div>
+  </UserFormSection>
+);
+
+const FingerprintSection: React.FC<{
+  form: User;
+  onFieldChange: UserFormChangeHandler;
+  collapsed: boolean;
+  onToggle: () => void;
+}> = ({ form, onFieldChange, collapsed, onToggle }) => (
+  <UserFormSection
+    title="指纹配置"
+    icon={<FaCog className="text-red-500" />}
+    collapsed={collapsed}
+    onToggle={onToggle}
+  >
+    <UserCheckboxField
+      label="要求上报指纹"
+      name="requireFingerprint"
+      checked={Boolean(form.requireFingerprint)}
+      onChange={onFieldChange}
+    />
+    <UserTextField
+      label="指纹预约时间戳"
+      name="requireFingerprintAt"
+      value={form.requireFingerprintAt ?? 0}
+      onChange={onFieldChange}
+      type="number"
+      placeholder="毫秒时间戳"
+    />
+    <UserCheckboxField
+      label="已关闭一次指纹请求"
+      name="fingerprintRequestDismissedOnce"
+      checked={Boolean(form.fingerprintRequestDismissedOnce)}
+      onChange={onFieldChange}
+    />
+    <UserTextField
+      label="关闭指纹请求时间戳"
+      name="fingerprintRequestDismissedAt"
+      value={form.fingerprintRequestDismissedAt ?? 0}
+      onChange={onFieldChange}
+      type="number"
+      placeholder="毫秒时间戳"
+    />
+  </UserFormSection>
+);
+
+const TicketRestrictionSection: React.FC<{
+  form: User;
+  onFieldChange: UserFormChangeHandler;
+}> = ({ form, onFieldChange }) => (
+  <UserFormSection
+    title="工单限制管理"
+    icon={<FaShieldAlt className="text-orange-500" />}
+  >
+    <UserTextField
+      label="工单违规次数"
+      name="ticketViolationCount"
+      value={form.ticketViolationCount ?? 0}
+      onChange={onFieldChange}
+      type="number"
+      placeholder="0"
+    />
+    <UserTextField
+      label="工单封禁截止"
+      name="ticketBannedUntil"
+      value={form.ticketBannedUntil ?? ''}
+      onChange={onFieldChange}
+      placeholder="ISO 日期字符串，留空解除"
+    />
+  </UserFormSection>
+);
+
+const TranslationAccessSection: React.FC<{
+  form: User;
+  onFieldChange: UserFormChangeHandler;
+}> = ({ form, onFieldChange }) => (
+  <UserFormSection
+    title="翻译权限管理"
+    icon={<FaShieldAlt className="text-cyan-500" />}
+  >
+    <UserCheckboxField
+      label="启用翻译页面"
+      name="isTranslationEnabled"
+      checked={Boolean(form.isTranslationEnabled)}
+      onChange={onFieldChange}
+    />
+    <UserTextField
+      label="翻译限制截止"
+      name="translationAccessUntil"
+      value={form.translationAccessUntil ?? ''}
+      onChange={onFieldChange}
+      placeholder="ISO 日期字符串，留空表示无限制"
+    />
+    <UserSelectField
+      label="账户状态"
+      name="accountStatus"
+      value={String(form.accountStatus ?? 'active')}
+      onChange={onFieldChange}
+      options={ACCOUNT_STATUS_OPTIONS}
+    />
+  </UserFormSection>
+);
+
+const BackupCodesSection: React.FC<{
+  backupCodes: string[];
+  collapsed: boolean;
+  onToggle: () => void;
+  onChange: (value: string) => void;
+}> = ({ backupCodes, collapsed, onToggle, onChange }) => (
+  <UserFormSection
+    title="备份码（backupCodes）"
+    icon={<FaKey className="text-orange-500" />}
+    collapsed={collapsed}
+    onToggle={onToggle}
+    contentClassName="px-4 pb-4 pt-2 bg-white border-t border-gray-100"
+  >
+    <label className="block text-sm font-semibold text-gray-600 mb-1">
+      备份码（每行一个）
+    </label>
+    <textarea
+      rows={4}
+      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all text-sm font-mono"
+      value={backupCodes.join('\n')}
+      onChange={event => onChange(event.target.value)}
+      placeholder="每行一个备份码"
+    />
+  </UserFormSection>
+);
+
+const UserFormScaffold: React.FC<{
+  title: string;
+  icon: React.ReactNode;
+  submitLabel: string;
+  loading: boolean;
+  onSubmit: (event: React.FormEvent) => void;
+  onCancel: () => void;
+  hoverScale: MotionScaleHandler;
+  tapScale: MotionScaleHandler;
+  children: React.ReactNode;
+}> = ({
+  title,
+  icon,
+  submitLabel,
+  loading,
+  onSubmit,
+  onCancel,
+  hoverScale,
+  tapScale,
+  children,
+}) => (
+  <form onSubmit={onSubmit} className="space-y-4">
+    <h4 className="text-base font-semibold text-gray-700 mb-4 flex items-center gap-2">
+      {icon}
+      {title}
+    </h4>
+
+    {children}
+
+    <div className="flex gap-3 pt-2">
+      <motion.button
+        type="submit"
+        disabled={loading}
+        className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium flex items-center gap-2 disabled:opacity-60"
+        whileHover={hoverScale(1.02)}
+        whileTap={tapScale(0.95)}
+      >
+        <FaSave />
+        {submitLabel}
+      </motion.button>
+      <motion.button
+        type="button"
+        className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium flex items-center gap-2"
+        onClick={onCancel}
+        whileHover={hoverScale(1.02)}
+        whileTap={tapScale(0.95)}
+      >
+        <FaTimes />
+        取消
+      </motion.button>
+    </div>
+  </form>
+);
+
+const CreateUserForm: React.FC<SharedUserFormProps> = ({
+  form,
+  loading,
+  onSubmit,
+  onCancel,
+  onFieldChange,
+  onBackupCodesChange,
+  collapsedSections,
+  onToggleSection,
+  hoverScale,
+  tapScale,
+}) => (
+  <UserFormScaffold
+    title="新增用户"
+    icon={<FaUserPlus className="text-blue-500" />}
+    submitLabel="添加用户"
+    loading={loading}
+    onSubmit={onSubmit}
+    onCancel={onCancel}
+    hoverScale={hoverScale}
+    tapScale={tapScale}
+  >
+    <IdentitySection mode="create" form={form} onFieldChange={onFieldChange} />
+    <TokenSection
+      form={form}
+      onFieldChange={onFieldChange}
+      collapsed={collapsedSections.token}
+      onToggle={() => onToggleSection('token')}
+    />
+    <SecuritySection
+      form={form}
+      onFieldChange={onFieldChange}
+      collapsed={collapsedSections.security}
+      onToggle={() => onToggleSection('security')}
+    />
+    <FingerprintSection
+      form={form}
+      onFieldChange={onFieldChange}
+      collapsed={collapsedSections.fingerprint}
+      onToggle={() => onToggleSection('fingerprint')}
+    />
+    <TicketRestrictionSection form={form} onFieldChange={onFieldChange} />
+    <TranslationAccessSection form={form} onFieldChange={onFieldChange} />
+    <BackupCodesSection
+      backupCodes={form.backupCodes || []}
+      collapsed={collapsedSections.backupCodes}
+      onToggle={() => onToggleSection('backupCodes')}
+      onChange={onBackupCodesChange}
+    />
+  </UserFormScaffold>
+);
+
+const EditUserForm: React.FC<SharedUserFormProps & { username: string }> = ({
+  username,
+  form,
+  loading,
+  onSubmit,
+  onCancel,
+  onFieldChange,
+  onBackupCodesChange,
+  collapsedSections,
+  onToggleSection,
+  hoverScale,
+  tapScale,
+}) => (
+  <UserFormScaffold
+    title={`编辑用户：${username}`}
+    icon={<FaEdit className="text-yellow-500" />}
+    submitLabel="保存修改"
+    loading={loading}
+    onSubmit={onSubmit}
+    onCancel={onCancel}
+    hoverScale={hoverScale}
+    tapScale={tapScale}
+  >
+    <IdentitySection mode="edit" form={form} onFieldChange={onFieldChange} />
+    <TokenSection
+      form={form}
+      onFieldChange={onFieldChange}
+      collapsed={collapsedSections.token}
+      onToggle={() => onToggleSection('token')}
+    />
+    <SecuritySection
+      form={form}
+      onFieldChange={onFieldChange}
+      collapsed={collapsedSections.security}
+      onToggle={() => onToggleSection('security')}
+    />
+    <FingerprintSection
+      form={form}
+      onFieldChange={onFieldChange}
+      collapsed={collapsedSections.fingerprint}
+      onToggle={() => onToggleSection('fingerprint')}
+    />
+    <TicketRestrictionSection form={form} onFieldChange={onFieldChange} />
+    <TranslationAccessSection form={form} onFieldChange={onFieldChange} />
+    <BackupCodesSection
+      backupCodes={form.backupCodes || []}
+      collapsed={collapsedSections.backupCodes}
+      onToggle={() => onToggleSection('backupCodes')}
+      onChange={onBackupCodesChange}
+    />
+  </UserFormScaffold>
+);
 
 // 所有可在列表中展示的字段（除 fingerprints/passkeyCredentials/backupCodes 等复杂数组）
 const TABLE_COLUMNS = [
@@ -242,8 +798,7 @@ const UserManagement: React.FC = () => {
   const [fpUser, setFpUser] = useState<User | null>(null);
   const [showFpModal, setShowFpModal] = useState(false);
   const [fpRequireMap, setFpRequireMap] = useState<Record<string, number>>({});
-  // 收起/展开各字段分组
-  const [collapsedSections, setCollapsedSections] = useState<Record<number, boolean>>({ 1: true, 2: true, 3: true, 4: true });
+  const [collapsedSections, setCollapsedSections] = useState<CollapsedSectionState>(createDefaultCollapsedSections);
   const navigate = useNavigate();
   const { setNotification } = useNotification();
   const prefersReducedMotion = useReducedMotion();
@@ -254,9 +809,23 @@ const UserManagement: React.FC = () => {
     enabled && !prefersReducedMotion ? { scale } : undefined
   ), [prefersReducedMotion]);
 
-  const toggleSection = (idx: number) => {
-    setCollapsedSections(prev => ({ ...prev, [idx]: !prev[idx] }));
-  };
+  const toggleSection = useCallback((section: CollapsibleSectionKey) => {
+    setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  }, []);
+
+  const closeForm = useCallback(() => {
+    setShowForm(false);
+    setEditingUser(null);
+    setForm(emptyUser);
+    setCollapsedSections(createDefaultCollapsedSections());
+  }, []);
+
+  const openCreate = useCallback(() => {
+    setShowForm(true);
+    setEditingUser(null);
+    setForm(emptyUser);
+    setCollapsedSections(createDefaultCollapsedSections());
+  }, []);
 
   // 获取工单封禁剩余时间描述
   const getBanRemainingText = (bannedUntil?: string) => {
@@ -325,7 +894,7 @@ const UserManagement: React.FC = () => {
   useEffect(() => { fetchUsers(); }, []);
 
   // 表单变更 — 支持 checkbox 和 number
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleChange: UserFormChangeHandler = (e) => {
     const target = e.target as HTMLInputElement;
     const name = target.name as keyof User;
     let value: any = target.value;
@@ -333,6 +902,13 @@ const UserManagement: React.FC = () => {
     if (target.type === 'number') value = target.value === '' ? '' : Number(target.value);
     setForm(prev => ({ ...prev, [name]: value }));
   };
+
+  const handleBackupCodesChange = useCallback((value: string) => {
+    setForm(prev => ({
+      ...prev,
+      backupCodes: value ? parseBackupCodes(value) : [],
+    }));
+  }, []);
 
   // 添加或编辑用户
   const handleSubmit = async (e: React.FormEvent) => {
@@ -351,9 +927,7 @@ const UserManagement: React.FC = () => {
       delete submitData.fingerprints;
       delete submitData.passkeyCredentials;
       await api.request({ url, method, data: submitData });
-      setShowForm(false);
-      setEditingUser(null);
-      setForm(emptyUser);
+      closeForm();
       setNotification({ type: 'success', message: editingUser ? '用户信息已更新' : '用户已创建' });
       fetchUsers();
     } catch (e: any) {
@@ -384,7 +958,7 @@ const UserManagement: React.FC = () => {
   const openEdit = useCallback((u: User) => {
     setEditingUser(u);
     setForm({ ...emptyUser, ...u, password: '' });
-    setCollapsedSections({ 1: true, 2: true, 3: true, 4: true });
+    setCollapsedSections(createDefaultCollapsedSections());
     setShowForm(true);
   }, []);
   const openFp = useCallback((u: User) => { setFpUser(u); setShowFpModal(true); }, []);
@@ -498,7 +1072,7 @@ const UserManagement: React.FC = () => {
             用户列表
           </h3>
           <motion.button
-            onClick={() => { setShowForm(true); setEditingUser(null); setForm(emptyUser); setCollapsedSections({ 1: true, 2: true, 3: true, 4: true }); }}
+            onClick={openCreate}
             className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium flex items-center gap-2"
             whileHover={hoverScale(1.02)}
             whileTap={tapScale(0.95)}
@@ -520,152 +1094,34 @@ const UserManagement: React.FC = () => {
               exit={{ opacity: 0, height: 0, scale: 0.95 }}
               transition={{ duration: 0.3 }}
             >
-              <h4 className="text-base font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                {editingUser ? <FaEdit className="text-yellow-500" /> : <FaUserPlus className="text-blue-500" />}
-                {editingUser ? `编辑用户：${editingUser.username}` : '新增用户'}
-              </h4>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {FIELD_SECTIONS.map((section, sIdx) => (
-                  <div key={sIdx} className="border border-gray-200 rounded-lg overflow-hidden">
-                    <button
-                      type="button"
-                      className="w-full flex items-center justify-between px-4 py-3 bg-white hover:bg-gray-50 transition-colors"
-                      onClick={() => toggleSection(sIdx)}
-                    >
-                      <span className="flex items-center gap-2 font-semibold text-gray-700 text-sm">
-                        {section.icon}
-                        {section.title}
-                      </span>
-                      {collapsedSections[sIdx]
-                        ? <FaChevronDown className="text-gray-400 text-xs" />
-                        : <FaChevronUp className="text-gray-400 text-xs" />}
-                    </button>
-                    <AnimatePresence initial={false}>
-                      {!collapsedSections[sIdx] && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="px-4 pb-4 pt-2 grid grid-cols-1 md:grid-cols-2 gap-4 bg-white border-t border-gray-100">
-                            {section.fields.map((field) => (
-                              <div key={String(field.name)}>
-                                <label className="block text-sm font-semibold text-gray-600 mb-1">
-                                  {field.label}
-                                  {field.name === 'password' && editingUser && (
-                                    <span className="ml-1 text-xs font-normal text-gray-400">（留空不修改）</span>
-                                  )}
-                                </label>
-                                {field.type === 'select' ? (
-                                  <select
-                                    name={String(field.name)}
-                                    value={String(form[field.name] ?? '')}
-                                    onChange={handleChange}
-                                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all appearance-none bg-white text-sm"
-                                  >
-                                    {field.options?.map(opt => (
-                                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                    ))}
-                                  </select>
-                                ) : field.type === 'checkbox' ? (
-                                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                                    <input
-                                      type="checkbox"
-                                      name={String(field.name)}
-                                      checked={Boolean(form[field.name])}
-                                      onChange={handleChange}
-                                      className="w-4 h-4 rounded"
-                                    />
-                                    <span className="text-sm text-gray-600">{form[field.name] ? '是' : '否'}</span>
-                                  </label>
-                                ) : (
-                                  <input
-                                    type={field.type}
-                                    name={String(field.name)}
-                                    value={String(form[field.name] ?? '')}
-                                    onChange={handleChange}
-                                    placeholder={field.placeholder}
-                                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all text-sm"
-                                  />
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                ))}
-
-                {/* 备份码 — 文本区域 */}
-                <div className="border border-gray-200 rounded-lg overflow-hidden">
-                  <button
-                    type="button"
-                    className="w-full flex items-center justify-between px-4 py-3 bg-white hover:bg-gray-50 transition-colors"
-                    onClick={() => toggleSection(99)}
-                  >
-                    <span className="flex items-center gap-2 font-semibold text-gray-700 text-sm">
-                      <FaKey className="text-orange-500" />
-                      备份码（backupCodes）
-                    </span>
-                    {collapsedSections[99] ?? true
-                      ? <FaChevronDown className="text-gray-400 text-xs" />
-                      : <FaChevronUp className="text-gray-400 text-xs" />}
-                  </button>
-                  <AnimatePresence initial={false}>
-                    {!(collapsedSections[99] ?? true) && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="overflow-hidden"
-                      >
-                        <div className="px-4 pb-4 pt-2 bg-white border-t border-gray-100">
-                          <label className="block text-sm font-semibold text-gray-600 mb-1">
-                            备份码（每行一个）
-                          </label>
-                          <textarea
-                            rows={4}
-                            className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all text-sm font-mono"
-                            value={(form.backupCodes || []).join('\n')}
-                            onChange={e => {
-                              const val = e.target.value;
-                              setForm(prev => ({ ...prev, backupCodes: val ? val.split('\n').map(s => s.trim()).filter(Boolean) : [] }));
-                            }}
-                            placeholder="每行一个备份码"
-                          />
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-
-                <div className="flex gap-3 pt-2">
-                  <motion.button
-                    type="submit"
-                    disabled={loading}
-                    className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium flex items-center gap-2 disabled:opacity-60"
-                    whileHover={hoverScale(1.02)}
-                    whileTap={tapScale(0.95)}
-                  >
-                    <FaSave />
-                    {editingUser ? '保存修改' : '添加用户'}
-                  </motion.button>
-                  <motion.button
-                    type="button"
-                    className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium flex items-center gap-2"
-                    onClick={() => { setShowForm(false); setEditingUser(null); }}
-                    whileHover={hoverScale(1.02)}
-                    whileTap={tapScale(0.95)}
-                  >
-                    <FaTimes />
-                    取消
-                  </motion.button>
-                </div>
-              </form>
+              {editingUser ? (
+                <EditUserForm
+                  username={editingUser.username}
+                  form={form}
+                  loading={loading}
+                  onSubmit={handleSubmit}
+                  onCancel={closeForm}
+                  onFieldChange={handleChange}
+                  onBackupCodesChange={handleBackupCodesChange}
+                  collapsedSections={collapsedSections}
+                  onToggleSection={toggleSection}
+                  hoverScale={hoverScale}
+                  tapScale={tapScale}
+                />
+              ) : (
+                <CreateUserForm
+                  form={form}
+                  loading={loading}
+                  onSubmit={handleSubmit}
+                  onCancel={closeForm}
+                  onFieldChange={handleChange}
+                  onBackupCodesChange={handleBackupCodesChange}
+                  collapsedSections={collapsedSections}
+                  onToggleSection={toggleSection}
+                  hoverScale={hoverScale}
+                  tapScale={tapScale}
+                />
+              )}
             </motion.div>
           )}
         </AnimatePresence>

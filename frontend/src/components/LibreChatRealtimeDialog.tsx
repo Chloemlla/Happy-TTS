@@ -2,7 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaPaperPlane, FaTimes, FaUser, FaRobot } from 'react-icons/fa';
 import { useLibreChat } from './LibreChatContext';
-import { EnhancedMarkdownRenderer } from './LibreChatPage';
+import { ReadOnlyMarkdownRenderer } from './LibreChatPage';
 import { TurnstileWidget } from './TurnstileWidget';
 
 export function LibreChatRealtimeDialog() {
@@ -132,9 +132,8 @@ export function LibreChatRealtimeDialog() {
                                                         </span>
                                                     </div>
                                                 </div>
-                                                <EnhancedMarkdownRenderer
+                                                <ReadOnlyMarkdownRenderer
                                                     content={m.role === 'user' ? m.content : actions.sanitizeAssistantText(m.content)}
-                                                    showControls={false}
                                                     onCodeCopy={(success) => {
                                                         if (success) {
                                                             actions.setNotification({ type: 'success', message: '代码已复制' });
@@ -162,9 +161,8 @@ export function LibreChatRealtimeDialog() {
                                                 </span>
                                             </div>
                                         </div>
-                                        <EnhancedMarkdownRenderer
+                                        <ReadOnlyMarkdownRenderer
                                             content={actions.sanitizeAssistantText(state.rtStreamContent || '')}
-                                            showControls={false}
                                             onCodeCopy={(success) => {
                                                 if (success) {
                                                     actions.setNotification({ type: 'success', message: '代码已复制' });

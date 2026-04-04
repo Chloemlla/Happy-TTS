@@ -129,19 +129,36 @@ interface HistoryMessage {
   createdAt?: string;
 }
 
-// 增强的 Markdown 渲染组件
-type EnhancedMarkdownRendererProps = {
+type ReadOnlyMarkdownRendererProps = {
   content: string;
   className?: string;
-  showControls?: boolean;
+  onCodeCopy?: (success: boolean) => void;
+};
+
+type InteractiveMarkdownRendererProps = {
+  content: string;
+  className?: string;
   onContentCopy?: (success: boolean, content: string) => void;
   onCodeCopy?: (success: boolean) => void;
 };
 
-export const EnhancedMarkdownRenderer: React.FC<EnhancedMarkdownRendererProps> = ({
+export const ReadOnlyMarkdownRenderer: React.FC<ReadOnlyMarkdownRendererProps> = ({
   content,
   className = "",
-  showControls = true,
+  onCodeCopy,
+}) => {
+  return (
+    <div className={`relative ${className}`}>
+      <div className="max-h-[500px] overflow-y-auto">
+        <MarkdownRenderer content={content} onCodeCopy={onCodeCopy} />
+      </div>
+    </div>
+  );
+};
+
+export const InteractiveMarkdownRenderer: React.FC<InteractiveMarkdownRendererProps> = ({
+  content,
+  className = "",
   onContentCopy,
   onCodeCopy,
 }) => {
@@ -155,35 +172,33 @@ export const EnhancedMarkdownRenderer: React.FC<EnhancedMarkdownRendererProps> =
 
   return (
     <div className={`relative group ${className}`}>
-      {showControls && (
-        <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 flex gap-2">
-          <button
-            type="button"
-            onClick={() => void handleContentCopy()}
-            className="p-1.5 bg-gray-100 text-gray-500 rounded hover:bg-gray-200 transition-colors shadow-sm"
-            title="复制 Markdown"
-          >
-            <FaCopyIcon size={12} />
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowRaw(!showRaw)}
-            className="p-1.5 bg-gray-100 text-gray-500 rounded hover:bg-gray-200 transition-colors shadow-sm"
-            title={showRaw ? '显示渲染' : '显示原文'}
-          >
-            {showRaw ? <FaEyeSlash size={12} /> : <FaEye size={12} />}
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="p-1.5 bg-gray-100 text-gray-500 rounded hover:bg-gray-200 transition-colors shadow-sm"
-            title={isExpanded ? '缩小' : '展开'}
-          >
-            {isExpanded ? <FaCompress size={12} /> : <FaExpand size={12} />}
-          </button>
-        </div>
-      )}
-      
+      <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 flex gap-2">
+        <button
+          type="button"
+          onClick={() => void handleContentCopy()}
+          className="p-1.5 bg-gray-100 text-gray-500 rounded hover:bg-gray-200 transition-colors shadow-sm"
+          title="复制 Markdown"
+        >
+          <FaCopyIcon size={12} />
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowRaw(!showRaw)}
+          className="p-1.5 bg-gray-100 text-gray-500 rounded hover:bg-gray-200 transition-colors shadow-sm"
+          title={showRaw ? '显示渲染' : '显示原文'}
+        >
+          {showRaw ? <FaEyeSlash size={12} /> : <FaEye size={12} />}
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="p-1.5 bg-gray-100 text-gray-500 rounded hover:bg-gray-200 transition-colors shadow-sm"
+          title={isExpanded ? '缩小' : '展开'}
+        >
+          {isExpanded ? <FaCompress size={12} /> : <FaExpand size={12} />}
+        </button>
+      </div>
+
       <div className={`${isExpanded ? '' : 'max-h-[500px] overflow-y-auto'}`}>
         {showRaw ? (
           <pre className="p-4 bg-gray-50 text-gray-700 rounded-lg text-sm font-mono overflow-auto border border-gray-100 whitespace-pre-wrap">
@@ -1838,9 +1853,8 @@ const config = {
                         <span className="text-xs text-gray-500">生成中...</span>
                       </div>
                     </div>
-                    <EnhancedMarkdownRenderer
+                    <ReadOnlyMarkdownRenderer
                       content={sanitizeAssistantText(streamContent || '...')}
-                      showControls={false}
                       onCodeCopy={(success) => {
                         if (success) {
                           setNotification({ type: 'success', message: '代码已复制' });
@@ -1912,9 +1926,8 @@ const config = {
                             </motion.button>
                           </div>
                         </div>
-                        <EnhancedMarkdownRenderer
+                        <InteractiveMarkdownRenderer
                           content={m.role === 'user' ? m.content : sanitizeAssistantText(m.content)}
-                          showControls={true}
                           onContentCopy={(success) => {
                             if (success) {
                               setNotification({ type: 'success', message: 'Markdown内容已复制到剪贴板' });

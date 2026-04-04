@@ -16,24 +16,32 @@ interface VerificationResult {
   };
 }
 
-interface HCaptchaVerificationPageProps {
+interface HCaptchaVerificationPageBaseProps {
   siteKey?: string;
   onVerificationSuccess?: (result: VerificationResult) => void;
   onVerificationFailure?: (error: string) => void;
   title?: string;
   description?: string;
-  showBackButton?: boolean;
-  onBack?: () => void;
 }
 
-const HCaptchaVerificationPage: React.FC<HCaptchaVerificationPageProps> = ({
+interface ReturnableHCaptchaVerificationPageProps extends HCaptchaVerificationPageBaseProps {
+  onBack: () => void;
+}
+
+type HCaptchaVerificationPageFrameProps = HCaptchaVerificationPageBaseProps & {
+  backAction?: {
+    label: string;
+    onBack: () => void;
+  };
+};
+
+const HCaptchaVerificationPageFrame: React.FC<HCaptchaVerificationPageFrameProps> = ({
   siteKey,
   onVerificationSuccess,
   onVerificationFailure,
   title = "人机验证",
   description = "请完成以下验证以继续访问",
-  showBackButton = false,
-  onBack
+  backAction,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
@@ -304,12 +312,12 @@ const HCaptchaVerificationPage: React.FC<HCaptchaVerificationPageProps> = ({
 
           {/* 操作按钮 */}
           <div className="flex space-x-3">
-            {showBackButton && (
+            {backAction && (
               <button
-                onClick={onBack}
+                onClick={backAction.onBack}
                 className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
               >
-                返回
+                {backAction.label}
               </button>
             )}
             
@@ -344,4 +352,18 @@ const HCaptchaVerificationPage: React.FC<HCaptchaVerificationPageProps> = ({
   );
 };
 
-export default HCaptchaVerificationPage;
+export const StandaloneHCaptchaVerificationPage: React.FC<HCaptchaVerificationPageBaseProps> = (props) => (
+  <HCaptchaVerificationPageFrame {...props} />
+);
+
+export const ReturnableHCaptchaVerificationPage: React.FC<ReturnableHCaptchaVerificationPageProps> = ({
+  onBack,
+  ...props
+}) => (
+  <HCaptchaVerificationPageFrame
+    {...props}
+    backAction={{ label: '返回', onBack }}
+  />
+);
+
+export default StandaloneHCaptchaVerificationPage;

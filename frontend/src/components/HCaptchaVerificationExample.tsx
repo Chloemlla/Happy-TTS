@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion as m } from 'framer-motion';
-import HCaptchaVerificationPage from './HCaptchaVerificationPage';
+import { ReturnableHCaptchaVerificationPage } from './HCaptchaVerificationPage';
 
 interface VerificationResult {
   success: boolean;
@@ -60,12 +60,11 @@ const HCaptchaVerificationExample: React.FC = () => {
 
   if (showVerification) {
     return (
-      <HCaptchaVerificationPage
+      <ReturnableHCaptchaVerificationPage
         title="安全验证"
         description="为了确保您的账户安全，请完成以下人机验证"
         onVerificationSuccess={handleVerificationSuccess}
         onVerificationFailure={handleVerificationFailure}
-        showBackButton={true}
         onBack={handleBack}
       />
     );
