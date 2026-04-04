@@ -40,7 +40,7 @@ function loadGoogleScript(): Promise<void> {
     return googleScriptPromise;
   }
 
-  googleScriptPromise = new Promise((resolve, reject) => {
+  googleScriptPromise = new Promise<void>((resolve, reject) => {
     const existingScript = document.querySelector<HTMLScriptElement>(
       'script[data-google-gsi="true"]',
     );
@@ -50,11 +50,15 @@ function loadGoogleScript(): Promise<void> {
         resolve();
         return;
       }
-      existingScript.addEventListener("load", () => resolve(), { once: true });
-      existingScript.addEventListener("error", () => reject(new Error("Google script failed to load")), {
-        once: true,
-      });
-      return;
+      if (existingScript.dataset.failed === "true") {
+        existingScript.remove();
+      } else {
+        existingScript.addEventListener("load", () => resolve(), { once: true });
+        existingScript.addEventListener("error", () => reject(new Error("Google script failed to load")), {
+          once: true,
+        });
+        return;
+      }
     }
 
     const script = document.createElement("script");
@@ -66,11 +70,18 @@ function loadGoogleScript(): Promise<void> {
       script.dataset.loaded = "true";
       resolve();
     };
-    script.onerror = () => reject(new Error("Google script failed to load"));
+    script.onerror = () => {
+      script.dataset.failed = "true";
+      script.remove();
+      reject(new Error("Google script failed to load"));
+    };
     document.head.appendChild(script);
+  }).catch((error) => {
+    googleScriptPromise = null;
+    throw error;
   });
 
-  return googleScriptPromise;
+  return googleScriptPromise ?? Promise.resolve();
 }
 
 const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
@@ -81,9 +92,11 @@ const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
 }) => {
   const buttonRef = useRef<HTMLDivElement | null>(null);
   const initializedClientIdRef = useRef<string>("");
+  const notifiedLoadFailureRef = useRef(false);
   const [enabled, setEnabled] = useState(false);
   const [clientId, setClientId] = useState("");
   const [loading, setLoading] = useState(true);
+  const [scriptLoadFailed, setScriptLoadFailed] = useState(false);
   const { loginWithToken } = useAuth();
   const { setNotification } = useNotification();
   const buttonText = useMemo(
@@ -193,9 +206,18 @@ const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
           shape: "rectangular",
           width: Math.max(buttonRef.current.offsetWidth || 0, 280),
         });
+        setScriptLoadFailed(false);
+        notifiedLoadFailureRef.current = false;
       } catch {
         if (!cancelled) {
-          setNotification({ message: "Google 登录按钮加载失败", type: "error" });
+          setScriptLoadFailed(true);
+          if (!notifiedLoadFailureRef.current) {
+            setNotification({
+              message: "无法加载 Google 登录模块，请检查网络或站点 CSP 配置",
+              type: "error",
+            });
+            notifiedLoadFailureRef.current = true;
+          }
         }
       }
     };
@@ -232,7 +254,13 @@ const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
         ) : null}
         </div>
       </div>
-      <div ref={buttonRef} className="flex min-h-[44px] w-full items-center justify-center" />
+      {scriptLoadFailed ? (
+        <div className="flex min-h-[44px] w-full items-center justify-center rounded-lg border border-amber-200 bg-amber-50 px-3 text-center text-xs text-amber-700">
+          无法加载 Google 登录模块，请检查网络或联系管理员确认 Google Client ID 与 CSP 配置。
+        </div>
+      ) : (
+        <div ref={buttonRef} className="flex min-h-[44px] w-full items-center justify-center" />
+      )}
     </div>
   );
 };

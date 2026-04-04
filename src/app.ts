@@ -278,6 +278,7 @@ app.use(
           "'self'",
           "'unsafe-inline'",
           "https://fonts.googleapis.com",
+          "https://accounts.google.com/gsi/style",
           "https://challenges.cloudflare.com",
           "https://*.cloudflare.com",
           "https://js.hcaptcha.com",
@@ -287,6 +288,7 @@ app.use(
           "'self'",
           "'unsafe-inline'",
           "https://fonts.googleapis.com",
+          "https://accounts.google.com/gsi/style",
         ],
         fontSrc: [
           "'self'",
@@ -298,6 +300,7 @@ app.use(
           "'self'",
           "'unsafe-inline'",
           "'unsafe-eval'",
+          "https://accounts.google.com/gsi/client",
           "https://challenges.cloudflare.com",
           "https://*.cloudflare.com",
           "https://js.hcaptcha.com",
@@ -310,6 +313,7 @@ app.use(
         scriptSrcElem: [
           "'self'",
           "'unsafe-inline'",
+          "https://accounts.google.com/gsi/client",
           "https://www.clarity.ms",
           "https://*.clarity.ms",
           "https://www.google-analytics.com",
@@ -321,6 +325,7 @@ app.use(
         ],
         connectSrc: [
           "'self'",
+          "https://accounts.google.com/gsi/",
           "https://api.openai.com",
           "https://api.951100.xyz",
           ...(process.env.NODE_ENV !== "production"
@@ -346,6 +351,7 @@ app.use(
         ],
         frameSrc: [
           "'self'",
+          "https://accounts.google.com/gsi/",
           "https://challenges.cloudflare.com",
           "https://*.cloudflare.com",
           "https://js.hcaptcha.com",
