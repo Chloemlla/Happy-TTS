@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import DOMPurify from 'dompurify';
-import { marked } from 'marked';
+import MarkdownRenderer from './MarkdownRenderer';
 import { FaBullhorn } from 'react-icons/fa';
 
 interface AnnouncementModalProps {
@@ -12,16 +12,6 @@ interface AnnouncementModalProps {
   content: string;
   format: 'markdown' | 'html';
   contentClassName?: string;
-}
-
-function renderMarkdownSafe(md: string) {
-  let html: string;
-  try {
-    html = marked(md) as string;
-  } catch {
-    html = md;
-  }
-  return DOMPurify.sanitize(html);
 }
 
 const AnnouncementModal: React.FC<AnnouncementModalProps> = ({
@@ -68,12 +58,12 @@ const AnnouncementModal: React.FC<AnnouncementModalProps> = ({
               <FaBullhorn className="text-3xl mr-2 text-blue-600" />
               <h2 className="text-xl font-bold">最新公告</h2>
             </div>
-            <div className={`prose max-w-none mb-6 min-h-[60px] ${contentClassName || ''}`}>
+            <div className={`mb-6 min-h-[60px] ${contentClassName || ''}`}>
               {content ? (
                 format === 'markdown' ? (
-                  <span dangerouslySetInnerHTML={{ __html: renderMarkdownSafe(content) }} />
+                  <MarkdownRenderer content={content} />
                 ) : (
-                  <span dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content) }} />
+                  <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content) }} />
                 )
               ) : (
                 <span className="text-gray-400">暂无公告内容</span>
@@ -109,4 +99,4 @@ const AnnouncementModal: React.FC<AnnouncementModalProps> = ({
   );
 };
 
-export default AnnouncementModal; 
+export default AnnouncementModal;

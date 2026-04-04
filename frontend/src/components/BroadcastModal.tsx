@@ -2,7 +2,7 @@ import React, { useMemo, createContext, use, useState, useCallback } from 'react
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaTimes, FaBullhorn, FaExclamationTriangle, FaInfoCircle, FaCheckCircle } from 'react-icons/fa';
 import DOMPurify from 'dompurify';
-import { marked } from 'marked';
+import MarkdownRenderer from './MarkdownRenderer';
 
 // ========== 类型 ==========
 
@@ -92,7 +92,7 @@ const LEVEL_CONFIG = {
 function BroadcastModalView({ title, content, format = 'text', level = 'info', onClose }: BroadcastModalViewProps) {
   const cfg = LEVEL_CONFIG[level] || LEVEL_CONFIG.info;
 
-  const renderedContent = useMemo(() => {
+  const renderedHtml = useMemo(() => {
     if (format === 'html') {
       return DOMPurify.sanitize(content, {
         ALLOWED_TAGS: [
@@ -102,10 +102,6 @@ function BroadcastModalView({ title, content, format = 'text', level = 'info', o
         ],
         ALLOWED_ATTR: ['href', 'target', 'rel', 'src', 'alt', 'class', 'style', 'width', 'height'],
       });
-    }
-    if (format === 'markdown') {
-      const raw = marked.parse(content, { async: false }) as string;
-      return DOMPurify.sanitize(raw);
     }
     return '';
   }, [content, format]);
@@ -156,12 +152,16 @@ function BroadcastModalView({ title, content, format = 'text', level = 'info', o
 
             {/* 正文 */}
             <div className="max-h-[50vh] overflow-y-auto">
-              {format === 'text' ? (
+              {format === 'text' && (
                 <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{content}</p>
-              ) : (
+              )}
+              {format === 'markdown' && (
+                <MarkdownRenderer content={content} />
+              )}
+              {format === 'html' && (
                 <div
                   className="prose prose-sm max-w-none text-gray-700"
-                  dangerouslySetInnerHTML={{ __html: renderedContent }}
+                  dangerouslySetInnerHTML={{ __html: renderedHtml }}
                 />
               )}
             </div>
