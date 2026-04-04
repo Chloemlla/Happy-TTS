@@ -371,7 +371,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
 
   return (
     <div
-      className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top,_rgba(68,92,190,0.16),_transparent_32%),linear-gradient(180deg,#eef2ff_0%,#f9fafb_42%,#eef4ff_100%)] px-3 py-4 sm:px-6 sm:py-8 lg:px-10"
+      className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top,_rgba(68,92,190,0.16),_transparent_32%),linear-gradient(180deg,#eef2ff_0%,#f9fafb_42%,#eef4ff_100%)] px-3 py-4 sm:px-6 sm:py-8 px-6 rounded-3xl lg:px-10"
       style={{ fontFamily: pageFont }}
     >
       <div className="mx-auto max-w-7xl min-w-0">
