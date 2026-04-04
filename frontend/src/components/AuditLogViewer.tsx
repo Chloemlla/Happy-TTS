@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { FaSearch, FaSync, FaChevronLeft, FaChevronRight, FaFilter, FaInfoCircle } from 'react-icons/fa';
+import { FaSearch, FaSync, FaChevronLeft, FaChevronRight, FaFilter } from 'react-icons/fa';
 import { useNotification } from './Notification';
 import { auditLogApi, AuditLogEntry, AuditLogQuery, AuditLogStats } from '../api/auditLog';
 
@@ -79,6 +79,12 @@ const AuditLogViewer: React.FC = () => {
   };
 
   const moduleLabel = (m: string) => MODULES.find(x => x.value === m)?.label || m;
+  const formatJson = (value: unknown) => JSON.stringify(value, null, 2);
+  const getDetailWithoutBodies = (detail?: Record<string, any>) => {
+    if (!detail) return null;
+    const { reqBody, resBody, ...rest } = detail;
+    return Object.keys(rest).length > 0 ? rest : null;
+  };
 
   return (
     <div className="space-y-4">
@@ -206,14 +212,26 @@ const AuditLogViewer: React.FC = () => {
                       {log.targetName && <div className="truncate"><span className="text-gray-500">目标名称：</span>{log.targetName}</div>}
                       {log.errorMessage && <div className="sm:col-span-2 text-red-500"><span className="text-gray-500">错误：</span>{log.errorMessage}</div>}
                     </div>
-                    {log.detail && (
+                    {log.detail?.reqBody !== undefined && (
+                      <div className="mt-1">
+                        <span className="text-gray-500">前端请求：</span>
+                        <pre className="mt-1 p-2 bg-white rounded border text-xs overflow-x-auto max-h-40 whitespace-pre-wrap break-all">{formatJson(log.detail.reqBody)}</pre>
+                      </div>
+                    )}
+                    {log.detail?.resBody !== undefined && (
+                      <div className="mt-1">
+                        <span className="text-gray-500">后端响应：</span>
+                        <pre className="mt-1 p-2 bg-white rounded border text-xs overflow-x-auto max-h-40 whitespace-pre-wrap break-all">{formatJson(log.detail.resBody)}</pre>
+                      </div>
+                    )}
+                    {getDetailWithoutBodies(log.detail) && (
                       <div className="mt-1">
                         <span className="text-gray-500">详情：</span>
-                        <pre className="mt-1 p-2 bg-white rounded border text-xs overflow-x-auto max-h-40">{JSON.stringify(log.detail, null, 2)}</pre>
+                        <pre className="mt-1 p-2 bg-white rounded border text-xs overflow-x-auto max-h-40 whitespace-pre-wrap break-all">{formatJson(getDetailWithoutBodies(log.detail))}</pre>
                       </div>
                     )}
                     {log.userAgent && (
-                      <div className="truncate"><span className="text-gray-500">UA：</span>{log.userAgent}</div>
+                      <div className="break-all"><span className="text-gray-500">UA：</span>{log.userAgent}</div>
                     )}
                   </motion.div>
                 )}
