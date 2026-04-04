@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense, useRef } from 'react';
-import { LazyMotion, domAnimation, m, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { LazyMotion, domAnimation, m, AnimatePresence, useReducedMotion, type Transition } from 'framer-motion';
 import { useAuth } from './hooks/useAuth';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 import { TOTPStatus } from './types/auth';
@@ -117,34 +117,6 @@ const NexAISecurityDashboard = React.lazy(() => import('./components/NexAISecuri
 // Artifact 分享页面懒加载
 const ArtifactSharePage = React.lazy(() => import('./components/ArtifactSharePage'));
 const TicketSystem = React.lazy(() => import('./components/TicketSystem'));
-
-// 恢复 EmailSender 懒加载
-const EmailSenderPage: React.FC = () => {
-  const [to, setTo] = React.useState('');
-  const [subject, setSubject] = React.useState('');
-  const [content, setContent] = React.useState('');
-  const [code, setCode] = React.useState('');
-  const [loading, setLoading] = React.useState(false);
-  const [success, setSuccess] = React.useState('');
-  const [error, setError] = React.useState('');
-  const handleSend = () => { };
-  return (
-    <EmailSender
-      to={to}
-      subject={subject}
-      content={content}
-      code={code}
-      setTo={setTo}
-      setSubject={setSubject}
-      setContent={setContent}
-      setCode={setCode}
-      loading={loading}
-      success={success}
-      error={error}
-      handleSend={handleSend}
-    />
-  );
-};
 
 // SmartHumanCheckTestPage 已抽取到 components/SmartHumanCheckTestPage.tsx
 
@@ -440,6 +412,45 @@ const NotFoundPage: React.FC<{ path: string }> = ({ path }) => (
   </section>
 );
 
+type AnimatedRouteProps = {
+  children: React.ReactNode;
+  transition: Transition;
+};
+
+const AnimatedRoute: React.FC<AnimatedRouteProps> = ({ children, transition }) => (
+  <m.div
+    variants={pageVariants}
+    initial="initial"
+    animate="in"
+    exit="out"
+    transition={transition}
+  >
+    {children}
+  </m.div>
+);
+
+type ProtectedRouteProps = {
+  isAllowed: boolean;
+  redirectTo: string;
+  children: React.ReactNode;
+};
+
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ isAllowed, redirectTo, children }) => (
+  isAllowed ? <>{children}</> : <Navigate to={redirectTo} replace />
+);
+
+type AdminRouteProps = {
+  userRole?: string;
+  redirectTo: string;
+  children: React.ReactNode;
+};
+
+const AdminRoute: React.FC<AdminRouteProps> = ({ userRole, redirectTo, children }) => (
+  <ProtectedRoute isAllowed={userRole === 'admin'} redirectTo={redirectTo}>
+    {children}
+  </ProtectedRoute>
+);
+
 const App: React.FC = () => {
   const { user, loading, logout } = useAuth();
   const location = useLocation();
@@ -507,6 +518,30 @@ const App: React.FC = () => {
       previousFocusedElementRef.current?.focus();
     });
   }, []);
+  const renderAnimatedRoute = React.useCallback(
+    (element: React.ReactNode) => (
+      <AnimatedRoute transition={pageTransition}>
+        {element}
+      </AnimatedRoute>
+    ),
+    [pageTransition],
+  );
+  const renderProtectedRoute = React.useCallback(
+    (element: React.ReactNode, redirectTo: string = loginRedirectPath) => (
+      <ProtectedRoute isAllowed={Boolean(user)} redirectTo={redirectTo}>
+        {renderAnimatedRoute(element)}
+      </ProtectedRoute>
+    ),
+    [loginRedirectPath, renderAnimatedRoute, user],
+  );
+  const renderAdminRoute = React.useCallback(
+    (element: React.ReactNode, redirectTo: string = adminFallbackPath) => (
+      <AdminRoute userRole={user?.role} redirectTo={redirectTo}>
+        {renderAnimatedRoute(element)}
+      </AdminRoute>
+    ),
+    [adminFallbackPath, renderAnimatedRoute, user?.role],
+  );
 
   // React 19 文档元数据：路由配置优化，避免每次重新创建
   const routeConfig = React.useMemo(() => ({
@@ -1238,720 +1273,58 @@ const App: React.FC = () => {
               <Suspense fallback={<RouteLoadingShell />}>
                 <AnimatePresence mode="wait">
                   <Routes location={location} key={location.pathname}>
-                  <Route path="/api-docs" element={
-                    <m.div
-                      variants={pageVariants}
-                      initial="initial"
-                      animate="in"
-                      exit="out"
-                      transition={pageTransition}
-                    >
-                      <ApiDocs />
-                    </m.div>
-                  } />
-                  <Route path="/policy" element={
-                    <m.div
-                      variants={pageVariants}
-                      initial="initial"
-                      animate="in"
-                      exit="out"
-                      transition={pageTransition}
-                    >
-                      <PolicyPage />
-                    </m.div>
-                  } />
-                  <Route path="/fbi-wanted" element={
-                    <Suspense fallback={<LoadingSpinner />}>
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <FBIWantedPublic />
-                      </m.div>
-                    </Suspense>
-                  } />
-                  <Route
-                    path="/welcome"
-                    element={
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <WelcomePage />
-                      </m.div>
-                    }
-                  />
-                  <Route
-                    path="/login"
-                    element={
-                      <Suspense fallback={<LoadingSpinner />}>
-                        <m.div
-                          variants={pageVariants}
-                          initial="initial"
-                          animate="in"
-                          exit="out"
-                          transition={pageTransition}
-                        >
-                          <LoginPage />
-                        </m.div>
-                      </Suspense>
-                    }
-                  />
-                  <Route
-                    path="/register"
-                    element={
-                      <Suspense fallback={<LoadingSpinner />}>
-                        <m.div
-                          variants={pageVariants}
-                          initial="initial"
-                          animate="in"
-                          exit="out"
-                          transition={pageTransition}
-                        >
-                          <RegisterPage />
-                        </m.div>
-                      </Suspense>
-                    }
-                  />
-                  <Route
-                    path="/auth/linuxdo/callback"
-                    element={
-                      <Suspense fallback={<LoadingSpinner />}>
-                        <m.div
-                          variants={pageVariants}
-                          initial="initial"
-                          animate="in"
-                          exit="out"
-                          transition={pageTransition}
-                        >
-                          <LinuxDoAuthCallbackPage />
-                        </m.div>
-                      </Suspense>
-                    }
-                  />
-                  <Route
-                    path="/translate"
-                    element={
-                      user ? (
-                        <Suspense fallback={<LoadingSpinner />}>
-                          <m.div
-                            variants={pageVariants}
-                            initial="initial"
-                            animate="in"
-                            exit="out"
-                            transition={pageTransition}
-                          >
-                            <DeepLXTranslatorPage />
-                          </m.div>
-                        </Suspense>
-                      ) : (
-                        <Navigate to={loginRedirectPath} replace />
-                      )
-                    }
-                  />
-                  <Route
-                    path="/forgot-password"
-                    element={
-                      <Suspense fallback={<LoadingSpinner />}>
-                        <m.div
-                          variants={pageVariants}
-                          initial="initial"
-                          animate="in"
-                          exit="out"
-                          transition={pageTransition}
-                        >
-                          <ForgotPasswordPage />
-                        </m.div>
-                      </Suspense>
-                    }
-                  />
-                  <Route
-                    path="/reset-password"
-                    element={
-                      <Suspense fallback={<LoadingSpinner />}>
-                        <m.div
-                          variants={pageVariants}
-                          initial="initial"
-                          animate="in"
-                          exit="out"
-                          transition={pageTransition}
-                        >
-                          <ResetPasswordLinkPage />
-                        </m.div>
-                      </Suspense>
-                    }
-                  />
-                  <Route
-                    path="/verify-email"
-                    element={
-                      <Suspense fallback={<LoadingSpinner />}>
-                        <m.div
-                          variants={pageVariants}
-                          initial="initial"
-                          animate="in"
-                          exit="out"
-                          transition={pageTransition}
-                        >
-                          <EmailVerifyPage />
-                        </m.div>
-                      </Suspense>
-                    }
-                  />
-                  <Route
-                    path="/"
-                    element={
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <TtsPage />
-                      </m.div>
-                    }
-                  />
-                  <Route path="/lottery" element={
-                    <Suspense fallback={<LoadingSpinner />}>
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <LotteryPage />
-                      </m.div>
-                    </Suspense>
-                  } />
-                  <Route path="/anti-counterfeit" element={
-                    <Suspense fallback={<LoadingSpinner />}>
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <AntiCounterfeitPage />
-                      </m.div>
-                    </Suspense>
-                  } />
-                  <Route path="/admin/lottery" element={
-                    user?.role === 'admin' ? (
-                      <Suspense fallback={<LoadingSpinner />}>
-                        <m.div
-                          variants={pageVariants}
-                          initial="initial"
-                          animate="in"
-                          exit="out"
-                          transition={pageTransition}
-                        >
-                          <LotteryAdmin />
-                        </m.div>
-                      </Suspense>
-                    ) : (
-                      <Navigate to={adminFallbackPath} replace />
-                    )
-                  } />
-                  <Route path="/admin/users" element={
-                    user?.role === 'admin' ? (
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <UserManagement />
-                      </m.div>
-                    ) : (
-                      <Navigate to={adminFallbackPath} replace />
-                    )
-                  } />
-                  <Route path="/admin" element={
-                    user?.role === 'admin' ? (
-                      <Suspense fallback={<LoadingSpinner />}>
-                        <m.div
-                          variants={pageVariants}
-                          initial="initial"
-                          animate="in"
-                          exit="out"
-                          transition={pageTransition}
-                        >
-                          <AdminDashboard />
-                        </m.div>
-                      </Suspense>
-                    ) : (
-                      <Navigate to={adminFallbackPath} replace />
-                    )
-                  } />
-                  <Route path="/nexai-security" element={
-                    user?.role === 'admin' ? (
-                      <Suspense fallback={<LoadingSpinner />}>
-                        <m.div
-                          variants={pageVariants}
-                          initial="initial"
-                          animate="in"
-                          exit="out"
-                          transition={pageTransition}
-                        >
-                          <NexAISecurityDashboard />
-                        </m.div>
-                      </Suspense>
-                    ) : (
-                      <Navigate to={adminFallbackPath} replace />
-                    )
-                  } />
-                  <Route path="/github-billing" element={
-                    <Suspense fallback={<LoadingSpinner />}>
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <GitHubBillingDashboard />
-                      </m.div>
-                    </Suspense>
-                  } />
-                  <Route path="/logshare" element={
-                    <m.div
-                      variants={pageVariants}
-                      initial="initial"
-                      animate="in"
-                      exit="out"
-                      transition={pageTransition}
-                    >
-                      <LogShare />
-                    </m.div>
-                  } />
-                  <Route path="/case-converter" element={
-                    <m.div
-                      variants={pageVariants}
-                      initial="initial"
-                      animate="in"
-                      exit="out"
-                      transition={pageTransition}
-                    >
-                      <CaseConverter />
-                    </m.div>
-                  } />
-                  <Route path="/word-count" element={
-                    <Suspense fallback={<LoadingSpinner />}>
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <WordCountPageSimple />
-                      </m.div>
-                    </Suspense>
-                  } />
-                  <Route path="/age-calculator" element={
-                    <Suspense fallback={<LoadingSpinner />}>
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <AgeCalculatorPage />
-                      </m.div>
-                    </Suspense>
-                  } />
-                  <Route path="/email-sender" element={
-                    user?.role === 'admin' ? (
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <Suspense fallback={<LoadingSpinner />}>
-                          <EmailSenderPage />
-                        </Suspense>
-                      </m.div>
-                    ) : (
-                      <Navigate to={loginRedirectPath} replace />
-                    )
-                  } />
-                  <Route path="/profile" element={
-                    <Suspense fallback={<LoadingSpinner />}>
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <UserProfile />
-                      </m.div>
-                    </Suspense>
-                  } />
-                  <Route path="/outemail" element={
-                    <m.div
-                      variants={pageVariants}
-                      initial="initial"
-                      animate="in"
-                      exit="out"
-                      transition={pageTransition}
-                    >
-                      <OutEmail />
-                    </m.div>
-                  } />
-                  <Route path="/support" element={
-                    <Suspense fallback={<LoadingSpinner />}>
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <TicketSystem />
-                      </m.div>
-                    </Suspense>
-                  } />
-                  <Route path="/modlist" element={
-                    <m.div
-                      variants={pageVariants}
-                      initial="initial"
-                      animate="in"
-                      exit="out"
-                      transition={pageTransition}
-                    >
-                      <ModListPage />
-                    </m.div>
-                  } />
-                  <Route path="/smart-human-check" element={
-                    <Suspense fallback={<LoadingSpinner />}>
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <SmartHumanCheckTestPage />
-                      </m.div>
-                    </Suspense>
-                  } />
-                  <Route path="/notification-test" element={
-                    <Suspense fallback={<LoadingSpinner />}>
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <NotificationTestPage />
-                      </m.div>
-                    </Suspense>
-                  } />
-                  <Route path="/hcaptcha-verify" element={
-                    <Suspense fallback={<LoadingSpinner />}>
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <HCaptchaVerificationPage />
-                      </m.div>
-                    </Suspense>
-                  } />
-                  <Route path="/artifacts/:shortId" element={
-                    <Suspense fallback={<LoadingSpinner />}>
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <ArtifactSharePage />
-                      </m.div>
-                    </Suspense>
-                  } />
-                  <Route path="/image-upload" element={
-                    <Suspense fallback={<LoadingSpinner />}>
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <ImageUploadPage />
-                      </m.div>
-                    </Suspense>
-                  } />
-                  <Route path="/librechat" element={
-                    <Suspense fallback={<LoadingSpinner />}>
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <LibreChatPage />
-                      </m.div>
-                    </Suspense>
-                  } />
-                  <Route path="/tiger-adventure" element={
-                    <Suspense fallback={<LoadingSpinner />}>
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <TigerAdventure />
-                      </m.div>
-                    </Suspense>
-                  } />
-                  <Route path="/coin-flip" element={
-                    <Suspense fallback={<LoadingSpinner />}>
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <CoinFlip />
-                      </m.div>
-                    </Suspense>
-                  } />
-                  <Route path="/markdown-export" element={
-                    <Suspense fallback={<LoadingSpinner />}>
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <MarkdownExportPage />
-                      </m.div>
-                    </Suspense>
-                  } />
-                  <Route path="/campus-emergency" element={
-                    <Suspense fallback={<LoadingSpinner />}>
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <CampusEmergencyPage />
-                      </m.div>
-                    </Suspense>
-                  } />
-                  <Route path="/tamper-detection-demo" element={
-                    user?.role === 'admin' ? (
-                      <Suspense fallback={<LoadingSpinner />}>
-                        <m.div
-                          variants={pageVariants}
-                          initial="initial"
-                          animate="in"
-                          exit="out"
-                          transition={pageTransition}
-                        >
-                          <TamperDetectionDemo />
-                        </m.div>
-                      </Suspense>
-                    ) : (
-                      <Navigate to={adminFallbackPath} replace />
-                    )
-                  } />
+                    <Route path="/api-docs" element={renderAnimatedRoute(<ApiDocs />)} />
+                    <Route path="/policy" element={renderAnimatedRoute(<PolicyPage />)} />
+                    <Route path="/fbi-wanted" element={renderAnimatedRoute(<FBIWantedPublic />)} />
+                    <Route path="/welcome" element={renderAnimatedRoute(<WelcomePage />)} />
+                    <Route path="/login" element={renderAnimatedRoute(<LoginPage />)} />
+                    <Route path="/register" element={renderAnimatedRoute(<RegisterPage />)} />
+                    <Route path="/auth/linuxdo/callback" element={renderAnimatedRoute(<LinuxDoAuthCallbackPage />)} />
+                    <Route path="/translate" element={renderProtectedRoute(<DeepLXTranslatorPage />)} />
+                    <Route path="/forgot-password" element={renderAnimatedRoute(<ForgotPasswordPage />)} />
+                    <Route path="/reset-password" element={renderAnimatedRoute(<ResetPasswordLinkPage />)} />
+                    <Route path="/verify-email" element={renderAnimatedRoute(<EmailVerifyPage />)} />
+                    <Route path="/" element={renderAnimatedRoute(<TtsPage />)} />
+                    <Route path="/lottery" element={renderAnimatedRoute(<LotteryPage />)} />
+                    <Route path="/anti-counterfeit" element={renderAnimatedRoute(<AntiCounterfeitPage />)} />
+                    <Route path="/admin/lottery" element={renderAdminRoute(<LotteryAdmin />)} />
+                    <Route path="/admin/users" element={renderAdminRoute(<UserManagement />)} />
+                    <Route path="/admin" element={renderAdminRoute(<AdminDashboard />)} />
+                    <Route path="/nexai-security" element={renderAdminRoute(<NexAISecurityDashboard />)} />
+                    <Route path="/github-billing" element={renderAnimatedRoute(<GitHubBillingDashboard />)} />
+                    <Route path="/logshare" element={renderAnimatedRoute(<LogShare />)} />
+                    <Route path="/case-converter" element={renderAnimatedRoute(<CaseConverter />)} />
+                    <Route path="/word-count" element={renderAnimatedRoute(<WordCountPageSimple />)} />
+                    <Route path="/age-calculator" element={renderAnimatedRoute(<AgeCalculatorPage />)} />
+                    <Route path="/email-sender" element={renderAdminRoute(<EmailSender />)} />
+                    <Route path="/profile" element={renderAnimatedRoute(<UserProfile />)} />
+                    <Route path="/outemail" element={renderAnimatedRoute(<OutEmail />)} />
+                    <Route path="/support" element={renderAnimatedRoute(<TicketSystem />)} />
+                    <Route path="/modlist" element={renderAnimatedRoute(<ModListPage />)} />
+                    <Route path="/smart-human-check" element={renderAnimatedRoute(<SmartHumanCheckTestPage />)} />
+                    <Route path="/notification-test" element={renderAnimatedRoute(<NotificationTestPage />)} />
+                    <Route path="/hcaptcha-verify" element={renderAnimatedRoute(<HCaptchaVerificationPage />)} />
+                    <Route path="/artifacts/:shortId" element={renderAnimatedRoute(<ArtifactSharePage />)} />
+                    <Route path="/image-upload" element={renderAnimatedRoute(<ImageUploadPage />)} />
+                    <Route path="/librechat" element={renderAnimatedRoute(<LibreChatPage />)} />
+                    <Route path="/tiger-adventure" element={renderAnimatedRoute(<TigerAdventure />)} />
+                    <Route path="/coin-flip" element={renderAnimatedRoute(<CoinFlip />)} />
+                    <Route path="/markdown-export" element={renderAnimatedRoute(<MarkdownExportPage />)} />
+                    <Route path="/campus-emergency" element={renderAnimatedRoute(<CampusEmergencyPage />)} />
+                    <Route path="/tamper-detection-demo" element={renderAdminRoute(<TamperDetectionDemo />)} />
 
-                  {/* UI展示页面路由 */}
-                  <Route path="/demo" element={
-                    <Suspense fallback={<LoadingSpinner />}>
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <DemoHub />
-                      </m.div>
-                    </Suspense>
-                  } />
-                  <Route path="/demo/xiaohongshu" element={
-                    <Suspense fallback={<LoadingSpinner />}>
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <XiaohongshuDemo />
-                      </m.div>
-                    </Suspense>
-                  } />
-                  <Route path="/demo/meditation" element={
-                    <Suspense fallback={<LoadingSpinner />}>
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <MeditationAppDemo />
-                      </m.div>
-                    </Suspense>
-                  } />
-                  <Route path="/demo/music" element={
-                    <Suspense fallback={<LoadingSpinner />}>
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <MusicPlayerDemo />
-                      </m.div>
-                    </Suspense>
-                  } />
-                  <Route path="/demo/finance" element={
-                    <Suspense fallback={<LoadingSpinner />}>
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <FinanceAppDemo />
-                      </m.div>
-                    </Suspense>
-                  } />
-
-                  {/* 资源商店相关路由 */}
-                  <Route path="/store" element={
-                    <Suspense fallback={<LoadingSpinner />}>
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <ResourceStoreList />
-                      </m.div>
-                    </Suspense>
-                  } />
-                  <Route path="/store/resources/:id" element={
-                    <Suspense fallback={<LoadingSpinner />}>
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <ResourceStoreDetail />
-                      </m.div>
-                    </Suspense>
-                  } />
-                  <Route path="/admin/store" element={
-                    user?.role === 'admin' ? (
-                      <Suspense fallback={<LoadingSpinner />}>
-                        <m.div
-                          variants={pageVariants}
-                          initial="initial"
-                          animate="in"
-                          exit="out"
-                          transition={pageTransition}
-                        >
-                          <AdminStoreDashboard />
-                        </m.div>
-                      </Suspense>
-                    ) : (
-                      <Navigate to={adminFallbackPath} replace />
-                    )
-                  } />
-                  <Route path="/admin/store/resources" element={
-                    user?.role === 'admin' ? (
-                      <Suspense fallback={<LoadingSpinner />}>
-                        <m.div
-                          variants={pageVariants}
-                          initial="initial"
-                          animate="in"
-                          exit="out"
-                          transition={pageTransition}
-                        >
-                          <ResourceStoreManager />
-                        </m.div>
-                      </Suspense>
-                    ) : (
-                      <Navigate to={adminFallbackPath} replace />
-                    )
-                  } />
-                  <Route path="/admin/store/cdks" element={
-                    user?.role === 'admin' ? (
-                      <Suspense fallback={<LoadingSpinner />}>
-                        <m.div
-                          variants={pageVariants}
-                          initial="initial"
-                          animate="in"
-                          exit="out"
-                          transition={pageTransition}
-                        >
-                          <CDKStoreManager />
-                        </m.div>
-                      </Suspense>
-                    ) : (
-                      <Navigate to={adminFallbackPath} replace />
-                    )
-                  } />
-                  <Route path="/public-shortlink" element={
-                    <Suspense fallback={<LoadingSpinner />}>
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <PublicShortLinkCreator />
-                      </m.div>
-                    </Suspense>
-                  } />
-                    <Route path="*" element={
-                      <m.div
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="in"
-                        exit="out"
-                        transition={pageTransition}
-                      >
-                        <NotFoundPage path={location.pathname} />
-                      </m.div>
-                    } />
+                    <Route path="/demo" element={renderAnimatedRoute(<DemoHub />)} />
+                    <Route path="/demo/xiaohongshu" element={renderAnimatedRoute(<XiaohongshuDemo />)} />
+                    <Route path="/demo/meditation" element={renderAnimatedRoute(<MeditationAppDemo />)} />
+                    <Route path="/demo/music" element={renderAnimatedRoute(<MusicPlayerDemo />)} />
+                    <Route path="/demo/finance" element={renderAnimatedRoute(<FinanceAppDemo />)} />
+                    <Route path="/store" element={renderAnimatedRoute(<ResourceStoreList />)} />
+                    <Route path="/store/resources/:id" element={renderAnimatedRoute(<ResourceStoreDetail />)} />
+                    <Route path="/admin/store" element={renderAdminRoute(<AdminStoreDashboard />)} />
+                    <Route path="/admin/store/resources" element={renderAdminRoute(<ResourceStoreManager />)} />
+                    <Route path="/admin/store/cdks" element={renderAdminRoute(<CDKStoreManager />)} />
+                    <Route path="/public-shortlink" element={renderAnimatedRoute(<PublicShortLinkCreator />)} />
+                    <Route path="*" element={renderAnimatedRoute(<NotFoundPage path={location.pathname} />)} />
                   </Routes>
                 </AnimatePresence>
               </Suspense>

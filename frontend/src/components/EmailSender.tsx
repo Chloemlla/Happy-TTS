@@ -8,22 +8,6 @@ import DOMPurify from "dompurify";
 import { useNotification } from "./Notification";
 import { FaEnvelope } from "react-icons/fa";
 
-export interface EmailSenderProps {
-  to: string;
-  subject: string;
-  content: string;
-  code: string;
-  setTo: (v: string) => void;
-  setSubject: (v: string) => void;
-  setContent: (v: string) => void;
-  setCode: (v: string) => void;
-  loading: boolean;
-  success: string;
-  error: string;
-  handleSend: () => void;
-  isOutEmail?: boolean;
-}
-
 interface EmailForm {
   from: string;
   to: string[];
@@ -43,7 +27,7 @@ interface EmailQuota {
   resetAt: string; // ISO 时间
 }
 
-const EmailSender: React.FC<EmailSenderProps> = React.memo((props) => {
+const EmailSender: React.FC = React.memo(() => {
   const [form, setForm] = useState<EmailForm>({
     from: `noreply@${import.meta.env.VITE_RESEND_DOMAIN || "951100.xyz"}`,
     to: [""],
