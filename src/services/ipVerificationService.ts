@@ -83,7 +83,9 @@ function monthKey(date = new Date()): string {
 }
 
 function hashApiKey(apiKey: string): string {
-  return crypto.createHash("sha256").update(apiKey).digest("hex").slice(0, 16);
+  return crypto
+    .pbkdf2Sync(apiKey, `ipqs:${config.jwtSecret}`, 120_000, 16, "sha256")
+    .toString("hex");
 }
 
 function extractRiskFlags(response: IpqsResponse): string[] {

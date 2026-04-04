@@ -36,10 +36,10 @@ export class LinuxDoAuthController {
   }
 
   public static async callback(req: Request, res: Response) {
-    const code = typeof req.query.code === "string" ? req.query.code : "";
-    const state = typeof req.query.state === "string" ? req.query.state : "";
+    const code = typeof req.body?.code === "string" ? req.body.code : "";
+    const state = typeof req.body?.state === "string" ? req.body.state : "";
     const oauthError =
-      typeof req.query.error === "string" ? req.query.error : undefined;
+      typeof req.body?.error === "string" ? req.body.error : undefined;
 
     if (oauthError) {
       return res.redirect(302, getLinuxDoErrorRedirect(oauthError));
@@ -70,6 +70,13 @@ export class LinuxDoAuthController {
       });
       return res.redirect(302, getLinuxDoErrorRedirect(message));
     }
+  }
+
+  public static callbackGet(_req: Request, res: Response) {
+    return res.redirect(
+      302,
+      getLinuxDoErrorRedirect("Linux.do callback must use POST form data"),
+    );
   }
 
   public static exchangeTicket(req: Request, res: Response) {
