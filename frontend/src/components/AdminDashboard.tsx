@@ -27,6 +27,7 @@ const SystemManager = React.lazy(() => import('./SystemManager'));
 const BroadcastManager = React.lazy(() => import('./BroadcastManager'));
 const ApiKeyManager = React.lazy(() => import('./ApiKeyManager'));
 const AuditLogViewer = React.lazy(() => import('./AuditLogViewer'));
+const TranslationAuditViewer = React.lazy(() => import('./TranslationAuditViewer'));
 
 const AdminDashboard: React.FC = () => {
   const [tab, setTab] = useState('users');
@@ -58,6 +59,7 @@ const AdminDashboard: React.FC = () => {
     { key: 'broadcast', label: '广播推送' },
     { key: 'apikeys', label: 'API Key 管理' },
     { key: 'audit-log', label: '操作审计' },
+    { key: 'translation-audit', label: '翻译审计' },
     { key: 'system', label: '系统管理' },
   ] as const), []);
 
@@ -413,6 +415,11 @@ const AdminDashboard: React.FC = () => {
                 {tab === 'audit-log' && (
                   <motion.div key="audit-log" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.25 }}>
                     <Suspense fallback={<div className="text-[#023047]/30">加载中…</div>}><AuditLogViewer /></Suspense>
+                  </motion.div>
+                )}
+                {tab === 'translation-audit' && (
+                  <motion.div key="translation-audit" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.25 }}>
+                    <Suspense fallback={<div className="text-[#023047]/30">加载中…</div>}><TranslationAuditViewer /></Suspense>
                   </motion.div>
                 )}
                 {tab === 'system' && (

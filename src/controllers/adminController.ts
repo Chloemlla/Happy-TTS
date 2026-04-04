@@ -7,6 +7,7 @@ import * as envModule from "../config/env";
 import { mongoose } from "../services/mongoService";
 import { sendEmail } from "../services/emailSender";
 import { RuntimeConfigService } from "../services/runtimeConfigService";
+import { TranslationLogService } from "../services/translationLogService";
 import logger from "../utils/logger";
 import { UserStorage } from "../utils/userStorage";
 
@@ -118,6 +119,7 @@ function isValidUserId(id: unknown): id is string {
 
 // 合法 role 枚举
 const VALID_ROLES = new Set(["user", "admin"]);
+const VALID_ACCOUNT_STATUSES = new Set(["active", "suspended"]);
 
 // 合法 announcement format 枚举
 const VALID_ANNOUNCEMENT_FORMATS = new Set(["markdown", "html"]);
@@ -269,6 +271,31 @@ function validateAndSanitizeUserUpdates(body: Record<string, any>): Record<strin
     out.ticketBannedUntil = body.ticketBannedUntil.trim();
   }
 
+  if (body.isTranslationEnabled !== undefined || body.is_translation_enabled !== undefined) {
+    out.isTranslationEnabled = Boolean(
+      body.isTranslationEnabled ?? body.is_translation_enabled,
+    );
+  }
+
+  if (
+    body.translationAccessUntil !== undefined ||
+    body.translation_access_until !== undefined
+  ) {
+    const value = body.translationAccessUntil ?? body.translation_access_until;
+    if (typeof value !== "string") {
+      throw new Error("translationAccessUntil 必须为字符串");
+    }
+    out.translationAccessUntil = value.trim();
+  }
+
+  if (body.accountStatus !== undefined || body.account_status !== undefined) {
+    const value = body.accountStatus ?? body.account_status;
+    if (!VALID_ACCOUNT_STATUSES.has(value)) {
+      throw new Error("accountStatus 值非法，只允许 active 或 suspended");
+    }
+    out.accountStatus = value;
+  }
+
   return out;
 }
 
@@ -393,6 +420,25 @@ export const adminController = {
       logger.error("❌ [UserManagement] 获取用户列表失败:", error);
       logger.error("获取用户列表失败:", error);
       res.status(500).json({ error: "获取用户列表失败" });
+    }
+  },
+
+  getUser: async (req: Request, res: Response) => {
+    try {
+      if (!isValidUserId(req.params.id)) {
+        return res.status(400).json({ error: "非法的用户 ID" });
+      }
+
+      const user = await UserStorage.getUserById(req.params.id);
+      if (!user) {
+        return res.status(404).json({ error: "用户不存在" });
+      }
+
+      const { password, ...safeUser } = user as any;
+      return res.json({ success: true, user: safeUser });
+    } catch (error) {
+      logger.error("获取用户详情失败:", error);
+      return res.status(500).json({ error: "获取用户详情失败" });
     }
   },
 
@@ -645,6 +691,104 @@ export const adminController = {
     } catch (error) {
       logger.error("删除用户失败:", error);
       res.status(500).json({ error: "删除用户失败" });
+    }
+  },
+
+  getTranslationLogs: async (req: Request, res: Response) => {
+    try {
+      if (mongoose.connection.readyState !== 1) {
+        return res.status(500).json({ error: "数据库未连接" });
+      }
+
+      const result = await TranslationLogService.query({
+        page: Number(req.query.page) || 1,
+        pageSize: Number(req.query.pageSize) || 20,
+        userId: typeof req.query.userId === "string" ? req.query.userId : "",
+        keyword: typeof req.query.keyword === "string" ? req.query.keyword : "",
+        startDate: typeof req.query.startDate === "string" ? req.query.startDate : "",
+        endDate: typeof req.query.endDate === "string" ? req.query.endDate : "",
+      });
+
+      return res.json({ success: true, ...result });
+    } catch (error) {
+      logger.error("获取翻译日志失败:", error);
+      return res.status(500).json({ error: "获取翻译日志失败" });
+    }
+  },
+
+  getTranslationLogStats: async (_req: Request, res: Response) => {
+    try {
+      if (mongoose.connection.readyState !== 1) {
+        return res.status(500).json({ error: "数据库未连接" });
+      }
+
+      const stats = await TranslationLogService.getStats();
+      return res.json({ success: true, ...stats });
+    } catch (error) {
+      logger.error("获取翻译日志统计失败:", error);
+      return res.status(500).json({ error: "获取翻译日志统计失败" });
+    }
+  },
+
+  applyTranslationPenalty: async (req: Request, res: Response) => {
+    try {
+      if (!isValidUserId(req.params.id)) {
+        return res.status(400).json({ error: "非法的用户 ID" });
+      }
+
+      const targetUser = await UserStorage.getUserById(req.params.id);
+      if (!targetUser) {
+        return res.status(404).json({ error: "用户不存在" });
+      }
+
+      const action = typeof req.body?.action === "string" ? req.body.action : "";
+      const until = typeof req.body?.until === "string" ? req.body.until.trim() : "";
+
+      if (action === "LIMIT_TRANSLATION") {
+        if (!until) {
+          return res.status(400).json({ error: "请提供翻译限制截止时间" });
+        }
+        await UserStorage.updateUser(targetUser.id, {
+          translationAccessUntil: until,
+        } as any);
+        return res.json({ success: true, message: "已设置翻译权限限制" });
+      }
+
+      if (action === "REVOKE_PAGE_ACCESS") {
+        await UserStorage.updateUser(targetUser.id, {
+          isTranslationEnabled: false,
+        } as any);
+        return res.json({ success: true, message: "已停用翻译页面访问权限" });
+      }
+
+      if (action === "SUSPEND_ACCOUNT") {
+        await UserStorage.updateUser(targetUser.id, {
+          accountStatus: "suspended",
+        } as any);
+        return res.json({ success: true, message: "账户已封停" });
+      }
+
+      if (action === "DELETE_USER") {
+        if (req.user?.id === targetUser.id) {
+          return res.status(403).json({ error: "不允许删除自身账户" });
+        }
+        await UserStorage.deleteUser(targetUser.id);
+        return res.json({ success: true, message: "用户已删除" });
+      }
+
+      if (action === "CLEAR_TRANSLATION_RESTRICTIONS") {
+        await UserStorage.updateUser(targetUser.id, {
+          translationAccessUntil: "",
+          isTranslationEnabled: true,
+          accountStatus: "active",
+        } as any);
+        return res.json({ success: true, message: "已清除翻译相关限制" });
+      }
+
+      return res.status(400).json({ error: "不支持的惩戒动作" });
+    } catch (error) {
+      logger.error("执行翻译惩戒失败:", error);
+      return res.status(500).json({ error: "执行翻译惩戒失败" });
     }
   },
 

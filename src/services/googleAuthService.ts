@@ -17,6 +17,9 @@ export interface GoogleAuthPayload {
     username: string;
     email: string;
     role: string;
+    isTranslationEnabled?: boolean;
+    translationAccessUntil?: string;
+    accountStatus?: string;
   };
   isNewUser: boolean;
   provider: "google";
@@ -128,6 +131,9 @@ function toAuthPayload(user: User, isNewUser: boolean): GoogleAuthPayload {
       username: user.username,
       email: user.email,
       role: user.role,
+      isTranslationEnabled: (user as any).isTranslationEnabled,
+      translationAccessUntil: (user as any).translationAccessUntil,
+      accountStatus: (user as any).accountStatus,
     },
     isNewUser,
     provider: "google",
@@ -183,6 +189,9 @@ async function upsertGoogleUser(profile: GoogleProfile): Promise<{
 }> {
   const existingUser = await findUserByEmail(profile.email);
   if (existingUser) {
+    if ((existingUser as any).accountStatus === "suspended") {
+      throw new Error("Account is suspended");
+    }
     const updatedExistingUser =
       (await UserStorage.updateUser(existingUser.id, {
         avatarUrl: profile.avatarUrl || existingUser.avatarUrl,
@@ -237,6 +246,9 @@ export async function authenticateGoogleUser(params: {
 }): Promise<GoogleAuthPayload> {
   const profile = await verifyGoogleIdToken(params.idToken);
   const { user, isNewUser } = await upsertGoogleUser(profile);
+  if ((user as any).accountStatus === "suspended") {
+    throw new Error("Account is suspended");
+  }
 
   const finalizedUser =
     (await UserStorage.updateUser(user.id, {

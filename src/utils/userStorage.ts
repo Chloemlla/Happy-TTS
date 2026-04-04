@@ -87,6 +87,10 @@ export interface User {
   // 工单违规处罚相关
   ticketViolationCount?: number;
   ticketBannedUntil?: string; // ISO 日期字符串
+  // 翻译权限与账户状态
+  isTranslationEnabled?: boolean;
+  translationAccessUntil?: string;
+  accountStatus?: "active" | "suspended";
 }
 
 // 获取 MySQL 连接
@@ -734,6 +738,9 @@ export class UserStorage {
           dailyUsage: 0,
           lastUsageDate: new Date().toISOString(),
           createdAt: new Date().toISOString(),
+          isTranslationEnabled: true,
+          translationAccessUntil: "",
+          accountStatus: "active",
         };
 
         // 直接写入文件
@@ -761,6 +768,9 @@ export class UserStorage {
         dailyUsage: 0,
         lastUsageDate: new Date().toISOString(),
         createdAt: new Date().toISOString(),
+        isTranslationEnabled: true,
+        translationAccessUntil: "",
+        accountStatus: "active",
       };
       try {
         const created = await userService.createUser(newUser);

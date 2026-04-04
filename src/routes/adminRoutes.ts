@@ -117,6 +117,7 @@ router.use(async (req: any, res: any, next: any) => {
  *         description: 用户列表
  */
 router.get("/users", adminController.getUsers);
+router.get("/users/:id", adminController.getUser);
 
 /**
  * @openapi
@@ -233,6 +234,19 @@ router.delete(
   "/users/:id",
   auditLog({ module: "user", action: "user.delete", extractTarget: (req) => ({ targetId: req.params.id }) }),
   adminController.deleteUser,
+);
+
+router.get("/translation-logs", adminController.getTranslationLogs);
+router.get("/translation-logs/stats", adminController.getTranslationLogStats);
+router.post(
+  "/users/:id/translation-penalty",
+  auditLog({
+    module: "user",
+    action: "user.translationPenalty",
+    extractTarget: (req) => ({ targetId: req.params.id }),
+    extractDetail: (req) => ({ action: req.body?.action, until: req.body?.until }),
+  }),
+  adminController.applyTranslationPenalty,
 );
 
 /**

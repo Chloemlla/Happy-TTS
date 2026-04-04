@@ -30,6 +30,9 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     if (!user) {
       return res.status(403).json({ error: "无效的Token" });
     }
+    if ((user as any).accountStatus === "suspended") {
+      return res.status(403).json({ error: "账户已被封停" });
+    }
     (req as any).user = user;
     next();
   } catch (error) {

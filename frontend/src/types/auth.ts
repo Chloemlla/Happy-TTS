@@ -13,6 +13,9 @@ export interface User {
   token?: string;
   tokenExpiresAt?: number;
   avatarUrl?: string; // 新增头像URL字段
+  isTranslationEnabled?: boolean;
+  translationAccessUntil?: string;
+  accountStatus?: 'active' | 'suspended';
 }
 
 export interface TOTPStatus {

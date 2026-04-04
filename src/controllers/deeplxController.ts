@@ -4,6 +4,8 @@ import {
   isDeepLXConfigured,
   translateWithDeepLX,
 } from "../services/deeplxService";
+import { getClientIP } from "../utils/ipUtils";
+import { TranslationLogService } from "../services/translationLogService";
 
 const MAX_TRANSLATE_LENGTH = 5000;
 
@@ -22,6 +24,8 @@ export class DeepLXController {
         return res.status(503).json({ error: "DeepLX is not configured" });
       }
 
+      const startedAt = Date.now();
+      const user = req.user as any;
       const text = readText(req.body?.text).trim();
       const sourceLang = readText(req.body?.sourceLang || req.body?.source_lang) || "auto";
       const targetLang = readText(req.body?.targetLang || req.body?.target_lang).trim();
@@ -44,11 +48,42 @@ export class DeepLXController {
         targetLang,
       });
 
+      await TranslationLogService.log({
+        userId: user.id,
+        input_text: text,
+        output_text: result.translatedText,
+        ip_address: getClientIP(req),
+        request_meta: {
+          source_lang: result.sourceLang,
+          target_lang: result.targetLang,
+          alternatives: result.alternatives.slice(0, 6),
+          duration_ms: Date.now() - startedAt,
+          user_agent: req.headers["user-agent"] || "",
+        },
+      });
+
       return res.json({
         success: true,
         ...result,
       });
     } catch (error) {
+      const user = req.user as any;
+      const text = readText(req.body?.text).trim();
+      if (user?.id && text) {
+        await TranslationLogService.log({
+          userId: user.id,
+          input_text: text,
+          output_text: "",
+          ip_address: getClientIP(req),
+          request_meta: {
+            source_lang: readText(req.body?.sourceLang || req.body?.source_lang) || "auto",
+            target_lang: readText(req.body?.targetLang || req.body?.target_lang).trim(),
+            error: error instanceof Error ? error.message : "DeepLX translation failed",
+            user_agent: req.headers["user-agent"] || "",
+          },
+        }).catch(() => {});
+      }
+
       return res.status(400).json({
         error: error instanceof Error ? error.message : "DeepLX translation failed",
       });

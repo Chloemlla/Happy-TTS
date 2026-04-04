@@ -38,7 +38,7 @@ describe("deeplxService", () => {
       enabled: false,
       requiresApiKey: true,
       baseUrl: "https://api.deeplx.org",
-      endpointPath: "https://api.deeplx.org/translate",
+      endpointPath: "https://api.deeplx.org/<api-key>/translate",
     });
   });
 
