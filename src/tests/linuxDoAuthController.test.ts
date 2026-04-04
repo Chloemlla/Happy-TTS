@@ -61,7 +61,7 @@ describe("LinuxDoAuthController", () => {
     );
   });
 
-  it("rejects GET callbacks with an explicit error redirect", async () => {
+  it("rejects GET callbacks without code/state with an explicit error redirect", async () => {
     const redirect = jest.fn();
     const req = {} as Request;
     const res = { redirect } as unknown as Response;
@@ -69,16 +69,20 @@ describe("LinuxDoAuthController", () => {
     await LinuxDoAuthController.callbackGet(req, res);
 
     expect(getLinuxDoErrorRedirect).toHaveBeenCalledWith(
-      "Linux.do callback must use POST form data",
+      "Missing Linux.do authorization code or state",
     );
     expect(redirect).toHaveBeenCalledWith(
       302,
-      "https://frontend.example/auth/linuxdo/callback?error=Linux.do%20callback%20must%20use%20POST%20form%20data",
+      "https://frontend.example/auth/linuxdo/callback?error=Missing%20Linux.do%20authorization%20code%20or%20state",
     );
   });
 
-  it("relays GET callbacks with query code and state to the frontend callback page", async () => {
+  it("completes GET callbacks with query code and state before redirecting to the frontend callback page", async () => {
     const redirect = jest.fn();
+    (completeLinuxDoAuthorization as jest.Mock).mockResolvedValue({
+      redirectUrl: "https://frontend.example/auth/linuxdo/callback?ticket=test",
+    });
+
     const req = {
       query: {
         code: "code-from-query",
@@ -89,10 +93,14 @@ describe("LinuxDoAuthController", () => {
 
     await LinuxDoAuthController.callbackGet(req, res);
 
-    expect(completeLinuxDoAuthorization).not.toHaveBeenCalled();
+    expect(completeLinuxDoAuthorization).toHaveBeenCalledWith({
+      code: "code-from-query",
+      state: "state-from-query",
+      clientIp: "203.0.113.10",
+    });
     expect(redirect).toHaveBeenCalledWith(
       302,
-      "https://frontend.example/auth/linuxdo/callback?code=code-from-query&state=state-from-query",
+      "https://frontend.example/auth/linuxdo/callback?ticket=test",
     );
   });
 });
