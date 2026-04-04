@@ -23,17 +23,30 @@ import {
 
 // ========== 配置 ==========
 
-const NEXAI_JWT_SECRET = process.env.NEXAI_JWT_SECRET || config.jwtSecret + "_nexai";
-const NEXAI_JWT_EXPIRES = process.env.NEXAI_JWT_EXPIRES || "2h";
-const NEXAI_REFRESH_EXPIRES = process.env.NEXAI_REFRESH_EXPIRES || "30d";
+function getNexaiJwtSecret(): string {
+    return config.nexai.jwtSecret;
+}
+function getNexaiJwtExpires(): string {
+    return config.nexai.jwtExpiresIn;
+}
+function getNexaiRefreshExpires(): string {
+    return config.nexai.refreshExpiresIn;
+}
 const BCRYPT_ROUNDS = 12;
 
 // Google OAuth
-const GOOGLE_CLIENT_ID = process.env.NEXAI_GOOGLE_CLIENT_ID || "";
+function getGoogleClientId(): string {
+    return config.nexai.google.clientId;
+}
 
 // GitHub OAuth
-const GITHUB_CLIENT_ID = process.env.NEXAI_GITHUB_CLIENT_ID || "";
-const GITHUB_CLIENT_SECRET = process.env.NEXAI_GITHUB_CLIENT_SECRET || "";
+function getGithubClientId(): string {
+    return config.nexai.github.clientId;
+}
+
+function getGithubClientSecret(): string {
+    return config.nexai.github.clientSecret;
+}
 
 // ========== 工具函数 ==========
 
@@ -48,8 +61,8 @@ function generateAccessToken(user: INexaiUser): string {
             provider: user.authProvider,
             scope: "nexai",
         },
-        NEXAI_JWT_SECRET,
-        { expiresIn: NEXAI_JWT_EXPIRES as jwt.SignOptions["expiresIn"] },
+        getNexaiJwtSecret(),
+        { expiresIn: getNexaiJwtExpires() as jwt.SignOptions["expiresIn"] },
     );
 }
 
@@ -60,7 +73,7 @@ function generateRefreshToken(): string {
 
 /** 计算 Refresh Token 过期时间 */
 function getRefreshTokenExpiry(): number {
-    const match = (NEXAI_REFRESH_EXPIRES as string).match(/^(\d+)([dhms])$/);
+    const match = getNexaiRefreshExpires().match(/^(\d+)([dhms])$/);
     if (!match) return Date.now() + 30 * 24 * 60 * 60 * 1000; // 默认30天
     const val = parseInt(match[1], 10);
     const unit = match[2];
@@ -77,7 +90,7 @@ function getRefreshTokenExpiry(): number {
 
 /** 验证 JWT Token */
 function verifyAccessToken(token: string): any {
-    return jwt.verify(token, NEXAI_JWT_SECRET);
+    return jwt.verify(token, getNexaiJwtSecret());
 }
 
 /** 合并 authProvider */
@@ -279,7 +292,8 @@ export class NexaiAuthService {
         idToken: string;
         ip?: string;
     }): Promise<{ user: INexaiUser; accessToken: string; refreshToken: string; isNewUser: boolean }> {
-        if (!GOOGLE_CLIENT_ID) {
+        const googleClientId = getGoogleClientId();
+        if (!googleClientId) {
             throw Object.assign(new Error("Google OAuth 未配置"), { statusCode: 503 });
         }
 
@@ -288,10 +302,10 @@ export class NexaiAuthService {
         try {
             // 动态导入 google-auth-library（可能未安装时优雅降级）
             const { OAuth2Client } = await import("google-auth-library");
-            const client = new OAuth2Client(GOOGLE_CLIENT_ID);
+            const client = new OAuth2Client(googleClientId);
             const ticket = await client.verifyIdToken({
                 idToken: data.idToken,
-                audience: GOOGLE_CLIENT_ID,
+                audience: googleClientId,
             });
             googlePayload = ticket.getPayload();
         } catch (err: any) {
@@ -408,7 +422,9 @@ export class NexaiAuthService {
         code: string;
         ip?: string;
     }): Promise<{ user: INexaiUser; accessToken: string; refreshToken: string; isNewUser: boolean }> {
-        if (!GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET) {
+        const githubClientId = getGithubClientId();
+        const githubClientSecret = getGithubClientSecret();
+        if (!githubClientId || !githubClientSecret) {
             throw Object.assign(new Error("GitHub OAuth 未配置"), { statusCode: 503 });
         }
 
@@ -418,8 +434,8 @@ export class NexaiAuthService {
             const tokenRes = await axios.post(
                 "https://github.com/login/oauth/access_token",
                 {
-                    client_id: GITHUB_CLIENT_ID,
-                    client_secret: GITHUB_CLIENT_SECRET,
+                    client_id: githubClientId,
+                    client_secret: githubClientSecret,
                     code: data.code,
                 },
                 {
@@ -884,17 +900,18 @@ export class NexaiAuthService {
         userId: string,
         idToken: string,
     ): Promise<INexaiUser> {
-        if (!GOOGLE_CLIENT_ID) {
+        const googleClientId = getGoogleClientId();
+        if (!googleClientId) {
             throw Object.assign(new Error("Google OAuth 未配置"), { statusCode: 503 });
         }
 
         let googlePayload: any;
         try {
             const { OAuth2Client } = await import("google-auth-library");
-            const client = new OAuth2Client(GOOGLE_CLIENT_ID);
+            const client = new OAuth2Client(googleClientId);
             const ticket = await client.verifyIdToken({
                 idToken,
-                audience: GOOGLE_CLIENT_ID,
+                audience: googleClientId,
             });
             googlePayload = ticket.getPayload();
         } catch (err: any) {
@@ -970,7 +987,9 @@ export class NexaiAuthService {
         userId: string,
         code: string,
     ): Promise<INexaiUser> {
-        if (!GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET) {
+        const githubClientId = getGithubClientId();
+        const githubClientSecret = getGithubClientSecret();
+        if (!githubClientId || !githubClientSecret) {
             throw Object.assign(new Error("GitHub OAuth 未配置"), { statusCode: 503 });
         }
 
@@ -980,8 +999,8 @@ export class NexaiAuthService {
             const tokenRes = await axios.post(
                 "https://github.com/login/oauth/access_token",
                 {
-                    client_id: GITHUB_CLIENT_ID,
-                    client_secret: GITHUB_CLIENT_SECRET,
+                    client_id: githubClientId,
+                    client_secret: githubClientSecret,
                     code,
                 },
                 { headers: { Accept: "application/json" }, timeout: 10000 },
@@ -1105,7 +1124,7 @@ export class NexaiAuthService {
         // 生成重置 token（有效期 30 分钟）
         const resetToken = jwt.sign(
             { userId: user.id, purpose: "reset-password", scope: "nexai" },
-            NEXAI_JWT_SECRET,
+            getNexaiJwtSecret(),
             { expiresIn: "30m" },
         );
 
@@ -1127,7 +1146,7 @@ export class NexaiAuthService {
 
         let decoded: any;
         try {
-            decoded = jwt.verify(data.token, NEXAI_JWT_SECRET);
+            decoded = jwt.verify(data.token, getNexaiJwtSecret());
         } catch (_) {
             throw Object.assign(new Error("重置链接已过期或无效"), { statusCode: 400 });
         }

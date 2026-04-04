@@ -7,6 +7,7 @@ import { useNotification } from './Notification';
 import { useAuth } from '../hooks/useAuth';
 import { signedFetch } from '../utils/requestSigner';
 import CryptoJS from 'crypto-js';
+import RuntimeConfigSections from './RuntimeConfigSections';
 import {
   FaCog,
   FaLock,
@@ -2411,6 +2412,8 @@ const EnvManager: React.FC = () => {
             最后更新时间：{ttsSetting?.updatedAt ? new Date(ttsSetting.updatedAt).toLocaleString() : '-'}
           </div>
         </CollapsibleSection>
+
+        <RuntimeConfigSections />
 
         {/* 短链 AES_KEY 设置 */}
         <CollapsibleSection title="短链 AES_KEY 设置" sectionKey="shortaes" isOpen={isSectionOpen('shortaes')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
