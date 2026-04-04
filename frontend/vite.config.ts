@@ -318,7 +318,6 @@ export default defineConfig(({ mode }) => {
           }
           : undefined,
       allowedHosts: [
-        "tts.hapx.one",
         "18.217.88.110",
         "tts.951100.xyz",
         "localhost",

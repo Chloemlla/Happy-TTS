@@ -37,7 +37,6 @@ const allowedDomains = [
   "icloud.com",
   "foxmail.com",
   "951100.xyz",
-  "hapx.one",
 ];
 const emailPattern = new RegExp(
   `^[\\w.-]+@(${allowedDomains.map((d) => d.replace(".", "\\.")).join("|")})$`
