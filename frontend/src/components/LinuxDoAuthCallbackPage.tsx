@@ -22,8 +22,6 @@ export const LinuxDoAuthCallbackPage: React.FC = () => {
 
     const error = searchParams.get("error");
     const ticket = searchParams.get("ticket");
-    const code = searchParams.get("code");
-    const state = searchParams.get("state");
 
     if (error) {
       setStatus("Linux.do 登录失败，正在返回登录页...");
@@ -63,34 +61,7 @@ export const LinuxDoAuthCallbackPage: React.FC = () => {
       await completeLogin(data.token, data.user, Boolean(data.isNewUser));
     };
 
-    const submitCallbackForm = async (codeValue: string, stateValue: string) => {
-      const response = await fetch(`${getApiBaseUrl()}/api/auth/linuxdo/callback`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        credentials: "include",
-        body: new URLSearchParams({
-          code: codeValue,
-          state: stateValue,
-        }).toString(),
-      });
-
-      const redirectedUrl = response.url ? new URL(response.url) : null;
-      const redirectedError = redirectedUrl?.searchParams.get("error");
-      if (redirectedError) {
-        throw new Error(redirectedError);
-      }
-
-      const redirectedTicket = redirectedUrl?.searchParams.get("ticket");
-      if (!redirectedTicket) {
-        throw new Error("缺少 Linux.do 登录票据");
-      }
-
-      await exchangeTicket(redirectedTicket);
-    };
-
-    if (!ticket && !(code && state)) {
+    if (!ticket) {
       setStatus("缺少 Linux.do 登录票据，正在返回登录页...");
       setNotification({ message: "缺少 Linux.do 登录票据", type: "error" });
       window.setTimeout(() => navigate("/login", { replace: true }), 800);
@@ -99,13 +70,7 @@ export const LinuxDoAuthCallbackPage: React.FC = () => {
 
     const finalizeLogin = async () => {
       try {
-        if (ticket) {
-          await exchangeTicket(ticket);
-          return;
-        }
-
-        setStatus("正在提交 Linux.do 回调数据...");
-        await submitCallbackForm(code!, state!);
+        await exchangeTicket(ticket);
       } catch (exchangeError) {
         const message =
           exchangeError instanceof Error ? exchangeError.message : "Linux.do 登录失败";

@@ -37,13 +37,10 @@ describe("LinuxDoAuthCallbackPage", () => {
     vi.stubGlobal("fetch", vi.fn());
   });
 
-  it("re-posts query code and state as form data before exchanging the login ticket", async () => {
-    currentSearchParams = new URLSearchParams("code=query-code&state=query-state");
+  it("exchanges the login ticket from the callback URL", async () => {
+    currentSearchParams = new URLSearchParams("ticket=relay-ticket");
 
     vi.mocked(fetch)
-      .mockResolvedValueOnce({
-        url: "http://localhost:3000/auth/linuxdo/callback?ticket=relay-ticket",
-      } as Response)
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -55,20 +52,8 @@ describe("LinuxDoAuthCallbackPage", () => {
 
     render(<LinuxDoAuthCallbackPage />);
 
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
-    expect(fetch).toHaveBeenNthCalledWith(
-      1,
-      "http://localhost:3000/api/auth/linuxdo/callback",
-      expect.objectContaining({
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: "code=query-code&state=query-state",
-      }),
-    );
-    expect(fetch).toHaveBeenNthCalledWith(
-      2,
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    expect(fetch).toHaveBeenCalledWith(
       "http://localhost:3000/api/auth/linuxdo/exchange",
       expect.objectContaining({
         method: "POST",

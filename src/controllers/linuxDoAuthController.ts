@@ -68,12 +68,6 @@ export class LinuxDoAuthController {
     }
   }
 
-  private static buildFrontendCallbackRelay(params: Record<string, string>): string {
-    const searchParams = new URLSearchParams(params);
-    const { frontendCallbackUrl } = getLinuxDoConfigSummary();
-    return `${frontendCallbackUrl}?${searchParams.toString()}`;
-  }
-
   public static getConfig(_req: Request, res: Response) {
     res.json(getLinuxDoConfigSummary());
   }
@@ -102,25 +96,12 @@ export class LinuxDoAuthController {
     );
   }
 
-  public static callbackGet(req: Request, res: Response) {
-    const code = readCallbackField(req.query?.code);
-    const state = readCallbackField(req.query?.state);
-    const oauthError = readCallbackField(req.query?.error) || undefined;
-
-    if (oauthError) {
-      return res.redirect(302, getLinuxDoErrorRedirect(oauthError));
-    }
-
-    if (code && state) {
-      return res.redirect(
-        302,
-        LinuxDoAuthController.buildFrontendCallbackRelay({ code, state }),
-      );
-    }
-
-    return res.redirect(
-      302,
-      getLinuxDoErrorRedirect("Linux.do callback must use POST form data"),
+  public static async callbackGet(req: Request, res: Response) {
+    return LinuxDoAuthController.handleCallbackPayload(
+      req,
+      res,
+      req.query,
+      "Missing Linux.do authorization code or state",
     );
   }
 
