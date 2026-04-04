@@ -1185,22 +1185,48 @@ function writeInspectOutput(inspectData, containerName, outputDir, source) {
 }
 
 /**
+ * 打印 inspect 子命令帮助
+ */
+function printInspectUsage() {
+    console.log('用法:');
+    console.log('  远程模式: node scripts/deploy_image.js inspect <containerName> [--output <dir>]');
+    console.log('  本地文件: node scripts/deploy_image.js inspect --file <inspect.json> [--output <dir>] [--name <containerName>]');
+    console.log('');
+    console.log('参数说明:');
+    console.log('  <containerName>    远程模式下要 inspect 的容器名称');
+    console.log('  --file <path>      从本地 docker inspect JSON 文件读取，跳过 SSH 连接');
+    console.log('  --output <dir>     指定输出目录，默认当前目录');
+    console.log('  --name <name>      本地文件模式下手动指定容器名，默认从 JSON 的 Name 字段读取');
+    console.log('  --help             显示本帮助');
+    console.log('');
+    console.log('远程模式需要的环境变量:');
+    console.log('  SERVER_ADDRESS, USERNAME, PORT, PRIVATE_KEY');
+    console.log('  这些变量支持多值，但 inspect 只读取第 1 组');
+    console.log('');
+    console.log('生成文件:');
+    console.log('  <containerName>_inspect_<timestamp>.json');
+    console.log('  <containerName>_docker_run_<timestamp>.sh');
+    console.log('');
+    console.log('示例:');
+    console.log('  node scripts/deploy_image.js inspect synapse-api');
+    console.log('  node scripts/deploy_image.js inspect synapse-api --output ./inspect-output');
+    console.log('  node scripts/deploy_image.js inspect --file ./nginx_inspect.json');
+    console.log('  node scripts/deploy_image.js inspect --file ./nginx_inspect.json --name nginx --output ./inspect-output');
+}
+
+/**
  * inspect 子命令：支持从远程服务器获取或从本地文件读取 docker inspect 信息，生成 docker run 命令
  * 用法:
- *   远程模式: node deploy_image.js inspect <containerName> [--output <dir>]
- *   本地文件: node deploy_image.js inspect --file <path> [--output <dir>] [--name <containerName>]
+ *   远程模式: node scripts/deploy_image.js inspect <containerName> [--output <dir>]
+ *   本地文件: node scripts/deploy_image.js inspect --file <path> [--output <dir>] [--name <containerName>]
+ * 生成物:
+ *   1. inspect JSON 备份
+ *   2. 可直接修改后复用的 docker run shell 脚本
  */
 async function inspectCommand() {
     const args = process.argv.slice(3);
-    if (args.length === 0) {
-        console.log('用法:');
-        console.log('  远程模式: node deploy_image.js inspect <containerName> [--output <dir>]');
-        console.log('  本地文件: node deploy_image.js inspect --file <inspect.json> [--output <dir>] [--name <containerName>]');
-        console.log('');
-        console.log('选项:');
-        console.log('  --file <path>    从本地 docker inspect JSON 文件读取（跳过 SSH 连接）');
-        console.log('  --output <dir>   指定输出目录，默认为当前目录');
-        console.log('  --name <name>    指定容器名称（仅本地文件模式，默认从 JSON 中读取）');
+    if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
+        printInspectUsage();
         process.exit(1);
     }
 
