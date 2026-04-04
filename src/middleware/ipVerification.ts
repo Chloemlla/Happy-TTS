@@ -2,7 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { config } from "../config/config";
 import IpVerificationService from "../services/ipVerificationService";
 
-const EXEMPT_PREFIXES = [
+const EXEMPT_ENFORCEMENT_PREFIXES = [
   "/api/ip-verification",
   "/api/turnstile",
   "/api/human-check",
@@ -11,12 +11,12 @@ const EXEMPT_PREFIXES = [
   "/api/auth/linuxdo/",
 ];
 
-function shouldBypass(req: Request): boolean {
+function shouldSkipVerificationEnforcement(req: Request): boolean {
   if (!config.ipqs.enabled) return true;
   if (req.method === "OPTIONS") return true;
 
   const originalUrl = req.originalUrl || req.url || "";
-  if (EXEMPT_PREFIXES.some((prefix) => originalUrl.startsWith(prefix))) return true;
+  if (EXEMPT_ENFORCEMENT_PREFIXES.some((prefix) => originalUrl.startsWith(prefix))) return true;
 
   const browserLike =
     Boolean(req.headers.origin) ||
@@ -34,7 +34,7 @@ function resolveIpAddress(req: Request): string {
 }
 
 export async function ipVerificationMiddleware(req: Request, res: Response, next: NextFunction) {
-  if (shouldBypass(req)) {
+  if (shouldSkipVerificationEnforcement(req)) {
     next();
     return;
   }

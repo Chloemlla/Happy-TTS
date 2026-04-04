@@ -27,7 +27,7 @@ interface StoredIpVerificationToken {
 const STORAGE_KEY = 'hapx_ip_verification_token_v1';
 const EVENT_NAME = 'hapx:ip-verification-required';
 
-const EXEMPT_PATH_PREFIXES = [
+export const EXEMPT_PATH_PREFIXES = [
   '/api/ip-verification',
   '/api/turnstile',
   '/api/human-check',
@@ -53,7 +53,7 @@ function resolveApiBaseUrl(): string {
   return 'https://api.951100.xyz';
 }
 
-function isExemptPath(pathname: string): boolean {
+export function isExemptPath(pathname: string): boolean {
   return EXEMPT_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
@@ -263,7 +263,7 @@ export function installIpVerificationTransport(): void {
     const request = new Request(input, init);
     const url = new URL(request.url, window.location.origin);
 
-    if (!isBackendRequest(url) || isExemptPath(url.pathname)) {
+    if (!isBackendRequest(url)) {
       return originalFetch(request);
     }
 

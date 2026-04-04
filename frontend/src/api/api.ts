@@ -1,6 +1,11 @@
 import axios, { AxiosHeaders, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { reportFingerprintOnce } from '../utils/fingerprint';
-import { buildIpVerificationHeaders, clearIpVerificationToken, emitIpVerificationRequired } from '../utils/ipVerification';
+import {
+    buildIpVerificationHeaders,
+    clearIpVerificationToken,
+    emitIpVerificationRequired,
+    isExemptPath,
+} from '../utils/ipVerification';
 
 // 获取API基础URL
 const getApiBaseUrl = () => {
@@ -19,6 +24,21 @@ const getApiBaseUrl = () => {
     }
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
     return 'https://api.951100.xyz';
+};
+
+const resolveRequestPathname = (config?: AxiosRequestConfig): string | null => {
+    const requestUrl = typeof config?.url === 'string' ? config.url : '';
+    if (!requestUrl) return null;
+
+    try {
+        const baseUrl =
+            typeof config?.baseURL === 'string' && config.baseURL.trim().length > 0
+                ? config.baseURL
+                : getApiBaseUrl();
+        return new URL(requestUrl, baseUrl).pathname;
+    } catch {
+        return null;
+    }
 };
 
 // 延迟函数
@@ -117,6 +137,10 @@ api.interceptors.response.use(
 
         // 处理 401 错误（未授权）
         if (error.response?.status === 403 && error.response?.data?.errorCode === 'IP_VERIFICATION_REQUIRED') {
+            const pathname = resolveRequestPathname(originalRequest);
+            if (pathname && isExemptPath(pathname)) {
+                return Promise.reject(error);
+            }
             clearIpVerificationToken();
             emitIpVerificationRequired(error.response.data);
             return Promise.reject(error);
