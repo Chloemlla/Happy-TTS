@@ -101,7 +101,7 @@
     "mysql2": "^3.20.0",
     "nanoid": "^5.1.7",
     "openai": "^6.33.0",
-    "path-to-regexp": "^8.4.1",
+    "path-to-regexp": "^8.4.2",
     "qrcode": "^1.5.4",
     "react-syntax-highlighter": "^16.1.1",
     "redis": "^5.11.0",
