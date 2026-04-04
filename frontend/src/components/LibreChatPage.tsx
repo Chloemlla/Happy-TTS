@@ -23,7 +23,7 @@ import {
   FaCompress,
   FaQuestionCircle
 } from 'react-icons/fa';
-import MarkdownRenderer from './MarkdownRenderer';
+import MarkdownRenderer, { copyTextToClipboard } from './MarkdownRenderer';
 import getApiBaseUrl from '../api';
 import { useNotification } from './Notification';
 import AlertModal from './AlertModal';
@@ -130,21 +130,43 @@ interface HistoryMessage {
 }
 
 // 增强的 Markdown 渲染组件
-export const EnhancedMarkdownRenderer: React.FC<{
+type EnhancedMarkdownRendererProps = {
   content: string;
   className?: string;
   showControls?: boolean;
-  onCopy?: (content: string) => void;
+  onContentCopy?: (success: boolean, content: string) => void;
   onCodeCopy?: (success: boolean) => void;
-}> = ({ content, className = "", showControls = true, onCopy, onCodeCopy }) => {
+};
+
+export const EnhancedMarkdownRenderer: React.FC<EnhancedMarkdownRendererProps> = ({
+  content,
+  className = "",
+  showControls = true,
+  onContentCopy,
+  onCodeCopy,
+}) => {
   const [showRaw, setShowRaw] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+
+  const handleContentCopy = async () => {
+    const success = await copyTextToClipboard(content);
+    onContentCopy?.(success, content);
+  };
 
   return (
     <div className={`relative group ${className}`}>
       {showControls && (
         <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 flex gap-2">
           <button
+            type="button"
+            onClick={() => void handleContentCopy()}
+            className="p-1.5 bg-gray-100 text-gray-500 rounded hover:bg-gray-200 transition-colors shadow-sm"
+            title="复制 Markdown"
+          >
+            <FaCopyIcon size={12} />
+          </button>
+          <button
+            type="button"
             onClick={() => setShowRaw(!showRaw)}
             className="p-1.5 bg-gray-100 text-gray-500 rounded hover:bg-gray-200 transition-colors shadow-sm"
             title={showRaw ? '显示渲染' : '显示原文'}
@@ -152,6 +174,7 @@ export const EnhancedMarkdownRenderer: React.FC<{
             {showRaw ? <FaEyeSlash size={12} /> : <FaEye size={12} />}
           </button>
           <button
+            type="button"
             onClick={() => setIsExpanded(!isExpanded)}
             className="p-1.5 bg-gray-100 text-gray-500 rounded hover:bg-gray-200 transition-colors shadow-sm"
             title={isExpanded ? '缩小' : '展开'}
@@ -1892,7 +1915,13 @@ const config = {
                         <EnhancedMarkdownRenderer
                           content={m.role === 'user' ? m.content : sanitizeAssistantText(m.content)}
                           showControls={true}
-                          onCopy={(content) => setNotification({ type: 'success', message: 'Markdown内容已复制到剪贴板' })}
+                          onContentCopy={(success) => {
+                            if (success) {
+                              setNotification({ type: 'success', message: 'Markdown内容已复制到剪贴板' });
+                            } else {
+                              setNotification({ type: 'error', message: '复制失败' });
+                            }
+                          }}
                           onCodeCopy={(success) => {
                             if (success) {
                               setNotification({ type: 'success', message: '代码已复制' });
