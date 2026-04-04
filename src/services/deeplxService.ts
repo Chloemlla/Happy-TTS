@@ -1,6 +1,10 @@
 import axios from "axios";
 import { config } from "../config/config";
 
+const TRUSTED_DEEPLX_PROTOCOL = "https:";
+const TRUSTED_DEEPLX_HOST = "api.deeplx.org";
+const TRUSTED_DEEPLX_BASE_URL = `${TRUSTED_DEEPLX_PROTOCOL}//${TRUSTED_DEEPLX_HOST}`;
+
 export interface DeepLXConfigSummary {
   enabled: boolean;
   requiresApiKey: boolean;
@@ -52,12 +56,32 @@ function getNormalizedBaseUrl(): string {
   return config.deeplx.baseUrl.trim().replace(/\/+$/, "");
 }
 
-function requiresApiKey(baseUrl = getNormalizedBaseUrl()): boolean {
+function isApprovedDeepLXBaseUrl(value: string): boolean {
   try {
-    return new URL(baseUrl).hostname.toLowerCase() === "api.deeplx.org";
+    const parsed = new URL(value);
+    return (
+      parsed.protocol === TRUSTED_DEEPLX_PROTOCOL &&
+      parsed.hostname.toLowerCase() === TRUSTED_DEEPLX_HOST &&
+      !parsed.username &&
+      !parsed.password &&
+      (!parsed.pathname || parsed.pathname === "/")
+    );
   } catch {
     return false;
   }
+}
+
+function getVerifiedDeepLXBaseUrl(): string {
+  const configuredBaseUrl = getNormalizedBaseUrl();
+  if (!isApprovedDeepLXBaseUrl(configuredBaseUrl)) {
+    throw new Error(`DeepLX base URL must use ${TRUSTED_DEEPLX_BASE_URL}`);
+  }
+
+  return TRUSTED_DEEPLX_BASE_URL;
+}
+
+function requiresApiKey(baseUrl = getNormalizedBaseUrl()): boolean {
+  return isApprovedDeepLXBaseUrl(baseUrl);
 }
 
 function getApiKey(): string {
@@ -65,7 +89,7 @@ function getApiKey(): string {
 }
 
 export function buildDeepLXTranslateUrl(): string {
-  const baseUrl = getNormalizedBaseUrl();
+  const baseUrl = getVerifiedDeepLXBaseUrl();
   const apiKey = getApiKey();
 
   if (apiKey) {
@@ -81,11 +105,14 @@ export function isDeepLXConfigured(): boolean {
     return false;
   }
 
-  return !requiresApiKey(baseUrl) || Boolean(getApiKey());
+  return isApprovedDeepLXBaseUrl(baseUrl) && Boolean(getApiKey());
 }
 
 export function getDeepLXConfigSummary(): DeepLXConfigSummary {
-  const baseUrl = getNormalizedBaseUrl();
+  const configuredBaseUrl = getNormalizedBaseUrl();
+  const baseUrl = isApprovedDeepLXBaseUrl(configuredBaseUrl)
+    ? TRUSTED_DEEPLX_BASE_URL
+    : configuredBaseUrl;
   return {
     enabled: isDeepLXConfigured(),
     requiresApiKey: requiresApiKey(),
