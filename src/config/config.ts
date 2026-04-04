@@ -85,6 +85,32 @@ export const config = {
   // 前端基础URL
   frontendBaseUrl: process.env.FRONTEND_URL || "https://tts.951100.xyz",
 
+  linuxdo: {
+    clientId: process.env.LINUXDO_CLIENT_ID || "",
+    clientSecret: process.env.LINUXDO_CLIENT_SECRET || "",
+    authorizationEndpoint:
+      process.env.LINUXDO_AUTHORIZATION_ENDPOINT ||
+      "https://connect.linux.do/oauth2/authorize",
+    tokenEndpoint:
+      process.env.LINUXDO_TOKEN_ENDPOINT ||
+      "https://connect.linux.do/oauth2/token",
+    userEndpoint:
+      process.env.LINUXDO_USER_ENDPOINT || "https://connect.linux.do/api/user",
+    forumBaseUrl: process.env.LINUXDO_FORUM_BASE_URL || "https://linux.do",
+    callbackUrl:
+      process.env.LINUXDO_REDIRECT_URI ||
+      `${
+        process.env.VITE_API_URL ||
+        process.env.BASE_URL ||
+        "https://api.951100.xyz"
+      }/api/auth/linuxdo/callback`,
+    frontendCallbackUrl:
+      process.env.LINUXDO_FRONTEND_CALLBACK_URL ||
+      `${
+        process.env.FRONTEND_URL || "https://tts.951100.xyz"
+      }/auth/linuxdo/callback`,
+  },
+
   // 审计日志脱敏开关 (自动隐藏密码/鉴权头)，默认开启
   auditLogMasking: process.env.AUDIT_LOG_MASKING !== "false",
 

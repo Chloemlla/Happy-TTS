@@ -2,6 +2,7 @@ import express from "express";
 import type { SignOptions } from "jsonwebtoken";
 import { config } from "../config/config";
 import { AuthController } from "../controllers/authController";
+import { LinuxDoAuthController } from "../controllers/linuxDoAuthController";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { validateAuthInput } from "../middleware/authValidation";
 import { createLimiter } from "../middleware/rateLimiter";
@@ -73,6 +74,11 @@ router.post("/register", registerLimiter, validateAuthInput, logUserData, AuthCo
  *         description: 登录成功
  */
 router.post("/login", loginLimiter, validateAuthInput, AuthController.login);
+
+router.get("/linuxdo/config", LinuxDoAuthController.getConfig);
+router.get("/linuxdo/start", LinuxDoAuthController.start);
+router.get("/linuxdo/callback", LinuxDoAuthController.callback);
+router.post("/linuxdo/exchange", LinuxDoAuthController.exchangeTicket);
 
 /**
  * @openapi

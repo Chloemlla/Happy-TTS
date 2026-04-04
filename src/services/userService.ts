@@ -32,6 +32,10 @@ const userSchema = new mongoose.Schema(
     currentChallenge: String,
     passkeyVerified: Boolean,
     avatarUrl: { type: String }, // 新增头像URL字段
+    authProvider: { type: String, enum: ["local", "linuxdo"], default: "local" },
+    linuxdoId: { type: String, unique: true, sparse: true },
+    linuxdoUsername: { type: String },
+    linuxdoAvatarUrl: { type: String },
     // 指纹预约需求持久化
     requireFingerprint: { type: Boolean, default: false },
     requireFingerprintAt: { type: Number, default: 0 },
@@ -82,7 +86,7 @@ export const getUserById = async (id: string): Promise<UserType | null> => {
   // 修复：select 字段包含所有passkey相关字段
   const doc = await UserModel.findOne({ id })
     .select(
-      "id username email role password avatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil",
+      "id username email role password avatarUrl authProvider linuxdoId linuxdoUsername linuxdoAvatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil",
     )
     .lean();
 
@@ -105,7 +109,24 @@ export const getUserByUsername = async (username: string): Promise<UserType | nu
   }
   const doc = await UserModel.findOne({ username })
     .select(
-      "id username email role token tokenExpiresAt password avatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil",
+      "id username email role token tokenExpiresAt password avatarUrl authProvider linuxdoId linuxdoUsername linuxdoAvatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil",
+    )
+    .lean();
+
+  if (!doc) return null;
+  return removeAvatarBase64(doc) as unknown as UserType;
+};
+
+export const getUserByLinuxDoId = async (
+  linuxdoId: string,
+): Promise<UserType | null> => {
+  if (typeof linuxdoId !== "string" || !linuxdoId.trim()) {
+    return null;
+  }
+
+  const doc = await UserModel.findOne({ linuxdoId: linuxdoId.trim() })
+    .select(
+      "id username email role token tokenExpiresAt password avatarUrl authProvider linuxdoId linuxdoUsername linuxdoAvatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil",
     )
     .lean();
 
@@ -120,7 +141,7 @@ export const getUserByEmail = async (email: string): Promise<UserType | null> =>
   if (!validator.isEmail(safeEmail)) return null;
   const doc = await UserModel.findOne({ email: safeEmail })
     .select(
-      "id username email role token tokenExpiresAt password avatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil",
+      "id username email role token tokenExpiresAt password avatarUrl authProvider linuxdoId linuxdoUsername linuxdoAvatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil",
     )
     .lean();
 

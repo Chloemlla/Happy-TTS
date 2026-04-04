@@ -121,6 +121,7 @@ jest.mock("../services/mongoService", () => ({
 // Mock userService，避免MongoDB连接问题
 jest.mock("../services/userService", () => ({
   getUserByUsername: jest.fn().mockResolvedValue(null),
+  getUserByLinuxDoId: jest.fn().mockResolvedValue(null),
   getUserByEmail: jest.fn().mockResolvedValue(null),
   getUserById: jest.fn().mockResolvedValue(null),
   getAllUsers: jest.fn().mockResolvedValue([]),
