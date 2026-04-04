@@ -1,5 +1,6 @@
 import axios from "axios";
-import { afterEach, describe, expect, it, jest } from "@jest/globals";
+import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { config } from "../config/config";
 import {
   buildLinuxDoAvatarUrl,
   consumeLinuxDoLoginTicket,
@@ -12,10 +13,21 @@ import {
 
 jest.mock("axios");
 const mockedAxios = axios as jest.Mocked<typeof axios>;
+const baseLinuxDoConfig = {
+  ...config.linuxdo,
+  clientId: "linuxdo-client",
+  clientSecret: "linuxdo-secret",
+};
+
+beforeEach(() => {
+  Object.assign(config.linuxdo, baseLinuxDoConfig);
+});
 
 afterEach(() => {
   resetLinuxDoAuthStateForTests();
+  Object.assign(config.linuxdo, baseLinuxDoConfig);
   mockedAxios.get.mockReset();
+  mockedAxios.post.mockReset();
 });
 
 describe("linuxDoAuthService", () => {
@@ -101,4 +113,39 @@ describe("linuxDoAuthService", () => {
     expect(parsedUrl.searchParams.get("code_challenge")).toBeTruthy();
     expect(parsedUrl.searchParams.get("state")).toBeTruthy();
   });
+
+  it("rejects discovery URLs that do not use approved Linux.do hosts", async () => {
+    config.linuxdo.discoveryUrl = "https://evil.example/.well-known/openid-configuration";
+
+    await expect(createLinuxDoAuthorizationUrl("login")).rejects.toThrow(
+      "Linux.do discovery URL must use an approved Linux.do host",
+    );
+    expect(mockedAxios.get).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      "authorization_endpoint",
+      "authorization endpoint",
+      "https://evil.example/oauth2/authorize",
+    ],
+    ["token_endpoint", "token endpoint", "https://evil.example/oauth2/token"],
+    ["userinfo_endpoint", "userinfo endpoint", "https://evil.example/api/user"],
+  ] as const)(
+    "rejects discovery documents with untrusted %s values",
+    async (field, label, badUrl) => {
+      mockedAxios.get.mockResolvedValueOnce({
+        data: {
+          authorization_endpoint: "https://connect.linux.do/oauth2/authorize",
+          token_endpoint: "https://connect.linux.do/oauth2/token",
+          userinfo_endpoint: "https://connect.linux.do/api/user",
+          [field]: badUrl,
+        },
+      } as any);
+
+      await expect(createLinuxDoAuthorizationUrl("login")).rejects.toThrow(
+        `Linux.do ${label} must use an approved Linux.do host`,
+      );
+    },
+  );
 });
