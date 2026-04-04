@@ -221,7 +221,7 @@ const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
           height="48"
           src="https://img.icons8.com/color/48/google-logo.png"
           alt="google-logo"
-          className="h-10 w-10 flex-shrink-0"
+          className="h-8 w-8 rounded-full object-cover shadow-sm flex-shrink-0"
           loading="lazy"
           referrerPolicy="no-referrer"
         />
