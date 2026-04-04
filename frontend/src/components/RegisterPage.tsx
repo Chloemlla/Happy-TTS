@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import DOMPurify from 'dompurify';
 import { useNotification } from './Notification';
+import LinuxDoAuthButton from './LinuxDoAuthButton';
 import { TurnstileWidget } from './TurnstileWidget';
 import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
 import VerifyCodeInput from './VerifyCodeInput';
@@ -273,6 +274,17 @@ export const RegisterPage: React.FC = () => {
                                     {loading ? '注册中...' : '创建账户'}
                                 </m.button>
                             </form>
+
+                            <div className="relative my-6">
+                                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[#8ECAE6]/30"></div></div>
+                                <div className="relative flex justify-center text-xs"><span className="bg-white px-4 text-[#023047]/40">或者</span></div>
+                            </div>
+
+                            <LinuxDoAuthButton
+                                intent="register"
+                                label="使用 Linux.do 一键注册"
+                                description="复用 Linux.do 论坛账号，首次登录自动创建本地账户"
+                            />
 
                             <div className="mt-6 text-center">
                                 <p className="text-sm text-[#023047]/60">已有账户？<Link to="/login" className="font-medium text-[#FFB703] hover:text-[#FB8500] transition-colors">立即登录</Link></p>

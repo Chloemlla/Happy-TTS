@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import { usePasskey } from '../hooks/usePasskey';
 import { useNotification } from './Notification';
+import LinuxDoAuthButton from './LinuxDoAuthButton';
 import { TurnstileWidget } from './TurnstileWidget';
 import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
 import PasskeyVerifyModal from './PasskeyVerifyModal';
@@ -206,6 +207,11 @@ export const LoginPage: React.FC = () => {
                             </div>
 
                             <div className="space-y-4">
+                                <LinuxDoAuthButton
+                                    intent="login"
+                                    label="使用 Linux.do 登录或注册"
+                                    description="复用 Linux.do 论坛账号，首次登录自动创建本地账户"
+                                />
                                 <div className="bg-[#8ECAE6]/10 rounded-xl p-4 border border-[#8ECAE6]/30">
                                     <div className="flex items-start gap-3">
                                         <FaFingerprint className="h-5 w-5 text-[#219EBC] flex-shrink-0 mt-0.5" />

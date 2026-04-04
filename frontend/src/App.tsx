@@ -36,6 +36,7 @@ const loadClarity = async () => {
 const WelcomePage = React.lazy(() => import('./components/WelcomePage').then(module => ({ default: module.WelcomePage })));
 const LoginPage = React.lazy(() => import('./components/LoginPage').then(module => ({ default: module.LoginPage })));
 const RegisterPage = React.lazy(() => import('./components/RegisterPage').then(module => ({ default: module.RegisterPage })));
+const LinuxDoAuthCallbackPage = React.lazy(() => import('./components/LinuxDoAuthCallbackPage').then(module => ({ default: module.LinuxDoAuthCallbackPage })));
 const ForgotPasswordPage = React.lazy(() => import('./components/ForgotPasswordPage').then(module => ({ default: module.ForgotPasswordPage })));
 const ResetPasswordPage = React.lazy(() => import('./components/ResetPasswordPage').then(module => ({ default: module.ResetPasswordPage })));
 const EmailVerifyPage = React.lazy(() => import('./components/EmailVerifyPage').then(module => ({ default: module.EmailVerifyPage })));
@@ -394,6 +395,7 @@ const App: React.FC = () => {
       '/welcome': 'Synapse - 欢迎页面',
       '/login': 'Synapse - 登录',
       '/register': 'Synapse - 注册',
+      '/auth/linuxdo/callback': 'Synapse - Linux.do 登录',
       '/tts': 'Synapse - 语音合成',
       '/policy': 'Synapse - 服务条款',
       '/fbi-wanted': 'Synapse - FBI通缉犯查询',
@@ -1092,6 +1094,22 @@ const App: React.FC = () => {
                           transition={pageTransition}
                         >
                           <RegisterPage />
+                        </m.div>
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/auth/linuxdo/callback"
+                    element={
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <m.div
+                          variants={pageVariants}
+                          initial="initial"
+                          animate="in"
+                          exit="out"
+                          transition={pageTransition}
+                        >
+                          <LinuxDoAuthCallbackPage />
                         </m.div>
                       </Suspense>
                     }

@@ -67,6 +67,10 @@ export interface User {
   currentChallenge?: string;
   passkeyVerified?: boolean;
   avatarUrl?: string; // 新增头像URL字段
+  authProvider?: "local" | "linuxdo";
+  linuxdoId?: string;
+  linuxdoUsername?: string;
+  linuxdoAvatarUrl?: string;
   // 指纹预约需求持久化（仅MongoDB完整支持，文件模式也会保存该字段）
   requireFingerprint?: boolean;
   requireFingerprintAt?: number;
@@ -1006,6 +1010,47 @@ export class UserStorage {
       }
     } catch (error) {
       logger.error(`[UserStorage] getUserByUsername 失败`, { error, username });
+      throw error;
+    }
+  }
+
+  public static async getUserByLinuxDoId(linuxdoId: string): Promise<User | null> {
+    try {
+      if (!linuxdoId || typeof linuxdoId !== "string") {
+        return null;
+      }
+
+      if (STORAGE_MODE === "mongo") {
+        try {
+          const user = await (userService as any).getUserByLinuxDoId?.(linuxdoId);
+          return removeAvatarBase64(user);
+        } catch (error) {
+          logger.error(`[UserStorage] MongoDB getUserByLinuxDoId 失败，尝试切换到文件模式`, {
+            error,
+            linuxdoId,
+            MONGO_URI: process.env.MONGO_URI,
+            NODE_ENV: process.env.NODE_ENV,
+            USER_STORAGE_MODE: process.env.USER_STORAGE_MODE,
+          });
+          return UserStorage.readUsers().find((u) => u.linuxdoId === linuxdoId) || null;
+        }
+      } else if (STORAGE_MODE === "mysql") {
+        const conn = await getMysqlConnection();
+        try {
+          const [rows] = await conn.execute("SELECT * FROM users WHERE linuxdoId = ?", [linuxdoId]);
+          return (rows as User[])[0] || null;
+        } catch (error) {
+          logger.error(`[UserStorage] MySQL getUserByLinuxDoId 失败`, { error, linuxdoId });
+          throw error;
+        } finally {
+          await conn.end();
+        }
+      } else {
+        const users = UserStorage.readUsers();
+        return users.find((u) => u.linuxdoId === linuxdoId) || null;
+      }
+    } catch (error) {
+      logger.error(`[UserStorage] getUserByLinuxDoId 失败`, { error, linuxdoId });
       throw error;
     }
   }
