@@ -76,7 +76,10 @@ export const useSecureCaptchaSelection = (options: UseSecureCaptchaSelectionOpti
 
       setCaptchaConfig({
         captchaType: data.captchaType,
-        config: data.config
+        config: {
+          enabled: Boolean(data?.config?.enabled),
+          siteKey: typeof data?.config?.siteKey === 'string' ? data.config.siteKey : '',
+        }
       });
 
       console.log('后端CAPTCHA选择成功:', {

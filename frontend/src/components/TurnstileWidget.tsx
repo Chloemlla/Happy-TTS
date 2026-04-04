@@ -241,8 +241,13 @@ export const TurnstileWidget: React.FC<TurnstileWidgetProps> = ({
     }
 
     try {
-      // 确保 siteKey 是字符串
-      const cleanSiteKey = String(siteKey).trim();
+      if (typeof siteKey !== 'string') {
+        console.error('Turnstile: siteKey must be a string', siteKey);
+        onError();
+        return;
+      }
+
+      const cleanSiteKey = siteKey.trim();
       console.log('Turnstile siteKey:', cleanSiteKey, typeof cleanSiteKey);
       
       if (!cleanSiteKey) {
