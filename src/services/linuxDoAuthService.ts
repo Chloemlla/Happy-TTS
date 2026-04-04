@@ -47,6 +47,12 @@ export interface LinuxDoDiscoveryDocument {
   code_challenge_methods_supported?: string[];
 }
 
+interface ResolvedLinuxDoDiscoveryDocument extends LinuxDoDiscoveryDocument {
+  authorization_endpoint: string;
+  token_endpoint: string;
+  userinfo_endpoint: string;
+}
+
 interface LinuxDoStateRecord {
   intent: LinuxDoAuthIntent;
   codeVerifier: string;
@@ -59,7 +65,7 @@ interface LinuxDoTicketRecord {
 }
 
 interface LinuxDoDiscoveryCacheRecord {
-  document: LinuxDoDiscoveryDocument;
+  document: ResolvedLinuxDoDiscoveryDocument;
   expiresAt: number;
 }
 
@@ -67,6 +73,7 @@ const STATE_TTL_MS = 10 * 60 * 1000;
 const TICKET_TTL_MS = 60 * 1000;
 const DISCOVERY_TTL_MS = 60 * 60 * 1000;
 const PLACEHOLDER_EMAIL_DOMAIN = "linuxdo.oauth.local";
+const TRUSTED_LINUXDO_OAUTH_HOSTS = new Set(["connect.linux.do"]);
 const RESERVED_USERNAMES = new Set([
   "admin",
   "administrator",
@@ -131,6 +138,59 @@ function createPkcePair(): { codeVerifier: string; codeChallenge: string } {
   );
 
   return { codeVerifier, codeChallenge };
+}
+
+function normalizeTrustedLinuxDoOAuthUrl(rawUrl: unknown, label: string): string {
+  const urlValue = firstString(rawUrl);
+  if (!urlValue) {
+    throw new Error(`Linux.do ${label} is missing or invalid`);
+  }
+
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(urlValue);
+  } catch (_error) {
+    throw new Error(`Linux.do ${label} must be a valid HTTPS URL`);
+  }
+
+  if (parsedUrl.protocol !== "https:") {
+    throw new Error(`Linux.do ${label} must use HTTPS`);
+  }
+
+  if (parsedUrl.username || parsedUrl.password) {
+    throw new Error(`Linux.do ${label} must not include embedded credentials`);
+  }
+
+  if (parsedUrl.port && parsedUrl.port !== "443") {
+    throw new Error(`Linux.do ${label} must use the default HTTPS port`);
+  }
+
+  if (!TRUSTED_LINUXDO_OAUTH_HOSTS.has(parsedUrl.hostname.toLowerCase())) {
+    throw new Error(`Linux.do ${label} must use an approved Linux.do host`);
+  }
+
+  parsedUrl.hash = "";
+  return parsedUrl.toString();
+}
+
+function normalizeLinuxDoDiscoveryDocument(
+  document: LinuxDoDiscoveryDocument,
+): ResolvedLinuxDoDiscoveryDocument {
+  return {
+    ...document,
+    authorization_endpoint: normalizeTrustedLinuxDoOAuthUrl(
+      document.authorization_endpoint,
+      "authorization endpoint",
+    ),
+    token_endpoint: normalizeTrustedLinuxDoOAuthUrl(
+      document.token_endpoint,
+      "token endpoint",
+    ),
+    userinfo_endpoint: normalizeTrustedLinuxDoOAuthUrl(
+      document.userinfo_endpoint,
+      "userinfo endpoint",
+    ),
+  };
 }
 
 export function buildLinuxDoAvatarUrl(value?: string): string | undefined {
@@ -260,28 +320,27 @@ function toExchangePayload(user: User, isNewUser: boolean): LinuxDoExchangePaylo
   };
 }
 
-async function fetchLinuxDoDiscoveryDocument(): Promise<LinuxDoDiscoveryDocument> {
-  const response = await axios.get(config.linuxdo.discoveryUrl, {
+async function fetchLinuxDoDiscoveryDocument(): Promise<ResolvedLinuxDoDiscoveryDocument> {
+  const discoveryUrl = normalizeTrustedLinuxDoOAuthUrl(
+    config.linuxdo.discoveryUrl,
+    "discovery URL",
+  );
+  const response = await axios.get(discoveryUrl, {
     headers: {
       Accept: "application/json",
     },
     timeout: 10000,
   });
 
-  const document = response.data as LinuxDoDiscoveryDocument;
-  if (
-    !document ||
-    !document.authorization_endpoint ||
-    !document.token_endpoint ||
-    !document.userinfo_endpoint
-  ) {
+  const document = response.data;
+  if (!document || typeof document !== "object") {
     throw new Error("Linux.do discovery document is missing required endpoints");
   }
 
-  return document;
+  return normalizeLinuxDoDiscoveryDocument(document as LinuxDoDiscoveryDocument);
 }
 
-export async function getLinuxDoDiscoveryDocument(): Promise<LinuxDoDiscoveryDocument> {
+export async function getLinuxDoDiscoveryDocument(): Promise<ResolvedLinuxDoDiscoveryDocument> {
   if (discoveryCache && discoveryCache.expiresAt > Date.now()) {
     return discoveryCache.document;
   }
@@ -300,6 +359,10 @@ async function exchangeAuthorizationCode(params: {
   codeVerifier: string;
   tokenEndpoint: string;
 }): Promise<string> {
+  const tokenEndpoint = normalizeTrustedLinuxDoOAuthUrl(
+    params.tokenEndpoint,
+    "token endpoint",
+  );
   const payload = new URLSearchParams({
     grant_type: "authorization_code",
     code: params.code,
@@ -307,7 +370,7 @@ async function exchangeAuthorizationCode(params: {
     code_verifier: params.codeVerifier,
   });
 
-  const tokenResponse = await axios.post(params.tokenEndpoint, payload.toString(), {
+  const tokenResponse = await axios.post(tokenEndpoint, payload.toString(), {
     auth: {
       username: config.linuxdo.clientId,
       password: config.linuxdo.clientSecret,
@@ -331,7 +394,11 @@ async function fetchLinuxDoUserProfile(
   accessToken: string,
   userinfoEndpoint: string,
 ): Promise<unknown> {
-  const userResponse = await axios.get(userinfoEndpoint, {
+  const trustedUserinfoEndpoint = normalizeTrustedLinuxDoOAuthUrl(
+    userinfoEndpoint,
+    "userinfo endpoint",
+  );
+  const userResponse = await axios.get(trustedUserinfoEndpoint, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
       Accept: "application/json",
@@ -543,11 +610,11 @@ export async function completeLinuxDoAuthorization(params: {
   const accessToken = await exchangeAuthorizationCode({
     code,
     codeVerifier,
-    tokenEndpoint: discoveryDocument.token_endpoint || config.linuxdo.tokenEndpoint,
+    tokenEndpoint: discoveryDocument.token_endpoint,
   });
   const rawProfile = await fetchLinuxDoUserProfile(
     accessToken,
-    discoveryDocument.userinfo_endpoint || config.linuxdo.userEndpoint,
+    discoveryDocument.userinfo_endpoint,
   );
   const normalizedProfile = normalizeLinuxDoProfile(rawProfile);
   const { user, isNewUser } = await upsertLinuxDoUser(normalizedProfile);
