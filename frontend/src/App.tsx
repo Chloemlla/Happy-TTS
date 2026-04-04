@@ -900,7 +900,7 @@ const App: React.FC = () => {
   }
 
   // 首次访问且未验证，且功能开关启用时，显示验证页面
-  if (enableFirstVisitVerification && isFirstVisit && !isVerified && fingerprint) {
+  if (enableFirstVisitVerification && fingerprint && (isIpBanned || (isFirstVisit && !isVerified))) {
     return (
       <NotificationProvider>
         <LazyMotion features={domAnimation}>
