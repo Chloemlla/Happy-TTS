@@ -37,6 +37,7 @@ const WelcomePage = React.lazy(() => import('./components/WelcomePage').then(mod
 const LoginPage = React.lazy(() => import('./components/LoginPage').then(module => ({ default: module.LoginPage })));
 const RegisterPage = React.lazy(() => import('./components/RegisterPage').then(module => ({ default: module.RegisterPage })));
 const LinuxDoAuthCallbackPage = React.lazy(() => import('./components/LinuxDoAuthCallbackPage').then(module => ({ default: module.LinuxDoAuthCallbackPage })));
+const DeepLXTranslatorPage = React.lazy(() => import('./components/DeepLXTranslatorPage').then(module => ({ default: module.DeepLXTranslatorPage })));
 const ForgotPasswordPage = React.lazy(() => import('./components/ForgotPasswordPage').then(module => ({ default: module.ForgotPasswordPage })));
 const ResetPasswordPage = React.lazy(() => import('./components/ResetPasswordPage').then(module => ({ default: module.ResetPasswordPage })));
 const EmailVerifyPage = React.lazy(() => import('./components/EmailVerifyPage').then(module => ({ default: module.EmailVerifyPage })));
@@ -396,6 +397,7 @@ const App: React.FC = () => {
       '/login': 'Synapse - 登录',
       '/register': 'Synapse - 注册',
       '/auth/linuxdo/callback': 'Synapse - Linux.do 登录',
+      '/translate': 'Synapse - DeepLX 翻译',
       '/tts': 'Synapse - 语音合成',
       '/policy': 'Synapse - 服务条款',
       '/fbi-wanted': 'Synapse - FBI通缉犯查询',
@@ -438,6 +440,7 @@ const App: React.FC = () => {
     descriptions: {
       '/': 'Synapse智能语音合成平台，提供高质量的文本转语音服务',
       '/tts': '使用Synapse进行高质量的文本转语音合成',
+      '/translate': '使用 DeepLX 进行双栏文本翻译与候选译文对比',
       '/lottery': '参与Synapse抽奖活动，赢取丰厚奖励',
       '/word-count': '精确统计文本字数、字符数、段落数等信息',
       '/age-calculator': '精确计算年龄，支持多种日期格式和时区',
@@ -1111,6 +1114,22 @@ const App: React.FC = () => {
                           transition={pageTransition}
                         >
                           <LinuxDoAuthCallbackPage />
+                        </m.div>
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/translate"
+                    element={
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <m.div
+                          variants={pageVariants}
+                          initial="initial"
+                          animate="in"
+                          exit="out"
+                          transition={pageTransition}
+                        >
+                          <DeepLXTranslatorPage />
                         </m.div>
                       </Suspense>
                     }

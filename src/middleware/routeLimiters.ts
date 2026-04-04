@@ -258,6 +258,14 @@ export const githubBillingLimiter = createLimiter({
   message: "GitHub Billing请求过于频繁，请稍后再试",
 });
 
+// --- DeepLX 翻译 ---
+export const deeplxLimiter = createLimiter({
+  name: "deeplx",
+  windowMs: 60_000,
+  max: 20,
+  message: "翻译请求过于频繁，请稍后再试",
+});
+
 // --- 完整性检测 ---
 export const integrityLimiter = createLimiter({ name: "integrity", max: 10, message: "请求过于频繁，请稍后再试" });
 
