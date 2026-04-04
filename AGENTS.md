@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Codex when working with code in this repository.
 
 ## Workflow Rules
 
@@ -17,6 +17,7 @@ Synapse is a comprehensive full-stack web application platform centered around t
 ## Development Commands
 
 ### Development
+
 ```bash
 npm run dev                 # Start backend + frontend concurrently
 npm run dev:backend         # Backend only (nodemon + ts-node, port 3000)
@@ -26,6 +27,7 @@ npm run dev:file            # File storage mode (no MongoDB required)
 ```
 
 ### Building
+
 ```bash
 npm run build               # Full build: backend (with obfuscation) + frontend + docs
 npm run build:simple        # Simplified build (faster, less optimization)
@@ -35,6 +37,7 @@ npm run build:backend:clean # Clean build (removes dist/ first)
 ```
 
 ### Testing
+
 ```bash
 npm run test                # Run all Jest tests
 npm run test:coverage       # Generate coverage report
@@ -44,12 +47,14 @@ npm run test:verbose        # Detailed test output
 ```
 
 ### API Documentation
+
 ```bash
 npm run generate:openapi    # Generate openapi.json from route comments
 npm run check:api-docs      # Verify API documentation completeness
 ```
 
 ### Analysis
+
 ```bash
 npm run analyze:bundle      # Backend bundle size analysis
 npm run analyze:frontend    # Frontend bundle analysis
@@ -61,6 +66,7 @@ npm run check:unused-deps   # Check for unused dependencies
 ### Request Flow & Security Layers
 
 All requests pass through multiple security layers in this order:
+
 ```
 Request → IP Ban Check → WAF → Rate Limiting → CORS → JWT Auth → Business Logic
                                                            ↓
@@ -82,6 +88,7 @@ The application supports three storage modes controlled by `USER_STORAGE_MODE` e
 ### Application Entry Point
 
 `src/app.ts` is the main entry point where:
+
 - Timezone is hardcoded to `Asia/Shanghai` (line 2)
 - All 42 route modules are imported and registered
 - All 37 rate limiters are applied to their respective routes
@@ -93,6 +100,7 @@ The application supports three storage modes controlled by `USER_STORAGE_MODE` e
 ### Configuration System
 
 Configuration is centralized in `src/config/config.ts`:
+
 - **Production requirements**: `ADMIN_PASSWORD` and `JWT_SECRET` must be set, or the app will throw errors on startup
 - **Default values**: Development has defaults, but production enforces explicit configuration
 - **Storage mode**: Determined by `USER_STORAGE_MODE` env var
@@ -101,6 +109,7 @@ Configuration is centralized in `src/config/config.ts`:
 ### Route & Controller Pattern
 
 Routes follow a consistent pattern:
+
 1. Route file in `src/routes/` defines HTTP methods and paths
 2. Controller in `src/controllers/` handles request/response logic
 3. Service in `src/services/` implements business logic
@@ -108,6 +117,7 @@ Routes follow a consistent pattern:
 5. Rate limiter from `src/middleware/routeLimiters.ts` is applied in `app.ts`
 
 **Example**: For TTS functionality:
+
 - Route: `src/routes/ttsRoutes.ts`
 - Controller: `src/controllers/ttsController.ts`
 - Service: `src/services/ttsService.ts`
@@ -116,6 +126,7 @@ Routes follow a consistent pattern:
 ### Authentication Architecture
 
 Multi-factor authentication system with five methods:
+
 1. **Password**: Username/email + bcrypt hashed password (12 rounds)
 2. **TOTP**: Time-based one-time passwords (Google Authenticator compatible)
 3. **Passkey/WebAuthn**: Biometric authentication (fingerprint/face)
@@ -123,6 +134,7 @@ Multi-factor authentication system with five methods:
 5. **Backup codes**: MFA recovery codes
 
 **JWT Token Flow**:
+
 - Tokens expire in 24 hours (configurable via `jwtExpiresIn`)
 - Middleware: `src/middleware/authenticateToken.ts`
 - Optional authentication: Some routes use `authenticateToken` with `optional: true`
@@ -131,6 +143,7 @@ Multi-factor authentication system with five methods:
 ### Rate Limiting System
 
 37 independent rate limiters defined in `src/middleware/routeLimiters.ts`:
+
 - Each major route has its own limiter with specific window/max settings
 - Applied per-route in `app.ts` during route registration
 - Uses express-rate-limit with memory store (or Redis if configured)
@@ -141,6 +154,7 @@ Multi-factor authentication system with five methods:
 ### Frontend Architecture
 
 Frontend is in `frontend/` directory:
+
 - **Entry**: `frontend/src/main.tsx`
 - **Router**: `frontend/src/App.tsx` defines all routes with lazy loading
 - **Components**: 100+ components in `frontend/src/components/`
@@ -148,6 +162,7 @@ Frontend is in `frontend/` directory:
 - **Build**: Vite 7 with Tailwind CSS 3
 
 **Adding new pages**:
+
 1. Create component in `frontend/src/components/`
 2. Add lazy import in `App.tsx`
 3. Add `<Route>` definition in `App.tsx`
@@ -157,6 +172,7 @@ Frontend is in `frontend/` directory:
 ### Testing Configuration
 
 Jest with ts-jest preset:
+
 - **Setup**: `src/tests/setup.ts` runs before all tests
 - **Path aliases**: `@/` maps to `src/`, `@frontend/` maps to `frontend/src/`
 - **Config**: `jest.config.js` with custom transform patterns
@@ -168,22 +184,26 @@ Jest with ts-jest preset:
 ## Critical Environment Variables
 
 ### Required in Production
+
 - `ADMIN_PASSWORD`: Admin account password (app will crash without it)
 - `JWT_SECRET`: JWT signing key (app will crash without it)
 - `OPENAI_API_KEY`: Required for TTS functionality
 - `OPENAI_BASE_URL`: OpenAI API endpoint (supports custom proxies)
 
 ### Storage Configuration
+
 - `USER_STORAGE_MODE`: `mongo` | `mysql` | `file` (default: `file`)
 - `MONGO_URI`: MongoDB connection string (if using MongoDB)
 - `REDIS_URL`: Redis connection string (optional, for caching and IP bans)
 
 ### Security Configuration
+
 - `WAF_ENABLED`: Set to `false` to disable WAF (default: `true`)
 - `AES_KEY`: AES encryption key for sensitive data
 - `SIGNING_KEY`: Path to signing key file (default: `secrets/signing_key.pem`)
 
 ### Authentication
+
 - `RP_ID`: WebAuthn Relying Party ID (domain name)
 - `RP_ORIGIN`: WebAuthn Relying Party Origin (full URL)
 - `TURNSTILE_SECRET_KEY`: Cloudflare Turnstile secret
@@ -194,6 +214,7 @@ Jest with ts-jest preset:
 ### Middleware Order Matters
 
 The middleware stack in `app.ts` is carefully ordered:
+
 1. Helmet (security headers)
 2. IP ban check
 3. WAF (if enabled)
@@ -208,6 +229,7 @@ The middleware stack in `app.ts` is carefully ordered:
 ### Service Layer Pattern
 
 Services in `src/services/` should:
+
 - Handle all business logic
 - Interact with databases/external APIs
 - Be reusable across multiple controllers
@@ -217,6 +239,7 @@ Services in `src/services/` should:
 ### MongoDB Connection Management
 
 MongoDB connection is managed by `src/services/mongoService.ts`:
+
 - Lazy connection (connects on first use)
 - Connection pooling configured
 - Automatic reconnection on failure
@@ -227,6 +250,7 @@ MongoDB connection is managed by `src/services/mongoService.ts`:
 ### Code Obfuscation
 
 Production builds use `javascript-obfuscator`:
+
 - Backend code in `dist/` is obfuscated to `dist-obfuscated/`
 - Configuration in `package.json` under `javascript-obfuscator` key
 - Obfuscation runs automatically during `npm run build:backend`
@@ -235,12 +259,14 @@ Production builds use `javascript-obfuscator`:
 ## Docker Deployment
 
 Multi-stage Dockerfile with 4 stages:
+
 1. **frontend-builder**: Builds React app
 2. **docs-builder**: Builds Docusaurus docs
 3. **backend-builder**: Compiles TypeScript + obfuscates + generates OpenAPI
 4. **production**: Alpine-based runtime with only production dependencies
 
 **Ports**:
+
 - 3000: Backend API + Swagger UI
 - 3001: Frontend static files (served by `serve`)
 - 3002: Docusaurus documentation (served by `serve`)
@@ -261,6 +287,7 @@ Multi-stage Dockerfile with 4 stages:
 ### Switching Storage Modes
 
 To switch from MongoDB to file storage:
+
 ```bash
 # Set environment variable
 USER_STORAGE_MODE=file npm run dev
@@ -292,6 +319,7 @@ npm run test -- --testNamePattern="should generate audio"  # Specific test name
 ### Admin Routes Protection
 
 All admin routes require:
+
 1. Valid JWT token
 2. User role = `admin`
 3. Rate limiting (stricter than regular routes)
@@ -308,6 +336,7 @@ All admin routes require:
 ### IP Banning
 
 IP bans are checked before any other middleware:
+
 - Supports individual IPs and CIDR ranges
 - Stored in Redis (if available) or MongoDB
 - Synchronized across instances via Redis pub/sub
@@ -317,6 +346,7 @@ IP bans are checked before any other middleware:
 ### WAF Rules
 
 WAF in `src/middleware/wafMiddleware.ts` detects:
+
 - SQL injection attempts
 - XSS attacks
 - Path traversal
@@ -330,6 +360,7 @@ WAF in `src/middleware/wafMiddleware.ts` detects:
 ### MongoDB Connection Issues
 
 If MongoDB fails to connect:
+
 1. Check `MONGO_URI` format: `mongodb://user:pass@host:port/database?authSource=admin`
 2. Verify MongoDB is running and accessible
 3. Check firewall rules
@@ -338,6 +369,7 @@ If MongoDB fails to connect:
 ### Build Failures
 
 If build fails:
+
 1. Clear dist: `rm -rf dist dist-obfuscated`
 2. Check TypeScript errors: `npx tsc --noEmit`
 3. Try clean build: `npm run build:backend:clean`
@@ -346,6 +378,7 @@ If build fails:
 ### Test Failures
 
 If tests fail:
+
 1. Run test cleanup: `npm run test:clean`
 2. Check test database: `npm run test:db-init`
 3. Run tests with verbose output: `npm run test:verbose`
@@ -354,6 +387,7 @@ If tests fail:
 ### Frontend Build Issues
 
 If frontend build fails:
+
 1. Clear node_modules: `cd frontend && rm -rf node_modules && npm install`
 2. Check Vite config: `frontend/vite.config.ts`
 3. Try minimal build: `npm run build:minimal`

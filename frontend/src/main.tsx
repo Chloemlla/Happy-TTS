@@ -6,6 +6,7 @@ import "./index.css";
 import { integrityChecker } from "./utils/integrityCheck";
 import { disableSelection } from "./utils/disableSelection";
 import "./utils/tamperDetectionAPI"; // 导入篡改检测API，自动挂载到全局
+import "./utils/ipVerification";
 import CryptoJS from "crypto-js";
 
 // AES-256 解密函数（前端版本）
