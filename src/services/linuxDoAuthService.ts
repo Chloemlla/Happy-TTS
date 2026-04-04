@@ -12,6 +12,8 @@ export interface LinuxDoConfigSummary {
   clientIdConfigured: boolean;
   callbackUrl: string;
   frontendCallbackUrl: string;
+  discoveryUrl: string;
+  scopes: string;
 }
 
 export interface LinuxDoNormalizedProfile {
@@ -35,8 +37,19 @@ export interface LinuxDoExchangePayload {
   provider: "linuxdo";
 }
 
+export interface LinuxDoDiscoveryDocument {
+  issuer?: string;
+  authorization_endpoint?: string;
+  token_endpoint?: string;
+  userinfo_endpoint?: string;
+  jwks_uri?: string;
+  scopes_supported?: string[];
+  code_challenge_methods_supported?: string[];
+}
+
 interface LinuxDoStateRecord {
   intent: LinuxDoAuthIntent;
+  codeVerifier: string;
   expiresAt: number;
 }
 
@@ -45,8 +58,14 @@ interface LinuxDoTicketRecord {
   expiresAt: number;
 }
 
+interface LinuxDoDiscoveryCacheRecord {
+  document: LinuxDoDiscoveryDocument;
+  expiresAt: number;
+}
+
 const STATE_TTL_MS = 10 * 60 * 1000;
 const TICKET_TTL_MS = 60 * 1000;
+const DISCOVERY_TTL_MS = 60 * 60 * 1000;
 const PLACEHOLDER_EMAIL_DOMAIN = "linuxdo.oauth.local";
 const RESERVED_USERNAMES = new Set([
   "admin",
@@ -58,6 +77,7 @@ const RESERVED_USERNAMES = new Set([
 
 const oauthStateStore = new Map<string, LinuxDoStateRecord>();
 const loginTicketStore = new Map<string, LinuxDoTicketRecord>();
+let discoveryCache: LinuxDoDiscoveryCacheRecord | null = null;
 
 function cleanupExpiredStates(now = Date.now()): void {
   for (const [state, record] of oauthStateStore.entries()) {
@@ -96,6 +116,23 @@ function firstString(...values: unknown[]): string | undefined {
   return undefined;
 }
 
+function toBase64Url(input: Buffer): string {
+  return input
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+function createPkcePair(): { codeVerifier: string; codeChallenge: string } {
+  const codeVerifier = toBase64Url(crypto.randomBytes(64));
+  const codeChallenge = toBase64Url(
+    crypto.createHash("sha256").update(codeVerifier).digest(),
+  );
+
+  return { codeVerifier, codeChallenge };
+}
+
 export function buildLinuxDoAvatarUrl(value?: string): string | undefined {
   const rawValue = firstString(value);
   if (!rawValue) {
@@ -121,7 +158,10 @@ export function buildLinuxDoAvatarUrl(value?: string): string | undefined {
   return rawValue;
 }
 
-export function sanitizeLinuxDoUsername(rawUsername: string | undefined, fallbackId: string): string {
+export function sanitizeLinuxDoUsername(
+  rawUsername: string | undefined,
+  fallbackId: string,
+): string {
   const fallback = `linuxdo_${fallbackId}`.slice(0, 20);
   const normalized =
     (rawUsername || fallback)
@@ -132,7 +172,9 @@ export function sanitizeLinuxDoUsername(rawUsername: string | undefined, fallbac
   let candidate = normalized;
 
   if (candidate.length < 3) {
-    candidate = `ld_${fallbackId}`.replace(/[^a-zA-Z0-9_]+/g, "_").slice(0, 20);
+    candidate = `ld_${fallbackId}`
+      .replace(/[^a-zA-Z0-9_]+/g, "_")
+      .slice(0, 20);
   }
 
   if (RESERVED_USERNAMES.has(candidate.toLowerCase())) {
@@ -182,7 +224,10 @@ async function getAvailableLinuxDoUsername(baseUsername: string): Promise<string
 
   while (await UserStorage.getUserByUsername(candidate)) {
     const suffixText = `_${suffix}`;
-    candidate = `${baseUsername.slice(0, Math.max(3, 20 - suffixText.length))}${suffixText}`;
+    candidate = `${baseUsername.slice(
+      0,
+      Math.max(3, 20 - suffixText.length),
+    )}${suffixText}`;
     suffix += 1;
 
     if (suffix > 9999) {
@@ -215,14 +260,54 @@ function toExchangePayload(user: User, isNewUser: boolean): LinuxDoExchangePaylo
   };
 }
 
-async function exchangeAuthorizationCode(code: string): Promise<string> {
-  const payload = new URLSearchParams({
-    grant_type: "authorization_code",
-    code,
-    redirect_uri: config.linuxdo.callbackUrl,
+async function fetchLinuxDoDiscoveryDocument(): Promise<LinuxDoDiscoveryDocument> {
+  const response = await axios.get(config.linuxdo.discoveryUrl, {
+    headers: {
+      Accept: "application/json",
+    },
+    timeout: 10000,
   });
 
-  const tokenResponse = await axios.post(config.linuxdo.tokenEndpoint, payload.toString(), {
+  const document = response.data as LinuxDoDiscoveryDocument;
+  if (
+    !document ||
+    !document.authorization_endpoint ||
+    !document.token_endpoint ||
+    !document.userinfo_endpoint
+  ) {
+    throw new Error("Linux.do discovery document is missing required endpoints");
+  }
+
+  return document;
+}
+
+export async function getLinuxDoDiscoveryDocument(): Promise<LinuxDoDiscoveryDocument> {
+  if (discoveryCache && discoveryCache.expiresAt > Date.now()) {
+    return discoveryCache.document;
+  }
+
+  const document = await fetchLinuxDoDiscoveryDocument();
+  discoveryCache = {
+    document,
+    expiresAt: Date.now() + DISCOVERY_TTL_MS,
+  };
+
+  return document;
+}
+
+async function exchangeAuthorizationCode(params: {
+  code: string;
+  codeVerifier: string;
+  tokenEndpoint: string;
+}): Promise<string> {
+  const payload = new URLSearchParams({
+    grant_type: "authorization_code",
+    code: params.code,
+    redirect_uri: config.linuxdo.callbackUrl,
+    code_verifier: params.codeVerifier,
+  });
+
+  const tokenResponse = await axios.post(params.tokenEndpoint, payload.toString(), {
     auth: {
       username: config.linuxdo.clientId,
       password: config.linuxdo.clientSecret,
@@ -242,8 +327,11 @@ async function exchangeAuthorizationCode(code: string): Promise<string> {
   return accessToken;
 }
 
-async function fetchLinuxDoUserProfile(accessToken: string): Promise<unknown> {
-  const userResponse = await axios.get(config.linuxdo.userEndpoint, {
+async function fetchLinuxDoUserProfile(
+  accessToken: string,
+  userinfoEndpoint: string,
+): Promise<unknown> {
+  const userResponse = await axios.get(userinfoEndpoint, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
       Accept: "application/json",
@@ -339,6 +427,8 @@ export function getLinuxDoConfigSummary(): LinuxDoConfigSummary {
     clientIdConfigured: Boolean(config.linuxdo.clientId),
     callbackUrl: config.linuxdo.callbackUrl,
     frontendCallbackUrl: config.linuxdo.frontendCallbackUrl,
+    discoveryUrl: config.linuxdo.discoveryUrl,
+    scopes: config.linuxdo.scopes,
   };
 }
 
@@ -351,16 +441,22 @@ export function isLinuxDoAuthEnabled(): boolean {
   );
 }
 
-export function createLinuxDoAuthorizationUrl(intent: LinuxDoAuthIntent): string {
+export async function createLinuxDoAuthorizationUrl(
+  intent: LinuxDoAuthIntent,
+): Promise<string> {
   if (!isLinuxDoAuthEnabled()) {
     throw new Error("Linux.do OAuth is not configured");
   }
 
   cleanupExpiredStates();
 
+  const discoveryDocument = await getLinuxDoDiscoveryDocument();
   const state = crypto.randomBytes(24).toString("hex");
+  const { codeVerifier, codeChallenge } = createPkcePair();
+
   oauthStateStore.set(state, {
     intent,
+    codeVerifier,
     expiresAt: Date.now() + STATE_TTL_MS,
   });
 
@@ -368,13 +464,19 @@ export function createLinuxDoAuthorizationUrl(intent: LinuxDoAuthIntent): string
     client_id: config.linuxdo.clientId,
     response_type: "code",
     redirect_uri: config.linuxdo.callbackUrl,
+    scope: config.linuxdo.scopes,
     state,
+    code_challenge: codeChallenge,
+    code_challenge_method: "S256",
   });
 
-  return `${config.linuxdo.authorizationEndpoint}?${params.toString()}`;
+  return `${discoveryDocument.authorization_endpoint}?${params.toString()}`;
 }
 
-function consumeLinuxDoState(state: string): LinuxDoAuthIntent {
+function consumeLinuxDoState(state: string): {
+  intent: LinuxDoAuthIntent;
+  codeVerifier: string;
+} {
   cleanupExpiredStates();
 
   const record = oauthStateStore.get(state);
@@ -388,7 +490,10 @@ function consumeLinuxDoState(state: string): LinuxDoAuthIntent {
     throw new Error("Linux.do state is invalid or has expired");
   }
 
-  return record.intent;
+  return {
+    intent: record.intent,
+    codeVerifier: record.codeVerifier,
+  };
 }
 
 export function issueLinuxDoLoginTicket(payload: LinuxDoExchangePayload): string {
@@ -403,7 +508,9 @@ export function issueLinuxDoLoginTicket(payload: LinuxDoExchangePayload): string
   return ticket;
 }
 
-export function consumeLinuxDoLoginTicket(ticket: string): LinuxDoExchangePayload | null {
+export function consumeLinuxDoLoginTicket(
+  ticket: string,
+): LinuxDoExchangePayload | null {
   cleanupExpiredTickets();
 
   const record = loginTicketStore.get(ticket);
@@ -430,9 +537,17 @@ export async function completeLinuxDoAuthorization(params: {
     throw new Error("Linux.do OAuth is not configured");
   }
 
-  const intent = consumeLinuxDoState(state);
-  const accessToken = await exchangeAuthorizationCode(code);
-  const rawProfile = await fetchLinuxDoUserProfile(accessToken);
+  const { intent, codeVerifier } = consumeLinuxDoState(state);
+  const discoveryDocument = await getLinuxDoDiscoveryDocument();
+  const accessToken = await exchangeAuthorizationCode({
+    code,
+    codeVerifier,
+    tokenEndpoint: discoveryDocument.token_endpoint || config.linuxdo.tokenEndpoint,
+  });
+  const rawProfile = await fetchLinuxDoUserProfile(
+    accessToken,
+    discoveryDocument.userinfo_endpoint || config.linuxdo.userEndpoint,
+  );
   const normalizedProfile = normalizeLinuxDoProfile(rawProfile);
   const { user, isNewUser } = await upsertLinuxDoUser(normalizedProfile);
 
@@ -468,6 +583,8 @@ export async function completeLinuxDoAuthorization(params: {
     username: finalizedUser.username,
     intent,
     isNewUser,
+    usedPkce: true,
+    scopes: config.linuxdo.scopes,
   });
 
   return {
@@ -483,4 +600,5 @@ export function getLinuxDoErrorRedirect(message: string): string {
 export function resetLinuxDoAuthStateForTests(): void {
   oauthStateStore.clear();
   loginTicketStore.clear();
+  discoveryCache = null;
 }

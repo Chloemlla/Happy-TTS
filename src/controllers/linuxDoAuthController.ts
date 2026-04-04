@@ -20,14 +20,14 @@ export class LinuxDoAuthController {
     res.json(getLinuxDoConfigSummary());
   }
 
-  public static start(req: Request, res: Response) {
+  public static async start(req: Request, res: Response) {
     try {
       if (!isLinuxDoAuthEnabled()) {
         return res.status(503).json({ error: "Linux.do OAuth is not configured" });
       }
 
       const intent = parseIntent(req.query.intent);
-      const authorizationUrl = createLinuxDoAuthorizationUrl(intent);
+      const authorizationUrl = await createLinuxDoAuthorizationUrl(intent);
       return res.redirect(302, authorizationUrl);
     } catch (error) {
       logger.error("[Linux.do Auth] Failed to start OAuth flow", error);

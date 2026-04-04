@@ -88,6 +88,10 @@ export const config = {
   linuxdo: {
     clientId: process.env.LINUXDO_CLIENT_ID || "",
     clientSecret: process.env.LINUXDO_CLIENT_SECRET || "",
+    discoveryUrl:
+      process.env.LINUXDO_DISCOVERY_URL ||
+      "https://connect.linux.do/.well-known/openid-configuration",
+    scopes: process.env.LINUXDO_SCOPES || "openid profile email",
     authorizationEndpoint:
       process.env.LINUXDO_AUTHORIZATION_ENDPOINT ||
       "https://connect.linux.do/oauth2/authorize",

@@ -1,15 +1,21 @@
-import { afterEach, describe, expect, it } from "@jest/globals";
+import axios from "axios";
+import { afterEach, describe, expect, it, jest } from "@jest/globals";
 import {
   buildLinuxDoAvatarUrl,
   consumeLinuxDoLoginTicket,
+  createLinuxDoAuthorizationUrl,
   issueLinuxDoLoginTicket,
   normalizeLinuxDoProfile,
   resetLinuxDoAuthStateForTests,
   sanitizeLinuxDoUsername,
 } from "../services/linuxDoAuthService";
 
+jest.mock("axios");
+const mockedAxios = axios as jest.Mocked<typeof axios>;
+
 afterEach(() => {
   resetLinuxDoAuthStateForTests();
+  mockedAxios.get.mockReset();
 });
 
 describe("linuxDoAuthService", () => {
@@ -70,5 +76,28 @@ describe("linuxDoAuthService", () => {
       }),
     );
     expect(consumeLinuxDoLoginTicket(ticket)).toBeNull();
+  });
+
+  it("builds Linux.do authorization URLs from discovery with scope and PKCE", async () => {
+    mockedAxios.get.mockResolvedValueOnce({
+      data: {
+        authorization_endpoint: "https://connect.linux.do/oauth2/authorize",
+        token_endpoint: "https://connect.linux.do/oauth2/token",
+        userinfo_endpoint: "https://connect.linux.do/api/user",
+        scopes_supported: ["openid", "profile", "email"],
+        code_challenge_methods_supported: ["S256"],
+      },
+    } as any);
+
+    const authorizationUrl = await createLinuxDoAuthorizationUrl("login");
+    const parsedUrl = new URL(authorizationUrl);
+
+    expect(parsedUrl.origin + parsedUrl.pathname).toBe(
+      "https://connect.linux.do/oauth2/authorize",
+    );
+    expect(parsedUrl.searchParams.get("scope")).toBe("openid profile email");
+    expect(parsedUrl.searchParams.get("code_challenge_method")).toBe("S256");
+    expect(parsedUrl.searchParams.get("code_challenge")).toBeTruthy();
+    expect(parsedUrl.searchParams.get("state")).toBeTruthy();
   });
 });
