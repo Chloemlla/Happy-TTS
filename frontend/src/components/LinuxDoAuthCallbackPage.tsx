@@ -75,7 +75,7 @@ export const LinuxDoAuthCallbackPage: React.FC = () => {
   }, [loginWithToken, navigate, searchParams, setNotification]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#8ECAE6]/20 via-white to-[#219EBC]/10 px-6">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#8ECAE6]/20 via-white to-[#219EBC]/10 py-8 px-6 rounded-3xl">
       <div className="w-full max-w-md rounded-2xl border border-[#8ECAE6]/30 bg-white/85 p-8 text-center shadow-xl backdrop-blur-sm">
         <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-[#8ECAE6]/40 border-t-[#219EBC]" />
         <h1 className="text-2xl font-bold text-[#023047]">Linux.do OAuth</h1>
