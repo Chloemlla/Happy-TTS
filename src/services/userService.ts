@@ -58,6 +58,10 @@ const userSchema = new mongoose.Schema(
     // 工单违规处罚相关
     ticketViolationCount: { type: Number, default: 0 },
     ticketBannedUntil: { type: String }, // ISO 日期字符串
+    // 翻译权限与账户状态
+    isTranslationEnabled: { type: Boolean, default: true },
+    translationAccessUntil: { type: String },
+    accountStatus: { type: String, enum: ["active", "suspended"], default: "active" },
   },
   { collection: "user_datas" },
 );
@@ -86,7 +90,7 @@ export const getUserById = async (id: string): Promise<UserType | null> => {
   // 修复：select 字段包含所有passkey相关字段
   const doc = await UserModel.findOne({ id })
     .select(
-      "id username email role password avatarUrl authProvider linuxdoId linuxdoUsername linuxdoAvatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil",
+      "id username email role password avatarUrl authProvider linuxdoId linuxdoUsername linuxdoAvatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil isTranslationEnabled translationAccessUntil accountStatus",
     )
     .lean();
 
@@ -109,7 +113,7 @@ export const getUserByUsername = async (username: string): Promise<UserType | nu
   }
   const doc = await UserModel.findOne({ username })
     .select(
-      "id username email role token tokenExpiresAt password avatarUrl authProvider linuxdoId linuxdoUsername linuxdoAvatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil",
+      "id username email role token tokenExpiresAt password avatarUrl authProvider linuxdoId linuxdoUsername linuxdoAvatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil isTranslationEnabled translationAccessUntil accountStatus",
     )
     .lean();
 
@@ -126,7 +130,7 @@ export const getUserByLinuxDoId = async (
 
   const doc = await UserModel.findOne({ linuxdoId: linuxdoId.trim() })
     .select(
-      "id username email role token tokenExpiresAt password avatarUrl authProvider linuxdoId linuxdoUsername linuxdoAvatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil",
+      "id username email role token tokenExpiresAt password avatarUrl authProvider linuxdoId linuxdoUsername linuxdoAvatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil isTranslationEnabled translationAccessUntil accountStatus",
     )
     .lean();
 
@@ -141,7 +145,7 @@ export const getUserByEmail = async (email: string): Promise<UserType | null> =>
   if (!validator.isEmail(safeEmail)) return null;
   const doc = await UserModel.findOne({ email: safeEmail })
     .select(
-      "id username email role token tokenExpiresAt password avatarUrl authProvider linuxdoId linuxdoUsername linuxdoAvatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil",
+      "id username email role token tokenExpiresAt password avatarUrl authProvider linuxdoId linuxdoUsername linuxdoAvatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil isTranslationEnabled translationAccessUntil accountStatus",
     )
     .lean();
 

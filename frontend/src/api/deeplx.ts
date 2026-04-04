@@ -1,4 +1,4 @@
-import getApiBaseUrl from '../api';
+import { api } from './api';
 
 export interface DeepLXConfigResponse {
   enabled: boolean;
@@ -21,35 +21,17 @@ export interface DeepLXTranslateResponse {
   targetLang: string;
 }
 
-async function parseJsonOrError(response: Response, fallback: string) {
-  const data = await response.json().catch(() => null);
-  if (!response.ok) {
-    throw new Error((data && data.error) || fallback);
-  }
-  return data;
-}
-
 export async function fetchDeepLXConfig(): Promise<DeepLXConfigResponse> {
-  const response = await fetch(`${getApiBaseUrl()}/api/deeplx/config`, {
-    credentials: 'include',
-  });
-
-  return parseJsonOrError(response, '获取 DeepLX 配置失败') as Promise<DeepLXConfigResponse>;
+  const response = await api.get<DeepLXConfigResponse>('/api/deeplx/config');
+  return response.data;
 }
 
 export async function translateWithDeepLX(
   payload: DeepLXTranslatePayload,
   signal?: AbortSignal,
 ): Promise<DeepLXTranslateResponse> {
-  const response = await fetch(`${getApiBaseUrl()}/api/deeplx/translate`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: 'include',
+  const response = await api.post<DeepLXTranslateResponse>('/api/deeplx/translate', payload, {
     signal,
-    body: JSON.stringify(payload),
   });
-
-  return parseJsonOrError(response, 'DeepLX 翻译失败') as Promise<DeepLXTranslateResponse>;
+  return response.data;
 }

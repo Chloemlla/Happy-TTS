@@ -87,6 +87,9 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
     if ((user as any).disabled) {
       return res.status(403).json({ error: "账户已被禁用" });
     }
+    if ((user as any).accountStatus === "suspended") {
+      return res.status(403).json({ error: "账户已被封停" });
+    }
 
     // 添加用户信息到请求对象
     req.user = user;

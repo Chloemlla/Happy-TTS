@@ -428,6 +428,9 @@ export class AuthController {
         logger.warn("登录失败：用户名或密码错误", logDetails);
         return res.status(401).json({ error: "用户名/邮箱或密码错误" });
       }
+      if ((user as any).accountStatus === "suspended") {
+        return res.status(403).json({ error: "账户已被封停" });
+      }
 
       // 登录成功，重置尝试次数
       loginAttempts.delete(identifier);
@@ -523,9 +526,9 @@ export class AuthController {
       });
 
       // 不再写入user.token，仅返回JWT
-      const { id, username, email, role } = user;
+      const { id, username, email, role, isTranslationEnabled, translationAccessUntil, accountStatus } = user as any;
       const t1 = Date.now();
-      res.json({ user: { id, username, email, role }, token });
+      res.json({ user: { id, username, email, role, isTranslationEnabled, translationAccessUntil, accountStatus }, token });
       logger.info("[login] 已返回登录响应", { 总耗时: `${t1 - t0}ms`, t0, t1 });
       return;
     } catch (error) {
@@ -577,6 +580,9 @@ export class AuthController {
         });
         return res.status(404).json({ error: "用户不存在" });
       }
+      if ((user as any).accountStatus === "suspended") {
+        return res.status(403).json({ error: "账户已被封停" });
+      }
       const remainingUsage = await UserStorage.getRemainingUsage(userId);
       // 不返回avatarBase64
       const { password: _, ...userWithoutPassword } = user;
@@ -608,6 +614,9 @@ export class AuthController {
           username,
         });
         return res.status(404).json({ error: "用户不存在" });
+      }
+      if ((user as any).accountStatus === "suspended") {
+        return res.status(403).json({ error: "账户已被封停" });
       }
 
       // 验证用户是否启用了Passkey
@@ -729,6 +738,10 @@ export class AuthController {
             id: user.id,
             username: user.username,
             email: user.email,
+            role: user.role,
+            isTranslationEnabled: (user as any).isTranslationEnabled,
+            translationAccessUntil: (user as any).translationAccessUntil,
+            accountStatus: (user as any).accountStatus,
           },
         });
       } catch (passkeyErr) {

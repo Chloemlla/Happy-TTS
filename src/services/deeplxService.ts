@@ -85,11 +85,14 @@ export function isDeepLXConfigured(): boolean {
 }
 
 export function getDeepLXConfigSummary(): DeepLXConfigSummary {
+  const baseUrl = getNormalizedBaseUrl();
   return {
     enabled: isDeepLXConfigured(),
     requiresApiKey: requiresApiKey(),
-    baseUrl: getNormalizedBaseUrl(),
-    endpointPath: buildDeepLXTranslateUrl(),
+    baseUrl,
+    endpointPath: requiresApiKey(baseUrl)
+      ? `${baseUrl}/<api-key>/translate`
+      : `${baseUrl}/translate`,
   };
 }
 

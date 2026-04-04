@@ -70,6 +70,10 @@ interface User {
   // 工单违规处罚相关
   ticketViolationCount?: number;
   ticketBannedUntil?: string;
+  // 翻译权限与账户状态
+  isTranslationEnabled?: boolean;
+  translationAccessUntil?: string;
+  accountStatus?: 'active' | 'suspended';
 }
 
 const emptyUser: User = {
@@ -97,6 +101,9 @@ const emptyUser: User = {
   fingerprintRequestDismissedAt: 0,
   ticketViolationCount: 0,
   ticketBannedUntil: '',
+  isTranslationEnabled: true,
+  translationAccessUntil: '',
+  accountStatus: 'active',
 };
 
 // AES-256解密函数
@@ -199,6 +206,15 @@ const FIELD_SECTIONS: FieldSection[] = [
     fields: [
       { name: 'ticketViolationCount', label: '工单违规次数', type: 'number', placeholder: '0' },
       { name: 'ticketBannedUntil', label: '工单封禁截止', type: 'text', placeholder: 'ISO 日期字符串，留空解除' },
+    ],
+  },
+  {
+    title: '翻译权限管理',
+    icon: <FaShieldAlt className="text-cyan-500" />,
+    fields: [
+      { name: 'isTranslationEnabled', label: '启用翻译页面', type: 'checkbox' },
+      { name: 'translationAccessUntil', label: '翻译限制截止', type: 'text', placeholder: 'ISO 日期字符串，留空表示无限制' },
+      { name: 'accountStatus', label: '账户状态', type: 'select', options: [{ value: 'active', label: '正常' }, { value: 'suspended', label: '封停' }] },
     ],
   },
 ];

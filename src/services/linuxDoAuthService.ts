@@ -32,6 +32,9 @@ export interface LinuxDoExchangePayload {
     username: string;
     email: string;
     role: string;
+    isTranslationEnabled?: boolean;
+    translationAccessUntil?: string;
+    accountStatus?: string;
   };
   isNewUser: boolean;
   provider: "linuxdo";
@@ -316,6 +319,9 @@ function toExchangePayload(user: User, isNewUser: boolean): LinuxDoExchangePaylo
       username: user.username,
       email: user.email,
       role: user.role,
+      isTranslationEnabled: (user as any).isTranslationEnabled,
+      translationAccessUntil: (user as any).translationAccessUntil,
+      accountStatus: (user as any).accountStatus,
     },
     isNewUser,
     provider: "linuxdo",
@@ -422,6 +428,9 @@ async function upsertLinuxDoUser(profile: LinuxDoNormalizedProfile): Promise<{
 }> {
   const linkedUser = await UserStorage.getUserByLinuxDoId(profile.id);
   if (linkedUser) {
+    if ((linkedUser as any).accountStatus === "suspended") {
+      throw new Error("Account is suspended");
+    }
     const updatedLinkedUser =
       (await UserStorage.updateUser(linkedUser.id, {
         linuxdoUsername: profile.username,
@@ -442,6 +451,9 @@ async function upsertLinuxDoUser(profile: LinuxDoNormalizedProfile): Promise<{
   if (profile.email) {
     const userWithSameEmail = await UserStorage.getUserByEmail(profile.email);
     if (userWithSameEmail) {
+      if ((userWithSameEmail as any).accountStatus === "suspended") {
+        throw new Error("Account is suspended");
+      }
       const updatedExistingUser =
         (await UserStorage.updateUser(userWithSameEmail.id, {
           linuxdoId: profile.id,
@@ -625,6 +637,9 @@ export async function completeLinuxDoAuthorization(params: {
   );
   const normalizedProfile = normalizeLinuxDoProfile(rawProfile);
   const { user, isNewUser } = await upsertLinuxDoUser(normalizedProfile);
+  if ((user as any).accountStatus === "suspended") {
+    throw new Error("Account is suspended");
+  }
 
   const finalizedUser =
     (await UserStorage.updateUser(user.id, {

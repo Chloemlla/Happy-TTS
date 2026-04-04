@@ -15,6 +15,7 @@ import {
   translateWithDeepLX,
   type DeepLXConfigResponse,
 } from '../api/deeplx';
+import { useAuth } from '../hooks/useAuth';
 import { useNotification } from './Notification';
 
 interface TranslatorHistoryItem {
@@ -104,6 +105,7 @@ function speakText(text: string, voice?: string): void {
 
 export const DeepLXTranslatorPage: React.FC = () => {
   const { setNotification } = useNotification();
+  const { user } = useAuth();
   const [config, setConfig] = useState<DeepLXConfigResponse | null>(null);
   const [configLoading, setConfigLoading] = useState(true);
   const [sourceText, setSourceText] = useState('');
@@ -120,6 +122,11 @@ export const DeepLXTranslatorPage: React.FC = () => {
   const displaySourceLang = sourceLang === AUTO_LANGUAGE_CODE ? detectedSourceLang : sourceLang;
   const sourceLanguageLabel = getLanguageByCode(displaySourceLang)?.nativeLabel || '自动识别';
   const targetLanguageLabel = getLanguageByCode(targetLang)?.nativeLabel || targetLang;
+  const translationRestrictedUntil = user?.translationAccessUntil
+    ? Date.parse(user.translationAccessUntil)
+    : 0;
+  const translationRestricted = Number.isFinite(translationRestrictedUntil)
+    && translationRestrictedUntil > Date.now();
 
   useEffect(() => {
     startTransition(() => {
@@ -184,6 +191,14 @@ export const DeepLXTranslatorPage: React.FC = () => {
     if (!config?.enabled) {
       setNotification({
         message: 'DeepLX 当前未配置，请先在 EnvManager 中设置可用的 API。',
+        type: 'error',
+      });
+      return;
+    }
+
+    if (translationRestricted) {
+      setNotification({
+        message: '当前账户的翻译权限处于限制状态',
         type: 'error',
       });
       return;
@@ -313,6 +328,22 @@ export const DeepLXTranslatorPage: React.FC = () => {
 
   const pageFont = '"Avenir Next","PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif';
   const displayFont = '"Iowan Old Style","Noto Serif SC","Source Han Serif SC",serif';
+
+  if (user?.isTranslationEnabled === false) {
+    return (
+      <div className="min-h-screen bg-slate-100 px-4 py-16" style={{ fontFamily: pageFont }}>
+        <div className="mx-auto max-w-3xl rounded-[32px] border border-rose-100 bg-white p-10 text-center shadow-xl">
+          <div className="text-sm font-semibold uppercase tracking-[0.3em] text-rose-400">Translation Access</div>
+          <h1 className="mt-4 text-4xl font-semibold text-slate-900" style={{ fontFamily: displayFont }}>
+            当前账户已被停用翻译页面访问
+          </h1>
+          <p className="mt-4 text-base leading-8 text-slate-500">
+            管理员已撤销此账户的翻译页面权限。你仍可访问其他功能，但不能进入本翻译工作台。
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -597,6 +628,12 @@ export const DeepLXTranslatorPage: React.FC = () => {
                 <div className="mt-2">
                   Endpoint: {config?.endpointPath || '读取中…'}
                 </div>
+                {translationRestricted ? (
+                  <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-3 text-rose-700">
+                    翻译权限限制截止：
+                    {new Date(translationRestrictedUntil).toLocaleString()}
+                  </div>
+                ) : null}
                 {!configLoading && !config?.enabled ? (
                   <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-amber-700">
                     当前 DeepLX 尚未可用。
