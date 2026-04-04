@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import { usePasskey } from '../hooks/usePasskey';
 import { useNotification } from './Notification';
+import GoogleAuthButton from './GoogleAuthButton';
 import LinuxDoAuthButton from './LinuxDoAuthButton';
 import { TurnstileWidget } from './TurnstileWidget';
 import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
@@ -207,6 +208,11 @@ export const LoginPage: React.FC = () => {
                             </div>
 
                             <div className="space-y-4">
+                                <GoogleAuthButton
+                                    intent="login"
+                                    label="使用 Google 登录或注册"
+                                    description="使用 Google 账号快速登录，首次登录自动创建本地账户"
+                                />
                                 <LinuxDoAuthButton
                                     intent="login"
                                     label="使用 Linux.do 登录或注册"

@@ -2,6 +2,8 @@ import path from "node:path";
 import dotenv from "dotenv";
 import {
   buildRuntimeConfigDefaults,
+  type DeepLXRuntimeConfig,
+  type GoogleAuthRuntimeConfig,
   type IpqsRuntimeConfig,
   type LinuxDoRuntimeConfig,
   type NexaiRuntimeConfig,
@@ -40,6 +42,14 @@ function getRuntimeIpqsConfig(): IpqsRuntimeConfig {
 
 function getRuntimeLinuxDoConfig(): LinuxDoRuntimeConfig {
   return RuntimeConfigService.getCachedConfig().linuxdo;
+}
+
+function getRuntimeGoogleAuthConfig(): GoogleAuthRuntimeConfig {
+  return RuntimeConfigService.getCachedConfig().googleAuth;
+}
+
+function getRuntimeDeepLXConfig(): DeepLXRuntimeConfig {
+  return RuntimeConfigService.getCachedConfig().deeplx;
 }
 
 function getRuntimeNexaiConfig(): NexaiRuntimeConfig {
@@ -101,6 +111,12 @@ export const config = {
   frontendBaseUrl,
   get linuxdo() {
     return getRuntimeLinuxDoConfig();
+  },
+  get googleAuth() {
+    return getRuntimeGoogleAuthConfig();
+  },
+  get deeplx() {
+    return getRuntimeDeepLXConfig();
   },
   auditLogMasking: process.env.AUDIT_LOG_MASKING !== "false",
   get nexai() {

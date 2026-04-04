@@ -74,6 +74,8 @@ router.post("/register", registerLimiter, validateAuthInput, logUserData, AuthCo
  *         description: 登录成功
  */
 router.post("/login", loginLimiter, validateAuthInput, AuthController.login);
+router.get("/google/config", AuthController.getGoogleAuthConfig);
+router.post("/google", loginLimiter, AuthController.googleAuth);
 
 router.get("/linuxdo/config", LinuxDoAuthController.getConfig);
 router.get("/linuxdo/start", LinuxDoAuthController.start);

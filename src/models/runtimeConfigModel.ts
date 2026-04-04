@@ -1,6 +1,6 @@
 import { mongoose } from "../services/mongoService";
 
-export const RUNTIME_CONFIG_KEYS = ["IPQS", "LINUXDO", "NEXAI"] as const;
+export const RUNTIME_CONFIG_KEYS = ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI"] as const;
 
 export type RuntimeConfigKey = (typeof RUNTIME_CONFIG_KEYS)[number];
 

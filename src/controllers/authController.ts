@@ -16,6 +16,11 @@ import {
   generateLoginIpChangedEmailHtml,
   generateAccountLockedEmailHtml,
 } from "../templates/emailTemplates";
+import {
+  authenticateGoogleUser,
+  getGoogleAuthConfigSummary,
+  isGoogleAuthEnabled,
+} from "../services/googleAuthService";
 import logger from "../utils/logger";
 import { type User, UserStorage } from "../utils/userStorage";
 import { getClientIP } from "../utils/ipUtils";
@@ -59,6 +64,35 @@ function getFrontendBaseUrl(): string {
 }
 
 export class AuthController {
+  public static getGoogleAuthConfig(_req: Request, res: Response) {
+    res.json(getGoogleAuthConfigSummary());
+  }
+
+  public static async googleAuth(req: Request, res: Response) {
+    try {
+      if (!isGoogleAuthEnabled()) {
+        return res.status(503).json({ error: "Google Auth is not configured" });
+      }
+
+      const idToken = typeof req.body?.idToken === "string" ? req.body.idToken : "";
+      if (!idToken) {
+        return res.status(400).json({ error: "缺少 Google idToken" });
+      }
+
+      const payload = await authenticateGoogleUser({
+        idToken,
+        clientIp: getClientIP(req),
+      });
+
+      return res.json(payload);
+    } catch (error) {
+      logger.error("[Google Auth] Login failed", error);
+      return res.status(400).json({
+        error: error instanceof Error ? error.message : "Google 登录失败",
+      });
+    }
+  }
+
   public static async register(req: Request, res: Response) {
     try {
       const { username, email, password, fingerprint, clientIP } = req.body;

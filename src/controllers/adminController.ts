@@ -1320,6 +1320,84 @@ export const adminController = {
     }
   },
 
+  async getGoogleAuthSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "鏃犳潈闄?" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
+      const result = await RuntimeConfigService.getGoogleAuthSetting();
+      return res.json({ success: true, ...result });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "鑾峰彇 Google Auth 閰嶇疆澶辫触",
+      });
+    }
+  },
+
+  async setGoogleAuthSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "鏃犳潈闄?" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
+      const result = await RuntimeConfigService.setGoogleAuthSetting(req.body || {});
+      return res.json({ success: true, setting: result });
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        error: error instanceof Error ? error.message : "淇濆瓨 Google Auth 閰嶇疆澶辫触",
+      });
+    }
+  },
+
+  async deleteGoogleAuthSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "鏃犳潈闄?" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
+      await RuntimeConfigService.deleteGoogleAuthSetting();
+      return res.json({ success: true });
+    } catch (_error) {
+      return res.status(500).json({ success: false, error: "鍒犻櫎 Google Auth 閰嶇疆澶辫触" });
+    }
+  },
+
+  async getDeepLXSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "鏃犳潈闄?" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
+      const result = await RuntimeConfigService.getDeepLXSetting();
+      return res.json({ success: true, ...result });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "鑾峰彇 DeepLX 閰嶇疆澶辫触",
+      });
+    }
+  },
+
+  async setDeepLXSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "鏃犳潈闄?" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
+      const result = await RuntimeConfigService.setDeepLXSetting(req.body || {});
+      return res.json({ success: true, setting: result });
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        error: error instanceof Error ? error.message : "淇濆瓨 DeepLX 閰嶇疆澶辫触",
+      });
+    }
+  },
+
+  async deleteDeepLXSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "鏃犳潈闄?" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
+      await RuntimeConfigService.deleteDeepLXSetting();
+      return res.json({ success: true });
+    } catch (_error) {
+      return res.status(500).json({ success: false, error: "鍒犻櫎 DeepLX 閰嶇疆澶辫触" });
+    }
+  },
+
   async getNexaiSetting(req: Request, res: Response) {
     try {
       if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "鏃犳潈闄?" });
