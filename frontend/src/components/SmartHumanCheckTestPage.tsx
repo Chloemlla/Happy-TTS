@@ -3,7 +3,9 @@ import { LoadingSpinner } from './LoadingSpinner';
 import getApiBaseUrl from '../api';
 
 // 懒加载 SmartHumanCheck 组件
-const SmartHumanCheck = React.lazy(() => import('./SmartHumanCheck'));
+const ManualNonceSmartHumanCheck = React.lazy(() =>
+  import('./SmartHumanCheck').then((module) => ({ default: module.ManualNonceSmartHumanCheck })),
+);
 
 // SmartHumanCheck 测试页（简单包装，显示生成的 token 与错误信息）
 const SmartHumanCheckTestPage: React.FC = () => {
@@ -105,25 +107,29 @@ const SmartHumanCheckTestPage: React.FC = () => {
       </div>
 
       <Suspense fallback={<LoadingSpinner />}>
-        <SmartHumanCheck
-          challengeNonce={nonce || undefined}
-          onSuccess={async (t) => {
-            setToken(t);
-            setError('');
-            try {
-              await verifyToken(t);
-            } finally {
-              // 成功或失败后都获取新的 nonce，避免复用
+        {nonce ? (
+          <ManualNonceSmartHumanCheck
+            challengeNonce={nonce}
+            onSuccess={async (t) => {
+              setToken(t);
+              setError('');
+              try {
+                await verifyToken(t);
+              } finally {
+                // 成功或失败后都获取新的 nonce，避免复用
+                await fetchNonce().catch(() => {});
+              }
+            }}
+            onFail={async (reason) => {
+              setError(reason || '验证失败');
+              setVerifyMsg('');
+              // 验证失败时也刷新 nonce，避免旧的 nonce 被继续使用
               await fetchNonce().catch(() => {});
-            }
-          }}
-          onFail={async (reason) => {
-            setError(reason || '验证失败');
-            setVerifyMsg('');
-            // 验证失败时也刷新 nonce，避免旧的 nonce 被继续使用
-            await fetchNonce().catch(() => {});
-          }}
-        />
+            }}
+          />
+        ) : (
+          <LoadingSpinner />
+        )}
       </Suspense>
 
       <div className="mt-6">

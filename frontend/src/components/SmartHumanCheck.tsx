@@ -17,20 +17,22 @@ import { FaShieldAlt, FaInfoCircle, FaSync, FaRobot } from 'react-icons/fa';
  * <SmartHumanCheck onSuccess={(token) => setToken(token)} />
  */
 
-export interface SmartHumanCheckProps {
+export interface SmartHumanCheckCommonProps {
   onSuccess: (token: string) => void;
   onFail?: (reason: string) => void;
-  size?: 'normal' | 'compact';
-  theme?: 'light' | 'dark';
-  // 可选：服务端下发的随机挑战串（推荐）
-  challengeNonce?: string;
-  // 完成后是否自动重置组件（默认 false）
-  autoReset?: boolean;
   // API 基础路径（默认 /api/human-check）
   apiBaseUrl?: string;
-  // 自动获取 nonce（默认 true）
-  autoFetchNonce?: boolean;
 }
+
+export interface ManualNonceSmartHumanCheckProps extends SmartHumanCheckCommonProps {
+  challengeNonce: string;
+}
+
+type SmartHumanCheckVariant = {
+  density: 'normal' | 'compact';
+  nonceStrategy: 'managed' | 'manual';
+  autoResetOnSuccess: boolean;
+};
 
 // 行为评分阈值
 const SCORE_THRESHOLD = 0.62; // 合理偏宽松，降低误判率
@@ -374,8 +376,14 @@ function useBehaviorTracker(containerRef: React.RefObject<HTMLDivElement | null>
   return { statsRef, setTrapTriggered };
 }
 
+type SliderBaseProps = {
+  onComplete: () => void;
+  disabled?: boolean;
+  hintMode: 'inline' | 'external';
+};
+
 // 简易滑块验证组件（拖到最右并保持稳定）
-function Slider({ onComplete, disabled, showInnerHint = true }: { onComplete: () => void; disabled?: boolean; showInnerHint?: boolean }) {
+function SliderBase({ onComplete, disabled, hintMode }: SliderBaseProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
   const [pos, setPos] = useState(0); // 0..1 (基于可滑动范围)
@@ -493,7 +501,7 @@ function Slider({ onComplete, disabled, showInnerHint = true }: { onComplete: ()
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-sm text-gray-600">
             验证成功
           </div>
-        ) : showInnerHint ? (
+        ) : hintMode === 'inline' ? (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-sm text-gray-600">
             按住滑块拖动完成验证
           </div>
@@ -503,16 +511,28 @@ function Slider({ onComplete, disabled, showInnerHint = true }: { onComplete: ()
   );
 }
 
-export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
+function StandardSlider(props: Omit<SliderBaseProps, 'hintMode'>) {
+  return <SliderBase {...props} hintMode="inline" />;
+}
+
+function CompactSlider(props: Omit<SliderBaseProps, 'hintMode'>) {
+  return <SliderBase {...props} hintMode="external" />;
+}
+
+type SmartHumanCheckBaseProps = SmartHumanCheckCommonProps & {
+  challengeNonce?: string;
+  variant: SmartHumanCheckVariant;
+};
+
+const SmartHumanCheckBase: React.FC<SmartHumanCheckBaseProps> = ({
   onSuccess,
   onFail,
-  size = 'normal',
-  theme = 'light',
   challengeNonce,
-  autoReset = false,
   apiBaseUrl = '/api/human-check',
-  autoFetchNonce = true,
+  variant,
 }) => {
+  const { density, nonceStrategy, autoResetOnSuccess } = variant;
+  const shouldManageNonce = nonceStrategy === 'managed';
   const containerRef = useRef<HTMLDivElement>(null);
   const { statsRef, setTrapTriggered } = useBehaviorTracker(containerRef);
 
@@ -588,7 +608,13 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
     return () => ro.disconnect();
   }, [containerRef]);
 
-  const isMinimal = (size === 'compact') || isHighZoom || isNarrow || isTightViewport;
+  const isMinimal = density === 'compact' || isHighZoom || isNarrow || isTightViewport;
+
+  useEffect(() => {
+    if (nonceStrategy === 'manual') {
+      setNonce(challengeNonce || null);
+    }
+  }, [challengeNonce, nonceStrategy]);
 
   // 动态状态（依赖 pulse 触发重新计算以更新倒计时）
   const isBanned = useMemo(() => bannedUntil != null && bannedUntil > Date.now(), [bannedUntil, pulse]);
@@ -663,10 +689,10 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
 
   // 自动获取 nonce
   useEffect(() => {
-    if (autoFetchNonce && !challengeNonce && !nonce && !fetchingNonce && !isBanned && !cooldownActive) {
+    if (shouldManageNonce && !challengeNonce && !nonce && !fetchingNonce && !isBanned && !cooldownActive) {
       fetchNonce();
     }
-  }, [autoFetchNonce, challengeNonce, nonce, fetchingNonce, fetchNonce, isBanned, cooldownActive]);
+  }, [challengeNonce, cooldownActive, fetchNonce, fetchingNonce, isBanned, nonce, shouldManageNonce]);
 
   // 增强的行为评分算法（0..1）
   const score = useMemo(() => {
@@ -865,11 +891,11 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
     setError(null);
     setRetryCount(0);
     // 重置时获取新的 nonce
-    if (autoFetchNonce && !challengeNonce) {
+    if (shouldManageNonce && !challengeNonce) {
       setNonce(null);
       fetchNonce();
     }
-  }, [autoFetchNonce, challengeNonce, fetchNonce]);
+  }, [challengeNonce, fetchNonce, shouldManageNonce]);
 
   const submit = useCallback(async () => {
     if (!canSubmit) return;
@@ -912,7 +938,7 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
       );
 
       onSuccess(token);
-      if (autoReset) {
+      if (autoResetOnSuccess) {
         setTimeout(() => reset(), 500);
       }
     } catch (e: any) {
@@ -921,12 +947,12 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
     } finally {
       setSubmitting(false);
     }
-  }, [autoReset, canvasEntropy, canSubmit, challengeNonce, nonce, onFail, onSuccess, reset, effectiveScore, statsRef]);
+  }, [autoResetOnSuccess, canvasEntropy, canSubmit, challengeNonce, nonce, onFail, onSuccess, reset, effectiveScore, statsRef]);
 
-  const cardCls = theme === 'dark' ? 'bg-gray-800/80 text-gray-100 border-gray-700' : 'bg-white/80 text-gray-800 border-white/20';
-  const subTextCls = theme === 'dark' ? 'text-gray-300' : 'text-gray-500';
-  const sizeCls = size === 'compact' ? 'p-3 text-sm' : 'p-4';
-  const bubbleBgCls = theme === 'dark' ? 'bg-gray-700/60 text-gray-100' : 'bg-gray-100 text-gray-700';
+  const cardCls = 'bg-white/80 text-gray-800 border-white/20';
+  const subTextCls = 'text-gray-500';
+  const sizeCls = density === 'compact' ? 'p-3 text-sm' : 'p-4';
+  const bubbleBgCls = 'bg-gray-100 text-gray-700';
 
   return (
     <motion.div
@@ -1044,7 +1070,11 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
         )}
 
         <div className="mt-4">
-          <Slider key={sliderKey} onComplete={handleSliderComplete} disabled={!checked} showInnerHint={!isMinimal} />
+          {isMinimal ? (
+            <CompactSlider key={sliderKey} onComplete={handleSliderComplete} disabled={!checked} />
+          ) : (
+            <StandardSlider key={sliderKey} onComplete={handleSliderComplete} disabled={!checked} />
+          )}
         </div>
 
         <div className="mt-4 flex items-center gap-3">
@@ -1087,4 +1117,44 @@ export const SmartHumanCheck: React.FC<SmartHumanCheckProps> = ({
   );
 };
 
-export default SmartHumanCheck;
+const managedVariant: SmartHumanCheckVariant = {
+  density: 'normal',
+  nonceStrategy: 'managed',
+  autoResetOnSuccess: false,
+};
+
+const manualVariant: SmartHumanCheckVariant = {
+  density: 'normal',
+  nonceStrategy: 'manual',
+  autoResetOnSuccess: false,
+};
+
+const compactManagedVariant: SmartHumanCheckVariant = {
+  density: 'compact',
+  nonceStrategy: 'managed',
+  autoResetOnSuccess: false,
+};
+
+const compactManualVariant: SmartHumanCheckVariant = {
+  density: 'compact',
+  nonceStrategy: 'manual',
+  autoResetOnSuccess: false,
+};
+
+export const ManagedSmartHumanCheck: React.FC<SmartHumanCheckCommonProps> = (props) => (
+  <SmartHumanCheckBase {...props} variant={managedVariant} />
+);
+
+export const ManualNonceSmartHumanCheck: React.FC<ManualNonceSmartHumanCheckProps> = (props) => (
+  <SmartHumanCheckBase {...props} variant={manualVariant} />
+);
+
+export const CompactManagedSmartHumanCheck: React.FC<SmartHumanCheckCommonProps> = (props) => (
+  <SmartHumanCheckBase {...props} variant={compactManagedVariant} />
+);
+
+export const CompactManualNonceSmartHumanCheck: React.FC<ManualNonceSmartHumanCheckProps> = (props) => (
+  <SmartHumanCheckBase {...props} variant={compactManualVariant} />
+);
+
+export default ManagedSmartHumanCheck;
