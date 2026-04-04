@@ -42,6 +42,7 @@ import {
   commandLimiter,
   dataCollectionLimiter,
   dataProcessLimiter,
+  deeplxLimiter,
   docsTimeoutLimiter,
   frontendLimiter,
   githubBillingLimiter,
@@ -88,6 +89,7 @@ import dataCollectionAdminRoutes from "./routes/dataCollectionAdminRoutes";
 import dataCollectionRoutes from "./routes/dataCollectionRoutes";
 import dataProcessRoutes from "./routes/dataProcessRoutes";
 import debugConsoleRoutes from "./routes/debugConsoleRoutes";
+import deeplxRoutes from "./routes/deeplxRoutes";
 import emailRoutes from "./routes/emailRoutes";
 import fbiWantedRoutes from "./routes/fbiWantedRoutes";
 import githubBillingRoutes from "./routes/githubBillingRoutes";
@@ -397,6 +399,7 @@ app.use("/api/data-collection", dataCollectionLimiter);
 app.use("/api/ipfs", ipfsLimiter);
 app.use("/api/network", networkLimiter);
 app.use("/api/data", dataProcessLimiter);
+app.use("/api/deeplx", deeplxLimiter);
 app.use("/api/media", mediaLimiter);
 app.use("/api/social", socialLimiter);
 app.use("/api/life", lifeLimiter);
@@ -606,6 +609,7 @@ app.use("/api/data-collection/admin", dataCollectionAdminRoutes);
 app.use("/api/ipfs", ipfsRoutes);
 app.use("/api/network", networkRoutes);
 app.use("/api/data", dataProcessRoutes);
+app.use("/api/deeplx", deeplxRoutes);
 app.use("/api/lottery", lotteryRoutes);
 app.use("/api/media", mediaRoutes);
 app.use("/api/social", socialRoutes);

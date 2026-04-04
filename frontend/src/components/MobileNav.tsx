@@ -13,6 +13,7 @@ import {
   FaDollarSign, FaExternalLinkAlt, FaComments, FaBug, FaCalculator,
   FaBirthdayCake, FaHeadset, FaUserPlus, FaExchangeAlt, FaTimes, FaPlusCircle,
   FaShareAlt, FaLink, FaFont, FaChartBar, FaGamepad, FaSearch, FaBook, FaGavel,
+  FaLanguage,
   FaFlask, FaPaperPlane, FaDatabase, FaUserShield, FaRobot, FaLockOpen
 } from 'react-icons/fa';
 
@@ -102,6 +103,7 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
       title: '实用工具',
       items: [
         { to: '/logshare', label: '日志分享', icon: FaShareAlt, color: 'text-blue-500' },
+        { to: '/translate', label: '文本翻译', icon: FaLanguage, color: 'text-violet-500' },
         { to: '/image-upload', label: '图片上传', icon: FaImage, color: 'text-purple-500' },
         { to: '/public-shortlink', label: '公共短链', icon: FaLink, color: 'text-sky-500' },
         { to: '/case-converter', label: '大小写转换', icon: FaFont, color: 'text-slate-500' },
@@ -172,6 +174,9 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
           </Link>
           <Link to="/store" className={`px-4 py-2 rounded-xl transition-all ${location.pathname === '/store' ? 'bg-emerald-600 text-white shadow-md' : 'bg-white/50 text-gray-700 hover:bg-white hover:shadow-sm'}`}>
             <FaStore className="inline mr-2" /> 资源商店
+          </Link>
+          <Link to="/translate" className={`px-4 py-2 rounded-xl transition-all ${location.pathname === '/translate' ? 'bg-violet-600 text-white shadow-md' : 'bg-white/50 text-gray-700 hover:bg-white hover:shadow-sm'}`}>
+            <FaLanguage className="inline mr-2" /> 翻译
           </Link>
           <Link to="/support" className={`px-4 py-2 rounded-xl transition-all ${location.pathname === '/support' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white/50 text-gray-700 hover:bg-white hover:shadow-sm'}`}>
             <FaHeadset className="inline mr-2" /> 支持中心
