@@ -54,7 +54,10 @@ export const useTurnstileConfig = (options: UseTurnstileConfigOptions = {}) => {
         
         const data = await response.json();
         console.log('Turnstile 配置获取成功:', data);
-        setConfig(data);
+        setConfig({
+          enabled: Boolean(data?.enabled),
+          siteKey: typeof data?.siteKey === 'string' ? data.siteKey : null,
+        });
       } catch (err) {
         console.error('获取Turnstile配置失败:', err);
         setError('获取验证配置失败');
