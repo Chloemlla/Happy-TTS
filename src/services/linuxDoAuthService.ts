@@ -463,6 +463,7 @@ export async function createLinuxDoAuthorizationUrl(
   const params = new URLSearchParams({
     client_id: config.linuxdo.clientId,
     response_type: "code",
+    response_mode: "form_post",
     redirect_uri: config.linuxdo.callbackUrl,
     scope: config.linuxdo.scopes,
     state,

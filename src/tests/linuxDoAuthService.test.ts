@@ -96,6 +96,7 @@ describe("linuxDoAuthService", () => {
       "https://connect.linux.do/oauth2/authorize",
     );
     expect(parsedUrl.searchParams.get("scope")).toBe("openid profile email");
+    expect(parsedUrl.searchParams.get("response_mode")).toBe("form_post");
     expect(parsedUrl.searchParams.get("code_challenge_method")).toBe("S256");
     expect(parsedUrl.searchParams.get("code_challenge")).toBeTruthy();
     expect(parsedUrl.searchParams.get("state")).toBeTruthy();

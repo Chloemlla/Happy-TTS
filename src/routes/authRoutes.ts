@@ -77,7 +77,8 @@ router.post("/login", loginLimiter, validateAuthInput, AuthController.login);
 
 router.get("/linuxdo/config", LinuxDoAuthController.getConfig);
 router.get("/linuxdo/start", LinuxDoAuthController.start);
-router.get("/linuxdo/callback", LinuxDoAuthController.callback);
+router.get("/linuxdo/callback", LinuxDoAuthController.callbackGet);
+router.post("/linuxdo/callback", LinuxDoAuthController.callback);
 router.post("/linuxdo/exchange", LinuxDoAuthController.exchangeTicket);
 
 /**
