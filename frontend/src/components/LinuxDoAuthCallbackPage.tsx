@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { FaArrowLeft } from "react-icons/fa";
 import getApiBaseUrl from "../api";
 import { useAuth } from "../hooks/useAuth";
+import type { User } from "../types/auth";
 import { useNotification } from "./Notification";
 
 export const LinuxDoAuthCallbackPage: React.FC = () => {
@@ -32,7 +33,7 @@ export const LinuxDoAuthCallbackPage: React.FC = () => {
     }
 
     const completeLogin = async (token: string, user: unknown, isNewUser: boolean) => {
-      await loginWithToken(token, user);
+      await loginWithToken(token, user as User);
       setNotification({
         message: isNewUser ? "Linux.do 注册并登录成功" : "Linux.do 登录成功",
         type: "success",
