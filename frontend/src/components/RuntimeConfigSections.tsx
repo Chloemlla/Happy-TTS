@@ -5,6 +5,8 @@ import { useNotification } from './Notification';
 
 const IPQS_API = getApiBaseUrl() + '/api/admin/ipqs/setting';
 const LINUXDO_API = getApiBaseUrl() + '/api/admin/linuxdo/setting';
+const GOOGLE_AUTH_API = getApiBaseUrl() + '/api/admin/google-auth/setting';
+const DEEPLX_API = getApiBaseUrl() + '/api/admin/deeplx/setting';
 const NEXAI_API = getApiBaseUrl() + '/api/admin/nexai/setting';
 
 function getAuthHeaders(): Record<string, string> {
@@ -45,6 +47,22 @@ interface LinuxDoSettingResponse {
   updatedAt?: string;
 }
 
+interface GoogleAuthSettingResponse {
+  config: {
+    clientId: string;
+  };
+  updatedAt?: string;
+}
+
+interface DeepLXSettingResponse {
+  config: {
+    baseUrl: string;
+    apiKey: string;
+    requestUrl: string;
+  };
+  updatedAt?: string;
+}
+
 interface NexaiSettingResponse {
   config: {
     jwtSecret: string;
@@ -71,6 +89,12 @@ function parseApiKeys(input: string): string[] {
         .filter(Boolean),
     ),
   );
+}
+
+function buildDeepLXRequestUrl(baseUrl: string, apiKey?: string): string {
+  const normalizedBaseUrl = (baseUrl || 'https://api.deeplx.org').trim().replace(/\/+$/, '');
+  const keySegment = (apiKey || '<api-key>').trim() || '<api-key>';
+  return `${normalizedBaseUrl}/${keySegment}/translate`;
 }
 
 function SectionCard(props: {
@@ -158,6 +182,23 @@ const RuntimeConfigSections: React.FC = () => {
     forumBaseUrl: '',
     callbackUrl: '',
     frontendCallbackUrl: '',
+  });
+
+  const [googleAuthSetting, setGoogleAuthSetting] = useState<GoogleAuthSettingResponse | null>(null);
+  const [googleAuthLoading, setGoogleAuthLoading] = useState(false);
+  const [googleAuthSaving, setGoogleAuthSaving] = useState(false);
+  const [googleAuthDeleting, setGoogleAuthDeleting] = useState(false);
+  const [googleAuthForm, setGoogleAuthForm] = useState({
+    clientId: '',
+  });
+
+  const [deeplxSetting, setDeeplxSetting] = useState<DeepLXSettingResponse | null>(null);
+  const [deeplxLoading, setDeeplxLoading] = useState(false);
+  const [deeplxSaving, setDeeplxSaving] = useState(false);
+  const [deeplxDeleting, setDeeplxDeleting] = useState(false);
+  const [deeplxApiKeyInput, setDeeplxApiKeyInput] = useState('');
+  const [deeplxForm, setDeeplxForm] = useState({
+    baseUrl: 'https://api.deeplx.org',
   });
 
   const [nexaiSetting, setNexaiSetting] = useState<NexaiSettingResponse | null>(null);
@@ -287,11 +328,76 @@ const RuntimeConfigSections: React.FC = () => {
     }
   }, [handleRequestError, setNotification]);
 
+  const fetchGoogleAuthSetting = useCallback(async () => {
+    setGoogleAuthLoading(true);
+    try {
+      const res = await fetch(GOOGLE_AUTH_API, { headers: getAuthHeaders() });
+      if (!res.ok) {
+        await handleRequestError(res, '获取 Google Auth 配置失败');
+        return;
+      }
+      const data = await res.json();
+      const setting = data?.setting as GoogleAuthSettingResponse | undefined;
+      if (!setting) {
+        setGoogleAuthSetting(null);
+        return;
+      }
+      setGoogleAuthSetting(setting);
+      setGoogleAuthForm({
+        clientId: setting.config.clientId || '',
+      });
+    } catch (error) {
+      setNotification({
+        message: error instanceof Error ? error.message : '获取 Google Auth 配置失败',
+        type: 'error',
+      });
+    } finally {
+      setGoogleAuthLoading(false);
+    }
+  }, [handleRequestError, setNotification]);
+
+  const fetchDeepLXSetting = useCallback(async () => {
+    setDeeplxLoading(true);
+    try {
+      const res = await fetch(DEEPLX_API, { headers: getAuthHeaders() });
+      if (!res.ok) {
+        await handleRequestError(res, '获取 DeepLX 配置失败');
+        return;
+      }
+      const data = await res.json();
+      const setting = data?.setting as DeepLXSettingResponse | undefined;
+      if (!setting) {
+        setDeeplxSetting(null);
+        return;
+      }
+      setDeeplxSetting(setting);
+      setDeeplxForm({
+        baseUrl: setting.config.baseUrl || 'https://api.deeplx.org',
+      });
+      setDeeplxApiKeyInput('');
+    } catch (error) {
+      setNotification({
+        message: error instanceof Error ? error.message : '获取 DeepLX 配置失败',
+        type: 'error',
+      });
+    } finally {
+      setDeeplxLoading(false);
+    }
+  }, [handleRequestError, setNotification]);
+
   useEffect(() => {
     fetchIpqsSetting();
     fetchLinuxDoSetting();
+    fetchGoogleAuthSetting();
+    fetchDeepLXSetting();
     fetchNexaiSetting();
-  }, [fetchIpqsSetting, fetchLinuxDoSetting, fetchNexaiSetting]);
+  }, [
+    fetchDeepLXSetting,
+    fetchGoogleAuthSetting,
+    fetchIpqsSetting,
+    fetchLinuxDoSetting,
+    fetchNexaiSetting,
+  ]);
 
   const saveIpqsSetting = useCallback(async () => {
     setIpqsSaving(true);
@@ -395,6 +501,106 @@ const RuntimeConfigSections: React.FC = () => {
     }
   }, [fetchLinuxDoSetting, handleRequestError, setNotification]);
 
+  const saveGoogleAuthSetting = useCallback(async () => {
+    setGoogleAuthSaving(true);
+    try {
+      const res = await fetch(GOOGLE_AUTH_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify(googleAuthForm),
+      });
+      if (!res.ok) {
+        await handleRequestError(res, '保存 Google Auth 配置失败');
+        return;
+      }
+      setNotification({ message: 'Google Auth 配置已保存', type: 'success' });
+      await fetchGoogleAuthSetting();
+    } catch (error) {
+      setNotification({
+        message: error instanceof Error ? error.message : '保存 Google Auth 配置失败',
+        type: 'error',
+      });
+    } finally {
+      setGoogleAuthSaving(false);
+    }
+  }, [fetchGoogleAuthSetting, googleAuthForm, handleRequestError, setNotification]);
+
+  const deleteGoogleAuthSetting = useCallback(async () => {
+    setGoogleAuthDeleting(true);
+    try {
+      const res = await fetch(GOOGLE_AUTH_API, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) {
+        await handleRequestError(res, '删除 Google Auth 配置失败');
+        return;
+      }
+      setNotification({ message: 'Google Auth 配置已重置', type: 'success' });
+      await fetchGoogleAuthSetting();
+    } catch (error) {
+      setNotification({
+        message: error instanceof Error ? error.message : '删除 Google Auth 配置失败',
+        type: 'error',
+      });
+    } finally {
+      setGoogleAuthDeleting(false);
+    }
+  }, [fetchGoogleAuthSetting, handleRequestError, setNotification]);
+
+  const saveDeepLXSetting = useCallback(async () => {
+    setDeeplxSaving(true);
+    try {
+      const payload: Record<string, unknown> = {
+        baseUrl: deeplxForm.baseUrl,
+      };
+      if (deeplxApiKeyInput.trim()) {
+        payload.apiKey = deeplxApiKeyInput.trim();
+      }
+      const res = await fetch(DEEPLX_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        await handleRequestError(res, '保存 DeepLX 配置失败');
+        return;
+      }
+      setNotification({ message: 'DeepLX 配置已保存', type: 'success' });
+      await fetchDeepLXSetting();
+    } catch (error) {
+      setNotification({
+        message: error instanceof Error ? error.message : '保存 DeepLX 配置失败',
+        type: 'error',
+      });
+    } finally {
+      setDeeplxSaving(false);
+    }
+  }, [deeplxApiKeyInput, deeplxForm.baseUrl, fetchDeepLXSetting, handleRequestError, setNotification]);
+
+  const deleteDeepLXSetting = useCallback(async () => {
+    setDeeplxDeleting(true);
+    try {
+      const res = await fetch(DEEPLX_API, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) {
+        await handleRequestError(res, '删除 DeepLX 配置失败');
+        return;
+      }
+      setNotification({ message: 'DeepLX 配置已重置', type: 'success' });
+      await fetchDeepLXSetting();
+    } catch (error) {
+      setNotification({
+        message: error instanceof Error ? error.message : '删除 DeepLX 配置失败',
+        type: 'error',
+      });
+    } finally {
+      setDeeplxDeleting(false);
+    }
+  }, [fetchDeepLXSetting, handleRequestError, setNotification]);
+
   const saveNexaiSetting = useCallback(async () => {
     setNexaiSaving(true);
     try {
@@ -468,6 +674,10 @@ const RuntimeConfigSections: React.FC = () => {
       setNexaiDeleting(false);
     }
   }, [fetchNexaiSetting, handleRequestError, setNotification]);
+
+  const deeplxRequestUrlPreview = deeplxApiKeyInput.trim()
+    ? buildDeepLXRequestUrl(deeplxForm.baseUrl, deeplxApiKeyInput.trim())
+    : deeplxSetting?.config.requestUrl || buildDeepLXRequestUrl(deeplxForm.baseUrl);
 
   return (
     <div className="space-y-6">
@@ -695,6 +905,102 @@ const RuntimeConfigSections: React.FC = () => {
               className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
             >
               {linuxdoSaving ? '保存中...' : '保存'}
+            </button>
+          </div>
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Google Auth 运行时配置"
+        description="主站 Google 登录使用这里的 Client ID，不与 NexAI OAuth 配置共用。"
+        loading={googleAuthLoading}
+        onRefresh={fetchGoogleAuthSetting}
+      >
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <FieldLabel label="Google Client ID" />
+            <input
+              value={googleAuthForm.clientId}
+              onChange={(e) => setGoogleAuthForm((prev) => ({ ...prev, clientId: e.target.value }))}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <UpdatedAt value={googleAuthSetting?.updatedAt} />
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={deleteGoogleAuthSetting}
+              disabled={googleAuthDeleting}
+              className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-700 disabled:opacity-60"
+            >
+              {googleAuthDeleting ? '重置中...' : '重置'}
+            </button>
+            <button
+              type="button"
+              onClick={saveGoogleAuthSetting}
+              disabled={googleAuthSaving}
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
+            >
+              {googleAuthSaving ? '保存中...' : '保存'}
+            </button>
+          </div>
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="DeepLX 运行时配置"
+        description="直接在 EnvManager 中管理 DeepLX API Base URL 和 API Key，留空的密钥字段会保留当前值。"
+        loading={deeplxLoading}
+        onRefresh={fetchDeepLXSetting}
+      >
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <FieldLabel label="API Base URL" />
+            <input
+              value={deeplxForm.baseUrl}
+              onChange={(e) => setDeeplxForm((prev) => ({ ...prev, baseUrl: e.target.value }))}
+              placeholder="https://api.deeplx.org"
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+            />
+          </div>
+          <div>
+            <FieldLabel label="API Key" hint={deeplxSetting?.config.apiKey || '未配置'} />
+            <input
+              value={deeplxApiKeyInput}
+              onChange={(e) => setDeeplxApiKeyInput(e.target.value)}
+              placeholder="留空表示保持现有 API Key"
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <FieldLabel label="请求地址预览" />
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3 py-3 font-mono text-sm text-slate-700 break-all">
+              {deeplxRequestUrlPreview}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <UpdatedAt value={deeplxSetting?.updatedAt} />
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={deleteDeepLXSetting}
+              disabled={deeplxDeleting}
+              className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-700 disabled:opacity-60"
+            >
+              {deeplxDeleting ? '重置中...' : '重置'}
+            </button>
+            <button
+              type="button"
+              onClick={saveDeepLXSetting}
+              disabled={deeplxSaving}
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
+            >
+              {deeplxSaving ? '保存中...' : '保存'}
             </button>
           </div>
         </div>

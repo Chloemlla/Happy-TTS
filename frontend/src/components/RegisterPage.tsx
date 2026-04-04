@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import DOMPurify from 'dompurify';
 import { useNotification } from './Notification';
+import GoogleAuthButton from './GoogleAuthButton';
 import LinuxDoAuthButton from './LinuxDoAuthButton';
 import { TurnstileWidget } from './TurnstileWidget';
 import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
@@ -279,6 +280,12 @@ export const RegisterPage: React.FC = () => {
                                 <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[#8ECAE6]/30"></div></div>
                                 <div className="relative flex justify-center text-xs"><span className="bg-white px-4 text-[#023047]/40">或者</span></div>
                             </div>
+
+                            <GoogleAuthButton
+                                intent="register"
+                                label="使用 Google 注册或登录"
+                                description="使用 Google 账号快速注册，首次登录自动创建本地账户"
+                            />
 
                             <LinuxDoAuthButton
                                 intent="register"

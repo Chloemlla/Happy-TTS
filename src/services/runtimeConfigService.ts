@@ -1,6 +1,8 @@
 import {
   buildRuntimeConfigDefaults,
   cloneRuntimeConfigDefaults,
+  type DeepLXRuntimeConfig,
+  type GoogleAuthRuntimeConfig,
   type IpqsRuntimeConfig,
   type LinuxDoRuntimeConfig,
   type NexaiRuntimeConfig,
@@ -98,6 +100,12 @@ function maskSecret(value: string): string {
   return `${value.slice(0, 2)}***${value.slice(-4)}`;
 }
 
+function buildDeepLXTranslateUrl(baseUrl: string, apiKey: string): string {
+  const normalizedBaseUrl = baseUrl.replace(/\/+$/, "");
+  const keySegment = apiKey.trim() || "<api-key>";
+  return `${normalizedBaseUrl}/${keySegment}/translate`;
+}
+
 function normalizeStoredIpqsConfig(value: unknown, defaults = runtimeConfigDefaults.ipqs): IpqsRuntimeConfig {
   const raw = asObject(value);
   const apiKeys = normalizeStringArray(raw.apiKeys, defaults.apiKeys);
@@ -150,6 +158,29 @@ function normalizeStoredLinuxDoConfig(
   };
 }
 
+function normalizeStoredGoogleAuthConfig(
+  value: unknown,
+  defaults = runtimeConfigDefaults.googleAuth,
+): GoogleAuthRuntimeConfig {
+  const raw = asObject(value);
+
+  return {
+    clientId: normalizeOptionalString(raw.clientId, defaults.clientId, 512),
+  };
+}
+
+function normalizeStoredDeepLXConfig(
+  value: unknown,
+  defaults = runtimeConfigDefaults.deeplx,
+): DeepLXRuntimeConfig {
+  const raw = asObject(value);
+
+  return {
+    baseUrl: normalizeUrl(raw.baseUrl, defaults.baseUrl),
+    apiKey: normalizeOptionalString(raw.apiKey, defaults.apiKey, 2048),
+  };
+}
+
 function normalizeStoredNexaiConfig(
   value: unknown,
   defaults = runtimeConfigDefaults.nexai,
@@ -196,6 +227,16 @@ function applyCacheForKey(key: RuntimeConfigKey, value: unknown): void {
     return;
   }
 
+  if (key === "GOOGLE_AUTH") {
+    runtimeConfigCache.googleAuth = normalizeStoredGoogleAuthConfig(value);
+    return;
+  }
+
+  if (key === "DEEPLX") {
+    runtimeConfigCache.deeplx = normalizeStoredDeepLXConfig(value);
+    return;
+  }
+
   runtimeConfigCache.nexai = normalizeStoredNexaiConfig(value);
 }
 
@@ -208,6 +249,12 @@ export class RuntimeConfigService {
     }
     if (!loadedKeys.has("LINUXDO")) {
       runtimeConfigCache.linuxdo = cloneRuntimeConfigDefaults(defaults).linuxdo;
+    }
+    if (!loadedKeys.has("GOOGLE_AUTH")) {
+      runtimeConfigCache.googleAuth = cloneRuntimeConfigDefaults(defaults).googleAuth;
+    }
+    if (!loadedKeys.has("DEEPLX")) {
+      runtimeConfigCache.deeplx = cloneRuntimeConfigDefaults(defaults).deeplx;
     }
     if (!loadedKeys.has("NEXAI")) {
       runtimeConfigCache.nexai = cloneRuntimeConfigDefaults(defaults).nexai;
@@ -223,7 +270,7 @@ export class RuntimeConfigService {
     if (initialized && !force) return;
 
     const docs = await RuntimeConfigModel.find({
-      key: { $in: ["IPQS", "LINUXDO", "NEXAI"] },
+      key: { $in: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI"] },
     })
       .lean()
       .exec();
@@ -236,6 +283,8 @@ export class RuntimeConfigService {
       applyCacheForKey(doc.key as RuntimeConfigKey, doc.value);
       nextCache.ipqs = runtimeConfigCache.ipqs;
       nextCache.linuxdo = runtimeConfigCache.linuxdo;
+      nextCache.googleAuth = runtimeConfigCache.googleAuth;
+      nextCache.deeplx = runtimeConfigCache.deeplx;
       nextCache.nexai = runtimeConfigCache.nexai;
       loadedKeys.add(doc.key as RuntimeConfigKey);
     }
@@ -413,6 +462,118 @@ export class RuntimeConfigService {
     await RuntimeConfigModel.deleteOne({ key: "LINUXDO" }).exec();
     runtimeConfigCache.linuxdo = cloneRuntimeConfigDefaults(runtimeConfigDefaults).linuxdo;
     loadedKeys.delete("LINUXDO");
+  }
+
+  static async getGoogleAuthSetting(): Promise<{
+    setting: {
+      config: GoogleAuthRuntimeConfig;
+      updatedAt?: string;
+    };
+  }> {
+    const doc = await readRuntimeConfigDoc("GOOGLE_AUTH");
+    const config = doc
+      ? normalizeStoredGoogleAuthConfig(doc.value)
+      : runtimeConfigDefaults.googleAuth;
+    runtimeConfigCache.googleAuth = config;
+
+    return {
+      setting: {
+        config: {
+          clientId: config.clientId,
+        },
+        updatedAt: doc?.updatedAt?.toISOString(),
+      },
+    };
+  }
+
+  static async setGoogleAuthSetting(
+    input: Partial<GoogleAuthRuntimeConfig>,
+  ): Promise<{ updatedAt: string }> {
+    const currentDoc = await readRuntimeConfigDoc("GOOGLE_AUTH");
+    const current = currentDoc
+      ? normalizeStoredGoogleAuthConfig(currentDoc.value)
+      : runtimeConfigCache.googleAuth;
+
+    const nextConfig: GoogleAuthRuntimeConfig = {
+      clientId: normalizeOptionalString(input.clientId, current.clientId, 512),
+    };
+
+    const now = new Date();
+    await RuntimeConfigModel.findOneAndUpdate(
+      { key: "GOOGLE_AUTH" },
+      { value: nextConfig, updatedAt: now },
+      { upsert: true, new: true },
+    ).exec();
+
+    runtimeConfigCache.googleAuth = nextConfig;
+    loadedKeys.add("GOOGLE_AUTH");
+    initialized = true;
+
+    return { updatedAt: now.toISOString() };
+  }
+
+  static async deleteGoogleAuthSetting(): Promise<void> {
+    await RuntimeConfigModel.deleteOne({ key: "GOOGLE_AUTH" }).exec();
+    runtimeConfigCache.googleAuth = cloneRuntimeConfigDefaults(runtimeConfigDefaults).googleAuth;
+    loadedKeys.delete("GOOGLE_AUTH");
+  }
+
+  static async getDeepLXSetting(): Promise<{
+    setting: {
+      config: {
+        baseUrl: string;
+        apiKey: string;
+        requestUrl: string;
+      };
+      updatedAt?: string;
+    };
+  }> {
+    const doc = await readRuntimeConfigDoc("DEEPLX");
+    const config = doc ? normalizeStoredDeepLXConfig(doc.value) : runtimeConfigDefaults.deeplx;
+    runtimeConfigCache.deeplx = config;
+
+    return {
+      setting: {
+        config: {
+          baseUrl: config.baseUrl,
+          apiKey: maskSecret(config.apiKey),
+          requestUrl: buildDeepLXTranslateUrl(config.baseUrl, maskSecret(config.apiKey)),
+        },
+        updatedAt: doc?.updatedAt?.toISOString(),
+      },
+    };
+  }
+
+  static async setDeepLXSetting(input: Partial<DeepLXRuntimeConfig>): Promise<{ updatedAt: string }> {
+    const currentDoc = await readRuntimeConfigDoc("DEEPLX");
+    const current = currentDoc ? normalizeStoredDeepLXConfig(currentDoc.value) : runtimeConfigCache.deeplx;
+
+    const nextConfig: DeepLXRuntimeConfig = {
+      baseUrl: normalizeUrl(input.baseUrl, current.baseUrl),
+      apiKey:
+        typeof input.apiKey === "string" && input.apiKey.trim().length > 0
+          ? input.apiKey.trim().slice(0, 2048)
+          : current.apiKey,
+    };
+
+    const now = new Date();
+    await RuntimeConfigModel.findOneAndUpdate(
+      { key: "DEEPLX" },
+      { value: nextConfig, updatedAt: now },
+      { upsert: true, new: true },
+    ).exec();
+
+    runtimeConfigCache.deeplx = nextConfig;
+    loadedKeys.add("DEEPLX");
+    initialized = true;
+
+    return { updatedAt: now.toISOString() };
+  }
+
+  static async deleteDeepLXSetting(): Promise<void> {
+    await RuntimeConfigModel.deleteOne({ key: "DEEPLX" }).exec();
+    runtimeConfigCache.deeplx = cloneRuntimeConfigDefaults(runtimeConfigDefaults).deeplx;
+    loadedKeys.delete("DEEPLX");
   }
 
   static async getNexaiSetting(): Promise<{

@@ -67,7 +67,7 @@ export interface User {
   currentChallenge?: string;
   passkeyVerified?: boolean;
   avatarUrl?: string; // 新增头像URL字段
-  authProvider?: "local" | "linuxdo";
+  authProvider?: "local" | "linuxdo" | "google";
   linuxdoId?: string;
   linuxdoUsername?: string;
   linuxdoAvatarUrl?: string;

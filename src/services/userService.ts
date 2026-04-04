@@ -32,7 +32,7 @@ const userSchema = new mongoose.Schema(
     currentChallenge: String,
     passkeyVerified: Boolean,
     avatarUrl: { type: String }, // 新增头像URL字段
-    authProvider: { type: String, enum: ["local", "linuxdo"], default: "local" },
+    authProvider: { type: String, enum: ["local", "linuxdo", "google"], default: "local" },
     linuxdoId: { type: String, unique: true, sparse: true },
     linuxdoUsername: { type: String },
     linuxdoAvatarUrl: { type: String },

@@ -24,6 +24,15 @@ export interface LinuxDoRuntimeConfig {
   frontendCallbackUrl: string;
 }
 
+export interface GoogleAuthRuntimeConfig {
+  clientId: string;
+}
+
+export interface DeepLXRuntimeConfig {
+  baseUrl: string;
+  apiKey: string;
+}
+
 export interface NexaiRuntimeConfig {
   jwtSecret: string;
   jwtExpiresIn: string;
@@ -41,6 +50,8 @@ export interface NexaiRuntimeConfig {
 export interface RuntimeConfigDefaults {
   ipqs: IpqsRuntimeConfig;
   linuxdo: LinuxDoRuntimeConfig;
+  googleAuth: GoogleAuthRuntimeConfig;
+  deeplx: DeepLXRuntimeConfig;
   nexai: NexaiRuntimeConfig;
 }
 
@@ -77,6 +88,13 @@ export function buildRuntimeConfigDefaults(options: {
       callbackUrl: `${normalizedBaseUrl}/api/auth/linuxdo/callback`,
       frontendCallbackUrl: `${normalizedFrontendBaseUrl}/auth/linuxdo/callback`,
     },
+    googleAuth: {
+      clientId: "",
+    },
+    deeplx: {
+      baseUrl: "https://api.deeplx.org",
+      apiKey: "",
+    },
     nexai: {
       jwtSecret: `${options.jwtSecret}_nexai`,
       jwtExpiresIn: "2h",
@@ -101,6 +119,12 @@ export function cloneRuntimeConfigDefaults(config: RuntimeConfigDefaults): Runti
     },
     linuxdo: {
       ...config.linuxdo,
+    },
+    googleAuth: {
+      ...config.googleAuth,
+    },
+    deeplx: {
+      ...config.deeplx,
     },
     nexai: {
       ...config.nexai,
