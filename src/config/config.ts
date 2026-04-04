@@ -83,6 +83,31 @@ export const config = {
     process.env.ENABLE_FIRST_VISIT_VERIFICATION !== "false", // 默认启用，设置为 'false' 时禁用
 
   // 前端基础URL
+  ipqs: {
+    apiKeys: [
+      ...(process.env.IPQS_API_KEYS || "").split(","),
+      ...(process.env.IPQS_API_KEY || "").split(","),
+    ]
+      .map((item) => item.trim())
+      .filter(Boolean),
+    enabled:
+      process.env.ENABLE_IP_VERIFICATION !== "false" &&
+      [
+        ...(process.env.IPQS_API_KEYS || "").split(","),
+        ...(process.env.IPQS_API_KEY || "").split(","),
+      ]
+        .map((item) => item.trim())
+        .filter(Boolean).length > 0,
+    strictness: Number(process.env.IPQS_STRICTNESS || 1),
+    allowPublicAccessPoints: process.env.IPQS_ALLOW_PUBLIC_ACCESS_POINTS === "true",
+    lighterPenalties: process.env.IPQS_LIGHTER_PENALTIES !== "false",
+    timeoutMs: Number(process.env.IPQS_TIMEOUT_MS || 8000),
+    monthlyQuotaPerKey: Number(process.env.IPQS_MONTHLY_QUOTA_PER_KEY || 5000),
+    challengeFraudScore: Number(process.env.IPQS_CHALLENGE_FRAUD_SCORE || 75),
+    tokenTtlMinutes: Number(process.env.IP_VERIFICATION_TTL_MINUTES || 40),
+    failOpen: process.env.IPQS_FAIL_OPEN !== "false",
+  },
+
   frontendBaseUrl: process.env.FRONTEND_URL || "https://tts.951100.xyz",
 
   linuxdo: {

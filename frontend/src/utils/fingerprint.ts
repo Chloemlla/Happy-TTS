@@ -243,9 +243,24 @@ export const getClientIP = async (): Promise<string> => {
 // 生成浏览器指纹
 export const getFingerprint = async (): Promise<string | null> => {
   try {
-    const fp = await FingerprintJS.load();
-    const result = await fp.get();
-    return result.visitorId;
+    const cached = readCache();
+    if (cached) {
+      return cached;
+    }
+
+    const visitorId = await getWithFingerprintJS();
+    if (visitorId) {
+      writeCache(visitorId);
+      return visitorId;
+    }
+
+    const fallbackId = buildCompositeFingerprint();
+    if (fallbackId) {
+      writeCache(fallbackId);
+      return fallbackId;
+    }
+
+    return null;
   } catch (error) {
     console.error('生成指纹失败:', error);
     return null;

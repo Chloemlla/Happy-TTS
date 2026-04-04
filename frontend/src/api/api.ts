@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { reportFingerprintOnce } from '../utils/fingerprint';
+import { buildIpVerificationHeaders, clearIpVerificationToken, emitIpVerificationRequired } from '../utils/ipVerification';
 
 // 获取API基础URL
 const getApiBaseUrl = () => {
@@ -37,10 +38,19 @@ export const api: AxiosInstance = axios.create({
 });
 
 // 请求拦截器：添加 token
-api.interceptors.request.use((config) => {
+api.interceptors.request.use(async (config) => {
+    const headers = (config.headers ??= {});
     const token = localStorage.getItem('token');
     if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+        (headers as any).Authorization = `Bearer ${token}`;
+    }
+    try {
+        const ipVerificationHeaders = await buildIpVerificationHeaders();
+        Object.entries(ipVerificationHeaders).forEach(([key, value]) => {
+            (headers as any)[key] = value;
+        });
+    } catch {
+        // ignore header injection failures and let the backend answer clearly
     }
     return config;
 });
@@ -102,6 +112,12 @@ api.interceptors.response.use(
         } catch { }
 
         // 处理 401 错误（未授权）
+        if (error.response?.status === 403 && error.response?.data?.errorCode === 'IP_VERIFICATION_REQUIRED') {
+            clearIpVerificationToken();
+            emitIpVerificationRequired(error.response.data);
+            return Promise.reject(error);
+        }
+
         if (error.response?.status === 401) {
             // 不再自动重定向到 /welcome，由组件自行处理未授权状态
             localStorage.removeItem('token');

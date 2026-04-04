@@ -74,6 +74,7 @@ import {
   ttsLimiter,
 } from "./middleware/routeLimiters";
 import { tamperProtectionMiddleware } from "./middleware/tamperProtection";
+import { ipVerificationMiddleware } from "./middleware/ipVerification";
 import { wafMiddleware } from "./middleware/wafMiddleware";
 import { requestIdMiddleware } from "./middleware/requestId";
 import adminRoutes from "./routes/adminRoutes";
@@ -91,6 +92,7 @@ import emailRoutes from "./routes/emailRoutes";
 import fbiWantedRoutes from "./routes/fbiWantedRoutes";
 import githubBillingRoutes from "./routes/githubBillingRoutes";
 import humanCheckRoutes from "./routes/humanCheckRoutes";
+import ipVerificationRoutes from "./routes/ipVerificationRoutes";
 import imageDataRoutes from "./routes/imageDataRoutes";
 import ipfsRoutes from "./routes/ipfsRoutes";
 import libreChatRoutes from "./routes/libreChatRoutes";
@@ -557,11 +559,15 @@ ensureAudioDir().catch(console.error);
 // 前端配置 API（公开访问）
 app.get("/api/frontend-config", (_req: Request, res: Response) => {
   res.json({
-    enableFirstVisitVerification: config.enableFirstVisitVerification,
+    enableFirstVisitVerification: config.ipqs.enabled,
+    enableIpVerification: config.ipqs.enabled,
+    ipVerificationTtlMinutes: config.ipqs.tokenTtlMinutes,
   });
 });
 
 // ========== 路由注册（续） ==========
+app.use("/api/ip-verification", ipVerificationRoutes);
+app.use("/api", ipVerificationMiddleware);
 app.use("/api/auth", authRoutes);
 app.use("/api/totp", totpRoutes);
 app.use(

@@ -911,6 +911,7 @@ const App: React.FC = () => {
             banReason={banReason}
             banExpiresAt={banExpiresAt}
             clientIP={clientIP}
+            challengeReason={firstVisitError ?? undefined}
           />
         </LazyMotion>
       </NotificationProvider>

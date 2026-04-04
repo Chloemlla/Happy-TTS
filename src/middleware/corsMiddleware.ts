@@ -39,6 +39,7 @@ const CORS_ALLOWED_HEADERS = [
   "Access-Control-Request-Headers",
   "Cache-Control",
   "X-Fingerprint",
+  "X-IP-Verification-Token",
   "X-Turnstile-Token",
 ];
 const CORS_EXPOSED_HEADERS = [

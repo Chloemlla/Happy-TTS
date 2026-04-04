@@ -1,14 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { getFingerprint } from '../utils/fingerprint';
 import {
-  checkAccessToken,
-  checkTempFingerprintStatus,
-  cleanupExpiredAccessTokens,
-  getAccessToken,
-  getClientIP,
-  getFingerprint,
-  reportTempFingerprint,
-  verifyAccessToken,
-} from '../utils/fingerprint';
+  getStoredIpVerificationExpiry,
+  initializeIpVerificationSession,
+  onIpVerificationRequired,
+} from '../utils/ipVerification';
 
 interface UseFirstVisitDetectionReturn {
   isFirstVisit: boolean;
@@ -30,105 +26,120 @@ export const useFirstVisitDetection = (): UseFirstVisitDetectionReturn => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [fingerprint, setFingerprint] = useState<string | null>(null);
-  const [isIpBanned, setIsIpBanned] = useState(false);
-  const [banReason, setBanReason] = useState<string | undefined>();
-  const [banExpiresAt, setBanExpiresAt] = useState<Date | undefined>();
   const [clientIP, setClientIP] = useState<string | null>(null);
+  const refreshTimerRef = useRef<number | null>(null);
+  const checkFirstVisitRef = useRef<((silent?: boolean) => Promise<void>) | null>(null);
 
-  const checkFirstVisit = useCallback(async () => {
+  const clearRefreshTimer = useCallback(() => {
+    if (refreshTimerRef.current) {
+      window.clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleRefresh = useCallback(() => {
+    clearRefreshTimer();
+    const expiresAt = getStoredIpVerificationExpiry();
+    if (!expiresAt) return;
+
+    const refreshAt = expiresAt - Date.now() - 60 * 1000;
+    if (refreshAt <= 0) return;
+
+    refreshTimerRef.current = window.setTimeout(() => {
+      void checkFirstVisitRef.current?.(true);
+    }, refreshAt);
+  }, [clearRefreshTimer]);
+
+  const checkFirstVisit = useCallback(async (silent = false) => {
     try {
-      setIsLoading(true);
+      if (!silent) {
+        setIsLoading(true);
+      }
       setError(null);
-      setIsIpBanned(false);
-      setBanReason(undefined);
-      setBanExpiresAt(undefined);
 
-      cleanupExpiredAccessTokens();
-
-      const [ip, fp] = await Promise.all([getClientIP(), getFingerprint()]);
-      setClientIP(ip);
-
+      const fp = await getFingerprint();
       if (!fp) {
         throw new Error('Unable to generate a browser fingerprint.');
       }
 
       setFingerprint(fp);
 
-      const hasValidServerToken = await checkAccessToken(fp);
-      if (hasValidServerToken) {
-        setIsFirstVisit(false);
-        setIsVerified(true);
-        return;
+      const session = await initializeIpVerificationSession(fp);
+      setClientIP(session.ipAddress || 'unknown');
+
+      if (!session.success && !session.requiresVerification) {
+        throw new Error(session.reason || 'Failed to initialize IP verification.');
       }
 
-      const localToken = getAccessToken(fp);
-      if (localToken) {
-        const isLocalTokenValid = await verifyAccessToken(localToken, fp);
-        if (isLocalTokenValid) {
-          setIsFirstVisit(false);
-          setIsVerified(true);
-          return;
-        }
-      }
+      setIsFirstVisit(session.requiresVerification);
+      setIsVerified(session.verified);
 
-      const tempFingerprintStatus = await checkTempFingerprintStatus(fp);
-      if (tempFingerprintStatus.exists) {
-        setIsFirstVisit(!tempFingerprintStatus.verified);
-        setIsVerified(tempFingerprintStatus.verified);
-        return;
-      }
-
-      const reportResult = await reportTempFingerprint(fp);
-      setIsFirstVisit(!reportResult.verified);
-      setIsVerified(reportResult.verified);
-    } catch (err) {
-      console.error('First-visit detection failed:', err);
-
-      if (err instanceof Error && err.message.includes('IP')) {
-        setIsIpBanned(true);
-        setBanReason(err.message);
-
-        const banData =
-          err && typeof err === 'object' && 'banData' in err
-            ? (err as { banData?: { expiresAt?: string } }).banData
-            : undefined;
-
-        if (banData?.expiresAt) {
-          setBanExpiresAt(new Date(banData.expiresAt));
-        }
-
-        setError('This IP is currently blocked. Please try again later.');
+      if (session.requiresVerification) {
+        clearRefreshTimer();
       } else {
-        setError(err instanceof Error ? err.message : 'Detection failed.');
+        scheduleRefresh();
       }
-
+    } catch (err) {
+      console.error('IP verification bootstrap failed:', err);
+      setError(err instanceof Error ? err.message : 'Verification bootstrap failed.');
       setIsFirstVisit(false);
       setIsVerified(false);
+      clearRefreshTimer();
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
-  }, []);
-
-  const markAsVerified = useCallback(() => {
-    setIsVerified(true);
-    setIsFirstVisit(false);
-  }, []);
+  }, [clearRefreshTimer, scheduleRefresh]);
 
   useEffect(() => {
-    checkFirstVisit();
+    checkFirstVisitRef.current = checkFirstVisit;
   }, [checkFirstVisit]);
 
-  return {
-    isFirstVisit,
-    isVerified,
-    isLoading,
-    error,
-    fingerprint,
-    isIpBanned,
-    banReason,
-    banExpiresAt,
-    clientIP,
-    checkFirstVisit,
-    markAsVerified,
-  };
+  const markAsVerified = useCallback(() => {
+    setError(null);
+    setIsVerified(true);
+    setIsFirstVisit(false);
+    scheduleRefresh();
+  }, [scheduleRefresh]);
+
+  useEffect(() => {
+    void checkFirstVisit();
+
+    return () => {
+      clearRefreshTimer();
+    };
+  }, [checkFirstVisit, clearRefreshTimer]);
+
+  useEffect(() => {
+    const unsubscribe = onIpVerificationRequired((event) => {
+      const nextError =
+        typeof event.detail?.reason === 'string'
+          ? event.detail.reason
+          : 'IP verification is required to continue.';
+      setError(nextError);
+      setIsVerified(false);
+      setIsFirstVisit(true);
+      clearRefreshTimer();
+    });
+
+    return unsubscribe;
+  }, [clearRefreshTimer]);
+
+  return useMemo(
+    () => ({
+      isFirstVisit,
+      isVerified,
+      isLoading,
+      error,
+      fingerprint,
+      isIpBanned: false,
+      banReason: undefined,
+      banExpiresAt: undefined,
+      clientIP,
+      checkFirstVisit: () => checkFirstVisit(false),
+      markAsVerified,
+    }),
+    [checkFirstVisit, clientIP, error, fingerprint, isFirstVisit, isLoading, isVerified, markAsVerified],
+  );
 };

@@ -3,15 +3,12 @@ import rateLimit from "express-rate-limit";
 import { GitHubBillingController } from "../controllers/githubBillingController";
 import { authenticateAdmin } from "../middleware/auth";
 import { authenticateToken } from "../middleware/authenticateToken";
-import { authenticateTurnstileToken, authenticateTurnstileTokenForAdmin } from "../middleware/turnstileAuth";
 
 // 开发环境检测
 const isDevelopment = process.env.NODE_ENV === "development" || process.env.NODE_ENV === "dev";
 
 // 开发环境下的管理员认证中间件（跳过Turnstile验证）
-const devAdminAuth = isDevelopment
-  ? [authenticateToken, authenticateAdmin]
-  : [authenticateToken, authenticateAdmin, authenticateTurnstileTokenForAdmin];
+const devAdminAuth = [authenticateToken, authenticateAdmin];
 
 // 开发环境下的配置认证中间件
 const devConfigAuth = isDevelopment ? [authenticateToken, authenticateAdmin] : [authenticateToken, authenticateAdmin];
@@ -64,7 +61,7 @@ router.delete(
 router.post("/test-parse", configLimiter, ...devConfigAuth, GitHubBillingController.testParseCurl);
 
 // 数据获取路由（开发环境下跳过Turnstile验证）
-const usageAuth = isDevelopment ? [] : [authenticateTurnstileToken];
+const usageAuth: any[] = [];
 router.get("/usage", ...usageAuth, GitHubBillingController.getBillingUsage);
 
 // 聚合数据获取路由
