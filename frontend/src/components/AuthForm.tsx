@@ -111,7 +111,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
     // 支持的主流邮箱后缀
     const allowedDomains = [
         'gmail.com', 'outlook.com', 'qq.com', '163.com', '126.com',
-        'hotmail.com', 'yahoo.com', 'icloud.com', 'foxmail.com', '951100.xyz', 'hapx.one'
+        'hotmail.com', 'yahoo.com', 'icloud.com', 'foxmail.com', '951100.xyz',
     ];
     const emailPattern = new RegExp(
         `^[\\w.-]+@(${allowedDomains.map(d => d.replace('.', '\\.')).join('|')})$`

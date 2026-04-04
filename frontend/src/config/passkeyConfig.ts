@@ -2,8 +2,7 @@
  * Passkey 统一配置
  * 确保所有前端都使用同一个 RP_ORIGIN 进行 Passkey 操作
  *
- * 场景：四个独立前端，一个共享后端
- * - tts.hapx.one
+ * 场景：三个独立前端，一个共享后端
  * - tts.951100.xyz
  * - 951100.xyz
  * - tts.951100.xyz
@@ -53,7 +52,6 @@ export const PASSKEY_API_BASE = getPasskeyApiBase();
  * 这些域名上的用户创建的 Passkey 都会使用同一个 RP_ID
  */
 export const ALLOWED_FRONTEND_DOMAINS = [
-  "tts.hapx.one",
   "tts.951100.xyz",
   "951100.xyz",
   "tts.951100.xyz",
