@@ -114,13 +114,23 @@ describe("linuxDoAuthService", () => {
     expect(parsedUrl.searchParams.get("state")).toBeTruthy();
   });
 
-  it("rejects discovery URLs that do not use approved Linux.do hosts", async () => {
+  it("always uses the trusted Linux.do discovery URL even when config is overridden", async () => {
     config.linuxdo.discoveryUrl = "https://evil.example/.well-known/openid-configuration";
+    mockedAxios.get.mockResolvedValueOnce({
+      data: {
+        authorization_endpoint: "https://connect.linux.do/oauth2/authorize",
+        token_endpoint: "https://connect.linux.do/oauth2/token",
+        userinfo_endpoint: "https://connect.linux.do/api/user",
+      },
+    } as any);
 
-    await expect(createLinuxDoAuthorizationUrl("login")).rejects.toThrow(
-      "Linux.do discovery URL must use an approved Linux.do host",
+    const authorizationUrl = await createLinuxDoAuthorizationUrl("login");
+
+    expect(authorizationUrl).toContain("https://connect.linux.do/oauth2/authorize");
+    expect(mockedAxios.get).toHaveBeenCalledWith(
+      "https://connect.linux.do/.well-known/openid-configuration",
+      expect.any(Object),
     );
-    expect(mockedAxios.get).not.toHaveBeenCalled();
   });
 
   it.each([
