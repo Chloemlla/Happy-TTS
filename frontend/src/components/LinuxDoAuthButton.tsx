@@ -13,7 +13,7 @@ interface LinuxDoConfigResponse {
 }
 
 const LINUXDO_ICON_URL =
-  "https://picui.ogmua.cn/s1/2026/01/28/697a1026ce2ea.webp";
+  "https://img.cdn1.vip/i/6980103489944_1770000436.png";
 
 const LinuxDoAuthButton: React.FC<LinuxDoAuthButtonProps> = ({
   intent = "login",

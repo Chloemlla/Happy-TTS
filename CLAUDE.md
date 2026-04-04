@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Git Commit Workflow
 
-- **IMPORTANT**: Do not use all Flutter analyze commands. After completing code changes, immediately create a git commit and push automatically (use `git push --force` if necessary)
+- **IMPORTANT**: After completing code changes, immediately create a git commit and push automatically (use `git push --force` if necessary)
 - Commit message format: `type: brief description` (e.g., `fix:`, `feat:`, `refactor:`, `chore:`)
 - If fixing GitHub issues/alerts, reference them in commit message (e.g., `fix: resolve memory leak #460 #461`)
 
