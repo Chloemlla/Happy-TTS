@@ -7,7 +7,10 @@ import { LoadingSpinner } from './LoadingSpinner';
 import getApiBaseUrl from '../api';
 import { passkeyApi } from '../api/passkey';
 import { openDB } from 'idb';
-import { FaUser, FaUserCircle, FaShieldAlt, FaLock, FaEnvelope, FaCamera, FaSave, FaKey } from 'react-icons/fa';
+import { FaUser, FaUserCircle, FaShieldAlt, FaLock, FaEnvelope, FaCamera, FaSave, FaKey, FaCheckCircle, FaClock, FaExclamationCircle, FaGlobe, FaHistory, FaLink, FaUndoAlt } from 'react-icons/fa';
+
+type AuthProvider = 'local' | 'linuxdo' | 'google';
+type AccountStatus = 'active' | 'suspended';
 
 interface UserProfileData {
   id: string;
@@ -16,6 +19,14 @@ interface UserProfileData {
   avatarUrl?: string;
   avatarHash?: string;
   role?: string;
+  createdAt?: string;
+  authProvider?: AuthProvider;
+  linuxdoUsername?: string;
+  lastLoginAt?: string;
+  lastLoginIp?: string;
+  isTranslationEnabled?: boolean;
+  translationAccessUntil?: string;
+  accountStatus?: AccountStatus;
 }
 
 interface TotpStatus {
@@ -177,6 +188,67 @@ const setCachedAvatar = async (userId: string, avatarHash: string, blobUrl: stri
 const pageFont = '"Avenir Next","PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif';
 const displayFont = '"Iowan Old Style","Noto Serif SC","Source Han Serif SC",serif';
 
+const formatDateTime = (value?: string | number | null): string => {
+  if (!value) return '未记录';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '未记录';
+
+  return new Intl.DateTimeFormat('zh-CN', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
+};
+
+const formatRelativeTime = (value?: string | number | null): string => {
+  if (!value) return '未记录';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '未记录';
+
+  const diffMs = date.getTime() - Date.now();
+  const absMs = Math.abs(diffMs);
+  const units = [
+    { label: '天', ms: 24 * 60 * 60 * 1000 },
+    { label: '小时', ms: 60 * 60 * 1000 },
+    { label: '分钟', ms: 60 * 1000 },
+  ];
+
+  for (const unit of units) {
+    if (absMs >= unit.ms) {
+      const amount = Math.round(absMs / unit.ms);
+      return diffMs >= 0 ? `${amount}${unit.label}后` : `${amount}${unit.label}前`;
+    }
+  }
+
+  return diffMs >= 0 ? '即将生效' : '刚刚';
+};
+
+const formatCountdown = (ms: number): string => {
+  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+};
+
+const getAuthProviderLabel = (provider?: AuthProvider): string => {
+  switch (provider) {
+    case 'google':
+      return 'Google';
+    case 'linuxdo':
+      return 'Linux.do';
+    case 'local':
+    default:
+      return '本地账户';
+  }
+};
+
 const UserProfile: React.FC = () => {
   const { setNotification } = useNotification();
 
@@ -184,15 +256,17 @@ const UserProfile: React.FC = () => {
   const [profile, setProfile] = useState<UserProfileData | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadTimeout, setLoadTimeout] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   // Form state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [verified, setVerified] = useState(false);
   const [verificationToken, setVerificationToken] = useState('');
+  const [verificationExpiresAt, setVerificationExpiresAt] = useState<number | null>(null);
+  const [verificationTimeLeft, setVerificationTimeLeft] = useState(0);
 
   // Email change verification
   const [emailVerificationCode, setEmailVerificationCode] = useState('');
@@ -207,44 +281,60 @@ const UserProfile: React.FC = () => {
   const [changePwdMode, setChangePwdMode] = useState(false);
   const [oldPwd, setOldPwd] = useState('');
   const [newPwd, setNewPwd] = useState('');
+  const [confirmNewPwd, setConfirmNewPwd] = useState('');
 
   // Avatar state
   const [avatarImg, setAvatarImg] = useState<string | undefined>(undefined);
   const [avatarLoading, setAvatarLoading] = useState(false);
   const avatarObjectUrlRef = useRef<string | undefined>(undefined);
-  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Max file size and allowed types
   const MAX_AVATAR_SIZE = 2 * 1024 * 1024;
   const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
-  const loadProfile = useCallback(async () => {
-    setLoadError(null);
-    setLoadTimeout(false);
-    setLoading(true);
+  const loadProfile = useCallback(async ({ background = false }: { background?: boolean } = {}) => {
+    if (!background) {
+      setLoadError(null);
+      setLoadTimeout(false);
+      setPageLoading(true);
+    }
 
-    const timeoutId = setTimeout(() => {
-      setLoadTimeout(true);
-      setLoading(false);
+    const timeoutId = window.setTimeout(() => {
+      if (!background) {
+        setLoadTimeout(true);
+        setPageLoading(false);
+      }
     }, 8000);
 
     try {
       const data = await fetchProfile();
-      clearTimeout(timeoutId);
-      setLoading(false);
+      window.clearTimeout(timeoutId);
+
+      if (!background) {
+        setPageLoading(false);
+      }
 
       if (data) {
         setProfile(data);
         setEmail(data.email);
+        return data;
       } else {
-        setLoadError('加载失败，请刷新页面或重新登录');
+        if (!background) {
+          setLoadError('加载失败，请刷新页面或重新登录');
+        }
+        return null;
       }
     } catch (error) {
-      clearTimeout(timeoutId);
-      setLoading(false);
+      window.clearTimeout(timeoutId);
 
-      const errorMessage = error instanceof Error ? error.message : '未知错误';
-      setLoadError(`加载失败：${errorMessage}`);
+      if (!background) {
+        setPageLoading(false);
+        const errorMessage = error instanceof Error ? error.message : '未知错误';
+        setLoadError(`加载失败：${errorMessage}`);
+        return null;
+      }
+
+      throw error;
     }
   }, []);
 
@@ -294,6 +384,72 @@ const UserProfile: React.FC = () => {
     if (!profile?.email) return Boolean(email);
     return email.trim().toLowerCase() !== profile.email.trim().toLowerCase();
   }, [email, profile?.email]);
+
+  useEffect(() => {
+    if (!emailChanged) {
+      setEmailVerificationCode('');
+      setEmailCodeSent(false);
+      setEmailCodeCooldown(0);
+    }
+  }, [emailChanged]);
+
+  const resetVerificationState = useCallback(() => {
+    setVerified(false);
+    setVerificationToken('');
+    setVerificationCode('');
+    setVerificationExpiresAt(null);
+    setVerificationTimeLeft(0);
+    setEmailVerificationCode('');
+    setEmailCodeSent(false);
+    setEmailCodeCooldown(0);
+    setShowVerificationModal(false);
+  }, []);
+
+  useEffect(() => {
+    if (!verificationExpiresAt) {
+      setVerificationTimeLeft(0);
+      return;
+    }
+
+    const syncRemaining = () => {
+      const remaining = Math.max(0, verificationExpiresAt - Date.now());
+      setVerificationTimeLeft(remaining);
+
+      if (remaining <= 0) {
+        resetVerificationState();
+        setNotification({ message: '身份验证已过期，请重新验证', type: 'warning' });
+        return true;
+      }
+
+      return false;
+    };
+
+    if (syncRemaining()) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      if (syncRemaining()) {
+        window.clearInterval(timer);
+      }
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [verificationExpiresAt, resetVerificationState, setNotification]);
+
+  const applyVerificationSuccess = useCallback((
+    result: ApiResponse & { verificationToken?: string; expiresAt?: number },
+    successMessage: string,
+  ) => {
+    if (!result.success || !result.verificationToken) {
+      throw new Error(result.error || '验证失败');
+    }
+
+    setVerified(true);
+    setVerificationToken(result.verificationToken);
+    setVerificationExpiresAt(typeof result.expiresAt === 'number' ? result.expiresAt : null);
+    setNotification({ message: successMessage, type: 'success' });
+  }, [setNotification]);
 
   // Avatar loading logic
   const loadAvatar = useCallback(async (profile: UserProfileData) => {
@@ -360,6 +516,7 @@ const UserProfile: React.FC = () => {
 
   // Avatar upload
   const handleAvatarChange = useCallback(async (e: ChangeEvent<HTMLInputElement>) => {
+    const input = e.currentTarget;
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -381,7 +538,7 @@ const UserProfile: React.FC = () => {
 
     const formData = new FormData();
     formData.append('avatar', file);
-    setLoading(true);
+    setSubmitting(true);
     setAvatarLoading(true);
 
     try {
@@ -408,7 +565,7 @@ const UserProfile: React.FC = () => {
         } : prev);
 
         setNotification({ message: '头像上传成功', type: 'success' });
-        await loadProfile();
+        await loadProfile({ background: true });
       } else {
         throw new Error(result.error || '头像上传失败');
       }
@@ -430,7 +587,8 @@ const UserProfile: React.FC = () => {
 
       setNotification({ message: errorMessage, type: 'error' });
     } finally {
-      setLoading(false);
+      input.value = '';
+      setSubmitting(false);
       setAvatarLoading(false);
     }
   }, [setNotification, loadProfile]);
@@ -482,7 +640,7 @@ const UserProfile: React.FC = () => {
       return;
     }
 
-    setLoading(true);
+    setSubmitting(true);
 
     try {
       const has2FA = totpStatus?.enabled || totpStatus?.hasPasskey;
@@ -493,11 +651,7 @@ const UserProfile: React.FC = () => {
           return;
         }
         const res = await verifyIdentity({ method: 'password', password });
-        if (res.success && res.verificationToken) {
-          setVerified(true);
-          setVerificationToken(res.verificationToken);
-          setNotification({ message: '密码验证成功，请继续修改', type: 'success' });
-        }
+        applyVerificationSuccess(res, '密码验证成功，请继续修改');
         return;
       }
 
@@ -510,11 +664,7 @@ const UserProfile: React.FC = () => {
           passkeyResponse,
           clientOrigin: window.location.origin,
         });
-        if (res.success && res.verificationToken) {
-          setVerified(true);
-          setVerificationToken(res.verificationToken);
-          setNotification({ message: 'Passkey 验证成功', type: 'success' });
-        }
+        applyVerificationSuccess(res, 'Passkey 验证成功');
         return;
       }
 
@@ -524,11 +674,7 @@ const UserProfile: React.FC = () => {
           return;
         }
         const res = await verifyIdentity({ method: 'totp', verificationCode });
-        if (res.success && res.verificationToken) {
-          setVerified(true);
-          setVerificationToken(res.verificationToken);
-          setNotification({ message: '验证成功，请继续修改', type: 'success' });
-        }
+        applyVerificationSuccess(res, '验证成功，请继续修改');
         return;
       }
 
@@ -541,9 +687,9 @@ const UserProfile: React.FC = () => {
       const errorMessage = error instanceof Error ? error.message : '验证失败';
       setNotification({ message: errorMessage, type: 'error' });
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
-  }, [profile, totpStatus, verificationCode, password, setNotification]);
+  }, [applyVerificationSuccess, password, profile, setNotification, totpStatus, verificationCode]);
 
   // Send email verification code
   const handleSendEmailCode = useCallback(async () => {
@@ -556,7 +702,7 @@ const UserProfile: React.FC = () => {
       return;
     }
 
-    setLoading(true);
+    setSubmitting(true);
     try {
       await sendEmailCode(verificationToken, email.trim().toLowerCase());
       setEmailCodeSent(true);
@@ -567,13 +713,18 @@ const UserProfile: React.FC = () => {
       const errorMessage = error instanceof Error ? error.message : '验证码发送失败';
       setNotification({ message: errorMessage, type: 'error' });
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   }, [verificationToken, email, emailChanged, setNotification]);
 
   // Profile update
   const handleUpdate = useCallback(async () => {
     const has2FA = totpStatus?.enabled || totpStatus?.hasPasskey;
+
+    if (!emailChanged) {
+      setNotification({ message: '当前没有需要保存的资料变更', type: 'warning' });
+      return;
+    }
 
     if (!has2FA && !verified) {
       if (!password) {
@@ -590,13 +741,12 @@ const UserProfile: React.FC = () => {
       return;
     }
 
-    setLoading(true);
+    setSubmitting(true);
 
     try {
       const updateData: Record<string, string | undefined> = {};
 
       if (emailChanged) updateData.email = email.trim().toLowerCase();
-      if (newPassword) updateData.newPassword = newPassword;
       if (verificationToken) updateData.verificationToken = verificationToken;
       if (!has2FA && password) updateData.password = password;
       if (emailChanged && emailVerificationCode) {
@@ -606,23 +756,18 @@ const UserProfile: React.FC = () => {
       await updateProfile(updateData);
       setNotification({ message: '信息修改成功', type: 'success' });
 
-      await loadProfile();
+      await loadProfile({ background: true });
 
       setPassword('');
-      setNewPassword('');
-      setVerified(false);
-      setVerificationToken('');
-      setVerificationCode('');
-      setEmailVerificationCode('');
-      setEmailCodeSent(false);
+      resetVerificationState();
     } catch (error) {
       console.error('[UserProfile] Update error:', error);
       const errorMessage = error instanceof Error ? error.message : '更新失败';
       setNotification({ message: errorMessage, type: 'error' });
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
-  }, [totpStatus, password, verified, email, emailChanged, newPassword, verificationToken, emailVerificationCode, setNotification, loadProfile]);
+  }, [email, emailChanged, emailVerificationCode, loadProfile, password, resetVerificationState, setNotification, totpStatus, verificationToken, verified]);
 
   // Password change
   const handleChangePassword = useCallback(async () => {
@@ -634,12 +779,20 @@ const UserProfile: React.FC = () => {
       setNotification({ message: '请输入新密码', type: 'warning' });
       return;
     }
-    if (newPwd.length < 6) {
-      setNotification({ message: '新密码长度至少6位', type: 'warning' });
+    if (newPwd.length < 8) {
+      setNotification({ message: '新密码长度至少8位', type: 'warning' });
+      return;
+    }
+    if (!confirmNewPwd) {
+      setNotification({ message: '请再次输入新密码', type: 'warning' });
+      return;
+    }
+    if (newPwd !== confirmNewPwd) {
+      setNotification({ message: '两次输入的新密码不一致', type: 'warning' });
       return;
     }
 
-    setLoading(true);
+    setSubmitting(true);
     try {
       await updateProfile({
         password: verified ? undefined : oldPwd,
@@ -651,14 +804,17 @@ const UserProfile: React.FC = () => {
       setChangePwdMode(false);
       setOldPwd('');
       setNewPwd('');
+      setConfirmNewPwd('');
+      setPassword('');
+      resetVerificationState();
     } catch (error) {
       console.error('[UserProfile] Password change error:', error);
       const errorMessage = error instanceof Error ? error.message : '密码修改失败';
       setNotification({ message: errorMessage, type: 'error' });
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
-  }, [oldPwd, newPwd, verified, verificationToken, setNotification]);
+  }, [confirmNewPwd, newPwd, oldPwd, resetVerificationState, setNotification, verificationToken, verified]);
 
   // TOTP verification in modal
   const handleTotpVerification = useCallback(async () => {
@@ -667,23 +823,19 @@ const UserProfile: React.FC = () => {
       return;
     }
 
-    setLoading(true);
+    setSubmitting(true);
     try {
       const res = await verifyIdentity({ method: 'totp', verificationCode });
-      if (res.success && res.verificationToken) {
-        setVerified(true);
-        setVerificationToken(res.verificationToken);
-        setShowVerificationModal(false);
-        setNotification({ message: '验证成功，请继续修改', type: 'success' });
-      }
+      applyVerificationSuccess(res, '验证成功，请继续修改');
+      setShowVerificationModal(false);
     } catch (error) {
       console.error('[UserProfile] TOTP verification error:', error);
       const errorMessage = error instanceof Error ? error.message : '验证失败';
       setNotification({ message: errorMessage, type: 'error' });
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
-  }, [profile, verificationCode, setNotification]);
+  }, [applyVerificationSuccess, profile, setNotification, verificationCode]);
 
   // Passkey verification in modal
   const handlePasskeyVerification = useCallback(async () => {
@@ -692,7 +844,7 @@ const UserProfile: React.FC = () => {
       return;
     }
 
-    setLoading(true);
+    setSubmitting(true);
     try {
       const passkeyResponse = await getPasskeyAuthResponse(profile.username);
       const res = await verifyIdentity({
@@ -700,24 +852,68 @@ const UserProfile: React.FC = () => {
         passkeyResponse,
         clientOrigin: window.location.origin,
       });
-      if (res.success && res.verificationToken) {
-        setVerified(true);
-        setVerificationToken(res.verificationToken);
-        setShowVerificationModal(false);
-        setNotification({ message: 'Passkey 验证成功，请继续修改', type: 'success' });
-      }
+      applyVerificationSuccess(res, 'Passkey 验证成功，请继续修改');
+      setShowVerificationModal(false);
     } catch (error) {
       console.error('[UserProfile] Passkey verification error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Passkey 验证失败';
       setNotification({ message: errorMessage, type: 'error' });
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
-  }, [profile, setNotification]);
+  }, [applyVerificationSuccess, profile, setNotification]);
 
   const isAuthenticated = useMemo(() => {
     return Boolean(localStorage.getItem('token'));
   }, []);
+
+  const providerLabel = useMemo(() => getAuthProviderLabel(profile?.authProvider), [profile?.authProvider]);
+
+  const translationAccessLabel = useMemo(() => {
+    if (!profile?.isTranslationEnabled) {
+      return '未启用';
+    }
+
+    if (!profile.translationAccessUntil) {
+      return '已启用';
+    }
+
+    return `有效至 ${formatDateTime(profile.translationAccessUntil)}`;
+  }, [profile?.isTranslationEnabled, profile?.translationAccessUntil]);
+
+  const pendingChanges = useMemo(() => {
+    const items: string[] = [];
+
+    if (emailChanged) {
+      items.push(`邮箱将更新为 ${email.trim().toLowerCase()}`);
+    }
+
+    if (changePwdMode && newPwd) {
+      items.push(
+        confirmNewPwd && newPwd === confirmNewPwd
+          ? '新的登录密码已填写并确认，需要点击“保存新密码”单独提交'
+          : '新的登录密码草稿已填写，请确认两次输入一致后再提交',
+      );
+    }
+
+    if (verified && verificationTimeLeft > 0) {
+      items.push(`当前身份验证还可使用 ${formatCountdown(verificationTimeLeft)}`);
+    }
+
+    return items;
+  }, [changePwdMode, confirmNewPwd, email, emailChanged, newPwd, verificationTimeLeft, verified]);
+
+  const handleResetForm = useCallback(() => {
+    if (!profile) return;
+
+    setEmail(profile.email);
+    setPassword('');
+    setOldPwd('');
+    setNewPwd('');
+    setConfirmNewPwd('');
+    setChangePwdMode(false);
+    resetVerificationState();
+  }, [profile, resetVerificationState]);
 
   const statusCards = useMemo(() => [
     {
@@ -726,16 +922,29 @@ const UserProfile: React.FC = () => {
       tone: 'border-sky-100 bg-[linear-gradient(145deg,rgba(240,249,255,0.94),rgba(255,255,255,0.98))]',
     },
     {
-      label: 'Role',
-      value: profile?.role === 'admin' ? '管理员' : '普通用户',
-      tone: 'border-violet-100 bg-[linear-gradient(145deg,rgba(245,243,255,0.94),rgba(255,255,255,0.98))]',
+      label: 'Provider',
+      value: providerLabel,
+      tone: 'border-amber-100 bg-[linear-gradient(145deg,rgba(255,251,235,0.94),rgba(255,255,255,0.98))]',
     },
     {
       label: 'Security',
-      value: totpStatus?.enabled ? 'TOTP 已启用' : totpStatus?.hasPasskey ? 'Passkey 已启用' : '基础密码',
+      value: verified && verificationTimeLeft > 0
+        ? `已验证 ${formatCountdown(verificationTimeLeft)}`
+        : totpStatus?.enabled
+          ? 'TOTP 已启用'
+          : totpStatus?.hasPasskey
+            ? 'Passkey 已启用'
+            : '基础密码',
       tone: 'border-emerald-100 bg-[linear-gradient(145deg,rgba(236,253,245,0.94),rgba(255,255,255,0.98))]',
     },
-  ], [profile, totpStatus]);
+    {
+      label: 'Status',
+      value: profile?.accountStatus === 'suspended' ? '已暂停' : '正常',
+      tone: profile?.accountStatus === 'suspended'
+        ? 'border-rose-100 bg-[linear-gradient(145deg,rgba(255,241,242,0.94),rgba(255,255,255,0.98))]'
+        : 'border-slate-100 bg-[linear-gradient(145deg,rgba(248,250,252,0.96),rgba(255,255,255,0.98))]',
+    },
+  ], [profile, providerLabel, totpStatus, verificationTimeLeft, verified]);
 
   // ── Error / loading states ──
   if (!isAuthenticated) {
@@ -767,7 +976,9 @@ const UserProfile: React.FC = () => {
             {typeof loadError === 'string' && loadError !== '加载失败，请刷新页面或重新登录' ? `\n${loadError}` : ''}
           </p>
           <button
-            onClick={loadProfile}
+            onClick={() => {
+              void loadProfile();
+            }}
             className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#2541b2] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#2541b2]/20 transition hover:bg-[#1f3794]"
           >
             重试
@@ -777,7 +988,7 @@ const UserProfile: React.FC = () => {
     );
   }
 
-  if (loading || !profile) {
+  if (pageLoading || !profile) {
     if (loadTimeout) {
       return (
         <div className="min-h-screen px-3 py-4 sm:px-6 sm:py-8 rounded-3xl lg:px-10 bg-[radial-gradient(circle_at_top,_rgba(68,92,190,0.16),_transparent_32%),linear-gradient(180deg,#eef2ff_0%,#f9fafb_42%,#eef4ff_100%)]" style={{ fontFamily: pageFont }}>
@@ -788,7 +999,9 @@ const UserProfile: React.FC = () => {
             </h1>
             <p className="mt-3 text-sm text-slate-500">请检查网络或刷新页面</p>
             <button
-              onClick={loadProfile}
+              onClick={() => {
+                void loadProfile();
+              }}
               className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#2541b2] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#2541b2]/20 transition hover:bg-[#1f3794]"
             >
               重试
@@ -837,7 +1050,7 @@ const UserProfile: React.FC = () => {
             </div>
 
             <div className="w-full lg:w-auto">
-              <div className="grid gap-2 sm:grid-cols-3 sm:gap-3">
+              <div className="grid gap-2 sm:grid-cols-2 sm:gap-3 xl:grid-cols-4">
                 {statusCards.map((item) => (
                   <div
                     key={item.label}
@@ -871,7 +1084,7 @@ const UserProfile: React.FC = () => {
                     accept="image/*"
                     onChange={handleAvatarChange}
                     className="hidden"
-                    disabled={loading || avatarLoading}
+                    disabled={submitting || avatarLoading}
                   />
                 </label>
               </div>
@@ -883,7 +1096,7 @@ const UserProfile: React.FC = () => {
                   accept="image/*"
                   onChange={handleAvatarChange}
                   className="hidden"
-                  disabled={loading || avatarLoading}
+                  disabled={submitting || avatarLoading}
                 />
               </label>
             </div>
@@ -899,7 +1112,7 @@ const UserProfile: React.FC = () => {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#2541b2] focus:ring-2 focus:ring-[#2541b2]/20 sm:rounded-full"
-                disabled={loading}
+                disabled={submitting}
                 placeholder="请输入邮箱地址"
               />
 
@@ -915,7 +1128,7 @@ const UserProfile: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleSendEmailCode}
-                    disabled={loading || emailCodeCooldown > 0}
+                    disabled={submitting || emailCodeCooldown > 0}
                     className="inline-flex items-center gap-2 rounded-full bg-[#2541b2] px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-[#2541b2]/20 transition hover:bg-[#1f3794] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {emailCodeCooldown > 0 ? `${emailCodeCooldown}s 后重新发送` : emailCodeSent ? '重新发送验证码' : '发送验证码'}
@@ -930,10 +1143,61 @@ const UserProfile: React.FC = () => {
                         className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#2541b2] focus:ring-2 focus:ring-[#2541b2]/20 sm:rounded-full"
                         placeholder="请输入 6 位验证码"
                         maxLength={6}
-                        disabled={loading}
+                        disabled={submitting}
                       />
                     </div>
                   )}
+                </div>
+              )}
+            </section>
+
+            <section className="mb-4 rounded-[24px] border border-slate-200 bg-white p-4 sm:rounded-[28px] sm:p-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    变更预览
+                  </div>
+                  <div className="mt-1 text-lg font-semibold text-slate-900">待保存内容</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleResetForm}
+                  disabled={submitting}
+                  className="inline-flex self-start items-center gap-2 rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <FaUndoAlt />
+                  重置表单
+                </button>
+              </div>
+
+              <div className="mt-4 space-y-2">
+                {pendingChanges.length > 0 ? (
+                  pendingChanges.map((item) => (
+                    <div
+                      key={item}
+                      className="flex items-start gap-3 rounded-[20px] border border-slate-100 bg-[#fbfcff] px-3.5 py-3 text-[13px] text-slate-700 sm:rounded-2xl sm:text-sm"
+                    >
+                      <FaCheckCircle className="mt-0.5 shrink-0 text-emerald-500" />
+                      <span>{item}</span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex items-start gap-3 rounded-[20px] border border-amber-100 bg-amber-50 px-3.5 py-3 text-[13px] text-amber-700 sm:rounded-2xl sm:text-sm">
+                    <FaExclamationCircle className="mt-0.5 shrink-0" />
+                    <span>当前没有未保存的资料变更。邮箱修改、密码草稿和验证有效期会显示在这里。</span>
+                  </div>
+                )}
+              </div>
+
+              {verified && verificationTimeLeft > 0 && (
+                <div className="mt-4 rounded-[20px] border border-emerald-200 bg-emerald-50 px-3.5 py-3 text-[13px] text-emerald-700 sm:rounded-2xl sm:text-sm">
+                  <div className="flex items-center gap-2 font-semibold">
+                    <FaClock />
+                    身份验证有效期
+                  </div>
+                  <p className="mt-2 leading-6">
+                    当前验证还剩 {formatCountdown(verificationTimeLeft)}，到期后需要重新完成身份验证。
+                  </p>
                 </div>
               )}
             </section>
@@ -951,18 +1215,18 @@ const UserProfile: React.FC = () => {
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#2541b2] focus:ring-2 focus:ring-[#2541b2]/20 sm:rounded-full"
-                    disabled={loading}
+                    disabled={submitting}
                     placeholder="请输入当前密码用于身份验证"
                   />
                   {!verified && (
                     <button
                       type="button"
                       onClick={handleVerify}
-                      disabled={loading || !password}
+                      disabled={submitting || !password}
                       className="mt-3 inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <FaShieldAlt />
-                      {loading ? '验证中…' : '验证身份'}
+                      {submitting ? '验证中…' : '验证身份'}
                     </button>
                   )}
                 </>
@@ -980,7 +1244,7 @@ const UserProfile: React.FC = () => {
                       <VerifyCodeInput
                         length={6}
                         onComplete={setVerificationCode}
-                        loading={loading}
+                        loading={submitting}
                         error={undefined}
                         inputClassName="bg-white border border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#2541b2]/20 focus:border-[#2541b2] rounded-lg px-3 py-2 text-lg transition-all outline-none mx-1"
                       />
@@ -990,18 +1254,20 @@ const UserProfile: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleVerify}
-                      disabled={loading || (totpStatus?.enabled && verificationCode.length !== 6)}
+                      disabled={submitting || (totpStatus?.enabled && verificationCode.length !== 6)}
                       className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <FaShieldAlt />
-                      {loading ? '验证中…' : '验证'}
+                      {submitting ? '验证中…' : '验证'}
                     </button>
                   )}
                 </>
               )}
               {verified && (
                 <div className="mt-3 rounded-[20px] border border-emerald-200 bg-emerald-50 px-3 py-3 text-[13px] font-medium text-emerald-700 sm:rounded-2xl sm:text-sm">
-                  <span className="mr-2">✓</span>身份验证成功，现在可以修改信息
+                  <span className="mr-2">✓</span>
+                  身份验证成功，现在可以修改信息
+                  {verificationTimeLeft > 0 ? `，剩余 ${formatCountdown(verificationTimeLeft)}` : ''}
                 </div>
               )}
             </section>
@@ -1015,7 +1281,14 @@ const UserProfile: React.FC = () => {
                 </label>
                 <button
                   type="button"
-                  onClick={() => setChangePwdMode(v => !v)}
+                  onClick={() => {
+                    if (changePwdMode) {
+                      setOldPwd('');
+                      setNewPwd('');
+                      setConfirmNewPwd('');
+                    }
+                    setChangePwdMode(v => !v);
+                  }}
                   className="inline-flex self-start items-center gap-2 rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-200"
                 >
                   {changePwdMode ? '取消' : '修改密码'}
@@ -1031,7 +1304,7 @@ const UserProfile: React.FC = () => {
                         value={oldPwd}
                         onChange={e => setOldPwd(e.target.value)}
                         className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#2541b2] focus:ring-2 focus:ring-[#2541b2]/20 sm:rounded-full"
-                        disabled={loading}
+                        disabled={submitting}
                         placeholder="请输入当前密码"
                       />
                     </div>
@@ -1043,18 +1316,37 @@ const UserProfile: React.FC = () => {
                       value={newPwd}
                       onChange={e => setNewPwd(e.target.value)}
                       className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#2541b2] focus:ring-2 focus:ring-[#2541b2]/20 sm:rounded-full"
-                      disabled={loading}
-                      placeholder="请输入新密码（至少6位）"
+                      disabled={submitting}
+                      placeholder="请输入新密码（至少8位）"
                     />
+                    <p className="mt-2 text-[11px] leading-5 text-slate-500">
+                      后端会按强密码规则校验。至少 8 位，长度超过 12 位或包含数字、大小写、特殊字符会更稳妥。
+                    </p>
+                  </div>
+                  <div>
+                    <div className="mb-2 text-[11px] font-medium text-slate-500">确认新密码</div>
+                    <input
+                      type="password"
+                      value={confirmNewPwd}
+                      onChange={e => setConfirmNewPwd(e.target.value)}
+                      className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#2541b2] focus:ring-2 focus:ring-[#2541b2]/20 sm:rounded-full"
+                      disabled={submitting}
+                      placeholder="请再次输入新密码"
+                    />
+                    {confirmNewPwd && (
+                      <p className={`mt-2 text-[11px] leading-5 ${newPwd === confirmNewPwd ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {newPwd === confirmNewPwd ? '两次密码输入一致，可以提交。' : '两次输入的新密码不一致。'}
+                      </p>
+                    )}
                   </div>
                   <button
                     type="button"
                     onClick={handleChangePassword}
-                    disabled={loading || (!verified && !oldPwd) || !newPwd}
+                    disabled={submitting || (!verified && !oldPwd) || newPwd.length < 8 || newPwd !== confirmNewPwd}
                     className="inline-flex w-full items-center justify-center gap-2 rounded-[18px] bg-[#2541b2] px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-[#2541b2]/20 transition hover:bg-[#1f3794] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:rounded-full sm:py-2"
                   >
                     <FaSave />
-                    保存新密码
+                    {submitting ? '保存中…' : '保存新密码'}
                   </button>
                 </div>
               )}
@@ -1064,12 +1356,12 @@ const UserProfile: React.FC = () => {
             <button
               type="button"
               onClick={handleUpdate}
-              disabled={loading || avatarLoading}
+              disabled={submitting || avatarLoading || !emailChanged}
               className="inline-flex w-full items-center justify-center gap-2 rounded-[18px] bg-[#2541b2] px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#2541b2]/20 transition hover:bg-[#1f3794] disabled:cursor-not-allowed disabled:opacity-60 sm:rounded-full sm:py-3"
             >
-              {loading && <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>}
+              {submitting && <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>}
               <FaSave />
-              {loading ? '保存中…' : '保存修改'}
+              {submitting ? '保存中…' : '保存邮箱修改'}
             </button>
           </m.div>
 
@@ -1101,6 +1393,14 @@ const UserProfile: React.FC = () => {
                 <div className="flex flex-col gap-1 rounded-[20px] border border-slate-100 px-3 py-2.5 text-[13px] sm:flex-row sm:items-center sm:justify-between sm:rounded-2xl sm:py-3 sm:text-sm">
                   <span className="text-slate-500">角色</span>
                   <span className="font-semibold text-slate-800">{profile.role === 'admin' ? '管理员' : '普通用户'}</span>
+                </div>
+                <div className="flex flex-col gap-1 rounded-[20px] border border-slate-100 px-3 py-2.5 text-[13px] sm:flex-row sm:items-center sm:justify-between sm:rounded-2xl sm:py-3 sm:text-sm">
+                  <span className="text-slate-500">登录来源</span>
+                  <span className="font-semibold text-slate-800">{providerLabel}</span>
+                </div>
+                <div className="flex flex-col gap-1 rounded-[20px] border border-slate-100 px-3 py-2.5 text-[13px] sm:flex-row sm:items-center sm:justify-between sm:rounded-2xl sm:py-3 sm:text-sm">
+                  <span className="text-slate-500">注册时间</span>
+                  <span className="font-semibold text-slate-800">{formatDateTime(profile.createdAt)}</span>
                 </div>
               </div>
             </m.section>
@@ -1139,6 +1439,62 @@ const UserProfile: React.FC = () => {
                   <span className="text-slate-500">密码保护</span>
                   <span className="font-semibold text-emerald-600">已启用</span>
                 </div>
+                <div className="flex flex-col gap-1 rounded-[20px] border border-slate-100 px-3 py-2.5 text-[13px] sm:flex-row sm:items-center sm:justify-between sm:rounded-2xl sm:py-3 sm:text-sm">
+                  <span className="text-slate-500">账户状态</span>
+                  <span className={`font-semibold ${profile.accountStatus === 'suspended' ? 'text-rose-600' : 'text-emerald-600'}`}>
+                    {profile.accountStatus === 'suspended' ? '已暂停' : '正常'}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1 rounded-[20px] border border-slate-100 px-3 py-2.5 text-[13px] sm:flex-row sm:items-center sm:justify-between sm:rounded-2xl sm:py-3 sm:text-sm">
+                  <span className="text-slate-500">翻译权限</span>
+                  <span className={`font-semibold ${profile.isTranslationEnabled ? 'text-emerald-600' : 'text-slate-400'}`}>
+                    {translationAccessLabel}
+                  </span>
+                </div>
+              </div>
+            </m.section>
+
+            <m.section
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.24 }}
+              className="rounded-[26px] border border-slate-200/80 bg-white/90 p-4 shadow-[0_20px_70px_rgba(32,48,90,0.08)] backdrop-blur-xl sm:rounded-[30px] sm:p-5"
+            >
+              <div className="mb-4 flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-sky-50 text-sky-600 sm:h-10 sm:w-10">
+                  <FaHistory />
+                </div>
+                <div>
+                  <div className="text-lg font-semibold text-slate-900">账户轨迹</div>
+                  <div className="text-sm text-slate-500">最近登录和绑定信息</div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex flex-col gap-1 rounded-[20px] border border-slate-100 px-3 py-2.5 text-[13px] sm:flex-row sm:items-center sm:justify-between sm:rounded-2xl sm:py-3 sm:text-sm">
+                  <span className="text-slate-500">最近登录</span>
+                  <span className="font-semibold text-slate-800">
+                    {profile.lastLoginAt ? `${formatDateTime(profile.lastLoginAt)} · ${formatRelativeTime(profile.lastLoginAt)}` : '未记录'}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1 rounded-[20px] border border-slate-100 px-3 py-2.5 text-[13px] sm:flex-row sm:items-center sm:justify-between sm:rounded-2xl sm:py-3 sm:text-sm">
+                  <span className="text-slate-500">最近登录 IP</span>
+                  <span className="font-semibold text-slate-800 break-all">{profile.lastLoginIp || '未记录'}</span>
+                </div>
+                <div className="flex flex-col gap-1 rounded-[20px] border border-slate-100 px-3 py-2.5 text-[13px] sm:flex-row sm:items-center sm:justify-between sm:rounded-2xl sm:py-3 sm:text-sm">
+                  <span className="text-slate-500">关联账号</span>
+                  <span className="font-semibold text-slate-800 inline-flex items-center gap-2">
+                    <FaLink className="text-slate-400" />
+                    {profile.linuxdoUsername ? `Linux.do / ${profile.linuxdoUsername}` : '未绑定第三方资料'}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1 rounded-[20px] border border-slate-100 px-3 py-2.5 text-[13px] sm:flex-row sm:items-center sm:justify-between sm:rounded-2xl sm:py-3 sm:text-sm">
+                  <span className="text-slate-500">权限来源</span>
+                  <span className="font-semibold text-slate-800 inline-flex items-center gap-2">
+                    <FaGlobe className="text-slate-400" />
+                    {providerLabel}
+                  </span>
+                </div>
               </div>
             </m.section>
 
@@ -1146,7 +1502,7 @@ const UserProfile: React.FC = () => {
             <m.section
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.24 }}
+              transition={{ duration: 0.5, delay: 0.30 }}
               className="rounded-[26px] border border-slate-200/80 bg-[#111827] p-4 text-white shadow-[0_20px_70px_rgba(17,24,39,0.18)] sm:rounded-[30px] sm:p-5"
             >
               <div className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
@@ -1209,17 +1565,17 @@ const UserProfile: React.FC = () => {
                 <VerifyCodeInput
                   length={6}
                   onComplete={setVerificationCode}
-                  loading={loading}
+                  loading={submitting}
                   error={undefined}
                   inputClassName="bg-white border border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#2541b2]/20 focus:border-[#2541b2] rounded-lg px-2 py-1 text-sm transition-all outline-none mx-1"
                 />
                 <button
                   type="button"
                   onClick={handleTotpVerification}
-                  disabled={loading || verificationCode.length !== 6}
+                  disabled={submitting || verificationCode.length !== 6}
                   className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-[18px] bg-[#2541b2] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#2541b2]/20 transition hover:bg-[#1f3794] disabled:opacity-50 sm:rounded-full sm:py-2"
                 >
-                  {loading ? '验证中…' : '使用 TOTP 验证'}
+                  {submitting ? '验证中…' : '使用 TOTP 验证'}
                 </button>
               </div>
 
@@ -1237,10 +1593,10 @@ const UserProfile: React.FC = () => {
                 <button
                   type="button"
                   onClick={handlePasskeyVerification}
-                  disabled={loading}
+                  disabled={submitting}
                   className="inline-flex w-full items-center justify-center gap-2 rounded-[18px] bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-50 sm:rounded-full sm:py-2"
                 >
-                  {loading ? '验证中…' : '使用 Passkey 验证'}
+                  {submitting ? '验证中…' : '使用 Passkey 验证'}
                 </button>
               </div>
             </div>
@@ -1249,7 +1605,7 @@ const UserProfile: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowVerificationModal(false)}
-                disabled={loading}
+                disabled={submitting}
                 className="text-sm font-medium text-slate-500 transition hover:text-slate-700"
               >
                 取消

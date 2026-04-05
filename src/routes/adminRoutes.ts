@@ -923,7 +923,20 @@ router.get("/user/profile", authMiddleware, async (req, res) => {
         }
       }
     }
-    const resp = { id, username, email, role };
+    const resp = {
+      id,
+      username,
+      email,
+      role,
+      createdAt: dbUser?.createdAt,
+      authProvider: dbUser?.authProvider || "local",
+      linuxdoUsername: dbUser?.linuxdoUsername,
+      lastLoginAt: dbUser?.lastLoginAt,
+      lastLoginIp: dbUser?.lastLoginIp,
+      isTranslationEnabled: Boolean(dbUser?.isTranslationEnabled),
+      translationAccessUntil: dbUser?.translationAccessUntil,
+      accountStatus: dbUser?.accountStatus || "active",
+    };
     if (avatarUrl) {
       (resp as any).avatarUrl = avatarUrl;
       (resp as any).avatarHash = avatarHash;
@@ -1179,6 +1192,10 @@ router.post("/user/profile", authMiddleware, async (req, res) => {
     }
 
     if (wantsPasswordChange) {
+      if (dbUser.password === newPassword) {
+        return res.status(400).json({ error: "新密码不能与当前密码相同" });
+      }
+
       if (verifiedBySession) {
         const passwordErrors = UserStorage.validateUserInput(
           dbUser.username,
