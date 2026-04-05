@@ -357,9 +357,23 @@ const UserProfile: React.FC = () => {
       }
 
       const data = await res.json();
+      const hasPasskey =
+        typeof data?.hasPasskey === 'boolean'
+          ? data.hasPasskey
+          : typeof data?.passkeyEnabled === 'boolean'
+            ? data.passkeyEnabled
+            : typeof data?.credentialsCount === 'number'
+              ? data.credentialsCount > 0
+              : Array.isArray(data?.passkeyCredentials)
+                ? data.passkeyCredentials.length > 0
+                : await passkeyApi
+                    .getCredentials()
+                    .then(({ data: credentials }) => Array.isArray(credentials) && credentials.length > 0)
+                    .catch(() => false);
+
       setTotpStatus({
         enabled: Boolean(data.enabled),
-        hasPasskey: Boolean(data.hasPasskey)
+        hasPasskey,
       });
     } catch (error) {
       console.warn('[UserProfile] Error fetching TOTP status:', error);

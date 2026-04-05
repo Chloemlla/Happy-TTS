@@ -33,6 +33,9 @@ const router = express.Router();
  *               speed:
  *                 type: number
  *                 description: 语速
+ *               generationCode:
+ *                 type: string
+ *                 description: 生成码
  *     responses:
  *       200:
  *         description: 语音生成成功
@@ -50,6 +53,18 @@ const router = express.Router();
  *                 signature:
  *                   type: string
  *                   description: 签名
+ *                 status:
+ *                   type: string
+ *                   description: generated | reused
+ *                 message:
+ *                   type: string
+ *                   description: 用户可读结果说明
+ *                 usage:
+ *                   type: object
+ *                   description: 当前账户额度摘要
+ *                 nextAction:
+ *                   type: object
+ *                   description: 建议的下一步动作
  */
 router.post("/generate", TtsController.generateSpeech);
 

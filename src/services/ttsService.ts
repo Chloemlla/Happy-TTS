@@ -15,7 +15,7 @@ interface TtsRequest {
   text: string;
   model: string;
   voice: string;
-  output_format: OutputFormat;
+  outputFormat: OutputFormat;
   speed: number;
   userId?: string;
   isAdmin?: boolean;
@@ -100,7 +100,7 @@ export class TtsService {
 
   public async generateSpeech(request: TtsRequest) {
     try {
-      const { text, model, voice, output_format, speed, userId, isAdmin } = request;
+      const { text, model, voice, outputFormat, speed, userId, isAdmin } = request;
 
       if (!text) {
         throw new Error("文本不能为空");
@@ -113,7 +113,7 @@ export class TtsService {
 
       // 生成内容哈希
       const contentHash = this.generateContentHash(text, voice, model);
-      const safeOutputFormat = this.validateOutputFormat(output_format);
+      const safeOutputFormat = this.validateOutputFormat(outputFormat);
       const existingFile = this.findExistingFile(contentHash, safeOutputFormat);
 
       if (existingFile) {

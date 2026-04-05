@@ -1251,6 +1251,10 @@ export class UserStorage {
     }
   }
 
+  public static getDailyLimit(): number {
+    return UserStorage.DAILY_LIMIT;
+  }
+
   public static async incrementUsage(userId: string): Promise<boolean> {
     if (STORAGE_MODE === "mongo") {
       const user = await userService.getUserById(userId);
