@@ -3,7 +3,7 @@ import { render, fireEvent } from '@testing-library/react';
 import { screen, waitFor } from '@testing-library/dom';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import VerificationMethodSelector from './VerificationMethodSelector';
+import VerificationMethodSelector from '../components/VerificationMethodSelector';
 
 // Mock framer-motion
 vi.mock('framer-motion', () => ({

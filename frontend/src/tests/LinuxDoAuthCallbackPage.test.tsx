@@ -1,7 +1,7 @@
 import React from "react";
 import { render, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { LinuxDoAuthCallbackPage } from "./LinuxDoAuthCallbackPage";
+import { LinuxDoAuthCallbackPage } from "../components/LinuxDoAuthCallbackPage";
 
 const navigate = vi.fn();
 const loginWithToken = vi.fn();

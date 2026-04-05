@@ -3,7 +3,7 @@ import { render } from '@testing-library/react';
 import { screen, waitFor } from '@testing-library/dom';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
-import TOTPSetup from './TOTPSetup';
+import TOTPSetup from '../components/TOTPSetup';
 import { vi } from 'vitest';
 
 // Mock the API module instead of axios directly
