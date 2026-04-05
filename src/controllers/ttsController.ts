@@ -140,6 +140,11 @@ export class TtsController {
     return { type, label, message };
   }
 
+  private static resolveResponseOutputFormat(fileName: string | undefined, fallback: string) {
+    const extension = fileName?.split(".").pop()?.toLowerCase();
+    return extension && extension.length > 0 ? extension : fallback;
+  }
+
   private static sendStructuredError(
     res: Response,
     statusCode: number,
@@ -349,6 +354,10 @@ export class TtsController {
         if (duplicate?.fileName) {
           const duplicateAudioUrl = `${process.env.VITE_API_URL || process.env.BASE_URL || "https://api.951100.xyz"}/static/audio/${duplicate.fileName}`;
           const { signContent } = require("../utils/sign");
+          const responseOutputFormat = TtsController.resolveResponseOutputFormat(
+            duplicate.fileName,
+            normalizedOutputFormat,
+          );
 
           return res.json({
             success: true,
@@ -356,7 +365,7 @@ export class TtsController {
             isDuplicate: true,
             fileName: duplicate.fileName,
             audioUrl: duplicateAudioUrl,
-            outputFormat: normalizedOutputFormat,
+            outputFormat: responseOutputFormat,
             signature: signContent(duplicateAudioUrl),
             message: "检测到重复内容，已返回已有音频。",
             usage: usageSummary,
@@ -370,8 +379,9 @@ export class TtsController {
       }
 
       // 生成语音
+      const taskId = `tts_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
       try {
-        const taskId = `tts_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
         // 通知前端：开始生成
         if (userId) {
@@ -432,6 +442,10 @@ export class TtsController {
         const { signContent } = require("../utils/sign");
         // 以 audioUrl 作为签名内容
         const signature = signContent(result.audioUrl);
+        const responseOutputFormat = TtsController.resolveResponseOutputFormat(
+          result.fileName,
+          normalizedOutputFormat,
+        );
 
         // 通知前端：生成完成
         if (userId) {
@@ -443,7 +457,7 @@ export class TtsController {
           status: "generated",
           message: "语音生成成功，音频已准备就绪。",
           ...result,
-          outputFormat: normalizedOutputFormat,
+          outputFormat: responseOutputFormat,
           signature,
           usage: usageSummary,
           nextAction: TtsController.buildNextAction(
@@ -455,7 +469,7 @@ export class TtsController {
       } catch (error) {
         // 通知前端：生成失败
         if (userId) {
-          wsService.notifyTtsError(userId, { taskId: "", error: "生成语音失败" });
+          wsService.notifyTtsError(userId, { taskId, error: "生成语音失败" });
         }
         logger.error("生成语音失败:", error);
         return TtsController.sendStructuredError(

@@ -15,7 +15,7 @@ interface TtsRequest {
   text: string;
   model: string;
   voice: string;
-  outputFormat: OutputFormat;
+  outputFormat: string;
   speed: number;
   userId?: string;
   isAdmin?: boolean;
