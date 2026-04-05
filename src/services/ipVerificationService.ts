@@ -9,19 +9,26 @@ import { connectMongo, mongoose } from "./mongoService";
 import { TurnstileService } from "./turnstileService";
 import logger from "../utils/logger";
 
-interface IpqsResponse {
-  success?: boolean;
-  message?: string;
-  request_id?: string;
-  fraud_score?: number;
-  proxy?: boolean;
-  vpn?: boolean;
-  tor?: boolean;
-  active_vpn?: boolean;
-  active_tor?: boolean;
-  recent_abuse?: boolean;
-  bot_status?: boolean;
-  [key: string]: unknown;
+interface ScamalyticsResponse {
+  scamalytics: {
+    status: string;
+    credits: number;
+    exec: string;
+    scamalytics_score: number;
+    scamalytics_risk: string;
+    scamalytics_isp: string;
+    scamalytics_org: string;
+    scamalytics_proxy: {
+      is_datacenter: boolean;
+      is_vpn: boolean;
+      is_google: boolean;
+      is_apple: boolean;
+      is_icloud_relay: boolean;
+    };
+  };
+  external_datasources?: {
+    [key: string]: unknown;
+  };
 }
 
 interface LookupContext {
@@ -88,20 +95,23 @@ function hashApiKey(apiKey: string): string {
     .toString("hex");
 }
 
-function extractRiskFlags(response: IpqsResponse): string[] {
+function extractRiskFlags(response: ScamalyticsResponse): string[] {
   const flags: string[] = [];
-  if (response.proxy) flags.push("proxy");
-  if (response.vpn) flags.push("vpn");
-  if (response.tor) flags.push("tor");
-  if (response.active_vpn) flags.push("active_vpn");
-  if (response.active_tor) flags.push("active_tor");
-  if (response.recent_abuse) flags.push("recent_abuse");
-  if (response.bot_status) flags.push("bot_status");
+  const proxy = response.scamalytics.scamalytics_proxy;
+  if (proxy.is_datacenter) flags.push("datacenter");
+  if (proxy.is_vpn) flags.push("vpn");
+  if (proxy.is_icloud_relay) flags.push("icloud_relay");
+
+  // We can also check external datasources if needed, but Scamalytics' own assessment is usually enough
+  if (response.scamalytics.scamalytics_risk === "high" || response.scamalytics.scamalytics_risk === "very high") {
+    flags.push("high_risk");
+  }
+
   return flags;
 }
 
-function shouldRequireVerification(response: IpqsResponse): LookupDecision {
-  const fraudScore = Number(response.fraud_score || 0);
+function shouldRequireVerification(response: ScamalyticsResponse): LookupDecision {
+  const fraudScore = Number(response.scamalytics.scamalytics_score || 0);
   const riskFlags = extractRiskFlags(response);
   const requiresVerification =
     fraudScore >= config.ipqs.challengeFraudScore || riskFlags.length > 0;
@@ -115,7 +125,7 @@ function shouldRequireVerification(response: IpqsResponse): LookupDecision {
       : "risk_check_passed",
     fraudScore,
     riskFlags,
-    requestId: typeof response.request_id === "string" ? response.request_id : undefined,
+    requestId: response.scamalytics.exec,
   };
 }
 
@@ -269,7 +279,7 @@ export class IpVerificationService {
     apiKeyHashValue: string,
     context: LookupContext,
     decision: LookupDecision,
-    response?: IpqsResponse,
+    response?: ScamalyticsResponse,
     errorMessage?: string,
   ): Promise<void> {
     if (!(await ensureMongoIfEnabled())) return;
@@ -287,13 +297,13 @@ export class IpVerificationService {
       decision: decision.decision,
       reason: decision.reason,
       fraudScore: decision.fraudScore,
-      proxy: response?.proxy,
-      vpn: response?.vpn,
-      tor: response?.tor,
-      activeVpn: response?.active_vpn,
-      activeTor: response?.active_tor,
-      recentAbuse: response?.recent_abuse,
-      botStatus: response?.bot_status,
+      proxy: response?.scamalytics.scamalytics_proxy.is_datacenter || response?.scamalytics.scamalytics_proxy.is_vpn,
+      vpn: response?.scamalytics.scamalytics_proxy.is_vpn,
+      tor: false, // Scamalytics includes TOR in proxy or risk if enabled
+      activeVpn: response?.scamalytics.scamalytics_proxy.is_vpn,
+      activeTor: false,
+      recentAbuse: response?.scamalytics.scamalytics_risk === "high" || response?.scamalytics.scamalytics_risk === "very high",
+      botStatus: false,
       strictness: config.ipqs.strictness,
       rawResponse: response,
       errorMessage,
@@ -307,85 +317,92 @@ export class IpVerificationService {
         success: true,
         requiresVerification: false,
         decision: "skip",
-        reason: "ipqs_disabled",
+        reason: "ip_verification_disabled",
         riskFlags: [],
       };
     }
 
     const month = monthKey();
     const selectedKey = await IpVerificationService.selectApiKey(month);
+    const scamalyticsUser = config.ipqs.scamalyticsUser?.trim();
 
-    if (!selectedKey) {
+    if (!selectedKey && config.ipqs.apiKeys.length > 0) {
       const exhaustedDecision: LookupDecision = {
         success: config.ipqs.failOpen,
         requiresVerification: false,
         decision: config.ipqs.failOpen ? "skip" : "error",
-        reason: "ipqs_quota_exhausted",
+        reason: "ip_verification_quota_exhausted",
         riskFlags: [],
       };
       await IpVerificationService.logLookup(month, -1, "quota-exhausted", context, exhaustedDecision);
       return exhaustedDecision;
     }
 
-    try {
-      const response = await axios.get<IpqsResponse>(
-        `https://www.ipqualityscore.com/api/json/ip/${selectedKey.key}/${encodeURIComponent(context.ipAddress)}`,
-        {
-        params: {
-          strictness: config.ipqs.strictness,
-          user_agent: context.userAgent,
-          user_language: context.userLanguage,
-          allow_public_access_points: config.ipqs.allowPublicAccessPoints ? "true" : "false",
-          lighter_penalties: config.ipqs.lighterPenalties ? "true" : "false",
-        },
-        timeout: config.ipqs.timeoutMs,
-      });
+    // If no keys are configured but scamalyticsUser is, we might still want to proceed if we hardcode a key or use the one provided
+    const apiKey = selectedKey?.key || config.ipqs.apiKeys[0]?.trim();
+    const slot = selectedKey?.slot ?? 0;
 
-      await IpVerificationService.incrementQuota(month, selectedKey.slot, selectedKey.key);
-      const decision = shouldRequireVerification(response.data || {});
+    try {
+      const response = await axios.get<ScamalyticsResponse>(
+        `https://api13.scamalytics.com/v3/${scamalyticsUser}/`,
+        {
+          params: {
+            key: apiKey,
+            ip: context.ipAddress,
+          },
+          timeout: config.ipqs.timeoutMs,
+        }
+      );
+
+      if (selectedKey) {
+        await IpVerificationService.incrementQuota(month, selectedKey.slot, selectedKey.key);
+      }
+      
+      const decision = shouldRequireVerification(response.data);
 
       await IpVerificationService.logLookup(
         month,
-        selectedKey.slot,
-        hashApiKey(selectedKey.key),
+        slot,
+        hashApiKey(apiKey),
         context,
         decision,
-        response.data || {},
+        response.data,
       );
 
-      logger.info("[IpVerification] IPQS lookup completed", {
+      logger.info("[IpVerification] Scamalytics lookup completed", {
         ipAddress: context.ipAddress,
         fingerprint: `${context.fingerprint.slice(0, 8)}...`,
         decision: decision.decision,
         fraudScore: decision.fraudScore,
         riskFlags: decision.riskFlags,
-        requestId: decision.requestId,
       });
 
       return decision;
     } catch (error) {
-      await IpVerificationService.incrementQuota(month, selectedKey.slot, selectedKey.key);
+      if (selectedKey) {
+        await IpVerificationService.incrementQuota(month, selectedKey.slot, selectedKey.key);
+      }
 
       const errorMessage = error instanceof Error ? error.message : String(error);
       const failedDecision: LookupDecision = {
         success: config.ipqs.failOpen,
         requiresVerification: false,
         decision: config.ipqs.failOpen ? "skip" : "error",
-        reason: "ipqs_lookup_failed",
+        reason: "ip_verification_lookup_failed",
         riskFlags: [],
       };
 
       await IpVerificationService.logLookup(
         month,
-        selectedKey.slot,
-        hashApiKey(selectedKey.key),
+        slot,
+        hashApiKey(apiKey),
         context,
         failedDecision,
         undefined,
         errorMessage,
       );
 
-      logger.warn("[IpVerification] IPQS lookup failed", {
+      logger.warn("[IpVerification] Scamalytics lookup failed", {
         ipAddress: context.ipAddress,
         error: errorMessage,
         failOpen: config.ipqs.failOpen,

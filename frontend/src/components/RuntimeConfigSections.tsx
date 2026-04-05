@@ -17,6 +17,7 @@ function getAuthHeaders(): Record<string, string> {
 interface IpqsSettingResponse {
   config: {
     enabled: boolean;
+    scamalyticsUser?: string;
     strictness: number;
     allowPublicAccessPoints: boolean;
     lighterPenalties: boolean;
@@ -157,6 +158,7 @@ const RuntimeConfigSections: React.FC = () => {
   const [ipqsApiKeysInput, setIpqsApiKeysInput] = useState('');
   const [ipqsForm, setIpqsForm] = useState({
     enabled: false,
+    scamalyticsUser: '',
     strictness: 1,
     allowPublicAccessPoints: false,
     lighterPenalties: true,
@@ -239,6 +241,7 @@ const RuntimeConfigSections: React.FC = () => {
       setIpqsSetting(setting);
       setIpqsForm({
         enabled: setting.config.enabled,
+        scamalyticsUser: setting.config.scamalyticsUser || '',
         strictness: setting.config.strictness,
         allowPublicAccessPoints: setting.config.allowPublicAccessPoints,
         lighterPenalties: setting.config.lighterPenalties,
@@ -741,6 +744,16 @@ const RuntimeConfigSections: React.FC = () => {
               已配置 {ipqsSetting?.config.apiKeyCount || 0} 个：
               {(ipqsSetting?.config.apiKeysMasked || []).join('，') || '-'}
             </div>
+          </div>
+          <div>
+            <FieldLabel label="Scamalytics User" />
+            <input
+              type="text"
+              value={ipqsForm.scamalyticsUser}
+              onChange={(e) => setIpqsForm((prev) => ({ ...prev, scamalyticsUser: e.target.value }))}
+              placeholder="留空表示使用默认用户名"
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+            />
           </div>
           <div>
             <FieldLabel label="Strictness" />

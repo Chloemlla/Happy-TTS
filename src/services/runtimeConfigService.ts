@@ -131,11 +131,13 @@ function normalizeDeepLXBaseUrl(value: unknown, fallback: string): string {
 function normalizeStoredIpqsConfig(value: unknown, defaults = runtimeConfigDefaults.ipqs): IpqsRuntimeConfig {
   const raw = asObject(value);
   const apiKeys = normalizeStringArray(raw.apiKeys, defaults.apiKeys);
+  const scamalyticsUser = normalizeString(raw.scamalyticsUser, defaults.scamalyticsUser || "");
   const enabled = normalizeBoolean(raw.enabled, defaults.enabled);
 
   return {
     apiKeys,
-    enabled: enabled && apiKeys.length > 0,
+    scamalyticsUser,
+    enabled: enabled && (apiKeys.length > 0 || scamalyticsUser.length > 0),
     strictness: normalizeInteger(raw.strictness, defaults.strictness, 0, 3),
     allowPublicAccessPoints: normalizeBoolean(
       raw.allowPublicAccessPoints,
@@ -360,6 +362,7 @@ export class RuntimeConfigService {
       setting: {
         config: {
           enabled: config.enabled,
+          scamalyticsUser: config.scamalyticsUser,
           strictness: config.strictness,
           allowPublicAccessPoints: config.allowPublicAccessPoints,
           lighterPenalties: config.lighterPenalties,
@@ -382,15 +385,19 @@ export class RuntimeConfigService {
     const apiKeys = input.apiKeys === undefined
       ? current.apiKeys
       : normalizeStringArray(input.apiKeys, current.apiKeys);
+    const scamalyticsUser = input.scamalyticsUser === undefined
+      ? current.scamalyticsUser
+      : normalizeString(input.scamalyticsUser, current.scamalyticsUser || "");
     const enabled = normalizeBoolean(input.enabled, current.enabled);
 
-    if (enabled && apiKeys.length === 0) {
-      throw new Error("启用 IPQS 前至少需要配置一个 API Key");
+    if (enabled && apiKeys.length === 0 && !scamalyticsUser) {
+      throw new Error("启用 IP 验证前至少需要配置一个 API Key 或 Scamalytics 用户名");
     }
 
     const nextConfig: IpqsRuntimeConfig = {
       apiKeys,
-      enabled: enabled && apiKeys.length > 0,
+      scamalyticsUser,
+      enabled: enabled && (apiKeys.length > 0 || !!scamalyticsUser),
       strictness: normalizeInteger(input.strictness, current.strictness, 0, 3),
       allowPublicAccessPoints: normalizeBoolean(
         input.allowPublicAccessPoints,

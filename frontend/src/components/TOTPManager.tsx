@@ -1,14 +1,27 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import TOTPSetup from './TOTPSetup';
-import BackupCodesModal from './BackupCodesModal';
+﻿import React, { useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import axios from 'axios';
-import { TOTPStatus } from '../types/auth';
-import { handleTOTPError, cleanTOTPToken, validateTOTPToken } from '../utils/totpUtils';
-import { Input } from './ui';
-import { useTwoFactorStatus } from '../hooks/useTwoFactorStatus';
+import { FaCheck, FaClock, FaEye, FaKey, FaLock } from 'react-icons/fa';
+import type { TOTPStatus } from '../types/auth';
+import { cleanTOTPToken, handleTOTPError, validateTOTPToken } from '../utils/totpUtils';
+import BackupCodesModal from './BackupCodesModal';
 import { PasskeySetup } from './PasskeySetup';
-import { FaLock, FaCheck, FaClock, FaEye, FaKey } from 'react-icons/fa';
+import {
+  studioDarkPanelClassName,
+  studioDisplayFont,
+  studioFieldClassName,
+  studioGhostButtonClassName,
+  studioHeroCardClassName,
+  studioMainSurfaceClassName,
+  studioMetricToneClassName,
+  studioModalCardClassName,
+  studioModalOverlayClassName,
+  studioPageFont,
+  studioPanelClassName,
+  studioPrimaryButtonClassName,
+} from './studioTheme';
+import TOTPSetup from './TOTPSetup';
+import { useTwoFactorStatus } from '../hooks/useTwoFactorStatus';
 
 interface TOTPManagerProps {
   onStatusChange?: (status: TOTPStatus) => void;
@@ -23,10 +36,8 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
   const [showPasskeySetup, setShowPasskeySetup] = useState(false);
   const [disableCode, setDisableCode] = useState('');
   const [error, setError] = useState('');
-
   const twoFactor = useTwoFactorStatus();
 
-  // 获取API基础URL
   const getApiBaseUrl = () => {
     if (import.meta.env.DEV) return 'http://localhost:3000';
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
@@ -37,13 +48,9 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
     baseURL: getApiBaseUrl(),
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${localStorage.getItem('token')}`
-    }
+      Authorization: `Bearer ${localStorage.getItem('token')}`,
+    },
   });
-
-  useEffect(() => {
-    fetchStatus();
-  }, []);
 
   const fetchStatus = async () => {
     try {
@@ -51,437 +58,198 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
       const response = await api.get('/api/totp/status');
       setStatus(response.data);
       onStatusChange?.(response.data);
-    } catch (error: any) {
-      console.error('获取TOTP状态失败:', error);
+    } catch (err) {
+      console.error('获取 TOTP 状态失败:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSetupSuccess = () => {
+  useEffect(() => {
     fetchStatus();
-  };
+  }, []);
 
   const handleDisable = async () => {
-    // 清理输入
     const cleanCode = cleanTOTPToken(disableCode);
-
     if (!cleanCode.trim()) {
       setError('请输入验证码');
       return;
     }
-
     if (!validateTOTPToken(cleanCode)) {
-      setError('验证码必须是6位数字');
+      setError('验证码必须是 6 位数字');
       return;
     }
 
     try {
       setError('');
-      await api.post('/api/totp/disable', {
-        token: cleanCode
-      });
-
+      await api.post('/api/totp/disable', { token: cleanCode });
       setShowDisable(false);
       setDisableCode('');
       fetchStatus();
-    } catch (error: any) {
-      setError(handleTOTPError(error));
+    } catch (err: any) {
+      setError(handleTOTPError(err));
     }
   };
 
+  const statusCards = [
+    { label: 'Status', value: twoFactor.enabled ? '双因素已启用' : '尚未启用', tone: twoFactor.enabled ? 'emerald' as const : 'amber' as const },
+    { label: 'Method', value: twoFactor.type?.length ? twoFactor.type.join(' + ') : '仅密码', tone: 'sky' as const },
+    { label: 'Recovery', value: status?.hasBackupCodes ? '恢复码可用' : '尚未查看恢复码', tone: 'violet' as const },
+  ];
+
   if (loading) {
     return (
-      <motion.div
-        className="flex items-center justify-center p-4"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3 }}
-      >
-        <motion.div
-          className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-indigo-500"
-          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-        />
-      </motion.div>
+      <div className="flex items-center justify-center py-10" style={{ fontFamily: studioPageFont }}>
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-[#2541b2]" />
+      </div>
     );
   }
 
   return (
-    <>
-      <motion.div
-        className="bg-white rounded-lg shadow-sm border p-4"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-      >
-        <motion.div
-          className="flex items-center justify-between mb-4"
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-        >
-          <div className="flex items-center space-x-3">
-            <span className="w-10 h-10 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-lg flex items-center justify-center shadow-sm">
-              <FaLock className="w-5 h-5 text-indigo-600" />
-            </span>
+    <div className="space-y-4" style={{ fontFamily: studioPageFont }}>
+      <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className={studioHeroCardClassName}>
+        <div className="flex flex-col gap-4">
+          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-sky-700">
+            <FaLock />
+            Account Security Studio
+          </div>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <div className="text-lg font-semibold text-gray-900">二次验证</div>
-              <div className="text-sm text-gray-600">增强账户安全性</div>
+              <h2 id="totp-manager-title" className="text-3xl font-semibold leading-tight text-slate-900" style={{ fontFamily: studioDisplayFont }}>
+                双因素验证工作台
+              </h2>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
+                保留原有的 TOTP、恢复码和 Passkey 流程，只把界面收束成和 DeepLX 一致的卡片层级与信息密度。
+              </p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {statusCards.map((item) => (
+                <div key={item.label} className={`${studioMetricToneClassName(item.tone)} rounded-[22px] border px-3 py-2.5 sm:rounded-2xl sm:px-4 sm:py-3`}>
+                  <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">{item.label}</div>
+                  <div className="mt-2 text-sm font-semibold text-slate-800">{item.value}</div>
+                </div>
+              ))}
             </div>
           </div>
-          <div className="flex items-center space-x-2 mt-2">
-            {twoFactor.enabled ? (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                <FaCheck className="w-3 h-3 mr-1" />
-                已启用（{twoFactor.type.join(' + ')}）
-              </span>
+        </div>
+      </motion.div>
+
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_230px]">
+        <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.05 }} className={studioMainSurfaceClassName}>
+          <div className="rounded-[24px] border border-slate-200 bg-white p-4 sm:rounded-[28px] sm:p-5">
+            {status?.enabled ? (
+              <div className="space-y-4">
+                <div className="rounded-[22px] border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm leading-7 text-emerald-800">
+                  双因素验证已开启。登录时除了密码，还会要求动态验证码，账户安全等级已经提升。
+                </div>
+                {status.hasBackupCodes ? (
+                  <div className="rounded-[22px] border border-sky-200 bg-sky-50 px-4 py-4 text-sm leading-7 text-sky-800">
+                    恢复码已经生成，可以在无法使用验证器时作为兜底方案。建议再次查看并确认已妥善保存。
+                  </div>
+                ) : (
+                  <div className="rounded-[22px] border border-amber-200 bg-amber-50 px-4 py-4 text-sm leading-7 text-amber-800">
+                    TOTP 已开启，但你还没有查看恢复码。建议至少检查一次恢复方案，避免设备丢失时无法登录。
+                  </div>
+                )}
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {status.hasBackupCodes ? (
+                    <button type="button" onClick={() => setShowBackupCodes(true)} className={studioGhostButtonClassName}>
+                      <FaEye />
+                      查看恢复码
+                    </button>
+                  ) : null}
+                  <button type="button" onClick={() => setShowDisable(true)} className={`${studioGhostButtonClassName} border-rose-200 text-rose-600 hover:border-rose-300 hover:text-rose-700`}>
+                    禁用双因素
+                  </button>
+                </div>
+              </div>
             ) : (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 ml-2 align-middle">
-                <FaClock className="w-3 h-3 mr-1" />
-                未启用
-              </span>
+              <div className="space-y-4">
+                <div className="rounded-[22px] border border-amber-200 bg-amber-50 px-4 py-4 text-sm leading-7 text-amber-800">
+                  当前账号只使用密码登录。建议立即启用 TOTP，为登录增加第二道验证门槛。
+                </div>
+                <button type="button" onClick={() => setShowSetup(true)} className={studioPrimaryButtonClassName}>
+                  <FaLock />
+                  开始设置 TOTP
+                </button>
+              </div>
             )}
           </div>
         </motion.div>
 
-        <motion.div
-          className="space-y-3"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-        >
-          {status?.enabled ? (
-            <div className="space-y-3">
-              <motion.div
-                className="bg-green-50 border border-green-200 rounded-lg p-3"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.5 }}
-                whileHover={{ scale: 1.02, y: -1 }}
-              >
-                <div className="flex items-start">
-                  <FaCheck className="w-5 h-5 text-green-600 mt-0.5 mr-2" />
-                  <div>
-                    <motion.p
-                      className="text-sm font-medium text-green-800"
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: 0.6 }}
-                    >
-                      二次验证已启用
-                    </motion.p>
-                    <motion.p
-                      className="text-sm text-green-700 mt-1"
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: 0.7 }}
-                    >
-                      您的账户现在受到双重保护，登录时需要输入验证码。
-                    </motion.p>
-                  </div>
-                </div>
-              </motion.div>
+        <div className="space-y-4">
+          <motion.section initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.12 }} className={studioPanelClassName}>
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-900 text-white"><FaKey /></div>
+              <div>
+                <div className="text-lg font-semibold text-slate-900">安全摘要</div>
+                <div className="text-sm text-slate-500">快速确认当前状态</div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between rounded-[20px] border border-slate-100 px-3 py-3 text-sm"><span className="text-slate-500">双因素</span><span className="font-semibold text-slate-900">{twoFactor.enabled ? '已启用' : '未启用'}</span></div>
+              <div className="flex items-center justify-between rounded-[20px] border border-slate-100 px-3 py-3 text-sm"><span className="text-slate-500">认证方式</span><span className="font-semibold text-slate-900">{twoFactor.type?.length ? twoFactor.type.join(' + ') : 'Password'}</span></div>
+              <div className="flex items-center justify-between rounded-[20px] border border-slate-100 px-3 py-3 text-sm"><span className="text-slate-500">恢复码</span><span className="font-semibold text-slate-900">{status?.hasBackupCodes ? '已生成' : '未确认'}</span></div>
+            </div>
+          </motion.section>
 
-              {status.hasBackupCodes && (
-                <motion.div
-                  className="bg-blue-50 border border-blue-200 rounded-lg p-3"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.4, delay: 0.6 }}
-                  whileHover={{ scale: 1.02, y: -1 }}
-                >
-                  <div className="flex items-start">
-                    <FaLock className="w-5 h-5 text-blue-600 mt-0.5 mr-2" />
-                    <div>
-                      <motion.p
-                        className="text-sm font-medium text-blue-800"
-                        initial={{ opacity: 0, y: 5 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: 0.7 }}
-                      >
-                        备用恢复码可用
-                      </motion.p>
-                      <motion.p
-                        className="text-sm text-blue-700 mt-1"
-                        initial={{ opacity: 0, y: 5 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: 0.8 }}
-                      >
-                        您有备用恢复码，可以在无法使用认证器时登录。
-                      </motion.p>
-                    </div>
-                  </div>
-                </motion.div>
+          <motion.section initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.18 }} className={studioDarkPanelClassName}>
+            <div className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Passkey</div>
+            <div className="space-y-2 text-sm leading-7 text-slate-200">
+              <p>在 TOTP 之外，你还可以配置 Passkey，把账号切到更现代的无密码认证路径。</p>
+              {status?.enabled ? (
+                <button type="button" onClick={() => setShowPasskeySetup(true)} className={`${studioPrimaryButtonClassName} w-full`}>
+                  <FaKey />
+                  管理 Passkey
+                </button>
+              ) : (
+                <div className="rounded-[20px] border border-white/10 bg-white/5 px-4 py-3 text-slate-300">
+                  先启用 TOTP，再继续配置 Passkey。
+                </div>
               )}
-
-              <motion.div
-                className="space-y-2"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.7 }}
-              >
-                {status.hasBackupCodes && (
-                  <motion.button
-                    onClick={() => setShowBackupCodes(true)}
-                    whileHover={{ scale: 1.02, y: -1 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="w-full px-4 py-2 border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 transition-all duration-200 flex items-center justify-center"
-                  >
-                    <FaEye className="w-4 h-4 mr-2" />
-                    查看备用恢复码
-                  </motion.button>
-                )}
-
-                <motion.button
-                  onClick={() => setShowDisable(true)}
-                  whileHover={{ scale: 1.02, y: -1 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="w-full px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-all duration-200"
-                >
-                  禁用二次验证
-                </motion.button>
-              </motion.div>
             </div>
-          ) : (
-            <div className="space-y-3">
-              <motion.div
-                className="bg-yellow-50 border border-yellow-200 rounded-lg p-3"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.5 }}
-                whileHover={{ scale: 1.02, y: -1 }}
-              >
-                <div className="flex items-start">
-                  <FaClock className="w-5 h-5 text-yellow-600 mt-0.5 mr-2" />
-                  <div>
-                    <motion.p
-                      className="text-sm font-medium text-yellow-800"
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: 0.6 }}
-                    >
-                      建议启用二次验证
-                    </motion.p>
-                    <motion.p
-                      className="text-sm text-yellow-700 mt-1"
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: 0.7 }}
-                    >
-                      启用二次验证可以为您的账户提供额外的安全保护。
-                    </motion.p>
-                  </div>
-                </div>
-              </motion.div>
+          </motion.section>
+        </div>
+      </div>
 
-              <motion.button
-                onClick={() => setShowSetup(true)}
-                className="w-full px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
-              >
-                <motion.span
-                  transition={{ duration: 0.5, type: 'spring', stiffness: 200 }}
-                  className="inline-flex items-center"
-                >
-                  {/* 锁图标 */}
-                  <FaLock className="w-5 h-5 text-white" />
-                </motion.span>
-                <span>设置二次验证</span>
-              </motion.button>
-            </div>
-          )}
-        </motion.div>
-      </motion.div>
+      <TOTPSetup isOpen={showSetup} onClose={() => setShowSetup(false)} onSuccess={() => fetchStatus()} />
+      <BackupCodesModal isOpen={showBackupCodes} onClose={() => setShowBackupCodes(false)} />
 
-      {/* TOTP设置模态框 */}
-      <TOTPSetup
-        isOpen={showSetup}
-        onClose={() => setShowSetup(false)}
-        onSuccess={handleSetupSuccess}
-      />
-
-      {/* 备用恢复码模态框 */}
-      <BackupCodesModal
-        isOpen={showBackupCodes}
-        onClose={() => setShowBackupCodes(false)}
-      />
-
-      {/* 禁用TOTP模态框 */}
       <AnimatePresence>
-        {showDisable && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto"
-            onClick={() => setShowDisable(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 50 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 50 }}
-              transition={{ duration: 0.4, type: "spring", stiffness: 300, damping: 25 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto my-8 min-h-fit border border-gray-100"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* 可滚动的内容容器 */}
-              <div className="p-6 max-h-[90vh] overflow-y-auto">
-                <motion.div
-                  className="text-center mb-6"
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.1 }}
-                >
-                  <motion.h2
-                    className="text-2xl font-bold text-gray-900 mb-2"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: 0.2 }}
-                  >
-                    禁用二次验证
-                  </motion.h2>
-                  <motion.p
-                    className="text-gray-600"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: 0.3 }}
-                  >
-                    请输入当前验证码以确认禁用
-                  </motion.p>
-                </motion.div>
-
-                <motion.div
-                  className="space-y-4"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.2 }}
-                >
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: 0.3 }}
-                  >
-                    <motion.label
-                      className="block text-sm font-medium text-gray-700 mb-2"
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.3, delay: 0.4 }}
-                    >
-                      验证码
-                    </motion.label>
-                    <motion.input
-                      type="text"
-                      value={disableCode}
-                      onChange={(e) => setDisableCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-center text-lg font-mono transition-all duration-200 hover:border-gray-300"
-                      placeholder="000000"
-                      maxLength={6}
-                      whileFocus={{ scale: 1.02 }}
-                    />
-                  </motion.div>
-
-                  <AnimatePresence>
-                    {error && (
-                      <motion.div
-                        className="bg-red-50 border border-red-200 rounded-lg p-3"
-                        initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                        transition={{ duration: 0.3 }}
-                      >
-                        <motion.p
-                          className="text-red-700 text-sm"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ duration: 0.2, delay: 0.1 }}
-                        >
-                          {error}
-                        </motion.p>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-
-                  <motion.div
-                    className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.4 }}
-                  >
-                    <motion.button
-                      onClick={() => setShowDisable(false)}
-                      className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all duration-200"
-                      whileHover={{ scale: 1.02, y: -1 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      取消
-                    </motion.button>
-                    <motion.button
-                      onClick={handleDisable}
-                      disabled={disableCode.length !== 6}
-                      className="flex-1 px-4 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
-                      whileHover={{ scale: 1.02, y: -1 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      确认禁用
-                    </motion.button>
-                  </motion.div>
-                </motion.div>
+        {showDisable ? (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className={studioModalOverlayClassName} onClick={() => setShowDisable(false)}>
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 24 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 24 }} className={`${studioModalCardClassName} max-w-md`} onClick={(event) => event.stopPropagation()}>
+              <h3 className="text-2xl font-semibold text-slate-900" style={{ fontFamily: studioDisplayFont }}>禁用双因素验证</h3>
+              <p className="mt-3 text-sm leading-7 text-slate-500">输入当前 6 位验证码后，系统会关闭 TOTP。这个动作会降低账号安全等级。</p>
+              <div className="mt-5 space-y-3">
+                <input type="text" value={disableCode} onChange={(event) => setDisableCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" maxLength={6} className={`${studioFieldClassName} text-center font-mono sm:rounded-[18px]`} />
+                {error ? <div className="rounded-[20px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <button type="button" onClick={() => setShowDisable(false)} className={`${studioGhostButtonClassName} w-full sm:w-auto`}>取消</button>
+                  <button type="button" onClick={handleDisable} disabled={disableCode.length !== 6} className={`${studioPrimaryButtonClassName} w-full bg-rose-600 hover:bg-rose-700 shadow-rose-600/20 sm:w-auto`}>
+                    <FaClock />
+                    确认禁用
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>
-        )}
+        ) : null}
       </AnimatePresence>
 
-      {/* Passkey 设置按钮（仅TOTP启用时显示） */}
-      {status?.enabled && (
-        <AnimatePresence>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-            className="mt-6 flex justify-center"
-          >
-            <motion.button
-              onClick={() => setShowPasskeySetup(true)}
-              whileHover={{ scale: 1.02, y: -1 }}
-              whileTap={{ scale: 0.98 }}
-              className="w-full px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 text-base font-medium"
-            >
-              <FaKey className="w-5 h-5 text-white mr-2" />
-              <span>管理 Passkey 无密码认证</span>
-            </motion.button>
-          </motion.div>
-        </AnimatePresence>
-      )}
       <AnimatePresence>
-        {showPasskeySetup && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto"
-            onClick={() => setShowPasskeySetup(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 50 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 50 }}
-              transition={{ duration: 0.4, type: 'spring', stiffness: 300, damping: 25 }}
-              style={{ width: '90vw', maxWidth: '900px' }}
-              className="bg-white rounded-2xl shadow-2xl w-full mx-auto my-8 min-h-fit border border-gray-100"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="p-8 max-h-[90vh] overflow-y-auto">
+        {showPasskeySetup ? (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className={studioModalOverlayClassName} onClick={() => setShowPasskeySetup(false)}>
+            <motion.div initial={{ opacity: 0, scale: 0.96, y: 24 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 24 }} className={`${studioModalCardClassName} max-w-5xl`} onClick={(event) => event.stopPropagation()}>
+              <div className="max-h-[80vh] overflow-y-auto pr-1">
                 <PasskeySetup />
               </div>
             </motion.div>
           </motion.div>
-        )}
+        ) : null}
       </AnimatePresence>
-    </>
+    </div>
   );
 };
 
-export default TOTPManager; 
+export default TOTPManager;

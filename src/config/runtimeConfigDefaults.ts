@@ -1,5 +1,6 @@
 export interface IpqsRuntimeConfig {
   apiKeys: string[];
+  scamalyticsUser?: string;
   enabled: boolean;
   strictness: number;
   allowPublicAccessPoints: boolean;
@@ -65,7 +66,8 @@ export function buildRuntimeConfigDefaults(options: {
 
   return {
     ipqs: {
-      apiKeys: [],
+      apiKeys: ["e188c7467def871a9ab310adc5e7c0d794ac050786b758b1ac883bc7e11b9040"],
+      scamalyticsUser: "happyclovo",
       enabled: false,
       strictness: 1,
       allowPublicAccessPoints: false,
@@ -116,6 +118,7 @@ export function cloneRuntimeConfigDefaults(config: RuntimeConfigDefaults): Runti
     ipqs: {
       ...config.ipqs,
       apiKeys: [...config.ipqs.apiKeys],
+      scamalyticsUser: config.ipqs.scamalyticsUser,
     },
     linuxdo: {
       ...config.linuxdo,
