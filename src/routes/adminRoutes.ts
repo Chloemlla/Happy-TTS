@@ -2,12 +2,29 @@ import * as crypto from "node:crypto";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import multer from "multer";
+import validator from "validator";
 import { adminController } from "../controllers/adminController";
 import { auditLog } from "../middleware/auditLog";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { authMiddleware } from "../middleware/authMiddleware";
 import { replayProtection } from "../middleware/replayProtection";
+import {
+  clearEmailChangeChallenge,
+  clearProfileVerificationSessions,
+  createEmailChangeChallenge,
+  createProfileVerificationSession,
+  validateEmailChangeChallenge,
+  validateProfileVerificationSession,
+} from "../services/profileUpdateVerificationService";
+import { sendEmail } from "../services/emailSender";
+import {
+  generateEmailChangeNewNoticeHtml,
+  generateEmailChangeOldNoticeHtml,
+  generateVerificationCodeEmailHtml,
+} from "../templates/emailTemplates";
+import { getClientIP } from "../utils/ipUtils";
 import logger from "../utils/logger";
+import { UserStorage } from "../utils/userStorage";
 
 const upload = multer({ limits: { fileSize: 5 * 1024 * 1024 } }); // 5MB限制
 
@@ -48,6 +65,8 @@ const adminAuthMiddleware = (req: any, res: any, next: any) => {
   // 注意：这里匹配的是路由内的路径（不含前缀），例如 '/user/profile'
   const userSelfServicePaths = new Set<string>([
     "/user/profile",
+    "/user/profile/verify",
+    "/user/profile/email/send-code",
     "/user/avatar",
     "/user/avatar/exist",
     "/user/fingerprint",
@@ -63,9 +82,6 @@ const adminAuthMiddleware = (req: any, res: any, next: any) => {
   next();
 };
 
-// 启动时清理所有用户的avatarBase64字段，只保留avatarUrl
-import { UserStorage } from "../utils/userStorage";
-
 (async () => {
   try {
     const users = await UserStorage.getAllUsers();
@@ -78,6 +94,20 @@ import { UserStorage } from "../utils/userStorage";
     console.warn("启动时清理avatarBase64字段失败", e);
   }
 })();
+
+function normalizeEmail(input: unknown): string {
+  return typeof input === "string" ? input.trim().toLowerCase() : "";
+}
+
+async function findUserByNormalizedEmail(email: string) {
+  const exactMatch = await UserStorage.getUserByEmail(email);
+  if (exactMatch) {
+    return exactMatch;
+  }
+
+  const users = await UserStorage.getAllUsers();
+  return users.find((item) => normalizeEmail(item.email) === email) || null;
+}
 
 // 公告读取接口移到最前面，不加任何中间件
 router.get("/announcement", adminController.getAnnouncement);
@@ -905,42 +935,344 @@ router.get("/user/profile", authMiddleware, async (req, res) => {
 });
 
 // 用户信息更新接口（需登录）
+router.post("/user/profile/verify", authMiddleware, async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user) return res.status(401).json({ error: "未登录" });
+
+    const dbUser = await UserStorage.getUserById(user.id);
+    if (!dbUser) {
+      return res.status(404).json({ error: "用户不存在" });
+    }
+
+    const method =
+      typeof req.body?.method === "string" ? req.body.method : "";
+    const password =
+      typeof req.body?.password === "string" ? req.body.password : "";
+    const verificationCode =
+      typeof req.body?.verificationCode === "string"
+        ? req.body.verificationCode.trim()
+        : "";
+
+    if (!method || !["password", "totp", "passkey"].includes(method)) {
+      return res.status(400).json({ error: "无效的验证方式" });
+    }
+
+    if (method === "password") {
+      if (!password || !UserStorage.checkPassword(dbUser, password)) {
+        return res.status(401).json({ error: "当前密码错误" });
+      }
+    }
+
+    if (method === "totp") {
+      if (!dbUser.totpEnabled || !dbUser.totpSecret) {
+        return res.status(400).json({ error: "当前账户未启用 TOTP" });
+      }
+
+      if (!/^\d{6}$/.test(verificationCode)) {
+        return res.status(400).json({ error: "请输入 6 位 TOTP 验证码" });
+      }
+
+      const { TOTPService } = require("../services/totpService");
+      const isValid = TOTPService.verifyToken(verificationCode, dbUser.totpSecret);
+
+      if (!isValid) {
+        return res.status(401).json({ error: "TOTP 验证失败" });
+      }
+    }
+
+    if (method === "passkey") {
+      if (
+        !dbUser.passkeyEnabled ||
+        !Array.isArray(dbUser.passkeyCredentials) ||
+        dbUser.passkeyCredentials.length === 0
+      ) {
+        return res.status(400).json({ error: "当前账户未启用 Passkey" });
+      }
+
+      if (!req.body?.passkeyResponse || typeof req.body.passkeyResponse !== "object") {
+        return res.status(400).json({ error: "缺少 Passkey 验证数据" });
+      }
+
+      const { PasskeyService } = require("../services/passkeyService");
+      const clientOrigin =
+        typeof req.body?.clientOrigin === "string"
+          ? req.body.clientOrigin
+          : undefined;
+      const requestOrigin =
+        clientOrigin ||
+        (typeof req.headers.origin === "string" ? req.headers.origin : undefined) ||
+        (typeof req.headers.referer === "string" ? req.headers.referer : undefined) ||
+        "https://tts.951100.xyz";
+
+      const verification = await PasskeyService.verifyAuthentication(
+        dbUser,
+        req.body.passkeyResponse,
+        clientOrigin,
+        requestOrigin,
+      );
+
+      if (!verification?.verified) {
+        return res.status(401).json({ error: "Passkey 验证失败" });
+      }
+    }
+
+    const session = createProfileVerificationSession(
+      dbUser.id,
+      method as "password" | "totp" | "passkey",
+    );
+
+    return res.json({
+      success: true,
+      verificationToken: session.token,
+      expiresAt: session.expiresAt,
+    });
+  } catch (error) {
+    console.error("[AdminRoutes] 用户资料验证失败:", error);
+    return res.status(500).json({ error: "身份验证失败" });
+  }
+});
+
+router.post("/user/profile/email/send-code", authMiddleware, async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user) return res.status(401).json({ error: "未登录" });
+
+    const dbUser = await UserStorage.getUserById(user.id);
+    if (!dbUser) {
+      return res.status(404).json({ error: "用户不存在" });
+    }
+
+    const verificationToken =
+      typeof req.body?.verificationToken === "string"
+        ? req.body.verificationToken
+        : "";
+    const newEmail = normalizeEmail(req.body?.newEmail);
+
+    if (!verificationToken) {
+      return res.status(401).json({ error: "请先完成身份验证" });
+    }
+
+    if (!validateProfileVerificationSession(dbUser.id, verificationToken)) {
+      return res.status(401).json({ error: "身份验证已过期，请重新验证" });
+    }
+
+    if (!newEmail || !validator.isEmail(newEmail)) {
+      return res.status(400).json({ error: "请输入有效的新邮箱地址" });
+    }
+
+    if (normalizeEmail(dbUser.email) === newEmail) {
+      return res.status(400).json({ error: "新邮箱不能与当前邮箱相同" });
+    }
+
+    const matchedUser = await findUserByNormalizedEmail(newEmail);
+    if (matchedUser && matchedUser.id !== dbUser.id) {
+      return res.status(400).json({ error: "该邮箱已被其他账户使用" });
+    }
+
+    const challenge = createEmailChangeChallenge(dbUser.id, newEmail);
+    if (!challenge.success || !challenge.code) {
+      return res.status(429).json({ error: challenge.error || "验证码发送过于频繁，请稍后再试" });
+    }
+
+    const emailHtml = generateVerificationCodeEmailHtml(
+      dbUser.username,
+      challenge.code,
+    );
+    const result = await sendEmail({
+      to: newEmail,
+      subject: "Synapse 邮箱变更验证码",
+      html: emailHtml,
+      logTag: "邮箱变更验证码",
+    });
+
+    if (!result.success) {
+      clearEmailChangeChallenge(dbUser.id);
+      return res.status(500).json({ error: result.error || "验证码发送失败，请稍后重试" });
+    }
+
+    return res.json({
+      success: true,
+      message: "验证码已发送到新邮箱",
+    });
+  } catch (error) {
+    console.error("[AdminRoutes] 发送邮箱变更验证码失败:", error);
+    return res.status(500).json({ error: "验证码发送失败，请稍后重试" });
+  }
+});
+
 router.post("/user/profile", authMiddleware, async (req, res) => {
   try {
     const user = req.user;
     if (!user) return res.status(401).json({ error: "未登录" });
-    const { email, password, newPassword, avatarUrl, verificationCode } = req.body;
-    const { UserStorage } = require("../utils/userStorage");
+    const rawEmail = normalizeEmail(req.body?.email);
+    const password =
+      typeof req.body?.password === "string" ? req.body.password : "";
+    const newPassword =
+      typeof req.body?.newPassword === "string"
+        ? req.body.newPassword
+        : "";
+    const avatarUrl =
+      typeof req.body?.avatarUrl === "string" ? req.body.avatarUrl : "";
+    const verificationToken =
+      typeof req.body?.verificationToken === "string"
+        ? req.body.verificationToken
+        : "";
+    const emailVerificationCode =
+      typeof req.body?.emailVerificationCode === "string"
+        ? req.body.emailVerificationCode.trim()
+        : "";
+
     const dbUser = await UserStorage.getUserById(user.id);
-    // 判断二次认证方式
-    const hasTOTP = !!dbUser.totpEnabled;
-    const hasPasskey = Array.isArray(dbUser.passkeyCredentials) && dbUser.passkeyCredentials.length > 0;
-    if (!hasTOTP && !hasPasskey) {
-      if (!password || !UserStorage.checkPassword(dbUser, password)) {
-        if (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "dev") {
-          console.warn("[UserStorage] 密码校验失败，预期密码:", dbUser.password);
-        }
-        return res.status(401).json({ error: "密码错误，无法验证身份" });
-      }
-    } else {
-      if (!verificationCode && !(avatarUrl && !email && !newPassword)) {
-        return res.status(401).json({ error: "请提供TOTP或Passkey验证码" });
-      }
-      // 这里可调用原有TOTP/Passkey校验逻辑（略，假设通过）
+    if (!dbUser) {
+      return res.status(404).json({ error: "用户不存在" });
     }
-    // 更新信息
+
+    const normalizedCurrentEmail = normalizeEmail(dbUser.email);
+    const emailChanged = Boolean(rawEmail) && rawEmail !== normalizedCurrentEmail;
+    const wantsPasswordChange = Boolean(newPassword);
+    const wantsAvatarUpdate = Boolean(avatarUrl);
+
+    if (!emailChanged && !wantsPasswordChange && !wantsAvatarUpdate) {
+      return res.status(400).json({ error: "没有可更新的内容" });
+    }
+
+    let verifiedBySession = false;
+    if (verificationToken) {
+      verifiedBySession = Boolean(
+        validateProfileVerificationSession(dbUser.id, verificationToken),
+      );
+
+      if (!verifiedBySession) {
+        return res.status(401).json({ error: "身份验证已过期，请重新验证" });
+      }
+    }
+
+    if (emailChanged) {
+      if (!validator.isEmail(rawEmail)) {
+        return res.status(400).json({ error: "请输入有效的新邮箱地址" });
+      }
+
+      if (!verifiedBySession) {
+        return res.status(401).json({ error: "修改邮箱前请先完成身份验证" });
+      }
+
+      if (!emailVerificationCode) {
+        return res.status(400).json({ error: "请输入新邮箱验证码" });
+      }
+
+      const matchedUser = await findUserByNormalizedEmail(rawEmail);
+      if (matchedUser && matchedUser.id !== dbUser.id) {
+        return res.status(400).json({ error: "该邮箱已被其他账户使用" });
+      }
+
+      const challengeResult = validateEmailChangeChallenge(
+        dbUser.id,
+        rawEmail,
+        emailVerificationCode,
+      );
+      if (!challengeResult.success) {
+        return res
+          .status(challengeResult.status)
+          .json({ error: challengeResult.error || "邮箱验证码校验失败" });
+      }
+    }
+
+    if (wantsPasswordChange) {
+      if (verifiedBySession) {
+        const passwordErrors = UserStorage.validateUserInput(
+          dbUser.username,
+          newPassword,
+          dbUser.email,
+          true,
+        );
+        if (passwordErrors.length > 0) {
+          return res.status(400).json({ error: passwordErrors[0].message });
+        }
+      } else {
+        if (!password || !UserStorage.checkPassword(dbUser, password)) {
+          return res.status(401).json({ error: "当前密码错误" });
+        }
+
+        const passwordErrors = UserStorage.validateUserInput(
+          dbUser.username,
+          newPassword,
+          dbUser.email,
+          true,
+        );
+        if (passwordErrors.length > 0) {
+          return res.status(400).json({ error: passwordErrors[0].message });
+        }
+      }
+    }
+
     const updateData: any = {};
-    if (email) updateData.email = email;
+    if (emailChanged) updateData.email = rawEmail;
     if (avatarUrl && typeof avatarUrl === "string") {
       updateData.avatarUrl = avatarUrl;
     }
-    if (newPassword) updateData.password = newPassword;
+    if (wantsPasswordChange) updateData.password = newPassword;
     // 只有明确需要重置passkeyCredentials时才设置，避免误清空
     // if (!Array.isArray(dbUser.passkeyCredentials)) {
     //   updateData.passkeyCredentials = [];
     // }
     await UserStorage.updateUser(user.id, updateData);
     const updated = await UserStorage.getUserById(user.id);
+    if (!updated) {
+      return res.status(500).json({ error: "更新后无法获取用户信息" });
+    }
+
+    if (emailChanged) {
+      clearEmailChangeChallenge(dbUser.id);
+    }
+    if (verifiedBySession) {
+      clearProfileVerificationSessions(dbUser.id);
+    }
+
+    if (emailChanged) {
+      const changeTime = new Date().toLocaleString("zh-CN", {
+        timeZone: "Asia/Shanghai",
+      });
+      const clientIP = getClientIP(req);
+      const deviceName = String(req.headers["user-agent"] || "unknown");
+
+      if (dbUser.email) {
+        const oldEmailHtml = generateEmailChangeOldNoticeHtml(
+          dbUser.username,
+          rawEmail,
+          changeTime,
+          clientIP,
+          deviceName,
+        );
+        sendEmail({
+          to: dbUser.email,
+          subject: "Synapse 账户邮箱已更改",
+          html: oldEmailHtml,
+          logTag: "用户自助修改邮箱-旧邮箱通知",
+          checkQuota: false,
+        }).catch((notifyError) => {
+          logger.warn("[AdminRoutes] 旧邮箱通知发送失败", notifyError);
+        });
+      }
+
+      const newEmailHtml = generateEmailChangeNewNoticeHtml(
+        dbUser.username,
+        dbUser.email,
+        changeTime,
+        clientIP,
+        deviceName,
+      );
+      sendEmail({
+        to: rawEmail,
+        subject: "Synapse 新邮箱绑定成功",
+        html: newEmailHtml,
+        logTag: "用户自助修改邮箱-新邮箱通知",
+        checkQuota: false,
+      }).catch((notifyError) => {
+        logger.warn("[AdminRoutes] 新邮箱通知发送失败", notifyError);
+      });
+    }
+
     const { password: _, ...safeUser } = updated;
     const resp = { ...safeUser };
     res.json(resp);
