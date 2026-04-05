@@ -22,6 +22,9 @@ interface Authenticator {
   createdAt: string;
 }
 
+export const SINGLE_PASSKEY_ERROR_MESSAGE =
+  "每个账号仅允许注册一个 Passkey，请先删除现有 Passkey 后再重新注册";
+
 // 获取 RP ID（依赖域名）
 const getRpId = () => {
   return env.RP_ID;
@@ -265,6 +268,9 @@ export class PasskeyService {
       throw new Error("generateRegistrationOptions: user.username 为空");
     }
     const userAuthenticators = user?.passkeyCredentials || [];
+    if (userAuthenticators.length > 0) {
+      throw new Error(SINGLE_PASSKEY_ERROR_MESSAGE);
+    }
     let options;
     try {
       // 注意：@simplewebauthn/server 不直接接受 origin 参数
