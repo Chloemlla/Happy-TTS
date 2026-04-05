@@ -1,13 +1,13 @@
 import React, { useEffect, useState, ChangeEvent, useRef, useCallback, useMemo } from 'react';
 import { startAuthentication } from '@simplewebauthn/browser';
 import { useNotification } from './Notification';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import VerifyCodeInput from './VerifyCodeInput';
 import { LoadingSpinner } from './LoadingSpinner';
 import getApiBaseUrl from '../api';
 import { passkeyApi } from '../api/passkey';
 import { openDB } from 'idb';
-import { FaUser, FaUserCircle, FaShieldAlt, FaLock, FaEnvelope, FaCamera, FaSave } from 'react-icons/fa';
+import { FaUser, FaUserCircle, FaShieldAlt, FaLock, FaEnvelope, FaCamera, FaSave, FaKey } from 'react-icons/fa';
 
 interface UserProfileData {
   id: string;
@@ -134,7 +134,6 @@ const getPasskeyAuthResponse = async (username: string) => {
 const AVATAR_DB = 'avatar-store';
 const AVATAR_STORE = 'avatars';
 
-// Optimized avatar caching with proper error handling
 const initAvatarDB = async () => {
   try {
     return await openDB(AVATAR_DB, 1, {
@@ -175,6 +174,9 @@ const setCachedAvatar = async (userId: string, avatarHash: string, blobUrl: stri
   }
 };
 
+const pageFont = '"Avenir Next","PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif';
+const displayFont = '"Iowan Old Style","Noto Serif SC","Source Han Serif SC",serif';
+
 const UserProfile: React.FC = () => {
   const { setNotification } = useNotification();
 
@@ -206,13 +208,16 @@ const UserProfile: React.FC = () => {
   const [oldPwd, setOldPwd] = useState('');
   const [newPwd, setNewPwd] = useState('');
 
-  // Avatar state - simplified and optimized
+  // Avatar state
   const [avatarImg, setAvatarImg] = useState<string | undefined>(undefined);
   const [avatarLoading, setAvatarLoading] = useState(false);
   const avatarObjectUrlRef = useRef<string | undefined>(undefined);
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Optimized profile loading with proper error handling
+  // Max file size and allowed types
+  const MAX_AVATAR_SIZE = 2 * 1024 * 1024;
+  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
   const loadProfile = useCallback(async () => {
     setLoadError(null);
     setLoadTimeout(false);
@@ -221,7 +226,7 @@ const UserProfile: React.FC = () => {
     const timeoutId = setTimeout(() => {
       setLoadTimeout(true);
       setLoading(false);
-    }, 8000); // 8 second timeout
+    }, 8000);
 
     try {
       const data = await fetchProfile();
@@ -247,7 +252,6 @@ const UserProfile: React.FC = () => {
     loadProfile();
   }, [loadProfile]);
 
-  // Optimized TOTP/Passkey status fetching
   const fetchTotpStatus = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
@@ -291,7 +295,7 @@ const UserProfile: React.FC = () => {
     return email.trim().toLowerCase() !== profile.email.trim().toLowerCase();
   }, [email, profile?.email]);
 
-  // Optimized avatar loading logic
+  // Avatar loading logic
   const loadAvatar = useCallback(async (profile: UserProfileData) => {
     if (!profile.avatarUrl || !profile.id) {
       setAvatarImg(undefined);
@@ -301,20 +305,17 @@ const UserProfile: React.FC = () => {
     setAvatarLoading(true);
 
     try {
-      // Clean up previous object URL
       if (avatarObjectUrlRef.current) {
         URL.revokeObjectURL(avatarObjectUrlRef.current);
         avatarObjectUrlRef.current = undefined;
       }
 
-      // Direct HTTP/HTTPS URLs - use directly
       if (/^https?:\/\//.test(profile.avatarUrl)) {
         setAvatarImg(profile.avatarUrl);
         setAvatarLoading(false);
         return;
       }
 
-      // Try cached avatar first if we have avatarHash
       if (profile.avatarHash) {
         const cached = await getCachedAvatar(profile.id, profile.avatarHash);
         if (cached && cached.startsWith('blob:')) {
@@ -324,7 +325,6 @@ const UserProfile: React.FC = () => {
         }
       }
 
-      // Fallback: fetch and create blob URL
       const response = await fetch(profile.avatarUrl);
       if (!response.ok) throw new Error('Failed to load avatar');
 
@@ -334,7 +334,6 @@ const UserProfile: React.FC = () => {
       avatarObjectUrlRef.current = objectUrl;
       setAvatarImg(objectUrl);
 
-      // Cache the blob URL if we have avatarHash
       if (profile.avatarHash) {
         await setCachedAvatar(profile.id, profile.avatarHash, objectUrl);
       }
@@ -352,7 +351,6 @@ const UserProfile: React.FC = () => {
     }
 
     return () => {
-      // Cleanup on unmount
       if (avatarObjectUrlRef.current) {
         URL.revokeObjectURL(avatarObjectUrlRef.current);
         avatarObjectUrlRef.current = undefined;
@@ -360,16 +358,11 @@ const UserProfile: React.FC = () => {
     };
   }, [profile, loadAvatar]);
 
-  // 新增头像上传限制
-  const MAX_AVATAR_SIZE = 2 * 1024 * 1024; // 2MB
-  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-
-  // Optimized avatar upload logic
+  // Avatar upload
   const handleAvatarChange = useCallback(async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Frontend file validation
     if (!ALLOWED_TYPES.includes(file.type)) {
       setNotification({
         message: '不支持的文件格式，请上传图片文件（JPEG、PNG、WebP、GIF）',
@@ -408,7 +401,6 @@ const UserProfile: React.FC = () => {
       }
 
       if (result.success && result.avatarUrl) {
-        // Update profile with new avatar URL
         setProfile((prev) => prev ? {
           ...prev,
           avatarUrl: result.avatarUrl,
@@ -416,8 +408,6 @@ const UserProfile: React.FC = () => {
         } : prev);
 
         setNotification({ message: '头像上传成功', type: 'success' });
-
-        // Refresh profile to get latest data
         await loadProfile();
       } else {
         throw new Error(result.error || '头像上传失败');
@@ -438,17 +428,14 @@ const UserProfile: React.FC = () => {
         }
       }
 
-      setNotification({
-        message: errorMessage,
-        type: 'error'
-      });
+      setNotification({ message: errorMessage, type: 'error' });
     } finally {
       setLoading(false);
       setAvatarLoading(false);
     }
   }, [setNotification, loadProfile]);
 
-  // Optimized Avatar component with loading state
+  // Avatar component
   const Avatar = useMemo(() => {
     return ({ src }: { src?: string }) => {
       const [error, setError] = useState(false);
@@ -456,11 +443,11 @@ const UserProfile: React.FC = () => {
 
       if (!src || error) {
         return (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200">
             {avatarLoading ? (
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2541b2]"></div>
             ) : (
-              <FaUser className="text-3xl text-gray-500" />
+              <FaUser className="text-3xl text-slate-400" />
             )}
           </div>
         );
@@ -469,15 +456,14 @@ const UserProfile: React.FC = () => {
       return (
         <div className="relative w-full h-full">
           {imageLoading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2541b2]"></div>
             </div>
           )}
           <img
             src={src}
             alt="头像"
-            className={`w-full h-full object-cover transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'
-              }`}
+            className={`w-full h-full object-cover transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
             onLoad={() => setImageLoading(false)}
             onError={() => {
               setError(true);
@@ -489,7 +475,7 @@ const UserProfile: React.FC = () => {
     };
   }, [avatarLoading]);
 
-  // Verification flow using /user/profile/verify endpoint
+  // Verification flow
   const handleVerify = useCallback(async () => {
     if (!profile?.id) {
       setNotification({ message: '用户信息不完整', type: 'error' });
@@ -559,7 +545,7 @@ const UserProfile: React.FC = () => {
     }
   }, [profile, totpStatus, verificationCode, password, setNotification]);
 
-  // Send email verification code for email change
+  // Send email verification code
   const handleSendEmailCode = useCallback(async () => {
     if (!verificationToken) {
       setNotification({ message: '请先完成身份验证', type: 'warning' });
@@ -585,7 +571,7 @@ const UserProfile: React.FC = () => {
     }
   }, [verificationToken, email, emailChanged, setNotification]);
 
-  // Profile update with new 3-step flow
+  // Profile update
   const handleUpdate = useCallback(async () => {
     const has2FA = totpStatus?.enabled || totpStatus?.hasPasskey;
 
@@ -638,7 +624,7 @@ const UserProfile: React.FC = () => {
     }
   }, [totpStatus, password, verified, email, emailChanged, newPassword, verificationToken, emailVerificationCode, setNotification, loadProfile]);
 
-  // Password change logic - uses verificationToken if available, otherwise old password
+  // Password change
   const handleChangePassword = useCallback(async () => {
     if (!verified && !oldPwd) {
       setNotification({ message: '请输入旧密码', type: 'warning' });
@@ -674,7 +660,7 @@ const UserProfile: React.FC = () => {
     }
   }, [oldPwd, newPwd, verified, verificationToken, setNotification]);
 
-  // Handle TOTP verification in modal
+  // TOTP verification in modal
   const handleTotpVerification = useCallback(async () => {
     if (!profile?.id || !verificationCode) {
       setNotification({ message: '请输入验证码', type: 'warning' });
@@ -699,7 +685,7 @@ const UserProfile: React.FC = () => {
     }
   }, [profile, verificationCode, setNotification]);
 
-  // Handle Passkey verification in modal
+  // Passkey verification in modal
   const handlePasskeyVerification = useCallback(async () => {
     if (!profile?.username) {
       setNotification({ message: '无法获取用户名', type: 'error' });
@@ -729,18 +715,40 @@ const UserProfile: React.FC = () => {
     }
   }, [profile, setNotification]);
 
-  // Memoized authentication check
   const isAuthenticated = useMemo(() => {
     return Boolean(localStorage.getItem('token'));
   }, []);
 
+  const statusCards = useMemo(() => [
+    {
+      label: 'Account',
+      value: profile?.username || '—',
+      tone: 'border-sky-100 bg-[linear-gradient(145deg,rgba(240,249,255,0.94),rgba(255,255,255,0.98))]',
+    },
+    {
+      label: 'Role',
+      value: profile?.role === 'admin' ? '管理员' : '普通用户',
+      tone: 'border-violet-100 bg-[linear-gradient(145deg,rgba(245,243,255,0.94),rgba(255,255,255,0.98))]',
+    },
+    {
+      label: 'Security',
+      value: totpStatus?.enabled ? 'TOTP 已启用' : totpStatus?.hasPasskey ? 'Passkey 已启用' : '基础密码',
+      tone: 'border-emerald-100 bg-[linear-gradient(145deg,rgba(236,253,245,0.94),rgba(255,255,255,0.98))]',
+    },
+  ], [profile, totpStatus]);
+
+  // ── Error / loading states ──
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8 px-4 rounded-lg">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8">
-            <div className="p-8 text-center text-red-500">未登录或会话已过期，请重新登录。</div>
-          </div>
+      <div className="min-h-screen px-3 py-4 sm:px-6 sm:py-8 rounded-3xl lg:px-10 bg-[radial-gradient(circle_at_top,_rgba(68,92,190,0.16),_transparent_32%),linear-gradient(180deg,#eef2ff_0%,#f9fafb_42%,#eef4ff_100%)]" style={{ fontFamily: pageFont }}>
+        <div className="mx-auto max-w-3xl rounded-[28px] border border-rose-100 bg-white p-6 text-center shadow-xl sm:rounded-[32px] sm:p-10">
+          <div className="text-sm font-semibold uppercase tracking-[0.3em] text-rose-400">Authentication</div>
+          <h1 className="mt-4 text-3xl font-semibold text-slate-900 sm:text-4xl" style={{ fontFamily: displayFont }}>
+            未登录或会话已过期
+          </h1>
+          <p className="mt-4 text-sm leading-7 text-slate-500 sm:text-base sm:leading-8">
+            请重新登录后访问个人主页。
+          </p>
         </div>
       </div>
     );
@@ -748,22 +756,22 @@ const UserProfile: React.FC = () => {
 
   if (loadError) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8 px-4 rounded-lg">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8">
-            <div className="p-8 text-center text-red-500 whitespace-pre-line">
-              加载失败，请刷新页面或重新登录。
-              {typeof loadError === 'string' && loadError !== '加载失败，请刷新页面或重新登录' ? `\n详细信息：${loadError}` : ''}
-            </div>
-            <div className="text-center mt-4">
-              <button
-                onClick={loadProfile}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                重试
-              </button>
-            </div>
-          </div>
+      <div className="min-h-screen px-3 py-4 sm:px-6 sm:py-8 rounded-3xl lg:px-10 bg-[radial-gradient(circle_at_top,_rgba(68,92,190,0.16),_transparent_32%),linear-gradient(180deg,#eef2ff_0%,#f9fafb_42%,#eef4ff_100%)]" style={{ fontFamily: pageFont }}>
+        <div className="mx-auto max-w-3xl rounded-[28px] border border-rose-100 bg-white p-6 text-center shadow-xl sm:rounded-[32px] sm:p-10">
+          <div className="text-sm font-semibold uppercase tracking-[0.3em] text-rose-400">Error</div>
+          <h1 className="mt-4 text-xl font-semibold text-slate-900 sm:text-2xl" style={{ fontFamily: displayFont }}>
+            加载失败
+          </h1>
+          <p className="mt-3 text-sm leading-7 text-slate-500 sm:text-base sm:leading-8 whitespace-pre-line">
+            请刷新页面或重新登录。
+            {typeof loadError === 'string' && loadError !== '加载失败，请刷新页面或重新登录' ? `\n${loadError}` : ''}
+          </p>
+          <button
+            onClick={loadProfile}
+            className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#2541b2] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#2541b2]/20 transition hover:bg-[#1f3794]"
+          >
+            重试
+          </button>
         </div>
       </div>
     );
@@ -772,105 +780,104 @@ const UserProfile: React.FC = () => {
   if (loading || !profile) {
     if (loadTimeout) {
       return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8 px-4 rounded-lg">
-          <div className="max-w-7xl mx-auto px-4">
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8">
-              <div className="p-8 text-center text-red-500">加载超时，请检查网络或刷新页面</div>
-              <div className="text-center mt-4">
-                <button
-                  onClick={loadProfile}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  重试
-                </button>
-              </div>
-            </div>
+        <div className="min-h-screen px-3 py-4 sm:px-6 sm:py-8 rounded-3xl lg:px-10 bg-[radial-gradient(circle_at_top,_rgba(68,92,190,0.16),_transparent_32%),linear-gradient(180deg,#eef2ff_0%,#f9fafb_42%,#eef4ff_100%)]" style={{ fontFamily: pageFont }}>
+          <div className="mx-auto max-w-3xl rounded-[28px] border border-amber-100 bg-white p-6 text-center shadow-xl sm:rounded-[32px] sm:p-10">
+            <div className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-400">Timeout</div>
+            <h1 className="mt-4 text-xl font-semibold text-slate-900" style={{ fontFamily: displayFont }}>
+              加载超时
+            </h1>
+            <p className="mt-3 text-sm text-slate-500">请检查网络或刷新页面</p>
+            <button
+              onClick={loadProfile}
+              className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#2541b2] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#2541b2]/20 transition hover:bg-[#1f3794]"
+            >
+              重试
+            </button>
           </div>
         </div>
       );
     }
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8 px-4 rounded-lg">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8">
-            <LoadingSpinner />
-          </div>
+      <div className="min-h-screen px-3 py-4 sm:px-6 sm:py-8 rounded-3xl lg:px-10 bg-[radial-gradient(circle_at_top,_rgba(68,92,190,0.16),_transparent_32%),linear-gradient(180deg,#eef2ff_0%,#f9fafb_42%,#eef4ff_100%)]" style={{ fontFamily: pageFont }}>
+        <div className="mx-auto max-w-3xl rounded-[28px] border border-white/70 bg-white/75 p-8 shadow-xl backdrop-blur-xl sm:rounded-[32px]">
+          <LoadingSpinner />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8 px-4 rounded-lg">
-      <div className="max-w-7xl mx-auto px-4 space-y-8">
-        {/* 统一的标题部分 */}
-        <motion.div
-          className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden"
-          initial={{ opacity: 0, y: 20 }}
+    <div
+      className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top,_rgba(68,92,190,0.16),_transparent_32%),linear-gradient(180deg,#eef2ff_0%,#f9fafb_42%,#eef4ff_100%)] px-3 py-4 sm:px-6 sm:py-8 rounded-3xl lg:px-10"
+      style={{ fontFamily: pageFont }}
+    >
+      <div className="mx-auto max-w-4xl min-w-0">
+        {/* ── Header ── */}
+        <m.div
+          initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
+          transition={{ duration: 0.45 }}
+          className="mb-5 rounded-[28px] border border-white/70 bg-white/75 p-4 shadow-[0_24px_90px_rgba(32,48,90,0.12)] backdrop-blur-xl sm:mb-8 sm:rounded-[32px] sm:p-8 sm:shadow-[0_30px_120px_rgba(32,48,90,0.14)]"
         >
-          <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
-            <div className="text-center">
-              <motion.div
-                className="flex items-center justify-center gap-3 mb-4"
-                initial={{ scale: 0.9 }}
-                animate={{ scale: 1 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
+          <div className="flex min-w-0 flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl min-w-0">
+              <div className="mb-3 inline-flex max-w-full items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-sky-700 sm:px-3 sm:text-xs sm:tracking-[0.18em]">
+                <FaUserCircle />
+                Account Settings
+              </div>
+              <h1
+                className="text-[2rem] font-semibold leading-[1.05] text-slate-900 sm:text-5xl sm:leading-tight"
+                style={{ fontFamily: displayFont }}
               >
-                <FaUserCircle className="text-4xl" />
-                <h1 className="text-4xl font-bold">个人主页</h1>
-              </motion.div>
-              <motion.p
-                className="text-blue-100 text-lg"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0.4 }}
-              >
-                管理您的个人信息和账户设置
-              </motion.p>
+                个人主页
+              </h1>
+              <p className="mt-3 max-w-2xl text-[13px] leading-6 text-slate-600 sm:text-base sm:leading-7">
+                管理您的个人信息、安全设置和账户偏好
+              </p>
+            </div>
+
+            <div className="w-full lg:w-auto">
+              <div className="grid gap-2 sm:grid-cols-3 sm:gap-3">
+                {statusCards.map((item) => (
+                  <div
+                    key={item.label}
+                    className={`min-w-0 rounded-[22px] border px-3 py-2.5 sm:rounded-2xl sm:px-4 sm:py-3 ${item.tone}`}
+                  >
+                    <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">{item.label}</div>
+                    <div className="mt-2 break-words text-sm font-semibold text-slate-800">{item.value}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        </motion.div>
+        </m.div>
 
-        {/* 个人信息区域 */}
-        <motion.div
-          className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-        >
-          <div className="p-6">
-            <div className="flex items-center gap-2 mb-6 p-3 bg-gray-50 rounded-lg">
-              <FaUser className="text-blue-600" />
-              <span className="font-semibold text-gray-800">个人信息</span>
-            </div>
-            <motion.div
-              className="flex flex-col items-center mb-6"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
-              <motion.div
-                className="relative w-24 h-24 rounded-full bg-gray-200 overflow-hidden mb-4 shadow-lg"
-                whileHover={{ scale: 1.05, rotate: 2 }}
-                whileTap={{ scale: 0.97, rotate: -2 }}
-              >
+        <div className="grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
+          {/* ── Main form ── */}
+          <m.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.05 }}
+            className="min-w-0 rounded-[28px] border border-slate-200/80 bg-white/85 p-4 shadow-[0_20px_70px_rgba(32,48,90,0.1)] backdrop-blur-xl sm:rounded-[34px] sm:p-6 sm:shadow-[0_24px_90px_rgba(32,48,90,0.1)]"
+          >
+            {/* Avatar section */}
+            <div className="mb-6 flex flex-col items-center">
+              <div className="relative mb-4 h-24 w-24 overflow-hidden rounded-full bg-slate-200 shadow-lg ring-4 ring-white">
                 <Avatar src={avatarImg || profile?.avatarUrl} />
-                <motion.div
-                  className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
-                  whileHover={{ opacity: 1 }}
-                >
-                  <FaCamera className="text-white text-xl" />
-                </motion.div>
-              </motion.div>
-              <motion.label
-                className="mb-4 cursor-pointer inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-50 to-purple-50 text-blue-700 rounded-lg hover:from-blue-100 hover:to-purple-100 transition-all font-medium shadow-sm border border-blue-200"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <FaCamera className="mr-2" />
-                {avatarLoading ? '上传中...' : '更换头像'}
+                <label className="absolute inset-0 flex cursor-pointer items-center justify-center bg-black/50 opacity-0 transition hover:opacity-100">
+                  <FaCamera className="text-xl text-white" />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarChange}
+                    className="hidden"
+                    disabled={loading || avatarLoading}
+                  />
+                </label>
+              </div>
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 sm:text-xs">
+                <FaCamera />
+                {avatarLoading ? '上传中…' : '更换头像'}
                 <input
                   type="file"
                   accept="image/*"
@@ -878,271 +885,379 @@ const UserProfile: React.FC = () => {
                   className="hidden"
                   disabled={loading || avatarLoading}
                 />
-              </motion.label>
-              <div className="text-lg font-semibold text-gray-800">{profile.username}</div>
-              <div className="text-gray-500 text-sm px-3 py-1 bg-gray-100 rounded-full">
-                {profile.role === 'admin' ? '管理员' : '普通用户'}
-              </div>
-            </motion.div>
-            <motion.div className="mb-6" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: 0.15 }}>
-              <label className="flex items-center gap-2 text-gray-700 mb-2 font-medium">
-                <FaEnvelope className="text-blue-600" />
+              </label>
+            </div>
+
+            {/* Email field */}
+            <section className="mb-4 rounded-[24px] border border-slate-200 bg-[#fbfcff] p-4 sm:rounded-[28px] sm:p-5">
+              <label className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                <FaEnvelope />
                 邮箱地址
               </label>
-              <motion.input
+              <input
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all bg-white/50 backdrop-blur-sm"
-                whileFocus={{ scale: 1.02 }}
+                className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#2541b2] focus:ring-2 focus:ring-[#2541b2]/20 sm:rounded-full"
                 disabled={loading}
                 placeholder="请输入邮箱地址"
               />
-            </motion.div>
-            {/* Email change verification code */}
-            {verified && emailChanged && (
-              <motion.div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-                <div className="flex items-center gap-2 mb-3">
-                  <FaEnvelope className="text-blue-600" />
-                  <span className="font-semibold text-gray-800 text-sm">新邮箱验证</span>
-                </div>
-                <p className="text-sm text-blue-700 mb-3">
-                  修改邮箱需要验证新邮箱地址，请先发送验证码
-                </p>
-                <div className="flex gap-2 mb-3">
-                  <motion.button
+
+              {/* Email change code */}
+              {verified && emailChanged && (
+                <div className="mt-4 rounded-[20px] border border-sky-200 bg-sky-50 p-3.5 sm:rounded-2xl sm:p-4">
+                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-600">
+                    新邮箱验证
+                  </div>
+                  <p className="mb-3 text-[13px] leading-6 text-slate-600">
+                    修改邮箱需要验证新邮箱地址，请先发送验证码
+                  </p>
+                  <button
+                    type="button"
                     onClick={handleSendEmailCode}
-                    className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={loading || emailCodeCooldown > 0}
-                    whileHover={{ scale: loading ? 1 : 1.02 }}
-                    whileTap={{ scale: loading ? 1 : 0.98 }}
+                    className="inline-flex items-center gap-2 rounded-full bg-[#2541b2] px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-[#2541b2]/20 transition hover:bg-[#1f3794] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {emailCodeCooldown > 0 ? `${emailCodeCooldown}s 后重新发送` : emailCodeSent ? '重新发送验证码' : '发送验证码'}
-                  </motion.button>
+                  </button>
+                  {emailCodeSent && (
+                    <div className="mt-3">
+                      <div className="mb-2 text-[11px] font-medium text-slate-500">输入验证码</div>
+                      <input
+                        type="text"
+                        value={emailVerificationCode}
+                        onChange={(e) => setEmailVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#2541b2] focus:ring-2 focus:ring-[#2541b2]/20 sm:rounded-full"
+                        placeholder="请输入 6 位验证码"
+                        maxLength={6}
+                        disabled={loading}
+                      />
+                    </div>
+                  )}
                 </div>
-                {emailCodeSent && (
+              )}
+            </section>
+
+            {/* Identity verification section */}
+            <section className="mb-4 rounded-[24px] border border-slate-200 bg-[#fbfcff] p-4 sm:rounded-[28px] sm:p-5">
+              {!totpStatus?.enabled && !totpStatus?.hasPasskey ? (
+                <>
+                  <label className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    <FaLock />
+                    当前密码
+                  </label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#2541b2] focus:ring-2 focus:ring-[#2541b2]/20 sm:rounded-full"
+                    disabled={loading}
+                    placeholder="请输入当前密码用于身份验证"
+                  />
+                  {!verified && (
+                    <button
+                      type="button"
+                      onClick={handleVerify}
+                      disabled={loading || !password}
+                      className="mt-3 inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <FaShieldAlt />
+                      {loading ? '验证中…' : '验证身份'}
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <label className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    <FaShieldAlt />
+                    二次验证
+                  </label>
+                  <div className="mb-3 rounded-[20px] border border-sky-200 bg-sky-50 p-3.5 text-[13px] leading-6 text-sky-700 sm:rounded-2xl sm:p-4 sm:text-sm sm:leading-7">
+                    检测到您已启用二次验证，请完成验证后再修改信息
+                  </div>
+                  {totpStatus?.enabled && (
+                    <div className="mb-3">
+                      <VerifyCodeInput
+                        length={6}
+                        onComplete={setVerificationCode}
+                        loading={loading}
+                        error={undefined}
+                        inputClassName="bg-white border border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#2541b2]/20 focus:border-[#2541b2] rounded-lg px-3 py-2 text-lg transition-all outline-none mx-1"
+                      />
+                    </div>
+                  )}
+                  {!verified && (
+                    <button
+                      type="button"
+                      onClick={handleVerify}
+                      disabled={loading || (totpStatus?.enabled && verificationCode.length !== 6)}
+                      className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <FaShieldAlt />
+                      {loading ? '验证中…' : '验证'}
+                    </button>
+                  )}
+                </>
+              )}
+              {verified && (
+                <div className="mt-3 rounded-[20px] border border-emerald-200 bg-emerald-50 px-3 py-3 text-[13px] font-medium text-emerald-700 sm:rounded-2xl sm:text-sm">
+                  <span className="mr-2">✓</span>身份验证成功，现在可以修改信息
+                </div>
+              )}
+            </section>
+
+            {/* Password change section */}
+            <section className="mb-4 rounded-[24px] border border-slate-200 bg-[#fbfcff] p-4 sm:rounded-[28px] sm:p-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                  <FaKey />
+                  修改密码
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setChangePwdMode(v => !v)}
+                  className="inline-flex self-start items-center gap-2 rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-200"
+                >
+                  {changePwdMode ? '取消' : '修改密码'}
+                </button>
+              </div>
+              {changePwdMode && (
+                <div className="mt-4 space-y-3">
+                  {!verified && (
+                    <div>
+                      <div className="mb-2 text-[11px] font-medium text-slate-500">旧密码</div>
+                      <input
+                        type="password"
+                        value={oldPwd}
+                        onChange={e => setOldPwd(e.target.value)}
+                        className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#2541b2] focus:ring-2 focus:ring-[#2541b2]/20 sm:rounded-full"
+                        disabled={loading}
+                        placeholder="请输入当前密码"
+                      />
+                    </div>
+                  )}
                   <div>
-                    <label className="block text-gray-700 mb-2 text-sm font-medium">输入验证码</label>
-                    <motion.input
-                      type="text"
-                      value={emailVerificationCode}
-                      onChange={(e) => setEmailVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                      className="w-full border-2 border-blue-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all bg-white/80"
-                      placeholder="请输入 6 位验证码"
-                      maxLength={6}
+                    <div className="mb-2 text-[11px] font-medium text-slate-500">新密码</div>
+                    <input
+                      type="password"
+                      value={newPwd}
+                      onChange={e => setNewPwd(e.target.value)}
+                      className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#2541b2] focus:ring-2 focus:ring-[#2541b2]/20 sm:rounded-full"
                       disabled={loading}
-                      whileFocus={{ scale: 1.02 }}
+                      placeholder="请输入新密码（至少6位）"
                     />
                   </div>
-                )}
-              </motion.div>
-            )}
-            {!totpStatus?.enabled && !totpStatus?.hasPasskey ? (
-              <motion.div className="mb-6" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: 0.24 }}>
-                <label className="flex items-center gap-2 text-gray-700 mb-2 font-medium">
-                  <FaLock className="text-blue-600" />
-                  当前密码（用于身份验证）
-                </label>
-                <motion.input
-                  type="password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all bg-white/50 backdrop-blur-sm"
-                  whileFocus={{ scale: 1.02 }}
-                  disabled={loading}
-                  placeholder="请输入当前密码"
-                />
-              </motion.div>
-            ) : (
-              <motion.div className="mb-6" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: 0.24 }}>
-                <label className="flex items-center gap-2 text-gray-700 mb-2 font-medium">
-                  <FaShieldAlt className="text-blue-600" />
-                  二次验证（TOTP/Passkey）
-                </label>
-                <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                  <p className="text-sm text-blue-700">
-                    检测到您已启用二次验证，请完成验证后再修改信息
-                  </p>
+                  <button
+                    type="button"
+                    onClick={handleChangePassword}
+                    disabled={loading || (!verified && !oldPwd) || !newPwd}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-[18px] bg-[#2541b2] px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-[#2541b2]/20 transition hover:bg-[#1f3794] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:rounded-full sm:py-2"
+                  >
+                    <FaSave />
+                    保存新密码
+                  </button>
+                </div>
+              )}
+            </section>
+
+            {/* Save button */}
+            <button
+              type="button"
+              onClick={handleUpdate}
+              disabled={loading || avatarLoading}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-[18px] bg-[#2541b2] px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#2541b2]/20 transition hover:bg-[#1f3794] disabled:cursor-not-allowed disabled:opacity-60 sm:rounded-full sm:py-3"
+            >
+              {loading && <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>}
+              <FaSave />
+              {loading ? '保存中…' : '保存修改'}
+            </button>
+          </m.div>
+
+          {/* ── Sidebar ── */}
+          <div className="min-w-0 space-y-4 sm:space-y-6">
+            {/* Account info */}
+            <m.section
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.12 }}
+              className="rounded-[26px] border border-slate-200/80 bg-white/90 p-4 shadow-[0_20px_70px_rgba(32,48,90,0.08)] backdrop-blur-xl sm:rounded-[30px] sm:p-5"
+            >
+              <div className="mb-4">
+                <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                  账户信息
+                </div>
+                <div className="mt-1 text-lg font-semibold text-slate-900">Account Overview</div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex flex-col gap-1 rounded-[20px] border border-slate-100 px-3 py-2.5 text-[13px] sm:flex-row sm:items-center sm:justify-between sm:rounded-2xl sm:py-3 sm:text-sm">
+                  <span className="text-slate-500">用户名</span>
+                  <span className="font-semibold text-slate-800">{profile.username}</span>
+                </div>
+                <div className="flex flex-col gap-1 rounded-[20px] border border-slate-100 px-3 py-2.5 text-[13px] sm:flex-row sm:items-center sm:justify-between sm:rounded-2xl sm:py-3 sm:text-sm">
+                  <span className="text-slate-500">邮箱</span>
+                  <span className="font-semibold text-slate-800 break-all">{profile.email}</span>
+                </div>
+                <div className="flex flex-col gap-1 rounded-[20px] border border-slate-100 px-3 py-2.5 text-[13px] sm:flex-row sm:items-center sm:justify-between sm:rounded-2xl sm:py-3 sm:text-sm">
+                  <span className="text-slate-500">角色</span>
+                  <span className="font-semibold text-slate-800">{profile.role === 'admin' ? '管理员' : '普通用户'}</span>
+                </div>
+              </div>
+            </m.section>
+
+            {/* Security status */}
+            <m.section
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.18 }}
+              className="rounded-[26px] border border-slate-200/80 bg-white/90 p-4 shadow-[0_20px_70px_rgba(32,48,90,0.08)] backdrop-blur-xl sm:rounded-[30px] sm:p-5"
+            >
+              <div className="mb-4 flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-slate-900 text-white sm:h-10 sm:w-10">
+                  <FaShieldAlt />
+                </div>
+                <div>
+                  <div className="text-lg font-semibold text-slate-900">安全状态</div>
+                  <div className="text-sm text-slate-500">当前账户安全配置</div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex flex-col gap-1 rounded-[20px] border border-slate-100 px-3 py-2.5 text-[13px] sm:flex-row sm:items-center sm:justify-between sm:rounded-2xl sm:py-3 sm:text-sm">
+                  <span className="text-slate-500">TOTP 验证</span>
+                  <span className={`font-semibold ${totpStatus?.enabled ? 'text-emerald-600' : 'text-slate-400'}`}>
+                    {totpStatus?.enabled ? '已启用' : '未启用'}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1 rounded-[20px] border border-slate-100 px-3 py-2.5 text-[13px] sm:flex-row sm:items-center sm:justify-between sm:rounded-2xl sm:py-3 sm:text-sm">
+                  <span className="text-slate-500">Passkey</span>
+                  <span className={`font-semibold ${totpStatus?.hasPasskey ? 'text-emerald-600' : 'text-slate-400'}`}>
+                    {totpStatus?.hasPasskey ? '已启用' : '未启用'}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1 rounded-[20px] border border-slate-100 px-3 py-2.5 text-[13px] sm:flex-row sm:items-center sm:justify-between sm:rounded-2xl sm:py-3 sm:text-sm">
+                  <span className="text-slate-500">密码保护</span>
+                  <span className="font-semibold text-emerald-600">已启用</span>
+                </div>
+              </div>
+            </m.section>
+
+            {/* Tips */}
+            <m.section
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.24 }}
+              className="rounded-[26px] border border-slate-200/80 bg-[#111827] p-4 text-white shadow-[0_20px_70px_rgba(17,24,39,0.18)] sm:rounded-[30px] sm:p-5"
+            >
+              <div className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                安全提示
+              </div>
+              <div className="space-y-2">
+                {[
+                  '建议启用 TOTP 或 Passkey 增强账户安全',
+                  '定期更换密码，使用强密码组合',
+                  '修改邮箱需要通过新邮箱验证码确认',
+                  '所有敏感操作需先通过身份验证',
+                ].map((tip) => (
+                  <div
+                    key={tip}
+                    className="rounded-[20px] border border-white/10 bg-white/5 px-3.5 py-3 text-[13px] text-slate-200 sm:rounded-2xl sm:px-4 sm:text-sm"
+                  >
+                    {tip}
+                  </div>
+                ))}
+              </div>
+            </m.section>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Verification method modal ── */}
+      {showVerificationModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowVerificationModal(false)}
+        >
+          <m.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="m-4 w-full max-w-md rounded-[28px] border border-white/70 bg-white p-6 shadow-[0_30px_120px_rgba(32,48,90,0.2)] sm:rounded-[32px] sm:p-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-6 text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-900 text-white">
+                <FaShieldAlt className="text-2xl" />
+              </div>
+              <h3 className="text-xl font-semibold text-slate-900" style={{ fontFamily: displayFont }}>
+                选择验证方式
+              </h3>
+              <p className="mt-2 text-sm text-slate-500">为 {profile.username} 选择一种验证方式</p>
+            </div>
+
+            <div className="space-y-4">
+              {/* TOTP */}
+              <div className="rounded-[22px] border border-slate-200 p-4 transition hover:border-[#2541b2]/30">
+                <div className="mb-3 flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-100">
+                    <FaShieldAlt className="text-sm text-sky-600" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-slate-800">TOTP 验证码</div>
+                    <div className="text-[11px] text-slate-500">使用认证器应用生成的6位验证码</div>
+                  </div>
                 </div>
                 <VerifyCodeInput
                   length={6}
                   onComplete={setVerificationCode}
                   loading={loading}
                   error={undefined}
-                  inputClassName="bg-white/50 backdrop-blur-sm border-2 border-blue-400 text-blue-700 focus:ring-2 focus:ring-blue-400 focus:border-blue-500 placeholder-blue-200 rounded-lg px-3 py-2 text-lg transition-all outline-none mx-1"
+                  inputClassName="bg-white border border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#2541b2]/20 focus:border-[#2541b2] rounded-lg px-2 py-1 text-sm transition-all outline-none mx-1"
                 />
-                <motion.button
-                  onClick={handleVerify}
-                  className="mt-3 px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 shadow-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={loading || (totpStatus?.enabled && verificationCode.length !== 6)}
-                  whileHover={{ scale: loading ? 1 : 1.05 }}
-                  whileTap={{ scale: loading ? 1 : 0.95 }}
-                >
-                  {loading ? '验证中...' : '验证'}
-                </motion.button>
-                {verified && (
-                  <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
-                    <p className="text-sm text-green-700 flex items-center gap-2">
-                      <FaShieldAlt className="text-green-600" />
-                      验证成功，现在可以修改信息
-                    </p>
-                  </div>
-                )}
-              </motion.div>
-            )}
-            <div className="mb-6">
-              <motion.button
-                className="px-6 py-2 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-lg hover:from-gray-600 hover:to-gray-700 transition font-medium shadow-lg"
-                onClick={() => setChangePwdMode(v => !v)}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                {changePwdMode ? '取消修改密码' : '修改密码'}
-              </motion.button>
-            </div>
-            {changePwdMode && (
-              <motion.div className="mb-6 p-4 bg-gray-50 rounded-lg" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4 }}>
-                <div className="flex items-center gap-2 mb-4">
-                  <FaLock className="text-blue-600" />
-                  <span className="font-semibold text-gray-800">修改密码</span>
-                </div>
-                <label className="block text-gray-700 mb-2 font-medium">旧密码</label>
-                <motion.input
-                  type="password"
-                  value={oldPwd}
-                  onChange={e => setOldPwd(e.target.value)}
-                  className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all mb-4 bg-white/50 backdrop-blur-sm"
-                  disabled={loading}
-                  placeholder="请输入当前密码"
-                  whileFocus={{ scale: 1.02 }}
-                />
-                <label className="block text-gray-700 mb-2 font-medium">新密码</label>
-                <motion.input
-                  type="password"
-                  value={newPwd}
-                  onChange={e => setNewPwd(e.target.value)}
-                  className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all mb-4 bg-white/50 backdrop-blur-sm"
-                  disabled={loading}
-                  placeholder="请输入新密码（至少6位）"
-                  whileFocus={{ scale: 1.02 }}
-                />
-                <motion.button
-                  className="w-full py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 font-medium shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                  onClick={handleChangePassword}
-                  disabled={loading || !oldPwd || !newPwd}
-                  whileHover={{ scale: loading ? 1 : 1.02 }}
-                  whileTap={{ scale: loading ? 1 : 0.98 }}
-                >
-                  {loading ? '保存中...' : '保存新密码'}
-                </motion.button>
-              </motion.div>
-            )}
-            <motion.button
-              onClick={handleUpdate}
-              className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 font-medium shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={loading || avatarLoading}
-              whileHover={{ scale: (loading || avatarLoading) ? 1 : 1.02 }}
-              whileTap={{ scale: (loading || avatarLoading) ? 1 : 0.98 }}
-            >
-              <div className="flex items-center justify-center gap-2">
-                {loading && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>}
-                <FaSave className="w-4 h-4" />
-                {loading ? '保存中...' : '保存修改'}
-              </div>
-            </motion.button>
-          </div>
-        </motion.div>
-
-        {/* 验证方式选择模态框 */}
-        {showVerificationModal && (
-          <motion.div
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setShowVerificationModal(false)}
-          >
-            <motion.div
-              className="bg-white rounded-2xl shadow-2xl p-6 m-4 max-w-md w-full"
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="text-center mb-6">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <FaShieldAlt className="text-white text-2xl" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-2">选择验证方式</h3>
-                <p className="text-gray-600 text-sm">为 {profile.username} 选择一种验证方式</p>
-              </div>
-
-              <div className="space-y-4">
-                {/* TOTP验证选项 */}
-                <div className="border-2 border-gray-200 rounded-xl p-4 hover:border-blue-400 transition-colors">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <FaShieldAlt className="text-blue-600 text-sm" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-800">TOTP 验证码</h4>
-                      <p className="text-gray-500 text-xs">使用认证器应用生成的6位验证码</p>
-                    </div>
-                  </div>
-                  <VerifyCodeInput
-                    length={6}
-                    onComplete={setVerificationCode}
-                    loading={loading}
-                    error={undefined}
-                    inputClassName="bg-white border-2 border-gray-300 text-gray-700 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 rounded-lg px-2 py-1 text-sm transition-all outline-none mx-1"
-                  />
-                  <motion.button
-                    onClick={handleTotpVerification}
-                    className="w-full mt-3 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 font-medium text-sm disabled:opacity-50"
-                    disabled={loading || verificationCode.length !== 6}
-                    whileHover={{ scale: loading ? 1 : 1.02 }}
-                    whileTap={{ scale: loading ? 1 : 0.98 }}
-                  >
-                    {loading ? '验证中...' : '使用 TOTP 验证'}
-                  </motion.button>
-                </div>
-
-                {/* Passkey验证选项 */}
-                <div className="border-2 border-gray-200 rounded-xl p-4 hover:border-green-400 transition-colors">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                      <FaLock className="text-green-600 text-sm" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-800">Passkey 验证</h4>
-                      <p className="text-gray-500 text-xs">使用生物识别或安全密钥进行验证</p>
-                    </div>
-                  </div>
-                  <motion.button
-                    onClick={handlePasskeyVerification}
-                    className="w-full py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 font-medium text-sm disabled:opacity-50"
-                    disabled={loading}
-                    whileHover={{ scale: loading ? 1 : 1.02 }}
-                    whileTap={{ scale: loading ? 1 : 0.98 }}
-                  >
-                    {loading ? '验证中...' : '使用 Passkey 验证'}
-                  </motion.button>
-                </div>
-              </div>
-
-              <div className="mt-6 text-center">
                 <button
-                  onClick={() => setShowVerificationModal(false)}
-                  className="px-4 py-2 text-gray-500 hover:text-gray-700 text-sm font-medium"
-                  disabled={loading}
+                  type="button"
+                  onClick={handleTotpVerification}
+                  disabled={loading || verificationCode.length !== 6}
+                  className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-[18px] bg-[#2541b2] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#2541b2]/20 transition hover:bg-[#1f3794] disabled:opacity-50 sm:rounded-full sm:py-2"
                 >
-                  取消
+                  {loading ? '验证中…' : '使用 TOTP 验证'}
                 </button>
               </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </div>
+
+              {/* Passkey */}
+              <div className="rounded-[22px] border border-slate-200 p-4 transition hover:border-emerald-300/50">
+                <div className="mb-3 flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-100">
+                    <FaLock className="text-sm text-emerald-600" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-slate-800">Passkey 验证</div>
+                    <div className="text-[11px] text-slate-500">使用生物识别或安全密钥进行验证</div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handlePasskeyVerification}
+                  disabled={loading}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-[18px] bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-50 sm:rounded-full sm:py-2"
+                >
+                  {loading ? '验证中…' : '使用 Passkey 验证'}
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-6 text-center">
+              <button
+                type="button"
+                onClick={() => setShowVerificationModal(false)}
+                disabled={loading}
+                className="text-sm font-medium text-slate-500 transition hover:text-slate-700"
+              >
+                取消
+              </button>
+            </div>
+          </m.div>
+        </div>
+      )}
     </div>
   );
 };
