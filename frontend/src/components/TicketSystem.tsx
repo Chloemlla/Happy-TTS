@@ -323,3 +323,319 @@ const TicketSystem: React.FC = () => {
       { label: '最近发言', value: latestMessage ? getMessageRoleLabel(latestMessage) : '暂无消息' },
     ];
   }, [latestMessage, selectedTicket]);
+
+  const fetchTickets = async () => {
+    try {
+      setLoading(true);
+      const data = isAdmin ? await ticketApi.getAllTickets(adminFilter) : await ticketApi.getMyTickets();
+      setTickets(data);
+
+      if (data.length > 0 && !selectedTicket && !isCreating && !isMobile) {
+        setSelectedTicket(data[0]);
+      }
+    } catch {
+      setNotification({ type: 'error', message: '加载工单失败' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTickets();
+  }, [adminFilter, isAdmin, user?.id]);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({
+      behavior: prefersReducedMotion ? 'auto' : 'smooth',
+    });
+  }, [prefersReducedMotion, processingStep, selectedMessages, streamingAiResponse?.content]);
+
+  const handleSelectTicket = (ticket: ITicket) => {
+    setSelectedTicket(ticket);
+    setIsCreating(false);
+    setEditingIdx(null);
+    if (isMobile) {
+      setShowDetailOnMobile(true);
+    }
+  };
+
+  const handleBackToList = () => {
+    setShowDetailOnMobile(false);
+    setIsCreating(false);
+  };
+
+  const handleStartCreate = () => {
+    setSelectedTicket(null);
+    setEditingIdx(null);
+    setIsCreating(true);
+    if (isMobile) {
+      setShowDetailOnMobile(true);
+    }
+  };
+
+  const handleAdminEdit = async (ticketId: string, idx: number) => {
+    if (!editValue.trim()) {
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      const updated = await ticketApi.adminEditMessage(ticketId, idx, editValue);
+      setSelectedTicket(updated);
+      setTickets((prev) => prev.map((ticket) => (ticket._id === updated._id ? updated : ticket)));
+      setEditingIdx(null);
+      setNotification({ type: 'success', message: '消息已更新' });
+    } catch {
+      setNotification({ type: 'error', message: '修改消息失败' });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleAdminDelete = async (ticketId: string, idx: number) => {
+    if (!window.confirm('确定要删除这条消息吗？此操作不可撤销。')) {
+      return;
+    }
+
+    try {
+      const updated = await ticketApi.adminDeleteMessage(ticketId, idx);
+      setSelectedTicket(updated);
+      setTickets((prev) => prev.map((ticket) => (ticket._id === updated._id ? updated : ticket)));
+      setNotification({ type: 'success', message: '消息已删除' });
+    } catch {
+      setNotification({ type: 'error', message: '删除消息失败' });
+    }
+  };
+
+  const handleCreateTicket = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    try {
+      const created = await ticketApi.createTicket(newTicket);
+      setNotification({ type: 'success', message: '工单已提交' });
+      setIsCreating(false);
+      setShowDetailOnMobile(false);
+      setNewTicket({ title: '', description: '', priority: 'medium' });
+      setSelectedTicket(created);
+      fetchTickets();
+    } catch (error: any) {
+      if (error.response?.status === 403) {
+        const data = error.response.data;
+        setNotification({
+          type: 'error',
+          title: data.error || '提交失败',
+          message: data.punishment || '当前内容未通过 AI 审核',
+          details: data.details ? data.details.split('\n') : undefined,
+          duration: 6000,
+        });
+      } else {
+        setNotification({ type: 'error', message: '提交工单失败' });
+      }
+    }
+  };
+
+  const handleReply = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!selectedTicket || !replyContent.trim()) {
+      return;
+    }
+
+    try {
+      const updated = await ticketApi.replyTicket(selectedTicket._id, replyContent);
+      setSelectedTicket(updated);
+      setReplyContent('');
+      setTickets((prev) => prev.map((ticket) => (ticket._id === updated._id ? updated : ticket)));
+    } catch (error: any) {
+      if (error.response?.status === 403) {
+        const data = error.response.data;
+        setNotification({
+          type: 'error',
+          title: data.error || '发送失败',
+          message: data.punishment || '当前回复未通过 AI 审核',
+          details: data.details ? data.details.split('\n') : undefined,
+          duration: 6000,
+        });
+      } else {
+        setNotification({ type: 'error', message: '发送回复失败' });
+      }
+    }
+  };
+
+  const handleUpdateStatus = async (ticketId: string, status: string) => {
+    try {
+      const updated = await ticketApi.updateStatus(ticketId, status);
+      if (selectedTicket?._id === ticketId) {
+        setSelectedTicket(updated);
+      }
+      setTickets((prev) => prev.map((ticket) => (ticket._id === updated._id ? updated : ticket)));
+      setNotification({ type: 'success', message: '工单状态已更新' });
+    } catch {
+      setNotification({ type: 'error', message: '更新工单状态失败' });
+    }
+  };
+
+  const guideItems = [
+    '新建工单时尽量把问题背景、复现步骤和期望结果一次写清。',
+    '管理员可以直接在消息流里编辑或删除回复，适合修正措辞或清理误发内容。',
+    'AI 处理阶段会经过审核、生成和写入三个环节，右下角会显示实时状态。',
+  ];
+
+  return (
+    <div className={studioPageClassName} style={{ fontFamily: studioPageFont }}>
+      <div className="mx-auto max-w-7xl min-w-0">
+        <motion.div
+          className={cn('mb-5 sm:mb-8', studioHeroCardClassName)}
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45 }}
+        >
+          <div className="flex min-w-0 flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl min-w-0">
+              <div className="mb-3 inline-flex max-w-full items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-sky-700 sm:px-3 sm:text-xs sm:tracking-[0.18em]">
+                <FiMessageSquare />
+                Ticket Support Studio
+              </div>
+              <h1
+                className="text-[2rem] font-semibold leading-[1.05] text-slate-900 sm:text-5xl sm:leading-tight"
+                style={{ fontFamily: studioDisplayFont }}
+              >
+                把工单流转整合进同一块工作台
+              </h1>
+              <p className="mt-3 max-w-2xl text-[13px] leading-6 text-slate-600 sm:text-base sm:leading-7">
+                列表、详情、实时 AI 回执和管理员操作全部收进同一套玻璃工作区，视觉语言直接对齐 DeepLX 页面，但保留原来的工单业务流程。
+              </p>
+            </div>
+
+            <div className="w-full lg:w-auto">
+              <div className="grid gap-2 sm:grid-cols-3 sm:gap-3">
+                {statusCards.map((item) => (
+                  <div
+                    key={item.label}
+                    className={cn(
+                      'min-w-0 rounded-[22px] border px-3 py-2.5 sm:rounded-2xl sm:px-4 sm:py-3',
+                      studioMetricToneClassName(item.tone),
+                    )}
+                  >
+                    <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">{item.label}</div>
+                    <div className="mt-2 break-words text-sm font-semibold text-slate-800">{item.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        <div className="grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <motion.div
+            className={studioMainSurfaceClassName}
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.05 }}
+          >
+            <div className="grid min-w-0 gap-2.5 sm:gap-3 lg:grid-cols-[320px_minmax(0,1fr)]">
+              <AnimatePresence mode="wait">
+                {(!isMobile || !showDetailOnMobile) && (
+                  <motion.section
+                    key="ticket-list"
+                    className={cn(studioSubPanelClassName, 'flex min-h-[520px] flex-col lg:min-h-[640px]')}
+                    initial={isMobile ? { opacity: 0, x: -16 } : { opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, x: 0, y: 0 }}
+                    exit={isMobile ? { opacity: 0, x: -16 } : { opacity: 0 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    <div className="mb-4 flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">Queue</div>
+                        <div className="mt-1 text-lg font-semibold text-slate-900">{isAdmin ? '工单广场' : '我的工单'}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button type="button" onClick={() => fetchTickets()} className={studioGhostButtonClassName} title="刷新工单列表">
+                          <FiRefreshCw className={loading ? 'animate-spin' : undefined} />
+                          刷新
+                        </button>
+                        {!isAdmin ? (
+                          <motion.button
+                            type="button"
+                            onClick={handleStartCreate}
+                            className={cn(studioPrimaryButtonClassName, 'px-3 py-2 text-xs sm:px-4 sm:text-xs')}
+                            whileHover={hoverScale(1.02)}
+                            whileTap={tapScale(0.98)}
+                          >
+                            <FiPlus />
+                            新建
+                          </motion.button>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    {isAdmin ? (
+                      <div className="mb-4 grid gap-2 sm:grid-cols-2">
+                        <select
+                          className={studioFieldClassName}
+                          value={adminFilter.status}
+                          onChange={(event) =>
+                            setAdminFilter((prev) => ({
+                              ...prev,
+                              status: event.target.value,
+                            }))
+                          }
+                        >
+                          <option value="">全部状态</option>
+                          <option value="open">待处理</option>
+                          <option value="in-progress">处理中</option>
+                          <option value="resolved">已解决</option>
+                          <option value="closed">已关闭</option>
+                        </select>
+                        <select
+                          className={studioFieldClassName}
+                          value={adminFilter.priority}
+                          onChange={(event) =>
+                            setAdminFilter((prev) => ({
+                              ...prev,
+                              priority: event.target.value,
+                            }))
+                          }
+                        >
+                          <option value="">全部优先级</option>
+                          <option value="high">高优先级</option>
+                          <option value="medium">中优先级</option>
+                          <option value="low">低优先级</option>
+                        </select>
+                      </div>
+                    ) : null}
+
+                    <div className="flex-1 overflow-y-auto pr-1">
+                      {loading ? (
+                        <div className="flex h-full min-h-[280px] flex-col items-center justify-center gap-4 rounded-[22px] border border-dashed border-slate-200 bg-white/70 text-center">
+                          <div className="h-9 w-9 animate-spin rounded-full border-2 border-slate-200 border-t-[#2541b2]" />
+                          <p className="text-sm text-slate-400">正在同步工单列表...</p>
+                        </div>
+                      ) : tickets.length === 0 ? (
+                        <div className="flex h-full min-h-[280px] flex-col items-center justify-center gap-4 rounded-[22px] border border-dashed border-slate-200 bg-white/70 px-6 text-center">
+                          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-slate-300">
+                            <FiInfo size={28} />
+                          </div>
+                          <div>
+                            <div className="text-base font-semibold text-slate-500">当前没有可显示的工单</div>
+                            <p className="mt-2 text-sm leading-6 text-slate-400">
+                              {isAdmin ? '尝试切换筛选条件，或等待新的用户工单进入队列。' : '点击右上角的新建按钮，发起第一条支持请求。'}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {tickets.map((ticket, index) => {
+                            const statusMeta = getStatusMeta(ticket.status);
+                            const priorityMeta = getPriorityMeta(ticket.priority);
+                            const isSelected = selectedTicket?._id === ticket._id && !isCreating;
+                            const preview = ticket.description || ticket.messages[ticket.messages.length - 1]?.content || '暂无描述';
