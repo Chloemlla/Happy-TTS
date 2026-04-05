@@ -29,6 +29,8 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
     // 保持对最新 credentials 的引用，便于在异步流程中校验注册是否生效
     const latestCredentialsRef = React.useRef(credentials);
+    const hasCredential = Array.isArray(credentials) && credentials.length > 0;
+    const singlePasskeyMessage = '每个账号仅可注册一个 Passkey，如需更换请先删除当前 Passkey。';
 
     React.useEffect(() => {
         latestCredentialsRef.current = credentials;
@@ -111,6 +113,11 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
 
     // 注册 Passkey
     const handleRegister = async () => {
+        if (hasCredential) {
+            setIsOpen(false);
+            setNotification({ message: singlePasskeyMessage, type: 'warning' });
+            return;
+        }
         if (!credentialName.trim()) return;
 
         // 1) 调用注册接口
@@ -120,6 +127,11 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
         } catch (error) {
             console.error('Passkey registration failed:', error);
             setNotification({ message: 'Passkey 注册失败（请求错误）', type: 'error' });
+            return;
+        }
+        if (registerResult?.errorMessage) {
+            setIsOpen(false);
+            setNotification({ message: registerResult.errorMessage, type: 'warning' });
             return;
         }
 
@@ -275,8 +287,8 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
                             <FaKey className="w-5 h-5 text-blue-500" />
                         </motion.div>
                         <div className="flex-1 min-w-0">
-                            <span className="font-semibold block text-sm sm:text-base md:text-lg leading-relaxed">您可以为您的账户添加<strong>多个</strong> Passkey 作为无密码验证方式。</span>
-                            <span className="text-xs sm:text-sm text-blue-600 mt-1 block leading-relaxed">建议在您的所有常用设备（手机、电脑等）上分别注册，以确保在任何情况下都能安全登录。</span>
+                            <span className="font-semibold block text-sm sm:text-base md:text-lg leading-relaxed">每个账号目前仅支持注册 <strong>1 个</strong> Passkey 作为无密码验证方式。</span>
+                            <span className="text-xs sm:text-sm text-blue-600 mt-1 block leading-relaxed">如需更换设备，请先删除当前 Passkey，再重新注册新的凭证。</span>
                         </div>
                     </div>
                 </motion.div>
@@ -285,18 +297,17 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
                         <FaKey className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 text-indigo-500" />
                         <span className="truncate">Passkey 无密码认证</span>
                     </h2>
-                    {Array.isArray(credentials) && credentials.length > 0 && (
-                        <motion.button
-                            onClick={() => setIsOpen(true)}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full p-2 shadow-md flex items-center gap-1 sm:px-3 sm:py-1.5 sm:rounded-lg transition-all"
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                        >
-                            <FaPlus className="w-4 h-4" />
-                            <span className="hidden sm:inline text-sm font-medium">添加新设备</span>
-                        </motion.button>
+                    {hasCredential && (
+                        <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700 sm:text-sm">
+                            已达上限 1/1
+                        </span>
                     )}
                 </div>
+                {hasCredential && (
+                    <div className="mx-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 sm:mx-4">
+                        {singlePasskeyMessage}
+                    </div>
+                )}
                 <div className="w-full flex flex-col items-start justify-center mt-6 sm:mt-8">
                     <div className="w-full flex justify-start px-2 sm:px-4">
                         <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 w-full max-w-5xl auto-rows-fr place-items-stretch justify-items-start">
@@ -444,7 +455,7 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
                                     whileHover={{ scale: 1.02 }}
                                     transition={{ type: "spring", stiffness: 300 }}
                                 >
-                                    <strong>建议：</strong>在您的常用且安全的设备上分别注册 Passkey。如果您拥有多个设备（如手机和电脑），可以分别为它们添加凭证，以便在不同场景下都能快速登录。
+                                    <strong>建议：</strong>在您当前最常用且安全的设备上注册 Passkey。如果后续需要迁移到新设备，请先删除当前凭证，再绑定新的 Passkey。
                                 </motion.div>
                             </motion.div>
                             <div className="space-y-2 mb-4 sm:mb-6">
@@ -478,7 +489,7 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
                                 </motion.button>
                                 <motion.button
                                     onClick={handleRegister}
-                                    disabled={isLoading || !credentialName.trim()}
+                                    disabled={isLoading || !credentialName.trim() || hasCredential}
                                     className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg px-3 sm:px-4 py-2 transition disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl text-sm sm:text-base order-1 sm:order-2"
                                     whileHover={{ scale: 1.02 }}
                                     whileTap={{ scale: 0.97 }}

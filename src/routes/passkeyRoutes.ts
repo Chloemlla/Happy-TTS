@@ -2,7 +2,10 @@ import express from "express";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { rateLimitMiddleware } from "../middleware/rateLimit";
 import { PasskeyDataRepairService } from "../services/passkeyDataRepairService";
-import { PasskeyService } from "../services/passkeyService";
+import {
+  PasskeyService,
+  SINGLE_PASSKEY_ERROR_MESSAGE,
+} from "../services/passkeyService";
 import { sendEmail } from "../services/emailSender";
 import {
   generatePasskeyAddedEmailHtml,
@@ -71,10 +74,21 @@ router.post("/register/start", authenticateToken, rateLimitMiddleware, async (re
       return res.status(500).json({ error: "用户名异常", details: { user } });
     }
 
+    if ((user.passkeyCredentials || []).length > 0) {
+      logger.warn("[Passkey] 拒绝重复注册 Passkey", {
+        userId,
+        credentialsCount: user.passkeyCredentials?.length || 0,
+      });
+      return res.status(400).json({ error: SINGLE_PASSKEY_ERROR_MESSAGE });
+    }
+
     let options;
     try {
       options = await PasskeyService.generateRegistrationOptions(user, credentialName, clientOrigin);
     } catch (err) {
+      if (err instanceof Error && err.message === SINGLE_PASSKEY_ERROR_MESSAGE) {
+        return res.status(400).json({ error: err.message });
+      }
       logger.error("[Passkey] generateRegistrationOptions error", { userId, credentialName, clientOrigin, err });
       return res
         .status(500)
@@ -139,6 +153,13 @@ router.post("/register/finish", authenticateToken, rateLimitMiddleware, async (r
       return res.status(404).json({ error: "用户不存在" });
     }
     // 优先使用 clientOrigin，其次自动获取请求origin
+    if ((user.passkeyCredentials || []).length > 0) {
+      logger.warn("[Passkey] 拒绝重复完成 Passkey 注册", {
+        userId,
+        credentialsCount: user.passkeyCredentials?.length || 0,
+      });
+      return res.status(400).json({ error: SINGLE_PASSKEY_ERROR_MESSAGE });
+    }
     const requestOrigin = clientOrigin || req.headers.origin || req.headers.referer || "https://tts.951100.xyz";
     const verification = await PasskeyService.verifyRegistration(
       user,
@@ -190,6 +211,9 @@ router.post("/register/finish", authenticateToken, rateLimitMiddleware, async (r
 
     res.json({ ...verification, passkeyCredentials: updatedUser?.passkeyCredentials || [] });
   } catch (error) {
+    if (error instanceof Error && error.message === SINGLE_PASSKEY_ERROR_MESSAGE) {
+      return res.status(400).json({ error: error.message });
+    }
     console.error("完成 Passkey 注册失败:", error);
     res.status(500).json({ error: "完成 Passkey 注册失败" });
   }

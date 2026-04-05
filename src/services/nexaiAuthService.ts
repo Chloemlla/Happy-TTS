@@ -10,6 +10,7 @@ import validator from "validator";
 import axios from "axios";
 import { config } from "../config/config";
 import { NexaiUserModel, type INexaiUser } from "../models/nexaiUserModel";
+import { SINGLE_PASSKEY_ERROR_MESSAGE } from "./passkeyService";
 import logger from "../utils/logger";
 import {
     generateRegistrationOptions,
@@ -603,6 +604,9 @@ export class NexaiAuthService {
     static async generatePasskeyRegistrationOptions(userId: string) {
         const user = await NexaiUserModel.findOne({ id: userId }).lean() as INexaiUser;
         if (!user) throw Object.assign(new Error("用户不存在"), { statusCode: 404 });
+        if ((user.passkeys || []).length > 0) {
+            throw Object.assign(new Error(SINGLE_PASSKEY_ERROR_MESSAGE), { statusCode: 400 });
+        }
 
         const { rpName, rpID } = this.getWebAuthnConfig();
         const existingCredentials = (user.passkeys || []).map(pk => ({
@@ -635,6 +639,9 @@ export class NexaiAuthService {
         const user = await NexaiUserModel.findOne({ id: userId }).lean() as INexaiUser;
         if (!user || !user.currentChallenge) {
             throw Object.assign(new Error("无效的注册请求或挑战已过期"), { statusCode: 400 });
+        }
+        if ((user.passkeys || []).length > 0) {
+            throw Object.assign(new Error(SINGLE_PASSKEY_ERROR_MESSAGE), { statusCode: 400 });
         }
 
         const { rpID, expectedOrigin } = this.getWebAuthnConfig();

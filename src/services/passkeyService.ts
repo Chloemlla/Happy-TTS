@@ -343,6 +343,13 @@ export class PasskeyService {
       throw new Error("注册会话已过期");
     }
 
+    const latestUser = await UserStorage.getUserById(user.id);
+    const existingPasskeys =
+      latestUser?.passkeyCredentials || user.passkeyCredentials || [];
+    if (existingPasskeys.length > 0) {
+      throw new Error(SINGLE_PASSKEY_ERROR_MESSAGE);
+    }
+
     let verification: VerifiedRegistrationResponse;
     try {
       // 优先使用 clientOrigin，其次使用 requestOrigin，最后使用配置的 getRpOrigin

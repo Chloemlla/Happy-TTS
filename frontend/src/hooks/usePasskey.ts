@@ -3,11 +3,17 @@ import { startRegistration, startAuthentication } from '@simplewebauthn/browser'
 import { passkeyApi, Authenticator } from '../api/passkey';
 import { useAuth } from './useAuth';
 
+type RegisterAuthenticatorResult = {
+    attRespId: any;
+    finishData: any;
+    errorMessage?: string;
+};
+
 interface UsePasskeyReturn {
     credentials: Authenticator[];
     isLoading: boolean;
     loadCredentials: () => Promise<void>;
-    registerAuthenticator: (name: string) => Promise<{ attRespId: any; finishData: any } | undefined>;
+    registerAuthenticator: (name: string) => Promise<RegisterAuthenticatorResult | undefined>;
     removeAuthenticator: (id: string) => Promise<void>;
     authenticateWithPasskey: (username: string) => Promise<boolean>;
     authenticateWithDiscoverablePasskey: () => Promise<boolean>;
@@ -51,6 +57,13 @@ export const usePasskey = (): UsePasskeyReturn & {
     }, []);
 
     const registerAuthenticator = useCallback(async (credentialName: string) => {
+        if (credentials.length > 0) {
+            return {
+                attRespId: null,
+                finishData: null,
+                errorMessage: '每个账号仅可注册一个 Passkey，请先删除当前 Passkey 后再重新注册。'
+            };
+        }
         setIsLoading(true);
         let attResp: any = null;
         try {
@@ -142,11 +155,11 @@ export const usePasskey = (): UsePasskeyReturn & {
                 msg = '用户取消了操作';
             }
             // 失败提示交由外部 setNotification 统一管理
-            return { attRespId: attResp?.id ?? null, finishData: null };
+            return { attRespId: attResp?.id ?? null, finishData: null, errorMessage: msg };
         } finally {
             setIsLoading(false);
         }
-    }, [loadCredentials]);
+    }, [credentials.length, loadCredentials]);
 
     const authenticateWithPasskey = useCallback(async (username: string): Promise<boolean> => {
         let asseResp: any = null;
