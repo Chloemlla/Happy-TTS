@@ -1,12 +1,13 @@
 import React, { useEffect, useState, ChangeEvent, useRef, useCallback, useMemo } from 'react';
+import { startAuthentication } from '@simplewebauthn/browser';
 import { useNotification } from './Notification';
 import { motion } from 'framer-motion';
 import VerifyCodeInput from './VerifyCodeInput';
 import { LoadingSpinner } from './LoadingSpinner';
 import getApiBaseUrl from '../api';
+import { passkeyApi } from '../api/passkey';
 import { openDB } from 'idb';
-import { usePasskey } from '../hooks/usePasskey';
-import { FaUser, FaUserCircle, FaShieldAlt, FaLock, FaEnvelope, FaCamera, FaEdit, FaSave, FaTimes } from 'react-icons/fa';
+import { FaUser, FaUserCircle, FaShieldAlt, FaLock, FaEnvelope, FaCamera, FaSave } from 'react-icons/fa';
 
 interface UserProfileData {
   id: string;
@@ -56,60 +57,78 @@ const fetchProfile = async (): Promise<UserProfileData | null> => {
   }
 };
 
-const updateProfile = async (data: Partial<UserProfileData> & {
+const verifyIdentity = async (data: {
+  method: 'password' | 'totp' | 'passkey';
   password?: string;
-  newPassword?: string;
   verificationCode?: string;
-}): Promise<ApiResponse> => {
-  try {
-    const token = localStorage.getItem('token');
-    if (!token) throw new Error('No authentication token');
+  passkeyResponse?: any;
+  clientOrigin?: string;
+}): Promise<ApiResponse & { verificationToken?: string; expiresAt?: number }> => {
+  const token = localStorage.getItem('token');
+  if (!token) throw new Error('No authentication token');
 
-    const res = await fetch(`${getApiBaseUrl()}/api/admin/user/profile`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(data),
-    });
+  const res = await fetch(`${getApiBaseUrl()}/api/admin/user/profile/verify`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
 
-    const result = await res.json();
-    if (!res.ok) {
-      throw new Error(result.error || `Request failed: ${res.status}`);
-    }
-
-    return result;
-  } catch (error) {
-    console.error('[UserProfile] updateProfile error:', error);
-    throw error;
-  }
+  const result = await res.json();
+  if (!res.ok) throw new Error(result.error || 'Verification failed');
+  return result;
 };
 
-const verifyUser = async (verificationCode: string, userId: string): Promise<ApiResponse> => {
-  try {
-    const token = localStorage.getItem('token');
-    if (!token) throw new Error('No authentication token');
+const sendEmailCode = async (verificationToken: string, newEmail: string): Promise<ApiResponse> => {
+  const token = localStorage.getItem('token');
+  if (!token) throw new Error('No authentication token');
 
-    const res = await fetch(`${getApiBaseUrl()}/api/totp/verify-token`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ userId, token: verificationCode }),
-    });
+  const res = await fetch(`${getApiBaseUrl()}/api/admin/user/profile/email/send-code`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ verificationToken, newEmail }),
+  });
 
-    const result = await res.json();
-    if (!res.ok) {
-      throw new Error(result.error || 'Verification failed');
-    }
+  const result = await res.json();
+  if (!res.ok) throw new Error(result.error || '验证码发送失败');
+  return result;
+};
 
-    return result;
-  } catch (error) {
-    console.error('[UserProfile] verifyUser error:', error);
-    throw error;
-  }
+const updateProfile = async (data: {
+  email?: string;
+  password?: string;
+  newPassword?: string;
+  avatarUrl?: string;
+  verificationToken?: string;
+  emailVerificationCode?: string;
+}): Promise<ApiResponse> => {
+  const token = localStorage.getItem('token');
+  if (!token) throw new Error('No authentication token');
+
+  const res = await fetch(`${getApiBaseUrl()}/api/admin/user/profile`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  const result = await res.json();
+  if (!res.ok) throw new Error(result.error || `Request failed: ${res.status}`);
+  return result;
+};
+
+const getPasskeyAuthResponse = async (username: string) => {
+  const optionsResponse = await passkeyApi.startAuthentication(username);
+  const options = optionsResponse?.data?.options;
+  if (!options) throw new Error('无法获取 Passkey 认证选项');
+  return await startAuthentication({ optionsJSON: options });
 };
 
 const AVATAR_DB = 'avatar-store';
@@ -158,7 +177,6 @@ const setCachedAvatar = async (userId: string, avatarHash: string, blobUrl: stri
 
 const UserProfile: React.FC = () => {
   const { setNotification } = useNotification();
-  const { authenticateWithPasskey } = usePasskey();
 
   // Core state
   const [profile, setProfile] = useState<UserProfileData | null>(null);
@@ -172,6 +190,12 @@ const UserProfile: React.FC = () => {
   const [newPassword, setNewPassword] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [verified, setVerified] = useState(false);
+  const [verificationToken, setVerificationToken] = useState('');
+
+  // Email change verification
+  const [emailVerificationCode, setEmailVerificationCode] = useState('');
+  const [emailCodeSent, setEmailCodeSent] = useState(false);
+  const [emailCodeCooldown, setEmailCodeCooldown] = useState(0);
 
   // Authentication state
   const [totpStatus, setTotpStatus] = useState<TotpStatus | null>(null);
@@ -252,12 +276,20 @@ const UserProfile: React.FC = () => {
     fetchTotpStatus();
   }, [fetchTotpStatus]);
 
-  // Refresh profile after verification
+  // Email code cooldown timer
   useEffect(() => {
-    if (verified) {
-      loadProfile();
-    }
-  }, [verified, loadProfile]);
+    if (emailCodeCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setEmailCodeCooldown((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [emailCodeCooldown]);
+
+  // Detect if email has changed from original
+  const emailChanged = useMemo(() => {
+    if (!profile?.email) return Boolean(email);
+    return email.trim().toLowerCase() !== profile.email.trim().toLowerCase();
+  }, [email, profile?.email]);
 
   // Optimized avatar loading logic
   const loadAvatar = useCallback(async (profile: UserProfileData) => {
@@ -457,7 +489,7 @@ const UserProfile: React.FC = () => {
     };
   }, [avatarLoading]);
 
-  // Optimized verification flow - only require 2FA if enabled
+  // Verification flow using /user/profile/verify endpoint
   const handleVerify = useCallback(async () => {
     if (!profile?.id) {
       setNotification({ message: '用户信息不完整', type: 'error' });
@@ -467,65 +499,57 @@ const UserProfile: React.FC = () => {
     setLoading(true);
 
     try {
-      // Check if user has any 2FA methods enabled
       const has2FA = totpStatus?.enabled || totpStatus?.hasPasskey;
-      
+
       if (!has2FA) {
-        // No 2FA enabled - verify with current password only
         if (!password) {
           setNotification({ message: '请输入当前密码', type: 'warning' });
           return;
         }
-
-        const res = await updateProfile({ password });
-        if (res && !res.error) {
+        const res = await verifyIdentity({ method: 'password', password });
+        if (res.success && res.verificationToken) {
           setVerified(true);
+          setVerificationToken(res.verificationToken);
           setNotification({ message: '密码验证成功，请继续修改', type: 'success' });
-        } else {
-          setNotification({ message: res?.error || '密码验证失败', type: 'error' });
         }
         return;
       }
 
-      // User has 2FA enabled - proceed with 2FA verification
       if (totpStatus?.hasPasskey && !totpStatus?.enabled) {
-        // Passkey only verification
         const username = profile.username;
         if (!username) throw new Error('无法获取用户名');
-
-        const success = await authenticateWithPasskey(username);
-        if (success) {
+        const passkeyResponse = await getPasskeyAuthResponse(username);
+        const res = await verifyIdentity({
+          method: 'passkey',
+          passkeyResponse,
+          clientOrigin: window.location.origin,
+        });
+        if (res.success && res.verificationToken) {
           setVerified(true);
+          setVerificationToken(res.verificationToken);
           setNotification({ message: 'Passkey 验证成功', type: 'success' });
-        } else {
-          setNotification({ message: 'Passkey 验证失败', type: 'error' });
         }
         return;
       }
 
       if (!totpStatus?.hasPasskey && totpStatus?.enabled) {
-        // TOTP only verification
         if (!verificationCode) {
           setNotification({ message: '请输入验证码', type: 'warning' });
           return;
         }
-
-        const res = await verifyUser(verificationCode, profile.id);
-        if (res.verified) {
+        const res = await verifyIdentity({ method: 'totp', verificationCode });
+        if (res.success && res.verificationToken) {
           setVerified(true);
+          setVerificationToken(res.verificationToken);
           setNotification({ message: '验证成功，请继续修改', type: 'success' });
-        } else {
-          setNotification({ message: res.error || '验证失败', type: 'error' });
         }
         return;
       }
 
       if (totpStatus?.hasPasskey && totpStatus?.enabled) {
-        // Both methods available - show selection modal
         setShowVerificationModal(true);
         return;
       }
-
     } catch (error) {
       console.error('[UserProfile] Verification error:', error);
       const errorMessage = error instanceof Error ? error.message : '验证失败';
@@ -533,49 +557,78 @@ const UserProfile: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [profile, totpStatus, verificationCode, password, authenticateWithPasskey, setNotification]);
+  }, [profile, totpStatus, verificationCode, password, setNotification]);
 
-  // Optimized profile update logic - only require verification if 2FA is enabled
+  // Send email verification code for email change
+  const handleSendEmailCode = useCallback(async () => {
+    if (!verificationToken) {
+      setNotification({ message: '请先完成身份验证', type: 'warning' });
+      return;
+    }
+    if (!email || !emailChanged) {
+      setNotification({ message: '请输入新邮箱地址', type: 'warning' });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await sendEmailCode(verificationToken, email.trim().toLowerCase());
+      setEmailCodeSent(true);
+      setEmailCodeCooldown(60);
+      setNotification({ message: '验证码已发送到新邮箱', type: 'success' });
+    } catch (error) {
+      console.error('[UserProfile] Send email code error:', error);
+      const errorMessage = error instanceof Error ? error.message : '验证码发送失败';
+      setNotification({ message: errorMessage, type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  }, [verificationToken, email, emailChanged, setNotification]);
+
+  // Profile update with new 3-step flow
   const handleUpdate = useCallback(async () => {
     const has2FA = totpStatus?.enabled || totpStatus?.hasPasskey;
-    
-    // Validation based on 2FA status
-    if (!has2FA) {
-      // No 2FA - only require current password
+
+    if (!has2FA && !verified) {
       if (!password) {
         setNotification({ message: '请输入当前密码', type: 'warning' });
         return;
       }
-    } else {
-      // 2FA enabled - require verification
-      if (!verified) {
-        setNotification({ message: '请先通过二次验证', type: 'warning' });
-        return;
-      }
+    } else if (has2FA && !verified) {
+      setNotification({ message: '请先通过二次验证', type: 'warning' });
+      return;
+    }
+
+    if (emailChanged && !emailVerificationCode) {
+      setNotification({ message: '请输入新邮箱验证码', type: 'warning' });
+      return;
     }
 
     setLoading(true);
 
     try {
-      const updateData = {
-        email,
-        password: !has2FA ? password : undefined,
-        newPassword: newPassword || undefined,
-        verificationCode: has2FA ? verificationCode : undefined,
-      };
+      const updateData: Record<string, string | undefined> = {};
 
-      const res = await updateProfile(updateData);
+      if (emailChanged) updateData.email = email.trim().toLowerCase();
+      if (newPassword) updateData.newPassword = newPassword;
+      if (verificationToken) updateData.verificationToken = verificationToken;
+      if (!has2FA && password) updateData.password = password;
+      if (emailChanged && emailVerificationCode) {
+        updateData.emailVerificationCode = emailVerificationCode;
+      }
 
+      await updateProfile(updateData);
       setNotification({ message: '信息修改成功', type: 'success' });
 
-      // Refresh profile data
       await loadProfile();
 
-      // Reset form state
       setPassword('');
       setNewPassword('');
       setVerified(false);
+      setVerificationToken('');
       setVerificationCode('');
+      setEmailVerificationCode('');
+      setEmailCodeSent(false);
     } catch (error) {
       console.error('[UserProfile] Update error:', error);
       const errorMessage = error instanceof Error ? error.message : '更新失败';
@@ -583,26 +636,29 @@ const UserProfile: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [totpStatus, password, verified, email, newPassword, verificationCode, setNotification, loadProfile]);
+  }, [totpStatus, password, verified, email, emailChanged, newPassword, verificationToken, emailVerificationCode, setNotification, loadProfile]);
 
-  // Optimized password change logic
+  // Password change logic - uses verificationToken if available, otherwise old password
   const handleChangePassword = useCallback(async () => {
-    if (!oldPwd || !newPwd) {
-      setNotification({ message: '请输入旧密码和新密码', type: 'warning' });
+    if (!verified && !oldPwd) {
+      setNotification({ message: '请输入旧密码', type: 'warning' });
       return;
     }
-
+    if (!newPwd) {
+      setNotification({ message: '请输入新密码', type: 'warning' });
+      return;
+    }
     if (newPwd.length < 6) {
       setNotification({ message: '新密码长度至少6位', type: 'warning' });
       return;
     }
 
     setLoading(true);
-
     try {
       await updateProfile({
-        password: oldPwd,
-        newPassword: newPwd
+        password: verified ? undefined : oldPwd,
+        newPassword: newPwd,
+        verificationToken: verified ? verificationToken : undefined,
       });
 
       setNotification({ message: '密码修改成功', type: 'success' });
@@ -616,7 +672,7 @@ const UserProfile: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [oldPwd, newPwd, setNotification]);
+  }, [oldPwd, newPwd, verified, verificationToken, setNotification]);
 
   // Handle TOTP verification in modal
   const handleTotpVerification = useCallback(async () => {
@@ -627,13 +683,12 @@ const UserProfile: React.FC = () => {
 
     setLoading(true);
     try {
-      const res = await verifyUser(verificationCode, profile.id);
-      if (res.verified) {
+      const res = await verifyIdentity({ method: 'totp', verificationCode });
+      if (res.success && res.verificationToken) {
         setVerified(true);
+        setVerificationToken(res.verificationToken);
         setShowVerificationModal(false);
         setNotification({ message: '验证成功，请继续修改', type: 'success' });
-      } else {
-        setNotification({ message: res.error || '验证失败', type: 'error' });
       }
     } catch (error) {
       console.error('[UserProfile] TOTP verification error:', error);
@@ -653,13 +708,17 @@ const UserProfile: React.FC = () => {
 
     setLoading(true);
     try {
-      const success = await authenticateWithPasskey(profile.username);
-      if (success) {
+      const passkeyResponse = await getPasskeyAuthResponse(profile.username);
+      const res = await verifyIdentity({
+        method: 'passkey',
+        passkeyResponse,
+        clientOrigin: window.location.origin,
+      });
+      if (res.success && res.verificationToken) {
         setVerified(true);
+        setVerificationToken(res.verificationToken);
         setShowVerificationModal(false);
         setNotification({ message: 'Passkey 验证成功，请继续修改', type: 'success' });
-      } else {
-        setNotification({ message: 'Passkey 验证失败', type: 'error' });
       }
     } catch (error) {
       console.error('[UserProfile] Passkey verification error:', error);
@@ -668,7 +727,7 @@ const UserProfile: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [profile, authenticateWithPasskey, setNotification]);
+  }, [profile, setNotification]);
 
   // Memoized authentication check
   const isAuthenticated = useMemo(() => {
@@ -840,6 +899,44 @@ const UserProfile: React.FC = () => {
                 placeholder="请输入邮箱地址"
               />
             </motion.div>
+            {/* Email change verification code */}
+            {verified && emailChanged && (
+              <motion.div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <FaEnvelope className="text-blue-600" />
+                  <span className="font-semibold text-gray-800 text-sm">新邮箱验证</span>
+                </div>
+                <p className="text-sm text-blue-700 mb-3">
+                  修改邮箱需要验证新邮箱地址，请先发送验证码
+                </p>
+                <div className="flex gap-2 mb-3">
+                  <motion.button
+                    onClick={handleSendEmailCode}
+                    className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={loading || emailCodeCooldown > 0}
+                    whileHover={{ scale: loading ? 1 : 1.02 }}
+                    whileTap={{ scale: loading ? 1 : 0.98 }}
+                  >
+                    {emailCodeCooldown > 0 ? `${emailCodeCooldown}s 后重新发送` : emailCodeSent ? '重新发送验证码' : '发送验证码'}
+                  </motion.button>
+                </div>
+                {emailCodeSent && (
+                  <div>
+                    <label className="block text-gray-700 mb-2 text-sm font-medium">输入验证码</label>
+                    <motion.input
+                      type="text"
+                      value={emailVerificationCode}
+                      onChange={(e) => setEmailVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      className="w-full border-2 border-blue-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all bg-white/80"
+                      placeholder="请输入 6 位验证码"
+                      maxLength={6}
+                      disabled={loading}
+                      whileFocus={{ scale: 1.02 }}
+                    />
+                  </div>
+                )}
+              </motion.div>
+            )}
             {!totpStatus?.enabled && !totpStatus?.hasPasskey ? (
               <motion.div className="mb-6" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: 0.24 }}>
                 <label className="flex items-center gap-2 text-gray-700 mb-2 font-medium">
