@@ -12,6 +12,7 @@ import { config } from "../config/config";
 import { NexaiUserModel, type INexaiUser } from "../models/nexaiUserModel";
 import { SINGLE_PASSKEY_ERROR_MESSAGE } from "./passkeyService";
 import logger from "../utils/logger";
+import { getNexaiWebAuthnConfig } from "../utils/nexaiWebAuthn";
 import {
     generateRegistrationOptions,
     verifyRegistrationResponse,
@@ -591,13 +592,8 @@ export class NexaiAuthService {
     // ---------- WebAuthn (Passkeys) ----------
 
     static getWebAuthnConfig(ip?: string) {
-        // 配置：如果部署在生产环境，可能需要从环境变量读取 RP_ID 和 Origin
-        // 对于 Android App，通常使用 Digital Asset Links，RP ID 为你的域名
-        const rpName = "NexAI";
-        const rpID = process.env.WEBAUTHN_RP_ID || "localhost";
-        let expectedOrigin = process.env.WEBAUTHN_EXPECTED_ORIGIN || `http://${rpID}:3000`;
-        // 如果环境变量提供了多个 origin（如包含 Android 包名的 origin），可根据实际情况使用
-        return { rpName, rpID, expectedOrigin };
+        void ip;
+        return getNexaiWebAuthnConfig();
     }
 
     /** 1. 生成 Passkey 注册选项 (必须已登录) */
@@ -644,7 +640,9 @@ export class NexaiAuthService {
             throw Object.assign(new Error(SINGLE_PASSKEY_ERROR_MESSAGE), { statusCode: 400 });
         }
 
-        const { rpID, expectedOrigin } = this.getWebAuthnConfig();
+        const { rpID, expectedOrigins } = this.getWebAuthnConfig();
+        const expectedOrigin =
+            expectedOrigins.length === 1 ? expectedOrigins[0] : expectedOrigins;
         // 取出挑战后清空
         const expectedChallenge = user.currentChallenge;
         await NexaiUserModel.updateOne({ id: userId }, { $unset: { currentChallenge: "" } });
@@ -654,7 +652,7 @@ export class NexaiAuthService {
             verification = await verifyRegistrationResponse({
                 response,
                 expectedChallenge,
-                expectedOrigin, // 如果Android发出的origin是特定格式，请确保 expectedOrigin 允许它，或传数组
+                expectedOrigin,
                 expectedRPID: rpID,
                 requireUserVerification: false,
             });
@@ -734,7 +732,9 @@ export class NexaiAuthService {
             throw Object.assign(new Error("未找到对应通行密钥记录"), { statusCode: 400 });
         }
 
-        const { rpID, expectedOrigin } = this.getWebAuthnConfig();
+        const { rpID, expectedOrigins } = this.getWebAuthnConfig();
+        const expectedOrigin =
+            expectedOrigins.length === 1 ? expectedOrigins[0] : expectedOrigins;
 
         let verification;
         try {

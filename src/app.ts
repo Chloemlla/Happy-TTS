@@ -127,6 +127,7 @@ import { AuditLogService } from "./services/auditLogService";
 import { schedulerService } from "./services/schedulerService";
 import { wsService } from "./services/wsService";
 import logger from "./utils/logger";
+import { getNexaiAssetLinksStatements } from "./utils/nexaiWebAuthn";
 import { UserStorage } from "./utils/userStorage";
 
 // 扩展 Request 类型
@@ -667,6 +668,11 @@ app.get("/api/timing-test", integrityLimiter, (_req, res) =>
   res.sendStatus(200)
 );
 
+app.get("/.well-known/assetlinks.json", (_req: Request, res: Response) => {
+  res.setHeader("Cache-Control", "public, max-age=300");
+  res.json(getNexaiAssetLinksStatements());
+});
+
 // 根路由
 app.get("/", rootLimiter, (_req, res) => {
   res.redirect("http://tts.951100.xyz/");
@@ -787,7 +793,7 @@ if (resolvedFrontendPath) {
   logger.info(`[Frontend] Serving static files from: ${resolvedFrontendPath}`);
   app.use("/static", staticFileLimiter, express.static(resolvedFrontendPath));
   app.get(
-    /^\/(?!api|api-docs|static|openapi)(.*)/,
+    /^\/(?!\.well-known(?:\/|$)|api|api-docs|static|openapi)(.*)/,
     frontendLimiter,
     (_req, res) => {
       res.sendFile(join(resolvedFrontendPath, "index.html"));
