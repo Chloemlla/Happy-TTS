@@ -7,6 +7,7 @@ jest.mock("../config/config", () => ({
   config: {
     ipqs: {
       enabled: true,
+      scamalyticsUser: "happyclovo",
       strictness: 1,
       allowPublicAccessPoints: false,
       lighterPenalties: true,
@@ -118,6 +119,15 @@ describe("IpVerificationService", () => {
     expect(result.verified).toBe(false);
     expect(result.fraudScore).toBe(92);
     expect(result.riskFlags).toContain("proxy");
+    expect(axios.get).toHaveBeenCalledWith(
+      "https://api13.scamalytics.com/v3/happyclovo/",
+      expect.objectContaining({
+        maxRedirects: 0,
+        params: expect.objectContaining({
+          ip: "203.0.113.10",
+        }),
+      }),
+    );
   });
 
   it("issues an automatic token when IPQS reports low risk", async () => {

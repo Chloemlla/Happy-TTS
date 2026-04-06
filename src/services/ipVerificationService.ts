@@ -8,6 +8,10 @@ import { IpqsQuotaModel, type IpqsQuotaDoc } from "../models/ipqsQuotaModel";
 import { connectMongo, mongoose } from "./mongoService";
 import { TurnstileService } from "./turnstileService";
 import logger from "../utils/logger";
+import {
+  buildScamalyticsLookupUrl,
+  normalizeScamalyticsUser,
+} from "../utils/scamalytics";
 
 interface ScamalyticsResponse {
   scamalytics: {
@@ -127,6 +131,12 @@ function shouldRequireVerification(response: ScamalyticsResponse): LookupDecisio
     riskFlags,
     requestId: response.scamalytics.exec,
   };
+}
+
+function toLookupLogRawResponse(
+  response?: ScamalyticsResponse,
+): Record<string, unknown> | undefined {
+  return response ? { ...response } : undefined;
 }
 
 async function ensureMongoIfEnabled(): Promise<boolean> {
@@ -305,7 +315,7 @@ export class IpVerificationService {
       recentAbuse: response?.scamalytics.scamalytics_risk === "high" || response?.scamalytics.scamalytics_risk === "very high",
       botStatus: false,
       strictness: config.ipqs.strictness,
-      rawResponse: response,
+      rawResponse: toLookupLogRawResponse(response),
       errorMessage,
       createdAt: new Date(),
     });
@@ -324,7 +334,9 @@ export class IpVerificationService {
 
     const month = monthKey();
     const selectedKey = await IpVerificationService.selectApiKey(month);
-    const scamalyticsUser = config.ipqs.scamalyticsUser?.trim();
+    const scamalyticsUser = normalizeScamalyticsUser(
+      config.ipqs.scamalyticsUser,
+    );
 
     if (!selectedKey && config.ipqs.apiKeys.length > 0) {
       const exhaustedDecision: LookupDecision = {
@@ -341,16 +353,18 @@ export class IpVerificationService {
     // If no keys are configured but scamalyticsUser is, we might still want to proceed if we hardcode a key or use the one provided
     const apiKey = selectedKey?.key || config.ipqs.apiKeys[0]?.trim();
     const slot = selectedKey?.slot ?? 0;
+    const scamalyticsUrl = buildScamalyticsLookupUrl(scamalyticsUser);
 
     try {
       const response = await axios.get<ScamalyticsResponse>(
-        `https://api13.scamalytics.com/v3/${scamalyticsUser}/`,
+        scamalyticsUrl,
         {
           params: {
             key: apiKey,
             ip: context.ipAddress,
           },
           timeout: config.ipqs.timeoutMs,
+          maxRedirects: 0,
         }
       );
 

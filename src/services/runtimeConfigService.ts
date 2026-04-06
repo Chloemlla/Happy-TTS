@@ -11,6 +11,10 @@ import {
 import { RuntimeConfigModel, type RuntimeConfigKey } from "../models/runtimeConfigModel";
 import { mongoose } from "./mongoService";
 import logger from "../utils/logger";
+import {
+  normalizeScamalyticsUser,
+  validateScamalyticsUser,
+} from "../utils/scamalytics";
 
 const FALLBACK_BASE_URL = "https://api.951100.xyz";
 const FALLBACK_FRONTEND_URL = "https://tts.951100.xyz";
@@ -131,7 +135,10 @@ function normalizeDeepLXBaseUrl(value: unknown, fallback: string): string {
 function normalizeStoredIpqsConfig(value: unknown, defaults = runtimeConfigDefaults.ipqs): IpqsRuntimeConfig {
   const raw = asObject(value);
   const apiKeys = normalizeStringArray(raw.apiKeys, defaults.apiKeys);
-  const scamalyticsUser = normalizeString(raw.scamalyticsUser, defaults.scamalyticsUser || "");
+  const scamalyticsUser = normalizeScamalyticsUser(
+    raw.scamalyticsUser,
+    defaults.scamalyticsUser || "",
+  );
   const enabled = normalizeBoolean(raw.enabled, defaults.enabled);
 
   return {
@@ -387,7 +394,11 @@ export class RuntimeConfigService {
       : normalizeStringArray(input.apiKeys, current.apiKeys);
     const scamalyticsUser = input.scamalyticsUser === undefined
       ? current.scamalyticsUser
-      : normalizeString(input.scamalyticsUser, current.scamalyticsUser || "");
+      : validateScamalyticsUser(input.scamalyticsUser) ||
+        normalizeScamalyticsUser(
+          runtimeConfigDefaults.ipqs.scamalyticsUser,
+          "",
+        );
     const enabled = normalizeBoolean(input.enabled, current.enabled);
 
     if (enabled && apiKeys.length === 0 && !scamalyticsUser) {
