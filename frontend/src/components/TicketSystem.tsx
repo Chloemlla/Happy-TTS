@@ -69,26 +69,17 @@ interface ProcessingMeta {
 
 function formatDate(value: string, mode: 'full' | 'date' | 'time' = 'full'): string {
   const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
+  if (Number.isNaN(date.getTime())) return value;
 
   if (mode === 'date') {
-    return date.toLocaleDateString('zh-CN', {
-      month: 'short',
-      day: 'numeric',
-    });
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 
   if (mode === 'time') {
-    return date.toLocaleTimeString('zh-CN', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   }
 
-  return date.toLocaleString('zh-CN', {
+  return date.toLocaleString('en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -100,13 +91,13 @@ function formatDate(value: string, mode: 'full' | 'date' | 'time' = 'full'): str
 function getStatusMeta(status: ITicket['status']) {
   switch (status) {
     case 'open':
-      return { label: '待处理', badgeTone: 'blue' as const };
+      return { label: 'Open', badgeTone: 'blue' as const };
     case 'in-progress':
-      return { label: '处理中', badgeTone: 'yellow' as const };
+      return { label: 'In Progress', badgeTone: 'yellow' as const };
     case 'resolved':
-      return { label: '已解决', badgeTone: 'green' as const };
+      return { label: 'Resolved', badgeTone: 'green' as const };
     case 'closed':
-      return { label: '已关闭', badgeTone: 'slate' as const };
+      return { label: 'Closed', badgeTone: 'slate' as const };
     default:
       return { label: status, badgeTone: 'slate' as const };
   }
@@ -115,67 +106,65 @@ function getStatusMeta(status: ITicket['status']) {
 function getPriorityMeta(priority: ITicket['priority']) {
   switch (priority) {
     case 'high':
-      return { label: '高优先级', badgeTone: 'rose' as const, pillTone: 'rose' as const };
+      return { label: 'High', badgeTone: 'rose' as const, pillTone: 'rose' as const };
     case 'medium':
-      return { label: '中优先级', badgeTone: 'yellow' as const, pillTone: 'amber' as const };
+      return { label: 'Medium', badgeTone: 'yellow' as const, pillTone: 'amber' as const };
     case 'low':
-      return { label: '低优先级', badgeTone: 'green' as const, pillTone: 'green' as const };
+      return { label: 'Low', badgeTone: 'green' as const, pillTone: 'green' as const };
     default:
       return { label: priority, badgeTone: 'slate' as const, pillTone: 'dark' as const };
   }
 }
 
 function getProcessingMeta(step: TicketProcessStep | null): ProcessingMeta | null {
-  if (!step) {
-    return null;
-  }
+  if (!step) return null;
 
   const map: Record<TicketProcessStep, ProcessingMeta> = {
     audit_start: {
-      label: '内容审核中',
-      description: 'AI 正在检查新工单和回复内容的安全性与合规性。',
+      label: 'Content Review',
+      description: 'AI is checking the new ticket and reply content for safety and compliance.',
       icon: FiSearch,
       cardClassName: 'border-amber-200 bg-amber-50 text-amber-800',
       iconClassName: 'text-amber-500',
     },
     audit_passed: {
-      label: '审核通过',
-      description: '内容已进入回复生成阶段，系统正在准备上下文。',
+      label: 'Review Passed',
+      description: 'The content passed review and the system is preparing the response context.',
       icon: FiCheckCircle,
       cardClassName: 'border-emerald-200 bg-emerald-50 text-emerald-800',
       iconClassName: 'text-emerald-500',
     },
     ai_start: {
-      label: 'AI 正在分析',
-      description: '智能助手正在整理问题背景并生成建议回复。',
+      label: 'AI Drafting',
+      description: 'The assistant is analyzing the issue and drafting a suggested reply.',
       icon: FiCpu,
       cardClassName: 'border-sky-200 bg-sky-50 text-sky-800',
       iconClassName: 'text-sky-500',
     },
     ai_complete: {
-      label: '回复已生成',
-      description: '系统正在进行最后同步，很快会把结果写回工单。',
+      label: 'Draft Ready',
+      description: 'The system is doing the final sync before writing the result back to the ticket.',
       icon: FiCheckCircle,
       cardClassName: 'border-violet-200 bg-violet-50 text-violet-800',
       iconClassName: 'text-violet-500',
     },
     saving: {
-      label: '写入中',
-      description: '结果正在同步到服务端并广播到会话列表。',
+      label: 'Saving',
+      description: 'The result is being synced to the server and broadcast to the list.',
       icon: FiTerminal,
       cardClassName: 'border-slate-200 bg-slate-50 text-slate-800',
       iconClassName: 'text-slate-500',
     },
     audit_failed: {
-      label: '审核未通过',
-      description: '当前内容未通过审核，建议调整描述后重新提交。',
+      label: 'Review Failed',
+      description: 'The current content did not pass review. Adjust the wording and submit again.',
       icon: FiAlertCircle,
       cardClassName: 'border-rose-200 bg-rose-50 text-rose-800',
       iconClassName: 'text-rose-500',
     },
     error: {
-      label: '处理失败',
-      description: '系统在处理过程中遇到异常，请稍后重试。',
+      label: 'Process Failed',
+      description: 'The system hit an unexpected error during processing. Please try again later.',
       icon: FiAlertCircle,
       cardClassName: 'border-rose-200 bg-rose-50 text-rose-800',
       iconClassName: 'text-rose-500',
@@ -186,15 +175,9 @@ function getProcessingMeta(step: TicketProcessStep | null): ProcessingMeta | nul
 }
 
 function getMessageRoleLabel(message: ITicketMessage): string {
-  if (message.senderRole === 'ai' || message.isAi) {
-    return 'AI 助手';
-  }
-
-  if (message.senderRole === 'admin') {
-    return '官方客服';
-  }
-
-  return '用户';
+  if (message.senderRole === 'ai' || message.isAi) return 'AI Assistant';
+  if (message.senderRole === 'admin') return 'Official Support';
+  return 'User';
 }
 
 const TicketSystem: React.FC = () => {
@@ -221,18 +204,12 @@ const TicketSystem: React.FC = () => {
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
-
     if (processingStep) {
       const isEnding = ['ai_complete', 'audit_failed', 'error'].includes(processingStep);
-      timer = setTimeout(() => {
-        setProcessingStep(null);
-      }, isEnding ? 3000 : 20000);
+      timer = setTimeout(() => setProcessingStep(null), isEnding ? 3000 : 20000);
     }
-
     return () => {
-      if (timer) {
-        clearTimeout(timer);
-      }
+      if (timer) clearTimeout(timer);
     };
   }, [processingStep]);
 
@@ -288,39 +265,33 @@ const TicketSystem: React.FC = () => {
 
   const statusCards = useMemo(
     () => [
-      { label: 'Queue', value: `${tickets.length} 个工单`, tone: 'sky' as const },
+      { label: 'Queue', value: `${tickets.length} tickets`, tone: 'sky' as const },
       {
         label: 'Focus',
-        value: isCreating ? '正在新建工单' : selectedTicket ? getStatusMeta(selectedTicket.status).label : '等待选择工单',
+        value: isCreating ? 'Creating ticket' : selectedTicket ? getStatusMeta(selectedTicket.status).label : 'Waiting',
         tone: 'violet' as const,
       },
-      { label: 'Mode', value: isAdmin ? '管理控制台' : '个人支持台', tone: 'emerald' as const },
+      { label: 'Mode', value: isAdmin ? 'Admin console' : 'Personal desk', tone: 'emerald' as const },
     ],
     [isAdmin, isCreating, selectedTicket, tickets.length],
   );
 
   const queueRows = useMemo(
     () => [
-      { label: '待处理', value: tickets.filter((ticket) => ticket.status === 'open').length },
-      { label: '处理中', value: tickets.filter((ticket) => ticket.status === 'in-progress').length },
-      {
-        label: '已收敛',
-        value: tickets.filter((ticket) => ticket.status === 'resolved' || ticket.status === 'closed').length,
-      },
+      { label: 'Open', value: tickets.filter((ticket) => ticket.status === 'open').length },
+      { label: 'In Progress', value: tickets.filter((ticket) => ticket.status === 'in-progress').length },
+      { label: 'Resolved', value: tickets.filter((ticket) => ticket.status === 'resolved' || ticket.status === 'closed').length },
     ],
     [tickets],
   );
 
   const selectedTicketRows = useMemo(() => {
-    if (!selectedTicket) {
-      return [];
-    }
-
+    if (!selectedTicket) return [];
     return [
-      { label: '创建时间', value: formatDate(selectedTicket.createdAt) },
-      { label: '最近更新', value: formatDate(selectedTicket.updatedAt) },
-      { label: '消息数量', value: `${selectedTicket.messages.length} 条` },
-      { label: '最近发言', value: latestMessage ? getMessageRoleLabel(latestMessage) : '暂无消息' },
+      { label: 'Created', value: formatDate(selectedTicket.createdAt) },
+      { label: 'Last update', value: formatDate(selectedTicket.updatedAt) },
+      { label: 'Messages', value: `${selectedTicket.messages.length} items` },
+      { label: 'Last sender', value: latestMessage ? getMessageRoleLabel(latestMessage) : 'No messages' },
     ];
   }, [latestMessage, selectedTicket]);
 
@@ -329,12 +300,11 @@ const TicketSystem: React.FC = () => {
       setLoading(true);
       const data = isAdmin ? await ticketApi.getAllTickets(adminFilter) : await ticketApi.getMyTickets();
       setTickets(data);
-
       if (data.length > 0 && !selectedTicket && !isCreating && !isMobile) {
         setSelectedTicket(data[0]);
       }
     } catch {
-      setNotification({ type: 'error', message: '加载工单失败' });
+      setNotification({ type: 'error', message: 'Failed to load tickets.' });
     } finally {
       setLoading(false);
     }
@@ -345,28 +315,21 @@ const TicketSystem: React.FC = () => {
   }, [adminFilter, isAdmin, user?.id]);
 
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024);
-    };
-
+    const checkMobile = () => setIsMobile(window.innerWidth < 1024);
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({
-      behavior: prefersReducedMotion ? 'auto' : 'smooth',
-    });
+    messagesEndRef.current?.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth' });
   }, [prefersReducedMotion, processingStep, selectedMessages, streamingAiResponse?.content]);
 
   const handleSelectTicket = (ticket: ITicket) => {
     setSelectedTicket(ticket);
     setIsCreating(false);
     setEditingIdx(null);
-    if (isMobile) {
-      setShowDetailOnMobile(true);
-    }
+    if (isMobile) setShowDetailOnMobile(true);
   };
 
   const handleBackToList = () => {
@@ -378,51 +341,42 @@ const TicketSystem: React.FC = () => {
     setSelectedTicket(null);
     setEditingIdx(null);
     setIsCreating(true);
-    if (isMobile) {
-      setShowDetailOnMobile(true);
-    }
+    if (isMobile) setShowDetailOnMobile(true);
   };
 
   const handleAdminEdit = async (ticketId: string, idx: number) => {
-    if (!editValue.trim()) {
-      return;
-    }
-
+    if (!editValue.trim()) return;
     setIsUpdating(true);
     try {
       const updated = await ticketApi.adminEditMessage(ticketId, idx, editValue);
       setSelectedTicket(updated);
       setTickets((prev) => prev.map((ticket) => (ticket._id === updated._id ? updated : ticket)));
       setEditingIdx(null);
-      setNotification({ type: 'success', message: '消息已更新' });
+      setNotification({ type: 'success', message: 'Message updated.' });
     } catch {
-      setNotification({ type: 'error', message: '修改消息失败' });
+      setNotification({ type: 'error', message: 'Failed to update the message.' });
     } finally {
       setIsUpdating(false);
     }
   };
 
   const handleAdminDelete = async (ticketId: string, idx: number) => {
-    if (!window.confirm('确定要删除这条消息吗？此操作不可撤销。')) {
-      return;
-    }
-
+    if (!window.confirm('Delete this message? This action cannot be undone.')) return;
     try {
       const updated = await ticketApi.adminDeleteMessage(ticketId, idx);
       setSelectedTicket(updated);
       setTickets((prev) => prev.map((ticket) => (ticket._id === updated._id ? updated : ticket)));
-      setNotification({ type: 'success', message: '消息已删除' });
+      setNotification({ type: 'success', message: 'Message deleted.' });
     } catch {
-      setNotification({ type: 'error', message: '删除消息失败' });
+      setNotification({ type: 'error', message: 'Failed to delete the message.' });
     }
   };
 
   const handleCreateTicket = async (event: React.FormEvent) => {
     event.preventDefault();
-
     try {
       const created = await ticketApi.createTicket(newTicket);
-      setNotification({ type: 'success', message: '工单已提交' });
+      setNotification({ type: 'success', message: 'Ticket submitted.' });
       setIsCreating(false);
       setShowDetailOnMobile(false);
       setNewTicket({ title: '', description: '', priority: 'medium' });
@@ -433,23 +387,20 @@ const TicketSystem: React.FC = () => {
         const data = error.response.data;
         setNotification({
           type: 'error',
-          title: data.error || '提交失败',
-          message: data.punishment || '当前内容未通过 AI 审核',
+          title: data.error || 'Submit failed',
+          message: data.punishment || 'The content did not pass the AI review.',
           details: data.details ? data.details.split('\n') : undefined,
           duration: 6000,
         });
       } else {
-        setNotification({ type: 'error', message: '提交工单失败' });
+        setNotification({ type: 'error', message: 'Failed to submit the ticket.' });
       }
     }
   };
 
   const handleReply = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!selectedTicket || !replyContent.trim()) {
-      return;
-    }
-
+    if (!selectedTicket || !replyContent.trim()) return;
     try {
       const updated = await ticketApi.replyTicket(selectedTicket._id, replyContent);
       setSelectedTicket(updated);
@@ -460,13 +411,13 @@ const TicketSystem: React.FC = () => {
         const data = error.response.data;
         setNotification({
           type: 'error',
-          title: data.error || '发送失败',
-          message: data.punishment || '当前回复未通过 AI 审核',
+          title: data.error || 'Reply failed',
+          message: data.punishment || 'The reply did not pass the AI review.',
           details: data.details ? data.details.split('\n') : undefined,
           duration: 6000,
         });
       } else {
-        setNotification({ type: 'error', message: '发送回复失败' });
+        setNotification({ type: 'error', message: 'Failed to send the reply.' });
       }
     }
   };
@@ -474,58 +425,41 @@ const TicketSystem: React.FC = () => {
   const handleUpdateStatus = async (ticketId: string, status: string) => {
     try {
       const updated = await ticketApi.updateStatus(ticketId, status);
-      if (selectedTicket?._id === ticketId) {
-        setSelectedTicket(updated);
-      }
+      if (selectedTicket?._id === ticketId) setSelectedTicket(updated);
       setTickets((prev) => prev.map((ticket) => (ticket._id === updated._id ? updated : ticket)));
-      setNotification({ type: 'success', message: '工单状态已更新' });
+      setNotification({ type: 'success', message: 'Ticket status updated.' });
     } catch {
-      setNotification({ type: 'error', message: '更新工单状态失败' });
+      setNotification({ type: 'error', message: 'Failed to update the ticket status.' });
     }
   };
 
   const guideItems = [
-    '新建工单时尽量把问题背景、复现步骤和期望结果一次写清。',
-    '管理员可以直接在消息流里编辑或删除回复，适合修正措辞或清理误发内容。',
-    'AI 处理阶段会经过审核、生成和写入三个环节，右下角会显示实时状态。',
+    'Write the background, repro steps, and expected result in the first ticket message.',
+    'Admins can edit or delete a message directly from the conversation stream.',
+    'The AI pipeline still runs review, draft, and save stages in real time.',
   ];
 
   return (
     <div className={studioPageClassName} style={{ fontFamily: studioPageFont }}>
       <div className="mx-auto max-w-7xl min-w-0">
-        <motion.div
-          className={cn('mb-5 sm:mb-8', studioHeroCardClassName)}
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45 }}
-        >
+        <motion.div className={cn('mb-5 sm:mb-8', studioHeroCardClassName)} initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
           <div className="flex min-w-0 flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl min-w-0">
               <div className="mb-3 inline-flex max-w-full items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-sky-700 sm:px-3 sm:text-xs sm:tracking-[0.18em]">
                 <FiMessageSquare />
                 Ticket Support Studio
               </div>
-              <h1
-                className="text-[2rem] font-semibold leading-[1.05] text-slate-900 sm:text-5xl sm:leading-tight"
-                style={{ fontFamily: studioDisplayFont }}
-              >
-                把工单流转整合进同一块工作台
+              <h1 className="text-[2rem] font-semibold leading-[1.05] text-slate-900 sm:text-5xl sm:leading-tight" style={{ fontFamily: studioDisplayFont }}>
+                Move the whole ticket flow into one studio surface
               </h1>
               <p className="mt-3 max-w-2xl text-[13px] leading-6 text-slate-600 sm:text-base sm:leading-7">
-                列表、详情、实时 AI 回执和管理员操作全部收进同一套玻璃工作区，视觉语言直接对齐 DeepLX 页面，但保留原来的工单业务流程。
+                The list, detail view, streaming AI updates, and admin actions now live in one DeepLX-style workspace while the ticket logic stays intact.
               </p>
             </div>
-
             <div className="w-full lg:w-auto">
               <div className="grid gap-2 sm:grid-cols-3 sm:gap-3">
                 {statusCards.map((item) => (
-                  <div
-                    key={item.label}
-                    className={cn(
-                      'min-w-0 rounded-[22px] border px-3 py-2.5 sm:rounded-2xl sm:px-4 sm:py-3',
-                      studioMetricToneClassName(item.tone),
-                    )}
-                  >
+                  <div key={item.label} className={cn('min-w-0 rounded-[22px] border px-3 py-2.5 sm:rounded-2xl sm:px-4 sm:py-3', studioMetricToneClassName(item.tone))}>
                     <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">{item.label}</div>
                     <div className="mt-2 break-words text-sm font-semibold text-slate-800">{item.value}</div>
                   </div>
@@ -536,43 +470,25 @@ const TicketSystem: React.FC = () => {
         </motion.div>
 
         <div className="grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-          <motion.div
-            className={studioMainSurfaceClassName}
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.05 }}
-          >
+          <motion.div className={studioMainSurfaceClassName} initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.05 }}>
             <div className="grid min-w-0 gap-2.5 sm:gap-3 lg:grid-cols-[320px_minmax(0,1fr)]">
               <AnimatePresence mode="wait">
                 {(!isMobile || !showDetailOnMobile) && (
-                  <motion.section
-                    key="ticket-list"
-                    className={cn(studioSubPanelClassName, 'flex min-h-[520px] flex-col lg:min-h-[640px]')}
-                    initial={isMobile ? { opacity: 0, x: -16 } : { opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, x: 0, y: 0 }}
-                    exit={isMobile ? { opacity: 0, x: -16 } : { opacity: 0 }}
-                    transition={{ duration: 0.25 }}
-                  >
+                  <motion.section key="ticket-list" className={cn(studioSubPanelClassName, 'flex min-h-[520px] flex-col lg:min-h-[640px]')} initial={isMobile ? { opacity: 0, x: -16 } : { opacity: 0, y: 8 }} animate={{ opacity: 1, x: 0, y: 0 }} exit={isMobile ? { opacity: 0, x: -16 } : { opacity: 0 }} transition={{ duration: 0.25 }}>
                     <div className="mb-4 flex items-start justify-between gap-3">
                       <div>
                         <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">Queue</div>
-                        <div className="mt-1 text-lg font-semibold text-slate-900">{isAdmin ? '工单广场' : '我的工单'}</div>
+                        <div className="mt-1 text-lg font-semibold text-slate-900">{isAdmin ? 'Global tickets' : 'My tickets'}</div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <button type="button" onClick={() => fetchTickets()} className={studioGhostButtonClassName} title="刷新工单列表">
+                        <button type="button" onClick={() => fetchTickets()} className={studioGhostButtonClassName} title="Refresh ticket list">
                           <FiRefreshCw className={loading ? 'animate-spin' : undefined} />
-                          刷新
+                          Refresh
                         </button>
                         {!isAdmin ? (
-                          <motion.button
-                            type="button"
-                            onClick={handleStartCreate}
-                            className={cn(studioPrimaryButtonClassName, 'px-3 py-2 text-xs sm:px-4 sm:text-xs')}
-                            whileHover={hoverScale(1.02)}
-                            whileTap={tapScale(0.98)}
-                          >
+                          <motion.button type="button" onClick={handleStartCreate} className={cn(studioPrimaryButtonClassName, 'px-3 py-2 text-xs sm:px-4 sm:text-xs')} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                             <FiPlus />
-                            新建
+                            New Ticket
                           </motion.button>
                         ) : null}
                       </div>
@@ -580,36 +496,18 @@ const TicketSystem: React.FC = () => {
 
                     {isAdmin ? (
                       <div className="mb-4 grid gap-2 sm:grid-cols-2">
-                        <select
-                          className={studioFieldClassName}
-                          value={adminFilter.status}
-                          onChange={(event) =>
-                            setAdminFilter((prev) => ({
-                              ...prev,
-                              status: event.target.value,
-                            }))
-                          }
-                        >
-                          <option value="">全部状态</option>
-                          <option value="open">待处理</option>
-                          <option value="in-progress">处理中</option>
-                          <option value="resolved">已解决</option>
-                          <option value="closed">已关闭</option>
+                        <select className={studioFieldClassName} value={adminFilter.status} onChange={(event) => setAdminFilter((prev) => ({ ...prev, status: event.target.value }))}>
+                          <option value="">All status</option>
+                          <option value="open">Open</option>
+                          <option value="in-progress">In Progress</option>
+                          <option value="resolved">Resolved</option>
+                          <option value="closed">Closed</option>
                         </select>
-                        <select
-                          className={studioFieldClassName}
-                          value={adminFilter.priority}
-                          onChange={(event) =>
-                            setAdminFilter((prev) => ({
-                              ...prev,
-                              priority: event.target.value,
-                            }))
-                          }
-                        >
-                          <option value="">全部优先级</option>
-                          <option value="high">高优先级</option>
-                          <option value="medium">中优先级</option>
-                          <option value="low">低优先级</option>
+                        <select className={studioFieldClassName} value={adminFilter.priority} onChange={(event) => setAdminFilter((prev) => ({ ...prev, priority: event.target.value }))}>
+                          <option value="">All priority</option>
+                          <option value="high">High</option>
+                          <option value="medium">Medium</option>
+                          <option value="low">Low</option>
                         </select>
                       </div>
                     ) : null}
@@ -618,18 +516,14 @@ const TicketSystem: React.FC = () => {
                       {loading ? (
                         <div className="flex h-full min-h-[280px] flex-col items-center justify-center gap-4 rounded-[22px] border border-dashed border-slate-200 bg-white/70 text-center">
                           <div className="h-9 w-9 animate-spin rounded-full border-2 border-slate-200 border-t-[#2541b2]" />
-                          <p className="text-sm text-slate-400">正在同步工单列表...</p>
+                          <p className="text-sm text-slate-400">Syncing ticket list...</p>
                         </div>
                       ) : tickets.length === 0 ? (
                         <div className="flex h-full min-h-[280px] flex-col items-center justify-center gap-4 rounded-[22px] border border-dashed border-slate-200 bg-white/70 px-6 text-center">
-                          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-slate-300">
-                            <FiInfo size={28} />
-                          </div>
+                          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-slate-300"><FiInfo size={28} /></div>
                           <div>
-                            <div className="text-base font-semibold text-slate-500">当前没有可显示的工单</div>
-                            <p className="mt-2 text-sm leading-6 text-slate-400">
-                              {isAdmin ? '尝试切换筛选条件，或等待新的用户工单进入队列。' : '点击右上角的新建按钮，发起第一条支持请求。'}
-                            </p>
+                            <div className="text-base font-semibold text-slate-500">Nothing to show yet</div>
+                            <p className="mt-2 text-sm leading-6 text-slate-400">{isAdmin ? 'Try a different filter or wait for new tickets.' : 'Use the button above to create your first ticket.'}</p>
                           </div>
                         </div>
                       ) : (
@@ -638,4 +532,4 @@ const TicketSystem: React.FC = () => {
                             const statusMeta = getStatusMeta(ticket.status);
                             const priorityMeta = getPriorityMeta(ticket.priority);
                             const isSelected = selectedTicket?._id === ticket._id && !isCreating;
-                            const preview = ticket.description || ticket.messages[ticket.messages.length - 1]?.content || '暂无描述';
+                            const preview = ticket.description || ticket.messages[ticket.messages.length - 1]?.content || 'No description';
