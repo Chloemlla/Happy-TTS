@@ -11,17 +11,6 @@ import logger from "./logger";
 
 const STORAGE_MODE = process.env.USER_STORAGE_MODE || "file"; // 'file' 或 'mongo'
 
-// DOMPurify + JSDOM 懒加载（节省 ~20MB 内存和启动时间）
-let _domPurify: any = null;
-function getDOMPurify() {
-  if (!_domPurify) {
-    const { JSDOM } = require("jsdom");
-    const window = new JSDOM("").window;
-    _domPurify = require("dompurify")(window);
-  }
-  return _domPurify;
-}
-
 // 加载环境变量
 dotenv.config();
 
@@ -116,7 +105,7 @@ export class UserStorage {
   // 输入净化
   public static sanitizeInput(input: string | undefined): string {
     if (!input) return "";
-    return getDOMPurify().sanitize(validator.trim(input));
+    return validator.escape(validator.trim(input));
   }
 
   // 密码强度检查

@@ -4,11 +4,18 @@ import logger from "../utils/logger";
 const nanoid = require("nanoid").nanoid;
 
 import createDOMPurify from "dompurify";
-import { JSDOM } from "jsdom";
 import mongoose from "mongoose";
 import { shortUrlMigrationService } from "./shortUrlMigrationService";
 import { ShortUrlService } from "./shortUrlService";
 import { TurnstileService } from "./turnstileService";
+
+type JsdomModule = {
+  JSDOM: new (input?: string, options?: any) => any;
+};
+
+const dynamicImport = new Function("specifier", "return import(specifier);") as <T = unknown>(
+  specifier: string,
+) => Promise<T>;
 
 // IPFS服务设置（支持从 MongoDB 读取配置，优先于环境变量）
 interface IPFSSettingDoc {
@@ -141,11 +148,24 @@ export class IPFSService {
   private static readonly IPFS_BACKUP_URL = "https://ipfs.infura.io:5001/api/v0/add"; // 备用IPFS网关
   private static readonly MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
   private static dompurifyInstance: any | null = null;
+  private static jsdomModulePromise: Promise<JsdomModule> | null = null;
+
+  private static loadJsdom() {
+    if (!IPFSService.jsdomModulePromise) {
+      IPFSService.jsdomModulePromise = dynamicImport<JsdomModule>("jsdom");
+    }
+    return IPFSService.jsdomModulePromise;
+  }
+
+  private static async createJSDOM(content: string, options?: any) {
+    const { JSDOM } = await IPFSService.loadJsdom();
+    return new JSDOM(content, options);
+  }
 
   // 懒加载并返回 DOMPurify 实例（Node 环境使用 JSDOM）
-  private static getDOMPurify(): any {
+  private static async getDOMPurify(): Promise<any> {
     if (!IPFSService.dompurifyInstance) {
-      const { window } = new JSDOM("");
+      const { window } = await IPFSService.createJSDOM("");
       IPFSService.dompurifyInstance = (createDOMPurify as any)(window as any);
     }
     return IPFSService.dompurifyInstance;
@@ -262,9 +282,9 @@ export class IPFSService {
     // 如果是SVG文件，验证和优化文件内容
     if (mimetype.toLowerCase() === "image/svg+xml" || filename.toLowerCase().endsWith(".svg")) {
       logger.info(`[IPFS] 检测到SVG文件，进行安全验证和优化: ${filename}`);
-      IPFSService.validateSVGContent(fileBuffer);
+      await IPFSService.validateSVGContent(fileBuffer);
       // 优化SVG内容
-      fileBuffer = Buffer.from(IPFSService.optimizeSVGContent(fileBuffer.toString("utf-8")));
+      fileBuffer = Buffer.from(await IPFSService.optimizeSVGContent(fileBuffer.toString("utf-8")));
     }
     return await IPFSService.uploadFileInternal(fileBuffer, finalFilename, mimetype, options, cfToken);
   }
@@ -560,11 +580,11 @@ export class IPFSService {
    * @param content SVG文件内容
    * @returns 优化后的SVG内容
    */
-  private static optimizeSVGContent(content: string): string {
+  private static async optimizeSVGContent(content: string): Promise<string> {
     try {
       // 使用 JSDOM 移除注释，避免基于正则的多字符清理导致的遗漏
       try {
-        const dom = new JSDOM(content, { contentType: "image/svg+xml" });
+        const dom = await IPFSService.createJSDOM(content, { contentType: "image/svg+xml" });
         const doc = dom.window.document;
         const walker = doc.createTreeWalker(doc, dom.window.NodeFilter.SHOW_COMMENT);
         const toRemove: Comment[] = [] as unknown as Comment[];
@@ -580,16 +600,16 @@ export class IPFSService {
 
       // 移除潜在的危险属性 - 使用更严格的正则表达式
       // 使用更安全的清理方法
-      content = IPFSService.safeRemoveEventHandlers(content);
-      content = IPFSService.safeRemoveDangerousProtocols(content);
-      content = IPFSService.safeRemoveDangerousTags(content);
-      content = IPFSService.safeRemoveExternalReferences(content);
+      content = await IPFSService.safeRemoveEventHandlers(content);
+      content = await IPFSService.safeRemoveDangerousProtocols(content);
+      content = await IPFSService.safeRemoveDangerousTags(content);
+      content = await IPFSService.safeRemoveExternalReferences(content);
 
       // 使用额外的安全清理
       content = IPFSService.performAdditionalSanitization(content);
 
       // 最终使用 DOMPurify 清理，避免使用不可靠的 HTML 正则
-      content = IPFSService.sanitizeSVGWithDOMPurify(content);
+      content = await IPFSService.sanitizeSVGWithDOMPurify(content);
 
       logger.info("[IPFS] SVG文件内容优化完成");
       return content;
@@ -600,8 +620,8 @@ export class IPFSService {
   }
 
   // 使用 DOMPurify 进行 SVG 安全清理
-  private static sanitizeSVGWithDOMPurify(content: string): string {
-    const DOMPurify = IPFSService.getDOMPurify();
+  private static async sanitizeSVGWithDOMPurify(content: string): Promise<string> {
+    const DOMPurify = await IPFSService.getDOMPurify();
     return DOMPurify.sanitize(content, {
       USE_PROFILES: { svg: true, svgFilters: true, html: false },
       FORBID_TAGS: ["script", "iframe", "object", "embed", "link", "meta", "style", "foreignObject"],
@@ -618,9 +638,9 @@ export class IPFSService {
    * @param content SVG文件内容
    * @returns 清理后的SVG内容
    */
-  private static safeRemoveEventHandlers(content: string): string {
+  private static async safeRemoveEventHandlers(content: string): Promise<string> {
     try {
-      const dom = new JSDOM(content, { contentType: "image/svg+xml" });
+      const dom = await IPFSService.createJSDOM(content, { contentType: "image/svg+xml" });
       const doc = dom.window.document;
       const elements = doc.querySelectorAll("*");
       for (const el of Array.from(elements)) {
@@ -643,9 +663,9 @@ export class IPFSService {
    * @param content SVG文件内容
    * @returns 清理后的SVG内容
    */
-  private static safeRemoveDangerousProtocols(content: string): string {
+  private static async safeRemoveDangerousProtocols(content: string): Promise<string> {
     try {
-      const dom = new JSDOM(content, { contentType: "image/svg+xml" });
+      const dom = await IPFSService.createJSDOM(content, { contentType: "image/svg+xml" });
       const doc = dom.window.document;
       const elements = doc.querySelectorAll("*");
       const hasUnsafeProtocol = (val: string) =>
@@ -679,9 +699,9 @@ export class IPFSService {
    * @param content SVG文件内容
    * @returns 清理后的SVG内容
    */
-  private static safeRemoveDangerousTags(content: string): string {
+  private static async safeRemoveDangerousTags(content: string): Promise<string> {
     try {
-      const dom = new JSDOM(content, { contentType: "image/svg+xml" });
+      const dom = await IPFSService.createJSDOM(content, { contentType: "image/svg+xml" });
       const doc = dom.window.document;
       const forbiddenTags = ["script", "iframe", "object", "embed", "link", "meta", "style", "foreignObject"];
       for (const tag of forbiddenTags) {
@@ -698,9 +718,9 @@ export class IPFSService {
    * @param content SVG文件内容
    * @returns 清理后的SVG内容
    */
-  private static safeRemoveExternalReferences(content: string): string {
+  private static async safeRemoveExternalReferences(content: string): Promise<string> {
     try {
-      const dom = new JSDOM(content, { contentType: "image/svg+xml" });
+      const dom = await IPFSService.createJSDOM(content, { contentType: "image/svg+xml" });
       const doc = dom.window.document;
       const elements = doc.querySelectorAll("*");
       for (const el of Array.from(elements)) {
@@ -821,7 +841,7 @@ export class IPFSService {
    * 验证SVG文件内容
    * @param fileBuffer 文件缓冲区
    */
-  private static validateSVGContent(fileBuffer: Buffer): void {
+  private static async validateSVGContent(fileBuffer: Buffer): Promise<void> {
     try {
       const content = fileBuffer.toString("utf-8");
 
@@ -836,7 +856,7 @@ export class IPFSService {
         throw new Error("SVG文件过大，可能包含恶意内容");
       }
       // 使用 JSDOM 进行结构化校验
-      const dom = new JSDOM(content, { contentType: "image/svg+xml" });
+      const dom = await IPFSService.createJSDOM(content, { contentType: "image/svg+xml" });
       const doc = dom.window.document;
 
       // 禁止的标签
