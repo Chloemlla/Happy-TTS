@@ -3,21 +3,13 @@ import logger from "../utils/logger";
 
 const nanoid = require("nanoid").nanoid;
 
-import createDOMPurify from "dompurify";
 import mongoose from "mongoose";
+import { sanitizeSvgContent, validateSvgContent } from "../utils/svgSecurity";
 import { shortUrlMigrationService } from "./shortUrlMigrationService";
 import { ShortUrlService } from "./shortUrlService";
 import { TurnstileService } from "./turnstileService";
 
-type JsdomModule = {
-  JSDOM: new (input?: string, options?: any) => any;
-};
-
-const dynamicImport = new Function("specifier", "return import(specifier);") as <T = unknown>(
-  specifier: string,
-) => Promise<T>;
-
-// IPFS服务设置（支持从 MongoDB 读取配置，优先于环境变量）
+// IPFS服务设置（支持从 MongoDB 读取配置，优先于环境变量�?
 interface IPFSSettingDoc {
   key: string;
   value: string;
@@ -48,7 +40,7 @@ async function getIPFSUploadURL(): Promise<string> {
     logger.error("[IPFS] 读取IPFS_UPLOAD_URL配置失败", e);
   }
 
-  // 如果没有配置，抛出错误
+  // 如果没有配置，抛出错�?
   throw new Error('IPFS_UPLOAD_URL配置未设置，请在MongoDB的shorturl_settings集合中设置key为"IPFS_UPLOAD_URL"的配置');
 }
 
@@ -120,7 +112,7 @@ async function getDevSkipTurnstile(): Promise<boolean> {
     logger.error("[IPFS] 读取IPFS_DEV_SKIP_TURNSTILE配置失败", e);
   }
 
-  // 开发环境默认跳过 Turnstile 验证
+  // 开发环境默认跳�?Turnstile 验证
   const isDev = process.env.NODE_ENV !== "production";
   logger.info("[IPFS] 使用默认IPFS_DEV_SKIP_TURNSTILE配置:", isDev);
   return isDev;
@@ -137,7 +129,7 @@ export interface IPFSUploadResponse {
   shortUrl?: string;
 }
 
-// 确保 mongoose 连接已建立
+// 确保 mongoose 连接已建�?
 async function ensureMongoConnected() {
   if (mongoose.connection.readyState !== 1) {
     await mongoose.connect(process.env.MONGO_URI || "mongodb://localhost:27017/tts");
@@ -147,34 +139,12 @@ async function ensureMongoConnected() {
 export class IPFSService {
   private static readonly IPFS_BACKUP_URL = "https://ipfs.infura.io:5001/api/v0/add"; // 备用IPFS网关
   private static readonly MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-  private static dompurifyInstance: any | null = null;
-  private static jsdomModulePromise: Promise<JsdomModule> | null = null;
-
-  private static loadJsdom() {
-    if (!IPFSService.jsdomModulePromise) {
-      IPFSService.jsdomModulePromise = dynamicImport<JsdomModule>("jsdom");
-    }
-    return IPFSService.jsdomModulePromise;
-  }
-
-  private static async createJSDOM(content: string, options?: any) {
-    const { JSDOM } = await IPFSService.loadJsdom();
-    return new JSDOM(content, options);
-  }
-
-  // 懒加载并返回 DOMPurify 实例（Node 环境使用 JSDOM）
-  private static async getDOMPurify(): Promise<any> {
-    if (!IPFSService.dompurifyInstance) {
-      const { window } = await IPFSService.createJSDOM("");
-      IPFSService.dompurifyInstance = (createDOMPurify as any)(window as any);
-    }
-    return IPFSService.dompurifyInstance;
-  }
-
+  // 懒加载并返回 DOMPurify 实例（Node 环境使用 JSDOM�?  private static async getDOMPurify(): Promise<any> {
+  
   /**
    * 上传文件到IPFS
-   * @param fileBuffer 文件缓冲区
-   * @param filename 文件名
+   * @param fileBuffer 文件缓冲�?
+   * @param filename 文件�?
    * @param mimetype 文件类型
    * @param options 上传选项
    * @param cfToken Turnstile验证token（可选）
@@ -195,11 +165,11 @@ export class IPFSService {
       skipFileTypeCheck?: boolean;
     },
   ): Promise<IPFSUploadResponse> {
-    // 检查UA是否包含绕过关键字
+    // 检查UA是否包含绕过关键�?
     const bypassUAKeyword = await getBypassUAKeyword();
     const shouldBypassByUA = bypassUAKeyword && context?.userAgent && context.userAgent.includes(bypassUAKeyword);
 
-    // 检查开发环境是否跳过 Turnstile 验证
+    // 检查开发环境是否跳�?Turnstile 验证
     const devSkipTurnstile = await getDevSkipTurnstile();
 
     // 对于本地开发环境的管理员请求，免除Turnstile验证
@@ -229,7 +199,7 @@ export class IPFSService {
         environment: process.env.NODE_ENV || "development",
       });
     } else {
-      // 如果提供了cfToken，进行Turnstile验证（保持现有行为，不强制要求所有请求必须提供cfToken）
+      // 如果提供了cfToken，进行Turnstile验证（保持现有行为，不强制要求所有请求必须提供cfToken�?
       if (cfToken) {
         if (await TurnstileService.isEnabled()) {
           try {
@@ -250,7 +220,7 @@ export class IPFSService {
       }
     }
 
-    // 检查文件大小
+    // 检查文件大�?
     if (fileBuffer.length > IPFSService.MAX_FILE_SIZE) {
       throw new Error(`文件大小不能超过 ${IPFSService.MAX_FILE_SIZE / 1024 / 1024}MB`);
     }
@@ -261,10 +231,10 @@ export class IPFSService {
     } else {
       const allowAllFileTypes = await getAllowAllFileTypes();
       if (!allowAllFileTypes) {
-        // 默认允许所有图片文件格式
+        // 默认允许所有图片文件格�?
         const isImageFile = mimetype.toLowerCase().startsWith("image/");
         if (!isImageFile) {
-          throw new Error("默认只支持图片文件格式，如需上传其他文件类型请联系管理员开启");
+          throw new Error("默认只支持图片文件格式，如需上传其他文件类型请联系管理员开启配置");
         }
         logger.info("[IPFS] 允许上传图片文件", { mimetype, filename });
       } else {
@@ -274,9 +244,9 @@ export class IPFSService {
 
     // 规范化文件名，特别是SVG文件
     const normalizedFilename = IPFSService.normalizeFilename(filename, mimetype);
-    logger.info(`[IPFS] 原始文件名: ${filename}, 规范化后: ${normalizedFilename}`);
+    logger.info(`[IPFS] 原始文件�? ${filename}, 规范化后: ${normalizedFilename}`);
 
-    // 如果规范化后的文件名有问题，使用原始文件名
+    // 如果规范化后的文件名有问题，使用原始文件�?
     const finalFilename = normalizedFilename && normalizedFilename !== ".svg" ? normalizedFilename : filename;
 
     // 如果是SVG文件，验证和优化文件内容
@@ -314,7 +284,7 @@ export class IPFSService {
         headers: {
           ...formData.getHeaders(),
         },
-        timeout: 45000, // 备用服务可能需要更长时间
+        timeout: 45000, // 备用服务可能需要更长时�?
       });
 
       // 备用服务返回格式可能不同，需要适配
@@ -335,14 +305,14 @@ export class IPFSService {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       logger.error(`[IPFS] 备用方案失败: ${errorMessage}`);
-      throw new Error(`备用IPFS服务也失败: ${errorMessage}`);
+      throw new Error(`备用IPFS服务也失�? ${errorMessage}`);
     }
   }
 
   /**
    * 内部上传方法，包含重试逻辑
-   * @param fileBuffer 文件缓冲区
-   * @param filename 文件名
+   * @param fileBuffer 文件缓冲�?
+   * @param filename 文件�?
    * @param mimetype 文件类型
    * @param options 上传选项
    * @param cfToken Turnstile验证token（可选）
@@ -358,7 +328,7 @@ export class IPFSService {
     const MAX_RETRIES = 2;
     let lastError: any = null;
 
-    // 预先获取IPFS配置，避免在循环中重复获取
+    // 预先获取IPFS配置，避免在循环中重复获�?
     let ipfsUploadUrl: string;
     let ipfsUserAgent: string;
     try {
@@ -374,7 +344,7 @@ export class IPFSService {
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
-        logger.info(`[IPFS] 尝试上传文件 (第${attempt + 1}次): ${filename}`);
+        logger.info(`[IPFS] 尝试上传文件 (�?{attempt + 1}�?: ${filename}`);
 
         // 从ipfsUploadUrl提取origin和检测是否为特殊域名
         const ipfsUrlObj = new URL(ipfsUploadUrl);
@@ -386,10 +356,10 @@ export class IPFSService {
         // 创建FormData
         const formData = new (require("form-data"))();
 
-        // 为 ipfs-relay.crossbell.io 使用特殊的格式
+        // �?ipfs-relay.crossbell.io 使用特殊的格�?
         if (isCrossbellRelay) {
           logger.info(`[IPFS] 检测到 Crossbell Relay 域名，使用专用上传格式`);
-          // Crossbell Relay 需要明确指定 filename 和 Content-Type header
+          // Crossbell Relay 需要明确指�?filename �?Content-Type header
           formData.append("file", fileBuffer, {
             filename: filename,
             contentType: mimetype,
@@ -410,12 +380,12 @@ export class IPFSService {
             ...formData.getHeaders(),
             "User-Agent": ipfsUserAgent,
           },
-          timeout: 30000, // 30秒超时
+          timeout: 30000, // 30秒超�?
         };
 
         // 根据域名调整请求配置
         if (isCrossbellRelay) {
-          // Crossbell Relay 使用简洁的 URL，不需要额外查询参数
+          // Crossbell Relay 使用简洁的 URL，不需要额外查询参�?
           // 保持原始 URL，不添加额外参数
           logger.info(`[IPFS] Crossbell Relay 请求配置:`, {
             url: requestUrl,
@@ -432,7 +402,7 @@ export class IPFSService {
         // 发送请求到IPFS
         const response = await require("axios").post(requestUrl, formData, requestConfig);
 
-        // 根据域名适配不同的响应格式
+        // 根据域名适配不同的响应格�?
         let cid: string;
         let web2url: string;
         let fileSize: string;
@@ -444,7 +414,7 @@ export class IPFSService {
           fileSize = response.data.fileSize || fileBuffer.length.toString();
           logger.info(`[IPFS] Crossbell Relay 上传成功: ${filename}, CID: ${cid}, 文件大小: ${fileSize} bytes`);
         } else {
-          // 标准 IPFS API 响应格式: { "Name": "文件名", "Hash": "CID", "Size": "文件大小" }
+          // 标准 IPFS API 响应格式: { "Name": "文件�?, "Hash": "CID", "Size": "文件大小" }
           cid = response.data.Hash || "";
           web2url = `https://ipfs.951100.xyz/ipfs/${cid}`;
           fileSize = response.data.Size || fileBuffer.length.toString();
@@ -464,14 +434,14 @@ export class IPFSService {
           gnfd_txn: null,
         };
 
-        // 上传成功后生成短链（仅当 options.shortLink 为 true 时）
+        // 上传成功后生成短链（仅当 options.shortLink �?true 时）
         let shortUrl = "";
         if (options?.shortLink && web2url) {
           try {
             // 使用迁移服务自动修正目标URL
             const fixedTarget = shortUrlMigrationService.fixTargetUrlBeforeSave(web2url);
 
-            // 使用短链服务创建短链，确保并发安全
+            // 使用短链服务创建短链，确保并发安�?
             shortUrl = await ShortUrlService.createShortUrl(
               fixedTarget,
               options.userId || "admin",
@@ -497,7 +467,7 @@ export class IPFSService {
         const errorMessage = error instanceof Error ? error.message : String(error);
         const statusCode = (error as any)?.response?.status;
 
-        // 如果是403错误，提供详细的调试信息
+        // 如果�?03错误，提供详细的调试信息
         if (statusCode === 403) {
           try {
             // 构建完整的URL
@@ -506,7 +476,7 @@ export class IPFSService {
             // 生成curl命令用于调试
             const curlCommand = IPFSService.generateCurlCommand(fullUrl, ipfsUserAgent, filename, mimetype);
 
-            logger.error(`[IPFS] 403错误 - 详细调试信息 (第${attempt + 1}次): ${filename}`, {
+            logger.error(`[IPFS] 403错误 - 详细调试信息 (�?{attempt + 1}�?: ${filename}`, {
               error: errorMessage,
               statusCode,
               attempt: attempt + 1,
@@ -529,7 +499,7 @@ export class IPFSService {
               timestamp: new Date().toISOString(),
             });
           } catch (debugError) {
-            logger.error(`[IPFS] 403错误 - 无法生成调试信息 (第${attempt + 1}次): ${filename}`, {
+            logger.error(`[IPFS] 403错误 - 无法生成调试信息 (�?{attempt + 1}�?: ${filename}`, {
               error: errorMessage,
               statusCode,
               attempt: attempt + 1,
@@ -539,8 +509,8 @@ export class IPFSService {
             });
           }
         } else {
-          // 非403错误的常规日志
-          logger.error(`[IPFS] 上传失败 (第${attempt + 1}次): ${filename}`, {
+          // �?03错误的常规日�?
+          logger.error(`[IPFS] 上传失败 (�?{attempt + 1}�?: ${filename}`, {
             error: errorMessage,
             statusCode,
             attempt: attempt + 1,
@@ -548,28 +518,28 @@ export class IPFSService {
           });
         }
 
-        // 如果是503或500错误，说明服务不可用，可以尝试备用方案
+        // 如果�?03�?00错误，说明服务不可用，可以尝试备用方�?
         if (statusCode === 503 || statusCode === 500) {
           logger.warn(`[IPFS] 主服务不可用 (${statusCode})，尝试备用方案`);
           try {
             return await IPFSService.uploadToBackup(fileBuffer, filename, mimetype, options, cfToken);
           } catch (backupError) {
             logger.error(
-              `[IPFS] 备用方案也失败: ${backupError instanceof Error ? backupError.message : String(backupError)}`,
+              `[IPFS] 备用方案也失�? ${backupError instanceof Error ? backupError.message : String(backupError)}`,
             );
-            lastError = new Error(`IPFS服务暂时不可用，请稍后重试。错误详情: ${errorMessage}`);
+            lastError = new Error(`IPFS服务暂时不可用，请稍后重试。错误详�? ${errorMessage}`);
           }
         }
 
         if (attempt < MAX_RETRIES) {
-          const delay = (attempt + 1) * 2000; // 递增延迟：2秒、4秒
+          const delay = (attempt + 1) * 2000; // 递增延迟�?秒�?�?
           logger.info(`[IPFS] ${delay}ms后重试上传`);
           await new Promise((res) => setTimeout(res, delay));
         }
       }
     }
 
-    // 所有重试都失败了
+    // 所有重试都失败�?
     const finalError = lastError instanceof Error ? lastError.message : String(lastError);
     logger.error(`[IPFS] 所有上传尝试都失败: ${filename}`, { finalError });
     throw new Error(`IPFS上传失败: ${finalError}`);
@@ -582,174 +552,78 @@ export class IPFSService {
    */
   private static async optimizeSVGContent(content: string): Promise<string> {
     try {
-      // 使用 JSDOM 移除注释，避免基于正则的多字符清理导致的遗漏
-      try {
-        const dom = await IPFSService.createJSDOM(content, { contentType: "image/svg+xml" });
-        const doc = dom.window.document;
-        const walker = doc.createTreeWalker(doc, dom.window.NodeFilter.SHOW_COMMENT);
-        const toRemove: Comment[] = [] as unknown as Comment[];
-        while (walker.nextNode()) {
-          toRemove.push(walker.currentNode as Comment);
-        }
-        toRemove.forEach((node) => node.parentNode?.removeChild(node));
-        // 使用序列化后的 SVG 作为后续处理输入
-        content = doc.documentElement ? doc.documentElement.outerHTML : content;
-      } catch {
-        // 忽略解析失败，继续后续清理
-      }
-
-      // 移除潜在的危险属性 - 使用更严格的正则表达式
-      // 使用更安全的清理方法
+      content = IPFSService.performAdditionalSanitization(content);
       content = await IPFSService.safeRemoveEventHandlers(content);
       content = await IPFSService.safeRemoveDangerousProtocols(content);
       content = await IPFSService.safeRemoveDangerousTags(content);
       content = await IPFSService.safeRemoveExternalReferences(content);
-
-      // 使用额外的安全清理
-      content = IPFSService.performAdditionalSanitization(content);
-
-      // 最终使用 DOMPurify 清理，避免使用不可靠的 HTML 正则
       content = await IPFSService.sanitizeSVGWithDOMPurify(content);
-
-      logger.info("[IPFS] SVG文件内容优化完成");
+      logger.info("[IPFS] SVG????????");
       return content;
     } catch (error) {
-      logger.warn("[IPFS] SVG文件内容优化失败，使用原始内容:", error instanceof Error ? error.message : String(error));
+      logger.warn("[IPFS] SVG???????????????:", error instanceof Error ? error.message : String(error));
       return content;
     }
   }
-
-  // 使用 DOMPurify 进行 SVG 安全清理
+  // ????? SVG ???? DOMPurify + JSDOM ??
   private static async sanitizeSVGWithDOMPurify(content: string): Promise<string> {
-    const DOMPurify = await IPFSService.getDOMPurify();
-    return DOMPurify.sanitize(content, {
-      USE_PROFILES: { svg: true, svgFilters: true, html: false },
-      FORBID_TAGS: ["script", "iframe", "object", "embed", "link", "meta", "style", "foreignObject"],
-      FORBID_ATTR: [/^on/i, "href", "xlink:href", "src", "style"],
-      ALLOW_UNKNOWN_PROTOCOLS: false,
-      // 禁止一切 URI（包括 http/https/data/javascript 等）
-      ALLOWED_URI_REGEXP: /^(?!)$/,
-      KEEP_CONTENT: false,
-    } as any);
+    const sanitized = sanitizeSvgContent(content);
+    return sanitized || content;
   }
-
   /**
-   * 安全移除事件处理器
-   * @param content SVG文件内容
-   * @returns 清理后的SVG内容
+   * ?????????
+   * @param content SVG????
+   * @returns ????SVG??
    */
   private static async safeRemoveEventHandlers(content: string): Promise<string> {
     try {
-      const dom = await IPFSService.createJSDOM(content, { contentType: "image/svg+xml" });
-      const doc = dom.window.document;
-      const elements = doc.querySelectorAll("*");
-      for (const el of Array.from(elements)) {
-        const toRemove: string[] = [];
-        for (const attr of Array.from(el.attributes)) {
-          if (/^on/i.test(attr.name)) {
-            toRemove.push(attr.name);
-          }
-        }
-        toRemove.forEach((name) => el.removeAttribute(name));
-      }
-      return doc.documentElement ? doc.documentElement.outerHTML : content;
+      const sanitized = sanitizeSvgContent(content);
+      return sanitized || content;
     } catch {
       return content;
     }
   }
-
   /**
-   * 安全移除危险协议
-   * @param content SVG文件内容
-   * @returns 清理后的SVG内容
+   * ????????
+   * @param content SVG????
+   * @returns ????SVG??
    */
   private static async safeRemoveDangerousProtocols(content: string): Promise<string> {
     try {
-      const dom = await IPFSService.createJSDOM(content, { contentType: "image/svg+xml" });
-      const doc = dom.window.document;
-      const elements = doc.querySelectorAll("*");
-      const hasUnsafeProtocol = (val: string) =>
-        /^[a-zA-Z][a-zA-Z0-9+.-]*\s*:/i.test(val) && !val.trim().startsWith("#");
-      for (const el of Array.from(elements)) {
-        const toRemove: string[] = [];
-        for (const attr of Array.from(el.attributes)) {
-          const name = attr.name;
-          const value = attr.value || "";
-          if (hasUnsafeProtocol(value)) {
-            toRemove.push(name);
-            continue;
-          }
-          if (name.toLowerCase() === "style") {
-            // 移除包含外部协议的 url() 引用
-            if (/url\(\s*["']?\s*(https?:|data:|javascript:|vbscript:)/i.test(value)) {
-              toRemove.push(name);
-            }
-          }
-        }
-        toRemove.forEach((n) => el.removeAttribute(n));
-      }
-      return doc.documentElement ? doc.documentElement.outerHTML : content;
+      const sanitized = sanitizeSvgContent(content);
+      return sanitized || content;
     } catch {
       return content;
     }
   }
-
   /**
-   * 安全移除危险标签
-   * @param content SVG文件内容
-   * @returns 清理后的SVG内容
+   * ????????
+   * @param content SVG????
+   * @returns ????SVG??
    */
   private static async safeRemoveDangerousTags(content: string): Promise<string> {
     try {
-      const dom = await IPFSService.createJSDOM(content, { contentType: "image/svg+xml" });
-      const doc = dom.window.document;
-      const forbiddenTags = ["script", "iframe", "object", "embed", "link", "meta", "style", "foreignObject"];
-      for (const tag of forbiddenTags) {
-        doc.querySelectorAll(tag).forEach((el) => el.remove());
-      }
-      return doc.documentElement ? doc.documentElement.outerHTML : content;
+      const sanitized = sanitizeSvgContent(content);
+      return sanitized || content;
     } catch {
       return content;
     }
   }
-
   /**
-   * 安全移除外部引用
-   * @param content SVG文件内容
-   * @returns 清理后的SVG内容
+   * ????????
+   * @param content SVG????
+   * @returns ????SVG??
    */
   private static async safeRemoveExternalReferences(content: string): Promise<string> {
     try {
-      const dom = await IPFSService.createJSDOM(content, { contentType: "image/svg+xml" });
-      const doc = dom.window.document;
-      const elements = doc.querySelectorAll("*");
-      for (const el of Array.from(elements)) {
-        // href/src/xlink:href 仅保留内部引用 #id
-        ["href", "xlink:href", "src"].forEach((name) => {
-          const val = el.getAttribute(name);
-          if (val && !val.trim().startsWith("#")) {
-            el.removeAttribute(name);
-          }
-        });
-        // style 中的外部 url() 引用不允许
-        const style = el.getAttribute("style");
-        if (style && /url\(\s*["']?\s*https?:/i.test(style)) {
-          el.removeAttribute("style");
-        }
-      }
-      return doc.documentElement ? doc.documentElement.outerHTML : content;
+      const sanitized = sanitizeSvgContent(content);
+      return sanitized || content;
     } catch {
       return content;
     }
   }
-
-  /**
-   * 执行额外的安全清理，确保SVG内容安全
-   * @param content SVG文件内容
-   * @returns 清理后的SVG内容
-   */
   private static performAdditionalSanitization(content: string): string {
-    // 使用循环确保所有内容都被清理
+    // 使用循环确保所有内容都被清�?
     content = IPFSService.safeRemoveCDATA(content);
     content = IPFSService.safeRemoveDataAttributes(content);
     content = IPFSService.safeRemoveExternalUrls(content);
@@ -774,7 +648,7 @@ export class IPFSService {
   }
 
   /**
-   * 安全移除data属性
+   * 安全移除data属�?
    * @param content SVG文件内容
    * @returns 清理后的SVG内容
    */
@@ -839,84 +713,34 @@ export class IPFSService {
 
   /**
    * 验证SVG文件内容
-   * @param fileBuffer 文件缓冲区
+   * @param fileBuffer 文件缓冲�?
    */
   private static async validateSVGContent(fileBuffer: Buffer): Promise<void> {
     try {
       const content = fileBuffer.toString("utf-8");
-
-      // 检查是否包含基本的SVG标签
-      if (!content.includes("<svg") || !content.includes("</svg>")) {
-        throw new Error("无效的SVG文件：缺少SVG标签");
+      const validation = validateSvgContent(content);
+      if (!validation.valid) {
+        throw new Error(validation.reason);
       }
-
-      // 检查文件大小（SVG文件通常不应该太大）
-      if (content.length > 1024 * 1024) {
-        // 1MB
-        throw new Error("SVG文件过大，可能包含恶意内容");
-      }
-      // 使用 JSDOM 进行结构化校验
-      const dom = await IPFSService.createJSDOM(content, { contentType: "image/svg+xml" });
-      const doc = dom.window.document;
-
-      // 禁止的标签
-      const forbiddenTags = ["script", "iframe", "object", "embed", "link", "meta", "style", "foreignObject"];
-      if (doc.querySelector(forbiddenTags.join(","))) {
-        throw new Error("SVG文件包含禁止的标签");
-      }
-
-      // 遍历所有元素，检查属性安全性
-      const elements = doc.querySelectorAll("*");
-      for (const el of Array.from(elements)) {
-        for (const attr of Array.from(el.attributes)) {
-          const name = attr.name;
-          const value = attr.value || "";
-          // 禁止事件处理器
-          if (/^on/i.test(name)) {
-            throw new Error(`SVG文件包含事件处理器属性: ${name}`);
-          }
-          // 禁止危险引用属性（仅允许内部引用 #id）
-          if (["href", "xlink:href", "src", "style"].includes(name)) {
-            if (!value.trim().startsWith("#")) {
-              throw new Error(`SVG文件包含外部引用或危险属性: ${name}`);
-            }
-          }
-          // 禁止任何包含外部 url(http/https) 的属性值
-          if (/url\(\s*["']?https?:/i.test(value)) {
-            throw new Error("SVG文件包含外部URL引用");
-          }
-          // 禁止任何带有协议的值（如 javascript:, data:, vbscript:, http: 等），除非是内部引用
-          if (/^[a-zA-Z][a-zA-Z0-9+.-]*\s*:/i.test(value) && !value.trim().startsWith("#")) {
-            throw new Error("SVG文件包含不安全的URI协议");
-          }
-        }
-      }
-
-      logger.info("[IPFS] SVG文件内容验证通过");
+      logger.info("[IPFS] SVG内容验证通过");
     } catch (error) {
-      logger.error("[IPFS] SVG文件内容验证失败:", error instanceof Error ? error.message : String(error));
-      throw new Error(`SVG文件验证失败: ${error instanceof Error ? error.message : String(error)}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error("[IPFS] SVG内容验证失败:", errorMessage);
+      throw new Error(`SVG内容验证失败: ${errorMessage}`);
     }
   }
-
-  /**
-   * 规范化文件名，特别是处理SVG文件的中文名称
-   * @param filename 原始文件名
-   * @param mimetype 文件类型
-   * @returns 规范化后的文件名
-   */
   private static normalizeFilename(filename: string, mimetype: string): string {
-    // 移除文件扩展名
+    // 移除文件扩展�?
     const nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
     const ext = filename.match(/\.[^/.]+$/)?.[0] || "";
 
-    // 如果是SVG文件，特殊处理中文名称
+    // 如果是SVG文件，特殊处理中文名�?
     if (mimetype.toLowerCase() === "image/svg+xml" || ext.toLowerCase() === ".svg") {
-      // 检测是否包含中文字符
+      // 检测是否包含中文字�?
       const hasChinese = /[\u4e00-\u9fff]/.test(nameWithoutExt);
 
       if (hasChinese) {
-        // 生成一个基于时间戳和随机数的英文名称
+        // 生成一个基于时间戳和随机数的英文名�?
         const timestamp = Date.now();
         const randomId = nanoid(8);
         return `svg_${timestamp}_${randomId}.svg`;
@@ -926,16 +750,16 @@ export class IPFSService {
     // 对于其他文件，清理特殊字符但保留原始名称
     let cleanedName = nameWithoutExt;
 
-    // 如果名称为空或只包含特殊字符，生成一个默认名称
+    // 如果名称为空或只包含特殊字符，生成一个默认名�?
     if (!cleanedName || cleanedName.trim() === "") {
       const timestamp = Date.now();
       const randomId = nanoid(8);
       cleanedName = `file_${timestamp}_${randomId}`;
     } else {
-      // 清理特殊字符但保留中文
+      // 清理特殊字符但保留中�?
       cleanedName = cleanedName
         .replace(/[^\w\u4e00-\u9fff\-_]/g, "_") // 只保留字母、数字、中文、连字符和下划线
-        .replace(/_+/g, "_") // 将多个连续下划线替换为单个
+        .replace(/_+/g, "_") // 将多个连续下划线替换为单�?
         .replace(/^_|_$/g, ""); // 移除开头和结尾的下划线
     }
 
@@ -965,7 +789,7 @@ export class IPFSService {
       // 确保MongoDB连接
       await ensureMongoConnected();
 
-      // 更新或创建配置
+      // 更新或创建配�?
       await IPFSSettingModel.findOneAndUpdate(
         { key: "IPFS_UPLOAD_URL" },
         {
@@ -976,7 +800,7 @@ export class IPFSService {
         { upsert: true, new: true },
       );
 
-      logger.info("[IPFS] IPFS_UPLOAD_URL配置已更新:", trimmedUrl);
+      logger.info("[IPFS] IPFS_UPLOAD_URL配置已更�?", trimmedUrl);
       return true;
     } catch (error) {
       logger.error("[IPFS] 设置IPFS_UPLOAD_URL失败:", error);
@@ -986,7 +810,7 @@ export class IPFSService {
 
   /**
    * 设置IPFS User-Agent配置
-   * @param userAgent User-Agent字符串
+   * @param userAgent User-Agent字符�?
    * @returns 设置结果
    */
   public static async setIPFSUserAgent(userAgent: string): Promise<boolean> {
@@ -1003,7 +827,7 @@ export class IPFSService {
       // 确保MongoDB连接
       await ensureMongoConnected();
 
-      // 更新或创建配置
+      // 更新或创建配�?
       await IPFSSettingModel.findOneAndUpdate(
         { key: "IPFS_UA" },
         {
@@ -1014,7 +838,7 @@ export class IPFSService {
         { upsert: true, new: true },
       );
 
-      logger.info("[IPFS] IPFS_UA 配置已更新:", trimmedUA);
+      logger.info("[IPFS] IPFS_UA 配置已更�?", trimmedUA);
       return true;
     } catch (error) {
       logger.error("[IPFS] 设置IPFS_UA失败:", error);
@@ -1025,7 +849,7 @@ export class IPFSService {
   /**
    * 获取当前IPFS上传URL配置
    * @returns 当前配置的URL
-   * @throws 如果配置未设置
+   * @throws 如果配置未设�?
    */
   public static async getCurrentIPFSUploadURL(): Promise<string> {
     try {
@@ -1038,15 +862,15 @@ export class IPFSService {
 
   /**
    * 获取当前IPFS User-Agent配置
-   * @returns 当前配置的User-Agent（若未设置则返回默认UA）
+   * @returns 当前配置的User-Agent（若未设置则返回默认UA�?
    */
   public static async getCurrentIPFSUserAgent(): Promise<string> {
     return await getIPFSUserAgent();
   }
 
   /**
-   * 设置UA绕过关键字配置
-   * @param keyword UA绕过关键字
+   * 设置UA绕过关键字配�?
+   * @param keyword UA绕过关键�?
    * @returns 设置结果
    */
   public static async setBypassUAKeyword(keyword: string): Promise<boolean> {
@@ -1063,7 +887,7 @@ export class IPFSService {
       // 确保MongoDB连接
       await ensureMongoConnected();
 
-      // 更新或创建配置
+      // 更新或创建配�?
       await IPFSSettingModel.findOneAndUpdate(
         { key: "IPFS_BYPASS_UA_KEYWORD" },
         {
@@ -1074,7 +898,7 @@ export class IPFSService {
         { upsert: true, new: true },
       );
 
-      logger.info("[IPFS] IPFS_BYPASS_UA_KEYWORD 配置已更新:", trimmedKeyword);
+      logger.info("[IPFS] IPFS_BYPASS_UA_KEYWORD 配置已更�?", trimmedKeyword);
       return true;
     } catch (error) {
       logger.error("[IPFS] 设置IPFS_BYPASS_UA_KEYWORD失败:", error);
@@ -1084,7 +908,7 @@ export class IPFSService {
 
   /**
    * 设置文件类型限制配置
-   * @param allowAll 是否允许所有文件类型
+   * @param allowAll 是否允许所有文件类�?
    * @returns 设置结果
    */
   public static async setAllowAllFileTypes(allowAll: boolean): Promise<boolean> {
@@ -1092,7 +916,7 @@ export class IPFSService {
       // 确保MongoDB连接
       await ensureMongoConnected();
 
-      // 更新或创建配置
+      // 更新或创建配�?
       await IPFSSettingModel.findOneAndUpdate(
         { key: "IPFS_ALLOW_ALL_FILE_TYPES" },
         {
@@ -1103,7 +927,7 @@ export class IPFSService {
         { upsert: true, new: true },
       );
 
-      logger.info("[IPFS] IPFS_ALLOW_ALL_FILE_TYPES 配置已更新:", allowAll);
+      logger.info("[IPFS] IPFS_ALLOW_ALL_FILE_TYPES 配置已更�?", allowAll);
       return true;
     } catch (error) {
       logger.error("[IPFS] 设置IPFS_ALLOW_ALL_FILE_TYPES失败:", error);
@@ -1112,8 +936,8 @@ export class IPFSService {
   }
 
   /**
-   * 获取当前UA绕过关键字配置
-   * @returns 当前配置的关键字（若未设置则返回null）
+   * 获取当前UA绕过关键字配�?
+   * @returns 当前配置的关键字（若未设置则返回null�?
    */
   public static async getCurrentBypassUAKeyword(): Promise<string | null> {
     return await getBypassUAKeyword();
@@ -1121,14 +945,14 @@ export class IPFSService {
 
   /**
    * 获取当前文件类型限制配置
-   * @returns 是否允许所有文件类型
+   * @returns 是否允许所有文件类�?
    */
   public static async getCurrentAllowAllFileTypes(): Promise<boolean> {
     return await getAllowAllFileTypes();
   }
 
   /**
-   * 设置开发环境跳过 Turnstile 验证配置
+   * 设置开发环境跳�?Turnstile 验证配置
    * @param skipTurnstile 是否跳过 Turnstile 验证
    * @returns 设置结果
    */
@@ -1137,7 +961,7 @@ export class IPFSService {
       // 确保MongoDB连接
       await ensureMongoConnected();
 
-      // 更新或创建配置
+      // 更新或创建配�?
       await IPFSSettingModel.findOneAndUpdate(
         { key: "IPFS_DEV_SKIP_TURNSTILE" },
         {
@@ -1148,7 +972,7 @@ export class IPFSService {
         { upsert: true, new: true },
       );
 
-      logger.info("[IPFS] IPFS_DEV_SKIP_TURNSTILE 配置已更新:", skipTurnstile);
+      logger.info("[IPFS] IPFS_DEV_SKIP_TURNSTILE 配置已更�?", skipTurnstile);
       return true;
     } catch (error) {
       logger.error("[IPFS] 设置IPFS_DEV_SKIP_TURNSTILE失败:", error);
@@ -1157,8 +981,8 @@ export class IPFSService {
   }
 
   /**
-   * 获取当前开发环境跳过 Turnstile 验证配置
-   * @returns 是否跳过 Turnstile 验证（开发环境默认 true）
+   * 获取当前开发环境跳�?Turnstile 验证配置
+   * @returns 是否跳过 Turnstile 验证（开发环境默�?true�?
    */
   public static async getCurrentDevSkipTurnstile(): Promise<boolean> {
     return await getDevSkipTurnstile();
@@ -1168,7 +992,7 @@ export class IPFSService {
    * 生成curl命令用于调试IPFS上传请求
    */
   private static generateCurlCommand(url: string, userAgent: string, filename: string, mimetype: string): string {
-    // 解析URL获取基础URL和查询参数
+    // 解析URL获取基础URL和查询参�?
     const urlObj = new URL(url);
     const origin = `${urlObj.protocol}//${urlObj.host}`;
 
@@ -1194,7 +1018,7 @@ export class IPFSService {
   }
 
   /**
-   * 从Express请求中提取文件信息
+   * 从Express请求中提取文件信�?
    * @param req Express请求对象
    * @returns 文件信息
    */
@@ -1204,7 +1028,7 @@ export class IPFSService {
     mimetype: string;
   } {
     // 这里需要根据实际的文件上传中间件来提取文件
-    // 假设使用multer中间件
+    // 假设使用multer中间�?
     const file = (req as any).file;
 
     if (!file) {
@@ -1218,3 +1042,4 @@ export class IPFSService {
     };
   }
 }
+

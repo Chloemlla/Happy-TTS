@@ -2,16 +2,9 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import axios from "axios";
+import { load } from "cheerio";
 import { mongoose } from "../services/mongoService";
 import logger from "../utils/logger";
-
-type JsdomModule = {
-  JSDOM: new (input?: string, options?: any) => any;
-};
-
-const dynamicImport = new Function("specifier", "return import(specifier);") as <T = unknown>(
-  specifier: string,
-) => Promise<T>;
 
 // 基础输入清理：限制长度并移除可疑字符
 function sanitizeId(input?: string): string {
@@ -416,14 +409,11 @@ class LibreChatService {
       const response = await axios.get(url);
 
       // 使用 JSDOM 解析 HTML
-      const { JSDOM } = await dynamicImport<JsdomModule>("jsdom");
-      const dom = new JSDOM(response.data);
-      const document = dom.window.document;
+      const $ = load(response.data);
 
       // 查找 Docker 命令
-      const clipboardCopy = document.querySelector("clipboard-copy");
-      if (clipboardCopy) {
-        const dockerCommand = clipboardCopy.getAttribute("value") || "";
+      const dockerCommand = $("clipboard-copy").first().attr("value") || "";
+      if (dockerCommand) {
         const filteredCommand = dockerCommand.replace("docker pull ", "");
         // 生成时间：UTC 和 上海时间（UTC+8）
         const now = new Date();
