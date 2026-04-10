@@ -1,4 +1,5 @@
-import { load } from "cheerio";
+import { load, type Cheerio, type CheerioAPI } from "cheerio";
+import type { Element } from "domhandler";
 
 const FORBIDDEN_TAGS = ["script", "iframe", "object", "embed", "link", "meta", "style", "foreignObject"];
 const URI_ATTRS = new Set(["href", "xlink:href", "src"]);
@@ -11,8 +12,8 @@ const UNSAFE_URL_RE = /url\(\s*["']?\s*(?!#)/i;
 const UNSAFE_STYLE_RE = /url\(\s*["']?\s*(?!#)|javascript\s*:|vbscript\s*:|data\s*:/i;
 
 type SvgDocument = {
-  $: ReturnType<typeof load>;
-  root: ReturnType<typeof load> | null;
+  $: CheerioAPI;
+  root: Cheerio<Element> | null;
 };
 
 function preprocessSvg(content: string): string {
@@ -24,7 +25,7 @@ function loadSvgDocument(content: string): SvgDocument {
   const topLevelTags = $.root()
     .children()
     .toArray()
-    .filter((node: any) => node?.type === "tag");
+    .filter((node): node is Element => node.type === "tag");
 
   if (topLevelTags.length !== 1 || topLevelTags[0]?.name !== "svg") {
     return { $, root: null };
@@ -49,8 +50,8 @@ function hasEscapedContent(value: string): boolean {
   return ESCAPED_CONTENT_RE.test(value);
 }
 
-function getSvgNodes(root: ReturnType<typeof load>) {
-  return [root.get(0), ...root.find("*").toArray()].filter(Boolean);
+function getSvgNodes(root: Cheerio<Element>): Element[] {
+  return [root.get(0), ...root.find("*").toArray()].filter((node): node is Element => node !== undefined);
 }
 
 function inspectAttribute(name: string, value: string): string | null {
@@ -99,8 +100,8 @@ export function sanitizeSvgContent(content: string): string {
   }
 
   for (const node of getSvgNodes(root)) {
-    const element = $(node as any);
-    const attribs = { ...((node as any).attribs || {}) } as Record<string, string>;
+    const element = $(node);
+    const attribs = { ...(node.attribs || {}) } as Record<string, string>;
 
     for (const [name, value] of Object.entries(attribs)) {
       if (name.toLowerCase().startsWith("data-")) {
@@ -138,7 +139,7 @@ export function validateSvgContent(content: string): { valid: true } | { valid: 
   }
 
   for (const node of getSvgNodes(root)) {
-    const attribs = { ...((node as any).attribs || {}) } as Record<string, string>;
+    const attribs = { ...(node.attribs || {}) } as Record<string, string>;
     for (const [name, value] of Object.entries(attribs)) {
       const issue = inspectAttribute(name, value);
       if (issue) {
