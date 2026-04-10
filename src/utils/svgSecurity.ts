@@ -1,5 +1,4 @@
-import { load, type Cheerio, type CheerioAPI } from "cheerio";
-import type { Element } from "domhandler";
+import { load, type CheerioAPI } from "cheerio";
 
 const FORBIDDEN_TAGS = ["script", "iframe", "object", "embed", "link", "meta", "style", "foreignObject"];
 const URI_ATTRS = new Set(["href", "xlink:href", "src"]);
@@ -11,9 +10,11 @@ const UNSAFE_PROTOCOL_RE = /^[a-zA-Z][a-zA-Z0-9+.-]*\s*:/i;
 const UNSAFE_URL_RE = /url\(\s*["']?\s*(?!#)/i;
 const UNSAFE_STYLE_RE = /url\(\s*["']?\s*(?!#)|javascript\s*:|vbscript\s*:|data\s*:/i;
 
+type SvgRoot = ReturnType<ReturnType<CheerioAPI["root"]>["children"]>;
+
 type SvgDocument = {
   $: CheerioAPI;
-  root: Cheerio<Element> | null;
+  root: SvgRoot | null;
 };
 
 function preprocessSvg(content: string): string {
@@ -24,14 +25,13 @@ function loadSvgDocument(content: string): SvgDocument {
   const $ = load(preprocessSvg(content), { xmlMode: true });
   const topLevelTags = $.root()
     .children()
-    .toArray()
-    .filter((node): node is Element => node.type === "tag");
+    .filter((_, node) => node.type === "tag");
 
-  if (topLevelTags.length !== 1 || topLevelTags[0]?.name !== "svg") {
+  if (topLevelTags.length !== 1 || topLevelTags.get(0)?.name !== "svg") {
     return { $, root: null };
   }
 
-  return { $, root: $(topLevelTags[0]) };
+  return { $, root: topLevelTags.eq(0) };
 }
 
 function hasUnsafeUrlReference(value: string): boolean {
@@ -50,8 +50,8 @@ function hasEscapedContent(value: string): boolean {
   return ESCAPED_CONTENT_RE.test(value);
 }
 
-function getSvgNodes(root: Cheerio<Element>): Element[] {
-  return [root.get(0), ...root.find("*").toArray()].filter((node): node is Element => node !== undefined);
+function getSvgNodes(root: SvgRoot) {
+  return root.add(root.find("*")).toArray();
 }
 
 function inspectAttribute(name: string, value: string): string | null {
