@@ -16,6 +16,20 @@ const VALID_CATEGORIES: SyncCategory[] = [
     "shortUrls",
 ];
 
+function getRequiredNexaiUserId(req: Request, res: Response): string | null {
+    const userId = req.nexaiUser?.id;
+    if (userId) {
+        return userId;
+    }
+
+    res.status(401).json({
+        success: false,
+        error: "Unauthorized",
+        code: "NEXAI_AUTH_REQUIRED",
+    });
+    return null;
+}
+
 export class NexaiSyncController {
     /**
      * GET /api/nexai/sync
@@ -23,7 +37,8 @@ export class NexaiSyncController {
      */
     static async getSyncData(req: Request, res: Response) {
         try {
-            const userId = req.nexaiUser!.id;
+            const userId = getRequiredNexaiUserId(req, res);
+            if (!userId) return;
             const data = await NexaiSyncService.getSyncData(userId);
 
             if (!data) {
@@ -51,7 +66,8 @@ export class NexaiSyncController {
      */
     static async putSyncData(req: Request, res: Response) {
         try {
-            const userId = req.nexaiUser!.id;
+            const userId = getRequiredNexaiUserId(req, res);
+            if (!userId) return;
             const {
                 settings,
                 notes,
@@ -91,7 +107,8 @@ export class NexaiSyncController {
      */
     static async patchSyncData(req: Request, res: Response) {
         try {
-            const userId = req.nexaiUser!.id;
+            const userId = getRequiredNexaiUserId(req, res);
+            if (!userId) return;
             const category = req.params.category as SyncCategory;
 
             if (!VALID_CATEGORIES.includes(category)) {
@@ -135,7 +152,8 @@ export class NexaiSyncController {
      */
     static async deleteSyncData(req: Request, res: Response) {
         try {
-            const userId = req.nexaiUser!.id;
+            const userId = getRequiredNexaiUserId(req, res);
+            if (!userId) return;
             const deleted = await NexaiSyncService.deleteSyncData(userId);
 
             res.json({
@@ -159,7 +177,8 @@ export class NexaiSyncController {
      */
     static async getSyncMeta(req: Request, res: Response) {
         try {
-            const userId = req.nexaiUser!.id;
+            const userId = getRequiredNexaiUserId(req, res);
+            if (!userId) return;
             const meta = await NexaiSyncService.getSyncMeta(userId);
 
             res.json({ success: true, data: meta });
@@ -179,7 +198,8 @@ export class NexaiSyncController {
      */
     static async getChangesSince(req: Request, res: Response) {
         try {
-            const userId = req.nexaiUser!.id;
+            const userId = getRequiredNexaiUserId(req, res);
+            if (!userId) return;
             const since = req.query.since as string;
 
             if (!since) {
@@ -210,7 +230,8 @@ export class NexaiSyncController {
      */
     static async incrementalSync(req: Request, res: Response) {
         try {
-            const userId = req.nexaiUser!.id;
+            const userId = getRequiredNexaiUserId(req, res);
+            if (!userId) return;
             const { lastSyncedAt, data } = req.body;
 
             if (!lastSyncedAt) {
