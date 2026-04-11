@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "scripts/fix-dependabot-alerts.sh"
+      - "scripts/fix-dependabot-alerts.js"
   workflow_dispatch:
     inputs:
       action:
@@ -44,7 +44,7 @@ jobs:
           version: latest
 
       - name: Run fix script
-        run: bash scripts/fix-dependabot-alerts.sh
+        run: node scripts/fix-dependabot-alerts.js
 
       - name: Commit and push
         run: |
