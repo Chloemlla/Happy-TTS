@@ -14,20 +14,10 @@ const webhookLimiter = createLimiter({
 
 // ========== 通用 Webhook 端点（接收任意服务 POST 通知） ==========
 // POST /api/webhooks/generic — 默认通用入口
-router.post(
-  "/generic",
-  webhookLimiter,
-  express.json({ limit: "1mb" }),
-  WebhookController.handleGenericWebhook,
-);
+router.post("/generic", webhookLimiter, express.json({ limit: "1mb" }), WebhookController.handleGenericWebhook);
 
 // POST /api/webhooks/generic-:source — 按来源分类（如 /generic-github, /generic-stripe）
-router.post(
-  "/generic-:source",
-  webhookLimiter,
-  express.json({ limit: "1mb" }),
-  WebhookController.handleGenericWebhook,
-);
+router.post("/generic-:source", webhookLimiter, express.json({ limit: "1mb" }), WebhookController.handleGenericWebhook);
 
 // ========== Resend Webhook 端点（Svix 签名验证） ==========
 // 默认路由（使用基础密钥 RESEND_WEBHOOK_SECRET / WEBHOOK_SECRET)

@@ -121,9 +121,7 @@ export const getUserByUsername = async (username: string): Promise<UserType | nu
   return removeAvatarBase64(doc) as unknown as UserType;
 };
 
-export const getUserByLinuxDoId = async (
-  linuxdoId: string,
-): Promise<UserType | null> => {
+export const getUserByLinuxDoId = async (linuxdoId: string): Promise<UserType | null> => {
   if (typeof linuxdoId !== "string" || !linuxdoId.trim()) {
     return null;
   }
@@ -177,7 +175,7 @@ export const updateUser = async (id: string, updates: Partial<UserType>): Promis
   if (Object.keys(updateOps.$set).length === 0) delete updateOps.$set;
   // 调试日志：输出更新条件、内容
   console.log("[updateUser] 更新条件:", { id }, "更新内容:", updateOps);
-  const doc = await UserModel.findOneAndUpdate({ id }, updateOps, { returnDocument: 'after' }).lean();
+  const doc = await UserModel.findOneAndUpdate({ id }, updateOps, { returnDocument: "after" }).lean();
   // 调试日志：输出更新后文档
   if (process.env.NODE_ENV !== "production") {
     console.log("[updateUser] 更新后文档:", removeAvatarBase64(doc));
@@ -187,8 +185,8 @@ export const updateUser = async (id: string, updates: Partial<UserType>): Promis
     const lines = JSON.stringify(safeDoc, null, 2).split("\n").slice(0, 20).join("\n");
     console.log(
       "[updateUser] 更新后文档(前20行):\n" +
-      lines +
-      (lines.length < JSON.stringify(safeDoc, null, 2).length ? "\n...（已截断）" : ""),
+        lines +
+        (lines.length < JSON.stringify(safeDoc, null, 2).length ? "\n...（已截断）" : ""),
     );
   }
   return doc ? (removeAvatarBase64(doc) as unknown as UserType) : null;

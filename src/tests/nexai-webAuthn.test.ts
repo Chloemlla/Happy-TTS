@@ -1,9 +1,6 @@
 import request from "supertest";
 import app from "../app";
-import {
-  getNexaiAssetLinksStatements,
-  getNexaiWebAuthnConfig,
-} from "../utils/nexaiWebAuthn";
+import { getNexaiAssetLinksStatements, getNexaiWebAuthnConfig } from "../utils/nexaiWebAuthn";
 
 const ENV_KEYS = [
   "NEXAI_WEBAUTHN_RP_ID",
@@ -24,9 +21,10 @@ const ENV_KEYS = [
   "ANDROID_SHA256_CERT_FINGERPRINTS",
 ] as const;
 
-const ENV_SNAPSHOT = Object.fromEntries(
-  ENV_KEYS.map((key) => [key, process.env[key]]),
-) as Record<(typeof ENV_KEYS)[number], string | undefined>;
+const ENV_SNAPSHOT = Object.fromEntries(ENV_KEYS.map((key) => [key, process.env[key]])) as Record<
+  (typeof ENV_KEYS)[number],
+  string | undefined
+>;
 
 function resetEnv(): void {
   for (const key of ENV_KEYS) {
@@ -59,8 +57,7 @@ describe("NexAI WebAuthn backend fixes", () => {
   });
 
   it("includes Android apk-key-hash origins when provided", () => {
-    process.env.NEXAI_ANDROID_APK_KEY_HASHES =
-      "test-hash-1,android:apk-key-hash:test-hash-2";
+    process.env.NEXAI_ANDROID_APK_KEY_HASHES = "test-hash-1,android:apk-key-hash:test-hash-2";
 
     const webAuthnConfig = getNexaiWebAuthnConfig();
 
@@ -75,15 +72,11 @@ describe("NexAI WebAuthn backend fixes", () => {
 
   it("builds valid assetlinks statements from environment variables", () => {
     process.env.NEXAI_ANDROID_PACKAGE_NAME = "xyz.nexai.app";
-    process.env.NEXAI_ANDROID_SHA256_CERT_FINGERPRINTS =
-      "AA:BB:CC,11:22:33";
+    process.env.NEXAI_ANDROID_SHA256_CERT_FINGERPRINTS = "AA:BB:CC,11:22:33";
 
     expect(getNexaiAssetLinksStatements()).toEqual([
       {
-        relation: [
-          "delegate_permission/common.get_login_creds",
-          "delegate_permission/common.handle_all_urls",
-        ],
+        relation: ["delegate_permission/common.get_login_creds", "delegate_permission/common.handle_all_urls"],
         target: {
           namespace: "android_app",
           package_name: "xyz.nexai.app",
@@ -97,17 +90,12 @@ describe("NexAI WebAuthn backend fixes", () => {
     process.env.NEXAI_ANDROID_PACKAGE_NAME = "xyz.nexai.app";
     process.env.NEXAI_ANDROID_SHA256_CERT_FINGERPRINTS = "AA:BB:CC";
 
-    const response = await request(app)
-      .get("/.well-known/assetlinks.json")
-      .expect(200);
+    const response = await request(app).get("/.well-known/assetlinks.json").expect(200);
 
     expect(response.headers["content-type"]).toMatch(/application\/json/);
     expect(response.body).toEqual([
       {
-        relation: [
-          "delegate_permission/common.get_login_creds",
-          "delegate_permission/common.handle_all_urls",
-        ],
+        relation: ["delegate_permission/common.get_login_creds", "delegate_permission/common.handle_all_urls"],
         target: {
           namespace: "android_app",
           package_name: "xyz.nexai.app",

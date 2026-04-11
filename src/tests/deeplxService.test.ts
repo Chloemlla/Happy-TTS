@@ -49,9 +49,7 @@ describe("deeplxService", () => {
     });
 
     expect(isDeepLXConfigured()).toBe(false);
-    expect(() => buildDeepLXTranslateUrl()).toThrow(
-      "DeepLX base URL must use https://api.deeplx.org",
-    );
+    expect(() => buildDeepLXTranslateUrl()).toThrow("DeepLX base URL must use https://api.deeplx.org");
   });
 
   it("builds the hosted translate URL with the configured API key", () => {

@@ -1,16 +1,15 @@
 import type { Request, Response } from "express";
+import { sendEmail } from "../services/emailSender";
 import { TOTPService } from "../services/totpService";
-import logger from "../utils/logger";
-import { TOTPDebugger } from "../utils/totpDebugger";
-import { UserStorage } from "../utils/userStorage";
 import {
-  generateAccountLockedEmailHtml,
   generateBackupCodeUsedEmailHtml,
   generateTOTPDisabledEmailHtml,
   generateTOTPEnabledEmailHtml,
 } from "../templates/emailTemplates";
-import { sendEmail } from "../services/emailSender";
 import { getClientIP } from "../utils/ipUtils";
+import logger from "../utils/logger";
+import { TOTPDebugger } from "../utils/totpDebugger";
+import { UserStorage } from "../utils/userStorage";
 
 // TOTP验证尝试次数限制
 const TOTP_ATTEMPT_LIMIT = 5;
@@ -438,7 +437,11 @@ export class TOTPController {
       // 生成JWT token
       const jwt = require("jsonwebtoken");
       const config = require("../config/config").config;
-      const jwtToken = jwt.sign({ userId: user.id, username: user.username, role: user.role || "user" }, config.jwtSecret, { expiresIn: "2h" });
+      const jwtToken = jwt.sign(
+        { userId: user.id, username: user.username, role: user.role || "user" },
+        config.jwtSecret,
+        { expiresIn: "2h" },
+      );
 
       logger.info("TOTP验证成功，生成JWT token", {
         userId: user.id,

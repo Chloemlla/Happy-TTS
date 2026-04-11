@@ -30,11 +30,10 @@ const ticketSchema = new mongoose.Schema(
   {
     collection: "tickets",
     timestamps: true,
-  }
+  },
 );
 
-export const TicketModel =
-  mongoose.models.Ticket || mongoose.model("Ticket", ticketSchema);
+export const TicketModel = mongoose.models.Ticket || mongoose.model("Ticket", ticketSchema);
 
 export interface ITicketMessage {
   senderId: string;

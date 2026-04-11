@@ -9,7 +9,7 @@ import { UserStorage } from "../utils/userStorage";
 export const optionalAuthenticateToken = async (req: Request, _res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    if (!authHeader?.startsWith("Bearer ")) {
       return next();
     }
     const token = authHeader.split(" ")[1];

@@ -1,4 +1,4 @@
-import { type Request, type Response, type RequestHandler, Router } from "express";
+import { type RequestHandler, Router } from "express";
 import rateLimit from "express-rate-limit";
 import { config } from "../config/config";
 import { TOTPController } from "../controllers/totpController";
@@ -103,11 +103,12 @@ router.post("/regenerate-backup-codes", authenticateToken, totpLimiter, TOTPCont
 
 let totpStatusHandler: RequestHandler | undefined = undefined;
 for (const r of router.stack) {
-  if (r.route && r.route.path === "/status" && (r.route as any).methods && (r.route as any).methods.get) {
+  if (r.route && r.route.path === "/status" && (r.route as any).methods?.get) {
     totpStatusHandler = r.route.stack[r.route.stack.length - 1].handle;
     break;
   }
 }
+
 export { totpStatusHandler };
 
 export default router;

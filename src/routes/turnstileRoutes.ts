@@ -115,11 +115,11 @@ router.post("/fingerprint/report", authenticateToken, authenticatedFingerprintLi
       hasDeviceSignals: !!deviceSignals,
       deviceSignalsPreview: deviceSignals
         ? {
-          screen: deviceSignals.screen,
-          timezone: deviceSignals.timezone,
-          navigatorKeys: deviceSignals.navigator ? Object.keys(deviceSignals.navigator) : [],
-          window: deviceSignals.window ? "present" : "missing",
-        }
+            screen: deviceSignals.screen,
+            timezone: deviceSignals.timezone,
+            navigatorKeys: deviceSignals.navigator ? Object.keys(deviceSignals.navigator) : [],
+            window: deviceSignals.window ? "present" : "missing",
+          }
         : null,
     });
 

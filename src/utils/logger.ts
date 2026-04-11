@@ -92,5 +92,5 @@ const safeLog = (level: string, message: string, meta?: any) => {
   (logger as any)[level](message, safeMeta);
 };
 
-export { safeLog, maskSensitiveData };
+export { maskSensitiveData, safeLog };
 export default logger;

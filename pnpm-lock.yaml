@@ -164,6 +164,9 @@ importers:
       swagger-ui-express:
         specifier: ^5.0.1
         version: 5.0.1(express@5.2.1)
+      synapse:
+        specifier: 'file:'
+        version: file:(@noble/hashes@1.8.0)(@types/node@25.5.0)(openapi-types@12.1.3)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(socks@2.8.7)
       tar:
         specifier: ^7.5.13
         version: 7.5.13
@@ -3484,6 +3487,9 @@ packages:
 
   symbol-tree@3.2.4:
     resolution: {integrity: sha512-9QNk5KwDF+Bvz+PyObkmSYjI5ksVUYtjW7AU22r2NKcfLJcXp96hkDWU3+XndOsUb+AQ9QhfzfCT2O+CNWT5Tw==}
+
+  'synapse@file:':
+    resolution: {directory: '', type: directory}
 
   synckit@0.11.12:
     resolution: {integrity: sha512-Bh7QjT8/SuKUIfObSXNHNSK6WHo6J1tHCqJsuaFDP7gP0fkzSfTxI8y85JrppZ0h8l0maIgc2tfuZQ6/t3GtnQ==}
@@ -7533,6 +7539,89 @@ snapshots:
       swagger-ui-dist: 5.28.1
 
   symbol-tree@3.2.4: {}
+
+  synapse@file:(@noble/hashes@1.8.0)(@types/node@25.5.0)(openapi-types@12.1.3)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(socks@2.8.7):
+    dependencies:
+      '@fingerprintjs/fingerprintjs': 5.1.0
+      '@simplewebauthn/browser': 13.3.0
+      '@simplewebauthn/server': 13.3.0
+      '@types/bcrypt': 6.0.0
+      '@types/dompurify': 3.2.0
+      '@types/express-rate-limit': 6.0.2(express@5.2.1)
+      '@types/form-data': 2.5.2
+      '@types/jsdom': 28.0.1
+      '@types/jsonwebtoken': 9.0.10
+      '@types/uuid': 11.0.0
+      '@types/validator': 13.15.10
+      axios: 1.14.0
+      bcrypt: 6.0.0
+      cheerio: 1.2.0
+      cors: 2.8.6
+      crypto-js: 4.2.0
+      dayjs: 1.11.20
+      dompurify: 3.3.3
+      dotenv: 17.3.1
+      express: 5.2.1
+      express-rate-limit: 7.5.1(express@5.2.1)
+      form-data: 4.0.5
+      google-auth-library: 10.6.2
+      helmet: 8.1.0
+      http-proxy-agent: 8.0.0
+      jsdom: 29.0.1(@noble/hashes@1.8.0)
+      jsonwebtoken: 9.0.3
+      liquid-glass-react: 1.1.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+      lodash: 4.18.1
+      lru-cache: 11.2.7
+      marked: 17.0.5
+      mongodb: 7.1.1(socks@2.8.7)
+      mongodb-connection-string-url: 7.0.1
+      mongoose: 9.3.3(socks@2.8.7)
+      morgan: 1.10.1
+      multer: 2.1.1
+      mysql2: 3.20.0(@types/node@25.5.0)
+      nanoid: 5.1.7
+      openai: 6.33.0(ws@8.20.0)(zod@4.3.6)
+      path-to-regexp: 8.4.2
+      qrcode: 1.5.4
+      react-syntax-highlighter: 16.1.1(react@19.1.1)
+      redis: 5.11.0
+      resend: 6.10.0
+      serve: 14.2.6
+      socks-proxy-agent: 9.0.0
+      speakeasy: 2.0.0
+      svix: 1.89.0
+      swagger-jsdoc: 6.2.8(openapi-types@12.1.3)
+      swagger-ui-express: 5.0.1(express@5.2.1)
+      tar: 7.5.13
+      tar-fs: 3.1.2
+      uuid: 13.0.0
+      validator: 13.15.26
+      winston: 3.19.0
+      ws: 8.20.0
+      zod: 4.3.6
+    transitivePeerDependencies:
+      - '@aws-sdk/credential-providers'
+      - '@mongodb-js/zstd'
+      - '@noble/hashes'
+      - '@node-rs/xxhash'
+      - '@react-email/render'
+      - '@types/node'
+      - bare-abort-controller
+      - bare-buffer
+      - bufferutil
+      - canvas
+      - debug
+      - gcp-metadata
+      - kerberos
+      - mongodb-client-encryption
+      - openapi-types
+      - react
+      - react-dom
+      - react-native-b4a
+      - snappy
+      - socks
+      - supports-color
+      - utf-8-validate
 
   synckit@0.11.12:
     dependencies:

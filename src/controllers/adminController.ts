@@ -4,8 +4,8 @@ import path from "node:path";
 import type { Request, Response } from "express";
 import mysql from "mysql2/promise";
 import * as envModule from "../config/env";
-import { mongoose } from "../services/mongoService";
 import { sendEmail } from "../services/emailSender";
+import { mongoose } from "../services/mongoService";
 import { RuntimeConfigService } from "../services/runtimeConfigService";
 import { TranslationLogService } from "../services/translationLogService";
 import logger from "../utils/logger";
@@ -142,7 +142,11 @@ function validateAndSanitizeUserUpdates(body: Record<string, any>): Record<strin
 
   // email
   if (body.email !== undefined) {
-    if (typeof body.email !== "string" || body.email.length > 254 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(body.email.trim())) {
+    if (
+      typeof body.email !== "string" ||
+      body.email.length > 254 ||
+      !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(body.email.trim())
+    ) {
       throw new Error("邮箱格式不合法");
     }
     out.email = body.email.trim().toLowerCase();
@@ -220,7 +224,7 @@ function validateAndSanitizeUserUpdates(body: Record<string, any>): Record<strin
   for (const field of ["pendingChallenge", "currentChallenge"]) {
     if (body[field] !== undefined) {
       if (typeof body[field] !== "string" || body[field].length > 512) {
-        throw new Error(field + " 格式不合法");
+        throw new Error(`${field} 格式不合法`);
       }
       out[field] = (body[field] as string).trim();
     }
@@ -248,7 +252,7 @@ function validateAndSanitizeUserUpdates(body: Record<string, any>): Record<strin
     if (body[field] !== undefined) {
       const v = Number(body[field]);
       if (!Number.isFinite(v) || v < 0) {
-        throw new Error(field + " 必须为非负数");
+        throw new Error(`${field} 必须为非负数`);
       }
       out[field] = v;
     }
@@ -272,15 +276,10 @@ function validateAndSanitizeUserUpdates(body: Record<string, any>): Record<strin
   }
 
   if (body.isTranslationEnabled !== undefined || body.is_translation_enabled !== undefined) {
-    out.isTranslationEnabled = Boolean(
-      body.isTranslationEnabled ?? body.is_translation_enabled,
-    );
+    out.isTranslationEnabled = Boolean(body.isTranslationEnabled ?? body.is_translation_enabled);
   }
 
-  if (
-    body.translationAccessUntil !== undefined ||
-    body.translation_access_until !== undefined
-  ) {
+  if (body.translationAccessUntil !== undefined || body.translation_access_until !== undefined) {
     const value = body.translationAccessUntil ?? body.translation_access_until;
     if (typeof value !== "string") {
       throw new Error("translationAccessUntil 必须为字符串");
@@ -318,7 +317,7 @@ export const adminController = {
 
       // 获取管理员token作为加密密钥
       const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      if (!authHeader?.startsWith("Bearer ")) {
         logger.info("❌ [UserManagement] Token格式错误：未携带Token或格式不正确");
         return res.status(401).json({ error: "未携带Token，请先登录" });
       }
@@ -530,8 +529,14 @@ export const adminController = {
       // 管理员修改用户信息后，发送通知邮件给用户
       // 需要通知的关键字段
       const NOTIFY_FIELDS = new Set([
-        "username", "email", "role", "password",
-        "dailyUsage", "totpEnabled", "passkeyEnabled", "avatarUrl",
+        "username",
+        "email",
+        "role",
+        "password",
+        "dailyUsage",
+        "totpEnabled",
+        "passkeyEnabled",
+        "avatarUrl",
       ]);
 
       // 检测实际变更的字段
@@ -557,11 +562,11 @@ export const adminController = {
       // 有变更才发送邮件
       if (changes.length > 0 && user.email) {
         try {
-          const { 
+          const {
             generateAdminUserUpdatedEmailHtml,
             generateRoleChangedEmailHtml,
             generateEmailChangeOldNoticeHtml,
-            generateEmailChangeNewNoticeHtml
+            generateEmailChangeNewNoticeHtml,
           } = require("../templates/emailTemplates");
           const { getClientIP } = require("../utils/ipUtils");
           const changeTime = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
@@ -580,8 +585,14 @@ export const adminController = {
           // 确定邮件主题
           const changedFieldNames = changes.map((c: { field: string; oldValue: string; newValue: string }) => {
             const labels: Record<string, string> = {
-              username: "用户名", email: "邮箱", role: "角色", password: "密码",
-              dailyUsage: "用量", totpEnabled: "两步验证", passkeyEnabled: "Passkey", avatarUrl: "头像",
+              username: "用户名",
+              email: "邮箱",
+              role: "角色",
+              password: "密码",
+              dailyUsage: "用量",
+              totpEnabled: "两步验证",
+              passkeyEnabled: "Passkey",
+              avatarUrl: "头像",
             };
             return labels[c.field] || c.field;
           });
@@ -600,9 +611,15 @@ export const adminController = {
 
           // 2. 针对特定字段变更发送专门模板通知
           // 2.1 角色变更通知
-          const roleChange = changes.find(c => c.field === "role");
+          const roleChange = changes.find((c) => c.field === "role");
           if (roleChange) {
-            const roleEmailHtml = generateRoleChangedEmailHtml(user.username, roleChange.newValue, changeTime, clientIP, deviceName);
+            const roleEmailHtml = generateRoleChangedEmailHtml(
+              user.username,
+              roleChange.newValue,
+              changeTime,
+              clientIP,
+              deviceName,
+            );
             sendEmail({
               to: user.email,
               subject: "Synapse 账户权限变更通知",
@@ -613,10 +630,18 @@ export const adminController = {
           }
 
           // 2.2 邮箱变更通知 (旧邮箱和新邮箱)
-          const emailChange = changes.find((c: { field: string; oldValue: string; newValue: string }) => c.field === "email");
-          if (emailChange && emailChange.oldValue && emailChange.oldValue !== emailChange.newValue) {
+          const emailChange = changes.find(
+            (c: { field: string; oldValue: string; newValue: string }) => c.field === "email",
+          );
+          if (emailChange?.oldValue && emailChange.oldValue !== emailChange.newValue) {
             // 通知旧邮箱
-            const oldEmailHtml = generateEmailChangeOldNoticeHtml(user.username, emailChange.newValue, changeTime, clientIP, deviceName);
+            const oldEmailHtml = generateEmailChangeOldNoticeHtml(
+              user.username,
+              emailChange.newValue,
+              changeTime,
+              clientIP,
+              deviceName,
+            );
             sendEmail({
               to: emailChange.oldValue,
               subject: "Synapse 账户邮箱地址变更安全通知",
@@ -628,7 +653,13 @@ export const adminController = {
             });
 
             // 通知新邮箱
-            const newEmailHtml = generateEmailChangeNewNoticeHtml(user.username, emailChange.oldValue, changeTime, clientIP, deviceName);
+            const newEmailHtml = generateEmailChangeNewNoticeHtml(
+              user.username,
+              emailChange.oldValue,
+              changeTime,
+              clientIP,
+              deviceName,
+            );
             sendEmail({
               to: emailChange.newValue,
               subject: "Synapse 账户邮箱绑定成功通知",
@@ -640,7 +671,9 @@ export const adminController = {
             });
           }
 
-          logger.info(`[管理员修改用户] 已发送通知邮件至 ${user.email}，变更字段: ${changedFieldNames.join(", ")}，操作者: ${adminUsername}`);
+          logger.info(
+            `[管理员修改用户] 已发送通知邮件至 ${user.email}，变更字段: ${changedFieldNames.join(", ")}，操作者: ${adminUsername}`,
+          );
         } catch (notifyError) {
           logger.warn("[管理员修改用户] 发送通知邮件失败:", notifyError);
         }
@@ -671,7 +704,7 @@ export const adminController = {
       }
 
       await UserStorage.deleteUser(user.id);
-      
+
       // 发送账号删除通知
       if (user.email) {
         const { generateAccountDeletedEmailHtml } = require("../templates/emailTemplates");
@@ -900,7 +933,7 @@ export const adminController = {
 
       // 获取管理员token作为加密密钥
       const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      if (!authHeader?.startsWith("Bearer ")) {
         logger.info("❌ [EnvManager] Token格式错误：未携带Token或格式不正确");
         return res.status(401).json({ error: "未携带Token，请先登录" });
       }
@@ -1289,12 +1322,12 @@ export const adminController = {
       const doc = await ModlistSettingModel.findOne({ key: "MODIFY_CODE" }).lean();
       const setting = doc
         ? {
-          code:
-            typeof (doc as any).code === "string" && (doc as any).code.length > 8
-              ? `${(doc as any).code.slice(0, 2)}***${(doc as any).code.slice(-4)}`
-              : "***",
-          updatedAt: (doc as any).updatedAt,
-        }
+            code:
+              typeof (doc as any).code === "string" && (doc as any).code.length > 8
+                ? `${(doc as any).code.slice(0, 2)}***${(doc as any).code.slice(-4)}`
+                : "***",
+            updatedAt: (doc as any).updatedAt,
+          }
         : null;
       return res.json({ success: true, setting });
     } catch (_e) {
@@ -1341,12 +1374,12 @@ export const adminController = {
       const doc = await TtsSettingModel.findOne({ key: "GENERATION_CODE" }).lean();
       const setting = doc
         ? {
-          code:
-            typeof (doc as any).code === "string" && (doc as any).code.length > 8
-              ? `${(doc as any).code.slice(0, 2)}***${(doc as any).code.slice(-4)}`
-              : "***",
-          updatedAt: (doc as any).updatedAt,
-        }
+            code:
+              typeof (doc as any).code === "string" && (doc as any).code.length > 8
+                ? `${(doc as any).code.slice(0, 2)}***${(doc as any).code.slice(-4)}`
+                : "***",
+            updatedAt: (doc as any).updatedAt,
+          }
         : null;
       return res.json({ success: true, setting });
     } catch (_e) {

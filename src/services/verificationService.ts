@@ -4,10 +4,7 @@
  */
 
 import type { Request } from "express";
-import {
-  VerificationTokenType,
-  verificationTokenStorage,
-} from "../models/verificationTokenModel";
+import { VerificationTokenType, verificationTokenStorage } from "../models/verificationTokenModel";
 import {
   generatePasswordResetLinkEmailHtml,
   generateVerificationLinkEmailHtml,
@@ -32,12 +29,7 @@ function getClientIP(req: Request, clientIP?: string): string {
   const ipAddress = clientIP || serverIP;
 
   // 记录IP比对情况（用于调试和安全分析）
-  if (
-    clientIP &&
-    clientIP !== serverIP &&
-    clientIP !== "unknown" &&
-    serverIP !== "unknown"
-  ) {
+  if (clientIP && clientIP !== serverIP && clientIP !== "unknown" && serverIP !== "unknown") {
     logger.info(`[IP差异检测] 前端IP=${clientIP}, 后端IP=${serverIP}`);
   }
 
@@ -58,7 +50,7 @@ export async function createAndSendVerificationLink(
   username: string,
   password: string,
   fingerprint: string,
-  ipAddress: string
+  ipAddress: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // 创建验证令牌
@@ -67,7 +59,7 @@ export async function createAndSendVerificationLink(
       email,
       fingerprint,
       ipAddress,
-      { username, email, password }
+      { username, email, password },
     );
 
     // 生成验证链接
@@ -75,23 +67,14 @@ export async function createAndSendVerificationLink(
     const verificationLink = `${frontendBaseUrl}/verify-email?token=${verificationToken.token}`;
 
     // 发送邮件验证链接
-    const emailHtml = generateVerificationLinkEmailHtml(
-      username,
-      verificationLink
-    );
-    const emailResult = await EmailService.sendHtmlEmail(
-      [email],
-      "Synapse 电子邮件确认",
-      emailHtml
-    );
+    const emailHtml = generateVerificationLinkEmailHtml(username, verificationLink);
+    const emailResult = await EmailService.sendHtmlEmail([email], "Synapse 电子邮件确认", emailHtml);
 
     if (emailResult.success) {
       logger.info(`[邮箱验证链接] 成功发送到: ${email}`);
       return { success: true };
     } else {
-      logger.error(
-        `[邮箱验证链接] 发送失败: ${email}, 错误: ${emailResult.error}`
-      );
+      logger.error(`[邮箱验证链接] 发送失败: ${email}, 错误: ${emailResult.error}`);
       verificationTokenStorage.deleteToken(verificationToken.token);
       return { success: false, error: "验证链接发送失败，请稍后重试" };
     }
@@ -111,15 +94,11 @@ export async function createAndSendVerificationLink(
 export async function verifyEmailLink(
   token: string,
   fingerprint: string,
-  ipAddress: string
+  ipAddress: string,
 ): Promise<{ success: boolean; error?: string; message?: string }> {
   try {
     // 验证令牌
-    const result = verificationTokenStorage.verifyAndUseToken(
-      token,
-      fingerprint,
-      ipAddress
-    );
+    const result = verificationTokenStorage.verifyAndUseToken(token, fingerprint, ipAddress);
 
     if (!result.success) {
       return { success: false, error: result.error };
@@ -149,11 +128,7 @@ export async function verifyEmailLink(
     // 发送欢迎邮件（不影响主流程）
     try {
       const welcomeHtml = generateWelcomeEmailHtml(username);
-      await EmailService.sendHtmlEmail(
-        [email],
-        "欢迎加入 Synapse",
-        welcomeHtml
-      );
+      await EmailService.sendHtmlEmail([email], "欢迎加入 Synapse", welcomeHtml);
     } catch (e) {
       logger.warn(`[欢迎邮件] 发送失败: ${email}`, e);
     }
@@ -180,7 +155,7 @@ export async function createAndSendPasswordResetLink(
   username: string,
   userId: string,
   fingerprint: string,
-  ipAddress: string
+  ipAddress: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // 创建验证令牌
@@ -189,7 +164,7 @@ export async function createAndSendPasswordResetLink(
       email,
       fingerprint,
       ipAddress,
-      { userId, username, email }
+      { userId, username, email },
     );
 
     // 生成重置链接
@@ -198,11 +173,7 @@ export async function createAndSendPasswordResetLink(
 
     // 发送邮件重置链接
     const emailHtml = generatePasswordResetLinkEmailHtml(username, resetLink);
-    const emailResult = await EmailService.sendHtmlEmail(
-      [email],
-      "Synapse 账号密码重置",
-      emailHtml
-    );
+    const emailResult = await EmailService.sendHtmlEmail([email], "Synapse 账号密码重置", emailHtml);
 
     if (emailResult.success) {
       logger.info(`[密码重置] 成功发送到: ${email}`);
@@ -230,15 +201,11 @@ export async function verifyPasswordResetLink(
   token: string,
   fingerprint: string,
   ipAddress: string,
-  newPassword: string
+  newPassword: string,
 ): Promise<{ success: boolean; error?: string; message?: string; email?: string; username?: string }> {
   try {
     // 验证令牌
-    const result = verificationTokenStorage.verifyAndUseToken(
-      token,
-      fingerprint,
-      ipAddress
-    );
+    const result = verificationTokenStorage.verifyAndUseToken(token, fingerprint, ipAddress);
 
     if (!result.success) {
       return { success: false, error: result.error };
@@ -261,12 +228,7 @@ export async function verifyPasswordResetLink(
     }
 
     // 验证新密码强度
-    const passwordErrors = UserStorage.validateUserInput(
-      user.username,
-      newPassword,
-      user.email,
-      true
-    );
+    const passwordErrors = UserStorage.validateUserInput(user.username, newPassword, user.email, true);
     if (passwordErrors.length > 0) {
       return { success: false, error: passwordErrors[0].message };
     }
@@ -282,7 +244,6 @@ export async function verifyPasswordResetLink(
     return { success: false, error: "密码重置失败" };
   }
 }
-
 
 /**
  * 导出工具函数

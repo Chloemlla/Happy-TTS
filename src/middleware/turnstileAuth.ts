@@ -33,7 +33,7 @@ export const authenticateTurnstileToken = async (
     }
     // 从请求头获取访问令牌
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    if (!authHeader?.startsWith("Bearer ")) {
       logger.warn("Turnstile认证失败：缺少Authorization头部", {
         ip: req.ip,
         userAgent: req.get("User-Agent"),
@@ -132,7 +132,7 @@ export const optionalTurnstileAuth = async (
     const authHeader = req.headers.authorization;
 
     // 如果没有提供认证头部，直接跳过
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    if (!authHeader?.startsWith("Bearer ")) {
       next();
       return;
     }

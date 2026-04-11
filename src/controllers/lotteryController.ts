@@ -107,7 +107,7 @@ export class LotteryController {
 
         // 获取管理员token作为加密密钥
         const authHeader = req.headers.authorization;
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        if (!authHeader?.startsWith("Bearer ")) {
           console.log("❌ [Lottery] Token格式错误：未携带Token或格式不正确");
           res.status(401).json({ error: "未携带Token，请先登录" });
           return;

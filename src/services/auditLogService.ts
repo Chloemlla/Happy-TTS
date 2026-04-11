@@ -1,4 +1,4 @@
-import type { Request, Response, NextFunction } from "express";
+import type { NextFunction, Request, Response } from "express";
 import { AuditLogModel, type IAuditLog } from "../models/auditLogModel";
 import logger from "../utils/logger";
 
@@ -220,7 +220,7 @@ export class AuditLogService {
         // 脱敏与截断处理函数
         const sanitizePayload = (obj: any): any => {
           if (!obj) return obj;
-          if (typeof obj === "string") return obj.length > 2000 ? obj.substring(0, 2000) + "..." : obj;
+          if (typeof obj === "string") return obj.length > 2000 ? `${obj.substring(0, 2000)}...` : obj;
           if (typeof obj !== "object") return obj;
           if (Buffer.isBuffer(obj)) return "[Buffer]";
 
@@ -236,7 +236,7 @@ export class AuditLogService {
             if (!node || typeof node !== "object") return;
             for (const key of Object.keys(node)) {
               if (typeof node[key] === "string" && node[key].length > 2000) {
-                node[key] = node[key].substring(0, 2000) + "...[truncated]";
+                node[key] = `${node[key].substring(0, 2000)}...[truncated]`;
               } else if (typeof node[key] === "object") {
                 sanitizeNode(node[key]);
               }
@@ -259,7 +259,7 @@ export class AuditLogService {
             durationMs,
             query: Object.keys(req.query).length ? req.query : undefined,
             reqBody: Object.keys(req.body || {}).length ? sanitizePayload(req.body) : undefined,
-            resBody: resBody !== undefined ? sanitizePayload(resBody) : undefined
+            resBody: resBody !== undefined ? sanitizePayload(resBody) : undefined,
           },
           ip: req.ip || req.socket.remoteAddress || "unknown",
           userAgent: req.headers["user-agent"],
@@ -293,7 +293,7 @@ export class AuditLogService {
       };
 
       // 捕获请求异常终止
-      res.on('close', () => {
+      res.on("close", () => {
         if (!res.writableEnded) {
           writeAudit("failure", "Connection closed prematurely");
         }

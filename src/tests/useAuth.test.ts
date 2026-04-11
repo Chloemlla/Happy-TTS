@@ -59,7 +59,7 @@ describe("Authentication Logic", () => {
   describe("Token Validation", () => {
     it("应该验证Bearer token格式", () => {
       const validateToken = (authHeader: string) => {
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        if (!authHeader?.startsWith("Bearer ")) {
           return false;
         }
         const token = authHeader.split(" ")[1];

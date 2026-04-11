@@ -37,9 +37,7 @@ describe("translationLogService", () => {
   });
 
   it("queries translation logs with paging", async () => {
-    const lean = jest.fn().mockResolvedValue([
-      { _id: "log-1", userId: "user-1" },
-    ]);
+    const lean = jest.fn().mockResolvedValue([{ _id: "log-1", userId: "user-1" }]);
     const limit = jest.fn().mockReturnValue({ lean });
     const skip = jest.fn().mockReturnValue({ limit });
     const sort = jest.fn().mockReturnValue({ skip });

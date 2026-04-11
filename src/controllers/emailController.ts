@@ -223,11 +223,11 @@ export class EmailController {
         html && html.trim().length > 0
           ? html
           : `<pre style="white-space:pre-wrap;word-wrap:break-word;margin:0;font-family:Consolas,Menlo,Monaco,monospace;">${String(
-            text || "",
-          )
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")}</pre>`;
+              text || "",
+            )
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;")}</pre>`;
 
       // 发送批量邮件
       const result = await EmailService.sendBatchHtmlEmails(validation.valid, subject, htmlContent, from);

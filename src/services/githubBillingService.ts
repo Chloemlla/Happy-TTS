@@ -534,7 +534,10 @@ export class GitHubBillingService {
           updatedAt: new Date(),
         };
 
-        await GitHubBillingMultiConfigModel.findOneAndUpdate({ configKey }, configDoc, { upsert: true, returnDocument: 'after' });
+        await GitHubBillingMultiConfigModel.findOneAndUpdate({ configKey }, configDoc, {
+          upsert: true,
+          returnDocument: "after",
+        });
 
         // 如果是 config1，同时保存到原有的单配置位置（向后兼容）
         if (configKey === "config1") {

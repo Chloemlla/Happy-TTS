@@ -47,9 +47,7 @@ function stringArray(value: unknown): string[] {
     return [];
   }
 
-  return value
-    .map((item) => (typeof item === "string" ? item.trim() : ""))
-    .filter(Boolean);
+  return value.map((item) => (typeof item === "string" ? item.trim() : "")).filter(Boolean);
 }
 
 function getNormalizedBaseUrl(): string {
@@ -110,16 +108,12 @@ export function isDeepLXConfigured(): boolean {
 
 export function getDeepLXConfigSummary(): DeepLXConfigSummary {
   const configuredBaseUrl = getNormalizedBaseUrl();
-  const baseUrl = isApprovedDeepLXBaseUrl(configuredBaseUrl)
-    ? TRUSTED_DEEPLX_BASE_URL
-    : configuredBaseUrl;
+  const baseUrl = isApprovedDeepLXBaseUrl(configuredBaseUrl) ? TRUSTED_DEEPLX_BASE_URL : configuredBaseUrl;
   return {
     enabled: isDeepLXConfigured(),
     requiresApiKey: requiresApiKey(),
     baseUrl,
-    endpointPath: requiresApiKey(baseUrl)
-      ? `${baseUrl}/<api-key>/translate`
-      : `${baseUrl}/translate`,
+    endpointPath: requiresApiKey(baseUrl) ? `${baseUrl}/<api-key>/translate` : `${baseUrl}/translate`,
   };
 }
 
@@ -132,11 +126,7 @@ function normalizeLanguage(value: string, fallback: string): string {
   return trimmed.toLowerCase() === "auto" ? "auto" : trimmed.toUpperCase();
 }
 
-function extractTranslation(
-  payload: unknown,
-  fallbackSource: string,
-  fallbackTarget: string,
-): DeepLXTranslateResult {
+function extractTranslation(payload: unknown, fallbackSource: string, fallbackTarget: string): DeepLXTranslateResult {
   const source = asObject(payload);
 
   const directText = firstString(source.data, source.translation, source.text, source.result);
@@ -145,37 +135,24 @@ function extractTranslation(
       translatedText: directText,
       alternatives: stringArray(source.alternatives),
       sourceLang: normalizeLanguage(
-        firstString(source.source_lang, source.detected_source_language, source.from) ||
-          fallbackSource,
+        firstString(source.source_lang, source.detected_source_language, source.from) || fallbackSource,
         fallbackSource,
       ),
-      targetLang: normalizeLanguage(
-        firstString(source.target_lang, source.to) || fallbackTarget,
-        fallbackTarget,
-      ),
+      targetLang: normalizeLanguage(firstString(source.target_lang, source.to) || fallbackTarget, fallbackTarget),
     };
   }
 
   const translations = Array.isArray(source.translations) ? source.translations : [];
   for (const item of translations) {
     const entry = asObject(item);
-    const translatedText = firstString(
-      entry.text,
-      entry.translation,
-      entry.translated_text,
-      entry.data,
-    );
+    const translatedText = firstString(entry.text, entry.translation, entry.translated_text, entry.data);
 
     if (translatedText) {
       return {
         translatedText,
         alternatives: stringArray(entry.alternatives),
         sourceLang: normalizeLanguage(
-          firstString(
-            entry.detected_source_language,
-            entry.source_lang,
-            source.source_lang,
-          ) || fallbackSource,
+          firstString(entry.detected_source_language, entry.source_lang, source.source_lang) || fallbackSource,
           fallbackSource,
         ),
         targetLang: normalizeLanguage(
@@ -193,21 +170,15 @@ function extractErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
     const responseData = asObject(error.response?.data);
     return (
-      firstString(
-        responseData.message,
-        responseData.error,
-        responseData.detail,
-        error.message,
-      ) || "DeepLX translation request failed"
+      firstString(responseData.message, responseData.error, responseData.detail, error.message) ||
+      "DeepLX translation request failed"
     );
   }
 
   return error instanceof Error ? error.message : "DeepLX translation request failed";
 }
 
-export async function translateWithDeepLX(
-  params: DeepLXTranslateParams,
-): Promise<DeepLXTranslateResult> {
+export async function translateWithDeepLX(params: DeepLXTranslateParams): Promise<DeepLXTranslateResult> {
   if (!isDeepLXConfigured()) {
     throw new Error("DeepLX is not configured");
   }

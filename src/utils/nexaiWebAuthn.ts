@@ -49,9 +49,7 @@ function getDefaultRpId(): string {
 }
 
 function normalizeAndroidApkKeyHash(value: string): string {
-  return value.startsWith("android:apk-key-hash:")
-    ? value
-    : `android:apk-key-hash:${value}`;
+  return value.startsWith("android:apk-key-hash:") ? value : `android:apk-key-hash:${value}`;
 }
 
 export function getNexaiWebAuthnConfig(): {
@@ -76,10 +74,9 @@ export function getNexaiWebAuthnConfig(): {
     .map(normalizeUrlOrigin)
     .filter((origin): origin is string => Boolean(origin));
 
-  const androidOrigins = splitCsv(
-    process.env.NEXAI_ANDROID_APK_KEY_HASHES ||
-      process.env.ANDROID_APK_KEY_HASHES,
-  ).map(normalizeAndroidApkKeyHash);
+  const androidOrigins = splitCsv(process.env.NEXAI_ANDROID_APK_KEY_HASHES || process.env.ANDROID_APK_KEY_HASHES).map(
+    normalizeAndroidApkKeyHash,
+  );
 
   const expectedOrigins = unique([baseOrigin, ...configuredOrigins, ...androidOrigins]);
 
@@ -91,9 +88,7 @@ export function getNexaiWebAuthnConfig(): {
   };
 }
 
-function parseAssetLinksOverride(
-  raw: string | undefined,
-): AndroidAssetLinkStatement[] | null {
+function parseAssetLinksOverride(raw: string | undefined): AndroidAssetLinkStatement[] | null {
   if (!raw?.trim()) {
     return null;
   }
@@ -115,9 +110,7 @@ function parseAssetLinksOverride(
 }
 
 export function getNexaiAssetLinksStatements(): AndroidAssetLinkStatement[] {
-  const overrideStatements = parseAssetLinksOverride(
-    process.env.NEXAI_ANDROID_ASSETLINKS_JSON,
-  );
+  const overrideStatements = parseAssetLinksOverride(process.env.NEXAI_ANDROID_ASSETLINKS_JSON);
   if (overrideStatements) {
     return overrideStatements;
   }

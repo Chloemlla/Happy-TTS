@@ -1,5 +1,4 @@
 import type { Request, Response } from "express";
-import logger from "../utils/logger";
 import {
   detectAnomalies,
   extractSecurityHeaders,
@@ -9,6 +8,7 @@ import {
   recordSecurityEvent,
   trackDevice,
 } from "../services/nexaiSecurityService";
+import logger from "../utils/logger";
 
 /**
  * POST /nexai/security/report
@@ -45,7 +45,7 @@ export async function reportSecurityEvent(req: Request, res: Response): Promise<
       details || {},
       headers.riskScore,
       ipAddress,
-      userAgent
+      userAgent,
     );
 
     // Track device if user is authenticated
@@ -68,17 +68,12 @@ export async function reportSecurityEvent(req: Request, res: Response): Promise<
       action = "restrict";
     }
 
-    logger.info(
-      `Security event reported: ${event_type} from device ${headers.deviceFingerprint}, action: ${action}`
-    );
+    logger.info(`Security event reported: ${event_type} from device ${headers.deviceFingerprint}, action: ${action}`);
 
     res.json({
       status: "recorded",
       action,
-      message:
-        action === "block"
-          ? "Device has been flagged for security review"
-          : "Event recorded successfully",
+      message: action === "block" ? "Device has been flagged for security review" : "Event recorded successfully",
     });
   } catch (error) {
     logger.error("Error reporting security event:", error);
@@ -265,10 +260,7 @@ export async function getDashboardStats(req: Request, res: Response): Promise<vo
       .limit(20)
       .lean();
 
-    const topRiskyDevices = await DeviceTracking.find({})
-      .sort({ riskScore: -1 })
-      .limit(10)
-      .lean();
+    const topRiskyDevices = await DeviceTracking.find({}).sort({ riskScore: -1 }).limit(10).lean();
 
     res.json({
       totalDevices,
@@ -294,8 +286,8 @@ export async function getDeviceList(req: Request, res: Response): Promise<void> 
   try {
     const { DeviceTracking } = await import("../models/deviceTrackingModel");
 
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
+    const page = parseInt(req.query.page as string, 10) || 1;
+    const limit = parseInt(req.query.limit as string, 10) || 20;
     const riskLevelParam = req.query.riskLevel;
     const searchParam = req.query.search;
 
@@ -339,8 +331,8 @@ export async function getSecurityEvents(req: Request, res: Response): Promise<vo
   try {
     const { SecurityEvent } = await import("../models/securityEventModel");
 
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
+    const page = parseInt(req.query.page as string, 10) || 1;
+    const limit = parseInt(req.query.limit as string, 10) || 20;
     const eventTypeParam = req.query.eventType;
     const deviceFingerprintParam = req.query.deviceFingerprint;
 

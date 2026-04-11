@@ -19,9 +19,7 @@ function shouldSkipVerificationEnforcement(req: Request): boolean {
   if (EXEMPT_ENFORCEMENT_PREFIXES.some((prefix) => originalUrl.startsWith(prefix))) return true;
 
   const browserLike =
-    Boolean(req.headers.origin) ||
-    Boolean(req.headers["sec-fetch-mode"]) ||
-    Boolean(req.headers["x-fingerprint"]);
+    Boolean(req.headers.origin) || Boolean(req.headers["sec-fetch-mode"]) || Boolean(req.headers["x-fingerprint"]);
 
   return !browserLike;
 }

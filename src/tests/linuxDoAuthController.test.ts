@@ -1,4 +1,4 @@
-import { describe, expect, it, jest, beforeEach } from "@jest/globals";
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { Request, Response } from "express";
 import { LinuxDoAuthController } from "../controllers/linuxDoAuthController";
 import {
@@ -13,7 +13,9 @@ jest.mock("../services/linuxDoAuthService", () => ({
   consumeLinuxDoLoginTicket: jest.fn(),
   createLinuxDoAuthorizationUrl: jest.fn(),
   getLinuxDoConfigSummary: jest.fn(),
-  getLinuxDoErrorRedirect: jest.fn((message: string) => `https://frontend.example/auth/linuxdo/callback?error=${encodeURIComponent(message)}`),
+  getLinuxDoErrorRedirect: jest.fn(
+    (message: string) => `https://frontend.example/auth/linuxdo/callback?error=${encodeURIComponent(message)}`,
+  ),
   isLinuxDoAuthEnabled: jest.fn(),
 }));
 
@@ -55,10 +57,7 @@ describe("LinuxDoAuthController", () => {
       state: "state-from-body",
       clientIp: "203.0.113.10",
     });
-    expect(redirect).toHaveBeenCalledWith(
-      302,
-      "https://frontend.example/auth/linuxdo/callback?ticket=test",
-    );
+    expect(redirect).toHaveBeenCalledWith(302, "https://frontend.example/auth/linuxdo/callback?ticket=test");
   });
 
   it("rejects GET callbacks without code/state with an explicit error redirect", async () => {
@@ -68,9 +67,7 @@ describe("LinuxDoAuthController", () => {
 
     await LinuxDoAuthController.callbackGet(req, res);
 
-    expect(getLinuxDoErrorRedirect).toHaveBeenCalledWith(
-      "Missing Linux.do authorization code or state",
-    );
+    expect(getLinuxDoErrorRedirect).toHaveBeenCalledWith("Missing Linux.do authorization code or state");
     expect(redirect).toHaveBeenCalledWith(
       302,
       "https://frontend.example/auth/linuxdo/callback?error=Missing%20Linux.do%20authorization%20code%20or%20state",
@@ -98,9 +95,6 @@ describe("LinuxDoAuthController", () => {
       state: "state-from-query",
       clientIp: "203.0.113.10",
     });
-    expect(redirect).toHaveBeenCalledWith(
-      302,
-      "https://frontend.example/auth/linuxdo/callback?ticket=test",
-    );
+    expect(redirect).toHaveBeenCalledWith(302, "https://frontend.example/auth/linuxdo/callback?ticket=test");
   });
 });

@@ -5,8 +5,8 @@
  * 使用 {{placeholder}} 风格的占位符。此模块负责加载模板文件并替换占位符。
  */
 
-import { readFileSync } from "fs";
-import { join } from "path";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 // ---------------------------------------------------------------------------
 // Template loader & placeholder engine
@@ -20,13 +20,13 @@ const templateCache = new Map<string, string>();
  * @param templateFileName 模板文件名（相对于 src/templates/）
  */
 function loadTemplate(templateFileName: string): string {
-    const cached = templateCache.get(templateFileName);
-    if (cached) return cached;
+  const cached = templateCache.get(templateFileName);
+  if (cached) return cached;
 
-    const filePath = join(__dirname, templateFileName);
-    const content = readFileSync(filePath, "utf-8");
-    templateCache.set(templateFileName, content);
-    return content;
+  const filePath = join(__dirname, templateFileName);
+  const content = readFileSync(filePath, "utf-8");
+  templateCache.set(templateFileName, content);
+  return content;
 }
 
 /**
@@ -36,16 +36,13 @@ function loadTemplate(templateFileName: string): string {
  * @param variables 占位符键值对，键名不含花括号
  * @returns 替换后的 HTML 字符串
  */
-function renderTemplate(
-    template: string,
-    variables: Record<string, string>,
-): string {
-    let html = template;
-    for (const [key, value] of Object.entries(variables)) {
-        const placeholder = `{{${key}}}`;
-        html = html.split(placeholder).join(value);
-    }
-    return html;
+function renderTemplate(template: string, variables: Record<string, string>): string {
+  let html = template;
+  for (const [key, value] of Object.entries(variables)) {
+    const placeholder = `{{${key}}}`;
+    html = html.split(placeholder).join(value);
+  }
+  return html;
 }
 
 // ---------------------------------------------------------------------------
@@ -59,12 +56,9 @@ function renderTemplate(
  * - `{{username}}` – 用户名
  * - `{{code}}`     – 8 位数字验证码
  */
-export function generateVerificationCodeEmailHtml(
-    username: string,
-    code: string,
-): string {
-    const tpl = loadTemplate("verification-code.html");
-    return renderTemplate(tpl, { username, code });
+export function generateVerificationCodeEmailHtml(username: string, code: string): string {
+  const tpl = loadTemplate("verification-code.html");
+  return renderTemplate(tpl, { username, code });
 }
 
 /**
@@ -74,12 +68,9 @@ export function generateVerificationCodeEmailHtml(
  * - `{{username}}`         – 用户名
  * - `{{verificationLink}}` – 完整验证链接 URL
  */
-export function generateVerificationLinkEmailHtml(
-    username: string,
-    verificationLink: string,
-): string {
-    const tpl = loadTemplate("verification-link.html");
-    return renderTemplate(tpl, { username, verificationLink });
+export function generateVerificationLinkEmailHtml(username: string, verificationLink: string): string {
+  const tpl = loadTemplate("verification-link.html");
+  return renderTemplate(tpl, { username, verificationLink });
 }
 
 /**
@@ -89,12 +80,9 @@ export function generateVerificationLinkEmailHtml(
  * - `{{username}}`  – 用户名
  * - `{{resetLink}}` – 完整重置链接 URL
  */
-export function generatePasswordResetLinkEmailHtml(
-    username: string,
-    resetLink: string,
-): string {
-    const tpl = loadTemplate("password-reset.html");
-    return renderTemplate(tpl, { username, resetLink });
+export function generatePasswordResetLinkEmailHtml(username: string, resetLink: string): string {
+  const tpl = loadTemplate("password-reset.html");
+  return renderTemplate(tpl, { username, resetLink });
 }
 
 /**
@@ -104,8 +92,8 @@ export function generatePasswordResetLinkEmailHtml(
  * - `{{username}}` – 用户名
  */
 export function generateWelcomeEmailHtml(username: string): string {
-    const tpl = loadTemplate("welcome.html");
-    return renderTemplate(tpl, { username });
+  const tpl = loadTemplate("welcome.html");
+  return renderTemplate(tpl, { username });
 }
 
 /**
@@ -119,21 +107,21 @@ export function generateWelcomeEmailHtml(username: string): string {
  * - `{{fingerprint}}` – 设备指纹（前 16 位）
  */
 export function generatePasswordChangedEmailHtml(
-    username: string,
-    changeTime: string,
-    ipAddress: string,
-    deviceName: string,
-    fingerprint: string,
+  username: string,
+  changeTime: string,
+  ipAddress: string,
+  deviceName: string,
+  fingerprint: string,
 ): string {
-    const tpl = loadTemplate("password-changed.html");
-    return renderTemplate(tpl, {
-        username,
-        changeTime,
-        ipAddress,
-        deviceName,
-        fingerprint: fingerprint.length > 16 ? fingerprint.substring(0, 16) + "..." : fingerprint,
-        adminNotice: "",
-    });
+  const tpl = loadTemplate("password-changed.html");
+  return renderTemplate(tpl, {
+    username,
+    changeTime,
+    ipAddress,
+    deviceName,
+    fingerprint: fingerprint.length > 16 ? `${fingerprint.substring(0, 16)}...` : fingerprint,
+    adminNotice: "",
+  });
 }
 
 /**
@@ -147,36 +135,36 @@ export function generatePasswordChangedEmailHtml(
  * - `{{fingerprint}}` – 设备指纹（前 16 位）
  */
 export function generatePasswordResetSuccessEmailHtml(
-    username: string,
-    changeTime: string,
-    ipAddress: string,
-    deviceName: string,
-    fingerprint: string,
+  username: string,
+  changeTime: string,
+  ipAddress: string,
+  deviceName: string,
+  fingerprint: string,
 ): string {
-    const tpl = loadTemplate("password-reset-success.html");
-    return renderTemplate(tpl, {
-        username,
-        changeTime,
-        ipAddress,
-        deviceName,
-        fingerprint: fingerprint.length > 16 ? fingerprint.substring(0, 16) + "..." : fingerprint,
-        adminNotice: "",
-    });
+  const tpl = loadTemplate("password-reset-success.html");
+  return renderTemplate(tpl, {
+    username,
+    changeTime,
+    ipAddress,
+    deviceName,
+    fingerprint: fingerprint.length > 16 ? `${fingerprint.substring(0, 16)}...` : fingerprint,
+    adminNotice: "",
+  });
 }
 
 /**
  * 字段名称映射（英文 → 中文），用于邮件通知中的可读显示。
  */
 const FIELD_LABELS: Record<string, string> = {
-    username: "用户名",
-    email: "邮箱地址",
-    role: "角色",
-    password: "密码",
-    dailyUsage: "每日用量",
-    lastUsageDate: "最后使用日期",
-    totpEnabled: "两步验证",
-    passkeyEnabled: "Passkey",
-    avatarUrl: "头像",
+  username: "用户名",
+  email: "邮箱地址",
+  role: "角色",
+  password: "密码",
+  dailyUsage: "每日用量",
+  lastUsageDate: "最后使用日期",
+  totpEnabled: "两步验证",
+  passkeyEnabled: "Passkey",
+  avatarUrl: "头像",
 };
 
 /**
@@ -190,31 +178,31 @@ const FIELD_LABELS: Record<string, string> = {
  * @param newPassword   可选，如果密码被修改则传入明文新密码
  */
 export function generateAdminUserUpdatedEmailHtml(
-    username: string,
-    changeTime: string,
-    adminUsername: string,
-    changes: Array<{ field: string; oldValue: string; newValue: string }>,
-    newPassword?: string,
+  username: string,
+  changeTime: string,
+  adminUsername: string,
+  changes: Array<{ field: string; oldValue: string; newValue: string }>,
+  newPassword?: string,
 ): string {
-    const tpl = loadTemplate("admin-user-updated.html");
+  const tpl = loadTemplate("admin-user-updated.html");
 
-    // 构建变更明细表格
-    const changeRows = changes
-        .filter(c => c.field !== "password") // 密码单独展示
-        .map((c, i) => {
-            const label = FIELD_LABELS[c.field] || c.field;
-            const bg = i % 2 === 0 ? ' style="background-color: #f8f9fa;"' : "";
-            return `<tr${bg}>
+  // 构建变更明细表格
+  const changeRows = changes
+    .filter((c) => c.field !== "password") // 密码单独展示
+    .map((c, i) => {
+      const label = FIELD_LABELS[c.field] || c.field;
+      const bg = i % 2 === 0 ? ' style="background-color: #f8f9fa;"' : "";
+      return `<tr${bg}>
                 <td style="padding: 10px 16px; font-size: 13px; color: #5f6368; border-bottom: 1px solid #e8eaed; width: 100px;">${label}</td>
                 <td style="padding: 10px 16px; font-size: 13px; color: rgba(0,0,0,0.54); border-bottom: 1px solid #e8eaed; text-decoration: line-through;">${c.oldValue || "（空）"}</td>
                 <td style="padding: 10px 16px; font-size: 13px; color: rgba(0,0,0,0.87); border-bottom: 1px solid #e8eaed; font-weight: 600;">${c.newValue}</td>
             </tr>`;
-        })
-        .join("\n");
+    })
+    .join("\n");
 
-    let changesTableHtml = "";
-    if (changeRows) {
-        changesTableHtml = `
+  let changesTableHtml = "";
+  if (changeRows) {
+    changesTableHtml = `
             <p style="font-size: 14px; color: rgba(0,0,0,0.87); margin-bottom: 8px;">以下信息已被修改：</p>
             <table width="100%" cellspacing="0" cellpadding="0"
                 style="margin-bottom: 16px; border: 1px solid #e8eaed; border-radius: 8px; overflow: hidden;">
@@ -225,12 +213,12 @@ export function generateAdminUserUpdatedEmailHtml(
                 </tr>
                 ${changeRows}
             </table>`;
-    }
+  }
 
-    // 密码变更凭据块
-    let credentialsBlockHtml = "";
-    if (newPassword) {
-        credentialsBlockHtml = `
+  // 密码变更凭据块
+  let credentialsBlockHtml = "";
+  if (newPassword) {
+    credentialsBlockHtml = `
             <div style="margin-top: 12px; margin-bottom: 16px; padding: 16px; background-color: #fce8e6; border: 1px solid #d93025; border-radius: 8px;">
                 <p style="font-size: 14px; color: #d93025; margin: 0 0 12px 0; font-weight: 600;">🔑 您的密码已被重置，请使用以下新凭据登录：</p>
                 <table width="100%" cellspacing="0" cellpadding="0"
@@ -246,15 +234,15 @@ export function generateAdminUserUpdatedEmailHtml(
                 </table>
                 <p style="font-size: 12px; color: #d93025; margin: 12px 0 0 0;">❗ 请在登录后立即修改密码，不要将此密码分享给任何人。</p>
             </div>`;
-    }
+  }
 
-    return renderTemplate(tpl, {
-        username,
-        changeTime,
-        adminUsername,
-        changesTable: changesTableHtml,
-        credentialsBlock: credentialsBlockHtml,
-    });
+  return renderTemplate(tpl, {
+    username,
+    changeTime,
+    adminUsername,
+    changesTable: changesTableHtml,
+    credentialsBlock: credentialsBlockHtml,
+  });
 }
 
 /**
@@ -268,171 +256,420 @@ export function generateAdminUserUpdatedEmailHtml(
  * - `{{userAgent}}` – 设备 User-Agent
  */
 export function generateLoginIpChangedEmailHtml(
-    username: string,
-    currentIp: string,
-    lastIp: string,
-    loginTime: string,
-    userAgent: string,
+  username: string,
+  currentIp: string,
+  lastIp: string,
+  loginTime: string,
+  userAgent: string,
 ): string {
-    const tpl = loadTemplate("login-ip-changed.html");
-    // 截断过长的 User-Agent
-    const shortUA = userAgent.length > 120 ? userAgent.substring(0, 120) + "..." : userAgent;
-    return renderTemplate(tpl, {
-        username,
-        currentIp,
-        lastIp,
-        loginTime,
-        userAgent: shortUA,
-    });
+  const tpl = loadTemplate("login-ip-changed.html");
+  // 截断过长的 User-Agent
+  const shortUA = userAgent.length > 120 ? `${userAgent.substring(0, 120)}...` : userAgent;
+  return renderTemplate(tpl, {
+    username,
+    currentIp,
+    lastIp,
+    loginTime,
+    userAgent: shortUA,
+  });
 }
 
 /**
  * 通用安全通知生成函数（使用 security-notice.html 模板）
  */
 function generateSecurityNoticeHtml(
-    username: string,
-    title: string,
-    description: string,
-    time: string,
-    ip: string,
-    device: string,
-    warning: string = "如果您并未进行此操作，请立即修改密码并检查账号安全。",
+  username: string,
+  title: string,
+  description: string,
+  time: string,
+  ip: string,
+  device: string,
+  warning: string = "如果您并未进行此操作，请立即修改密码并检查账号安全。",
 ): string {
-    const tpl = loadTemplate("security-notice.html");
-    const shortUA = device.length > 120 ? device.substring(0, 120) + "..." : device;
-    return renderTemplate(tpl, {
-        username,
-        title,
-        description,
-        time,
-        ip,
-        device: shortUA,
-        warning,
-    });
+  const tpl = loadTemplate("security-notice.html");
+  const shortUA = device.length > 120 ? `${device.substring(0, 120)}...` : device;
+  return renderTemplate(tpl, {
+    username,
+    title,
+    description,
+    time,
+    ip,
+    device: shortUA,
+    warning,
+  });
 }
 
 /** 2FA 变更：启用 TOTP */
 export function generateTOTPEnabledEmailHtml(username: string, time: string, ip: string, device: string): string {
-    return generateSecurityNoticeHtml(username, "两步验证 (TOTP) 已开启", "您的账号已成功启用两步验证 (TOTP)，账户安全性已得到进一步提升。", time, ip, device, "如果您并未进行此操作，请立即通过其他设备修改密码并尝试找回控制权。");
+  return generateSecurityNoticeHtml(
+    username,
+    "两步验证 (TOTP) 已开启",
+    "您的账号已成功启用两步验证 (TOTP)，账户安全性已得到进一步提升。",
+    time,
+    ip,
+    device,
+    "如果您并未进行此操作，请立即通过其他设备修改密码并尝试找回控制权。",
+  );
 }
 
 /** 2FA 变更：禁用 TOTP */
 export function generateTOTPDisabledEmailHtml(username: string, time: string, ip: string, device: string): string {
-    return generateSecurityNoticeHtml(username, "两步验证 (TOTP) 已关闭", "您的账号已关闭两步验证 (TOTP)。由于安全性降低，建议您尽快重新开启或启用 Passkey。", time, ip, device, "警告：禁用两步验证会显著降低账号安全性。如果您并未进行此操作，您的账号可能已被他人控制，请立即修改密码。");
+  return generateSecurityNoticeHtml(
+    username,
+    "两步验证 (TOTP) 已关闭",
+    "您的账号已关闭两步验证 (TOTP)。由于安全性降低，建议您尽快重新开启或启用 Passkey。",
+    time,
+    ip,
+    device,
+    "警告：禁用两步验证会显著降低账号安全性。如果您并未进行此操作，您的账号可能已被他人控制，请立即修改密码。",
+  );
 }
 
 /** 2FA 变更：添加 Passkey */
-export function generatePasskeyAddedEmailHtml(username: string, name: string, time: string, ip: string, device: string): string {
-    return generateSecurityNoticeHtml(username, "新 Passkey 已添加", `您的账号已成功添加新的 Passkey 凭证：<strong>${name}</strong>。`, time, ip, device);
+export function generatePasskeyAddedEmailHtml(
+  username: string,
+  name: string,
+  time: string,
+  ip: string,
+  device: string,
+): string {
+  return generateSecurityNoticeHtml(
+    username,
+    "新 Passkey 已添加",
+    `您的账号已成功添加新的 Passkey 凭证：<strong>${name}</strong>。`,
+    time,
+    ip,
+    device,
+  );
 }
 
 /** 2FA 变更：删除 Passkey */
 export function generatePasskeyRemovedEmailHtml(username: string, time: string, ip: string, device: string): string {
-    return generateSecurityNoticeHtml(username, "Passkey 已移除", "您的账号已移除一个 Passkey 凭证。如果您移除了所有凭证，建议您重新添加或确保 TOTP 已开启。", time, ip, device);
+  return generateSecurityNoticeHtml(
+    username,
+    "Passkey 已移除",
+    "您的账号已移除一个 Passkey 凭证。如果您移除了所有凭证，建议您重新添加或确保 TOTP 已开启。",
+    time,
+    ip,
+    device,
+  );
 }
 
 /** 安全事件：账号被锁定 */
-export function generateAccountLockedEmailHtml(username: string, time: string, ip: string, device: string, duration: string): string {
-    return generateSecurityNoticeHtml(username, "账号因异常尝试被锁定", `您的账号在短时间内出现了多次失败的验证尝试，出于安全考虑，系统已暂时锁定您的账号验证功能 <strong>${duration}</strong>。`, time, ip, device, "如果是您本人操作，请在锁定时间结束后重试；如果不是，请考虑修改登录密码。");
+export function generateAccountLockedEmailHtml(
+  username: string,
+  time: string,
+  ip: string,
+  device: string,
+  duration: string,
+): string {
+  return generateSecurityNoticeHtml(
+    username,
+    "账号因异常尝试被锁定",
+    `您的账号在短时间内出现了多次失败的验证尝试，出于安全考虑，系统已暂时锁定您的账号验证功能 <strong>${duration}</strong>。`,
+    time,
+    ip,
+    device,
+    "如果是您本人操作，请在锁定时间结束后重试；如果不是，请考虑修改登录密码。",
+  );
 }
 
 /** 安全事件：恢复码使用通知 */
-export function generateBackupCodeUsedEmailHtml(username: string, remaining: number, time: string, ip: string, device: string): string {
-    const warning = remaining <= 2 ? `❗ 警告：您仅剩 ${remaining} 个可用的恢复码，请尽快重新生成。` : "请确保这些操作是您本人进行的。";
-    return generateSecurityNoticeHtml(username, "备用恢复码已使用", `您成功使用了一个备用恢复码登录系统。目前您还剩余 <strong>${remaining}</strong> 个可用的恢复码。`, time, ip, device, warning);
+export function generateBackupCodeUsedEmailHtml(
+  username: string,
+  remaining: number,
+  time: string,
+  ip: string,
+  device: string,
+): string {
+  const warning =
+    remaining <= 2 ? `❗ 警告：您仅剩 ${remaining} 个可用的恢复码，请尽快重新生成。` : "请确保这些操作是您本人进行的。";
+  return generateSecurityNoticeHtml(
+    username,
+    "备用恢复码已使用",
+    `您成功使用了一个备用恢复码登录系统。目前您还剩余 <strong>${remaining}</strong> 个可用的恢复码。`,
+    time,
+    ip,
+    device,
+    warning,
+  );
 }
 
 /** 资源：CDK 兑换成功 */
-export function generateCDKActivatedEmailHtml(username: string, cdk: string, info: string, time: string, ip: string, device: string): string {
-    return generateSecurityNoticeHtml(username, "礼品卡/兑换码使用成功", `您已成功兑换了以下资源：<strong>${info}</strong>。<br/>兑换码：<code>${cdk}</code>`, time, ip, device, "祝您使用愉快！");
+export function generateCDKActivatedEmailHtml(
+  username: string,
+  cdk: string,
+  info: string,
+  time: string,
+  ip: string,
+  device: string,
+): string {
+  return generateSecurityNoticeHtml(
+    username,
+    "礼品卡/兑换码使用成功",
+    `您已成功兑换了以下资源：<strong>${info}</strong>。<br/>兑换码：<code>${cdk}</code>`,
+    time,
+    ip,
+    device,
+    "祝您使用愉快！",
+  );
 }
 
 /** 资源：用量警报 */
-export function generateUsageAlertEmailHtml(username: string, percent: string, current: number, total: number, time: string): string {
-    return generateSecurityNoticeHtml(username, "账号额度消耗警报", `您的每日使用额度已消耗达 <strong>${percent}</strong>。<br/>当前已使用：${current} / 总额度：${total}`, time, "系统自动检测", "N/A", percent === "100%" ? "您的今日额度已耗尽，服务将暂时无法使用，直至额度重置。" : "请注意合理安排您的使用进度。");
+export function generateUsageAlertEmailHtml(
+  username: string,
+  percent: string,
+  current: number,
+  total: number,
+  time: string,
+): string {
+  return generateSecurityNoticeHtml(
+    username,
+    "账号额度消耗警报",
+    `您的每日使用额度已消耗达 <strong>${percent}</strong>。<br/>当前已使用：${current} / 总额度：${total}`,
+    time,
+    "系统自动检测",
+    "N/A",
+    percent === "100%" ? "您的今日额度已耗尽，服务将暂时无法使用，直至额度重置。" : "请注意合理安排您的使用进度。",
+  );
 }
 
 /** 账户：邮箱变更通知（发送至旧邮箱） */
-export function generateEmailChangeOldNoticeHtml(username: string, newEmail: string, time: string, ip: string, device: string): string {
-    return generateSecurityNoticeHtml(username, "账户邮箱已更改", `您的 Synapse 账户邮箱已从当前地址更改为 <strong>${newEmail}</strong>。此后，所有系统通知将发送至新邮箱。`, time, ip, device, "如果您并未进行此操作，请立即通过新邮箱重置密码或联系管理员找回账号。");
+export function generateEmailChangeOldNoticeHtml(
+  username: string,
+  newEmail: string,
+  time: string,
+  ip: string,
+  device: string,
+): string {
+  return generateSecurityNoticeHtml(
+    username,
+    "账户邮箱已更改",
+    `您的 Synapse 账户邮箱已从当前地址更改为 <strong>${newEmail}</strong>。此后，所有系统通知将发送至新邮箱。`,
+    time,
+    ip,
+    device,
+    "如果您并未进行此操作，请立即通过新邮箱重置密码或联系管理员找回账号。",
+  );
 }
 
 /** 账户：邮箱变更成功（发送至新邮箱） */
-export function generateEmailChangeNewNoticeHtml(username: string, oldEmail: string, time: string, ip: string, device: string): string {
-    return generateSecurityNoticeHtml(username, "账户邮箱绑定成功", `您的 Synapse 账户已成功绑定至此邮箱地址（原邮箱：${oldEmail}）。您现在可以使用此邮箱进行登录和接收通知。`, time, ip, device, "欢迎使用 Synapse 邮件通知服务。");
+export function generateEmailChangeNewNoticeHtml(
+  username: string,
+  oldEmail: string,
+  time: string,
+  ip: string,
+  device: string,
+): string {
+  return generateSecurityNoticeHtml(
+    username,
+    "账户邮箱绑定成功",
+    `您的 Synapse 账户已成功绑定至此邮箱地址（原邮箱：${oldEmail}）。您现在可以使用此邮箱进行登录和接收通知。`,
+    time,
+    ip,
+    device,
+    "欢迎使用 Synapse 邮件通知服务。",
+  );
 }
 
 /** 账户：角色/权限变更 */
-export function generateRoleChangedEmailHtml(username: string, newRole: string, time: string, ip: string, device: string): string {
-    const roleName = newRole === "admin" ? "管理员" : "普通用户";
-    return generateSecurityNoticeHtml(username, "账户权限已变更", `您的账户权限级别已更新为：<strong>${roleName}</strong>。这可能会影响您访问特定功能或管理面板的权限。`, time, ip, device, "如果是管理员进行的操作，您无需采取任何行动；如有疑问请联系系统支持。");
+export function generateRoleChangedEmailHtml(
+  username: string,
+  newRole: string,
+  time: string,
+  ip: string,
+  device: string,
+): string {
+  const roleName = newRole === "admin" ? "管理员" : "普通用户";
+  return generateSecurityNoticeHtml(
+    username,
+    "账户权限已变更",
+    `您的账户权限级别已更新为：<strong>${roleName}</strong>。这可能会影响您访问特定功能或管理面板的权限。`,
+    time,
+    ip,
+    device,
+    "如果是管理员进行的操作，您无需采取任何行动；如有疑问请联系系统支持。",
+  );
 }
 
 /** 账户：注销申请确认 */
-export function generateAccountDeletionRequestedEmailHtml(username: string, time: string, ip: string, device: string): string {
-    return generateSecurityNoticeHtml(username, "账号注销申请已收到", "我们已收到您注销账户的请求。请注意，账号一旦注销，您的所有数据（包括配置、历史记录和余额）将无法恢复。", time, ip, device, "如果您后悔了，请在 24 小时内尝试登录并取消注销申请，或立即联系管理员。");
+export function generateAccountDeletionRequestedEmailHtml(
+  username: string,
+  time: string,
+  ip: string,
+  device: string,
+): string {
+  return generateSecurityNoticeHtml(
+    username,
+    "账号注销申请已收到",
+    "我们已收到您注销账户的请求。请注意，账号一旦注销，您的所有数据（包括配置、历史记录和余额）将无法恢复。",
+    time,
+    ip,
+    device,
+    "如果您后悔了，请在 24 小时内尝试登录并取消注销申请，或立即联系管理员。",
+  );
 }
 
 /** 账户：账号已彻底注销 */
 export function generateAccountDeletedEmailHtml(username: string, time: string): string {
-    return generateSecurityNoticeHtml(username, "账号注销成功", "您的 Synapse 账户及其关联数据已按照您的请求被永久删除。感谢您曾经选择 Synapse。", time, "N/A", "N/A", "再见，祝您前程似锦。");
+  return generateSecurityNoticeHtml(
+    username,
+    "账号注销成功",
+    "您的 Synapse 账户及其关联数据已按照您的请求被永久删除。感谢您曾经选择 Synapse。",
+    time,
+    "N/A",
+    "N/A",
+    "再见，祝您前程似锦。",
+  );
 }
 
 /** 资源：有效期预警 */
-export function generateResourceExpiryWarningEmailHtml(username: string, resourceName: string, expiryDate: string, daysLeft: number): string {
-    const title = daysLeft <= 3 ? "❗ 资源即将过期提醒" : "资源续期提醒";
-    return generateSecurityNoticeHtml(username, title, `您的资源 <strong>${resourceName}</strong> 即将到期。<br/>到期时间：${expiryDate}<br/>剩余时间：<strong>${daysLeft} 天</strong>`, new Date().toLocaleString(), "系统自动检测", "N/A", "为避免影响您的正常使用，请及时通过 CDK 或相关渠道进行续期。");
+export function generateResourceExpiryWarningEmailHtml(
+  username: string,
+  resourceName: string,
+  expiryDate: string,
+  daysLeft: number,
+): string {
+  const title = daysLeft <= 3 ? "❗ 资源即将过期提醒" : "资源续期提醒";
+  return generateSecurityNoticeHtml(
+    username,
+    title,
+    `您的资源 <strong>${resourceName}</strong> 即将到期。<br/>到期时间：${expiryDate}<br/>剩余时间：<strong>${daysLeft} 天</strong>`,
+    new Date().toLocaleString(),
+    "系统自动检测",
+    "N/A",
+    "为避免影响您的正常使用，请及时通过 CDK 或相关渠道进行续期。",
+  );
 }
 
 /** 互动：反馈/工单回复通知 */
-export function generateFeedbackRepliedEmailHtml(username: string, ticketTitle: string, replyContent: string, time: string): string {
-    const description = `您提交的工单/反馈 <strong>「${ticketTitle}」</strong> 已收到新的回复：<br/><br/><div style="padding: 12px; background: #fff; border-left: 4px solid #4F46E5; font-style: italic;">${replyContent}</div>`;
-    return generateSecurityNoticeHtml(username, "收到新的回复通知", description, time, "系统支持中心", "Web 终端", "您可以登录系统查看完整对话记录或进行回复。");
+export function generateFeedbackRepliedEmailHtml(
+  username: string,
+  ticketTitle: string,
+  replyContent: string,
+  time: string,
+): string {
+  const description = `您提交的工单/反馈 <strong>「${ticketTitle}」</strong> 已收到新的回复：<br/><br/><div style="padding: 12px; background: #fff; border-left: 4px solid #4F46E5; font-style: italic;">${replyContent}</div>`;
+  return generateSecurityNoticeHtml(
+    username,
+    "收到新的回复通知",
+    description,
+    time,
+    "系统支持中心",
+    "Web 终端",
+    "您可以登录系统查看完整对话记录或进行回复。",
+  );
 }
 
 /** 工单：新工单创建通知 (发送给管理员) */
-export function generateTicketCreatedEmailHtml(adminName: string, userName: string, ticketTitle: string, priority: string, time: string): string {
-    const priorityText = priority === "high" ? '<span style="color: #d93025; font-weight: bold;">[紧急]</span> ' : priority === "medium" ? "[一般] " : "[低] ";
-    const description = `用户 <strong>${userName}</strong> 提交了一个新的工单：<br/><br/>标题：${priorityText}<strong>${ticketTitle}</strong>`;
-    return generateSecurityNoticeHtml(adminName, "收到新的支持工单", description, time, "系统支持中心", "用户提交", "请及时登录管理后台进行处理。");
+export function generateTicketCreatedEmailHtml(
+  adminName: string,
+  userName: string,
+  ticketTitle: string,
+  priority: string,
+  time: string,
+): string {
+  const priorityText =
+    priority === "high"
+      ? '<span style="color: #d93025; font-weight: bold;">[紧急]</span> '
+      : priority === "medium"
+        ? "[一般] "
+        : "[低] ";
+  const description = `用户 <strong>${userName}</strong> 提交了一个新的工单：<br/><br/>标题：${priorityText}<strong>${ticketTitle}</strong>`;
+  return generateSecurityNoticeHtml(
+    adminName,
+    "收到新的支持工单",
+    description,
+    time,
+    "系统支持中心",
+    "用户提交",
+    "请及时登录管理后台进行处理。",
+  );
 }
 
 /** 工单：工单状态变更通知 */
-export function generateTicketStatusChangedEmailHtml(username: string, ticketTitle: string, newStatus: string, time: string): string {
-    const statusMap: Record<string, string> = {
-        "open": "待处理",
-        "in-progress": "处理中",
-        "resolved": "已解决",
-        "closed": "已关闭"
-    };
-    const statusText = statusMap[newStatus] || newStatus;
-    const description = `您的工单 <strong>「${ticketTitle}」</strong> 状态已更新为：<strong>${statusText}</strong>。`;
-    return generateSecurityNoticeHtml(username, "工单处理状态更新", description, time, "系统支持中心", "Web 终端", "如果对处理结果有疑问，您可以登录系统进行反馈。");
+export function generateTicketStatusChangedEmailHtml(
+  username: string,
+  ticketTitle: string,
+  newStatus: string,
+  time: string,
+): string {
+  const statusMap: Record<string, string> = {
+    open: "待处理",
+    "in-progress": "处理中",
+    resolved: "已解决",
+    closed: "已关闭",
+  };
+  const statusText = statusMap[newStatus] || newStatus;
+  const description = `您的工单 <strong>「${ticketTitle}」</strong> 状态已更新为：<strong>${statusText}</strong>。`;
+  return generateSecurityNoticeHtml(
+    username,
+    "工单处理状态更新",
+    description,
+    time,
+    "系统支持中心",
+    "Web 终端",
+    "如果对处理结果有疑问，您可以登录系统进行反馈。",
+  );
 }
 
 /** 工单：言论违规警告 */
-export function generateTicketViolationWarningEmailHtml(username: string, content: string, reason: string, time: string): string {
-    const description = `我们在您的工单互动中检测到了不当言论：<br/><br/>
+export function generateTicketViolationWarningEmailHtml(
+  username: string,
+  content: string,
+  reason: string,
+  time: string,
+): string {
+  const description = `我们在您的工单互动中检测到了不当言论：<br/><br/>
         <div style="padding: 12px; background: #fff; border-left: 4px solid #f9ab00; margin-bottom: 8px;">
             <strong>提交内容：</strong> ${content}<br/>
             <strong>违规判定：</strong> <span style="color: #d93025;">${reason}</span>
         </div>
         请注意：维护和谐的沟通环境是每位用户的责任。`;
-    return generateSecurityNoticeHtml(username, "⚠️ 工单言论违规警告", description, time, "AI 审查中心", "系统自动审计", "这是您的首次违规警告，后续再次违规将导致您的工单权限被暂时或永久封禁。");
+  return generateSecurityNoticeHtml(
+    username,
+    "⚠️ 工单言论违规警告",
+    description,
+    time,
+    "AI 审查中心",
+    "系统自动审计",
+    "这是您的首次违规警告，后续再次违规将导致您的工单权限被暂时或永久封禁。",
+  );
 }
 
 /** 工单：权限封禁通知 */
-export function generateTicketBannedEmailHtml(username: string, count: number, reason: string, remaining: string, time: string): string {
-    const description = `由于您多次违反社区准则，您的工单支持权限已被暂时限制。<br/><br/>
+export function generateTicketBannedEmailHtml(
+  username: string,
+  count: number,
+  reason: string,
+  remaining: string,
+  time: string,
+): string {
+  const description = `由于您多次违反社区准则，您的工单支持权限已被暂时限制。<br/><br/>
         <strong>累计违规：</strong> ${count} 次<br/>
         <strong>本次违规原因：</strong> <span style="color: #d93025;">${reason}</span><br/>
         <strong>封禁有效期：</strong> <strong style="color: #d93025;">${remaining}</strong>`;
-    return generateSecurityNoticeHtml(username, "🚫 工单访问权限已封禁", description, time, "安全管理中心", "系统自动执行", "在封禁期间，您将无法创建新工单或回复已有工单。请在封禁结束后文明发言。");
+  return generateSecurityNoticeHtml(
+    username,
+    "🚫 工单访问权限已封禁",
+    description,
+    time,
+    "安全管理中心",
+    "系统自动执行",
+    "在封禁期间，您将无法创建新工单或回复已有工单。请在封禁结束后文明发言。",
+  );
 }
 
 /** 工单：封禁解除通知 */
 export function generateTicketUnbannedEmailHtml(username: string, time: string): string {
-    const description = "您的工单系统访问限制现已解除。现在您可以正常使用工单咨询与反馈服务了。";
-    return generateSecurityNoticeHtml(username, "✅ 工单权限恢复通知", description, time, "安全管理中心", "系统自动解除", "我们期待您能遵守社区准则，共同维护文明专业的沟通环境。");
+  const description = "您的工单系统访问限制现已解除。现在您可以正常使用工单咨询与反馈服务了。";
+  return generateSecurityNoticeHtml(
+    username,
+    "✅ 工单权限恢复通知",
+    description,
+    time,
+    "安全管理中心",
+    "系统自动解除",
+    "我们期待您能遵守社区准则，共同维护文明专业的沟通环境。",
+  );
 }
-

@@ -42,7 +42,7 @@ export const recordPolicyConsent = async (req: Request, res: Response): Promise<
     const clientIP = getClientIP(req);
 
     // 验证必需字段
-    if (!consent || !consent.timestamp || !consent.version || !consent.fingerprint || !consent.checksum) {
+    if (!consent?.timestamp || !consent.version || !consent.fingerprint || !consent.checksum) {
       res.status(400).json({
         success: false,
         error: "Missing required consent fields",

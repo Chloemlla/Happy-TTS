@@ -137,11 +137,7 @@ export class ArtifactController {
       const { shortId } = req.params;
       const updates = req.body;
 
-      const artifact = await ArtifactService.updateArtifact(
-        shortId,
-        userId,
-        updates
-      );
+      const artifact = await ArtifactService.updateArtifact(shortId, userId, updates);
 
       if (!artifact) {
         return res.status(404).json({
@@ -217,8 +213,8 @@ export class ArtifactController {
         });
       }
 
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 20;
+      const page = parseInt(req.query.page as string, 10) || 1;
+      const limit = parseInt(req.query.limit as string, 10) || 20;
       const sort = (req.query.sort as string) || "createdAt";
       const order = (req.query.order as "asc" | "desc") || "desc";
 
@@ -252,7 +248,7 @@ export class ArtifactController {
       const { referer, user_agent } = req.body;
 
       const ipAddress = req.ip || (req.headers["x-real-ip"] as string);
-      const userAgent = user_agent || req.headers["user-agent"] as string;
+      const userAgent = user_agent || (req.headers["user-agent"] as string);
 
       await ArtifactService.recordView(shortId, {
         ipAddress,

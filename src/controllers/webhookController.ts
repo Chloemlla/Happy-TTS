@@ -23,12 +23,23 @@ export class WebhookController {
   static async handleGenericWebhook(req: Request, res: Response) {
     try {
       const source = (req.params as any)?.source as string | undefined;
-      const body =
-        Buffer.isBuffer(req.body)
-          ? (() => { try { return JSON.parse(req.body.toString("utf8")); } catch { return { raw: req.body.toString("utf8") }; } })()
-          : typeof req.body === "string"
-            ? (() => { try { return JSON.parse(req.body); } catch { return { raw: req.body }; } })()
-            : req.body || {};
+      const body = Buffer.isBuffer(req.body)
+        ? (() => {
+            try {
+              return JSON.parse(req.body.toString("utf8"));
+            } catch {
+              return { raw: req.body.toString("utf8") };
+            }
+          })()
+        : typeof req.body === "string"
+          ? (() => {
+              try {
+                return JSON.parse(req.body);
+              } catch {
+                return { raw: req.body };
+              }
+            })()
+          : req.body || {};
 
       const type = body.type || body.event || body.action || "generic";
       const eventId = body.id || body.event_id || body.eventId || undefined;

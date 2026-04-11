@@ -2,16 +2,13 @@ import crypto from "node:crypto";
 import { isIP } from "node:net";
 import axios from "axios";
 import { config } from "../config/config";
-import { IpVerificationTokenModel } from "../models/ipVerificationTokenModel";
 import { IpqsLookupLogModel } from "../models/ipqsLookupLogModel";
-import { IpqsQuotaModel, type IpqsQuotaDoc } from "../models/ipqsQuotaModel";
+import { type IpqsQuotaDoc, IpqsQuotaModel } from "../models/ipqsQuotaModel";
+import { IpVerificationTokenModel } from "../models/ipVerificationTokenModel";
+import logger from "../utils/logger";
+import { buildScamalyticsLookupUrl, normalizeScamalyticsUser } from "../utils/scamalytics";
 import { connectMongo, mongoose } from "./mongoService";
 import { TurnstileService } from "./turnstileService";
-import logger from "../utils/logger";
-import {
-  buildScamalyticsLookupUrl,
-  normalizeScamalyticsUser,
-} from "../utils/scamalytics";
 
 interface ScamalyticsResponse {
   scamalytics: {
@@ -94,9 +91,7 @@ function monthKey(date = new Date()): string {
 }
 
 function hashApiKey(apiKey: string): string {
-  return crypto
-    .pbkdf2Sync(apiKey, `ipqs:${config.jwtSecret}`, 120_000, 16, "sha256")
-    .toString("hex");
+  return crypto.pbkdf2Sync(apiKey, `ipqs:${config.jwtSecret}`, 120_000, 16, "sha256").toString("hex");
 }
 
 function extractRiskFlags(response: ScamalyticsResponse): string[] {
@@ -117,8 +112,7 @@ function extractRiskFlags(response: ScamalyticsResponse): string[] {
 function shouldRequireVerification(response: ScamalyticsResponse): LookupDecision {
   const fraudScore = Number(response.scamalytics.scamalytics_score || 0);
   const riskFlags = extractRiskFlags(response);
-  const requiresVerification =
-    fraudScore >= config.ipqs.challengeFraudScore || riskFlags.length > 0;
+  const requiresVerification = fraudScore >= config.ipqs.challengeFraudScore || riskFlags.length > 0;
 
   return {
     success: true,
@@ -133,9 +127,7 @@ function shouldRequireVerification(response: ScamalyticsResponse): LookupDecisio
   };
 }
 
-function toLookupLogRawResponse(
-  response?: ScamalyticsResponse,
-): Record<string, unknown> | undefined {
+function toLookupLogRawResponse(response?: ScamalyticsResponse): Record<string, unknown> | undefined {
   return response ? { ...response } : undefined;
 }
 
@@ -158,10 +150,7 @@ export class IpVerificationService {
     return Array.from(new Set(config.ipqs.apiKeys.map((item) => item.trim()).filter(Boolean)));
   }
 
-  private static async getReusableToken(
-    fingerprint: string,
-    ipAddress: string,
-  ): Promise<any | null> {
+  private static async getReusableToken(fingerprint: string, ipAddress: string): Promise<any | null> {
     if (!(await ensureMongoIfEnabled())) return null;
 
     return IpVerificationTokenModel.findOne({
@@ -312,7 +301,8 @@ export class IpVerificationService {
       tor: false, // Scamalytics includes TOR in proxy or risk if enabled
       activeVpn: response?.scamalytics.scamalytics_proxy.is_vpn,
       activeTor: false,
-      recentAbuse: response?.scamalytics.scamalytics_risk === "high" || response?.scamalytics.scamalytics_risk === "very high",
+      recentAbuse:
+        response?.scamalytics.scamalytics_risk === "high" || response?.scamalytics.scamalytics_risk === "very high",
       botStatus: false,
       strictness: config.ipqs.strictness,
       rawResponse: toLookupLogRawResponse(response),
@@ -334,9 +324,7 @@ export class IpVerificationService {
 
     const month = monthKey();
     const selectedKey = await IpVerificationService.selectApiKey(month);
-    const scamalyticsUser = normalizeScamalyticsUser(
-      config.ipqs.scamalyticsUser,
-    );
+    const scamalyticsUser = normalizeScamalyticsUser(config.ipqs.scamalyticsUser);
 
     if (!selectedKey && config.ipqs.apiKeys.length > 0) {
       const exhaustedDecision: LookupDecision = {
@@ -356,32 +344,22 @@ export class IpVerificationService {
     const scamalyticsUrl = buildScamalyticsLookupUrl(scamalyticsUser);
 
     try {
-      const response = await axios.get<ScamalyticsResponse>(
-        scamalyticsUrl,
-        {
-          params: {
-            key: apiKey,
-            ip: context.ipAddress,
-          },
-          timeout: config.ipqs.timeoutMs,
-          maxRedirects: 0,
-        }
-      );
+      const response = await axios.get<ScamalyticsResponse>(scamalyticsUrl, {
+        params: {
+          key: apiKey,
+          ip: context.ipAddress,
+        },
+        timeout: config.ipqs.timeoutMs,
+        maxRedirects: 0,
+      });
 
       if (selectedKey) {
         await IpVerificationService.incrementQuota(month, selectedKey.slot, selectedKey.key);
       }
-      
+
       const decision = shouldRequireVerification(response.data);
 
-      await IpVerificationService.logLookup(
-        month,
-        slot,
-        hashApiKey(apiKey),
-        context,
-        decision,
-        response.data,
-      );
+      await IpVerificationService.logLookup(month, slot, hashApiKey(apiKey), context, decision, response.data);
 
       logger.info("[IpVerification] Scamalytics lookup completed", {
         ipAddress: context.ipAddress,
@@ -555,13 +533,7 @@ export class IpVerificationService {
       };
     }
 
-    return IpVerificationService.issueToken(
-      fingerprint,
-      ipAddress,
-      captchaType,
-      undefined,
-      [],
-    );
+    return IpVerificationService.issueToken(fingerprint, ipAddress, captchaType, undefined, []);
   }
 
   public static async verifyRequestToken(

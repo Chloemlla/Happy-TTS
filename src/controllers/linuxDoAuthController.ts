@@ -34,8 +34,7 @@ export class LinuxDoAuthController {
     source: unknown,
     missingPayloadMessage: string,
   ) {
-    const payload =
-      source && typeof source === "object" ? (source as Record<string, unknown>) : {};
+    const payload = source && typeof source === "object" ? (source as Record<string, unknown>) : {};
     const code = readCallbackField(payload.code);
     const state = readCallbackField(payload.state);
     const oauthError = readCallbackField(payload.error) || undefined;
@@ -57,8 +56,7 @@ export class LinuxDoAuthController {
 
       return res.redirect(302, redirectUrl);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Linux.do OAuth callback failed";
+      const message = error instanceof Error ? error.message : "Linux.do OAuth callback failed";
       logger.error("[Linux.do Auth] OAuth callback failed", {
         message,
         codePresent: Boolean(code),
@@ -114,9 +112,7 @@ export class LinuxDoAuthController {
 
     const payload = consumeLinuxDoLoginTicket(ticket);
     if (!payload) {
-      return res
-        .status(400)
-        .json({ error: "Linux.do exchange ticket is invalid or has expired" });
+      return res.status(400).json({ error: "Linux.do exchange ticket is invalid or has expired" });
     }
 
     return res.json(payload);

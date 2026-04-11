@@ -490,14 +490,14 @@ export class CDKService {
       });
 
       // 发送邮件通知
-      if (userInfo && userInfo.userId) {
+      if (userInfo?.userId) {
         try {
           const { UserStorage } = await import("../utils/userStorage");
           const { sendEmail } = await import("./emailSender");
           const { generateCDKActivatedEmailHtml } = await import("../templates/emailTemplates");
-          
+
           const user = await UserStorage.getUserById(userInfo.userId);
-          if (user && user.email) {
+          if (user?.email) {
             const time = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
             const emailHtml = generateCDKActivatedEmailHtml(
               user.username,
@@ -505,7 +505,7 @@ export class CDKService {
               resource.title,
               time,
               "N/A (API)",
-              "N/A"
+              "N/A",
             );
             sendEmail({
               to: user.email,
@@ -513,7 +513,7 @@ export class CDKService {
               html: emailHtml,
               logTag: "CDK兑换通知",
               checkQuota: false,
-            }).catch(e => logger.warn(`[CDK兑换通知] 邮件发送失败: ${user.email}`, e));
+            }).catch((e) => logger.warn(`[CDK兑换通知] 邮件发送失败: ${user.email}`, e));
           }
         } catch (notifyErr) {
           logger.warn("[CDK兑换通知] 发送通知邮件失败:", notifyErr);

@@ -2,15 +2,11 @@
  * Artifact 服务层
  * 处理 artifacts 分享功能的业务逻辑
  */
-import crypto from "crypto";
+
+import crypto from "node:crypto";
 import bcrypt from "bcrypt";
+import { ArtifactModel, ArtifactVersionModel, ArtifactViewModel, type IArtifact } from "../models/artifactModel";
 import logger from "../utils/logger";
-import {
-  ArtifactModel,
-  ArtifactVersionModel,
-  ArtifactViewModel,
-  type IArtifact,
-} from "../models/artifactModel";
 
 // ========== 工具函数 ==========
 
@@ -160,10 +156,7 @@ export class ArtifactService {
   /**
    * 获取 Artifact
    */
-  static async getArtifact(
-    shortId: string,
-    password?: string
-  ): Promise<IArtifact | null> {
+  static async getArtifact(shortId: string, password?: string): Promise<IArtifact | null> {
     try {
       const artifact = await ArtifactModel.findOne({ shortId }).lean();
 
@@ -213,7 +206,7 @@ export class ArtifactService {
       description?: string;
       tags?: string[];
       expiresInDays?: number;
-    }
+    },
   ): Promise<IArtifact | null> {
     try {
       const artifact = await ArtifactModel.findOne({ shortId, userId });
@@ -294,7 +287,7 @@ export class ArtifactService {
       limit?: number;
       sort?: string;
       order?: "asc" | "desc";
-    } = {}
+    } = {},
   ): Promise<{
     artifacts: any[];
     pagination: {
@@ -347,7 +340,7 @@ export class ArtifactService {
       ipAddress?: string;
       userAgent?: string;
       referer?: string;
-    }
+    },
   ): Promise<void> {
     try {
       const artifact = await ArtifactModel.findOne({ shortId });

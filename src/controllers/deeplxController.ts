@@ -1,11 +1,7 @@
 import type { Request, Response } from "express";
-import {
-  getDeepLXConfigSummary,
-  isDeepLXConfigured,
-  translateWithDeepLX,
-} from "../services/deeplxService";
-import { getClientIP } from "../utils/ipUtils";
+import { getDeepLXConfigSummary, isDeepLXConfigured, translateWithDeepLX } from "../services/deeplxService";
 import { TranslationLogService } from "../services/translationLogService";
+import { getClientIP } from "../utils/ipUtils";
 
 const MAX_TRANSLATE_LENGTH = 5000;
 

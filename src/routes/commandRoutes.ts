@@ -82,7 +82,7 @@ router.get("/q", commandLimiter, authenticateToken, async (req, res) => {
 
     // 获取管理员token作为加密密钥
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    if (!authHeader?.startsWith("Bearer ")) {
       return res.status(401).json({ error: "未携带Token，请先登录" });
     }
 
@@ -282,7 +282,7 @@ router.post("/status", authenticateToken, (req, res) => {
 
     // 获取管理员token作为加密密钥
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    if (!authHeader?.startsWith("Bearer ")) {
       return res.status(401).json({ error: "未携带Token，请先登录" });
     }
 
@@ -375,7 +375,7 @@ router.get("/history", commandLimiter, authenticateToken, async (req, res) => {
 
     // 获取管理员token作为加密密钥
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    if (!authHeader?.startsWith("Bearer ")) {
       return res.status(401).json({ error: "未携带Token，请先登录" });
     }
 
@@ -490,6 +490,7 @@ for (const r of router.stack) {
     break;
   }
 }
+
 export { commandStatusHandler };
 
 export default router;

@@ -32,13 +32,7 @@ interface GoogleProfile {
   avatarUrl?: string;
 }
 
-const RESERVED_USERNAMES = new Set([
-  "admin",
-  "administrator",
-  "root",
-  "system",
-  "test",
-]);
+const RESERVED_USERNAMES = new Set(["admin", "administrator", "root", "system", "test"]);
 
 function firstString(...values: unknown[]): string | undefined {
   for (const value of values) {
@@ -64,9 +58,7 @@ function sanitizeGoogleUsername(rawUsername: string | undefined, fallbackId: str
   let candidate = normalized;
 
   if (candidate.length < 3) {
-    candidate = `gg_${fallbackId}`
-      .replace(/[^a-zA-Z0-9_]+/g, "_")
-      .slice(0, 20);
+    candidate = `gg_${fallbackId}`.replace(/[^a-zA-Z0-9_]+/g, "_").slice(0, 20);
   }
 
   if (RESERVED_USERNAMES.has(candidate.toLowerCase())) {
@@ -86,10 +78,7 @@ async function getAvailableGoogleUsername(baseUsername: string): Promise<string>
 
   while (await UserStorage.getUserByUsername(candidate)) {
     const suffixText = `_${suffix}`;
-    candidate = `${baseUsername.slice(
-      0,
-      Math.max(3, 20 - suffixText.length),
-    )}${suffixText}`;
+    candidate = `${baseUsername.slice(0, Math.max(3, 20 - suffixText.length))}${suffixText}`;
     suffix += 1;
 
     if (suffix > 9999) {
@@ -109,18 +98,14 @@ async function findUserByEmail(email: string): Promise<User | null> {
   const normalizedEmail = email.trim().toLowerCase();
   const users = await UserStorage.getAllUsers();
   return (
-    users.find(
-      (user) => typeof user.email === "string" && user.email.trim().toLowerCase() === normalizedEmail,
-    ) || null
+    users.find((user) => typeof user.email === "string" && user.email.trim().toLowerCase() === normalizedEmail) || null
   );
 }
 
 function buildJwtToken(user: User): string {
-  return jwt.sign(
-    { userId: user.id, username: user.username, role: user.role || "user" },
-    config.jwtSecret,
-    { expiresIn: "2h" },
-  );
+  return jwt.sign({ userId: user.id, username: user.username, role: user.role || "user" }, config.jwtSecret, {
+    expiresIn: "2h",
+  });
 }
 
 function toAuthPayload(user: User, isNewUser: boolean): GoogleAuthPayload {
@@ -192,15 +177,14 @@ async function upsertGoogleUser(profile: GoogleProfile): Promise<{
     if ((existingUser as any).accountStatus === "suspended") {
       throw new Error("Account is suspended");
     }
-    const updatedExistingUser =
-      (await UserStorage.updateUser(existingUser.id, {
-        avatarUrl: profile.avatarUrl || existingUser.avatarUrl,
-        authProvider: existingUser.authProvider || "local",
-      })) || {
-        ...existingUser,
-        avatarUrl: profile.avatarUrl || existingUser.avatarUrl,
-        authProvider: existingUser.authProvider || "local",
-      };
+    const updatedExistingUser = (await UserStorage.updateUser(existingUser.id, {
+      avatarUrl: profile.avatarUrl || existingUser.avatarUrl,
+      authProvider: existingUser.authProvider || "local",
+    })) || {
+      ...existingUser,
+      avatarUrl: profile.avatarUrl || existingUser.avatarUrl,
+      authProvider: existingUser.authProvider || "local",
+    };
 
     return { user: updatedExistingUser, isNewUser: false };
   }
@@ -215,15 +199,14 @@ async function upsertGoogleUser(profile: GoogleProfile): Promise<{
     throw new Error("Failed to provision a local account for Google sign-in");
   }
 
-  const finalizedUser =
-    (await UserStorage.updateUser(createdUser.id, {
-      authProvider: "google",
-      avatarUrl: profile.avatarUrl,
-    })) || {
-      ...createdUser,
-      authProvider: "google" as const,
-      avatarUrl: profile.avatarUrl,
-    };
+  const finalizedUser = (await UserStorage.updateUser(createdUser.id, {
+    authProvider: "google",
+    avatarUrl: profile.avatarUrl,
+  })) || {
+    ...createdUser,
+    authProvider: "google" as const,
+    avatarUrl: profile.avatarUrl,
+  };
 
   return { user: finalizedUser, isNewUser: true };
 }
@@ -250,19 +233,18 @@ export async function authenticateGoogleUser(params: {
     throw new Error("Account is suspended");
   }
 
-  const finalizedUser =
-    (await UserStorage.updateUser(user.id, {
-      lastLoginIp: params.clientIp || "unknown",
-      lastLoginAt: new Date().toISOString(),
-      avatarUrl: profile.avatarUrl || user.avatarUrl,
-      authProvider: user.authProvider || "google",
-    })) || {
-      ...user,
-      lastLoginIp: params.clientIp || "unknown",
-      lastLoginAt: new Date().toISOString(),
-      avatarUrl: profile.avatarUrl || user.avatarUrl,
-      authProvider: user.authProvider || "google",
-    };
+  const finalizedUser = (await UserStorage.updateUser(user.id, {
+    lastLoginIp: params.clientIp || "unknown",
+    lastLoginAt: new Date().toISOString(),
+    avatarUrl: profile.avatarUrl || user.avatarUrl,
+    authProvider: user.authProvider || "google",
+  })) || {
+    ...user,
+    lastLoginIp: params.clientIp || "unknown",
+    lastLoginAt: new Date().toISOString(),
+    avatarUrl: profile.avatarUrl || user.avatarUrl,
+    authProvider: user.authProvider || "google",
+  };
 
   logger.info("[Google Auth] Login completed", {
     userId: finalizedUser.id,

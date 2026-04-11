@@ -33,4 +33,4 @@ IpBanSchema.index({ fingerprint: 1, expiresAt: 1 });
 const IpBanModel =
   (mongoose.models.IpBan as mongoose.Model<IpBanDoc>) || mongoose.model<IpBanDoc>("IpBan", IpBanSchema);
 
-export { IpBanModel, type IpBanDoc };
+export { type IpBanDoc, IpBanModel };

@@ -1,5 +1,7 @@
 import path from "node:path";
 import dotenv from "dotenv";
+import { RuntimeConfigService } from "../services/runtimeConfigService";
+import { MYSQL_DATABASE } from "./env";
 import {
   buildRuntimeConfigDefaults,
   type DeepLXRuntimeConfig,
@@ -8,15 +10,10 @@ import {
   type LinuxDoRuntimeConfig,
   type NexaiRuntimeConfig,
 } from "./runtimeConfigDefaults";
-import { RuntimeConfigService } from "../services/runtimeConfigService";
-import { MYSQL_DATABASE } from "./env";
 
 dotenv.config();
 
-const baseUrl =
-  process.env.VITE_API_URL ||
-  process.env.BASE_URL ||
-  "https://api.951100.xyz";
+const baseUrl = process.env.VITE_API_URL || process.env.BASE_URL || "https://api.951100.xyz";
 
 const frontendBaseUrl = process.env.FRONTEND_URL || "https://tts.951100.xyz";
 
@@ -103,8 +100,7 @@ export const config = {
     enabled: !!process.env.REDIS_URL,
   },
   ipBanStorage: process.env.REDIS_URL ? "redis" : "mongo",
-  enableFirstVisitVerification:
-    process.env.ENABLE_FIRST_VISIT_VERIFICATION !== "false",
+  enableFirstVisitVerification: process.env.ENABLE_FIRST_VISIT_VERIFICATION !== "false",
   get ipqs() {
     return getRuntimeIpqsConfig();
   },

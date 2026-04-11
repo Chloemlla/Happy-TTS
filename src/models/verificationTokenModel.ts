@@ -148,11 +148,7 @@ class VerificationTokenStorage {
    * @param ipAddress 当前IP地址
    * @returns 验证结果
    */
-  validateToken(
-    token: string,
-    fingerprint: string,
-    ipAddress: string,
-  ): { valid: boolean; error?: string } {
+  validateToken(token: string, fingerprint: string, ipAddress: string): { valid: boolean; error?: string } {
     const verificationToken = this.getToken(token);
 
     if (!verificationToken) {

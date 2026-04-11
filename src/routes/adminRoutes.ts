@@ -8,6 +8,7 @@ import { auditLog } from "../middleware/auditLog";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { authMiddleware } from "../middleware/authMiddleware";
 import { replayProtection } from "../middleware/replayProtection";
+import { sendEmail } from "../services/emailSender";
 import {
   clearEmailChangeChallenge,
   clearProfileVerificationSessions,
@@ -16,7 +17,6 @@ import {
   validateEmailChangeChallenge,
   validateProfileVerificationSession,
 } from "../services/profileUpdateVerificationService";
-import { sendEmail } from "../services/emailSender";
 import {
   generateEmailChangeNewNoticeHtml,
   generateEmailChangeOldNoticeHtml,
@@ -463,7 +463,7 @@ router.get("/shortlinks", authenticateToken, async (req, res) => {
 
     // 获取管理员token作为加密密钥
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    if (!authHeader?.startsWith("Bearer ")) {
       console.log("❌ [ShortLinkManager] Token格式错误：未携带Token或格式不正确");
       return res.status(401).json({ error: "未携带Token，请先登录" });
     }
@@ -958,14 +958,9 @@ router.post("/user/profile/verify", authMiddleware, async (req, res) => {
       return res.status(404).json({ error: "用户不存在" });
     }
 
-    const method =
-      typeof req.body?.method === "string" ? req.body.method : "";
-    const password =
-      typeof req.body?.password === "string" ? req.body.password : "";
-    const verificationCode =
-      typeof req.body?.verificationCode === "string"
-        ? req.body.verificationCode.trim()
-        : "";
+    const method = typeof req.body?.method === "string" ? req.body.method : "";
+    const password = typeof req.body?.password === "string" ? req.body.password : "";
+    const verificationCode = typeof req.body?.verificationCode === "string" ? req.body.verificationCode.trim() : "";
 
     if (!method || !["password", "totp", "passkey"].includes(method)) {
       return res.status(400).json({ error: "无效的验证方式" });
@@ -1008,10 +1003,7 @@ router.post("/user/profile/verify", authMiddleware, async (req, res) => {
       }
 
       const { PasskeyService } = require("../services/passkeyService");
-      const clientOrigin =
-        typeof req.body?.clientOrigin === "string"
-          ? req.body.clientOrigin
-          : undefined;
+      const clientOrigin = typeof req.body?.clientOrigin === "string" ? req.body.clientOrigin : undefined;
       const requestOrigin =
         clientOrigin ||
         (typeof req.headers.origin === "string" ? req.headers.origin : undefined) ||
@@ -1030,10 +1022,7 @@ router.post("/user/profile/verify", authMiddleware, async (req, res) => {
       }
     }
 
-    const session = createProfileVerificationSession(
-      dbUser.id,
-      method as "password" | "totp" | "passkey",
-    );
+    const session = createProfileVerificationSession(dbUser.id, method as "password" | "totp" | "passkey");
 
     return res.json({
       success: true,
@@ -1056,10 +1045,7 @@ router.post("/user/profile/email/send-code", authMiddleware, async (req, res) =>
       return res.status(404).json({ error: "用户不存在" });
     }
 
-    const verificationToken =
-      typeof req.body?.verificationToken === "string"
-        ? req.body.verificationToken
-        : "";
+    const verificationToken = typeof req.body?.verificationToken === "string" ? req.body.verificationToken : "";
     const newEmail = normalizeEmail(req.body?.newEmail);
 
     if (!verificationToken) {
@@ -1088,10 +1074,7 @@ router.post("/user/profile/email/send-code", authMiddleware, async (req, res) =>
       return res.status(429).json({ error: challenge.error || "验证码发送过于频繁，请稍后再试" });
     }
 
-    const emailHtml = generateVerificationCodeEmailHtml(
-      dbUser.username,
-      challenge.code,
-    );
+    const emailHtml = generateVerificationCodeEmailHtml(dbUser.username, challenge.code);
     const result = await sendEmail({
       to: newEmail,
       subject: "Synapse 邮箱变更验证码",
@@ -1119,22 +1102,12 @@ router.post("/user/profile", authMiddleware, async (req, res) => {
     const user = req.user;
     if (!user) return res.status(401).json({ error: "未登录" });
     const rawEmail = normalizeEmail(req.body?.email);
-    const password =
-      typeof req.body?.password === "string" ? req.body.password : "";
-    const newPassword =
-      typeof req.body?.newPassword === "string"
-        ? req.body.newPassword
-        : "";
-    const avatarUrl =
-      typeof req.body?.avatarUrl === "string" ? req.body.avatarUrl : "";
-    const verificationToken =
-      typeof req.body?.verificationToken === "string"
-        ? req.body.verificationToken
-        : "";
+    const password = typeof req.body?.password === "string" ? req.body.password : "";
+    const newPassword = typeof req.body?.newPassword === "string" ? req.body.newPassword : "";
+    const avatarUrl = typeof req.body?.avatarUrl === "string" ? req.body.avatarUrl : "";
+    const verificationToken = typeof req.body?.verificationToken === "string" ? req.body.verificationToken : "";
     const emailVerificationCode =
-      typeof req.body?.emailVerificationCode === "string"
-        ? req.body.emailVerificationCode.trim()
-        : "";
+      typeof req.body?.emailVerificationCode === "string" ? req.body.emailVerificationCode.trim() : "";
 
     const dbUser = await UserStorage.getUserById(user.id);
     if (!dbUser) {
@@ -1152,9 +1125,7 @@ router.post("/user/profile", authMiddleware, async (req, res) => {
 
     let verifiedBySession = false;
     if (verificationToken) {
-      verifiedBySession = Boolean(
-        validateProfileVerificationSession(dbUser.id, verificationToken),
-      );
+      verifiedBySession = Boolean(validateProfileVerificationSession(dbUser.id, verificationToken));
 
       if (!verifiedBySession) {
         return res.status(401).json({ error: "身份验证已过期，请重新验证" });
@@ -1179,15 +1150,9 @@ router.post("/user/profile", authMiddleware, async (req, res) => {
         return res.status(400).json({ error: "该邮箱已被其他账户使用" });
       }
 
-      const challengeResult = validateEmailChangeChallenge(
-        dbUser.id,
-        rawEmail,
-        emailVerificationCode,
-      );
+      const challengeResult = validateEmailChangeChallenge(dbUser.id, rawEmail, emailVerificationCode);
       if (!challengeResult.success) {
-        return res
-          .status(challengeResult.status)
-          .json({ error: challengeResult.error || "邮箱验证码校验失败" });
+        return res.status(challengeResult.status).json({ error: challengeResult.error || "邮箱验证码校验失败" });
       }
     }
 
@@ -1197,12 +1162,7 @@ router.post("/user/profile", authMiddleware, async (req, res) => {
       }
 
       if (verifiedBySession) {
-        const passwordErrors = UserStorage.validateUserInput(
-          dbUser.username,
-          newPassword,
-          dbUser.email,
-          true,
-        );
+        const passwordErrors = UserStorage.validateUserInput(dbUser.username, newPassword, dbUser.email, true);
         if (passwordErrors.length > 0) {
           return res.status(400).json({ error: passwordErrors[0].message });
         }
@@ -1211,12 +1171,7 @@ router.post("/user/profile", authMiddleware, async (req, res) => {
           return res.status(401).json({ error: "当前密码错误" });
         }
 
-        const passwordErrors = UserStorage.validateUserInput(
-          dbUser.username,
-          newPassword,
-          dbUser.email,
-          true,
-        );
+        const passwordErrors = UserStorage.validateUserInput(dbUser.username, newPassword, dbUser.email, true);
         if (passwordErrors.length > 0) {
           return res.status(400).json({ error: passwordErrors[0].message });
         }
@@ -1345,7 +1300,7 @@ router.post("/user/avatar", authMiddleware, upload.single("avatar"), async (req,
         undefined,
         { clientIp, isAdmin: (req as any).user?.role === "admin" },
       );
-      if (!result || !result.web2url) {
+      if (!result?.web2url) {
         console.error("[avatar upload] IPFS上传失败，返回值:", result);
         return res.status(500).json({ error: "IPFS上传失败，请稍后重试" });
       }
@@ -1652,7 +1607,14 @@ router.post("/broadcast/user", async (req, res) => {
     const { wsService } = require("../services/wsService");
     wsService.sendToUser(userId, {
       type: "notification",
-      data: { message, level: level || "info", duration: safeDuration, display: safeDisplay, format: safeFormat, title: safeTitle },
+      data: {
+        message,
+        level: level || "info",
+        duration: safeDuration,
+        display: safeDisplay,
+        format: safeFormat,
+        title: safeTitle,
+      },
     });
     logger.info("[Admin] 定向推送", { userId, message, admin: (req as any).user?.username });
     return res.json({ success: true });

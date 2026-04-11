@@ -1,11 +1,11 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { ShortUrlController } from "../controllers/shortUrlController";
-import { ShortUrlService } from "../services/shortUrlService";
 import { adminAuthMiddleware, authMiddleware } from "../middleware/authMiddleware";
 import { createLimiter } from "../middleware/rateLimiter";
 import { replayProtection } from "../middleware/replayProtection";
 import { mongoose } from "../services/mongoService";
+import { ShortUrlService } from "../services/shortUrlService";
 
 const router = Router();
 
@@ -105,7 +105,7 @@ router.get(
         return res.json({ success: true, aesKey: null });
       }
       const doc: any = await ShortUrlSettingModel.findOne({ key: "AES_KEY" }).lean();
-      if (!doc || !doc.value) return res.json({ success: true, aesKey: null });
+      if (!doc?.value) return res.json({ success: true, aesKey: null });
       const masked = doc.value.length > 8 ? `${doc.value.slice(0, 2)}***${doc.value.slice(-4)}` : "***";
       return res.json({ success: true, aesKey: masked, updatedAt: doc.updatedAt });
     } catch (_e) {

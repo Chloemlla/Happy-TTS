@@ -48,13 +48,10 @@ const deviceTrackingSchema = new Schema<IDeviceTracking>(
     ipAddress: { type: String },
     userAgent: { type: String },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Compound index for user-device uniqueness
 deviceTrackingSchema.index({ userId: 1, deviceFingerprint: 1 }, { unique: true });
 
-export const DeviceTracking = mongoose.model<IDeviceTracking>(
-  "DeviceTracking",
-  deviceTrackingSchema
-);
+export const DeviceTracking = mongoose.model<IDeviceTracking>("DeviceTracking", deviceTrackingSchema);

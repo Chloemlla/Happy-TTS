@@ -17,13 +17,31 @@ interface WsClientMessage {
 
 /** 服务端 → 客户端消息 */
 export interface WsServerMessage {
-  type: "pong" | "tts:progress" | "tts:complete" | "tts:error" | "notification" | "admin:broadcast" | "fingerprint:require" | "fingerprint:ack" | "ticket:update" | "ticket:process" | "ticket:ai_response";
+  type:
+    | "pong"
+    | "tts:progress"
+    | "tts:complete"
+    | "tts:error"
+    | "notification"
+    | "admin:broadcast"
+    | "fingerprint:require"
+    | "fingerprint:ack"
+    | "ticket:update"
+    | "ticket:process"
+    | "ticket:ai_response";
   data?: any;
   timestamp: number;
 }
 
 /** 工单处理细分状态 */
-export type TicketProcessStep = "audit_start" | "audit_passed" | "ai_start" | "ai_complete" | "saving" | "audit_failed" | "error";
+export type TicketProcessStep =
+  | "audit_start"
+  | "audit_passed"
+  | "ai_start"
+  | "ai_complete"
+  | "saving"
+  | "audit_failed"
+  | "error";
 
 interface WsClient {
   ws: WebSocket;
@@ -38,11 +56,7 @@ interface WsClient {
  * 同一事件只需处理一次，无论通过 HTTP header 还是 WS 推送到达前端
  */
 function generateFingerprintHash(userId: string, enabled: boolean, ts: number): string {
-  return crypto
-    .createHash("sha256")
-    .update(`fp:${userId}:${enabled}:${ts}`)
-    .digest("hex")
-    .substring(0, 16);
+  return crypto.createHash("sha256").update(`fp:${userId}:${enabled}:${ts}`).digest("hex").substring(0, 16);
 }
 
 // ========== WebSocket 服务 ==========
@@ -369,7 +383,7 @@ class WsService {
   notifyTicketProcess(userId: string, ticketId: string, step: TicketProcessStep) {
     this.sendToUser(userId, {
       type: "ticket:process",
-      data: { ticketId, step }
+      data: { ticketId, step },
     });
   }
 
@@ -379,7 +393,7 @@ class WsService {
   notifyTicketAiResponse(userId: string, ticketId: string, content: string, isFinished = false) {
     this.sendToUser(userId, {
       type: "ticket:ai_response",
-      data: { ticketId, content, isFinished }
+      data: { ticketId, content, isFinished },
     });
   }
 

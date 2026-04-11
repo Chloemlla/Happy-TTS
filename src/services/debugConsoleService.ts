@@ -1009,4 +1009,4 @@ class DebugConsoleService {
 }
 
 export const debugConsoleService = DebugConsoleService.getInstance();
-export type { DebugConsoleConfigDoc, DebugConsoleAccessLog };
+export type { DebugConsoleAccessLog, DebugConsoleConfigDoc };

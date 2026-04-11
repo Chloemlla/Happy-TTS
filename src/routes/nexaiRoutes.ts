@@ -3,9 +3,9 @@
  * 所有路由挂载在 /api/nexai 前缀下
  */
 import express from "express";
+import { ArtifactController } from "../controllers/artifactController";
 import { NexaiAuthController } from "../controllers/nexaiAuthController";
 import { NexaiSyncController } from "../controllers/nexaiSyncController";
-import { ArtifactController } from "../controllers/artifactController";
 import { nexaiAuthRequired } from "../middleware/nexaiAuth";
 import { createLimiter } from "../middleware/rateLimiter";
 
@@ -14,63 +14,63 @@ const router = express.Router();
 // ========== 限流器 ==========
 
 const nexaiAuthLimiter = createLimiter({
-    windowMs: 15 * 60 * 1000, // 15 分钟
-    max: 20,
-    message: "NexAI 认证请求过于频繁，请稍后再试",
+  windowMs: 15 * 60 * 1000, // 15 分钟
+  max: 20,
+  message: "NexAI 认证请求过于频繁，请稍后再试",
 });
 
 const nexaiLoginLimiter = createLimiter({
-    windowMs: 15 * 60 * 1000,
-    max: 10,
-    message: "登录尝试次数过多，请 15 分钟后再试",
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: "登录尝试次数过多，请 15 分钟后再试",
 });
 
 const nexaiRegisterLimiter = createLimiter({
-    windowMs: 60 * 60 * 1000, // 1 小时
-    max: 5,
-    message: "注册尝试次数过多，请稍后再试",
+  windowMs: 60 * 60 * 1000, // 1 小时
+  max: 5,
+  message: "注册尝试次数过多，请稍后再试",
 });
 
 const nexaiOAuthLimiter = createLimiter({
-    windowMs: 15 * 60 * 1000,
-    max: 15,
-    message: "OAuth 请求过于频繁，请稍后再试",
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  message: "OAuth 请求过于频繁，请稍后再试",
 });
 
 const nexaiRefreshLimiter = createLimiter({
-    windowMs: 5 * 60 * 1000,
-    max: 10,
-    message: "Token 刷新过于频繁",
+  windowMs: 5 * 60 * 1000,
+  max: 10,
+  message: "Token 刷新过于频繁",
 });
 
 const nexaiProfileLimiter = createLimiter({
-    windowMs: 15 * 60 * 1000,
-    max: 20,
-    message: "操作过于频繁，请稍后再试",
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: "操作过于频繁，请稍后再试",
 });
 
 const nexaiSyncLimiter = createLimiter({
-    windowMs: 5 * 60 * 1000,
-    max: 30,
-    message: "同步请求过于频繁，请稍后再试",
+  windowMs: 5 * 60 * 1000,
+  max: 30,
+  message: "同步请求过于频繁，请稍后再试",
 });
 
 const artifactCreateLimiter = createLimiter({
-    windowMs: 60 * 60 * 1000, // 1 小时
-    max: 10,
-    message: "Artifact 创建过于频繁，请稍后再试",
+  windowMs: 60 * 60 * 1000, // 1 小时
+  max: 10,
+  message: "Artifact 创建过于频繁，请稍后再试",
 });
 
 const artifactViewLimiter = createLimiter({
-    windowMs: 60 * 1000, // 1 分钟
-    max: 100,
-    message: "访问过于频繁，请稍后再试",
+  windowMs: 60 * 1000, // 1 分钟
+  max: 100,
+  message: "访问过于频繁，请稍后再试",
 });
 
 const artifactManageLimiter = createLimiter({
-    windowMs: 15 * 60 * 1000, // 15 分钟
-    max: 30,
-    message: "操作过于频繁，请稍后再试",
+  windowMs: 15 * 60 * 1000, // 15 分钟
+  max: 30,
+  message: "操作过于频繁，请稍后再试",
 });
 
 // ========== 公开端点（无需登录） ==========
@@ -312,7 +312,11 @@ router.get("/auth/oauth-config", NexaiAuthController.getOAuthConfig);
  *     security:
  *       - bearerAuth: []
  */
-router.post("/auth/passkey/register/options", nexaiAuthRequired, NexaiAuthController.generatePasskeyRegistrationOptions);
+router.post(
+  "/auth/passkey/register/options",
+  nexaiAuthRequired,
+  NexaiAuthController.generatePasskeyRegistrationOptions,
+);
 
 /**
  * @openapi

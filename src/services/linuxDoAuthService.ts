@@ -1,5 +1,5 @@
-import axios from "axios";
 import crypto from "node:crypto";
+import axios from "axios";
 import jwt from "jsonwebtoken";
 import { config } from "../config/config";
 import logger from "../utils/logger";
@@ -76,16 +76,9 @@ const STATE_TTL_MS = 10 * 60 * 1000;
 const TICKET_TTL_MS = 60 * 1000;
 const DISCOVERY_TTL_MS = 60 * 60 * 1000;
 const PLACEHOLDER_EMAIL_DOMAIN = "linuxdo.oauth.local";
-const TRUSTED_LINUXDO_DISCOVERY_URL =
-  "https://connect.linux.do/.well-known/openid-configuration";
+const TRUSTED_LINUXDO_DISCOVERY_URL = "https://connect.linux.do/.well-known/openid-configuration";
 const TRUSTED_LINUXDO_OAUTH_HOSTS = new Set(["connect.linux.do"]);
-const RESERVED_USERNAMES = new Set([
-  "admin",
-  "administrator",
-  "root",
-  "system",
-  "test",
-]);
+const RESERVED_USERNAMES = new Set(["admin", "administrator", "root", "system", "test"]);
 
 const oauthStateStore = new Map<string, LinuxDoStateRecord>();
 const loginTicketStore = new Map<string, LinuxDoTicketRecord>();
@@ -129,18 +122,12 @@ function firstString(...values: unknown[]): string | undefined {
 }
 
 function toBase64Url(input: Buffer): string {
-  return input
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/g, "");
+  return input.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
 function createPkcePair(): { codeVerifier: string; codeChallenge: string } {
   const codeVerifier = toBase64Url(crypto.randomBytes(64));
-  const codeChallenge = toBase64Url(
-    crypto.createHash("sha256").update(codeVerifier).digest(),
-  );
+  const codeChallenge = toBase64Url(crypto.createHash("sha256").update(codeVerifier).digest());
 
   return { codeVerifier, codeChallenge };
 }
@@ -178,23 +165,12 @@ function normalizeTrustedLinuxDoOAuthUrl(rawUrl: unknown, label: string): string
   return parsedUrl.toString();
 }
 
-function normalizeLinuxDoDiscoveryDocument(
-  document: LinuxDoDiscoveryDocument,
-): ResolvedLinuxDoDiscoveryDocument {
+function normalizeLinuxDoDiscoveryDocument(document: LinuxDoDiscoveryDocument): ResolvedLinuxDoDiscoveryDocument {
   return {
     ...document,
-    authorization_endpoint: normalizeTrustedLinuxDoOAuthUrl(
-      document.authorization_endpoint,
-      "authorization endpoint",
-    ),
-    token_endpoint: normalizeTrustedLinuxDoOAuthUrl(
-      document.token_endpoint,
-      "token endpoint",
-    ),
-    userinfo_endpoint: normalizeTrustedLinuxDoOAuthUrl(
-      document.userinfo_endpoint,
-      "userinfo endpoint",
-    ),
+    authorization_endpoint: normalizeTrustedLinuxDoOAuthUrl(document.authorization_endpoint, "authorization endpoint"),
+    token_endpoint: normalizeTrustedLinuxDoOAuthUrl(document.token_endpoint, "token endpoint"),
+    userinfo_endpoint: normalizeTrustedLinuxDoOAuthUrl(document.userinfo_endpoint, "userinfo endpoint"),
   };
 }
 
@@ -223,10 +199,7 @@ export function buildLinuxDoAvatarUrl(value?: string): string | undefined {
   return rawValue;
 }
 
-export function sanitizeLinuxDoUsername(
-  rawUsername: string | undefined,
-  fallbackId: string,
-): string {
+export function sanitizeLinuxDoUsername(rawUsername: string | undefined, fallbackId: string): string {
   const fallback = `linuxdo_${fallbackId}`.slice(0, 20);
   const normalized =
     (rawUsername || fallback)
@@ -237,9 +210,7 @@ export function sanitizeLinuxDoUsername(
   let candidate = normalized;
 
   if (candidate.length < 3) {
-    candidate = `ld_${fallbackId}`
-      .replace(/[^a-zA-Z0-9_]+/g, "_")
-      .slice(0, 20);
+    candidate = `ld_${fallbackId}`.replace(/[^a-zA-Z0-9_]+/g, "_").slice(0, 20);
   }
 
   if (RESERVED_USERNAMES.has(candidate.toLowerCase())) {
@@ -272,9 +243,7 @@ export function normalizeLinuxDoProfile(rawProfile: unknown): LinuxDoNormalizedP
     username,
     displayName: firstString(source.name, source.display_name, source.nickname),
     email: firstString(source.email),
-    avatarUrl: buildLinuxDoAvatarUrl(
-      firstString(source.avatar_url, source.avatar, source.avatar_template),
-    ),
+    avatarUrl: buildLinuxDoAvatarUrl(firstString(source.avatar_url, source.avatar, source.avatar_template)),
     raw: rawProfile,
   };
 }
@@ -289,10 +258,7 @@ async function getAvailableLinuxDoUsername(baseUsername: string): Promise<string
 
   while (await UserStorage.getUserByUsername(candidate)) {
     const suffixText = `_${suffix}`;
-    candidate = `${baseUsername.slice(
-      0,
-      Math.max(3, 20 - suffixText.length),
-    )}${suffixText}`;
+    candidate = `${baseUsername.slice(0, Math.max(3, 20 - suffixText.length))}${suffixText}`;
     suffix += 1;
 
     if (suffix > 9999) {
@@ -304,11 +270,9 @@ async function getAvailableLinuxDoUsername(baseUsername: string): Promise<string
 }
 
 function buildJwtToken(user: User): string {
-  return jwt.sign(
-    { userId: user.id, username: user.username, role: user.role || "user" },
-    config.jwtSecret,
-    { expiresIn: "2h" },
-  );
+  return jwt.sign({ userId: user.id, username: user.username, role: user.role || "user" }, config.jwtSecret, {
+    expiresIn: "2h",
+  });
 }
 
 function toExchangePayload(user: User, isNewUser: boolean): LinuxDoExchangePayload {
@@ -329,10 +293,7 @@ function toExchangePayload(user: User, isNewUser: boolean): LinuxDoExchangePaylo
 }
 
 async function fetchLinuxDoDiscoveryDocument(): Promise<ResolvedLinuxDoDiscoveryDocument> {
-  if (
-    firstString(config.linuxdo.discoveryUrl) &&
-    config.linuxdo.discoveryUrl !== TRUSTED_LINUXDO_DISCOVERY_URL
-  ) {
+  if (firstString(config.linuxdo.discoveryUrl) && config.linuxdo.discoveryUrl !== TRUSTED_LINUXDO_DISCOVERY_URL) {
     logger.warn("[Linux.do Auth] Ignoring custom discovery URL and using trusted default", {
       configuredDiscoveryUrl: config.linuxdo.discoveryUrl,
     });
@@ -372,10 +333,7 @@ async function exchangeAuthorizationCode(params: {
   codeVerifier: string;
   tokenEndpoint: string;
 }): Promise<string> {
-  const tokenEndpoint = normalizeTrustedLinuxDoOAuthUrl(
-    params.tokenEndpoint,
-    "token endpoint",
-  );
+  const tokenEndpoint = normalizeTrustedLinuxDoOAuthUrl(params.tokenEndpoint, "token endpoint");
   const payload = new URLSearchParams({
     grant_type: "authorization_code",
     code: params.code,
@@ -403,14 +361,8 @@ async function exchangeAuthorizationCode(params: {
   return accessToken;
 }
 
-async function fetchLinuxDoUserProfile(
-  accessToken: string,
-  userinfoEndpoint: string,
-): Promise<unknown> {
-  const trustedUserinfoEndpoint = normalizeTrustedLinuxDoOAuthUrl(
-    userinfoEndpoint,
-    "userinfo endpoint",
-  );
+async function fetchLinuxDoUserProfile(accessToken: string, userinfoEndpoint: string): Promise<unknown> {
+  const trustedUserinfoEndpoint = normalizeTrustedLinuxDoOAuthUrl(userinfoEndpoint, "userinfo endpoint");
   const userResponse = await axios.get(trustedUserinfoEndpoint, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -431,19 +383,18 @@ async function upsertLinuxDoUser(profile: LinuxDoNormalizedProfile): Promise<{
     if ((linkedUser as any).accountStatus === "suspended") {
       throw new Error("Account is suspended");
     }
-    const updatedLinkedUser =
-      (await UserStorage.updateUser(linkedUser.id, {
-        linuxdoUsername: profile.username,
-        linuxdoAvatarUrl: profile.avatarUrl,
-        avatarUrl: profile.avatarUrl || linkedUser.avatarUrl,
-        authProvider: linkedUser.authProvider || "linuxdo",
-      })) || {
-        ...linkedUser,
-        linuxdoUsername: profile.username,
-        linuxdoAvatarUrl: profile.avatarUrl,
-        avatarUrl: profile.avatarUrl || linkedUser.avatarUrl,
-        authProvider: linkedUser.authProvider || "linuxdo",
-      };
+    const updatedLinkedUser = (await UserStorage.updateUser(linkedUser.id, {
+      linuxdoUsername: profile.username,
+      linuxdoAvatarUrl: profile.avatarUrl,
+      avatarUrl: profile.avatarUrl || linkedUser.avatarUrl,
+      authProvider: linkedUser.authProvider || "linuxdo",
+    })) || {
+      ...linkedUser,
+      linuxdoUsername: profile.username,
+      linuxdoAvatarUrl: profile.avatarUrl,
+      avatarUrl: profile.avatarUrl || linkedUser.avatarUrl,
+      authProvider: linkedUser.authProvider || "linuxdo",
+    };
 
     return { user: updatedLinkedUser, isNewUser: false };
   }
@@ -454,21 +405,20 @@ async function upsertLinuxDoUser(profile: LinuxDoNormalizedProfile): Promise<{
       if ((userWithSameEmail as any).accountStatus === "suspended") {
         throw new Error("Account is suspended");
       }
-      const updatedExistingUser =
-        (await UserStorage.updateUser(userWithSameEmail.id, {
-          linuxdoId: profile.id,
-          linuxdoUsername: profile.username,
-          linuxdoAvatarUrl: profile.avatarUrl,
-          avatarUrl: profile.avatarUrl || userWithSameEmail.avatarUrl,
-          authProvider: userWithSameEmail.authProvider || "local",
-        })) || {
-          ...userWithSameEmail,
-          linuxdoId: profile.id,
-          linuxdoUsername: profile.username,
-          linuxdoAvatarUrl: profile.avatarUrl,
-          avatarUrl: profile.avatarUrl || userWithSameEmail.avatarUrl,
-          authProvider: userWithSameEmail.authProvider || "local",
-        };
+      const updatedExistingUser = (await UserStorage.updateUser(userWithSameEmail.id, {
+        linuxdoId: profile.id,
+        linuxdoUsername: profile.username,
+        linuxdoAvatarUrl: profile.avatarUrl,
+        avatarUrl: profile.avatarUrl || userWithSameEmail.avatarUrl,
+        authProvider: userWithSameEmail.authProvider || "local",
+      })) || {
+        ...userWithSameEmail,
+        linuxdoId: profile.id,
+        linuxdoUsername: profile.username,
+        linuxdoAvatarUrl: profile.avatarUrl,
+        avatarUrl: profile.avatarUrl || userWithSameEmail.avatarUrl,
+        authProvider: userWithSameEmail.authProvider || "local",
+      };
 
       return { user: updatedExistingUser, isNewUser: false };
     }
@@ -483,21 +433,20 @@ async function upsertLinuxDoUser(profile: LinuxDoNormalizedProfile): Promise<{
     throw new Error("Failed to provision a local account for Linux.do sign-in");
   }
 
-  const finalizedUser =
-    (await UserStorage.updateUser(createdUser.id, {
-      authProvider: "linuxdo",
-      linuxdoId: profile.id,
-      linuxdoUsername: profile.username,
-      linuxdoAvatarUrl: profile.avatarUrl,
-      avatarUrl: profile.avatarUrl,
-    })) || {
-      ...createdUser,
-      authProvider: "linuxdo" as const,
-      linuxdoId: profile.id,
-      linuxdoUsername: profile.username,
-      linuxdoAvatarUrl: profile.avatarUrl,
-      avatarUrl: profile.avatarUrl,
-    };
+  const finalizedUser = (await UserStorage.updateUser(createdUser.id, {
+    authProvider: "linuxdo",
+    linuxdoId: profile.id,
+    linuxdoUsername: profile.username,
+    linuxdoAvatarUrl: profile.avatarUrl,
+    avatarUrl: profile.avatarUrl,
+  })) || {
+    ...createdUser,
+    authProvider: "linuxdo" as const,
+    linuxdoId: profile.id,
+    linuxdoUsername: profile.username,
+    linuxdoAvatarUrl: profile.avatarUrl,
+    avatarUrl: profile.avatarUrl,
+  };
 
   return { user: finalizedUser, isNewUser: true };
 }
@@ -527,9 +476,7 @@ export function isLinuxDoAuthEnabled(): boolean {
   );
 }
 
-export async function createLinuxDoAuthorizationUrl(
-  intent: LinuxDoAuthIntent,
-): Promise<string> {
+export async function createLinuxDoAuthorizationUrl(intent: LinuxDoAuthIntent): Promise<string> {
   if (!isLinuxDoAuthEnabled()) {
     throw new Error("Linux.do OAuth is not configured");
   }
@@ -595,9 +542,7 @@ export function issueLinuxDoLoginTicket(payload: LinuxDoExchangePayload): string
   return ticket;
 }
 
-export function consumeLinuxDoLoginTicket(
-  ticket: string,
-): LinuxDoExchangePayload | null {
+export function consumeLinuxDoLoginTicket(ticket: string): LinuxDoExchangePayload | null {
   cleanupExpiredTickets();
 
   const record = loginTicketStore.get(ticket);
@@ -631,35 +576,31 @@ export async function completeLinuxDoAuthorization(params: {
     codeVerifier,
     tokenEndpoint: discoveryDocument.token_endpoint,
   });
-  const rawProfile = await fetchLinuxDoUserProfile(
-    accessToken,
-    discoveryDocument.userinfo_endpoint,
-  );
+  const rawProfile = await fetchLinuxDoUserProfile(accessToken, discoveryDocument.userinfo_endpoint);
   const normalizedProfile = normalizeLinuxDoProfile(rawProfile);
   const { user, isNewUser } = await upsertLinuxDoUser(normalizedProfile);
   if ((user as any).accountStatus === "suspended") {
     throw new Error("Account is suspended");
   }
 
-  const finalizedUser =
-    (await UserStorage.updateUser(user.id, {
-      lastLoginIp: clientIp || "unknown",
-      lastLoginAt: new Date().toISOString(),
-      linuxdoId: normalizedProfile.id,
-      linuxdoUsername: normalizedProfile.username,
-      linuxdoAvatarUrl: normalizedProfile.avatarUrl,
-      avatarUrl: normalizedProfile.avatarUrl || user.avatarUrl,
-      authProvider: user.authProvider || "linuxdo",
-    })) || {
-      ...user,
-      lastLoginIp: clientIp || "unknown",
-      lastLoginAt: new Date().toISOString(),
-      linuxdoId: normalizedProfile.id,
-      linuxdoUsername: normalizedProfile.username,
-      linuxdoAvatarUrl: normalizedProfile.avatarUrl,
-      avatarUrl: normalizedProfile.avatarUrl || user.avatarUrl,
-      authProvider: user.authProvider || "linuxdo",
-    };
+  const finalizedUser = (await UserStorage.updateUser(user.id, {
+    lastLoginIp: clientIp || "unknown",
+    lastLoginAt: new Date().toISOString(),
+    linuxdoId: normalizedProfile.id,
+    linuxdoUsername: normalizedProfile.username,
+    linuxdoAvatarUrl: normalizedProfile.avatarUrl,
+    avatarUrl: normalizedProfile.avatarUrl || user.avatarUrl,
+    authProvider: user.authProvider || "linuxdo",
+  })) || {
+    ...user,
+    lastLoginIp: clientIp || "unknown",
+    lastLoginAt: new Date().toISOString(),
+    linuxdoId: normalizedProfile.id,
+    linuxdoUsername: normalizedProfile.username,
+    linuxdoAvatarUrl: normalizedProfile.avatarUrl,
+    avatarUrl: normalizedProfile.avatarUrl || user.avatarUrl,
+    authProvider: user.authProvider || "linuxdo",
+  };
 
   const payload = toExchangePayload(finalizedUser, isNewUser);
   const ticket = issueLinuxDoLoginTicket(payload);

@@ -8,7 +8,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
   try {
     const authHeader = req.headers.authorization;
     const _ip = req.ip || "unknown";
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    if (!authHeader?.startsWith("Bearer ")) {
       return res.status(401).json({ error: "未授权" });
     }
     const token = authHeader.split(" ")[1];
