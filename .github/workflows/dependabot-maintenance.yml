@@ -1,0 +1,270 @@
+name: Dependabot Maintenance
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/fix-dependabot-alerts.sh"
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Dependabot maintenance action
+        required: true
+        type: choice
+        options:
+          - fix-alerts
+          - rebase
+          - recreate
+          - force-merge
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  fix-alerts:
+    name: Fix Dependabot Alerts
+    if: github.event_name == 'push' || inputs.action == 'fix-alerts'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.USER_PAT }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Run fix script
+        run: bash scripts/fix-dependabot-alerts.sh
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "fix: auto-fix dependabot security alerts"
+          git push origin main
+
+  manage-prs:
+    name: Manage Dependabot PRs
+    if: github.event_name == 'workflow_dispatch' && inputs.action != 'fix-alerts'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run selected maintenance action
+        env:
+          GITHUB_TOKEN: ${{ secrets.USER_PAT }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          DEPENDABOT_ACTION: ${{ inputs.action }}
+        run: |
+          node <<'EOF'
+          const fs = require('node:fs');
+          const https = require('node:https');
+
+          const token = process.env.GITHUB_TOKEN;
+          const repository = process.env.GITHUB_REPOSITORY;
+          const action = process.env.DEPENDABOT_ACTION;
+          const [owner, repo] = repository.split('/');
+          const summaryFile = process.env.GITHUB_STEP_SUMMARY;
+          const requiredChecks = new Set([
+            'Docker Build Verification',
+            'Docker Build Verification (pull_request)',
+          ]);
+
+          function request(path, method = 'GET', body = null) {
+            return new Promise((resolve, reject) => {
+              const payload = body ? JSON.stringify(body) : null;
+              const req = https.request(
+                {
+                  hostname: 'api.github.com',
+                  path,
+                  method,
+                  headers: {
+                    'User-Agent': 'dependabot-maintenance',
+                    Authorization: `Bearer ${token}`,
+                    Accept: 'application/vnd.github+json',
+                    'Content-Type': 'application/json',
+                    'X-GitHub-Api-Version': '2022-11-28',
+                    ...(payload ? { 'Content-Length': Buffer.byteLength(payload) } : {}),
+                  },
+                },
+                (res) => {
+                  let data = '';
+                  res.on('data', (chunk) => {
+                    data += chunk;
+                  });
+                  res.on('end', () => {
+                    const parsed = data ? JSON.parse(data) : null;
+                    if (res.statusCode >= 200 && res.statusCode < 300) {
+                      resolve(parsed);
+                      return;
+                    }
+
+                    reject(
+                      new Error(
+                        `GitHub API ${method} ${path} failed: ${res.statusCode} ${data || '<empty>'}`
+                      )
+                    );
+                  });
+                }
+              );
+
+              req.on('error', reject);
+
+              if (payload) {
+                req.write(payload);
+              }
+
+              req.end();
+            });
+          }
+
+          function appendSummary(lines) {
+            if (!summaryFile) {
+              return;
+            }
+
+            fs.appendFileSync(summaryFile, `${lines.join('\n')}\n`, 'utf8');
+          }
+
+          async function listDependabotPRs() {
+            const prs = await request(`/repos/${owner}/${repo}/pulls?state=open&per_page=100`);
+            return prs.filter((pr) => pr.user?.login === 'dependabot[bot]');
+          }
+
+          async function commentOnPR(pr, body) {
+            await request(
+              `/repos/${owner}/${repo}/issues/${pr.number}/comments`,
+              'POST',
+              { body }
+            );
+          }
+
+          async function forceMergePR(pr) {
+            const checks = await request(
+              `/repos/${owner}/${repo}/commits/${pr.head.sha}/check-runs`
+            );
+
+            const successfulCheck = (checks.check_runs || []).some((run) => {
+              return requiredChecks.has(run.name) &&
+                run.status === 'completed' &&
+                run.conclusion === 'success';
+            });
+
+            if (!successfulCheck) {
+              return {
+                number: pr.number,
+                title: pr.title,
+                status: 'skipped',
+                reason: 'required Docker verification has not passed yet',
+              };
+            }
+
+            try {
+              await request('/graphql', 'POST', {
+                query: `
+                  mutation($id: ID!) {
+                    disablePullRequestAutoMerge(input: { pullRequestId: $id }) {
+                      clientMutationId
+                    }
+                  }
+                `,
+                variables: { id: pr.node_id },
+              });
+            } catch (error) {
+              console.log(`disablePullRequestAutoMerge skipped for #${pr.number}: ${error.message}`);
+            }
+
+            const mergeResult = await request(
+              `/repos/${owner}/${repo}/pulls/${pr.number}/merge`,
+              'PUT',
+              {
+                merge_method: 'squash',
+                commit_title: `${pr.title} (#${pr.number})`,
+              }
+            );
+
+            return {
+              number: pr.number,
+              title: pr.title,
+              status: mergeResult.merged ? 'merged' : 'failed',
+              reason: mergeResult.merged ? null : mergeResult.message,
+            };
+          }
+
+          (async () => {
+            const prs = await listDependabotPRs();
+            console.log(`Found ${prs.length} open Dependabot PR(s).`);
+
+            if (prs.length === 0) {
+              appendSummary([
+                '## Dependabot Maintenance',
+                '',
+                `Action: \`${action}\``,
+                '',
+                'No open Dependabot PRs found.',
+              ]);
+              return;
+            }
+
+            const results = [];
+
+            for (const pr of prs) {
+              if (action === 'rebase' || action === 'recreate') {
+                const command = `@dependabot ${action}`;
+                await commentOnPR(pr, command);
+                console.log(`Commented "${command}" on PR #${pr.number}.`);
+                results.push({
+                  number: pr.number,
+                  title: pr.title,
+                  status: 'commented',
+                  reason: command,
+                });
+                continue;
+              }
+
+              if (action === 'force-merge') {
+                const result = await forceMergePR(pr);
+                console.log(`#${pr.number} ${result.status}${result.reason ? `: ${result.reason}` : ''}`);
+                results.push(result);
+                continue;
+              }
+
+              throw new Error(`Unsupported action: ${action}`);
+            }
+
+            const grouped = results.reduce((acc, result) => {
+              acc[result.status] = (acc[result.status] || 0) + 1;
+              return acc;
+            }, {});
+
+            appendSummary([
+              '## Dependabot Maintenance',
+              '',
+              `Action: \`${action}\``,
+              '',
+              `Processed PRs: ${results.length}`,
+              `Commented: ${grouped.commented || 0}`,
+              `Merged: ${grouped.merged || 0}`,
+              `Skipped: ${grouped.skipped || 0}`,
+              `Failed: ${grouped.failed || 0}`,
+            ]);
+          })().catch((error) => {
+            console.error(error);
+            process.exit(1);
+          });
+          EOF

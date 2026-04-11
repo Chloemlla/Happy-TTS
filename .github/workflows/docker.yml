@@ -1,0 +1,219 @@
+name: Docker
+
+on:
+  pull_request:
+    branches: [main, master]
+    paths-ignore:
+      - ".github/**"
+  push:
+    branches: [main, master, dev]
+    paths-ignore:
+      - ".github/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  verify:
+    name: Docker Build Verification
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: --max-old-space-size=5096
+      NPM_CONFIG_CACHE: /tmp/.npm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image for verification
+        uses: docker/build-push-action@v6
+        env:
+          BUILDKIT_MEM_LIMIT: 13g
+        with:
+          context: .
+          platforms: linux/amd64
+          push: false
+          tags: synapse:pr-check
+          build-args: |
+            NODE_OPTIONS=--max-old-space-size=13000
+          no-cache: true
+
+      - name: Verify build success
+        run: |
+          echo "Docker image build completed successfully."
+          echo "Platform: linux/amd64"
+
+  publish:
+    name: Publish Docker (${{ matrix.arch }})
+    if: >
+      github.event_name != 'pull_request' &&
+      (
+        github.actor == 'SynapticArch' ||
+        github.actor == 'actions-user' ||
+        github.actor == 'hapxscom' ||
+        github.actor == 'Chloemlla'
+      ) &&
+      !contains(github.event.head_commit.message || '', 'npm(deps):')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+            publish_ghcr: false
+          - arch: arm64
+            platform: linux/arm64
+            publish_ghcr: true
+    env:
+      NODE_OPTIONS: --max-old-space-size=5096
+      NPM_CONFIG_CACHE: /tmp/.npm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Compute metadata
+        id: meta
+        run: |
+          echo "short_sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          echo "lower_repo=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare tags
+        id: tags
+        run: |
+          TAGS=$(cat <<EOF
+          happyclo/tts-node:${{ github.ref_name }}-${{ matrix.arch }}
+          happyclo/tts-node:${{ steps.meta.outputs.short_sha }}-${{ matrix.arch }}
+          EOF
+          )
+
+          if [ "${{ matrix.publish_ghcr }}" = "true" ]; then
+            TAGS="${TAGS}
+          ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ github.ref_name }}-${{ matrix.arch }}
+          ghcr.io/${{ steps.meta.outputs.lower_repo }}:${{ steps.meta.outputs.short_sha }}-${{ matrix.arch }}"
+          fi
+
+          {
+            echo "tags<<EOF"
+            echo "$TAGS"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Login to GitHub Container Registry
+        if: matrix.publish_ghcr
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME }}
+          password: ${{ secrets.USER_PAT }}
+
+      - name: Prepare buildx cache dirs
+        run: |
+          mkdir -p /tmp/.buildx-cache
+          mkdir -p /tmp/.buildx-cache-new
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        env:
+          BUILDKIT_MEM_LIMIT: 13g
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          push: true
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+            NODE_OPTIONS=--max-old-space-size=13000
+          cache-from: |
+            type=local,src=/tmp/.buildx-cache
+            type=gha
+            type=registry,ref=happyclo/tts-node:cache
+            ${{ matrix.publish_ghcr && format('type=registry,ref=ghcr.io/{0}:cache', steps.meta.outputs.lower_repo) || '' }}
+          cache-to: |
+            type=local,dest=/tmp/.buildx-cache-new,mode=max
+            type=gha,mode=max
+            type=registry,ref=happyclo/tts-node:cache,mode=max
+            ${{ matrix.publish_ghcr && format('type=registry,ref=ghcr.io/{0}:cache,mode=max', steps.meta.outputs.lower_repo) || '' }}
+          tags: ${{ steps.tags.outputs.tags }}
+
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+  deploy-amd64:
+    name: Deploy AMD64 image
+    needs: publish
+    if: >
+      github.event_name != 'pull_request' &&
+      (
+        github.actor == 'SynapticArch' ||
+        github.actor == 'actions-user' ||
+        github.actor == 'hapxscom' ||
+        github.actor == 'Chloemlla'
+      ) &&
+      needs.publish.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Install deployment dependencies
+        run: pnpm install ssh2 dotenv axios form-data
+
+      - name: Set script permissions
+        run: chmod +x scripts/deploy_image.js
+
+      - name: Compute image tag
+        id: meta
+        run: echo "short_sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Run deployment script
+        env:
+          SERVER_ADDRESS: ${{ secrets.SERVER_ADDRESS }}
+          USERNAME: ${{ secrets.USERNAME }}
+          PORT: ${{ secrets.PORT }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          CONTAINER_NAMES: ${{ secrets.CONTAINER_NAMES }}
+          IMAGE_URL: happyclo/tts-node:${{ steps.meta.outputs.short_sha }}-amd64
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+        run: node scripts/deploy_image.js
