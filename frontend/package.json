@@ -90,7 +90,7 @@
     "swagger-ui-react": "^5.32.2",
     "tailwind-merge": "^3.5.0",
     "util": "^0.12.5",
-    "validator": "^13.15.23",
+    "validator": "^13.15.35",
     "vite-plugin-auto-i18n": "^0.0.9"
   },
   "devDependencies": {
