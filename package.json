@@ -104,7 +104,7 @@
     "path-to-regexp": "^8.4.2",
     "qrcode": "^1.5.4",
     "react-syntax-highlighter": "^16.1.1",
-    "redis": "^5.11.0",
+    "redis": "^5.12.1",
     "resend": "^6.12.2",
     "serve": "^14.2.6",
     "socks-proxy-agent": "^10.0.0",
