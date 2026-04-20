@@ -82,7 +82,7 @@
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.14.0",
     "react-syntax-highlighter": "^16.1.1",
-    "react-toastify": "^11.0.5",
+    "react-toastify": "^11.1.0",
     "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
