@@ -123,8 +123,8 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       mysql2:
-        specifier: ^3.22.0
-        version: 3.22.0(@types/node@25.6.0)
+        specifier: ^3.22.1
+        version: 3.22.1(@types/node@25.6.0)
       nanoid:
         specifier: ^5.1.9
         version: 5.1.9
@@ -2821,8 +2821,8 @@ packages:
     resolution: {integrity: sha512-ypMKuglUrZUD99Tk2bUQ+xNQj43lPEfAeX2o9cTteAmShXy2VHDJpuwu1o0xqoKCt9jLVAvwyFKdLTPXKAfJyA==}
     engines: {node: '>=10'}
 
-  mysql2@3.22.0:
-    resolution: {integrity: sha512-4jaJYBObj7FhD3lnZhqX1yDMuZN4mQNz+IolDySDXT7fbozMBpeGQNcuWXKUqo4ahkAEfkjUHPjnwuDI0/6VKw==}
+  mysql2@3.22.1:
+    resolution: {integrity: sha512-48+9UXehKyxxiP2pqCxUq+MSFvX+v41jwsSpFDQO/jAoFuAELutBGJUhWJnDbe82/OBlIhSBMC82WeonmznT/Q==}
     engines: {node: '>= 8.0'}
     peerDependencies:
       '@types/node': '>= 8'
@@ -6836,7 +6836,7 @@ snapshots:
       arrify: 2.0.1
       minimatch: 10.2.4
 
-  mysql2@3.22.0(@types/node@25.6.0):
+  mysql2@3.22.1(@types/node@25.6.0):
     dependencies:
       '@types/node': 25.6.0
       aws-ssl-profiles: 1.1.2
@@ -7560,7 +7560,7 @@ snapshots:
       mongoose: 9.5.0(socks@2.8.7)
       morgan: 1.10.1
       multer: 2.1.1
-      mysql2: 3.22.0(@types/node@25.6.0)
+      mysql2: 3.22.1(@types/node@25.6.0)
       nanoid: 5.1.9
       openai: 6.34.0(ws@8.20.0)(zod@4.3.6)
       path-to-regexp: 8.4.2
