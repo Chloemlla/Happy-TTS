@@ -144,8 +144,8 @@ importers:
         specifier: ^5.11.0
         version: 5.11.0
       resend:
-        specifier: ^6.11.0
-        version: 6.11.0
+        specifier: ^6.12.2
+        version: 6.12.2
       serve:
         specifier: ^14.2.6
         version: 14.2.6
@@ -3185,8 +3185,8 @@ packages:
   require-main-filename@2.0.0:
     resolution: {integrity: sha512-NKN5kMDylKuldxYLSUfrbo5Tuzh4hd+2E8NPPX02mZtn1VuREQToYe/ZdlJy+J3uCpfaiGF05e7B8W0iXbQHmg==}
 
-  resend@6.11.0:
-    resolution: {integrity: sha512-S9gxOccfwc+E6Cr3q28Gu8NkiIjYlYPlj9rqk4zkIuzlEoh8sWu/IvJSg7U7t+o3g0Ov2IOCzcneUaCi/M/WdQ==}
+  resend@6.12.2:
+    resolution: {integrity: sha512-xwgmU4b0OqoabJsIoK/x0Whk0Fcs3bpbK4i/DEWPiE5hYJHyHl0TbB6QbI3gIr+bLdLUJ1GYm/fe41aVFuHXgw==}
     engines: {node: '>=20'}
     peerDependencies:
       '@react-email/render': '*'
@@ -7185,7 +7185,7 @@ snapshots:
 
   require-main-filename@2.0.0: {}
 
-  resend@6.11.0:
+  resend@6.12.2:
     dependencies:
       postal-mime: 2.7.4
       svix: 1.90.0
@@ -7567,7 +7567,7 @@ snapshots:
       qrcode: 1.5.4
       react-syntax-highlighter: 16.1.1(react@19.1.1)
       redis: 5.11.0
-      resend: 6.11.0
+      resend: 6.12.2
       serve: 14.2.6
       socks-proxy-agent: 10.0.0
       speakeasy: 2.0.0
