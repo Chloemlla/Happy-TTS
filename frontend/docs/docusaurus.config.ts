@@ -167,6 +167,18 @@ const config: Config = {
   // 添加插件配置
   plugins: [
     require.resolve('./plugins/email-protection'),
+    function webpackBarCompatibilityPlugin() {
+      return {
+        name: 'webpackbar-compatibility-plugin',
+        configureWebpack(config) {
+          if (!Array.isArray(config.plugins)) return {};
+
+          return {
+            plugins: config.plugins.filter((plugin) => plugin?.constructor?.name !== 'WebpackBarPlugin'),
+          };
+        },
+      };
+    },
     function svgoWarningFixPlugin() {
       return {
         name: 'svgo-warning-fix-plugin',
