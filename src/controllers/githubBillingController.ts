@@ -232,7 +232,7 @@ export class GitHubBillingController {
       const configKey = firstString(req.params.configKey);
       const { curlCommand } = req.body;
 
-      if (!["config1", "config2", "config3"].includes(configKey)) {
+      if (!configKey || !["config1", "config2", "config3"].includes(configKey)) {
         res.status(400).json({
           error: "无效的配置键",
           message: "configKey 必须是 config1, config2 或 config3",
@@ -337,7 +337,7 @@ export class GitHubBillingController {
     try {
       const configKey = firstString(req.params.configKey);
 
-      if (!["config1", "config2", "config3"].includes(configKey)) {
+      if (!configKey || !["config1", "config2", "config3"].includes(configKey)) {
         res.status(400).json({
           error: "无效的配置键",
           message: "configKey 必须是 config1, config2 或 config3",

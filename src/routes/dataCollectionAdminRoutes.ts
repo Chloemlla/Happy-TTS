@@ -3,6 +3,7 @@ import { authenticateAdmin } from "../middleware/auth";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { dataCollectionLimiter } from "../middleware/routeLimiters";
 import { dataCollectionService } from "../services/dataCollectionService";
+import { firstString } from "../utils/httpParam";
 import logger from "../utils/logger";
 
 const router = Router();
@@ -62,7 +63,9 @@ router.post("/", ...guard, async (req: Request, res: Response) => {
 // GET /api/data-collection/admin/:id
 router.get("/:id", ...guard, async (req: Request, res: Response) => {
   try {
-    const item = await dataCollectionService.getById(req.params.id);
+    const id = firstString(req.params.id);
+    if (!id) return res.status(400).json({ success: false, message: "Invalid id" });
+    const item = await dataCollectionService.getById(id);
     if (!item) return res.status(404).json({ success: false, message: "Not found" });
     res.json({ success: true, data: item });
   } catch (e: any) {
@@ -74,7 +77,9 @@ router.get("/:id", ...guard, async (req: Request, res: Response) => {
 // GET /api/data-collection/admin/:id/raw
 router.get("/:id/raw", ...guard, async (req: Request, res: Response) => {
   try {
-    const item = await dataCollectionService.getById(req.params.id);
+    const id = firstString(req.params.id);
+    if (!id) return res.status(400).json({ success: false, message: "Invalid id" });
+    const item = await dataCollectionService.getById(id);
     if (!item) return res.status(404).json({ success: false, message: "Not found" });
     const raw = dataCollectionService.decryptRawDetails(item);
     if (!raw) return res.status(404).json({ success: false, message: "No raw available" });
@@ -88,8 +93,10 @@ router.get("/:id/raw", ...guard, async (req: Request, res: Response) => {
 // DELETE /api/data-collection/admin/:id
 router.delete("/:id", ...guard, async (req: Request, res: Response, next) => {
   try {
-    if (req.params.id === "all") return next();
-    const result = await dataCollectionService.deleteById(req.params.id);
+    const id = firstString(req.params.id);
+    if (!id) return res.status(400).json({ success: false, message: "Invalid id" });
+    if (id === "all") return next();
+    const result = await dataCollectionService.deleteById(id);
     res.json({ success: result.deleted });
   } catch (e: any) {
     logger.error("[DataCollectionAdmin] deleteById error:", e);

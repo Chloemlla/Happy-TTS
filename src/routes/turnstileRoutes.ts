@@ -398,7 +398,7 @@ router.post("/verify-access-token", fingerprintLimiter, async (req, res) => {
 // 检查指纹是否有有效访问密钥接口（无需认证）
 router.get("/check-access-token/:fingerprint", fingerprintLimiter, async (req, res) => {
   try {
-    const { fingerprint } = req.params;
+    const fingerprint = firstString(req.params.fingerprint);
     const clientIp = req.ip || req.socket.remoteAddress || req.headers["x-forwarded-for"] || "unknown";
     const validatedClientIp = typeof clientIp === "string" ? clientIp : "unknown";
 
@@ -438,7 +438,7 @@ router.get("/check-access-token/:fingerprint", fingerprintLimiter, async (req, r
 // 检查临时指纹状态接口（无需认证）
 router.get("/temp-fingerprint/:fingerprint", fingerprintLimiter, async (req, res) => {
   try {
-    const { fingerprint } = req.params;
+    const fingerprint = firstString(req.params.fingerprint);
     const clientIp = req.ip || req.socket.remoteAddress || req.headers["x-forwarded-for"] || "unknown";
     const validatedClientIp = typeof clientIp === "string" ? clientIp : "unknown";
 
