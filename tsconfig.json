@@ -9,6 +9,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node",
+    "ignoreDeprecations": "6.0",
     "resolveJsonModule": true,
     "baseUrl": ".",
     "paths": {
@@ -44,6 +45,7 @@
     "dist",
     "dist-obfuscated",
     "tests",
+    "src/tests",
     "worker",
     "**/*.test.ts",
     "**/*.spec.ts",

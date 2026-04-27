@@ -4,6 +4,7 @@ import { auditLog } from "../middleware/auditLog";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { schedulerService } from "../services/schedulerService";
 import { TurnstileService } from "../services/turnstileService";
+import { firstString } from "../utils/httpParam";
 
 const router = express.Router();
 
@@ -1637,7 +1638,7 @@ router.delete("/config/:key", authenticateToken, configLimiter, async (req, res)
       });
     }
 
-    const { key } = req.params;
+    const key = firstString(req.params.key);
 
     if (!key || !["TURNSTILE_SECRET_KEY", "TURNSTILE_SITE_KEY"].includes(key)) {
       return res.status(400).json({
@@ -1840,7 +1841,7 @@ router.delete("/hcaptcha-config/:key", authenticateToken, configLimiter, async (
       });
     }
 
-    const { key } = req.params;
+    const key = firstString(req.params.key);
 
     if (!key || !["HCAPTCHA_SECRET_KEY", "HCAPTCHA_SITE_KEY"].includes(key)) {
       return res.status(400).json({

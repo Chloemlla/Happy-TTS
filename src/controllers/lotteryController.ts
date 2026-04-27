@@ -1,6 +1,7 @@
 import * as crypto from "node:crypto";
 import type { Request, Response } from "express";
 import { type LotteryPrize, lotteryService } from "../services/lotteryService";
+import { firstString, firstStringOr } from "../utils/httpParam";
 import logger from "../utils/logger";
 
 // 简单WAF校验函数
@@ -209,9 +210,14 @@ export class LotteryController {
   // 参与抽奖
   public async participateInLottery(req: Request, res: Response): Promise<void> {
     try {
-      const { roundId } = req.params;
+      const roundId = firstString(req.params.roundId);
       const { cfToken, userRole } = req.body;
       const userId = req.user?.id;
+
+      if (!roundId) {
+        res.status(400).json({ success: false, message: "无效的轮次ID" });
+        return;
+      }
       const username = req.user?.username;
 
       if (!userId || !username) {
@@ -256,7 +262,11 @@ export class LotteryController {
   // 获取轮次详情
   public async getRoundDetails(req: Request, res: Response): Promise<void> {
     try {
-      const { roundId } = req.params;
+      const roundId = firstString(req.params.roundId);
+      if (!roundId) {
+        res.status(400).json({ success: false, message: "无效的轮次ID" });
+        return;
+      }
       const round = await lotteryService.getRoundDetails(roundId);
 
       if (!round) {
@@ -309,7 +319,7 @@ export class LotteryController {
   // 获取排行榜
   public async getLeaderboard(req: Request, res: Response): Promise<void> {
     try {
-      const limit = parseInt(req.query.limit as string, 10) || 10;
+      const limit = parseInt(firstStringOr(req.query.limit, "10"), 10) || 10;
       const leaderboard = await lotteryService.getLeaderboard(limit);
 
       res.json({
@@ -345,7 +355,11 @@ export class LotteryController {
   // 重置轮次（管理员功能）
   public async resetRound(req: Request, res: Response): Promise<void> {
     try {
-      const { roundId } = req.params;
+      const roundId = firstString(req.params.roundId);
+      if (!roundId) {
+        res.status(400).json({ success: false, message: "无效的轮次ID" });
+        return;
+      }
 
       // 检查管理员权限
       if (req.user?.role !== "admin") {
@@ -373,8 +387,13 @@ export class LotteryController {
   // 更新轮次状态
   public async updateRoundStatus(req: Request, res: Response): Promise<void> {
     try {
-      const { roundId } = req.params;
+      const roundId = firstString(req.params.roundId);
       const { isActive } = req.body;
+
+      if (!roundId) {
+        res.status(400).json({ success: false, message: "无效的轮次ID" });
+        return;
+      }
 
       // 检查管理员权限
       if (req.user?.role !== "admin") {

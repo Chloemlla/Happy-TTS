@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { debugConsoleService } from "../services/debugConsoleService";
+import { firstString, firstStringOr } from "../utils/httpParam";
 import logger from "../utils/logger";
 
 // 管理员权限检查函数
@@ -158,8 +159,12 @@ export class DebugConsoleController {
         });
       }
 
-      const { group } = req.params;
+      const group = firstString(req.params.group);
       const updates = req.body;
+
+      if (!group) {
+        return res.status(400).json({ success: false, error: "缺少配置分组" });
+      }
 
       if (!group) {
         return res.status(400).json({
@@ -211,7 +216,7 @@ export class DebugConsoleController {
         });
       }
 
-      const { group } = req.params;
+      const group = firstString(req.params.group);
 
       if (!group) {
         return res.status(400).json({
@@ -261,14 +266,14 @@ export class DebugConsoleController {
         });
       }
 
-      const page = parseInt(req.query.page as string, 10) || 1;
-      const limit = parseInt(req.query.limit as string, 10) || 50;
+      const page = parseInt(firstStringOr(req.query.page, "1"), 10) || 1;
+      const limit = parseInt(firstStringOr(req.query.limit, "50"), 10) || 50;
       const filters = {
-        ip: req.query.ip as string,
-        success: req.query.success !== undefined ? req.query.success === "true" : undefined,
-        userId: req.query.userId as string,
-        startDate: req.query.startDate ? new Date(req.query.startDate as string) : undefined,
-        endDate: req.query.endDate ? new Date(req.query.endDate as string) : undefined,
+        ip: firstString(req.query.ip),
+        success: firstString(req.query.success) !== undefined ? firstString(req.query.success) === "true" : undefined,
+        userId: firstString(req.query.userId),
+        startDate: firstString(req.query.startDate) ? new Date(firstStringOr(req.query.startDate)) : undefined,
+        endDate: firstString(req.query.endDate) ? new Date(firstStringOr(req.query.endDate)) : undefined,
       };
 
       const result = await debugConsoleService.getAccessLogs(page, limit, filters);
@@ -357,7 +362,7 @@ export class DebugConsoleController {
         });
       }
 
-      const { logId } = req.params;
+      const logId = firstString(req.params.logId);
 
       if (!logId) {
         return res.status(400).json({

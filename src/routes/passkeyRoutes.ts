@@ -8,6 +8,7 @@ import { generatePasskeyAddedEmailHtml, generatePasskeyRemovedEmailHtml } from "
 import { getClientIP } from "../utils/ipUtils";
 import logger from "../utils/logger";
 import { PasskeyCredentialIdFixer } from "../utils/passkeyCredentialIdFixer";
+import { firstString } from "../utils/httpParam";
 import { UserStorage } from "../utils/userStorage";
 
 // 使用 require 避免类型声明解析问题
@@ -601,7 +602,7 @@ router.post("/authenticate/finish", rateLimitMiddleware, async (req, res) => {
 router.delete("/credentials/:credentialId", authenticateToken, rateLimitMiddleware, async (req, res) => {
   try {
     const userId = (req as any).user.id;
-    const { credentialId } = req.params;
+    const credentialId = firstString(req.params.credentialId);
 
     if (!credentialId) {
       return res.status(400).json({ error: "凭证ID是必需的" });

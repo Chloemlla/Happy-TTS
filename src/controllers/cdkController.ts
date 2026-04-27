@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import logger from "../utils/logger";
+import { firstString, firstStringOr } from "../utils/httpParam";
 
 // AuthRequest接口直接定义在这里
 interface AuthRequest extends Request {
@@ -64,8 +65,9 @@ export const redeemCDK = async (req: AuthRequest, res: Response) => {
 // 获取CDK列表
 export const getCDKs = async (req: AuthRequest, res: Response) => {
   try {
-    const { page = 1, resourceId } = req.query;
-    const cdks = await cdkService.getCDKs(Number(page), resourceId as string);
+    const page = Number(firstStringOr(req.query.page, "1"));
+    const resourceId = firstString(req.query.resourceId);
+    const cdks = await cdkService.getCDKs(page, resourceId);
     res.json(cdks);
   } catch (error) {
     logger.error("获取CDK列表失败:", error);
@@ -99,8 +101,12 @@ export const generateCDKs = async (req: AuthRequest, res: Response) => {
 // 编辑CDK
 export const updateCDK = async (req: AuthRequest, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = firstString(req.params.id);
     const { code, resourceId, expiresAt } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ message: "无效的CDK ID" });
+    }
 
     const updateData: { code?: string; resourceId?: string; expiresAt?: Date } = {};
 
@@ -129,7 +135,10 @@ export const updateCDK = async (req: AuthRequest, res: Response) => {
 // 删除CDK
 export const deleteCDK = async (req: AuthRequest, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = firstString(req.params.id);
+    if (!id) {
+      return res.status(400).json({ message: "无效的CDK ID" });
+    }
     await cdkService.deleteCDK(id);
     res.status(204).send();
   } catch (error) {
@@ -277,11 +286,12 @@ export const getUserRedeemedResources = async (req: Request, res: Response) => {
 // 导出CDK数据（管理员）
 export const exportCDKs = async (req: AuthRequest, res: Response) => {
   try {
-    const { resourceId, filterType } = req.query;
-    const validFilterType = ["all", "unused", "used"].includes(filterType as string)
+    const resourceId = firstString(req.query.resourceId);
+    const filterType = firstString(req.query.filterType);
+    const validFilterType = ["all", "unused", "used"].includes(filterType || "")
       ? (filterType as "all" | "unused" | "used")
       : "all";
-    const result = await cdkService.exportCDKs(resourceId as string, validFilterType);
+    const result = await cdkService.exportCDKs(resourceId, validFilterType);
 
     logger.info("导出CDK数据成功", {
       userId: req.user?.id,

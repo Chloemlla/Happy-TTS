@@ -10,6 +10,7 @@ import { authenticateToken } from "../middleware/authenticateToken";
 import ArchiveModel from "../models/archiveModel";
 import { IPFSService } from "../services/ipfsService";
 import { connectMongo, mongoose } from "../services/mongoService";
+import { firstString } from "../utils/httpParam";
 import logger from "../utils/logger";
 import { UserStorage } from "../utils/userStorage";
 
@@ -335,8 +336,11 @@ router.get("/sharelog/all", logLimiter, authenticateToken, async (req, res) => {
 router.post("/sharelog/:id", logLimiter, async (req, res) => {
   const ip = req.ip;
   const { adminPassword } = req.body;
-  const { id } = req.params;
+  const id = firstString(req.params.id);
   try {
+    if (!id) {
+      return res.status(400).json({ error: "无效的文件ID格式" });
+    }
     // 验证文件ID格式
     if (!validateFileId(id)) {
       logger.warn(`查询 | IP:${ip} | 文件ID:${id} | 结果:失败 | 原因:无效的文件ID格式`);
@@ -415,8 +419,11 @@ router.post("/sharelog/:id", logLimiter, async (req, res) => {
 // 删除单个日志（DELETE，需要管理员权限）
 router.delete("/sharelog/:id", logLimiter, authenticateToken, async (req, res) => {
   const ip = req.ip;
-  const { id } = req.params;
+  const id = firstString(req.params.id);
   try {
+    if (!id) {
+      return res.status(400).json({ error: "无效的文件ID格式" });
+    }
     // 验证文件ID格式
     if (!validateFileId(id)) {
       logger.warn(`删除日志 | IP:${ip} | 文件ID:${id} | 结果:失败 | 原因:无效的文件ID格式`);
@@ -592,9 +599,12 @@ router.delete("/sharelog/all", logLimiter, authenticateToken, async (req, res) =
 // 修改单个日志（PUT，需要管理员权限，仅Mongo文本日志支持）
 router.put("/sharelog/:id", logLimiter, authenticateToken, async (req, res) => {
   const ip = req.ip;
-  const { id } = req.params;
+  const id = firstString(req.params.id);
   const { fileName, note } = req.body || {};
   try {
+    if (!id) {
+      return res.status(400).json({ error: "无效的文件ID格式" });
+    }
     // 验证文件ID格式
     if (!validateFileId(id)) {
       logger.warn(`修改日志 | IP:${ip} | 文件ID:${id} | 结果:失败 | 原因:无效的文件ID格式`);
@@ -1021,9 +1031,12 @@ router.get("/logs/archives", logLimiter, authenticateToken, async (req, res) => 
 // 删除归档（DELETE，需要管理员权限）
 router.delete("/logs/archives/:archiveName", logLimiter, authenticateToken, async (req, res) => {
   const ip = req.ip;
-  const { archiveName } = req.params;
+  const archiveName = firstString(req.params.archiveName);
 
   try {
+    if (!archiveName) {
+      return res.status(400).json({ error: "无效的归档名称格式" });
+    }
     if (!(req as any).user || (req as any).user.role !== "admin") {
       logger.warn(`删除归档 | IP:${ip} | 结果:失败 | 原因:非管理员用户`);
       return res.status(403).json({ error: "需要管理员权限" });

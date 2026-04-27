@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { GitHubBillingService } from "../services/githubBillingService";
+import { firstString } from "../utils/httpParam";
 
 export class GitHubBillingController {
   /**
@@ -93,7 +94,7 @@ export class GitHubBillingController {
    */
   static async getBillingUsage(req: Request, res: Response): Promise<void> {
     try {
-      const { force } = req.query;
+      const force = firstString(req.query.force);
 
       // 如果 force=true，先获取配置中的 customerId 并清除缓存
       if (force === "true") {
@@ -141,7 +142,7 @@ export class GitHubBillingController {
    */
   static async clearCache(req: Request, res: Response): Promise<void> {
     try {
-      const { customerId } = req.params;
+      const customerId = firstString(req.params.customerId);
 
       if (!customerId) {
         res.status(400).json({
@@ -228,7 +229,7 @@ export class GitHubBillingController {
    */
   static async saveMultiCurlConfig(req: Request, res: Response): Promise<void> {
     try {
-      const { configKey } = req.params;
+      const configKey = firstString(req.params.configKey);
       const { curlCommand } = req.body;
 
       if (!["config1", "config2", "config3"].includes(configKey)) {
@@ -334,7 +335,7 @@ export class GitHubBillingController {
    */
   static async deleteMultiCurlConfig(req: Request, res: Response): Promise<void> {
     try {
-      const { configKey } = req.params;
+      const configKey = firstString(req.params.configKey);
 
       if (!["config1", "config2", "config3"].includes(configKey)) {
         res.status(400).json({
@@ -374,7 +375,7 @@ export class GitHubBillingController {
    */
   static async getAggregatedBillingUsage(req: Request, res: Response): Promise<void> {
     try {
-      const { force } = req.query;
+      const force = firstString(req.query.force);
 
       // 如果 force=true，清除所有相关缓存
       if (force === "true") {

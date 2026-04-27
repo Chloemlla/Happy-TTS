@@ -7,6 +7,7 @@
 
 import type { Request, Response } from "express";
 import { WorkspaceError, WorkspaceErrorCodes, workspaceService } from "../services/workspaceService";
+import { firstString } from "../utils/httpParam";
 import logger from "../utils/logger";
 
 export class WorkspaceController {
@@ -60,7 +61,7 @@ export class WorkspaceController {
         return;
       }
 
-      const { id } = req.params;
+      const id = firstString(req.params.id);
 
       if (!id) {
         res.status(400).json({ error: "缺少工作空间ID" });
@@ -104,7 +105,7 @@ export class WorkspaceController {
         return;
       }
 
-      const { id } = req.params;
+      const id = firstString(req.params.id);
 
       if (!id) {
         res.status(400).json({ error: "缺少工作空间ID" });
@@ -150,7 +151,7 @@ export class WorkspaceController {
         return;
       }
 
-      const { id } = req.params;
+      const id = firstString(req.params.id);
       const { email, role } = req.body;
 
       if (!id) {
@@ -220,7 +221,7 @@ export class WorkspaceController {
         return;
       }
 
-      const { id } = req.params;
+      const id = firstString(req.params.id);
 
       if (!id) {
         res.status(400).json({ error: "缺少邀请ID" });
@@ -264,7 +265,7 @@ export class WorkspaceController {
         return;
       }
 
-      const { id } = req.params;
+      const id = firstString(req.params.id);
       const { allowPublicSharing, defaultPermission, notificationsEnabled } = req.body;
 
       if (!id) {

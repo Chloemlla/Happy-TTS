@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import type { IAuditLog } from "../models/auditLogModel";
 import { type AuditEntry, AuditLogService } from "../services/auditLogService";
+import { firstString } from "../utils/httpParam";
 
 /**
  * 审计日志中间件
@@ -20,7 +21,7 @@ export interface AuditLogOptions {
   module: IAuditLog["module"];
   action: string;
   /** 从请求中提取操作目标信息 */
-  extractTarget?: (req: Request) => { targetId?: string; targetName?: string };
+  extractTarget?: (req: Request) => { targetId?: string | string[]; targetName?: string | string[] };
   /** 从请求中提取额外详情 */
   extractDetail?: (req: Request) => Record<string, any> | undefined;
 }
@@ -75,8 +76,8 @@ export function auditLog(options: AuditLogOptions) {
         role: user?.role || "unknown",
         action,
         module,
-        targetId: target.targetId,
-        targetName: target.targetName,
+        targetId: firstString(target.targetId),
+        targetName: firstString(target.targetName),
         result,
         errorMessage,
         detail: {

@@ -6,6 +6,7 @@ import { ModerationService } from "../services/moderationService";
 import { mongoose } from "../services/mongoService";
 import { wsService } from "../services/wsService";
 import * as emailTemplates from "../templates/emailTemplates";
+import { firstString } from "../utils/httpParam";
 import logger from "../utils/logger";
 import { UserStorage } from "../utils/userStorage";
 
@@ -232,8 +233,9 @@ export const ticketController = {
   // 获取单个工单详情
   async getTicketById(req: Request, res: Response) {
     try {
-      const { id } = req.params;
+      const id = firstString(req.params.id);
       const user = (req as any).user;
+      if (!id) return res.status(400).json({ error: "无效的工单ID" });
       if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: "无效的工单ID" });
       const ticket = (await TicketModel.findById(id)) as ITicket | null;
       if (!ticket) return res.status(404).json({ error: "工单不存在" });
@@ -249,9 +251,10 @@ export const ticketController = {
   // 回复工单 (用户或管理员)
   async replyToTicket(req: Request, res: Response) {
     try {
-      const { id } = req.params;
+      const id = firstString(req.params.id);
       const { content } = req.body;
       const userObj = (req as any).user;
+      if (!id) return res.status(400).json({ error: "无效的工单ID" });
 
       if (!content) return res.status(400).json({ error: "回复内容不能为空" });
       if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: "无效的工单ID" });
@@ -379,7 +382,8 @@ export const ticketController = {
   // 管理员获取所有工单
   async getAllTickets(req: Request, res: Response) {
     try {
-      const { status, priority } = req.query;
+      const status = firstString(req.query.status);
+      const priority = firstString(req.query.priority);
       const query: any = {};
       const validStatuses = ["open", "in-progress", "resolved", "closed"];
       const validPriorities = ["low", "medium", "high"];
@@ -396,8 +400,9 @@ export const ticketController = {
   // 管理员更新工单状态
   async updateTicketStatus(req: Request, res: Response) {
     try {
-      const { id } = req.params;
+      const id = firstString(req.params.id);
       const { status } = req.body;
+      if (!id) return res.status(400).json({ error: "无效的工单ID" });
       if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: "无效的工单ID" });
       const validStatuses = ["open", "in-progress", "resolved", "closed"];
       if (!validStatuses.includes(status)) return res.status(400).json({ error: "无效的状态值" });
@@ -435,9 +440,11 @@ export const ticketController = {
   // 管理员编辑消息
   async adminEditMessage(req: Request, res: Response) {
     try {
-      const { id, messageIndex } = req.params;
+      const id = firstString(req.params.id);
+      const messageIndex = firstString(req.params.messageIndex);
       const { content } = req.body;
-      const idx = parseInt(messageIndex, 10);
+      const idx = parseInt(messageIndex || "", 10);
+      if (!id) return res.status(400).json({ error: "无效的工单ID" });
       if (!content || Number.isNaN(idx)) return res.status(400).json({ error: "参数无效" });
       const ticket = await TicketModel.findById(id);
       if (!ticket || idx < 0 || idx >= ticket.messages.length)
@@ -455,8 +462,10 @@ export const ticketController = {
   // 管理员删除消息
   async adminDeleteMessage(req: Request, res: Response) {
     try {
-      const { id, messageIndex } = req.params;
-      const idx = parseInt(messageIndex, 10);
+      const id = firstString(req.params.id);
+      const messageIndex = firstString(req.params.messageIndex);
+      const idx = parseInt(messageIndex || "", 10);
+      if (!id) return res.status(400).json({ error: "无效的工单ID" });
       if (Number.isNaN(idx)) return res.status(400).json({ error: "无效索引" });
       const ticket = await TicketModel.findById(id);
       if (!ticket || idx < 0 || idx >= ticket.messages.length)

@@ -1,5 +1,6 @@
 import { type Request, type Response, Router } from "express";
 import { authMiddleware } from "../middleware/authMiddleware";
+import { firstString } from "../utils/httpParam";
 import {
   ALL_PERMISSIONS,
   createApiKey,
@@ -82,8 +83,9 @@ router.get("/all", async (req: Request, res: Response) => {
 router.put("/:keyId", async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
-    const { keyId } = req.params;
+    const keyId = firstString(req.params.keyId);
     const { name, permissions, rateLimit, enabled } = req.body;
+    if (!keyId) return res.status(400).json({ error: "无效的 Key ID" });
 
     // 先查找确认所有权
     const allKeys = user.role === "admin" ? await listAllKeys() : await listUserKeys(user.id);
@@ -108,7 +110,8 @@ router.put("/:keyId", async (req: Request, res: Response) => {
 router.post("/:keyId/revoke", async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
-    const { keyId } = req.params;
+    const keyId = firstString(req.params.keyId);
+    if (!keyId) return res.status(400).json({ error: "无效的 Key ID" });
     const allKeys = user.role === "admin" ? await listAllKeys() : await listUserKeys(user.id);
     if (!allKeys.find((k) => k.keyId === keyId)) return res.status(404).json({ error: "API Key 不存在" });
 
@@ -124,7 +127,8 @@ router.post("/:keyId/revoke", async (req: Request, res: Response) => {
 router.post("/:keyId/enable", async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
-    const { keyId } = req.params;
+    const keyId = firstString(req.params.keyId);
+    if (!keyId) return res.status(400).json({ error: "无效的 Key ID" });
     const allKeys = user.role === "admin" ? await listAllKeys() : await listUserKeys(user.id);
     if (!allKeys.find((k) => k.keyId === keyId)) return res.status(404).json({ error: "API Key 不存在" });
 
@@ -140,7 +144,8 @@ router.post("/:keyId/enable", async (req: Request, res: Response) => {
 router.delete("/:keyId", async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
-    const { keyId } = req.params;
+    const keyId = firstString(req.params.keyId);
+    if (!keyId) return res.status(400).json({ error: "无效的 Key ID" });
     const allKeys = user.role === "admin" ? await listAllKeys() : await listUserKeys(user.id);
     if (!allKeys.find((k) => k.keyId === keyId)) return res.status(404).json({ error: "API Key 不存在" });
 

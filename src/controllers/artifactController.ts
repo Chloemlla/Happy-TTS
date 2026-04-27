@@ -4,6 +4,7 @@
  */
 import type { Request, Response } from "express";
 import { ArtifactService } from "../services/artifactService";
+import { firstString, firstStringOr } from "../utils/httpParam";
 import logger from "../utils/logger";
 
 export class ArtifactController {
@@ -76,8 +77,12 @@ export class ArtifactController {
    */
   static async getArtifact(req: Request, res: Response) {
     try {
-      const { shortId } = req.params;
+      const shortId = firstString(req.params.shortId);
       const password = req.headers["x-password"] as string;
+
+      if (!shortId) {
+        return res.status(400).json({ success: false, error: "invalid_short_id" });
+      }
 
       const artifact = await ArtifactService.getArtifact(shortId, password);
 
@@ -134,8 +139,12 @@ export class ArtifactController {
         });
       }
 
-      const { shortId } = req.params;
+      const shortId = firstString(req.params.shortId);
       const updates = req.body;
+
+      if (!shortId) {
+        return res.status(400).json({ success: false, error: "invalid_short_id" });
+      }
 
       const artifact = await ArtifactService.updateArtifact(shortId, userId, updates);
 
@@ -178,7 +187,11 @@ export class ArtifactController {
         });
       }
 
-      const { shortId } = req.params;
+      const shortId = firstString(req.params.shortId);
+
+      if (!shortId) {
+        return res.status(400).json({ success: false, error: "invalid_short_id" });
+      }
 
       const deleted = await ArtifactService.deleteArtifact(shortId, userId);
 
@@ -213,10 +226,10 @@ export class ArtifactController {
         });
       }
 
-      const page = parseInt(req.query.page as string, 10) || 1;
-      const limit = parseInt(req.query.limit as string, 10) || 20;
-      const sort = (req.query.sort as string) || "createdAt";
-      const order = (req.query.order as "asc" | "desc") || "desc";
+      const page = parseInt(firstStringOr(req.query.page, "1"), 10) || 1;
+      const limit = parseInt(firstStringOr(req.query.limit, "20"), 10) || 20;
+      const sort = firstStringOr(req.query.sort, "createdAt");
+      const order = firstString(req.query.order) === "asc" ? "asc" : "desc";
 
       const result = await ArtifactService.listArtifacts(userId, {
         page,
@@ -244,8 +257,12 @@ export class ArtifactController {
    */
   static async recordView(req: Request, res: Response) {
     try {
-      const { shortId } = req.params;
+      const shortId = firstString(req.params.shortId);
       const { referer, user_agent } = req.body;
+
+      if (!shortId) {
+        return res.status(400).json({ success: false, error: "invalid_short_id" });
+      }
 
       const ipAddress = req.ip || (req.headers["x-real-ip"] as string);
       const userAgent = user_agent || (req.headers["user-agent"] as string);

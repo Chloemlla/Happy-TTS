@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { firstString } from "../utils/httpParam";
 import logger from "../utils/logger";
 
 // AuthRequest接口直接定义在这里
@@ -13,8 +14,9 @@ const resourceService = new ResourceService();
 // 获取资源列表
 export const getResources = async (req: Request, res: Response) => {
   try {
-    const { page = 1, category } = req.query;
-    const resources = await resourceService.getResources(Number(page), category as string);
+    const page = Number(firstString(req.query.page) || "1");
+    const category = firstString(req.query.category);
+    const resources = await resourceService.getResources(page, category);
     res.json(resources);
   } catch (error) {
     logger.error("获取资源列表失败:", error);
@@ -25,7 +27,8 @@ export const getResources = async (req: Request, res: Response) => {
 // 获取资源详情
 export const getResourceById = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = firstString(req.params.id);
+    if (!id) return res.status(400).json({ message: "无效的资源ID" });
     const resource = await resourceService.getResourceById(id);
     if (!resource) {
       return res.status(404).json({ message: "资源不存在" });
@@ -59,7 +62,8 @@ export const createResource = async (req: AuthRequest, res: Response) => {
 // 更新资源
 export const updateResource = async (req: AuthRequest, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = firstString(req.params.id);
+    if (!id) return res.status(400).json({ message: "无效的资源ID" });
     const resource = await resourceService.updateResource(id, req.body);
     if (!resource) {
       return res.status(404).json({ message: "资源不存在" });
@@ -73,7 +77,8 @@ export const updateResource = async (req: AuthRequest, res: Response) => {
 // 删除资源
 export const deleteResource = async (req: AuthRequest, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = firstString(req.params.id);
+    if (!id) return res.status(400).json({ message: "无效的资源ID" });
     await resourceService.deleteResource(id);
     res.status(204).send();
   } catch (_error) {

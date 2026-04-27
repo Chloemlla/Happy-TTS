@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { imageDataService } from "../services/imageDataService";
+import { firstString } from "../utils/httpParam";
 
 export const imageDataController = {
   // 验证图片数据
@@ -59,7 +60,7 @@ export const imageDataController = {
   // 获取图片数据信息
   async getImageDataInfo(req: Request, res: Response) {
     try {
-      const { imageId } = req.params;
+      const imageId = firstString(req.params.imageId);
 
       if (!imageId) {
         return res.status(400).json({
