@@ -39,7 +39,7 @@
     "@docusaurus/tsconfig": "3.10.0",
     "@docusaurus/types": "3.10.0",
     "typescript": "~6.0.3",
-    "webpack": "5.99.9"
+    "webpack": "5.106.2"
   },
   "browserslist": {
     "production": [
@@ -58,7 +58,7 @@
   },
   "pnpm": {
     "overrides": {
-      "webpack": "5.99.9",
+      "webpack": "$webpack",
       "nth-check": ">=2.0.1",
       "ajv": ">=8.18.0",
       "minimatch": ">=10.2.1",
