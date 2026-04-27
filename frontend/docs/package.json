@@ -39,7 +39,7 @@
     "@docusaurus/tsconfig": "3.10.0",
     "@docusaurus/types": "3.10.0",
     "typescript": "~6.0.3",
-    "webpack": "5.106.2"
+    "webpack": "5.99.9"
   },
   "browserslist": {
     "production": [
