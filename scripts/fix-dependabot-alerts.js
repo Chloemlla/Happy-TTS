@@ -16,6 +16,7 @@ const CARGO_LOCK_FILENAME = 'Cargo.lock';
 const PNPM_COMMAND = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 const COREPACK_COMMAND = process.platform === 'win32' ? 'corepack.cmd' : 'corepack';
 const CARGO_COMMAND = process.platform === 'win32' ? 'cargo.exe' : 'cargo';
+const IS_WINDOWS = process.platform === 'win32';
 const CRATES_IO_API_ROOT = 'https://crates.io/api/v1/crates';
 const CRATES_IO_USER_AGENT = 'geograba-dependabot-alert-fixer';
 const DEPENDENCY_FIELDS = [
@@ -38,6 +39,12 @@ const EXCLUDED_DIRECTORIES = new Set([
   'node_modules',
 ]);
 
+function parseCliArgs(argv) {
+  return {
+    repairOnly: argv.includes('--repair') || argv.includes('--repair-only'),
+  };
+}
+
 function printDivider() {
   console.log('==========================================');
 }
@@ -52,18 +59,25 @@ function printSection(index, total, title) {
   console.log(`\n[${index}/${total}] ${title}`);
 }
 
-function quotePowerShellArgument(argument) {
-  return /^[A-Za-z0-9_./:\\@^=-]+$/.test(argument)
-    ? argument
-    : `'${argument.replace(/'/g, "''")}'`;
+function quoteShellArgument(argument) {
+  if (/^[A-Za-z0-9_./:@%+=,~-]+$/.test(argument)) {
+    return argument;
+  }
+
+  if (IS_WINDOWS) {
+    return `'${argument.replace(/'/g, "''")}'`;
+  }
+
+  return `'${argument.replace(/'/g, `'\\''`)}'`;
 }
 
-function formatPowerShellCommand(cwd, command, args = []) {
-  return `${cwd}> ${[command, ...args].map(quotePowerShellArgument).join(' ')}`;
+function formatShellCommand(cwd, command, args = []) {
+  const prompt = IS_WINDOWS ? '>' : '$';
+  return `${cwd}${prompt} ${[command, ...args].map(quoteShellArgument).join(' ')}`;
 }
 
 function printAction(cwd, command, args = []) {
-  console.log(formatPowerShellCommand(cwd, command, args));
+  console.log(formatShellCommand(cwd, command, args));
 }
 
 function createSpawnError(commandLabel, cwd, error) {
@@ -95,6 +109,10 @@ function cloneDependencySnapshot(manifest) {
   }, {});
 }
 
+function cloneOverrideSnapshot(manifest) {
+  return { ...(manifest?.pnpm?.overrides ?? {}) };
+}
+
 function collectRangeChanges(beforeSnapshot, afterManifest) {
   const changes = [];
 
@@ -123,6 +141,30 @@ function collectRangeChanges(beforeSnapshot, afterManifest) {
   return changes;
 }
 
+function collectOverrideChanges(beforeSnapshot, afterManifest) {
+  const beforeEntries = beforeSnapshot ?? {};
+  const afterEntries = afterManifest?.pnpm?.overrides ?? {};
+  const overrideNames = Array.from(
+    new Set([...Object.keys(beforeEntries), ...Object.keys(afterEntries)])
+  ).sort((left, right) => left.localeCompare(right));
+  const changes = [];
+
+  for (const overrideName of overrideNames) {
+    const beforeRange = beforeEntries[overrideName];
+    const afterRange = afterEntries[overrideName];
+
+    if (beforeRange !== afterRange) {
+      changes.push({
+        name: overrideName,
+        beforeRange,
+        afterRange,
+      });
+    }
+  }
+
+  return changes;
+}
+
 function describeCounts(counts) {
   return DEPENDENCY_FIELDS
     .filter((field) => counts[field] > 0)
@@ -134,9 +176,125 @@ function formatChange(change) {
   return `${change.name} (${change.field}) ${change.beforeRange ?? '<missing>'} -> ${change.afterRange ?? '<removed>'}`;
 }
 
+function formatOverrideChange(change) {
+  return `${change.name} (pnpm.overrides) ${change.beforeRange ?? '<missing>'} -> ${change.afterRange ?? '<removed>'}`;
+}
+
 async function readManifest(packageJsonPath) {
   const manifestText = await readFile(packageJsonPath, 'utf8');
   return JSON.parse(manifestText);
+}
+
+function collectDirectDependencyRanges(manifest) {
+  const dependencyRanges = new Map();
+
+  for (const field of DEPENDENCY_FIELDS) {
+    for (const [dependencyName, dependencyRange] of Object.entries(
+      manifest[field] ?? {}
+    )) {
+      if (!dependencyRanges.has(dependencyName)) {
+        dependencyRanges.set(dependencyName, dependencyRange);
+      }
+    }
+  }
+
+  return dependencyRanges;
+}
+
+function normalizePnpmOverrides(manifest) {
+  const overrides = manifest?.pnpm?.overrides;
+  if (!overrides || typeof overrides !== 'object' || Array.isArray(overrides)) {
+    return [];
+  }
+
+  const directDependencyRanges = collectDirectDependencyRanges(manifest);
+  const changes = [];
+
+  for (const [overrideName, overrideRange] of Object.entries(overrides)) {
+    if (!directDependencyRanges.has(overrideName)) {
+      continue;
+    }
+
+    const nextOverrideRange = `$${overrideName}`;
+    if (overrideRange === nextOverrideRange) {
+      continue;
+    }
+
+    overrides[overrideName] = nextOverrideRange;
+    changes.push({
+      name: overrideName,
+      beforeRange: overrideRange,
+      afterRange: nextOverrideRange,
+    });
+  }
+
+  return changes;
+}
+
+async function rewriteManifest(packageJsonPath, manifest) {
+  const currentManifestText = await readFile(packageJsonPath, 'utf8');
+  const newline = currentManifestText.includes('\r\n') ? '\r\n' : '\n';
+  await writeFile(
+    packageJsonPath,
+    `${JSON.stringify(manifest, null, 2).replace(/\n/g, newline)}${newline}`
+  );
+}
+
+function createPnpmExecutor(target) {
+  const executePnpm = (command, commandArgs, commandLabel) =>
+    new Promise((resolve, reject) => {
+      const child = spawn(command, commandArgs, {
+        cwd: target.dir,
+        stdio: 'inherit',
+        env: process.env,
+        shell: IS_WINDOWS,
+        windowsHide: true,
+      });
+
+      child.on('error', (error) => {
+        reject(createSpawnError(commandLabel, target.dir, error));
+      });
+
+      child.on('exit', (code, signal) => {
+        if (code === 0) {
+          resolve();
+          return;
+        }
+
+        reject(
+          new Error(
+            `${commandLabel} exited abnormally for ${target.packageJsonLabel}: ${signal ? `signal ${signal}` : `code ${code}`}`
+          )
+        );
+      });
+    });
+
+  return async (args) => {
+    printAction(target.dir, 'pnpm', args);
+
+    try {
+      await executePnpm(PNPM_COMMAND, args, 'pnpm');
+    } catch (error) {
+      if (error?.code !== 'ENOENT') {
+        throw error;
+      }
+
+      console.log('  - pnpm was not found on PATH, retrying with corepack.');
+      printAction(target.dir, 'corepack', ['pnpm', ...args]);
+
+      try {
+        await executePnpm(COREPACK_COMMAND, ['pnpm', ...args], 'corepack pnpm');
+      } catch (corepackError) {
+        if (corepackError?.code === 'ENOENT') {
+          throw new Error(
+            `Neither pnpm nor corepack is available in ${target.dir}. Install pnpm or enable Corepack before running this script.`
+          );
+        }
+
+        throw corepackError;
+      }
+    }
+  };
 }
 
 function isRustDependencySection(sectionName) {
@@ -452,6 +610,7 @@ async function discoverTargets() {
       dependencyNames,
       dependencyCounts: collectDependencyCounts(manifest),
       beforeSnapshot: cloneDependencySnapshot(manifest),
+      beforeOverrideSnapshot: cloneOverrideSnapshot(manifest),
     });
   }
 
@@ -481,58 +640,24 @@ async function discoverRustTarget() {
   };
 }
 
-async function runPnpmUpgrade(target) {
-  const args = ['up', '--latest', ...target.dependencyNames];
-  printAction(target.dir, 'pnpm', args);
+async function runPnpmUpgrade(target, options = {}) {
+  const runPnpmCommand = createPnpmExecutor(target);
 
-  const executePnpm = (command, commandArgs, commandLabel) =>
-    new Promise((resolve, reject) => {
-      const child = spawn(command, commandArgs, {
-        cwd: target.dir,
-        stdio: 'inherit',
-        env: process.env,
-      });
-
-      child.on('error', (error) => {
-        reject(createSpawnError(commandLabel, target.dir, error));
-      });
-
-      child.on('exit', (code, signal) => {
-        if (code === 0) {
-          resolve();
-          return;
-        }
-
-        reject(
-          new Error(
-            `${commandLabel} exited abnormally for ${target.packageJsonLabel}: ${signal ? `signal ${signal}` : `code ${code}`}`
-          )
-        );
-      });
-    });
-
-  try {
-    await executePnpm(PNPM_COMMAND, args, 'pnpm');
-  } catch (error) {
-    if (error?.code !== 'ENOENT') {
-      throw error;
-    }
-
-    console.log('  - pnpm was not found on PATH, retrying with corepack.');
-    printAction(target.dir, 'corepack', ['pnpm', ...args]);
-
-    try {
-      await executePnpm(COREPACK_COMMAND, ['pnpm', ...args], 'corepack pnpm');
-    } catch (corepackError) {
-      if (corepackError?.code === 'ENOENT') {
-        throw new Error(
-          `Neither pnpm nor corepack is available in ${target.dir}. Install pnpm or enable Corepack before running this script.`
-        );
-      }
-
-      throw corepackError;
-    }
+  if (!options.repairOnly) {
+    await runPnpmCommand(['up', '--latest', ...target.dependencyNames]);
   }
+
+  const nextManifest = await readManifest(target.packageJsonPath);
+  const overrideChanges = normalizePnpmOverrides(nextManifest);
+
+  if (overrideChanges.length > 0) {
+    await rewriteManifest(target.packageJsonPath, nextManifest);
+    console.log(
+      `  - Normalized ${overrideChanges.length} overlapping pnpm override${overrideChanges.length === 1 ? '' : 's'} to $dependency references.`
+    );
+  }
+
+  await runPnpmCommand(['install', '--lockfile-only']);
 }
 
 async function runRustUpgrade(target) {
@@ -590,6 +715,8 @@ async function runRustUpgrade(target) {
       cwd: target.dir,
       stdio: 'inherit',
       env: process.env,
+      shell: IS_WINDOWS,
+      windowsHide: true,
     });
 
     child.on('error', (error) => {
@@ -614,13 +741,17 @@ async function runRustUpgrade(target) {
 async function verifyTarget(target) {
   const nextManifest = await readManifest(target.packageJsonPath);
   const changedRanges = collectRangeChanges(target.beforeSnapshot, nextManifest);
+  const changedOverrides = collectOverrideChanges(
+    target.beforeOverrideSnapshot,
+    nextManifest
+  );
   const lockfileExists = existsSync(target.lockfilePath);
   const lockfileLabel = lockfileExists
     ? path.relative(ROOT_DIR, target.lockfilePath)
     : '<no local pnpm-lock.yaml>';
 
   console.log(
-    `[ok] ${target.packageJsonLabel} -> ${target.dependencyNames.length} dependencies inspected, ${changedRanges.length} ranges updated, lockfile: ${lockfileLabel}`
+    `[ok] ${target.packageJsonLabel} -> ${target.dependencyNames.length} dependencies inspected, ${changedRanges.length} ranges updated, ${changedOverrides.length} override fix${changedOverrides.length === 1 ? '' : 'es'}, lockfile: ${lockfileLabel}`
   );
 
   if (changedRanges.length > 0) {
@@ -632,6 +763,15 @@ async function verifyTarget(target) {
     }
   } else {
     console.log('  - Already at the newest published ranges or no manifest rewrite was necessary.');
+  }
+
+  if (changedOverrides.length > 0) {
+    const preview = changedOverrides.slice(0, 10).map(formatOverrideChange);
+    preview.forEach((line) => console.log(`  - ${line}`));
+
+    if (changedOverrides.length > preview.length) {
+      console.log(`  - ... ${changedOverrides.length - preview.length} more override changes`);
+    }
   }
 }
 
@@ -664,11 +804,17 @@ async function verifyRustTarget(target) {
 }
 
 async function main() {
-  printHeader('Upgrade Package Dependencies For Dependabot');
+  const cliArgs = parseCliArgs(process.argv.slice(2));
+  printHeader(
+    cliArgs.repairOnly
+      ? 'Repair Dependabot Dependency State'
+      : 'Upgrade Package Dependencies For Dependabot'
+  );
 
   const pnpmTargets = await discoverTargets();
   const rustTarget = await discoverRustTarget();
-  const totalTargets = pnpmTargets.length + (rustTarget ? 1 : 0);
+  const includeRustTarget = !cliArgs.repairOnly && rustTarget;
+  const totalTargets = pnpmTargets.length + (includeRustTarget ? 1 : 0);
 
   if (totalTargets === 0) {
     throw new Error('No package.json with dependencies or backend/Cargo.toml was found under the repository root.');
@@ -676,6 +822,7 @@ async function main() {
 
   console.log(`Repository root: ${ROOT_DIR}`);
   console.log(`Targets: ${totalTargets}`);
+  console.log(`Mode: ${cliArgs.repairOnly ? 'repair-only' : 'upgrade'}`);
 
   for (const target of pnpmTargets) {
     console.log(
@@ -683,7 +830,7 @@ async function main() {
     );
   }
 
-  if (rustTarget) {
+  if (includeRustTarget) {
     console.log(
       `- ${rustTarget.cargoManifestLabel} (${describeRustCounts(rustTarget.dependencyCounts) || 'no versioned rust dependencies'})`
     );
@@ -693,13 +840,13 @@ async function main() {
     printSection(
       index + 1,
       totalTargets,
-      `upgrade ${target.packageJsonLabel}`
+      `${cliArgs.repairOnly ? 'repair' : 'upgrade'} ${target.packageJsonLabel}`
     );
-    await runPnpmUpgrade(target);
+    await runPnpmUpgrade(target, cliArgs);
     await verifyTarget(target);
   }
 
-  if (rustTarget) {
+  if (includeRustTarget) {
     printSection(
       pnpmTargets.length + 1,
       totalTargets,
