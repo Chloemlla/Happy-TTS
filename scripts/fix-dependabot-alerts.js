@@ -1,30 +1,45 @@
 #!/usr/bin/env node
 
-const fs = require("node:fs");
-const path = require("node:path");
+import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { readdir, readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT_DIR = path.resolve(__dirname, "..");
-const AXIOS_SAFE_FLOOR = "1.15.0";
-const AXIOS_SAFE_INTEGRITY =
-  "sha512-wWyJDlAatxk30ZJer+GeCWS209sA42X+N5jU2jy6oHTp7ufw8uzUTVFBX9+wTfAlhiJXGS0Bq7X6efruWjuK9Q==";
-
-const TARGETS = [
-  {
-    name: "root",
-    dir: ROOT_DIR,
-    packageJsonPath: path.join(ROOT_DIR, "package.json"),
-    lockfilePath: path.join(ROOT_DIR, "pnpm-lock.yaml"),
-  },
-  {
-    name: "frontend/docs",
-    dir: path.join(ROOT_DIR, "frontend", "docs"),
-    packageJsonPath: path.join(ROOT_DIR, "frontend", "docs", "package.json"),
-    lockfilePath: path.join(ROOT_DIR, "frontend", "docs", "pnpm-lock.yaml"),
-  },
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const ROOT_DIR = path.resolve(__dirname, '..');
+const BACKEND_DIRNAME = 'backend';
+const MANIFEST_FILENAME = 'package.json';
+const CARGO_MANIFEST_FILENAME = 'Cargo.toml';
+const CARGO_LOCK_FILENAME = 'Cargo.lock';
+const PNPM_COMMAND = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
+const COREPACK_COMMAND = process.platform === 'win32' ? 'corepack.cmd' : 'corepack';
+const CARGO_COMMAND = process.platform === 'win32' ? 'cargo.exe' : 'cargo';
+const CRATES_IO_API_ROOT = 'https://crates.io/api/v1/crates';
+const CRATES_IO_USER_AGENT = 'geograba-dependabot-alert-fixer';
+const DEPENDENCY_FIELDS = [
+  'dependencies',
+  'devDependencies',
+  'peerDependencies',
+  'optionalDependencies',
 ];
+const RUST_DEPENDENCY_FIELDS = [
+  'dependencies',
+  'dev-dependencies',
+  'build-dependencies',
+];
+const EXCLUDED_DIRECTORIES = new Set([
+  '.git',
+  '.github',
+  '.vercel',
+  'coverage',
+  'dist',
+  'node_modules',
+]);
 
 function printDivider() {
-  console.log("==========================================");
+  console.log('==========================================');
 }
 
 function printHeader(title) {
@@ -43,146 +58,661 @@ function quotePowerShellArgument(argument) {
     : `'${argument.replace(/'/g, "''")}'`;
 }
 
-function formatPowerShellCommand(cwd, command, args) {
-  return `PS ${cwd}> ${[command, ...args].map(quotePowerShellArgument).join(" ")}`;
+function formatPowerShellCommand(cwd, command, args = []) {
+  return `${cwd}> ${[command, ...args].map(quotePowerShellArgument).join(' ')}`;
 }
 
-function printAction(cwd, ...args) {
-  console.log(formatPowerShellCommand(cwd, "Update-DependabotAlert", args));
+function printAction(cwd, command, args = []) {
+  console.log(formatPowerShellCommand(cwd, command, args));
 }
 
-function replaceAxiosVersionLine(packageJsonPath) {
-  const originalText = fs.readFileSync(packageJsonPath, "utf8");
-  const expression = /("axios"\s*:\s*")([^"]+)(")/;
-  const match = originalText.match(expression);
+function createSpawnError(commandLabel, cwd, error) {
+  return Object.assign(
+    new Error(`Unable to execute ${commandLabel} in ${cwd}: ${error.message}`),
+    { code: error.code }
+  );
+}
+
+function collectDependencyNames(manifest) {
+  return Array.from(
+    new Set(
+      DEPENDENCY_FIELDS.flatMap((field) => Object.keys(manifest[field] ?? {}))
+    )
+  ).sort((left, right) => left.localeCompare(right));
+}
+
+function collectDependencyCounts(manifest) {
+  return DEPENDENCY_FIELDS.reduce((counts, field) => {
+    counts[field] = Object.keys(manifest[field] ?? {}).length;
+    return counts;
+  }, {});
+}
+
+function cloneDependencySnapshot(manifest) {
+  return DEPENDENCY_FIELDS.reduce((snapshot, field) => {
+    snapshot[field] = { ...(manifest[field] ?? {}) };
+    return snapshot;
+  }, {});
+}
+
+function collectRangeChanges(beforeSnapshot, afterManifest) {
+  const changes = [];
+
+  for (const field of DEPENDENCY_FIELDS) {
+    const beforeEntries = beforeSnapshot[field] ?? {};
+    const afterEntries = afterManifest[field] ?? {};
+    const dependencyNames = Array.from(
+      new Set([...Object.keys(beforeEntries), ...Object.keys(afterEntries)])
+    ).sort((left, right) => left.localeCompare(right));
+
+    for (const dependencyName of dependencyNames) {
+      const beforeRange = beforeEntries[dependencyName];
+      const afterRange = afterEntries[dependencyName];
+
+      if (beforeRange !== afterRange) {
+        changes.push({
+          field,
+          name: dependencyName,
+          beforeRange,
+          afterRange,
+        });
+      }
+    }
+  }
+
+  return changes;
+}
+
+function describeCounts(counts) {
+  return DEPENDENCY_FIELDS
+    .filter((field) => counts[field] > 0)
+    .map((field) => `${field}:${counts[field]}`)
+    .join(', ');
+}
+
+function formatChange(change) {
+  return `${change.name} (${change.field}) ${change.beforeRange ?? '<missing>'} -> ${change.afterRange ?? '<removed>'}`;
+}
+
+async function readManifest(packageJsonPath) {
+  const manifestText = await readFile(packageJsonPath, 'utf8');
+  return JSON.parse(manifestText);
+}
+
+function isRustDependencySection(sectionName) {
+  return RUST_DEPENDENCY_FIELDS.some(
+    (field) => sectionName === field || sectionName.endsWith(`.${field}`)
+  );
+}
+
+function getRustDependencyField(sectionName) {
+  return (
+    RUST_DEPENDENCY_FIELDS.find(
+      (field) => sectionName === field || sectionName.endsWith(`.${field}`)
+    ) ?? 'dependencies'
+  );
+}
+
+function collectRustDependencyEntries(manifestText) {
+  const lines = manifestText.split(/\r?\n/);
+  const dependencyEntries = [];
+  let currentSectionName = '';
+
+  for (const [lineIndex, line] of lines.entries()) {
+    const trimmedLine = line.trim();
+
+    if (!trimmedLine || trimmedLine.startsWith('#')) {
+      continue;
+    }
+
+    const sectionMatch = trimmedLine.match(/^\[(.+)\]$/);
+    if (sectionMatch) {
+      currentSectionName = sectionMatch[1].trim();
+      continue;
+    }
+
+    if (!isRustDependencySection(currentSectionName)) {
+      continue;
+    }
+
+    const stringDependencyMatch = line.match(
+      /^(\s*)([A-Za-z0-9_-]+)\s*=\s*"([^"]+)"(\s*(#.*)?)?$/
+    );
+
+    if (stringDependencyMatch) {
+      const indent = stringDependencyMatch[1] ?? '';
+      const dependencyName = stringDependencyMatch[2];
+      const versionSpec = stringDependencyMatch[3];
+      const trailingComment = stringDependencyMatch[4] ?? '';
+
+      dependencyEntries.push({
+        lineIndex,
+        dependencyName,
+        crateName: dependencyName,
+        section: currentSectionName,
+        versionSpec,
+        updateLine(nextVersionSpec) {
+          return `${indent}${dependencyName} = "${nextVersionSpec}"${trailingComment}`;
+        },
+      });
+      continue;
+    }
+
+    const inlineTableMatch = line.match(
+      /^(\s*)([A-Za-z0-9_-]+)\s*=\s*\{(.*)\}(\s*(#.*)?)?$/
+    );
+
+    if (!inlineTableMatch) {
+      continue;
+    }
+
+    const dependencyName = inlineTableMatch[2];
+    const packageNameMatch = inlineTableMatch[3].match(/\bpackage\s*=\s*"([^"]+)"/);
+    const versionMatch = inlineTableMatch[3].match(/\bversion\s*=\s*"([^"]+)"/);
+
+    if (!versionMatch) {
+      continue;
+    }
+
+    const versionSpec = versionMatch[1];
+    dependencyEntries.push({
+      lineIndex,
+      dependencyName,
+      crateName: packageNameMatch?.[1] ?? dependencyName,
+      section: currentSectionName,
+      versionSpec,
+      updateLine(nextVersionSpec) {
+        return line.replace(versionMatch[0], versionMatch[0].replace(versionSpec, nextVersionSpec));
+      },
+    });
+  }
+
+  return dependencyEntries;
+}
+
+function collectRustDependencyCounts(dependencyEntries) {
+  return dependencyEntries.reduce(
+    (counts, dependencyEntry) => {
+      counts[getRustDependencyField(dependencyEntry.section)] += 1;
+      return counts;
+    },
+    {
+      dependencies: 0,
+      'dev-dependencies': 0,
+      'build-dependencies': 0,
+    }
+  );
+}
+
+function describeRustCounts(counts) {
+  return RUST_DEPENDENCY_FIELDS
+    .filter((field) => counts[field] > 0)
+    .map((field) => `${field}:${counts[field]}`)
+    .join(', ');
+}
+
+function buildRustDependencyKey(dependencyEntry) {
+  return `${dependencyEntry.section}:${dependencyEntry.dependencyName}`;
+}
+
+function collectRustRangeChanges(beforeDependencyEntries, afterDependencyEntries) {
+  const beforeEntriesByKey = new Map(
+    beforeDependencyEntries.map((dependencyEntry) => [
+      buildRustDependencyKey(dependencyEntry),
+      dependencyEntry,
+    ])
+  );
+  const afterEntriesByKey = new Map(
+    afterDependencyEntries.map((dependencyEntry) => [
+      buildRustDependencyKey(dependencyEntry),
+      dependencyEntry,
+    ])
+  );
+  const dependencyKeys = Array.from(
+    new Set([...beforeEntriesByKey.keys(), ...afterEntriesByKey.keys()])
+  ).sort((left, right) => left.localeCompare(right));
+  const changes = [];
+
+  for (const dependencyKey of dependencyKeys) {
+    const beforeEntry = beforeEntriesByKey.get(dependencyKey);
+    const afterEntry = afterEntriesByKey.get(dependencyKey);
+    const beforeRange = beforeEntry?.versionSpec;
+    const afterRange = afterEntry?.versionSpec;
+
+    if (beforeRange !== afterRange) {
+      changes.push({
+        section: beforeEntry?.section ?? afterEntry?.section ?? 'dependencies',
+        dependencyName: beforeEntry?.dependencyName ?? afterEntry?.dependencyName ?? dependencyKey,
+        crateName: beforeEntry?.crateName ?? afterEntry?.crateName ?? dependencyKey,
+        beforeRange,
+        afterRange,
+      });
+    }
+  }
+
+  return changes;
+}
+
+function formatRustChange(change) {
+  const dependencyLabel = change.dependencyName === change.crateName
+    ? change.dependencyName
+    : `${change.dependencyName} => ${change.crateName}`;
+
+  return `${dependencyLabel} (${getRustDependencyField(change.section)}) ${change.beforeRange ?? '<missing>'} -> ${change.afterRange ?? '<removed>'}`;
+}
+
+function parseSimpleRustVersion(version) {
+  const match = `${version}`.trim().match(/^(\d+)\.(\d+)\.(\d+)(?:[-+][0-9A-Za-z.+-]+)?$/);
 
   if (!match) {
-    throw new Error(`Unable to find axios dependency in ${packageJsonPath}`);
+    return null;
   }
 
-  const nextText = originalText.replace(
-    expression,
-    `$1^${AXIOS_SAFE_FLOOR}$3`,
-  );
-
-  if (nextText !== originalText) {
-    fs.writeFileSync(packageJsonPath, nextText, "utf8");
-  }
+  return {
+    major: Number.parseInt(match[1], 10),
+    minor: Number.parseInt(match[2], 10),
+    patch: Number.parseInt(match[3], 10),
+    raw: match[0],
+  };
 }
 
-function replaceLockfileAxiosBlock(lockfilePath) {
-  const originalText = fs.readFileSync(lockfilePath, "utf8");
-  let nextText = originalText;
-
-  nextText = nextText.replace(
-    /(^(\s+)axios:\r?\n\2  specifier:\s*)\^[^\r\n]+(\r?\n\2  version:\s*)[^\r\n]+/m,
-    `$1^${AXIOS_SAFE_FLOOR}$3${AXIOS_SAFE_FLOOR}`,
-  );
-
-  nextText = nextText.replace(/(^  axios@)\d+\.\d+\.\d+(:$)/gm, `$1${AXIOS_SAFE_FLOOR}$2`);
-
-  nextText = nextText.replace(
-    /(^  axios@1\.15\.0:\r?\n    resolution: \{integrity: )[^}]+(\})/m,
-    `$1${AXIOS_SAFE_INTEGRITY}$2`,
-  );
-
-  if (nextText !== originalText) {
-    fs.writeFileSync(lockfilePath, nextText, "utf8");
-  }
-}
-
-function compareVersions(left, right) {
-  const leftParts = left.split(".").map(Number);
-  const rightParts = right.split(".").map(Number);
-  const length = Math.max(leftParts.length, rightParts.length);
-
-  for (let index = 0; index < length; index += 1) {
-    const leftValue = leftParts[index] ?? 0;
-    const rightValue = rightParts[index] ?? 0;
-
-    if (leftValue > rightValue) {
-      return 1;
-    }
-
-    if (leftValue < rightValue) {
-      return -1;
-    }
+function compareSimpleRustVersions(leftVersion, rightVersion) {
+  if (leftVersion.major !== rightVersion.major) {
+    return leftVersion.major - rightVersion.major;
   }
 
-  return 0;
-}
-
-function collectAxiosVersions(lockfilePath) {
-  const lockfileText = fs.readFileSync(lockfilePath, "utf8");
-  const expression = /^  axios@(\d+\.\d+\.\d+)(?:\([^\n]+\))?:$/gm;
-  const versions = [];
-  let match;
-
-  while ((match = expression.exec(lockfileText)) !== null) {
-    versions.push(match[1]);
+  if (leftVersion.minor !== rightVersion.minor) {
+    return leftVersion.minor - rightVersion.minor;
   }
 
-  return [...new Set(versions)];
+  return leftVersion.patch - rightVersion.patch;
 }
 
-function verifyTarget(target) {
-  const packageJson = JSON.parse(fs.readFileSync(target.packageJsonPath, "utf8"));
-  const axiosRange = packageJson.dependencies?.axios;
-
-  if (axiosRange !== `^${AXIOS_SAFE_FLOOR}`) {
-    throw new Error(
-      `${path.relative(ROOT_DIR, target.packageJsonPath)} still resolves axios as ${axiosRange ?? "<missing>"}`,
+function isCompatibleRustVersion(currentVersion, candidateVersion) {
+  if (currentVersion.major === 0) {
+    return (
+      candidateVersion.major === 0
+      && candidateVersion.minor === currentVersion.minor
     );
   }
 
-  const axiosVersions = collectAxiosVersions(target.lockfilePath);
-
-  if (axiosVersions.length === 0) {
-    throw new Error(`axios was not found in ${path.relative(ROOT_DIR, target.lockfilePath)}`);
-  }
-
-  const vulnerableVersions = axiosVersions.filter(
-    (version) => compareVersions(version, AXIOS_SAFE_FLOOR) < 0,
-  );
-
-  if (vulnerableVersions.length > 0) {
-    throw new Error(
-      `${path.relative(ROOT_DIR, target.lockfilePath)} still contains vulnerable axios versions: ${vulnerableVersions.join(", ")}`,
-    );
-  }
-
-  const lockfileText = fs.readFileSync(target.lockfilePath, "utf8");
-
-  if (!lockfileText.includes(AXIOS_SAFE_INTEGRITY)) {
-    throw new Error(
-      `${path.relative(ROOT_DIR, target.lockfilePath)} does not contain the expected axios integrity for ${AXIOS_SAFE_FLOOR}`,
-    );
-  }
-
-  console.log(
-    `[ok] ${target.name} -> ${path.relative(ROOT_DIR, target.packageJsonPath)} / ${path.relative(ROOT_DIR, target.lockfilePath)} -> axios ${axiosVersions.join(", ")}`,
-  );
+  return candidateVersion.major === currentVersion.major;
 }
 
-function updateTarget(target) {
-  printAction(target.dir, "package.json", "axios", `^${AXIOS_SAFE_FLOOR}`);
-  replaceAxiosVersionLine(target.packageJsonPath);
-  printAction(target.dir, "pnpm-lock.yaml", "axios", AXIOS_SAFE_FLOOR);
-  replaceLockfileAxiosBlock(target.lockfilePath);
-  verifyTarget(target);
+function buildLatestRustVersionSpec(currentVersionSpec, nextVersion) {
+  const trimmedVersionSpec = currentVersionSpec.trim();
+  const simpleVersionMatch = trimmedVersionSpec.match(/^([~^=]?)(\d+(?:\.\d+)*(?:-[0-9A-Za-z.+-]+)?)$/);
+
+  if (!simpleVersionMatch) {
+    return null;
+  }
+
+  return `${simpleVersionMatch[1]}${nextVersion}`;
 }
 
-function main() {
-  printHeader("Fixing Axios Dependabot Alerts");
-  console.log(`Safe axios floor: ${AXIOS_SAFE_FLOOR}`);
-  console.log("Targets: root, frontend/docs");
+async function fetchLatestCompatibleCrateVersion(crateName, currentVersionSpec, versionCache) {
+  const normalizedVersionSpec = `${currentVersionSpec}`.trim();
+  const simpleVersionMatch = normalizedVersionSpec.match(/^[~^=]?(\d+\.\d+\.\d+|\d+\.\d+|\d+)$/);
 
-  TARGETS.forEach((target, index) => {
-    printSection(index + 1, TARGETS.length, `refresh ${target.name}`);
-    updateTarget(target);
+  if (!simpleVersionMatch) {
+    return null;
+  }
+
+  const currentVersionText = simpleVersionMatch[1]
+    .split('.')
+    .concat(['0', '0'])
+    .slice(0, 3)
+    .join('.');
+  const currentVersion = parseSimpleRustVersion(currentVersionText);
+
+  if (!currentVersion) {
+    return null;
+  }
+
+  const cacheKey = `${crateName}@${currentVersion.major}.${currentVersion.minor}`;
+  if (versionCache.has(cacheKey)) {
+    return versionCache.get(cacheKey);
+  }
+
+  const response = await fetch(`${CRATES_IO_API_ROOT}/${encodeURIComponent(crateName)}/versions`, {
+    headers: {
+      'user-agent': CRATES_IO_USER_AGENT,
+      accept: 'application/json',
+    },
   });
 
-  console.log("\nDone.");
+  if (!response.ok) {
+    throw new Error(`Unable to query crates.io for ${crateName}: HTTP ${response.status}`);
+  }
+
+  const payload = await response.json();
+  const latestVersion = (payload?.versions ?? [])
+    .filter((version) => version?.yanked !== true)
+    .map((version) => ({
+      raw: typeof version?.num === 'string' ? version.num.trim() : '',
+      parsed: parseSimpleRustVersion(version?.num),
+    }))
+    .filter((version) => version.raw.length > 0 && version.parsed)
+    .filter((version) => !version.raw.includes('-'))
+    .filter((version) => isCompatibleRustVersion(currentVersion, version.parsed))
+    .sort((left, right) => compareSimpleRustVersions(right.parsed, left.parsed))[0]?.raw ?? null;
+
+  if (typeof latestVersion !== 'string' || latestVersion.trim().length === 0) {
+    throw new Error(
+      `crates.io did not provide a usable compatible version for ${crateName} within the ${currentVersion.major}.${currentVersion.minor} lane.`
+    );
+  }
+
+  versionCache.set(cacheKey, latestVersion.trim());
+  return latestVersion.trim();
 }
 
-main();
+async function collectPackageJsonPaths(directoryPath) {
+  const entries = await readdir(directoryPath, { withFileTypes: true });
+  const packageJsonPaths = [];
+
+  for (const entry of entries) {
+    const entryPath = path.join(directoryPath, entry.name);
+
+    if (entry.isDirectory()) {
+      if (EXCLUDED_DIRECTORIES.has(entry.name)) {
+        continue;
+      }
+
+      packageJsonPaths.push(...(await collectPackageJsonPaths(entryPath)));
+      continue;
+    }
+
+    if (entry.isFile() && entry.name === MANIFEST_FILENAME) {
+      packageJsonPaths.push(entryPath);
+    }
+  }
+
+  return packageJsonPaths;
+}
+
+async function discoverTargets() {
+  const packageJsonPaths = await collectPackageJsonPaths(ROOT_DIR);
+  const targets = [];
+
+  for (const packageJsonPath of packageJsonPaths.sort((left, right) => left.localeCompare(right))) {
+    const manifest = await readManifest(packageJsonPath);
+    const dependencyNames = collectDependencyNames(manifest);
+
+    if (dependencyNames.length === 0) {
+      continue;
+    }
+
+    const directoryPath = path.dirname(packageJsonPath);
+    targets.push({
+      dir: directoryPath,
+      packageJsonPath,
+      packageJsonLabel: path.relative(ROOT_DIR, packageJsonPath) || MANIFEST_FILENAME,
+      lockfilePath: path.join(directoryPath, 'pnpm-lock.yaml'),
+      dependencyNames,
+      dependencyCounts: collectDependencyCounts(manifest),
+      beforeSnapshot: cloneDependencySnapshot(manifest),
+    });
+  }
+
+  return targets;
+}
+
+async function discoverRustTarget() {
+  const backendDirectoryPath = path.join(ROOT_DIR, BACKEND_DIRNAME);
+  const cargoManifestPath = path.join(backendDirectoryPath, CARGO_MANIFEST_FILENAME);
+
+  if (!existsSync(cargoManifestPath)) {
+    return null;
+  }
+
+  const manifestText = await readFile(cargoManifestPath, 'utf8');
+  const dependencyEntries = collectRustDependencyEntries(manifestText);
+
+  return {
+    dir: backendDirectoryPath,
+    cargoManifestPath,
+    cargoManifestLabel:
+      path.relative(ROOT_DIR, cargoManifestPath) || CARGO_MANIFEST_FILENAME,
+    cargoLockPath: path.join(backendDirectoryPath, CARGO_LOCK_FILENAME),
+    dependencyEntries,
+    dependencyCounts: collectRustDependencyCounts(dependencyEntries),
+    beforeManifestText: manifestText,
+  };
+}
+
+async function runPnpmUpgrade(target) {
+  const args = ['up', '--latest', ...target.dependencyNames];
+  printAction(target.dir, 'pnpm', args);
+
+  const executePnpm = (command, commandArgs, commandLabel) =>
+    new Promise((resolve, reject) => {
+      const child = spawn(command, commandArgs, {
+        cwd: target.dir,
+        stdio: 'inherit',
+        env: process.env,
+      });
+
+      child.on('error', (error) => {
+        reject(createSpawnError(commandLabel, target.dir, error));
+      });
+
+      child.on('exit', (code, signal) => {
+        if (code === 0) {
+          resolve();
+          return;
+        }
+
+        reject(
+          new Error(
+            `${commandLabel} exited abnormally for ${target.packageJsonLabel}: ${signal ? `signal ${signal}` : `code ${code}`}`
+          )
+        );
+      });
+    });
+
+  try {
+    await executePnpm(PNPM_COMMAND, args, 'pnpm');
+  } catch (error) {
+    if (error?.code !== 'ENOENT') {
+      throw error;
+    }
+
+    console.log('  - pnpm was not found on PATH, retrying with corepack.');
+    printAction(target.dir, 'corepack', ['pnpm', ...args]);
+
+    try {
+      await executePnpm(COREPACK_COMMAND, ['pnpm', ...args], 'corepack pnpm');
+    } catch (corepackError) {
+      if (corepackError?.code === 'ENOENT') {
+        throw new Error(
+          `Neither pnpm nor corepack is available in ${target.dir}. Install pnpm or enable Corepack before running this script.`
+        );
+      }
+
+      throw corepackError;
+    }
+  }
+}
+
+async function runRustUpgrade(target) {
+  const newline = target.beforeManifestText.includes('\r\n') ? '\r\n' : '\n';
+  const manifestLines = target.beforeManifestText.split(/\r?\n/);
+  const latestVersionCache = new Map();
+  let updatedRangeCount = 0;
+  let skippedRangeCount = 0;
+
+  for (const dependencyEntry of target.dependencyEntries) {
+    const latestVersion = await fetchLatestCompatibleCrateVersion(
+      dependencyEntry.crateName,
+      dependencyEntry.versionSpec,
+      latestVersionCache
+    );
+    if (!latestVersion) {
+      skippedRangeCount += 1;
+      continue;
+    }
+
+    const nextVersionSpec = buildLatestRustVersionSpec(
+      dependencyEntry.versionSpec,
+      latestVersion
+    );
+
+    if (!nextVersionSpec) {
+      skippedRangeCount += 1;
+      continue;
+    }
+
+    if (nextVersionSpec === dependencyEntry.versionSpec) {
+      continue;
+    }
+
+    manifestLines[dependencyEntry.lineIndex] = dependencyEntry.updateLine(nextVersionSpec);
+    updatedRangeCount += 1;
+  }
+
+  if (updatedRangeCount > 0) {
+    await writeFile(target.cargoManifestPath, manifestLines.join(newline));
+    console.log(`  - Updated ${updatedRangeCount} Cargo.toml dependency ranges to the newest published versions.`);
+  } else {
+    console.log('  - Cargo.toml dependency ranges are already current or do not need rewriting.');
+  }
+
+  if (skippedRangeCount > 0) {
+    console.log(`  - Skipped ${skippedRangeCount} Cargo dependency entries with unsupported version syntax.`);
+  }
+
+  const args = ['update'];
+  printAction(target.dir, 'cargo', args);
+
+  await new Promise((resolve, reject) => {
+    const child = spawn(CARGO_COMMAND, args, {
+      cwd: target.dir,
+      stdio: 'inherit',
+      env: process.env,
+    });
+
+    child.on('error', (error) => {
+      reject(createSpawnError('cargo', target.dir, error));
+    });
+
+    child.on('exit', (code, signal) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+
+      reject(
+        new Error(
+          `cargo exited abnormally for ${target.cargoManifestLabel}: ${signal ? `signal ${signal}` : `code ${code}`}`
+        )
+      );
+    });
+  });
+}
+
+async function verifyTarget(target) {
+  const nextManifest = await readManifest(target.packageJsonPath);
+  const changedRanges = collectRangeChanges(target.beforeSnapshot, nextManifest);
+  const lockfileExists = existsSync(target.lockfilePath);
+  const lockfileLabel = lockfileExists
+    ? path.relative(ROOT_DIR, target.lockfilePath)
+    : '<no local pnpm-lock.yaml>';
+
+  console.log(
+    `[ok] ${target.packageJsonLabel} -> ${target.dependencyNames.length} dependencies inspected, ${changedRanges.length} ranges updated, lockfile: ${lockfileLabel}`
+  );
+
+  if (changedRanges.length > 0) {
+    const preview = changedRanges.slice(0, 10).map(formatChange);
+    preview.forEach((line) => console.log(`  - ${line}`));
+
+    if (changedRanges.length > preview.length) {
+      console.log(`  - ... ${changedRanges.length - preview.length} more`);
+    }
+  } else {
+    console.log('  - Already at the newest published ranges or no manifest rewrite was necessary.');
+  }
+}
+
+async function verifyRustTarget(target) {
+  const nextManifestText = await readFile(target.cargoManifestPath, 'utf8');
+  const nextDependencyEntries = collectRustDependencyEntries(nextManifestText);
+  const changedRanges = collectRustRangeChanges(
+    target.dependencyEntries,
+    nextDependencyEntries
+  );
+  const lockfileExists = existsSync(target.cargoLockPath);
+  const lockfileLabel = lockfileExists
+    ? path.relative(ROOT_DIR, target.cargoLockPath)
+    : '<no local Cargo.lock>';
+
+  console.log(
+    `[ok] ${target.cargoManifestLabel} -> ${target.dependencyEntries.length} dependencies inspected, ${changedRanges.length} ranges updated, lockfile: ${lockfileLabel}`
+  );
+
+  if (changedRanges.length > 0) {
+    const preview = changedRanges.slice(0, 10).map(formatRustChange);
+    preview.forEach((line) => console.log(`  - ${line}`));
+
+    if (changedRanges.length > preview.length) {
+      console.log(`  - ... ${changedRanges.length - preview.length} more`);
+    }
+  } else {
+    console.log('  - Already at the newest published ranges or no manifest rewrite was necessary.');
+  }
+}
+
+async function main() {
+  printHeader('Upgrade Package Dependencies For Dependabot');
+
+  const pnpmTargets = await discoverTargets();
+  const rustTarget = await discoverRustTarget();
+  const totalTargets = pnpmTargets.length + (rustTarget ? 1 : 0);
+
+  if (totalTargets === 0) {
+    throw new Error('No package.json with dependencies or backend/Cargo.toml was found under the repository root.');
+  }
+
+  console.log(`Repository root: ${ROOT_DIR}`);
+  console.log(`Targets: ${totalTargets}`);
+
+  for (const target of pnpmTargets) {
+    console.log(
+      `- ${target.packageJsonLabel} (${describeCounts(target.dependencyCounts)})`
+    );
+  }
+
+  if (rustTarget) {
+    console.log(
+      `- ${rustTarget.cargoManifestLabel} (${describeRustCounts(rustTarget.dependencyCounts) || 'no versioned rust dependencies'})`
+    );
+  }
+
+  for (const [index, target] of pnpmTargets.entries()) {
+    printSection(
+      index + 1,
+      totalTargets,
+      `upgrade ${target.packageJsonLabel}`
+    );
+    await runPnpmUpgrade(target);
+    await verifyTarget(target);
+  }
+
+  if (rustTarget) {
+    printSection(
+      pnpmTargets.length + 1,
+      totalTargets,
+      `upgrade ${rustTarget.cargoManifestLabel}`
+    );
+    await runRustUpgrade(rustTarget);
+    await verifyRustTarget(rustTarget);
+  }
+
+  console.log('\nDone.');
+}
+
+main().catch((error) => {
+  console.error(`\n[failed] ${error.message}`);
+  process.exitCode = 1;
+});

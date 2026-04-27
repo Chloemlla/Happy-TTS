@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
     paths:
+      - ".github/workflows/dependabot-maintenance.yml"
       - "scripts/fix-dependabot-alerts.js"
   workflow_dispatch:
     inputs:
@@ -33,15 +34,19 @@ jobs:
         with:
           token: ${{ secrets.USER_PAT }}
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "24"
+          cache: pnpm
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: latest
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Run fix script
         run: node scripts/fix-dependabot-alerts.js
@@ -160,7 +165,7 @@ jobs:
             );
 
             const successfulCheck = (checks.check_runs || []).some((run) => {
-              return requiredChecks.has(run.name) &&
+              return [...requiredChecks].some((required) => run.name === required || run.name.includes(required)) &&
                 run.status === 'completed' &&
                 run.conclusion === 'success';
             });
