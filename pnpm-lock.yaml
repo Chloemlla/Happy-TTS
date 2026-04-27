@@ -1931,12 +1931,6 @@ packages:
     resolution: {integrity: sha512-1zQrciTiQfRdo7qJM1uG4navm8DayFa2TgCSRlzUyNkhcJ6XUZF3hjnpkyr3VhAqPH7i/9GkG7Tv5abz6fqz0Q==}
     engines: {node: ^18.14.0 || ^20.0.0 || ^22.0.0 || >=24.0.0}
 
-  express-rate-limit@7.5.1:
-    resolution: {integrity: sha512-7iN8iPMDzOMHPUYllBEsQdWVB6fPDMPqwjBaFrgr4Jgr/+okjvzAy+UHlYYL/Vs0OsOrMkwS6PJDkFlJwoxUnw==}
-    engines: {node: '>= 16'}
-    peerDependencies:
-      express: '>= 4.11'
-
   express-rate-limit@8.4.1:
     resolution: {integrity: sha512-NGVYwQSAyEQgzxX1iCM978PP9AdO/hW93gMcF6ZwQCm+rFvLsBH6w4xcXWTcliS8La5EPRN3p9wzItqBwJrfNw==}
     engines: {node: '>= 16'}
@@ -5655,10 +5649,6 @@ snapshots:
       jest-mock: 30.3.0
       jest-util: 30.3.0
 
-  express-rate-limit@7.5.1(express@5.2.1):
-    dependencies:
-      express: 5.2.1
-
   express-rate-limit@8.4.1(express@5.2.1):
     dependencies:
       express: 5.2.1
@@ -7466,7 +7456,7 @@ snapshots:
       dompurify: 3.4.1
       dotenv: 17.4.2
       express: 5.2.1
-      express-rate-limit: 7.5.1(express@5.2.1)
+      express-rate-limit: 8.4.1(express@5.2.1)
       form-data: 4.0.5
       google-auth-library: 10.6.2
       helmet: 8.1.0
