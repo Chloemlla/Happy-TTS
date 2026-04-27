@@ -34,16 +34,10 @@ jobs:
         with:
           token: ${{ secrets.USER_PAT }}
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          cache: pnpm
+      - name: Verify Node.js runtime
+        run: |
+          node --version
+          npm --version
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -65,10 +59,10 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && inputs.action != 'fix-alerts'
     runs-on: ubuntu-latest
     steps:
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
+      - name: Verify Node.js runtime
+        run: |
+          node --version
+          npm --version
 
       - name: Run selected maintenance action
         env:
