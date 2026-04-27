@@ -22,10 +22,7 @@ const securityEventSchema = new Schema<ISecurityEvent>(
     userAgent: { type: String },
     createdAt: { type: Date, required: true, default: Date.now, index: true },
   },
-  { timestamps: false }
+  { timestamps: false },
 );
 
-export const SecurityEvent = mongoose.model<ISecurityEvent>(
-  "SecurityEvent",
-  securityEventSchema
-);
+export const SecurityEvent = mongoose.model<ISecurityEvent>("SecurityEvent", securityEventSchema);

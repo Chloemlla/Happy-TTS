@@ -38,12 +38,7 @@ export async function findDuplicateGeneration({
     return rows?.[0] ? (rows[0] as GenerationRecord) : null;
   } else {
     const sql = `SELECT * FROM ${TABLE} WHERE userId=? AND text=? AND voice=? AND model=? LIMIT 1`;
-    const [rows] = await conn.execute<RowDataPacket[]>(sql, [
-      userId,
-      text,
-      voice || "",
-      model || "",
-    ]);
+    const [rows] = await conn.execute<RowDataPacket[]>(sql, [userId, text, voice || "", model || ""]);
     await conn.end();
     return rows?.[0] ? (rows[0] as GenerationRecord) : null;
   }

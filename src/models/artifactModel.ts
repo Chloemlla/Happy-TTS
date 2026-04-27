@@ -1,4 +1,4 @@
-import mongoose, { type Document, Schema, Types } from "mongoose";
+import mongoose, { type Document, Schema, type Types } from "mongoose";
 
 // ========== Artifact 主表 ==========
 export interface IArtifact extends Document {
@@ -46,7 +46,7 @@ const ArtifactSchema: Schema<IArtifact> = new Schema<IArtifact>(
       type: String,
       required: true,
       enum: ["public", "private", "password"],
-      default: "private"
+      default: "private",
     },
     passwordHash: { type: String },
 
@@ -58,7 +58,7 @@ const ArtifactSchema: Schema<IArtifact> = new Schema<IArtifact>(
 
     expiresAt: { type: Date, index: true },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // 索引优化
@@ -86,13 +86,13 @@ const ArtifactVersionSchema: Schema<IArtifactVersion> = new Schema<IArtifactVers
     content: { type: String, required: true },
     contentHash: { type: String, required: true },
   },
-  { timestamps: { createdAt: true, updatedAt: false } }
+  { timestamps: { createdAt: true, updatedAt: false } },
 );
 
 ArtifactVersionSchema.index({ artifactId: 1, versionNumber: 1 }, { unique: true });
 
-export const ArtifactVersionModel = mongoose.models.ArtifactVersion ||
-  mongoose.model<IArtifactVersion>("ArtifactVersion", ArtifactVersionSchema);
+export const ArtifactVersionModel =
+  mongoose.models.ArtifactVersion || mongoose.model<IArtifactVersion>("ArtifactVersion", ArtifactVersionSchema);
 
 // ========== Artifact 访问日志表 ==========
 export interface IArtifactView extends Document {
@@ -112,10 +112,10 @@ const ArtifactViewSchema: Schema<IArtifactView> = new Schema<IArtifactView>(
     referer: { type: String },
     countryCode: { type: String },
   },
-  { timestamps: { createdAt: "viewedAt", updatedAt: false } }
+  { timestamps: { createdAt: "viewedAt", updatedAt: false } },
 );
 
 ArtifactViewSchema.index({ artifactId: 1, viewedAt: -1 });
 
-export const ArtifactViewModel = mongoose.models.ArtifactView ||
-  mongoose.model<IArtifactView>("ArtifactView", ArtifactViewSchema);
+export const ArtifactViewModel =
+  mongoose.models.ArtifactView || mongoose.model<IArtifactView>("ArtifactView", ArtifactViewSchema);

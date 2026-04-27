@@ -47,15 +47,20 @@ export function auditLog(options: AuditLogOptions) {
       // 脱敏与截断处理函数
       const sanitizePayload = (obj: any): any => {
         if (!obj) return obj;
-        if (typeof obj === "string") return obj.length > 2000 ? obj.substring(0, 2000) + "..." : obj;
+        if (typeof obj === "string") return obj.length > 2000 ? `${obj.substring(0, 2000)}...` : obj;
         if (typeof obj !== "object") return obj;
         if (Buffer.isBuffer(obj)) return "[Buffer]";
         let parsedObj = obj;
-        try { parsedObj = JSON.parse(JSON.stringify(obj)); } catch { return "[Unserializable]"; }
+        try {
+          parsedObj = JSON.parse(JSON.stringify(obj));
+        } catch {
+          return "[Unserializable]";
+        }
         const sanitizeNode = (node: any) => {
           if (!node || typeof node !== "object") return;
           for (const key of Object.keys(node)) {
-            if (typeof node[key] === "string" && node[key].length > 2000) node[key] = node[key].substring(0, 2000) + "...";
+            if (typeof node[key] === "string" && node[key].length > 2000)
+              node[key] = `${node[key].substring(0, 2000)}...`;
             else if (typeof node[key] === "object") sanitizeNode(node[key]);
           }
         };
@@ -78,7 +83,7 @@ export function auditLog(options: AuditLogOptions) {
           ...detail,
           durationMs: Date.now() - startTime,
           reqBody: Object.keys(req.body || {}).length ? sanitizePayload(req.body) : undefined,
-          resBody: resBody !== undefined ? sanitizePayload(resBody) : undefined
+          resBody: resBody !== undefined ? sanitizePayload(resBody) : undefined,
         },
         ip: req.ip || (req as any).connection?.remoteAddress || "unknown",
         userAgent: req.headers["user-agent"],
@@ -87,7 +92,7 @@ export function auditLog(options: AuditLogOptions) {
       };
 
       // fire-and-forget
-      AuditLogService.log(entry).catch(() => { });
+      AuditLogService.log(entry).catch(() => {});
     };
 
     res.json = (body: any) => {

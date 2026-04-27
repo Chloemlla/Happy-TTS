@@ -1,20 +1,12 @@
-import {
-  buildScamalyticsLookupUrl,
-  normalizeScamalyticsUser,
-  validateScamalyticsUser,
-} from "../utils/scamalytics";
+import { buildScamalyticsLookupUrl, normalizeScamalyticsUser, validateScamalyticsUser } from "../utils/scamalytics";
 
 describe("scamalytics URL safety helpers", () => {
   it("keeps valid usernames unchanged", () => {
-    expect(normalizeScamalyticsUser("happy.clovo_01")).toBe(
-      "happy.clovo_01",
-    );
+    expect(normalizeScamalyticsUser("happy.clovo_01")).toBe("happy.clovo_01");
   });
 
   it("falls back to the safe default for invalid usernames", () => {
-    expect(normalizeScamalyticsUser("../../169.254.169.254")).toBe(
-      "happyclovo",
-    );
+    expect(normalizeScamalyticsUser("../../169.254.169.254")).toBe("happyclovo");
   });
 
   it("rejects invalid usernames at validation time", () => {
@@ -24,8 +16,6 @@ describe("scamalytics URL safety helpers", () => {
   });
 
   it("builds a fixed-host lookup URL", () => {
-    expect(buildScamalyticsLookupUrl("happyclovo")).toBe(
-      "https://api13.scamalytics.com/v3/happyclovo/",
-    );
+    expect(buildScamalyticsLookupUrl("happyclovo")).toBe("https://api13.scamalytics.com/v3/happyclovo/");
   });
 });

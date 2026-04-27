@@ -1,4 +1,4 @@
-import { load, type CheerioAPI } from "cheerio";
+import { type CheerioAPI, load } from "cheerio";
 
 const FORBIDDEN_TAGS = ["script", "iframe", "object", "embed", "link", "meta", "style", "foreignObject"];
 const URI_ATTRS = new Set(["href", "xlink:href", "src"]);

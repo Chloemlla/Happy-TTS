@@ -978,11 +978,11 @@ async function getIPDataStats(): Promise<{
 
 // 导出额外的工具函数
 export {
-  getCacheStats,
-  getIPServiceStats,
-  resetIPServiceStats,
-  gracefulShutdown,
   cleanupExpiredIPData,
   clearAllIPData,
+  getCacheStats,
   getIPDataStats,
+  getIPServiceStats,
+  gracefulShutdown,
+  resetIPServiceStats,
 };

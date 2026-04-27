@@ -1,7 +1,7 @@
 import type { Request } from "express";
-import logger from "../utils/logger";
 import { DeviceTracking } from "../models/deviceTrackingModel";
 import { SecurityEvent } from "../models/securityEventModel";
+import logger from "../utils/logger";
 
 export interface DeviceSecurityHeaders {
   deviceFingerprint?: string;
@@ -24,7 +24,7 @@ export type RiskStrategy = "NORMAL" | "MONITOR" | "RESTRICT" | "HONEYPOT" | "BLO
  * Extract security headers from request
  */
 export function extractSecurityHeaders(req: Request): DeviceSecurityHeaders {
-  const riskScore = parseInt(req.headers["x-device-risk-score"] as string) || 0;
+  const riskScore = parseInt(req.headers["x-device-risk-score"] as string, 10) || 0;
 
   return {
     deviceFingerprint: req.headers["x-device-fingerprint"] as string,
@@ -81,7 +81,7 @@ export async function trackDevice(
   userId: string,
   headers: DeviceSecurityHeaders,
   ipAddress: string,
-  userAgent: string
+  userAgent: string,
 ): Promise<void> {
   try {
     if (!headers.deviceFingerprint) {
@@ -123,7 +123,7 @@ export async function trackDevice(
       {
         upsert: true,
         new: true,
-      }
+      },
     );
 
     logger.debug(`Device tracked: ${headers.deviceFingerprint} for user ${userId}`);
@@ -142,7 +142,7 @@ export async function recordSecurityEvent(
   eventData: Record<string, any>,
   riskScore: number,
   ipAddress: string,
-  userAgent: string
+  userAgent: string,
 ): Promise<void> {
   try {
     await SecurityEvent.create({
@@ -167,7 +167,7 @@ export async function recordSecurityEvent(
  */
 export async function detectAnomalies(
   deviceFingerprint: string,
-  userId: string
+  userId: string,
 ): Promise<{
   multiAccount: boolean;
   frequentDeviceSwitch: boolean;
@@ -281,15 +281,9 @@ export async function getHighRiskDeviceCount(): Promise<number> {
 /**
  * Increment blocked count for device
  */
-export async function incrementBlockedCount(
-  userId: string,
-  deviceFingerprint: string
-): Promise<void> {
+export async function incrementBlockedCount(userId: string, deviceFingerprint: string): Promise<void> {
   try {
-    await DeviceTracking.updateOne(
-      { userId, deviceFingerprint },
-      { $inc: { blockedCount: 1 } }
-    );
+    await DeviceTracking.updateOne({ userId, deviceFingerprint }, { $inc: { blockedCount: 1 } });
   } catch (error) {
     logger.error("Error incrementing blocked count:", error);
   }

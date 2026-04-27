@@ -1,4 +1,4 @@
-export { };
+export {};
 
 describe("EmailController - 跳过白名单检查功能", () => {
   let _adminToken: string;

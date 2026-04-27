@@ -82,10 +82,7 @@ export function createProfileVerificationSession(
   return session;
 }
 
-export function validateProfileVerificationSession(
-  userId: string,
-  token: string,
-): ProfileVerificationSession | null {
+export function validateProfileVerificationSession(userId: string, token: string): ProfileVerificationSession | null {
   cleanupExpiredSessions();
 
   const session = profileVerificationSessions.get(token);
@@ -104,7 +101,10 @@ export function clearProfileVerificationSessions(userId: string): void {
   }
 }
 
-export function createEmailChangeChallenge(userId: string, newEmail: string): {
+export function createEmailChangeChallenge(
+  userId: string,
+  newEmail: string,
+): {
   success: boolean;
   code?: string;
   retryAfterMs?: number;

@@ -119,7 +119,7 @@ export async function getEmailQuota(userId: string, domain?: string): Promise<Em
       const quotaTotal = safeDomain && domainQuotaMap[safeDomain] ? domainQuotaMap[safeDomain] : 100;
       let quota = await EmailQuotaModel.findOne({ userId: safeUserId, domain: safeDomain });
       const now = dayjs();
-      if (!quota || !quota.resetAt || dayjs(quota.resetAt).isBefore(now)) {
+      if (!quota?.resetAt || dayjs(quota.resetAt).isBefore(now)) {
         // 首次/已过期，重置
         const resetAt = now.add(1, "day").startOf("day").toISOString();
         quota = await EmailQuotaModel.findOneAndUpdate(
@@ -138,7 +138,7 @@ export async function getEmailQuota(userId: string, domain?: string): Promise<Em
   const safeUserId = typeof userId === "string" ? userId : "";
   let info = safeGet(all, safeUserId);
   const now = dayjs();
-  if (!info || !info.resetAt || dayjs(info.resetAt).isBefore(now)) {
+  if (!info?.resetAt || dayjs(info.resetAt).isBefore(now)) {
     info = { used: 0, resetAt: now.add(1, "day").startOf("day").toISOString() };
     safeSet(all, safeUserId, info);
     writeQuotaFile(all);
@@ -155,7 +155,7 @@ export async function addEmailUsage(userId: string, count = 1, domain?: string) 
       const _quotaTotal = safeDomain && domainQuotaMap[safeDomain] ? domainQuotaMap[safeDomain] : 100;
       let quota = await EmailQuotaModel.findOne({ userId: safeUserId, domain: safeDomain });
       const now = dayjs();
-      if (!quota || !quota.resetAt || dayjs(quota.resetAt).isBefore(now)) {
+      if (!quota?.resetAt || dayjs(quota.resetAt).isBefore(now)) {
         // 首次/已过期，重置
         const resetAt = now.add(1, "day").startOf("day").toISOString();
         quota = await EmailQuotaModel.findOneAndUpdate(
@@ -177,7 +177,7 @@ export async function addEmailUsage(userId: string, count = 1, domain?: string) 
   const safeUserId = typeof userId === "string" ? userId : "";
   let info = safeGet(all, safeUserId);
   const now = dayjs();
-  if (!info || !info.resetAt || dayjs(info.resetAt).isBefore(now)) {
+  if (!info?.resetAt || dayjs(info.resetAt).isBefore(now)) {
     info = { used: 0, resetAt: now.add(1, "day").startOf("day").toISOString() };
   }
   info.used = (info.used || 0) + count;

@@ -33,4 +33,4 @@ const AccessTokenModel =
   (mongoose.models.AccessToken as mongoose.Model<AccessTokenDoc>) ||
   mongoose.model<AccessTokenDoc>("AccessToken", AccessTokenSchema);
 
-export { AccessTokenModel, type AccessTokenDoc };
+export { type AccessTokenDoc, AccessTokenModel };

@@ -3,17 +3,17 @@
  * 处理所有 /api/nexai/sync/* 请求
  */
 import type { Request, Response } from "express";
-import { NexaiSyncService } from "../services/nexaiSyncService";
 import type { SyncCategory } from "../models/nexaiSyncModel";
+import { NexaiSyncService } from "../services/nexaiSyncService";
 import logger from "../utils/logger";
 
 const VALID_CATEGORIES: SyncCategory[] = [
-    "settings",
-    "notes",
-    "conversations",
-    "translations",
-    "passwords",
-    "shortUrls",
+  "settings",
+  "notes",
+  "conversations",
+  "translations",
+  "passwords",
+  "shortUrls",
 ];
 
 function getRequiredNexaiUserId(req: Request, res: Response): string | null {
@@ -271,4 +271,3 @@ export class NexaiSyncController {
         }
     }
 }
-

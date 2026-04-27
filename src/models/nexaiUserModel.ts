@@ -54,7 +54,7 @@ const nexaiUserSchema = new mongoose.Schema(
         backedUp: { type: Boolean, required: true, default: false },
         transports: { type: [String], default: [] },
         deviceType: { type: String, required: true, default: "singleDevice" },
-      }
+      },
     ],
     currentChallenge: { type: String },
   },
@@ -69,8 +69,7 @@ nexaiUserSchema.index({ googleId: 1 }, { sparse: true });
 nexaiUserSchema.index({ githubId: 1 }, { sparse: true });
 nexaiUserSchema.index({ email: 1, authProvider: 1 });
 
-export const NexaiUserModel =
-  mongoose.models.NexaiUser || mongoose.model("NexaiUser", nexaiUserSchema);
+export const NexaiUserModel = mongoose.models.NexaiUser || mongoose.model("NexaiUser", nexaiUserSchema);
 
 // 类型定义
 export interface INexaiUser {

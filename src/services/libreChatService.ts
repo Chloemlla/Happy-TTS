@@ -814,7 +814,7 @@ class LibreChatService {
                       aiText += delta;
                       onDelta?.(delta);
                     }
-                  } catch (e) {
+                  } catch (_e) {
                     // 忽略解析错误
                   }
                 }

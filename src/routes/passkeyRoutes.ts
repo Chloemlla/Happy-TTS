@@ -1,18 +1,12 @@
 import express from "express";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { rateLimitMiddleware } from "../middleware/rateLimit";
-import { PasskeyDataRepairService } from "../services/passkeyDataRepairService";
-import {
-  PasskeyService,
-  SINGLE_PASSKEY_ERROR_MESSAGE,
-} from "../services/passkeyService";
 import { sendEmail } from "../services/emailSender";
-import {
-  generatePasskeyAddedEmailHtml,
-  generatePasskeyRemovedEmailHtml,
-} from "../templates/emailTemplates";
-import logger from "../utils/logger";
+import { PasskeyDataRepairService } from "../services/passkeyDataRepairService";
+import { PasskeyService, SINGLE_PASSKEY_ERROR_MESSAGE } from "../services/passkeyService";
+import { generatePasskeyAddedEmailHtml, generatePasskeyRemovedEmailHtml } from "../templates/emailTemplates";
 import { getClientIP } from "../utils/ipUtils";
+import logger from "../utils/logger";
 import { PasskeyCredentialIdFixer } from "../utils/passkeyCredentialIdFixer";
 import { UserStorage } from "../utils/userStorage";
 

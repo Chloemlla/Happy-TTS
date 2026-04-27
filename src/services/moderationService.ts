@@ -1,13 +1,26 @@
-import { User } from "../utils/userStorage";
+import logger from "../utils/logger";
+import type { User } from "../utils/userStorage";
 import { libreChatService } from "./libreChatService";
 import { mongoose } from "./mongoService";
 import * as userService from "./userService";
-import logger from "../utils/logger";
 
 // 常见违规词汇库（作为 AI 的辅助参考或后备方案）
 const BANNED_WORDS = [
-  "草", "操", "尼玛", "傻逼", "妈的", "滚", "死", "垃圾", "智障", "脑残",
-  "fuck", "shit", "bitch", "asshole", "bastard"
+  "草",
+  "操",
+  "尼玛",
+  "傻逼",
+  "妈的",
+  "滚",
+  "死",
+  "垃圾",
+  "智障",
+  "脑残",
+  "fuck",
+  "shit",
+  "bitch",
+  "asshole",
+  "bastard",
 ];
 
 export interface ModerationResult {
@@ -17,17 +30,20 @@ export interface ModerationResult {
 }
 
 // MongoDB 审查日志 Schema
-const ModerationLogSchema = new mongoose.Schema({
-  userId: { type: String, required: true, index: true },
-  username: { type: String },
-  content: { type: String },
-  isViolated: { type: Boolean, required: true, index: true },
-  reason: { type: String },
-  bannedWords: [String],
-  type: { type: String, enum: ["ai_check", "punishment", "manual"], default: "ai_check" },
-  punishment: { type: String }, // 若有处罚，记录处罚描述
-  createdAt: { type: Date, default: Date.now, index: true }
-}, { collection: "moderation_logs" });
+const ModerationLogSchema = new mongoose.Schema(
+  {
+    userId: { type: String, required: true, index: true },
+    username: { type: String },
+    content: { type: String },
+    isViolated: { type: Boolean, required: true, index: true },
+    reason: { type: String },
+    bannedWords: [String],
+    type: { type: String, enum: ["ai_check", "punishment", "manual"], default: "ai_check" },
+    punishment: { type: String }, // 若有处罚，记录处罚描述
+    createdAt: { type: Date, default: Date.now, index: true },
+  },
+  { collection: "moderation_logs" },
+);
 
 const ModerationLogModel = mongoose.models.ModerationLog || mongoose.model("ModerationLog", ModerationLogSchema);
 
@@ -72,7 +88,7 @@ export class ModerationService {
         prompt,
         "system_moderator",
         undefined,
-        "admin"
+        "admin",
       );
 
       isViolated = response.toLowerCase().includes("true");
@@ -80,19 +96,19 @@ export class ModerationService {
       logger.error("AI 审查判定失败，回退到本地检查:", error);
       // 后备方案：本地关键词检查
       const contentLower = content.toLowerCase();
-      isViolated = BANNED_WORDS.some(word => contentLower.includes(word.toLowerCase()));
+      isViolated = BANNED_WORDS.some((word) => contentLower.includes(word.toLowerCase()));
       reason = isViolated ? "触发本地关键词过滤" : "";
     }
 
     // 只有违规时才自动记录日志，或者针对特定用户记录
     if (isViolated && userId) {
-      this.logEvent({
+      ModerationService.logEvent({
         userId,
         username,
         content,
         isViolated,
         reason: reason || "AI 判定违规",
-        type: "ai_check"
+        type: "ai_check",
       });
     }
 
@@ -113,11 +129,11 @@ export class ModerationService {
         prompt,
         "system_moderator",
         undefined,
-        "admin"
+        "admin",
       );
 
       return response || "内容违反社区准则。";
-    } catch (error) {
+    } catch (_error) {
       return "内容包含违规词汇或不当言论。";
     }
   }
@@ -129,12 +145,12 @@ export class ModerationService {
     if (!content) return { isViolated: false, bannedWords: [] };
 
     const contentLower = content.toLowerCase();
-    const foundWords = BANNED_WORDS.filter(word => contentLower.includes(word.toLowerCase()));
+    const foundWords = BANNED_WORDS.filter((word) => contentLower.includes(word.toLowerCase()));
 
     return {
       isViolated: foundWords.length > 0,
       bannedWords: foundWords,
-      reason: foundWords.length > 0 ? `内容包含敏感词汇: ${foundWords.join(", ")}` : undefined
+      reason: foundWords.length > 0 ? `内容包含敏感词汇: ${foundWords.join(", ")}` : undefined,
     };
   }
 
@@ -174,7 +190,9 @@ export class ModerationService {
     let banDurationHours = 0;
     let punishmentMsg = "";
 
-    logger.info(`[Moderation] 正在处理用户违规: ${user.username} (ID: ${user.id}), 当前次数: ${oldCount}, 目标次数: ${newCount}`);
+    logger.info(
+      `[Moderation] 正在处理用户违规: ${user.username} (ID: ${user.id}), 当前次数: ${oldCount}, 目标次数: ${newCount}`,
+    );
 
     switch (newCount) {
       case 1:
@@ -195,7 +213,7 @@ export class ModerationService {
     }
 
     const updates: Partial<User> = {
-      ticketViolationCount: newCount
+      ticketViolationCount: newCount,
     };
 
     if (banDurationHours > 0) {
@@ -208,13 +226,13 @@ export class ModerationService {
     await userService.updateUser(user.id, updates);
 
     // 记录处罚日志
-    await this.logEvent({
+    await ModerationService.logEvent({
       userId: user.id,
       username: user.username,
       isViolated: true,
       reason: reason || "触发梯度处罚机制",
       type: "punishment",
-      punishment: punishmentMsg
+      punishment: punishmentMsg,
     });
 
     return punishmentMsg;
@@ -248,4 +266,3 @@ export class ModerationService {
     return { logs, total };
   }
 }
-

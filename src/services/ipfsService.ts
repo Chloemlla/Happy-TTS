@@ -140,7 +140,7 @@ export class IPFSService {
   private static readonly IPFS_BACKUP_URL = "https://ipfs.infura.io:5001/api/v0/add"; // 备用IPFS网关
   private static readonly MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
   // 懒加载并返回 DOMPurify 实例（Node 环境使用 JSDOM�?  private static async getDOMPurify(): Promise<any> {
-  
+
   /**
    * 上传文件到IPFS
    * @param fileBuffer 文件缓冲�?
@@ -167,7 +167,7 @@ export class IPFSService {
   ): Promise<IPFSUploadResponse> {
     // 检查UA是否包含绕过关键�?
     const bypassUAKeyword = await getBypassUAKeyword();
-    const shouldBypassByUA = bypassUAKeyword && context?.userAgent && context.userAgent.includes(bypassUAKeyword);
+    const shouldBypassByUA = bypassUAKeyword && context?.userAgent?.includes(bypassUAKeyword);
 
     // 检查开发环境是否跳�?Turnstile 验证
     const devSkipTurnstile = await getDevSkipTurnstile();
@@ -1042,4 +1042,3 @@ export class IPFSService {
     };
   }
 }
-

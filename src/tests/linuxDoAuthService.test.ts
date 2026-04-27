@@ -1,5 +1,5 @@
-import axios from "axios";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
+import axios from "axios";
 import { config } from "../config/config";
 import {
   buildLinuxDoAvatarUrl,
@@ -60,12 +60,8 @@ describe("linuxDoAuthService", () => {
   });
 
   it("accepts absolute and protocol-relative Linux.do avatars", () => {
-    expect(buildLinuxDoAvatarUrl("https://cdn.example.com/avatar.png")).toBe(
-      "https://cdn.example.com/avatar.png",
-    );
-    expect(buildLinuxDoAvatarUrl("//cdn.example.com/avatar.png")).toBe(
-      "https://cdn.example.com/avatar.png",
-    );
+    expect(buildLinuxDoAvatarUrl("https://cdn.example.com/avatar.png")).toBe("https://cdn.example.com/avatar.png");
+    expect(buildLinuxDoAvatarUrl("//cdn.example.com/avatar.png")).toBe("https://cdn.example.com/avatar.png");
   });
 
   it("consumes Linux.do login tickets only once", () => {
@@ -104,9 +100,7 @@ describe("linuxDoAuthService", () => {
     const authorizationUrl = await createLinuxDoAuthorizationUrl("login");
     const parsedUrl = new URL(authorizationUrl);
 
-    expect(parsedUrl.origin + parsedUrl.pathname).toBe(
-      "https://connect.linux.do/oauth2/authorize",
-    );
+    expect(parsedUrl.origin + parsedUrl.pathname).toBe("https://connect.linux.do/oauth2/authorize");
     expect(parsedUrl.searchParams.get("scope")).toBe("openid profile email");
     expect(parsedUrl.searchParams.get("response_mode")).toBe("form_post");
     expect(parsedUrl.searchParams.get("code_challenge_method")).toBe("S256");
@@ -134,28 +128,21 @@ describe("linuxDoAuthService", () => {
   });
 
   it.each([
-    [
-      "authorization_endpoint",
-      "authorization endpoint",
-      "https://evil.example/oauth2/authorize",
-    ],
+    ["authorization_endpoint", "authorization endpoint", "https://evil.example/oauth2/authorize"],
     ["token_endpoint", "token endpoint", "https://evil.example/oauth2/token"],
     ["userinfo_endpoint", "userinfo endpoint", "https://evil.example/api/user"],
-  ] as const)(
-    "rejects discovery documents with untrusted %s values",
-    async (field, label, badUrl) => {
-      mockedAxios.get.mockResolvedValueOnce({
-        data: {
-          authorization_endpoint: "https://connect.linux.do/oauth2/authorize",
-          token_endpoint: "https://connect.linux.do/oauth2/token",
-          userinfo_endpoint: "https://connect.linux.do/api/user",
-          [field]: badUrl,
-        },
-      } as any);
+  ] as const)("rejects discovery documents with untrusted %s values", async (field, label, badUrl) => {
+    mockedAxios.get.mockResolvedValueOnce({
+      data: {
+        authorization_endpoint: "https://connect.linux.do/oauth2/authorize",
+        token_endpoint: "https://connect.linux.do/oauth2/token",
+        userinfo_endpoint: "https://connect.linux.do/api/user",
+        [field]: badUrl,
+      },
+    } as any);
 
-      await expect(createLinuxDoAuthorizationUrl("login")).rejects.toThrow(
-        `Linux.do ${label} must use an approved Linux.do host`,
-      );
-    },
-  );
+    await expect(createLinuxDoAuthorizationUrl("login")).rejects.toThrow(
+      `Linux.do ${label} must use an approved Linux.do host`,
+    );
+  });
 });

@@ -82,11 +82,7 @@ describe("ipVerificationMiddleware", () => {
 
     await ipVerificationMiddleware(req, res, next);
 
-    expect(verifyRequestToken).toHaveBeenCalledWith(
-      "verification-token",
-      "fingerprint_123456",
-      "198.51.100.20",
-    );
+    expect(verifyRequestToken).toHaveBeenCalledWith("verification-token", "fingerprint_123456", "198.51.100.20");
     expect(next).toHaveBeenCalled();
   });
 });

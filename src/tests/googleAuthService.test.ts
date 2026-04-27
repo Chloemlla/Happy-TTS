@@ -1,9 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { config } from "../config/config";
-import {
-  authenticateGoogleUser,
-  getGoogleAuthConfigSummary,
-} from "../services/googleAuthService";
+import { authenticateGoogleUser, getGoogleAuthConfigSummary } from "../services/googleAuthService";
 import { UserStorage } from "../utils/userStorage";
 
 const verifyIdToken = jest.fn();

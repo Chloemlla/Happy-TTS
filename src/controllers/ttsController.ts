@@ -68,7 +68,7 @@ export class TtsController {
 
   private static async resolveCurrentUser(req: Request): Promise<User | null> {
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    if (!authHeader?.startsWith("Bearer ")) {
       return null;
     }
 
@@ -176,9 +176,9 @@ export class TtsController {
       currentUser = await TtsController.resolveCurrentUser(req);
       usageSummary = currentUser
         ? TtsController.buildUsageSummary(
-          currentUser,
-          currentUser.role === "admin" ? null : await UserStorage.getRemainingUsage(currentUser.id),
-        )
+            currentUser,
+            currentUser.role === "admin" ? null : await UserStorage.getRemainingUsage(currentUser.id),
+          )
         : TtsController.buildUsageSummary(null, null);
       const userId = currentUser?.id;
       const isAdmin = currentUser?.role === "admin";
@@ -382,7 +382,6 @@ export class TtsController {
       const taskId = `tts_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
       try {
-
         // 通知前端：开始生成
         if (userId) {
           wsService.notifyTtsProgress(userId, { taskId, status: "generating", message: "正在生成语音..." });
@@ -420,10 +419,7 @@ export class TtsController {
             });
           }
 
-          usageSummary = TtsController.buildUsageSummary(
-            currentUser,
-            await UserStorage.getRemainingUsage(userId),
-          );
+          usageSummary = TtsController.buildUsageSummary(currentUser, await UserStorage.getRemainingUsage(userId));
         }
 
         // 记录生成历史
@@ -442,10 +438,7 @@ export class TtsController {
         const { signContent } = require("../utils/sign");
         // 以 audioUrl 作为签名内容
         const signature = signContent(result.audioUrl);
-        const responseOutputFormat = TtsController.resolveResponseOutputFormat(
-          result.fileName,
-          normalizedOutputFormat,
-        );
+        const responseOutputFormat = TtsController.resolveResponseOutputFormat(result.fileName, normalizedOutputFormat);
 
         // 通知前端：生成完成
         if (userId) {

@@ -8,13 +8,10 @@ import {
   type NexaiRuntimeConfig,
   type RuntimeConfigDefaults,
 } from "../config/runtimeConfigDefaults";
-import { RuntimeConfigModel, type RuntimeConfigKey } from "../models/runtimeConfigModel";
-import { mongoose } from "./mongoService";
+import { type RuntimeConfigKey, RuntimeConfigModel } from "../models/runtimeConfigModel";
 import logger from "../utils/logger";
-import {
-  normalizeScamalyticsUser,
-  validateScamalyticsUser,
-} from "../utils/scamalytics";
+import { normalizeScamalyticsUser, validateScamalyticsUser } from "../utils/scamalytics";
+import { mongoose } from "./mongoService";
 
 const FALLBACK_BASE_URL = "https://api.951100.xyz";
 const FALLBACK_FRONTEND_URL = "https://tts.951100.xyz";
@@ -34,6 +31,10 @@ let initialized = false;
 
 function asObject(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function hasOwnKey(value: Record<string, unknown>, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(value, key);
 }
 
 function normalizeString(value: unknown, fallback: string, maxLength = 2048): string {
@@ -86,15 +87,9 @@ function normalizeBoolean(value: unknown, fallback: boolean): boolean {
 }
 
 function normalizeStringArray(value: unknown, fallback: string[]): string[] {
-  const source = Array.isArray(value)
-    ? value
-    : typeof value === "string"
-      ? value.split(/[\r\n,]+/)
-      : fallback;
+  const source = Array.isArray(value) ? value : typeof value === "string" ? value.split(/[\r\n,]+/) : fallback;
 
-  const normalized = source
-    .map((item) => (typeof item === "string" ? item.trim() : ""))
-    .filter(Boolean);
+  const normalized = source.map((item) => (typeof item === "string" ? item.trim() : "")).filter(Boolean);
 
   return Array.from(new Set(normalized));
 }
@@ -135,10 +130,7 @@ function normalizeDeepLXBaseUrl(value: unknown, fallback: string): string {
 function normalizeStoredIpqsConfig(value: unknown, defaults = runtimeConfigDefaults.ipqs): IpqsRuntimeConfig {
   const raw = asObject(value);
   const apiKeys = normalizeStringArray(raw.apiKeys, defaults.apiKeys);
-  const scamalyticsUser = normalizeScamalyticsUser(
-    raw.scamalyticsUser,
-    defaults.scamalyticsUser || "",
-  );
+  const scamalyticsUser = normalizeScamalyticsUser(raw.scamalyticsUser, defaults.scamalyticsUser || "");
   const enabled = normalizeBoolean(raw.enabled, defaults.enabled);
 
   return {
@@ -146,33 +138,17 @@ function normalizeStoredIpqsConfig(value: unknown, defaults = runtimeConfigDefau
     scamalyticsUser,
     enabled: enabled && (apiKeys.length > 0 || scamalyticsUser.length > 0),
     strictness: normalizeInteger(raw.strictness, defaults.strictness, 0, 3),
-    allowPublicAccessPoints: normalizeBoolean(
-      raw.allowPublicAccessPoints,
-      defaults.allowPublicAccessPoints,
-    ),
+    allowPublicAccessPoints: normalizeBoolean(raw.allowPublicAccessPoints, defaults.allowPublicAccessPoints),
     lighterPenalties: normalizeBoolean(raw.lighterPenalties, defaults.lighterPenalties),
     timeoutMs: normalizeInteger(raw.timeoutMs, defaults.timeoutMs, 1000, 60000),
-    monthlyQuotaPerKey: normalizeInteger(
-      raw.monthlyQuotaPerKey,
-      defaults.monthlyQuotaPerKey,
-      1,
-      1_000_000,
-    ),
-    challengeFraudScore: normalizeInteger(
-      raw.challengeFraudScore,
-      defaults.challengeFraudScore,
-      0,
-      100,
-    ),
+    monthlyQuotaPerKey: normalizeInteger(raw.monthlyQuotaPerKey, defaults.monthlyQuotaPerKey, 1, 1_000_000),
+    challengeFraudScore: normalizeInteger(raw.challengeFraudScore, defaults.challengeFraudScore, 0, 100),
     tokenTtlMinutes: normalizeInteger(raw.tokenTtlMinutes, defaults.tokenTtlMinutes, 1, 1440),
     failOpen: normalizeBoolean(raw.failOpen, defaults.failOpen),
   };
 }
 
-function normalizeStoredLinuxDoConfig(
-  value: unknown,
-  defaults = runtimeConfigDefaults.linuxdo,
-): LinuxDoRuntimeConfig {
+function normalizeStoredLinuxDoConfig(value: unknown, defaults = runtimeConfigDefaults.linuxdo): LinuxDoRuntimeConfig {
   const raw = asObject(value);
 
   return {
@@ -195,12 +171,7 @@ export function extractGoogleAuthClientId(value: unknown): string {
   const installed = asObject(raw.installed);
 
   return normalizeOptionalString(
-    raw.clientId ??
-      raw.client_id ??
-      web.clientId ??
-      web.client_id ??
-      installed.clientId ??
-      installed.client_id,
+    raw.clientId ?? raw.client_id ?? web.clientId ?? web.client_id ?? installed.clientId ?? installed.client_id,
     "",
     512,
   );
@@ -209,11 +180,7 @@ export function extractGoogleAuthClientId(value: unknown): string {
 export function looksLikeGoogleOAuthClientJson(value: unknown): boolean {
   const raw = asObject(value);
 
-  return (
-    Object.prototype.hasOwnProperty.call(raw, "web") ||
-    Object.prototype.hasOwnProperty.call(raw, "installed") ||
-    Object.prototype.hasOwnProperty.call(raw, "client_id")
-  );
+  return hasOwnKey(raw, "web") || hasOwnKey(raw, "installed") || hasOwnKey(raw, "client_id");
 }
 
 function normalizeStoredGoogleAuthConfig(
@@ -225,10 +192,7 @@ function normalizeStoredGoogleAuthConfig(
   };
 }
 
-function normalizeStoredDeepLXConfig(
-  value: unknown,
-  defaults = runtimeConfigDefaults.deeplx,
-): DeepLXRuntimeConfig {
+function normalizeStoredDeepLXConfig(value: unknown, defaults = runtimeConfigDefaults.deeplx): DeepLXRuntimeConfig {
   const raw = asObject(value);
 
   return {
@@ -237,10 +201,7 @@ function normalizeStoredDeepLXConfig(
   };
 }
 
-function normalizeStoredNexaiConfig(
-  value: unknown,
-  defaults = runtimeConfigDefaults.nexai,
-): NexaiRuntimeConfig {
+function normalizeStoredNexaiConfig(value: unknown, defaults = runtimeConfigDefaults.nexai): NexaiRuntimeConfig {
   const raw = asObject(value);
   const google = asObject(raw.google);
   const github = asObject(raw.github);
@@ -260,11 +221,13 @@ function normalizeStoredNexaiConfig(
   };
 }
 
-async function readRuntimeConfigDoc(key: RuntimeConfigKey): Promise<{ value: Record<string, unknown>; updatedAt?: Date } | null> {
+async function readRuntimeConfigDoc(
+  key: RuntimeConfigKey,
+): Promise<{ value: Record<string, unknown>; updatedAt?: Date } | null> {
   if (mongoose.connection.readyState !== 1) return null;
 
   const doc = await RuntimeConfigModel.findOne({ key }).lean().exec();
-  if (!doc || !doc.value || typeof doc.value !== "object") return null;
+  if (!doc?.value || typeof doc.value !== "object") return null;
 
   return {
     value: doc.value as Record<string, unknown>,
@@ -389,16 +352,13 @@ export class RuntimeConfigService {
   static async setIpqsSetting(input: Partial<IpqsRuntimeConfig>): Promise<{ updatedAt: string }> {
     const currentDoc = await readRuntimeConfigDoc("IPQS");
     const current = currentDoc ? normalizeStoredIpqsConfig(currentDoc.value) : runtimeConfigCache.ipqs;
-    const apiKeys = input.apiKeys === undefined
-      ? current.apiKeys
-      : normalizeStringArray(input.apiKeys, current.apiKeys);
-    const scamalyticsUser = input.scamalyticsUser === undefined
-      ? current.scamalyticsUser
-      : validateScamalyticsUser(input.scamalyticsUser) ||
-        normalizeScamalyticsUser(
-          runtimeConfigDefaults.ipqs.scamalyticsUser,
-          "",
-        );
+    const apiKeys =
+      input.apiKeys === undefined ? current.apiKeys : normalizeStringArray(input.apiKeys, current.apiKeys);
+    const scamalyticsUser =
+      input.scamalyticsUser === undefined
+        ? current.scamalyticsUser
+        : validateScamalyticsUser(input.scamalyticsUser) ||
+          normalizeScamalyticsUser(runtimeConfigDefaults.ipqs.scamalyticsUser, "");
     const enabled = normalizeBoolean(input.enabled, current.enabled);
 
     if (enabled && apiKeys.length === 0 && !scamalyticsUser) {
@@ -410,24 +370,11 @@ export class RuntimeConfigService {
       scamalyticsUser,
       enabled: enabled && (apiKeys.length > 0 || !!scamalyticsUser),
       strictness: normalizeInteger(input.strictness, current.strictness, 0, 3),
-      allowPublicAccessPoints: normalizeBoolean(
-        input.allowPublicAccessPoints,
-        current.allowPublicAccessPoints,
-      ),
+      allowPublicAccessPoints: normalizeBoolean(input.allowPublicAccessPoints, current.allowPublicAccessPoints),
       lighterPenalties: normalizeBoolean(input.lighterPenalties, current.lighterPenalties),
       timeoutMs: normalizeInteger(input.timeoutMs, current.timeoutMs, 1000, 60000),
-      monthlyQuotaPerKey: normalizeInteger(
-        input.monthlyQuotaPerKey,
-        current.monthlyQuotaPerKey,
-        1,
-        1_000_000,
-      ),
-      challengeFraudScore: normalizeInteger(
-        input.challengeFraudScore,
-        current.challengeFraudScore,
-        0,
-        100,
-      ),
+      monthlyQuotaPerKey: normalizeInteger(input.monthlyQuotaPerKey, current.monthlyQuotaPerKey, 1, 1_000_000),
+      challengeFraudScore: normalizeInteger(input.challengeFraudScore, current.challengeFraudScore, 0, 100),
       tokenTtlMinutes: normalizeInteger(input.tokenTtlMinutes, current.tokenTtlMinutes, 1, 1440),
       failOpen: normalizeBoolean(input.failOpen, current.failOpen),
     };
@@ -495,18 +442,12 @@ export class RuntimeConfigService {
           : current.clientSecret,
       discoveryUrl: normalizeUrl(input.discoveryUrl, current.discoveryUrl),
       scopes: normalizeString(input.scopes, current.scopes, 512),
-      authorizationEndpoint: normalizeUrl(
-        input.authorizationEndpoint,
-        current.authorizationEndpoint,
-      ),
+      authorizationEndpoint: normalizeUrl(input.authorizationEndpoint, current.authorizationEndpoint),
       tokenEndpoint: normalizeUrl(input.tokenEndpoint, current.tokenEndpoint),
       userEndpoint: normalizeUrl(input.userEndpoint, current.userEndpoint),
       forumBaseUrl: normalizeUrl(input.forumBaseUrl, current.forumBaseUrl),
       callbackUrl: normalizeUrl(input.callbackUrl, current.callbackUrl),
-      frontendCallbackUrl: normalizeUrl(
-        input.frontendCallbackUrl,
-        current.frontendCallbackUrl,
-      ),
+      frontendCallbackUrl: normalizeUrl(input.frontendCallbackUrl, current.frontendCallbackUrl),
     };
 
     const now = new Date();
@@ -536,9 +477,7 @@ export class RuntimeConfigService {
     };
   }> {
     const doc = await readRuntimeConfigDoc("GOOGLE_AUTH");
-    const config = doc
-      ? normalizeStoredGoogleAuthConfig(doc.value)
-      : runtimeConfigDefaults.googleAuth;
+    const config = doc ? normalizeStoredGoogleAuthConfig(doc.value) : runtimeConfigDefaults.googleAuth;
     runtimeConfigCache.googleAuth = config;
 
     return {
@@ -555,9 +494,7 @@ export class RuntimeConfigService {
     input: Partial<GoogleAuthRuntimeConfig> | Record<string, unknown>,
   ): Promise<{ updatedAt: string }> {
     const currentDoc = await readRuntimeConfigDoc("GOOGLE_AUTH");
-    const current = currentDoc
-      ? normalizeStoredGoogleAuthConfig(currentDoc.value)
-      : runtimeConfigCache.googleAuth;
+    const current = currentDoc ? normalizeStoredGoogleAuthConfig(currentDoc.value) : runtimeConfigCache.googleAuth;
     const extractedClientId = extractGoogleAuthClientId(input);
 
     if (looksLikeGoogleOAuthClientJson(input) && !extractedClientId) {
@@ -617,9 +554,8 @@ export class RuntimeConfigService {
   static async setDeepLXSetting(input: Partial<DeepLXRuntimeConfig>): Promise<{ updatedAt: string }> {
     const currentDoc = await readRuntimeConfigDoc("DEEPLX");
     const current = currentDoc ? normalizeStoredDeepLXConfig(currentDoc.value) : runtimeConfigCache.deeplx;
-    const requestedBaseUrl = input.baseUrl === undefined
-      ? current.baseUrl
-      : normalizeUrl(input.baseUrl, current.baseUrl);
+    const requestedBaseUrl =
+      input.baseUrl === undefined ? current.baseUrl : normalizeUrl(input.baseUrl, current.baseUrl);
 
     if (requestedBaseUrl !== TRUSTED_DEEPLX_BASE_URL) {
       throw new Error(`DeepLX Base URL 仅允许 ${TRUSTED_DEEPLX_BASE_URL}`);
@@ -708,8 +644,7 @@ export class RuntimeConfigService {
       github: {
         clientId: normalizeOptionalString(inputGithub.clientId, current.github.clientId, 512),
         clientSecret:
-          typeof inputGithub.clientSecret === "string" &&
-          inputGithub.clientSecret.trim().length > 0
+          typeof inputGithub.clientSecret === "string" && inputGithub.clientSecret.trim().length > 0
             ? inputGithub.clientSecret.trim().slice(0, 1024)
             : current.github.clientSecret,
       },

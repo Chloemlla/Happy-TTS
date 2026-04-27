@@ -103,10 +103,7 @@ export const connectMongo = async () => {
         await RuntimeConfigService.initialize(true);
       } catch (runtimeConfigError) {
         logger.warn("[MongoDB] Runtime config initialization failed", {
-          error:
-            runtimeConfigError instanceof Error
-              ? runtimeConfigError.message
-              : String(runtimeConfigError),
+          error: runtimeConfigError instanceof Error ? runtimeConfigError.message : String(runtimeConfigError),
         });
       }
       return;
