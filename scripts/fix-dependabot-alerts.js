@@ -34,7 +34,6 @@ const DEPENDENCY_FIELDS = [
   'peerDependencies',
   'optionalDependencies',
 ];
-
 const RUST_DEPENDENCY_FIELDS = [
   'dependencies',
   'dev-dependencies',
