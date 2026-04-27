@@ -6,7 +6,7 @@ import fs, { existsSync, mkdirSync } from "node:fs";
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import path, { join } from "node:path";
 import { promisify } from "node:util";
-import express, { type NextFunction, type Request, type RequestHandler, type Response } from "express";
+import express, { type NextFunction, type Request, type Response } from "express";
 import helmet from "helmet";
 import { OpenAI } from "openai";
 import swaggerJSDoc from "swagger-jsdoc";
@@ -44,7 +44,14 @@ import {
 import { tamperProtectionMiddleware } from "./middleware/tamperProtection";
 import { wafMiddleware } from "./middleware/wafMiddleware";
 import dataCollectionRoutes from "./routes/dataCollectionRoutes";
-import { apiRouteModules, earlyRouteModules, registerRouteModules, routeLimiterModules } from "./routes";
+import {
+  earlyRouteModules,
+  postTamperRouteModules,
+  preDocsRouteModules,
+  preTamperRouteModules,
+  registerRouteModules,
+  routeLimiterModules,
+} from "./routes";
 import shortUrlRoutes from "./routes/shortUrlRoutes";
 import webhookRoutes from "./routes/webhookRoutes";
 import { AuditLogService } from "./services/auditLogService";
@@ -296,7 +303,7 @@ registerRouteModules(app, earlyRouteModules);
 
 // 限流绑定
 registerRouteModules(app, routeLimiterModules);
-registerRouteModules(app, apiRouteModules);
+registerRouteModules(app, preDocsRouteModules);
 
 // ========== Swagger OpenAPI 文档集成 ==========
 const swaggerOptions = {
@@ -464,9 +471,11 @@ app.get("/api/frontend-config", (_req: Request, res: Response) => {
 });
 
 // ========== 路由注册（续） ==========
+registerRouteModules(app, preTamperRouteModules);
 app.use(tamperProtectionMiddleware);
 app.options("/api/debug-console/*path", corsPreflightHandler);
 app.use("/api/debug-console/*path", corsHeadersMiddleware);
+registerRouteModules(app, postTamperRouteModules);
 // ========== NexAI 独立鉴权系统 ==========
 logger.info("[NexAI] 鉴权路由已挂载 /api/nexai");
 
