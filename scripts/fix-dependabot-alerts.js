@@ -40,8 +40,25 @@ const EXCLUDED_DIRECTORIES = new Set([
 ]);
 
 function parseCliArgs(argv) {
+  const targets = [];
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const argument = argv[index];
+
+    if (argument === '--target' && argv[index + 1]) {
+      targets.push(argv[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (argument.startsWith('--target=')) {
+      targets.push(argument.slice('--target='.length));
+    }
+  }
+
   return {
     repairOnly: argv.includes('--repair') || argv.includes('--repair-only'),
+    targets,
   };
 }
 
@@ -589,6 +606,36 @@ async function collectPackageJsonPaths(directoryPath) {
   return packageJsonPaths;
 }
 
+function normalizeTargetFilter(targetFilter) {
+  return `${targetFilter}`
+    .trim()
+    .replace(/\\/g, '/')
+    .replace(/^\.\//, '')
+    .replace(/\/$/, '');
+}
+
+function filterTargetsByCliArgs(targets, cliArgs) {
+  if (cliArgs.targets.length === 0) {
+    return targets;
+  }
+
+  const normalizedFilters = cliArgs.targets.map(normalizeTargetFilter);
+
+  return targets.filter((target) => {
+    const normalizedLabel = normalizeTargetFilter(target.packageJsonLabel);
+    const normalizedDirectory = normalizeTargetFilter(
+      path.relative(ROOT_DIR, target.dir) || '.'
+    );
+
+    return normalizedFilters.some((targetFilter) =>
+      targetFilter === normalizedLabel
+      || targetFilter === normalizedDirectory
+      || normalizedLabel.endsWith(`/${targetFilter}`)
+      || normalizedDirectory.endsWith(`/${targetFilter}`)
+    );
+  });
+}
+
 async function discoverTargets() {
   const packageJsonPaths = await collectPackageJsonPaths(ROOT_DIR);
   const targets = [];
@@ -812,19 +859,27 @@ async function main() {
   );
 
   const pnpmTargets = await discoverTargets();
+  const filteredPnpmTargets = filterTargetsByCliArgs(pnpmTargets, cliArgs);
   const rustTarget = await discoverRustTarget();
   const includeRustTarget = !cliArgs.repairOnly && rustTarget;
-  const totalTargets = pnpmTargets.length + (includeRustTarget ? 1 : 0);
+  const totalTargets = filteredPnpmTargets.length + (includeRustTarget ? 1 : 0);
 
   if (totalTargets === 0) {
-    throw new Error('No package.json with dependencies or backend/Cargo.toml was found under the repository root.');
+    throw new Error(
+      cliArgs.targets.length > 0
+        ? `No package.json target matched: ${cliArgs.targets.join(', ')}`
+        : 'No package.json with dependencies or backend/Cargo.toml was found under the repository root.'
+    );
   }
 
   console.log(`Repository root: ${ROOT_DIR}`);
   console.log(`Targets: ${totalTargets}`);
   console.log(`Mode: ${cliArgs.repairOnly ? 'repair-only' : 'upgrade'}`);
+  if (cliArgs.targets.length > 0) {
+    console.log(`Target filter: ${cliArgs.targets.join(', ')}`);
+  }
 
-  for (const target of pnpmTargets) {
+  for (const target of filteredPnpmTargets) {
     console.log(
       `- ${target.packageJsonLabel} (${describeCounts(target.dependencyCounts)})`
     );
@@ -836,7 +891,7 @@ async function main() {
     );
   }
 
-  for (const [index, target] of pnpmTargets.entries()) {
+  for (const [index, target] of filteredPnpmTargets.entries()) {
     printSection(
       index + 1,
       totalTargets,
@@ -848,7 +903,7 @@ async function main() {
 
   if (includeRustTarget) {
     printSection(
-      pnpmTargets.length + 1,
+      filteredPnpmTargets.length + 1,
       totalTargets,
       `upgrade ${rustTarget.cargoManifestLabel}`
     );
